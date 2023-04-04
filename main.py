@@ -33,7 +33,7 @@ def main():
     menu_items = {
         1: {"name": "Show status", "function": vault.show_status},
         2: {"name": "Build room", "function": vault.get_available_room_types},
-        3: {"name": "Manage dwellers", "function": vault.manage_dwellers},
+        3: {"name": "Manage dwellers", "function": "vault.manage_dwellers"},
         0: {"name": "Exit", "function": exit},
     }
 
@@ -69,3 +69,7 @@ def main():
                     raise ValueError
             except ValueError:
                 logger.error("Please enter a valid choice.")
+
+
+if __name__ == "__main__":
+    main()

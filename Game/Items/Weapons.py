@@ -93,25 +93,25 @@ class Pistol(Gun):
 @dataclass(frozen=True)
 class PipePistol(Pistol):
     name: str = "Pipe pistol"
-    damage_range: tuple[int, int] = (5, 10)
+    damage_range: tuple[int, int] = (1, 3)
 
 
 @dataclass(frozen=True)
 class Dot32Pistol(Pistol):
     name: str = ".32 pistol"
-    damage_range: tuple[int, int] = (8, 15)
+    damage_range: tuple[int, int] = (1, 2)
 
 
 @dataclass(frozen=True)
 class TenMMPistol(Pistol):
     name: str = "10mm pistol"
-    damage_range: tuple[int, int] = (10, 20)
+    damage_range: tuple[int, int] = (2, 3)
 
 
 @dataclass(frozen=True)
 class Scoped44(Pistol):
     name: str = "Scoped .44"
-    damage_range: tuple[int, int] = (15, 30)
+    damage_range: tuple[int, int] = (3, 4)
 
 
 @dataclass(frozen=True)

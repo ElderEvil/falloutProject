@@ -23,9 +23,10 @@ class Outfit(Item):
 
 
 class TieredOutfit(Outfit):
+    armor_type = "Tiered Outfit"
+
     def __init__(self, rarity: ItemRarity, name: str = None):
         super().__init__(name, rarity)
-        self.type = 'Tiered Outfit'
         self.prefix = self._get_prefix_by_rarity()
         self.armor_name_list = [
             " vault suit",
@@ -47,26 +48,31 @@ class TieredOutfit(Outfit):
 
 
 class CommonOutfit(Outfit):
+    armor_type = "Common Outfit"
+
     def __init__(self, name: str = None):
         super().__init__(name, ItemRarity.COMMON)
-        self.type = "Common Outfit"
 
 
 class RareOutfit(Outfit):
+    armor_type = "Rare Outfit"
+
     def __init__(self, name: str = None):
         super().__init__(name, ItemRarity.RARE)
-        self.type = "Rare Outfit"
 
 
 class LegendaryOutfit(Outfit):
+    armor_type = "Legendary Outfit"
+
     def __init__(self, name: str = None):
         super().__init__(name, ItemRarity.LEGENDARY)
-        self.type = "Legendary Outfit"
 
 
 class PowerArmor(Outfit):
+    armor_type = "Power Armor"
+
     def __init__(self, name: str = None):
         super().__init__(name, ItemRarity.LEGENDARY)
-        self.type = "Power Armor"
+
         self.suffixes = {"a", "d", "f", "MK I", "MK IV", "MK VI", }
         self.subtypes = {"T-45", "T-51", "T-60", "X-01", }

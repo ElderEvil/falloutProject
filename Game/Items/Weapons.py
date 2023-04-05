@@ -115,9 +115,9 @@ class Scoped44(Pistol):
 
 
 @dataclass(frozen=True)
-class GaussPistol(Pistol):
-    name: str = "Gauss pistol"
-    damage_range: tuple[int, int] = (20, 40)
+class RustyGaussPistol(Pistol):
+    name: str = "Rusty Gauss pistol"
+    damage_range: tuple[int, int] = (12, 12)
 
 
 @dataclass(frozen=True)
@@ -129,55 +129,55 @@ class Rifle(Gun):
 @dataclass(frozen=True)
 class PipeRifle(Rifle):
     name: str = "Pipe rifle"
-    damage_range: tuple[int, int] = (8, 15)
+    damage_range: tuple[int, int] = (5, 7)
 
 
 @dataclass(frozen=True)
 class AssaultRifle(Rifle):
     name: str = "Assault rifle"
-    damage_range: tuple[int, int] = (12, 22)
+    damage_range: tuple[int, int] = (8, 9)
 
 
 @dataclass(frozen=True)
 class BBGun(Rifle):
     name: str = "BB gun"
-    damage_range: tuple[int, int] = (5, 10)
+    damage_range: tuple[int, int] = (0, 2)
 
 
 @dataclass(frozen=True)
 class GaussRifle(Rifle):
     name: str = "Gauss rifle"
-    damage_range: tuple[int, int] = (25, 50)
+    damage_range: tuple[int, int] = (16, 17)
 
 
 @dataclass(frozen=True)
 class Henrietta(Rifle):
     name: str = "Henrietta"
-    damage_range: tuple[int, int] = (18, 30)
+    damage_range: tuple[int, int] = (13, 16)
 
 
 @dataclass(frozen=True)
 class HuntingRifle(Rifle):
     name: str = "Hunting rifle"
-    damage_range: tuple[int, int] = (15, 25)
+    damage_range: tuple[int, int] = (5, 6)
 
 
 @dataclass(frozen=True)
 class LeverActionRifle(Rifle):
     name: str = "Lever-action rifle"
-    damage_range: tuple[int, int] = (12, 20)
+    damage_range: tuple[int, int] = (4, 5)
 
 
 @dataclass(frozen=True)
 class RailwayRifle(Rifle):
     name: str = "Railway rifle"
-    damage_range: tuple[int, int] = (20, 35)
+    damage_range: tuple[int, int] = (14, 15)
 
 
 @dataclass(frozen=True)
 class SniperRifle(Rifle):
     name: str = "Sniper rifle"
-    damage_range: tuple[int, int] = (20, 40)
+    damage_range: tuple[int, int] = (10, 11)
 
 
 @dataclass(frozen=True)
@@ -189,13 +189,13 @@ class Shotgun(Gun):
 @dataclass(frozen=True)
 class CombatShotgun(Shotgun):
     name: str = "Combat shotgun"
-    damage_range: tuple[int, int] = (18, 30)
+    damage_range: tuple[int, int] = (13, 14)
 
 
 @dataclass(frozen=True)
 class SawedOffShotgun(Shotgun):
     name: str = "Sawed-off shotgun"
-    damage_range: tuple[int, int] = (20, 30)
+    damage_range: tuple[int, int] = (6, 7)
 
 
 @dataclass(frozen=True)
@@ -212,31 +212,31 @@ class EnergyPistol(EnergyWeapon):
 @dataclass(frozen=True)
 class AlienBlaster(EnergyPistol):
     name: str = "Alien blaster"
-    damage_range: tuple[int, int] = (50, 70)
+    damage_range: tuple[int, int] = (18, 19)
 
 
 @dataclass(frozen=True)
 class LaserPistol(EnergyPistol):
     name: str = "Laser pistol"
-    damage_range: tuple[int, int] = (10, 20)
+    damage_range: tuple[int, int] = (7, 8)
 
 
 @dataclass(frozen=True)
 class PlasmaPistol(EnergyPistol):
     name: str = "Plasma pistol"
-    damage_range: tuple[int, int] = (20, 30)
+    damage_range: tuple[int, int] = (11, 12)
 
 
 @dataclass(frozen=True)
 class AssaultronHead(EnergyPistol):
     name: str = "Assaultron head"
-    damage_range: tuple[int, int] = (40, 50)
+    damage_range: tuple[int, int] = (8, 12)
 
 
 @dataclass(frozen=True)
 class InstitutePistol(EnergyPistol):
     name: str = "Institute pistol"
-    damage_range: tuple[int, int] = (15, 25)
+    damage_range: tuple[int, int] = (9, 11)
 
 
 @dataclass(frozen=True)
@@ -248,37 +248,37 @@ class EnergyRifle(EnergyWeapon):
 @dataclass(frozen=True)
 class LaserMusket(EnergyRifle):
     name: str = "Laser musket"
-    damage_range: tuple[int, int] = (50, 80)
+    damage_range: tuple[int, int] = (10, 13)
 
 
 @dataclass(frozen=True)
 class AlienDisintegrator(EnergyRifle):
     name: str = "Alien disintegrator"
-    damage_range: tuple[int, int] = (70, 90)
+    damage_range: tuple[int, int] = (17, 17)
 
 
 @dataclass(frozen=True)
 class LaserRifle(EnergyRifle):
     name: str = "Laser rifle"
-    damage_range: tuple[int, int] = (15, 25)
+    damage_range: tuple[int, int] = (12, 13)
 
 
 @dataclass(frozen=True)
 class PlasmaRifle(EnergyRifle):
     name: str = "Plasma rifle"
-    damage_range: tuple[int, int] = (30, 40)
+    damage_range: tuple[int, int] = (17, 18)
 
 
 @dataclass(frozen=True)
 class PulseRifle(EnergyRifle):
     name: str = "Pulse rifle"
-    damage_range: tuple[int, int] = (40, 50)
+    damage_range: tuple[int, int] = (18, 19)
 
 
 @dataclass(frozen=True)
 class InstituteRifle(EnergyRifle):
     name: str = "Institute rifle"
-    damage_range: tuple[int, int] = (25, 35)
+    damage_range: tuple[int, int] = (14, 16)
 
 
 @dataclass(frozen=True)
@@ -295,19 +295,19 @@ class ExplosiveWeapons(HeavyWeapons):
 @dataclass(frozen=True)
 class FatMan(ExplosiveWeapons):
     name: str = "Fat Man"
-    damage_range: tuple[int, int] = (25, 35)
+    damage_range: tuple[int, int] = (22, 23)
 
 
 @dataclass(frozen=True)
 class MissileLauncher(ExplosiveWeapons):
     name: str = "Missile launcher"
-    damage_range: tuple[int, int] = (25, 35)
+    damage_range: tuple[int, int] = (20, 21)
 
 
 @dataclass(frozen=True)
 class JunkJet(ExplosiveWeapons):
     name: str = "Junk Jet"
-    damage_range: tuple[int, int] = (25, 35)
+    damage_range: tuple[int, int] = (13, 15)
 
 
 @dataclass(frozen=True)
@@ -318,13 +318,13 @@ class Flamers(HeavyWeapons):
 @dataclass(frozen=True)
 class Flamer(Flamers):
     name: str = "Flamer"
-    damage_range: tuple[int, int] = (25, 35)
+    damage_range: tuple[int, int] = (15, 16)
 
 
 @dataclass(frozen=True)
 class PlasmaThrower(Flamers):
     name: str = "Plasma thrower"
-    damage_range: tuple[int, int] = (25, 35)
+    damage_range: tuple[int, int] = (17, 19)
 
 
 @dataclass(frozen=True)
@@ -335,16 +335,16 @@ class AutomaticWeapons(HeavyWeapons):
 @dataclass(frozen=True)
 class Minigun(AutomaticWeapons):
     name: str = "Minigun"
-    damage_range: tuple[int, int] = (25, 35)
+    damage_range: tuple[int, int] = (19, 20)
 
 
 @dataclass(frozen=True)
 class GatlingLaser(AutomaticWeapons):
     name: str = "Gatling laser"
-    damage_range: tuple[int, int] = (25, 35)
+    damage_range: tuple[int, int] = (21, 22)
 
 
 @dataclass(frozen=True)
 class PlasmaCaster(AutomaticWeapons):
     name: str = "Plasma caster"
-    damage_range: tuple[int, int] = (25, 35)
+    damage_range: tuple[int, int] = (17, 21)

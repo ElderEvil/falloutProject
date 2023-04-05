@@ -1,33 +1,18 @@
-from enum import Enum
-
-
-class QuestState(Enum):
-    NOT_STARTED = 1
-    IN_PROGRESS = 2
-    DONE = 3
-    FAILED = 4
-
-
 class QuestStep:
-    def __init__(self, name):
-        self.name = name
-        self.completed = False
+    def __init__(self, description: str, is_completed: bool = False):
+        self.description = description
+        self.is_completed = is_completed
 
 
 class Quest:
-    def __init__(self, name, description, preconditions):
-        self.id = None
+    def __init__(self, name: str, steps: list[QuestStep]):
         self.name = name
-        self.description = description
-        self.preconditions = preconditions
-        self.state = QuestState.NOT_STARTED
-
-    def __str__(self):
-        return f"{self.id}: {self.name} ({self.state.name.lower()})"
+        self.steps = steps
+        self.is_completed = False
 
 
-class QuestProgress:
-    def __init__(self, quest_id, player_id, state):
-        self.quest_id = quest_id
-        self.player_id = player_id
-        self.state = state
+class QuestChain:
+    def __init__(self, name: str, quests: list[Quest]):
+        self.name = name
+        self.quests = quests
+        self.is_completed = False

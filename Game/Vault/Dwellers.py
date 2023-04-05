@@ -47,7 +47,7 @@ class Dweller(Person):
     @property
     def defense(self):
         if self.equipped_outfit:
-            return self.endurance + self.agility + self.equipped_outfit.defense
+            return self.endurance + self.agility  # TODO self.equipped_outfit.defense
         else:
             return self.endurance + self.agility
 

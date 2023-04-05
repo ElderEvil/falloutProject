@@ -1,7 +1,7 @@
 from typing import Type
 
 from Game.Vault.Rooms import RoomType, AbstractRoom
-from logger_settings import logger
+from Game.logger_settings import logger
 
 
 class RoomBuilder:

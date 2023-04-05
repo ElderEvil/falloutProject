@@ -1,6 +1,6 @@
 from Game.Vault.Vault import Vault
-from Game.Vault.utilities.Navigation import NavigationStack
-from logger_settings import logger
+from utilities.menu_navigation import NavigationStack
+from Game.logger_settings import logger
 
 
 def get_valid_int_input(prompt, lower_bound, upper_bound):
@@ -19,7 +19,15 @@ def display_menu(menu_items):
     for key, value in menu_items.items():
         print(f"{key}. {value['name']}")
     print("b. Go back")
-    print("f. Go forward")
+
+
+pip_boy = {
+    1: {"name": "Quests", "function": "get_quests"},
+    2: {"name": "Tasks", "function": "get_tasks"},
+    3: {"name": "Storage", "function": "show_storage"},
+    4: {"name": "Help", "function": "get_help"},
+    5: {"name": "Settings", "function": "settings"},
+}
 
 
 def main():
@@ -27,37 +35,28 @@ def main():
     vault_num = get_valid_int_input('Enter the number of your vault: ', 1, 999)
     vault = Vault(f"Vault {vault_num}")
     navigation_stack = NavigationStack()
-    navigation_stack.push(vault.show_status)
 
     # Define menu items
     menu_items = {
-        1: {"name": "Show status", "function": vault.show_status},
-        2: {"name": "Build room", "function": vault.get_available_room_types},
-        3: {"name": "Manage dwellers", "function": "vault.manage_dwellers"},
+        1: {"name": "Status", "function": vault.show_status},
+        2: {"name": "Pip-Boy", "function": pip_boy},
+        3: {"name": "Build room", "function": vault.get_available_room_types},
         0: {"name": "Exit", "function": exit},
     }
 
     # Main game loop
     while True:
         # Display current menu
-        current_menu_item = navigation_stack.current()
-        current_menu_item(verbose=True)
 
         # Display menu and get user input
         display_menu(menu_items)
-        choice = input("Enter the number of your choice (or 'b' to go back, 'f' to go forward): ")
+        choice = input("Enter the number of your choice (or 'b' to go back): ")
 
         # Check if user wants to go back
         if choice.lower() == 'b':
             navigation_stack.pop()
 
-        # Check if user wants to go forward
-        elif choice.lower() == 'f':
-            current_menu_item = navigation_stack.pop()
-            if current_menu_item:
-                navigation_stack.push(current_menu_item)
-
-        # Otherwise, execute chosen menu item
+        # Execute chosen menu item
         else:
             try:
                 choice = int(choice)

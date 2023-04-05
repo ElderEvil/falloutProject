@@ -17,4 +17,3 @@ class NavigationStack:
         if self.is_empty():
             return None
         return self.stack[-1]
-

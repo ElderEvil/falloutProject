@@ -7,7 +7,7 @@ from Game.Vault.Rooms import AbstractRoom
 from Game.Vault.Storage import Storage
 from Game.Vault.utilities.RoomBuilder import RoomBuilder
 from Game.settings import *
-from logger_settings import logger
+from Game.logger_settings import logger
 
 
 class Vault:

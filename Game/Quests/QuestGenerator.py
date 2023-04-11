@@ -1,12 +1,13 @@
-from Game.Quests.Quest import Quest
+from Game.Quests.Quest import QuestStep, Quest, QuestChain
 
 
 class QuestGenerator:
     def __init__(self):
-        self.quest_id_counter = 0
+        self.initial_prompt = ""
+        self.quest_chain = None
 
-    def generate_quest(self, name, description, preconditions):
-        quest = Quest(name, description, preconditions)
-        quest.id = self.quest_id_counter
-        self.quest_id_counter += 1
-        return quest
+    def generate_quest_chain(self, name, quest_number, depends_on=None, description=""):
+        quest_steps = [QuestStep("Default")]
+        quests = [Quest("name", quest_steps) for _ in range(quest_number)]
+
+        self.quest_chain = QuestChain(name, quests)

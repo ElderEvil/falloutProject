@@ -1,8 +1,7 @@
 import asyncio
 import logging
-
 import random
-from typing import Optional
+from typing import Self
 
 from Game.Items.Outfits import Outfit
 from Game.Items.Weapons import Weapon
@@ -26,8 +25,8 @@ class Dweller(Person):
         self.health = self.max_health
 
         # Combat
-        self.equipped_weapon: Optional[Weapon] = None
-        self.equipped_outfit: Optional[Outfit] = None
+        self.equipped_weapon: Weapon | None = None
+        self.equipped_outfit: Outfit | None = None
 
         # Vault info
         self.happiness = 50
@@ -56,9 +55,9 @@ class Dweller(Person):
 
     def equip_outfit(self, outfit: Outfit):
         if not self.is_adult:
-            raise ValueError("Children can not wear outfits")
+            logger.error("Children can not wear outfits")
         elif self.gender != outfit.gender:
-            raise ValueError(f"{outfit} is not appropriate attire for {self.full_name}")
+            logger.error(f"{outfit} is not appropriate attire for {self.full_name}")
 
         if self.equipped_outfit:
             STORAGE.append(self.equipped_outfit)
@@ -98,7 +97,7 @@ class Dweller(Person):
         if self.is_alive:
             logger.info("Cannot reanimate alive dweller")
         else:
-            self.health = self.max_health // 5
+            self.health = self.max_health
 
     def add_experience(self, amount: int):
         self.experience += amount
@@ -135,7 +134,7 @@ class Dweller(Person):
         else:
             setattr(self, attribute, getattr(self, attribute) - value)
 
-    def reproduce(self, partner: 'Dweller') -> Optional['Dweller']:
+    def reproduce(self, partner: 'Dweller') -> Self | None:
         from Game.Vault.Rooms import LivingRoom
         if self.gender == partner.gender:
             logger.info("Same-gender reproduction is not possible!")
@@ -177,7 +176,7 @@ class Dweller(Person):
 
         # Print a success message and return the new dweller object
         logger.info(
-            f"{self.full_name} and {partner.full_name} have successfully reproduced! Welcome, {child.full_name}!")
+            f"{self.full_name} and {partner.full_name} have a baby! Welcome, {child.full_name}!")
         return child
 
     async def grow_up(self):

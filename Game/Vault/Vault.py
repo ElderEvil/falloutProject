@@ -152,6 +152,10 @@ class Vault:
         self.rooms.append(room)
         return room
 
+    def show_storage(self):
+        items = self.storage.get_items()
+        print(items)
+
     def show_status(self, verbose: bool = False):
         """
         Displays the current status of the vault, including the number of dwellers, happiness, resources, rooms

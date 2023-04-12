@@ -14,7 +14,7 @@ STAT_BY_LETTER = {
     "L": "luck",
 }
 
-SPECIAL_LETTERS = ("S", "P", "E", "C", "I", "A", "L")
+SPECIAL_LETTERS = tuple(STAT_BY_LETTER)
 
 
 class PersonRarity(Enum):

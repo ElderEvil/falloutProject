@@ -1,12 +1,14 @@
 from abc import ABC
 from enum import Enum
 
-from Game.Items.Items import Item, Stimpak, RadAway
+from sqlmodel import SQLModel, Field
+
+from Game.Items.models import Item, Stimpak, RadAway
 from Game.Vault.Dwellers import Dweller
 from Game.Vault.Resources import ResourceType
 
 
-class RoomType(Enum):
+class RoomType(str, Enum):
     CAPACITY = "Capacity"
     CRAFTING = "Crafting"
     MISC = "Misc"
@@ -14,6 +16,16 @@ class RoomType(Enum):
     QUESTS = "Quests"
     THEME = "Theme"
     TRAINING = "Training"
+
+
+class RoomBase(SQLModel):
+    id: int | None = Field(default=None, primary_key=True)
+    name: str
+    type: RoomType
+    population_required: int
+    base_cost: int
+    incremental_cost: int
+    workers: list
 
 
 class AbstractRoom(ABC):

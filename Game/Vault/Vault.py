@@ -18,10 +18,7 @@ class VaultBase(SQLModel):
     bottle_caps: int = Field(default=GameSettings.DEFAULT_BOTTLE_CAPS, ge=0, le=GameSettings.MAX_BOTTLE_CAPS)
 
 
-class Vault(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    name: str = Field(index=True, max_length=4)
-    bottle_caps: int = Field(default=GameSettings.DEFAULT_BOTTLE_CAPS, ge=0, le=GameSettings.MAX_BOTTLE_CAPS)
+class Vault(VaultBase, table=True):
 
     dwellers: list["Dweller"] = Relationship(back_populates="vault")
 

@@ -1,4 +1,4 @@
-from Game.Items.Items import Item
+from Game.Items.models import Item
 from Game.settings import DEFAULT_STORAGE_CAPACITY
 
 

@@ -28,7 +28,7 @@ class Dweller(Person, SQLModel, table=True):
     health: int = 0
     equipped_weapon: Weapon | None = None
     equipped_outfit: Outfit | None = None
-    happiness: int = 50
+    happiness: int = Field(default=50, ge=10, le=100)
     is_adult: bool = True
     # current_room: 'RoomType' | None = None
 

@@ -19,14 +19,6 @@ class OutfitBase(ItemBase):
     gender: Gender | None = None
     stats: dict = Field(default={})
 
-    def get_value_by_rarity(self):
-        rarity_value = {
-            "common": 10,
-            "rare": 100,
-            "legendary": 500,
-        }
-        return rarity_value[self.rarity]
-
     def __str__(self):
         return f"🛡️{self.name}"
 

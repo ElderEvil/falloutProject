@@ -1,11 +1,23 @@
+from enum import Enum
+
 from sqlmodel import Field
 
 from Game.Items.models.items import ItemBase, ItemUpdate
-from utilities.common import Rarity
+from utils.common import Rarity
+
+
+class JunkType(str, Enum):
+    Circuitry = "Circuitry"
+    Leather = "Leather"
+    Adhesive = "Adhesive"
+    Cloth = "Cloth"
+    Science = "Science"
+    Steel = "Steel"
+    Valuables = "Valuables"
 
 
 class JunkBase(ItemBase):
-    junk_type: str
+    junk_type: JunkType
     description: str
 
     _value_by_rarity = {
@@ -15,7 +27,8 @@ class JunkBase(ItemBase):
     }
 
     def __str__(self):
-        return f"{self.name} (Type: {self.junk_type}, Rarity: {self.rarity.name})"
+        return f"{self.name} (Type: {self.junk_type.name}, Rarity: {self.rarity.name}, Value: {self.value})\n" \
+               f"{self.description}"
 
 
 class Junk(JunkBase, table=True):

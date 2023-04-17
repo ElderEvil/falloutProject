@@ -1,0 +1,40 @@
+from pydantic import root_validator
+from sqlmodel import SQLModel, Field
+
+from utilities.common import Rarity
+
+
+class ItemBase(SQLModel):
+    name: str = Field(index=True, min_length=3, max_length=32)
+    rarity: Rarity
+    value: int | None
+
+    _value_by_rarity = {
+        Rarity.common: 10,
+        Rarity.rare: 100,
+        Rarity.legendary: 500,
+    }
+
+    @root_validator
+    def set_default_value(cls, values) -> int:
+        if "value" not in values:
+            values["value"] = cls._value_by_rarity[values["rarity"]]
+        return values
+
+
+class Item(ItemBase, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+
+
+class ItemCreate(ItemBase):
+    pass
+
+
+class ItemRead(ItemBase):
+    id: int
+
+
+class ItemUpdate(SQLModel):
+    name: str | None = None
+    rarity: Rarity | None = None
+    value: int | None = None

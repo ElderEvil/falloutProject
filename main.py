@@ -1,95 +1,85 @@
-from Game.Quests.QuestManager import QuestManager
-from Game.Quests.Tasks import TaskManager
-from Game.Vault.Vault import Vault
-from Game.logger_settings import logger
-from utilities.menu_navigation import NavigationStack
+from fastapi import FastAPI, Depends, HTTPException, Query
+from sqlmodel import Session, SQLModel, create_engine, select
+
+from Game.Items.models.weapons import WeaponCreate, Weapon, WeaponRead, WeaponUpdate
+from Game.Items.router import router as item_router
+
+sqlite_file_name = "database.db"
+sqlite_url = f"sqlite:///{sqlite_file_name}"
+
+connect_args = {"check_same_thread": False}
+engine = create_engine(sqlite_url, echo=True)
 
 
-def get_help():
-    ...
+def create_db_and_tables():
+    SQLModel.metadata.create_all(engine)
 
 
-def show_settings():
-    ...
+def get_session():
+    with Session(engine) as session:
+        yield session
 
 
-def get_valid_int_input(prompt, lower_bound, upper_bound):
-    while True:
-        try:
-            value = int(input(prompt))
-            if lower_bound <= value <= upper_bound:
-                return value
-            raise ValueError(f"Value must be between {lower_bound} and {upper_bound}")
-        except ValueError:
-            logger.error(f"Please enter a valid number between {lower_bound} and {upper_bound}.")
+app = FastAPI()
 
 
-def display_menu(menu_items):
-    print("What do you want to do?")
-    for key, value in menu_items.items():
-        print(f"{key}. {value['name']}")
-    print("b. Go back")
+@app.on_event("startup")
+def on_startup():
+    create_db_and_tables()
 
 
-def main():
-    # Ask for the number of the vault
-    vault_num = get_valid_int_input('Enter the number of your vault: ', 1, 999)
-    vault = Vault(name=f"Vault {vault_num}")
-    navigation_stack = NavigationStack()
-    quest_manager = QuestManager()
-    task_manager = TaskManager()
-
-    def build_room():
-        rooms_to_build = vault.get_available_room_types()
-        print("Rooms you can build:")
-        for i, room in enumerate(rooms_to_build, start=1):
-            print(f"{i}. {room['name']}")
-        room_choice = get_valid_int_input("Enter room number", 1, len(rooms_to_build))
-        vault.construct_room(rooms_to_build[room_choice - 1])
-
-    # Define menu items
-
-    pip_boy_menu = {
-        1: {"name": "Quests", "function": quest_manager.get_quests},
-        2: {"name": "Tasks", "function": task_manager.get_tasks},
-        3: {"name": "Storage", "function": vault.show_storage},
-        4: {"name": "Help", "function": get_help},
-        5: {"name": "Settings", "function": show_settings},
-        0: {"name": "Back", "function": show_settings},
-    }
-
-    main_menu = {
-        1: {"name": "Status", "function": vault.show_status},
-        2: {"name": "Pip-Boy", "function": pip_boy_menu},
-        3: {"name": "Build room", "function": build_room},
-        0: {"name": "Exit", "function": exit},
-    }
-
-    # Main game loop
-    while True:
-        # Display current menu
-
-        # Display menu and get user input
-        display_menu(main_menu)
-        choice = input("Enter the number of your choice (or 'b' to go back): ")
-
-        # Check if user wants to go back
-        if choice.lower() == 'b':
-            navigation_stack.pop()
-
-        # Execute chosen menu item
-        else:
-            try:
-                choice = int(choice)
-                menu_item = main_menu.get(choice)
-                if menu_item:
-                    function = menu_item['function']
-                    navigation_stack.push(function)
-                else:
-                    raise ValueError
-            except ValueError:
-                logger.error("Please enter a valid choice.")
+app.include_router(item_router, prefix="/database", tags=["database"])
 
 
-if __name__ == "__main__":
-    main()
+@app.post("/weapons/", response_model=WeaponRead)
+def create_weapon(*, session: Session = Depends(get_session), weapon: WeaponCreate):
+    db_weapon = Weapon.from_orm(weapon)
+    session.add(db_weapon)
+    session.commit()
+    session.refresh(db_weapon)
+    return db_weapon
+
+
+@app.get("/weapons/", response_model=list[WeaponRead])
+def read_weapons(
+        *,
+        session: Session = Depends(get_session),
+        offset: int = 0,
+        limit: int = Query(default=100, lte=100),
+):
+    weapons = session.exec(select(Weapon).offset(offset).limit(limit)).all()
+    return weapons
+
+
+@app.get("/weapons/{weapon_id}", response_model=WeaponRead)
+def read_weapon(*, session: Session = Depends(get_session), weapon_id: int):
+    weapon = session.get(Weapon, weapon_id)
+    if not weapon:
+        raise HTTPException(status_code=404, detail="Hero not found")
+    return weapon
+
+
+@app.patch("/weapons/{weapon_id}", response_model=WeaponRead)
+def update_weapon(
+        *, session: Session = Depends(get_session), weapon_id: int, weapon: WeaponUpdate
+):
+    db_weapon = session.get(Weapon, weapon_id)
+    if not db_weapon:
+        raise HTTPException(status_code=404, detail="Weapon not found")
+    weapon_data = weapon.dict(exclude_unset=True)
+    for key, value in weapon_data.items():
+        setattr(db_weapon, key, value)
+    session.add(db_weapon)
+    session.commit()
+    session.refresh(db_weapon)
+    return db_weapon
+
+
+@app.delete("/weapons/{weapon_id}")
+def delete_weapon(*, session: Session = Depends(get_session), weapon_id: int):
+    weapon = session.get(Weapon, weapon_id)
+    if not weapon:
+        raise HTTPException(status_code=404, detail="Weapon not found")
+    session.delete(weapon)
+    session.commit()
+    return {"ok": True}

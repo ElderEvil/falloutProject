@@ -2,7 +2,7 @@ from Game.Quests.QuestManager import QuestManager
 from Game.Quests.Tasks import TaskManager
 from Game.Vault.Vault import Vault
 from Game.logger_settings import logger
-from utilities.menu_navigation import NavigationStack
+from utils.menu_navigation import NavigationStack
 
 
 def get_help():

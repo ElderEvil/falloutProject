@@ -1,7 +1,7 @@
 from pydantic import root_validator
 from sqlmodel import SQLModel, Field
 
-from utilities.common import Rarity
+from utils.common import Rarity
 
 
 class ItemBase(SQLModel):

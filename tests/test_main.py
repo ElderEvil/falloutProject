@@ -5,7 +5,7 @@ from sqlmodel.pool import StaticPool
 
 from Game.Items.models.weapons import Weapon
 from main import app, get_session
-from utilities.common import Rarity
+from utils.common import Rarity
 
 
 @pytest.fixture(name="session")

@@ -3,7 +3,7 @@ from enum import Enum
 from sqlmodel import SQLModel, Field
 
 from Game.Items.models.items import ItemBase
-from utilities.common import Rarity, Gender
+from utils.common import Rarity, Gender
 
 
 class OutfitType(str, Enum):

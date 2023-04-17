@@ -3,7 +3,7 @@ import random
 from faker import Faker
 from pydantic import BaseModel, validator
 
-from utilities.common import Rarity, Gender
+from utils.common import Rarity, Gender
 
 fake = Faker()
 

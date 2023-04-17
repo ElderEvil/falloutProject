@@ -1,11 +1,13 @@
 import random
-from enum import Enum
 
 from faker import Faker
+from pydantic import BaseModel, validator
+
+from utilities.generic import Rarity, Gender
 
 fake = Faker()
 
-STAT_BY_LETTER = {
+LETTER_TO_STAT = {
     "S": "strength",
     "P": "perception",
     "A": "agility",
@@ -14,40 +16,57 @@ STAT_BY_LETTER = {
     "L": "luck",
 }
 
-SPECIAL_LETTERS = tuple(STAT_BY_LETTER)
+
+class SPECIAL(BaseModel):
+    rarity: Rarity
+    strength: int
+    perception: int
+    endurance: int
+    charisma: int
+    intelligence: int
+    agility: int
+    luck: int
+
+    _stats_by_rarity = {
+        Rarity.common: (1, 3),
+        Rarity.rare: (3, 6),
+        Rarity.legendary: (6, 10),
+    }
+
+    @validator('strength', 'perception', 'endurance', 'charisma', 'intelligence', 'agility', 'luck')
+    def validate_stats(cls, v, values):
+        rarity = values['rarity']
+        stat_min, stat_max = cls._stats_by_rarity[rarity]
+        if not stat_min <= v <= stat_max:
+            raise ValueError(f"Invalid stat value for rarity {rarity}: {v}")
+        return v
 
 
-class PersonRarity(Enum):
-    COMMON = {'name': 'Common', 'stat_range': (1, 3)}
-    RARE = {'name': 'Rare', 'stat_range': (3, 6)}
-    LEGENDARY = {'name': 'Legendary', 'stat_range': (6, 10)}
+class Person(BaseModel, SPECIAL):
+    gender: Gender = Gender.male
+    first_name: str = ""
+    last_name: str = ""
+    rarity: Rarity = Rarity.common
 
+    @validator('first_name')
+    def validate_first_name(cls, v, values):
+        if not v:
+            gender = values.get('gender')
+            return cls.get_gender_based_name(gender)
+        return v
 
-class SPECIAL:
-    def __init__(self, rarity: PersonRarity = PersonRarity.COMMON):
-        self.__rarity = rarity
-        self.__base_stats = {letter: random.randint(*self.__rarity.value['stat_range']) for letter in SPECIAL_LETTERS}
-        self.strength, self.perception, self.endurance, self.charisma, self.intelligence, self.agility, self.luck = \
-            self.base_stats.values()
-
-    @property
-    def rarity(self):
-        return self.__rarity
-
-    @property
-    def base_stats(self):
-        return self.__base_stats
-
-
-class Person(SPECIAL):
-    def __init__(self, gender: str = None, first_name: str = None, last_name: str = None,
-                 rarity: PersonRarity = PersonRarity.COMMON):
-        super().__init__(rarity)
-        self.gender = gender or random.choice(["M", "F"])
-        self.first_name = first_name or self.get_gender_based_name(self.gender)
-        self.last_name = last_name or fake.last_name()
-        self.full_name = f"{self.first_name} {self.last_name}"
+    @validator('last_name')
+    def validate_last_name(cls, v):
+        if not v:
+            return fake.last_name()
+        return v
 
     @staticmethod
-    def get_gender_based_name(gender):
-        return fake.first_name_male() if gender == "M" else fake.first_name_female()
+    def get_gender_based_name(gender: Gender):
+        if gender == Gender.male:
+            return fake.first_name_male()
+        else:
+            return fake.first_name_female()
+
+    class Config:
+        arbitrary_types_allowed = True

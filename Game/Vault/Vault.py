@@ -1,23 +1,35 @@
 from statistics import mean
 from typing import Type
 
+from sqlmodel import SQLModel, Relationship, Field
+
 from Game.Vault.Dwellers import Dweller
 from Game.Vault.Resources import ResourceType
 from Game.Vault.Rooms import AbstractRoom
 from Game.Vault.Storage import Storage
 from Game.Vault.utilities.RoomBuilder import RoomBuilder
-from Game.settings import *
+from Game.settings import GameSettings
 from Game.logger_settings import logger
 
 
-class Vault:
+class VaultBase(SQLModel):
+    id: int | None = Field(default=None, primary_key=True)
+    name: str = Field(index=True, max_length=4)
+    bottle_caps: int = Field(default=GameSettings.DEFAULT_BOTTLE_CAPS, ge=0, le=GameSettings.MAX_BOTTLE_CAPS)
 
-    def __init__(self, name: str):
+
+class Vault(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    name: str = Field(index=True, max_length=4)
+    bottle_caps: int = Field(default=GameSettings.DEFAULT_BOTTLE_CAPS, ge=0, le=GameSettings.MAX_BOTTLE_CAPS)
+
+    dwellers: list["Dweller"] = Relationship(back_populates="vault")
+
+    def __init__(self, **data):
+        super().__init__(**data)
         self._rb = RoomBuilder()
-        self.name = name
-        self.bottle_caps = 1000
+
         self.storage = Storage()
-        self.dwellers = []
         self.rooms = []
 
         self.power = ResourceType('Power', 100)
@@ -28,14 +40,14 @@ class Vault:
 
     def __populate_vault(self):
         vault_door = self.construct_room("Vault door")
-        for _ in range(DEFAULT_VAULT_DWELLERS_NUMBER):
+        for _ in range(GameSettings.DEFAULT_VAULT_DWELLERS_NUMBER):
             dweller = Dweller()
             vault_door.add_worker(dweller)
             self.add_dweller(dweller)
 
     @property
     def population(self):
-        return len(self.dwellers)
+        return self.dwellers
 
     @property
     def happiness(self):
@@ -64,19 +76,19 @@ class Vault:
         Returns the amount of power to be consumed based on the number of rooms in the vault.
         """
 
-        return len(self.rooms) * POWER_CONSUMPTION_MULTIPLIER
+        return len(self.rooms) * GameSettings.POWER_CONSUMPTION_MULTIPLIER
 
     def get_food_consumption(self):
         """
         Returns the amount of food to be consumed based on the number of dwellers in the vault.
         """
-        return self.population * FOOD_CONSUMPTION_MULTIPLIER
+        return self.population * GameSettings.FOOD_CONSUMPTION_MULTIPLIER
 
     def get_water_consumption(self):
         """
         Returns the amount of water to be consumed based on the number of dwellers in the vault.
         """
-        return self.population * WATER_CONSUMPTION_MULTIPLIER
+        return self.population * GameSettings.WATER_CONSUMPTION_MULTIPLIER
 
     def consume_resources(self, food_amount: int, water_amount: int, power_amount: int) -> None:
         if not self.food.consume(food_amount):

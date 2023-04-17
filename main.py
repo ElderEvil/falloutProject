@@ -34,7 +34,7 @@ def display_menu(menu_items):
 def main():
     # Ask for the number of the vault
     vault_num = get_valid_int_input('Enter the number of your vault: ', 1, 999)
-    vault = Vault(f"Vault {vault_num}")
+    vault = Vault(name=f"Vault {vault_num}")
     navigation_stack = NavigationStack()
     quest_manager = QuestManager()
     task_manager = TaskManager()

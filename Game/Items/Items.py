@@ -1,27 +1,23 @@
-from dataclasses import dataclass
-from enum import Enum
+from pydantic import root_validator
+from sqlmodel import SQLModel, Field
+
+from utilities.generic import Rarity
 
 
-class ItemRarity(Enum):
-    COMMON = {'name': 'Common', 'stat_total': 3, 'value': 10}
-    RARE = {'name': 'Rare', 'stat_total': 5, 'value': 100}
-    LEGENDARY = {'name': 'Legendary', 'stat_total': 7, 'value': 500}
+class Item(SQLModel):
+    id: int | None = Field(default=None, primary_key=True)
+    name: str
+    rarity: Rarity
+    value: int | None
 
+    value_by_rarity = {
+        Rarity.common: 10,
+        Rarity.rare: 100,
+        Rarity.legendary: 500,
+    }
 
-class Item:
-    def __init__(self, name: str, rarity: ItemRarity):
-        self.name = name
-        self.rarity = rarity
-        self.value = rarity.value['value']
-
-
-@dataclass(frozen=True)
-class Stimpak(Item):
-    name = "Stimpak"
-    rarity = ItemRarity.COMMON
-
-
-@dataclass(frozen=True)
-class RadAway(Item):
-    name = "RadAway"
-    rarity = ItemRarity.COMMON
+    @root_validator
+    def set_default_value(cls, values) -> int:
+        if "value" not in values:
+            values["value"] = cls.value_by_rarity[values["rarity"]]
+        return values

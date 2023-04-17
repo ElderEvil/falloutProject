@@ -1,78 +1,34 @@
-import random
+from enum import Enum
 
-from Game.Items.Items import Item, ItemRarity
+from sqlmodel import SQLModel, Field
+
+from utilities.generic import Rarity, Gender
 
 
-class Outfit(Item):
-    def __init__(self, name: str, rarity: ItemRarity, sex: str = None):
-        super().__init__(name, rarity)
-        self.type = "Outfit"
-        self.sex = sex
-        self.stats = {}
-        self.gender = None
-        stat_total = self.rarity.value['stat_total']
-        for special_stat in random.choices(['S', 'P', 'E', 'C', 'I', 'A', 'L'], k=stat_total):
-            if special_stat in self.stats:
-                self.stats[special_stat] += 1
-            else:
-                self.stats[special_stat] = 1
+class OutfitType(str, Enum):
+    CommonOutfit = "Common Outfit"
+    RareOutfit = "Rare Outfit"
+    LegendaryOutfit = "Legendary Outfit"
+    PowerArmor = "Power Armor"
+    TieredOutfit = "Tiered Outfit"
+
+
+class Outfit(SQLModel):
+    id: int | None = Field(default=None, primary_key=True)
+    name: str
+    rarity: Rarity
+    value: int
+    gender: Gender | None = None
+    stats: dict = Field(default={})
+    type: OutfitType = "Common Outfit"
+
+    def get_value_by_rarity(self):
+        rarity_value = {
+            "common": 10,
+            "rare": 100,
+            "legendary": 500,
+        }
+        return rarity_value[self.rarity]
 
     def __str__(self):
-        return f"{self.name} (Type: {self.type}, Rarity: {self.rarity.value['name']}," \
-               f" Stats: {self.stats}, Value: {self.value})"
-
-
-class TieredOutfit(Outfit):
-    armor_type = "Tiered Outfit"
-
-    def __init__(self, rarity: ItemRarity, name: str = None):
-        super().__init__(name, rarity)
-        self.prefix = self._get_prefix_by_rarity()
-        self.armor_name_list = [
-            " vault suit",
-            " battle armor",
-            " leather armor",
-            " wasteland gear",
-            " BoS uniform",
-            " metal armor",
-        ]
-        self.name = self.prefix + random.choice(self.armor_name_list)
-
-    def _get_prefix_by_rarity(self):
-        prefixes = {
-            "Common": "Armored",
-            "Rare": "Sturdy",
-            "Legendary": "Heavy",
-        }
-        return prefixes[self.rarity.value['name']]
-
-
-class CommonOutfit(Outfit):
-    armor_type = "Common Outfit"
-
-    def __init__(self, name: str = None):
-        super().__init__(name, ItemRarity.COMMON)
-
-
-class RareOutfit(Outfit):
-    armor_type = "Rare Outfit"
-
-    def __init__(self, name: str = None):
-        super().__init__(name, ItemRarity.RARE)
-
-
-class LegendaryOutfit(Outfit):
-    armor_type = "Legendary Outfit"
-
-    def __init__(self, name: str = None):
-        super().__init__(name, ItemRarity.LEGENDARY)
-
-
-class PowerArmor(Outfit):
-    armor_type = "Power Armor"
-
-    def __init__(self, name: str = None):
-        super().__init__(name, ItemRarity.LEGENDARY)
-
-        self.suffixes = {"a", "d", "f", "MK I", "MK IV", "MK VI", }
-        self.subtypes = {"T-45", "T-51", "T-60", "X-01", }
+        return f"🛡️{self.name}"

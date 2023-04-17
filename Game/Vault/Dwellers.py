@@ -1,40 +1,44 @@
-import asyncio
 import logging
 import random
 from typing import Self
+from sqlmodel import Field, SQLModel, Relationship
 
 from Game.Items.Outfits import Outfit
 from Game.Items.Weapons import Weapon
-from Game.Vault.utilities.Person import Person, PersonRarity
+from Game.Vault.Vault import Vault
+from Game.Vault.utilities.Person import Person
 from Game.Wasteland.Enemies.Enemy import Enemy
-from Game.settings import DWELLER_GROW_UP_TIME
 
 logger = logging.getLogger(__name__)
 STORAGE = []
 
 
-class Dweller(Person):
-    def __init__(self, gender: str = None, first_name: str = None, last_name: str = None,
-                 rarity: PersonRarity = PersonRarity.COMMON):
-        super().__init__(gender, first_name, last_name, rarity)
+class DwellerInventory(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    stimpak: int = Field(default=0, ge=0, le=25)
+    radaway: int = Field(default=0, ge=0, le=25)
+    inventory: list = []
 
-        # Generic stats
-        self.level = 1
-        self.experience = 0
+
+class Dweller(Person, SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    level: int = Field(default=1, ge=1, le=50)
+    experience: int = 0
+    max_health: int = 0
+    health: int = 0
+    equipped_weapon: Weapon | None = None
+    equipped_outfit: Outfit | None = None
+    happiness: int = 50
+    is_adult: bool = True
+    # current_room: 'RoomType' | None = None
+
+    vault: Vault | None = Relationship(back_populates="dwellers")
+    inventory_id: int | None = Field(default=None, foreign_key="dweller_inventory.id")
+
+    def __init__(self, **data):
+        super().__init__(**data)
         self.max_health = self.calculate_max_health()
         self.health = self.max_health
-
-        # Combat
-        self.equipped_weapon: Weapon | None = None
-        self.equipped_outfit: Outfit | None = None
-
-        # Vault info
-        self.happiness = 50
-        self.is_adult = True
-        self.current_room = None
-
-        # Inventory
-        self.inventory = {}
 
     @property
     def damage(self):
@@ -179,8 +183,7 @@ class Dweller(Person):
             f"{self.full_name} and {partner.full_name} have a baby! Welcome, {child.full_name}!")
         return child
 
-    async def grow_up(self):
-        await asyncio.sleep(DWELLER_GROW_UP_TIME)
+    def grow_up(self):
         self.is_adult = True
         logger.info(f"{self.full_name} is now an adult!")
 

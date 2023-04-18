@@ -20,7 +20,7 @@ class DwellerInventory(SQLModel, table=True):
     inventory: list = []
 
 
-class Dweller(Person, SQLModel, table=True):
+class DwellerData(Person, SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     level: int = Field(default=1, ge=1, le=50)
     experience: int = 0

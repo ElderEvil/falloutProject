@@ -1,9 +1,9 @@
 from enum import Enum
 
-from sqlmodel import SQLModel, Field
+from sqlmodel import Field
 
-from Game.Items.models.items import ItemBase
-from utils.common import Rarity, Gender
+from app.api.models.item import ItemBase, ItemUpdate
+from utils.common import Gender
 
 
 class OutfitType(str, Enum):
@@ -17,7 +17,7 @@ class OutfitType(str, Enum):
 class OutfitBase(ItemBase):
     outfit_type: OutfitType = OutfitType.CommonOutfit
     gender: Gender | None = None
-    stats: dict = Field(default={})
+    stats: dict[str, int] = Field(default_factory=dict)
 
     def __str__(self):
         return f"🛡️{self.name}"
@@ -35,7 +35,7 @@ class OutfitRead(OutfitBase):
     id: int
 
 
-class OutfitUpdate(ItemBase):
+class OutfitUpdate(ItemUpdate):
     outfit_type: OutfitType | None = None
     gender: Gender | None = None
     stats: dict | None = None

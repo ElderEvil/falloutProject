@@ -1,5 +1,6 @@
 from enum import Enum
 
+from pydantic import validator
 from sqlmodel import Field
 
 from app.api.models.item import ItemBase, ItemUpdate
@@ -30,6 +31,33 @@ class WeaponBase(ItemBase):
     stat: str
     damage_min: int
     damage_max: int
+
+    _MELEE_SUBTYPES = (WeaponSubtype.Blunt, WeaponSubtype.Edged, WeaponSubtype.Pointed)
+    _GUN_SUBTYPES = (WeaponSubtype.Pistol, WeaponSubtype.Rifle, WeaponSubtype.Shotgun)
+    _ENERGY_SUBTYPES = (WeaponSubtype.Pistol, WeaponSubtype.Rifle)
+    _HEAVY_SUBTYPES = (WeaponSubtype.Automatic, WeaponSubtype.Flamer, WeaponSubtype.Explosive)
+
+    @validator('weapon_subtype')
+    def validate_weapon_subtype(cls, v, values):
+        weapon_type = values.get('weapon_type')
+        message = f"Invalid weapon subtype for {weapon_type.value} weapon"
+
+        match weapon_type:
+            case WeaponType.Melee:
+                valid_subtypes = cls._MELEE_SUBTYPES
+            case WeaponType.Gun:
+                valid_subtypes = cls._GUN_SUBTYPES
+            case WeaponType.Energy:
+                valid_subtypes = cls._ENERGY_SUBTYPES
+            case WeaponType.Heavy:
+                valid_subtypes = cls._HEAVY_SUBTYPES
+            case _:
+                return v
+
+        if v not in valid_subtypes:
+            raise ValueError(message)
+
+        return v
 
 
 class Weapon(WeaponBase, table=True):

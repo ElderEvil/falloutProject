@@ -1,7 +1,6 @@
-import random
-
 from faker import Faker
-from pydantic import BaseModel, validator
+from pydantic import validator
+from sqlmodel import SQLModel
 
 from utils.common import Rarity, Gender
 
@@ -17,8 +16,9 @@ LETTER_TO_STAT = {
 }
 
 
-class SPECIAL(BaseModel):
+class SPECIAL(SQLModel):
     rarity: Rarity
+
     strength: int
     perception: int
     endurance: int
@@ -27,7 +27,7 @@ class SPECIAL(BaseModel):
     agility: int
     luck: int
 
-    _stats_by_rarity = {
+    _stats_range_by_rarity = {
         Rarity.common: (1, 3),
         Rarity.rare: (3, 6),
         Rarity.legendary: (6, 10),
@@ -36,13 +36,13 @@ class SPECIAL(BaseModel):
     @validator('strength', 'perception', 'endurance', 'charisma', 'intelligence', 'agility', 'luck')
     def validate_stats(cls, v, values):
         rarity = values['rarity']
-        stat_min, stat_max = cls._stats_by_rarity[rarity]
+        stat_min, stat_max = cls._stats_range_by_rarity[rarity]
         if not stat_min <= v <= stat_max:
             raise ValueError(f"Invalid stat value for rarity {rarity}: {v}")
         return v
 
 
-class Person(BaseModel, SPECIAL):
+class Person(SPECIAL):
     gender: Gender = Gender.male
     first_name: str = ""
     last_name: str = ""

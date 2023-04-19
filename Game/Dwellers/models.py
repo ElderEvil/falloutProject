@@ -7,10 +7,10 @@ class DwellerInventory(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     stimpak: int = Field(default=0, ge=0, le=25)
     radaway: int = Field(default=0, ge=0, le=25)
-    inventory: list = []
+    inventory: dict = Field(default_factory=dict)
 
 
-class DwellerBase(Person, SQLModel):
+class DwellerDataBase(Person, SQLModel):
     id: int | None = Field(default=None, primary_key=True)
     level: int = Field(default=1, ge=1, le=50)
     experience: int = 0

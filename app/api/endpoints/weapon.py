@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
-from app.api.models.weapon import WeaponCreate, WeaponUpdate, Weapon
 from app.api.crud.weapon import weapon
+from app.api.models.weapon import WeaponCreate, WeaponUpdate, Weapon
 from app.db.base import get_session
 
 router = APIRouter()

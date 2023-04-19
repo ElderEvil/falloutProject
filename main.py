@@ -1,6 +1,8 @@
 from fastapi import FastAPI, Depends
 from sqlmodel import Session
 from starlette import status
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 from app.api.endpoints.api import api_router
 from app.db.base import create_db_and_tables, get_session
@@ -19,10 +21,19 @@ def startup_event(db: Session = Depends(get_session)):
 
 @app.on_event("shutdown")
 def shutdown_event(db: Session = Depends(get_session)):
+    ...
     # dump_junk(db)
     # dump_weapons(db)
-    with open("log.txt", mode="a") as log:
-        log.write("Application shutdown")
+    # with open("log.txt", mode="a") as log:
+    #     log.write("Application shutdown")
+
+
+@app.exception_handler(ValueError)
+def value_error_handler(request: Request, exc: ValueError):
+    return JSONResponse(
+        status_code=400,
+        content={"message": "Bad request"},
+    )
 
 
 @app.get("/healthcheck", status_code=status.HTTP_200_OK)

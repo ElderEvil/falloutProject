@@ -29,6 +29,6 @@ def update_outfit(outfit_id: int, outfit_data: OutfitUpdate, db: Session = Depen
     return outfit.update(db, outfit_id, outfit_data)
 
 
-@router.delete("/outfit/{outfit_id}", response_model=Outfit)
+@router.delete("/outfit/{outfit_id}", status_code=204)
 def delete_outfit(outfit_id: int, db: Session = Depends(get_session)):
     return outfit.delete(db, outfit_id)

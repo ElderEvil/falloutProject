@@ -29,6 +29,6 @@ def update_weapon(weapon_id: int, weapon_data: WeaponUpdate, db: Session = Depen
     return weapon.update(db, weapon_id, weapon_data)
 
 
-@router.delete("/weapon/{weapon_id}", response_model=Weapon)
+@router.delete("/weapon/{weapon_id}", status_code=204)
 def delete_weapon(weapon_id: int, db: Session = Depends(get_session)):
     return weapon.delete(db, weapon_id)

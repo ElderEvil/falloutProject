@@ -29,6 +29,6 @@ def update_junk(junk_id: int, junk_data: JunkUpdate, db: Session = Depends(get_s
     return junk.update(db, junk_id, junk_data)
 
 
-@router.delete("/junk/{junk_id}", response_model=Junk)
+@router.delete("/junk/{junk_id}", status_code=204)
 def delete_junk(junk_id: int, db: Session = Depends(get_session)):
     return junk.delete(db, junk_id)

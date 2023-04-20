@@ -8,24 +8,6 @@ from Game.Vault.Dwellers import Dweller
 from Game.Vault.Resources import ResourceType
 
 
-class RoomType(str, Enum):
-    CAPACITY = "Capacity"
-    CRAFTING = "Crafting"
-    MISC = "Misc"
-    PRODUCTION = "Production"
-    QUESTS = "Quests"
-    THEME = "Theme"
-    TRAINING = "Training"
-
-
-class RoomBase(SQLModel):
-    id: int | None = Field(default=None, primary_key=True)
-    name: str
-    type: RoomType
-    population_required: int
-    base_cost: int
-    incremental_cost: int
-    workers: list
 
 
 class AbstractRoom(ABC):

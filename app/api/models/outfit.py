@@ -17,10 +17,6 @@ class OutfitType(str, Enum):
 class OutfitBase(ItemBase):
     outfit_type: OutfitType = OutfitType.CommonOutfit
     gender: Gender | None = None
-    stats: dict[str, int] = Field(default_factory=dict)
-
-    def __str__(self):
-        return f"🛡️{self.name}"
 
 
 class Outfit(OutfitBase, table=True):
@@ -38,4 +34,3 @@ class OutfitRead(OutfitBase):
 class OutfitUpdate(ItemUpdate):
     outfit_type: OutfitType | None = None
     gender: Gender | None = None
-    stats: dict | None = None

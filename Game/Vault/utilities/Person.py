@@ -16,9 +16,23 @@ LETTER_TO_STAT = {
 }
 
 
-class SPECIAL(SQLModel):
-    rarity: Rarity
+# _stats_range_by_rarity = {
+#     Rarity.common: (1, 3),
+#     Rarity.rare: (3, 6),
+#     Rarity.legendary: (6, 10),
+# }
+#
+#
+# @validator('strength', 'perception', 'endurance', 'charisma', 'intelligence', 'agility', 'luck')
+# def validate_stats(cls, v, values):
+#     rarity = values['rarity']
+#     stat_min, stat_max = cls._stats_range_by_rarity[rarity]
+#     if not stat_min <= v <= stat_max:
+#         raise ValueError(f"Invalid stat value for rarity {rarity}: {v}")
+#     return v
 
+
+class SPECIAL(SQLModel):
     strength: int
     perception: int
     endurance: int
@@ -26,20 +40,6 @@ class SPECIAL(SQLModel):
     intelligence: int
     agility: int
     luck: int
-
-    _stats_range_by_rarity = {
-        Rarity.common: (1, 3),
-        Rarity.rare: (3, 6),
-        Rarity.legendary: (6, 10),
-    }
-
-    @validator('strength', 'perception', 'endurance', 'charisma', 'intelligence', 'agility', 'luck')
-    def validate_stats(cls, v, values):
-        rarity = values['rarity']
-        stat_min, stat_max = cls._stats_range_by_rarity[rarity]
-        if not stat_min <= v <= stat_max:
-            raise ValueError(f"Invalid stat value for rarity {rarity}: {v}")
-        return v
 
 
 class Person(SPECIAL):

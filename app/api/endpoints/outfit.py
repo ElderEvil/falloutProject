@@ -1,34 +1,13 @@
-from fastapi import APIRouter, Depends
-from sqlmodel import Session
+from fastapi_crudrouter import SQLAlchemyCRUDRouter
 
-from app.api.models.outfit import Outfit, OutfitCreate, OutfitUpdate
-from app.api.crud.outfit import outfit
+from app.api.models.outfit import Outfit, OutfitRead, OutfitCreate, OutfitUpdate
 from app.db.base import get_session
 
-router = APIRouter()
-
-
-@router.post("/outfit/", response_model=Outfit)
-def create_outfit(outfit_data: OutfitCreate, db: Session = Depends(get_session)):
-    return outfit.create(db, outfit_data)
-
-
-@router.get("/outfit/{outfit_id}", response_model=Outfit)
-def read_outfit(outfit_id: int, db: Session = Depends(get_session)):
-    return outfit.get(db, outfit_id)
-
-
-@router.get("/outfit/", response_model=list[Outfit])
-def read_outfit_list(skip: int = 0, limit: int = 100, db: Session = Depends(get_session)):
-    outfit_items = outfit.get_multi(db, skip=skip, limit=limit)
-    return outfit_items
-
-
-@router.put("/outfit/{outfit_id}", response_model=Outfit)
-def update_outfit(outfit_id: int, outfit_data: OutfitUpdate, db: Session = Depends(get_session)):
-    return outfit.update(db, outfit_id, outfit_data)
-
-
-@router.delete("/outfit/{outfit_id}", status_code=204)
-def delete_outfit(outfit_id: int, db: Session = Depends(get_session)):
-    return outfit.delete(db, outfit_id)
+router = SQLAlchemyCRUDRouter(
+    schema=OutfitRead,
+    create_schema=OutfitCreate,
+    update_schema=OutfitUpdate,
+    db_model=Outfit,
+    db=get_session,
+    delete_all_route=False
+)

@@ -7,13 +7,13 @@ from utils.common import Rarity
 
 
 class JunkType(str, Enum):
-    Circuitry = "Circuitry"
-    Leather = "Leather"
-    Adhesive = "Adhesive"
-    Cloth = "Cloth"
-    Science = "Science"
-    Steel = "Steel"
-    Valuables = "Valuables"
+    CIRCUITRY = "Circuitry"
+    LEATHER = "Leather"
+    ADHESIVE = "Adhesive"
+    CLOTH = "Cloth"
+    SCIENCE = "Science"
+    STEEL = "Steel"
+    VALUABLES = "Valuables"
 
 
 class JunkBase(ItemBase):

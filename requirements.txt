@@ -7,3 +7,4 @@ sqlmodel~=0.0.8
 uvicorn~=0.21.1
 httpx~=0.24.0
 pytest~=7.3.1
+fastapi-crudrouter

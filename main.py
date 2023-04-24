@@ -33,4 +33,4 @@ def perform_healthcheck():
     return {'healthcheck': 'Everything OK!'}
 
 
-app.include_router(api_router, prefix="/database")
+app.include_router(api_router, prefix="/api")

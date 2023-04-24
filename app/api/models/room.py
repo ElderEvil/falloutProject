@@ -36,6 +36,10 @@ class RoomCreate(RoomBase):
     pass
 
 
+class RoomRead(RoomBase):
+    id: int
+
+
 class RoomUpdate(SQLModel):
     name: str | None = Field(index=True, min_length=3, max_length=32)
     category: RoomType | None

@@ -1,22 +1,26 @@
-from fastapi import FastAPI, Depends
-from sqlmodel import Session
+from fastapi import FastAPI
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from app.api.endpoints.api import api_router
-from app.db.base import create_db_and_tables, get_session
+from app.api.v1.api import api_router as api_router_v1
+from app.config.base import settings
+from app.db.base import create_db_and_tables
 
-app = FastAPI()
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    version=settings.API_VERSION,
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+)
 
 
 @app.on_event("startup")
-def startup_event(db: Session = Depends(get_session)):
+def startup_event():
     create_db_and_tables()
 
 
 @app.on_event("shutdown")
-def shutdown_event(db: Session = Depends(get_session)):
+def shutdown_event():
     ...
 
 
@@ -33,4 +37,4 @@ def perform_healthcheck():
     return {'healthcheck': 'Everything OK!'}
 
 
-app.include_router(api_router, prefix="/api")
+app.include_router(api_router_v1, prefix=settings.API_V1_STR)

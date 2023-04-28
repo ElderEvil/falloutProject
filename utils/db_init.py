@@ -2,9 +2,9 @@ import json
 
 from sqlmodel import Session
 
-from app.crud import junk
+from app.crud.junk import junk
 from app.crud.weapon import weapon
-from app.models.weapon import WeaponCreate
+from app.schemas.weapon import WeaponCreate
 
 
 def populate_junk(db: Session):

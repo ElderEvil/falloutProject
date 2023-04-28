@@ -1,28 +1,8 @@
-from enum import Enum
-
 from pydantic import validator
 from sqlmodel import Field
 
-from app.models.item import ItemBase, ItemUpdate
-
-
-class WeaponType(str, Enum):
-    Melee = "Melee"
-    Gun = "Gun"
-    Energy = "Energy"
-    Heavy = "Heavy"
-
-
-class WeaponSubtype(str, Enum):
-    Blunt = "Blunt"
-    Edged = "Edged"
-    Pointed = "Pointed"
-    Pistol = "Pistol"
-    Rifle = "Rifle"
-    Shotgun = "Shotgun"
-    Automatic = "Automatic"
-    Explosive = "Explosive"
-    Flamer = "Flamer"
+from app.models.item import ItemBase
+from app.schemas.common_schema import WeaponType, WeaponSubtype
 
 
 class WeaponBase(ItemBase):
@@ -32,10 +12,10 @@ class WeaponBase(ItemBase):
     damage_min: int
     damage_max: int
 
-    _MELEE_SUBTYPES = (WeaponSubtype.Blunt, WeaponSubtype.Edged, WeaponSubtype.Pointed)
-    _GUN_SUBTYPES = (WeaponSubtype.Pistol, WeaponSubtype.Rifle, WeaponSubtype.Shotgun)
-    _ENERGY_SUBTYPES = (WeaponSubtype.Pistol, WeaponSubtype.Rifle)
-    _HEAVY_SUBTYPES = (WeaponSubtype.Automatic, WeaponSubtype.Flamer, WeaponSubtype.Explosive)
+    _MELEE_SUBTYPES = (WeaponSubtype.blunt, WeaponSubtype.edged, WeaponSubtype.pointed)
+    _GUN_SUBTYPES = (WeaponSubtype.pistol, WeaponSubtype.rifle, WeaponSubtype.shotgun)
+    _ENERGY_SUBTYPES = (WeaponSubtype.pistol, WeaponSubtype.rifle)
+    _HEAVY_SUBTYPES = (WeaponSubtype.automatic, WeaponSubtype.flamer, WeaponSubtype.explosive)
 
     @validator('weapon_subtype')
     def validate_weapon_subtype(cls, v, values):
@@ -43,13 +23,13 @@ class WeaponBase(ItemBase):
         message = f"Invalid weapon subtype for {weapon_type.value} weapon"
 
         match weapon_type:
-            case WeaponType.Melee:
+            case WeaponType.melee:
                 valid_subtypes = cls._MELEE_SUBTYPES
-            case WeaponType.Gun:
+            case WeaponType.gun:
                 valid_subtypes = cls._GUN_SUBTYPES
-            case WeaponType.Energy:
+            case WeaponType.energy:
                 valid_subtypes = cls._ENERGY_SUBTYPES
-            case WeaponType.Heavy:
+            case WeaponType.heavy:
                 valid_subtypes = cls._HEAVY_SUBTYPES
             case _:
                 return v
@@ -64,23 +44,7 @@ class Weapon(WeaponBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
 
     def __str__(self):
-        return f"{'🗡️' if self.weapon_type == WeaponType.Melee else '🔫'}{self.name}" \
+        return f"{'🗡️' if self.weapon_type == WeaponType.melee else '🔫'}{self.name}" \
                f" 💥{self.damage_min}-{self.damage_max}" \
                f" 🪙{self.value}" \
                f" 💎{self.rarity.name.title()}"
-
-
-class WeaponCreate(WeaponBase):
-    pass
-
-
-class WeaponRead(WeaponBase):
-    id: int
-
-
-class WeaponUpdate(ItemUpdate):
-    weapon_type: WeaponType | None = None
-    weapon_subtype: WeaponSubtype | None = None
-    stat: str | None = None
-    damage_min: int | None = None
-    damage_max: int | None = None

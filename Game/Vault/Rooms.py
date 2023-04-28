@@ -68,7 +68,7 @@ class TieredRoom(AbstractRoom):
 
 
 class ProductionRoom(TieredRoom):
-    type = RoomType.PRODUCTION
+    type = RoomType.production
     ability: str
     resource_type: ResourceType | Item
     amount_multiplier: int
@@ -93,25 +93,25 @@ class ProductionRoom(TieredRoom):
 
 
 class CapacityRoom(TieredRoom):
-    type = RoomType.CAPACITY
+    type = RoomType.capacity
 
 
 class MiscRoom(AbstractRoom):
-    type = RoomType.MISC
+    type = RoomType.misc
     base_cost = 0
     incremental_cost = 0
 
 
 class QuestRoom(AbstractRoom):
-    type = RoomType.QUESTS
+    type = RoomType.quests
 
 
 class CraftingRoom(TieredRoom):
-    type = RoomType.CRAFTING
+    type = RoomType.crafting
 
 
 class TrainingRoom(TieredRoom):
-    type = RoomType.TRAINING
+    type = RoomType.training
     ability: str
 
     def train_workers(self):
@@ -311,7 +311,7 @@ class Lounge(TrainingRoom):
 
 
 class ThemeWorkshop(TieredRoom):
-    type = RoomType.THEME
+    type = RoomType.theme
     name = "Theme workshop"
     population_required = 42
     base_cost = 3_200

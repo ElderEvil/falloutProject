@@ -1,19 +1,7 @@
-from enum import Enum
-
 from sqlmodel import Field
 
-from app.models.item import ItemBase, ItemUpdate
-from utils.common import Rarity
-
-
-class JunkType(str, Enum):
-    CIRCUITRY = "Circuitry"
-    LEATHER = "Leather"
-    ADHESIVE = "Adhesive"
-    CLOTH = "Cloth"
-    SCIENCE = "Science"
-    STEEL = "Steel"
-    VALUABLES = "Valuables"
+from app.models.item import ItemBase
+from app.schemas.common_schema import Rarity, JunkType
 
 
 class JunkBase(ItemBase):
@@ -33,16 +21,3 @@ class JunkBase(ItemBase):
 
 class Junk(JunkBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
-
-
-class JunkCreate(JunkBase):
-    pass
-
-
-class JunkRead(JunkBase):
-    id: int
-
-
-class JunkUpdate(ItemUpdate):
-    junk_type: str | None = None
-    description: str | None = None

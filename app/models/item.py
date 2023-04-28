@@ -1,7 +1,7 @@
 from pydantic import root_validator
 from sqlmodel import SQLModel, Field
 
-from utils.common import Rarity
+from app.schemas.common_schema import Rarity
 
 
 class ItemBase(SQLModel):
@@ -24,17 +24,3 @@ class ItemBase(SQLModel):
 
 class Item(ItemBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
-
-
-class ItemCreate(ItemBase):
-    pass
-
-
-class ItemRead(ItemBase):
-    id: int
-
-
-class ItemUpdate(SQLModel):
-    name: str | None = None
-    rarity: Rarity | None = None
-    value: int | None = None

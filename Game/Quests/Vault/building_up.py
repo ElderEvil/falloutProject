@@ -44,7 +44,7 @@ for room, resource in room_resource.items():
     quest_steps = [
         QuestStep(f"Build a {room}"),
         QuestStep(f"Assign 2 Dwellers to the {room}"),
-        QuestStep(f"Collect 500 {resource}")
+        QuestStep(f"Collect 500 {resource}"),
     ]
     q = Quest(f"Build a {room}", quest_steps)
     quests.append(q)

@@ -19,7 +19,6 @@ class VaultBase(SQLModel):
 
 
 class Vault(VaultBase, table=True):
-
     dwellers: list["Dweller"] = Relationship(back_populates="vault")
 
     def __init__(self, **data):
@@ -29,9 +28,9 @@ class Vault(VaultBase, table=True):
         self.storage = Storage()
         self.rooms = []
 
-        self.power = ResourceType('Power', 100)
-        self.food = ResourceType('Food', 100)
-        self.water = ResourceType('Water', 100)
+        self.power = ResourceType("Power", 100)
+        self.food = ResourceType("Food", 100)
+        self.water = ResourceType("Water", 100)
 
         self.__populate_vault()
 
@@ -44,11 +43,11 @@ class Vault(VaultBase, table=True):
 
     @property
     def population(self):
-        return self.dwellers
+        return len(self.dwellers)
 
     @property
     def happiness(self):
-        return mean(map(lambda d: d.happiness, self.dwellers))
+        return mean(map(lambda d: d.happiness, self.dwellers))  # noqa: C417
 
     def add_dweller(self, dweller: Dweller):
         """
@@ -57,7 +56,7 @@ class Vault(VaultBase, table=True):
         :param dweller: The Dweller instance to add to the vault.
         """
         self.dwellers.append(dweller)
-        logger.info(f'Added {dweller} to {dweller.current_room}')
+        logger.info(f"Added {dweller} to {dweller.current_room}")
 
     def remove_dweller(self, dweller: Dweller):
         """
@@ -66,7 +65,7 @@ class Vault(VaultBase, table=True):
         :param dweller: The Dweller instance to remove from the vault.
         """
         self.dwellers.remove(dweller)
-        logger.info(f'{dweller} left {self.name}')
+        logger.info(f"{dweller} left {self.name}")
 
     def get_power_consumption(self):
         """
@@ -89,11 +88,11 @@ class Vault(VaultBase, table=True):
 
     def consume_resources(self, food_amount: int, water_amount: int, power_amount: int) -> None:
         if not self.food.consume(food_amount):
-            raise ValueError('Not enough food!')
+            raise ValueError("Not enough food!")
         if not self.water.consume(water_amount):
-            raise ValueError('Not enough water!')
+            raise ValueError("Not enough water!")
         if not self.power.consume(power_amount):
-            raise ValueError('Not enough power!')
+            raise ValueError("Not enough power!")
 
     def produce_resources(self, food_amount: int, water_amount: int, power_amount: int):
         self.food.produce(min(food_amount, self.food.max_amount - self.food.current_amount))
@@ -114,7 +113,7 @@ class Vault(VaultBase, table=True):
 
         :return: A list of room types that can be built.
         :raises logger.error: If no buildable rooms are found.
-        """
+        """  # noqa: E501
         rooms = self._rb.filter_by_population_required(self.population).build()
         logger.debug(f"Available rooms:{[r.name for r in rooms]}")
         if not rooms:
@@ -148,7 +147,7 @@ class Vault(VaultBase, table=True):
         :param room_name: The name of the room to construct.
         :return: The constructed room.
         :raises ValueError: If no room types are found with the specified name or if there are insufficient bottle caps.
-        """
+        """  # noqa: E501
         room_to_build = self._rb.get_by_name(room_name)
         if not room_to_build:
             raise ValueError(f"No room found with name {room_name}")

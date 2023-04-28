@@ -46,10 +46,10 @@ class Enemy:
         self.health -= max(damage - self.defense, 0)
         if self.health <= 0:
             self.health = 0
-            print(f'{self.name} has been defeated!')
+            print(f"{self.name} has been defeated!")
 
     def is_alive(self):
         return self.health > 0
 
     def __str__(self):
-        return f'{self.name} ({self.health}/{self.max_health})'
+        return f"{self.name} ({self.health}/{self.max_health})"

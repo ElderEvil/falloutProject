@@ -34,7 +34,7 @@ def value_error_handler(request: Request, exc: ValueError):
 
 @app.get("/healthcheck", status_code=status.HTTP_200_OK)
 def perform_healthcheck():
-    return {'healthcheck': 'Everything OK!'}
+    return {"healthcheck": "Everything OK!"}
 
 
 app.include_router(api_router_v1, prefix=settings.API_V1_STR)

@@ -48,14 +48,14 @@ class Person(SPECIAL):
     last_name: str = ""
     rarity: Rarity = Rarity.common
 
-    @validator('first_name')
+    @validator("first_name")
     def validate_first_name(cls, v, values):
         if not v:
-            gender = values.get('gender')
+            gender = values.get("gender")
             return cls.get_gender_based_name(gender)
         return v
 
-    @validator('last_name')
+    @validator("last_name")
     def validate_last_name(cls, v):
         if not v:
             return fake.last_name()

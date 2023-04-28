@@ -8,7 +8,8 @@ from utils.common import Rarity
 
 def test_create_weapon(client: TestClient):
     response = client.post(
-        "/weapons/", json={
+        "/weapons/",
+        json={
             "name": "Blade of Woe",
             "weapon_type": "Melee",
             "weapon_subtype": "Pointed",
@@ -16,7 +17,7 @@ def test_create_weapon(client: TestClient):
             "stat": "agility",
             "damage_min": 13,
             "damage_max": 26,
-        }
+        },
     )
     app.dependency_overrides.clear()
     data = response.json()
@@ -48,25 +49,29 @@ def test_create_hero_invalid(client: TestClient):
 
 
 def test_read_weapons(session: Session, client: TestClient):
-    weapon_1 = Weapon(**{
-        "name": "Blade of Woe",
-        "weapon_type": "Melee",
-        "weapon_subtype": "Pointed",
-        "rarity": Rarity.legendary,
-        "stat": "agility",
-        "damage_min": 13,
-        "damage_max": 26,
-    })
-    weapon_2 = Weapon(**{
-        "name": "Death adder",
-        "weapon_type": "Melee",
-        "weapon_subtype": "Pointed",
-        "rarity": Rarity.legendary,
-        "stat": "agility",
-        "damage_min": 11,
-        "damage_max": 22,
-        "value": 1000,
-    })
+    weapon_1 = Weapon(
+        **{
+            "name": "Blade of Woe",
+            "weapon_type": "Melee",
+            "weapon_subtype": "Pointed",
+            "rarity": Rarity.legendary,
+            "stat": "agility",
+            "damage_min": 13,
+            "damage_max": 26,
+        }
+    )
+    weapon_2 = Weapon(
+        **{
+            "name": "Death adder",
+            "weapon_type": "Melee",
+            "weapon_subtype": "Pointed",
+            "rarity": Rarity.legendary,
+            "stat": "agility",
+            "damage_min": 11,
+            "damage_max": 22,
+            "value": 1000,
+        }
+    )
     session.add(weapon_1)
     session.add(weapon_2)
     session.commit()

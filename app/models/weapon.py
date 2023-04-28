@@ -17,9 +17,9 @@ class WeaponBase(ItemBase):
     _ENERGY_SUBTYPES = (WeaponSubtype.pistol, WeaponSubtype.rifle)
     _HEAVY_SUBTYPES = (WeaponSubtype.automatic, WeaponSubtype.flamer, WeaponSubtype.explosive)
 
-    @validator('weapon_subtype')
+    @validator("weapon_subtype")
     def validate_weapon_subtype(cls, v, values):
-        weapon_type = values.get('weapon_type')
+        weapon_type = values.get("weapon_type")
         message = f"Invalid weapon subtype for {weapon_type.value} weapon"
 
         match weapon_type:
@@ -44,7 +44,9 @@ class Weapon(WeaponBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
 
     def __str__(self):
-        return f"{'🗡️' if self.weapon_type == WeaponType.melee else '🔫'}{self.name}" \
-               f" 💥{self.damage_min}-{self.damage_max}" \
-               f" 🪙{self.value}" \
-               f" 💎{self.rarity.name.title()}"
+        return (
+            f"{'🗡️' if self.weapon_type == WeaponType.melee else '🔫'}{self.name}"
+            f" 💥{self.damage_min}-{self.damage_max}"
+            f" 🪙{self.value}"
+            f" 💎{self.rarity.name.title()}"
+        )

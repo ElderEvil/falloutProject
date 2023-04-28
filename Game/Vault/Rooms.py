@@ -1,18 +1,14 @@
 from abc import ABC
-from enum import Enum
 
-from sqlmodel import SQLModel, Field
 
 from Game.Items.models import Item, Stimpak, RadAway
 from Game.Vault.Dwellers import Dweller
 from Game.Vault.Resources import ResourceType
 
 
-
-
 class AbstractRoom(ABC):
     name: str
-    type: RoomType
+    type: RoomType  # noqa: F821
     population_required: int
     base_cost: int
     incremental_cost: int
@@ -68,7 +64,7 @@ class TieredRoom(AbstractRoom):
 
 
 class ProductionRoom(TieredRoom):
-    type = RoomType.production
+    type = RoomType.production  # noqa: F821
     ability: str
     resource_type: ResourceType | Item
     amount_multiplier: int
@@ -83,7 +79,7 @@ class ProductionRoom(TieredRoom):
         return self.capacity_multiplier * self.tier + 1
 
     def _get_stat_sum(self):
-        return sum(map(lambda w: w.getattr(self.ability), self.workers))
+        return sum((w.getattr(self.ability) for w in self.workers))
 
     def produce_resources(self, amount: int):
         for worker in self.workers:
@@ -93,25 +89,25 @@ class ProductionRoom(TieredRoom):
 
 
 class CapacityRoom(TieredRoom):
-    type = RoomType.capacity
+    type = RoomType.capacity  # noqa: F821
 
 
 class MiscRoom(AbstractRoom):
-    type = RoomType.misc
+    type = RoomType.misc  # noqa: F821
     base_cost = 0
     incremental_cost = 0
 
 
 class QuestRoom(AbstractRoom):
-    type = RoomType.quests
+    type = RoomType.quests  # noqa: F821
 
 
 class CraftingRoom(TieredRoom):
-    type = RoomType.crafting
+    type = RoomType.crafting  # noqa: F821
 
 
 class TrainingRoom(TieredRoom):
-    type = RoomType.training
+    type = RoomType.training  # noqa: F821
     ability: str
 
     def train_workers(self):
@@ -146,7 +142,7 @@ class LivingRoom(CapacityRoom):
 
 class PowerGenerator(ProductionRoom):
     name = "Power generator"
-    ability = 'strength'
+    ability = "strength"
     t2_upgrade_cost = 500
     t3_upgrade_cost = 1_500
     population_required = 0
@@ -311,7 +307,7 @@ class Lounge(TrainingRoom):
 
 
 class ThemeWorkshop(TieredRoom):
-    type = RoomType.theme
+    type = RoomType.theme  # noqa: F821
     name = "Theme workshop"
     population_required = 42
     base_cost = 3_200

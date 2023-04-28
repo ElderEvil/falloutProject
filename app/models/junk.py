@@ -15,8 +15,10 @@ class JunkBase(ItemBase):
     }
 
     def __str__(self):
-        return f"{self.name} (Type: {self.junk_type.name}, Rarity: {self.rarity.name}, Value: {self.value})\n" \
-               f"{self.description}"
+        return (
+            f"{self.name} (Type: {self.junk_type.name}, Rarity: {self.rarity.name}, Value: {self.value})\n"
+            f"{self.description}"
+        )
 
 
 class Junk(JunkBase, table=True):

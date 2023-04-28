@@ -1,0 +1,22 @@
+[tool.black]
+line-length = 119
+target-version = ['py311']
+
+[tool.ruff]
+line-length = 119
+exclude = [".git", "__pycache__", ".pytest_cache"]
+select = [
+    "B",  # flake8-bugbear
+    "C",  # flake8-comprehensions
+    "E",  # pycodestyle errors
+    "F",  # pyflakes
+    # "I",  # isort
+    "W",  # pycodestyle warnings
+]
+ignore = [
+    "B904",
+    "B006",
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+

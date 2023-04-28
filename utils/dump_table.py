@@ -3,8 +3,8 @@ import json
 from fastapi import Depends
 from sqlmodel import Session
 
-from app.api.crud.junk import junk
-from app.api.crud.weapon import weapon
+from app.crud import junk
+from app.crud.weapon import weapon
 from app.db.base import get_session
 
 

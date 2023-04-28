@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from app.api.models.weapon import Weapon
+from app.models.weapon import Weapon
 from main import app
 from utils.common import Rarity
 

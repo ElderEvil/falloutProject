@@ -2,7 +2,7 @@ from enum import Enum
 
 from sqlmodel import Field
 
-from app.api.models.item import ItemBase, ItemUpdate
+from app.models.item import ItemBase, ItemUpdate
 from utils.common import Rarity
 
 

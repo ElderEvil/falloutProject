@@ -3,7 +3,7 @@ from enum import Enum
 from pydantic import validator
 from sqlmodel import Field
 
-from app.api.models.item import ItemBase, ItemUpdate
+from app.models.item import ItemBase, ItemUpdate
 
 
 class WeaponType(str, Enum):

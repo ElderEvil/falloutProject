@@ -15,13 +15,3 @@ repos:
     rev: "v0.0.259"
     hooks:
       - id: ruff
-
-  # Pytest
-  - repo: local
-    hooks:
-      - id: tests
-        name: run tests
-        entry: pytest -v
-        language: system
-        types: [python]
-        stages: [push]

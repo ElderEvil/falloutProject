@@ -1,6 +1,6 @@
 [tool.black]
 line-length = 119
-target-version = ['py311']
+target-version = ["py310", "py311"]
 
 [tool.ruff]
 line-length = 119
@@ -17,7 +17,8 @@ select = [
     "YTT",  # flake8-2020
 #    "ANN",  # flake8-annotations
     "S",  # lake8-bandit security
-#    "B",  # flake8-builtins
+    "BLE",  # flake8-blind-except
+#    "B",  # flake8-bugbear
 #    "A",  # flake8-builtins
     "COM",  # flake8-commas
     "C4",  # flake8-comprehensions

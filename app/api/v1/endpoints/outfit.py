@@ -3,7 +3,7 @@ from sqlmodel import Session
 
 from app.crud.outfit import outfit
 from app.db.base import get_session
-from app.schemas.outfit import OutfitRead, OutfitCreate, OutfitUpdate
+from app.schemas.outfit import OutfitCreate, OutfitRead, OutfitUpdate
 
 router = APIRouter()
 
@@ -16,7 +16,7 @@ def create_outfit(outfit_data: OutfitCreate, db: Session = Depends(get_session))
 @router.get("/", response_model=list[OutfitRead])
 def read_outfit_list(skip: int = 0, limit: int = 100, db: Session = Depends(get_session)):
     outfit_items = outfit.get_multi(db, skip=skip, limit=limit)
-    return outfit_items
+    return outfit_items  # noqa: RET504
 
 
 @router.get("/{outfit_id}", response_model=OutfitRead)

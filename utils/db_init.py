@@ -8,14 +8,14 @@ from app.schemas.weapon import WeaponCreate
 
 
 def populate_junk(db: Session):
-    with open("fixtures/junk.json", "r") as f:
+    with open("fixtures/junk.json") as f:
         junk_items_data = json.load(f)
         for junk_item_data in junk_items_data:
             junk.create(db, junk_item_data)
 
 
 def populate_weapons(db: Session):
-    with open("fixtures/weapons.json", "r") as f:
+    with open("fixtures/weapons.json") as f:
         weapons_data = json.load(f)
         for weapon_data in weapons_data:
             weapon_data["damage_min"], weapon_data["damage_max"] = weapon_data.pop("damage_range")

@@ -1,7 +1,7 @@
 from sqlmodel import Field
 
 from app.models.item import ItemBase
-from app.schemas.common_schema import Rarity, JunkType
+from app.schemas.common_schema import JunkType, Rarity
 
 
 class JunkBase(ItemBase):

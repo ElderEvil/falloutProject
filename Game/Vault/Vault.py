@@ -1,15 +1,13 @@
 from statistics import mean
-from typing import Type
 
-from sqlmodel import SQLModel, Relationship, Field
+from sqlmodel import Field, Relationship, SQLModel
 
+from Game.logger_settings import logger
+from Game.settings import GameSettings
 from Game.Vault.Dwellers import Dweller
 from Game.Vault.Resources import ResourceType
 from Game.Vault.Rooms import AbstractRoom
-from Game.Vault.Storage import Storage
 from Game.Vault.utilities.RoomBuilder import RoomBuilder
-from Game.settings import GameSettings
-from Game.logger_settings import logger
 
 
 class VaultBase(SQLModel):
@@ -25,7 +23,6 @@ class Vault(VaultBase, table=True):
         super().__init__(**data)
         self._rb = RoomBuilder()
 
-        self.storage = Storage()
         self.rooms = []
 
         self.power = ResourceType("Power", 100)
@@ -56,7 +53,7 @@ class Vault(VaultBase, table=True):
         :param dweller: The Dweller instance to add to the vault.
         """
         self.dwellers.append(dweller)
-        logger.info(f"Added {dweller} to {dweller.current_room}")
+        logger.info(f"Added {dweller} to {dweller.current_room}")  # noqa: G004
 
     def remove_dweller(self, dweller: Dweller):
         """
@@ -65,7 +62,7 @@ class Vault(VaultBase, table=True):
         :param dweller: The Dweller instance to remove from the vault.
         """
         self.dwellers.remove(dweller)
-        logger.info(f"{dweller} left {self.name}")
+        logger.info(f"{dweller} left {self.name}")  # noqa: G004
 
     def get_power_consumption(self):
         """
@@ -88,11 +85,11 @@ class Vault(VaultBase, table=True):
 
     def consume_resources(self, food_amount: int, water_amount: int, power_amount: int) -> None:
         if not self.food.consume(food_amount):
-            raise ValueError("Not enough food!")
+            raise ValueError("Not enough food!")  # noqa: TRY003
         if not self.water.consume(water_amount):
-            raise ValueError("Not enough water!")
+            raise ValueError("Not enough water!")  # noqa: TRY003
         if not self.power.consume(power_amount):
-            raise ValueError("Not enough power!")
+            raise ValueError("Not enough power!")  # noqa: TRY003
 
     def produce_resources(self, food_amount: int, water_amount: int, power_amount: int):
         self.food.produce(min(food_amount, self.food.max_amount - self.food.current_amount))
@@ -115,12 +112,12 @@ class Vault(VaultBase, table=True):
         :raises logger.error: If no buildable rooms are found.
         """  # noqa: E501
         rooms = self._rb.filter_by_population_required(self.population).build()
-        logger.debug(f"Available rooms:{[r.name for r in rooms]}")
+        logger.debug(f"Available rooms:{[r.name for r in rooms]}")  # noqa: G004
         if not rooms:
             logger.info("No buildable rooms found")
         return rooms
 
-    def calculate_room_cost(self, room_type: Type[AbstractRoom]) -> int:
+    def calculate_room_cost(self, room_type: type[AbstractRoom]) -> int:
         """
         Calculates the total cost of building a room of the given type.
 
@@ -130,7 +127,7 @@ class Vault(VaultBase, table=True):
         same_rooms_num = sum(1 for r in self.rooms if r.name == room_type.name)
         return room_type.base_cost + room_type.incremental_cost * same_rooms_num
 
-    def calculate_remaining_bottle_caps(self, room_type: Type[AbstractRoom]) -> int:
+    def calculate_remaining_bottle_caps(self, room_type: type[AbstractRoom]) -> int:
         """
         Calculates the remaining number of bottle caps needed to build a room of the given type.
 
@@ -150,11 +147,13 @@ class Vault(VaultBase, table=True):
         """  # noqa: E501
         room_to_build = self._rb.get_by_name(room_name)
         if not room_to_build:
-            raise ValueError(f"No room found with name {room_name}")
+            raise ValueError(f"No room found with name {room_name}")  # noqa: TRY003
 
         remaining_caps = self.calculate_remaining_bottle_caps(room_to_build)
         if remaining_caps > 0:
-            raise ValueError(f"Not enough bottle caps for {room_name}. You need {remaining_caps} more.")
+            raise ValueError(  # noqa: TRY003
+                f"Not enough bottle caps for {room_name}. You need {remaining_caps} more.",
+            )
 
         room = self._rb.build_room(room_to_build)
         self.rooms.append(room)

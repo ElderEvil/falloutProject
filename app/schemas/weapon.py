@@ -1,5 +1,5 @@
 from app.models.weapon import WeaponBase
-from app.schemas.common_schema import WeaponType, WeaponSubtype
+from app.schemas.common_schema import WeaponSubtype, WeaponType
 from app.schemas.item import ItemUpdate
 
 

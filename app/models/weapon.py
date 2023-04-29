@@ -2,7 +2,7 @@ from pydantic import validator
 from sqlmodel import Field
 
 from app.models.item import ItemBase
-from app.schemas.common_schema import WeaponType, WeaponSubtype
+from app.schemas.common_schema import WeaponSubtype, WeaponType
 
 
 class WeaponBase(ItemBase):

@@ -22,19 +22,19 @@ def test_create_weapon(client: TestClient):
     app.dependency_overrides.clear()
     data = response.json()
 
-    assert response.status_code == 200
+    assert response.status_code == 200  # noqa: PLR2004
     assert data["name"] == "Blade of Woe"
     assert data["weapon_type"] == "Melee"
     assert data["weapon_subtype"] == "Pointed"
     assert data["stat"] == "agility"
-    assert data["damage_min"] == 13
-    assert data["damage_max"] == 26
+    assert data["damage_min"] == 13  # noqa: PLR2004
+    assert data["damage_max"] == 26  # noqa: PLR2004
     assert data["id"] is not None
 
 
 def test_create_hero_incomplete(client: TestClient):
     response = client.post("/weapons/", json={"name": "Blade of Woe"})
-    assert response.status_code == 422
+    assert response.status_code == 422  # noqa: PLR2004
 
 
 def test_create_hero_invalid(client: TestClient):
@@ -45,11 +45,11 @@ def test_create_hero_invalid(client: TestClient):
             "weapon_type": {"message": "Do you wanna know weapon type?"},
         },
     )
-    assert response.status_code == 422
+    assert response.status_code == 422  # noqa: PLR2004
 
 
 def test_read_weapons(session: Session, client: TestClient):
-    weapon_1 = Weapon(
+    weapon_1 = Weapon(  # noqa: PIE804
         **{
             "name": "Blade of Woe",
             "weapon_type": "Melee",
@@ -58,9 +58,9 @@ def test_read_weapons(session: Session, client: TestClient):
             "stat": "agility",
             "damage_min": 13,
             "damage_max": 26,
-        }
+        },
     )
-    weapon_2 = Weapon(
+    weapon_2 = Weapon(  # noqa: PIE804
         **{
             "name": "Death adder",
             "weapon_type": "Melee",
@@ -70,7 +70,7 @@ def test_read_weapons(session: Session, client: TestClient):
             "damage_min": 11,
             "damage_max": 22,
             "value": 1000,
-        }
+        },
     )
     session.add(weapon_1)
     session.add(weapon_2)
@@ -79,9 +79,9 @@ def test_read_weapons(session: Session, client: TestClient):
     response = client.get("/weapons/")
     data = response.json()
 
-    assert response.status_code == 200
+    assert response.status_code == 200  # noqa: PLR2004
 
-    assert len(data) == 2
+    assert len(data) == 2  # noqa: PLR2004
     assert data[0]["name"] == weapon_1.name
     # assert data[0]["secret_name"] == weapon_1.secret_name
     # assert data[0]["age"] == weapon_1.age

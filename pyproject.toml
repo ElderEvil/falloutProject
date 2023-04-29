@@ -6,17 +6,44 @@ target-version = ['py311']
 line-length = 119
 exclude = [".git", "__pycache__", ".pytest_cache"]
 select = [
-    "B",  # flake8-bugbear
-    "C",  # flake8-comprehensions
-    "E",  # pycodestyle errors
     "F",  # pyflakes
-    # "I",  # isort
+    "E",  # pycodestyle errors
     "W",  # pycodestyle warnings
+    "C90",  # flake8-comprehensions
+#    "I",  # isort
+#    "N",  # pep8-naming
+#    "D",   # pydocstyle
+    "UP",  # pyupgrade
+    "YTT",  # flake8-2020
+#    "ANN",  # flake8-annotations
+    "S",  # lake8-bandit security
+#    "B",  # flake8-builtins
+#    "A",  # flake8-builtins
+    "COM",  # flake8-commas
+    "C4",  # flake8-comprehensions
+    "DTZ",  # flake8-datetimez
+    "ISC",  # flake8-implicit-str-concat
+    "ICN",  # flake8-import-conventions
+    "G",  # flake8-logging-format
+    "PIE",  # flake8-pie
+    "PT",  # flake8-pytest-style
+    "RSE",  # flake8-raise
+    "RET",  # flake8-return
+    "SIM", # flake8-simplify
+    "TID", # flake8-tidy-imports
+    "TCH", # flake8-type-checking
+    "PTH",  # flake8-pathlib
+    "PGH", # pygrep-hooks
+    "PD", # pd
+    "PL", # Pylint
+    "TRY", # tryceratops
+    "NPY", # np
+    "RUF", # Ruff
 ]
 ignore = [
     "B904",
     "B006",
     "B008",  # do not perform function calls in argument defaults
-    "C901",  # too complex
+    "PTH123", # builtin-open
+    "S101", # assert
 ]
-

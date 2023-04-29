@@ -1,7 +1,6 @@
 from abc import ABC
 
-
-from Game.Items.models import Item, Stimpak, RadAway
+from Game.Items.models import Item, RadAway, Stimpak
 from Game.Vault.Dwellers import Dweller
 from Game.Vault.Resources import ResourceType
 
@@ -18,7 +17,7 @@ class AbstractRoom(ABC):
         self.workers = []
 
     def add_worker(self, dweller: Dweller):
-        if len(self.workers) < 2:
+        if len(self.workers) < 2:  # noqa: PLR2004
             self.workers.append(dweller)
             dweller.current_room = self
             print(f"{dweller.full_name} is now working in {self.name}")
@@ -55,6 +54,7 @@ class TieredRoom(AbstractRoom):
                 return self.t3_upgrade_cost
             case _:
                 print("Invalid tier number")
+                return None
 
     def upgrade_tier(self):
         if self.tier < self.max_tier:
@@ -79,7 +79,7 @@ class ProductionRoom(TieredRoom):
         return self.capacity_multiplier * self.tier + 1
 
     def _get_stat_sum(self):
-        return sum((w.getattr(self.ability) for w in self.workers))
+        return sum(w.getattr(self.ability) for w in self.workers)
 
     def produce_resources(self, amount: int):
         for worker in self.workers:

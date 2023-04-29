@@ -1,7 +1,7 @@
-from typing import TypeVar, Generic, Any
+from typing import Any, Generic, TypeVar
 
 from fastapi import HTTPException
-from sqlmodel import SQLModel, Session, select
+from sqlmodel import Session, SQLModel, select
 
 ModelType = TypeVar("ModelType", bound=SQLModel)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=SQLModel)
@@ -86,10 +86,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         if db_obj is None:
             raise HTTPException(status_code=404, detail=f"{self.model.__name__} not found")
 
-        if isinstance(obj_in, dict):
-            update_data = obj_in
-        else:
-            update_data = obj_in.dict(exclude_unset=True)
+        update_data = obj_in if isinstance(obj_in, dict) else obj_in.dict(exclude_unset=True)
 
         for field, value in update_data.items():
             setattr(db_obj, field, value)

@@ -1,4 +1,4 @@
-from Game.Quests.Quest import QuestStep, Quest, QuestChain
+from Game.Quests.Quest import Quest, QuestChain, QuestStep
 
 
 class QuestGenerator:

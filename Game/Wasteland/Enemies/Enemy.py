@@ -23,24 +23,24 @@ class Enemy:
     def calculate_max_health(self) -> int:
         if self.enemy_type == EnemyType.RAIDER:
             return 100 + (self.level - 1) * 10
-        elif self.enemy_type == EnemyType.MOLERAT:
+        elif self.enemy_type == EnemyType.MOLERAT:  # noqa: RET505
             return 70 + (self.level - 1) * 7
         elif self.enemy_type == EnemyType.GHOUL:
             return 80 + (self.level - 1) * 8
         elif self.enemy_type == EnemyType.DEATHCLAW:
             return 150 + (self.level - 1) * 15
         else:
-            raise ValueError("Invalid enemy type")
+            raise ValueError("Invalid enemy type")  # noqa: TRY003
 
     def calculate_attack(self) -> int:
         if self.enemy_type == EnemyType.RAIDER:
             return 10 + (self.level - 1) * 2
-        elif self.enemy_type == EnemyType.GHOUL:
+        elif self.enemy_type == EnemyType.GHOUL:  # noqa: RET505
             return 8 + (self.level - 1)
         elif self.enemy_type == EnemyType.DEATHCLAW:
             return 20 + (self.level - 1) * 3
         else:
-            raise ValueError("Invalid enemy type")
+            raise ValueError("Invalid enemy type")  # noqa: TRY003
 
     def take_damage(self, damage):
         self.health -= max(damage - self.defense, 0)

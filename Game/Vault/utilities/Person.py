@@ -2,7 +2,7 @@ from faker import Faker
 from pydantic import validator
 from sqlmodel import SQLModel
 
-from utils.common import Rarity, Gender
+from utils.common import Gender, Rarity
 
 fake = Faker()
 
@@ -65,7 +65,7 @@ class Person(SPECIAL):
     def get_gender_based_name(gender: Gender):
         if gender == Gender.male:
             return fake.first_name_male()
-        else:
+        else:  # noqa: RET505
             return fake.first_name_female()
 
     class Config:

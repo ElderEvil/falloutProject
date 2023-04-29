@@ -1,11 +1,11 @@
 import logging
 import random
 from typing import Self
-from sqlmodel import Field, SQLModel, Relationship
 
+from sqlmodel import Field, Relationship, SQLModel
 
-from Game.Vault.Vault import Vault
 from Game.Vault.utilities.Person import Person
+from Game.Vault.Vault import Vault
 from Game.Wasteland.Enemies.Enemy import Enemy
 
 logger = logging.getLogger(__name__)
@@ -42,16 +42,18 @@ class DwellerData(Person, SQLModel, table=True):
     @property
     def damage(self):
         if self.equipped_weapon:
-            return random.randint(*self.equipped_weapon.damage_range) * getattr(self, self.equipped_weapon.stat)
-        else:
-            return self.strength + self.perception + (self.level - 1) * 2
+            return random.randint(*self.equipped_weapon.damage_range) * getattr(  # noqa: S311
+                self,
+                self.equipped_weapon.stat,
+            )
+
+        return self.strength + self.perception + (self.level - 1) * 2
 
     @property
     def defense(self):
         if self.equipped_outfit:
             return self.endurance + self.agility  # TODO self.equipped_outfit.defense
-        else:
-            return self.endurance + self.agility
+        return self.endurance + self.agility
 
     def calculate_max_health(self):
         return 50 + self.endurance * 5 + (self.level - 1) * 10
@@ -60,7 +62,7 @@ class DwellerData(Person, SQLModel, table=True):
         if not self.is_adult:
             logger.error("Children can not wear outfits")
         elif self.gender != outfit.gender:
-            logger.error(f"{outfit} is not appropriate attire for {self.full_name}")
+            logger.error("{outfit} is not appropriate attire for {self.full_name}")
 
         if self.equipped_outfit:
             STORAGE.append(self.equipped_outfit)
@@ -91,7 +93,7 @@ class DwellerData(Person, SQLModel, table=True):
         self.health -= max(damage - self.defense, 0)
         if self.health <= 0:
             self.health = 0
-            logger.info(f"{self.full_name} has been defeated!")
+            logger.info(f"{self.full_name} has been defeated!")  # noqa: G004
 
     def is_alive(self):
         return self.health > 0
@@ -108,13 +110,13 @@ class DwellerData(Person, SQLModel, table=True):
         if self.experience >= experience_required:
             self.level += 1
             self.experience -= experience_required
-            logger.info(f"{self.full_name} has reached level {self.level}!")
+            logger.info(f"{self.full_name} has reached level {self.level}!")  # noqa: G004
 
     def calculate_experience_required(self):
         return int(100 * 1.5**self.level)
 
     def add_happiness(self, amount: int = 10):
-        if self.happiness + amount > 100:
+        if self.happiness + amount > 100:  # noqa: PLR2004
             self.happiness = 100
         else:
             self.happiness += amount
@@ -126,7 +128,7 @@ class DwellerData(Person, SQLModel, table=True):
             self.happiness -= amount
 
     def add_attribute(self, attribute: str, value: int):
-        if getattr(self, attribute) + value > 10:
+        if getattr(self, attribute) + value > 10:  # noqa: PLR2004
             setattr(self, attribute, 10)
         else:
             setattr(self, attribute, getattr(self, attribute) + value)
@@ -158,12 +160,12 @@ class DwellerData(Person, SQLModel, table=True):
 
         # Roll a chance to succeed based on the dwellers' charisma and happiness
         success_chance = (self.charisma + partner.charisma) / 20 * (self.happiness / 100) * (partner.happiness / 100)
-        if random.random() > success_chance:
+        if random.random() > success_chance:  # noqa: S311
             logger.info("The reproduction attempt failed.")
             return None
 
         # Create a new dweller with randomized gender and genetic traits
-        child_rarity = random.choice([self.rarity, partner.rarity])
+        child_rarity = random.choice([self.rarity, partner.rarity])  # noqa: S311
         child = Dweller(rarity=child_rarity)  # noqa: F821
 
         # Set the child's last name to be the same as the father's last name
@@ -179,12 +181,12 @@ class DwellerData(Person, SQLModel, table=True):
         self.grow_up()
 
         # Print a success message and return the new dweller object
-        logger.info(f"{self.full_name} and {partner.full_name} have a baby! Welcome, {child.full_name}!")
+        logger.info(f"{self.full_name} and {partner.full_name} have a baby! Welcome, {child.full_name}!")  # noqa: G004
         return child
 
     def grow_up(self):
         self.is_adult = True
-        logger.info(f"{self.full_name} is now an adult!")
+        logger.info(f"{self.full_name} is now an adult!")  # noqa: G004
 
     def __str__(self):
         return f"[{self.level}]{self.full_name} (Health: {self.health}/{self.max_health})"

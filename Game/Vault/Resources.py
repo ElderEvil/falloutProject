@@ -7,7 +7,7 @@ class ResourceType:
     def consume(self, amount: int):
         if self.current_amount < amount:
             return False
-        else:
+        else:  # noqa: RET505
             self.current_amount -= amount
             return True
 

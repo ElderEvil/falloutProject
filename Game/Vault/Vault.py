@@ -53,7 +53,7 @@ class Vault(VaultBase, table=True):
         :param dweller: The Dweller instance to add to the vault.
         """
         self.dwellers.append(dweller)
-        logger.info(f"Added {dweller} to {dweller.current_room}")  # noqa: G004
+        logger.info(f"Added {dweller} to {dweller.current_room}")
 
     def remove_dweller(self, dweller: Dweller):
         """
@@ -62,7 +62,7 @@ class Vault(VaultBase, table=True):
         :param dweller: The Dweller instance to remove from the vault.
         """
         self.dwellers.remove(dweller)
-        logger.info(f"{dweller} left {self.name}")  # noqa: G004
+        logger.info(f"{dweller} left {self.name}")
 
     def get_power_consumption(self):
         """
@@ -112,7 +112,7 @@ class Vault(VaultBase, table=True):
         :raises logger.error: If no buildable rooms are found.
         """  # noqa: E501
         rooms = self._rb.filter_by_population_required(self.population).build()
-        logger.debug(f"Available rooms:{[r.name for r in rooms]}")  # noqa: G004
+        logger.debug(f"Available rooms:{[r.name for r in rooms]}")
         if not rooms:
             logger.info("No buildable rooms found")
         return rooms

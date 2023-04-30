@@ -1,0 +1,23 @@
+from pydantic import EmailStr
+from sqlmodel import SQLModel, Field
+
+from app.models.user import UserBase
+
+
+class UserCreate(UserBase):
+    password: str | None
+
+
+class UserRead(UserBase):
+    id: int
+
+    class Config:
+        hashed_password = None
+
+
+class UserUpdate(SQLModel):
+    username: str | None = Field(index=True, min_length=3, max_length=32, default=None)
+    email: EmailStr | None = None
+    password: str | None
+    is_active: bool | None = None
+    is_superuser: bool | None = None

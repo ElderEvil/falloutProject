@@ -8,6 +8,7 @@ httpx~=0.24.0
 python-multipart~=0.0.5
 
 # orm
+sqlalchemy==1.4.35
 sqlmodel~=0.0.2
 # psycopg2-binary~=2.9.6
 # asyncpg~=0.27.0

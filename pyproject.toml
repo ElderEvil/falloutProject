@@ -25,7 +25,7 @@ select = [
     "DTZ",  # flake8-datetimez
     "ISC",  # flake8-implicit-str-concat
     "ICN",  # flake8-import-conventions
-    "G",  # flake8-logging-format
+#    "G",  # flake8-logging-format
     "PIE",  # flake8-pie
     "PT",  # flake8-pytest-style
     "RSE",  # flake8-raise

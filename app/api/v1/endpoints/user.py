@@ -22,6 +22,9 @@ def create_user(
     user_in: UserCreate,
     current_user: User = Depends(deps.get_current_active_superuser),
 ) -> Any:
+    """
+    Admin route to create new user.
+    """
     user = crud_user.get_by_email(db, email=user_in.email)
     if user:
         raise HTTPException(
@@ -39,6 +42,9 @@ def read_users(
     limit: int = 100,
     current_user: User = Depends(deps.get_current_active_superuser),
 ) -> Any:
+    """
+    Retrieve users.
+    """
     return crud_user.get_multi(db, skip=skip, limit=limit)
 
 
@@ -46,11 +52,14 @@ def read_users(
 def update_user_me(
     *,
     db: Session = Depends(deps.get_session),
-    password: str = Body(None),
     username: str = Body(None),
+    password: str = Body(None),
     email: EmailStr = Body(None),
     current_user: User = Depends(deps.get_current_active_user),
 ) -> Any:
+    """
+    Update current user.
+    """
     current_user_data = jsonable_encoder(current_user)
     user_in = UserUpdate(**current_user_data)
     if password is not None:
@@ -64,6 +73,9 @@ def update_user_me(
 
 @router.get("/me", response_model=UserRead)
 def read_user_me(current_user: User = Depends(deps.get_current_active_user)) -> Any:
+    """
+    Get current user.
+    """
     return current_user
 
 
@@ -75,6 +87,13 @@ def create_user_open(
     password: str = Body(...),
     email: EmailStr = Body(...),
 ) -> Any:
+    """
+    Create new user without the need to be logged in.:
+
+    - **username**: each user must have a username
+    - **password**: a long user password
+    - **email**: email of the user
+    """
     if not settings.USERS_OPEN_REGISTRATION:
         raise HTTPException(
             status_code=403,

@@ -17,7 +17,7 @@ class AbstractRoom(ABC):
         self.workers = []
 
     def add_worker(self, dweller: Dweller):
-        if len(self.workers) < 2:  # noqa: PLR2004
+        if len(self.workers) < 2:
             self.workers.append(dweller)
             dweller.current_room = self
             print(f"{dweller.full_name} is now working in {self.name}")

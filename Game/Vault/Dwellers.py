@@ -93,7 +93,7 @@ class DwellerData(Person, SQLModel, table=True):
         self.health -= max(damage - self.defense, 0)
         if self.health <= 0:
             self.health = 0
-            logger.info(f"{self.full_name} has been defeated!")  # noqa: G004
+            logger.info(f"{self.full_name} has been defeated!")
 
     def is_alive(self):
         return self.health > 0
@@ -110,13 +110,13 @@ class DwellerData(Person, SQLModel, table=True):
         if self.experience >= experience_required:
             self.level += 1
             self.experience -= experience_required
-            logger.info(f"{self.full_name} has reached level {self.level}!")  # noqa: G004
+            logger.info(f"{self.full_name} has reached level {self.level}!")
 
     def calculate_experience_required(self):
         return int(100 * 1.5**self.level)
 
     def add_happiness(self, amount: int = 10):
-        if self.happiness + amount > 100:  # noqa: PLR2004
+        if self.happiness + amount > 100:
             self.happiness = 100
         else:
             self.happiness += amount
@@ -128,7 +128,7 @@ class DwellerData(Person, SQLModel, table=True):
             self.happiness -= amount
 
     def add_attribute(self, attribute: str, value: int):
-        if getattr(self, attribute) + value > 10:  # noqa: PLR2004
+        if getattr(self, attribute) + value > 10:
             setattr(self, attribute, 10)
         else:
             setattr(self, attribute, getattr(self, attribute) + value)
@@ -181,12 +181,12 @@ class DwellerData(Person, SQLModel, table=True):
         self.grow_up()
 
         # Print a success message and return the new dweller object
-        logger.info(f"{self.full_name} and {partner.full_name} have a baby! Welcome, {child.full_name}!")  # noqa: G004
+        logger.info(f"{self.full_name} and {partner.full_name} have a baby! Welcome, {child.full_name}!")
         return child
 
     def grow_up(self):
         self.is_adult = True
-        logger.info(f"{self.full_name} is now an adult!")  # noqa: G004
+        logger.info(f"{self.full_name} is now an adult!")
 
     def __str__(self):
         return f"[{self.level}]{self.full_name} (Health: {self.health}/{self.max_health})"

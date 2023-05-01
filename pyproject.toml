@@ -47,4 +47,5 @@ ignore = [
     "B008",  # do not perform function calls in argument defaults
     "PTH123", # builtin-open
     "S101", # assert
+    "PLR2004",
 ]

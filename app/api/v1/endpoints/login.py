@@ -6,10 +6,13 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session
 
 from app import security
+from app.api import deps
 from app.config.base import settings
 from app.crud.user import crud_user
 from app.db.base import get_session
+from app.models.user import User
 from app.schemas.token import Token
+from app.schemas.user import UserRead
 
 router = APIRouter()
 
@@ -39,3 +42,11 @@ def login_access_token(
         ),
         "token_type": "bearer",
     }
+
+
+@router.post("/login/test-token", response_model=UserRead)
+def test_token(current_user: User = Depends(deps.get_current_user)) -> Any:
+    """
+    Test access token
+    """
+    return current_user

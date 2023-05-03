@@ -4,22 +4,22 @@ target-version = ["py310", "py311"]
 
 [tool.ruff]
 line-length = 119
-exclude = [".git", "__pycache__", ".pytest_cache"]
+exclude = [".git", "__pycache__", ".pytest_cache", "./Game"]
 select = [
     "F",  # pyflakes
     "E",  # pycodestyle errors
     "W",  # pycodestyle warnings
     "C90",  # flake8-comprehensions
 #    "I",  # isort
-#    "N",  # pep8-naming
+    "N",  # pep8-naming
 #    "D",   # pydocstyle
     "UP",  # pyupgrade
     "YTT",  # flake8-2020
-#    "ANN",  # flake8-annotations
+    "ANN00",  # flake8-annotations
     "S",  # lake8-bandit security
     "BLE",  # flake8-blind-except
-#    "B",  # flake8-bugbear
-#    "A",  # flake8-builtins
+    "B",  # flake8-bugbear
+    "A",  # flake8-builtins
     "COM",  # flake8-commas
     "C4",  # flake8-comprehensions
     "DTZ",  # flake8-datetimez
@@ -41,6 +41,7 @@ select = [
     "NPY", # np
     "RUF", # Ruff
 ]
+
 ignore = [
     "B904",
     "B006",
@@ -49,3 +50,5 @@ ignore = [
     "S101", # assert
     "PLR2004",
 ]
+[tool.ruff.flake8-builtins]
+builtins-ignorelist = ["id"]

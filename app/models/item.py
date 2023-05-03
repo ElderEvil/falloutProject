@@ -15,8 +15,9 @@ class ItemBase(SQLModel):
         Rarity.legendary: 500,
     }
 
+    @classmethod
     @root_validator
-    def set_default_value(cls, values) -> int:
+    def set_default_value(cls, values) -> int:  # noqa: ANN001
         if "value" not in values:
             values["value"] = cls._value_by_rarity[values["rarity"]]
         return values

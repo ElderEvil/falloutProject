@@ -17,8 +17,9 @@ class WeaponBase(ItemBase):
     _ENERGY_SUBTYPES = (WeaponSubtype.pistol, WeaponSubtype.rifle)
     _HEAVY_SUBTYPES = (WeaponSubtype.automatic, WeaponSubtype.flamer, WeaponSubtype.explosive)
 
+    @classmethod
     @validator("weapon_subtype")
-    def validate_weapon_subtype(cls, v, values):
+    def validate_weapon_subtype(cls, v, values):  # noqa: ANN001
         weapon_type = values.get("weapon_type")
         message = f"Invalid weapon subtype for {weapon_type.value} weapon"
 

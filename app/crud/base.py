@@ -47,7 +47,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             raise HTTPException(status_code=404, detail=f"{self.model.__name__} not found")
         return result
 
-    def get_multi(self, db: Session, skip=0, limit=100) -> list[ModelType]:
+    def get_multi(self, db: Session, skip: int = 0, limit: int = 100) -> list[ModelType]:
         """
         Gets a list of items of the specified model type, optionally skipping the first `skip` items and limiting the
         result to `limit` items.

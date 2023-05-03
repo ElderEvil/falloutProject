@@ -3,11 +3,12 @@ from abc import ABC
 from Game.Items.models import Item, RadAway, Stimpak
 from Game.Vault.Dwellers import Dweller
 from Game.Vault.Resources import ResourceType
+from app.schemas.common_schema import RoomType
 
 
 class AbstractRoom(ABC):
     name: str
-    type: RoomType  # noqa: F821
+    room_type: RoomType
     population_required: int
     base_cost: int
     incremental_cost: int
@@ -64,7 +65,7 @@ class TieredRoom(AbstractRoom):
 
 
 class ProductionRoom(TieredRoom):
-    type = RoomType.production  # noqa: F821
+    room_type = RoomType.production
     ability: str
     resource_type: ResourceType | Item
     amount_multiplier: int
@@ -89,25 +90,25 @@ class ProductionRoom(TieredRoom):
 
 
 class CapacityRoom(TieredRoom):
-    type = RoomType.capacity  # noqa: F821
+    room_type = RoomType.capacity
 
 
 class MiscRoom(AbstractRoom):
-    type = RoomType.misc  # noqa: F821
+    room_type = RoomType.misc
     base_cost = 0
     incremental_cost = 0
 
 
 class QuestRoom(AbstractRoom):
-    type = RoomType.quests  # noqa: F821
+    room_type = RoomType.quests
 
 
 class CraftingRoom(TieredRoom):
-    type = RoomType.crafting  # noqa: F821
+    room_type = RoomType.crafting
 
 
 class TrainingRoom(TieredRoom):
-    type = RoomType.training  # noqa: F821
+    room_type = RoomType.training
     ability: str
 
     def train_workers(self):
@@ -307,7 +308,7 @@ class Lounge(TrainingRoom):
 
 
 class ThemeWorkshop(TieredRoom):
-    type = RoomType.theme  # noqa: F821
+    room_type = RoomType.theme
     name = "Theme workshop"
     population_required = 42
     base_cost = 3_200

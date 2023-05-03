@@ -5,9 +5,9 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session
 
-from app import security
 from app.api import deps
-from app.config.base import settings
+from app.core import security
+from app.core.config import settings
 from app.crud.user import crud_user
 from app.db.base import get_session
 from app.models.user import User

@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from app.config.base import settings
+from app.core.base import settings
 
 
 def test_get_access_token(client: TestClient) -> None:

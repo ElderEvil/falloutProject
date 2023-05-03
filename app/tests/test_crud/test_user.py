@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.crud.user import crud_user
 from app.schemas.user import UserCreate, UserUpdate
-from app.security import verify_password
+from app.core.security import verify_password
 from app.tests.utils.utils import random_email, random_lower_string
 
 

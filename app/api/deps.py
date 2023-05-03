@@ -4,8 +4,8 @@ from jose import jwt
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
-from app import security
-from app.config.base import settings
+from app.core import security
+from app.core.config import settings
 from app.crud.user import crud_user
 from app.db.base import get_session
 from app.models.user import User

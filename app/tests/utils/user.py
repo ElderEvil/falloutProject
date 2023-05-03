@@ -1,7 +1,7 @@
 from sqlmodel import Session
 from starlette.testclient import TestClient
 
-from app.config.base import settings
+from app.core.base import settings
 from app.crud.user import crud_user
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate

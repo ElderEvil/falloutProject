@@ -4,7 +4,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from app.api.v1.api import api_router as api_router_v1
-from app.config.base import settings
+from app.core.config import settings
 from app.db.base import create_db_and_tables
 
 app = FastAPI(

@@ -2,7 +2,7 @@ import random
 import string
 from fastapi.testclient import TestClient
 
-from app.config.base import settings
+from app.core.base import settings
 
 
 def random_lower_string(k: int = 32) -> str:

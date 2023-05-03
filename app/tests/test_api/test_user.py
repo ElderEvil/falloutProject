@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.config.base import settings
+from app.core.base import settings
 from app.crud.user import crud_user
 
 from app.schemas.user import UserCreate

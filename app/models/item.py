@@ -1,4 +1,4 @@
-from pydantic import root_validator
+from pydantic import validator
 from sqlmodel import Field, SQLModel
 
 from app.schemas.common_schema import Rarity
@@ -7,7 +7,7 @@ from app.schemas.common_schema import Rarity
 class ItemBase(SQLModel):
     name: str = Field(index=True, min_length=3, max_length=32)
     rarity: Rarity
-    value: int | None
+    value: int | None = Field(default=None, ge=0)
 
     _value_by_rarity = {
         Rarity.common: 10,
@@ -16,7 +16,7 @@ class ItemBase(SQLModel):
     }
 
     @classmethod
-    @root_validator
+    @validator("value", pre=True)
     def set_default_value(cls, values) -> int:  # noqa: ANN001
         if "value" not in values:
             values["value"] = cls._value_by_rarity[values["rarity"]]

@@ -9,8 +9,8 @@ class WeaponBase(ItemBase):
     weapon_type: WeaponType
     weapon_subtype: WeaponSubtype
     stat: str
-    damage_min: int
-    damage_max: int
+    damage_min: int = Field(ge=0)
+    damage_max: int = Field(ge=1)
 
     _MELEE_SUBTYPES = (WeaponSubtype.blunt, WeaponSubtype.edged, WeaponSubtype.pointed)
     _GUN_SUBTYPES = (WeaponSubtype.pistol, WeaponSubtype.rifle, WeaponSubtype.shotgun)
@@ -18,7 +18,7 @@ class WeaponBase(ItemBase):
     _HEAVY_SUBTYPES = (WeaponSubtype.automatic, WeaponSubtype.flamer, WeaponSubtype.explosive)
 
     @classmethod
-    @validator("weapon_subtype")
+    @validator("weapon_subtype", pre=True)
     def validate_weapon_subtype(cls, v, values):  # noqa: ANN001
         weapon_type = values.get("weapon_type")
         message = f"Invalid weapon subtype for {weapon_type.value} weapon"

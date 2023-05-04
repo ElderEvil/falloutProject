@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     EMAIL_TEST_USER: EmailStr = "test@example.com"
     FIRST_SUPERUSER_USERNAME: str = "ElderEvil"
     FIRST_SUPERUSER_EMAIL: EmailStr = "lordofelderevil@gmail.com"
-    FIRST_SUPERUSER_PASSWORD: str = "123456"
+    FIRST_SUPERUSER_PASSWORD: str = "pa$$word"
     USERS_OPEN_REGISTRATION: bool = True
 
     class Config:

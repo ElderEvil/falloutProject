@@ -15,8 +15,7 @@ def create_outfit(outfit_data: OutfitCreate, db: Session = Depends(get_session))
 
 @router.get("/", response_model=list[OutfitRead])
 def read_outfit_list(skip: int = 0, limit: int = 100, db: Session = Depends(get_session)):
-    outfit_items = outfit.get_multi(db, skip=skip, limit=limit)
-    return outfit_items  # noqa: RET504
+    return outfit.get_multi(db, skip=skip, limit=limit)
 
 
 @router.get("/{outfit_id}", response_model=OutfitRead)

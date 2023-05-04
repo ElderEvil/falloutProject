@@ -15,8 +15,7 @@ def create_quest(quest_data: QuestCreate, db: Session = Depends(get_session)):
 
 @router.get("/", response_model=list[QuestRead])
 def read_quest_list(skip: int = 0, limit: int = 100, db: Session = Depends(get_session)):
-    quests = quest.get_multi(db, skip=skip, limit=limit)
-    return quests  # noqa: RET504
+    return quest.get_multi(db, skip=skip, limit=limit)
 
 
 @router.get("/{quest_id}", response_model=QuestReadWithSteps)

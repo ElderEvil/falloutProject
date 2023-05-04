@@ -15,8 +15,7 @@ def create_room(room_data: RoomCreate, db: Session = Depends(get_session)):
 
 @router.get("/", response_model=list[RoomRead])
 def read_room_list(skip: int = 0, limit: int = 100, db: Session = Depends(get_session)):
-    room_items = room.get_multi(db, skip=skip, limit=limit)
-    return room_items  # noqa: RET504
+    return room.get_multi(db, skip=skip, limit=limit)
 
 
 @router.get("/{room_id}", response_model=RoomRead)

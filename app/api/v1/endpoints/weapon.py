@@ -16,8 +16,7 @@ def create_weapon(weapon_data: WeaponCreate, db: Session = Depends(get_session))
 
 @router.get("/", response_model=list[Weapon])
 def read_weapon_list(skip: int = 0, limit: int = 100, db: Session = Depends(get_session)):
-    weapon_items = weapon.get_multi(db, skip=skip, limit=limit)
-    return weapon_items  # noqa: RET504
+    return weapon.get_multi(db, skip=skip, limit=limit)
 
 
 @router.get("/{weapon_id}", response_model=Weapon)

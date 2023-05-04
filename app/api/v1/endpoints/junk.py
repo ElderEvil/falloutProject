@@ -15,8 +15,7 @@ def create_junk(junk_data: JunkCreate, db: Session = Depends(get_session)):
 
 @router.get("/", response_model=list[JunkRead])
 def read_junk_list(skip: int = 0, limit: int = 100, db: Session = Depends(get_session)):
-    junk_items = junk.get_multi(db, skip=skip, limit=limit)
-    return junk_items  # noqa: RET504
+    return junk.get_multi(db, skip=skip, limit=limit)
 
 
 @router.get("/{junk_id}", response_model=JunkRead)

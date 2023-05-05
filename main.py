@@ -1,6 +1,3 @@
-import json
-from pathlib import Path
-
 from fastapi import FastAPI
 from starlette import status
 from starlette.requests import Request
@@ -20,11 +17,6 @@ app = FastAPI(
 @app.on_event("startup")
 def startup_event():
     create_db_and_tables()
-    data_path = Path("data")
-    junk_path = data_path / "junk.json"
-    junk_list = json.loads(junk_path.read_text())
-    for junk in junk_list:
-        print(junk)
 
 
 @app.on_event("shutdown")

@@ -2,7 +2,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 from app.core.config import settings
-from app.crud.weapon import weapon
+from app import crud
 from app.schemas.weapon import WeaponCreate
 
 
@@ -73,7 +73,7 @@ def test_read_weapons(session: Session, client: TestClient):
     # weapon.create(session, weapon_1) # TODO make tests independent of each other
 
     weapon_2 = WeaponCreate(**weapon_2_data)
-    weapon.create(session, weapon_2)
+    crud.weapon.create(session, weapon_2)
 
     response = client.get(f"{settings.API_V1_STR}/weapons/")
     all_weapons = response.json()
@@ -111,7 +111,7 @@ def test_read_weapon(session: Session, client: TestClient):
     }
 
     weapon_1 = WeaponCreate(**weapon_1_data)
-    weapon.create(session, weapon_1)
+    crud.weapon.create(session, weapon_1)
 
     response = client.get(f"{settings.API_V1_STR}/weapons/1/")
 

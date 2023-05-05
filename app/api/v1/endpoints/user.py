@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.api import deps
 from app.core.config import settings
-from app.crud.user import crud_user
+from app import crud
 from app.db.base import get_session
 from app.models.user import User
 from app.schemas.user import UserRead, UserCreate, UserUpdate
@@ -25,14 +25,14 @@ def create_user(
     """
     Admin route to create new user.
     """
-    user = crud_user.get_by_email(db, email=user_in.email)
+    user = crud.user.get_by_email(db, email=user_in.email)
     if user:
         raise HTTPException(
             status_code=400,
             detail="The user with this username already exists in the system.",
         )
 
-    return crud_user.create(db, obj_in=user_in)
+    return crud.user.create(db, obj_in=user_in)
 
 
 @router.get("/", response_model=list[UserRead])
@@ -45,7 +45,7 @@ def read_users(
     """
     Retrieve users.
     """
-    return crud_user.get_multi(db, skip=skip, limit=limit)
+    return crud.user.get_multi(db, skip=skip, limit=limit)
 
 
 @router.put("/me", response_model=UserRead)
@@ -68,7 +68,7 @@ def update_user_me(
         user_in.full_name = username
     if email is not None:
         user_in.email = email
-    return crud_user.update(db, id=current_user.id, obj_in=user_in)
+    return crud.user.update(db, id=current_user.id, obj_in=user_in)
 
 
 @router.get("/me", response_model=UserRead)
@@ -99,14 +99,14 @@ def create_user_open(
             status_code=403,
             detail="Open user registration is forbidden on this server",
         )
-    user = crud_user.get_by_email(db, email=email)
+    user = crud.user.get_by_email(db, email=email)
     if user:
         raise HTTPException(
             status_code=400,
             detail="The user with this username already exists in the system",
         )
     user_in = UserCreate(username=username, password=password, email=email)
-    user = crud_user.create(db, obj_in=user_in)
+    user = user.create(db, obj_in=user_in)
     return user
 
 
@@ -119,10 +119,10 @@ def read_user_by_id(
     """
     Get a specific user by id.
     """
-    user = crud_user.get(db, id=user_id)
+    user = crud.user.get(db, id=user_id)
     if user == current_user:
         return user
-    if not crud_user.is_superuser(current_user):
+    if not crud.user.is_superuser(current_user):
         raise HTTPException(
             status_code=400,
             detail="The user doesn't have enough privileges",
@@ -141,11 +141,11 @@ def update_user(
     """
     Update a user.
     """
-    user = crud_user.get(db, id=user_id)
+    user = crud.user.get(db, id=user_id)
     if not user:
         raise HTTPException(
             status_code=404,
             detail="The user with this username does not exist in the system",
         )
-    user = crud_user.update(db, db_obj=user, obj_in=user_in)
+    user = crud.user.update(db, db_obj=user, obj_in=user_in)
     return user

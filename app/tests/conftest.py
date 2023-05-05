@@ -4,7 +4,7 @@ from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
 
 from app.core.config import settings
-from app.crud.user import crud_user
+from app.crud.user import user
 from app.db.base import get_session
 from app.schemas.user import UserCreate
 from app.tests.utils.user import authentication_token_from_email
@@ -36,7 +36,7 @@ def client_fixture(session: Session):
         password=settings.FIRST_SUPERUSER_PASSWORD,
         is_superuser=True,
     )
-    crud_user.create(db=session, obj_in=user_in)
+    user.create(db=session, obj_in=user_in)
     client = TestClient(app)
     yield client
     app.dependency_overrides.clear()

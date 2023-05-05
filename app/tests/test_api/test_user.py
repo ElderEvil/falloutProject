@@ -3,7 +3,7 @@ from pydantic import EmailStr
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.crud.user import crud_user
+from app import crud
 
 from app.schemas.user import UserCreate
 from app.tests.utils.utils import random_email, random_lower_string
@@ -49,7 +49,7 @@ def test_create_user_new_email(
     )
     assert 200 <= r.status_code < 300
     created_user = r.json()
-    user = crud_user.get_by_email(db=session, email=email)
+    user = crud.user.get_by_email(db=session, email=email)
     assert user
     assert user.email == created_user["email"]
 
@@ -63,7 +63,7 @@ def test_get_existing_user(
     email = EmailStr(random_email())
     password = random_lower_string()
     user_in = UserCreate(username=username, email=email, password=password)
-    user = crud_user.create(db=session, obj_in=user_in)
+    user = crud.user.create(db=session, obj_in=user_in)
     user_id = user.id
     r = client.get(
         f"{settings.API_V1_STR}/users/{user_id}",
@@ -71,7 +71,7 @@ def test_get_existing_user(
     )
     assert 200 <= r.status_code < 300
     api_user = r.json()
-    existing_user = crud_user.get_by_email(db=session, email=email)
+    existing_user = crud.user.get_by_email(db=session, email=email)
     assert existing_user
     assert existing_user.email == api_user["email"]
 
@@ -85,7 +85,7 @@ def test_create_user_existing_username(
     email = EmailStr(random_email())
     password = random_lower_string()
     user_in = UserCreate(username=username, email=email, password=password)
-    crud_user.create(db=session, obj_in=user_in)
+    crud.user.create(db=session, obj_in=user_in)
     data = {"username": username, "email": email, "password": password}
     r = client.post(
         f"{settings.API_V1_STR}/users/",
@@ -122,13 +122,13 @@ def test_retrieve_users(
     email = EmailStr(random_email())
     password = random_lower_string()
     user_in = UserCreate(username=username, email=email, password=password)
-    crud_user.create(db=session, obj_in=user_in)
+    crud.user.create(db=session, obj_in=user_in)
 
     username2 = random_lower_string(16)
     email2 = EmailStr(random_email())
     password2 = random_lower_string()
     user_in2 = UserCreate(username=username2, email=email2, password=password2)
-    crud_user.create(db=session, obj_in=user_in2)
+    crud.user.create(db=session, obj_in=user_in2)
 
     r = client.get(f"{settings.API_V1_STR}/users/", headers=superuser_token_headers)
     all_users = r.json()

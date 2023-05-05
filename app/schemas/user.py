@@ -15,9 +15,6 @@ class UserRead(UserBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        hashed_password = None
-
 
 class UserUpdate(SQLModel):
     username: str | None = Field(index=True, min_length=3, max_length=32, default=None)

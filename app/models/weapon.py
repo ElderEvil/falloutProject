@@ -1,6 +1,7 @@
 from pydantic import validator
 from sqlmodel import Field
 
+from app.models.base import TimeStampMixin
 from app.models.item import ItemBase
 from app.schemas.common_schema import WeaponSubtype, WeaponType
 
@@ -41,13 +42,5 @@ class WeaponBase(ItemBase):
         return v
 
 
-class Weapon(WeaponBase, table=True):
+class Weapon(WeaponBase, TimeStampMixin, table=True):
     id: int | None = Field(default=None, primary_key=True)
-
-    def __str__(self):
-        return (
-            f"{'🗡️' if self.weapon_type == WeaponType.melee else '🔫'}{self.name}"
-            f" 💥{self.damage_min}-{self.damage_max}"
-            f" 🪙{self.value}"
-            f" 💎{self.rarity.name.title()}"
-        )

@@ -1,5 +1,6 @@
 from sqlmodel import Field, SQLModel
 
+from app.models.base import TimeStampMixin
 from app.schemas.common_schema import RoomType
 
 
@@ -18,5 +19,5 @@ class RoomBase(SQLModel):
     size: int = Field(ge=1, le=9)
 
 
-class Room(RoomBase, table=True):
+class Room(RoomBase, TimeStampMixin, table=True):
     id: int | None = Field(default=None, primary_key=True)

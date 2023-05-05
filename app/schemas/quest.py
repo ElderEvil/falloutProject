@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlmodel import Field, SQLModel
 
 from app.models.quest import QuestBase, QuestStepBase
@@ -9,6 +11,8 @@ class QuestCreate(QuestBase):
 
 class QuestRead(QuestBase):
     id: int
+    created_at: datetime
+    updated_at: datetime
 
 
 class QuestUpdate(SQLModel):
@@ -29,6 +33,8 @@ class QuestStepUpdate(SQLModel):
 
 class QuestStepRead(QuestStepBase):
     id: int
+    created_at: datetime
+    updated_at: datetime
 
 
 class QuestReadWithSteps(QuestRead):

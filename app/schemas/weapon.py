@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from app.models.weapon import WeaponBase
 from app.schemas.common_schema import WeaponSubtype, WeaponType
 from app.schemas.item import ItemUpdate
@@ -9,6 +11,8 @@ class WeaponCreate(WeaponBase):
 
 class WeaponRead(WeaponBase):
     id: int
+    created_at: datetime
+    updated_at: datetime
 
 
 class WeaponUpdate(ItemUpdate):

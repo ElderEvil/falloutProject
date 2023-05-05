@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Any, Generic, TypeVar
 
 from fastapi import HTTPException
@@ -87,7 +88,8 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             raise HTTPException(status_code=404, detail=f"{self.model.__name__} not found")
 
         update_data = obj_in if isinstance(obj_in, dict) else obj_in.dict(exclude_unset=True)
-
+        if hasattr(db_obj, "updated_at"):
+            update_data["updated_at"] = datetime.now(tz=timezone.utc)
         for field, value in update_data.items():
             setattr(db_obj, field, value)
 

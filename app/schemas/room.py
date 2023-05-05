@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlmodel import Field, SQLModel
 
 from app.models.room import RoomBase
@@ -10,6 +12,8 @@ class RoomCreate(RoomBase):
 
 class RoomRead(RoomBase):
     id: int
+    created_at: datetime
+    updated_at: datetime
 
 
 class RoomUpdate(SQLModel):

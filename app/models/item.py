@@ -21,7 +21,3 @@ class ItemBase(SQLModel):
         if "value" not in values:
             values["value"] = cls._value_by_rarity[values["rarity"]]
         return values
-
-
-class Item(ItemBase, table=True):
-    id: int | None = Field(default=None, primary_key=True)

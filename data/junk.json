@@ -1,127 +1,127 @@
 [
   {
     "name": "Alarm clock",
-    "type": "Circuitry",
+    "junk_type": "Circuitry",
     "rarity": "Common",
     "description": "Because Dwellers that sleep in are sent to the Wasteland."
   },
   {
     "name": "Baseball glove",
-    "type": "Leather",
+    "junk_type": "Leather",
     "rarity": "Common",
     "description": "Catch a baseball, rock or grenade and throw it right back."
   },
   {
     "name": "Duct tape",
-    "type": "Adhesive",
+    "junk_type": "Adhesive",
     "rarity": "Common",
     "description": "Keep things in place with every handyman's secret weapon."
   },
   {
     "name": "Yarn",
-    "type": "Cloth",
+    "junk_type": "Cloth",
     "rarity": "Common",
     "description": "Keep cats entertained and make fabulous outfits."
   },
   {
     "name": "Magnifying glass",
-    "type": "Science",
+    "junk_type": "Science",
     "rarity": "Common",
     "description": "This ant immolator might not work as well on Radroaches."
   },
   {
     "name": "Desk fan",
-    "type": "Steel",
+    "junk_type": "Steel",
     "rarity": "Common",
     "description": "Great at keeping the Wasteland heat away. If it worked."
   },
   {
     "name": "Toy car",
-    "type": "Valuables",
+    "junk_type": "Valuables",
     "rarity": "Common",
     "description": "Brings you back to the care-free days of being a kid in the Vault."
   },
   {
     "name": "Camera",
-    "type": "Circuitry",
+    "junk_type": "Circuitry",
     "rarity": "Rare",
     "description": "Investigate hidden truths or take Vault family portraits."
   },
   {
     "name": "Brahmin hide",
-    "type": "Leather",
+    "junk_type": "Leather",
     "rarity": "Rare",
     "description": "Great for making a full-grain leather jacket. Two heads means two hoods!"
   },
   {
     "name": "Wonderglue",
-    "type": "Adhesive",
+    "junk_type": "Adhesive",
     "rarity": "Rare",
     "description": "Be careful not to glue your hands together or your eyelids shut."
   },
   {
     "name": "Teddy bear",
-    "type": "Cloth",
+    "junk_type": "Cloth",
     "rarity": "Rare",
     "description": "Wasteland life is no picnic, so he's always ready for a warm hug."
   },
   {
     "name": "Microscope",
-    "type": "Science",
+    "junk_type": "Science",
     "rarity": "Rare",
     "description": "Probably more useful in the Wasteland as a blunt weapon."
   },
   {
     "name": "Shovel",
-    "type": "Steel",
+    "junk_type": "Steel",
     "rarity": "Rare",
     "description": "Versatile and reliable. No Dweller should be without one."
   },
   {
     "name": "Globe",
-    "type": "Valuables",
+    "junk_type": "Valuables",
     "rarity": "Rare",
     "description": "Look back at the world that was. Or just spin it when you're bored."
   },
   {
     "name": "Military circuit board",
-    "type": "Circuitry",
+    "junk_type": "Circuitry",
     "rarity": "Legendary",
     "description": "Top-of-the-line circuitry to make top-of-the-line equipment."
   },
   {
     "name": "Yao guai hide",
-    "type": "Leather",
+    "junk_type": "Leather",
     "rarity": "Legendary",
     "description": "Don't mess with me, your hide-made outfits will say."
   },
   {
     "name": "Military duct tape",
-    "type": "Adhesive",
+    "junk_type": "Adhesive",
     "rarity": "Legendary",
     "description": "Don't mess with me, your hide-made outfits will say."
   },
   {
     "name": "Tri-fold flag",
-    "type": "Cloth",
+    "junk_type": "Cloth",
     "rarity": "Legendary",
     "description": "Never forget the good ol' red, white and blue."
   },
   {
     "name": "Chemistry flask",
-    "type": "Science",
+    "junk_type": "Science",
     "rarity": "Legendary",
     "description": "Lets everyone know you're serious about doing sciency things."
   },
   {
     "name": "Giddyup Buttercup",
-    "type": "Steel",
+    "junk_type": "Steel",
     "rarity": "Legendary",
     "description": "Go ahead, no one's watching. Get on and take a ride."
   },
   {
     "name": "Gold watch",
-    "type": "Valuables",
+    "junk_type": "Valuables",
     "rarity": "Legendary",
     "description": "For when a weapon or outfit needs just a touch of bling."
   }

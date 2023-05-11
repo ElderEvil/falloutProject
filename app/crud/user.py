@@ -1,5 +1,6 @@
 from typing import Any
 
+from pydantic import UUID4
 from sqlmodel import Session
 
 from app.core.security import get_password_hash, verify_password
@@ -30,7 +31,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     def update(
         self,
         db: Session,
-        id: int,
+        id: UUID4,
         obj_in: UserUpdate | dict[str, Any],
     ) -> User:
         update_data = obj_in if isinstance(obj_in, dict) else obj_in.dict(exclude_unset=True)

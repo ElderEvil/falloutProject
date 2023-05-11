@@ -2,6 +2,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
+from pydantic import UUID4
 from pydantic.networks import EmailStr
 from sqlalchemy.orm import Session
 
@@ -106,13 +107,13 @@ def create_user_open(
             detail="The user with this username already exists in the system",
         )
     user_in = UserCreate(username=username, password=password, email=email)
-    user = user.create(db, obj_in=user_in)
+    user = crud.user.create(db, obj_in=user_in)
     return user
 
 
 @router.get("/{user_id}", response_model=UserRead)
 def read_user_by_id(
-    user_id: int,
+    user_id: int | UUID4,
     current_user: User = Depends(deps.get_current_active_user),
     db: Session = Depends(deps.get_session),
 ) -> Any:

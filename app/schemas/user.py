@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import EmailStr
+from pydantic import EmailStr, UUID4
 from sqlmodel import SQLModel, Field
 
 from app.models.user import UserBase
@@ -11,7 +11,7 @@ class UserCreate(UserBase):
 
 
 class UserRead(UserBase):
-    id: int
+    id: UUID4
     created_at: datetime
     updated_at: datetime
 

@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import Any, Generic, TypeVar
 
 from fastapi import HTTPException
+from pydantic import UUID4
 from sqlmodel import Session, SQLModel, select
 
 ModelType = TypeVar("ModelType", bound=SQLModel)
@@ -24,7 +25,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         """
         self.model = model
 
-    def get(self, db: Session, id: int) -> ModelType | None:
+    def get(self, db: Session, id: int | UUID4) -> ModelType | None:
         """
         Gets a single item of the specified model type by ID.
 
@@ -74,7 +75,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         db.refresh(db_obj)
         return db_obj
 
-    def update(self, db: Session, id: int, obj_in: UpdateSchemaType | dict[str, Any]) -> ModelType:
+    def update(self, db: Session, id: int | UUID4, obj_in: UpdateSchemaType | dict[str, Any]) -> ModelType:
         """
         Updates an existing item of the specified model type in the database.
 
@@ -98,7 +99,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         db.refresh(db_obj)
         return db_obj
 
-    def delete(self, db: Session, id: int) -> ModelType:
+    def delete(self, db: Session, id: int | UUID4) -> ModelType:
         """
         Remove a database object with the given ID.
 

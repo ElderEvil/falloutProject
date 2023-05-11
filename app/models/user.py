@@ -1,7 +1,7 @@
 from pydantic import EmailStr
 from sqlmodel import SQLModel, Field
 
-from app.models.base import TimeStampMixin
+from app.models.base import TimeStampMixin, BaseUUIDModel
 
 
 class UserBase(SQLModel):
@@ -15,6 +15,5 @@ class UserBase(SQLModel):
     is_superuser: bool = Field(default=False)
 
 
-class User(UserBase, TimeStampMixin, table=True):
-    id: int | None = Field(default=None, primary_key=True)
+class User(BaseUUIDModel, UserBase, TimeStampMixin, table=True):
     hashed_password: str = Field(..., nullable=False)

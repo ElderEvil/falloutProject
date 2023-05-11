@@ -2,7 +2,7 @@ from sqlmodel import Field
 
 from app.models.base import TimeStampMixin
 from app.models.item import ItemBase
-from app.schemas.common_schema import Gender, OutfitType
+from app.schemas.common import Gender, OutfitType
 
 
 class OutfitBase(ItemBase):

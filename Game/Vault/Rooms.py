@@ -3,7 +3,7 @@ from abc import ABC
 from Game.Items.models import Item, RadAway, Stimpak
 from Game.Vault.Dwellers import Dweller
 from Game.Vault.Resources import ResourceType
-from app.schemas.common_schema import RoomType
+from app.schemas.common import RoomType
 
 
 class AbstractRoom(ABC):

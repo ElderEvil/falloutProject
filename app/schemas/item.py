@@ -1,7 +1,7 @@
 from sqlmodel import SQLModel
 
 from app.models.item import ItemBase
-from app.schemas.common_schema import Rarity
+from app.schemas.common import Rarity
 
 
 class ItemCreate(ItemBase):

@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from app.models.weapon import WeaponBase
-from app.schemas.common_schema import WeaponSubtype, WeaponType
+from app.schemas.common import WeaponSubtype, WeaponType
 from app.schemas.item import ItemUpdate
 
 

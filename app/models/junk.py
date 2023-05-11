@@ -2,7 +2,7 @@ from sqlmodel import Field
 
 from app.models.base import TimeStampMixin
 from app.models.item import ItemBase
-from app.schemas.common_schema import JunkType, Rarity
+from app.schemas.common import JunkType, Rarity
 
 
 class JunkBase(ItemBase):

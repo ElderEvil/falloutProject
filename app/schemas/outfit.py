@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from app.models.outfit import OutfitBase
-from app.schemas.common_schema import Gender, OutfitType
+from app.schemas.common import Gender, OutfitType
 from app.schemas.item import ItemUpdate
 
 

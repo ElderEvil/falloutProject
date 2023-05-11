@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlmodel import Field, SQLModel
 
 from app.models.room import RoomBase
-from app.schemas.common_schema import RoomType
+from app.schemas.common import RoomType
 
 
 class RoomCreate(RoomBase):

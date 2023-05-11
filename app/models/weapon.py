@@ -3,7 +3,7 @@ from sqlmodel import Field
 
 from app.models.base import TimeStampMixin
 from app.models.item import ItemBase
-from app.schemas.common_schema import WeaponSubtype, WeaponType
+from app.schemas.common import WeaponSubtype, WeaponType
 
 
 class WeaponBase(ItemBase):

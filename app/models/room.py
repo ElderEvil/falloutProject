@@ -1,7 +1,7 @@
 from sqlmodel import Field, SQLModel
 
 from app.models.base import TimeStampMixin
-from app.schemas.common_schema import RoomType
+from app.schemas.common import RoomType
 
 
 class RoomBase(SQLModel):

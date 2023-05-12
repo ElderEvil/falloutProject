@@ -31,7 +31,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     def update(
         self,
         db: Session,
-        id: UUID4,
+        id: int | UUID4,
         obj_in: UserUpdate | dict[str, Any],
     ) -> User:
         update_data = obj_in if isinstance(obj_in, dict) else obj_in.dict(exclude_unset=True)

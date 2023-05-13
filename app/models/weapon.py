@@ -1,7 +1,7 @@
 from pydantic import validator
 from sqlmodel import Field
 
-from app.models.base import TimeStampMixin
+from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.models.item import ItemBase
 from app.schemas.common import WeaponSubtype, WeaponType
 
@@ -42,5 +42,5 @@ class WeaponBase(ItemBase):
         return v
 
 
-class Weapon(WeaponBase, TimeStampMixin, table=True):
-    id: int | None = Field(default=None, primary_key=True)
+class Weapon(BaseUUIDModel, WeaponBase, TimeStampMixin, table=True):
+    ...

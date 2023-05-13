@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from pydantic import UUID4
+
 from app.models.junk import JunkBase
 from app.schemas.item import ItemUpdate
 
@@ -9,7 +11,7 @@ class JunkCreate(JunkBase):
 
 
 class JunkRead(JunkBase):
-    id: int
+    id: UUID4
     created_at: datetime
     updated_at: datetime
 

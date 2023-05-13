@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from pydantic import UUID4
 from sqlmodel import Session
 
 from app import crud
@@ -19,15 +20,15 @@ def read_junk_list(skip: int = 0, limit: int = 100, db: Session = Depends(get_se
 
 
 @router.get("/{junk_id}", response_model=JunkRead)
-def read_junk(junk_id: int, db: Session = Depends(get_session)):
+def read_junk(junk_id: UUID4, db: Session = Depends(get_session)):
     return crud.junk.get(db, junk_id)
 
 
 @router.put("/{junk_id}", response_model=JunkRead)
-def update_junk(junk_id: int, junk_data: JunkUpdate, db: Session = Depends(get_session)):
+def update_junk(junk_id: UUID4, junk_data: JunkUpdate, db: Session = Depends(get_session)):
     return crud.junk.update(db, junk_id, junk_data)
 
 
 @router.delete("/{junk_id}", status_code=204)
-def delete_junk(junk_id: int, db: Session = Depends(get_session)):
+def delete_junk(junk_id: UUID4, db: Session = Depends(get_session)):
     return crud.junk.delete(db, junk_id)

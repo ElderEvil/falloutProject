@@ -111,9 +111,9 @@ def test_read_weapon(session: Session, client: TestClient):
     }
 
     weapon_1 = WeaponCreate(**weapon_1_data)
-    crud.weapon.create(session, weapon_1)
+    created_weapon = crud.weapon.create(session, weapon_1)
 
-    response = client.get(f"{settings.API_V1_STR}/weapons/1/")
+    response = client.get(f"{settings.API_V1_STR}/weapons/{created_weapon.id}/")
 
     assert response.status_code == 200
 

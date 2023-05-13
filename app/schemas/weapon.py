@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from pydantic import UUID4
+
 from app.models.weapon import WeaponBase
 from app.schemas.common import WeaponSubtype, WeaponType
 from app.schemas.item import ItemUpdate
@@ -10,7 +12,7 @@ class WeaponCreate(WeaponBase):
 
 
 class WeaponRead(WeaponBase):
-    id: int
+    id: UUID4
     created_at: datetime
     updated_at: datetime
 

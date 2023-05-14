@@ -5,7 +5,7 @@ from app.schemas.common import Rarity
 
 
 class ItemBase(SQLModel):
-    name: str = Field(index=True, min_length=3, max_length=32)
+    name: str = Field(unique=True, index=True, min_length=3, max_length=32)
     rarity: Rarity
     value: int | None = Field(default=None, ge=0)
 

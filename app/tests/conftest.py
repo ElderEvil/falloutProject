@@ -24,12 +24,8 @@ def session_fixture():
         yield session
 
 
-@pytest.fixture(name="client", scope="module")
-def client_fixture(session: Session):
-    def get_session_override():
-        return session
-
-    app.dependency_overrides[get_session] = get_session_override
+@pytest.fixture(name="superuser", scope="module")
+def _superuser_fixture(session: Session):
     user_in = UserCreate(
         username=settings.FIRST_SUPERUSER_EMAIL,
         email=settings.FIRST_SUPERUSER_EMAIL,
@@ -37,6 +33,14 @@ def client_fixture(session: Session):
         is_superuser=True,
     )
     user.create(db=session, obj_in=user_in)
+
+
+@pytest.fixture(name="client", scope="module")
+def client_fixture(session: Session, superuser: None):
+    def get_session_override():
+        return session
+
+    app.dependency_overrides[get_session] = get_session_override
     client = TestClient(app)
     yield client
     app.dependency_overrides.clear()

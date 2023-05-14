@@ -1,11 +1,10 @@
 from sqlmodel import Session
 from starlette.testclient import TestClient
 
-from app.core.config import settings
 from app import crud
-from app.models.user import User
+from app.core.config import settings
 from app.schemas.user import UserCreate, UserUpdate
-from app.tests.utils.utils import random_lower_string, random_email
+from app.tests.utils.utils import random_lower_string
 
 
 def user_authentication_headers(
@@ -20,13 +19,6 @@ def user_authentication_headers(
     response = r.json()
     auth_token = response["access_token"]
     return {"Authorization": f"Bearer {auth_token}"}
-
-
-def create_random_user(db: Session) -> User:
-    email = random_email()
-    password = random_lower_string()
-    user_in = UserCreate(username=email, email=email, password=password)
-    return crud.user.create(db=db, obj_in=user_in)
 
 
 def authentication_token_from_email(

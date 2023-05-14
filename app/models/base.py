@@ -20,3 +20,13 @@ class BaseUUIDModel(SQLModel):
         index=True,
         nullable=False,
     )
+
+
+class SPECIAL(SQLModel):
+    strength: int = Field(..., ge=1, le=10)
+    perception: int = Field(..., ge=1, le=10)
+    endurance: int = Field(..., ge=1, le=10)
+    charisma: int = Field(..., ge=1, le=10)
+    intelligence: int = Field(..., ge=1, le=10)
+    agility: int = Field(..., ge=1, le=10)
+    luck: int = Field(..., ge=1, le=10)

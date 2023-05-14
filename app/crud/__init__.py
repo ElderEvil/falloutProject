@@ -1,3 +1,4 @@
+from .dweller import dweller  # noqa: F401
 from .junk import junk  # noqa: F401
 from .outfit import outfit  # noqa: F401
 from .quest import quest  # noqa: F401

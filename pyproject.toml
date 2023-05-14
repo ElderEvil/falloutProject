@@ -47,7 +47,7 @@ ignore = [
     "B006",
     "B008",  # do not perform function calls in argument defaults
     "PTH123", # builtin-open
-    "S101", # assert
+    "S101", "S311", # assert, pseudo-random
     "PLR2004",
 ]
 [tool.ruff.flake8-builtins]

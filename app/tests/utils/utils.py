@@ -7,7 +7,7 @@ from app.core.config import settings
 
 
 def random_lower_string(k: int = 32) -> str:
-    return "".join(random.choices(string.ascii_lowercase, k=k))  # noqa: S311
+    return "".join(random.choices(string.ascii_lowercase, k=k))
 
 
 def get_superuser_token_headers(client: TestClient) -> dict[str, str]:

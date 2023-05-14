@@ -25,8 +25,8 @@ def test_read_junk_list(client: TestClient, session: Session, junk_data: dict):
     junk_data_2 = {
         "name": random_lower_string(16).capitalize(),
         "rarity": "Common",
-        "value": random.randint(1, 1000),  # noqa: S311
-        "junk_type": random.choice(list(JunkType)),  # noqa: S311
+        "value": random.randint(1, 1000),
+        "junk_type": random.choice(list(JunkType)),
         "description": random_lower_string(16),
     }
     junk_obj_1 = JunkCreate(**junk_data)
@@ -56,8 +56,8 @@ def test_update_junk(client: TestClient, session: Session, junk_data: dict):
     junk_new_data = {
         "name": random_lower_string(16).capitalize(),
         "rarity": "Legendary",
-        "value": random.randint(1, 1000),  # noqa: S311
-        "junk_type": random.choice(list(JunkType)),  # noqa: S311
+        "value": random.randint(1, 1000),
+        "junk_type": random.choice(list(JunkType)),
         "description": random_lower_string(16),
     }
     update_response = client.put(f"{settings.API_V1_STR}/junk/{junk_item['id']}", json=junk_new_data)

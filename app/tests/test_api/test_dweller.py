@@ -49,13 +49,16 @@ def test_read_dweller(session: Session, client: TestClient):
     assert response.status_code == 200
 
     response_dweller = response.json()
-    assert response_dweller["name"] == dweller_1.name
-    assert response_dweller["rarity"] == dweller_1.rarity.value
-    assert response_dweller["dweller_type"] == dweller_1.dweller_type.value
-    assert response_dweller["dweller_subtype"] == dweller_1.dweller_subtype.value
-    assert response_dweller["stat"] == dweller_1.stat
-    assert response_dweller["damage_min"] == dweller_1.damage_min
-    assert response_dweller["damage_max"] == dweller_1.damage_max
+    assert response_dweller["first_name"] == dweller_1.first_name
+    assert response_dweller["last_name"] == dweller_1.last_name
+    assert response_dweller["gender"] == dweller_1.gender
+    assert response_dweller["rarity"] == dweller_1.rarity
+    assert response_dweller["level"] == dweller_1.level
+    assert response_dweller["experience"] == dweller_1.experience
+    assert response_dweller["max_health"] == dweller_1.max_health
+    assert response_dweller["health"] == dweller_1.health
+    assert response_dweller["happiness"] == dweller_1.happiness
+    assert response_dweller["is_adult"] == dweller_1.is_adult
 
 
 def test_update_dweller(session: Session, client: TestClient):
@@ -72,7 +75,14 @@ def test_update_dweller(session: Session, client: TestClient):
     assert updated_dweller["id"] == dweller_id
     assert updated_dweller["first_name"] == dweller_new_data["first_name"]
     assert updated_dweller["last_name"] == dweller_new_data["last_name"]
-    assert updated_dweller["rarity"] == dweller_new_data["rarity"]
+    assert updated_dweller["gender"] == dweller_new_data.gender  # FIXME
+    assert updated_dweller["rarity"] == dweller_new_data.rarity
+    assert updated_dweller["level"] == dweller_new_data.level
+    assert updated_dweller["experience"] == dweller_new_data.experience
+    assert updated_dweller["max_health"] == dweller_new_data.max_health
+    assert updated_dweller["health"] == dweller_new_data.health
+    assert updated_dweller["happiness"] == dweller_new_data.happiness
+    assert updated_dweller["is_adult"] == dweller_new_data.is_adult
 
 
 def test_delete_dweller(session: Session, client: TestClient):

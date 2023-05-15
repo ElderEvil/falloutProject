@@ -10,8 +10,8 @@ from app.tests.utils.utils import random_lower_string
 def junk_data():
     return {
         "name": random_lower_string(16).capitalize(),
-        "rarity": random.choice(["Common", "Rare", "Legendary"]),  # noqa: S311
-        "value": random.randint(1, 1000),  # noqa: S311
-        "junk_type": random.choice(list(JunkType)),  # noqa: S311
+        "rarity": random.choice(["Common", "Rare", "Legendary"]),
+        "value": random.randint(1, 1000),
+        "junk_type": random.choice(list(JunkType)),
         "description": random_lower_string(32),
     }

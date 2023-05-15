@@ -75,14 +75,14 @@ def test_update_dweller(session: Session, client: TestClient):
     assert updated_dweller["id"] == dweller_id
     assert updated_dweller["first_name"] == dweller_new_data["first_name"]
     assert updated_dweller["last_name"] == dweller_new_data["last_name"]
-    assert updated_dweller["gender"] == dweller_new_data.gender  # FIXME
-    assert updated_dweller["rarity"] == dweller_new_data.rarity
-    assert updated_dweller["level"] == dweller_new_data.level
-    assert updated_dweller["experience"] == dweller_new_data.experience
-    assert updated_dweller["max_health"] == dweller_new_data.max_health
-    assert updated_dweller["health"] == dweller_new_data.health
-    assert updated_dweller["happiness"] == dweller_new_data.happiness
-    assert updated_dweller["is_adult"] == dweller_new_data.is_adult
+    assert updated_dweller["gender"] == dweller_new_data["gender"].value
+    assert updated_dweller["rarity"] == dweller_new_data["rarity"].value
+    assert updated_dweller["level"] == dweller_new_data["level"]
+    assert updated_dweller["experience"] == dweller_new_data["experience"]
+    assert updated_dweller["max_health"] == dweller_new_data["max_health"]
+    assert updated_dweller["health"] == dweller_new_data["health"]
+    assert updated_dweller["happiness"] == dweller_new_data["happiness"]
+    assert updated_dweller["is_adult"] == dweller_new_data["is_adult"]
 
 
 def test_delete_dweller(session: Session, client: TestClient):

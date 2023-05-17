@@ -1,7 +1,12 @@
+from typing import TYPE_CHECKING
+
 from pydantic import EmailStr
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Relationship
 
 from app.models.base import TimeStampMixin, BaseUUIDModel
+
+if TYPE_CHECKING:
+    from app.models.vault import Vault
 
 
 class UserBase(SQLModel):
@@ -17,3 +22,5 @@ class UserBase(SQLModel):
 
 class User(BaseUUIDModel, UserBase, TimeStampMixin, table=True):
     hashed_password: str = Field(..., nullable=False)
+
+    vaults: list["Vault"] = Relationship(back_populates="user")

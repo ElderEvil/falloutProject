@@ -1,0 +1,31 @@
+from datetime import datetime
+from typing import Optional, TYPE_CHECKING
+
+from pydantic import UUID4
+from sqlmodel import Field, SQLModel
+
+from app.models.vault import VaultBase
+
+if TYPE_CHECKING:
+    from app.schemas.user import UserRead
+
+
+class VaultCreate(VaultBase):
+    name: int = Field(..., gt=0, lt=1_000)
+
+
+class VaultRead(VaultBase):
+    id: UUID4
+    created_at: datetime
+    updated_at: datetime
+
+
+class VaultReadWithUser(VaultRead):
+    user: Optional["UserRead"] = None
+
+
+class VaultUpdate(SQLModel):
+    name: str | None = Field(default=None, max_length=4)
+    bottle_caps: int | None = Field(default=None, ge=0, lt=1_000_000)
+    happiness: int | None = Field(default=50, ge=0, le=100)
+    user_id: UUID4 | None = Field(default=None)

@@ -11,7 +11,7 @@ from app.core.config import settings
 from app import crud
 from app.db.base import get_session
 from app.models.user import User
-from app.schemas.user import UserRead, UserCreate, UserUpdate
+from app.schemas.user import UserRead, UserReadWithVaults, UserCreate, UserUpdate
 
 router = APIRouter()
 
@@ -72,7 +72,7 @@ def update_user_me(
     return crud.user.update(db, id=current_user.id, obj_in=user_in)
 
 
-@router.get("/me", response_model=UserRead)
+@router.get("/me", response_model=UserReadWithVaults)
 def read_user_me(current_user: User = Depends(deps.get_current_active_user)) -> Any:
     """
     Get current user.
@@ -111,7 +111,7 @@ def create_user_open(
     return user
 
 
-@router.get("/{user_id}", response_model=UserRead)
+@router.get("/{user_id}", response_model=UserReadWithVaults)
 def read_user_by_id(
     user_id: int | UUID4,
     current_user: User = Depends(deps.get_current_active_user),

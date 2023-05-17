@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from pydantic import UUID4
 from sqlmodel import Session
 
 from app import crud
@@ -19,15 +20,15 @@ def read_quest_list(skip: int = 0, limit: int = 100, db: Session = Depends(get_s
 
 
 @router.get("/{quest_id}", response_model=QuestReadWithSteps)
-def read_quest(quest_id: int, db: Session = Depends(get_session)):
+def read_quest(quest_id: UUID4, db: Session = Depends(get_session)):
     return crud.quest.get(db, quest_id)
 
 
 @router.put("/{quest_id}", response_model=QuestRead)
-def update_quest(quest_id: int, quest_data: QuestUpdate, db: Session = Depends(get_session)):
+def update_quest(quest_id: UUID4, quest_data: QuestUpdate, db: Session = Depends(get_session)):
     return crud.quest.update(db, quest_id, quest_data)
 
 
 @router.delete("/{quest_id}", status_code=204)
-def delete_quest(quest_id: int, db: Session = Depends(get_session)):
+def delete_quest(quest_id: UUID4, db: Session = Depends(get_session)):
     return crud.quest.delete(db, quest_id)

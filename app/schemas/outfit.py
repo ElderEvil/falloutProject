@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from pydantic import UUID4
+
 from app.models.outfit import OutfitBase
 from app.schemas.common import Gender, OutfitType
 from app.schemas.item import ItemUpdate
@@ -10,7 +12,7 @@ class OutfitCreate(OutfitBase):
 
 
 class OutfitRead(OutfitBase):
-    id: int
+    id: UUID4
     created_at: datetime
     updated_at: datetime
 

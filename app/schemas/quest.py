@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from pydantic import UUID4
 from sqlmodel import Field, SQLModel
 
 from app.models.quest import QuestBase, QuestStepBase
@@ -10,7 +11,7 @@ class QuestCreate(QuestBase):
 
 
 class QuestRead(QuestBase):
-    id: int
+    id: UUID4
     created_at: datetime
     updated_at: datetime
 
@@ -22,7 +23,7 @@ class QuestUpdate(SQLModel):
 
 
 class QuestStepCreate(QuestStepBase):
-    quest_id: int = Field(foreign_key="quest.id")
+    quest_id: UUID4 = Field(foreign_key="quest.id")
 
 
 class QuestStepUpdate(SQLModel):
@@ -32,7 +33,7 @@ class QuestStepUpdate(SQLModel):
 
 
 class QuestStepRead(QuestStepBase):
-    id: int
+    id: UUID4
     created_at: datetime
     updated_at: datetime
 

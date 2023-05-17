@@ -1,6 +1,4 @@
-from sqlmodel import Field
-
-from app.models.base import TimeStampMixin
+from app.models.base import TimeStampMixin, BaseUUIDModel
 from app.models.item import ItemBase
 from app.schemas.common import Gender, OutfitType
 
@@ -10,5 +8,5 @@ class OutfitBase(ItemBase):
     gender: Gender | None = None
 
 
-class Outfit(OutfitBase, TimeStampMixin, table=True):
-    id: int | None = Field(default=None, primary_key=True)
+class Outfit(BaseUUIDModel, OutfitBase, TimeStampMixin, table=True):
+    ...

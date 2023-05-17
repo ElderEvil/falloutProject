@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from pydantic import UUID4
 from sqlmodel import Session
 
 from app import crud
@@ -14,20 +15,20 @@ def create_outfit(outfit_data: OutfitCreate, db: Session = Depends(get_session))
 
 
 @router.get("/", response_model=list[OutfitRead])
-def read_outfit_list(skip: int = 0, limit: int = 100, db: Session = Depends(get_session)):
+def read_outfit_list(skip: UUID4 = 0, limit: int = 100, db: Session = Depends(get_session)):
     return crud.outfit.get_multi(db, skip=skip, limit=limit)
 
 
 @router.get("/{outfit_id}", response_model=OutfitRead)
-def read_outfit(outfit_id: int, db: Session = Depends(get_session)):
+def read_outfit(outfit_id: UUID4, db: Session = Depends(get_session)):
     return crud.outfit.get(db, outfit_id)
 
 
 @router.put("/{outfit_id}", response_model=OutfitRead)
-def update_outfit(outfit_id: int, outfit_data: OutfitUpdate, db: Session = Depends(get_session)):
+def update_outfit(outfit_id: UUID4, outfit_data: OutfitUpdate, db: Session = Depends(get_session)):
     return crud.outfit.update(db, outfit_id, outfit_data)
 
 
 @router.delete("/{outfit_id}", status_code=204)
-def delete_outfit(outfit_id: int, db: Session = Depends(get_session)):
+def delete_outfit(outfit_id: UUID4, db: Session = Depends(get_session)):
     return crud.outfit.delete(db, outfit_id)

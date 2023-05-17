@@ -135,7 +135,7 @@ def read_user_by_id(
 def update_user(
     *,
     db: Session = Depends(deps.get_session),
-    user_id: int,
+    user_id: UUID4,
     user_in: UserUpdate,
     current_user: User = Depends(deps.get_current_active_superuser),
 ) -> Any:

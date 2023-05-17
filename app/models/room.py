@@ -1,3 +1,4 @@
+from pydantic import UUID4
 from sqlmodel import Field, SQLModel
 
 from app.models.base import TimeStampMixin
@@ -20,4 +21,4 @@ class RoomBase(SQLModel):
 
 
 class Room(RoomBase, TimeStampMixin, table=True):
-    id: int | None = Field(default=None, primary_key=True)
+    id: UUID4 | None = Field(default=None, primary_key=True)

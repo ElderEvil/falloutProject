@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from pydantic import UUID4
 from sqlmodel import Field, SQLModel
 
 from app.models.room import RoomBase
@@ -11,7 +12,7 @@ class RoomCreate(RoomBase):
 
 
 class RoomRead(RoomBase):
-    id: int
+    id: UUID4
     created_at: datetime
     updated_at: datetime
 

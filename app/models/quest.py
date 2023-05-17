@@ -1,6 +1,7 @@
+from pydantic import UUID4
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.models.base import TimeStampMixin
+from app.models.base import TimeStampMixin, BaseUUIDModel
 
 
 class QuestBase(SQLModel):
@@ -9,9 +10,7 @@ class QuestBase(SQLModel):
     completed: bool | None = False
 
 
-class Quest(QuestBase, TimeStampMixin, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-
+class Quest(BaseUUIDModel, QuestBase, TimeStampMixin, table=True):
     steps: list["QuestStep"] = Relationship(back_populates="quest")
 
 
@@ -22,8 +21,6 @@ class QuestStepBase(SQLModel):
     completed: bool = False
 
 
-class QuestStep(QuestStepBase, TimeStampMixin, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-
-    quest_id: int = Field(foreign_key="quest.id")
+class QuestStep(BaseUUIDModel, QuestStepBase, TimeStampMixin, table=True):
+    quest_id: UUID4 = Field(foreign_key="quest.id")
     quest: "Quest" = Relationship(back_populates="steps")

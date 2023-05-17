@@ -1,3 +1,4 @@
+from pydantic import UUID4
 from sqlmodel import SQLModel
 
 from app.models.item import ItemBase
@@ -9,7 +10,7 @@ class ItemCreate(ItemBase):
 
 
 class ItemRead(ItemBase):
-    id: int
+    id: UUID4
 
 
 class ItemUpdate(SQLModel):

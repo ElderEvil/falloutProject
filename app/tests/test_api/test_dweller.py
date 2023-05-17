@@ -1,8 +1,8 @@
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from app.core.config import settings
 from app import crud
+from app.core.config import settings
 from app.schemas.dweller import DwellerCreate
 from app.tests.factory.dwellers import create_fake_dweller
 

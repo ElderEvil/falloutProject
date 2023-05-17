@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from pydantic import EmailStr, UUID4
-from sqlmodel import SQLModel, Field
+from pydantic import UUID4, EmailStr
+from sqlmodel import Field, SQLModel
 
 from app.models.user import UserBase
 from app.schemas.vault import VaultRead  # noqa: TCH001

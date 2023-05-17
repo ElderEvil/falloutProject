@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from pydantic import UUID4
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
 

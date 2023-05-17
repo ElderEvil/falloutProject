@@ -1,14 +1,14 @@
 from datetime import timedelta
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session
 
+from app import crud
 from app.api import deps
 from app.core import security
 from app.core.config import settings
-from app import crud
 from app.db.base import get_session
 from app.models.user import User
 from app.schemas.token import Token

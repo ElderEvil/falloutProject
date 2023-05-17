@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import dweller, junk, outfit, quest, room, user, vault, weapon, login
+from app.api.v1.endpoints import dweller, junk, login, outfit, quest, room, user, vault, weapon
 
 api_router = APIRouter()
 api_router.include_router(login.router, tags=["login"])

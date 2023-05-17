@@ -5,7 +5,7 @@ from sqlmodel import Session
 from app import crud
 from app.db.base import get_session
 from app.models.vault import Vault
-from app.schemas.vault import VaultCreate, VaultUpdate, VaultRead
+from app.schemas.vault import VaultCreate, VaultRead, VaultUpdate
 
 router = APIRouter()
 

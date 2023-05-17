@@ -1,6 +1,6 @@
 from sqlmodel import Field, SQLModel
 
-from app.models.base import TimeStampMixin, BaseUUIDModel, SPECIAL
+from app.models.base import SPECIAL, BaseUUIDModel, TimeStampMixin
 from app.schemas.common import Gender, Rarity
 
 

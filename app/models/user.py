@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING
 
 from pydantic import EmailStr
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import Field, Relationship, SQLModel
 
-from app.models.base import TimeStampMixin, BaseUUIDModel
+from app.models.base import BaseUUIDModel, TimeStampMixin
 
 if TYPE_CHECKING:
     from app.models.vault import Vault

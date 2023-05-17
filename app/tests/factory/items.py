@@ -2,7 +2,7 @@ import random
 
 from faker import Faker
 
-from app.schemas.common import JunkType, Rarity, WeaponType, WeaponSubtype
+from app.schemas.common import JunkType, Rarity, WeaponSubtype, WeaponType
 
 fake = Faker()
 

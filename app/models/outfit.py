@@ -1,4 +1,4 @@
-from app.models.base import TimeStampMixin, BaseUUIDModel
+from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.models.item import ItemBase
 from app.schemas.common import Gender, OutfitType
 

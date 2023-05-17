@@ -1,8 +1,8 @@
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from app.core.config import settings
 from app import crud
+from app.core.config import settings
 from app.schemas.weapon import WeaponCreate
 from app.tests.factory.items import create_fake_weapon
 

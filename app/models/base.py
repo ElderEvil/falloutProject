@@ -2,7 +2,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from pydantic import UUID4
-from sqlmodel import SQLModel, Field
+from sqlmodel import Field, SQLModel
 
 
 class TimeStampMixin(SQLModel):

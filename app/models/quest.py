@@ -1,7 +1,7 @@
 from pydantic import UUID4
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.models.base import TimeStampMixin, BaseUUIDModel
+from app.models.base import BaseUUIDModel, TimeStampMixin
 
 
 class QuestBase(SQLModel):

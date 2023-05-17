@@ -6,12 +6,12 @@ from pydantic import UUID4
 from pydantic.networks import EmailStr
 from sqlalchemy.orm import Session
 
+from app import crud
 from app.api import deps
 from app.core.config import settings
-from app import crud
 from app.db.base import get_session
 from app.models.user import User
-from app.schemas.user import UserRead, UserReadWithVaults, UserCreate, UserUpdate
+from app.schemas.user import UserCreate, UserRead, UserReadWithVaults, UserUpdate
 
 router = APIRouter()
 

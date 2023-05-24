@@ -47,7 +47,7 @@ def test_read_weapons(session: Session, client: TestClient):
     weapon_2_data = create_fake_weapon()
 
     weapon_1 = WeaponCreate(**weapon_1_data)
-    # weapon.create(session, weapon_1) # TODO make tests independent of each other
+    crud.weapon.create(session, weapon_1)  # TODO make tests independent of each other
 
     weapon_2 = WeaponCreate(**weapon_2_data)
     crud.weapon.create(session, weapon_2)
@@ -58,7 +58,7 @@ def test_read_weapons(session: Session, client: TestClient):
     assert response.status_code == 200
     # assert len(all_weapons) == 2  # TODO make tests independent of each other
 
-    response_weapon_1, response_weapon_2 = all_weapons
+    _, response_weapon_1, response_weapon_2 = all_weapons
     assert response_weapon_1["name"] == weapon_1.name
     assert response_weapon_1["rarity"] == weapon_1.rarity.value
     assert response_weapon_1["value"] == response_weapon_1["value"]

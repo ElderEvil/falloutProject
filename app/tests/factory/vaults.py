@@ -7,8 +7,7 @@ fake = Faker()
 
 def create_fake_vault():
     return {
-        "name": str(random.randint(1, 1000)),
+        "name": random.randint(1, 100),
         "bottle_caps": random.randint(100, 1_000_000),
         "happiness": random.randint(0, 100),
-        # "user_id": uuid4(),
     }

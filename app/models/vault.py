@@ -10,12 +10,15 @@ if TYPE_CHECKING:
 
 
 class VaultBase(SQLModel):
-    name: str = Field(..., index=True, max_length=4)
+    name: int = Field(..., index=True, gt=0, lt=1_000)
     bottle_caps: int = Field(default=1000, ge=0, lt=1_000_000)
     happiness: int = Field(default=50, ge=0, le=100)
 
-    user_id: UUID4 = Field(default=None, foreign_key="user.id")
+    def __str__(self):
+        return f"Vault {self.name:03}"
 
 
 class Vault(BaseUUIDModel, VaultBase, TimeStampMixin, table=True):
+    user_id: UUID4 = Field(default=None, foreign_key="user.id")
+
     user: "User" = Relationship(back_populates="vaults")

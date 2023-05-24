@@ -28,7 +28,7 @@ def create_fake_outfit():
 
 def create_fake_weapon():
     return {
-        "name": fake.word().capitalize(),
+        "name": fake.name().capitalize(),
         "rarity": random.choice(list(Rarity)),
         "value": random.randint(1, 1000),
         "weapon_type": random.choice(list(WeaponType)),

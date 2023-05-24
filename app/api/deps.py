@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt
@@ -38,10 +40,16 @@ def get_current_user(
     return user
 
 
-def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
+CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+def get_current_active_user(current_user: CurrentUser) -> User:
     if not crud.user.is_active(current_user):
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
+
+
+CurrentActiveUser = Annotated[User, Depends(get_current_active_user)]
 
 
 def get_current_active_superuser(current_user: User = Depends(get_current_user)) -> User:
@@ -51,3 +59,6 @@ def get_current_active_superuser(current_user: User = Depends(get_current_user))
             detail="The user doesn't have enough privileges",
         )
     return current_user
+
+
+CurrentSuperuser = Annotated[User, Depends(get_current_active_superuser)]

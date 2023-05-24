@@ -18,8 +18,7 @@ def create_vault(
     db: Session = Depends(get_session),
     user: User = Depends(deps.get_current_active_user),
 ):
-    vault_data.user_id = user.id
-    return crud.vault.create(db, vault_data)
+    return crud.vault.create_with_user_id(db, vault_data, user.id)
 
 
 @router.get("/", response_model=list[VaultRead])

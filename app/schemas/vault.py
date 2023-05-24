@@ -29,6 +29,6 @@ class VaultReadWithUser(VaultRead):
 
 
 class VaultUpdate(SQLModel):
-    name: str | None = Field(default=None, max_length=4)
+    name: int | None = Field(default=None, gt=0, lt=1_000)
     bottle_caps: int | None = Field(default=None, ge=0, lt=1_000_000)
     happiness: int | None = Field(default=50, ge=0, le=100)

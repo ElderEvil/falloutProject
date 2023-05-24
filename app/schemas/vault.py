@@ -1,13 +1,9 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
 
 from pydantic import UUID4
 from sqlmodel import Field, SQLModel
 
 from app.models.vault import VaultBase
-
-if TYPE_CHECKING:
-    from app.schemas.user import UserRead
 
 
 class VaultCreate(VaultBase):
@@ -25,7 +21,7 @@ class VaultRead(VaultBase):
 
 
 class VaultReadWithUser(VaultRead):
-    user: Optional["UserRead"] = None
+    user_id: UUID4
 
 
 class VaultUpdate(SQLModel):

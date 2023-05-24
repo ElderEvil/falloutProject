@@ -7,7 +7,7 @@ from app.api import deps
 from app.db.base import get_session
 from app.models.user import User
 from app.models.vault import Vault
-from app.schemas.vault import VaultCreate, VaultRead, VaultUpdate
+from app.schemas.vault import VaultCreate, VaultRead, VaultReadWithUser, VaultUpdate
 
 router = APIRouter()
 
@@ -21,7 +21,7 @@ def create_vault(
     return crud.vault.create_with_user_id(db, vault_data, user.id)
 
 
-@router.get("/", response_model=list[VaultRead])
+@router.get("/", response_model=list[VaultReadWithUser])
 def read_vault_list(
     skip: int = 0,
     limit: int = 100,
@@ -39,7 +39,7 @@ def read_my_vaults(
     return crud.vault.get_by_user_id(db, user_id=user.id)
 
 
-@router.get("/{vault_id}", response_model=VaultRead)
+@router.get("/{vault_id}", response_model=VaultReadWithUser)
 def read_vault(
     vault_id: UUID4,
     db: Session = Depends(get_session),
@@ -48,7 +48,7 @@ def read_vault(
     return crud.vault.get(db, vault_id)
 
 
-@router.put("/{vault_id}", response_model=VaultRead)
+@router.put("/{vault_id}", response_model=VaultReadWithUser)
 def update_vault(
     vault_id: UUID4,
     vault_data: VaultUpdate,

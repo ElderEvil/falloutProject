@@ -42,7 +42,7 @@ def test_create_weapon_invalid(client: TestClient):
     assert response.status_code == 422
 
 
-def test_read_weapons(session: Session, client: TestClient):
+def test_read_weapon_list(session: Session, client: TestClient):
     weapon_1_data = create_fake_weapon()
     weapon_2_data = create_fake_weapon()
 

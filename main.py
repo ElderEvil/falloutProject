@@ -1,11 +1,12 @@
 from fastapi import FastAPI
+from sqlmodel import SQLModel
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from app.api.v1.api import api_router as api_router_v1
 from app.core.config import settings
-from app.db.base import create_db_and_tables
+from app.db.base import async_engine
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -15,8 +16,9 @@ app = FastAPI(
 
 
 @app.on_event("startup")
-def startup_event():
-    create_db_and_tables()
+async def init_tables():
+    async with async_engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
 
 
 @app.on_event("shutdown")

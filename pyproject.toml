@@ -49,6 +49,7 @@ ignore = [
     "PTH123", # builtin-open
     "S101", "S311", # assert, pseudo-random
     "PLR2004",
+    "PT023", # pytest-style
 ]
 [tool.ruff.flake8-builtins]
 builtins-ignorelist = ["id"]

@@ -4,12 +4,12 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt
 from pydantic import ValidationError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core import security
 from app.core.config import settings
-from app.db.base import get_session
+from app.db.base import get_async_session
 from app.models.user import User
 from app.schemas.token import TokenPayload
 
@@ -18,8 +18,8 @@ reusable_oauth2 = OAuth2PasswordBearer(
 )
 
 
-def get_current_user(
-    db: Session = Depends(get_session),
+async def get_current_user(
+    db: AsyncSession = Depends(get_async_session),
     token: str = Depends(reusable_oauth2),
 ) -> User:
     try:
@@ -34,7 +34,7 @@ def get_current_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Could not validate credentials",
         ) from e
-    user = crud.user.get(db, id=token_data.sub)
+    user = await crud.user.get(db, id=token_data.sub)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
@@ -52,7 +52,7 @@ def get_current_active_user(current_user: CurrentUser) -> User:
 CurrentActiveUser = Annotated[User, Depends(get_current_active_user)]
 
 
-def get_current_active_superuser(current_user: User = Depends(get_current_user)) -> User:
+async def get_current_active_superuser(current_user: User = Depends(get_current_user)) -> User:
     if not crud.user.is_superuser(current_user):
         raise HTTPException(
             status_code=400,

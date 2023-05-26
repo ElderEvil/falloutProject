@@ -1,4 +1,4 @@
-from sqlmodel import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.base import CRUDBase
 from app.models.dweller import Dweller
@@ -15,7 +15,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     def calculate_experience_required(self, dweller: Dweller) -> int:
         return int(100 * 1.5**dweller.level)
 
-    def add_experience(self, db: Session, dweller: Dweller, amount: int):
+    def add_experience(self, db: AsyncSession, dweller: Dweller, amount: int):
         dweller.experience += amount
         experience_required = self.calculate_experience_required(dweller)
         if dweller.experience >= experience_required:

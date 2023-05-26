@@ -2,7 +2,9 @@ from typing import Any, Generic, TypeVar
 
 from fastapi import HTTPException
 from pydantic import UUID4
-from sqlmodel import Session, SQLModel, select
+from sqlalchemy.exc import IntegrityError
+from sqlmodel import SQLModel, func, select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 ModelType = TypeVar("ModelType", bound=SQLModel)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=SQLModel)
@@ -17,14 +19,9 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     """
 
     def __init__(self, model: type[ModelType]):
-        """
-        Initializes a new instance of the `CRUDBase` class.
-
-        :param model: A SQLModel type that represents the database table to perform CRUD operations on.
-        """
         self.model = model
 
-    def get(self, db: Session, id: int | UUID4) -> ModelType | None:
+    async def get(self, db: AsyncSession, id: int | UUID4) -> ModelType | None:
         """
         Gets a single item of the specified model type by ID.
 
@@ -32,23 +29,32 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         :param id: The ID of an object to retrieve.
         :returns: The retrieved item or `None` if it does not exist.
         """
-        return db.get(self.model, id)
+        query = select(self.model).where(self.model.id == id)
+        response = await db.execute(query)
+        return response.scalar_one_or_none()
 
-    def get_by_name(self, db: Session, name: str) -> ModelType | None:
+    async def get_by_ids(self, list_ids: list[UUID4 | str], db: AsyncSession) -> list[ModelType] | None:
         """
-        Gets a single item of the specified model type by name.
+        Gets a list of items of the specified model type by a list of IDs.
+
+        :param list_ids: A list of IDs of objects to retrieve.
+        :param db: A database session.
+        :returns: list of items
+        """
+        response = await db.execute(select(self.model).where(self.model.id.in_(list_ids)))
+        return response.scalars().all()
+
+    async def get_count(self, db: AsyncSession) -> ModelType:
+        """
+        Gets the number of items of the specified model type in the database.
 
         :param db: A database session.
-        :param name: The name of an object to retrieve.
-        :returns: The retrieved item.
-        :raises HTTPException: if there is an error accessing the database or object doesn't exist
+        :returns: The number of items.
         """
-        result = db.exec(select(self.model).where(self.model.name == name)).first()
-        if not result:
-            raise HTTPException(status_code=404, detail=f"{self.model.__name__} not found")
-        return result
+        response = await db.execute(select(func.count()).select_from(select(self.model).subquery()))
+        return response.scalar_one()
 
-    def get_multi(self, db: Session, skip: int = 0, limit: int = 100) -> list[ModelType]:
+    async def get_multi(self, db: AsyncSession, skip: int = 0, limit: int = 100) -> list[ModelType]:
         """
         Gets a list of items of the specified model type, optionally skipping the first `skip` items and limiting the
         result to `limit` items.
@@ -58,23 +64,33 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         :param limit: The maximum number of items to return.
         :returns: A list of retrieved items.
         """
-        return db.exec(select(self.model).offset(skip).limit(limit)).all()
+        query = select(self.model).offset(skip).limit(limit).order_by(self.model.id)
+        response = await db.execute(query)
+        return response.scalars().all()
 
-    def create(self, db: Session, obj_in: CreateSchemaType) -> ModelType:
+    async def create(self, db: AsyncSession, obj_in: CreateSchemaType) -> ModelType:
         """
         Creates a new item of the specified model type in the database.
 
         :param db: A database session.
         :param obj_in: The item to create.
         :returns: The created object, with any auto-generated fields populated by the database.
+        :raises HTTPException: If the item already exists.
         """
         db_obj = self.model.from_orm(obj_in)
-        db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
+        try:
+            db.add(db_obj)
+            await db.commit()
+        except IntegrityError as e:
+            await db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail="Resource already exists",
+            ) from e
+        await db.refresh(db_obj)
         return db_obj
 
-    def update(self, db: Session, id: int | UUID4, obj_in: UpdateSchemaType | dict[str, Any]) -> ModelType:
+    async def update(self, db: AsyncSession, id: int | UUID4, obj_in: UpdateSchemaType | dict[str, Any]) -> ModelType:
         """
         Updates an existing item of the specified model type in the database.
 
@@ -83,7 +99,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         :param obj_in: A new version of an object to update to, either as a SQLModel instance or a dictionary.
         :returns: The updated item, with any changes persisted to the database.
         """
-        db_obj = self.get(db=db, id=id)
+        db_obj = await self.get(db=db, id=id)
         if db_obj is None:
             raise HTTPException(status_code=404, detail=f"{self.model.__name__} not found")
 
@@ -93,11 +109,11 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             setattr(db_obj, field, value)
 
         db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
+        await db.commit()
+        await db.refresh(db_obj)
         return db_obj
 
-    def delete(self, db: Session, id: int | UUID4) -> ModelType:
+    async def delete(self, db: AsyncSession, id: int | UUID4) -> ModelType:
         """
         Remove a database object with the given ID.
 
@@ -106,12 +122,13 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         :param db: A database session
         :param id: ID of the object to remove
-        :return: the removed object, or None if it does not exist
+        :returns: the removed object, or None if it does not exist
         :raises HTTPException: if there is an error finding object in database
         """
-        obj = db.get(self.model, id)
+        response = await db.execute(select(self.model).where(self.model.id == id))
+        obj = response.scalar_one()
         if not obj:
             raise HTTPException(status_code=404, detail=f"{self.model.__name__} not found")
-        db.delete(obj)
-        db.commit()
+        await db.delete(obj)
+        await db.commit()
         return obj

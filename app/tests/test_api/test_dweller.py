@@ -1,5 +1,7 @@
-from fastapi.testclient import TestClient
-from sqlmodel import Session
+import pytest
+
+from httpx import AsyncClient
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.config import settings
@@ -7,9 +9,10 @@ from app.schemas.dweller import DwellerCreate
 from app.tests.factory.dwellers import create_fake_dweller
 
 
-def test_create_dweller(client: TestClient):
+@pytest.mark.asyncio
+async def test_create_dweller(client: AsyncClient):
     dweller_data = create_fake_dweller()
-    response = client.post(f"{settings.API_V1_STR}/dwellers/", json=dweller_data)
+    response = await client.post("/dwellers/", json=dweller_data)
     assert response.status_code == 200
     response_data = response.json()
     assert response_data["first_name"] == dweller_data["first_name"]
@@ -23,7 +26,8 @@ def test_create_dweller(client: TestClient):
     assert response_data["is_adult"] == dweller_data["is_adult"]
 
 
-def test_read_dwellers(session: Session, client: TestClient):
+@pytest.mark.asyncio
+async def test_read_dwellers(session: AsyncSession, client: AsyncClient):
     dweller_1_data = create_fake_dweller()
     dweller_2_data = create_fake_dweller()
 
@@ -33,18 +37,19 @@ def test_read_dwellers(session: Session, client: TestClient):
     dweller_2 = DwellerCreate(**dweller_2_data)
     crud.dweller.create(session, dweller_2)
 
-    response = client.get(f"{settings.API_V1_STR}/dwellers/")
+    response = await client.get("/dwellers/")
 
     assert response.status_code == 200
 
 
-def test_read_dweller(session: Session, client: TestClient):
+@pytest.mark.asyncio
+async def test_read_dweller(session: AsyncSession, client: AsyncClient):
     dweller_data = create_fake_dweller()
 
     dweller_1 = DwellerCreate(**dweller_data)
     created_dweller = crud.dweller.create(session, dweller_1)
 
-    response = client.get(f"{settings.API_V1_STR}/dwellers/{created_dweller.id}/")
+    response = await client.get(f"/dwellers/{created_dweller.id}/")
 
     assert response.status_code == 200
 
@@ -61,14 +66,15 @@ def test_read_dweller(session: Session, client: TestClient):
     assert response_dweller["is_adult"] == dweller_1.is_adult
 
 
-def test_update_dweller(session: Session, client: TestClient):
+@pytest.mark.asyncio
+async def test_update_dweller(session: AsyncSession, client: AsyncClient):
     dweller_data = create_fake_dweller()
-    response = client.post(f"{settings.API_V1_STR}/dwellers/", json=dweller_data)
+    response = await client.post("/dwellers/", json=dweller_data)
     dweller_response = response.json()
     dweller_id = dweller_response["id"]
     dweller_new_data = create_fake_dweller()
 
-    update_response = client.put(f"{settings.API_V1_STR}/dwellers/{dweller_id}", json=dweller_new_data)
+    update_response = await client.put(f"/dwellers/{dweller_id}", json=dweller_new_data)
     updated_dweller = update_response.json()
 
     assert update_response.status_code == 200
@@ -85,7 +91,7 @@ def test_update_dweller(session: Session, client: TestClient):
     assert updated_dweller["is_adult"] == dweller_new_data["is_adult"]
 
 
-def test_delete_dweller(session: Session, client: TestClient):
+def test_delete_dweller(session: AsyncSession, client: AsyncClient):
     dweller_data = create_fake_dweller()
     create_response = client.post(f"{settings.API_V1_STR}/dwellers/", json=dweller_data)
     created_dweller = create_response.json()

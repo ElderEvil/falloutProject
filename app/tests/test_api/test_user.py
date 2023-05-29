@@ -1,4 +1,6 @@
+import pytest
 from fastapi.testclient import TestClient
+from httpx import AsyncClient
 from sqlalchemy.orm import Session
 
 from app import crud
@@ -7,11 +9,12 @@ from app.schemas.user import UserCreate
 from app.tests.factory.users import create_fake_user
 
 
-def test_get_users_superuser_me(
-    client: TestClient,
+@pytest.mark.asyncio
+async def test_get_users_superuser_me(
+    async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    r = client.get(f"{settings.API_V1_STR}/users/me", headers=superuser_token_headers)
+    r = await async_client.get("/users/me", headers=superuser_token_headers)
     current_user = r.json()
     assert current_user
     assert current_user["is_active"] is True

@@ -13,11 +13,11 @@ from app.schemas.user import UserCreate, UserUpdate
 
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
-    async def get_by_email(self, db: AsyncSession, email: str) -> User | None:
-        response = await db.execute(select(self.model).where(self.model.email == email))
+    async def get_by_email(self, db_session: AsyncSession, email: str) -> User | None:
+        response = await db_session.execute(select(self.model).where(self.model.email == email))
         return response.scalar_one_or_none()
 
-    async def create(self, db: AsyncSession, obj_in: UserCreate) -> User:
+    async def create(self, db_session: AsyncSession, obj_in: UserCreate) -> User:
         db_obj = User(
             username=obj_in.username,
             email=obj_in.email,
@@ -25,20 +25,20 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             is_superuser=obj_in.is_superuser,
         )
         try:
-            db.add(db_obj)
-            await db.commit()
+            db_session.add(db_obj)
+            await db_session.commit()
         except IntegrityError as e:
-            await db.rollback()
+            await db_session.rollback()
             raise HTTPException(
                 status_code=409,
                 detail="User already exists",
             ) from e
-        await db.refresh(db_obj)
+        await db_session.refresh(db_obj)
         return db_obj
 
     async def update(
         self,
-        db: AsyncSession,
+        db_session: AsyncSession,
         id: int | UUID4,
         obj_in: UserUpdate | dict[str, Any],
     ) -> User:
@@ -47,10 +47,10 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             hashed_password = get_password_hash(update_data["password"])
             del update_data["password"]
             update_data["hashed_password"] = hashed_password
-        return await super().update(db, id=id, obj_in=update_data)
+        return await super().update(db_session, id=id, obj_in=update_data)
 
-    async def authenticate(self, db: AsyncSession, *, email: str, password: str) -> User | None:
-        user = await self.get_by_email(db, email=email)
+    async def authenticate(self, db_session: AsyncSession, *, email: str, password: str) -> User | None:
+        user = await self.get_by_email(db_session, email=email)
         if not user:
             return None
         if not verify_password(password, user.hashed_password):

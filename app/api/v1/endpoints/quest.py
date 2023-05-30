@@ -10,25 +10,29 @@ router = APIRouter()
 
 
 @router.post("/quests", response_model=QuestRead)
-async def create_quest(quest_data: QuestCreate, db: AsyncSession = Depends(get_async_session)):
-    return await crud.quest.create(db, quest_data)
+async def create_quest(quest_data: QuestCreate, db_session: AsyncSession = Depends(get_async_session)):
+    return await crud.quest.create(db_session, quest_data)
 
 
 @router.get("/", response_model=list[QuestRead])
-async def read_quest_list(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_async_session)):
-    return await crud.quest.get_multi(db, skip=skip, limit=limit)
+async def read_quest_list(skip: int = 0, limit: int = 100, db_session: AsyncSession = Depends(get_async_session)):
+    return await crud.quest.get_multi(db_session, skip=skip, limit=limit)
 
 
 @router.get("/{quest_id}", response_model=QuestReadWithSteps)
-async def read_quest(quest_id: UUID4, db: AsyncSession = Depends(get_async_session)):
-    return await crud.quest.get(db, quest_id)
+async def read_quest(quest_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
+    return await crud.quest.get(db_session, quest_id)
 
 
 @router.put("/{quest_id}", response_model=QuestRead)
-async def update_quest(quest_id: UUID4, quest_data: QuestUpdate, db: AsyncSession = Depends(get_async_session)):
-    return await crud.quest.update(db, quest_id, quest_data)
+async def update_quest(
+    quest_id: UUID4,
+    quest_data: QuestUpdate,
+    db_session: AsyncSession = Depends(get_async_session),
+):
+    return await crud.quest.update(db_session, quest_id, quest_data)
 
 
 @router.delete("/{quest_id}", status_code=204)
-async def delete_quest(quest_id: UUID4, db: AsyncSession = Depends(get_async_session)):
-    return await crud.quest.delete(db, quest_id)
+async def delete_quest(quest_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
+    return await crud.quest.delete(db_session, quest_id)

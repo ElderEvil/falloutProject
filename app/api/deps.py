@@ -19,7 +19,7 @@ reusable_oauth2 = OAuth2PasswordBearer(
 
 
 async def get_current_user(
-    db: AsyncSession = Depends(get_async_session),
+    db_session: AsyncSession = Depends(get_async_session),
     token: str = Depends(reusable_oauth2),
 ) -> User:
     try:
@@ -34,7 +34,7 @@ async def get_current_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Could not validate credentials",
         ) from e
-    user = await crud.user.get(db, id=token_data.sub)
+    user = await crud.user.get(db_session=db_session, id=token_data.sub)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user

@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import crud
 from app.core import security
 from app.core.config import settings
-from app.db.base import get_async_session
+from app.db.session import get_async_session
 from app.models.user import User
 from app.schemas.token import TokenPayload
 

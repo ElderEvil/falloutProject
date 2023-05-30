@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.api import deps
-from app.db.base import get_async_session
+from app.db.session import get_async_session
 from app.models.user import User
 from app.models.vault import Vault
 from app.schemas.vault import VaultCreate, VaultRead, VaultReadWithUser, VaultUpdate

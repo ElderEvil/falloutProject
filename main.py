@@ -6,7 +6,7 @@ from starlette.responses import JSONResponse
 
 from app.api.v1.api import api_router as api_router_v1
 from app.core.config import settings
-from app.db.base import async_engine
+from app.db.session import async_engine
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

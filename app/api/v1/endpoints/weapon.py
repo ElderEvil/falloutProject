@@ -3,7 +3,7 @@ from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
-from app.db.base import get_async_session
+from app.db.session import get_async_session
 from app.models.weapon import Weapon
 from app.schemas.weapon import WeaponCreate, WeaponUpdate
 

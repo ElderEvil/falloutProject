@@ -14,7 +14,7 @@ from sqlmodel import SQLModel
 
 from app import crud
 from app.core.config import settings
-from app.db.base import get_async_session
+from app.db.session import get_async_session
 from app.schemas.user import UserCreate
 from app.tests.utils.user import authentication_token_from_email
 from app.tests.utils.utils import get_superuser_token_headers

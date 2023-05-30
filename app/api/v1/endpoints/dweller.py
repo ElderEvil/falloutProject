@@ -3,7 +3,7 @@ from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
-from app.db.base import get_async_session
+from app.db.session import get_async_session
 from app.schemas.dweller import DwellerCreate, DwellerRead, DwellerUpdate
 
 router = APIRouter()

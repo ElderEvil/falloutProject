@@ -1,5 +1,6 @@
 from pydantic import UUID4
-from sqlmodel import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
 from app.crud.base import CRUDBase
 from app.models.vault import Vault
@@ -7,14 +8,15 @@ from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultUpdate
 
 
 class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
-    def get_by_user_id(self, db: Session, *, user_id: int):
-        return db.query(self.model).filter(Vault.user_id == user_id).all()
+    async def get_by_user_id(self, db_session: AsyncSession, *, user_id: int) -> list[Vault] | None:
+        response = await db_session.execute(select(self.model).where(self.model.user_id == user_id))
+        return response.scalars().all()
 
-    def create_with_user_id(self, db: Session, obj_in: VaultCreate, user_id: UUID4) -> Vault:
+    async def create_with_user_id(self, db_session: AsyncSession, obj_in: VaultCreate, user_id: UUID4) -> Vault:
         obj_data = obj_in.dict()
         obj_data["user_id"] = user_id
         obj_in = VaultCreateWithUserID(**obj_data)
-        return super().create(db, obj_in)
+        return await super().create(db_session, obj_in)
 
 
 vault = CRUDVault(Vault)

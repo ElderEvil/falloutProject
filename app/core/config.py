@@ -21,14 +21,17 @@ class Settings(BaseSettings):
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
-    SQLALCHEMY_DATABASE_URI: PostgresDsn | None = None
+    DB_POOL_SIZE = 83
+    WEB_CONCURRENCY = 9
+    POOL_SIZE = max(DB_POOL_SIZE // WEB_CONCURRENCY, 5)
+    ASYNC_DATABASE_URI: PostgresDsn | None
 
-    @validator("SQLALCHEMY_DATABASE_URI", pre=True)
+    @validator("ASYNC_DATABASE_URI", pre=True)
     def assemble_db_connection(cls, v: str | None, values: dict[str, Any]) -> Any:  # noqa: N805
         if isinstance(v, str):
             return v
         return PostgresDsn.build(
-            scheme="postgresql",
+            scheme="postgresql+asyncpg",
             user=values.get("POSTGRES_USER"),
             password=values.get("POSTGRES_PASSWORD"),
             host=values.get("POSTGRES_SERVER"),

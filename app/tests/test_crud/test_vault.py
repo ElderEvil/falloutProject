@@ -1,4 +1,5 @@
-from sqlmodel import Session
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.schemas.user import UserCreate
@@ -7,12 +8,13 @@ from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 
 
-def test_create_vault_with_user(session: Session) -> None:
+@pytest.mark.asyncio
+async def test_create_vault_with_user(async_session: AsyncSession) -> None:
     user_data = create_fake_user()
     user_in = UserCreate(**user_data)
-    user = crud.user.create(session, obj_in=user_in)
+    user = await crud.user.create(async_session, obj_in=user_in)
     vault_data = create_fake_vault()
     vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
-    vault = crud.vault.create(session, obj_in=vault_in)
+    vault = await crud.vault.create(async_session, obj_in=vault_in)
 
     assert vault.user_id == user.id

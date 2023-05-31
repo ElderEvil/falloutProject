@@ -1,5 +1,6 @@
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
+import pytest
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.config import settings
@@ -7,22 +8,32 @@ from app.schemas.vault import VaultCreateWithUserID
 from app.tests.factory.vaults import create_fake_vault
 
 
-def test_create_vault(client: TestClient, session: Session, normal_user_token_headers: dict[str, str]):
-    user = crud.user.get_by_email(session, email=settings.EMAIL_TEST_USER)
+@pytest.mark.asyncio
+async def test_create_vault(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    normal_user_token_headers: dict[str, str],
+):
+    user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
     vault_data = create_fake_vault()
     vault_data["user_id"] = str(user.id)
-    response = client.post(f"{settings.API_V1_STR}/vaults/", headers=normal_user_token_headers, json=vault_data)
+    response = await async_client.post("/vaults/", headers=normal_user_token_headers, json=vault_data)
     assert response.status_code == 201
 
 
-def test_read_vault_list(client: TestClient, session: Session, superuser_token_headers: dict[str, str]):
-    user = crud.user.get_by_email(session, email=settings.EMAIL_TEST_USER)
+@pytest.mark.asyncio
+async def test_read_vault_list(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+):
+    user = await crud.user.get_by_email(db_session=async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault_1_data, vault_2_data = create_fake_vault(), create_fake_vault()
     vault_1_data["user_id"] = vault_2_data["user_id"] = str(user.id)
-    crud.vault.create(session, VaultCreateWithUserID(**vault_1_data))
-    crud.vault.create(session, VaultCreateWithUserID(**vault_2_data))
+    await crud.vault.create(async_session, VaultCreateWithUserID(**vault_1_data))
+    await crud.vault.create(async_session, VaultCreateWithUserID(**vault_2_data))
 
-    response = client.get(f"{settings.API_V1_STR}/vaults/", headers=superuser_token_headers)
+    response = await async_client.get("/vaults/", headers=superuser_token_headers)
 
     assert response.status_code == 200
 
@@ -30,14 +41,19 @@ def test_read_vault_list(client: TestClient, session: Session, superuser_token_h
     assert len(response_data) > 1
 
 
-def test_read_vault(client: TestClient, session: Session, superuser_token_headers: dict[str, str]):
-    user = crud.user.get_by_email(session, email=settings.FIRST_SUPERUSER_EMAIL)
+@pytest.mark.asyncio
+async def test_read_vault(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+):
+    user = await crud.user.get_by_email(db_session=async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault_data = create_fake_vault()
     vault_data["user_id"] = str(user.id)
     vault_to_create = VaultCreateWithUserID(**vault_data)
-    created_vault = crud.vault.create(session, vault_to_create)
+    created_vault = await crud.vault.create(async_session, vault_to_create)
 
-    response = client.get(f"{settings.API_V1_STR}/vaults/{created_vault.id}/", headers=superuser_token_headers)
+    response = await async_client.get(f"/vaults/{created_vault.id}", headers=superuser_token_headers)
 
     assert response.status_code == 200
 
@@ -49,22 +65,27 @@ def test_read_vault(client: TestClient, session: Session, superuser_token_header
     assert response_data["user_id"] == vault_data["user_id"]
 
 
-def test_update_vault(client: TestClient, session: Session, superuser_token_headers: dict[str, str]):
-    user = crud.user.get_by_email(session, email=settings.FIRST_SUPERUSER_EMAIL)
+@pytest.mark.asyncio
+async def test_update_vault(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+):
+    user = await crud.user.get_by_email(db_session=async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault_data = create_fake_vault()
     vault_data["user_id"] = str(user.id)
     vault_to_create = VaultCreateWithUserID(**vault_data)
-    created_vault = crud.vault.create(session, vault_to_create)
+    created_vault = await crud.vault.create(db_session=async_session, obj_in=vault_to_create)
 
-    response = client.get(f"{settings.API_V1_STR}/vaults/{created_vault.id}/", headers=superuser_token_headers)
+    response = await async_client.get(f"/vaults/{created_vault.id}", headers=superuser_token_headers)
 
     assert response.status_code == 200
 
     new_vault_data = create_fake_vault()
     new_vault_data["user_id"] = str(user.id)
 
-    update_response = client.put(
-        f"{settings.API_V1_STR}/vaults/{created_vault.id}/",
+    update_response = await async_client.put(
+        f"/vaults/{created_vault.id}",
         json=new_vault_data,
         headers=superuser_token_headers,
     )
@@ -79,19 +100,24 @@ def test_update_vault(client: TestClient, session: Session, superuser_token_head
     assert update_response_data["user_id"] == vault_data["user_id"]
 
 
-def test_delete_vault(client: TestClient, session: Session, superuser_token_headers: dict[str, str]):
-    user = crud.user.get_by_email(session, email=settings.FIRST_SUPERUSER_EMAIL)
+@pytest.mark.asyncio
+async def test_delete_vault(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+):
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault_data = create_fake_vault()
     vault_data["user_id"] = str(user.id)
     vault_to_create = VaultCreateWithUserID(**vault_data)
-    created_vault = crud.vault.create(session, vault_to_create)
+    created_vault = await crud.vault.create(async_session, vault_to_create)
 
-    response = client.get(f"{settings.API_V1_STR}/vaults/{created_vault.id}/", headers=superuser_token_headers)
+    response = await async_client.get(f"/vaults/{created_vault.id}", headers=superuser_token_headers)
 
     assert response.status_code == 200
 
-    delete_response = client.delete(
-        f"{settings.API_V1_STR}/vaults/{created_vault.id}/",
+    delete_response = await async_client.delete(
+        f"/vaults/{created_vault.id}",
         headers=superuser_token_headers,
     )
 

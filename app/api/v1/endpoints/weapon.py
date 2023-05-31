@@ -4,28 +4,27 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.db.session import get_async_session
-from app.models.weapon import Weapon
-from app.schemas.weapon import WeaponCreate, WeaponUpdate
+from app.schemas.weapon import WeaponCreate, WeaponRead, WeaponUpdate
 
 router = APIRouter()
 
 
-@router.post("/", response_model=Weapon)
+@router.post("/", response_model=WeaponRead)
 async def create_weapon(weapon_data: WeaponCreate, db_session: AsyncSession = Depends(get_async_session)):
     return await crud.weapon.create(db_session, weapon_data)
 
 
-@router.get("/", response_model=list[Weapon])
+@router.get("/", response_model=list[WeaponRead])
 async def read_weapon_list(skip: int = 0, limit: int = 100, db_session: AsyncSession = Depends(get_async_session)):
     return await crud.weapon.get_multi(db_session, skip=skip, limit=limit)
 
 
-@router.get("/{weapon_id}", response_model=Weapon)
+@router.get("/{weapon_id}", response_model=WeaponRead)
 async def read_weapon(weapon_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
     return await crud.weapon.get(db_session, weapon_id)
 
 
-@router.put("/{weapon_id}", response_model=Weapon)
+@router.put("/{weapon_id}", response_model=WeaponRead)
 async def update_weapon(
     weapon_id: UUID4,
     weapon_data: WeaponUpdate,

@@ -35,4 +35,4 @@ async def update_outfit(
 
 @router.delete("/{outfit_id}", status_code=204)
 async def delete_outfit(outfit_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
-    return crud.outfit.delete(db_session, outfit_id)
+    return await crud.outfit.delete(db_session, outfit_id)

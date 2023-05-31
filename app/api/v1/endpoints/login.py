@@ -6,11 +6,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
-from app.api import deps
+from app.api.deps import CurrentUser
 from app.core import security
 from app.core.config import settings
 from app.db.session import get_async_session
-from app.models.user import User
 from app.schemas.token import Token
 from app.schemas.user import UserRead
 
@@ -45,7 +44,7 @@ async def login_access_token(
 
 
 @router.post("/login/test-token", response_model=UserRead)
-async def test_token(current_user: User = Depends(deps.get_current_user)) -> Any:
+async def test_token(current_user: CurrentUser) -> Any:
     """
     Test access token
     """

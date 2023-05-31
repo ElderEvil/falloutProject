@@ -6,8 +6,8 @@ from app.schemas.dweller import DwellerCreate, DwellerUpdate
 
 
 class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
-    def experience(self, dweller: Dweller) -> int:
-        return dweller.experience
+    def experience(self, dweller_obj: Dweller) -> int:
+        return dweller_obj.experience
 
     def level(self, dweller: Dweller):
         return dweller.level
@@ -15,15 +15,15 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     def calculate_experience_required(self, dweller: Dweller) -> int:
         return int(100 * 1.5**dweller.level)
 
-    def add_experience(self, db_session: AsyncSession, dweller: Dweller, amount: int):
+    async def add_experience(self, db_session: AsyncSession, dweller: Dweller, amount: int):
         dweller.experience += amount
         experience_required = self.calculate_experience_required(dweller)
         if dweller.experience >= experience_required:
             dweller.level += 1
             dweller.experience -= experience_required
         db_session.add(dweller)
-        db_session.commit()
-        db_session.refresh(dweller)  # fixme: RuntimeWarning: coroutine 'AsyncSession.refresh' was never awaited
+        await db_session.commit()
+        await db_session.refresh(dweller)
 
     def is_alive(self, dweller: Dweller) -> bool:
         return dweller.health > 0

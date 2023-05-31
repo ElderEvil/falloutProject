@@ -45,12 +45,12 @@ async def test_dweller_add_exp(async_session: AsyncSession):
 
     assert dweller.experience == dweller_data["experience"]
 
-    crud.dweller.add_experience(async_session, dweller=dweller, amount=10)
+    await crud.dweller.add_experience(async_session, dweller=dweller, amount=10)
 
     assert dweller.experience == 10
 
     exp_amount = crud.dweller.calculate_experience_required(dweller=dweller)
-    crud.dweller.add_experience(async_session, dweller=dweller, amount=exp_amount)
+    await crud.dweller.add_experience(async_session, dweller=dweller, amount=exp_amount)
 
     assert dweller.experience == 10
     assert dweller.level == 2

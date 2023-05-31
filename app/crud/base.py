@@ -31,7 +31,10 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         """
         query = select(self.model).where(self.model.id == id)
         response = await db_session.execute(query)
-        return response.scalar_one_or_none()
+        db_obj = response.scalar_one_or_none()
+        if db_obj is None:
+            raise HTTPException(status_code=404, detail=f"{self.model.__name__} not found")
+        return db_obj
 
     async def get_by_ids(self, list_ids: list[UUID4 | str], db_session: AsyncSession) -> list[ModelType] | None:
         """

@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.api import deps
+from app.api.deps import CurrentSuperuser
 from app.db.session import get_async_session
 from app.models.user import User
 from app.models.vault import Vault
@@ -23,10 +24,10 @@ async def create_vault(
 
 @router.get("/", response_model=list[VaultReadWithUser])
 async def read_vault_list(
+    user: CurrentSuperuser,
     skip: int = 0,
     limit: int = 100,
     db_session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(deps.get_current_active_superuser),
 ):
     return await crud.vault.get_multi(db_session, skip=skip, limit=limit)
 

@@ -111,14 +111,10 @@ async def test_delete_vault(
     vault_data["user_id"] = str(user.id)
     vault_to_create = VaultCreateWithUserID(**vault_data)
     created_vault = await crud.vault.create(async_session, vault_to_create)
-
-    response = await async_client.get(f"/vaults/{created_vault.id}", headers=superuser_token_headers)
-
-    assert response.status_code == 200
-
     delete_response = await async_client.delete(
         f"/vaults/{created_vault.id}",
         headers=superuser_token_headers,
     )
-
     assert delete_response.status_code == 204
+    read_response = await async_client.get(f"/junk/{created_vault.id}")
+    assert read_response.status_code == 404

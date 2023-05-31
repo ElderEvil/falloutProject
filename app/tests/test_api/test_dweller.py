@@ -25,44 +25,61 @@ async def test_create_dweller(async_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_read_dwellers(async_client: AsyncClient, async_session: AsyncSession):
+async def test_read_dweller_list(async_client: AsyncClient, async_session: AsyncSession):
     dweller_1_data = create_fake_dweller()
     dweller_2_data = create_fake_dweller()
-
     dweller_1 = DwellerCreate(**dweller_1_data)
-    await crud.dweller.create(async_session, dweller_1)
-
     dweller_2 = DwellerCreate(**dweller_2_data)
+    await crud.dweller.create(async_session, dweller_1)
     await crud.dweller.create(async_session, dweller_2)
-
     response = await async_client.get("/dwellers/")
-
     assert response.status_code == 200
+    all_dwellers = response.json()
+    assert len(all_dwellers) == 2
+    response_dweller_1, response_dweller_2 = all_dwellers
+    if response_dweller_1["first_name"] == dweller_2.first_name:
+        response_dweller_1, response_dweller_2 = response_dweller_2, response_dweller_1
+    assert response_dweller_1["first_name"] == dweller_1.first_name
+    assert response_dweller_1["last_name"] == dweller_1.last_name
+    assert response_dweller_1["gender"] == dweller_1.gender
+    assert response_dweller_1["rarity"] == dweller_1.rarity
+    assert response_dweller_1["level"] == dweller_1.level
+    assert response_dweller_1["experience"] == dweller_1.experience
+    assert response_dweller_1["max_health"] == dweller_1.max_health
+    assert response_dweller_1["health"] == dweller_1.health
+    assert response_dweller_1["happiness"] == dweller_1.happiness
+    assert response_dweller_1["is_adult"] == dweller_1.is_adult
+
+    assert response_dweller_2["first_name"] == dweller_2.first_name
+    assert response_dweller_2["last_name"] == dweller_2.last_name
+    assert response_dweller_2["gender"] == dweller_2.gender
+    assert response_dweller_2["rarity"] == dweller_2.rarity
+    assert response_dweller_2["level"] == dweller_2.level
+    assert response_dweller_2["experience"] == dweller_2.experience
+    assert response_dweller_2["max_health"] == dweller_2.max_health
+    assert response_dweller_2["health"] == dweller_2.health
+    assert response_dweller_2["happiness"] == dweller_2.happiness
+    assert response_dweller_2["is_adult"] == dweller_2.is_adult
 
 
 @pytest.mark.asyncio
 async def test_read_dweller(async_client: AsyncClient, async_session: AsyncSession):
     dweller_data = create_fake_dweller()
-
-    dweller_1 = DwellerCreate(**dweller_data)
-    created_dweller = await crud.dweller.create(async_session, dweller_1)
-    created_dweller_id = str(created_dweller.id)
-
-    response = await async_client.get(f"/dwellers/{created_dweller_id}")
-
+    dweller_obj = DwellerCreate(**dweller_data)
+    created_dweller = await crud.dweller.create(async_session, dweller_obj)
+    response = await async_client.get(f"/dwellers/{created_dweller.id}")
     assert response.status_code == 200
-
     response_dweller = response.json()
-    assert response_dweller["first_name"] == dweller_1.first_name
-    assert response_dweller["last_name"] == dweller_1.last_name
-    assert response_dweller["gender"] == dweller_1.gender
-    assert response_dweller["rarity"] == dweller_1.rarity
-    assert response_dweller["level"] == dweller_1.level
-    assert response_dweller["experience"] == dweller_1.experience
-    assert response_dweller["max_health"] == dweller_1.max_health
-    assert response_dweller["health"] == dweller_1.health
-    assert response_dweller["happiness"] == dweller_1.happiness
-    assert response_dweller["is_adult"] == dweller_1.is_adult
+    assert response_dweller["first_name"] == dweller_obj.first_name
+    assert response_dweller["last_name"] == dweller_obj.last_name
+    assert response_dweller["gender"] == dweller_obj.gender
+    assert response_dweller["rarity"] == dweller_obj.rarity
+    assert response_dweller["level"] == dweller_obj.level
+    assert response_dweller["experience"] == dweller_obj.experience
+    assert response_dweller["max_health"] == dweller_obj.max_health
+    assert response_dweller["health"] == dweller_obj.health
+    assert response_dweller["happiness"] == dweller_obj.happiness
+    assert response_dweller["is_adult"] == dweller_obj.is_adult
 
 
 @pytest.mark.asyncio
@@ -70,14 +87,11 @@ async def test_update_dweller(async_client: AsyncClient, async_session: AsyncSes
     dweller_data = create_fake_dweller()
     response = await async_client.post("/dwellers/", json=dweller_data)
     dweller_response = response.json()
-    dweller_id = dweller_response["id"]
     dweller_new_data = create_fake_dweller()
-
-    update_response = await async_client.put(f"/dwellers/{dweller_id}", json=dweller_new_data)
+    update_response = await async_client.put(f"/dwellers/{dweller_response['id']}", json=dweller_new_data)
     updated_dweller = update_response.json()
-
     assert update_response.status_code == 200
-    assert updated_dweller["id"] == dweller_id
+    assert updated_dweller["id"] == dweller_response["id"]
     assert updated_dweller["first_name"] == dweller_new_data["first_name"]
     assert updated_dweller["last_name"] == dweller_new_data["last_name"]
     assert updated_dweller["gender"] == dweller_new_data["gender"].value
@@ -90,15 +104,11 @@ async def test_update_dweller(async_client: AsyncClient, async_session: AsyncSes
     assert updated_dweller["is_adult"] == dweller_new_data["is_adult"]
 
 
-async def test_delete_dweller(async_client: AsyncClient, async_session: AsyncSession):
+async def test_delete_dweller(async_client: AsyncClient):
     dweller_data = create_fake_dweller()
     create_response = await async_client.post("/dwellers/", json=dweller_data)
     created_dweller = create_response.json()
-
     delete_response = await async_client.delete(f"/dwellers/{created_dweller['id']}")
-
     assert delete_response.status_code == 204
-
-    # TODO Check that the dweller is actually deleted
-    # read_response = client.get(f"{settings.API_V1_STR}/dwellers/{dweller_1['id']}")
-    # assert read_response.status_code == 404
+    read_response = await async_client.get(f"/dwellers/{created_dweller['id']}")
+    assert read_response.status_code == 404

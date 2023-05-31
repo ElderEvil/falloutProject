@@ -101,6 +101,8 @@ async def test_update_junk(async_client: AsyncClient):
 async def test_delete_junk(async_client: AsyncClient):
     junk_data = create_fake_junk()
     create_response = await async_client.post("/junk/", json=junk_data)
-    junk_item = create_response.json()
-    delete_response = await async_client.delete(f"/junk/{junk_item['id']}")
+    created_junk = create_response.json()
+    delete_response = await async_client.delete(f"/junk/{created_junk['id']}")
     assert delete_response.status_code == 204
+    read_response = await async_client.get(f"/junk/{created_junk['id']}")
+    assert read_response.status_code == 404

@@ -25,6 +25,27 @@ async def test_create_junk(async_client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_create_junk_incomplete(async_client: AsyncClient):
+    response = await async_client.post(
+        "/junk/",
+        json={"name": "Test Junk"},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_junk_invalid(async_client: AsyncClient):
+    response = await async_client.post(
+        "/junk/",
+        json={
+            "name": "Test Junk",
+            "rarity": "Unique",
+        },
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_read_junk_list(async_client: AsyncClient, async_session: AsyncSession):
     junk_data_1 = create_fake_junk()
     junk_data_2 = {

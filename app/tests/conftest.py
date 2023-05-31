@@ -84,7 +84,7 @@ async def async_client(async_session: AsyncSession, superuser: None) -> Generato
 
 
 @pytest.fixture()
-async def superuser_token_headers(async_client: AsyncClient, async_session: AsyncSession) -> dict[str, str]:
+async def superuser_token_headers(async_client: AsyncClient) -> dict[str, str]:
     return await get_superuser_token_headers(async_client)
 
 

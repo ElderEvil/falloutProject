@@ -19,6 +19,11 @@ async def test_create_vault(
     vault_data["user_id"] = str(user.id)
     response = await async_client.post("/vaults/", headers=normal_user_token_headers, json=vault_data)
     assert response.status_code == 201
+    response_data = response.json()
+    assert response_data["name"] == vault_data["name"]
+    assert response_data["bottle_caps"] == vault_data["bottle_caps"]
+    assert response_data["happiness"] == vault_data["happiness"]
+    assert response_data["user_id"] == vault_data["user_id"]
 
 
 @pytest.mark.asyncio
@@ -32,13 +37,22 @@ async def test_read_vault_list(
     vault_1_data["user_id"] = vault_2_data["user_id"] = str(user.id)
     await crud.vault.create(async_session, VaultCreateWithUserID(**vault_1_data))
     await crud.vault.create(async_session, VaultCreateWithUserID(**vault_2_data))
-
     response = await async_client.get("/vaults/", headers=superuser_token_headers)
-
     assert response.status_code == 200
-
     response_data = response.json()
-    assert len(response_data) > 1
+    assert len(response_data) == 2
+    response_vault_1, response_vault_2 = response_data
+    if response_vault_1["name"] == vault_2_data["name"]:
+        response_vault_2, response_vault_1 = response_data
+    assert response_vault_1["name"] == vault_1_data["name"]
+    assert response_vault_1["bottle_caps"] == vault_1_data["bottle_caps"]
+    assert response_vault_1["happiness"] == vault_1_data["happiness"]
+    assert response_vault_1["user_id"] == vault_1_data["user_id"]
+
+    assert response_vault_2["name"] == vault_2_data["name"]
+    assert response_vault_2["bottle_caps"] == vault_2_data["bottle_caps"]
+    assert response_vault_2["happiness"] == vault_2_data["happiness"]
+    assert response_vault_2["user_id"] == vault_2_data["user_id"]
 
 
 @pytest.mark.asyncio
@@ -52,11 +66,8 @@ async def test_read_vault(
     vault_data["user_id"] = str(user.id)
     vault_to_create = VaultCreateWithUserID(**vault_data)
     created_vault = await crud.vault.create(async_session, vault_to_create)
-
     response = await async_client.get(f"/vaults/{created_vault.id}", headers=superuser_token_headers)
-
     assert response.status_code == 200
-
     response_data = response.json()
     assert response_data["id"] == str(created_vault.id)
     assert response_data["name"] == vault_data["name"]
@@ -76,22 +87,16 @@ async def test_update_vault(
     vault_data["user_id"] = str(user.id)
     vault_to_create = VaultCreateWithUserID(**vault_data)
     created_vault = await crud.vault.create(db_session=async_session, obj_in=vault_to_create)
-
     response = await async_client.get(f"/vaults/{created_vault.id}", headers=superuser_token_headers)
-
     assert response.status_code == 200
-
     new_vault_data = create_fake_vault()
     new_vault_data["user_id"] = str(user.id)
-
     update_response = await async_client.put(
         f"/vaults/{created_vault.id}",
         json=new_vault_data,
         headers=superuser_token_headers,
     )
-
     assert update_response.status_code == 200
-
     update_response_data = update_response.json()
     assert update_response_data["id"] == str(created_vault.id)
     assert update_response_data["name"] == new_vault_data["name"]

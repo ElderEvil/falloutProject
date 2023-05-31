@@ -83,7 +83,7 @@ async def test_read_dweller(async_client: AsyncClient, async_session: AsyncSessi
 
 
 @pytest.mark.asyncio
-async def test_update_dweller(async_client: AsyncClient, async_session: AsyncSession):
+async def test_update_dweller(async_client: AsyncClient):
     dweller_data = create_fake_dweller()
     response = await async_client.post("/dwellers/", json=dweller_data)
     dweller_response = response.json()

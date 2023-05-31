@@ -50,8 +50,8 @@ async def test_read_weapon_list(async_client: AsyncClient, async_session: AsyncS
     weapon_1_data = create_fake_weapon()
     weapon_2_data = create_fake_weapon()
     weapon_1 = WeaponCreate(**weapon_1_data)
-    await crud.weapon.create(async_session, weapon_1)
     weapon_2 = WeaponCreate(**weapon_2_data)
+    await crud.weapon.create(async_session, weapon_1)
     await crud.weapon.create(async_session, weapon_2)
     response = await async_client.get("/weapons/")
     all_weapons = response.json()
@@ -68,6 +68,7 @@ async def test_read_weapon_list(async_client: AsyncClient, async_session: AsyncS
     assert response_weapon_1["stat"] == weapon_1.stat
     assert response_weapon_1["damage_min"] == weapon_1.damage_min
     assert response_weapon_1["damage_max"] == weapon_1.damage_max
+
     assert response_weapon_2["name"] == weapon_2.name
     assert response_weapon_2["rarity"] == weapon_2.rarity.value
     assert response_weapon_2["value"] == response_weapon_2["value"]
@@ -81,22 +82,22 @@ async def test_read_weapon_list(async_client: AsyncClient, async_session: AsyncS
 @pytest.mark.asyncio
 async def test_read_weapon(async_client: AsyncClient, async_session: AsyncSession):
     weapon_data = create_fake_weapon()
-    weapon_1 = WeaponCreate(**weapon_data)
-    created_weapon = await crud.weapon.create(async_session, weapon_1)
+    weapon_obj = WeaponCreate(**weapon_data)
+    created_weapon = await crud.weapon.create(async_session, weapon_obj)
     response = await async_client.get(f"/weapons/{created_weapon.id}")
     assert response.status_code == 200
     response_weapon = response.json()
-    assert response_weapon["name"] == weapon_1.name
-    assert response_weapon["rarity"] == weapon_1.rarity.value
-    assert response_weapon["weapon_type"] == weapon_1.weapon_type.value
-    assert response_weapon["weapon_subtype"] == weapon_1.weapon_subtype.value
-    assert response_weapon["stat"] == weapon_1.stat
-    assert response_weapon["damage_min"] == weapon_1.damage_min
-    assert response_weapon["damage_max"] == weapon_1.damage_max
+    assert response_weapon["name"] == weapon_obj.name
+    assert response_weapon["rarity"] == weapon_obj.rarity.value
+    assert response_weapon["weapon_type"] == weapon_obj.weapon_type.value
+    assert response_weapon["weapon_subtype"] == weapon_obj.weapon_subtype.value
+    assert response_weapon["stat"] == weapon_obj.stat
+    assert response_weapon["damage_min"] == weapon_obj.damage_min
+    assert response_weapon["damage_max"] == weapon_obj.damage_max
 
 
 @pytest.mark.asyncio
-async def test_update_weapon(async_client: AsyncClient, async_session: AsyncSession):
+async def test_update_weapon(async_client: AsyncClient):
     weapon_data = create_fake_weapon()
     response = await async_client.post("/weapons/", json=weapon_data)
     weapon_response = response.json()

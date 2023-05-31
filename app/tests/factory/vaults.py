@@ -1,9 +1,5 @@
 import random
 
-from faker import Faker
-
-fake = Faker()
-
 
 def create_fake_vault():
     return {

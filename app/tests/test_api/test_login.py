@@ -18,6 +18,16 @@ async def test_get_access_token(async_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_get_access_token_incorrect_credentials(async_client: AsyncClient) -> None:
+    login_data = {
+        "username": "invalid_user",
+        "password": "invalid_password",
+    }
+    response = await async_client.post("/login/access-token", data=login_data)
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
 async def test_use_access_token(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],

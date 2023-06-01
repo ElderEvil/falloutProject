@@ -15,10 +15,10 @@ def create_fake_room():
         "population_required": random.randint(12, 100),
         "base_cost": random.randint(100, 10_000),
         "incremental_cost": random.randint(25, 5_000),
-        "tier": random.randint(1, 3),
+        "tier": 1,
         "max_tier": random.randint(1, 3),
         "t2_upgrade_cost": random.randint(500, 50_000),
         "t3_upgrade_cost": random.randint(1500, 150_000),
         "output": random.randint(1, 100),
-        "size": random.randint(1, 9),
+        "size": random.randint(3, 9),
     }

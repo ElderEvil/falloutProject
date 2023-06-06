@@ -12,8 +12,7 @@ from app.tests.utils.utils import random_lower_string
 
 
 @pytest.mark.asyncio
-async def test_create_junk(async_client: AsyncClient):
-    junk_data = create_fake_junk()
+async def test_create_junk(async_client: AsyncClient, junk_data: dict):
     response = await async_client.post("/junk/", json=junk_data)
     assert response.status_code == 200
     response_data = response.json()

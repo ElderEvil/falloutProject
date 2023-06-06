@@ -80,8 +80,7 @@ async def test_read_weapon_list(async_client: AsyncClient, async_session: AsyncS
 
 
 @pytest.mark.asyncio
-async def test_read_weapon(async_client: AsyncClient, async_session: AsyncSession):
-    weapon_data = create_fake_weapon()
+async def test_read_weapon(async_client: AsyncClient, async_session: AsyncSession, weapon_data: dict):
     weapon_obj = WeaponCreate(**weapon_data)
     created_weapon = await crud.weapon.create(async_session, weapon_obj)
     response = await async_client.get(f"/weapons/{created_weapon.id}")

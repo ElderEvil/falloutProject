@@ -8,8 +8,7 @@ from app.tests.factory.rooms import create_fake_room
 
 
 @pytest.mark.asyncio
-async def test_create_room(async_client: AsyncClient):
-    room_data = create_fake_room()
+async def test_create_room(async_client: AsyncClient, room_data: dict):
     response = await async_client.post("/rooms/", json=room_data)
     assert response.status_code == 200
     response_data = response.json()

@@ -3,13 +3,14 @@ import random
 from faker import Faker
 
 from app.schemas.common import Gender, JunkType, OutfitType, Rarity, WeaponSubtype, WeaponType
+from app.tests.utils.utils import get_name_two_words
 
 fake = Faker()
 
 
 def create_fake_junk():
     return {
-        "name": f"{fake.word().capitalize()} {fake.word().capitalize()}",
+        "name": get_name_two_words(),
         "rarity": random.choice(list(Rarity)),
         "value": random.randint(1, 1000),
         "junk_type": random.choice(list(JunkType)),
@@ -19,7 +20,7 @@ def create_fake_junk():
 
 def create_fake_outfit():
     return {
-        "name": f"{fake.word().capitalize()} {fake.word().capitalize()}",
+        "name": get_name_two_words(),
         "rarity": random.choice(list(Rarity)),
         "value": random.randint(1, 1000),
         "outfit_type": random.choice(list(OutfitType)),
@@ -29,7 +30,7 @@ def create_fake_outfit():
 
 def create_fake_weapon():
     return {
-        "name": f"{fake.word().capitalize()} {fake.word().capitalize()}",
+        "name": get_name_two_words(),
         "rarity": random.choice(list(Rarity)),
         "value": random.randint(1, 1000),
         "weapon_type": random.choice(list(WeaponType)),

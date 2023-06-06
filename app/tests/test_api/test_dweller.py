@@ -8,8 +8,7 @@ from app.tests.factory.dwellers import create_fake_dweller
 
 
 @pytest.mark.asyncio
-async def test_create_dweller(async_client: AsyncClient):
-    dweller_data = create_fake_dweller()
+async def test_create_dweller(async_client: AsyncClient, dweller_data):  # noqa: ANN001
     response = await async_client.post("/dwellers/", json=dweller_data)
     assert response.status_code == 200
     response_data = response.json()

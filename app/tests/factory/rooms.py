@@ -3,13 +3,14 @@ import random
 from faker import Faker
 
 from app.schemas.common import RoomType
+from app.tests.utils.utils import get_name_two_words
 
 fake = Faker()
 
 
 def create_fake_room():
     return {
-        "name": f"{fake.word().capitalize()} {fake.word().capitalize()}",
+        "name": get_name_two_words(),
         "category": random.choice(list(RoomType)),
         "ability": random.choice(["S", "P", "E", "C", "I", "A", "L"]),
         "population_required": random.randint(12, 100),

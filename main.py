@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from sqladmin import Admin
 from sqlmodel import SQLModel
 from starlette import status
 from starlette.requests import Request
@@ -7,12 +8,14 @@ from starlette.responses import JSONResponse
 from app.api.v1.api import api_router as api_router_v1
 from app.core.config import settings
 from app.db.session import async_engine
+from app.models.admin import DwellerAdmin, JunkAdmin, OutfitAdmin, QuestAdmin, RoomAdmin, UserAdmin, WeaponAdmin
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.API_VERSION,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
 )
+admin = Admin(app, async_engine)
 
 
 @app.on_event("startup")
@@ -40,3 +43,10 @@ def perform_healthcheck():
 
 
 app.include_router(api_router_v1, prefix=settings.API_V1_STR)
+admin.add_view(UserAdmin)
+admin.add_view(DwellerAdmin)
+admin.add_view(JunkAdmin)
+admin.add_view(OutfitAdmin)
+admin.add_view(QuestAdmin)
+admin.add_view(RoomAdmin)
+admin.add_view(WeaponAdmin)

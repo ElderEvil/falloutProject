@@ -1,9 +1,27 @@
 import random
 import string
 
+from faker import Faker
 from httpx import AsyncClient
 
 from app.core.config import settings
+from app.schemas.common import Gender, Rarity
+from app.schemas.dweller import LETTER_TO_STAT, STATS_RANGE_BY_RARITY
+
+fake = Faker()
+
+
+def get_gender_based_name(gender: Gender):
+    return fake.first_name_male() if gender.value == "Male" else fake.first_name_female()
+
+
+def get_name_two_words():
+    return f"{fake.word().capitalize()} {fake.word().capitalize()}"
+
+
+def get_stats_by_rarity(rarity: Rarity):
+    min_value, max_value = STATS_RANGE_BY_RARITY[rarity]
+    return {stat: random.randint(min_value, max_value) for stat in LETTER_TO_STAT.values()}
 
 
 def random_lower_string(k: int = 32) -> str:

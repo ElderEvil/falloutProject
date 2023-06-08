@@ -8,8 +8,7 @@ from app.tests.factory.items import create_fake_outfit
 
 
 @pytest.mark.asyncio
-async def test_create_outfit(async_client: AsyncClient):
-    outfit_data = create_fake_outfit()
+async def test_create_outfit(async_client: AsyncClient, outfit_data: dict):
     response = await async_client.post("/outfits/", json=outfit_data)
     assert response.status_code == 200
     response_data = response.json()

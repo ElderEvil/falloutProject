@@ -3,14 +3,9 @@ import random
 from faker import Faker
 
 from app.schemas.common import Gender, Rarity
-from app.schemas.dweller import LETTER_TO_STAT, STATS_RANGE_BY_RARITY
+from app.tests.utils.utils import get_stats_by_rarity
 
 fake = Faker()
-
-
-def get_stats_by_rarity(rarity: Rarity):
-    min_value, max_value = STATS_RANGE_BY_RARITY[rarity]
-    return {stat: random.randint(min_value, max_value) for stat in LETTER_TO_STAT.values()}
 
 
 def create_fake_dweller():

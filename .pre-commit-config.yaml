@@ -1,7 +1,7 @@
 fail_fast: false
 
 default_language_version:
-  python: python3.10.6
+  python: python3.11
 
 repos:
   # Black

@@ -1,18 +1,17 @@
 # server
-fastapi~=0.95.1
+fastapi~=0.104.1
 starlette~=0.27.0
 uvicorn~=0.22.0
-httpx~=0.24.0
+httpx~=0.25.2
 
 # file uploads
 python-multipart~=0.0.5
 
 # orm
-alembic~=1.11.1
+alembic~=1.13.0
+asyncpg~=0.29.0
 sqlalchemy==1.4.35
-sqlmodel~=0.0.2
-# psycopg2-binary~=2.9.6
-asyncpg~=0.27.0
+sqlmodel~=0.0.3
 
 # security
 python-jose[cryptography]~=3.3.0
@@ -26,4 +25,4 @@ Faker~=18.9.0
 email_validator~=1.3.1
 
 # admin
-sqladmin~=0.11.0
+sqladmin~=0.16.0

@@ -105,8 +105,7 @@ async def create_user_open(
             detail="The user with this email already exists in the system",
         )
     user_in = UserCreate(username=username, password=password, email=email)
-    user = await crud.user.create(db_session, obj_in=user_in)
-    return user
+    return await crud.user.create(db_session, obj_in=user_in)
 
 
 @router.get("/{user_id}", response_model=UserRead)

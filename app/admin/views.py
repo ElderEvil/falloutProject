@@ -10,7 +10,9 @@ from app.models.weapon import Weapon
 
 
 class UserAdmin(ModelView, model=User):
-    column_list = [User.id, User.username, User.email, User.is_active, User.is_superuser]
+    column_list = [User.id, User.username, User.email, User.is_active, User.is_superuser]  # noqa: RUF012
+
+    icon = "fa-solid fa-user"
 
     can_create = False
     can_edit = False
@@ -19,7 +21,7 @@ class UserAdmin(ModelView, model=User):
 
 
 class DwellerAdmin(ModelView, model=Dweller):
-    column_list = [
+    column_list = [  # noqa: RUF012
         Dweller.id,
         Dweller.first_name,
         Dweller.last_name,
@@ -33,16 +35,20 @@ class DwellerAdmin(ModelView, model=Dweller):
         Dweller.is_adult,
     ]
 
+    icon = "fa-solid fa-person"
+
 
 class JunkAdmin(ModelView, model=Junk):
-    column_list = [Junk.id, Junk.name, Junk.rarity, Junk.value, Junk.junk_type, Junk.description]
+    column_list = [Junk.id, Junk.name, Junk.rarity, Junk.value, Junk.junk_type, Junk.description]  # noqa: RUF012
 
     name = "Junk item"
     name_plural = "Junk"
 
+    icon = "fa-solid fa-trash"
+
 
 class OutfitAdmin(ModelView, model=Outfit):
-    column_list = [
+    column_list = [  # noqa: RUF012
         Outfit.id,
         Outfit.name,
         Outfit.rarity,
@@ -51,18 +57,22 @@ class OutfitAdmin(ModelView, model=Outfit):
         Outfit.gender,
     ]
 
+    icon = "fa-solid fa-tshirt"
+
 
 class QuestAdmin(ModelView, model=Quest):
-    column_list = [
+    column_list = [  # noqa: RUF012
         Quest.id,
         Quest.title,
         Quest.description,
         Quest.completed,
     ]
 
+    icon = "fa-solid fa-tasks"
+
 
 class RoomAdmin(ModelView, model=Room):
-    column_list = [
+    column_list = [  # noqa: RUF012
         Room.id,
         Room.name,
         Room.category,
@@ -78,9 +88,11 @@ class RoomAdmin(ModelView, model=Room):
         Room.size,
     ]
 
+    icon = "fa-solid fa-door-open"
+
 
 class WeaponAdmin(ModelView, model=Weapon):
-    column_list = [
+    column_list = [  # noqa: RUF012
         Weapon.id,
         Weapon.name,
         Weapon.rarity,
@@ -91,3 +103,5 @@ class WeaponAdmin(ModelView, model=Weapon):
         Weapon.damage_min,
         Weapon.damage_max,
     ]
+
+    icon = "fa-solid fa-gun"

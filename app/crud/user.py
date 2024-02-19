@@ -17,6 +17,10 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         response = await db_session.execute(select(self.model).where(self.model.email == email))
         return response.scalar_one_or_none()
 
+    async def get_by_username(self, db_session: AsyncSession, username: str) -> User | None:
+        response = await db_session.execute(select(self.model).where(self.model.username == username))
+        return response.scalar_one_or_none()
+
     async def create(self, db_session: AsyncSession, obj_in: UserCreate) -> User:
         db_obj = User(
             username=obj_in.username,

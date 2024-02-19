@@ -15,7 +15,7 @@ UTC = timezone.utc
 
 def create_access_token(
     subject: str | Any,
-    expires_delta: timedelta = None,
+    expires_delta: timedelta = None,  # noqa: RUF013
 ) -> str:
     if expires_delta:
         expire = datetime.now(tz=UTC) + expires_delta

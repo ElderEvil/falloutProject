@@ -5,28 +5,24 @@ from starlette import status
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+from app.admin.auth import authentication_backend
+from app.admin.views import DwellerAdmin, JunkAdmin, OutfitAdmin, QuestAdmin, RoomAdmin, UserAdmin, WeaponAdmin
 from app.api.v1.api import api_router as api_router_v1
 from app.core.config import settings
 from app.db.session import async_engine
-from app.models.admin import DwellerAdmin, JunkAdmin, OutfitAdmin, QuestAdmin, RoomAdmin, UserAdmin, WeaponAdmin
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.API_VERSION,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
 )
-admin = Admin(app, async_engine)
+admin = Admin(app, async_engine, authentication_backend=authentication_backend)
 
 
 @app.on_event("startup")
 async def init_tables():
     async with async_engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
-
-
-@app.on_event("shutdown")
-def shutdown_event():
-    ...
 
 
 @app.exception_handler(ValueError)

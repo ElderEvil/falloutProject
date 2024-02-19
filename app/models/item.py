@@ -9,7 +9,7 @@ class ItemBase(SQLModel):
     rarity: Rarity
     value: int | None = Field(default=None, ge=0)
 
-    _value_by_rarity = {
+    _value_by_rarity = {  # noqa: RUF012
         Rarity.common: 10,
         Rarity.rare: 100,
         Rarity.legendary: 500,

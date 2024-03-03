@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 class VaultBase(SQLModel):
-    name: int = Field(..., index=True, gt=0, lt=1_000)
+    name: int = Field(index=True, gt=0, lt=1_000)
     bottle_caps: int = Field(default=1000, ge=0, lt=1_000_000)
     happiness: int = Field(default=50, ge=0, le=100)
 

@@ -6,11 +6,13 @@ from app.models.outfit import Outfit
 from app.models.quest import Quest
 from app.models.room import Room
 from app.models.user import User
+from app.models.vault import Vault
 from app.models.weapon import Weapon
 
 
 class UserAdmin(ModelView, model=User):
     column_list = [User.id, User.username, User.email, User.is_active, User.is_superuser]  # noqa: RUF012
+    column_details_exclude_list = [User.hashed_password]  # noqa: RUF012
 
     icon = "fa-solid fa-user"
 
@@ -18,6 +20,18 @@ class UserAdmin(ModelView, model=User):
     can_edit = False
     can_export = False
     can_delete = False
+
+
+class VaultAdmin(ModelView, model=Vault):
+    column_list = [  # noqa: RUF012
+        Vault.id,
+        Vault.name,
+        Vault.bottle_caps,
+        Vault.happiness,
+        Vault.user,
+    ]
+
+    icon = "fa-solid fa-house-lock"
 
 
 class DwellerAdmin(ModelView, model=Dweller):

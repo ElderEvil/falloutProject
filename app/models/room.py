@@ -5,7 +5,7 @@ from app.schemas.common import RoomType
 
 
 class RoomBase(SQLModel):
-    name: str = Field(..., index=True, min_length=3, max_length=32)
+    name: str = Field(index=True, min_length=3, max_length=32)
     category: RoomType = RoomType.misc.value
     ability: str
     population_required: int | None = Field(ge=12, le=100, default=None)

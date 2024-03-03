@@ -4,9 +4,8 @@ from app.schemas.common import Gender, OutfitType
 
 
 class OutfitBase(ItemBase):
-    outfit_type: OutfitType = OutfitType.common
+    outfit_type: OutfitType = OutfitType.common.value
     gender: Gender | None = None
 
 
-class Outfit(BaseUUIDModel, OutfitBase, TimeStampMixin, table=True):
-    ...
+class Outfit(BaseUUIDModel, OutfitBase, TimeStampMixin, table=True): ...

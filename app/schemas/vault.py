@@ -7,7 +7,7 @@ from app.models.vault import VaultBase
 
 
 class VaultCreate(VaultBase):
-    name: int = Field(..., gt=0, lt=1_000)
+    name: int = Field(gt=0, lt=1_000)
 
 
 class VaultCreateWithUserID(VaultBase):

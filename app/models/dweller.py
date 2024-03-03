@@ -5,10 +5,10 @@ from app.schemas.common import Gender, Rarity
 
 
 class DwellerBaseWithoutStats(SQLModel):
-    first_name: str = Field(..., index=True, min_length=3, max_length=32)
-    last_name: str = Field(..., index=True, min_length=3, max_length=32)
-    gender: Gender = Field(...)
-    rarity: Rarity = Field(...)
+    first_name: str = Field(index=True, min_length=3, max_length=32)
+    last_name: str = Field(index=True, min_length=3, max_length=32)
+    gender: Gender = Field()
+    rarity: Rarity = Field()
     level: int = Field(ge=1, le=50, default=1)
     experience: int = Field(ge=0, default=0)
     max_health: int = Field(ge=50, le=1000, default=50)
@@ -17,9 +17,7 @@ class DwellerBaseWithoutStats(SQLModel):
     is_adult: bool = True
 
 
-class DwellerBase(DwellerBaseWithoutStats, SPECIAL):
-    ...
+class DwellerBase(DwellerBaseWithoutStats, SPECIAL): ...
 
 
-class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, table=True):
-    ...
+class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, table=True): ...

@@ -6,7 +6,16 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from app.admin.auth import authentication_backend
-from app.admin.views import DwellerAdmin, JunkAdmin, OutfitAdmin, QuestAdmin, RoomAdmin, UserAdmin, WeaponAdmin
+from app.admin.views import (
+    DwellerAdmin,
+    JunkAdmin,
+    OutfitAdmin,
+    QuestAdmin,
+    RoomAdmin,
+    UserAdmin,
+    VaultAdmin,
+    WeaponAdmin,
+)
 from app.api.v1.api import api_router as api_router_v1
 from app.core.config import settings
 from app.db.session import async_engine
@@ -40,6 +49,7 @@ def perform_healthcheck():
 
 app.include_router(api_router_v1, prefix=settings.API_V1_STR)
 admin.add_view(UserAdmin)
+admin.add_view(VaultAdmin)
 admin.add_view(DwellerAdmin)
 admin.add_view(JunkAdmin)
 admin.add_view(OutfitAdmin)

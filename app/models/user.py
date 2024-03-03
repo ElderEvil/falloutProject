@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 class UserBase(SQLModel):
-    username: str = Field(..., index=True, min_length=3, max_length=32, unique=True)
+    username: str = Field(index=True, min_length=3, max_length=32, unique=True)
     email: EmailStr = Field(
         nullable=True,
         index=True,
@@ -21,6 +21,9 @@ class UserBase(SQLModel):
 
 
 class User(BaseUUIDModel, UserBase, TimeStampMixin, table=True):
-    hashed_password: str = Field(..., nullable=False)
+    hashed_password: str = Field(nullable=False)
 
     vaults: list["Vault"] = Relationship(back_populates="user")
+
+    def __str__(self):
+        return self.username

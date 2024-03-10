@@ -1,4 +1,4 @@
-from pydantic import validator
+from pydantic import field_validator
 from sqlmodel import Field
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
@@ -19,7 +19,7 @@ class WeaponBase(ItemBase):
     _HEAVY_SUBTYPES = (WeaponSubtype.automatic, WeaponSubtype.flamer, WeaponSubtype.explosive)
 
     @classmethod
-    @validator("weapon_subtype", pre=True)
+    @field_validator("weapon_subtype", mode="before")
     def validate_weapon_subtype(cls, v, values):  # noqa: ANN001
         weapon_type = values.get("weapon_type")
         message = f"Invalid weapon subtype for {weapon_type.value} weapon"
@@ -42,5 +42,4 @@ class WeaponBase(ItemBase):
         return v
 
 
-class Weapon(BaseUUIDModel, WeaponBase, TimeStampMixin, table=True):
-    ...
+class Weapon(BaseUUIDModel, WeaponBase, TimeStampMixin, table=True): ...

@@ -1,6 +1,8 @@
 from typing import Any
 
-from pydantic import BaseSettings, EmailStr, PostgresDsn, validator
+from pydantic import EmailStr, PostgresDsn, field_validator
+from pydantic_core.core_schema import FieldValidationInfo
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -8,38 +10,37 @@ class Settings(BaseSettings):
     API_V1_STR: str = f"/api/{API_VERSION}"
     PROJECT_NAME: str = "Fallout Shelter API"
 
-    ACCESS_TOKEN_EXPIRE_MINUTES = 30
-    SECRET_KEY: str = "09d25e0sas4faa6c52gf6c818166b7a9563b93f7sdsdef6f0f4caa6cf63b88e8d3e7"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    SECRET_KEY: str
 
-    EMAIL_TEST_USER: EmailStr = "test@example.com"
-    FIRST_SUPERUSER_USERNAME: str = "ElderEvil"
-    FIRST_SUPERUSER_EMAIL: EmailStr = "lordofelderevil@gmail.com"
-    FIRST_SUPERUSER_PASSWORD: str = "pa$$word"
-    USERS_OPEN_REGISTRATION: bool = True
+    EMAIL_TEST_USER: EmailStr
+    FIRST_SUPERUSER_USERNAME: str
+    FIRST_SUPERUSER_EMAIL: EmailStr
+    FIRST_SUPERUSER_PASSWORD: str
+    USERS_OPEN_REGISTRATION: bool
 
     POSTGRES_SERVER: str
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
-    DB_POOL_SIZE = 83
-    WEB_CONCURRENCY = 9
-    POOL_SIZE = max(DB_POOL_SIZE // WEB_CONCURRENCY, 5)
-    ASYNC_DATABASE_URI: PostgresDsn | None
+    DB_POOL_SIZE: int = 83
+    WEB_CONCURRENCY: int = 9
+    POOL_SIZE: int = max(DB_POOL_SIZE // WEB_CONCURRENCY, 5)
+    ASYNC_DATABASE_URI: PostgresDsn | str = ""
 
-    @validator("ASYNC_DATABASE_URI", pre=True)
-    def assemble_db_connection(cls, v: str | None, values: dict[str, Any]) -> Any:  # noqa: N805
-        if isinstance(v, str):
-            return v
-        return PostgresDsn.build(
-            scheme="postgresql+asyncpg",
-            user=values.get("POSTGRES_USER"),
-            password=values.get("POSTGRES_PASSWORD"),
-            host=values.get("POSTGRES_SERVER"),
-            path=f"/{values.get('POSTGRES_DB') or ''}",
-        )
+    @field_validator("ASYNC_DATABASE_URI", mode="after")
+    def assemble_db_connection(cls, v: str | None, info: FieldValidationInfo) -> Any:  # noqa: N805
+        if isinstance(v, str) and v == "":
+            return PostgresDsn.build(
+                scheme="postgresql+asyncpg",
+                username=info.data["POSTGRES_USER"],
+                password=info.data["POSTGRES_PASSWORD"],
+                host=info.data["POSTGRES_SERVER"],
+                path=info.data["POSTGRES_DB"],
+            )
+        return v
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(env_file=".env")
 
 
 settings = Settings()

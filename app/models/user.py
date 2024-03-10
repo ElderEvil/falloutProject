@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from pydantic import EmailStr
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import AutoString, Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
 
@@ -11,11 +11,7 @@ if TYPE_CHECKING:
 
 class UserBase(SQLModel):
     username: str = Field(index=True, min_length=3, max_length=32, unique=True)
-    email: EmailStr = Field(
-        nullable=True,
-        index=True,
-        sa_column_kwargs={"unique": True},
-    )
+    email: EmailStr = Field(nullable=True, index=True, sa_column_kwargs={"unique": True}, sa_type=AutoString)
     is_active: bool = Field(default=True)
     is_superuser: bool = Field(default=False)
 

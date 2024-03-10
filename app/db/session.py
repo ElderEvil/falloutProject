@@ -5,7 +5,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import settings
 
 async_engine = create_async_engine(
-    settings.ASYNC_DATABASE_URI,
+    str(settings.ASYNC_DATABASE_URI),
     echo=True,
     future=True,
     pool_size=settings.POOL_SIZE,

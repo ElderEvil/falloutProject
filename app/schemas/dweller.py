@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import UUID4, Field, root_validator
+from pydantic import UUID4, Field, model_validator
 from sqlmodel import SQLModel
 
 from app.models.base import SPECIAL
@@ -27,7 +27,8 @@ STATS_RANGE_BY_RARITY = {
 
 class DwellerCreate(DwellerBase):
     @classmethod
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def validate_stats(cls, values: dict[str, Any]):
         health = values.get("health")
         max_health = values.get("max_health")

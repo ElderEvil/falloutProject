@@ -1,4 +1,4 @@
-from pydantic import validator
+from pydantic import field_validator
 from sqlmodel import Field, SQLModel
 
 from app.schemas.common import Rarity
@@ -16,7 +16,8 @@ class ItemBase(SQLModel):
     }
 
     @classmethod
-    @validator("value", pre=True)
+    @field_validator("value", mode="before")
+    @classmethod
     def set_default_value(cls, values) -> int:  # noqa: ANN001
         if "value" not in values:
             values["value"] = cls._value_by_rarity[values["rarity"]]

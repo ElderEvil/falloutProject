@@ -5,27 +5,24 @@ target-version = ["py311"]
 [tool.ruff]
 line-length = 119
 exclude = [".git", "__pycache__", ".pytest_cache", "./Game"]
-select = [
+lint.select = [
     "F",  # pyflakes
     "E",  # pycodestyle errors
     "W",  # pycodestyle warnings
-    "C90",  # flake8-comprehensions
-    "I",  # isort
+    "C",  # flake8-comprehensions
+#    "I",  # isort
     "N",  # pep8-naming
-#    "D",   # pydocstyle
     "UP",  # pyupgrade
     "YTT",  # flake8-2020
     "ANN00",  # flake8-annotations
-    "S",  # lake8-bandit security
+    "S",  # flake8-bandit security
     "BLE",  # flake8-blind-except
     "B",  # flake8-bugbear
     "A",  # flake8-builtins
     "COM",  # flake8-commas
-    "C4",  # flake8-comprehensions
     "DTZ",  # flake8-datetimez
     "ISC",  # flake8-implicit-str-concat
     "ICN",  # flake8-import-conventions
-#    "G",  # flake8-logging-format
     "PIE",  # flake8-pie
     "PT",  # flake8-pytest-style
     "RSE",  # flake8-raise
@@ -35,23 +32,20 @@ select = [
     "TCH", # flake8-type-checking
     "PTH",  # flake8-pathlib
     "PGH", # pygrep-hooks
-    "PD", # pd
     "PL", # Pylint
     "TRY", # tryceratops
-    "NPY", # np
     "RUF", # Ruff
 ]
 
-ignore = [
-    "B904",
-    "B006",
+lint.ignore = [
     "B008",  # do not perform function calls in argument defaults
+    "E501", # line too long
     "PTH123", # builtin-open
     "S101", "S311", # assert, pseudo-random
     "PLR2004",
     "PT023", # pytest-style
 ]
-[tool.ruff.flake8-builtins]
+[tool.ruff.lint.flake8-builtins]
 builtins-ignorelist = ["id"]
 
 [tool.pytest.ini_options]

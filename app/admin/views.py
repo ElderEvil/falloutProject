@@ -11,8 +11,8 @@ from app.models.weapon import Weapon
 
 
 class UserAdmin(ModelView, model=User):
-    column_list = [User.id, User.username, User.email, User.is_active, User.is_superuser]  # noqa: RUF012
-    column_details_exclude_list = [User.hashed_password]  # noqa: RUF012
+    column_list = [User.id, User.username, User.email, User.is_active, User.is_superuser]
+    column_details_exclude_list = [User.hashed_password]
 
     icon = "fa-solid fa-user"
 
@@ -23,7 +23,7 @@ class UserAdmin(ModelView, model=User):
 
 
 class VaultAdmin(ModelView, model=Vault):
-    column_list = [  # noqa: RUF012
+    column_list = [
         Vault.id,
         Vault.name,
         Vault.bottle_caps,
@@ -35,7 +35,7 @@ class VaultAdmin(ModelView, model=Vault):
 
 
 class DwellerAdmin(ModelView, model=Dweller):
-    column_list = [  # noqa: RUF012
+    column_list = [
         Dweller.id,
         Dweller.first_name,
         Dweller.last_name,
@@ -53,7 +53,7 @@ class DwellerAdmin(ModelView, model=Dweller):
 
 
 class JunkAdmin(ModelView, model=Junk):
-    column_list = [Junk.id, Junk.name, Junk.rarity, Junk.value, Junk.junk_type, Junk.description]  # noqa: RUF012
+    column_list = [Junk.id, Junk.name, Junk.rarity, Junk.value, Junk.junk_type, Junk.description]
 
     name = "Junk item"
     name_plural = "Junk"
@@ -62,7 +62,7 @@ class JunkAdmin(ModelView, model=Junk):
 
 
 class OutfitAdmin(ModelView, model=Outfit):
-    column_list = [  # noqa: RUF012
+    column_list = [
         Outfit.id,
         Outfit.name,
         Outfit.rarity,
@@ -75,7 +75,7 @@ class OutfitAdmin(ModelView, model=Outfit):
 
 
 class QuestAdmin(ModelView, model=Quest):
-    column_list = [  # noqa: RUF012
+    column_list = [
         Quest.id,
         Quest.title,
         Quest.description,
@@ -86,7 +86,7 @@ class QuestAdmin(ModelView, model=Quest):
 
 
 class RoomAdmin(ModelView, model=Room):
-    column_list = [  # noqa: RUF012
+    column_list = [
         Room.id,
         Room.name,
         Room.category,
@@ -106,7 +106,7 @@ class RoomAdmin(ModelView, model=Room):
 
 
 class WeaponAdmin(ModelView, model=Weapon):
-    column_list = [  # noqa: RUF012
+    column_list = [
         Weapon.id,
         Weapon.name,
         Weapon.rarity,

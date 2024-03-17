@@ -18,7 +18,7 @@ class UserRead(UserBase):
 
 
 class UserReadWithVaults(UserRead):
-    vaults: list["VaultRead"] = []  # noqa: RUF012
+    vaults: list["VaultRead"] = []
 
 
 UserReadWithVaults.update_forward_refs()

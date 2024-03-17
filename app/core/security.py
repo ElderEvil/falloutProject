@@ -1,15 +1,10 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import HTTPException
 from jose import jwt
 from passlib.context import CryptContext
-from sqlalchemy.orm import sessionmaker
-from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app import crud
 from app.core.config import settings
-from app.db.session import async_engine
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -38,27 +33,3 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
-
-
-async def authenticate_admin(
-    email: str,
-    password: str,
-):
-    async_session = sessionmaker(
-        autocommit=False,
-        autoflush=False,
-        bind=async_engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
-    async with async_session() as session:
-        user = await crud.user.authenticate(
-            db_session=session,
-            email=email,
-            password=password,
-        )
-        if not user:
-            raise HTTPException(status_code=400, detail="Incorrect email or password")
-        if not crud.user.is_active(user):
-            raise HTTPException(status_code=400, detail="Inactive user")
-        return user

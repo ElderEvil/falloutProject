@@ -7,7 +7,7 @@ class JunkBase(ItemBase):
     junk_type: JunkType
     description: str
 
-    _value_by_rarity = {  # noqa: RUF012
+    _value_by_rarity = {
         Rarity.common: 2,
         Rarity.rare: 50,
         Rarity.legendary: 200,

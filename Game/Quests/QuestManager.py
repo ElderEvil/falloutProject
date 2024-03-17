@@ -33,5 +33,4 @@ class QuestManager:
             return quest.is_completed
         return False
 
-    def get_quests(self):
-        ...
+    def get_quests(self): ...

@@ -39,7 +39,7 @@ class QuestStepRead(QuestStepBase):
 
 
 class QuestReadWithSteps(QuestRead):
-    steps: list["QuestStepRead"] = []  # noqa: RUF012
+    steps: list["QuestStepRead"] = []
 
 
 class QuestStepReadWithQuest(QuestStepRead):

@@ -9,7 +9,7 @@ class ItemBase(SQLModel):
     rarity: Rarity
     value: int | None = Field(default=None, ge=0)
 
-    _value_by_rarity = {  # noqa: RUF012
+    _value_by_rarity = {
         Rarity.common: 10,
         Rarity.rare: 100,
         Rarity.legendary: 500,
@@ -17,7 +17,6 @@ class ItemBase(SQLModel):
 
     @classmethod
     @field_validator("value", mode="before")
-    @classmethod
     def set_default_value(cls, values) -> int:  # noqa: ANN001
         if "value" not in values:
             values["value"] = cls._value_by_rarity[values["rarity"]]

@@ -28,7 +28,6 @@ STATS_RANGE_BY_RARITY = {
 class DwellerCreate(DwellerBase):
     @classmethod
     @model_validator(mode="before")
-    @classmethod
     def validate_stats(cls, values: dict[str, Any]):
         health = values.get("health")
         max_health = values.get("max_health")

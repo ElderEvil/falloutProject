@@ -5,7 +5,6 @@ from starlette import status
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from app.admin.auth import authentication_backend
 from app.admin.views import (
     DwellerAdmin,
     JunkAdmin,
@@ -25,7 +24,7 @@ app = FastAPI(
     version=settings.API_VERSION,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
 )
-admin = Admin(app, async_engine, authentication_backend=authentication_backend)
+admin = Admin(app, async_engine)
 
 
 @app.on_event("startup")

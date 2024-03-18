@@ -47,6 +47,7 @@ class DwellerAdmin(ModelView, model=Dweller):
         Dweller.health,
         Dweller.happiness,
         Dweller.is_adult,
+        Dweller.vault,
     ]
 
     icon = "fa-solid fa-person"

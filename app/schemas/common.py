@@ -7,6 +7,16 @@ class Rarity(str, Enum):
     legendary = "Legendary"
 
 
+class SPECIAL(str, Enum):
+    strength = "Strength"
+    perception = "Perception"
+    endurance = "Endurance"
+    charisma = "Charisma"
+    intelligence = "Intelligence"
+    agility = "Agility"
+    luck = "Luck"
+
+
 class Gender(str, Enum):
     male = "Male"
     female = "Female"
@@ -33,7 +43,7 @@ class OutfitType(str, Enum):
 class RoomType(str, Enum):
     capacity = "Capacity"
     crafting = "Crafting"
-    misc = "Misc"
+    misc = "Misc."
     production = "Production"
     quests = "Quests"
     theme = "Theme"

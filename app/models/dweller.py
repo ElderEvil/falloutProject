@@ -1,7 +1,13 @@
-from sqlmodel import Field, SQLModel
+from pydantic import UUID4
+from sqlmodel import Field, SQLModel, Relationship
+from typing import TYPE_CHECKING
 
 from app.models.base import SPECIAL, BaseUUIDModel, TimeStampMixin
 from app.schemas.common import Gender, Rarity
+
+if TYPE_CHECKING:
+    from app.models.vault import Vault
+    from app.models.room import Room
 
 
 class DwellerBaseWithoutStats(SQLModel):
@@ -17,7 +23,17 @@ class DwellerBaseWithoutStats(SQLModel):
     is_adult: bool = True
 
 
-class DwellerBase(DwellerBaseWithoutStats, SPECIAL): ...
+class DwellerBase(DwellerBaseWithoutStats, SPECIAL):
+    def __str__(self):
+        return f"{self.first_name} {self.last_name}"
 
 
-class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, table=True): ...
+class DwellerBlueprint(BaseUUIDModel, DwellerBase, TimeStampMixin, table=True): ...
+
+
+class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, table=True):
+    vault_id: UUID4 = Field(default=None, foreign_key="vault.id")
+    vault: "Vault" = Relationship(back_populates="dwellers")
+
+    room_id: UUID4 = Field(default=None, foreign_key="room.id", nullable=True)
+    room: "Room" = Relationship(back_populates="dwellers")

@@ -7,8 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import crud
 from app.schemas.common import JunkType
 from app.schemas.junk import JunkCreate
-from app.tests.factory.items import create_fake_junk
 from app.tests.utils.utils import random_lower_string
+
+pytestmark = pytest.mark.asyncio(scope="module")
 
 
 @pytest.mark.asyncio
@@ -45,8 +46,7 @@ async def test_create_junk_invalid(async_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_read_junk_list(async_client: AsyncClient, async_session: AsyncSession):
-    junk_data_1 = create_fake_junk()
+async def test_read_junk_list(async_client: AsyncClient, async_session: AsyncSession, junk_data: dict):
     junk_data_2 = {
         "name": "Test Junk 2",
         "rarity": "Common",
@@ -54,7 +54,7 @@ async def test_read_junk_list(async_client: AsyncClient, async_session: AsyncSes
         "junk_type": "Adhesive",
         "description": "Very sticky.",
     }
-    junk_obj_1 = JunkCreate(**junk_data_1)
+    junk_obj_1 = JunkCreate(**junk_data)
     junk_obj_2 = JunkCreate(**junk_data_2)
     await crud.junk.create(async_session, junk_obj_1)
     await crud.junk.create(async_session, junk_obj_2)
@@ -81,8 +81,7 @@ async def test_read_junk_list(async_client: AsyncClient, async_session: AsyncSes
 
 
 @pytest.mark.asyncio
-async def test_read_junk(async_client: AsyncClient, async_session: AsyncSession):
-    junk_data = create_fake_junk()
+async def test_read_junk(async_client: AsyncClient, async_session: AsyncSession, junk_data: dict):
     junk_obj = JunkCreate(**junk_data)
     junk_item = await crud.junk.create(async_session, junk_obj)
     response = await async_client.get(f"/junk/{junk_item.id}")
@@ -96,8 +95,7 @@ async def test_read_junk(async_client: AsyncClient, async_session: AsyncSession)
 
 
 @pytest.mark.asyncio
-async def test_update_junk(async_client: AsyncClient):
-    junk_data = create_fake_junk()
+async def test_update_junk(async_client: AsyncClient, junk_data: dict):
     response = await async_client.post("/junk/", json=junk_data)
     junk_item = response.json()
     junk_new_data = {
@@ -118,8 +116,7 @@ async def test_update_junk(async_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_delete_junk(async_client: AsyncClient):
-    junk_data = create_fake_junk()
+async def test_delete_junk(async_client: AsyncClient, junk_data: dict):
     create_response = await async_client.post("/junk/", json=junk_data)
     created_junk = create_response.json()
     delete_response = await async_client.delete(f"/junk/{created_junk['id']}")

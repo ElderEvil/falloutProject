@@ -103,6 +103,7 @@ async def test_update_dweller(async_client: AsyncClient):
     assert updated_dweller["is_adult"] == dweller_new_data["is_adult"]
 
 
+@pytest.mark.asyncio
 async def test_delete_dweller(async_client: AsyncClient):
     dweller_data = create_fake_dweller()
     create_response = await async_client.post("/dwellers/", json=dweller_data)

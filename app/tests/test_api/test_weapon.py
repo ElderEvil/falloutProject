@@ -6,10 +6,11 @@ from app import crud
 from app.schemas.weapon import WeaponCreate
 from app.tests.factory.items import create_fake_weapon
 
+pytestmark = pytest.mark.asyncio(scope="module")
+
 
 @pytest.mark.asyncio
-async def test_create_weapon(async_client: AsyncClient):
-    weapon_data = create_fake_weapon()
+async def test_create_weapon(async_client: AsyncClient, weapon_data: dict):
     response = await async_client.post("/weapons/", json=weapon_data)
     assert response.status_code == 200
     response_data = response.json()
@@ -46,10 +47,9 @@ async def test_create_weapon_invalid(async_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_read_weapon_list(async_client: AsyncClient, async_session: AsyncSession):
-    weapon_1_data = create_fake_weapon()
+async def test_read_weapon_list(async_client: AsyncClient, async_session: AsyncSession, weapon_data: dict):
     weapon_2_data = create_fake_weapon()
-    weapon_1 = WeaponCreate(**weapon_1_data)
+    weapon_1 = WeaponCreate(**weapon_data)
     weapon_2 = WeaponCreate(**weapon_2_data)
     await crud.weapon.create(async_session, weapon_1)
     await crud.weapon.create(async_session, weapon_2)
@@ -96,8 +96,7 @@ async def test_read_weapon(async_client: AsyncClient, async_session: AsyncSessio
 
 
 @pytest.mark.asyncio
-async def test_update_weapon(async_client: AsyncClient):
-    weapon_data = create_fake_weapon()
+async def test_update_weapon(async_client: AsyncClient, weapon_data: dict):
     response = await async_client.post("/weapons/", json=weapon_data)
     weapon_response = response.json()
     weapon_id = weapon_response["id"]
@@ -116,8 +115,7 @@ async def test_update_weapon(async_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_delete_weapon(async_client: AsyncClient):
-    weapon_data = create_fake_weapon()
+async def test_delete_weapon(async_client: AsyncClient, weapon_data: dict):
     create_response = await async_client.post("/weapons/", json=weapon_data)
     weapon_1 = create_response.json()
     delete_response = await async_client.delete(f"/weapons/{weapon_1['id']}")

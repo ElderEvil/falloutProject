@@ -6,6 +6,8 @@ from app import crud
 from app.schemas.outfit import OutfitCreate
 from app.tests.factory.items import create_fake_outfit
 
+pytestmark = pytest.mark.asyncio(scope="module")
+
 
 @pytest.mark.asyncio
 async def test_create_outfit(async_client: AsyncClient, outfit_data: dict):
@@ -40,10 +42,9 @@ async def test_create_outfit_invalid(async_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_read_outfit_list(async_client: AsyncClient, async_session: AsyncSession):
-    outfit_1_data = create_fake_outfit()
+async def test_read_outfit_list(async_client: AsyncClient, async_session: AsyncSession, outfit_data: dict):
     outfit_2_data = create_fake_outfit()
-    outfit_1 = OutfitCreate(**outfit_1_data)
+    outfit_1 = OutfitCreate(**outfit_data)
     outfit_2 = OutfitCreate(**outfit_2_data)
     await crud.outfit.create(async_session, outfit_1)
     await crud.outfit.create(async_session, outfit_2)
@@ -68,8 +69,7 @@ async def test_read_outfit_list(async_client: AsyncClient, async_session: AsyncS
 
 
 @pytest.mark.asyncio
-async def test_read_outfit(async_client: AsyncClient, async_session: AsyncSession):
-    outfit_data = create_fake_outfit()
+async def test_read_outfit(async_client: AsyncClient, async_session: AsyncSession, outfit_data: dict):
     outfit_obj = OutfitCreate(**outfit_data)
     created_outfit = await crud.outfit.create(async_session, outfit_obj)
     response = await async_client.get(f"/outfits/{created_outfit.id}")
@@ -83,8 +83,7 @@ async def test_read_outfit(async_client: AsyncClient, async_session: AsyncSessio
 
 
 @pytest.mark.asyncio
-async def test_update_outfit(async_client: AsyncClient):
-    outfit_data = create_fake_outfit()
+async def test_update_outfit(async_client: AsyncClient, outfit_data: dict):
     response = await async_client.post("/outfits/", json=outfit_data)
     outfit_response = response.json()
     outfit_id = outfit_response["id"]
@@ -101,8 +100,7 @@ async def test_update_outfit(async_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_delete_outfit(async_client: AsyncClient):
-    outfit_data = create_fake_outfit()
+async def test_delete_outfit(async_client: AsyncClient, outfit_data: dict):
     create_response = await async_client.post("/outfits/", json=outfit_data)
     created_outfit = create_response.json()
     delete_response = await async_client.delete(f"/outfits/{created_outfit['id']}")

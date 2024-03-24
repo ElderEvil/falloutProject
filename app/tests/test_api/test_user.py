@@ -7,6 +7,8 @@ from app.core.config import settings
 from app.schemas.user import UserCreate
 from app.tests.factory.users import create_fake_user
 
+pytestmark = pytest.mark.asyncio(scope="module")
+
 
 @pytest.mark.asyncio
 async def test_get_users_superuser_me(

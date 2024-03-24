@@ -3,13 +3,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.schemas.dweller import DwellerCreate
+from app.schemas.user import UserCreate
+from app.schemas.vault import VaultCreateWithUserID
 from app.tests.factory.dwellers import create_fake_dweller
+from app.tests.factory.users import create_fake_user
+from app.tests.factory.vaults import create_fake_vault
 
 
 @pytest.mark.asyncio
 async def test_create_dweller(async_session: AsyncSession) -> None:
+    user_data = create_fake_user()
+    user_in = UserCreate(**user_data)
+    user = await crud.user.create(async_session, obj_in=user_in)
+    vault_data = create_fake_vault()
+    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(async_session, obj_in=vault_in)
     dweller_data = create_fake_dweller()
-    dweller_in = DwellerCreate(**dweller_data)
+    dweller_in = DwellerCreate(**dweller_data, vault_id=str(vault.id))
     dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
     assert dweller.first_name == dweller_data["first_name"]
     assert dweller.last_name == dweller_data["last_name"]

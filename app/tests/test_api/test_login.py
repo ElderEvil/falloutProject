@@ -3,6 +3,8 @@ from httpx import AsyncClient
 
 from app.core.config import settings
 
+pytestmark = pytest.mark.asyncio(scope="module")
+
 
 @pytest.mark.asyncio
 async def test_get_access_token(async_client: AsyncClient) -> None:

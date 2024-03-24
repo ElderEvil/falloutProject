@@ -3,13 +3,21 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.models.vault import Vault
 from app.schemas.room import RoomCreate
+from app.schemas.user import UserCreate
+from app.schemas.vault import VaultCreateWithUserID
 from app.tests.factory.rooms import create_fake_room
+from app.tests.factory.users import create_fake_user
+from app.tests.factory.vaults import create_fake_vault
+
+# pytestmark = pytest.mark.asyncio(scope="module")
 
 
 @pytest.mark.asyncio
-async def test_create_room(async_client: AsyncClient, room_data: dict):
-    response = await async_client.post("/rooms/", json=room_data)
+async def test_create_room(async_client: AsyncClient, async_session: AsyncSession, vault: Vault, room_data: dict):
+    room_data_new = {**room_data, "vault_id": str(vault.id)}
+    response = await async_client.post("/rooms/", json=room_data_new)
     assert response.status_code == 200
     response_data = response.json()
     assert response_data["name"] == room_data["name"]
@@ -48,10 +56,16 @@ async def test_create_room_invalid(async_client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_read_room_list(async_client: AsyncClient, async_session: AsyncSession):
+    user_data = create_fake_user()
+    user_in = UserCreate(**user_data)
+    user = await crud.user.create(async_session, obj_in=user_in)
+    vault_data = create_fake_vault()
+    vault_obj = VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(async_session, obj_in=vault_obj)
     room_1_data = create_fake_room()
     room_2_data = create_fake_room()
-    room_1 = RoomCreate(**room_1_data)
-    room_2 = RoomCreate(**room_2_data)
+    room_1 = RoomCreate(**room_1_data, vault_id=vault.id)
+    room_2 = RoomCreate(**room_2_data, vault_id=vault.id)
     await crud.room.create(async_session, room_1)
     await crud.room.create(async_session, room_2)
     response = await async_client.get("/rooms/")

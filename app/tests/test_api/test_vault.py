@@ -7,6 +7,8 @@ from app.core.config import settings
 from app.schemas.vault import VaultCreateWithUserID
 from app.tests.factory.vaults import create_fake_vault
 
+pytestmark = pytest.mark.asyncio(scope="module")
+
 
 @pytest.mark.asyncio
 async def test_create_vault(

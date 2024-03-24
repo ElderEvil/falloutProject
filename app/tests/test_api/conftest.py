@@ -44,7 +44,7 @@ def room_data_fixture():
     return {
         "name": get_name_two_words(),
         "category": random.choice(list(RoomType)),
-        "ability": random.choice[*list(SPECIAL), None],
+        "ability": random.choice([*list(SPECIAL), None]),
         "population_required": random.randint(12, 100),
         "base_cost": random.randint(100, 10_000),
         "incremental_cost": random.randint(25, 5_000),

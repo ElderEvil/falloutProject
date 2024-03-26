@@ -33,12 +33,12 @@ async def init_tables():
         await conn.run_sync(SQLModel.metadata.create_all)
 
 
-@app.exception_handler(ValueError)
-def value_error_handler(request: Request, exc: ValueError):
-    return JSONResponse(
-        status_code=400,
-        content={"message": "Bad request"},
-    )
+# @app.exception_handler(ValueError)
+# def value_error_handler(request: Request, exc: ValueError):
+#     return JSONResponse(
+#         status_code=400,
+#         content={"message": "Bad request"},
+#     )
 
 
 @app.get("/healthcheck", status_code=status.HTTP_200_OK)

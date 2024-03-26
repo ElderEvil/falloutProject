@@ -37,3 +37,6 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, table=True):
 
     room_id: UUID4 = Field(default=None, foreign_key="room.id", nullable=True)
     room: "Room" = Relationship(back_populates="dwellers")
+
+    weapon_id: UUID4 = Field(default=None, foreign_key="weapon.id", nullable=True)
+    outfit_id: UUID4 = Field(default=None, foreign_key="outfit.id", nullable=True)

@@ -40,5 +40,65 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         db_session.add(dweller_obj)
         db_session.commit()
 
+    async def assign_room(self, db_session: AsyncSession, dweller_id: UUID4, room_id: UUID4) -> None:
+        dweller_obj = await self.get(db_session, dweller_id)
+        
+        if dweller_obj.room_id == room_id:
+            error_message = "Dweller is already in the room"
+            raise ValueError(error_message)
+        dweller_obj.room_id = room_id
+        db_session.add(dweller_obj)
+        await db_session.commit()
+        await db_session.refresh(dweller_obj)
+        
+        return dweller_obj
+
+    async def equip_weapon(self, db_session: AsyncSession, dweller_id: UUID4, weapon_id: UUID4) -> None:
+        dweller_obj = await self.get(db_session, dweller_id)
+        if dweller_obj.weapon_id:
+            error_message = "Dweller already has a weapon equipped"
+            raise ValueError(error_message)
+        dweller_obj.weapon_id = weapon_id
+        db_session.add(dweller_obj)
+        await db_session.commit()
+        await db_session.refresh(dweller_obj)
+        
+        return dweller_obj
+
+    async def unequip_weapon(self, db_session: AsyncSession, dweller_id: UUID4) -> None:
+        dweller_obj = await self.get(db_session, dweller_id)
+        if not dweller_obj.weapon_id:
+            error_message = "Dweller does not have a weapon equipped"
+            raise ValueError(error_message)
+        dweller_obj.weapon_id = None
+        db_session.add(dweller_obj)
+        await db_session.commit()
+        await db_session.refresh(dweller_obj)
+        
+        return dweller_obj
+
+    async def equip_outfit(self, db_session: AsyncSession, dweller_id: UUID4, outfit_id: UUID4) -> Dweller:
+        dweller_obj = await self.get(db_session, dweller_id)
+        if dweller_obj.outfit_id:
+            error_message = "Dweller already has an outfit equipped"
+            raise ValueError(error_message)
+        dweller_obj.outfit_id = outfit_id
+        db_session.add(dweller_obj)
+        await db_session.commit()
+        await db_session.refresh(dweller_obj)
+        
+        return dweller_obj
+
+    async def unequip_outfit(self, db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
+        dweller_obj = await self.get(db_session, dweller_id)
+        if not dweller_obj.outfit_id:
+            error_message = "Dweller does not have an outfit equipped"
+            raise ValueError(error_message)
+        dweller_obj.outfit_id = None
+        db_session.add(dweller_obj)
+        await db_session.commit()
+        await db_session.refresh(dweller_obj)
+        
+        return dweller_obj
 
 dweller = CRUDDweller(Dweller)

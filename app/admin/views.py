@@ -3,7 +3,7 @@ from sqladmin import ModelView
 from app.models.dweller import Dweller
 from app.models.junk import Junk
 from app.models.outfit import Outfit
-from app.models.quest import Quest
+from app.models.quest import Quest, QuestStep, QuestChain
 from app.models.room import Room
 from app.models.user import User
 from app.models.vault import Vault
@@ -78,12 +78,33 @@ class OutfitAdmin(ModelView, model=Outfit):
     icon = "fa-solid fa-tshirt"
 
 
+class QuestChainAdmin(ModelView, model=QuestChain):
+    column_list = [
+        QuestChain.id,
+        QuestChain.title,
+        QuestChain.description,
+    ]
+
+    icon = "fa-solid fa-tasks"
+
+
 class QuestAdmin(ModelView, model=Quest):
     column_list = [
         Quest.id,
         Quest.title,
         Quest.description,
         Quest.completed,
+    ]
+
+    icon = "fa-solid fa-tasks"
+
+
+class QuestStepAdmin(ModelView, model=QuestStep):
+    column_list = [
+        QuestStep.id,
+        QuestStep.quest,
+        QuestStep.description,
+        QuestStep.completed,
     ]
 
     icon = "fa-solid fa-tasks"
@@ -96,15 +117,8 @@ class RoomAdmin(ModelView, model=Room):
         Room.category,
         Room.ability,
         Room.population_required,
-        Room.base_cost,
-        Room.incremental_cost,
         Room.tier,
         Room.max_tier,
-        Room.t2_upgrade_cost,
-        Room.t3_upgrade_cost,
-        Room.output,
-        Room.size_min,
-        Room.size_max,
         Room.vault,
     ]
 

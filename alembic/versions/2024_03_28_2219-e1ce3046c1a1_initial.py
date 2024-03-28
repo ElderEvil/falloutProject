@@ -1,7 +1,7 @@
 """initial
 
 Revision ID: e1ce3046c1a1
-Revises: 
+Revises:
 Create Date: 2024-03-28 22:19:02.955469
 
 """
@@ -121,7 +121,14 @@ def upgrade() -> None:
         sa.Column(
             "ability",
             sa.Enum(
-                "strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck", name="special",
+                "strength",
+                "perception",
+                "endurance",
+                "charisma",
+                "intelligence",
+                "agility",
+                "luck",
+                name="special",
             ),
             nullable=True,
         ),

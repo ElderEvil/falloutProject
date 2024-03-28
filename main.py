@@ -6,7 +6,9 @@ from app.admin.views import (
     DwellerAdmin,
     JunkAdmin,
     OutfitAdmin,
+    QuestChainAdmin,
     QuestAdmin,
+    QuestStepAdmin,
     RoomAdmin,
     UserAdmin,
     VaultAdmin,
@@ -24,12 +26,6 @@ app = FastAPI(
 admin = Admin(app, async_engine)
 
 
-# @app.on_event("startup")
-# async def init_tables():
-#     async with async_engine.begin() as conn:
-#         await conn.run_sync(SQLModel.metadata.create_all)
-
-
 @app.get("/healthcheck", status_code=status.HTTP_200_OK)
 def perform_healthcheck():
     return {"healthcheck": "Everything OK!"}
@@ -38,9 +34,11 @@ def perform_healthcheck():
 app.include_router(api_router_v1, prefix=settings.API_V1_STR)
 admin.add_view(UserAdmin)
 admin.add_view(VaultAdmin)
-admin.add_view(DwellerAdmin)
-admin.add_view(JunkAdmin)
-admin.add_view(OutfitAdmin)
-admin.add_view(QuestAdmin)
 admin.add_view(RoomAdmin)
+admin.add_view(DwellerAdmin)
+admin.add_view(OutfitAdmin)
 admin.add_view(WeaponAdmin)
+admin.add_view(JunkAdmin)
+admin.add_view(QuestChainAdmin)
+admin.add_view(QuestAdmin)
+admin.add_view(QuestStepAdmin)

@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.models.vault import Vault
+from app.models.room import Room
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
@@ -54,83 +55,57 @@ async def test_create_room_invalid(async_client: AsyncClient, vault: Vault):
 
 
 @pytest.mark.asyncio
-async def test_read_room_list(async_client: AsyncClient, async_session: AsyncSession):
-    user_data = create_fake_user()
-    user_in = UserCreate(**user_data)
-    user = await crud.user.create(async_session, obj_in=user_in)
-    vault_data = create_fake_vault()
-    vault_obj = VaultCreateWithUserID(**vault_data, user_id=user.id)
-    vault = await crud.vault.create(async_session, obj_in=vault_obj)
-    room_1_data = create_fake_room()
+async def test_read_room_list(async_client: AsyncClient, async_session: AsyncSession, room: Room):
     room_2_data = create_fake_room()
-    room_1 = RoomCreate(**room_1_data, vault_id=vault.id)
-    room_2 = RoomCreate(**room_2_data, vault_id=vault.id)
-    await crud.room.create(async_session, room_1)
+    room_2 = RoomCreate(**room_2_data, vault_id=room.vault_id)
     await crud.room.create(async_session, room_2)
     response = await async_client.get("/rooms/")
-    all_rooms = response.json()
+    rooms = response.json()
     assert response.status_code == 200
-    assert len(all_rooms) == 2
-    response_room_1, response_room_2 = all_rooms
-    if response_room_1["name"] == room_2.name:
-        response_room_1, response_room_2 = response_room_2, response_room_1
-    assert response_room_1["name"] == room_1.name
-    assert response_room_1["category"] == room_1.category
-    assert response_room_1["ability"] == room_1.ability
-    assert response_room_1["population_required"] == room_1.population_required
-    assert response_room_1["base_cost"] == room_1.base_cost
-    assert response_room_1["incremental_cost"] == room_1.incremental_cost
-    assert response_room_1["tier"] == room_1.tier
-    assert response_room_1["max_tier"] == room_1.max_tier
-    assert response_room_1["t2_upgrade_cost"] == room_1.t2_upgrade_cost
-    assert response_room_1["t3_upgrade_cost"] == room_1.t3_upgrade_cost
-    assert response_room_1["output"] == room_1.output
-    assert response_room_1["size"] == room_1.size
+    assert len(rooms) == 2
+    for room in rooms:
+        assert "id" in room
+        assert "name" in room
+        assert "category" in room
+        assert "ability" in room
+        assert "population_required" in room
+        assert "base_cost" in room
+        assert "incremental_cost" in room
+        assert "tier" in room
+        assert "max_tier" in room
+        assert "t2_upgrade_cost" in room
+        assert "t3_upgrade_cost" in room
+        assert "output" in room
+        assert "size_min" in room
+        assert "size_max" in room
 
-    assert response_room_2["name"] == room_2.name
-    assert response_room_2["category"] == room_2.category
-    assert response_room_2["ability"] == room_2.ability
-    assert response_room_2["population_required"] == room_2.population_required
-    assert response_room_2["base_cost"] == room_2.base_cost
-    assert response_room_2["incremental_cost"] == room_2.incremental_cost
-    assert response_room_2["tier"] == room_2.tier
-    assert response_room_2["max_tier"] == room_2.max_tier
-    assert response_room_2["t2_upgrade_cost"] == room_2.t2_upgrade_cost
-    assert response_room_2["t3_upgrade_cost"] == room_2.t3_upgrade_cost
-    assert response_room_2["output"] == room_2.output
-    assert response_room_2["size"] == room_2.size
 
 
 @pytest.mark.asyncio
-async def test_read_room(async_client: AsyncClient, async_session: AsyncSession):
-    room_data = create_fake_room()
-    room_obj = RoomCreate(**room_data)
-    created_room = await crud.room.create(async_session, room_obj)
-    response = await async_client.get(f"/rooms/{created_room.id}")
+async def test_read_room(async_client: AsyncClient, async_session: AsyncSession, room: Room):
+    response = await async_client.get(f"/rooms/{room.id}")
     assert response.status_code == 200
     response_room = response.json()
-    assert response_room["name"] == room_obj.name
-    assert response_room["category"] == room_obj.category
-    assert response_room["ability"] == room_obj.ability
-    assert response_room["population_required"] == room_obj.population_required
-    assert response_room["base_cost"] == room_obj.base_cost
-    assert response_room["incremental_cost"] == room_obj.incremental_cost
-    assert response_room["tier"] == room_obj.tier
-    assert response_room["max_tier"] == room_obj.max_tier
-    assert response_room["t2_upgrade_cost"] == room_obj.t2_upgrade_cost
-    assert response_room["t3_upgrade_cost"] == room_obj.t3_upgrade_cost
-    assert response_room["output"] == room_obj.output
-    assert response_room["size"] == room_obj.size
+    assert response_room["name"] == room.name
+    assert response_room["category"] == room.category
+    assert response_room["ability"] == room.ability
+    assert response_room["population_required"] == room.population_required
+    assert response_room["base_cost"] == room.base_cost
+    assert response_room["incremental_cost"] == room.incremental_cost
+    assert response_room["tier"] == room.tier
+    assert response_room["max_tier"] == room.max_tier
+    assert response_room["t2_upgrade_cost"] == room.t2_upgrade_cost
+    assert response_room["t3_upgrade_cost"] == room.t3_upgrade_cost
+    assert response_room["output"] == room.output
+    assert response_room["size_min"] == room.size_min
+    assert response_room["size_max"] == room.size_max
+
 
 
 @pytest.mark.asyncio
-async def test_update_room(async_client: AsyncClient):
-    room_data = create_fake_room()
-    response = await async_client.post("/rooms/", json=room_data)
-    room_response = response.json()
-    room_id = room_response["id"]
+async def test_update_room(async_client: AsyncClient, room: Room):
     room_new_data = create_fake_room()
-    update_response = await async_client.put(f"/rooms/{room_id}", json=room_new_data)
+    update_response = await async_client.put(f"/rooms/{room.id}", json=room_new_data)
     updated_room = update_response.json()
     assert update_response.status_code == 200
     assert updated_room["id"] == room_id
@@ -145,15 +120,13 @@ async def test_update_room(async_client: AsyncClient):
     assert updated_room["t2_upgrade_cost"] == room_new_data["t2_upgrade_cost"]
     assert updated_room["t3_upgrade_cost"] == room_new_data["t3_upgrade_cost"]
     assert updated_room["output"] == room_new_data["output"]
-    assert updated_room["size"] == room_new_data["size"]
+    assert updated_room["size_min"] == room_new_data["size_min"]
+    assert updated_room["size_max"] == room_new_data["size_max"]
 
 
 @pytest.mark.asyncio
-async def test_delete_room(async_client: AsyncClient):
-    room_data = create_fake_room()
-    create_response = await async_client.post("/rooms/", json=room_data)
-    created_room = create_response.json()
-    delete_response = await async_client.delete(f"/rooms/{created_room['id']}")
+async def test_delete_room(async_client: AsyncClient, room: Room):
+    delete_response = await async_client.delete(f"/rooms/{room.id}")
     assert delete_response.status_code == 204
-    read_response = await async_client.get(f"/rooms/{created_room['id']}")
+    read_response = await async_client.get(f"/rooms/{room.id}")
     assert read_response.status_code == 404

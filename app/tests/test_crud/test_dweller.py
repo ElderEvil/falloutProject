@@ -1,6 +1,7 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.vault import Vault
 from app import crud
 from app.schemas.dweller import DwellerCreate
 from app.schemas.user import UserCreate
@@ -12,12 +13,6 @@ from app.tests.factory.vaults import create_fake_vault
 
 @pytest.mark.asyncio
 async def test_create_dweller(async_session: AsyncSession) -> None:
-    user_data = create_fake_user()
-    user_in = UserCreate(**user_data)
-    user = await crud.user.create(async_session, obj_in=user_in)
-    vault_data = create_fake_vault()
-    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
-    vault = await crud.vault.create(async_session, obj_in=vault_in)
     dweller_data = create_fake_dweller()
     dweller_in = DwellerCreate(**dweller_data, vault_id=str(vault.id))
     dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
@@ -35,9 +30,8 @@ async def test_create_dweller(async_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_read_dweller(async_session: AsyncSession):
-    dweller_data = create_fake_dweller()
-    dweller_in = DwellerCreate(**dweller_data)
-    dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
+    dweller_data.update({"vault_id": vault.id})
+    dweller = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data))
     dweller_read = await crud.dweller.get(async_session, id=dweller.id)
     assert dweller_read
     assert dweller.first_name == dweller_read.first_name
@@ -46,9 +40,9 @@ async def test_read_dweller(async_session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_dweller_add_exp(async_session: AsyncSession):
-    dweller_data = create_fake_dweller()
     dweller_data["experience"] = 0
     dweller_data["level"] = 1
+    dweller_data["vault_id"] = vault.id
     dweller_in = DwellerCreate(**dweller_data)
     dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
     assert dweller.experience == dweller_data["experience"]

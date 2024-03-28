@@ -15,6 +15,9 @@ class OutfitBase(ItemBase):
     outfit_type: OutfitType = Field(sa_column=Column(Enum(OutfitType)))
     gender: Gender | None = Field(default=None, nullable=True)
 
+    def __str__(self):
+        return f"{self.name}"
+
 
 class Outfit(BaseUUIDModel, OutfitBase, TimeStampMixin, table=True):
     dweller_id: UUID4 = Field(default=None, nullable=True, foreign_key="dweller.id")

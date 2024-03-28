@@ -7,7 +7,8 @@ from app.models.room import RoomBase
 from app.schemas.common import RoomType
 
 
-class RoomCreate(RoomBase): ...
+class RoomCreate(RoomBase):
+    vault_id: UUID4
 
 
 class RoomRead(RoomBase):

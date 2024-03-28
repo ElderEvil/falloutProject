@@ -16,13 +16,13 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         return response.scalars().all()
 
     async def create_with_user_id(self, db_session: AsyncSession, obj_in: VaultCreate, user_id: UUID4) -> Vault:
-        obj_data = obj_in.dict()
+        obj_data = obj_in.model_dump()
         obj_data["user_id"] = user_id
         obj_in = VaultCreateWithUserID(**obj_data)
         return await super().create(db_session, obj_in)
 
     async def start_vault(self, db_session: AsyncSession, obj_in: VaultCreate, user_id: UUID4) -> Vault:
-        obj_data = obj_in.dict()
+        obj_data = obj_in.model_dump()
         obj_data["user_id"] = user_id
         obj_in = VaultCreateWithUserID(**obj_data)
         vault_db_obj = await super().create(db_session, obj_in)

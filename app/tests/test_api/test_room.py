@@ -11,13 +11,11 @@ from app.tests.factory.rooms import create_fake_room
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 
-# pytestmark = pytest.mark.asyncio(scope="module")
-
 
 @pytest.mark.asyncio
 async def test_create_room(async_client: AsyncClient, async_session: AsyncSession, vault: Vault, room_data: dict):
-    room_data_new = {**room_data, "vault_id": str(vault.id)}
-    response = await async_client.post("/rooms/", json=room_data_new)
+    room_data.update({"vault_id": str(vault.id)})
+    response = await async_client.post(f"/rooms/{vault.id}", json=room_data)
     assert response.status_code == 200
     response_data = response.json()
     assert response_data["name"] == room_data["name"]
@@ -31,22 +29,23 @@ async def test_create_room(async_client: AsyncClient, async_session: AsyncSessio
     assert response_data["t2_upgrade_cost"] == room_data["t2_upgrade_cost"]
     assert response_data["t3_upgrade_cost"] == room_data["t3_upgrade_cost"]
     assert response_data["output"] == room_data["output"]
-    assert response_data["size"] == room_data["size"]
+    assert response_data["size_min"] == room_data["size_min"]
+    assert response_data["size_max"] == room_data["size_max"]
 
 
 @pytest.mark.asyncio
-async def test_create_room_incomplete(async_client: AsyncClient):
+async def test_create_room_incomplete(async_client: AsyncClient, vault: Vault):
     response = await async_client.post(
-        "/rooms/",
+        f"/rooms/{vault.id}",
         json={"name": "Test Room"},
     )
     assert response.status_code == 422
 
 
 @pytest.mark.asyncio
-async def test_create_room_invalid(async_client: AsyncClient):
+async def test_create_room_invalid(async_client: AsyncClient, vault: Vault):
     response = await async_client.post(
-        "/rooms/",
+        f"/rooms/{vault.id}",
         json={
             "name": "Test Room",
         },

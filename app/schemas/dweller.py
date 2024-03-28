@@ -2,7 +2,8 @@ from datetime import datetime
 from typing import Any
 
 from pydantic import UUID4, Field, model_validator
-from sqlmodel import SQLModel
+from sqlalchemy import Column
+from sqlmodel import SQLModel, Enum
 
 from app.models.base import SPECIAL
 from app.models.dweller import DwellerBase
@@ -26,6 +27,8 @@ STATS_RANGE_BY_RARITY = {
 
 
 class DwellerCreate(DwellerBase):
+    vault_id: UUID4
+
     @classmethod
     @model_validator(mode="before")
     def validate_stats(cls, values: dict[str, Any]):
@@ -51,7 +54,7 @@ class DwellerCreate(DwellerBase):
 
 class DwellerCreateCommon(SQLModel):
     rarity: Rarity = Field(default=Rarity.common)
-    gender: Gender | None = Field(default=None)
+    gender: Gender | None = Field(default=None, sa_column=Column(Enum(Gender)))
 
 
 class DwellerRead(DwellerBase):
@@ -63,11 +66,14 @@ class DwellerRead(DwellerBase):
 class DwellerUpdate(SQLModel):
     first_name: str | None = Field(min_length=3, max_length=32)
     last_name: str | None = Field(min_length=3, max_length=32)
+    is_adult: bool | None = True
     gender: Gender | None = None
     rarity: Rarity | None = None
     level: int | None = Field(ge=1, le=50, default=1)
     experience: int | None = Field(ge=0, default=0)
-    max_health: int | None = Field(ge=50, le=1000, default=50)
-    health: int | None = Field(ge=0, le=1000, default=50)
+    max_health: int | None = Field(ge=50, le=1_000, default=50)
+    health: int | None = Field(ge=0, le=1_000, default=50)
+    radiation: int | None = Field(ge=0, le=1_000, default=0)
     happiness: int | None = Field(ge=10, le=100, default=50)
-    is_adult: bool | None = True
+    stimpack: int | None = Field(default=0, ge=0, le=15)
+    radaway: int | None = Field(default=0, ge=0, le=15)

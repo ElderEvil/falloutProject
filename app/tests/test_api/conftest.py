@@ -11,9 +11,10 @@ from app.models.room import Room
 from app.models.user import User
 from app.models.vault import Vault
 from app.schemas.common import Gender, JunkType, OutfitType, Rarity, RoomType, WeaponSubtype, WeaponType, SPECIAL
+from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
-from app.schemas.vault import VaultCreate
+from app.schemas.vault import VaultCreateWithUserID
 from app.tests.utils.utils import get_gender_based_name, get_name_two_words, get_stats_by_rarity
 
 fake = Faker()
@@ -51,7 +52,8 @@ def room_data_fixture():
         "t2_upgrade_cost": random.randint(500, 50_000),
         "t3_upgrade_cost": random.randint(1500, 150_000),
         "output": str(random.randint(1, 100)),
-        "size": random.randint(3, 9),
+        "size_min": random.randint(3, 6),
+        "size_max": random.randint(6, 9),
         "tier": 1,
         "max_tier": random.randint(1, 3),
     }
@@ -63,20 +65,24 @@ def dweller_data_fixture():
     rarity = random.choice(list(Rarity))
     stats = get_stats_by_rarity(rarity)
 
-    max_health = random.randint(50, 1000)
+    max_health = random.randint(50, 1_000)
     health = random.randint(0, max_health)
+    radiation = random.randint(0, 1_000)
 
     return stats | {
         "first_name": get_gender_based_name(gender),
         "last_name": fake.last_name(),
-        "gender": gender.value,
+        "is_adult": random.choice([True, False]),
+        "gender": gender,
         "rarity": rarity.value,
         "level": random.randint(1, 50),
         "experience": random.randint(0, 1000),
         "max_health": max_health,
         "health": health,
+        "radiation": radiation,
         "happiness": random.randint(10, 100),
-        "is_adult": random.choice([True, False]),
+        "stimpack": random.randint(0, 15),
+        "radaway": random.randint(0, 15),
     }
 
 
@@ -110,23 +116,29 @@ def weapon_fixture():
 
 @pytest_asyncio.fixture(name="user")
 async def user_fixture(async_session: AsyncSession) -> User:
-    user_obj = UserCreate(username=fake.user_name(), email=fake.email(), password=fake.password())
-    return await crud.user.create(db_session=async_session, obj_in=user_obj)
+    user_in = UserCreate(username=fake.user_name(), email=fake.email(), password=fake.password())
+    return await crud.user.create(db_session=async_session, obj_in=user_in)
 
 
 @pytest_asyncio.fixture(name="vault")
 async def vault_fixture(async_session: AsyncSession, user: User, vault_data: dict) -> Vault:
-    vault_obj = VaultCreate(**vault_data | {"user_id": user.id})
-    return await crud.vault.create(db_session=async_session, obj_in=vault_obj)
+    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
+    return await crud.vault.create(db_session=async_session, obj_in=vault_in)
 
 
 @pytest_asyncio.fixture(name="room")
 async def room_fixture(async_session: AsyncSession, vault: Vault, room_data: dict) -> Room:
-    room_obj = RoomCreate(**room_data | {"vault_id": vault.id})
-    return await crud.room.create(db_session=async_session, obj_in=room_obj)
+    room_in = RoomCreate(**room_data, vault_id=vault.id)
+    return await crud.room.create(db_session=async_session, obj_in=room_in)
 
 
 @pytest_asyncio.fixture(name="dweller")
 async def dweller_fixture(async_session: AsyncSession, vault: Vault, dweller_data: dict) -> Dweller:
-    dweller_obj = Dweller(**dweller_data | {"vault_id": vault.id})
-    return await crud.dweller.create(db_session=async_session, obj_in=dweller_obj)
+    dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
+    return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+
+
+@pytest_asyncio.fixture(name="dweller_with_room")
+async def dweller_with_room_fixture(async_session: AsyncSession, room: Room, dweller_data: dict) -> Dweller:
+    dweller_in = DwellerCreate(**dweller_data, vault_id=room.vault_id)
+    return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)

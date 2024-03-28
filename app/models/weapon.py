@@ -46,6 +46,9 @@ class WeaponBase(ItemBase):
 
         return v
 
+    def __str__(self):
+        return f"{self.name}"
+
 
 class Weapon(BaseUUIDModel, WeaponBase, TimeStampMixin, table=True):
     dweller_id: UUID4 = Field(default=None, nullable=True, foreign_key="dweller.id")

@@ -10,7 +10,7 @@ from app.tests.factory.dwellers import create_random_common_dweller
 
 class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     async def create_random(self, db_session: AsyncSession, obj_in: DwellerCreateCommon) -> Dweller:
-        data = obj_in.dict()
+        data = obj_in.model_dump()
         if data.get("rarity") == "common":
             data.update(**create_random_common_dweller(data.get("gender")))
 

@@ -4,13 +4,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.db.session import get_async_session
-from app.schemas.dweller import DwellerRead, DwellerUpdate, DwellerCreateCommon
+from app.schemas.dweller import DwellerRead, DwellerUpdate, DwellerCreate
 
 router = APIRouter()
 
 
 @router.post("/", response_model=DwellerRead)
-async def create_dweller(dweller_data: DwellerCreateCommon, db_session: AsyncSession = Depends(get_async_session)):
+async def create_dweller(dweller_data: DwellerCreate, db_session: AsyncSession = Depends(get_async_session)):
     return await crud.dweller.create(db_session, dweller_data)
 
 

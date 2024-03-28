@@ -1,14 +1,9 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.vault import Vault
 from app import crud
 from app.schemas.dweller import DwellerCreate
-from app.schemas.user import UserCreate
-from app.schemas.vault import VaultCreateWithUserID
 from app.tests.factory.dwellers import create_fake_dweller
-from app.tests.factory.users import create_fake_user
-from app.tests.factory.vaults import create_fake_vault
 
 
 @pytest.mark.asyncio

@@ -6,11 +6,7 @@ from app import crud
 from app.models.vault import Vault
 from app.models.room import Room
 from app.schemas.room import RoomCreate
-from app.schemas.user import UserCreate
-from app.schemas.vault import VaultCreateWithUserID
 from app.tests.factory.rooms import create_fake_room
-from app.tests.factory.users import create_fake_user
-from app.tests.factory.vaults import create_fake_vault
 
 
 @pytest.mark.asyncio
@@ -80,7 +76,6 @@ async def test_read_room_list(async_client: AsyncClient, async_session: AsyncSes
         assert "size_max" in room
 
 
-
 @pytest.mark.asyncio
 async def test_read_room(async_client: AsyncClient, async_session: AsyncSession, room: Room):
     response = await async_client.get(f"/rooms/{room.id}")
@@ -99,7 +94,6 @@ async def test_read_room(async_client: AsyncClient, async_session: AsyncSession,
     assert response_room["output"] == room.output
     assert response_room["size_min"] == room.size_min
     assert response_room["size_max"] == room.size_max
-
 
 
 @pytest.mark.asyncio

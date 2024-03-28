@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from sqladmin import Admin
-from sqlmodel import SQLModel
 from starlette import status
 
 from app.admin.views import (
@@ -25,10 +24,10 @@ app = FastAPI(
 admin = Admin(app, async_engine)
 
 
-@app.on_event("startup")
-async def init_tables():
-    async with async_engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
+# @app.on_event("startup")
+# async def init_tables():
+#     async with async_engine.begin() as conn:
+#         await conn.run_sync(SQLModel.metadata.create_all)
 
 
 @app.get("/healthcheck", status_code=status.HTTP_200_OK)

@@ -108,7 +108,7 @@ async def test_update_room(async_client: AsyncClient, room: Room):
     update_response = await async_client.put(f"/rooms/{room.id}", json=room_new_data)
     updated_room = update_response.json()
     assert update_response.status_code == 200
-    assert updated_room["id"] == room_id
+    assert updated_room["id"] == str(room.id)
     assert updated_room["name"] == room_new_data["name"]
     assert updated_room["category"] == room_new_data["category"]
     assert updated_room["ability"] == room_new_data["ability"]

@@ -22,6 +22,6 @@ def create_fake_room():
         "t2_upgrade_cost": random.randint(500, 50_000),
         "t3_upgrade_cost": random.randint(1500, 150_000),
         "output": str(random.randint(1, 100)),
-        "size_min": random.randint(3, 6),
+        "size_min": random.randint(1, 3),
         "size_max": random.randint(6, 9),
     }

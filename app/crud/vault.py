@@ -1,3 +1,6 @@
+import json
+from typing import Sequence
+
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -8,7 +11,7 @@ from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultUpdate
 
 
 class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
-    async def get_by_user_id(self, db_session: AsyncSession, *, user_id: int) -> list[Vault] | None:
+    async def get_by_user_id(self, db_session: AsyncSession, *, user_id: int) -> Sequence[Vault]:
         response = await db_session.execute(select(self.model).where(self.model.user_id == user_id))
         return response.scalars().all()
 
@@ -17,6 +20,21 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         obj_data["user_id"] = user_id
         obj_in = VaultCreateWithUserID(**obj_data)
         return await super().create(db_session, obj_in)
+
+    async def start_vault(self, db_session: AsyncSession, obj_in: VaultCreate, user_id: UUID4) -> Vault:
+        obj_data = obj_in.dict()
+        obj_data["user_id"] = user_id
+        obj_in = VaultCreateWithUserID(**obj_data)
+        vault_db_obj = await super().create(db_session, obj_in)
+
+        with open("data/vault/rooms.json") as f:
+            rooms = json.load(f)
+
+            for room_data in rooms:
+                if room_data["name"] == "Vault Door":
+                    print(room_data)  # TODO make it a room
+
+            return vault_db_obj
 
 
 vault = CRUDVault(Vault)

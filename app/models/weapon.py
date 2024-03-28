@@ -1,9 +1,14 @@
-from pydantic import field_validator
-from sqlmodel import Field
+from typing import TYPE_CHECKING
+from pydantic import field_validator, UUID4
+from sqlmodel import Field, Relationship
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
+from app.models.dweller import Dweller
 from app.models.item import ItemBase
 from app.schemas.common import WeaponSubtype, WeaponType
+
+if TYPE_CHECKING:
+    from app.models.dweller import Dweller
 
 
 class WeaponBase(ItemBase):
@@ -42,4 +47,6 @@ class WeaponBase(ItemBase):
         return v
 
 
-class Weapon(BaseUUIDModel, WeaponBase, TimeStampMixin, table=True): ...
+class Weapon(BaseUUIDModel, WeaponBase, TimeStampMixin, table=True):
+    dweller_id: UUID4 = Field(default=None, nullable=True, foreign_key="dweller.id")
+    dweller: "Dweller" = Relationship(back_populates="weapon")

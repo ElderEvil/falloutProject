@@ -28,6 +28,9 @@ class VaultAdmin(ModelView, model=Vault):
         Vault.name,
         Vault.bottle_caps,
         Vault.happiness,
+        Vault.power,
+        Vault.food,
+        Vault.water,
         Vault.user,
     ]
 
@@ -100,7 +103,9 @@ class RoomAdmin(ModelView, model=Room):
         Room.t2_upgrade_cost,
         Room.t3_upgrade_cost,
         Room.output,
-        Room.size,
+        Room.size_min,
+        Room.size_max,
+        Room.vault,
     ]
 
     icon = "fa-solid fa-door-open"

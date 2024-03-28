@@ -26,7 +26,8 @@ class RoomUpdate(SQLModel):
     t2_upgrade_cost: int | None = Field(ge=500, le=50_000)
     t3_upgrade_cost: int | None = Field(ge=1500, le=150_000)
     output: int | None
-    size: int | None = Field(ge=3, le=9)
+    size_min: int | None = Field(ge=1, le=3)
+    size_max: int | None = Field(ge=1, le=9)
 
     tier: int | None = Field(ge=1, le=3, default=None)
     max_tier: int | None = Field(ge=1, le=3)

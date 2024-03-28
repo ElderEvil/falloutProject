@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.db.session import get_async_session
+from app.schemas.junk import JunkRead
 from app.schemas.outfit import OutfitCreate, OutfitRead, OutfitUpdate
 
 router = APIRouter()
@@ -36,3 +37,23 @@ async def update_outfit(
 @router.delete("/{outfit_id}", status_code=204)
 async def delete_outfit(outfit_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
     return await crud.outfit.delete(db_session, outfit_id)
+
+
+@router.post("/{outfit_id}/equip/", response_model=OutfitRead)
+async def equip_outfit(outfit_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
+    return await crud.outfit.equip(db_session, outfit_id)
+
+
+@router.post("/{outfit_id}/unequip/", status_code=200)
+async def unequip_outfit(outfit_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
+    return await crud.outfit.unequip(db_session, outfit_id)
+
+
+@router.post("/{outfit_id}/scrap/", response_model=list[JunkRead] | None)
+async def scrap_outfit(outfit_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
+    return await crud.outfit.scrap(db_session, outfit_id)
+
+
+@router.post("/{outfit_id}/sell/", status_code=204)
+async def sell_outfit(outfit_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
+    return await crud.outfit.sell(db_session, outfit_id)

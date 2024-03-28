@@ -6,7 +6,7 @@ from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser
 from app.db.session import get_async_session
 from app.models.vault import Vault
-from app.schemas.vault import VaultCreate, VaultRead, VaultReadWithUser, VaultUpdate
+from app.schemas.vault import VaultCreate, VaultRead, VaultReadWithUser, VaultUpdate, VaultStart
 
 router = APIRouter()
 
@@ -76,3 +76,13 @@ async def delete_vault(
     if vault.user_id != user.id or not user.is_superuser:
         raise HTTPException(status_code=403, detail="User does not have permission to delete the vault")
     return await crud.vault.delete(db_session, vault_id)
+
+
+@router.post("/start", response_model=Vault, status_code=201)
+async def start_vault(
+    *,
+    vault_data: VaultStart,
+    db_session: AsyncSession = Depends(get_async_session),
+    user: CurrentActiveUser,
+):
+    return await crud.vault.start_vault(db_session, vault_data, user.id)

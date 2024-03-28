@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.db.session import get_async_session
+from app.schemas.junk import JunkRead
 from app.schemas.weapon import WeaponCreate, WeaponRead, WeaponUpdate
 
 router = APIRouter()
@@ -36,3 +37,23 @@ async def update_weapon(
 @router.delete("/{weapon_id}", status_code=204)
 async def delete_weapon(weapon_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
     return await crud.weapon.delete(db_session, weapon_id)
+
+
+@router.post("/{weapon_id}/equip/", response_model=WeaponRead)
+async def equip_weapon(weapon_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
+    return await crud.weapon.equip(db_session, weapon_id)
+
+
+@router.post("/{weapon_id}/unequip/", status_code=200)
+async def unequip_weapon(weapon_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
+    return await crud.weapon.unequip(db_session, weapon_id)
+
+
+@router.post("/{weapon_id}/scrap/", response_model=list[JunkRead] | None)
+async def scrap_weapon(weapon_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
+    return await crud.weapon.scrap(db_session, weapon_id)
+
+
+@router.post("/{weapon_id}/sell/", status_code=204)
+async def sell_weapon(weapon_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
+    return await crud.weapon.sell(db_session, weapon_id)

@@ -9,9 +9,9 @@ from app.schemas.room import RoomCreate, RoomRead, RoomUpdate
 router = APIRouter()
 
 
-@router.post("/", response_model=RoomRead)
-async def create_room(room_data: RoomCreate, db_session: AsyncSession = Depends(get_async_session)):
-    return await crud.room.create(db_session, room_data)
+@router.post("/{vault_id}", response_model=RoomRead)
+async def create_room(room_data: RoomCreate, vault_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
+    return await crud.room.create_with_vault_id(db_session, room_data, vault_id)
 
 
 @router.get("/", response_model=list[RoomRead])

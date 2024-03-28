@@ -16,9 +16,12 @@ class VaultBase(SQLModel):
     bottle_caps: int = Field(default=1000, ge=0, lt=1_000_000)
     happiness: int = Field(default=50, ge=0, le=100)
 
-    power: int = Field(0, gt=0, le=100)
-    food: int = Field(0, gt=0, le=100)
-    water: int = Field(0, gt=0, le=100)
+    power: int = Field(0, ge=0, le=10_000)
+    power_max: int = Field(100, ge=100, le=10_000)
+    food: int = Field(0, ge=0, le=10_000)
+    food_max: int = Field(100, ge=100, le=10_000)
+    water: int = Field(0, ge=0, le=10_000)
+    water_max: int = Field(100, ge=100, le=10_000)
 
     def __str__(self):
         return f"Vault {self.name:03}"

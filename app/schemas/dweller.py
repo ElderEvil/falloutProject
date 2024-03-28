@@ -49,6 +49,11 @@ class DwellerCreate(DwellerBase):
         return values
 
 
+class DwellerCreateCommon(SQLModel):
+    rarity: Rarity = Field(default=Rarity.common)
+    gender: Gender | None = Field(default=None)
+
+
 class DwellerRead(DwellerBase):
     id: UUID4
     created_at: datetime

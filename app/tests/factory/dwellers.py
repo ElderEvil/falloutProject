@@ -3,7 +3,7 @@ import random
 from faker import Faker
 
 from app.schemas.common import Gender, Rarity
-from app.tests.utils.utils import get_stats_by_rarity
+from app.tests.utils.utils import get_stats_by_rarity, get_gender_based_name
 
 fake = Faker()
 
@@ -34,3 +34,21 @@ def create_fake_dweller():
         "happiness": happiness,
         "is_adult": is_adult,
     }
+
+
+def create_random_common_dweller(gender: Gender | None = None):
+    rarity = Rarity.common
+    gender = gender or random.choice(list(Gender))
+    stats = get_stats_by_rarity(rarity)
+    return {
+        "first_name": get_gender_based_name(gender),
+        "last_name": fake.last_name,
+        "gender": gender,
+        "rarity": rarity,
+        "level": 1,
+        "experience": 0,
+        "max_health": 100,
+        "health": 100,
+        "happiness": 50,
+        "is_adult": True,
+    } | stats

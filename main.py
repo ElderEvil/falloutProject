@@ -2,8 +2,6 @@ from fastapi import FastAPI
 from sqladmin import Admin
 from sqlmodel import SQLModel
 from starlette import status
-from starlette.requests import Request
-from starlette.responses import JSONResponse
 
 from app.admin.views import (
     DwellerAdmin,
@@ -31,14 +29,6 @@ admin = Admin(app, async_engine)
 async def init_tables():
     async with async_engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
-
-
-# @app.exception_handler(ValueError)
-# def value_error_handler(request: Request, exc: ValueError):
-#     return JSONResponse(
-#         status_code=400,
-#         content={"message": "Bad request"},
-#     )
 
 
 @app.get("/healthcheck", status_code=status.HTTP_200_OK)

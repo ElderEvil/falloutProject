@@ -1,12 +1,25 @@
+from fastapi import HTTPException
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.base import CRUDBase
 from app.models.dweller import Dweller
-from app.schemas.dweller import DwellerCreate, DwellerUpdate
+from app.schemas.dweller import DwellerCreate, DwellerUpdate, DwellerCreateCommon
+from app.tests.factory.dwellers import create_random_common_dweller
 
 
 class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
+    async def create_random(self, db_session: AsyncSession, obj_in: DwellerCreateCommon) -> Dweller:
+        data = obj_in.dict()
+        if data.get("rarity") == "common":
+            data.update(**create_random_common_dweller(data.get("gender")))
+
+        db_obj = Dweller(**data)
+        db_session.add(db_obj)
+        await db_session.commit()
+        await db_session.refresh(db_obj)
+        return db_obj
+
     def calculate_experience_required(self, dweller_obj: Dweller) -> int:
         return int(100 * 1.5**dweller_obj.level)
 
@@ -20,10 +33,10 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         await db_session.commit()
         await db_session.refresh(dweller_obj)
 
-    async def move_dweller_to_room(self, db_session: AsyncSession, dweller_obj: Dweller, room_id: UUID4) -> None:
+    async def move_to_room(self, db_session: AsyncSession, dweller_id: UUID4, room_id: UUID4) -> None:
+        dweller_obj = await self.get(db_session, dweller_id)
         if dweller_obj.room_id == room_id:
-            error_message = "Dweller is already in the room"
-            raise ValueError(error_message)
+            raise HTTPException(status_code=400, detail="Dweller is already in the room")
         dweller_obj.room_id = room_id
         db_session.add(dweller_obj)
         await db_session.commit()
@@ -34,71 +47,10 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
 
     def reanimate(self, db_session: AsyncSession, dweller_obj: Dweller) -> None:
         if self.is_alive(dweller_obj):
-            error_message = "Cannot reanimate alive dweller"
-            raise ValueError(error_message)
+            raise HTTPException(status_code=400, detail="Cannot reanimate alive dweller")
         dweller_obj.health = dweller_obj.max_health
         db_session.add(dweller_obj)
         db_session.commit()
 
-    async def assign_room(self, db_session: AsyncSession, dweller_id: UUID4, room_id: UUID4) -> None:
-        dweller_obj = await self.get(db_session, dweller_id)
-        
-        if dweller_obj.room_id == room_id:
-            error_message = "Dweller is already in the room"
-            raise ValueError(error_message)
-        dweller_obj.room_id = room_id
-        db_session.add(dweller_obj)
-        await db_session.commit()
-        await db_session.refresh(dweller_obj)
-        
-        return dweller_obj
-
-    async def equip_weapon(self, db_session: AsyncSession, dweller_id: UUID4, weapon_id: UUID4) -> None:
-        dweller_obj = await self.get(db_session, dweller_id)
-        if dweller_obj.weapon_id:
-            error_message = "Dweller already has a weapon equipped"
-            raise ValueError(error_message)
-        dweller_obj.weapon_id = weapon_id
-        db_session.add(dweller_obj)
-        await db_session.commit()
-        await db_session.refresh(dweller_obj)
-        
-        return dweller_obj
-
-    async def unequip_weapon(self, db_session: AsyncSession, dweller_id: UUID4) -> None:
-        dweller_obj = await self.get(db_session, dweller_id)
-        if not dweller_obj.weapon_id:
-            error_message = "Dweller does not have a weapon equipped"
-            raise ValueError(error_message)
-        dweller_obj.weapon_id = None
-        db_session.add(dweller_obj)
-        await db_session.commit()
-        await db_session.refresh(dweller_obj)
-        
-        return dweller_obj
-
-    async def equip_outfit(self, db_session: AsyncSession, dweller_id: UUID4, outfit_id: UUID4) -> Dweller:
-        dweller_obj = await self.get(db_session, dweller_id)
-        if dweller_obj.outfit_id:
-            error_message = "Dweller already has an outfit equipped"
-            raise ValueError(error_message)
-        dweller_obj.outfit_id = outfit_id
-        db_session.add(dweller_obj)
-        await db_session.commit()
-        await db_session.refresh(dweller_obj)
-        
-        return dweller_obj
-
-    async def unequip_outfit(self, db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
-        dweller_obj = await self.get(db_session, dweller_id)
-        if not dweller_obj.outfit_id:
-            error_message = "Dweller does not have an outfit equipped"
-            raise ValueError(error_message)
-        dweller_obj.outfit_id = None
-        db_session.add(dweller_obj)
-        await db_session.commit()
-        await db_session.refresh(dweller_obj)
-        
-        return dweller_obj
 
 dweller = CRUDDweller(Dweller)

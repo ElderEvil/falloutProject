@@ -1,7 +1,6 @@
 # Fallout Shelter Game
 Fallout Shelter Game is a text-based simulation game where the player manages a vault full of dwellers, balancing their needs and resources to keep the vault thriving.
 
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/charliermarsh/ruff/main/assets/badge/v2.json)](https://github.com/charliermarsh/ruff)
 
 ## Installation

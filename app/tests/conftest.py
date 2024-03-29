@@ -22,7 +22,7 @@ from main import app
 
 
 @pytest.fixture(scope="session")
-def event_loop(request) -> Generator:  # noqa: ANN001
+def event_loop(request) -> Generator:
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()

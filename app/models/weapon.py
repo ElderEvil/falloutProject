@@ -25,7 +25,7 @@ class WeaponBase(ItemBase):
 
     @classmethod
     @field_validator("weapon_subtype", mode="before")
-    def validate_weapon_subtype(cls, v, values):  # noqa: ANN001
+    def validate_weapon_subtype(cls, v, values):
         weapon_type = values.get("weapon_type")
         message = f"Invalid weapon subtype for {weapon_type.value} weapon"
 

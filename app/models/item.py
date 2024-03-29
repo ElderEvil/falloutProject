@@ -17,7 +17,7 @@ class ItemBase(SQLModel):
 
     @classmethod
     @field_validator("value", mode="before")
-    def set_default_value(cls, values) -> int:  # noqa: ANN001
+    def set_default_value(cls, values) -> int:
         if "value" not in values:
             values["value"] = cls._value_by_rarity[values["rarity"]]
         return values

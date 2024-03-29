@@ -4,11 +4,6 @@ default_language_version:
   python: python3.11
 
 repos:
-  # Black
-  - repo: https://github.com/psf/black
-    rev: 24.2.0
-    hooks:
-      - id: black
 
   # Ruff
   - repo: https://github.com/charliermarsh/ruff-pre-commit

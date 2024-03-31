@@ -121,7 +121,7 @@ class VaultDoor(MiscRoom):
     name = "Vault door"
     population_required = 0
     t2_upgrade_cost = 500
-    t3_upgrade_cost = 2000
+    t3_upgrade_cost = 2_000
     size = 6
 
 

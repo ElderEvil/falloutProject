@@ -4,7 +4,7 @@ from pydantic import BaseSettings
 class GameSettings(BaseSettings):
     DEFAULT_VAULT_DWELLERS_NUMBER = 3
     DEFAULT_STORAGE_CAPACITY = 100
-    DEFAULT_BOTTLE_CAPS = 1000
+    DEFAULT_BOTTLE_CAPS = 1_000
     MAX_BOTTLE_CAPS = 999_999
 
     DWELLER_GROW_UP_TIME = 30 * 60

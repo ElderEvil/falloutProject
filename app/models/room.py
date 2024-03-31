@@ -19,7 +19,7 @@ class RoomBase(SQLModel):
     base_cost: int = Field(ge=100, le=10_000)
     incremental_cost: int = Field(ge=25, le=5_000)
     t2_upgrade_cost: int | None = Field(ge=500, le=50_000)
-    t3_upgrade_cost: int | None = Field(ge=1500, le=150_000)
+    t3_upgrade_cost: int | None = Field(ge=1_500, le=150_000)
     output: str | None = Field(default=None)
     size_min: int = Field(ge=1, le=6)
     size_max: int = Field(ge=1, le=9)

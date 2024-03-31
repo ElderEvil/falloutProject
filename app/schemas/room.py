@@ -25,7 +25,7 @@ class RoomUpdate(SQLModel):
     base_cost: int | None = Field(ge=100, le=10_000, default=None)
     incremental_cost: int | None = Field(ge=25, le=5_000, default=None)
     t2_upgrade_cost: int | None = Field(ge=500, le=50_000)
-    t3_upgrade_cost: int | None = Field(ge=1500, le=150_000)
+    t3_upgrade_cost: int | None = Field(ge=1_500, le=150_000)
     output: int | None
     size_min: int | None = Field(ge=1, le=3)
     size_max: int | None = Field(ge=1, le=9)

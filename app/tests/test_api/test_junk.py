@@ -101,7 +101,7 @@ async def test_update_junk(async_client: AsyncClient, junk_data: dict):
     junk_new_data = {
         "name": random_lower_string(16).capitalize(),
         "rarity": "Legendary",
-        "value": random.randint(1, 1000),
+        "value": random.randint(1, 1_000),
         "junk_type": random.choice(list(JunkType)),
         "description": random_lower_string(16),
     }

@@ -24,14 +24,14 @@ def get_generic_items_data():
     return {
         "name": get_name_two_words(),
         "rarity": random.choice(list(Rarity)),
-        "value": random.randint(1, 1000),
+        "value": random.randint(1, 1_000),
     }
 
 
 @pytest.fixture(name="vault_data")
 def vault_data_fixture(user: User):
     return {
-        "name": random.randint(1, 1000),
+        "name": random.randint(1, 1_000),
         "bottle_caps": random.randint(100, 1_000_000),
         "happiness": random.randint(0, 100),
         "power": random.randint(0, 100),
@@ -76,7 +76,7 @@ def dweller_data_fixture():
         "gender": gender,
         "rarity": rarity.value,
         "level": random.randint(1, 50),
-        "experience": random.randint(0, 1000),
+        "experience": random.randint(0, 1_000),
         "max_health": max_health,
         "health": health,
         "radiation": radiation,

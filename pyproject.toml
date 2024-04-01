@@ -40,7 +40,8 @@ lint.ignore = [
     "S101", "S311", # assert, pseudo-random
     "PLR2004",
     "PT023", # pytest-style
-    "RUF012"
+    "RUF012",
+    "N805", # self
 ]
 
 [tool.ruff.lint.flake8-builtins]

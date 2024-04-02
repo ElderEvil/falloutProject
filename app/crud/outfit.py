@@ -1,9 +1,9 @@
-from app.crud.item_base import CRUDEquippableItem
+from app.crud.item_base import CRUDItem
 from app.models.outfit import Outfit
 from app.schemas.outfit import OutfitCreate, OutfitUpdate
 
 
-class CRUDOutfit(CRUDEquippableItem[Outfit, OutfitCreate, OutfitUpdate]):
+class CRUDOutfit(CRUDItem[Outfit, OutfitCreate, OutfitUpdate]):
     pass
 
 

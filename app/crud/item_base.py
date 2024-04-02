@@ -8,7 +8,7 @@ from app.models.junk import Junk
 from app.utils.exceptions import IDNotFoundException, ContentNoChangeException
 
 
-class CRUDEquippableItem(CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType]):
+class CRUDItem(CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType]):
     async def equip(self, db_session: AsyncSession, *, item_id: UUID4, dweller_id: UUID4) -> ModelType | None:
         dweller = await db_session.get(Dweller, dweller_id)
         if not dweller:

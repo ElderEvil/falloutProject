@@ -5,7 +5,7 @@ from pydantic import UUID4, Field, model_validator
 from sqlalchemy import Column
 from sqlmodel import SQLModel, Enum
 
-from app.models.base import SPECIAL
+from app.models.base import SPECIALModel
 from app.models.dweller import DwellerBase
 from app.schemas.common import Gender, Rarity
 
@@ -41,7 +41,7 @@ class DwellerCreate(DwellerBase):
             error_msg = f"Invalid health value: {health}. It cannot be greater than max_health."
             raise ValueError(error_msg)
 
-        for stat_field in SPECIAL.__fields__:
+        for stat_field in SPECIALModel.__annotations__:
             stat_value = values[stat_field]
             if not stat_min <= stat_value <= stat_max:
                 error_msg = (

@@ -2,7 +2,7 @@ from pydantic import UUID4
 from sqlmodel import Field, SQLModel, Relationship
 from typing import TYPE_CHECKING
 
-from app.models.base import SPECIAL, BaseUUIDModel, TimeStampMixin
+from app.models.base import SPECIALModel, BaseUUIDModel, TimeStampMixin
 
 from app.schemas.common import Gender, Rarity
 
@@ -34,7 +34,7 @@ class DwellerBaseWithoutStats(SQLModel):
     radaway: int = Field(default=0, ge=0, le=15)
 
 
-class DwellerBase(DwellerBaseWithoutStats, SPECIAL):
+class DwellerBase(DwellerBaseWithoutStats, SPECIALModel):
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
 

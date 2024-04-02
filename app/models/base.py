@@ -22,7 +22,7 @@ class BaseUUIDModel(SQLModel):
     )
 
 
-class SPECIAL(SQLModel):
+class SPECIALModel(SQLModel):
     strength: int = Field(ge=1, le=10)
     perception: int = Field(ge=1, le=10)
     endurance: int = Field(ge=1, le=10)

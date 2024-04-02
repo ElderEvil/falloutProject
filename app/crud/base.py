@@ -113,10 +113,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         :returns: The updated item, with any changes persisted to the database.
         """
         db_obj = await self.get(db_session=db_session, id=id)
-        if db_obj is None:
-            raise HTTPException(status_code=404, detail=f"{self.model.__name__} not found")
-
-        update_data = obj_in if isinstance(obj_in, dict) else obj_in.dict(exclude_unset=True)
+        update_data = obj_in if isinstance(obj_in, dict) else obj_in.model_dump(exclude_unset=True)
 
         for field, value in update_data.items():
             setattr(db_obj, field, value)

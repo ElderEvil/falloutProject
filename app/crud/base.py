@@ -1,7 +1,8 @@
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, TypeVar, Sequence
 
 from fastapi import HTTPException
 from pydantic import UUID4
+from sqlalchemy import Row, RowMapping
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import SQLModel, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -36,7 +37,9 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             raise HTTPException(status_code=404, detail=f"{self.model.__name__} not found")
         return db_obj
 
-    async def get_by_ids(self, list_ids: list[UUID4 | str], db_session: AsyncSession) -> list[ModelType] | None:
+    async def get_by_ids(
+        self, list_ids: list[UUID4 | str], db_session: AsyncSession
+    ) -> Sequence[Row[Any] | RowMapping | Any]:
         """
         Gets a list of items of the specified model type by a list of IDs.
 
@@ -57,7 +60,9 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         response = await db_session.execute(select(func.count()).select_from(select(self.model).subquery()))
         return response.scalar_one()
 
-    async def get_multi(self, db_session: AsyncSession, skip: int = 0, limit: int = 100) -> list[ModelType]:
+    async def get_multi(
+        self, db_session: AsyncSession, skip: int = 0, limit: int = 100
+    ) -> Sequence[Row[Any] | RowMapping | Any]:
         """
         Gets a list of items of the specified model type, optionally skipping the first `skip` items and limiting the
         result to `limit` items.

@@ -23,10 +23,10 @@ class BaseUUIDModel(SQLModel):
 
 
 class SPECIALModel(SQLModel):
-    strength: int = Field(ge=1, le=10)
-    perception: int = Field(ge=1, le=10)
-    endurance: int = Field(ge=1, le=10)
-    charisma: int = Field(ge=1, le=10)
-    intelligence: int = Field(ge=1, le=10)
-    agility: int = Field(ge=1, le=10)
-    luck: int = Field(ge=1, le=10)
+    strength: int = Field(ge=1, le=10, alias="S")
+    perception: int = Field(ge=1, le=10, alias="P")
+    endurance: int = Field(ge=1, le=10, alias="E")
+    charisma: int = Field(ge=1, le=10, alias="C")
+    intelligence: int = Field(ge=1, le=10, alias="I")
+    agility: int = Field(ge=1, le=10, alias="A")
+    luck: int = Field(ge=1, le=10, alias="L")

@@ -15,8 +15,8 @@ if TYPE_CHECKING:
 
 class DwellerBaseWithoutStats(SQLModel):
     # General info
-    first_name: str = Field(index=True, min_length=3, max_length=32)
-    last_name: str = Field(index=True, min_length=3, max_length=32)
+    first_name: str = Field(index=True, min_length=2, max_length=32)
+    last_name: str | None = Field(default=None, index=True, max_length=32)
     is_adult: bool = True
     gender: Gender = Field()
     rarity: Rarity = Field()

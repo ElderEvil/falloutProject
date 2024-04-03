@@ -26,9 +26,7 @@ STATS_RANGE_BY_RARITY = {
 }
 
 
-class DwellerCreate(DwellerBase):
-    vault_id: UUID4
-
+class DwellerCreateWithoutVaultID(DwellerBase):
     @classmethod
     @model_validator(mode="before")
     def validate_stats(cls, values: dict[str, Any]):
@@ -50,6 +48,10 @@ class DwellerCreate(DwellerBase):
                 )
                 raise ValueError(error_msg)
         return values
+
+
+class DwellerCreate(DwellerCreateWithoutVaultID):
+    vault_id: UUID4
 
 
 class DwellerCreateCommon(SQLModel):

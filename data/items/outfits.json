@@ -1,0 +1,163 @@
+[
+  {
+    "Name": "Abraham's relaxedwear",
+    "Worn by": "Abraham Washington",
+    "Rarity": "Legendary",
+    "Cost": 500,
+    "SPECIAL": {
+      "S": 1,
+      "P": 2,
+      "E": 2,
+      "C": 1,
+      "I": 0,
+      "A": 0,
+      "L": 0
+    },
+    "Total": 7,
+    "Gender": "M",
+    "Craftable": true
+  },
+  {
+    "Name": "Tattered longcoat",
+    "Worn by": "Old Longfellow",
+    "Rarity": "Legendary",
+    "Cost": 500,
+    "SPECIAL": {
+      "S": 2,
+      "P": 0,
+      "E": 2,
+      "C": 2,
+      "I": 0,
+      "A": 0,
+      "L": 2
+    },
+    "Total": 8,
+    "Gender": "M",
+    "Craftable": true
+  },
+  {
+    "Name": "Autumn's uniform",
+    "Worn by": "Augustus Autumn",
+    "Rarity": "Legendary",
+    "Cost": 500,
+    "SPECIAL": {
+      "S": 2,
+      "P": 2,
+      "E": 2,
+      "C": 1,
+      "I": 0,
+      "A": 0,
+      "L": 0
+    },
+    "Total": 7,
+    "Gender": "M",
+    "Craftable": true
+  },
+  {
+    "Name": "Bittercup's outfit",
+    "Worn by": "Bittercup",
+    "Rarity": "Legendary",
+    "Cost": 500,
+    "SPECIAL": {
+      "S": 2,
+      "P": 2,
+      "E": 2,
+      "C": 1,
+      "I": 0,
+      "A": 0,
+      "L": 0
+    },
+    "Total": 7,
+    "Gender": "F",
+    "Craftable": true
+  },
+  {
+    "Name": "Confessor Cromwell's rags",
+    "Worn by": "Confessor Cromwell",
+    "Rarity": "Legendary",
+    "Cost": 500,
+    "SPECIAL": {
+      "S": 0,
+      "P": 2,
+      "E": 2,
+      "C": 1,
+      "I": 1,
+      "A": 0,
+      "L": 2
+    },
+    "Total": 7,
+    "Gender": "M",
+    "Craftable": true
+  },
+  {
+    "Name": "Elder robe",
+    "Worn by": "Elder Lyons",
+    "Rarity": "Legendary",
+    "Cost": 500,
+    "SPECIAL": {
+      "S": 0,
+      "P": 0,
+      "E": 0,
+      "C": 4,
+      "I": 0,
+      "A": 3,
+      "L": 0
+    },
+    "Total": 7,
+    "Gender": "M",
+    "Craftable": true
+  },
+  {
+    "Name": "Eulogy Jones' suit",
+    "Worn by": "Eulogy Jones",
+    "Rarity": "Legendary",
+    "Cost": 500,
+    "SPECIAL": {
+      "S": 2,
+      "P": 2,
+      "E": 1,
+      "C": 2,
+      "I": 0,
+      "A": 0,
+      "L": 0
+    },
+    "Total": 7,
+    "Gender": "M",
+    "Craftable": true
+  },
+  {
+    "Name": "Heavy synth armor",
+    "Worn by": null,
+    "Rarity": "Legendary",
+    "Cost": 500,
+    "SPECIAL": {
+      "S": 0,
+      "P": 0,
+      "E": 4,
+      "C": 3,
+      "I": 0,
+      "A": 0,
+      "L": 0
+    },
+    "Total": 7,
+    "Gender": null,
+    "Craftable": true
+  },
+  {
+    "Name": "NCR Ranger outfit",
+    "Rarity": "Rare",
+    "Cost": 100,
+    "SPECIAL": {
+      "S": 0,
+      "P": 4,
+      "E": 0,
+      "C": 2,
+      "I": 0,
+      "A": 0,
+      "L": 0
+    },
+    "Total": 6,
+    "Gender": "M",
+    "Craftable": true
+  }
+]

@@ -1,0 +1,146 @@
+[
+  {
+    "name": "Abraham's relaxedwear",
+    "warn_by": "Abraham Washington",
+    "rarity": "Legendary",
+    "cost": 500,
+    "SPECIAL": {
+      "strength": 1,
+      "perception": 2,
+      "endurance": 2,
+      "charisma": 1,
+      "intelligence": 0,
+      "agility": 0,
+      "luck": 0
+    },
+    "total": 7,
+    "gender": "Male",
+    "craftable": true
+  },
+  {
+    "name": "Tattered longcoat",
+    "warn_by": "Old Longfellow",
+    "rarity": "Legendary",
+    "cost": 500,
+    "SPECIAL": {
+      "strength": 2,
+      "perception": 0,
+      "endurance": 2,
+      "charisma": 2,
+      "intelligence": 0,
+      "agility": 0,
+      "luck": 2
+    },
+    "total": 8,
+    "gender": "Male",
+    "craftable": true
+  },
+  {
+    "name": "Autumn's uniform",
+    "warn_by": "Augustus Autumn",
+    "rarity": "Legendary",
+    "cost": 500,
+    "SPECIAL": {
+      "strength": 2,
+      "perception": 2,
+      "endurance": 2,
+      "charisma": 1,
+      "intelligence": 0,
+      "agility": 0,
+      "luck": 0
+    },
+    "total": 7,
+    "gender": "Male",
+    "craftable": true
+  },
+  {
+    "name": "Bittercup's outfit",
+    "warn_by": "Bittercup",
+    "rarity": "Legendary",
+    "cost": 500,
+    "SPECIAL": {
+      "strength": 2,
+      "perception": 2,
+      "endurance": 2,
+      "charisma": 1,
+      "intelligence": 0,
+      "agility": 0,
+      "luck": 0
+    },
+    "total": 7,
+    "gender": "Female",
+    "craftable": true
+  },
+  {
+    "name": "Confessor Cromwell's rags",
+    "warn_by": "Confessor Cromwell",
+    "rarity": "Legendary",
+    "cost": 500,
+    "SPECIAL": {
+      "strength": 0,
+      "perception": 2,
+      "endurance": 2,
+      "charisma": 1,
+      "intelligence": 1,
+      "agility": 0,
+      "luck": 2
+    },
+    "total": 7,
+    "gender": "Male",
+    "craftable": true
+  },
+  {
+    "name": "Elder robe",
+    "warn_by": "Elder Lyons",
+    "rarity": "Legendary",
+    "cost": 500,
+    "SPECIAL": {
+      "strength": 0,
+      "perception": 0,
+      "endurance": 0,
+      "charisma": 4,
+      "intelligence": 0,
+      "agility": 3,
+      "luck": 0
+    },
+    "total": 7,
+    "gender": "Male",
+    "craftable": true
+  },
+  {
+    "name": "Eulogy Jones' suit",
+    "warn_by": "Eulogy Jones",
+    "rarity": "Legendary",
+    "cost": 500,
+    "SPECIAL": {
+      "strength": 2,
+      "perception": 2,
+      "endurance": 1,
+      "charisma": 2,
+      "intelligence": 0,
+      "agility": 0,
+      "luck": 0
+    },
+    "total": 7,
+    "gender": "Male",
+    "craftable": true
+  },
+  {
+    "name": "Heavy synth armor",
+    "warn_by": null,
+    "rarity": "Legendary",
+    "cost": 500,
+    "SPECIAL": {
+      "strength": 0,
+      "perception": 0,
+      "endurance": 4,
+      "charisma": 3,
+      "intelligence": 0,
+      "agility": 0,
+      "luck": 0
+    },
+    "total": 7,
+    "gender": null,
+    "craftable": true
+  }
+]

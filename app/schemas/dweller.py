@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import UUID4, Field, model_validator
+from pydantic import UUID4, Field, model_validator, ConfigDict
 from sqlalchemy import Column
 from sqlmodel import SQLModel, Enum
 
@@ -27,6 +27,9 @@ STATS_RANGE_BY_RARITY = {
 
 
 class DwellerCreateWithoutVaultID(DwellerBase):
+    weapon: str | None = Field(default=None, max_length=32)
+    outfit: str | None = Field(default=None, max_length=32)
+
     @classmethod
     @model_validator(mode="before")
     def validate_stats(cls, values: dict[str, Any]):
@@ -48,6 +51,8 @@ class DwellerCreateWithoutVaultID(DwellerBase):
                 )
                 raise ValueError(error_msg)
         return values
+
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class DwellerCreate(DwellerCreateWithoutVaultID):

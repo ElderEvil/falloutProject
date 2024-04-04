@@ -6,6 +6,7 @@ from app import crud
 from app.db.session import get_async_session
 from app.schemas.junk import JunkRead
 from app.schemas.weapon import WeaponCreate, WeaponRead, WeaponUpdate
+from app.api.deps import get_static_game_data
 
 router = APIRouter()
 
@@ -57,3 +58,8 @@ async def scrap_weapon(weapon_id: UUID4, db_session: AsyncSession = Depends(get_
 @router.post("/{weapon_id}/sell/", status_code=204)
 async def sell_weapon(weapon_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
     return await crud.weapon.sell(db_session, weapon_id)
+
+
+@router.post("/data/", response_model=list[WeaponCreate])
+async def read_weapons_data(data_store=Depends(get_static_game_data)):
+    return data_store.weapons

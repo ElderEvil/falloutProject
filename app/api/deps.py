@@ -12,6 +12,7 @@ from app.core.config import settings
 from app.db.session import get_async_session
 from app.models.user import User
 from app.schemas.token import TokenPayload
+from app.utils.static_data import game_data_store
 
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/login/access-token",
@@ -62,3 +63,7 @@ async def get_current_active_superuser(current_user: CurrentActiveUser) -> User:
 
 
 CurrentSuperuser = Annotated[User, Depends(get_current_active_superuser)]
+
+
+def get_static_game_data():
+    return game_data_store

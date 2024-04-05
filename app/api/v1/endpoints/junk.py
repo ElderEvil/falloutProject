@@ -3,6 +3,7 @@ from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.api.deps import get_static_game_data
 from app.db.session import get_async_session
 from app.schemas.junk import JunkCreate, JunkRead, JunkUpdate
 
@@ -32,3 +33,13 @@ async def update_junk(junk_id: UUID4, junk_data: JunkUpdate, db_session: AsyncSe
 @router.delete("/{junk_id}", status_code=204)
 async def delete_junk(junk_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
     return await crud.junk.delete(db_session, junk_id)
+
+
+@router.post("/{junk_id}/sell/", status_code=204)
+async def sell_junk(junk_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
+    return await crud.junk.sell(db_session, junk_id)
+
+
+@router.get("/read_data/")
+async def read_junk_data(data_store=Depends(get_static_game_data)):
+    return data_store.junk_items

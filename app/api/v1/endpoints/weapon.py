@@ -60,6 +60,6 @@ async def sell_weapon(weapon_id: UUID4, db_session: AsyncSession = Depends(get_a
     return await crud.weapon.sell(db_session, weapon_id)
 
 
-@router.post("/read_data/", response_model=list[WeaponCreate])
+@router.get("/read_data/", response_model=list[WeaponCreate])
 async def read_weapons_data(data_store=Depends(get_static_game_data)):
     return data_store.weapons

@@ -1,18 +1,15 @@
 import json
 import logging
 from pathlib import Path
-from typing import Type
-
-from sqlmodel import SQLModel
 
 from app.crud.base import CreateSchemaType
-from app.schemas.common import Rarity, Gender, OutfitType
 from app.schemas.dweller import DwellerCreateWithoutVaultID
-from app.schemas.room import RoomCreate
 from app.schemas.junk import JunkCreate
 from app.schemas.outfit import OutfitCreate
+from app.schemas.room import RoomCreateWithoutVaultID
 from app.schemas.weapon import WeaponCreate
 
+logger = logging.getLogger(__name__)
 
 ROOT_DIR = Path(__file__).parent.parent.parent
 DATA_DIR = ROOT_DIR / "data"
@@ -20,80 +17,57 @@ DATA_DIR = ROOT_DIR / "data"
 
 class StaticGameData:
     def __init__(self):
-        # Dwellers
-        # self.dwellers_legendary = self.parse_dweller_json(DATA_DIR / "dwellers/legendary.json")
-        # self.dwellers_rare = self.parse_dweller_json(DATA_DIR / "dwellers/rare.json")
+        self._dwellers: list[DwellerCreateWithoutVaultID] | None = None
+        self._rooms: list[RoomCreateWithoutVaultID] | None = None
+        self._junk_items: list[JunkCreate] | None = None
+        self._outfits: list[OutfitCreate] | None = None
+        self._weapons: list[WeaponCreate] | None = None
 
-        # Items
-        self.junk = self.load_data(DATA_DIR / "items/junk.json", JunkCreate)
-        # self.outfits = self.parse_outfit_json(DATA_DIR / 'items/outfits/common.json')
-        self.weapons = self.parse_weapon_json(DATA_DIR / "items/weapons.json")
+    @property
+    def dwellers(self) -> list[DwellerCreateWithoutVaultID]:
+        if self._dwellers is None:
+            rare = self.load_data(DATA_DIR / "dwellers/rare.json", DwellerCreateWithoutVaultID)
+            legendary = self.load_data(DATA_DIR / "dwellers/legendary.json", DwellerCreateWithoutVaultID)
+            self._dwellers = rare + legendary
+        return self._dwellers
 
-        # Vault
-        # self.rooms = self.load_data(DATA_DIR / 'data/vault/rooms.json', Room)
+    @property
+    def junk_items(self) -> list[JunkCreate]:
+        if self._junk_items is None:
+            self._junk_items = self.load_data(DATA_DIR / "items/junk.json", JunkCreate)
+        return self._junk_items
 
-    def split_name(self, full_name: str) -> tuple[str, str]:
-        first_name, _, last_name = full_name.partition(" ")
-        return first_name, last_name
+    @property
+    def outfits(self) -> list[OutfitCreate]:
+        if self._outfits is None:
+            common = self.load_data(DATA_DIR / "items/outfits/common.json", OutfitCreate)
+            legendary = self.load_data(DATA_DIR / "items/outfits/legendary.json", OutfitCreate)
+            power_armor = self.load_data(DATA_DIR / "items/outfits/power_armor.json", OutfitCreate)
+            rare = self.load_data(DATA_DIR / "items/outfits/rare.json", OutfitCreate)
+            tiered = self.load_data(DATA_DIR / "items/outfits/tiered.json", OutfitCreate)
+            self._outfits = common + legendary + power_armor + rare + tiered
+        return self._outfits
 
-    def parse_dweller_json(self, file_path: Path) -> list[DwellerCreateWithoutVaultID]:
-        with file_path.open("r") as file:
-            dwellers_json = json.load(file)
-            dwellers = []
-            for dweller_data in dwellers_json:
-                first_name, _, last_name = dweller_data.pop("name").partition(" ")
-                dweller_data["first_name"] = first_name
-                dweller_data["last_name"] = last_name
-                dweller_data["gender"] = Gender.male
-                dweller = DwellerCreateWithoutVaultID.model_validate(dweller_data)
-                dwellers.append(dweller)
-            return dwellers
+    @property
+    def weapons(self) -> list[WeaponCreate]:
+        if self._weapons is None:
+            self._weapons = self.load_data(DATA_DIR / "items/weapons.json", WeaponCreate)
+        return self._weapons
 
-    def parse_outfit_json(self, outfit_type: OutfitType) -> list[OutfitCreate]:
-        type_path = outfit_type.value.lower().replace(" ", "_").replace("_outfit", "")
-        file_path = DATA_DIR / "items/outfits" / f"{type_path}.json"
-        with open(file_path) as file:
-            outfits_json = json.load(file)
-            outfits = []
-            for outfit_data in outfits_json:
-                stats = outfit_data["SPECIAL"]
-                outfit_data.update(stats)
-                outfit_data["outfit_type"] = OutfitType[outfit_type]
-
-                outfit = OutfitCreate(**outfit_data)
-                outfits.append(outfit)
-            return outfits
-
-    def parse_weapon_json(self, file_path: Path) -> list[WeaponCreate]:
-        with open(file_path) as file:
-            weapons_json = json.load(file)
-            weapons = []
-            for weapon_data in weapons_json:
-                weapon = WeaponCreate(**weapon_data)
-                weapons.append(weapon)
-
-            return weapons
-
-    def parse_room_json(self, file_path: Path) -> list[RoomCreate]:
-        with open(file_path) as file:
-            rooms_json = json.load(file)
-            rooms = []
-            for room_data in rooms_json:
-                room = RoomCreate(**room_data)
-                rooms.append(room)
-            return rooms
+    @property
+    def rooms(self) -> list[RoomCreateWithoutVaultID]:
+        if self._rooms is None:
+            self._rooms = self.load_data(DATA_DIR / "vault/rooms.json", RoomCreateWithoutVaultID)
+        return self._rooms
 
     @staticmethod
-    def load_data(file_path: Path, model: Type[SQLModel]) -> list[CreateSchemaType]:
+    def load_data(file_path: Path, model: type[CreateSchemaType]) -> list[CreateSchemaType]:
         try:
             with file_path.open("r") as file:
-                data_list = json.load(file)  # noqa: F841
-                # return [model.model_validate(data, strict=False) for data in data_list]
-        except json.JSONDecodeError:
-            logging.exception(f"Invalid JSON format in {file_path}")
-            return []
-        except FileNotFoundError:
-            logging.exception(f"File not found: {file_path}")
+                data_list = json.load(file)
+                return [model.parse_obj(item) for item in data_list]
+        except (json.JSONDecodeError, FileNotFoundError):
+            logger.exception(f"Failed to load data from {file_path}")
             return []
 
 

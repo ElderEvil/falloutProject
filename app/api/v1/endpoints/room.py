@@ -3,8 +3,9 @@ from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.api.deps import get_static_game_data
 from app.db.session import get_async_session
-from app.schemas.room import RoomCreate, RoomRead, RoomUpdate
+from app.schemas.room import RoomCreate, RoomRead, RoomUpdate, RoomCreateWithoutVaultID
 
 router = APIRouter()
 
@@ -32,3 +33,8 @@ async def update_room(room_id: UUID4, room_data: RoomUpdate, db_session: AsyncSe
 @router.delete("/{room_id}", status_code=204)
 async def delete_room(room_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
     return await crud.room.delete(db_session, room_id)
+
+
+@router.get("/read_data/", response_model=list[RoomCreateWithoutVaultID])
+async def read_room_data(data_store=Depends(get_static_game_data)):
+    return data_store.rooms

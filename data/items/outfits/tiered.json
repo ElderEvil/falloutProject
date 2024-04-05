@@ -1,53 +1,50 @@
 [
   {
     "name": "Armored vault suit",
+    "outfit_type": "Tiered Outfit",
     "rarity": "Common",
-    "value": 10 ,
-    "SPECIAL": {
-      "strength": 0,
-      "perception": 3,
-      "endurance": 0,
-      "charisma": 0,
-      "intelligence": 0,
-      "agility": 0,
-      "luck": 0
-    },
+    "value": 10,
     "total": 3,
     "gender": null,
-    "craftable": true
+    "craftable": true,
+    "strength": 0,
+    "perception": 3,
+    "endurance": 0,
+    "charisma": 0,
+    "intelligence": 0,
+    "agility": 0,
+    "luck": 0
   },
   {
     "name": "Sturdy vault suit",
+    "outfit_type": "Tiered Outfit",
     "rarity": "Rare",
     "value": 100,
-    "SPECIAL": {
-      "strength": 0,
-      "perception": 5,
-      "endurance": 0,
-      "charisma": 0,
-      "intelligence": 0,
-      "agility": 0,
-      "luck": 0
-    },
     "total": 5,
     "gender": null,
-    "craftable": true
+    "craftable": true,
+    "strength": 0,
+    "perception": 5,
+    "endurance": 0,
+    "charisma": 0,
+    "intelligence": 0,
+    "agility": 0,
+    "luck": 0
   },
   {
     "name": "Heavy vault suit",
+    "outfit_type": "Tiered Outfit",
     "rarity": "Legendary",
     "value": 100,
-    "SPECIAL": {
-      "strength": 0,
-      "perception": 7,
-      "endurance": 0,
-      "charisma": 0,
-      "intelligence": 0,
-      "agility": 0,
-      "luck": 0
-    },
     "total": 7,
     "gender": null,
-    "craftable": true
+    "craftable": true,
+    "strength": 0,
+    "perception": 7,
+    "endurance": 0,
+    "charisma": 0,
+    "intelligence": 0,
+    "agility": 0,
+    "luck": 0
   }
 ]

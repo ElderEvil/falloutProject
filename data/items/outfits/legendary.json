@@ -1,146 +1,138 @@
 [
   {
     "name": "Abraham's relaxedwear",
+    "outfit_type": "Legendary Outfit",
     "warn_by": "Abraham Washington",
     "rarity": "Legendary",
     "value": 500,
-    "SPECIAL": {
-      "strength": 1,
-      "perception": 2,
-      "endurance": 2,
-      "charisma": 1,
-      "intelligence": 0,
-      "agility": 0,
-      "luck": 0
-    },
     "total": 7,
     "gender": "Male",
-    "craftable": true
+    "craftable": true,
+    "strength": 1,
+    "perception": 2,
+    "endurance": 2,
+    "charisma": 1,
+    "intelligence": 0,
+    "agility": 0,
+    "luck": 0
   },
   {
     "name": "Tattered longcoat",
+    "outfit_type": "Legendary Outfit",
     "warn_by": "Old Longfellow",
     "rarity": "Legendary",
     "value": 500,
-    "SPECIAL": {
-      "strength": 2,
-      "perception": 0,
-      "endurance": 2,
-      "charisma": 2,
-      "intelligence": 0,
-      "agility": 0,
-      "luck": 2
-    },
     "total": 8,
     "gender": "Male",
-    "craftable": true
+    "craftable": true,
+    "strength": 2,
+    "perception": 0,
+    "endurance": 2,
+    "charisma": 2,
+    "intelligence": 0,
+    "agility": 0,
+    "luck": 2
   },
   {
     "name": "Autumn's uniform",
+    "outfit_type": "Legendary Outfit",
     "warn_by": "Augustus Autumn",
     "rarity": "Legendary",
     "value": 500,
-    "SPECIAL": {
-      "strength": 2,
-      "perception": 2,
-      "endurance": 2,
-      "charisma": 1,
-      "intelligence": 0,
-      "agility": 0,
-      "luck": 0
-    },
     "total": 7,
     "gender": "Male",
-    "craftable": true
+    "craftable": true,
+    "strength": 2,
+    "perception": 2,
+    "endurance": 2,
+    "charisma": 1,
+    "intelligence": 0,
+    "agility": 0,
+    "luck": 0
   },
   {
     "name": "Bittercup's outfit",
+    "outfit_type": "Legendary Outfit",
     "warn_by": "Bittercup",
     "rarity": "Legendary",
     "value": 500,
-    "SPECIAL": {
-      "strength": 2,
-      "perception": 2,
-      "endurance": 2,
-      "charisma": 1,
-      "intelligence": 0,
-      "agility": 0,
-      "luck": 0
-    },
     "total": 7,
     "gender": "Female",
-    "craftable": true
+    "craftable": true,
+    "strength": 2,
+    "perception": 2,
+    "endurance": 2,
+    "charisma": 1,
+    "intelligence": 0,
+    "agility": 0,
+    "luck": 0
   },
   {
     "name": "Confessor Cromwell's rags",
+    "outfit_type": "Legendary Outfit",
     "warn_by": "Confessor Cromwell",
     "rarity": "Legendary",
     "value": 500,
-    "SPECIAL": {
-      "strength": 0,
-      "perception": 2,
-      "endurance": 2,
-      "charisma": 1,
-      "intelligence": 1,
-      "agility": 0,
-      "luck": 2
-    },
     "total": 7,
     "gender": "Male",
-    "craftable": true
+    "craftable": true,
+    "strength": 0,
+    "perception": 2,
+    "endurance": 2,
+    "charisma": 1,
+    "intelligence": 1,
+    "agility": 0,
+    "luck": 2
   },
   {
     "name": "Elder robe",
+    "outfit_type": "Legendary Outfit",
     "warn_by": "Elder Lyons",
     "rarity": "Legendary",
     "value": 500,
-    "SPECIAL": {
-      "strength": 0,
-      "perception": 0,
-      "endurance": 0,
-      "charisma": 4,
-      "intelligence": 0,
-      "agility": 3,
-      "luck": 0
-    },
     "total": 7,
     "gender": "Male",
-    "craftable": true
+    "craftable": true,
+    "strength": 0,
+    "perception": 0,
+    "endurance": 0,
+    "charisma": 4,
+    "intelligence": 0,
+    "agility": 3,
+    "luck": 0
   },
   {
     "name": "Eulogy Jones' suit",
+    "outfit_type": "Legendary Outfit",
     "warn_by": "Eulogy Jones",
     "rarity": "Legendary",
     "value": 500,
-    "SPECIAL": {
-      "strength": 2,
-      "perception": 2,
-      "endurance": 1,
-      "charisma": 2,
-      "intelligence": 0,
-      "agility": 0,
-      "luck": 0
-    },
     "total": 7,
     "gender": "Male",
-    "craftable": true
+    "craftable": true,
+    "strength": 2,
+    "perception": 2,
+    "endurance": 1,
+    "charisma": 2,
+    "intelligence": 0,
+    "agility": 0,
+    "luck": 0
   },
   {
     "name": "Heavy synth armor",
+    "outfit_type": "Legendary Outfit",
     "warn_by": null,
     "rarity": "Legendary",
     "value": 500,
-    "SPECIAL": {
-      "strength": 0,
-      "perception": 0,
-      "endurance": 4,
-      "charisma": 3,
-      "intelligence": 0,
-      "agility": 0,
-      "luck": 0
-    },
     "total": 7,
     "gender": null,
-    "craftable": true
+    "craftable": true,
+    "strength": 0,
+    "perception": 0,
+    "endurance": 4,
+    "charisma": 3,
+    "intelligence": 0,
+    "agility": 0,
+    "luck": 0
   }
 ]

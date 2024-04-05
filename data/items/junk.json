@@ -3,126 +3,147 @@
     "name": "Alarm clock",
     "junk_type": "Circuitry",
     "rarity": "Common",
+    "value": 2,
     "description": "Because Dwellers that sleep in are sent to the Wasteland."
   },
   {
     "name": "Baseball glove",
     "junk_type": "Leather",
     "rarity": "Common",
+    "value": 2,
     "description": "Catch a baseball, rock or grenade and throw it right back."
   },
   {
     "name": "Duct tape",
     "junk_type": "Adhesive",
     "rarity": "Common",
+    "value": 2,
     "description": "Keep things in place with every handyman's secret weapon."
   },
   {
     "name": "Yarn",
     "junk_type": "Cloth",
     "rarity": "Common",
+    "value": 2,
     "description": "Keep cats entertained and make fabulous outfits."
   },
   {
     "name": "Magnifying glass",
     "junk_type": "Science",
     "rarity": "Common",
+    "value": 2,
     "description": "This ant immolator might not work as well on Radroaches."
   },
   {
     "name": "Desk fan",
     "junk_type": "Steel",
     "rarity": "Common",
+    "value": 2,
     "description": "Great at keeping the Wasteland heat away. If it worked."
   },
   {
     "name": "Toy car",
     "junk_type": "Valuables",
     "rarity": "Common",
+    "value": 2,
     "description": "Brings you back to the care-free days of being a kid in the Vault."
   },
   {
     "name": "Camera",
     "junk_type": "Circuitry",
     "rarity": "Rare",
+    "value": 50,
     "description": "Investigate hidden truths or take Vault family portraits."
   },
   {
     "name": "Brahmin hide",
     "junk_type": "Leather",
     "rarity": "Rare",
+    "value": 50,
     "description": "Great for making a full-grain leather jacket. Two heads means two hoods!"
   },
   {
     "name": "Wonderglue",
     "junk_type": "Adhesive",
     "rarity": "Rare",
+    "value": 50,
     "description": "Be careful not to glue your hands together or your eyelids shut."
   },
   {
     "name": "Teddy bear",
     "junk_type": "Cloth",
     "rarity": "Rare",
+    "value": 50,
     "description": "Wasteland life is no picnic, so he's always ready for a warm hug."
   },
   {
     "name": "Microscope",
     "junk_type": "Science",
     "rarity": "Rare",
+    "value": 50,
     "description": "Probably more useful in the Wasteland as a blunt weapon."
   },
   {
     "name": "Shovel",
     "junk_type": "Steel",
     "rarity": "Rare",
+    "value": 50,
     "description": "Versatile and reliable. No Dweller should be without one."
   },
   {
     "name": "Globe",
     "junk_type": "Valuables",
     "rarity": "Rare",
+    "value": 50,
     "description": "Look back at the world that was. Or just spin it when you're bored."
   },
   {
     "name": "Military circuit board",
     "junk_type": "Circuitry",
     "rarity": "Legendary",
+    "value": 200,
     "description": "Top-of-the-line circuitry to make top-of-the-line equipment."
   },
   {
     "name": "Yao guai hide",
     "junk_type": "Leather",
     "rarity": "Legendary",
+    "value": 200,
     "description": "Don't mess with me, your hide-made outfits will say."
   },
   {
     "name": "Military duct tape",
     "junk_type": "Adhesive",
     "rarity": "Legendary",
+    "value": 200,
     "description": "Don't mess with me, your hide-made outfits will say."
   },
   {
     "name": "Tri-fold flag",
     "junk_type": "Cloth",
     "rarity": "Legendary",
+    "value": 200,
     "description": "Never forget the good ol' red, white and blue."
   },
   {
     "name": "Chemistry flask",
     "junk_type": "Science",
     "rarity": "Legendary",
+    "value": 200,
     "description": "Lets everyone know you're serious about doing sciency things."
   },
   {
     "name": "Giddyup Buttercup",
     "junk_type": "Steel",
     "rarity": "Legendary",
+    "value": 200,
     "description": "Go ahead, no one's watching. Get on and take a ride."
   },
   {
     "name": "Gold watch",
     "junk_type": "Valuables",
     "rarity": "Legendary",
+    "value": 200,
     "description": "For when a weapon or outfit needs just a touch of bling."
   }
 ]

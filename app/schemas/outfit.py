@@ -9,12 +9,12 @@ from app.schemas.item import ItemUpdate
 
 class SPECIALOutfitCreate(BaseModel):
     strength: int = Field(default=0, ge=0, le=7)
-    perception: int =  Field(default=0, ge=0, le=7)
-    endurance: int =  Field(default=0, ge=0, le=7)
-    charisma: int =  Field(default=0, ge=0, le=7)
-    intelligence: int =  Field(default=0, ge=0, le=7)
-    agility: int =  Field(default=0, ge=0, le=7)
-    luck: int =  Field(default=0, ge=0, le=7)
+    perception: int = Field(default=0, ge=0, le=7)
+    endurance: int = Field(default=0, ge=0, le=7)
+    charisma: int = Field(default=0, ge=0, le=7)
+    intelligence: int = Field(default=0, ge=0, le=7)
+    agility: int = Field(default=0, ge=0, le=7)
+    luck: int = Field(default=0, ge=0, le=7)
 
 
 class OutfitCreate(OutfitBase, SPECIALOutfitCreate):

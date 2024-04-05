@@ -3,7 +3,7 @@
     "name": "Abraham's relaxedwear",
     "warn_by": "Abraham Washington",
     "rarity": "Legendary",
-    "cost": 500,
+    "value": 500,
     "SPECIAL": {
       "strength": 1,
       "perception": 2,
@@ -21,7 +21,7 @@
     "name": "Tattered longcoat",
     "warn_by": "Old Longfellow",
     "rarity": "Legendary",
-    "cost": 500,
+    "value": 500,
     "SPECIAL": {
       "strength": 2,
       "perception": 0,
@@ -39,7 +39,7 @@
     "name": "Autumn's uniform",
     "warn_by": "Augustus Autumn",
     "rarity": "Legendary",
-    "cost": 500,
+    "value": 500,
     "SPECIAL": {
       "strength": 2,
       "perception": 2,
@@ -57,7 +57,7 @@
     "name": "Bittercup's outfit",
     "warn_by": "Bittercup",
     "rarity": "Legendary",
-    "cost": 500,
+    "value": 500,
     "SPECIAL": {
       "strength": 2,
       "perception": 2,
@@ -75,7 +75,7 @@
     "name": "Confessor Cromwell's rags",
     "warn_by": "Confessor Cromwell",
     "rarity": "Legendary",
-    "cost": 500,
+    "value": 500,
     "SPECIAL": {
       "strength": 0,
       "perception": 2,
@@ -93,7 +93,7 @@
     "name": "Elder robe",
     "warn_by": "Elder Lyons",
     "rarity": "Legendary",
-    "cost": 500,
+    "value": 500,
     "SPECIAL": {
       "strength": 0,
       "perception": 0,
@@ -111,7 +111,7 @@
     "name": "Eulogy Jones' suit",
     "warn_by": "Eulogy Jones",
     "rarity": "Legendary",
-    "cost": 500,
+    "value": 500,
     "SPECIAL": {
       "strength": 2,
       "perception": 2,
@@ -129,7 +129,7 @@
     "name": "Heavy synth armor",
     "warn_by": null,
     "rarity": "Legendary",
-    "cost": 500,
+    "value": 500,
     "SPECIAL": {
       "strength": 0,
       "perception": 0,

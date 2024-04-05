@@ -2,7 +2,7 @@
   {
     "name": "Armored vault suit",
     "rarity": "Common",
-    "cost": 10 ,
+    "value": 10 ,
     "SPECIAL": {
       "strength": 0,
       "perception": 3,
@@ -19,7 +19,7 @@
   {
     "name": "Sturdy vault suit",
     "rarity": "Rare",
-    "cost": 100,
+    "value": 100,
     "SPECIAL": {
       "strength": 0,
       "perception": 5,
@@ -36,7 +36,7 @@
   {
     "name": "Heavy vault suit",
     "rarity": "Legendary",
-    "cost": 100,
+    "value": 100,
     "SPECIAL": {
       "strength": 0,
       "perception": 7,

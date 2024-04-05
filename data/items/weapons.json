@@ -1,475 +1,432 @@
 [
-  {
-    "weapon_type": "Melee",
-    "weapon_subtype": "Blunt",
-    "name": "Baseball bat",
-    "stat": "strength",
-    "rarity": "rare",
-    "damage_range": [
-      5,
-      15
-    ]
-  },
-  {
-    "weapon_type": "Melee",
-    "weapon_subtype": "Edged",
-    "name": "Butcher knife",
-    "stat": "strength",
-    "rarity": "rare",
-    "damage_range": [
-      8,
-      18
-    ]
-  },
-  {
-    "weapon_type": "Melee",
-    "weapon_subtype": "Pointed",
-    "name": "Kitchen knife",
-    "stat": "strength",
-    "rarity": "rare",
-    "damage_range": [
-      3,
-      11
-    ]
-  },
-  {
-    "weapon_type": "Melee",
-    "weapon_subtype": "Blunt",
-    "name": "Pickaxe",
-    "stat": "strength",
-    "rarity": "rare",
-    "damage_range": [
-      11,
-      21
-    ]
-  },
-  {
-    "weapon_type": "Melee",
-    "weapon_subtype": "Blunt",
-    "name": "Pool cue",
-    "stat": "strength",
-    "rarity": "rare",
-    "damage_range": [
-      0,
-      8
-    ]
-  },
-  {
-    "weapon_type": "Melee",
-    "weapon_subtype": "Blunt",
-    "name": "Fire hydrant bat",
-    "stat": "strength",
-    "rarity": "legendary",
-    "damage_range": [
-      19,
-      31
-    ]
-  },
-  {
-    "weapon_type": "Melee",
-    "weapon_subtype": "Edged",
-    "name": "Relentless raider sword",
-    "stat": "strength",
-    "rarity": "legendary",
-    "damage_range": [
-      16,
-      28
-    ]
-  },
-  {
-    "weapon_type": "Melee",
-    "weapon_subtype": "Edged",
-    "name": "Ripper",
-    "stat": "strength",
-    "rarity": "rare",
-    "damage_range": [
-      11,
-      16
-    ]
-  },
-  {
-    "weapon_type": "Melee",
-    "weapon_subtype": "Blunt",
-    "name": "Power fist",
-    "stat": "strength",
-    "rarity": "legendary",
-    "damage_range": [
-      13,
-      18
-    ]
-  },
-  {
-    "weapon_type": "Melee",
-    "weapon_subtype": "Edged",
-    "name": "Grognak's axe",
-    "stat": "strength",
-    "rarity": "legendary",
-    "damage_range": [
-      18,
-      26
-    ]
-  },
-  {
-    "weapon_type": "Gun",
-    "weapon_subtype": "Pistol",
-    "name": "Pipe pistol",
-    "stat": "agility",
-    "rarity": "common",
-    "damage_range": [
-      1,
-      3
-    ]
-  },
-  {
-    "weapon_type": "Gun",
-    "weapon_subtype": "Pistol",
-    "name": ".32 pistol",
-    "stat": "agility",
-    "rarity": "common",
-    "damage_range": [
-      1,
-      2
-    ]
-  },
-  {
-    "weapon_type": "Gun",
-    "weapon_subtype": "Pistol",
-    "name": "10mm pistol",
-    "stat": "agility",
-    "rarity": "common",
-    "damage_range": [
-      2,
-      3
-    ]
-  },
-  {
-    "weapon_type": "Gun",
-    "weapon_subtype": "Pistol",
-    "name": "Scoped .44",
-    "stat": "agility",
-    "rarity": "common",
-    "damage_range": [
-      3,
-      4
-    ]
-  },
-  {
-    "weapon_type": "Gun",
-    "weapon_subtype": "Pistol",
-    "name": "Gauss pistol",
-    "stat": "agility",
-    "rarity": "rare",
-    "damage_range": [
-      12,
-      13
-    ]
-  },
-  {
-    "weapon_type": "Gun",
-    "weapon_subtype": "Rifle",
-    "name": "Pipe rifle",
-    "stat": "perception",
-    "rarity": "rare",
-    "damage_range": [
-      5,
-      7
-    ]
-  },
-  {
-    "weapon_type": "Gun",
-    "weapon_subtype": "Rifle",
-    "name": "Assault rifle",
-    "stat": "perception",
-    "rarity": "rare",
-    "damage_range": [
-      8,
-      9
-    ]
-  },
-  {
-    "weapon_type": "Gun",
-    "weapon_subtype": "Rifle",
-    "name": "BB gun",
-    "stat": "perception",
-    "rarity": "common",
-    "damage_range": [
-      0,
-      2
-    ]
-  },
-  {
-    "weapon_type": "Gun",
-    "weapon_subtype": "Rifle",
-    "name": "Gauss rifle",
-    "stat": "perception",
-    "rarity": "rare",
-    "damage_range": [
-      16,
-      17
-    ]
-  },
-  {
-    "weapon_type": "Gun",
-    "weapon_subtype": "Rifle",
-    "name": "Henrietta",
-    "stat": "perception",
-    "rarity": "legendary",
-    "damage_range": [
-      13,
-      16
-    ]
-  },
-  {
-    "weapon_type": "Gun",
-    "weapon_subtype": "Rifle",
-    "name": "Hunting rifle",
-    "stat": "perception",
-    "rarity": "common",
-    "damage_range": [
-      5,
-      6
-    ]
-  },
-  {
-    "weapon_type": "Gun",
-    "weapon_subtype": "Rifle",
-    "name": "Lever-action rifle",
-    "stat": "perception",
-    "rarity": "common",
-    "damage_range": [
-      4,
-      5
-    ]
-  },
-  {
-    "weapon_type": "Gun",
-    "weapon_subtype": "Rifle",
-    "name": "Railway rifle",
-    "stat": "perception",
-    "rarity": "rare",
-    "damage_range": [
-      14,
-      15
-    ]
-  },
-  {
-    "weapon_type": "Gun",
-    "weapon_subtype": "Rifle",
-    "name": "Sniper rifle",
-    "stat": "perception",
-    "rarity": "rare",
-    "damage_range": [
-      10,
-      11
-    ]
-  },
-  {
-    "weapon_type": "Gun",
-    "weapon_subtype": "Shotgun",
-    "name": "Combat shotgun",
-    "stat": "endurance",
-    "rarity": "rare",
-    "damage_range": [
-      13,
-      14
-    ]
-  },
-  {
-    "weapon_type": "Gun",
-    "weapon_subtype": "Shotgun",
-    "name": "Sawed-off shotgun",
-    "stat": "endurance",
-    "rarity": "common",
-    "damage_range": [
-      6,
-      7
-    ]
-  },
-  {
-    "weapon_type": "Gun",
-    "weapon_subtype": "Shotgun",
-    "name": "Shotgun",
-    "stat": "endurance",
-    "rarity": "rare",
-    "damage_range": [
-      9,
-      10
-    ]
-  },
-  {
-    "weapon_type": "Energy",
-    "weapon_subtype": "Pistol",
-    "name": "Alien blaster",
-    "stat": "agility",
-    "rarity": "legendary",
-    "damage_range": [
-      18,
-      19
-    ]
-  },
-  {
-    "weapon_type": "Energy",
-    "weapon_subtype": "Pistol",
-    "name": "Laser pistol",
-    "stat": "agility",
-    "rarity": "rare",
-    "damage_range": [
-      7,
-      8
-    ]
-  },
-  {
-    "weapon_type": "Energy",
-    "weapon_subtype": "Pistol",
-    "name": "Plasma pistol",
-    "stat": "agility",
-    "rarity": "rare",
-    "damage_range": [
-      11,
-      12
-    ]
-  },
-  {
-    "weapon_type": "Energy",
-    "weapon_subtype": "Pistol",
-    "name": "Assaultron head",
-    "stat": "agility",
-    "rarity": "rare",
-    "damage_range": [
-      8,
-      12
-    ]
-  },
-  {
-    "weapon_type": "Energy",
-    "weapon_subtype": "Pistol",
-    "name": "Institute pistol",
-    "stat": "agility",
-    "rarity": "rare",
-    "damage_range": [
-      9,
-      11
-    ]
-  },
-  {
-    "weapon_type": "Energy",
-    "weapon_subtype": "Rifle",
-    "name": "Laser musket",
-    "stat": "intelligence",
-    "rarity": "legendary",
-    "damage_range": [
-      10,
-      13
-    ]
-  },
-  {
-    "weapon_type": "Energy",
-    "weapon_subtype": "Rifle",
-    "name": "Alien disintegrator",
-    "stat": "intelligence",
-    "rarity": "legendary",
-    "damage_range": [
-      17,
-      17
-    ]
-  },
-  {
-    "weapon_type": "Energy",
-    "weapon_subtype": "Rifle",
-    "name": "Laser rifle",
-    "stat": "intelligence",
-    "rarity": "rare",
-    "damage_range": [
-      12,
-      13
-    ]
-  },
-  {
-    "weapon_type": "Energy",
-    "weapon_subtype": "Rifle",
-    "name": "Plasma rifle",
-    "stat": "intelligence",
-    "rarity": "legendary",
-    "damage_range": [
-      17,
-      18
-    ]
-  },
-  {
-    "weapon_type": "Energy",
-    "weapon_subtype": "Rifle",
-    "stat": "intelligence",
-    "name": "Pulse rifle",
-    "rarity": "legendary",
-    "damage_range": [
-      18,
-      19
-    ]
-  },
-  {
-    "weapon_type": "Energy",
-    "weapon_subtype": "Rifle",
-    "name": "Institute rifle",
-    "stat": "intelligence",
-    "rarity": "rare",
-    "damage_range": [
-      14,
-      16
-    ]
-  },
-  {
-    "weapon_type": "Heavy",
-    "weapon_subtype": "Explosive",
-    "name": "Fat Man",
-    "stat": "strength",
-    "rarity": "legendary",
-    "damage_range": [
-      22,
-      23
-    ]
-  },
-  {
-    "weapon_type": "Heavy",
-    "weapon_subtype": "Flamer",
-    "name": "Flamer",
-    "stat": "strength",
-    "rarity": "legendary",
-    "damage_range": [
-      15,
-      16
-    ]
-  },
-  {
-    "weapon_type": "Heavy",
-    "weapon_subtype": "Automatic",
-    "name": "Gatling laser",
-    "stat": "strength",
-    "rarity": "legendary",
-    "damage_range": [
-      15,
-      16
-    ]
-  },
-  {
-    "weapon_type": "Heavy",
-    "weapon_subtype": "Explosive",
-    "name": "Missile launcher",
-    "stat": "strength",
-    "rarity": "legendary",
-    "damage_range": [
-      20,
-      21
-    ]
-  },
-  {
-    "weapon_type": "Heavy",
-    "weapon_subtype": "Explosive",
-    "name": "Junk Jet",
-    "stat": "strength",
-    "rarity": "legendary",
-    "damage_range": [
-      13,
-      15
-    ]
-  }
+    {
+        "weapon_type": "Melee",
+        "weapon_subtype": "Blunt",
+        "name": "Baseball bat",
+        "stat": "strength",
+        "rarity": "Rare",
+        "damage_min": 5,
+        "damage_max": 15,
+        "value": 100
+    },
+    {
+        "weapon_type": "Melee",
+        "weapon_subtype": "Edged",
+        "name": "Butcher knife",
+        "stat": "strength",
+        "rarity": "Rare",
+        "damage_min": 8,
+        "damage_max": 18,
+        "value": 100
+    },
+    {
+        "weapon_type": "Melee",
+        "weapon_subtype": "Pointed",
+        "name": "Kitchen knife",
+        "stat": "strength",
+        "rarity": "Rare",
+        "damage_min": 3,
+        "damage_max": 11,
+        "value": 100
+    },
+    {
+        "weapon_type": "Melee",
+        "weapon_subtype": "Blunt",
+        "name": "Pickaxe",
+        "stat": "strength",
+        "rarity": "Rare",
+        "damage_min": 11,
+        "damage_max": 21,
+        "value": 100
+    },
+    {
+        "weapon_type": "Melee",
+        "weapon_subtype": "Blunt",
+        "name": "Pool cue",
+        "stat": "strength",
+        "rarity": "Rare",
+        "damage_min": 0,
+        "damage_max": 8,
+        "value": 100
+    },
+    {
+        "weapon_type": "Melee",
+        "weapon_subtype": "Blunt",
+        "name": "Fire hydrant bat",
+        "stat": "strength",
+        "rarity": "Legendary",
+        "damage_min": 19,
+        "damage_max": 31,
+        "value": 500
+    },
+    {
+        "weapon_type": "Melee",
+        "weapon_subtype": "Edged",
+        "name": "Relentless raider sword",
+        "stat": "strength",
+        "rarity": "Legendary",
+        "damage_min": 16,
+        "damage_max": 28,
+        "value": 500
+    },
+    {
+        "weapon_type": "Melee",
+        "weapon_subtype": "Edged",
+        "name": "Ripper",
+        "stat": "strength",
+        "rarity": "Rare",
+        "damage_min": 11,
+        "damage_max": 16,
+        "value": 100
+    },
+    {
+        "weapon_type": "Melee",
+        "weapon_subtype": "Blunt",
+        "name": "Power fist",
+        "stat": "strength",
+        "rarity": "Legendary",
+        "damage_min": 13,
+        "damage_max": 18,
+        "value": 500
+    },
+    {
+        "weapon_type": "Melee",
+        "weapon_subtype": "Edged",
+        "name": "Grognak's axe",
+        "stat": "strength",
+        "rarity": "Legendary",
+        "damage_min": 18,
+        "damage_max": 26,
+        "value": 500
+    },
+    {
+        "weapon_type": "Gun",
+        "weapon_subtype": "Pistol",
+        "name": "Pipe pistol",
+        "stat": "agility",
+        "rarity": "Common",
+        "damage_min": 1,
+        "damage_max": 3,
+        "value": 10
+    },
+    {
+        "weapon_type": "Gun",
+        "weapon_subtype": "Pistol",
+        "name": ".32 pistol",
+        "stat": "agility",
+        "rarity": "Common",
+        "damage_min": 1,
+        "damage_max": 2,
+        "value": 10
+    },
+    {
+        "weapon_type": "Gun",
+        "weapon_subtype": "Pistol",
+        "name": "10mm pistol",
+        "stat": "agility",
+        "rarity": "Common",
+        "damage_min": 2,
+        "damage_max": 3,
+        "value": 10
+    },
+    {
+        "weapon_type": "Gun",
+        "weapon_subtype": "Pistol",
+        "name": "Scoped .44",
+        "stat": "agility",
+        "rarity": "Common",
+        "damage_min": 3,
+        "damage_max": 4,
+        "value": 10
+    },
+    {
+        "weapon_type": "Gun",
+        "weapon_subtype": "Pistol",
+        "name": "Gauss pistol",
+        "stat": "agility",
+        "rarity": "Rare",
+        "damage_min": 12,
+        "damage_max": 13,
+        "value": 100
+    },
+    {
+        "weapon_type": "Gun",
+        "weapon_subtype": "Rifle",
+        "name": "Pipe rifle",
+        "stat": "perception",
+        "rarity": "Rare",
+        "damage_min": 5,
+        "damage_max": 7,
+        "value": 100
+    },
+    {
+        "weapon_type": "Gun",
+        "weapon_subtype": "Rifle",
+        "name": "Assault rifle",
+        "stat": "perception",
+        "rarity": "Rare",
+        "damage_min": 8,
+        "damage_max": 9,
+        "value": 100
+    },
+    {
+        "weapon_type": "Gun",
+        "weapon_subtype": "Rifle",
+        "name": "BB gun",
+        "stat": "perception",
+        "rarity": "Common",
+        "damage_min": 0,
+        "damage_max": 2,
+        "value": 10
+    },
+    {
+        "weapon_type": "Gun",
+        "weapon_subtype": "Rifle",
+        "name": "Gauss rifle",
+        "stat": "perception",
+        "rarity": "Rare",
+        "damage_min": 16,
+        "damage_max": 17,
+        "value": 100
+    },
+    {
+        "weapon_type": "Gun",
+        "weapon_subtype": "Rifle",
+        "name": "Henrietta",
+        "stat": "perception",
+        "rarity": "Legendary",
+        "damage_min": 13,
+        "damage_max": 16,
+        "value": 500
+    },
+    {
+        "weapon_type": "Gun",
+        "weapon_subtype": "Rifle",
+        "name": "Hunting rifle",
+        "stat": "perception",
+        "rarity": "Common",
+        "damage_min": 5,
+        "damage_max": 6,
+        "value": 10
+    },
+    {
+        "weapon_type": "Gun",
+        "weapon_subtype": "Rifle",
+        "name": "Lever-action rifle",
+        "stat": "perception",
+        "rarity": "Common",
+        "damage_min": 4,
+        "damage_max": 5,
+        "value": 10
+    },
+    {
+        "weapon_type": "Gun",
+        "weapon_subtype": "Rifle",
+        "name": "Railway rifle",
+        "stat": "perception",
+        "rarity": "Rare",
+        "damage_min": 14,
+        "damage_max": 15,
+        "value": 100
+    },
+    {
+        "weapon_type": "Gun",
+        "weapon_subtype": "Rifle",
+        "name": "Sniper rifle",
+        "stat": "perception",
+        "rarity": "Rare",
+        "damage_min": 10,
+        "damage_max": 11,
+        "value": 100
+    },
+    {
+        "weapon_type": "Gun",
+        "weapon_subtype": "Shotgun",
+        "name": "Combat shotgun",
+        "stat": "endurance",
+        "rarity": "Rare",
+        "damage_min": 13,
+        "damage_max": 14,
+        "value": 100
+    },
+    {
+        "weapon_type": "Gun",
+        "weapon_subtype": "Shotgun",
+        "name": "Sawed-off shotgun",
+        "stat": "endurance",
+        "rarity": "Common",
+        "damage_min": 6,
+        "damage_max": 7,
+        "value": 10
+    },
+    {
+        "weapon_type": "Gun",
+        "weapon_subtype": "Shotgun",
+        "name": "Shotgun",
+        "stat": "endurance",
+        "rarity": "Rare",
+        "damage_min": 9,
+        "damage_max": 10,
+        "value": 100
+    },
+    {
+        "weapon_type": "Energy",
+        "weapon_subtype": "Pistol",
+        "name": "Alien blaster",
+        "stat": "agility",
+        "rarity": "Legendary",
+        "damage_min": 18,
+        "damage_max": 19,
+        "value": 500
+    },
+    {
+        "weapon_type": "Energy",
+        "weapon_subtype": "Pistol",
+        "name": "Laser pistol",
+        "stat": "agility",
+        "rarity": "Rare",
+        "damage_min": 7,
+        "damage_max": 8,
+        "value": 100
+    },
+    {
+        "weapon_type": "Energy",
+        "weapon_subtype": "Pistol",
+        "name": "Plasma pistol",
+        "stat": "agility",
+        "rarity": "Rare",
+        "damage_min": 11,
+        "damage_max": 12,
+        "value": 100
+    },
+    {
+        "weapon_type": "Energy",
+        "weapon_subtype": "Pistol",
+        "name": "Assaultron head",
+        "stat": "agility",
+        "rarity": "Rare",
+        "damage_min": 8,
+        "damage_max": 12,
+        "value": 100
+    },
+    {
+        "weapon_type": "Energy",
+        "weapon_subtype": "Pistol",
+        "name": "Institute pistol",
+        "stat": "agility",
+        "rarity": "Rare",
+        "damage_min": 9,
+        "damage_max": 11,
+        "value": 100
+    },
+    {
+        "weapon_type": "Energy",
+        "weapon_subtype": "Rifle",
+        "name": "Laser musket",
+        "stat": "intelligence",
+        "rarity": "Legendary",
+        "damage_min": 10,
+        "damage_max": 13,
+        "value": 500
+    },
+    {
+        "weapon_type": "Energy",
+        "weapon_subtype": "Rifle",
+        "name": "Alien disintegrator",
+        "stat": "intelligence",
+        "rarity": "Legendary",
+        "damage_min": 17,
+        "damage_max": 17,
+        "value": 500
+    },
+    {
+        "weapon_type": "Energy",
+        "weapon_subtype": "Rifle",
+        "name": "Laser rifle",
+        "stat": "intelligence",
+        "rarity": "Rare",
+        "damage_min": 12,
+        "damage_max": 13,
+        "value": 100
+    },
+    {
+        "weapon_type": "Energy",
+        "weapon_subtype": "Rifle",
+        "name": "Plasma rifle",
+        "stat": "intelligence",
+        "rarity": "Legendary",
+        "damage_min": 17,
+        "damage_max": 18,
+        "value": 500
+    },
+    {
+        "weapon_type": "Energy",
+        "weapon_subtype": "Rifle",
+        "stat": "intelligence",
+        "name": "Pulse rifle",
+        "rarity": "Legendary",
+        "damage_min": 18,
+        "damage_max": 19,
+        "value": 500
+    },
+    {
+        "weapon_type": "Energy",
+        "weapon_subtype": "Rifle",
+        "name": "Institute rifle",
+        "stat": "intelligence",
+        "rarity": "Rare",
+        "damage_min": 14,
+        "damage_max": 16,
+        "value": 100
+    },
+    {
+        "weapon_type": "Heavy",
+        "weapon_subtype": "Explosive",
+        "name": "Fat Man",
+        "stat": "strength",
+        "rarity": "Legendary",
+        "damage_min": 22,
+        "damage_max": 23,
+        "value": 500
+    },
+    {
+        "weapon_type": "Heavy",
+        "weapon_subtype": "Flamer",
+        "name": "Flamer",
+        "stat": "strength",
+        "rarity": "Legendary",
+        "damage_min": 15,
+        "damage_max": 16,
+        "value": 500
+    },
+    {
+        "weapon_type": "Heavy",
+        "weapon_subtype": "Automatic",
+        "name": "Gatling laser",
+        "stat": "strength",
+        "rarity": "Legendary",
+        "damage_min": 15,
+        "damage_max": 16,
+        "value": 500
+    },
+    {
+        "weapon_type": "Heavy",
+        "weapon_subtype": "Explosive",
+        "name": "Missile launcher",
+        "stat": "strength",
+        "rarity": "Legendary",
+        "damage_min": 20,
+        "damage_max": 21,
+        "value": 500
+    },
+    {
+        "weapon_type": "Heavy",
+        "weapon_subtype": "Explosive",
+        "name": "Junk Jet",
+        "stat": "strength",
+        "rarity": "Legendary",
+        "damage_min": 13,
+        "damage_max": 15,
+        "value": 500
+    }
 ]

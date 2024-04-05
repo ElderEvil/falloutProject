@@ -53,6 +53,6 @@ async def create_random_dweller(db_session: AsyncSession = Depends(get_async_ses
     return await crud.dweller.create_random(db_session)
 
 
-@router.post("/data/", response_model=list[DwellerCreateWithoutVaultID])
+@router.post("/read_data/", response_model=list[DwellerCreateWithoutVaultID])
 async def read_dwellers_data(data_store=Depends(get_static_game_data)):
     return data_store.dwellers_legendary + data_store.dwellers_rare

@@ -2,7 +2,7 @@
   {
     "name": "NCR Ranger outfit",
     "rarity": "Rare",
-    "cost": 100,
+    "value": 100,
     "SPECIAL": {
       "strength": 0,
       "perception": 4,
@@ -13,7 +13,41 @@
       "luck": 0
     },
     "total": 6,
-    "gender": "Male",
+    "gender": null,
     "craftable": true
+  },
+  {
+    "name": "RobCo R&D suit",
+    "rarity": "Rare",
+    "value": 100,
+    "SPECIAL": {
+      "strength": 0,
+      "perception": 0,
+      "endurance": 2,
+      "charisma": 0,
+      "intelligence": 4,
+      "agility": 0,
+      "luck": 0
+    },
+    "total": 6,
+    "gender": null,
+    "craftable": false
+  },
+  {
+    "name": "Robot armor",
+    "rarity": "Rare",
+    "value": 100,
+    "SPECIAL": {
+      "strength": 2,
+      "perception": 0,
+      "endurance": 2,
+      "charisma": 0,
+      "intelligence": 0,
+      "agility": 0,
+      "luck": 2
+    },
+    "total": 6,
+    "gender": null,
+    "craftable": false
   }
 ]

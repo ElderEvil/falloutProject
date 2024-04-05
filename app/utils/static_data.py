@@ -3,13 +3,11 @@ import logging
 from pathlib import Path
 from typing import Type
 
-from gender_guesser.detector import Detector
 from sqlmodel import SQLModel
 
 from app.crud.base import CreateSchemaType
-from app.schemas.common import Rarity
+from app.schemas.common import Rarity, Gender, OutfitType
 from app.schemas.dweller import DwellerCreateWithoutVaultID
-
 from app.schemas.room import RoomCreate
 from app.schemas.junk import JunkCreate
 from app.schemas.outfit import OutfitCreate
@@ -21,17 +19,15 @@ DATA_DIR = ROOT_DIR / "data"
 
 
 class StaticGameData:
-    gender_detector = Detector(case_sensitive=False)
-
     def __init__(self):
         # Dwellers
-        self.dwellers_legendary = self.parse_dweller_json(DATA_DIR / "dwellers/legendary.json")
-        self.dwellers_rare = self.parse_dweller_json(DATA_DIR / "dwellers/rare.json")
+        # self.dwellers_legendary = self.parse_dweller_json(DATA_DIR / "dwellers/legendary.json")
+        # self.dwellers_rare = self.parse_dweller_json(DATA_DIR / "dwellers/rare.json")
 
         # Items
         self.junk = self.load_data(DATA_DIR / "items/junk.json", JunkCreate)
-        # self.outfits = self.load_data(DATA_DIR / 'items/outfits.json', Outfit)
-        # self.weapons = self.parse_weapon_json(DATA_DIR / 'items/weapons.json')
+        # self.outfits = self.parse_outfit_json(DATA_DIR / 'items/outfits/common.json')
+        self.weapons = self.parse_weapon_json(DATA_DIR / "items/weapons.json")
 
         # Vault
         # self.rooms = self.load_data(DATA_DIR / 'data/vault/rooms.json', Room)
@@ -48,15 +44,22 @@ class StaticGameData:
                 first_name, _, last_name = dweller_data.pop("name").partition(" ")
                 dweller_data["first_name"] = first_name
                 dweller_data["last_name"] = last_name
+                dweller_data["gender"] = Gender.male
                 dweller = DwellerCreateWithoutVaultID.model_validate(dweller_data)
                 dwellers.append(dweller)
             return dwellers
 
-    def parse_outfit_json(self, file_path: Path) -> list[OutfitCreate]:
+    def parse_outfit_json(self, outfit_type: OutfitType) -> list[OutfitCreate]:
+        type_path = outfit_type.value.lower().replace(" ", "_").replace("_outfit", "")
+        file_path = DATA_DIR / "items/outfits" / f"{type_path}.json"
         with open(file_path) as file:
             outfits_json = json.load(file)
             outfits = []
             for outfit_data in outfits_json:
+                stats = outfit_data["SPECIAL"]
+                outfit_data.update(stats)
+                outfit_data["outfit_type"] = OutfitType[outfit_type]
+
                 outfit = OutfitCreate(**outfit_data)
                 outfits.append(outfit)
             return outfits
@@ -66,12 +69,9 @@ class StaticGameData:
             weapons_json = json.load(file)
             weapons = []
             for weapon_data in weapons_json:
-                damage_min, damage_max = weapon_data.pop("damage_range")
-                weapon_data["damage_min"] = damage_min
-                weapon_data["damage_max"] = damage_max
-                weapon_data["rarity"] = Rarity[weapon_data["rarity"]]
                 weapon = WeaponCreate(**weapon_data)
                 weapons.append(weapon)
+
             return weapons
 
     def parse_room_json(self, file_path: Path) -> list[RoomCreate]:
@@ -95,10 +95,6 @@ class StaticGameData:
         except FileNotFoundError:
             logging.exception(f"File not found: {file_path}")
             return []
-
-    def load_json_data(self, data_type: str, model: Type[SQLModel]) -> list:
-        file_path = DATA_DIR / data_type / f"{data_type}.json"
-        return self.load_data(file_path, model)
 
 
 game_data_store = StaticGameData()

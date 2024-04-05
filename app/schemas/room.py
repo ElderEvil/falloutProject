@@ -7,6 +7,10 @@ from app.models.room import RoomBase
 from app.schemas.common import RoomType
 
 
+class RoomCreateWithoutVaultID(RoomBase):
+    pass
+
+
 class RoomCreate(RoomBase):
     vault_id: UUID4
 

@@ -6,7 +6,7 @@ from app import crud
 from app.core.config import settings
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
-from app.tests.factory.dwellers import create_fake_dweller
+from app.tests.factory.dwellers import create_random_common_dweller
 from app.tests.factory.items import create_fake_outfit, create_fake_weapon
 from app.tests.factory.rooms import create_fake_room
 from app.tests.factory.vaults import create_fake_vault
@@ -50,7 +50,7 @@ async def init_db(db_session: AsyncSession) -> None:
                         room = await crud.room.create(db_session, obj_in=room_data)
                         logger.debug(f"Room created: {room.name}")
                         for _ in range(3):
-                            dweller_data = create_fake_dweller()
+                            dweller_data = create_random_common_dweller()
                             dweller_data.update({"vault_id": str(vault.id), "room_id": str(room.id)})
                             dweller = await crud.dweller.create(db_session, obj_in=dweller_data)
                             logger.debug(f"Dweller created: {dweller.first_name} {dweller.last_name}")

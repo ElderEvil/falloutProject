@@ -1,4 +1,3 @@
-import json
 from typing import Sequence
 
 from pydantic import UUID4
@@ -7,6 +6,7 @@ from sqlmodel import select
 
 from app.crud.base import CRUDBase
 from app.models.vault import Vault
+from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultUpdate
 
 
@@ -21,20 +21,43 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         obj_in = VaultCreateWithUserID(**obj_data)
         return await super().create(db_session, obj_in)
 
-    async def start_vault(self, db_session: AsyncSession, obj_in: VaultCreate, user_id: UUID4) -> Vault:
-        obj_data = obj_in.model_dump()
-        obj_data["user_id"] = user_id
-        obj_in = VaultCreateWithUserID(**obj_data)
-        vault_db_obj = await super().create(db_session, obj_in)
+    @staticmethod
+    async def _create_rooms(db_session: AsyncSession, rooms_in: Sequence[RoomCreate]) -> None:
+        from app.crud.room import room
 
-        with open("data/vault/rooms.json") as f:
-            rooms = json.load(f)
+        for room_in in rooms_in:
+            await room.create(db_session, room_in)
 
-            for room_data in rooms:
-                if room_data["name"] == "Vault Door":
-                    print(room_data)  # TODO make it a room
+    async def initiate(
+        self,
+        db_session: AsyncSession,
+        obj_in: VaultCreate,
+        user_id: UUID4,
+    ) -> Vault:
+        from app.utils.static_data import game_data_store
 
-            return vault_db_obj
+        vault_db_obj = await self.create_with_user_id(db_session, obj_in, user_id)
+
+        rooms = game_data_store.rooms
+        rooms_in = []
+
+        for room_in in rooms:
+            if room_in.name == "Vault Door":
+                room_in_data = room_in.model_dump()
+                room_in_data["vault_id"] = vault_db_obj.id
+                room_in_data["coordinate_x"] = 0
+                room_in_data["coordinate_y"] = 0
+                rooms_in.append(RoomCreate(**room_in_data))
+            elif room_in.name == "Elevator":
+                for i in range(3):
+                    room_in_data = room_in.model_dump()
+                    room_in_data["vault_id"] = vault_db_obj.id
+                    room_in_data["coordinate_x"] = 1
+                    room_in_data["coordinate_y"] = i
+                    rooms_in.append(RoomCreate(**room_in_data))
+
+        await self._create_rooms(db_session, rooms_in)
+        return vault_db_obj
 
 
 vault = CRUDVault(Vault)

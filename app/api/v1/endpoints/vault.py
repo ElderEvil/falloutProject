@@ -85,4 +85,4 @@ async def start_vault(
     db_session: AsyncSession = Depends(get_async_session),
     user: CurrentActiveUser,
 ):
-    return await crud.vault.start_vault(db_session, vault_data, user.id)
+    return await crud.vault.initiate(db_session, vault_data, user.id)

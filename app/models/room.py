@@ -38,4 +38,4 @@ class Room(BaseUUIDModel, RoomBase, TimeStampMixin, table=True):
     dwellers: list["Dweller"] = Relationship(back_populates="room")
 
     def __str__(self):
-        return f"{self.name}({self.tier}/{self.max_tier})"
+        return f"{self.name}"

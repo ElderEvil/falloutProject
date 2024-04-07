@@ -2,7 +2,7 @@
   {
     "name": "Vault Door",
     "category": "Misc.",
-    "ability": "Charisma",
+    "ability": null,
     "population_required": null,
     "base_cost": 100,
     "incremental_cost": 25,
@@ -10,6 +10,18 @@
     "t3_upgrade_cost": 2000,
     "size_min": 6,
     "size_max": 6
+  },
+  {
+    "name": "Elevator",
+    "category": "Misc.",
+    "ability": null,
+    "population_required": null,
+    "base_cost": 100,
+    "incremental_cost": 25,
+    "t2_upgrade_cost": null,
+    "t3_upgrade_cost": null,
+    "size_min": 1,
+    "size_max": 1
   },
   {
     "name": "Living room",
@@ -227,7 +239,7 @@
     "size_min": 9,
     "size_max": 9
   },
-    {
+  {
     "name": "Game room",
     "category": "Training",
     "ability": "Luck",

@@ -23,6 +23,10 @@ class VaultBase(SQLModel):
     water: int = Field(0, ge=0, le=10_000)
     water_max: int = Field(100, ge=100, le=10_000)
 
+    # dwellers_max: int = 200
+    # dwellers_count: int = Field(0, ge=0, le=200)
+    # floors_max: int = 25
+
     def __str__(self):
         return f"Vault {self.name:03}"
 

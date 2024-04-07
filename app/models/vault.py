@@ -13,19 +13,17 @@ if TYPE_CHECKING:
 
 class VaultBase(SQLModel):
     name: int = Field(index=True, gt=0, lt=1_000)
-    bottle_caps: int = Field(default=1_000, ge=0, lt=1_000_000)
+    bottle_caps: int = Field(default=1_000, ge=0, lt=1_000_000, alias="CAPS")
     happiness: int = Field(default=50, ge=0, le=100)
 
-    power: int = Field(0, ge=0, le=10_000)
-    power_max: int = Field(100, ge=100, le=10_000)
-    food: int = Field(0, ge=0, le=10_000)
-    food_max: int = Field(100, ge=100, le=10_000)
-    water: int = Field(0, ge=0, le=10_000)
-    water_max: int = Field(100, ge=100, le=10_000)
+    power: int = Field(1, ge=0, le=10_000)
+    power_max: int = Field(0, ge=0, le=10_000)
+    food: int = Field(1, ge=0, le=10_000)
+    food_max: int = Field(0, ge=0, le=10_000)
+    water: int = Field(1, ge=0, le=10_000)
+    water_max: int = Field(0, ge=0, le=10_000)
 
-    # dwellers_max: int = 200
-    # dwellers_count: int = Field(0, ge=0, le=200)
-    # floors_max: int = 25
+    storage_space_max: int = Field(0, ge=0, le=10_000, nullable=True)
 
     def __str__(self):
         return f"Vault {self.name:03}"

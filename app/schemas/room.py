@@ -27,12 +27,15 @@ class RoomUpdate(SQLModel):
     ability: str | None = None
     population_required: int | None = Field(ge=12, le=100, default=None)
     base_cost: int | None = Field(ge=100, le=10_000, default=None)
-    incremental_cost: int | None = Field(ge=25, le=5_000, default=None)
+    incremental_cost: int | None = Field(ge=25, le=7_500, default=None)
     t2_upgrade_cost: int | None = Field(ge=500, le=50_000)
     t3_upgrade_cost: int | None = Field(ge=1_500, le=150_000)
     output: int | None
-    size_min: int | None = Field(ge=1, le=3)
+    size_min: int | None = Field(ge=1, le=9)
     size_max: int | None = Field(ge=1, le=9)
 
     tier: int | None = Field(ge=1, le=3, default=None)
     max_tier: int | None = Field(ge=1, le=3)
+
+    coordinate_x: int | None = Field(default=None, ge=0, le=8)
+    coordinate_y: int | None = Field(default=None, ge=0, le=25)

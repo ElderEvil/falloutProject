@@ -27,6 +27,9 @@ class RoomBase(SQLModel):
     tier: int = Field(default=1, ge=1, le=3)
     max_tier: int = Field(default=1, ge=1, le=3)
 
+    coordinate_x: int | None = Field(default=None, ge=0, le=8)
+    coordinate_y: int | None = Field(default=None, ge=0, le=25)
+
 
 class Room(BaseUUIDModel, RoomBase, TimeStampMixin, table=True):
     vault_id: UUID4 = Field(default=None, foreign_key="vault.id")

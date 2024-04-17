@@ -1,9 +1,12 @@
+import random
+
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase, ModelType, CreateSchemaType, UpdateSchemaType
 from app.models.dweller import Dweller
 from app.models.junk import Junk
+from app.schemas.common import JunkType, Rarity
 
 from app.utils.exceptions import IDNotFoundException, ContentNoChangeException
 
@@ -43,9 +46,43 @@ class CRUDItem(CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType]):
         await db_session.commit()
 
     def convert_to_junk(self, item) -> list[Junk]:
-        raise NotImplementedError
+        junk_results = []
 
-    async def scrap(self, db_session: AsyncSession, *, item_id: UUID4) -> list[Junk]:
+        # Determine the junk options based on the item's rarity
+        match item.rarity:
+            case Rarity.legendary:
+                junk_options = {
+                    random.choice(list(JunkType)): (Rarity.legendary, 0.4),  # 40% chance for Legendary Junk
+                    random.choice(list(JunkType)): (Rarity.rare, 0.6),  # 60% chance for Rare Junk
+                }
+            case Rarity.rare:
+                junk_options = {
+                    random.choice(list(JunkType)): (Rarity.rare, 0.4),  # 40% chance for Rare Junk
+                    random.choice(list(JunkType)): (Rarity.common, 0.6),  # 60% chance for Common Junk
+                }
+            case Rarity.common:
+                junk_options = {
+                    random.choice(list(JunkType)): (Rarity.common, 0.6)  # 60% chance for Common Junk
+                }
+            case _:
+                error_msg = f"Item rarity {item.rarity} is not supported for junk conversion."
+                raise ValueError(error_msg)
+
+        # Generate junk based on the defined probabilities
+        for junk_type, (rarity, probability) in junk_options.items():
+            if random.random() < probability:
+                junk_results.append(
+                    Junk(
+                        name=junk_type.value,
+                        junk_type=junk_type,
+                        rarity=rarity,
+                        description=f"Derived from {item.name}",
+                    )
+                )
+
+        return junk_results
+
+    async def scrap(self, db_session: AsyncSession, item_id: UUID4) -> list[Junk]:
         item = await db_session.get(self.model, item_id)
         if not item:
             raise IDNotFoundException(self.model, id=item_id)

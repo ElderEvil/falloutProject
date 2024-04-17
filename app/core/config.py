@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     SECRET_KEY: str
+    OPENAI_API_KEY: str
 
     EMAIL_TEST_USER: EmailStr
     FIRST_SUPERUSER_USERNAME: str

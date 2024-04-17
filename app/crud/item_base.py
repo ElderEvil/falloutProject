@@ -7,8 +7,10 @@ from app.crud.base import CRUDBase, ModelType, CreateSchemaType, UpdateSchemaTyp
 from app.models.dweller import Dweller
 from app.models.junk import Junk
 from app.schemas.common import JunkType, Rarity
-
 from app.utils.exceptions import IDNotFoundException, ContentNoChangeException
+
+SAME_RARITY_JUNK_PROBABILITY = 0.4
+DIFFERENT_RARITY_JUNK_PROBABILITY = 0.6
 
 
 class CRUDItem(CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType]):
@@ -45,30 +47,35 @@ class CRUDItem(CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType]):
         setattr(dweller, item_attr, None)
         await db_session.commit()
 
-    def convert_to_junk(self, item) -> list[Junk]:
-        junk_results = []
+    @staticmethod
+    def convert_to_junk(item) -> list[Junk]:
+        """
+        Converts an item into junk based on its rarity.
+        Junk is generated with probabilities depending on the item's rarity.
+        """
+        legendary_junk, rare_junk, common_junk = (random.choice(list(JunkType)) for _ in range(3))
 
-        # Determine the junk options based on the item's rarity
+        # Determine junk options based on item rarity
         match item.rarity:
             case Rarity.legendary:
                 junk_options = {
-                    random.choice(list(JunkType)): (Rarity.legendary, 0.4),  # 40% chance for Legendary Junk
-                    random.choice(list(JunkType)): (Rarity.rare, 0.6),  # 60% chance for Rare Junk
+                    legendary_junk: (Rarity.legendary, SAME_RARITY_JUNK_PROBABILITY),
+                    rare_junk: (Rarity.rare, DIFFERENT_RARITY_JUNK_PROBABILITY),
                 }
             case Rarity.rare:
                 junk_options = {
-                    random.choice(list(JunkType)): (Rarity.rare, 0.4),  # 40% chance for Rare Junk
-                    random.choice(list(JunkType)): (Rarity.common, 0.6),  # 60% chance for Common Junk
+                    rare_junk: (Rarity.rare, SAME_RARITY_JUNK_PROBABILITY),
+                    common_junk: (Rarity.common, DIFFERENT_RARITY_JUNK_PROBABILITY),
                 }
             case Rarity.common:
-                junk_options = {
-                    random.choice(list(JunkType)): (Rarity.common, 0.6)  # 60% chance for Common Junk
-                }
+                junk_options = {common_junk: (Rarity.common, DIFFERENT_RARITY_JUNK_PROBABILITY)}
             case _:
-                error_msg = f"Item rarity {item.rarity} is not supported for junk conversion."
-                raise ValueError(error_msg)
+                error_message = f"Item rarity {item.rarity} is not supported for scrapping."
+                raise ValueError(error_message)
 
         # Generate junk based on the defined probabilities
+        junk_results = []
+
         for junk_type, (rarity, probability) in junk_options.items():
             if random.random() < probability:
                 junk_results.append(

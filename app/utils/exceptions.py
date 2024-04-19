@@ -7,75 +7,85 @@ from sqlmodel import SQLModel
 ModelType = TypeVar("ModelType", bound=SQLModel)
 
 
-class ContentNoChangeException(HTTPException):
-    def __init__(
-        self,
-        detail: Any = None,
-        headers: dict[str, Any] | None = None,
-    ) -> None:
-        super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail=detail, headers=headers)
+class ResourceNotFoundException(HTTPException, Generic[ModelType]):
+    """
+    Exception raised when a specific resource identified by its unique identifier or name is not found.
 
+    :param model: The model class of the resource.
+    :param identifier: The unique identifier or name of the resource.
+    :param identifier_type: Type of identifier used ('id' or 'name').
+    :param headers: Optional HTTP headers to be sent in the response.
+    """
 
-class IDNotFoundException(HTTPException, Generic[ModelType]):
-    def __init__(
-        self,
-        model: Type[ModelType],
-        id: UUID | str | None = None,
-        headers: dict[str, Any] | None = None,
-    ) -> None:
-        if id:
-            super().__init__(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Unable to find the {model.__name__} with id {id}.",
-                headers=headers,
-            )
-            return
-
-        super().__init__(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"{model.__name__} id not found.",
-            headers=headers,
-        )
-
-
-class NameNotFoundException(HTTPException, Generic[ModelType]):
     def __init__(
         self,
         model: Type[ModelType],
-        name: str | None = None,
+        identifier: str | UUID,
+        identifier_type: str = "id",
         headers: dict[str, Any] | None = None,
     ) -> None:
-        if name:
-            super().__init__(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Unable to find the {model.__name__} named {name}.",
-                headers=headers,
-            )
-        else:
-            super().__init__(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"{model.__name__} name not found.",
-                headers=headers,
-            )
+        detail = f"Unable to find the {model.__name__} with {identifier_type} {identifier}."
+        super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail=detail, headers=headers)
 
 
-class NameExistException(HTTPException, Generic[ModelType]):
+class ResourceAlreadyExistsException(HTTPException, Generic[ModelType]):
+    """
+    Exception raised when attempting to create or update a resource that would violate unique constraints.
+
+    :param model: The model class of the resource.
+    :param name: The unique name that already exists.
+    :param headers: Optional HTTP headers to be sent in the response.
+    """
+
     def __init__(
         self,
         model: Type[ModelType],
         name: str,
         headers: dict[str, Any] | None = None,
     ) -> None:
-        if name:
-            super().__init__(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"The {model.__name__} name {name} already exists.",
-                headers=headers,
-            )
-            return
+        detail = f"The {model.__name__} name {name} already exists."
+        super().__init__(status_code=status.HTTP_409_CONFLICT, detail=detail, headers=headers)
 
-        super().__init__(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"The {model.__name__} name already exists.",
-            headers=headers,
-        )
+
+class ResourceConflictException(HTTPException):
+    """
+    Generic exception for handling conflicts during operations on resources.
+
+    :param detail: Detailed message describing the conflict.
+    :param headers: Optional HTTP headers to be sent in the response.
+    """
+
+    def __init__(self, detail: str = "Resource conflict encountered.", headers: dict[str, Any] | None = None) -> None:
+        super().__init__(status_code=status.HTTP_409_CONFLICT, detail=detail, headers=headers)
+
+
+class ContentNoChangeException(HTTPException):
+    """
+    Exception raised when an attempted update operation does not change any data.
+
+    :param detail: Detailed message explaining no change was made.
+    :param headers: Optional HTTP headers to be sent in the response.
+    """
+
+    def __init__(
+        self,
+        detail: str = "No changes detected in the content update.",
+        headers: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail=detail, headers=headers)
+
+
+class InvalidVaultTransferException(ContentNoChangeException):
+    """
+    Exception raised when attempting to move an item between vaults.
+
+    :param detail: Detailed message explaining the error.
+    :param headers: Optional HTTP headers to be sent in the response.
+    """
+
+    def __init__(
+        self,
+        detail: str = "Items can only be moved within the same vault.",
+        headers: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(detail=detail, headers=headers)

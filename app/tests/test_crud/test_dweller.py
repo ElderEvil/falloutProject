@@ -7,11 +7,14 @@ from app import crud
 from app.crud.dweller import BOOSTED_STAT_VALUE
 from app.schemas.common import SPECIALEnum
 from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride
+from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.tests.factory.dwellers import create_fake_dweller
+from app.tests.factory.rooms import create_fake_room
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
+from app.utils.exceptions import ResourceConflictException, InvalidVaultTransferException
 
 
 @pytest.mark.asyncio
@@ -99,3 +102,50 @@ async def test_dweller_add_exp(async_session: AsyncSession):
     await crud.dweller.add_experience(async_session, dweller_obj=dweller, amount=exp_amount)
     assert dweller.experience == 10
     assert dweller.level == 2
+
+
+@pytest.mark.asyncio
+async def test_move_dweller_to_room(async_session: AsyncSession):
+    # Setup - create user, vault, and dweller
+    user_data = create_fake_user()
+    user_in = UserCreate(**user_data)
+    user = await crud.user.create(async_session, obj_in=user_in)
+
+    vault_data = create_fake_vault()
+    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(async_session, obj_in=vault_in)
+
+    dweller_data = create_fake_dweller()
+    dweller_in = DwellerCreate(**dweller_data, vault_id=str(vault.id))
+    dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
+
+    # Create initial room and another room for the move
+    room_data_1 = create_fake_room()
+    room_1 = await crud.room.create(async_session, obj_in=RoomCreate(**room_data_1, vault_id=vault.id))
+
+    room_data_2 = create_fake_room()
+    room_2 = await crud.room.create(async_session, obj_in=RoomCreate(**room_data_2, vault_id=vault.id))
+
+    # Initially assign the dweller to room 1
+    dweller.room_id = room_1.id
+    await async_session.commit()
+
+    # Test: Move dweller from room 1 to room 2
+    await crud.dweller.move_to_room(async_session, dweller_id=dweller.id, room_id=room_2.id)
+    assert dweller.room_id == room_2.id, "Dweller should be moved to the new room"
+
+    # Test: Attempt to move dweller to the same room they are already in
+    with pytest.raises(ResourceConflictException) as exc_info:
+        await crud.dweller.move_to_room(async_session, dweller_id=dweller.id, room_id=room_2.id)
+    assert "Dweller is already in the room" in str(
+        exc_info.value
+    ), "Should raise conflict when moving to the same room"
+
+    # Test: Try to move dweller to a room in a different vault
+    vault_data_2 = create_fake_vault()
+    vault_in_2 = VaultCreateWithUserID(**vault_data_2, user_id=user.id)
+    vault_2 = await crud.vault.create(async_session, obj_in=vault_in_2)
+    room_data_3 = create_fake_room()
+    room_3 = await crud.room.create(async_session, obj_in=RoomCreate(**room_data_3, vault_id=vault_2.id))
+    with pytest.raises(InvalidVaultTransferException):
+        await crud.dweller.move_to_room(async_session, dweller_id=dweller.id, room_id=room_3.id)

@@ -1,7 +1,7 @@
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.crud import room
+from app.crud.room import room
 from app.crud.base import CRUDBase
 from app.models.dweller import Dweller
 from app.schemas.dweller import DwellerCreate, DwellerUpdate, DwellerCreateCommonOverride

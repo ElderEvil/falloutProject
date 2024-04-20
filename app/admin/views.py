@@ -118,7 +118,6 @@ class RoomAdmin(ModelView, model=Room):
         Room.ability,
         Room.population_required,
         Room.tier,
-        Room.max_tier,
         Room.vault,
     ]
 

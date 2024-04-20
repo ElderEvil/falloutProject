@@ -124,3 +124,22 @@ async def test_delete_room(async_client: AsyncClient, room: Room):
     assert delete_response.status_code == 204
     read_response = await async_client.get(f"/rooms/{room.id}")
     assert read_response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_build_room_success(async_client: AsyncClient, async_session: AsyncSession, vault: Vault):
+    # Setup a room creation request
+    room_data = create_fake_room()
+    room_data.update({"vault_id": str(vault.id)})
+
+    # Assume vault has enough resources and space
+    # mock_vault_crud_with_resources_and_space(vault, async_session)
+
+    # Perform the request to build the room
+    response = await async_client.post("/build/", json={"room_data": room_data, "vault_id": str(vault.id)})
+
+    # Verify the room was created successfully
+    assert response.status_code == 200
+    response_data = response.json()
+    assert response_data["name"] == room_data["name"]
+    assert response_data["category"] == room_data["category"]

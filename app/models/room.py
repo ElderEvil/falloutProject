@@ -10,6 +10,8 @@ if TYPE_CHECKING:
     from app.models.dweller import Dweller
     from app.models.vault import Vault
 
+UNIQUE_ROOM_NAMES = {"Vault Door", "Overseer's office"}
+
 
 class RoomBase(SQLModel):
     name: str = Field(index=True, min_length=3, max_length=32)
@@ -23,12 +25,22 @@ class RoomBase(SQLModel):
     output: str | None = Field(default=None)
     size_min: int = Field(ge=1, le=9)
     size_max: int = Field(ge=1, le=9)
-
     tier: int = Field(default=1, ge=1, le=3)
-    max_tier: int = Field(default=1, ge=1, le=3)
-
     coordinate_x: int | None = Field(default=None, ge=0, le=8)
     coordinate_y: int | None = Field(default=None, ge=0, le=25)
+
+    @property
+    def is_unique(self) -> bool:
+        return self.name in UNIQUE_ROOM_NAMES
+
+    @property
+    def max_tier(self) -> int:
+        """Determine the maximum tier of the room based on available upgrade costs."""
+        if self.t2_upgrade_cost is not None and self.t3_upgrade_cost is not None:
+            return 3
+        if self.t2_upgrade_cost is not None:
+            return 2
+        return 1
 
 
 class Room(BaseUUIDModel, RoomBase, TimeStampMixin, table=True):

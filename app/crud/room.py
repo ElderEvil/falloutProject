@@ -1,23 +1,50 @@
-from pydantic import UUID4
+from sqlmodel import select, and_
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
+from app.crud.vault import vault as vault_crud
 from app.models.room import Room
 from app.schemas.room import RoomCreate, RoomUpdate
+from app.utils.exceptions import NoSpaceAvailableException, UniqueRoomViolationException
 
 
 class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
-    async def create_with_vault_id(self, db_session: AsyncSession, obj_in: RoomCreate, vault_id: UUID4) -> Room:
-        obj_data = obj_in.model_dump()
-        obj_data["vault_id"] = vault_id
-        obj_in = RoomCreate(**obj_data)
-        return await super().create(db_session, obj_in)
+    async def get_room_build_price(self, *, db_session: AsyncSession, room_in: RoomCreate) -> int:
+        """
+        Calculate the price of building a room in a vault.
+        It considers the base cost of the room type and applies an incremental cost
+        based on the number of similar rooms already built in the vault.
+        """
+        # Retrieve the existing rooms of the same category in the specified vault
+        response = await db_session.execute(
+            select(Room).where(Room.vault_id == room_in.vault_id, Room.category == room_in.category)
+        )
+        rooms = response.scalars().all()
 
-    async def build(self, *, db_session: AsyncSession, obj_in: RoomCreate):
-        obj_data = obj_in.model_dump()
-        obj_data["vault_id"] = obj_in.vault_id
-        obj_in = RoomCreate(**obj_data)
-        return await super().create(db_session, obj_in)
+        return room_in.base_cost + (len(rooms) * room_in.incremental_cost)
+
+    @staticmethod
+    async def _is_unique_room(*, db_session: AsyncSession, obj_in: RoomCreate):
+        """Raise an exception if a unique room of the same type already exists."""
+        if obj_in.is_unique:
+            existing_unique_room = await db_session.execute(
+                select(Room).where(and_(Room.vault_id == obj_in.vault_id, Room.is_unique is True))
+            )
+            if existing_unique_room.scalars().first():
+                raise UniqueRoomViolationException(room_name=obj_in.name)
+
+    async def build(self, *, db_session: AsyncSession, obj_in: RoomCreate) -> Room:
+        """Implements the steps to build a room checking for business logic constraints."""
+        price = await self.get_room_build_price(db_session=db_session, room_in=obj_in)
+        vault = await vault_crud.get(db_session, id=obj_in.vault_id)
+
+        if not vault_crud.is_space_available(db_session=db_session, vault_obj=vault):
+            raise NoSpaceAvailableException(space_needed=obj_in.size_min)
+
+        await self._is_unique_room(db_session=db_session, obj_in=obj_in)
+        await vault_crud.withdraw_caps(db_session=db_session, vault_obj=vault, amount=price)
+
+        return await self.create(db_session, obj_in=obj_in)
 
 
 room = CRUDRoom(Room)

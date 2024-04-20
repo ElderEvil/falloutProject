@@ -4,20 +4,28 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.crud import room
 from app.crud.base import CRUDBase
 from app.models.dweller import Dweller
-from app.schemas.dweller import DwellerCreate, DwellerUpdate, DwellerCreateCommon
+from app.schemas.dweller import DwellerCreate, DwellerUpdate, DwellerCreateCommonOverride
 from app.tests.factory.dwellers import create_random_common_dweller
 from app.utils.exceptions import ResourceConflictException, ContentNoChangeException
 from app.utils.validation import validate_vault_transfer
 
+BOOSTED_STAT_VALUE = 5
+
 
 class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
-    async def create_random(self, db_session: AsyncSession, obj_in: DwellerCreateCommon) -> Dweller:
+    async def create_random(
+        self, db_session: AsyncSession, vault_id: UUID4, obj_in: DwellerCreateCommonOverride | None = None
+    ) -> Dweller:
         """Create a random common dweller."""
-        data = obj_in.model_dump()
-        if data.get("rarity") == "common":
-            data.update(**create_random_common_dweller(data.get("gender")))
+        dweller_data = create_random_common_dweller()
+        if obj_in:
+            new_dweller_data = obj_in.dict(exclude_unset=True)
+            if stat := new_dweller_data.get("special_boost"):
+                dweller_data[stat.value.lower()] = BOOSTED_STAT_VALUE
+                new_dweller_data.pop("special_boost")
+            dweller_data.update(new_dweller_data)
 
-        db_obj = Dweller(**data)
+        db_obj = Dweller(**dweller_data, vault_id=vault_id)
         db_session.add(db_obj)
         await db_session.commit()
         await db_session.refresh(db_obj)

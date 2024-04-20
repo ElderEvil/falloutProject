@@ -10,7 +10,7 @@ from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.user import User
 from app.models.vault import Vault
-from app.schemas.common import Gender, JunkType, OutfitType, Rarity, RoomType, WeaponSubtype, WeaponType, SPECIAL
+from app.schemas.common import Gender, JunkType, OutfitType, Rarity, RoomType, WeaponSubtype, WeaponType, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
@@ -45,7 +45,7 @@ def room_data_fixture():
     return {
         "name": get_name_two_words(),
         "category": random.choice(list(RoomType)),
-        "ability": random.choice([*list(SPECIAL), None]),
+        "ability": random.choice([*list(SPECIALEnum), None]),
         "population_required": random.randint(12, 100),
         "base_cost": random.randint(100, 10_000),
         "incremental_cost": random.randint(25, 5_000),

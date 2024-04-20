@@ -37,7 +37,7 @@ def create_random_common_dweller(gender: Gender | None = None):
     stats = get_stats_by_rarity(rarity)
     return {
         "first_name": get_gender_based_name(gender),
-        "last_name": fake.last_name,
+        "last_name": fake.last_name(),
         "gender": gender,
         "rarity": rarity,
         "level": 1,

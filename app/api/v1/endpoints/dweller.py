@@ -5,7 +5,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import crud
 from app.api.deps import get_static_game_data
 from app.db.session import get_async_session
-from app.schemas.dweller import DwellerRead, DwellerUpdate, DwellerCreate, DwellerCreateWithoutVaultID
+from app.schemas.dweller import (
+    DwellerRead,
+    DwellerUpdate,
+    DwellerCreate,
+    DwellerCreateWithoutVaultID,
+    DwellerCreateCommonOverride,
+)
 
 router = APIRouter()
 
@@ -49,8 +55,12 @@ async def move_dweller_to_room(
 
 
 @router.post("/create_random/", response_model=DwellerRead)
-async def create_random_dweller(db_session: AsyncSession = Depends(get_async_session)):
-    return await crud.dweller.create_random(db_session)
+async def create_random_dweller(
+    vault_id: UUID4,
+    dweller_override: DwellerCreateCommonOverride | None = None,
+    db_session: AsyncSession = Depends(get_async_session),
+):
+    return await crud.dweller.create_random(db_session=db_session, obj_in=dweller_override, vault_id=vault_id)
 
 
 @router.get("/read_data/", response_model=list[DwellerCreateWithoutVaultID])

@@ -2,12 +2,11 @@ from datetime import datetime
 from typing import Any
 
 from pydantic import UUID4, Field, model_validator, ConfigDict
-from sqlalchemy import Column
-from sqlmodel import SQLModel, Enum
+from sqlmodel import SQLModel
 
 from app.models.base import SPECIALModel
 from app.models.dweller import DwellerBase
-from app.schemas.common import Gender, Rarity
+from app.schemas.common import Gender, Rarity, SPECIALEnum
 
 LETTER_TO_STAT = {
     "S": "strength",
@@ -59,9 +58,14 @@ class DwellerCreate(DwellerCreateWithoutVaultID):
     vault_id: UUID4
 
 
-class DwellerCreateCommon(SQLModel):
+class DwellerCreateCommonOverride(SQLModel):
+    """Common random dweller overrides."""
+
+    first_name: str | None = Field(default=None, min_length=2, max_length=32)
+    last_name: str | None = Field(default=None, min_length=2, max_length=32)
     rarity: Rarity = Field(default=Rarity.common)
-    gender: Gender | None = Field(default=None, sa_column=Column(Enum(Gender)))
+    gender: Gender | None = Field(default=None)
+    special_boost: SPECIALEnum | None = Field(default=None)
 
 
 class DwellerRead(DwellerBase):
@@ -71,8 +75,8 @@ class DwellerRead(DwellerBase):
 
 
 class DwellerUpdate(SQLModel):
-    first_name: str | None = Field(min_length=3, max_length=32)
-    last_name: str | None = Field(min_length=3, max_length=32)
+    first_name: str | None = Field(min_length=2, max_length=32)
+    last_name: str | None = Field(min_length=2, max_length=32)
     is_adult: bool | None = True
     gender: Gender | None = None
     rarity: Rarity | None = None

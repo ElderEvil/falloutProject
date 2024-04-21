@@ -4,7 +4,7 @@ from pydantic import UUID4
 from sqlmodel import Field, SQLModel, Relationship
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
-from app.schemas.common import RoomType, SPECIALEnum
+from app.schemas.common import RoomType, SPECIAL
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller
@@ -16,7 +16,7 @@ UNIQUE_ROOM_NAMES = {"Vault Door", "Overseer's office"}
 class RoomBase(SQLModel):
     name: str = Field(index=True, min_length=3, max_length=32)
     category: RoomType
-    ability: SPECIALEnum | None
+    ability: SPECIAL | None
     population_required: int | None = Field(ge=12, le=100, default=None)
     base_cost: int = Field(ge=100, le=10_000)
     incremental_cost: int | None = Field(default=None, le=7_500)

@@ -6,7 +6,7 @@ from sqlmodel import SQLModel
 
 from app.models.base import SPECIALModel
 from app.models.dweller import DwellerBase
-from app.schemas.common import Gender, Rarity, SPECIALEnum
+from app.schemas.common import Gender, Rarity, SPECIAL
 
 LETTER_TO_STAT = {
     "S": "strength",
@@ -65,7 +65,7 @@ class DwellerCreateCommonOverride(SQLModel):
     last_name: str | None = Field(default=None, min_length=2, max_length=32)
     rarity: Rarity = Field(default=Rarity.common)
     gender: Gender | None = Field(default=None)
-    special_boost: SPECIALEnum | None = Field(default=None)
+    special_boost: SPECIAL | None = Field(default=None)
 
 
 class DwellerRead(DwellerBase):

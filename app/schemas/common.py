@@ -7,7 +7,7 @@ class Rarity(str, Enum):
     legendary = "Legendary"
 
 
-class SPECIALEnum(str, Enum):
+class SPECIAL(str, Enum):
     strength = "Strength"
     perception = "Perception"
     endurance = "Endurance"

@@ -32,3 +32,6 @@ sqladmin~=0.16.0
 
 # AI
 openai~=1.21.1
+
+# logging
+logfire[fastapi,httpx,openai]==0.29.0

@@ -1,3 +1,4 @@
+import logfire
 from fastapi import FastAPI
 from sqladmin import Admin
 from starlette import status
@@ -23,6 +24,9 @@ app = FastAPI(
     version=settings.API_VERSION,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
 )
+logfire.configure(pydantic_plugin=logfire.PydanticPlugin(record="all"))
+logfire.instrument_fastapi(app)
+
 admin = Admin(app, async_engine)
 
 

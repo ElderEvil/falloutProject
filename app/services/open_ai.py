@@ -1,11 +1,15 @@
-from app.core.config import settings
-from openai import OpenAI
+import logfire
+import openai
 
-client = OpenAI(
+from app.core.config import settings
+
+client = openai.Client(
     api_key=settings.OPENAI_API_KEY,
 )
 
-chat_completion = client.chat.completions.create(
+logfire.instrument_openai(client)
+
+response = client.chat.completions.create(
     messages=[
         {
             "role": "user",
@@ -14,3 +18,4 @@ chat_completion = client.chat.completions.create(
     ],
     model="gpt-3.5-turbo",
 )
+print(response.choices[0].text)

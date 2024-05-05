@@ -39,7 +39,7 @@ async def read_users(
     db_session: AsyncSession = Depends(get_async_session),
     skip: int = 0,
     limit: int = 100,
-    user: CurrentSuperuser,
+    _: CurrentSuperuser,
 ):
     """
     Retrieve users.
@@ -135,7 +135,7 @@ async def update_user(
     db_session: AsyncSession = Depends(get_async_session),
     user_id: UUID4,
     user_in: UserUpdate,
-    user: CurrentSuperuser,
+    _: CurrentSuperuser,
 ):
     """
     Update a user.

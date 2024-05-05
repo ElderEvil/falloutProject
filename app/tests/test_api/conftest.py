@@ -29,7 +29,7 @@ def get_generic_items_data():
 
 
 @pytest.fixture(name="vault_data")
-def vault_data_fixture(user: User):
+def vault_data_fixture():
     return {
         "name": random.randint(1, 1_000),
         "bottle_caps": random.randint(100, 1_000_000),

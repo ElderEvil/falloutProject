@@ -1,4 +1,4 @@
-from typing import Any, Generic, Type, TypeVar
+from typing import Any, Generic, TypeVar
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -33,7 +33,7 @@ class ResourceNotFoundException(HTTPException, Generic[ModelType]):
 
     def __init__(
         self,
-        model: Type[ModelType],
+        model: type[ModelType],
         identifier: str | UUID,
         identifier_type: str = "id",
         headers: dict[str, Any] | None = None,
@@ -53,7 +53,7 @@ class ResourceAlreadyExistsException(HTTPException, Generic[ModelType]):
 
     def __init__(
         self,
-        model: Type[ModelType],
+        model: type[ModelType],
         name: str,
         headers: dict[str, Any] | None = None,
     ) -> None:

@@ -27,7 +27,7 @@ async def read_vault_list(
     skip: int = 0,
     limit: int = 100,
     db_session: AsyncSession = Depends(get_async_session),
-    user: CurrentSuperuser,
+    _: CurrentSuperuser,
 ):
     return await crud.vault.get_multi(db_session, skip=skip, limit=limit)
 
@@ -46,7 +46,7 @@ async def read_vault(
     *,
     vault_id: UUID4,
     db_session: AsyncSession = Depends(get_async_session),
-    user: CurrentSuperuser,
+    _: CurrentSuperuser,
 ):
     return await crud.vault.get(db_session, vault_id)
 

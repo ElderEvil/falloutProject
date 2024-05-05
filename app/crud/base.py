@@ -1,4 +1,5 @@
-from typing import Any, Generic, TypeVar, Sequence
+from typing import Any, Generic, TypeVar
+from collections.abc import Sequence
 
 from pydantic import UUID4
 from sqlalchemy import Row, RowMapping

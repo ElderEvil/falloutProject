@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional
 
 from pydantic import UUID4
-from sqlmodel import Field, Relationship, Column, Enum
+from sqlmodel import Column, Enum, Field, Relationship
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.models.item import ItemBase

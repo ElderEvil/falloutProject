@@ -14,7 +14,7 @@ from app.tests.factory.dwellers import create_fake_dweller
 from app.tests.factory.rooms import create_fake_room
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
-from app.utils.exceptions import ResourceConflictException, InvalidVaultTransferException
+from app.utils.exceptions import InvalidVaultTransferException, ResourceConflictException
 
 
 @pytest.mark.asyncio
@@ -137,9 +137,7 @@ async def test_move_dweller_to_room(async_session: AsyncSession):
     # Test: Attempt to move dweller to the same room they are already in
     with pytest.raises(ResourceConflictException) as exc_info:
         await crud.dweller.move_to_room(async_session, dweller_id=dweller.id, room_id=room_2.id)
-    assert "Dweller is already in the room" in str(
-        exc_info.value
-    ), "Should raise conflict when moving to the same room"
+    assert "Dweller is already in the room" in str(exc_info.value), "Should raise conflict when moving to the same room"
 
     # Test: Try to move dweller to a room in a different vault
     vault_data_2 = create_fake_vault()

@@ -3,7 +3,7 @@ from sqladmin import ModelView
 from app.models.dweller import Dweller
 from app.models.junk import Junk
 from app.models.outfit import Outfit
-from app.models.quest import Quest, QuestStep, QuestChain
+from app.models.quest import Quest, QuestChain, QuestStep
 from app.models.room import Room
 from app.models.user import User
 from app.models.vault import Vault

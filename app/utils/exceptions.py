@@ -156,7 +156,7 @@ class UniqueRoomViolationException(VaultOperationException):
     """
     Exception raised when attempting to create a room that violates the unique room constraint.
 
-    :param room_type: The type of room that is unique.
+    :param room_name: The name of room that is unique.
     :param headers: Optional HTTP headers to be sent in the response.
     """
 

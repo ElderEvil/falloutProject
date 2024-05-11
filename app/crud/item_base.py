@@ -3,11 +3,11 @@ import random
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.crud.base import CRUDBase, ModelType, CreateSchemaType, UpdateSchemaType
+from app.crud.base import CreateSchemaType, CRUDBase, ModelType, UpdateSchemaType
 from app.models.dweller import Dweller
 from app.models.junk import Junk
 from app.schemas.common import JunkType, Rarity
-from app.utils.exceptions import ResourceNotFoundException, ContentNoChangeException
+from app.utils.exceptions import ContentNoChangeException, ResourceNotFoundException
 
 SAME_RARITY_JUNK_PROBABILITY = 0.4
 DIFFERENT_RARITY_JUNK_PROBABILITY = 0.6

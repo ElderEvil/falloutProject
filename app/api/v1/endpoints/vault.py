@@ -6,7 +6,7 @@ from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser
 from app.db.session import get_async_session
 from app.models.vault import Vault
-from app.schemas.vault import VaultCreate, VaultRead, VaultReadWithUser, VaultUpdate, VaultStart
+from app.schemas.vault import VaultCreate, VaultRead, VaultReadWithUser, VaultStart, VaultUpdate
 
 router = APIRouter()
 

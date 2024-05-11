@@ -3,8 +3,8 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
-from app.models.vault import Vault
 from app.models.room import Room
+from app.models.vault import Vault
 from app.schemas.room import RoomCreate
 from app.tests.factory.rooms import create_fake_room
 

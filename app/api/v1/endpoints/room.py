@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import crud
 from app.api.deps import get_static_game_data
 from app.db.session import get_async_session
-from app.schemas.room import RoomCreate, RoomRead, RoomUpdate, RoomCreateWithoutVaultID
+from app.schemas.room import RoomCreate, RoomCreateWithoutVaultID, RoomRead, RoomUpdate
 
 router = APIRouter()
 

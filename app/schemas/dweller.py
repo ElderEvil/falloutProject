@@ -1,12 +1,12 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import UUID4, Field, model_validator, ConfigDict
+from pydantic import UUID4, ConfigDict, Field, model_validator
 from sqlmodel import SQLModel
 
 from app.models.base import SPECIALModel
 from app.models.dweller import DwellerBase
-from app.schemas.common import Gender, Rarity, SPECIAL
+from app.schemas.common import SPECIAL, Gender, Rarity
 
 LETTER_TO_STAT = {
     "S": "strength",

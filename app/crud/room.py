@@ -1,4 +1,4 @@
-from sqlmodel import select, and_
+from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase

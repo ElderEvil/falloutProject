@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
-from pydantic import field_validator, UUID4
+
+from pydantic import UUID4, field_validator
 from sqlmodel import Field, Relationship
 
 from app.models.base import BaseUUIDModel, TimeStampMixin

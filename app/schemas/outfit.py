@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import UUID4, Field, BaseModel
+from pydantic import UUID4, BaseModel, Field
 
 from app.models.outfit import OutfitBase
 from app.schemas.common import Gender, OutfitType

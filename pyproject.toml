@@ -10,6 +10,7 @@ dependencies = [
     "email_validator==2.1.1",
     "faker==25.1.0",
     "fastapi==0.111.0",
+    "logfire[fastapi,sqlalchemy,system-metrics]==0.30.0",
     "openai==1.28.0",
     "passlib[bcrypt]==1.7.4",
     "psycopg2-binary==2.9.9",

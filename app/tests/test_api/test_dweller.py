@@ -67,7 +67,7 @@ async def test_read_dweller_list(
 
 
 @pytest.mark.asyncio
-async def test_read_dweller(async_client: AsyncClient, async_session: AsyncSession, dweller: Dweller) -> None:
+async def test_read_dweller(async_client: AsyncClient, dweller: Dweller) -> None:
     response = await async_client.get(f"/dwellers/{dweller.id}")
     assert response.status_code == 200
     response_data = response.json()

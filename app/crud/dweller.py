@@ -1,12 +1,12 @@
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.crud.room import room
 from app.crud.base import CRUDBase
+from app.crud.room import room
 from app.models.dweller import Dweller
-from app.schemas.dweller import DwellerCreate, DwellerUpdate, DwellerCreateCommonOverride
+from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride, DwellerUpdate
 from app.tests.factory.dwellers import create_random_common_dweller
-from app.utils.exceptions import ResourceConflictException, ContentNoChangeException
+from app.utils.exceptions import ContentNoChangeException, ResourceConflictException
 from app.utils.validation import validate_vault_transfer
 
 BOOSTED_STAT_VALUE = 5

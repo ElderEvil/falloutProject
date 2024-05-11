@@ -1,10 +1,10 @@
 from typing import TYPE_CHECKING
 
 from pydantic import UUID4
-from sqlmodel import Field, SQLModel, Relationship
+from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
-from app.schemas.common import RoomType, SPECIAL
+from app.schemas.common import SPECIAL, RoomType
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller

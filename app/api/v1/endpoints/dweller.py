@@ -6,11 +6,11 @@ from app import crud
 from app.api.deps import get_static_game_data
 from app.db.session import get_async_session
 from app.schemas.dweller import (
+    DwellerCreate,
+    DwellerCreateCommonOverride,
+    DwellerCreateWithoutVaultID,
     DwellerRead,
     DwellerUpdate,
-    DwellerCreate,
-    DwellerCreateWithoutVaultID,
-    DwellerCreateCommonOverride,
 )
 
 router = APIRouter()

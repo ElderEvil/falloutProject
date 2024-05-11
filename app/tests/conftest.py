@@ -22,7 +22,7 @@ from main import app
 
 
 @pytest.fixture(scope="session")
-def event_loop(request) -> Generator:
+def event_loop(request) -> Generator:  # noqa: ARG001
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
@@ -73,7 +73,7 @@ async def _superuser(async_session: AsyncSession):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def async_client(async_session: AsyncSession, superuser: None) -> Generator[AsyncClient]:
+async def async_client(async_session: AsyncSession, superuser: None) -> Generator[AsyncClient]:  # noqa: ARG001
     app.dependency_overrides[get_async_session] = lambda: async_session
 
     async with AsyncClient(

@@ -1,16 +1,16 @@
-from pydantic import UUID4
-from sqlmodel import Field, SQLModel, Relationship
 from typing import TYPE_CHECKING
 
-from app.models.base import SPECIALModel, BaseUUIDModel, TimeStampMixin
+from pydantic import UUID4
+from sqlmodel import Field, Relationship, SQLModel
 
+from app.models.base import BaseUUIDModel, SPECIALModel, TimeStampMixin
 from app.schemas.common import Gender, Rarity
 
 if TYPE_CHECKING:
-    from app.models.vault import Vault
-    from app.models.room import Room
-    from app.models.weapon import Weapon
     from app.models.outfit import Outfit
+    from app.models.room import Room
+    from app.models.vault import Vault
+    from app.models.weapon import Weapon
 
 
 class DwellerBaseWithoutStats(SQLModel):

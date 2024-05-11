@@ -1,4 +1,5 @@
-from typing import Any, Generic, TypeVar, Sequence
+from collections.abc import Sequence
+from typing import Any, Generic, TypeVar
 
 from pydantic import UUID4
 from sqlalchemy import Row, RowMapping
@@ -6,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import SQLModel, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.utils.exceptions import ResourceNotFoundException, ResourceAlreadyExistsException
+from app.utils.exceptions import ResourceAlreadyExistsException, ResourceNotFoundException
 
 ModelType = TypeVar("ModelType", bound=SQLModel)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=SQLModel)

@@ -3,7 +3,7 @@ import random
 from faker import Faker
 
 from app.schemas.common import Gender, Rarity
-from app.tests.utils.utils import get_stats_by_rarity, get_gender_based_name
+from app.tests.utils.utils import get_gender_based_name, get_stats_by_rarity
 
 fake = Faker()
 

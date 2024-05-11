@@ -10,7 +10,7 @@ from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.user import User
 from app.models.vault import Vault
-from app.schemas.common import Gender, JunkType, OutfitType, Rarity, RoomType, WeaponSubtype, WeaponType, SPECIAL
+from app.schemas.common import SPECIAL, Gender, JunkType, OutfitType, Rarity, RoomType, WeaponSubtype, WeaponType
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
@@ -29,7 +29,7 @@ def get_generic_items_data():
 
 
 @pytest.fixture(name="vault_data")
-def vault_data_fixture(user: User):
+def vault_data_fixture():
     return {
         "name": random.randint(1, 1_000),
         "bottle_caps": random.randint(100, 1_000_000),

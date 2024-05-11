@@ -3,10 +3,10 @@ from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.api.deps import get_static_game_data
 from app.db.session import get_async_session
 from app.schemas.junk import JunkRead
 from app.schemas.outfit import OutfitCreate, OutfitRead, OutfitUpdate
-from app.api.deps import get_static_game_data
 
 router = APIRouter()
 

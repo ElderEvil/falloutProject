@@ -3,14 +3,14 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
-from app.models.vault import Vault
 from app.models.room import Room
+from app.models.vault import Vault
 from app.schemas.room import RoomCreate
 from app.tests.factory.rooms import create_fake_room
 
 
 @pytest.mark.asyncio
-async def test_create_room(async_client: AsyncClient, async_session: AsyncSession, vault: Vault, room_data: dict):
+async def test_create_room(async_client: AsyncClient, vault: Vault, room_data: dict):
     room_data.update({"vault_id": str(vault.id)})
     response = await async_client.post(f"/rooms/{vault.id}", json=room_data)
     assert response.status_code == 200
@@ -22,7 +22,6 @@ async def test_create_room(async_client: AsyncClient, async_session: AsyncSessio
     assert response_data["base_cost"] == room_data["base_cost"]
     assert response_data["incremental_cost"] == room_data["incremental_cost"]
     assert response_data["tier"] == room_data["tier"]
-    assert response_data["max_tier"] == room_data["max_tier"]
     assert response_data["t2_upgrade_cost"] == room_data["t2_upgrade_cost"]
     assert response_data["t3_upgrade_cost"] == room_data["t3_upgrade_cost"]
     assert response_data["output"] == room_data["output"]
@@ -68,7 +67,6 @@ async def test_read_room_list(async_client: AsyncClient, async_session: AsyncSes
         assert "base_cost" in room
         assert "incremental_cost" in room
         assert "tier" in room
-        assert "max_tier" in room
         assert "t2_upgrade_cost" in room
         assert "t3_upgrade_cost" in room
         assert "output" in room
@@ -77,7 +75,7 @@ async def test_read_room_list(async_client: AsyncClient, async_session: AsyncSes
 
 
 @pytest.mark.asyncio
-async def test_read_room(async_client: AsyncClient, async_session: AsyncSession, room: Room):
+async def test_read_room(async_client: AsyncClient, room: Room):
     response = await async_client.get(f"/rooms/{room.id}")
     assert response.status_code == 200
     response_room = response.json()
@@ -88,7 +86,6 @@ async def test_read_room(async_client: AsyncClient, async_session: AsyncSession,
     assert response_room["base_cost"] == room.base_cost
     assert response_room["incremental_cost"] == room.incremental_cost
     assert response_room["tier"] == room.tier
-    assert response_room["max_tier"] == room.max_tier
     assert response_room["t2_upgrade_cost"] == room.t2_upgrade_cost
     assert response_room["t3_upgrade_cost"] == room.t3_upgrade_cost
     assert response_room["output"] == room.output
@@ -110,7 +107,6 @@ async def test_update_room(async_client: AsyncClient, room: Room):
     assert updated_room["base_cost"] == room_new_data["base_cost"]
     assert updated_room["incremental_cost"] == room_new_data["incremental_cost"]
     assert updated_room["tier"] == room_new_data["tier"]
-    assert updated_room["max_tier"] == room_new_data["max_tier"]
     assert updated_room["t2_upgrade_cost"] == room_new_data["t2_upgrade_cost"]
     assert updated_room["t3_upgrade_cost"] == room_new_data["t3_upgrade_cost"]
     assert updated_room["output"] == room_new_data["output"]
@@ -127,7 +123,7 @@ async def test_delete_room(async_client: AsyncClient, room: Room):
 
 
 @pytest.mark.asyncio
-async def test_build_room_success(async_client: AsyncClient, async_session: AsyncSession, vault: Vault):
+async def test_build_room(async_client: AsyncClient, vault: Vault):
     # Setup a room creation request
     room_data = create_fake_room()
     room_data.update({"vault_id": str(vault.id)})

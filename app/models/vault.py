@@ -6,9 +6,9 @@ from sqlmodel import Field, Relationship, SQLModel
 from app.models.base import BaseUUIDModel, TimeStampMixin
 
 if TYPE_CHECKING:
-    from app.models.user import User
     from app.models.dweller import Dweller
     from app.models.room import Room
+    from app.models.user import User
 
 
 class VaultBase(SQLModel):

@@ -1,4 +1,4 @@
-from typing import Sequence
+from collections.abc import Sequence
 
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,11 +9,6 @@ from app.models.vault import Vault
 from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultUpdate
 from app.utils.exceptions import InsufficientResourcesException
-
-
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
@@ -34,7 +29,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         for room_in in rooms_in:
             await room.create_with_vault_id(db_session, room_in, vault_id)
 
-    def is_space_available(self, *, db_session, vault_obj: Vault):
+    def is_space_available(self, *, db_session, vault_obj: Vault):  # noqa: ARG002
         """
         Placeholder function to check if there is enough space in the vault to place the room.
         Implement based on your coordinate system and room size logic.

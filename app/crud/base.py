@@ -98,6 +98,24 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         await db_session.refresh(db_obj)
         return db_obj
 
+    async def create_all(self, db_session: AsyncSession, objs_in: Sequence[CreateSchemaType]) -> Sequence[ModelType]:
+        """
+        Creates a list of new items of the specified model type in the database.
+
+        :param db_session: A database session.
+        :param objs_in: A list of items to create.
+        :returns: The created objects, with any auto-generated fields populated by the database.
+        :raises NameExistException: If any item already exists.
+        """
+        db_objs = [self.model.from_orm(obj_in) for obj_in in objs_in]
+        try:
+            db_session.add_all(db_objs)
+            await db_session.commit()
+        except IntegrityError as e:
+            await db_session.rollback()
+            raise ResourceAlreadyExistsException(self.model, objs_in[0].name, headers={"detail": str(e)}) from e
+        return db_objs
+
     async def update(
         self,
         db_session: AsyncSession,

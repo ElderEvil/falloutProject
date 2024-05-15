@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 
 from pydantic import UUID4
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -12,9 +13,13 @@ from app.utils.exceptions import InsufficientResourcesException
 
 
 class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
-    async def get_by_user_id(self, db_session: AsyncSession, *, user_id: int) -> Sequence[Vault]:
+    async def get_by_user_id(self, *, db_session: AsyncSession, user_id: int) -> Sequence[Vault]:
         response = await db_session.execute(select(self.model).where(self.model.user_id == user_id))
         return response.scalars().all()
+
+    async def get_population(self, *, db_session: AsyncSession, vault_id: UUID4) -> int:
+        count = await db_session.execute(select(func.count(Vault.dwellers)).where(Vault.id == vault_id))
+        return count.scalar()
 
     async def create_with_user_id(self, db_session: AsyncSession, obj_in: VaultCreate, user_id: UUID4) -> Vault:
         obj_data = obj_in.model_dump()
@@ -22,22 +27,14 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         obj_in = VaultCreateWithUserID(**obj_data)
         return await super().create(db_session, obj_in)
 
-    @staticmethod
-    async def _create_rooms(db_session: AsyncSession, rooms_in: Sequence[RoomCreate], vault_id: UUID4) -> None:
-        from app.crud.room import room
-
-        for room_in in rooms_in:
-            await room.create_with_vault_id(db_session, room_in, vault_id)
-
-    def is_space_available(self, *, db_session, vault_obj: Vault):  # noqa: ARG002
+    async def is_enough_dwellers(self, *, db_session: AsyncSession, vault_id: UUID4, population_required: int) -> bool:
         """
-        Placeholder function to check if there is enough space in the vault to place the room.
-        Implement based on your coordinate system and room size logic.
+        Check if the vault has enough dwellers to perform an operation.
         """
-        # Example logic could include checking coordinates against vault dimensions and existing room placements
-        return True
+        dwellers_count = await self.get_population(db_session=db_session, vault_id=vault_id)
+        return dwellers_count >= population_required
 
-    async def withdraw_caps(self, *, db_session, vault_obj: Vault, amount: int):
+    async def withdraw_caps(self, *, db_session: AsyncSession, vault_obj: Vault, amount: int):
         """Withdraw the specified amount from the vault's bottle caps as part of a spending operation."""
         if vault_obj.bottle_caps < amount:
             amount_needed = amount - vault_obj.bottle_caps
@@ -76,9 +73,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         initial_rooms = [vault_door, *elevators]
 
         # Create all initial rooms in a single transaction
-        async with db_session.begin():
-            for room_in in initial_rooms:
-                await room_crud.create(db_session, room_in)
+        await room_crud.create_all(db_session, initial_rooms)
 
         return vault_db_obj
 

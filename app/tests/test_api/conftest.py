@@ -55,7 +55,6 @@ def room_data_fixture():
         "size_min": random.randint(3, 6),
         "size_max": random.randint(6, 9),
         "tier": 1,
-        "max_tier": random.randint(1, 3),
     }
 
 

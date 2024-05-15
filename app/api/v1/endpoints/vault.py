@@ -38,7 +38,7 @@ async def read_my_vaults(
     db_session: AsyncSession = Depends(get_async_session),
     user: CurrentActiveUser,
 ):
-    return await crud.vault.get_by_user_id(db_session, user_id=user.id)
+    return await crud.vault.get_by_user_id(db_session=db_session, user_id=user.id)
 
 
 @router.get("/{vault_id}", response_model=VaultReadWithUser)

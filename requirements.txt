@@ -114,9 +114,8 @@ opentelemetry-api==1.24.0
     #   opentelemetry-exporter-otlp-proto-http
     #   opentelemetry-instrumentation
     #   opentelemetry-instrumentation-asgi
-    #   opentelemetry-instrumentation-asyncpg
     #   opentelemetry-instrumentation-fastapi
-    #   opentelemetry-instrumentation-httpx
+    #   opentelemetry-instrumentation-sqlalchemy
     #   opentelemetry-instrumentation-system-metrics
     #   opentelemetry-sdk
 opentelemetry-exporter-otlp-proto-common==1.24.0
@@ -127,17 +126,14 @@ opentelemetry-instrumentation==0.45b0
     # via
     #   logfire
     #   opentelemetry-instrumentation-asgi
-    #   opentelemetry-instrumentation-asyncpg
     #   opentelemetry-instrumentation-fastapi
-    #   opentelemetry-instrumentation-httpx
+    #   opentelemetry-instrumentation-sqlalchemy
     #   opentelemetry-instrumentation-system-metrics
 opentelemetry-instrumentation-asgi==0.45b0
     # via opentelemetry-instrumentation-fastapi
-opentelemetry-instrumentation-asyncpg==0.45b0
-    # via logfire
 opentelemetry-instrumentation-fastapi==0.45b0
     # via logfire
-opentelemetry-instrumentation-httpx==0.45b0
+opentelemetry-instrumentation-sqlalchemy==0.45b0
     # via logfire
 opentelemetry-instrumentation-system-metrics==0.45b0
     # via logfire
@@ -153,17 +149,17 @@ opentelemetry-sdk==1.24.0
 opentelemetry-semantic-conventions==0.45b0
     # via
     #   opentelemetry-instrumentation-asgi
-    #   opentelemetry-instrumentation-asyncpg
     #   opentelemetry-instrumentation-fastapi
-    #   opentelemetry-instrumentation-httpx
+    #   opentelemetry-instrumentation-sqlalchemy
     #   opentelemetry-sdk
 opentelemetry-util-http==0.45b0
     # via
     #   opentelemetry-instrumentation-asgi
     #   opentelemetry-instrumentation-fastapi
-    #   opentelemetry-instrumentation-httpx
 orjson==3.10.3
     # via fastapi
+packaging==24.0
+    # via opentelemetry-instrumentation-sqlalchemy
 passlib==1.7.4
 prompt-toolkit==3.0.43
     # via click-repl
@@ -280,6 +276,7 @@ wrapt==1.16.0
     # via
     #   deprecated
     #   opentelemetry-instrumentation
+    #   opentelemetry-instrumentation-sqlalchemy
 wtforms==3.1.2
     # via sqladmin
 zipp==3.18.1

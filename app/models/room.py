@@ -26,6 +26,7 @@ class RoomBase(SQLModel):
     output: str | None = Field(default=None)
     size_min: int = Field(ge=1, le=9)
     size_max: int = Field(ge=1, le=9)
+    size: int | None = Field(default=None, ge=1, le=9)
     tier: int = Field(default=1, ge=1, le=3)
     coordinate_x: int | None = Field(default=None, ge=0, le=8)
     coordinate_y: int | None = Field(default=None, ge=0, le=25)

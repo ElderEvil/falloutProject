@@ -43,11 +43,13 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
         # Calculate the new vault capacity for capacity rooms
         elif room_obj.category == RoomType.capacity:
-            match room_obj.name:
-                case "Living Quarters":
-                    await update_vault(VaultUpdate(dwellers_capacity=vault_obj.dwellers_capacity + room_obj.capacity))
-                case "Storage Room":
-                    await update_vault(VaultUpdate(storage_capacity=vault_obj.storage_capacity + room_obj.capacity))
+            match room_obj.name.lower():
+                case "living room":
+                    population_max = (vault_obj.population_max or 0) + room_obj.capacity
+                    await update_vault(VaultUpdate(population_max=population_max))
+                case "storage room":
+                    new_storage_space_max = (vault_obj.storage_space_max or 0) + room_obj.capacity
+                    await update_vault(VaultUpdate(storage_space_max=new_storage_space_max))
                 case _:
                     error_msg = f"Invalid room name: {room_obj.name}"
                     raise ValueError(error_msg)
@@ -77,9 +79,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         return dwellers_count >= population_required
 
     @staticmethod
-    async def is_enough_population_space(
-        *, db_session: AsyncSession, vault_id: UUID4, space_required: int | None
-    ) -> bool:
+    async def is_enough_population_space(*, db_session: AsyncSession, vault_id: UUID4, space_required: int) -> bool:
         """
         Check if the vault has enough space to perform an operation.
         """
@@ -95,6 +95,8 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             error_msg = f"Vault with ID {vault_id} not found"
             raise ValueError(error_msg)
         population_max, current_population = vault_obj
+        if population_max is None:
+            return False
         return current_population + space_required <= population_max
 
     async def withdraw_caps(self, *, db_session: AsyncSession, vault_obj: Vault, amount: int):

@@ -1,6 +1,6 @@
 from pydantic import UUID4
 
-from app.utils.exceptions import AccessDeniedException, InvalidVaultTransferException
+from app.utils.exceptions import AccessDeniedException, InvalidVaultTransferException, ResourceConflictException
 
 
 def validate_user_permission(user_id: UUID4, resource_owner_id: UUID4):
@@ -11,3 +11,8 @@ def validate_user_permission(user_id: UUID4, resource_owner_id: UUID4):
 def validate_vault_transfer(source_vault_id: UUID4, target_vault_id: UUID4):
     if source_vault_id != target_vault_id:
         raise InvalidVaultTransferException
+
+
+def validate_room_transfer(source_room_id: UUID4, target_room_id: UUID4):
+    if source_room_id == target_room_id:
+        raise ResourceConflictException(detail="Dweller is already in the room")

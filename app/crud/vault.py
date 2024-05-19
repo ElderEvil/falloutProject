@@ -77,9 +77,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         return dwellers_count >= population_required
 
     @staticmethod
-    async def is_enough_population_space(
-        *, db_session: AsyncSession, vault_id: UUID4, space_required: int | None
-    ) -> bool:
+    async def is_enough_population_space(*, db_session: AsyncSession, vault_id: UUID4, space_required: int) -> bool:
         """
         Check if the vault has enough space to perform an operation.
         """
@@ -95,6 +93,8 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             error_msg = f"Vault with ID {vault_id} not found"
             raise ValueError(error_msg)
         population_max, current_population = vault_obj
+        if population_max is None:
+            return False
         return current_population + space_required <= population_max
 
     async def withdraw_caps(self, *, db_session: AsyncSession, vault_obj: Vault, amount: int):

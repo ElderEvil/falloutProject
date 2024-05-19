@@ -1,8 +1,7 @@
 from pydantic import UUID4
-from sqlmodel import SQLModel
 
 from app.models.item import ItemBase
-from app.schemas.common import Rarity
+from app.utils.partial import optional
 
 
 class ItemCreate(ItemBase):
@@ -13,7 +12,6 @@ class ItemRead(ItemBase):
     id: UUID4
 
 
-class ItemUpdate(SQLModel):
-    name: str | None = None
-    rarity: Rarity | None = None
-    value: int | None = None
+@optional()
+class ItemUpdate(ItemBase):
+    pass

@@ -4,6 +4,7 @@ from pydantic import UUID4
 
 from app.models.junk import JunkBase
 from app.schemas.item import ItemUpdate
+from app.utils.partial import optional
 
 
 class JunkCreate(JunkBase):
@@ -16,6 +17,6 @@ class JunkRead(JunkBase):
     updated_at: datetime
 
 
-class JunkUpdate(ItemUpdate):
-    junk_type: str | None = None
-    description: str | None = None
+@optional()
+class JunkUpdate(ItemUpdate, JunkBase):
+    pass

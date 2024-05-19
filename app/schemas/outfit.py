@@ -3,8 +3,8 @@ from datetime import datetime
 from pydantic import UUID4, BaseModel, Field
 
 from app.models.outfit import OutfitBase
-from app.schemas.common import Gender, OutfitType
 from app.schemas.item import ItemUpdate
+from app.utils.partial import optional
 
 
 class SPECIALOutfitCreate(BaseModel):
@@ -27,6 +27,6 @@ class OutfitRead(OutfitBase):
     updated_at: datetime
 
 
-class OutfitUpdate(ItemUpdate):
-    outfit_type: OutfitType | None = None
-    gender: Gender | None = None
+@optional()
+class OutfitUpdate(ItemUpdate, OutfitBase):
+    dweller_id: UUID4 | None = None

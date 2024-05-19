@@ -1,17 +1,16 @@
 from datetime import datetime
 
 from pydantic import UUID4
-from sqlmodel import Field, SQLModel
 
 from app.models.room import RoomBase
-from app.schemas.common import RoomType
+from app.utils.partial import optional
 
 
 class RoomCreateWithoutVaultID(RoomBase):
-    pass
+    capacity_formula: str | None = None
 
 
-class RoomCreate(RoomBase):
+class RoomCreate(RoomCreateWithoutVaultID):
     vault_id: UUID4
 
 
@@ -21,21 +20,6 @@ class RoomRead(RoomBase):
     updated_at: datetime
 
 
-class RoomUpdate(SQLModel):
-    name: str | None = Field(index=True, min_length=3, max_length=32)
-    category: RoomType | None
-    ability: str | None = None
-    population_required: int | None = Field(ge=12, le=100, default=None)
-    base_cost: int | None = Field(ge=100, le=10_000, default=None)
-    incremental_cost: int | None = Field(ge=25, le=7_500, default=None)
-    t2_upgrade_cost: int | None = Field(ge=500, le=50_000)
-    t3_upgrade_cost: int | None = Field(ge=1_500, le=150_000)
-    output: int | None
-    size_min: int | None = Field(ge=1, le=9)
-    size_max: int | None = Field(ge=1, le=9)
-
-    tier: int | None = Field(ge=1, le=3, default=None)
-    max_tier: int | None = Field(ge=1, le=3)
-
-    coordinate_x: int | None = Field(default=None, ge=0, le=8)
-    coordinate_y: int | None = Field(default=None, ge=0, le=25)
+@optional()
+class RoomUpdate(RoomBase):
+    pass

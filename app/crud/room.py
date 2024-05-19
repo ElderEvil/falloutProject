@@ -1,15 +1,29 @@
+import logging
+
 from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
 from app.crud.vault import vault as vault_crud
 from app.models.room import Room
+from app.schemas.common import RoomType
 from app.schemas.room import RoomCreate, RoomUpdate
 from app.utils.exceptions import InsufficientResourcesException, NoSpaceAvailableException, UniqueRoomViolationException
 
+logger = logging.getLogger(__name__)
+
 
 class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
-    async def get_room_by_coordinates(self, *, db_session: AsyncSession, vault_id: int, x_coord: int, y_coord: int):
+    @staticmethod
+    def evaluate_capacity_formula(formula: str, level: int, size: int) -> int:
+        try:
+            return eval(formula, {"L": level, "S": size})  # noqa: S307
+        except (ValueError, SyntaxError) as e:
+            logger.exception("Error evaluating capacity formula.", exc_info=e)
+            return 0
+
+    @staticmethod
+    async def get_room_by_coordinates(*, db_session: AsyncSession, vault_id: int, x_coord: int, y_coord: int):
         """Retrieve a room by its coordinates in a vault."""
         response = await db_session.execute(
             select(Room).where(
@@ -18,7 +32,8 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         )
         return response.scalars().first()
 
-    async def get_room_build_price(self, *, db_session: AsyncSession, room_in: RoomCreate) -> int:
+    @staticmethod
+    async def get_room_build_price(*, db_session: AsyncSession, room_in: RoomCreate) -> int:
         """
         Calculate the price of building a room in a vault.
         It considers the base cost of the room type and applies an incremental cost
@@ -42,6 +57,15 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             if existing_unique_room.scalars().first():
                 raise UniqueRoomViolationException(room_name=obj_in.name)
 
+    @staticmethod
+    async def requires_recalculation(room_obj: RoomCreate) -> bool:
+        """Check if the room category needs to be recalculated."""
+        if room_obj.category == RoomType.production and room_obj.name != "Radio studio":
+            return True
+        if room_obj.category == RoomType.capacity:
+            return True
+        return False
+
     async def build(self, *, db_session: AsyncSession, obj_in: RoomCreate) -> Room:
         """Implements the steps to build a room checking for business logic constraints."""
         price = await self.get_room_build_price(db_session=db_session, room_in=obj_in)
@@ -58,10 +82,16 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         if existing_room:
             raise NoSpaceAvailableException(space_needed=obj_in.size_min)
 
+        if obj_in.capacity_formula:
+            obj_in.capacity = self.evaluate_capacity_formula(obj_in.capacity_formula, obj_in.level, obj_in.size_min)
+
         await self.check_is_unique_room(db_session=db_session, obj_in=obj_in)
         await vault_crud.withdraw_caps(db_session=db_session, vault_obj=vault, amount=price)
 
-        return await self.create(db_session, obj_in=obj_in)
+        obj_in_db = await self.create(db_session, obj_in=obj_in)
+
+        if self.requires_recalculation(obj_in):
+            await vault_crud.recalculate_vault_attributes(db_session, vault, obj_in_db)
 
 
 room = CRUDRoom(Room)

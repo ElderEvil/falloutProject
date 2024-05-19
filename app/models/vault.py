@@ -23,6 +23,7 @@ class VaultBase(SQLModel):
     water: int = Field(1, ge=0, le=10_000)
     water_max: int = Field(0, ge=0, le=10_000)
 
+    population_max: int = Field(0, ge=0, le=200, nullable=True)
     storage_space_max: int = Field(0, ge=0, le=10_000, nullable=True)
 
     def __str__(self):

@@ -1,10 +1,10 @@
 from datetime import datetime
 
-from pydantic import UUID4, EmailStr
-from sqlmodel import Field, SQLModel
+from pydantic import UUID4
 
 from app.models.user import UserBase
 from app.schemas.vault import VaultRead  # noqa: TCH001
+from app.utils.partial import optional
 
 
 class UserCreate(UserBase):
@@ -24,9 +24,6 @@ class UserReadWithVaults(UserRead):
 UserReadWithVaults.update_forward_refs()
 
 
-class UserUpdate(SQLModel):
-    username: str | None = Field(index=True, min_length=3, max_length=32, default=None)
-    email: EmailStr | None = None
+@optional()
+class UserUpdate(UserBase):
     password: str | None
-    is_active: bool | None = None
-    is_superuser: bool | None = None

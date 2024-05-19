@@ -16,6 +16,6 @@ response = client.chat.completions.create(
             "content": "Say this is a test",
         }
     ],
-    model="gpt-3.5-turbo",
+    model="gpt-3.5",
 )
 print(response.choices[0].text)

@@ -22,12 +22,12 @@ class DwellerBaseWithoutStats(SQLModel):
     rarity: Rarity = Field()
 
     # Stats
-    level: int = Field(ge=1, le=50, default=1)
-    experience: int = Field(ge=0, default=0)
-    max_health: int = Field(ge=50, le=1_000, default=50)
-    health: int = Field(ge=0, le=1_000, default=50)
-    radiation: int = Field(ge=0, le=1_000, default=0)
-    happiness: int = Field(ge=10, le=100, default=50)
+    level: int = Field(default=1, ge=1, le=50)
+    experience: int = Field(default=0, ge=0)
+    max_health: int = Field(default=50, ge=50, le=1_000)
+    health: int = Field(default=50, ge=0, le=1_000)
+    radiation: int = Field(default=0, ge=0, le=1_000)
+    happiness: int = Field(default=50, ge=10, le=100)
 
     # Inventory
     stimpack: int = Field(default=0, ge=0, le=15)

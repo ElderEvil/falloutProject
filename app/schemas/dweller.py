@@ -7,6 +7,7 @@ from sqlmodel import SQLModel
 from app.models.base import SPECIALModel
 from app.models.dweller import DwellerBase
 from app.schemas.common import SPECIAL, Gender, Rarity
+from app.utils.partial import optional
 
 LETTER_TO_STAT = {
     "S": "strength",
@@ -74,17 +75,14 @@ class DwellerRead(DwellerBase):
     updated_at: datetime
 
 
-class DwellerUpdate(SQLModel):
-    first_name: str | None = Field(min_length=2, max_length=32)
-    last_name: str | None = Field(min_length=2, max_length=32)
-    is_adult: bool | None = True
-    gender: Gender | None = None
-    rarity: Rarity | None = None
-    level: int | None = Field(ge=1, le=50, default=1)
-    experience: int | None = Field(ge=0, default=0)
-    max_health: int | None = Field(ge=50, le=1_000, default=50)
-    health: int | None = Field(ge=0, le=1_000, default=50)
-    radiation: int | None = Field(ge=0, le=1_000, default=0)
-    happiness: int | None = Field(ge=10, le=100, default=50)
-    stimpack: int | None = Field(default=0, ge=0, le=15)
-    radaway: int | None = Field(default=0, ge=0, le=15)
+class DwellerReadWithVault(DwellerRead):
+    vault_id: UUID4
+
+
+class DwellerReadWithRoom(DwellerRead):
+    room_id: UUID4
+
+
+@optional()
+class DwellerUpdate(DwellerBase):
+    room_id: UUID4 | None = None

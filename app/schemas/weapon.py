@@ -3,8 +3,7 @@ from datetime import datetime
 from pydantic import UUID4
 
 from app.models.weapon import WeaponBase
-from app.schemas.common import WeaponSubtype, WeaponType
-from app.schemas.item import ItemUpdate
+from app.utils.partial import optional
 
 
 class WeaponCreate(WeaponBase):
@@ -17,9 +16,6 @@ class WeaponRead(WeaponBase):
     updated_at: datetime
 
 
-class WeaponUpdate(ItemUpdate):
-    weapon_type: WeaponType | None = None
-    weapon_subtype: WeaponSubtype | None = None
-    stat: str | None = None
-    damage_min: int | None = None
-    damage_max: int | None = None
+@optional()
+class WeaponUpdate(WeaponBase):
+    dweller_id: UUID4 | None = None

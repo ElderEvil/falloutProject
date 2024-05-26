@@ -8,6 +8,7 @@ from app.models.base import BaseUUIDModel, TimeStampMixin
 if TYPE_CHECKING:
     from app.models.dweller import Dweller
     from app.models.room import Room
+    from app.models.storage import Storage
     from app.models.user import User
 
 
@@ -24,7 +25,6 @@ class VaultBase(SQLModel):
     water_max: int = Field(0, ge=0, le=10_000)
 
     population_max: int = Field(0, ge=0, le=200, nullable=True)
-    storage_space_max: int = Field(0, ge=0, le=10_000, nullable=True)
 
     def __str__(self):
         return f"Vault {self.name:03}"
@@ -36,3 +36,5 @@ class Vault(BaseUUIDModel, VaultBase, TimeStampMixin, table=True):
 
     dwellers: list["Dweller"] = Relationship(back_populates="vault")
     rooms: list["Room"] = Relationship(back_populates="vault")
+
+    storage: "Storage" = Relationship(back_populates="vault")

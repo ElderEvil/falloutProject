@@ -18,7 +18,6 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
     @staticmethod
     def evaluate_capacity_formula(formula: str, level: int, size: int, numexpr=None) -> int:
         try:
-            # Using numexpr for safe evaluation
             result = numexpr.evaluate(formula, {"L": level, "S": size})
             return int(result)
         except (ValueError, SyntaxError, numexpr.NumExprError) as e:

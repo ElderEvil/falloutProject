@@ -1,5 +1,6 @@
 from sqladmin import ModelView
 
+from app.models import Storage
 from app.models.dweller import Dweller
 from app.models.junk import Junk
 from app.models.outfit import Outfit
@@ -35,6 +36,17 @@ class VaultAdmin(ModelView, model=Vault):
     ]
 
     icon = "fa-solid fa-house-lock"
+
+
+class StorageAdmin(ModelView, model=Storage):
+    column_list = [
+        Storage.id,
+        Storage.vault,
+        Storage.used_space,
+        Storage.max_space,
+    ]
+
+    icon = "fa-solid fa-box"
 
 
 class DwellerAdmin(ModelView, model=Dweller):
@@ -116,8 +128,8 @@ class RoomAdmin(ModelView, model=Room):
         Room.name,
         Room.category,
         Room.ability,
-        Room.population_required,
         Room.tier,
+        Room.size,
         Room.vault,
     ]
 

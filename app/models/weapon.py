@@ -10,6 +10,7 @@ from app.schemas.common import WeaponSubtype, WeaponType
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller
+    from app.models.storage import Storage
 
 
 class WeaponBase(ItemBase):
@@ -54,3 +55,5 @@ class WeaponBase(ItemBase):
 class Weapon(BaseUUIDModel, WeaponBase, TimeStampMixin, table=True):
     dweller_id: UUID4 = Field(default=None, nullable=True, foreign_key="dweller.id")
     dweller: "Dweller" = Relationship(back_populates="weapon")
+    storage_id: UUID4 = Field(default=None, nullable=True, foreign_key="storage.id")
+    storage: "Storage" = Relationship(back_populates="weapons")

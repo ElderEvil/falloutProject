@@ -3,6 +3,7 @@ from .junk import Junk
 from .outfit import Outfit
 from .quest import Quest
 from .room import Room
+from .storage import Storage
 from .user import User
 from .vault import Vault
 from .weapon import Weapon

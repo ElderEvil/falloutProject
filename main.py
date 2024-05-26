@@ -11,6 +11,7 @@ from app.admin.views import (
     QuestChainAdmin,
     QuestStepAdmin,
     RoomAdmin,
+    StorageAdmin,
     UserAdmin,
     VaultAdmin,
     WeaponAdmin,
@@ -38,6 +39,7 @@ def perform_healthcheck():
 app.include_router(api_router_v1, prefix=settings.API_V1_STR)
 admin.add_view(UserAdmin)
 admin.add_view(VaultAdmin)
+admin.add_view(StorageAdmin)
 admin.add_view(RoomAdmin)
 admin.add_view(DwellerAdmin)
 admin.add_view(OutfitAdmin)

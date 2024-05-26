@@ -9,6 +9,7 @@ from app.schemas.common import Gender, OutfitType
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller
+    from app.models.storage import Storage
 
 
 class OutfitBase(ItemBase):
@@ -22,3 +23,5 @@ class OutfitBase(ItemBase):
 class Outfit(BaseUUIDModel, OutfitBase, TimeStampMixin, table=True):
     dweller_id: UUID4 = Field(default=None, nullable=True, foreign_key="dweller.id")
     dweller: Optional["Dweller"] = Relationship(back_populates="outfit")
+    storage_id: UUID4 = Field(default=None, nullable=True, foreign_key="storage.id")
+    storage: "Storage" = Relationship(back_populates="outfits")

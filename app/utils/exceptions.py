@@ -89,6 +89,23 @@ class ContentNoChangeException(HTTPException):
         super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail=detail, headers=headers)
 
 
+class InvalidItemAssignmentException(HTTPException, Generic[ModelType]):
+    """
+    Exception raised when attempting to assign an item to both a storage and a dweller.
+
+    :param model: The model class of the item.
+    :param headers: Optional HTTP headers to be sent in the response.
+    """
+
+    def __init__(
+        self,
+        model: type[ModelType],
+        headers: dict[str, Any] | None = None,
+    ) -> None:
+        detail = f"The {model.__name__} cannot be assigned to both a storage and a dweller."
+        super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail=detail, headers=headers)
+
+
 class InvalidVaultTransferException(ContentNoChangeException):
     """
     Exception raised when attempting to move an item between vaults.

@@ -1,19 +1,36 @@
 import random
+from typing import Any
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CreateSchemaType, CRUDBase, ModelType, UpdateSchemaType
+from app.models import Vault
 from app.models.dweller import Dweller
 from app.models.junk import Junk
 from app.schemas.common import JunkType, Rarity
-from app.utils.exceptions import ContentNoChangeException, ResourceNotFoundException
+from app.utils.exceptions import ContentNoChangeException, InvalidItemAssignmentException, ResourceNotFoundException
 
 SAME_RARITY_JUNK_PROBABILITY = 0.4
 DIFFERENT_RARITY_JUNK_PROBABILITY = 0.6
 
 
 class CRUDItem(CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType]):
+    async def create(self, db_session: AsyncSession, obj_in: CreateSchemaType) -> ModelType:
+        if obj_in.storage_id and obj_in.dweller_id:
+            raise InvalidItemAssignmentException(self.model)
+        return await super().create(db_session, obj_in)
+
+    async def update(
+        self,
+        db_session: AsyncSession,
+        id: int | UUID4,
+        obj_in: UpdateSchemaType | dict[str, Any],
+    ) -> ModelType:
+        if obj_in.storage_id and obj_in.dweller_id:
+            raise InvalidItemAssignmentException(self.model)
+        return await super().update(db_session, id=id, obj_in=obj_in)
+
     async def equip(self, db_session: AsyncSession, *, item_id: UUID4, dweller_id: UUID4) -> ModelType | None:
         dweller = await db_session.get(Dweller, dweller_id)
         if not dweller:
@@ -99,14 +116,22 @@ class CRUDItem(CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType]):
         await db_session.commit()
         return junk_list
 
-    def add_value_to_vault(self, item) -> None:
-        raise NotImplementedError
+    @staticmethod
+    async def add_caps_to_vault(db_session: AsyncSession, vault_id: UUID4, value: int) -> None:
+        """Add value to the vault's resources."""
+        vault = await db_session.get(Vault, vault_id)
+        if not vault:
+            raise ResourceNotFoundException(Vault, identifier=vault_id)
+
+        vault.bottle_caps += value
+        db_session.add(vault)
+        await db_session.commit()
 
     async def sell(self, db_session: AsyncSession, *, item_id: UUID4) -> None:
         item = await db_session.get(self.model, item_id)
         if not item:
             raise ResourceNotFoundException(self.model, identifier=item_id)
 
-        self.add_value_to_vault(item)
+        await self.add_caps_to_vault(db_session, item.storage.vault_id, item.value)  # TODO: test item storage
         await db_session.delete(item)
         await db_session.commit()

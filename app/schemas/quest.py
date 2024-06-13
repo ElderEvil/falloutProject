@@ -1,14 +1,30 @@
 from datetime import datetime
 
 from pydantic import UUID4
-from sqlmodel import Field
+from sqlmodel import Field, SQLModel
 
-from app.models.quest import QuestBase, QuestStepBase
+from app.models.quest import QuestBase, QuestChainBase, QuestObjectiveBase
 from app.utils.partial import optional
 
 
-class QuestCreate(QuestBase):
+# Create schemas
+class QuestChainCreate(QuestChainBase):
     pass
+
+
+class QuestCreate(QuestBase):
+    chain_id: UUID4 = Field(foreign_key="quest_chain.id")
+
+
+class QuestObjectiveCreate(QuestObjectiveBase):
+    quest_id: UUID4 = Field(foreign_key="quest.id")
+
+
+# Read schemas
+class QuestChainRead(QuestChainBase):
+    id: UUID4
+    created_at: datetime
+    updated_at: datetime
 
 
 class QuestRead(QuestBase):
@@ -17,29 +33,58 @@ class QuestRead(QuestBase):
     updated_at: datetime
 
 
-@optional()
-class QuestUpdate(QuestBase):
-    pass
-
-
-class QuestStepCreate(QuestStepBase):
-    quest_id: UUID4 = Field(foreign_key="quest.id")
-
-
-@optional()
-class QuestStepUpdate(QuestStepBase):
-    pass
-
-
-class QuestStepRead(QuestStepBase):
+class QuestObjectiveRead(QuestObjectiveBase):
     id: UUID4
     created_at: datetime
     updated_at: datetime
 
 
-class QuestReadWithSteps(QuestRead):
-    steps: list["QuestStepRead"] = []
+# Update schemas
+@optional()
+class QuestChainUpdate(QuestChainBase):
+    pass
 
 
-class QuestStepReadWithQuest(QuestStepRead):
+@optional()
+class QuestUpdate(QuestBase):
+    pass
+
+
+@optional()
+class QuestObjectiveUpdate(QuestObjectiveBase):
+    pass
+
+
+# Nested read schemas
+class QuestChainReadWithQuests(QuestChainRead):
+    quests: list["QuestRead"] = []
+
+
+class QuestReadWithQuestChain(QuestRead):
+    chain: "QuestChainRead"
+
+
+class QuestReadWithObjectives(QuestRead):
+    objectives: list["QuestObjectiveRead"] = []
+
+
+class QuestStepReadWithQuest(QuestObjectiveRead):
     quest: "QuestRead"
+
+
+class QuestObjectiveJSON(SQLModel):
+    title: str
+
+
+class QuestJSON(SQLModel):
+    quest_name: str
+    long_description: str
+    quest_objective: list[QuestObjectiveJSON]
+    short_description: str
+    requirements: str | list[str]
+    rewards: str
+
+
+class QuestChainJSON(SQLModel):
+    title: str
+    quests: list[QuestJSON]

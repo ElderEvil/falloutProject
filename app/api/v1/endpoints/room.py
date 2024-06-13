@@ -43,3 +43,8 @@ async def read_room_data(data_store=Depends(get_static_game_data)):
 @router.post("/build/", response_model=RoomRead)
 async def build_room(room_data: RoomCreate, db_session: AsyncSession = Depends(get_async_session)):
     return await crud.room.build(db_session=db_session, obj_in=room_data)
+
+
+@router.delete("/destroy/{room_id}", status_code=204)
+async def destroy_room(room_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
+    return await crud.room.destroy(db_session, room_id)

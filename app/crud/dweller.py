@@ -1,11 +1,19 @@
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from sqlmodel import select
 
 from app.crud.base import CRUDBase
 from app.crud.room import room as room_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
-from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride, DwellerReadWithRoom, DwellerUpdate
+from app.schemas.dweller import (
+    DwellerCreate,
+    DwellerCreateCommonOverride,
+    DwellerReadFull,
+    DwellerReadWithRoomID,
+    DwellerUpdate,
+)
 from app.tests.factory.dwellers import create_random_common_dweller
 from app.utils.exceptions import ContentNoChangeException
 from app.utils.validation import validate_room_transfer, validate_vault_transfer
@@ -53,9 +61,15 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             db_session, dweller_obj.id, DwellerUpdate(level=dweller_obj.level, experience=dweller_obj.experience)
         )
 
+    async def get_dweller_by_name(self, db_session: AsyncSession, name: str) -> Dweller | None:
+        """Get dweller by name."""
+        query = select(self.model).where(self.model.first_name == name)
+        response = await db_session.execute(query)
+        return response.scalars().first()
+
     async def move_to_room(
         self, db_session: AsyncSession, dweller_id: UUID4, room_id: UUID4
-    ) -> DwellerReadWithRoom | None:
+    ) -> DwellerReadWithRoomID | None:
         """Move dweller to a different room."""
         dweller_obj = await self.get(db_session, dweller_id)
         validate_room_transfer(dweller_obj.room_id, room_id)
@@ -69,7 +83,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             raise ContentNoChangeException(detail="Not enough space in the vault to move dweller")
         dweller_obj = await self.update(db_session, dweller_id, DwellerUpdate(room_id=room_id))
 
-        return DwellerReadWithRoom.from_orm(dweller_obj)
+        return DwellerReadWithRoomID.from_orm(dweller_obj)
 
     def reanimate(self, db_session: AsyncSession, dweller_obj: Dweller) -> Dweller | None:
         """Revive a dead dweller."""
@@ -77,6 +91,23 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             raise ContentNoChangeException(detail="Dweller is already alive")
         self.update(db_session, dweller_obj.id, DwellerUpdate(health=dweller_obj.max_health))
         return dweller_obj
+
+    async def get_full_info(self, db_session: AsyncSession, dweller_id: UUID4) -> DwellerReadFull:
+        """Get full information about a dweller."""
+        query = (
+            select(self.model)
+            .options(
+                selectinload(self.model.vault),
+                selectinload(self.model.room),
+                selectinload(self.model.weapon),
+                selectinload(self.model.outfit),
+            )
+            .where(self.model.id == dweller_id)
+        )
+        response = await db_session.execute(query)
+        dweller_obj = response.scalar_one_or_none()
+
+        return DwellerReadFull.from_orm(dweller_obj)
 
 
 dweller = CRUDDweller(Dweller)

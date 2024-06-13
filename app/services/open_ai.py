@@ -7,15 +7,7 @@ client = openai.Client(
     api_key=settings.OPENAI_API_KEY,
 )
 
-logfire.instrument_openai(client)
 
-response = client.chat.completions.create(
-    messages=[
-        {
-            "role": "user",
-            "content": "Say this is a test",
-        }
-    ],
-    model="gpt-3.5",
-)
-print(response.choices[0].text)
+async def get_chatpgt_client():
+    logfire.instrument_openai(client)
+    return client

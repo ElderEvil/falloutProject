@@ -10,7 +10,7 @@ from app.schemas.dweller import (
     DwellerCreateCommonOverride,
     DwellerCreateWithoutVaultID,
     DwellerRead,
-    DwellerReadWithRoom,
+    DwellerReadWithRoomID,
     DwellerUpdate,
 )
 
@@ -46,7 +46,7 @@ async def delete_dweller(dweller_id: UUID4, db_session: AsyncSession = Depends(g
     return await crud.dweller.delete(db_session, dweller_id)
 
 
-@router.post("/{dweller_id}/move_to/{room_id}", response_model=DwellerReadWithRoom)
+@router.post("/{dweller_id}/move_to/{room_id}", response_model=DwellerReadWithRoomID)
 async def move_dweller_to_room(
     dweller_id: UUID4,
     room_id: UUID4,

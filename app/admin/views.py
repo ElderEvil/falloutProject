@@ -4,7 +4,7 @@ from app.models import Storage
 from app.models.dweller import Dweller
 from app.models.junk import Junk
 from app.models.outfit import Outfit
-from app.models.quest import Quest, QuestChain, QuestStep
+from app.models.quest import Quest, QuestChain, QuestObjective
 from app.models.room import Room
 from app.models.user import User
 from app.models.vault import Vault
@@ -94,7 +94,6 @@ class QuestChainAdmin(ModelView, model=QuestChain):
     column_list = [
         QuestChain.id,
         QuestChain.title,
-        QuestChain.description,
     ]
 
     icon = "fa-solid fa-tasks"
@@ -104,19 +103,16 @@ class QuestAdmin(ModelView, model=Quest):
     column_list = [
         Quest.id,
         Quest.title,
-        Quest.description,
-        Quest.completed,
+        Quest.short_description,
     ]
 
     icon = "fa-solid fa-tasks"
 
 
-class QuestStepAdmin(ModelView, model=QuestStep):
+class QuestObjectiveAdmin(ModelView, model=QuestObjective):
     column_list = [
-        QuestStep.id,
-        QuestStep.quest,
-        QuestStep.description,
-        QuestStep.completed,
+        QuestObjective.id,
+        QuestObjective.quest,
     ]
 
     icon = "fa-solid fa-tasks"

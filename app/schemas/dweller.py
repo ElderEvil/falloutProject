@@ -7,6 +7,10 @@ from sqlmodel import SQLModel
 from app.models.base import SPECIALModel
 from app.models.dweller import DwellerBase
 from app.schemas.common import SPECIAL, Gender, Rarity
+from app.schemas.outfit import OutfitRead
+from app.schemas.room import RoomRead
+from app.schemas.vault import VaultRead
+from app.schemas.weapon import WeaponRead
 from app.utils.partial import optional
 
 LETTER_TO_STAT = {
@@ -75,12 +79,19 @@ class DwellerRead(DwellerBase):
     updated_at: datetime
 
 
-class DwellerReadWithVault(DwellerRead):
+class DwellerReadWithVaultID(DwellerRead):
     vault_id: UUID4
 
 
-class DwellerReadWithRoom(DwellerRead):
+class DwellerReadWithRoomID(DwellerRead):
     room_id: UUID4
+
+
+class DwellerReadFull(DwellerRead):
+    vault: VaultRead
+    room: RoomRead | None
+    weapon: WeaponRead | None
+    outfit: OutfitRead | None
 
 
 @optional()

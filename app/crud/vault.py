@@ -6,12 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.crud.base import CRUDBase
-from app.models import Dweller, Room
+from app.models import Dweller, Room, Storage
 from app.models.vault import Vault
-from app.schemas.common import RoomType
+from app.schemas.common import RoomAction, RoomType
 from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultUpdate
-from app.utils.exceptions import InsufficientResourcesException
+from app.utils.exceptions import InsufficientResourcesException, ResourceNotFoundException
 
 
 class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
@@ -19,24 +19,48 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         response = await db_session.execute(select(self.model).where(self.model.user_id == user_id))
         return response.scalars().all()
 
-    async def recalculate_vault_attributes(self, db_session: AsyncSession, vault_obj: Vault, room_obj: Room) -> Vault:
+    @staticmethod
+    def _calculate_new_capacity(action: RoomAction, current_capacity: int, room_capacity: int) -> int:
+        if action in {RoomAction.build, RoomAction.upgrade}:
+            return current_capacity + room_capacity
+        if action == RoomAction.destroy:
+            return current_capacity - room_capacity
+        raise ValueError(f"Invalid room action: {action}")  # noqa: TRY003
+
+    async def recalculate_vault_attributes(
+        self, db_session: AsyncSession, vault_obj: Vault, room_obj: Room, action: RoomAction
+    ) -> Vault:
         """
-        Recalculate the vault attributes based on the newly added room.
+        Recalculate the vault attributes based on the newly added or removed room.
         """
 
-        # Helper function to handle updates
-        async def update_vault(vault_update: VaultUpdate):
+        async def _update_vault(vault_update: VaultUpdate):
             await self.update(db_session=db_session, id=vault_obj.id, obj_in=vault_update)
+
+        async def _update_storage(vault_id: UUID4, new_space_max: int):
+            response = await db_session.execute(select(Storage).where(Storage.vault_id == vault_id))
+            storage_obj = response.scalar_one_or_none()
+
+            if not storage_obj:
+                raise ResourceNotFoundException(model=Storage, identifier=vault_id)
+
+            storage_obj.max_space = new_space_max
+            db_session.add(storage_obj)
+            await db_session.commit()
+            await db_session.refresh(storage_obj)
 
         # Calculate the new vault resource capacity for production rooms
         if room_obj.category == RoomType.production:
             match room_obj.ability:
                 case "Strength":
-                    await update_vault(VaultUpdate(power_capacity=vault_obj.power_capacity + room_obj.output))
+                    new_capacity = self._calculate_new_capacity(action, vault_obj.power_capacity, room_obj.capacity)
+                    await _update_vault(VaultUpdate(power_capacity=new_capacity))
                 case "Agility":
-                    await update_vault(VaultUpdate(food_capacity=vault_obj.food_capacity + room_obj.output))
+                    new_capacity = self._calculate_new_capacity(action, vault_obj.food_capacity, room_obj.capacity)
+                    await _update_vault(VaultUpdate(food_capacity=new_capacity))
                 case "Perception":
-                    await update_vault(VaultUpdate(water_capacity=vault_obj.water_capacity + room_obj.output))
+                    new_capacity = self._calculate_new_capacity(action, vault_obj.water_capacity, room_obj.capacity)
+                    await _update_vault(VaultUpdate(water_capacity=new_capacity))
                 case _:
                     error_msg = f"Invalid room ability: {room_obj.ability}"
                     raise ValueError(error_msg)
@@ -45,11 +69,15 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         elif room_obj.category == RoomType.capacity:
             match room_obj.name.lower():
                 case "living room":
-                    population_max = (vault_obj.population_max or 0) + room_obj.capacity
-                    await update_vault(VaultUpdate(population_max=population_max))
+                    new_population_max = self._calculate_new_capacity(
+                        action, vault_obj.population_max or 0, room_obj.capacity
+                    )
+                    await _update_vault(VaultUpdate(population_max=new_population_max))
                 case "storage room":
-                    new_storage_space_max = (vault_obj.storage_space_max or 0) + room_obj.capacity
-                    await update_vault(VaultUpdate(storage_space_max=new_storage_space_max))
+                    new_storage_space_max = self._calculate_new_capacity(
+                        action, vault_obj.storage.max_space or 0, room_obj.capacity
+                    )
+                    await _update_storage(vault_obj.id, new_storage_space_max)
                 case _:
                     error_msg = f"Invalid room name: {room_obj.name}"
                     raise ValueError(error_msg)
@@ -98,6 +126,10 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         if population_max is None:
             return False
         return current_population + space_required <= population_max
+
+    async def deposit_caps(self, *, db_session: AsyncSession, vault_obj: Vault, amount: int):
+        """Deposit the specified amount to the vault's bottle caps as part of a revenue operation."""
+        await self.update(db_session, id=vault_obj.id, obj_in=VaultUpdate(bottle_caps=vault_obj.bottle_caps + amount))
 
     async def withdraw_caps(self, *, db_session: AsyncSession, vault_obj: Vault, amount: int):
         """Withdraw the specified amount from the vault's bottle caps as part of a spending operation."""

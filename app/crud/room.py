@@ -1,17 +1,19 @@
 import logging
 
+from pydantic import UUID4
 from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.crud.base import CRUDBase
+from app.crud.base import CRUDBase, ModelType
 from app.crud.vault import vault as vault_crud
-from app.models import Vault
 from app.models.room import Room
 from app.schemas.common import RoomType
 from app.schemas.room import RoomCreate, RoomUpdate
 from app.utils.exceptions import InsufficientResourcesException, NoSpaceAvailableException, UniqueRoomViolationException
 
 logger = logging.getLogger(__name__)
+
+DESTROY_ROOM_REWARD = 0.2
 
 
 class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
@@ -61,17 +63,6 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             if existing_unique_room.scalars().first():
                 raise UniqueRoomViolationException(room_name=obj_in.name)
 
-    async def _ensure_no_existing_room_at_coordinates(
-        self, db_session: AsyncSession, vault: Vault, room_in: RoomCreate
-    ) -> Room | None:
-        """Ensure there's no existing room at the specified coordinates."""
-        existing_room = await self.get_room_by_coordinates(
-            db_session=db_session, vault_id=vault.id, x_coord=room_in.coordinate_x, y_coord=room_in.coordinate_y
-        )
-        if existing_room:
-            raise NoSpaceAvailableException(space_needed=room_in.size_min)
-        return existing_room
-
     async def expand_room(self, db_session: AsyncSession, existing_room: Room, additional_size: int) -> Room:
         """Expand the size of the existing room."""
         info = f"Expanding room {existing_room.name} (ID: {existing_room.id}) by {additional_size} units."
@@ -83,7 +74,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         return existing_room
 
     @staticmethod
-    async def requires_recalculation(room_obj: RoomCreate) -> bool:
+    def requires_recalculation(room_obj: RoomCreate | Room) -> bool:
         """Check if the room category needs to be recalculated."""
         if room_obj.category == RoomType.production and room_obj.name != "Radio studio":
             return True
@@ -92,7 +83,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         return False
 
     async def build(self, *, db_session: AsyncSession, obj_in: RoomCreate) -> Room:
-        """Implements the steps to build a room checking for business logic constraints."""
+        """Implements the objectives to build a room checking for business logic constraints."""
         vault = await vault_crud.get(db_session, id=obj_in.vault_id)
 
         if not await vault_crud.is_enough_dwellers(
@@ -119,10 +110,22 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
 
         obj_in_db = await self.create(db_session, obj_in=obj_in)
 
-        if await self.requires_recalculation(obj_in):
+        if self.requires_recalculation(obj_in):
             await vault_crud.recalculate_vault_attributes(db_session, vault, obj_in_db)
 
         return obj_in_db
+
+    async def destroy(self, db_session: AsyncSession, id: int | UUID4) -> ModelType:
+        db_obj = await super().delete(db_session, id=id)
+        vault = await vault_crud.get(db_session, id=db_obj.vault_id)
+        await vault_crud.deposit_caps(
+            db_session=db_session, vault_obj=vault, amount=db_obj.base_cost * DESTROY_ROOM_REWARD
+        )
+
+        if self.requires_recalculation(db_obj):
+            await vault_crud.recalculate_vault_attributes(db_session, vault, db_obj)
+
+        return db_obj
 
 
 room = CRUDRoom(Room)

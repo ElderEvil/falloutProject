@@ -40,6 +40,12 @@ class OutfitType(str, Enum):
     tiered = "Tiered Outfit"
 
 
+class RoomAction(str, Enum):
+    build = "Build"
+    upgrade = "Upgrade"
+    destroy = "Destroy"
+
+
 class RoomType(str, Enum):
     capacity = "Capacity"
     crafting = "Crafting"

@@ -18,7 +18,7 @@ async def create_user(
     *,
     db_session: AsyncSession = Depends(get_async_session),
     user_in: UserCreate,
-    user: CurrentSuperuser,
+    _: CurrentSuperuser,
 ):
     """
     Admin route to create new user.

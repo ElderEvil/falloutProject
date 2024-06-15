@@ -9,7 +9,7 @@ from app.admin.views import (
     OutfitAdmin,
     QuestAdmin,
     QuestChainAdmin,
-    QuestStepAdmin,
+    QuestObjectiveAdmin,
     RoomAdmin,
     StorageAdmin,
     UserAdmin,
@@ -47,4 +47,4 @@ admin.add_view(WeaponAdmin)
 admin.add_view(JunkAdmin)
 admin.add_view(QuestChainAdmin)
 admin.add_view(QuestAdmin)
-admin.add_view(QuestStepAdmin)
+admin.add_view(QuestObjectiveAdmin)

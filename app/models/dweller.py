@@ -20,6 +20,7 @@ class DwellerBaseWithoutStats(SQLModel):
     is_adult: bool = True
     gender: Gender = Field()
     rarity: Rarity = Field()
+    image_url: str | None = Field(default=None, max_length=255)
 
     # Stats
     level: int = Field(default=1, ge=1, le=50)

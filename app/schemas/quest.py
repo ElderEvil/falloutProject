@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from pydantic import UUID4
 from sqlmodel import Field, SQLModel
 
@@ -23,20 +21,20 @@ class QuestObjectiveCreate(QuestObjectiveBase):
 # Read schemas
 class QuestChainRead(QuestChainBase):
     id: UUID4
-    created_at: datetime
-    updated_at: datetime
 
 
 class QuestRead(QuestBase):
     id: UUID4
-    created_at: datetime
-    updated_at: datetime
+
+
+class QuestReadShort(SQLModel):
+    id: UUID4
+    title: str
+    short_description: str
 
 
 class QuestObjectiveRead(QuestObjectiveBase):
     id: UUID4
-    created_at: datetime
-    updated_at: datetime
 
 
 # Update schemas
@@ -57,7 +55,7 @@ class QuestObjectiveUpdate(QuestObjectiveBase):
 
 # Nested read schemas
 class QuestChainReadWithQuests(QuestChainRead):
-    quests: list["QuestRead"] = []
+    quests: list["QuestReadShort"] = []
 
 
 class QuestReadWithQuestChain(QuestRead):
@@ -68,7 +66,7 @@ class QuestReadWithObjectives(QuestRead):
     objectives: list["QuestObjectiveRead"] = []
 
 
-class QuestStepReadWithQuest(QuestObjectiveRead):
+class QuestObjectiveReadWithQuest(QuestObjectiveRead):
     quest: "QuestRead"
 
 

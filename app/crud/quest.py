@@ -1,4 +1,8 @@
+from collections.abc import Sequence
+
 from pydantic import UUID4
+from sqlalchemy.orm import selectinload
+from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
@@ -12,6 +16,7 @@ from app.models.vault_quests import (
 from app.schemas.quest import (
     QuestChainCreate,
     QuestChainJSON,
+    QuestChainReadWithQuests,
     QuestChainUpdate,
     QuestCreate,
     QuestObjectiveCreate,
@@ -23,6 +28,35 @@ from app.schemas.quest import (
 class CRUDQuestChain(
     CRUDBase[QuestChain, QuestChainCreate, QuestChainUpdate], CompletionMixin[VaultQuestChainCompletionLink]
 ):
+    def __init__(self, model: type[QuestChain], link_model: type[VaultQuestChainCompletionLink]):
+        super().__init__(model)
+        self.link_model = link_model
+
+    async def get_multi_for_vault(
+        self, *, db_session: AsyncSession, skip: int, limit: int, vault_id: UUID4
+    ) -> Sequence[QuestChainReadWithQuests]:
+        """
+        Get multiple not completed visible quest chains for a vault.
+        """
+        query = (
+            select(QuestChain)
+            .options(selectinload(QuestChain.quests))
+            .join(self.link_model)
+            .where(
+                and_(
+                    self.link_model.vault_id == vault_id,
+                    self.link_model.is_visible == True,
+                    self.link_model.is_completed == False,
+                )
+            )
+            .offset(skip)
+            .limit(limit)
+        )
+        response = await db_session.execute(query)
+        quest_chains = response.scalars().all()
+
+        return [QuestChainReadWithQuests.from_orm(chain) for chain in quest_chains]
+
     async def _handle_completion_cascade(
         self, *, db_session: AsyncSession, db_obj: QuestObjective, vault_id: UUID4
     ) -> None:
@@ -56,24 +90,32 @@ class CRUDQuestChain(
 
 
 class CRUDQuest(CRUDBase[Quest, QuestCreate, QuestUpdate], CompletionMixin[VaultQuestCompletionLink]):
+    def __init__(self, model: type[Quest], link_model: type[VaultQuestCompletionLink]):
+        super().__init__(model)
+        self.link_model = link_model
+
     async def _handle_completion_cascade(
         self, db_session: AsyncSession, db_obj: QuestObjective, vault_id: UUID4
     ) -> None:
         quest_chain = await quest_chain_crud.get(db_session, db_obj.quest_chain_id)
         if quest_chain and all(quest.is_completed for quest in quest_chain.quests):
-            await quest_chain_crud.complete(db_session=db_session, obj_id=quest_chain.id, vault_id=vault_id)
+            await quest_chain_crud.complete(db_session=db_session, quest_entity_id=quest_chain.id, vault_id=vault_id)
 
 
 class CRUDObjective(
     CRUDBase[QuestObjective, QuestObjectiveCreate, QuestObjectiveUpdate],
     CompletionMixin[VaultQuestObjectiveCompletionLink],
 ):
+    def __init__(self, model: type[QuestObjective], link_model: type[VaultQuestObjectiveCompletionLink]):
+        super().__init__(model)
+        self.link_model = link_model
+
     async def _handle_completion_cascade(self, db_session: AsyncSession, db_obj: QuestChain, vault_id: UUID4) -> None:
         quest = await quest_crud.get(db_session, db_obj.quest_id)
         if quest and all(obj.is_completed for obj in quest.objectives):
-            await quest_crud.complete(db_session=db_session, obj_id=quest.id, vault_id=vault_id)
+            await quest_crud.complete(db_session=db_session, quest_entity_id=quest.id, vault_id=vault_id)
 
 
-quest_chain_crud = CRUDQuestChain(QuestChain)
-quest_crud = CRUDQuest(Quest)
-objective_crud = CRUDObjective(QuestObjective)
+quest_chain_crud = CRUDQuestChain(QuestChain, VaultQuestChainCompletionLink)
+quest_crud = CRUDQuest(Quest, VaultQuestCompletionLink)
+objective_crud = CRUDObjective(QuestObjective, VaultQuestObjectiveCompletionLink)

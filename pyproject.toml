@@ -98,6 +98,7 @@ lint.ignore = [
     "PT023", # pytest-style
     "RUF012",
     "N805", # self
+    "E712" # Avoid equality comparison
 ]
 
 [tool.ruff.lint.flake8-builtins]

@@ -1,17 +1,22 @@
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.db.session import get_async_session
 from app.models.quest import QuestObjective
-from app.schemas.quest import QuestCreate, QuestRead, QuestReadWithObjectives, QuestUpdate
-from app.utils.load_quests import load_quest_chain_from_json
+from app.schemas.quest import (
+    QuestChainReadWithQuests,
+    QuestCreate,
+    QuestRead,
+    QuestReadWithObjectives,
+    QuestUpdate,
+)
 
 router = APIRouter()
 
 
-@router.post("/quests", response_model=QuestRead)
+@router.post("/", response_model=QuestRead)
 async def create_quest(quest_data: QuestCreate, db_session: AsyncSession = Depends(get_async_session)):
     return await crud.quest_crud.create(db_session, quest_data)
 
@@ -40,16 +45,17 @@ async def delete_quest(quest_id: UUID4, db_session: AsyncSession = Depends(get_a
     return await crud.quest_crud.delete(db_session, quest_id)
 
 
-@router.post("/upload-quest-chain/")
-async def upload_quest_chain(file: UploadFile = File(...), db_session: AsyncSession = Depends(get_async_session)):
-    if file.content_type != "application/json":
-        raise HTTPException(status_code=400, detail="Invalid file format. Please upload a JSON file.")
-
-    quest_chain_data = load_quest_chain_from_json("data/quests/multi_stage/power_struggle.json")
-    await crud.quest_chain_crud.insert_quest_chain(db_session, quest_chain_data)
-    return {"status": "success"}
+@router.get("/{vault_id}/chains", response_model=list[QuestChainReadWithQuests])
+async def read_quest_chain_list(
+    vault_id: UUID4, skip: int = 0, limit: int = 100, db_session: AsyncSession = Depends(get_async_session)
+):
+    return await crud.quest_chain_crud.get_multi_for_vault(
+        skip=skip, limit=limit, db_session=db_session, vault_id=vault_id
+    )
 
 
 @router.post("/{vault_id}/objectives/{objective_id}/complete", response_model=QuestObjective)
-async def complete_objective(objective_id: UUID4, db: AsyncSession = Depends(get_async_session)):
-    return await crud.objective_crud.complete(db, objective_id)
+async def complete_objective(
+    vault_id: UUID4, objective_id: UUID4, db_session: AsyncSession = Depends(get_async_session)
+):
+    return await crud.objective_crud.complete(db_session=db_session, quest_entity_id=objective_id, vault_id=vault_id)

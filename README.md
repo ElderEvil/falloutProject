@@ -10,7 +10,9 @@ You can install dependencies using pip by running the following command in your 
 
 
 `pip install -r requirements.txt`
-### or
+### Alternative Installation
+
+If you prefer using uv, you can install the dependencies with:
 
 ```
 pip install uv
@@ -27,6 +29,13 @@ To begin playing the Fallout Shelter Game, visit the web server at [localhost](h
 Navigate through the web interface to make decisions about building rooms, assigning tasks, and managing resources. Your choices will determine the success and growth of your vault.
 
 Aim to develop a thriving community and ensure the well-being of your dwellers as you expand your vault.
+## Diagrams
+
+
+[View on Eraser![](https://app.eraser.io/workspace/yjdEyc0bpOXOKVfbGpl0/preview?elements=0C8Rbk0PmemYJPQMGfRBxQ&type=embed)](https://app.eraser.io/workspace/yjdEyc0bpOXOKVfbGpl0?elements=0C8Rbk0PmemYJPQMGfRBxQ)
+
+## Documentation
+https://app.eraser.io/workspace/yjdEyc0bpOXOKVfbGpl0?origin=share
 
 ## Contributing
 We welcome contributions to the Fallout Shelter Game! If you're interested in helping improve the game, please follow these steps:

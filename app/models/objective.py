@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel
+from app.models.vault_objective import VaultObjectiveProgressLink
 
 if TYPE_CHECKING:
     from app.models.vault import Vault
@@ -17,4 +18,7 @@ class ObjectiveBase(SQLModel):
 
 
 class Objective(BaseUUIDModel, ObjectiveBase, table=True):
-    vaults: list["Vault"] = Relationship(back_populates="objectives")
+    vaults: list["Vault"] = Relationship(
+        back_populates="objectives",
+        link_model=VaultObjectiveProgressLink,
+    )

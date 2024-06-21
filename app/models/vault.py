@@ -13,6 +13,7 @@ from app.models.vault_quest import (
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller
+    from app.models.objective import Objective
     from app.models.quest import Quest, QuestChain, QuestObjective
     from app.models.room import Room
     from app.models.storage import Storage
@@ -61,7 +62,7 @@ class Vault(BaseUUIDModel, VaultBase, TimeStampMixin, table=True):
         link_model=VaultQuestObjectiveCompletionLink,
     )
 
-    objectives: list["QuestObjective"] = Relationship(
-        back_populates="vault",
+    objectives: list["Objective"] = Relationship(
+        back_populates="vaults",
         link_model=VaultObjectiveProgressLink,
     )

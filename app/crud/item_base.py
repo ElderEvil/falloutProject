@@ -10,7 +10,7 @@ from app.crud.base import CreateSchemaType, CRUDBase, ModelType, UpdateSchemaTyp
 from app.models import Vault
 from app.models.dweller import Dweller
 from app.models.junk import Junk
-from app.schemas.common import JunkType, Rarity
+from app.schemas.common import JunkTypeEnum, RarityEnum
 from app.utils.exceptions import ContentNoChangeException, InvalidItemAssignmentException, ResourceNotFoundException
 
 SAME_RARITY_JUNK_PROBABILITY = 0.4
@@ -80,22 +80,22 @@ class CRUDItem(
         Converts an item into junk based on its rarity.
         Junk is generated with probabilities depending on the item's rarity.
         """
-        legendary_junk, rare_junk, common_junk = (random.choice(list(JunkType)) for _ in range(3))
+        legendary_junk, rare_junk, common_junk = (random.choice(list(JunkTypeEnum)) for _ in range(3))
 
         # Determine junk options based on item rarity
         match item.rarity:
-            case Rarity.legendary:
+            case RarityEnum.LEGENDARY:
                 junk_options = {
-                    legendary_junk: (Rarity.legendary, SAME_RARITY_JUNK_PROBABILITY),
-                    rare_junk: (Rarity.rare, DIFFERENT_RARITY_JUNK_PROBABILITY),
+                    legendary_junk: (RarityEnum.LEGENDARY, SAME_RARITY_JUNK_PROBABILITY),
+                    rare_junk: (RarityEnum.RARE, DIFFERENT_RARITY_JUNK_PROBABILITY),
                 }
-            case Rarity.rare:
+            case RarityEnum.RARE:
                 junk_options = {
-                    rare_junk: (Rarity.rare, SAME_RARITY_JUNK_PROBABILITY),
-                    common_junk: (Rarity.common, DIFFERENT_RARITY_JUNK_PROBABILITY),
+                    rare_junk: (RarityEnum.RARE, SAME_RARITY_JUNK_PROBABILITY),
+                    common_junk: (RarityEnum.COMMON, DIFFERENT_RARITY_JUNK_PROBABILITY),
                 }
-            case Rarity.common:
-                junk_options = {common_junk: (Rarity.common, DIFFERENT_RARITY_JUNK_PROBABILITY)}
+            case RarityEnum.COMMON:
+                junk_options = {common_junk: (RarityEnum.COMMON, DIFFERENT_RARITY_JUNK_PROBABILITY)}
             case _:
                 error_message = f"Item rarity {item.rarity} is not supported for scrapping."
                 raise ValueError(error_message)

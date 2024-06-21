@@ -5,7 +5,7 @@ from sqlmodel import Column, Enum, Field, Relationship
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.models.item import ItemBase
-from app.schemas.common import Gender, OutfitType
+from app.schemas.common import GenderEnum, OutfitTypeEnum
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller
@@ -13,8 +13,8 @@ if TYPE_CHECKING:
 
 
 class OutfitBase(ItemBase):
-    outfit_type: OutfitType = Field(sa_column=Column(Enum(OutfitType)))
-    gender: Gender | None = Field(default=None, nullable=True)
+    outfit_type: OutfitTypeEnum = Field(sa_column=Column(Enum(OutfitTypeEnum)))
+    gender: GenderEnum | None = Field(default=None, nullable=True)
 
     def __str__(self):
         return f"{self.name}"

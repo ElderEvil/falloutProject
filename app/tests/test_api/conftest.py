@@ -10,7 +10,16 @@ from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.user import User
 from app.models.vault import Vault
-from app.schemas.common import SPECIAL, Gender, JunkType, OutfitType, Rarity, RoomType, WeaponSubtype, WeaponType
+from app.schemas.common import (
+    GenderEnum,
+    JunkTypeEnum,
+    OutfitTypeEnum,
+    RarityEnum,
+    RoomTypeEnum,
+    SPECIALEnum,
+    WeaponSubtypeEnum,
+    WeaponTypeEnum,
+)
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
@@ -23,7 +32,7 @@ fake = Faker()
 def get_generic_items_data():
     return {
         "name": get_name_two_words(),
-        "rarity": random.choice(list(Rarity)),
+        "rarity": random.choice(list(RarityEnum)),
         "value": random.randint(1, 1_000),
     }
 
@@ -44,8 +53,8 @@ def vault_data_fixture():
 def room_data_fixture():
     return {
         "name": get_name_two_words(),
-        "category": random.choice(list(RoomType)),
-        "ability": random.choice([*list(SPECIAL), None]),
+        "category": random.choice(list(RoomTypeEnum)),
+        "ability": random.choice([*list(SPECIALEnum), None]),
         "population_required": random.randint(12, 100),
         "base_cost": random.randint(100, 10_000),
         "incremental_cost": random.randint(25, 5_000),
@@ -60,8 +69,8 @@ def room_data_fixture():
 
 @pytest.fixture(name="dweller_data")
 def dweller_data_fixture():
-    gender = random.choice(list(Gender))
-    rarity = random.choice(list(Rarity))
+    gender = random.choice(list(GenderEnum))
+    rarity = random.choice(list(RarityEnum))
     stats = get_stats_by_rarity(rarity)
 
     max_health = random.randint(50, 1_000)
@@ -89,7 +98,7 @@ def dweller_data_fixture():
 def junk_fixture():
     item_data = get_generic_items_data()
     return item_data | {
-        "junk_type": random.choice(list(JunkType)),
+        "junk_type": random.choice(list(JunkTypeEnum)),
         "description": fake.sentence(),
     }
 
@@ -97,7 +106,7 @@ def junk_fixture():
 @pytest.fixture(name="outfit_data")
 def outfit_fixture():
     item_data = get_generic_items_data()
-    return item_data | {"description": fake.sentence(), "outfit_type": random.choice(list(OutfitType))}
+    return item_data | {"description": fake.sentence(), "outfit_type": random.choice(list(OutfitTypeEnum))}
 
 
 @pytest.fixture(name="weapon_data")
@@ -105,8 +114,8 @@ def weapon_fixture():
     item_data = get_generic_items_data()
     return item_data | {
         "description": fake.sentence(),
-        "weapon_type": random.choice(list(WeaponType)),
-        "weapon_subtype": random.choice(list(WeaponSubtype)),
+        "weapon_type": random.choice(list(WeaponTypeEnum)),
+        "weapon_subtype": random.choice(list(WeaponSubtypeEnum)),
         "stat": random.choice(["S", "P", "E", "C", "I", "A", "L"]),
         "damage_min": random.randint(1, 10),
         "damage_max": random.randint(11, 20),

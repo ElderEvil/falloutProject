@@ -8,7 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.crud.base import CRUDBase
 from app.models import Dweller, Room, Storage
 from app.models.vault import Vault
-from app.schemas.common import RoomAction, RoomType
+from app.schemas.common import RoomActionEnum, RoomTypeEnum
 from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultStart, VaultUpdate
 from app.utils.exceptions import InsufficientResourcesException, ResourceNotFoundException
@@ -20,15 +20,15 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         return response.scalars().all()
 
     @staticmethod
-    def _calculate_new_capacity(action: RoomAction, current_capacity: int, room_capacity: int) -> int:
-        if action in {RoomAction.build, RoomAction.upgrade}:
+    def _calculate_new_capacity(action: RoomActionEnum, current_capacity: int, room_capacity: int) -> int:
+        if action in {RoomActionEnum.BUILD, RoomActionEnum.UPGRADE}:
             return current_capacity + room_capacity
-        if action == RoomAction.destroy:
+        if action == RoomActionEnum.DESTROY:
             return current_capacity - room_capacity
         raise ValueError(f"Invalid room action: {action}")  # noqa: TRY003
 
     async def recalculate_vault_attributes(
-        self, db_session: AsyncSession, vault_obj: Vault, room_obj: Room, action: RoomAction
+        self, db_session: AsyncSession, vault_obj: Vault, room_obj: Room, action: RoomActionEnum
     ) -> Vault:
         """
         Recalculate the vault attributes based on the newly added or removed room.
@@ -50,7 +50,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             await db_session.refresh(storage_obj)
 
         # Calculate the new vault resource capacity for production rooms
-        if room_obj.category == RoomType.production and room_obj.capacity is not None:
+        if room_obj.category == RoomTypeEnum.PRODUCTION and room_obj.capacity is not None:
             match room_obj.ability:
                 case "Strength":
                     new_capacity = self._calculate_new_capacity(action, vault_obj.power_max, room_obj.capacity)
@@ -66,7 +66,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
                     raise ValueError(error_msg)
 
         # Calculate the new vault capacity for capacity rooms
-        elif room_obj.category == RoomType.capacity:
+        elif room_obj.category == RoomTypeEnum.CAPACITY:
             match room_obj.name.lower():
                 case "living room":
                     new_population_max = self._calculate_new_capacity(

@@ -1,75 +1,75 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class Rarity(str, Enum):
-    common = "Common"
-    rare = "Rare"
-    legendary = "Legendary"
+class RarityEnum(StrEnum):
+    COMMON = "common"
+    RARE = "rare"
+    LEGENDARY = "legendary"
 
 
-class SPECIAL(str, Enum):
-    strength = "Strength"
-    perception = "Perception"
-    endurance = "Endurance"
-    charisma = "Charisma"
-    intelligence = "Intelligence"
-    agility = "Agility"
-    luck = "Luck"
+class SPECIALEnum(StrEnum):
+    STRENGTH = "strength"
+    PERCEPTION = "perception"
+    ENDURANCE = "endurance"
+    CHARISMA = "charisma"
+    INTELLIGENCE = "intelligence"
+    AGILITY = "agility"
+    LUCK = "luck"
 
 
-class Gender(str, Enum):
-    male = "Male"
-    female = "Female"
+class GenderEnum(StrEnum):
+    MALE = "male"
+    FEMALE = "female"
 
 
-class JunkType(str, Enum):
-    circuitry = "Circuitry"
-    leather = "Leather"
-    adhesive = "Adhesive"
-    cloth = "Cloth"
-    science = "Science"
-    steel = "Steel"
-    valuables = "Valuables"
+class JunkTypeEnum(StrEnum):
+    CIRCUITRY = "circuitry"
+    LEATHER = "leather"
+    ADHESIVE = "adhesive"
+    CLOTH = "cloth"
+    SCIENCE = "science"
+    STEEL = "steel"
+    VALUABLES = "valuables"
 
 
-class OutfitType(str, Enum):
-    common = "Common Outfit"
-    rare = "Rare Outfit"
-    legendary = "Legendary Outfit"
-    power_armor = "Power Armor"
-    tiered = "Tiered Outfit"
+class OutfitTypeEnum(StrEnum):
+    COMMON = "common_outfit"
+    RARE = "rare_outfit"
+    LEGENDARY = "legendary_outfit"
+    POWER_ARMOR = "power_armor"
+    TIERED = "tiered_outfit"
 
 
-class RoomAction(str, Enum):
-    build = "Build"
-    upgrade = "Upgrade"
-    destroy = "Destroy"
+class RoomActionEnum(StrEnum):
+    BUILD = "build"
+    UPGRADE = "upgrade"
+    DESTROY = "destroy"
 
 
-class RoomType(str, Enum):
-    capacity = "Capacity"
-    crafting = "Crafting"
-    misc = "Misc."
-    production = "Production"
-    quests = "Quests"
-    theme = "Theme"
-    training = "Training"
+class RoomTypeEnum(StrEnum):
+    CAPACITY = "capacity"
+    CRAFTING = "crafting"
+    MISC = "misc."
+    PRODUCTION = "production"
+    QUESTS = "quests"
+    THEME = "theme"
+    TRAINING = "training"
 
 
-class WeaponType(str, Enum):
-    melee = "Melee"
-    gun = "Gun"
-    energy = "Energy"
-    heavy = "Heavy"
+class WeaponTypeEnum(StrEnum):
+    MELEE = "melee"
+    GUN = "gun"
+    ENERGY = "energy"
+    HEAVY = "heavy"
 
 
-class WeaponSubtype(str, Enum):
-    blunt = "Blunt"
-    edged = "Edged"
-    pointed = "Pointed"
-    pistol = "Pistol"
-    rifle = "Rifle"
-    shotgun = "Shotgun"
-    automatic = "Automatic"
-    explosive = "Explosive"
-    flamer = "Flamer"
+class WeaponSubtypeEnum(StrEnum):
+    BLUNT = "blunt"
+    EDGED = "edged"
+    POINTED = "pointed"
+    PISTOL = "pistol"
+    RIFLE = "rifle"
+    SHOTGUN = "shotgun"
+    AUTOMATIC = "automatic"
+    EXPLOSIVE = "explosive"
+    FLAMER = "flamer"

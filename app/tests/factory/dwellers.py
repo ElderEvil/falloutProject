@@ -2,14 +2,14 @@ import random
 
 from faker import Faker
 
-from app.schemas.common import Gender, Rarity
+from app.schemas.common import GenderEnum, RarityEnum
 from app.tests.utils.utils import get_gender_based_name, get_stats_by_rarity
 
 fake = Faker()
 
 
 def create_fake_dweller():
-    rarity = random.choice(list(Rarity))
+    rarity = random.choice(list(RarityEnum))
     max_health = random.randint(50, 1_000)
 
     stats = get_stats_by_rarity(rarity)
@@ -18,7 +18,7 @@ def create_fake_dweller():
         "first_name": fake.first_name(),
         "last_name": fake.last_name(),
         "is_adult": random.choice([True, False]),
-        "gender": random.choice(list(Gender)),
+        "gender": random.choice(list(GenderEnum)),
         "rarity": rarity,
         "level": random.randint(1, 50),
         "experience": random.randint(0, 1_000),
@@ -31,9 +31,9 @@ def create_fake_dweller():
     }
 
 
-def create_random_common_dweller(gender: Gender | None = None):
-    rarity = Rarity.common
-    gender = gender or random.choice(list(Gender))
+def create_random_common_dweller(gender: GenderEnum | None = None):
+    rarity = RarityEnum.COMMON
+    gender = gender or random.choice(list(GenderEnum))
     stats = get_stats_by_rarity(rarity)
     return {
         "first_name": get_gender_based_name(gender),

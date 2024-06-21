@@ -4,7 +4,7 @@ from pydantic import UUID4, ConfigDict, Field
 from sqlmodel import SQLModel
 
 from app.models.dweller import DwellerBase
-from app.schemas.common import SPECIAL, Gender, Rarity
+from app.schemas.common import GenderEnum, RarityEnum, SPECIALEnum
 from app.schemas.outfit import OutfitRead
 from app.schemas.room import RoomRead
 from app.schemas.vault import VaultRead
@@ -22,9 +22,9 @@ LETTER_TO_STAT = {
 }
 
 STATS_RANGE_BY_RARITY = {
-    Rarity.common: (1, 3),
-    Rarity.rare: (3, 6),
-    Rarity.legendary: (6, 10),
+    RarityEnum.COMMON: (1, 3),
+    RarityEnum.RARE: (3, 6),
+    RarityEnum.LEGENDARY: (6, 10),
 }
 
 
@@ -44,9 +44,9 @@ class DwellerCreateCommonOverride(SQLModel):
 
     first_name: str | None = Field(default=None, min_length=2, max_length=32)
     last_name: str | None = Field(default=None, min_length=2, max_length=32)
-    rarity: Rarity = Field(default=Rarity.common)
-    gender: Gender | None = Field(default=None)
-    special_boost: SPECIAL | None = Field(default=None)
+    rarity: RarityEnum = Field(default=RarityEnum.COMMON)
+    gender: GenderEnum | None = Field(default=None)
+    special_boost: SPECIALEnum | None = Field(default=None)
 
 
 class DwellerRead(DwellerBase):

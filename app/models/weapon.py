@@ -6,7 +6,7 @@ from sqlmodel import Field, Relationship
 from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.models.dweller import Dweller
 from app.models.item import ItemBase
-from app.schemas.common import WeaponSubtype, WeaponType
+from app.schemas.common import WeaponSubtypeEnum, WeaponTypeEnum
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller
@@ -14,16 +14,16 @@ if TYPE_CHECKING:
 
 
 class WeaponBase(ItemBase):
-    weapon_type: WeaponType
-    weapon_subtype: WeaponSubtype
+    weapon_type: WeaponTypeEnum
+    weapon_subtype: WeaponSubtypeEnum
     stat: str
     damage_min: int = Field(ge=0)
     damage_max: int = Field(ge=1)
 
-    _MELEE_SUBTYPES = (WeaponSubtype.blunt, WeaponSubtype.edged, WeaponSubtype.pointed)
-    _GUN_SUBTYPES = (WeaponSubtype.pistol, WeaponSubtype.rifle, WeaponSubtype.shotgun)
-    _ENERGY_SUBTYPES = (WeaponSubtype.pistol, WeaponSubtype.rifle)
-    _HEAVY_SUBTYPES = (WeaponSubtype.automatic, WeaponSubtype.flamer, WeaponSubtype.explosive)
+    _MELEE_SUBTYPES = (WeaponSubtypeEnum.BLUNT, WeaponSubtypeEnum.EDGED, WeaponSubtypeEnum.POINTED)
+    _GUN_SUBTYPES = (WeaponSubtypeEnum.PISTOL, WeaponSubtypeEnum.RIFLE, WeaponSubtypeEnum.SHOTGUN)
+    _ENERGY_SUBTYPES = (WeaponSubtypeEnum.PISTOL, WeaponSubtypeEnum.RIFLE)
+    _HEAVY_SUBTYPES = (WeaponSubtypeEnum.AUTOMATIC, WeaponSubtypeEnum.FLAMER, WeaponSubtypeEnum.EXPLOSIVE)
 
     @classmethod
     @field_validator("weapon_subtype", mode="before")
@@ -32,13 +32,13 @@ class WeaponBase(ItemBase):
         message = f"Invalid weapon subtype for {weapon_type.value} weapon"
 
         match weapon_type:
-            case WeaponType.melee:
+            case WeaponTypeEnum.MELEE:
                 valid_subtypes = cls._MELEE_SUBTYPES
-            case WeaponType.gun:
+            case WeaponTypeEnum.GUN:
                 valid_subtypes = cls._GUN_SUBTYPES
-            case WeaponType.energy:
+            case WeaponTypeEnum.ENERGY:
                 valid_subtypes = cls._ENERGY_SUBTYPES
-            case WeaponType.heavy:
+            case WeaponTypeEnum.HEAVY:
                 valid_subtypes = cls._HEAVY_SUBTYPES
             case _:
                 return v

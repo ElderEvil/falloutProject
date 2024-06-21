@@ -4,7 +4,7 @@ from pydantic import UUID4
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel, SPECIALModel, TimeStampMixin
-from app.schemas.common import Gender, Rarity
+from app.schemas.common import GenderEnum, RarityEnum
 
 if TYPE_CHECKING:
     from app.models.outfit import Outfit
@@ -18,8 +18,8 @@ class DwellerBaseWithoutStats(SQLModel):
     first_name: str = Field(index=True, min_length=2, max_length=32)
     last_name: str | None = Field(default=None, index=True, max_length=32)
     is_adult: bool = True
-    gender: Gender = Field()
-    rarity: Rarity = Field()
+    gender: GenderEnum = Field()
+    rarity: RarityEnum = Field()
     image_url: str | None = Field(default=None, max_length=255)
 
     # Stats

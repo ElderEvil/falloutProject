@@ -5,20 +5,20 @@ from sqlmodel import Field, Relationship
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.models.item import ItemBase
-from app.schemas.common import JunkType, Rarity
+from app.schemas.common import JunkTypeEnum, RarityEnum
 
 if TYPE_CHECKING:
     from app.models.storage import Storage
 
 
 class JunkBase(ItemBase):
-    junk_type: JunkType
-    description: str
+    junk_type: JunkTypeEnum
+    description: str = Field(min_length=3, max_length=255)
 
     _value_by_rarity = {
-        Rarity.common: 2,
-        Rarity.rare: 50,
-        Rarity.legendary: 200,
+        RarityEnum.COMMON: 2,
+        RarityEnum.RARE: 50,
+        RarityEnum.LEGENDARY: 200,
     }
 
 

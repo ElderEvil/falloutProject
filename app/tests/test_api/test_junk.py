@@ -5,7 +5,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
-from app.schemas.common import JunkType
+from app.schemas.common import JunkTypeEnum
 from app.schemas.junk import JunkCreate
 from app.tests.utils.utils import random_lower_string
 
@@ -102,7 +102,7 @@ async def test_update_junk(async_client: AsyncClient, junk_data: dict):
         "name": random_lower_string(16).capitalize(),
         "rarity": "Legendary",
         "value": random.randint(1, 1_000),
-        "junk_type": random.choice(list(JunkType)),
+        "junk_type": random.choice(list(JunkTypeEnum)),
         "description": random_lower_string(16),
     }
     update_response = await async_client.put(f"/junk/{junk_item['id']}", json=junk_new_data)

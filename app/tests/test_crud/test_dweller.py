@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.crud.dweller import BOOSTED_STAT_VALUE
-from app.schemas.common import SPECIAL
+from app.schemas.common import SPECIALEnum
 from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
@@ -73,7 +73,7 @@ async def test_create_random_common_dweller(async_session: AsyncSession):
     assert dweller.vault_id == vault.id  # Check vault association
 
     # Create a random dweller with a special boost override
-    special_stat = random.choice(list(SPECIAL))
+    special_stat = random.choice(list(SPECIALEnum))
     override = DwellerCreateCommonOverride(special_boost=special_stat)
     dweller_boosted = await crud.dweller.create_random(db_session=async_session, obj_in=override, vault_id=vault.id)
     assert dweller_boosted.id

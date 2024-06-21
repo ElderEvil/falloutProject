@@ -8,7 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.crud.base import CRUDBase
 from app.crud.mixins import CompletionMixin
 from app.models.quest import Quest, QuestChain, QuestObjective
-from app.models.vault_quests import (
+from app.models.vault_quest import (
     VaultQuestChainCompletionLink,
     VaultQuestCompletionLink,
     VaultQuestObjectiveCompletionLink,

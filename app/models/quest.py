@@ -4,7 +4,7 @@ from pydantic import UUID4
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
-from app.models.vault_quests import (
+from app.models.vault_quest import (
     VaultQuestChainCompletionLink,
     VaultQuestCompletionLink,
     VaultQuestObjectiveCompletionLink,

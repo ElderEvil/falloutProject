@@ -1,5 +1,6 @@
 from .dweller import Dweller
 from .junk import Junk
+from .objective import Objective
 from .outfit import Outfit
 from .quest import Quest
 from .room import Room

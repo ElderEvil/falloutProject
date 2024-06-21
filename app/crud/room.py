@@ -45,12 +45,14 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         It considers the base cost of the room type and applies an incremental cost
         based on the number of similar rooms already built in the vault.
         """
-        # Retrieve the existing rooms of the same category in the specified vault
         response = await db_session.execute(
             select(Room).where(Room.vault_id == room_in.vault_id, Room.category == room_in.category)
         )
         rooms = response.scalars().all()
 
+        if not rooms or not room_in.incremental_cost:
+            msg = "Incremental cost must be set for the room category."
+            raise ValueError(msg)
         return room_in.base_cost + (len(rooms) * room_in.incremental_cost)
 
     @staticmethod

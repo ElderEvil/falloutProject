@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from pydantic import UUID4
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.api.deps import get_static_game_data

@@ -97,9 +97,8 @@ class CRUDQuest(CRUDBase[Quest, QuestCreate, QuestUpdate], CompletionMixin[Vault
     async def _handle_completion_cascade(
         self, db_session: AsyncSession, db_obj: QuestObjective, vault_id: UUID4
     ) -> None:
-        quest_chain = await quest_chain_crud.get(db_session, db_obj.quest_chain_id)
-        if quest_chain and all(quest.is_completed for quest in quest_chain.quests):
-            await quest_chain_crud.complete(db_session=db_session, quest_entity_id=quest_chain.id, vault_id=vault_id)
+        # TODO: Implement this method
+        pass
 
 
 class CRUDObjective(
@@ -110,10 +109,11 @@ class CRUDObjective(
         super().__init__(model)
         self.link_model = link_model
 
-    async def _handle_completion_cascade(self, db_session: AsyncSession, db_obj: QuestChain, vault_id: UUID4) -> None:
-        quest = await quest_crud.get(db_session, db_obj.quest_id)
-        if quest and all(obj.is_completed for obj in quest.objectives):
-            await quest_crud.complete(db_session=db_session, quest_entity_id=quest.id, vault_id=vault_id)
+    async def _handle_completion_cascade(
+        self, db_session: AsyncSession, db_obj: QuestObjective, vault_id: UUID4
+    ) -> None:
+        # TODO: Implement this method
+        pass
 
 
 quest_chain_crud = CRUDQuestChain(QuestChain, VaultQuestChainCompletionLink)

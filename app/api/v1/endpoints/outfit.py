@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from pydantic import UUID4
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.api.deps import get_static_game_data
@@ -40,24 +40,24 @@ async def delete_outfit(outfit_id: UUID4, db_session: AsyncSession = Depends(get
     return await crud.outfit.delete(db_session, outfit_id)
 
 
-@router.post("/{outfit_id}/equip/", response_model=OutfitRead)
-async def equip_outfit(outfit_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
-    return await crud.outfit.equip(db_session, outfit_id)
+@router.post("/{dweller_id}/equip/{outfit_id}", response_model=OutfitRead)
+async def equip_outfit(dweller_id: UUID4, outfit_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
+    return await crud.outfit.equip(db_session=db_session, item_id=outfit_id, dweller_id=dweller_id)
 
 
 @router.post("/{outfit_id}/unequip/", status_code=200)
 async def unequip_outfit(outfit_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
-    return await crud.outfit.unequip(db_session, outfit_id)
+    return await crud.outfit.unequip(db_session=db_session, item_id=outfit_id)
 
 
 @router.post("/{outfit_id}/scrap/", response_model=list[JunkRead] | None)
 async def scrap_outfit(outfit_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
-    return await crud.outfit.scrap(db_session, outfit_id)
+    return await crud.outfit.scrap(db_session=db_session, item_id=outfit_id)
 
 
 @router.post("/{outfit_id}/sell/", status_code=204)
 async def sell_outfit(outfit_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
-    return await crud.outfit.sell(db_session, outfit_id)
+    return await crud.outfit.sell(db_session=db_session, item_id=outfit_id)
 
 
 @router.get("/read_data/", response_model=list[OutfitCreate])

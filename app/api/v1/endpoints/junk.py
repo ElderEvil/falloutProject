@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from pydantic import UUID4
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.api.deps import get_static_game_data
@@ -37,7 +37,7 @@ async def delete_junk(junk_id: UUID4, db_session: AsyncSession = Depends(get_asy
 
 @router.post("/{junk_id}/sell/", status_code=204)
 async def sell_junk(junk_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
-    return await crud.junk.sell(db_session, junk_id)
+    return await crud.junk.sell(db_session=db_session, item_id=junk_id)
 
 
 @router.get("/read_data/")

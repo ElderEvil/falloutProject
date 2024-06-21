@@ -5,6 +5,8 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CreateSchemaType, CRUDBase, ModelType, UpdateSchemaType
+
+# from app.crud.mixins import SellItemMixin
 from app.models import Vault
 from app.models.dweller import Dweller
 from app.models.junk import Junk
@@ -15,7 +17,10 @@ SAME_RARITY_JUNK_PROBABILITY = 0.4
 DIFFERENT_RARITY_JUNK_PROBABILITY = 0.6
 
 
-class CRUDItem(CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType]):
+class CRUDItem(
+    CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType],
+    # SellItemMixin[ModelType]
+):
     async def create(self, db_session: AsyncSession, obj_in: CreateSchemaType) -> ModelType:
         if obj_in.storage_id and obj_in.dweller_id:
             raise InvalidItemAssignmentException(self.model)
@@ -31,7 +36,7 @@ class CRUDItem(CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType]):
             raise InvalidItemAssignmentException(self.model)
         return await super().update(db_session, id=id, obj_in=obj_in)
 
-    async def equip(self, db_session: AsyncSession, *, item_id: UUID4, dweller_id: UUID4) -> ModelType | None:
+    async def equip(self, *, db_session: AsyncSession, item_id: UUID4, dweller_id: UUID4) -> ModelType | None:
         dweller = await db_session.get(Dweller, dweller_id)
         if not dweller:
             raise ResourceNotFoundException(Dweller, identifier=dweller_id)
@@ -50,15 +55,20 @@ class CRUDItem(CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType]):
         await db_session.commit()
         return item
 
-    async def unequip(self, db_session: AsyncSession, *, dweller_id: UUID4) -> None:
-        dweller = await db_session.get(Dweller, dweller_id)
+    async def unequip(self, *, db_session: AsyncSession, item_id: UUID4) -> None:
+        item_in_db = await db_session.get(self.model, item_id)
+        if not item_in_db:
+            raise ResourceNotFoundException(self.model, identifier=item_id)
+
+        dweller = await db_session.get(Dweller, item_in_db.dweller_id)
+
         if not dweller:
-            raise ResourceNotFoundException(Dweller, identifier=dweller_id)
+            raise ResourceNotFoundException(Dweller, identifier=item_in_db.dweller_id)
 
         item_attr = f"{self.model.__name__.lower()}_id"
         if getattr(dweller, item_attr) is None:
             raise ContentNoChangeException(
-                detail=f"Dweller {dweller_id} does not have a {self.model.__name__.lower()} equipped."
+                detail=f"Dweller {dweller} does not have a {self.model.__name__.lower()} equipped."
             )
 
         setattr(dweller, item_attr, None)
@@ -106,7 +116,7 @@ class CRUDItem(CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         return junk_results
 
-    async def scrap(self, db_session: AsyncSession, item_id: UUID4) -> list[Junk]:
+    async def scrap(self, *, db_session: AsyncSession, item_id: UUID4) -> list[Junk]:
         item = await db_session.get(self.model, item_id)
         if not item:
             raise ResourceNotFoundException(self.model, identifier=item_id)

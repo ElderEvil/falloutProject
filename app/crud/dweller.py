@@ -1,7 +1,7 @@
 from pydantic import UUID4
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
 from app.crud.room import room as room_crud
@@ -85,11 +85,11 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
 
         return DwellerReadWithRoomID.from_orm(dweller_obj)
 
-    def reanimate(self, db_session: AsyncSession, dweller_obj: Dweller) -> Dweller | None:
+    async def reanimate(self, db_session: AsyncSession, dweller_obj: Dweller) -> Dweller | None:
         """Revive a dead dweller."""
         if self.is_alive(dweller_obj):
             raise ContentNoChangeException(detail="Dweller is already alive")
-        self.update(db_session, dweller_obj.id, DwellerUpdate(health=dweller_obj.max_health))
+        await self.update(db_session, dweller_obj.id, DwellerUpdate(health=dweller_obj.max_health))
         return dweller_obj
 
     async def get_full_info(self, db_session: AsyncSession, dweller_id: UUID4) -> DwellerReadFull:

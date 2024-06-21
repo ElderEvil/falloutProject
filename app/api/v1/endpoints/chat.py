@@ -123,7 +123,7 @@ async def ask_dweller(
         await text_to_audio(
             text=answer,
             voice_type=dweller.gender.value,
-            file_name=f"{dweller.first_name.lower()}_{dweller.last_name.lower()}",
+            file_name=f"{dweller.first_name.lower()}_{dweller.last_name.lower() if dweller.last_name else ""}",
             client=client,
         )
         return {"Dweller": "Response audio file created"}

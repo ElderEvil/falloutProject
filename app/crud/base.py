@@ -24,7 +24,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     def __init__(self, model: type[ModelType]):
         self.model = model
 
-    async def get(self, db_session: AsyncSession, id: int | UUID4) -> ModelType | None:
+    async def get(self, db_session: AsyncSession, id: int | UUID4) -> ModelType:
         """
         Gets a single item of the specified model type by ID.
 

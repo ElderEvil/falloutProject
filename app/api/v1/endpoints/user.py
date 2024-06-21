@@ -2,7 +2,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
 from pydantic import UUID4
 from pydantic.networks import EmailStr
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser
@@ -146,4 +146,4 @@ async def update_user(
             status_code=404,
             detail="The user with this ID does not exist in the system",
         )
-    return await crud.user.update(db_session, db_obj=user_in_db, obj_in=user_in)
+    return await crud.user.update(db_session, id=user_in_db.id, obj_in=user_in)

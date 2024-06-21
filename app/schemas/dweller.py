@@ -1,10 +1,8 @@
 from datetime import datetime
-from typing import Any
 
-from pydantic import UUID4, ConfigDict, Field, model_validator
+from pydantic import UUID4, ConfigDict, Field
 from sqlmodel import SQLModel
 
-from app.models.base import SPECIALModel
 from app.models.dweller import DwellerBase
 from app.schemas.common import SPECIAL, Gender, Rarity
 from app.schemas.outfit import OutfitRead
@@ -33,28 +31,6 @@ STATS_RANGE_BY_RARITY = {
 class DwellerCreateWithoutVaultID(DwellerBase):
     weapon: str | None = Field(default=None, max_length=32)
     outfit: str | None = Field(default=None, max_length=32)
-
-    @classmethod
-    @model_validator(mode="before")
-    def validate_stats(cls, values: dict[str, Any]):
-        health = values.get("health")
-        max_health = values.get("max_health")
-        rarity = values["rarity"]
-        stat_min, stat_max = STATS_RANGE_BY_RARITY[rarity]
-
-        if health > max_health:
-            error_msg = f"Invalid health value: {health}. It cannot be greater than max_health."
-            raise ValueError(error_msg)
-
-        for stat_field in SPECIALModel.__annotations__:
-            stat_value = values[stat_field]
-            if not stat_min <= stat_value <= stat_max:
-                error_msg = (
-                    f"Invalid {rarity} dweller stat value: {stat_value}. "
-                    f"It should be between {stat_min} and {stat_max}"
-                )
-                raise ValueError(error_msg)
-        return values
 
     model_config = ConfigDict(use_enum_values=True)
 
@@ -86,12 +62,16 @@ class DwellerReadWithVaultID(DwellerRead):
 class DwellerReadWithRoomID(DwellerRead):
     room_id: UUID4
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class DwellerReadFull(DwellerRead):
     vault: VaultRead
     room: RoomRead | None
     weapon: WeaponRead | None
     outfit: OutfitRead | None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 @optional()

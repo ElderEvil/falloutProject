@@ -10,8 +10,6 @@ if TYPE_CHECKING:
     from app.models.dweller import Dweller
     from app.models.vault import Vault
 
-UNIQUE_ROOM_NAMES = {"Vault Door", "Overseer's office"}
-
 
 class RoomBase(SQLModel):
     name: str = Field(index=True, min_length=3, max_length=32)
@@ -33,7 +31,7 @@ class RoomBase(SQLModel):
 
     @property
     def is_unique(self) -> bool:
-        return self.name in UNIQUE_ROOM_NAMES
+        return not self.incremental_cost
 
     @property
     def max_tier(self) -> int:

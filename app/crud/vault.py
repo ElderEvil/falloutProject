@@ -2,20 +2,20 @@ from collections.abc import Sequence
 
 from pydantic import UUID4
 from sqlalchemy import func
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
 from app.models import Dweller, Room, Storage
 from app.models.vault import Vault
 from app.schemas.common import RoomAction, RoomType
 from app.schemas.room import RoomCreate
-from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultUpdate
+from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultStart, VaultUpdate
 from app.utils.exceptions import InsufficientResourcesException, ResourceNotFoundException
 
 
 class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
-    async def get_by_user_id(self, *, db_session: AsyncSession, user_id: int) -> Sequence[Vault]:
+    async def get_by_user_id(self, *, db_session: AsyncSession, user_id: UUID4) -> Sequence[Vault]:
         response = await db_session.execute(select(self.model).where(self.model.user_id == user_id))
         return response.scalars().all()
 
@@ -50,16 +50,16 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             await db_session.refresh(storage_obj)
 
         # Calculate the new vault resource capacity for production rooms
-        if room_obj.category == RoomType.production:
+        if room_obj.category == RoomType.production and room_obj.capacity is not None:
             match room_obj.ability:
                 case "Strength":
-                    new_capacity = self._calculate_new_capacity(action, vault_obj.power_capacity, room_obj.capacity)
+                    new_capacity = self._calculate_new_capacity(action, vault_obj.power_max, room_obj.capacity)
                     await _update_vault(VaultUpdate(power_capacity=new_capacity))
                 case "Agility":
-                    new_capacity = self._calculate_new_capacity(action, vault_obj.food_capacity, room_obj.capacity)
+                    new_capacity = self._calculate_new_capacity(action, vault_obj.food_max, room_obj.capacity)
                     await _update_vault(VaultUpdate(food_capacity=new_capacity))
                 case "Perception":
-                    new_capacity = self._calculate_new_capacity(action, vault_obj.water_capacity, room_obj.capacity)
+                    new_capacity = self._calculate_new_capacity(action, vault_obj.water_max, room_obj.capacity)
                     await _update_vault(VaultUpdate(water_capacity=new_capacity))
                 case _:
                     error_msg = f"Invalid room ability: {room_obj.ability}"
@@ -89,7 +89,9 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         count = await db_session.execute(select(func.count(Vault.dwellers)).where(Vault.id == vault_id))
         return count.scalar()
 
-    async def create_with_user_id(self, db_session: AsyncSession, obj_in: VaultCreate, user_id: UUID4) -> Vault:
+    async def create_with_user_id(
+        self, db_session: AsyncSession, obj_in: VaultCreate | VaultStart, user_id: UUID4
+    ) -> Vault:
         obj_data = obj_in.model_dump()
         obj_data["user_id"] = user_id
         obj_in = VaultCreateWithUserID(**obj_data)
@@ -138,7 +140,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             raise InsufficientResourcesException(resource_name="bottle caps", resource_amount=amount_needed)
         await self.update(db_session, id=vault_obj.id, obj_in=VaultUpdate(bottle_caps=vault_obj.bottle_caps - amount))
 
-    async def initiate(self, db_session: AsyncSession, obj_in: VaultCreate, user_id: UUID4) -> Vault:
+    async def initiate(self, *, db_session: AsyncSession, obj_in: VaultStart, user_id: UUID4) -> Vault:
         """
         Create a new vault for a user and initialize it with essential rooms.
         Includes a vault door and multiple elevators.

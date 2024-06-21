@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from pydantic import UUID4
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.db.session import get_async_session

@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import Generic, TypeVar
 
 from pydantic import UUID4
@@ -11,12 +12,25 @@ ModelType = TypeVar("ModelType", bound=SQLModel)
 
 
 class CompletionMixin(Generic[LinkModelType]):
-    model: type[ModelType]
     link_model: type[LinkModelType]
 
-    async def get_link(
-        self, *, db_session: AsyncSession, vault_id: UUID4, quest_entity_id: UUID4
-    ) -> type[LinkModelType]:
+    async def _get_all_quest_links_for_quest_chain(
+        self, db_session: AsyncSession, quest_chain_id: UUID4, vault_id: UUID4
+    ) -> Sequence[LinkModelType]:
+        query = select(self.link_model).where(
+            and_(self.link_model.vault_id == vault_id, self.link_model.quest_chain_id == quest_chain_id)
+        )
+        result = await db_session.execute(query)
+        return result.scalars().all()
+
+    async def _get_all_objective_links_for_quest(
+        self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4, link_model: type[LinkModelType]
+    ) -> Sequence[LinkModelType]:
+        query = select(link_model).where(and_(link_model.vault_id == vault_id, link_model.quest_entity_id == quest_id))
+        result = await db_session.execute(query)
+        return result.scalars().all()
+
+    async def get_link(self, *, db_session: AsyncSession, vault_id: UUID4, quest_entity_id: UUID4) -> LinkModelType:
         query = select(self.link_model).where(
             and_(self.link_model.vault_id == vault_id, self.link_model.quest_entity_id == quest_entity_id)
         )
@@ -30,14 +44,13 @@ class CompletionMixin(Generic[LinkModelType]):
 
     async def _mark_as_complete(
         self, *, db_session: AsyncSession, quest_entity_id: UUID4, vault_id: UUID4
-    ) -> type[LinkModelType]:
+    ) -> LinkModelType:
         quest_completion_link = await self.get_link(
             db_session=db_session, vault_id=vault_id, quest_entity_id=quest_entity_id
         )
         quest_completion_link.is_completed = True
 
         await db_session.commit()
-        # await db_session.refresh(quest_completion_link)
 
         return quest_completion_link
 

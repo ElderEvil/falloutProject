@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import UUID4
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser
@@ -73,7 +73,7 @@ async def delete_vault(
     user: CurrentActiveUser,
 ):
     vault = await crud.vault.get(db_session, vault_id)
-    if vault.user_id != user.id or not user.is_superuser:
+    if vault and (vault.user_id != user.id or not user.is_superuser):
         raise HTTPException(status_code=403, detail="User does not have permission to delete the vault")
     return await crud.vault.delete(db_session, vault_id)
 
@@ -85,4 +85,4 @@ async def start_vault(
     db_session: AsyncSession = Depends(get_async_session),
     user: CurrentActiveUser,
 ):
-    return await crud.vault.initiate(db_session, vault_data, user.id)
+    return await crud.vault.initiate(db_session=db_session, obj_in=vault_data, user_id=user.id)

@@ -1,13 +1,22 @@
 from enum import StrEnum
 
 
-class RarityEnum(StrEnum):
+class CaseInsensitiveEnum(StrEnum):
+    @classmethod
+    def _missing_(cls, value: str):
+        for member in cls:
+            if member.lower() == value.lower():
+                return member
+        return None
+
+
+class RarityEnum(CaseInsensitiveEnum):
     COMMON = "common"
     RARE = "rare"
     LEGENDARY = "legendary"
 
 
-class SPECIALEnum(StrEnum):
+class SPECIALEnum(CaseInsensitiveEnum):
     STRENGTH = "strength"
     PERCEPTION = "perception"
     ENDURANCE = "endurance"
@@ -17,12 +26,12 @@ class SPECIALEnum(StrEnum):
     LUCK = "luck"
 
 
-class GenderEnum(StrEnum):
+class GenderEnum(CaseInsensitiveEnum):
     MALE = "male"
     FEMALE = "female"
 
 
-class JunkTypeEnum(StrEnum):
+class JunkTypeEnum(CaseInsensitiveEnum):
     CIRCUITRY = "circuitry"
     LEATHER = "leather"
     ADHESIVE = "adhesive"
@@ -32,7 +41,7 @@ class JunkTypeEnum(StrEnum):
     VALUABLES = "valuables"
 
 
-class OutfitTypeEnum(StrEnum):
+class OutfitTypeEnum(CaseInsensitiveEnum):
     COMMON = "common_outfit"
     RARE = "rare_outfit"
     LEGENDARY = "legendary_outfit"
@@ -40,13 +49,13 @@ class OutfitTypeEnum(StrEnum):
     TIERED = "tiered_outfit"
 
 
-class RoomActionEnum(StrEnum):
+class RoomActionEnum(CaseInsensitiveEnum):
     BUILD = "build"
     UPGRADE = "upgrade"
     DESTROY = "destroy"
 
 
-class RoomTypeEnum(StrEnum):
+class RoomTypeEnum(CaseInsensitiveEnum):
     CAPACITY = "capacity"
     CRAFTING = "crafting"
     MISC = "misc."
@@ -56,14 +65,14 @@ class RoomTypeEnum(StrEnum):
     TRAINING = "training"
 
 
-class WeaponTypeEnum(StrEnum):
+class WeaponTypeEnum(CaseInsensitiveEnum):
     MELEE = "melee"
     GUN = "gun"
     ENERGY = "energy"
     HEAVY = "heavy"
 
 
-class WeaponSubtypeEnum(StrEnum):
+class WeaponSubtypeEnum(CaseInsensitiveEnum):
     BLUNT = "blunt"
     EDGED = "edged"
     POINTED = "pointed"

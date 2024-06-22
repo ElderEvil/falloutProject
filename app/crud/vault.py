@@ -5,12 +5,13 @@ from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.api.deps import get_static_game_data
 from app.crud.base import CRUDBase
 from app.models import Dweller, Room, Storage
 from app.models.vault import Vault
 from app.schemas.common import RoomActionEnum, RoomTypeEnum
 from app.schemas.room import RoomCreate
-from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultStart, VaultUpdate
+from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultName, VaultUpdate
 from app.utils.exceptions import InsufficientResourcesException, ResourceNotFoundException
 
 
@@ -90,7 +91,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         return count.scalar()
 
     async def create_with_user_id(
-        self, db_session: AsyncSession, obj_in: VaultCreate | VaultStart, user_id: UUID4
+        self, db_session: AsyncSession, obj_in: VaultCreate | VaultName, user_id: UUID4
     ) -> Vault:
         obj_data = obj_in.model_dump()
         obj_data["user_id"] = user_id
@@ -140,7 +141,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             raise InsufficientResourcesException(resource_name="bottle caps", resource_amount=amount_needed)
         await self.update(db_session, id=vault_obj.id, obj_in=VaultUpdate(bottle_caps=vault_obj.bottle_caps - amount))
 
-    async def initiate(self, *, db_session: AsyncSession, obj_in: VaultStart, user_id: UUID4) -> Vault:
+    async def initiate(self, *, db_session: AsyncSession, obj_in: VaultName, user_id: UUID4) -> Vault:
         """
         Create a new vault for a user and initialize it with essential rooms.
         Includes a vault door and multiple elevators.
@@ -149,25 +150,38 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
         vault_db_obj = await self.create_with_user_id(db_session, obj_in, user_id)
 
+        game_data_store = get_static_game_data()
+        rooms = game_data_store.rooms
+        vault_door = next(room for room in rooms if room.name.lower() == "vault door")
+        elevator = next(room for room in rooms if room.name.lower() == "elevator")
+
         # Prepare the initial vault door
-        vault_door = RoomCreate(
-            name="Vault Door",
-            vault_id=vault_db_obj.id,
-            coordinate_x=0,
-            coordinate_y=0,  # Vault Door at (0,0)
+        vault_door_data = vault_door.model_dump()
+        vault_door_data.update(
+            {
+                "vault_id": vault_db_obj.id,
+                "coordinate_x": 0,
+                "coordinate_y": 0,
+            }
         )
+        vault_door = RoomCreate(**vault_door_data)
 
         # Prepare elevators at different 'y' coordinates
-        elevators = [
-            RoomCreate(
-                name="Elevator",
-                vault_id=vault_db_obj.id,
-                coordinate_x=1,
-                coordinate_y=i,  # Unique 'y' coordinate for each elevator
-            )
+        elevator_data = elevator.model_dump()
+        elevator_data.update(
+            {
+                "vault_id": vault_db_obj.id,
+                "coordinate_x": 0,
+            }
+        )
+        elevators_data = [
+            {
+                **elevator_data,
+                "coordinate_y": i + 1,
+            }
             for i in range(3)
         ]
-
+        elevators = [RoomCreate(**elevator_data) for elevator_data in elevators_data]
         # List of all initial rooms to create
         initial_rooms = [vault_door, *elevators]
 

@@ -6,7 +6,7 @@ from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser
 from app.db.session import get_async_session
 from app.models.vault import Vault
-from app.schemas.vault import VaultCreate, VaultRead, VaultReadWithUser, VaultStart, VaultUpdate
+from app.schemas.vault import VaultCreate, VaultName, VaultRead, VaultReadWithUser, VaultUpdate
 
 router = APIRouter()
 
@@ -78,10 +78,10 @@ async def delete_vault(
     return await crud.vault.delete(db_session, vault_id)
 
 
-@router.post("/start", response_model=Vault, status_code=201)
+@router.post("/initiate", response_model=Vault, status_code=201)
 async def start_vault(
     *,
-    vault_data: VaultStart,
+    vault_data: VaultName,
     db_session: AsyncSession = Depends(get_async_session),
     user: CurrentActiveUser,
 ):

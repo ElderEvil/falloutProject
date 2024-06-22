@@ -19,7 +19,7 @@ class UserBase(SQLModel):
 class User(BaseUUIDModel, UserBase, TimeStampMixin, table=True):
     hashed_password: str = Field(nullable=False)
 
-    vaults: list["Vault"] = Relationship(back_populates="user")
+    vaults: list["Vault"] = Relationship(back_populates="user", sa_relationship_kwargs={"cascade": "all, delete"})
 
     def __str__(self):
         return self.username

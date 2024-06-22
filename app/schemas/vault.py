@@ -15,7 +15,7 @@ class VaultCreateWithUserID(VaultBase):
     user_id: UUID4
 
 
-class VaultName(SQLModel):
+class VaultNumber(SQLModel):
     name: int = Field(gt=0, lt=1_000)
 
 

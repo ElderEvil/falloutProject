@@ -21,8 +21,9 @@ class CRUDItem(
     CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType],
     # SellItemMixin[ModelType]
 ):
-    async def create(self, db_session: AsyncSession, obj_in: CreateSchemaType) -> ModelType:
-        if obj_in.storage_id and obj_in.dweller_id:
+    async def create(self, db_session: AsyncSession, obj_in: CreateSchemaType | dict) -> ModelType:
+        obj_in = obj_in if isinstance(obj_in, dict) else obj_in.model_dump()
+        if obj_in.get("storage_id") and obj_in.get("dweller_id"):
             raise InvalidItemAssignmentException(self.model)
         return await super().create(db_session, obj_in)
 

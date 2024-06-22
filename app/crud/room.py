@@ -7,7 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.crud.base import CRUDBase, ModelType
 from app.crud.vault import vault as vault_crud
 from app.models.room import Room
-from app.schemas.common import RoomTypeEnum
+from app.schemas.common import RoomActionEnum, RoomTypeEnum
 from app.schemas.room import RoomCreate, RoomUpdate
 from app.utils.exceptions import InsufficientResourcesException, NoSpaceAvailableException, UniqueRoomViolationException
 
@@ -18,11 +18,11 @@ DESTROY_ROOM_REWARD = 0.2
 
 class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
     @staticmethod
-    def evaluate_capacity_formula(formula: str, level: int, size: int, numexpr=None) -> int:
+    def evaluate_capacity_formula(formula: str, level: int, size: int) -> int:
         try:
-            result = numexpr.evaluate(formula, {"L": level, "S": size})
+            result = eval(formula, {"L": level, "S": size})  # noqa: S307
             return int(result)
-        except (ValueError, SyntaxError, numexpr.NumExprError) as e:
+        except (ValueError, SyntaxError) as e:
             logger.exception("Error evaluating capacity formula.", exc_info=e)
             return 0
 
@@ -50,7 +50,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         )
         rooms = response.scalars().all()
 
-        if not rooms or not room_in.incremental_cost:
+        if not room_in.incremental_cost:
             msg = "Incremental cost must be set for the room category."
             raise ValueError(msg)
         return room_in.base_cost + (len(rooms) * room_in.incremental_cost)
@@ -69,6 +69,8 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         """Expand the size of the existing room."""
         info = f"Expanding room {existing_room.name} (ID: {existing_room.id}) by {additional_size} units."
         logger.info(msg=info)
+        if existing_room.size_min + additional_size > existing_room.size_max:
+            raise InsufficientResourcesException(resource_name="room size", resource_amount=additional_size)
         existing_room.size_min += additional_size
         await self.update(
             db_session=db_session, obj_in=RoomUpdate(size_min=existing_room.size_min), id=existing_room.id
@@ -113,7 +115,9 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         obj_in_db = await self.create(db_session, obj_in=obj_in)
 
         if self.requires_recalculation(obj_in):
-            await vault_crud.recalculate_vault_attributes(db_session, vault, obj_in_db)
+            await vault_crud.recalculate_vault_attributes(
+                db_session=db_session, vault_obj=vault, room_obj=obj_in, action=RoomActionEnum.BUILD
+            )
 
         return obj_in_db
 
@@ -125,7 +129,9 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         )
 
         if self.requires_recalculation(db_obj):
-            await vault_crud.recalculate_vault_attributes(db_session, vault, db_obj)
+            await vault_crud.recalculate_vault_attributes(
+                db_session=db_session, vault_obj=vault, room_obj=db_obj, action=RoomActionEnum.DESTROY
+            )
 
         return db_obj
 

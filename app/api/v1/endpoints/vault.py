@@ -6,7 +6,7 @@ from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser
 from app.db.session import get_async_session
 from app.models.vault import Vault
-from app.schemas.vault import VaultCreate, VaultName, VaultRead, VaultReadWithUser, VaultUpdate
+from app.schemas.vault import VaultCreate, VaultNumber, VaultRead, VaultReadWithUser, VaultUpdate
 
 router = APIRouter()
 
@@ -81,7 +81,7 @@ async def delete_vault(
 @router.post("/initiate", response_model=Vault, status_code=201)
 async def start_vault(
     *,
-    vault_data: VaultName,
+    vault_data: VaultNumber,
     db_session: AsyncSession = Depends(get_async_session),
     user: CurrentActiveUser,
 ):

@@ -1,6 +1,6 @@
 from sqladmin import ModelView
 
-from app.models import Storage
+from app.models import Objective, Storage
 from app.models.dweller import Dweller
 from app.models.junk import Junk
 from app.models.outfit import Outfit
@@ -113,6 +113,16 @@ class QuestObjectiveAdmin(ModelView, model=QuestObjective):
     column_list = [
         QuestObjective.id,
         QuestObjective.quest,
+    ]
+
+    icon = "fa-solid fa-tasks"
+
+
+class ObjectiveAdmin(ModelView, model=Objective):
+    column_list = [
+        Objective.id,
+        Objective.challenge,
+        Objective.reward,
     ]
 
     icon = "fa-solid fa-tasks"

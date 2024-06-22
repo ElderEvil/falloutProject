@@ -11,7 +11,7 @@ from app.models import Dweller, Room, Storage
 from app.models.vault import Vault
 from app.schemas.common import RoomActionEnum, RoomTypeEnum
 from app.schemas.room import RoomCreate
-from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultName, VaultUpdate
+from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultNumber, VaultUpdate
 from app.utils.exceptions import InsufficientResourcesException, ResourceNotFoundException
 
 
@@ -29,7 +29,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         raise ValueError(f"Invalid room action: {action}")  # noqa: TRY003
 
     async def recalculate_vault_attributes(
-        self, db_session: AsyncSession, vault_obj: Vault, room_obj: Room, action: RoomActionEnum
+        self, *, db_session: AsyncSession, vault_obj: Vault, room_obj: Room, action: RoomActionEnum
     ) -> Vault:
         """
         Recalculate the vault attributes based on the newly added or removed room.
@@ -53,15 +53,15 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         # Calculate the new vault resource capacity for production rooms
         if room_obj.category == RoomTypeEnum.PRODUCTION and room_obj.capacity is not None:
             match room_obj.ability:
-                case "Strength":
+                case "strength":
                     new_capacity = self._calculate_new_capacity(action, vault_obj.power_max, room_obj.capacity)
-                    await _update_vault(VaultUpdate(power_capacity=new_capacity))
-                case "Agility":
+                    await _update_vault(VaultUpdate(power_max=new_capacity))
+                case "agility":
                     new_capacity = self._calculate_new_capacity(action, vault_obj.food_max, room_obj.capacity)
-                    await _update_vault(VaultUpdate(food_capacity=new_capacity))
-                case "Perception":
+                    await _update_vault(VaultUpdate(food_max=new_capacity))
+                case "perception":
                     new_capacity = self._calculate_new_capacity(action, vault_obj.water_max, room_obj.capacity)
-                    await _update_vault(VaultUpdate(water_capacity=new_capacity))
+                    await _update_vault(VaultUpdate(water_max=new_capacity))
                 case _:
                     error_msg = f"Invalid room ability: {room_obj.ability}"
                     raise ValueError(error_msg)
@@ -90,8 +90,15 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         count = await db_session.execute(select(func.count(Vault.dwellers)).where(Vault.id == vault_id))
         return count.scalar()
 
+    @staticmethod
+    async def create_storage(*, db_session: AsyncSession, vault_id: UUID4) -> Storage:
+        storage = Storage(vault_id=vault_id)
+        db_session.add(storage)
+        await db_session.commit()
+        return storage
+
     async def create_with_user_id(
-        self, db_session: AsyncSession, obj_in: VaultCreate | VaultName, user_id: UUID4
+        self, *, db_session: AsyncSession, obj_in: VaultCreate | VaultNumber, user_id: UUID4
     ) -> Vault:
         obj_data = obj_in.model_dump()
         obj_data["user_id"] = user_id
@@ -141,51 +148,37 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             raise InsufficientResourcesException(resource_name="bottle caps", resource_amount=amount_needed)
         await self.update(db_session, id=vault_obj.id, obj_in=VaultUpdate(bottle_caps=vault_obj.bottle_caps - amount))
 
-    async def initiate(self, *, db_session: AsyncSession, obj_in: VaultName, user_id: UUID4) -> Vault:
+    @staticmethod
+    def _prepare_room_data(rooms: list[RoomCreate], room_name: str, vault_id: UUID4, x: int, y: int) -> dict:
+        room_data = next(room for room in rooms if room.name.lower() == room_name)
+        room_data_dict = room_data.model_dump()
+        room_data_dict.update(
+            {
+                "vault_id": vault_id,
+                "coordinate_x": x,
+                "coordinate_y": y,
+            }
+        )
+        return room_data_dict
+
+    async def initiate(self, *, db_session: AsyncSession, obj_in: VaultNumber, user_id: UUID4) -> Vault:
         """
         Create a new vault for a user and initialize it with essential rooms.
         Includes a vault door and multiple elevators.
         """
         from app.crud.room import room as room_crud
 
-        vault_db_obj = await self.create_with_user_id(db_session, obj_in, user_id)
+        vault_db_obj = await self.create_with_user_id(db_session=db_session, obj_in=obj_in, user_id=user_id)
+
+        await self.create_storage(db_session=db_session, vault_id=vault_db_obj.id)
 
         game_data_store = get_static_game_data()
         rooms = game_data_store.rooms
-        vault_door = next(room for room in rooms if room.name.lower() == "vault door")
-        elevator = next(room for room in rooms if room.name.lower() == "elevator")
+        vault_door_data = self._prepare_room_data(rooms, "vault door", vault_db_obj.id, 0, 0)
+        elevators_data = [self._prepare_room_data(rooms, "elevator", vault_db_obj.id, 0, y) for y in range(1, 4)]
 
-        # Prepare the initial vault door
-        vault_door_data = vault_door.model_dump()
-        vault_door_data.update(
-            {
-                "vault_id": vault_db_obj.id,
-                "coordinate_x": 0,
-                "coordinate_y": 0,
-            }
-        )
-        vault_door = RoomCreate(**vault_door_data)
+        initial_rooms = [RoomCreate(**vault_door_data)] + [RoomCreate(**data) for data in elevators_data]
 
-        # Prepare elevators at different 'y' coordinates
-        elevator_data = elevator.model_dump()
-        elevator_data.update(
-            {
-                "vault_id": vault_db_obj.id,
-                "coordinate_x": 0,
-            }
-        )
-        elevators_data = [
-            {
-                **elevator_data,
-                "coordinate_y": i + 1,
-            }
-            for i in range(3)
-        ]
-        elevators = [RoomCreate(**elevator_data) for elevator_data in elevators_data]
-        # List of all initial rooms to create
-        initial_rooms = [vault_door, *elevators]
-
-        # Create all initial rooms in a single transaction
         await room_crud.create_all(db_session, initial_rooms)
 
         return vault_db_obj

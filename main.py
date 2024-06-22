@@ -6,6 +6,7 @@ from starlette import status
 from app.admin.views import (
     DwellerAdmin,
     JunkAdmin,
+    ObjectiveAdmin,
     OutfitAdmin,
     QuestAdmin,
     QuestChainAdmin,
@@ -48,3 +49,4 @@ admin.add_view(JunkAdmin)
 admin.add_view(QuestChainAdmin)
 admin.add_view(QuestAdmin)
 admin.add_view(QuestObjectiveAdmin)
+admin.add_view(ObjectiveAdmin)

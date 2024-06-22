@@ -21,10 +21,12 @@ if TYPE_CHECKING:
 
 
 class VaultBase(SQLModel):
+    # General information
     name: int = Field(index=True, gt=0, lt=1_000)
     bottle_caps: int = Field(default=1_000, ge=0, lt=1_000_000, alias="CAPS")
     happiness: int = Field(default=50, ge=0, le=100)
 
+    # Resource management
     power: int = Field(1, ge=0, le=10_000)
     power_max: int = Field(0, ge=0, le=10_000)
     food: int = Field(1, ge=0, le=10_000)
@@ -32,6 +34,7 @@ class VaultBase(SQLModel):
     water: int = Field(1, ge=0, le=10_000)
     water_max: int = Field(0, ge=0, le=10_000)
 
+    # Population management
     population_max: int | None = Field(default=0, ge=0, le=200, nullable=True)
 
     def __str__(self):

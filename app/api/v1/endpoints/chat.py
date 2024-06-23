@@ -1,8 +1,9 @@
+import json
 import random
-from enum import Enum
+from enum import Enum, StrEnum
 
 import logfire
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from openai import Client
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -10,6 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.crud.dweller import dweller as dweller_crud
 from app.db.session import get_async_session
 from app.models.base import SPECIALModel
+from app.models.objective import ObjectiveBase
 from app.services.open_ai import get_chatpgt_client
 
 router = APIRouter()
@@ -129,3 +131,64 @@ async def ask_dweller(
         return {"Dweller": "Response audio file created"}
 
     return {"Dweller": f"{answer}"}
+
+
+class ObjectiveKindEnum(StrEnum):
+    ANY = "Any"
+    ASSIGN = "assign"
+    COLLECT = "collect"
+    CRAFT = "craft"
+    EQUIP = "equip"
+    KILL = "kill"
+
+
+@router.get("/generate_objectives", response_model=list[ObjectiveBase])
+async def generate_objectives(
+    objective_kind: ObjectiveKindEnum,
+    objective_count: int = 3,
+    client: Client = Depends(get_chatpgt_client),
+):
+    instructions = """
+    You are an assistant for Vault-Tec Overseer who is in charge of assigning objectives to vault dwellers.
+    Objectives and rewards should be in line with the Fallout universe.
+    Respond with JSON object containing the generated objectives and rewards.
+    Make sure to include various rewards such as caps, lunchboxes, Mr. Handy, and Nuka-Cola Quantum.
+    There must be 1 lunchbox/quantum/mr. handy reward maximum per set of objectives.
+
+    Example request: {"objective_kind": "Any", "objective_count": 4}
+    Example response:
+    [
+        {
+            "challenge": "Assign 3 dwellers in the right room",
+            "reward": "25 caps"
+        },
+        {
+            "challenge": "Collect 100 food",
+            "reward": "50 caps"
+        },
+        {
+            "challenge": "Craft 5 outfits",
+            "reward": "Nuka-Cola Quantum"
+        },
+        {
+            "challenge": "Kill 100 creatures in the Wasteland",
+            "reward": "	1 lunchbox"
+        }
+    ]
+    """
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4-turbo",
+            messages=[
+                {"role": "system", "content": instructions},
+                {"role": "user", "content": f"Give {objective_count} {objective_kind} objectives"},
+            ],
+        )
+        generated_objectives = response.choices[0].message.content
+        generated_objectives_json = json.loads(generated_objectives)
+
+        # Parse the JSON into the ObjectiveResponseModelList
+        return [ObjectiveBase(**obj) for obj in generated_objectives_json]
+    except ValueError as e:
+        logfire.error(f"Error generating objectives: {e}")
+        raise HTTPException(status_code=400, detail="Failed to generate objectives") from e

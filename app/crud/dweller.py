@@ -109,5 +109,21 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
 
         return DwellerReadFull.from_orm(dweller_obj)
 
+    async def generate_bio(self, db_session: AsyncSession, dweller_id: UUID4) -> DwellerReadFull:
+        """Generate a bio for a dweller."""
+        dweller_obj = await self.get_full_info(db_session, dweller_id)
+        if dweller_obj.bio:
+            raise ContentNoChangeException(detail="Dweller already has a bio")
+        # TODO: Implement bio generation with GPT-3.5-turbo
+        return dweller_obj
+
+    async def generate_photo(self, db_session: AsyncSession, dweller_id: UUID4) -> DwellerReadFull:
+        """Generate a photo for a dweller."""
+        dweller_obj = await self.get_full_info(db_session, dweller_id)
+        if dweller_obj.image_url:
+            raise ContentNoChangeException(detail="Dweller already has a photo")
+        # TODO: Implement photo generation with DALL-E-3
+        return dweller_obj
+
 
 dweller = CRUDDweller(Dweller)

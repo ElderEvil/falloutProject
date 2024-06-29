@@ -64,6 +64,22 @@ async def create_random_dweller(
     return await crud.dweller.create_random(db_session=db_session, obj_in=dweller_override, vault_id=vault_id)
 
 
+@router.post("/{dweller_id}/generate_bio/", response_model=DwellerRead)
+async def generate_bio(
+    dweller_id: UUID4,
+    db_session: AsyncSession = Depends(get_async_session),
+):
+    return await crud.dweller.generate_photo(db_session, dweller_id)
+
+
+@router.post("/{dweller_id}/generate_photo/", response_model=DwellerRead)
+async def generate_photo(
+    dweller_id: UUID4,
+    db_session: AsyncSession = Depends(get_async_session),
+):
+    return await crud.dweller.generate_photo(db_session, dweller_id)
+
+
 @router.get("/read_data/", response_model=list[DwellerCreateWithoutVaultID])
 async def read_dwellers_data(data_store=Depends(get_static_game_data)):
     return data_store.dwellers

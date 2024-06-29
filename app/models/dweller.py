@@ -1,7 +1,9 @@
 from typing import TYPE_CHECKING
 
 from pydantic import UUID4
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
+import sqlalchemy as sa
 
 from app.models.base import BaseUUIDModel, SPECIALModel, TimeStampMixin
 from app.schemas.common import GenderEnum, RarityEnum
@@ -21,6 +23,8 @@ class DwellerBaseWithoutStats(SQLModel):
     gender: GenderEnum = Field()
     rarity: RarityEnum = Field()
     image_url: str | None = Field(default=None, max_length=255)
+    visual_attributes: dict | None = Field(default=None, sa_column=sa.Column(JSONB))
+    bio: str | None = Field(default=None, max_length=1024)
 
     # Stats
     level: int = Field(default=1, ge=1, le=50)

@@ -119,10 +119,16 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         dweller_obj = await self.get_full_info(db_session, dweller_id)
         if dweller_obj.bio:
             raise ContentNoChangeException(detail="Dweller already has a bio")
+
+        if origin.lower().startswith("vault"):
+            dweller_vault = await vault_crud.get(db_session, dweller_obj.vault_id)
+            if origin == dweller_vault.name:
+                origin = f"this vault from childhood"
+
         system_prompt = (
             "Generate a Fallout game series style biography for a dweller"
             "Include details about their background, skills, and personality traits as they relate to living in "
-            f"{origin}and surviving in the post-apocalyptic world."
+            f"{origin} and surviving in the post-apocalyptic world. "
             "The bio should be a minimum of 100 words and a maximum of 1000 symbols."
         )
         messages = [
@@ -187,6 +193,26 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         print(image_url)
 
         await self.update(db_session, dweller_id, DwellerUpdate(image_url=image_url))
+
+        return dweller_obj
+
+    async def dweller_generate_pipeline(
+            self,
+            db_session: AsyncSession,
+            dweller_id: UUID4,
+            origin: str | None = None,
+    ) -> DwellerReadFull:
+        """Generate Dweller's bio, visual attributes, and photo."""
+        dweller_obj = await self.get_full_info(db_session, dweller_id)
+        if dweller_obj.bio and dweller_obj.visual_attributes and dweller_obj.image_url:
+            raise ContentNoChangeException(detail="Dweller already has a bio, visual attributes, and photo")
+
+        if not dweller_obj.bio:
+            dweller_obj = await self.generate_backstory(db_session, dweller_id, origin)
+        if not dweller_obj.visual_attributes:
+            dweller_obj = await self.generate_visual_attributes(db_session, dweller_id)
+        if not dweller_obj.image_url:
+            dweller_obj = await self.generate_photo(db_session, dweller_id)
 
         return dweller_obj
 

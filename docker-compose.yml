@@ -66,5 +66,18 @@ services:
     depends_on:
       - celery_worker
 
+  minio:
+    image: minio/minio
+    container_name: minio
+    env_file:
+      - .env
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+
 volumes:
   postgres-data:
+  minio_data:

@@ -80,11 +80,9 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
     @staticmethod
     def requires_recalculation(room_obj: RoomCreate | Room) -> bool:
         """Check if the room category needs to be recalculated."""
-        if room_obj.category == RoomTypeEnum.PRODUCTION and room_obj.name != "Radio studio":
-            return True
-        if room_obj.category == RoomTypeEnum.CAPACITY:
-            return True
-        return False
+        return room_obj.category == RoomTypeEnum.CAPACITY or (
+            room_obj.category == RoomTypeEnum.PRODUCTION and room_obj.name != "Radio studio"
+        )
 
     async def build(self, *, db_session: AsyncSession, obj_in: RoomCreate) -> Room:
         """Implements the objectives to build a room checking for business logic constraints."""

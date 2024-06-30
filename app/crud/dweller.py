@@ -163,11 +163,10 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             'Example: {"hair_color": "brown", "eye_color": "blue", "height": "average"}'
             f"Given options: {visual_options}"
         )
-        visual_attributes = await generate_completion_json(prompt)
-        print(visual_attributes)
-        attributes = json.loads(visual_attributes)
+        visual_attributes_json = await generate_completion_json(prompt)
+        visual_attributes = json.loads(visual_attributes_json)
 
-        await self.update(db_session, dweller_id, DwellerUpdate(visual_attributes=attributes))
+        await self.update(db_session, dweller_id, DwellerUpdate(visual_attributes=visual_attributes))
 
         return dweller_obj
 
@@ -203,8 +202,10 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
 
         messages = [
             {"role": "system", "content": extension_prompt},
-            {"role": "user",
-             "content": f"Here's the current bio: {dweller_obj.bio}\nPlease extend it with more details."},
+            {
+                "role": "user",
+                "content": f"Here's the current bio: {dweller_obj.bio}\nPlease extend it with more details.",
+            },
         ]
 
         extended_bio = await generate_completion(messages)

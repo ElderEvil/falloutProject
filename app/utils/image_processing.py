@@ -10,7 +10,7 @@ async def image_url_to_bytes(url: str) -> bytes | None:
             return response.content
         except httpx.RequestError as e:
             print(f"Error fetching image: {e}")
-            return
+            return None
         except Exception as e:
             print(f"Error processing image: {e}")
-            return
+            return None

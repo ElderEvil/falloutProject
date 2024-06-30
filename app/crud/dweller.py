@@ -16,6 +16,7 @@ from app.schemas.dweller import (
     DwellerReadWithRoomID,
     DwellerUpdate,
 )
+from app.services.minio import get_minio_client
 from app.services.open_ai import generate_completion, generate_completion_json, generate_image
 from app.tests.factory.dwellers import create_random_common_dweller
 from app.utils.exceptions import ContentNoChangeException
@@ -184,8 +185,9 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             f"Dweller info: {dweller_obj.rarity} {dweller_obj.gender}"
             f"Dweller visual attributes: {dweller_obj.visual_attributes}"
         )
-        image_url = await generate_image(prompt)
-        print(image_url)
+        image_bytes = await generate_image(prompt, return_bytes=True)
+        minio_client = get_minio_client()
+        image_url = minio_client.upload_file(image_bytes, f"{dweller_id}.png", "dweller-images")
 
         await self.update(db_session, dweller_id, DwellerUpdate(image_url=image_url))
 

@@ -178,6 +178,8 @@ packaging==24.0
     # via opentelemetry-instrumentation-sqlalchemy
 passlib==1.7.4
     # via fallout-shelter-fast-api (pyproject.toml)
+pillow==10.3.0
+    # via fallout-shelter-fast-api (pyproject.toml)
 prompt-toolkit==3.0.43
     # via click-repl
 protobuf==4.25.3

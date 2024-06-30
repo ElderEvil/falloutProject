@@ -2,6 +2,7 @@ import logfire
 import openai
 
 from app.core.config import settings
+from app.utils.image_processing import image_url_to_bytes
 
 client = openai.Client(
     api_key=settings.OPENAI_API_KEY,
@@ -13,7 +14,7 @@ async def get_chatpgt_client():
     return client
 
 
-async def generate_image(prompt: str):
+async def generate_image(prompt: str, *, return_bytes: bool = False):
     response = client.images.generate(
         model="dall-e-3",
         prompt=prompt,
@@ -21,7 +22,9 @@ async def generate_image(prompt: str):
         quality="standard",
         n=1,
     )
-    return response.data[0].url
+    url = response.data[0].url
+
+    return await image_url_to_bytes(url) if return_bytes else url
 
 
 async def generate_completion(messages: list[dict[str, str]]):

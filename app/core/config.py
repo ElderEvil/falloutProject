@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     WEB_CONCURRENCY: int = 9
     POOL_SIZE: int = max(DB_POOL_SIZE // WEB_CONCURRENCY, 5)
     ASYNC_DATABASE_URI: PostgresDsn | str = ""
+    MINIO_HOSTNAME: str
+    MINIO_ROOT_USER: str
+    MINIO_ROOT_PASSWORD: str
 
     @field_validator("ASYNC_DATABASE_URI", mode="after")
     def assemble_db_connection(cls, v: str | None, info: FieldValidationInfo) -> Any:

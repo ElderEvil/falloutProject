@@ -121,8 +121,8 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             raise ContentNoChangeException(detail="Dweller already has a bio")
         system_prompt = (
             "Generate a Fallout game series style biography for a dweller"
-            f"Include details about their background, skills, and personality traits as they relate to living in {origin}"
-            " and surviving in the post-apocalyptic world."
+            "Include details about their background, skills, and personality traits as they relate to living in "
+            f"{origin} and surviving in the post-apocalyptic world."
             "The bio should be a minimum of 100 words and a maximum of 1000 symbols."
         )
         messages = [
@@ -203,8 +203,10 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
 
         messages = [
             {"role": "system", "content": extension_prompt},
-            {"role": "user",
-             "content": f"Here's the current bio: {dweller_obj.bio}\nPlease extend it with more details."},
+            {
+                "role": "user",
+                "content": f"Here's the current bio: {dweller_obj.bio}\nPlease extend it with more details.",
+            },
         ]
 
         extended_bio = await generate_completion(messages)

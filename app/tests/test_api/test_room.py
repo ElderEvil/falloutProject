@@ -58,20 +58,20 @@ async def test_read_room_list(async_client: AsyncClient, async_session: AsyncSes
     rooms = response.json()
     assert response.status_code == 200
     assert len(rooms) == 2
-    for room in rooms:
-        assert "id" in room
-        assert "name" in room
-        assert "category" in room
-        assert "ability" in room
-        assert "population_required" in room
-        assert "base_cost" in room
-        assert "incremental_cost" in room
-        assert "tier" in room
-        assert "t2_upgrade_cost" in room
-        assert "t3_upgrade_cost" in room
-        assert "output" in room
-        assert "size_min" in room
-        assert "size_max" in room
+    for r in rooms:
+        assert "id" in r
+        assert "name" in r
+        assert "category" in r
+        assert "ability" in r
+        assert "population_required" in r
+        assert "base_cost" in r
+        assert "incremental_cost" in r
+        assert "tier" in r
+        assert "t2_upgrade_cost" in r
+        assert "t3_upgrade_cost" in r
+        assert "output" in r
+        assert "size_min" in r
+        assert "size_max" in r
 
 
 @pytest.mark.asyncio

@@ -1,5 +1,3 @@
-import json
-
 from pydantic import UUID4
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
@@ -16,7 +14,6 @@ from app.schemas.dweller import (
     DwellerReadWithRoomID,
     DwellerUpdate,
 )
-from app.services.open_ai import generate_completion, generate_completion_json, generate_image
 from app.tests.factory.dwellers import create_random_common_dweller
 from app.utils.exceptions import ContentNoChangeException
 from app.utils.validation import validate_room_transfer, validate_vault_transfer
@@ -111,136 +108,6 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         dweller_obj = response.scalar_one_or_none()
 
         return DwellerReadFull.from_orm(dweller_obj)
-
-    async def generate_backstory(
-        self, db_session: AsyncSession, dweller_id: UUID4, origin: str = "Wasteland"
-    ) -> DwellerReadFull:
-        """Generate a backstory for a dweller."""
-        dweller_obj = await self.get_full_info(db_session, dweller_id)
-        if dweller_obj.bio:
-            raise ContentNoChangeException(detail="Dweller already has a bio")
-
-        if origin.lower().startswith("vault"):
-            dweller_vault = await vault_crud.get(db_session, dweller_obj.vault_id)
-            if origin == dweller_vault.name:
-                origin = f"this vault from childhood"
-
-        system_prompt = (
-            "Generate a Fallout game series style biography for a dweller"
-            "Include details about their background, skills, and personality traits as they relate to living in "
-            f"{origin} and surviving in the post-apocalyptic world. "
-            "The bio should be a minimum of 100 words and a maximum of 1000 symbols."
-        )
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Tell me about yourself, {dweller_obj.first_name}."},
-            {"role": "assistant", "content": "Sure! Here's a brief bio about me:"},
-        ]
-        backstory = await generate_completion(messages)
-
-        await self.update(db_session, dweller_id, DwellerUpdate(bio=backstory))
-
-        return dweller_obj
-
-    async def generate_visual_attributes(self, db_session: AsyncSession, dweller_id: UUID4) -> DwellerReadFull:
-        """Generate visual attributes for a dweller."""
-        dweller_obj = await self.get_full_info(db_session, dweller_id)
-        if dweller_obj.visual_attributes:
-            raise ContentNoChangeException(detail="Dweller already has visual attributes")
-
-        visual_options = """
-        hair_color: blonde, brunette, redhead, black, gray
-        eye_color: blue, green, brown, hazel, gray
-        skin_tone: fair, medium, olive, tan, dark
-        build: slim, athletic, muscular, stocky, average
-        height: tall, average, short
-        distinguishing_features: scar, tattoo, mole, freckles, birthmark
-        hair_style: short, long, curly, straight, wavy, bald
-        (Only for male)facial_hair: clean - shaven, mustache, beard, goatee, stubble
-        clothing_style: casual, military, formal, rugged, eclectic
-        """
-
-        prompt = (
-            f"Create visual attributes for {dweller_obj.first_name} {dweller_obj.last_name}."
-            f"That's his/her backstory: {dweller_obj.bio}"
-            "Include details about their appearance, clothing, and any other distinguishing features."
-            "Use dweller backstory in case it can help to generate visual attributes."
-            "Use JSON format to describe the visual attributes."
-            'Example: {"hair_color": "brown", "eye_color": "blue", "height": "average"}'
-            f"Given options: {visual_options}"
-        )
-        visual_attributes_json = await generate_completion_json(prompt)
-        visual_attributes = json.loads(visual_attributes_json)
-
-        await self.update(db_session, dweller_id, DwellerUpdate(visual_attributes=visual_attributes))
-
-        return dweller_obj
-
-    async def generate_photo(self, db_session: AsyncSession, dweller_id: UUID4) -> DwellerReadFull:
-        """Generate a photo for a dweller."""
-        dweller_obj = await self.get_full_info(db_session, dweller_id)
-        if dweller_obj.image_url:
-            raise ContentNoChangeException(detail="Dweller already has a photo")
-        prompt = (
-            "Create a photo of a Fallout shelter game vault dweller."
-            "Mood: post-apocalyptic, retro-futuristic, sci-fi"
-            "Style: realistic, cartoon"
-            "Color scheme: pastel, blue and yellow room color scheme"
-            f"Dweller info: {dweller_obj.rarity} {dweller_obj.gender}"
-            f"Dweller visual attributes: {dweller_obj.visual_attributes}"
-        )
-        image_url = await generate_image(prompt)
-        print(image_url)
-
-        await self.update(db_session, dweller_id, DwellerUpdate(image_url=image_url))
-
-        return dweller_obj
-
-    async def dweller_generate_pipeline(
-            self,
-            db_session: AsyncSession,
-            dweller_id: UUID4,
-            origin: str | None = None,
-    ) -> DwellerReadFull:
-        """Generate Dweller's bio, visual attributes, and photo."""
-        dweller_obj = await self.get_full_info(db_session, dweller_id)
-        if dweller_obj.bio and dweller_obj.visual_attributes and dweller_obj.image_url:
-            raise ContentNoChangeException(detail="Dweller already has a bio, visual attributes, and photo")
-
-        if not dweller_obj.bio:
-            dweller_obj = await self.generate_backstory(db_session, dweller_id, origin)
-        if not dweller_obj.visual_attributes:
-            dweller_obj = await self.generate_visual_attributes(db_session, dweller_id)
-        if not dweller_obj.image_url:
-            dweller_obj = await self.generate_photo(db_session, dweller_id)
-
-        return dweller_obj
-
-    async def extend_bio(self, db_session: AsyncSession, dweller_id: UUID4) -> DwellerReadFull:
-        dweller_obj = await self.get_full_info(db_session, dweller_id)
-        if not dweller_obj.bio:
-            raise ContentNoChangeException(detail="Dweller doesn't have a bio to extend")
-
-        extension_prompt = (
-            "You are a helpful assistant. You must assist the user in generating a response to the following prompt."
-            "You are helping a dweller to extend their bio with more details."
-        )
-
-        messages = [
-            {"role": "system", "content": extension_prompt},
-            {
-                "role": "user",
-                "content": f"Here's the current bio: {dweller_obj.bio}\nPlease extend it with more details.",
-            },
-        ]
-
-        extended_bio = await generate_completion(messages)
-
-        full_bio = f"{dweller_obj.bio}\n\n{extended_bio}"
-
-        await self.update(db_session, dweller_id, DwellerUpdate(bio=full_bio))
-
-        return dweller_obj
 
 
 dweller = CRUDDweller(Dweller)

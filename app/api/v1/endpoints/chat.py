@@ -12,7 +12,7 @@ from app.crud.dweller import dweller as dweller_crud
 from app.db.session import get_async_session
 from app.models.base import SPECIALModel
 from app.models.objective import ObjectiveBase
-from app.services.open_ai import get_chatpgt_client
+from app.services.open_ai import get_openai_service
 
 router = APIRouter()
 
@@ -23,7 +23,8 @@ class ResponseType(str, Enum):
 
 
 @router.get("/", response_model=dict[str, str])
-async def test_read(client: Client = Depends(get_chatpgt_client)):
+async def test_read():
+    client = get_openai_service().client
     response = client.chat.completions.create(
         messages=[
             {
@@ -66,7 +67,6 @@ async def ask_dweller(
     dweller_id: UUID4,
     message: str,
     response_type: ResponseType = ResponseType.text,
-    client: Client = Depends(get_chatpgt_client),
     db_session: AsyncSession = Depends(get_async_session),
 ):
     """
@@ -74,7 +74,6 @@ async def ask_dweller(
     :param dweller_id:
     :param message:
     :param response_type:
-    :param client:
     :param db_session:
     :return: Some data
     """
@@ -103,7 +102,7 @@ async def ask_dweller(
     Try to be in character and be in line with the Fallout universe.
     """
     logfire.info(dweller_prompt)
-
+    client = get_openai_service().client
     response = client.chat.completions.create(
         messages=[
             {
@@ -146,7 +145,6 @@ class ObjectiveKindEnum(StrEnum):
 async def generate_objectives(
     objective_kind: ObjectiveKindEnum,
     objective_count: int = 3,
-    client: Client = Depends(get_chatpgt_client),
 ):
     instructions = """
     You are an assistant for Vault-Tec Overseer who is in charge of assigning objectives to vault dwellers.
@@ -177,6 +175,7 @@ async def generate_objectives(
     ]
     """
     try:
+        client = get_openai_service().client
         response = client.chat.completions.create(
             model="gpt-4-turbo",
             messages=[

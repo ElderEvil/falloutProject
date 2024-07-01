@@ -1,62 +1,64 @@
-import logfire
+from functools import lru_cache
+
 import openai
 
 from app.core.config import settings
 from app.utils.image_processing import image_url_to_bytes
 
-client = openai.Client(
-    api_key=settings.OPENAI_API_KEY,
-)
+
+class OpenAIService:
+    def __init__(self):
+        self.client = openai.Client(api_key=settings.OPENAI_API_KEY)
+        # logfire.instrument_openai(self.client)
+
+    def get_chatgpt_client(self):
+        return self.client
+
+    async def generate_image(self, *, prompt: str, return_bytes: bool = False):
+        response = self.client.images.generate(
+            model="dall-e-3",
+            prompt=prompt,
+            size="1024x1024",
+            quality="standard",
+            n=1,
+        )
+        url = response.data[0].url
+
+        return await image_url_to_bytes(url) if return_bytes else url
+
+    async def generate_completion(self, messages: list[dict[str, str]]):
+        response = self.client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=messages,
+        )
+        return response.choices[0].message.content
+
+    async def generate_completion_json(self, prompt: str):
+        response = self.client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a helpful assistant. "
+                        "You must assist the user in generating a response to the following prompt in JSON format."
+                    ),
+                },
+                {"role": "user", "content": prompt},
+            ],
+        )
+        return response.choices[0].message.content
+
+    async def generate_speech_from_text(self, text_input: str, speech_file_path: str):
+        response = self.client.audio.speech.create(
+            model="tts-1",
+            voice="echo",
+            input=text_input,
+        )
+        response.stream_to_file(speech_file_path)
+        return speech_file_path
 
 
-async def get_chatpgt_client():
-    logfire.instrument_openai(client)
-    return client
-
-
-async def generate_image(prompt: str, *, return_bytes: bool = False):
-    response = client.images.generate(
-        model="dall-e-3",
-        prompt=prompt,
-        size="1024x1024",
-        quality="standard",
-        n=1,
-    )
-    url = response.data[0].url
-
-    return await image_url_to_bytes(url) if return_bytes else url
-
-
-async def generate_completion(messages: list[dict[str, str]]):
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=messages,
-    )
-    return response.choices[0].message.content
-
-
-async def generate_completion_json(prompt: str):
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are a helpful assistant. "
-                    "You must assist the user in generating a response to the following prompt in JSON format."
-                ),
-            },
-            {"role": "user", "content": prompt},
-        ],
-    )
-    return response.choices[0].message.content
-
-
-async def generate_speech_from_text(text_input: str, speech_file_path: str):
-    response = client.audio.speech.create(
-        model="tts-1",
-        voice="echo",
-        input=text_input,
-    )
-    response.stream_to_file(speech_file_path)
-    return speech_file_path
+@lru_cache
+def get_openai_service() -> OpenAIService:
+    return OpenAIService()

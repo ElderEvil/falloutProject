@@ -10,9 +10,11 @@ from app.schemas.dweller import (
     DwellerCreateCommonOverride,
     DwellerCreateWithoutVaultID,
     DwellerRead,
+    DwellerReadFull,
     DwellerReadWithRoomID,
-    DwellerUpdate, DwellerReadFull,
+    DwellerUpdate,
 )
+from app.services.dweller_ai import dweller_ai
 
 router = APIRouter()
 
@@ -69,7 +71,7 @@ async def generate_backstory(
     dweller_id: UUID4,
     db_session: AsyncSession = Depends(get_async_session),
 ):
-    return await crud.dweller.generate_backstory(db_session, dweller_id)
+    return await dweller_ai.generate_backstory(db_session, dweller_id)
 
 
 @router.post("/{dweller_id}/generate_visual_attributes/", response_model=DwellerReadFull)
@@ -77,7 +79,7 @@ async def generate_visual_attributes(
     dweller_id: UUID4,
     db_session: AsyncSession = Depends(get_async_session),
 ):
-    return await crud.dweller.generate_visual_attributes(db_session, dweller_id)
+    return await dweller_ai.generate_visual_attributes(db_session, dweller_id)
 
 
 @router.post("/{dweller_id}/generate_photo/", response_model=DwellerReadFull)
@@ -85,7 +87,7 @@ async def generate_photo(
     dweller_id: UUID4,
     db_session: AsyncSession = Depends(get_async_session),
 ):
-    return await crud.dweller.generate_photo(db_session, dweller_id)
+    return await dweller_ai.generate_photo(db_session, dweller_id)
 
 
 @router.post("/{dweller_id}/generate/", response_model=DwellerReadFull)
@@ -94,7 +96,7 @@ async def generate_pipeline(
     origin: str,
     db_session: AsyncSession = Depends(get_async_session),
 ):
-    return await crud.dweller.dweller_generate_pipeline(db_session=db_session, dweller_id=dweller_id, origin=origin)
+    return await dweller_ai.dweller_generate_pipeline(db_session=db_session, dweller_id=dweller_id, origin=origin)
 
 
 @router.get("/read_data/", response_model=list[DwellerCreateWithoutVaultID])

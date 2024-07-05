@@ -6,12 +6,14 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.vault import vault as vault_crud
 from app.schemas.dweller import DwellerReadFull, DwellerUpdate
+from app.services.minio import get_minio_client
 from app.services.open_ai import get_openai_service
 from app.utils.exceptions import ContentNoChangeException
 
 
 class DwellerAIService:
     def __init__(self):
+        self.minio_service = get_minio_client()
         self.open_ai_service = get_openai_service()
 
     async def generate_backstory(
@@ -31,7 +33,7 @@ class DwellerAIService:
             "Generate a Fallout game series style biography for a dweller"
             "Include details about their background, skills, and personality traits as they relate to living in "
             f"{origin} and surviving in the post-apocalyptic world. "
-            "The bio should be a minimum of 100 words and a maximum of 1000 symbols."
+            "The bio should be a minimum of 50 words and a maximum of 1000 symbols."
         )
         messages = [
             {"role": "system", "content": system_prompt},
@@ -76,17 +78,19 @@ class DwellerAIService:
             raise ContentNoChangeException(detail="Dweller already has visual attributes")
 
         visual_options = """
-        hair_color: blonde, brunette, redhead, black, gray
-        eye_color: blue, green, brown, hazel, gray
-        skin_tone: fair, medium, olive, tan, dark
-        build: slim, athletic, muscular, stocky, average
+        age: teenager, adult, elder
         height: tall, average, short
-        distinguishing_features: scar, tattoo, mole, freckles, birthmark
+        eye_color: blue, green, brown, hazel, gray
+        appearance: attractive, cute, average, unattractive, ghoul
+        skin_tone: fair, medium, olive, tan, dark
+        build: slim, athletic, muscular, stocky, average, overweight
         hair_style: short, long, curly, straight, wavy, bald
-        (Only for male)facial_hair: clean - shaven, mustache, beard, goatee, stubble
+        hair_color: blonde, brunette, redhead, black, gray, colored
+        distinguishing_features: scar, tattoo, mole, freckles, birthmark, piercing
         clothing_style: casual, military, formal, rugged, eclectic
+        (Only for male) facial_hair: clean - shaven, mustache, beard, goatee, stubble
+        (Only for female) makeup: natural, glamorous, goth, no makeup
         """
-
         prompt = (
             f"Create visual attributes for {dweller_obj.first_name} {dweller_obj.last_name}."
             f"That's his/her backstory: {dweller_obj.bio}"
@@ -116,8 +120,10 @@ class DwellerAIService:
             f"Dweller info: {dweller_obj.rarity} {dweller_obj.gender}"
             f"Dweller visual attributes: {dweller_obj.visual_attributes}"
         )
-        image_url = await self.open_ai_service.generate_image(prompt=prompt, return_bytes=False)
-        print(image_url)
+        image_bytes = await self.open_ai_service.generate_image(prompt=prompt, return_bytes=True)
+        image_url = self.minio_service.upload_file(
+            file_data=image_bytes, file_name=f"{dweller_id}.png", bucket_name="dweller-images"
+        )
 
         await dweller_crud.update(db_session, dweller_id, DwellerUpdate(image_url=image_url))
 

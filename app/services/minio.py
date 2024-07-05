@@ -27,7 +27,7 @@ class MinioService:
             error_msg = f"Error creating bucket {bucket_name}: {e}"
             raise BucketNotFoundError(error_msg) from e
 
-    def upload_file(self, file_data: bytes, file_name: str, bucket_name: str | None = None) -> str:
+    def upload_file(self, *, file_data: bytes, file_name: str, bucket_name: str | None = None) -> str:
         bucket_name = bucket_name or self.default_bucket_name
         self._ensure_bucket_exists(bucket_name)
         try:
@@ -40,7 +40,7 @@ class MinioService:
         else:
             return result.object_name
 
-    def download_file(self, file_name: str, bucket_name: str | None = None) -> bytes:
+    def download_file(self, *, file_name: str, bucket_name: str | None = None) -> bytes:
         bucket_name = bucket_name or self.default_bucket_name
         try:
             response = self.client.get_object(bucket_name, file_name)

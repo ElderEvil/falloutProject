@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     MINIO_ROOT_USER: str
     MINIO_ROOT_PASSWORD: str
 
-    BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:8080"]
+    BACKEND_CORS_ORIGINS: list[str] = ["*"]
 
     @field_validator("ASYNC_DATABASE_URI", mode="after")
     def assemble_db_connection(cls, v: str | None, info: FieldValidationInfo) -> Any:

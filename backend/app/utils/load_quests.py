@@ -26,7 +26,7 @@ def load_quest_chain_from_json(file_path: str) -> QuestChainJSON:
 
 
 def load_all_quest_chain_files() -> list[QuestChainJSON]:
-    directory_path = "D:\\PycharmProjects\\falloutProject\\data\\quests"
+    directory_path = "/data/quests"
     directory = Path(directory_path)
     quest_chains = []
 

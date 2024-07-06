@@ -18,7 +18,7 @@ from app.db.session import get_async_session
 from app.schemas.user import UserCreate
 from app.tests.utils.user import authentication_token_from_email
 from app.tests.utils.utils import get_superuser_token_headers
-from main import app
+from backend.main import app
 
 
 @pytest.fixture(scope="session")

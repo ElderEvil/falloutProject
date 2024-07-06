@@ -10,11 +10,11 @@ from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
-from app.tests.factory.dwellers import create_fake_dweller
 from app.tests.factory.rooms import create_fake_room
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 from app.utils.exceptions import InvalidVaultTransferException, ResourceConflictException
+from backend.app.tests.factory.dwellers import create_fake_dweller
 
 
 @pytest.mark.asyncio

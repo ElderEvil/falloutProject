@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from sqladmin import Admin
 from starlette import status
 
@@ -25,10 +26,20 @@ app = FastAPI(
     version=settings.API_VERSION,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
 )
+
+
 # logfire.configure(pydantic_plugin=logfire.PydanticPlugin(record="all"))
 # logfire.instrument_fastapi(app)
 
 admin = Admin(app, async_engine)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.BACKEND_CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/healthcheck", status_code=status.HTTP_200_OK)

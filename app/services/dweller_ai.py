@@ -97,7 +97,9 @@ class DwellerAIService:
             "Include details about their appearance, clothing, and any other distinguishing features."
             "Use dweller backstory in case it can help to generate visual attributes."
             "Use JSON format to describe the visual attributes."
-            'Example: {"hair_color": "brown", "eye_color": "blue", "height": "average"}'
+            'Examples: {"hair_color": "brown", "eye_color": "blue", "height": "average"},'
+            '{"hair_color": "blonde", "eye_color": "green", "height": "short", "distinguishing_features": ["glasses", "freckles"]}'  # noqa:E501
+            '{"hair_color": "grey", "eye_color": "brown", "height": "tall", "distinguishing_features": ["tattoo", "prosthetic arm"], "clothing_style": "military"}'  # noqa:E501
             f"Given options: {visual_options}"
         )
         visual_attributes_json = await self.open_ai_service.generate_completion_json(prompt)

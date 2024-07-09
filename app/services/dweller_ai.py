@@ -5,6 +5,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.vault import vault as vault_crud
+from app.models.base import SPECIALModel
+from app.schemas.common import GenderEnum
 from app.schemas.dweller import DwellerReadFull, DwellerUpdate
 from app.services.minio import get_minio_client
 from app.services.open_ai import get_openai_service
@@ -29,10 +31,13 @@ class DwellerAIService:
             if origin == dweller_vault.name:
                 origin = "this vault from childhood"
 
+        special_stats = ", ".join(f"{stat}: {getattr(dweller_obj, stat)}" for stat in SPECIALModel.__annotations__)
+        gender_pronoun = "his" if dweller_obj.gender == GenderEnum.MALE else "her"
         system_prompt = (
             "Generate a Fallout game series style biography for a dweller"
-            "Include details about their background, skills, and personality traits as they relate to living in "
-            f"{origin} and surviving in the post-apocalyptic world. "
+            f"Include details about {gender_pronoun} background, skills, and personality traits as they relate to"
+            f" living in {origin} and surviving in the post-apocalyptic world. "
+            f"Use the dweller's SPECIAL attributes to help create a unique backstory. {special_stats}"
             "The bio should be a minimum of 50 words and a maximum of 1000 symbols."
         )
         messages = [

@@ -10,7 +10,7 @@ interface User {
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     token: localStorage.getItem('token') as string | null,
-    user: null as User | null
+    user: JSON.parse(localStorage.getItem('user') as string) as User | null
   }),
   getters: {
     isAuthenticated: (state) => !!state.token
@@ -67,6 +67,7 @@ export const useAuthStore = defineStore('auth', {
           }
         })
         this.user = response.data
+        localStorage.setItem('user', JSON.stringify(this.user))
       } catch (error) {
         console.error('Failed to fetch user', error)
         this.logout()
@@ -76,6 +77,7 @@ export const useAuthStore = defineStore('auth', {
       this.token = null
       this.user = null
       localStorage.removeItem('token')
+      localStorage.removeItem('user')
     }
   }
 })

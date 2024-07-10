@@ -53,8 +53,6 @@ onMounted(async () => {
     <div class="container mx-auto py-8 px-4 lg:px-8 flex flex-col items-center justify-center flicker">
       <div class="text-center mb-8">
         <h1 class="text-4xl font-bold mb-4">Welcome to Fallout Shelter</h1>
-        <p class="text-lg">You are logged in as:</p>
-        <p class="text-lg font-bold">{{ authStore.user?.email }}</p>
       </div>
       <div class="mb-8 w-full max-w-md">
         <h2 class="text-2xl font-bold mb-4">Create New Vault</h2>

@@ -1,4 +1,5 @@
-import './assets/main.css'
+import './assets/tailwind.css' // Tailwind CSS should be imported first
+import './assets/main.css' // Custom styles should be imported after
 
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'

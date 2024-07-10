@@ -29,6 +29,11 @@ class VaultReadWithUser(VaultRead):
     user_id: UUID4
 
 
+class VaultReadWithNumbers(VaultRead):
+    room_count: int
+    dweller_count: int
+
+
 @optional()
 class VaultUpdate(VaultBase):
     pass

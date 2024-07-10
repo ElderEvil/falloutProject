@@ -6,7 +6,7 @@ from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser
 from app.db.session import get_async_session
 from app.models.vault import Vault
-from app.schemas.vault import VaultCreate, VaultNumber, VaultRead, VaultReadWithUser, VaultUpdate
+from app.schemas.vault import VaultCreate, VaultNumber, VaultReadWithNumbers, VaultReadWithUser, VaultUpdate
 
 router = APIRouter()
 
@@ -32,13 +32,13 @@ async def read_vault_list(
     return await crud.vault.get_multi(db_session, skip=skip, limit=limit)
 
 
-@router.get("/my", response_model=list[VaultRead])
+@router.get("/my", response_model=list[VaultReadWithNumbers])
 async def read_my_vaults(
     *,
     db_session: AsyncSession = Depends(get_async_session),
     user: CurrentActiveUser,
 ):
-    return await crud.vault.get_by_user_id(db_session=db_session, user_id=user.id)
+    return await crud.vault.get_vaults_with_room_and_dweller_count(db_session=db_session, user_id=user.id)
 
 
 @router.get("/{vault_id}", response_model=VaultReadWithUser)

@@ -11,7 +11,7 @@ from app.models import Dweller, Room, Storage
 from app.models.vault import Vault
 from app.schemas.common import RoomActionEnum, RoomTypeEnum
 from app.schemas.room import RoomCreate
-from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultNumber, VaultUpdate
+from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultNumber, VaultReadWithNumbers, VaultUpdate
 from app.utils.exceptions import InsufficientResourcesException, ResourceNotFoundException
 
 
@@ -89,6 +89,40 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
     async def get_population(*, db_session: AsyncSession, vault_id: UUID4) -> int:
         count = await db_session.execute(select(func.count(Vault.dwellers)).where(Vault.id == vault_id))
         return count.scalar()
+
+    @staticmethod
+    async def get_rooms_count(*, db_session: AsyncSession, vault_id: UUID4) -> int:
+        count = await db_session.execute(select(func.count(Vault.rooms)).where(Vault.id == vault_id))
+        return count.scalar()
+
+    async def get_vaults_with_room_and_dweller_count(
+        self, *, db_session: AsyncSession, user_id: UUID4
+    ) -> list[VaultReadWithNumbers]:
+        result = await db_session.execute(
+            select(
+                self.model,
+                func.count(Room.id.distinct()).label("room_count"),
+                func.count(Dweller.id.distinct()).label("dweller_count"),
+            )
+            .select_from(Vault)
+            .join(Room, Room.vault_id == self.model.id, isouter=True)
+            .join(Dweller, Dweller.vault_id == self.model.id, isouter=True)
+            .where(Vault.user_id == user_id)
+            .group_by(Vault.id)
+        )
+
+        vaults = result.all()
+        return [
+            VaultReadWithNumbers(
+                id=vault_obj.id,
+                name=vault_obj.name,
+                room_count=room_count,
+                dweller_count=dweller_count,
+                created_at=vault_obj.created_at,
+                updated_at=vault_obj.updated_at,
+            )
+            for vault_obj, room_count, dweller_count in vaults
+        ]
 
     @staticmethod
     async def create_storage(*, db_session: AsyncSession, vault_id: UUID4) -> Storage:

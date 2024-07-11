@@ -18,6 +18,12 @@ DESTROY_ROOM_REWARD = 0.2
 
 class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
     @staticmethod
+    async def get_multy_by_vault(*, db_session: AsyncSession, vault_id: UUID4, skip: int, limit: int):
+        """Retrieve multiple rooms by vault ID."""
+        response = await db_session.execute(select(Room).where(Room.vault_id == vault_id).offset(skip).limit(limit))
+        return response.scalars().all()
+
+    @staticmethod
     def evaluate_capacity_formula(formula: str, level: int, size: int) -> int:
         try:
             result = eval(formula, {"L": level, "S": size})  # noqa: S307

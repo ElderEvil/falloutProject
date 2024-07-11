@@ -24,6 +24,12 @@ interface Room {
   updated_at: string;
 }
 
+interface RoomCreate {
+  coordinate_x: number;
+  coordinate_y: number;
+  type: string;
+}
+
 export const useRoomStore = defineStore('room', {
   state: () => ({
     rooms: [] as Room[],
@@ -41,5 +47,29 @@ export const useRoomStore = defineStore('room', {
         console.error('Failed to fetch rooms', error)
       }
     },
+    async buildRoom(roomData: RoomCreate, token: string) {
+      try {
+        const response = await axios.post('/api/build/', roomData, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        })
+        this.rooms.push(response.data)
+      } catch (error) {
+        console.error('Failed to build room', error)
+      }
+    },
+    async destroyRoom(roomId: string, token: string) {
+      try {
+        await axios.delete(`/api/destroy/${roomId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        })
+        this.rooms = this.rooms.filter(room => room.id !== roomId)
+      } catch (error) {
+        console.error('Failed to destroy room', error)
+      }
+    }
   }
 })

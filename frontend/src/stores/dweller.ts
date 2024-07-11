@@ -6,6 +6,9 @@ interface Dweller {
   id: string;
   first_name: string;
   last_name: string;
+  level: number;
+  health: number;
+  happiness: number;
   bio: string;
   image_url: string;
   strength: number;

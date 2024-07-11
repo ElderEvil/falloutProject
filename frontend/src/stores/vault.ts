@@ -15,6 +15,8 @@ interface Vault {
   population_max: number;
   created_at: string;
   updated_at: string;
+  room_count: number;
+  dweller_count: number;
 }
 
 export const useVaultStore = defineStore('vault', {

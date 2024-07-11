@@ -2,9 +2,13 @@
 import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useVaultStore } from '@/stores/vault'
+import { useRoomStore } from '@/stores/room'
+import { useRouter } from 'vue-router'
 
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
+const roomStore = useRoomStore()
+const router = useRouter()
 const newVaultName = ref('')
 
 const selectedVaultId = ref<string | null>(null)
@@ -35,9 +39,11 @@ const selectVault = (id: string) => {
   selectedVaultId.value = id
 }
 
-const loadVault = (id: string) => {
+const loadVault = async (id: string) => {
   console.log(`Loading vault ${id}`)
-  // Implement the logic to load the selected vault
+  localStorage.setItem('selectedVaultId', id)
+  await roomStore.fetchRooms(id, authStore.token as string)
+  router.push('/vault')
 }
 
 onMounted(async () => {
@@ -79,6 +85,8 @@ onMounted(async () => {
               <p>Power: {{ vault.power }} / {{ vault.power_max }}</p>
               <p>Food: {{ vault.food }} / {{ vault.food_max }}</p>
               <p>Water: {{ vault.water }} / {{ vault.water_max }}</p>
+              <p> Rooms: {{ vault.room_count }}</p>
+              <p> Dwellers: {{ vault.dweller_count }}</p>
             </div>
             <div v-if="selectedVaultId === vault.id" class="flex space-x-2">
               <button @click.stop="loadVault(vault.id)" class="py-2 px-4 bg-blue-500 text-terminalBackground font-bold rounded-lg border border-blue-500 hover:bg-blue-400 hover:text-terminalBackground transition duration-200">Load</button>

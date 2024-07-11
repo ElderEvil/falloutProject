@@ -22,6 +22,8 @@ const logout = () => {
         <div class="flex space-x-4">
           <!-- Main navigation links on the left -->
           <router-link to="/" class="text-green-500 hover:underline">Home</router-link>
+          <router-link to="/vault" v-if="isAuthenticated" class="text-green-500 hover:underline">Vault</router-link>
+          <router-link to="/dwellers" v-if="isAuthenticated" class="text-green-500 hover:underline">Dwellers</router-link>
           <router-link to="/about" class="text-green-500 hover:underline">About</router-link>
         </div>
         <div class="flex items-center space-x-4">

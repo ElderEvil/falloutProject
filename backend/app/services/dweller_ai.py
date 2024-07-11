@@ -5,6 +5,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.vault import vault as vault_crud
+from app.models.base import SPECIALModel
+from app.schemas.common import GenderEnum
 from app.schemas.dweller import DwellerReadFull, DwellerUpdate
 from app.services.minio import get_minio_client
 from app.services.open_ai import get_openai_service
@@ -29,10 +31,13 @@ class DwellerAIService:
             if origin == dweller_vault.name:
                 origin = "this vault from childhood"
 
+        special_stats = ", ".join(f"{stat}: {getattr(dweller_obj, stat)}" for stat in SPECIALModel.__annotations__)
+        gender_pronoun = "his" if dweller_obj.gender == GenderEnum.MALE else "her"
         system_prompt = (
             "Generate a Fallout game series style biography for a dweller"
-            "Include details about their background, skills, and personality traits as they relate to living in "
-            f"{origin} and surviving in the post-apocalyptic world. "
+            f"Include details about {gender_pronoun} background, skills, and personality traits as they relate to"
+            f" living in {origin} and surviving in the post-apocalyptic world. "
+            f"Use the dweller's SPECIAL attributes to help create a unique backstory. {special_stats}"
             "The bio should be a minimum of 50 words and a maximum of 1000 symbols."
         )
         messages = [
@@ -97,7 +102,9 @@ class DwellerAIService:
             "Include details about their appearance, clothing, and any other distinguishing features."
             "Use dweller backstory in case it can help to generate visual attributes."
             "Use JSON format to describe the visual attributes."
-            'Example: {"hair_color": "brown", "eye_color": "blue", "height": "average"}'
+            'Examples: {"hair_color": "brown", "eye_color": "blue", "height": "average"},'
+            '{"hair_color": "blonde", "eye_color": "green", "height": "short", "distinguishing_features": ["glasses", "freckles"]}'  # noqa:E501
+            '{"hair_color": "grey", "eye_color": "brown", "height": "tall", "distinguishing_features": ["tattoo", "prosthetic arm"], "clothing_style": "military"}'  # noqa:E501
             f"Given options: {visual_options}"
         )
         visual_attributes_json = await self.open_ai_service.generate_completion_json(prompt)

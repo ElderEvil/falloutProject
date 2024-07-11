@@ -22,6 +22,8 @@ uv pip install -r requirements.txt
 ## Getting Started
 To start playing the game, simply run the main.py file using the following command in your terminal:
 
+`alembic upgrade head`
+
 `fastapi dev main.py`
 
 To begin playing the Fallout Shelter Game, visit the web server at [localhost](http://127.0.0.1:8000). Here, you'll be able to create your vault and start managing your community of dwellers right away.

@@ -7,6 +7,7 @@ from minio.error import S3Error
 
 from app.core.config import settings
 from app.utils.exceptions import BucketNotFoundError, FileDownloadError, FileUploadError
+from app.utils.image_processing import generate_thumbnail
 
 PUBLIC_POLICY_TEMPLATE = {
     "Version": "2012-10-17",
@@ -98,6 +99,10 @@ class MinioService:
         except S3Error as e:
             error_msg = f"Error uploading file to MinIO: {e}"
             raise FileUploadError(error_msg) from e
+
+    def upload_thumbnail(self, *, file_data: bytes, file_name: str, bucket_name: str | None = None) -> str:
+        thumbnail_data = generate_thumbnail(file_data)
+        return self.upload_file(file_data=thumbnail_data, file_name=file_name, bucket_name=bucket_name)
 
     def download_file(self, *, file_name: str, bucket_name: str | None = None) -> bytes:
         bucket_name = bucket_name or self.default_bucket_name

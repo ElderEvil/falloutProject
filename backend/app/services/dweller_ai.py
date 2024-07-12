@@ -131,8 +131,13 @@ class DwellerAIService:
         image_url = self.minio_service.upload_file(
             file_data=image_bytes, file_name=f"{dweller_id}.png", bucket_name="dweller-images"
         )
+        thumbnail_url = self.minio_service.upload_thumbnail(
+            file_data=image_bytes, file_name=f"{dweller_id}_thumbnail.png", bucket_name="dweller-thumbnails"
+        )
 
-        await dweller_crud.update(db_session, dweller_id, DwellerUpdate(image_url=image_url))
+        await dweller_crud.update(
+            db_session, dweller_id, DwellerUpdate(image_url=image_url, thumbnail_url=thumbnail_url)
+        )
 
         return dweller_obj
 

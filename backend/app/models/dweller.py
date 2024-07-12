@@ -27,6 +27,7 @@ class DwellerBaseWithoutStats(SQLModel):
     bio: str | None = Field(default=None, max_length=1024)
     visual_attributes: dict | None = Field(default=None, sa_column=sa.Column(JSONB))
     image_url: str | None = Field(default=None, max_length=255)
+    thumbnail_url: str | None = Field(default=None, max_length=255)
 
     # Stats
     level: int = Field(default=1, ge=1, le=50)
@@ -39,6 +40,10 @@ class DwellerBaseWithoutStats(SQLModel):
     # Inventory
     stimpack: int = Field(default=0, ge=0, le=15)
     radaway: int = Field(default=0, ge=0, le=15)
+
+    # TBD
+    # status: str
+    # job: str | None
 
 
 class DwellerBase(DwellerBaseWithoutStats, SPECIALModel):

@@ -49,6 +49,22 @@ class DwellerCreateCommonOverride(SQLModel):
     special_boost: SPECIALEnum | None = Field(default=None)
 
 
+class DwellerReadLess(SQLModel):
+    id: UUID4
+    first_name: str
+    last_name: str | None
+    thumbnail_url: str | None
+    level: int
+    health: int
+    max_health: int
+    radiation: int
+    happiness: int
+
+    # TBD
+    # status: str
+    # job: str | None
+
+
 class DwellerRead(DwellerBase):
     id: UUID4
     created_at: datetime

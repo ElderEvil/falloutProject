@@ -11,6 +11,7 @@ from app.schemas.dweller import (
     DwellerCreateWithoutVaultID,
     DwellerRead,
     DwellerReadFull,
+    DwellerReadLess,
     DwellerReadWithRoomID,
     DwellerUpdate,
 )
@@ -24,7 +25,7 @@ async def create_dweller(dweller_data: DwellerCreate, db_session: AsyncSession =
     return await crud.dweller.create(db_session, dweller_data)
 
 
-@router.get("/", response_model=list[DwellerRead])
+@router.get("/", response_model=list[DwellerReadLess])
 async def read_dweller_list(skip: int = 0, limit: int = 100, db_session: AsyncSession = Depends(get_async_session)):
     return await crud.dweller.get_multi(db_session=db_session, skip=skip, limit=limit)
 

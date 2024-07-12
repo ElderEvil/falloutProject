@@ -36,7 +36,12 @@ class Settings(BaseSettings):
     MINIO_ROOT_USER: str
     MINIO_ROOT_PASSWORD: str
     MINIO_DEFAULT_BUCKET: str
-    MINIO_PUBLIC_BUCKET_WHITELIST: list[str] = ["dweller-images", "outfit-images", "weapon-images"]
+    MINIO_PUBLIC_BUCKET_WHITELIST: list[str] = [
+        "dweller-images",
+        "dweller-thumbnails",
+        "outfit-images",
+        "weapon-images",
+    ]
 
     BACKEND_CORS_ORIGINS: list[str] = ["*"]
 

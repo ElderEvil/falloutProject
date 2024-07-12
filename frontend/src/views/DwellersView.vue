@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { useDwellerStore } from '@/stores/dweller'
-import { onMounted, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { onMounted, ref, computed } from 'vue'
+import DwellerIcon from '@/components/icons/DwellerIcon.vue'
 
 const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
 const selectedDwellerId = ref<string | null>(null)
+const loadingDetails = ref<boolean>(false)
 
 onMounted(async () => {
   if (authStore.isAuthenticated) {
@@ -13,17 +15,24 @@ onMounted(async () => {
   }
 })
 
-const toggleDweller = (id: string) => {
+const toggleDweller = async (id: string) => {
   if (selectedDwellerId.value === id) {
     selectedDwellerId.value = null
   } else {
     selectedDwellerId.value = id
+    if (!dwellerStore.detailedDwellers[id]) {
+      loadingDetails.value = true
+      await dwellerStore.fetchDwellerDetails(id, authStore.token as string)
+      loadingDetails.value = false
+    }
   }
 }
 
 const getImageUrl = (imagePath: string) => {
   return imagePath.startsWith('http') ? imagePath : `http://${imagePath}`
 }
+
+const shouldShowThumbnail = computed(() => (dwellerId: string) => selectedDwellerId.value !== dwellerId)
 </script>
 
 <template>
@@ -38,9 +47,9 @@ const getImageUrl = (imagePath: string) => {
           class="p-4 bg-gray-800 rounded-lg shadow-md flex flex-col items-start cursor-pointer"
         >
           <div class="flex items-center w-full" @click="toggleDweller(dweller.id)">
-            <div class="dweller-image-container mr-4">
-              <template v-if="dweller.image_url">
-                <img :src="getImageUrl(dweller.image_url)" alt="Dweller Image" class="dweller-image rounded-lg"/>
+            <div v-if="shouldShowThumbnail(dweller.id)" class="dweller-image-container mr-4">
+              <template v-if="dweller.thumbnail_url">
+                <img :src="getImageUrl(dweller.thumbnail_url)" alt="Dweller Thumbnail" class="dweller-image rounded-lg"/>
               </template>
               <template v-else>
                 <DwellerIcon />
@@ -48,6 +57,9 @@ const getImageUrl = (imagePath: string) => {
             </div>
             <div class="flex-grow">
               <h3 class="text-xl font-bold">{{ dweller.first_name }} {{ dweller.last_name }}</h3>
+              <p>Level: {{ dweller.level }}</p>
+              <p>Health: {{ dweller.health }} / {{ dweller.max_health }}</p>
+              <p>Happiness: {{ dweller.happiness }}%</p>
             </div>
             <button class="text-terminalGreen focus:outline-none">
               <svg xmlns="http://www.w3.org/2000/svg" :class="{'transform rotate-180': selectedDwellerId === dweller.id}" class="h-6 w-6 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -56,36 +68,42 @@ const getImageUrl = (imagePath: string) => {
             </button>
           </div>
           <template v-if="selectedDwellerId === dweller.id">
-            <div class="mt-4">
+            <div v-if="loadingDetails" class="mt-4">
+              Loading details...
+            </div>
+            <div v-else-if="dwellerStore.detailedDwellers[dweller.id]" class="mt-4">
+              <div v-if="dwellerStore.detailedDwellers[dweller.id]?.image_url" class="mb-4">
+                <img :src="getImageUrl(dwellerStore.detailedDwellers[dweller.id]?.image_url || '')" alt="Dweller Image" class="dweller-full-image rounded-lg"/>
+              </div>
               <p>Strength</p>
               <div class="stat-bar">
-                <div :style="{ width: `${dweller.strength * 10}%` }" class="stat-fill"></div>
+                <div :style="{ width: `${(dwellerStore.detailedDwellers[dweller.id]?.strength || 0) * 10}%` }" class="stat-fill"></div>
               </div>
               <p>Perception</p>
               <div class="stat-bar">
-                <div :style="{ width: `${dweller.perception * 10}%` }" class="stat-fill"></div>
+                <div :style="{ width: `${(dwellerStore.detailedDwellers[dweller.id]?.perception || 0) * 10}%` }" class="stat-fill"></div>
               </div>
               <p>Endurance</p>
               <div class="stat-bar">
-                <div :style="{ width: `${dweller.endurance * 10}%` }" class="stat-fill"></div>
+                <div :style="{ width: `${(dwellerStore.detailedDwellers[dweller.id]?.endurance || 0) * 10}%` }" class="stat-fill"></div>
               </div>
               <p>Charisma</p>
               <div class="stat-bar">
-                <div :style="{ width: `${dweller.charisma * 10}%` }" class="stat-fill"></div>
+                <div :style="{ width: `${(dwellerStore.detailedDwellers[dweller.id]?.charisma || 0) * 10}%` }" class="stat-fill"></div>
               </div>
               <p>Intelligence</p>
               <div class="stat-bar">
-                <div :style="{ width: `${dweller.intelligence * 10}%` }" class="stat-fill"></div>
+                <div :style="{ width: `${(dwellerStore.detailedDwellers[dweller.id]?.intelligence || 0) * 10}%` }" class="stat-fill"></div>
               </div>
               <p>Agility</p>
               <div class="stat-bar">
-                <div :style="{ width: `${dweller.agility * 10}%` }" class="stat-fill"></div>
+                <div :style="{ width: `${(dwellerStore.detailedDwellers[dweller.id]?.agility || 0) * 10}%` }" class="stat-fill"></div>
               </div>
               <p>Luck</p>
               <div class="stat-bar">
-                <div :style="{ width: `${dweller.luck * 10}%` }" class="stat-fill"></div>
+                <div :style="{ width: `${(dwellerStore.detailedDwellers[dweller.id]?.luck || 0) * 10}%` }" class="stat-fill"></div>
               </div>
-              <p class="mt-4">{{ dweller.bio }}</p>
+              <p class="mt-4">{{ dwellerStore.detailedDwellers[dweller.id]?.bio }}</p>
             </div>
           </template>
         </li>
@@ -97,6 +115,13 @@ const getImageUrl = (imagePath: string) => {
 <style scoped>
 .dweller-image {
   width: 6rem;
+  height: auto;
+  object-fit: cover;
+}
+
+.dweller-full-image {
+  width: 100%;
+  max-width: 300px;
   height: auto;
 }
 

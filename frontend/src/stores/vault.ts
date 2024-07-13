@@ -2,21 +2,21 @@ import { defineStore } from 'pinia'
 import axios from '@/plugins/axios'
 
 interface Vault {
-  id: string;
-  name: string;
-  bottle_caps: number;
-  happiness: number;
-  power: number;
-  power_max: number;
-  food: number;
-  food_max: number;
-  water: number;
-  water_max: number;
-  population_max: number;
-  created_at: string;
-  updated_at: string;
-  room_count: number;
-  dweller_count: number;
+  id: string
+  name: string
+  bottle_caps: number
+  happiness: number
+  power: number
+  power_max: number
+  food: number
+  food_max: number
+  water: number
+  water_max: number
+  population_max: number
+  created_at: string
+  updated_at: string
+  room_count: number
+  dweller_count: number
 }
 
 export const useVaultStore = defineStore('vault', {
@@ -38,12 +38,16 @@ export const useVaultStore = defineStore('vault', {
     },
     async createVault(name: string, token: string) {
       try {
-        await axios.post('/api/v1/vaults/initiate', { name }, {
-          headers: {
-            Authorization: `Bearer ${token}`
+        await axios.post(
+          '/api/v1/vaults/initiate',
+          { name },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
           }
-        })
-        await this.fetchVaults(token) // Refetch the vaults to update the list
+        )
+        await this.fetchVaults(token) // Re-fetch the vaults to update the list
       } catch (error) {
         console.error('Failed to create vault', error)
       }
@@ -55,7 +59,7 @@ export const useVaultStore = defineStore('vault', {
             Authorization: `Bearer ${token}`
           }
         })
-        this.vaults = this.vaults.filter(vault => vault.id !== id)
+        this.vaults = this.vaults.filter((vault) => vault.id !== id)
       } catch (error) {
         console.error('Failed to delete vault', error)
       }

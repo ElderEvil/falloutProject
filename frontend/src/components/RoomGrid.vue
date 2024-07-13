@@ -5,11 +5,12 @@ import { useRoomStore } from '@/stores/room'
 const roomStore = useRoomStore()
 const rooms = ref(roomStore.rooms)
 
-
-watch(() => roomStore.rooms, (newRooms) => {
-  rooms.value = newRooms
-})
-
+watch(
+  () => roomStore.rooms,
+  (newRooms) => {
+    rooms.value = newRooms
+  }
+)
 </script>
 
 <template>
@@ -25,11 +26,7 @@ watch(() => roomStore.rooms, (newRooms) => {
         <p class="room-category">{{ room.category }}</p>
       </div>
     </div>
-    <div
-      v-for="n in 25 * 8 - rooms.length"
-      :key="'empty-' + n"
-      class="room empty"
-    ></div>
+    <div v-for="n in 25 * 8 - rooms.length" :key="'empty-' + n" class="room empty"></div>
   </div>
 </template>
 
@@ -47,7 +44,9 @@ watch(() => roomStore.rooms, (newRooms) => {
   border: 1px solid #00ff00;
   background-color: rgba(0, 0, 0, 0.5);
   text-align: center;
-  transition: transform 0.3s, background-color 0.3s;
+  transition:
+    transform 0.3s,
+    background-color 0.3s;
 }
 
 .room:hover {

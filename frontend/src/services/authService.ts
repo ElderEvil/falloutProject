@@ -33,8 +33,8 @@ export const authService = {
   getCurrentUser(token: string): Promise<AxiosResponse<User>> {
     return apiClient.get('/login/test-token', {
       headers: {
-        Authorization: `Bearer ${token}`,
-      },
+        Authorization: `Bearer ${token}`
+      }
     })
-  },
+  }
 }

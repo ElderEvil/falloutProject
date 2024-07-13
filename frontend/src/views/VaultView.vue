@@ -16,10 +16,12 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-terminalBackground text-terminalGreen relative font-mono">
+  <div class="relative min-h-screen bg-terminalBackground font-mono text-terminalGreen">
     <div class="scanlines"></div>
-    <div class="container mx-auto py-8 px-4 lg:px-8 flex flex-col items-center justify-center flicker">
-      <h1 class="text-4xl font-bold mb-8">Vault Rooms</h1>
+    <div
+      class="flicker container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8"
+    >
+      <h1 class="mb-8 text-4xl font-bold">Vault Rooms</h1>
       <RoomGrid />
     </div>
   </div>

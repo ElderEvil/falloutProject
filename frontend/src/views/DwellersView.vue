@@ -32,24 +32,32 @@ const getImageUrl = (imagePath: string) => {
   return imagePath.startsWith('http') ? imagePath : `http://${imagePath}`
 }
 
-const shouldShowThumbnail = computed(() => (dwellerId: string) => selectedDwellerId.value !== dwellerId)
+const shouldShowThumbnail = computed(
+  () => (dwellerId: string) => selectedDwellerId.value !== dwellerId
+)
 </script>
 
 <template>
-  <div class="min-h-screen bg-terminalBackground text-terminalGreen relative font-mono">
+  <div class="relative min-h-screen bg-terminalBackground font-mono text-terminalGreen">
     <div class="scanlines"></div>
-    <div class="container mx-auto py-8 px-4 lg:px-8 flex flex-col items-center justify-center flicker">
-      <h1 class="text-4xl font-bold mb-8">Dwellers</h1>
-      <ul class="space-y-4 w-full">
+    <div
+      class="flicker container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8"
+    >
+      <h1 class="mb-8 text-4xl font-bold">Dwellers</h1>
+      <ul class="w-full space-y-4">
         <li
           v-for="dweller in dwellerStore.dwellers"
           :key="dweller.id"
-          class="p-4 bg-gray-800 rounded-lg shadow-md flex flex-col items-start cursor-pointer"
+          class="flex cursor-pointer flex-col items-start rounded-lg bg-gray-800 p-4 shadow-md"
         >
-          <div class="flex items-center w-full" @click="toggleDweller(dweller.id)">
+          <div class="flex w-full items-center" @click="toggleDweller(dweller.id)">
             <div v-if="shouldShowThumbnail(dweller.id)" class="dweller-image-container mr-4">
               <template v-if="dweller.thumbnail_url">
-                <img :src="getImageUrl(dweller.thumbnail_url)" alt="Dweller Thumbnail" class="dweller-image rounded-lg"/>
+                <img
+                  :src="getImageUrl(dweller.thumbnail_url)"
+                  alt="Dweller Thumbnail"
+                  class="dweller-image rounded-lg"
+                />
               </template>
               <template v-else>
                 <DwellerIcon />
@@ -62,48 +70,103 @@ const shouldShowThumbnail = computed(() => (dwellerId: string) => selectedDwelle
               <p>Happiness: {{ dweller.happiness }}%</p>
             </div>
             <button class="text-terminalGreen focus:outline-none">
-              <svg xmlns="http://www.w3.org/2000/svg" :class="{'transform rotate-180': selectedDwellerId === dweller.id}" class="h-6 w-6 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                :class="{ 'rotate-180 transform': selectedDwellerId === dweller.id }"
+                class="h-6 w-6 transition-transform"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 9l-7 7-7-7"
+                />
               </svg>
             </button>
           </div>
           <template v-if="selectedDwellerId === dweller.id">
-            <div v-if="loadingDetails" class="mt-4">
-              Loading details...
-            </div>
+            <div v-if="loadingDetails" class="mt-4">Loading details...</div>
             <div v-else-if="dwellerStore.detailedDwellers[dweller.id]" class="mt-4">
               <div v-if="dwellerStore.detailedDwellers[dweller.id]?.image_url" class="mb-4">
-                <img :src="getImageUrl(dwellerStore.detailedDwellers[dweller.id]?.image_url || '')" alt="Dweller Image" class="dweller-full-image rounded-lg"/>
+                <img
+                  :src="getImageUrl(dwellerStore.detailedDwellers[dweller.id]?.image_url || '')"
+                  alt="Dweller Image"
+                  class="dweller-full-image rounded-lg"
+                />
               </div>
-              <p>Strength</p>
-              <div class="stat-bar">
-                <div :style="{ width: `${(dwellerStore.detailedDwellers[dweller.id]?.strength || 0) * 10}%` }" class="stat-fill"></div>
+              <div class="sm:grid-colsw-2 grid grid-cols-1 gap-4">
+                <div>
+                  <p>Strength</p>
+                  <div class="stat-bar">
+                    <div
+                      :style="{
+                        width: `${(dwellerStore.detailedDwellers[dweller.id]?.strength || 0) * 10}%`
+                      }"
+                      class="stat-fill"
+                    ></div>
+                  </div>
+                  <p>Perception</p>
+                  <div class="stat-bar">
+                    <div
+                      :style="{
+                        width: `${(dwellerStore.detailedDwellers[dweller.id]?.perception || 0) * 10}%`
+                      }"
+                      class="stat-fill"
+                    ></div>
+                  </div>
+                  <p>Endurance</p>
+                  <div class="stat-bar">
+                    <div
+                      :style="{
+                        width: `${(dwellerStore.detailedDwellers[dweller.id]?.endurance || 0) * 10}%`
+                      }"
+                      class="stat-fill"
+                    ></div>
+                  </div>
+                  <p>Charisma</p>
+                  <div class="stat-bar">
+                    <div
+                      :style="{
+                        width: `${(dwellerStore.detailedDwellers[dweller.id]?.charisma || 0) * 10}%`
+                      }"
+                      class="stat-fill"
+                    ></div>
+                  </div>
+                  <p>Intelligence</p>
+                  <div class="stat-bar">
+                    <div
+                      :style="{
+                        width: `${(dwellerStore.detailedDwellers[dweller.id]?.intelligence || 0) * 10}%`
+                      }"
+                      class="stat-fill"
+                    ></div>
+                  </div>
+                  <p>Agility</p>
+                  <div class="stat-bar">
+                    <div
+                      :style="{
+                        width: `${(dwellerStore.detailedDwellers[dweller.id]?.agility || 0) * 10}%`
+                      }"
+                      class="stat-fill"
+                    ></div>
+                  </div>
+                  <p>Luck</p>
+                  <div class="stat-bar">
+                    <div
+                      :style="{
+                        width: `${(dwellerStore.detailedDwellers[dweller.id]?.luck || 0) * 10}%`
+                      }"
+                      class="stat-fill"
+                    ></div>
+                  </div>
+                </div>
+                <div>
+                  <p class="mt-4">{{ dwellerStore.detailedDwellers[dweller.id]?.bio }}</p>
+                </div>
               </div>
-              <p>Perception</p>
-              <div class="stat-bar">
-                <div :style="{ width: `${(dwellerStore.detailedDwellers[dweller.id]?.perception || 0) * 10}%` }" class="stat-fill"></div>
-              </div>
-              <p>Endurance</p>
-              <div class="stat-bar">
-                <div :style="{ width: `${(dwellerStore.detailedDwellers[dweller.id]?.endurance || 0) * 10}%` }" class="stat-fill"></div>
-              </div>
-              <p>Charisma</p>
-              <div class="stat-bar">
-                <div :style="{ width: `${(dwellerStore.detailedDwellers[dweller.id]?.charisma || 0) * 10}%` }" class="stat-fill"></div>
-              </div>
-              <p>Intelligence</p>
-              <div class="stat-bar">
-                <div :style="{ width: `${(dwellerStore.detailedDwellers[dweller.id]?.intelligence || 0) * 10}%` }" class="stat-fill"></div>
-              </div>
-              <p>Agility</p>
-              <div class="stat-bar">
-                <div :style="{ width: `${(dwellerStore.detailedDwellers[dweller.id]?.agility || 0) * 10}%` }" class="stat-fill"></div>
-              </div>
-              <p>Luck</p>
-              <div class="stat-bar">
-                <div :style="{ width: `${(dwellerStore.detailedDwellers[dweller.id]?.luck || 0) * 10}%` }" class="stat-fill"></div>
-              </div>
-              <p class="mt-4">{{ dwellerStore.detailedDwellers[dweller.id]?.bio }}</p>
             </div>
           </template>
         </li>
@@ -126,7 +189,8 @@ const shouldShowThumbnail = computed(() => (dwellerId: string) => selectedDwelle
 }
 
 .stat-bar {
-  width: 100px;
+  width: 100%;
+  max-width: 300px;
   height: 10px;
   background-color: #444;
   margin-bottom: 5px;
@@ -137,5 +201,24 @@ const shouldShowThumbnail = computed(() => (dwellerId: string) => selectedDwelle
 .stat-fill {
   height: 100%;
   background-color: #0f0;
+}
+
+.bg-terminalBackground {
+  background-color: #222;
+}
+
+.text-terminalGreen {
+  color: #00ff00;
+}
+
+.scanlines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 50%, transparent 50%);
+  background-size: 100% 2px;
+  pointer-events: none;
 }
 </style>

@@ -2,9 +2,9 @@ import { defineStore } from 'pinia'
 import axios from '@/plugins/axios'
 
 interface User {
-  id: number;
-  username: string;
-  email: string;
+  id: number
+  username: string
+  email: string
 }
 
 export const useAuthStore = defineStore('auth', {

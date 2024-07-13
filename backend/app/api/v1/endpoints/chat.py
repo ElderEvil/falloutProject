@@ -2,7 +2,6 @@ import json
 import random
 from enum import Enum, StrEnum
 
-import logfire
 from fastapi import APIRouter, Depends, HTTPException
 from openai import Client
 from pydantic import UUID4
@@ -101,7 +100,6 @@ async def ask_dweller(
     In case user asks about vault - here is the information: {vault_stats}. Say it in a natural way.
     Try to be in character and be in line with the Fallout universe.
     """
-    logfire.info(dweller_prompt)
     client = get_openai_service().client
     response = client.chat.completions.create(
         messages=[
@@ -117,10 +115,8 @@ async def ask_dweller(
         model="gpt-4o",
     )
     answer = response.choices[0].message.content
-    logfire.info(answer)
 
     if response_type == ResponseType.voice:
-        logfire.info("Creating audio file...")
         await text_to_audio(
             text=answer,
             voice_type=dweller.gender.value,
@@ -189,5 +185,4 @@ async def generate_objectives(
         # Parse the JSON into the ObjectiveResponseModelList
         return [ObjectiveBase(**obj) for obj in generated_objectives_json]
     except ValueError as e:
-        logfire.error(f"Error generating objectives: {e}")
         raise HTTPException(status_code=400, detail="Failed to generate objectives") from e

@@ -55,8 +55,3 @@ async def build_room(room_data: RoomCreate, db_session: AsyncSession = Depends(g
 @router.delete("/destroy/{room_id}", status_code=204)
 async def destroy_room(room_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
     return await crud.room.destroy(db_session, room_id)
-
-
-@router.get("/vault/{vault_id}/buildable/", response_model=list[RoomRead])
-async def read_buildable_rooms_by_vault(vault_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
-    return await crud.room.get_buildable_by_vault(db_session=db_session, vault_id=vault_id)

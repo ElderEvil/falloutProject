@@ -1,4 +1,3 @@
-// src/stores/room.ts
 import { defineStore } from 'pinia'
 import axios from '@/plugins/axios'
 
@@ -32,7 +31,8 @@ interface RoomCreate {
 
 export const useRoomStore = defineStore('room', {
   state: () => ({
-    rooms: [] as Room[]
+    rooms: [] as Room[],
+    availableRooms: [] as Room[]
   }),
   actions: {
     async fetchRooms(vaultId: string, token: string) {
@@ -47,9 +47,21 @@ export const useRoomStore = defineStore('room', {
         console.error('Failed to fetch rooms', error)
       }
     },
+    async fetchRoomsData(token: string) {
+      try {
+        const response = await axios.get('/api/v1/rooms/read_data/', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        })
+        this.availableRooms = response.data
+      } catch (error) {
+        console.error('Failed to fetch rooms data', error)
+      }
+    },
     async buildRoom(roomData: RoomCreate, token: string) {
       try {
-        const response = await axios.post('/api/build/', roomData, {
+        const response = await axios.post('/api/v1/rooms/build/', roomData, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -61,7 +73,7 @@ export const useRoomStore = defineStore('room', {
     },
     async destroyRoom(roomId: string, token: string) {
       try {
-        await axios.delete(`/api/destroy/${roomId}`, {
+        await axios.delete(`/api/v1/rooms/destroy/${roomId}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }

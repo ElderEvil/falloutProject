@@ -12,6 +12,14 @@ from app.services.minio import get_minio_client
 from app.services.open_ai import get_openai_service
 from app.utils.exceptions import ContentNoChangeException
 
+GENDER_PRONOUNS_MAP = {
+    GenderEnum.MALE: "his",
+    GenderEnum.FEMALE: "her",
+    None: "",
+}
+
+BIO_MAX_LENGTH = 1_000
+
 
 class DwellerAIService:
     def __init__(self):
@@ -19,10 +27,15 @@ class DwellerAIService:
         self.open_ai_service = get_openai_service()
 
     async def generate_backstory(
-        self, db_session: AsyncSession, dweller_id: UUID4, origin: str = "Wasteland"
+        self,
+        *,
+        db_session: AsyncSession,
+        dweller_id: UUID4 | None = None,
+        dweller_info: DwellerReadFull | None = None,
+        origin: str | None = "Wasteland",
     ) -> DwellerReadFull:
         """Generate a backstory for a dweller."""
-        dweller_obj = await dweller_crud.get_full_info(db_session, dweller_id)
+        dweller_obj = dweller_info or await dweller_crud.get_full_info(db_session, dweller_id)
         if dweller_obj.bio:
             raise ContentNoChangeException(detail="Dweller already has a bio")
 
@@ -32,13 +45,12 @@ class DwellerAIService:
                 origin = "this vault from childhood"
 
         special_stats = ", ".join(f"{stat}: {getattr(dweller_obj, stat)}" for stat in SPECIALModel.__annotations__)
-        gender_pronoun = "his" if dweller_obj.gender == GenderEnum.MALE else "her"
         system_prompt = (
             "Generate a Fallout game series style biography for a dweller"
-            f"Include details about {gender_pronoun} background, skills, and personality traits as they relate to"
-            f" living in {origin} and surviving in the post-apocalyptic world. "
+            f"Include details about {GENDER_PRONOUNS_MAP[dweller_obj.gender]} background, skills, and personality "
+            f"traits as they relate to living in {origin} and surviving in the post-apocalyptic world. "
             f"Use the dweller's SPECIAL attributes to help create a unique backstory. {special_stats}"
-            "The bio should be a minimum of 50 words and a maximum of 1000 symbols."
+            f"The bio should be a maximum of {BIO_MAX_LENGTH} symbols."
         )
         messages = [
             {"role": "system", "content": system_prompt},
@@ -47,7 +59,7 @@ class DwellerAIService:
         ]
         backstory = await self.open_ai_service.generate_completion(messages)
 
-        await dweller_crud.update(db_session, dweller_id, DwellerUpdate(bio=backstory))
+        await dweller_crud.update(db_session, dweller_obj.id, DwellerUpdate(bio=backstory))
 
         return dweller_obj
 
@@ -76,9 +88,15 @@ class DwellerAIService:
 
         return dweller_obj
 
-    async def generate_visual_attributes(self, db_session: AsyncSession, dweller_id: UUID4) -> DwellerReadFull:
+    async def generate_visual_attributes(
+        self,
+        *,
+        db_session: AsyncSession,
+        dweller_id: UUID4 | None = None,
+        dweller_info: DwellerReadFull | None = None,
+    ) -> DwellerReadFull:
         """Generate visual attributes for a dweller."""
-        dweller_obj = await dweller_crud.get_full_info(db_session, dweller_id)
+        dweller_obj = dweller_info or await dweller_crud.get_full_info(db_session, dweller_id)
         if dweller_obj.visual_attributes:
             raise ContentNoChangeException(detail="Dweller already has visual attributes")
 
@@ -86,8 +104,8 @@ class DwellerAIService:
         age: teenager, adult, elder
         height: tall, average, short
         eye_color: blue, green, brown, hazel, gray
-        appearance: attractive, cute, average, unattractive, ghoul
-        skin_tone: fair, medium, olive, tan, dark
+        appearance: attractive, cute, average, unattractive
+        skin_tone: fair, medium, olive, tan, dark, black
         build: slim, athletic, muscular, stocky, average, overweight
         hair_style: short, long, curly, straight, wavy, bald
         hair_color: blonde, brunette, redhead, black, gray, colored
@@ -98,25 +116,32 @@ class DwellerAIService:
         """
         prompt = (
             f"Create visual attributes for {dweller_obj.first_name} {dweller_obj.last_name}."
-            f"That's his/her backstory: {dweller_obj.bio}"
+            f"That's {GENDER_PRONOUNS_MAP[dweller_obj.gender]} backstory: {dweller_obj.bio}"
             "Include details about their appearance, clothing, and any other distinguishing features."
             "Use dweller backstory in case it can help to generate visual attributes."
             "Use JSON format to describe the visual attributes."
-            'Examples: {"hair_color": "brown", "eye_color": "blue", "height": "average"},'
+            "Examples: "
+            '{"age": "teenager", "hair_color": "brown", "eye_color": "blue", "height": "average", "build": "slim"},'
             '{"hair_color": "blonde", "eye_color": "green", "height": "short", "distinguishing_features": ["glasses", "freckles"]}'  # noqa:E501
             '{"hair_color": "grey", "eye_color": "brown", "height": "tall", "distinguishing_features": ["tattoo", "prosthetic arm"], "clothing_style": "military"}'  # noqa:E501
-            f"Given options: {visual_options}"
+            f"You can use variations and combinations of this options: {visual_options}"
         )
         visual_attributes_json = await self.open_ai_service.generate_completion_json(prompt)
         visual_attributes = json.loads(visual_attributes_json)
 
-        await dweller_crud.update(db_session, dweller_id, DwellerUpdate(visual_attributes=visual_attributes))
+        await dweller_crud.update(db_session, dweller_obj.id, DwellerUpdate(visual_attributes=visual_attributes))
 
         return dweller_obj
 
-    async def generate_photo(self, db_session: AsyncSession, dweller_id: UUID4) -> DwellerReadFull:
+    async def generate_photo(
+        self,
+        *,
+        db_session: AsyncSession,
+        dweller_id: UUID4 | None = None,
+        dweller_info: DwellerReadFull | None = None,
+    ) -> DwellerReadFull:
         """Generate a photo for a dweller."""
-        dweller_obj = await dweller_crud.get_full_info(db_session, dweller_id)
+        dweller_obj = dweller_info or await dweller_crud.get_full_info(db_session, dweller_id)
         if dweller_obj.image_url:
             raise ContentNoChangeException(detail="Dweller already has a photo")
         prompt = (
@@ -136,7 +161,7 @@ class DwellerAIService:
         )
 
         await dweller_crud.update(
-            db_session, dweller_id, DwellerUpdate(image_url=image_url, thumbnail_url=thumbnail_url)
+            db_session, dweller_obj.id, DwellerUpdate(image_url=image_url, thumbnail_url=thumbnail_url)
         )
 
         return dweller_obj
@@ -153,11 +178,11 @@ class DwellerAIService:
             raise ContentNoChangeException(detail="Dweller already has a bio, visual attributes, and photo")
 
         if not dweller_obj.bio:
-            dweller_obj = await self.generate_backstory(db_session, dweller_id, origin)
+            dweller_obj = await self.generate_backstory(db_session=db_session, dweller_info=dweller_obj, origin=origin)
         if not dweller_obj.visual_attributes:
-            dweller_obj = await self.generate_visual_attributes(db_session, dweller_id)
+            dweller_obj = await self.generate_visual_attributes(db_session=db_session, dweller_info=dweller_obj)
         if not dweller_obj.image_url:
-            dweller_obj = await self.generate_photo(db_session, dweller_id)
+            dweller_obj = await self.generate_photo(db_session=db_session, dweller_info=dweller_obj)
 
         return dweller_obj
 

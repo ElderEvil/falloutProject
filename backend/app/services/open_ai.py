@@ -9,7 +9,6 @@ from app.utils.image_processing import image_url_to_bytes
 class OpenAIService:
     def __init__(self):
         self.client = openai.Client(api_key=settings.OPENAI_API_KEY)
-        # logfire.instrument_openai(self.client)
 
     def get_chatgpt_client(self):
         return self.client

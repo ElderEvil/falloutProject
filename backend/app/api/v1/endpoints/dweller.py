@@ -72,7 +72,7 @@ async def generate_backstory(
     dweller_id: UUID4,
     db_session: AsyncSession = Depends(get_async_session),
 ):
-    return await dweller_ai.generate_backstory(db_session, dweller_id)
+    return await dweller_ai.generate_backstory(db_session=db_session, dweller_id=dweller_id)
 
 
 @router.post("/{dweller_id}/generate_visual_attributes/", response_model=DwellerReadFull)
@@ -80,7 +80,7 @@ async def generate_visual_attributes(
     dweller_id: UUID4,
     db_session: AsyncSession = Depends(get_async_session),
 ):
-    return await dweller_ai.generate_visual_attributes(db_session, dweller_id)
+    return await dweller_ai.generate_visual_attributes(db_session=db_session, dweller_id=dweller_id)
 
 
 @router.post("/{dweller_id}/generate_photo/", response_model=DwellerReadFull)
@@ -88,13 +88,13 @@ async def generate_photo(
     dweller_id: UUID4,
     db_session: AsyncSession = Depends(get_async_session),
 ):
-    return await dweller_ai.generate_photo(db_session, dweller_id)
+    return await dweller_ai.generate_photo(db_session=db_session, dweller_id=dweller_id)
 
 
-@router.post("/{dweller_id}/generate/", response_model=DwellerReadFull)
+@router.post("/{dweller_id}/generate_with_ai/", response_model=DwellerReadFull)
 async def generate_pipeline(
     dweller_id: UUID4,
-    origin: str,
+    origin: str | None = None,
     db_session: AsyncSession = Depends(get_async_session),
 ):
     return await dweller_ai.dweller_generate_pipeline(db_session=db_session, dweller_id=dweller_id, origin=origin)

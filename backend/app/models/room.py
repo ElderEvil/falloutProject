@@ -28,6 +28,7 @@ class RoomBase(SQLModel):
     tier: int = Field(default=1, ge=1, le=3)
     coordinate_x: int | None = Field(default=None, ge=0, le=8)
     coordinate_y: int | None = Field(default=None, ge=0, le=25)
+    image_url: str | None = Field(default=None)
 
     @property
     def is_unique(self) -> bool:

@@ -21,7 +21,7 @@ dependencies = [
     "python-jose[cryptography]==3.3.0",
     "redis==5.0.7",
     "sqladmin[all]==0.18.0",
-    "sqlmodel==0.0.19",
+    "sqlmodel==0.0.20",
     "uvicorn[standard]==0.30.1",
 ]
 requires-python = ">= 3.12"
@@ -52,7 +52,7 @@ lint.select = [
     "E", # pycodestyle errors
     "W", # pycodestyle warnings
     "C90", # mccabe
-    "I",  # isort
+    "I", # isort
     "N", # pep8-naming
     "UP", # pyupgrade
     "YTT", # flake8-2020

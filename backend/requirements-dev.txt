@@ -309,7 +309,7 @@ sqlalchemy==2.0.31
     #   alembic
     #   sqladmin
     #   sqlmodel
-sqlmodel==0.0.19
+sqlmodel==0.0.20
     # via fallout-shelter-fast-api (pyproject.toml)
 starlette==0.37.2
     # via

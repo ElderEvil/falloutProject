@@ -1,6 +1,5 @@
 [
   {
-    "name": "Abraham Washington",
     "gender": "Male",
     "rarity": "Legendary",
     "weapon": "Lincoln's repeater",
@@ -11,10 +10,11 @@
     "charisma": 6,
     "intelligence": 8,
     "agility": 4,
-    "luck": 6
+    "luck": 6,
+    "first_name": "Abraham",
+    "last_name": "Washington"
   },
   {
-    "name": "Allistair Tenpenny",
     "gender": "Male",
     "rarity": "Legendary",
     "weapon": "Victory rifle",
@@ -25,10 +25,11 @@
     "charisma": 9,
     "intelligence": 7,
     "agility": 2,
-    "luck": 9
+    "luck": 9,
+    "first_name": "Allistair",
+    "last_name": "Tenpenny"
   },
   {
-    "name": "Amata",
     "gender": "Female",
     "rarity": "Legendary",
     "weapon": "Lone Wanderer",
@@ -39,10 +40,11 @@
     "charisma": 8,
     "intelligence": 4,
     "agility": 7,
-    "luck": 6
+    "luck": 6,
+    "first_name": "Amata",
+    "last_name": ""
   },
   {
-    "name": "Bittercup",
     "gender": "Female",
     "rarity": "Legendary",
     "weapon": null,
@@ -53,10 +55,11 @@
     "charisma": 9,
     "intelligence": 5,
     "agility": 5,
-    "luck": 5
+    "luck": 5,
+    "first_name": "Bittercup",
+    "last_name": ""
   },
   {
-    "name": "Butch",
     "gender": "Male",
     "rarity": "Legendary",
     "weapon": "Lone Wanderer",
@@ -67,10 +70,11 @@
     "charisma": 9,
     "intelligence": 5,
     "agility": 6,
-    "luck": 2
+    "luck": 2,
+    "first_name": "Butch",
+    "last_name": ""
   },
   {
-    "name": "Colonel Autumn",
     "gender": "Male",
     "rarity": "Legendary",
     "weapon": "Smuggler's End",
@@ -81,10 +85,11 @@
     "charisma": 9,
     "intelligence": 5,
     "agility": 5,
-    "luck": 6
+    "luck": 6,
+    "first_name": "Colonel",
+    "last_name": "Autumn"
   },
   {
-    "name": "Confessor Cromwell",
     "gender": "Male",
     "rarity": "Legendary",
     "weapon": null,
@@ -95,10 +100,11 @@
     "charisma": 8,
     "intelligence": 6,
     "agility": 3,
-    "luck": 5
+    "luck": 5,
+    "first_name": "Confessor",
+    "last_name": "Cromwell"
   },
   {
-    "name": "Dr. Li",
     "gender": "Female",
     "rarity": "Legendary",
     "weapon": null,
@@ -109,10 +115,11 @@
     "charisma": 7,
     "intelligence": 9,
     "agility": 4,
-    "luck": 4
+    "luck": 4,
+    "first_name": "Dr.",
+    "last_name": "Li"
   },
   {
-    "name": "Ed the Ghoul",
     "gender": "Male",
     "rarity": "Legendary",
     "weapon": "Ed's custom power fist",
@@ -123,10 +130,11 @@
     "charisma": 3,
     "intelligence": 9,
     "agility": 3,
-    "luck": 7
+    "luck": 7,
+    "first_name": "Ed",
+    "last_name": "the Ghoul"
   },
   {
-    "name": "Elder Lyons",
     "gender": "Male",
     "rarity": "Legendary",
     "weapon": "Smuggler's End",
@@ -137,10 +145,11 @@
     "charisma": 9,
     "intelligence": 9,
     "agility": 3,
-    "luck": 9
+    "luck": 9,
+    "first_name": "Elder",
+    "last_name": "Lyons"
   },
   {
-    "name": "Eulogy Jones",
     "gender": "Male",
     "rarity": "Legendary",
     "weapon": "Blackhawk",
@@ -151,10 +160,11 @@
     "charisma": 8,
     "intelligence": 5,
     "agility": 4,
-    "luck": 7
+    "luck": 7,
+    "first_name": "Eulogy",
+    "last_name": "Jones"
   },
   {
-    "name": "Harkness",
     "gender": "Male",
     "rarity": "Legendary",
     "weapon": "Infiltrator",
@@ -165,10 +175,11 @@
     "charisma": 5,
     "intelligence": 5,
     "agility": 6,
-    "luck": 3
+    "luck": 3,
+    "first_name": "Harkness",
+    "last_name": ""
   },
   {
-    "name": "James",
     "gender": "Male",
     "rarity": "Legendary",
     "weapon": "Wild Bill's Sidearm",
@@ -179,10 +190,11 @@
     "charisma": 7,
     "intelligence": 9,
     "agility": 4,
-    "luck": 3
+    "luck": 3,
+    "first_name": "James",
+    "last_name": ""
   },
   {
-    "name": "Jericho",
     "gender": "Male",
     "rarity": "Legendary",
     "weapon": "Infiltrator",
@@ -193,10 +205,11 @@
     "charisma": 2,
     "intelligence": 3,
     "agility": 7,
-    "luck": 6
+    "luck": 6,
+    "first_name": "Jericho",
+    "last_name": ""
   },
   {
-    "name": "Lucas Simms",
     "gender": "Male",
     "rarity": "Legendary",
     "weapon": "Infiltrator",
@@ -207,10 +220,11 @@
     "charisma": 5,
     "intelligence": 5,
     "agility": 6,
-    "luck": 2
+    "luck": 2,
+    "first_name": "Lucas",
+    "last_name": "Simms"
   },
   {
-    "name": "Moira Brown",
     "gender": "Female",
     "rarity": "Legendary",
     "weapon": null,
@@ -221,10 +235,11 @@
     "charisma": 8,
     "intelligence": 7,
     "agility": 5,
-    "luck": 5
+    "luck": 5,
+    "first_name": "Moira",
+    "last_name": "Brown"
   },
   {
-    "name": "Mr. Burke",
     "gender": "Male",
     "rarity": "Legendary",
     "weapon": "Wild Bill's Sidearm",
@@ -235,10 +250,11 @@
     "charisma": 6,
     "intelligence": 9,
     "agility": 2,
-    "luck": 8
+    "luck": 8,
+    "first_name": "Mr.",
+    "last_name": "Burke"
   },
   {
-    "name": "Old Longfellow",
     "gender": "Male",
     "rarity": "Legendary",
     "weapon": "Henrietta",
@@ -249,10 +265,11 @@
     "charisma": 4,
     "intelligence": 6,
     "agility": 3,
-    "luck": 7
+    "luck": 7,
+    "first_name": "Old",
+    "last_name": "Longfellow"
   },
   {
-    "name": "Piper",
     "gender": "Female",
     "rarity": "Legendary",
     "weapon": null,
@@ -263,10 +280,11 @@
     "charisma": 6,
     "intelligence": 7,
     "agility": 4,
-    "luck": 4
+    "luck": 4,
+    "first_name": "Piper",
+    "last_name": ""
   },
   {
-    "name": "Preston Garvey",
     "gender": "Male",
     "rarity": "Legendary",
     "weapon": "Laser musket",
@@ -277,10 +295,11 @@
     "charisma": 6,
     "intelligence": 5,
     "agility": 6,
-    "luck": 3
+    "luck": 3,
+    "first_name": "Preston",
+    "last_name": "Garvey"
   },
   {
-    "name": "Sarah Lyons",
     "gender": "Female",
     "rarity": "Legendary",
     "weapon": "Wazer Wifle",
@@ -291,10 +310,11 @@
     "charisma": 6,
     "intelligence": 5,
     "agility": 5,
-    "luck": 2
+    "luck": 2,
+    "first_name": "Sarah",
+    "last_name": "Lyons"
   },
   {
-    "name": "Scribe Rothchild",
     "gender": "Male",
     "rarity": "Legendary",
     "weapon": "Lone Wanderer",
@@ -305,10 +325,11 @@
     "charisma": 9,
     "intelligence": 4,
     "agility": 5,
-    "luck": 5
+    "luck": 5,
+    "first_name": "Scribe",
+    "last_name": "Rothchild"
   },
   {
-    "name": "Star Paladin Cross",
     "gender": "Female",
     "rarity": "Legendary",
     "weapon": "Smuggler's End",
@@ -319,10 +340,11 @@
     "charisma": 8,
     "intelligence": 4,
     "agility": 6,
-    "luck": 3
+    "luck": 3,
+    "first_name": "Star",
+    "last_name": "Paladin Cross"
   },
   {
-    "name": "Three Dog",
     "gender": "Male",
     "rarity": "Legendary",
     "weapon": null,
@@ -333,6 +355,8 @@
     "charisma": 9,
     "intelligence": 5,
     "agility": 5,
-    "luck": 7
+    "luck": 7,
+    "first_name": "Three",
+    "last_name": "Dog"
   }
 ]

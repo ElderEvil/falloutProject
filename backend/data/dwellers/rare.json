@@ -1,6 +1,5 @@
 [
   {
-    "name": "Akira Katana",
     "gender": "Female",
     "rarity": "Rare",
     "outfit": "Ninja outfit",
@@ -10,9 +9,11 @@
     "charisma": 3,
     "intelligence": 4,
     "agility": 8,
-    "luck": 3
-  },  {
-    "name": "Alexander Miller",
+    "luck": 3,
+    "first_name": "Akira",
+    "last_name": "Katana"
+  },
+  {
     "gender": "Male",
     "rarity": "Rare",
     "outfit": "Ninja outfit",
@@ -22,10 +23,11 @@
     "charisma": 6,
     "intelligence": 3,
     "agility": 7,
-    "luck": 3
+    "luck": 3,
+    "first_name": "Alexander",
+    "last_name": "Miller"
   },
   {
-    "name": "Ameritus Jones",
     "gender": "Male",
     "rarity": "Rare",
     "outfit": "Professor outfit",
@@ -35,10 +37,11 @@
     "charisma": 4,
     "intelligence": 8,
     "agility": 3,
-    "luck": 4
+    "luck": 4,
+    "first_name": "Ameritus",
+    "last_name": "Jones"
   },
   {
-    "name": "Andre Grande",
     "gender": "Male",
     "rarity": "Rare",
     "outfit": "Wrestler outfit",
@@ -48,10 +51,11 @@
     "charisma": 3,
     "intelligence": 4,
     "agility": 8,
-    "luck": 3
+    "luck": 3,
+    "first_name": "Andre",
+    "last_name": "Grande"
   },
   {
-    "name": "Brandy Valentino",
     "gender": "Female",
     "rarity": "Rare",
     "outfit": "Movie fan outfit",
@@ -61,10 +65,11 @@
     "charisma": 4,
     "intelligence": 3,
     "agility": 4,
-    "luck": 8
+    "luck": 8,
+    "first_name": "Brandy",
+    "last_name": "Valentino"
   },
   {
-    "name": "Carlos the Great",
     "gender": "Male",
     "rarity": "Rare",
     "outfit": "Medieval ruler outfit",
@@ -74,10 +79,11 @@
     "charisma": 6,
     "intelligence": 6,
     "agility": 6,
-    "luck": 6
+    "luck": 6,
+    "first_name": "Carlos",
+    "last_name": "the Great"
   },
   {
-    "name": "Danielle Hart",
     "gender": "Male",
     "rarity": "Rare",
     "outfit": "Surgeon outfit",
@@ -87,10 +93,11 @@
     "charisma": 3,
     "intelligence": 8,
     "agility": 4,
-    "luck": 3
+    "luck": 3,
+    "first_name": "Danielle",
+    "last_name": "Hart"
   },
   {
-    "name": "Frank Blitzer",
     "gender": "Male",
     "rarity": "Rare",
     "outfit": "Sports fan outfit",
@@ -100,10 +107,11 @@
     "charisma": 4,
     "intelligence": 3,
     "agility": 4,
-    "luck": 8
+    "luck": 8,
+    "first_name": "Frank",
+    "last_name": "Blitzer"
   },
   {
-    "name": "Galahad Swingsalot",
     "gender": "Male",
     "rarity": "Rare",
     "outfit": "Knight armor",
@@ -113,10 +121,11 @@
     "charisma": 3,
     "intelligence": 4,
     "agility": 3,
-    "luck": 4
+    "luck": 4,
+    "first_name": "Galahad",
+    "last_name": "Swingsalot"
   },
   {
-    "name": "Heywood Yalaff",
     "gender": "Male",
     "rarity": "Rare",
     "outfit": "Comedian outfit",
@@ -126,10 +135,11 @@
     "charisma": 8,
     "intelligence": 4,
     "agility": 3,
-    "luck": 4
+    "luck": 4,
+    "first_name": "Heywood",
+    "last_name": "Yalaff"
   },
   {
-    "name": "Laurel Divinitus",
     "gender": "Female",
     "rarity": "Rare",
     "outfit": "Republic robes",
@@ -139,10 +149,11 @@
     "charisma": 7,
     "intelligence": 7,
     "agility": 7,
-    "luck": 7
+    "luck": 7,
+    "first_name": "Laurel",
+    "last_name": "Divinitus"
   },
   {
-    "name": "Martha Dewey",
     "gender": "Female",
     "rarity": "Rare",
     "outfit": "Librarian outfit",
@@ -152,10 +163,11 @@
     "charisma": 3,
     "intelligence": 4,
     "agility": 3,
-    "luck": 4
+    "luck": 4,
+    "first_name": "Martha",
+    "last_name": "Dewey"
   },
   {
-    "name": "Max Throttle",
     "gender": "Male",
     "rarity": "Rare",
     "outfit": "Greaser outfit",
@@ -165,22 +177,25 @@
     "charisma": 3,
     "intelligence": 4,
     "agility": 3,
-    "luck": 4
+    "luck": 4,
+    "first_name": "Max",
+    "last_name": "Throttle"
   },
   {
-  "name" : "Oscar Blood",
-  "rarity": "Rare",
-  "outfit" : "Horror fan outfit",
-  "strength" : 4,
-  "perception" : 8,
-  "endurance" : 4,
-  "charisma" : 3,
-  "intelligence" : 4,
-  "agility" : 3,
-  "luck" : 4
+    "gender": "Male",
+    "rarity": "Rare",
+    "outfit": "Horror fan outfit",
+    "strength": 4,
+    "perception": 8,
+    "endurance": 4,
+    "charisma": 3,
+    "intelligence": 4,
+    "agility": 3,
+    "luck": 4,
+    "first_name": "Oscar",
+    "last_name": "Blood"
   },
   {
-    "name": "Rex Chessman",
     "gender": "Male",
     "rarity": "Rare",
     "outfit": "Clergy outfit",
@@ -190,10 +205,11 @@
     "charisma": 8,
     "intelligence": 4,
     "agility": 3,
-    "luck": 4
+    "luck": 4,
+    "first_name": "Rex",
+    "last_name": "Chessman"
   },
   {
-    "name": "Rock Hardscrabble",
     "gender": "Male",
     "rarity": "Rare",
     "outfit": "Survivor armor",
@@ -203,10 +219,11 @@
     "charisma": 3,
     "intelligence": 4,
     "agility": 3,
-    "luck": 4
+    "luck": 4,
+    "first_name": "Rock",
+    "last_name": "Hardscrabble"
   },
   {
-    "name": "Shamus Rumple",
     "gender": "Male",
     "rarity": "Rare",
     "outfit": "Mayor outfit",
@@ -216,10 +233,11 @@
     "charisma": 8,
     "intelligence": 3,
     "agility": 4,
-    "luck": 3
+    "luck": 3,
+    "first_name": "Shamus",
+    "last_name": "Rumple"
   },
   {
-    "name": "Tenderloin Fauntleroy",
     "gender": "Male",
     "rarity": "Rare",
     "outfit": "Nobility outfit",
@@ -229,10 +247,11 @@
     "charisma": 5,
     "intelligence": 5,
     "agility": 5,
-    "luck": 5
+    "luck": 5,
+    "first_name": "Tenderloin",
+    "last_name": "Fauntleroy"
   },
   {
-    "name": "Tina Wrenchley",
     "gender": "Female",
     "rarity": "Rare",
     "outfit": "Engineer outfit",
@@ -242,10 +261,11 @@
     "charisma": 3,
     "intelligence": 8,
     "agility": 4,
-    "luck": 3
+    "luck": 3,
+    "first_name": "Tina",
+    "last_name": "Wrenchley"
   },
   {
-    "name": "Vera Majors",
     "gender": "Female",
     "rarity": "Rare",
     "outfit": "Soldier uniform",
@@ -255,10 +275,11 @@
     "charisma": 4,
     "intelligence": 3,
     "agility": 4,
-    "luck": 3
+    "luck": 3,
+    "first_name": "Vera",
+    "last_name": "Majors"
   },
   {
-    "name": "Prospero Leonard",
     "gender": "Male",
     "rarity": "Rare",
     "outfit": "Sci-fi fan outfit",
@@ -268,10 +289,13 @@
     "charisma": 3,
     "intelligence": 4,
     "agility": 3,
-    "luck": 4
+    "luck": 4,
+    "first_name": "Prospero",
+    "last_name": "Leonard"
   },
   {
-    "name": "Amy Chandler",
+    "gender": "Female",
+    "rarity": "Rare",
     "outfit": "Battle armor",
     "strength": 4,
     "perception": 6,
@@ -279,10 +303,13 @@
     "charisma": 3,
     "intelligence": 7,
     "agility": 2,
-    "luck": 5
+    "luck": 5,
+    "first_name": "Amy",
+    "last_name": "Chandler"
   },
   {
-    "name": "Benjamin Price",
+    "gender": "Male",
+    "rarity": "Rare",
     "outfit": "Survivor armor",
     "strength": 5,
     "perception": 5,
@@ -290,10 +317,13 @@
     "charisma": 4,
     "intelligence": 6,
     "agility": 5,
-    "luck": 3
+    "luck": 3,
+    "first_name": "Benjamin",
+    "last_name": "Price"
   },
   {
-    "name": "Brian Drake",
+    "gender": "Male",
+    "rarity": "Rare",
     "outfit": "Sci-fi fan outfit",
     "strength": 7,
     "perception": 3,
@@ -301,6 +331,8 @@
     "charisma": 2,
     "intelligence": 4,
     "agility": 4,
-    "luck": 3
+    "luck": 3,
+    "first_name": "Brian",
+    "last_name": "Drake"
   }
 ]

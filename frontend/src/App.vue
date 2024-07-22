@@ -23,8 +23,8 @@ const logout = () => {
           <!-- Main navigation links on the left -->
           <router-link to="/" class="text-green-500 hover:underline">Home</router-link>
           <router-link to="/vault" v-if="isAuthenticated" class="text-green-500 hover:underline"
-            >Vault</router-link
-          >
+            >Vault
+          </router-link>
           <router-link to="/dwellers" v-if="isAuthenticated" class="text-green-500 hover:underline"
             >Dwellers
           </router-link>
@@ -33,8 +33,8 @@ const logout = () => {
         <div class="flex items-center space-x-4">
           <!-- User-related actions on the right -->
           <router-link to="/login" v-if="!isAuthenticated" class="text-green-500 hover:underline"
-            >Login</router-link
-          >
+            >Login
+          </router-link>
           <router-link to="/register" v-if="!isAuthenticated" class="text-green-500 hover:underline"
             >Register
           </router-link>
@@ -58,7 +58,6 @@ const logout = () => {
 </template>
 
 <style scoped>
-/* Styles for the App component */
 .glow {
   color: #00ff00;
   text-shadow:

@@ -1,15 +1,28 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRoomStore } from '@/stores/room'
 import RoomGrid from '@/components/RoomGrid.vue'
-import HammerIcon from '@/components/icons/HammerIcon.vue'
+import BuildModeButton from '@/components/BuildModeButton.vue'
 import RoomMenu from '@/components/RoomMenu.vue'
+
+interface Room {
+  name: string
+  // Add other properties as needed
+}
+
+interface Position {
+  x: number
+  y: number
+}
 
 const authStore = useAuthStore()
 const roomStore = useRoomStore()
 const showRoomMenu = ref(false)
-const selectedRoom = ref(null)
+const selectedRoom = ref<Room | null>(null)
+const isPlacingRoom = ref(false)
+
+const buildModeActive = computed(() => showRoomMenu.value || isPlacingRoom.value)
 
 onMounted(async () => {
   const vaultId = localStorage.getItem('selectedVaultId')
@@ -18,16 +31,36 @@ onMounted(async () => {
   }
 })
 
-const toggleRoomMenu = async () => {
-  if (roomStore.availableRooms.length === 0) {
-    await roomStore.fetchRoomsData(authStore.token as string)
+const toggleBuildMode = async () => {
+  if (buildModeActive.value) {
+    // Cancel building
+    showRoomMenu.value = false
+    isPlacingRoom.value = false
+    selectedRoom.value = null
+  } else {
+    // Enter build mode
+    if (roomStore.availableRooms.length === 0) {
+      await roomStore.fetchRoomsData(authStore.token as string)
+    }
+    showRoomMenu.value = true
   }
-  showRoomMenu.value = !showRoomMenu.value
 }
 
-const handleRoomSelected = (room) => {
+const handleRoomSelected = (room: Room) => {
   selectedRoom.value = room
   showRoomMenu.value = false
+  isPlacingRoom.value = true
+}
+
+const handleRoomPlaced = async (position: Position) => {
+  if (selectedRoom.value && isPlacingRoom.value) {
+    // Here you would call your API to place the room
+    // For example:
+    // await roomStore.placeRoom(selectedRoom.value, position, authStore.token)
+    console.log(`Placing ${selectedRoom.value.name} at position ${JSON.stringify(position)}`)
+    isPlacingRoom.value = false
+    selectedRoom.value = null
+  }
 }
 </script>
 
@@ -39,12 +72,13 @@ const handleRoomSelected = (room) => {
     >
       <h1 class="mb-8 text-4xl font-bold">Vault Rooms</h1>
       <div class="mb-4 flex w-full items-center justify-between">
-        <button @click="toggleRoomMenu" class="flex items-center rounded bg-gray-700 px-4 py-2">
-          <HammerIcon />
-          <span class="ml-2">{{ showRoomMenu ? 'Close Room Menu' : 'Build Mode' }}</span>
-        </button>
+        <BuildModeButton :buildModeActive="buildModeActive" @toggleBuildMode="toggleBuildMode" />
       </div>
-      <RoomGrid :selectedRoom="selectedRoom" />
+      <RoomGrid
+        :selectedRoom="selectedRoom"
+        :isPlacingRoom="isPlacingRoom"
+        @roomPlaced="handleRoomPlaced"
+      />
       <RoomMenu
         v-if="showRoomMenu"
         @roomSelected="handleRoomSelected"

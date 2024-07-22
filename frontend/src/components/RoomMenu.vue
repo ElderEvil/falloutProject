@@ -1,15 +1,27 @@
-<script setup>
-import { ref } from 'vue'
+<script setup lang="ts">
+import { computed } from 'vue'
 import { useRoomStore } from '@/stores/room'
-import LockIcon from '@/components/icons/LockIcon.vue'
+import RoomMenuItem from './RoomMenuItem.vue'
+
+interface Room {
+  id: string
+  name: string
+  population_required: number
+  thumbnail_url: string
+}
 
 const roomStore = useRoomStore()
-const availableRooms = ref(roomStore.availableRooms)
+const availableRooms = computed(() => roomStore.availableRooms)
 
-const emit = defineEmits(['roomSelected', 'close'])
+const emit = defineEmits<{
+  (e: 'roomSelected', room: Room): void
+  (e: 'close'): void
+}>()
 
-const selectRoom = (room) => {
+const selectRoom = (room: Room) => {
+  console.log('Selecting room:', room)
   emit('roomSelected', room)
+  console.log('Store state after selection:', roomStore.selectedRoom, roomStore.isPlacingRoom)
 }
 
 const closeModal = () => {
@@ -22,29 +34,12 @@ const closeModal = () => {
     <div class="modal-content">
       <h2 class="mb-4 text-2xl">Select a Room to Build</h2>
       <ul class="flex space-x-4 overflow-x-auto">
-        <li
+        <RoomMenuItem
           v-for="room in availableRooms"
           :key="room.id"
-          @click="selectRoom(room)"
-          class="cursor-pointer rounded bg-gray-700 p-2 text-white"
-        >
-          <div class="flex flex-col items-center">
-            <div class="flex items-center space-x-2">
-              <div>{{ room.name }}</div>
-              <div v-if="room.population_required > 0">
-                <LockIcon />
-              </div>
-            </div>
-            <div class="my-2">
-              <img
-                :src="room.thumbnail_url"
-                alt="Room Thumbnail"
-                class="h-12 w-12 rounded-full object-cover"
-              />
-            </div>
-            <div class="text-sm">Population required: {{ room.population_required }}</div>
-          </div>
-        </li>
+          :room="room"
+          @select="selectRoom"
+        />
       </ul>
     </div>
   </div>
@@ -80,7 +75,7 @@ const closeModal = () => {
 
 .modal-content li {
   flex-shrink: 0;
-  min-width: 150px; /* Adjust as needed */
+  min-width: 150px;
   text-align: center;
 }
 </style>

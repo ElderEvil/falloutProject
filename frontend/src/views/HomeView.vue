@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useVaultStore } from '@/stores/vault'
 import { useRoomStore } from '@/stores/room'
@@ -45,7 +45,7 @@ const loadVault = async (id: string) => {
   console.log(`Loading vault ${id}`)
   localStorage.setItem('selectedVaultId', id)
   await roomStore.fetchRooms(id, authStore.token as string)
-  router.push('/vault')
+  await router.push('/vault')
 }
 
 onMounted(async () => {

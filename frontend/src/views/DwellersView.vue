@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useDwellerStore } from '@/stores/dweller'
 import { useAuthStore } from '@/stores/auth'
-import { onMounted, ref, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import DwellerIcon from '@/components/icons/DwellerIcon.vue'
 
 const authStore = useAuthStore()
@@ -201,10 +201,6 @@ const shouldShowThumbnail = computed(
 .stat-fill {
   height: 100%;
   background-color: #0f0;
-}
-
-.bg-terminalBackground {
-  background-color: #222;
 }
 
 .text-terminalGreen {

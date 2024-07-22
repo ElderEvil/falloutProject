@@ -1,32 +1,87 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoomStore } from '@/stores/room'
 import { useAuthStore } from '@/stores/auth'
 import DestroyIcon from '@/components/icons/DestroyButton.vue'
 
+interface Room {
+  id: string
+  name: string
+  category: string
+  coordinate_x: number
+  coordinate_y: number
+  size: number
+}
+
 const roomStore = useRoomStore()
 const authStore = useAuthStore()
-const rooms = ref(roomStore.rooms)
+const rooms = computed(() => roomStore.rooms)
 const selectedRoomId = ref<string | null>(null)
-
-watch(
-  () => roomStore.rooms,
-  (newRooms) => {
-    rooms.value = newRooms
-  }
-)
+const hoverPosition = ref<{ x: number; y: number } | null>(null)
 
 const toggleRoomSelection = (roomId: string) => {
   selectedRoomId.value = selectedRoomId.value === roomId ? null : roomId
 }
 
 const destroyRoom = async (roomId: string, event: Event) => {
-  event.stopPropagation() // Prevent the room from being deselected
+  event.stopPropagation()
   if (confirm('Are you sure you want to destroy this room?')) {
     await roomStore.destroyRoom(roomId, authStore.token as string)
     selectedRoomId.value = null
   }
 }
+
+const placeRoom = async (x: number, y: number) => {
+  if (roomStore.selectedRoom && roomStore.isPlacingRoom) {
+    const roomSize = roomStore.selectedRoom.size
+    const placementX = roomSize <= 3 ? x : x - Math.floor(roomSize / 6)
+    await roomStore.buildRoom(
+      {
+        coordinate_x: placementX,
+        coordinate_y: y,
+        type: roomStore.selectedRoom.category
+      },
+      authStore.token as string
+    )
+    roomStore.deselectRoom()
+  }
+}
+
+const handleHover = (x: number, y: number) => {
+  if (roomStore.selectedRoom && roomStore.isPlacingRoom) {
+    hoverPosition.value = { x, y }
+  } else {
+    hoverPosition.value = null
+  }
+}
+
+const clearHover = () => {
+  hoverPosition.value = null
+}
+
+const previewCells = computed(() => {
+  if (!hoverPosition.value || !roomStore.selectedRoom) return []
+  const { x, y } = hoverPosition.value
+  const roomSize = roomStore.selectedRoom.size
+  const cellsCount = Math.ceil(roomSize / 3)
+  const startX = roomSize <= 3 ? x : x - Math.floor(cellsCount / 2)
+  return Array.from({ length: cellsCount }, (_, i) => ({ x: startX + i, y }))
+})
+
+const isValidPlacement = computed(() => {
+  if (!hoverPosition.value || !roomStore.selectedRoom) return false
+  return previewCells.value.every(
+    (cell) =>
+      cell.x >= 0 &&
+      cell.x < 8 &&
+      !rooms.value.some(
+        (room) =>
+          room.coordinate_x <= cell.x &&
+          room.coordinate_x + Math.ceil(room.size / 3) > cell.x &&
+          room.coordinate_y === cell.y
+      )
+  )
+})
 </script>
 
 <template>
@@ -55,7 +110,23 @@ const destroyRoom = async (roomId: string, event: Event) => {
         </button>
       </div>
     </div>
-    <div v-for="n in 25 * 8 - rooms.length" :key="'empty-' + n" class="room empty"></div>
+    <div
+      v-for="n in 25 * 8"
+      :key="'empty-' + n"
+      class="room empty"
+      :class="{
+        'hover-preview': previewCells.some(
+          (cell) => cell.x === n % 8 && cell.y === Math.floor(n / 8)
+        ),
+        'valid-placement': isValidPlacement,
+        'invalid-placement': hoverPosition && !isValidPlacement
+      }"
+      :data-cell-info="`x:${n % 8}, y:${Math.floor(n / 8)}, preview:${previewCells.some(
+        (cell) => cell.x === n % 8 && cell.y === Math.floor(n / 8)
+      )}, valid:${isValidPlacement}`"
+      @mouseenter="handleHover(n % 8, Math.floor(n / 8))"
+      @mouseleave="clearHover"
+    ></div>
   </div>
 </template>
 
@@ -103,6 +174,20 @@ const destroyRoom = async (roomId: string, event: Event) => {
 .empty {
   border: 1px dashed #555;
   background-color: rgba(0, 0, 0, 0.3);
+}
+
+.hover-preview {
+  background-color: rgba(0, 255, 0, 0.3);
+  z-index: 1;
+}
+
+.valid-placement .hover-preview {
+  border: 2px solid #00ff00;
+}
+
+.invalid-placement .hover-preview {
+  background-color: rgba(255, 0, 0, 0.3);
+  border: 2px solid #ff0000;
 }
 
 .room-grid::before {

@@ -21,6 +21,7 @@ interface Room {
   coordinate_y: number
   created_at: string
   updated_at: string
+  thumbnail_url: string
 }
 
 interface RoomCreate {
@@ -29,15 +30,25 @@ interface RoomCreate {
   type: string
 }
 
+// Define the shape of the store state
+interface RoomState {
+  rooms: Room[]
+  availableRooms: Room[]
+  selectedRoom: Room | null
+  isPlacingRoom: boolean
+}
+
 export const useRoomStore = defineStore('room', {
-  state: () => ({
-    rooms: [] as Room[],
-    availableRooms: [] as Room[]
+  state: (): RoomState => ({
+    rooms: [],
+    availableRooms: [],
+    selectedRoom: null,
+    isPlacingRoom: false
   }),
   actions: {
-    async fetchRooms(vaultId: string, token: string) {
+    async fetchRooms(vaultId: string, token: string): Promise<void> {
       try {
-        const response = await axios.get(`/api/v1/rooms/vault/${vaultId}`, {
+        const response = await axios.get<Room[]>(`/api/v1/rooms/vault/${vaultId}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -47,9 +58,9 @@ export const useRoomStore = defineStore('room', {
         console.error('Failed to fetch rooms', error)
       }
     },
-    async fetchRoomsData(token: string) {
+    async fetchRoomsData(token: string): Promise<void> {
       try {
-        const response = await axios.get('/api/v1/rooms/read_data/', {
+        const response = await axios.get<Room[]>('/api/v1/rooms/read_data/', {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -59,9 +70,9 @@ export const useRoomStore = defineStore('room', {
         console.error('Failed to fetch rooms data', error)
       }
     },
-    async buildRoom(roomData: RoomCreate, token: string) {
+    async buildRoom(roomData: RoomCreate, token: string): Promise<void> {
       try {
-        const response = await axios.post('/api/v1/rooms/build/', roomData, {
+        const response = await axios.post<Room>('/api/v1/rooms/build/', roomData, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -71,7 +82,7 @@ export const useRoomStore = defineStore('room', {
         console.error('Failed to build room', error)
       }
     },
-    async destroyRoom(roomId: string, token: string) {
+    async destroyRoom(roomId: string, token: string): Promise<void> {
       try {
         await axios.delete(`/api/v1/rooms/destroy/${roomId}`, {
           headers: {
@@ -82,6 +93,14 @@ export const useRoomStore = defineStore('room', {
       } catch (error) {
         console.error('Failed to destroy room', error)
       }
+    },
+    selectRoom(room: Room): void {
+      this.selectedRoom = room
+      this.isPlacingRoom = true
+    },
+    deselectRoom(): void {
+      this.selectedRoom = null
+      this.isPlacingRoom = false
     }
   }
 })

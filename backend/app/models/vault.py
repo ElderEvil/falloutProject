@@ -45,10 +45,9 @@ class Vault(BaseUUIDModel, VaultBase, TimeStampMixin, table=True):
     user_id: UUID4 = Field(default=None, foreign_key="user.id")
     user: "User" = Relationship(back_populates="vaults")
 
-    dwellers: list["Dweller"] = Relationship(back_populates="vault", sa_relationship_kwargs={"cascade": "all, delete"})
-    rooms: list["Room"] = Relationship(back_populates="vault", sa_relationship_kwargs={"cascade": "all, delete"})
-
-    storage: "Storage" = Relationship(back_populates="vault", sa_relationship_kwargs={"cascade": "all, delete"})
+    dwellers: list["Dweller"] = Relationship(back_populates="vault", cascade_delete=True)
+    rooms: list["Room"] = Relationship(back_populates="vault", cascade_delete=True)
+    storage: "Storage" = Relationship(back_populates="vault", cascade_delete=True)
 
     quest_chains: list["QuestChain"] = Relationship(
         back_populates="vaults",

@@ -44,7 +44,6 @@ class DwellerCreateCommonOverride(SQLModel):
 
     first_name: str | None = Field(default=None, min_length=2, max_length=32)
     last_name: str | None = Field(default=None, min_length=2, max_length=32)
-    rarity: RarityEnum = Field(default=RarityEnum.COMMON)
     gender: GenderEnum | None = Field(default=None)
     special_boost: SPECIALEnum | None = Field(default=None)
 

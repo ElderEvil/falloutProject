@@ -59,7 +59,7 @@ async def move_dweller_to_room(
 
 
 @router.post("/create_random/", response_model=DwellerRead)
-async def create_random_dweller(
+async def create_random_common_dweller(
     vault_id: UUID4,
     dweller_override: DwellerCreateCommonOverride | None = None,
     db_session: AsyncSession = Depends(get_async_session),
@@ -92,7 +92,7 @@ async def generate_photo(
 
 
 @router.post("/{dweller_id}/generate_with_ai/", response_model=DwellerReadFull)
-async def generate_pipeline(
+async def generate_data_with_ai(
     dweller_id: UUID4,
     origin: str | None = None,
     db_session: AsyncSession = Depends(get_async_session),

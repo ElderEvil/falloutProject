@@ -39,7 +39,7 @@ class DwellerAIService:
         if dweller_obj.bio:
             raise ContentNoChangeException(detail="Dweller already has a bio")
 
-        if origin.lower().startswith("vault"):
+        if origin and origin.lower().startswith("vault"):
             dweller_vault = await vault_crud.get(db_session, dweller_obj.vault_id)
             if origin == dweller_vault.name:
                 origin = "this vault from childhood"
@@ -109,7 +109,7 @@ class DwellerAIService:
         build: slim, athletic, muscular, stocky, average, overweight
         hair_style: short, long, curly, straight, wavy, bald
         hair_color: blonde, brunette, redhead, black, gray, colored
-        distinguishing_features: scar, tattoo, mole, freckles, birthmark, piercing
+        distinguishing_features: scar, tattoo, mole, freckles, birthmark, piercing, eyepatch, prosthetic limb
         clothing_style: casual, military, formal, rugged, eclectic
         (Only for male) facial_hair: clean - shaven, mustache, beard, goatee, stubble
         (Only for female) makeup: natural, glamorous, goth, no makeup

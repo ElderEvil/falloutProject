@@ -1,3 +1,4 @@
+import asyncio
 import json
 import random
 from enum import Enum, StrEnum
@@ -6,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from openai import Client
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
+from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from app.crud.dweller import dweller as dweller_crud
 from app.db.session import get_async_session
@@ -90,7 +92,7 @@ async def ask_dweller(
     You are {dweller.gender.value} {"Adult" if dweller.is_adult else "Child"} of level {dweller.level}.
     You are considered a {dweller.rarity.value} rarity dweller.
     You are in a vault {dweller.vault.name} with a group of other dwellers.
-    You are in the {dweller.room.name} room of the vault.
+    You are in the {dweller.room.name if dweller.room else ""} room of the vault.
     Your outfit is {dweller.outfit.name if dweller.outfit else "Vault Suit"}.
     Your weapon is {dweller.weapon.name if dweller.weapon else "Fist"}.
     You have {dweller.stimpack} Stimpacks and {dweller.radaway} Radaways.
@@ -186,3 +188,62 @@ async def generate_objectives(
         return [ObjectiveBase(**obj) for obj in generated_objectives_json]
     except ValueError as e:
         raise HTTPException(status_code=400, detail="Failed to generate objectives") from e
+
+
+@router.websocket("/ws/{dweller_id}")
+async def websocket_endpoint(
+    websocket: WebSocket, dweller_id: UUID4, db_session: AsyncSession = Depends(get_async_session)
+):
+    await websocket.accept()
+    try:
+        dweller = await dweller_crud.get_full_info(db_session, dweller_id)
+        special_stats = ", ".join(f"{stat}: {getattr(dweller, stat)}" for stat in SPECIALModel.__annotations__)
+        vault_stats = (
+            f" Average happiness: {dweller.vault.happiness}/100"
+            f" Power: {dweller.vault.power}/{dweller.vault.power_max}"
+            f" Food: {dweller.vault.food}/{dweller.vault.food_max}"
+            f" Water: {dweller.vault.water}/{dweller.vault.water_max}"
+        )
+
+        dweller_prompt = f"""
+        You are a Vault-Tec Dweller named {dweller.first_name} {dweller.last_name} in a post-apocalyptic world.
+        You are {dweller.gender.value} {"Adult" if dweller.is_adult else "Child"} of level {dweller.level}.
+        You are considered a {dweller.rarity.value} rarity dweller.
+        You are in a vault {dweller.vault.name} with a group of other dwellers.
+        You are in the {dweller.room.name if dweller.room else "a"} room of the vault.
+        Your outfit is {dweller.outfit.name if dweller.outfit else "Vault Suit"}.
+        Your weapon is {dweller.weapon.name if dweller.weapon else "Fist"}.
+        You have {dweller.stimpack} Stimpacks and {dweller.radaway} Radaways.
+        Your health is {dweller.health}/{dweller.max_health}.
+        Your happiness level is {dweller.happiness}/100. Don't mention this, just act accordingly.
+        Your SPECIAL stats are: {special_stats}. Don't mention them until asked, use this information for acting.
+        In case user asks about vault - here is the information: {vault_stats}. Say it in a natural way.
+        Try to be in character and be in line with the Fallout universe.
+        """
+
+        client = get_openai_service().client
+
+        while True:
+            message = await websocket.receive_text()
+
+            stream = client.chat.completions.create(
+                model="gpt-4-turbo-preview",
+                messages=[
+                    {"role": "system", "content": dweller_prompt.strip()},
+                    {"role": "user", "content": message},
+                ],
+                stream=True,
+            )
+
+            full_response = ""
+            for chunk in stream:
+                if chunk.choices[0].delta.content is not None:
+                    content = chunk.choices[0].delta.content
+                    full_response += content
+                    await websocket.send_text(content)
+                    await asyncio.sleep(0.01)  # Small delay to control streaming rate
+
+            print(f"Full response: {full_response}")
+
+    except WebSocketDisconnect:
+        print(f"WebSocket disconnected for dweller {dweller_id}")

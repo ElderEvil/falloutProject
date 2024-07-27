@@ -59,5 +59,5 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, table=True):
     room: "Room" = Relationship(back_populates="dwellers")
 
     # Inventory
-    weapon: "Weapon" = Relationship(back_populates="dweller", sa_relationship_kwargs={"cascade": "all, delete"})
-    outfit: "Outfit" = Relationship(back_populates="dweller", sa_relationship_kwargs={"cascade": "all, delete"})
+    weapon: "Weapon" = Relationship(back_populates="dweller", cascade_delete=True)
+    outfit: "Outfit" = Relationship(back_populates="dweller", cascade_delete=True)

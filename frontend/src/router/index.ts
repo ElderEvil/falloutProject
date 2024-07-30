@@ -1,10 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import HomeView from '@/views/HomeView.vue'
-import LoginPage from '@/components/LoginForm.vue'
-import RegisterPage from '@/components/RegisterForm.vue'
+import LoginPage from '@/components/auth/LoginForm.vue'
+import RegisterPage from '@/components/auth/RegisterForm.vue'
 import VaultView from '@/views/VaultView.vue'
 import DwellersView from '@/views/DwellersView.vue'
+import DwellerChatPage from '@/components/chat/DwellerChatPage.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -26,6 +27,11 @@ const router = createRouter({
       name: 'dwellers',
       component: DwellersView,
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/dweller/:id/chat',
+      name: 'DwellerChatPage',
+      component: DwellerChatPage
     },
     {
       path: '/login',

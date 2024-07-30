@@ -2,9 +2,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRoomStore } from '@/stores/room'
-import RoomGrid from '@/components/RoomGrid.vue'
-import BuildModeButton from '@/components/BuildModeButton.vue'
-import RoomMenu from '@/components/RoomMenu.vue'
+import RoomGrid from '@/components/rooms/RoomGrid.vue'
+import BuildModeButton from '@/components/common/BuildModeButton.vue'
+import RoomMenu from '@/components/rooms/RoomMenu.vue'
 
 interface Room {
   name: string

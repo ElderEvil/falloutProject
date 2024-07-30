@@ -3,13 +3,6 @@ import { computed } from 'vue'
 import { useRoomStore } from '@/stores/room'
 import RoomMenuItem from './RoomMenuItem.vue'
 
-interface Room {
-  id: string
-  name: string
-  population_required: number
-  thumbnail_url: string
-}
-
 const roomStore = useRoomStore()
 const availableRooms = computed(() => roomStore.availableRooms)
 
@@ -18,9 +11,10 @@ const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-const selectRoom = (room: Room) => {
+const selectRoom = (room: RoomReadShort) => {
   console.log('Selecting room:', room)
   emit('roomSelected', room)
+  roomStore.selectRoom(room)
   console.log('Store state after selection:', roomStore.selectedRoom, roomStore.isPlacingRoom)
 }
 

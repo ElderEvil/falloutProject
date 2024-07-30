@@ -1,69 +1,15 @@
 <script setup lang="ts">
-import { useAuthStore } from '@/stores/auth'
-import { useRouter } from 'vue-router'
-import { computed } from 'vue'
-
-const authStore = useAuthStore()
-const router = useRouter()
-
-const isAuthenticated = computed(() => authStore.isAuthenticated)
-
-const logout = () => {
-  authStore.logout()
-  router.push('/login')
-}
+import NavBar from '@/components/common/NavBar.vue'
 </script>
 
 <template>
-  <div>
-    <!-- Navigation Bar -->
-    <nav class="fixed top-0 z-10 w-full bg-gray-800 p-4 shadow-lg">
-      <div class="container mx-auto flex items-center justify-between">
-        <div class="flex space-x-4">
-          <!-- Main navigation links on the left -->
-          <router-link to="/" class="text-green-500 hover:underline">Home</router-link>
-          <router-link to="/vault" v-if="isAuthenticated" class="text-green-500 hover:underline"
-            >Vault
-          </router-link>
-          <router-link to="/dwellers" v-if="isAuthenticated" class="text-green-500 hover:underline"
-            >Dwellers
-          </router-link>
-          <router-link to="/about" class="text-green-500 hover:underline">About</router-link>
-        </div>
-        <div class="flex items-center space-x-4">
-          <!-- User-related actions on the right -->
-          <router-link to="/login" v-if="!isAuthenticated" class="text-green-500 hover:underline"
-            >Login
-          </router-link>
-          <router-link to="/register" v-if="!isAuthenticated" class="text-green-500 hover:underline"
-            >Register
-          </router-link>
-          <span v-if="isAuthenticated" class="text-green-500">{{ authStore.user?.username }}</span>
-          <button
-            @click="logout"
-            v-if="isAuthenticated"
-            class="glow text-green-500 hover:underline"
-          >
-            Logout
-          </button>
-        </div>
-      </div>
-    </nav>
-
+  <div class="flex min-h-screen flex-col">
+    <NavBar />
     <!-- Main Content -->
-    <div class="mt-16">
+    <main class="flex-grow">
       <router-view></router-view>
-    </div>
+    </main>
   </div>
 </template>
 
-<style scoped>
-.glow {
-  color: #00ff00;
-  text-shadow:
-    0 0 5px #00ff00,
-    0 0 10px #00ff00,
-    0 0 15px #00ff00,
-    0 0 20px #00ff00;
-}
-</style>
+<style scoped></style>

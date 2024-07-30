@@ -2,10 +2,12 @@
 import { useDwellerStore } from '@/stores/dweller'
 import { useAuthStore } from '@/stores/auth'
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import DwellerIcon from '@/components/icons/DwellerIcon.vue'
 
 const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
+const router = useRouter()
 const selectedDwellerId = ref<string | null>(null)
 const loadingDetails = ref<boolean>(false)
 
@@ -35,6 +37,10 @@ const getImageUrl = (imagePath: string) => {
 const shouldShowThumbnail = computed(
   () => (dwellerId: string) => selectedDwellerId.value !== dwellerId
 )
+
+const navigateToChatPage = (dwellerId: string) => {
+  router.push(`/dweller/${dwellerId}/chat`)
+}
 </script>
 
 <template>
@@ -99,6 +105,15 @@ const shouldShowThumbnail = computed(
               </div>
               <div class="sm:grid-colsw-2 grid grid-cols-1 gap-4">
                 <div>
+                  <p class="mt-4">{{ dwellerStore.detailedDwellers[dweller.id]?.bio }}</p>
+                  <button
+                    @click="navigateToChatPage(dweller.id)"
+                    class="mt-4 rounded bg-green-500 px-4 py-2 font-bold text-black hover:bg-green-600"
+                  >
+                    Chat with {{ dweller.first_name }}
+                  </button>
+                </div>
+                <div>
                   <p>Strength</p>
                   <div class="stat-bar">
                     <div
@@ -162,9 +177,6 @@ const shouldShowThumbnail = computed(
                       class="stat-fill"
                     ></div>
                   </div>
-                </div>
-                <div>
-                  <p class="mt-4">{{ dwellerStore.detailedDwellers[dweller.id]?.bio }}</p>
                 </div>
               </div>
             </div>

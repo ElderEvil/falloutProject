@@ -4,15 +4,6 @@ import { useRoomStore } from '@/stores/room'
 import { useAuthStore } from '@/stores/auth'
 import DestroyIcon from '@/components/icons/DestroyButton.vue'
 
-interface Room {
-  id: string
-  name: string
-  category: string
-  coordinate_x: number
-  coordinate_y: number
-  size: number
-}
-
 const roomStore = useRoomStore()
 const authStore = useAuthStore()
 const rooms = computed(() => roomStore.rooms)
@@ -62,7 +53,7 @@ const clearHover = () => {
 const previewCells = computed(() => {
   if (!hoverPosition.value || !roomStore.selectedRoom) return []
   const { x, y } = hoverPosition.value
-  const roomSize = roomStore.selectedRoom.size
+  const roomSize = roomStore.selectedRoom.size_min
   const cellsCount = Math.ceil(roomSize / 3)
   const startX = roomSize <= 3 ? x : x - Math.floor(cellsCount / 2)
   return Array.from({ length: cellsCount }, (_, i) => ({ x: startX + i, y }))
@@ -118,7 +109,7 @@ const isValidPlacement = computed(() => {
         'hover-preview': previewCells.some(
           (cell) => cell.x === n % 8 && cell.y === Math.floor(n / 8)
         ),
-        'valid-placement': isValidPlacement,
+        'valid-placement': isValidPlacement && hoverPosition,
         'invalid-placement': hoverPosition && !isValidPlacement
       }"
       :data-cell-info="`x:${n % 8}, y:${Math.floor(n / 8)}, preview:${previewCells.some(
@@ -182,11 +173,34 @@ const isValidPlacement = computed(() => {
 }
 
 .valid-placement .hover-preview {
+  background-color: transparent; /* Remove solid background */
+  background-image: linear-gradient(
+    45deg,
+    rgba(0, 255, 0, 0.5) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(0, 255, 0, 0.5) 50%,
+    rgba(0, 255, 0, 0.5) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 20px 20px; /* Adjust size as needed */
   border: 2px solid #00ff00;
 }
 
 .invalid-placement .hover-preview {
-  background-color: rgba(255, 0, 0, 0.3);
+  background-color: transparent; /* Remove solid background */
+  background-image: linear-gradient(
+    45deg,
+    rgba(255, 0, 0, 0.5) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 0, 0, 0.5) 50%,
+    rgba(255, 0, 0, 0.5) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 20px 20px; /* Adjust size as needed */
   border: 2px solid #ff0000;
 }
 

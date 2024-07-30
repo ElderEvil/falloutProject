@@ -192,7 +192,10 @@ async def generate_objectives(
 
 @router.websocket("/ws/{dweller_id}")
 async def websocket_endpoint(
-    websocket: WebSocket, dweller_id: UUID4, db_session: AsyncSession = Depends(get_async_session)
+    websocket: WebSocket,
+    dweller_id: UUID4,
+    # _: CurrentActiveUser,
+    db_session: AsyncSession = Depends(get_async_session),
 ):
     await websocket.accept()
     try:

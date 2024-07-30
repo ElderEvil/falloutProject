@@ -9,7 +9,7 @@ dependencies = [
     "celery==5.4.0",
     "email_validator==2.2.0",
     "faker==26.0.0",
-    "fastapi==0.111.0",
+    "fastapi==0.111.1",
     "logfire[fastapi,sqlalchemy,system-metrics]==0.46.1",
     "minio==7.2.7",
     "openai==1.35.13",
@@ -86,7 +86,7 @@ lint.select = [
     "PL", # Pylint
     "TRY", # tryceratops
     "RUF", # Ruff
-    "FAST", # fastapi
+    #    "FAST", # fastapi
 ]
 
 lint.mccabe.max-complexity = 12

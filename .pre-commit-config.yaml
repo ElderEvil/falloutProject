@@ -23,12 +23,12 @@ repos:
       - id: pip-compile
         args: [ pyproject.toml, -o, requirements.txt ]
       - id: pip-compile
-        name: pip-compile --extra dev
-        args: [ pyproject.toml, -o, requirements-dev.txt ]
+        name: pip-compile
+        args: [ --extra dev pyproject.toml, -o, requirements-dev.txt ]
         files: ^requirements-dev\.(in|txt)$
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: "v0.5.0"
+    rev: "v0.5.5"
     hooks:
       - id: ruff
         args: [ --fix, --exit-non-zero-on-fix ]

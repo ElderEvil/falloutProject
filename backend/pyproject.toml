@@ -20,7 +20,7 @@ dependencies = [
     "python-multipart==0.0.9",
     "python-jose[cryptography]==3.3.0",
     "redis==5.0.7",
-    "sqladmin[all]==0.18.0",
+    "sqladmin[full]==0.18.0",
     "sqlmodel==0.0.21",
     "uvicorn[standard]==0.30.1",
 ]

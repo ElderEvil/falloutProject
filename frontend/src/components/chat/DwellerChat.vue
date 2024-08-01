@@ -11,7 +11,7 @@ const userMessage = ref('')
 const chatMessages = ref<HTMLElement | null>(null)
 
 const connectWebSocket = () => {
-  socket.value = new WebSocket(`ws://localhost:8000/ws/${props.dwellerId}`)
+  socket.value = new WebSocket(`ws://localhost:8000/chat/ws/${props.dwellerId}`)
 
   socket.value.onopen = () => {
     console.log('WebSocket connected')

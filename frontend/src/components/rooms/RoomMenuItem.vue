@@ -1,13 +1,6 @@
 <script setup lang="ts">
 import LockIcon from '@/components/icons/LockIcon.vue'
 
-interface Room {
-  id: string
-  name: string
-  population_required: number
-  thumbnail_url: string
-}
-
 const props = defineProps<{
   room: Room
 }>()

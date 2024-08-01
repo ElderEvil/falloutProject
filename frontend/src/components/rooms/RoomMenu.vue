@@ -11,7 +11,7 @@ const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-const selectRoom = (room: RoomReadShort) => {
+const selectRoom = (room: Room) => {
   console.log('Selecting room:', room)
   emit('roomSelected', room)
   roomStore.selectRoom(room)

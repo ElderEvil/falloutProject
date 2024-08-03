@@ -1,10 +1,15 @@
-FROM node:lts-alpine AS build-stage
+# Build stage
+FROM node:lts AS build-stage
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 COPY . .
 RUN npm run build
 
 # Production stage
-FROM nginx:stable-alpine
-COPY --from=build-stage /app/dist /usr/share/nginx/html
+FROM node:lts-alpine
+WORKDIR /app
+RUN npm install -g serve
+COPY --from=build-stage /app/dist ./dist
+EXPOSE 3000
+CMD ["serve", "-s", "dist", "-l", "3000"]

@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: Deployment Pipeline
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - master
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,31 +23,42 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and push FastAPI image
-        run: |
-          docker build -t elerevil/fastapi:latest -f backend/Dockerfile ./backend
-          docker push elerevil/fastapi:latest
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: elerevil/fastapi:latest
 
       - name: Build and push Vue.js image
-        run: |
-          docker build -t elerevil/vuejs:latest -f frontend/Dockerfile ./frontend
-          docker push elerevil/vuejs:latest
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: elerevil/vuejs:latest
 
       - name: Set up kubectl
-        uses: azure/setup-kubectl@v1
+        uses: azure/setup-kubectl@v3
         with:
           version: 'latest'
 
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" > kubeconfig
+          chmod 600 kubeconfig
+
       - name: Deploy to K3s
         run: |
-          kubectl apply -f k8s/backend-deployment.yaml
-          kubectl apply -f k8s/frontend-deployment.yaml
-          kubectl apply -f k8s/minio-deployment.yaml
-          kubectl apply -f k8s/caddy-deployment.yaml
+          kubectl --kubeconfig=kubeconfig apply -f k8s/backend-deployment.yaml
+          kubectl --kubeconfig=kubeconfig apply -f k8s/frontend-deployment.yaml
+          kubectl --kubeconfig=kubeconfig apply -f k8s/minio-deployment.yaml
+          kubectl --kubeconfig=kubeconfig apply -f k8s/caddy-deployment.yaml
+
+          # Ensure the deployments are updated with the latest images
+          kubectl --kubeconfig=kubeconfig set image deployment/backend backend=elerevil/fastapi:latest
+          kubectl --kubeconfig=kubeconfig set image deployment/frontend frontend=elerevil/vuejs:latest
+
+          # Wait for rollouts to complete
+          kubectl --kubeconfig=kubeconfig rollout status deployment/backend
+          kubectl --kubeconfig=kubeconfig rollout status deployment/frontend

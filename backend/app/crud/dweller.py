@@ -14,9 +14,9 @@ from app.schemas.dweller import (
     DwellerReadWithRoomID,
     DwellerUpdate,
 )
+from app.tests.factory.dwellers import create_random_common_dweller
 from app.utils.exceptions import ContentNoChangeException
 from app.utils.validation import validate_room_transfer, validate_vault_transfer
-from backend.app.tests.factory.dwellers import create_random_common_dweller
 
 BOOSTED_STAT_VALUE = 5
 

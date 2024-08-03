@@ -6,7 +6,7 @@ from app import crud
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.schemas.dweller import DwellerCreate
-from backend.app.tests.factory.dwellers import create_fake_dweller
+from app.tests.factory.dwellers import create_fake_dweller
 
 
 @pytest.mark.asyncio

@@ -1,4 +1,4 @@
-name: Frontend CI
+name: Frontend CI/CD
 
 on:
   push:
@@ -13,12 +13,12 @@ on:
       - 'frontend/**'
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -30,3 +30,43 @@ jobs:
 
       - name: Build the project
         run: cd ./frontend/ && npm run build
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Vue.js image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/vuejs:latest
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Create .kube directory
+        run: |
+          mkdir -p $HOME/.kube
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Deploy to K3s
+        run: |
+          # Apply Kubernetes configurations
+          kubectl apply -f deploy/k3s/vue-deployment.yaml
+          kubectl apply -f deploy/k3s/vue-service.yaml
+
+          # Ensure the deployments are updated with the latest images
+          kubectl set image deployment/frontend frontend=${{ secrets.DOCKER_USERNAME }}/vuejs:latest
+
+          # Wait for rollouts to complete
+          kubectl rollout status deployment/frontend

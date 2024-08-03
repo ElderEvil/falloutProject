@@ -53,11 +53,20 @@ jobs:
           chmod 600 $HOME/.kube/config
 
       - name: Deploy to K3s
+        env:
+          MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
+          MINIO_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
         run: |
-          kubectl apply -f k8s/backend-deployment.yaml
-          kubectl apply -f k8s/frontend-deployment.yaml
-          kubectl apply -f k8s/minio-deployment.yaml
-          kubectl apply -f k8s/caddy-deployment.yaml
+          # Create MinIO secret
+          kubectl create secret generic minio-secret \
+            --from-literal=MINIO_ACCESS_KEY=$MINIO_ACCESS_KEY \
+            --from-literal=MINIO_SECRET_KEY=$MINIO_SECRET_KEY
+
+          # Apply Kubernetes configurations
+          kubectl apply -f ./k8s/backend-deployment.yaml
+          kubectl apply -f ./k8s/frontend-deployment.yaml
+          kubectl apply -f ./k8s/minio-deployment.yaml
+          kubectl apply -f ./k8s/caddy-deployment.yaml
 
           # Ensure the deployments are updated with the latest images
           kubectl set image deployment/backend backend=elerevil/fastapi:latest

@@ -31,16 +31,3 @@ spec:
                   key: MINIO_SECRET_KEY
           ports:
             - containerPort: 9000
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: minio
-spec:
-  selector:
-    app: minio
-  ports:
-    - protocol: TCP
-      port: 9000
-      targetPort: 9000
-  type: ClusterIP

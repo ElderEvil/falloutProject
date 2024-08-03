@@ -43,6 +43,10 @@ jobs:
         with:
           version: 'latest'
 
+      - name: Create .kube directory
+        run: |
+          mkdir -p $HOME/.kube
+
       - name: Configure kubectl
         run: |
           echo "${{ secrets.KUBE_CONFIG }}" > $HOME/.kube/config

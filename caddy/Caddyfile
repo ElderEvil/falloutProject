@@ -1,0 +1,21 @@
+{
+  email custom@domain.com
+}
+
+# HTTP to HTTPS redirect
+http:// {
+  redir https://{host}{uri} permanent
+}
+
+# HTTPS configurations
+fastapi.{$EXT_ENDPOINT1}, fastapi.{$LOCAL_1}, fastapi.{$LOCAL_2} {
+  reverse_proxy fastapi:8000
+}
+
+storage.{$EXT_ENDPOINT1}, storage.{$LOCAL_1}, storage.{$LOCAL_2} {
+  reverse_proxy minio:9000
+}
+
+stash.{$EXT_ENDPOINT1}, stash.{$LOCAL_1}, stash.{$LOCAL_2} {
+  reverse_proxy minio:9090
+}

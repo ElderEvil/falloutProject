@@ -45,20 +45,20 @@ jobs:
 
       - name: Configure kubectl
         run: |
-          echo "${{ secrets.KUBE_CONFIG }}" > kubeconfig
-          chmod 600 kubeconfig
+          echo "${{ secrets.KUBE_CONFIG }}" > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
 
       - name: Deploy to K3s
         run: |
-          kubectl --kubeconfig=kubeconfig apply -f k8s/backend-deployment.yaml
-          kubectl --kubeconfig=kubeconfig apply -f k8s/frontend-deployment.yaml
-          kubectl --kubeconfig=kubeconfig apply -f k8s/minio-deployment.yaml
-          kubectl --kubeconfig=kubeconfig apply -f k8s/caddy-deployment.yaml
+          kubectl apply -f k8s/backend-deployment.yaml
+          kubectl apply -f k8s/frontend-deployment.yaml
+          kubectl apply -f k8s/minio-deployment.yaml
+          kubectl apply -f k8s/caddy-deployment.yaml
 
           # Ensure the deployments are updated with the latest images
-          kubectl --kubeconfig=kubeconfig set image deployment/backend backend=elerevil/fastapi:latest
-          kubectl --kubeconfig=kubeconfig set image deployment/frontend frontend=elerevil/vuejs:latest
+          kubectl set image deployment/backend backend=elerevil/fastapi:latest
+          kubectl set image deployment/frontend frontend=elerevil/vuejs:latest
 
           # Wait for rollouts to complete
-          kubectl --kubeconfig=kubeconfig rollout status deployment/backend
-          kubectl --kubeconfig=kubeconfig rollout status deployment/frontend
+          kubectl rollout status deployment/backend
+          kubectl rollout status deployment/frontend

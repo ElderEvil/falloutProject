@@ -22,10 +22,11 @@ repos:
       # Run the pip compile
       - id: pip-compile
         args: [ pyproject.toml, -o, requirements.txt ]
+        files: pyproject.toml
       - id: pip-compile
-        name: pip-compile
+        name: pip-compile dev
         args: [ --extra dev pyproject.toml, -o, requirements-dev.txt ]
-        files: ^requirements-dev\.(in|txt)$
+        files: pyproject.toml
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     rev: "v0.5.5"

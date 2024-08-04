@@ -15,15 +15,6 @@ repos:
       - id: end-of-file-fixer
       - id: trailing-whitespace
 
-  - repo: https://github.com/astral-sh/uv-pre-commit
-    # uv version.
-    rev: 0.2.33
-    hooks:
-      # Run the pip compile
-      - id: pip-compile
-        args: [ backend/pyproject.toml, -o, backend/requirements.txt ]
-        files: backend/pyproject.toml
-
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     rev: "v0.5.5"
     hooks:

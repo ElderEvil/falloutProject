@@ -17,3 +17,6 @@ spec:
           image: elerevil/fastapi:latest
           ports:
             - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: backend-env

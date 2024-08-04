@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import EmailStr, PostgresDsn, field_validator
 from pydantic_core.core_schema import FieldValidationInfo
@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     API_VERSION: str = "v1"
     API_V1_STR: str = f"/api/{API_VERSION}"
     PROJECT_NAME: str = "Fallout Shelter API"
+    ENVIRONMENT: Literal["local", "staging", "production"] = "local"
 
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     SECRET_KEY: str

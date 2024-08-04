@@ -13,7 +13,6 @@ class Settings(BaseSettings):
 
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     SECRET_KEY: str
-    OPENAI_API_KEY: str
 
     EMAIL_TEST_USER: EmailStr
     FIRST_SUPERUSER_USERNAME: str
@@ -46,6 +45,8 @@ class Settings(BaseSettings):
     ]
 
     BACKEND_CORS_ORIGINS: list[str] = ["*"]
+
+    OPENAI_API_KEY: str
 
     @field_validator("ASYNC_DATABASE_URI", mode="after")
     def assemble_db_connection(cls, v: str | None, info: FieldValidationInfo) -> Any:

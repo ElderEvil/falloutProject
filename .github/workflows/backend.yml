@@ -76,9 +76,6 @@ jobs:
         run: |
           echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
           chmod 600 $HOME/.kube/config
-          kubectl config view --raw
-          kubectl config current-context
-          kubectl config get-contexts
 
       - name: Deploy to K3s
         env:

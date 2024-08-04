@@ -90,6 +90,8 @@ jobs:
             --dry-run=client -o yaml | kubectl apply -f -
 
           # Apply Kubernetes configurations
+          kubectl apply -f deployment/k3s/minio-deployment.yaml
+          kubectl apply -f deployment/k3s/minio-service.yaml
           kubectl apply -f deployment/k3s/backend-deployment.yaml
           kubectl apply -f deployment/k3s/backend-service.yaml
 

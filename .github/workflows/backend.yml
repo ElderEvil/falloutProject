@@ -50,6 +50,12 @@ jobs:
         run: uv sync --all-extras --dev
         working-directory: ./backend
 
+      - name: Install tree package
+        run: sudo apt-get install -y tree
+
+      - name: Print directory structure
+        run: tree -L 3
+
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:

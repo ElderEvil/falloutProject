@@ -96,8 +96,8 @@ jobs:
             --dry-run=client -o yaml | kubectl apply -f -
 
           # Apply Kubernetes configurations
-          kubectl apply -f deploy/k3s/fastapi-deployment.yaml
-          kubectl apply -f deploy/k3s/fastapi-service.yaml
+          kubectl apply -f deployment/k3s/fastapi-deployment.yaml
+          kubectl apply -f deployment/k3s/fastapi-service.yaml
 
           # Ensure the deployments are updated with the latest images
           kubectl set image deployment/backend backend=${{ secrets.DOCKER_USERNAME }}/fastapi:latest

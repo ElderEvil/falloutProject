@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     WEB_CONCURRENCY: int = 9
     POOL_SIZE: int = max(DB_POOL_SIZE // WEB_CONCURRENCY, 5)
     ASYNC_DATABASE_URI: PostgresDsn | str = ""
+
     MINIO_HOSTNAME: str
     MINIO_PORT: str
     MINIO_ROOT_USER: str

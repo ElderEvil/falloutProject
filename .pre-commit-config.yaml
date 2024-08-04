@@ -17,7 +17,7 @@ repos:
 
   - repo: https://github.com/astral-sh/uv-pre-commit
     # uv version.
-    rev: 0.2.31
+    rev: 0.2.33
     hooks:
       # Run the pip compile
       - id: pip-compile

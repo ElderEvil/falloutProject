@@ -79,13 +79,13 @@ jobs:
 
       - name: Deploy to K3s
         env:
-          MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
-          MINIO_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
+          MINIO_ACCESS_KEY: ${{ secrets.MINIO_ROOT_USER }}
+          MINIO_SECRET_KEY: ${{ secrets.MINIO_ROOT_PASSWORD }}
         run: |
           # Create or update MinIO secret
           kubectl create secret generic minio-secret \
-            --from-literal=MINIO_ACCESS_KEY=$MINIO_ACCESS_KEY \
-            --from-literal=MINIO_SECRET_KEY=$MINIO_SECRET_KEY \
+            --from-literal=MINIO_ROOT_USER=MINIO_ROOT_USER \
+            --from-literal=MINIO_ROOT_PASSWORD=MINIO_ROOT_PASSWORD \
             --dry-run=client -o yaml | kubectl apply -f -
 
           # Apply Kubernetes configurations

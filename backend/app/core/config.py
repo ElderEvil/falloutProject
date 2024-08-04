@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = f"/api/{API_VERSION}"
     PROJECT_NAME: str = "Fallout Shelter API"
     ENVIRONMENT: Literal["local", "staging", "production"] = "local"
+    BACKEND_CORS_ORIGINS: list[str] = ["*"]
 
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     SECRET_KEY: str
@@ -43,8 +44,6 @@ class Settings(BaseSettings):
         "outfit-images",
         "weapon-images",
     ]
-
-    BACKEND_CORS_ORIGINS: list[str] = ["*"]
 
     OPENAI_API_KEY: str
 

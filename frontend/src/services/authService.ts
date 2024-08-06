@@ -22,19 +22,3 @@ interface User {
   username: string
   email: string
 }
-
-export const authService = {
-  login(form: LoginForm): Promise<AxiosResponse<Token>> {
-    return apiClient.post('/login/access-token', new URLSearchParams(form as any))
-  },
-  register(form: RegisterForm): Promise<AxiosResponse<User>> {
-    return apiClient.post('/users/open', form)
-  },
-  getCurrentUser(token: string): Promise<AxiosResponse<User>> {
-    return apiClient.get('/login/test-token', {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    })
-  }
-}

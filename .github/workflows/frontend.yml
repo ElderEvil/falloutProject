@@ -59,6 +59,12 @@ jobs:
           echo "${{ secrets.KUBE_CONFIG }}" > $HOME/.kube/config
           chmod 600 $HOME/.kube/config
 
+      - name: Verify kubectl configuration
+        run: kubectl config view
+
+      - name: Test kubectl connection
+        run: kubectl cluster-info
+
       - name: Deploy to K3s
         run: |
           # Apply Kubernetes configurations

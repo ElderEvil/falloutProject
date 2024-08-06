@@ -62,8 +62,8 @@ jobs:
       - name: Deploy to K3s
         run: |
           # Apply Kubernetes configurations
-          kubectl apply -f deploy/k3s/frontend-deployment.yaml
-          kubectl apply -f deploy/k3s/frontend-service.yaml
+          kubectl apply -f deployment/k3s/frontend-deployment.yaml
+          kubectl apply -f deployment/k3s/frontend-service.yaml
 
           # Ensure the deployments are updated with the latest images
           kubectl set image deployment/frontend frontend=${{ secrets.DOCKER_USERNAME }}/vuejs:latest

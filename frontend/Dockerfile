@@ -10,6 +10,7 @@ RUN npm run build
 FROM node:lts-alpine
 WORKDIR /app
 RUN npm install -g serve
-COPY --from=build-stage /app/dist ./dist
+COPY --from=build-stage /app/dist .
 EXPOSE 3000
-CMD ["serve", "-s", "dist", "-l", "0.0.0.0:3000"]
+
+CMD ["serve"]

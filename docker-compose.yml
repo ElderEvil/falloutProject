@@ -29,6 +29,16 @@ services:
     volumes:
       - ./app:/code/app
 
+  vuejs:
+    container_name: vuejs
+    build:
+      context: ./frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+
   redis:
     image: redis:alpine
     restart: always

@@ -18,5 +18,5 @@ spec:
           ports:
             - containerPort: 80
           env:
-            - name: VUE_APP_API_URL
-              value: http://backend:8000
+            - name: VITE_API_BASE_URL
+              value: http://37.27.195.77:30008

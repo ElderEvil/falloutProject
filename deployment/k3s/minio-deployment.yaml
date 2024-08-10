@@ -30,7 +30,8 @@ spec:
                   name: minio-secret
                   key: MINIO_ROOT_PASSWORD
           ports:
-            - containerPort: 9000
+            - containerPort: 9000     # MinIO API port
+            - containerPort: 32873    # MinIO WebUI port
           volumeMounts:
             - name: data
               mountPath: /data

@@ -1,0 +1,50 @@
+name: Deploy to Kubernetes
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'deployment/k3s/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Create .kube directory
+        run: |
+          mkdir -p $HOME/.kube
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Deploy Backend
+        run: |
+          kubectl apply -f deployment/k3s/backend-deployment.yaml
+          kubectl apply -f deployment/k3s/backend-service.yaml
+
+      - name: Deploy Frontend
+        run: |
+          kubectl apply -f deployment/k3s/frontend-deployment.yaml
+          kubectl apply -f deployment/k3s/frontend-service.yaml
+
+      - name: Deploy Caddy
+        run: |
+          kubectl apply -f deployment/k3s/caddy-deployment.yaml
+          kubectl apply -f deployment/k3s/caddy-service.yaml
+
+      - name: Deploy MinIO
+        run: |
+          kubectl apply -f deployment/k3s/minio-deployment.yaml
+          kubectl apply -f deployment/k3s/minio-service.yaml

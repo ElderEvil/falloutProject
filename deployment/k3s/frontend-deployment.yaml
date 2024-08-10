@@ -17,3 +17,6 @@ spec:
           image: elerevil/vuejs:latest
           ports:
             - containerPort: 80
+          env:
+            - name: VUE_APP_API_URL
+              value: http://backend:8000

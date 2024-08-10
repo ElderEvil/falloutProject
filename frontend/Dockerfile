@@ -4,6 +4,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+ENV VUE_APP_API_URL=http://backend:8000
 RUN npm run build
 
 # Production stage

@@ -1,6 +1,7 @@
 # Build stage
 FROM node:lts AS build-stage
 WORKDIR /app
+ENV VITE_API_BASE_URL=http://37.27.195.77:8000
 COPY package*.json ./
 RUN npm ci
 COPY . .

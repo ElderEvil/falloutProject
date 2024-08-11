@@ -82,3 +82,9 @@ class WeaponSubtypeEnum(CaseInsensitiveEnum):
     AUTOMATIC = "automatic"
     EXPLOSIVE = "explosive"
     FLAMER = "flamer"
+
+
+class AIModelType(CaseInsensitiveEnum):
+    CHATGPT = "ChatGPT"
+    DALLE = "DALL-E"
+    OTHER = "Other"

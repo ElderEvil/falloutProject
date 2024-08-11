@@ -4,6 +4,7 @@ from app.models import Objective, Storage
 from app.models.dweller import Dweller
 from app.models.junk import Junk
 from app.models.outfit import Outfit
+from app.models.prompt import Prompt
 from app.models.quest import Quest, QuestChain, QuestObjective
 from app.models.room import Room
 from app.models.user import User
@@ -156,3 +157,13 @@ class WeaponAdmin(ModelView, model=Weapon):
     ]
 
     icon = "fa-solid fa-gun"
+
+
+class PromptAdmin(ModelView, model=Prompt):
+    column_list = [
+        Prompt.id,
+        Prompt.prompt_name,
+        Prompt.ai_model_type,
+    ]
+
+    icon = "fa-solid fa-comment-dots"

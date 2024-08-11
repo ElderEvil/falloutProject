@@ -2,6 +2,7 @@ from .dweller import Dweller
 from .junk import Junk
 from .objective import Objective
 from .outfit import Outfit
+from .prompt import Prompt
 from .quest import Quest
 from .room import Room
 from .storage import Storage

@@ -12,7 +12,7 @@ from app.schemas.weapon import WeaponCreate
 logger = logging.getLogger(__name__)
 
 ROOT_DIR = Path(__file__).parent.parent.parent
-DATA_DIR = ROOT_DIR / "data"
+DATA_DIR = ROOT_DIR / "app" / "data"
 
 
 class StaticGameData:

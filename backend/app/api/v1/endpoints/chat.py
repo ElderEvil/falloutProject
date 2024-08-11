@@ -161,7 +161,6 @@ async def chat_with_dweller(
 
     client = get_openai_service().client
 
-    # Make a single request to get the full response
     response = client.chat.completions.create(
         model="gpt-4-turbo-preview",
         messages=[
@@ -170,9 +169,8 @@ async def chat_with_dweller(
         ],
     )
 
-    # Extract the content from the response
-    full_response = response.choices[0].message["content"]
+    message = response.choices[0].message.content
 
-    print(f"LLM response: {full_response}")
+    print(f"LLM response: {message}")
 
-    return {"response": full_response}
+    return {"response": message}

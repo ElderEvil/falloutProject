@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, watchEffect } from 'vue'
-import axios from 'axios'
+import apiClient from '@/plugins/axios'
 
 const props = defineProps<{
   dwellerId: string
-  dwellerName: string // Receive the dweller's name as a prop
-  username: string // Receive the username as a prop
+  dwellerName: string
+  username: string
 }>()
 
 const messages = ref<Array<{ type: 'user' | 'dweller'; content: string }>>([])
@@ -16,17 +16,16 @@ const isTyping = ref(false)
 const sendMessage = async () => {
   if (userMessage.value.trim()) {
     messages.value.push({ type: 'user', content: userMessage.value })
-    isTyping.value = true // Start typing animation
+    isTyping.value = true
     try {
-      const response = await axios.post(`http://localhost:8000/api/v1/chat/${props.dwellerId}`, {
+      const response = await apiClient.post(`/api/v1/chat/${props.dwellerId}`, {
         message: userMessage.value
       })
       messages.value.push({ type: 'dweller', content: response.data.response })
     } catch (error) {
       console.error('Error sending message:', error)
-      // Handle error appropriately
     } finally {
-      isTyping.value = false // Stop typing animation
+      isTyping.value = false
     }
     userMessage.value = ''
   }

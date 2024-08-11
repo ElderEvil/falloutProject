@@ -6,6 +6,7 @@ from sqlmodel import AutoString, Field, Relationship, SQLModel
 from app.models.base import BaseUUIDModel, TimeStampMixin
 
 if TYPE_CHECKING:
+    from app.models.llm_interaction import LLMInteraction
     from app.models.vault import Vault
 
 
@@ -19,6 +20,7 @@ class UserBase(SQLModel):
 class User(BaseUUIDModel, UserBase, TimeStampMixin, table=True):
     hashed_password: str = Field(nullable=False)
 
+    llm_interactions: list["LLMInteraction"] = Relationship(back_populates="user")
     vaults: list["Vault"] = Relationship(back_populates="user", cascade_delete=True)
 
     def __str__(self):

@@ -1,6 +1,6 @@
 from sqladmin import ModelView
 
-from app.models import Objective, Storage
+from app.models import LLMInteraction, Objective, Storage
 from app.models.dweller import Dweller
 from app.models.junk import Junk
 from app.models.outfit import Outfit
@@ -163,7 +163,19 @@ class PromptAdmin(ModelView, model=Prompt):
     column_list = [
         Prompt.id,
         Prompt.prompt_name,
-        Prompt.ai_model_type,
+        # Prompt.ai_model_type,
+    ]
+
+    icon = "fa-solid fa-comment-dots"
+
+
+class LLInteractionAdmin(ModelView, model=LLMInteraction):
+    name = "LLM Interaction"
+    name_plural = "LLM Interactions"
+    column_list = [
+        LLMInteraction.id,
+        # LLMInteraction.ai_model_type,
+        LLMInteraction.prompt,
     ]
 
     icon = "fa-solid fa-comment-dots"

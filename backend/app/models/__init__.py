@@ -1,5 +1,6 @@
 from .dweller import Dweller
 from .junk import Junk
+from .llm_interaction import LLMInteraction
 from .objective import Objective
 from .outfit import Outfit
 from .prompt import Prompt

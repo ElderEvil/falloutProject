@@ -1,18 +1,21 @@
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from pydantic import Field
-from sqlmodel import SQLModel
+from sqlmodel import Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel
-from app.schemas.common import AIModelType
+
+if TYPE_CHECKING:
+    from app.models import LLMInteraction
 
 
 class PromptBase(SQLModel):
+    # ai_model_type: AIModelType = Field(default=AIModelType.CHATGPT)
     prompt_name: str = Field(min_length=3, max_length=32, index=True)
     description: str = Field(min_length=3, max_length=1000)
-    prompt_template: str = Field(min_length=3, max_length=1000)
+    prompt_template: str = Field()
     entity_id: UUID | None = Field(default=None, index=True)
-    ai_model_type: AIModelType = Field(default=AIModelType.CHATGPT)
 
     def generate_prompt(self, **kwargs) -> str:
         """
@@ -25,4 +28,4 @@ class PromptBase(SQLModel):
 
 
 class Prompt(BaseUUIDModel, PromptBase, table=True):
-    pass
+    llm_interactions: list["LLMInteraction"] = Relationship(back_populates="prompt")

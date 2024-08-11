@@ -1,17 +1,28 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
+from uuid import UUID
 
-from pydantic import UUID4
-from sqlmodel import Field
+from sqlmodel import Field, Relationship
 
 from app.models.base import BaseUUIDModel
 
+if TYPE_CHECKING:
+    from app.models.prompt import Prompt
+    from app.models.user import User
 
-class LLMInteraction(BaseUUIDModel, table=True):
+
+class LLMInteractionBase:
+    # ai_model_type: AIModelType = Field(default=AIModelType.CHATGPT)
+    parameters: str | None
+    response: str | None
+    usage: str | None
+
+    prompt_id: UUID | None = Field(default=None, foreign_key="prompt.id")
+    user_id: UUID | None = Field(default=None, foreign_key="user.id")
+
+
+class LLMInteraction(BaseUUIDModel, LLMInteractionBase, table=True):
     created_at: datetime | None = Field(default_factory=datetime.utcnow)
-    model: str
-    prompt: str
-    parameters: str | None = Field(default=None)
-    response: str | None = Field(default=None)
-    usage: str | None = Field(default=None)
 
-    user_id: UUID4 | None = Field(default=None)
+    prompt: "Prompt" = Relationship(back_populates="llm_interactions")
+    user: "User" = Relationship(back_populates="llm_interactions")

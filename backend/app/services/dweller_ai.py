@@ -4,10 +4,13 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.dweller import dweller as dweller_crud
+from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.crud.vault import vault as vault_crud
+from app.models import User
 from app.models.base import SPECIALModel
 from app.schemas.common import GenderEnum
 from app.schemas.dweller import DwellerReadFull, DwellerUpdate
+from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.minio import get_minio_client
 from app.services.open_ai import get_openai_service
 from app.utils.exceptions import ContentNoChangeException
@@ -29,6 +32,7 @@ class DwellerAIService:
     async def generate_backstory(
         self,
         *,
+        user: User,
         db_session: AsyncSession,
         dweller_id: UUID4 | None = None,
         dweller_info: DwellerReadFull | None = None,
@@ -61,9 +65,20 @@ class DwellerAIService:
 
         await dweller_crud.update(db_session, dweller_obj.id, DwellerUpdate(bio=backstory))
 
+        llm_int_create = LLMInteractionCreate(
+            parameters=origin,
+            response=backstory,
+            usage="generate_backstory",
+            user_id=user.id,
+        )
+        await llm_interaction_crud.create(
+            db_session,
+            obj_in=llm_int_create,
+        )
+
         return dweller_obj
 
-    async def extend_bio(self, db_session: AsyncSession, dweller_id: UUID4) -> DwellerReadFull:
+    async def extend_bio(self, db_session: AsyncSession, dweller_id: UUID4, user: User) -> DwellerReadFull:
         dweller_obj = await dweller_crud.get_full_info(db_session, dweller_id)
         if not dweller_obj.bio:
             raise ContentNoChangeException(detail="Dweller doesn't have a bio to extend")
@@ -86,11 +101,23 @@ class DwellerAIService:
 
         await dweller_crud.update(db_session, dweller_id, DwellerUpdate(bio=full_bio))
 
+        llm_int_create = LLMInteractionCreate(
+            parameters=dweller_obj.bio,
+            response=extended_bio,
+            usage="extend_bio",
+            user_id=user.id,
+        )
+        await llm_interaction_crud.create(
+            db_session,
+            obj_in=llm_int_create,
+        )
+
         return dweller_obj
 
     async def generate_visual_attributes(
         self,
         *,
+        user: User,
         db_session: AsyncSession,
         dweller_id: UUID4 | None = None,
         dweller_info: DwellerReadFull | None = None,
@@ -131,11 +158,23 @@ class DwellerAIService:
 
         await dweller_crud.update(db_session, dweller_obj.id, DwellerUpdate(visual_attributes=visual_attributes))
 
+        llm_int_create = LLMInteractionCreate(
+            parameters=dweller_obj.bio,
+            response=str(visual_attributes),
+            usage="generate_visual_attributes",
+            user_id=user.id,
+        )
+        await llm_interaction_crud.create(
+            db_session,
+            obj_in=llm_int_create,
+        )
+
         return dweller_obj
 
     async def generate_photo(
         self,
         *,
+        user: User,
         db_session: AsyncSession,
         dweller_id: UUID4 | None = None,
         dweller_info: DwellerReadFull | None = None,
@@ -164,12 +203,24 @@ class DwellerAIService:
             db_session, dweller_obj.id, DwellerUpdate(image_url=image_url, thumbnail_url=thumbnail_url)
         )
 
+        llm_int_create = LLMInteractionCreate(
+            parameters=str(dweller_obj.visual_attributes),
+            response=image_url,
+            usage="generate_photo",
+            user_id=user.id,
+        )
+        await llm_interaction_crud.create(
+            db_session,
+            obj_in=llm_int_create,
+        )
+
         return dweller_obj
 
     async def dweller_generate_pipeline(
         self,
         db_session: AsyncSession,
         dweller_id: UUID4,
+        user: User,
         origin: str | None = None,
     ) -> DwellerReadFull:
         """Generate Dweller's bio, visual attributes, and photo."""
@@ -178,11 +229,15 @@ class DwellerAIService:
             raise ContentNoChangeException(detail="Dweller already has a bio, visual attributes, and photo")
 
         if not dweller_obj.bio:
-            dweller_obj = await self.generate_backstory(db_session=db_session, dweller_info=dweller_obj, origin=origin)
+            dweller_obj = await self.generate_backstory(
+                db_session=db_session, dweller_info=dweller_obj, origin=origin, user=user
+            )
         if not dweller_obj.visual_attributes:
-            dweller_obj = await self.generate_visual_attributes(db_session=db_session, dweller_info=dweller_obj)
+            dweller_obj = await self.generate_visual_attributes(
+                db_session=db_session, dweller_info=dweller_obj, user=user
+            )
         if not dweller_obj.image_url:
-            dweller_obj = await self.generate_photo(db_session=db_session, dweller_info=dweller_obj)
+            dweller_obj = await self.generate_photo(db_session=db_session, dweller_info=dweller_obj, user=user)
 
         return dweller_obj
 

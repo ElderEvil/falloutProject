@@ -7,10 +7,13 @@ from openai import Client
 from pydantic import UUID4, BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.api.deps import CurrentActiveUser
 from app.crud.dweller import dweller as dweller_crud
+from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.db.session import get_async_session
 from app.models.base import SPECIALModel
 from app.models.objective import ObjectiveBase
+from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.open_ai import get_openai_service
 
 router = APIRouter()
@@ -128,6 +131,7 @@ class ChatMessage(BaseModel):
 @router.post("/{dweller_id}")
 async def chat_with_dweller(
     dweller_id: UUID4,
+    user: CurrentActiveUser,
     message: ChatMessage,
     db_session: AsyncSession = Depends(get_async_session),
 ):
@@ -169,8 +173,17 @@ async def chat_with_dweller(
         ],
     )
 
-    message = response.choices[0].message.content
+    response_message = response.choices[0].message.content
 
-    print(f"LLM response: {message}")
+    llm_int_create = LLMInteractionCreate(
+        parameters=message.message,
+        response=response_message,
+        usage="chat_with_dweller",
+        user_id=user.id,
+    )
+    await llm_interaction_crud.create(
+        db_session,
+        obj_in=llm_int_create,
+    )
 
-    return {"response": message}
+    return {"response": response_message}

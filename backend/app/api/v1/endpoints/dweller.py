@@ -3,7 +3,8 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.deps import get_static_game_data
+from app.api.deps import CurrentActiveUser
+from app.api.game_data_deps import get_static_game_data
 from app.db.session import get_async_session
 from app.schemas.dweller import (
     DwellerCreate,
@@ -70,34 +71,40 @@ async def create_random_common_dweller(
 @router.post("/{dweller_id}/generate_backstory/", response_model=DwellerReadFull)
 async def generate_backstory(
     dweller_id: UUID4,
+    user: CurrentActiveUser,
     db_session: AsyncSession = Depends(get_async_session),
 ):
-    return await dweller_ai.generate_backstory(db_session=db_session, dweller_id=dweller_id)
+    return await dweller_ai.generate_backstory(db_session=db_session, dweller_id=dweller_id, user=user)
 
 
 @router.post("/{dweller_id}/generate_visual_attributes/", response_model=DwellerReadFull)
 async def generate_visual_attributes(
     dweller_id: UUID4,
+    user: CurrentActiveUser,
     db_session: AsyncSession = Depends(get_async_session),
 ):
-    return await dweller_ai.generate_visual_attributes(db_session=db_session, dweller_id=dweller_id)
+    return await dweller_ai.generate_visual_attributes(db_session=db_session, dweller_id=dweller_id, user=user)
 
 
 @router.post("/{dweller_id}/generate_photo/", response_model=DwellerReadFull)
 async def generate_photo(
     dweller_id: UUID4,
+    user: CurrentActiveUser,
     db_session: AsyncSession = Depends(get_async_session),
 ):
-    return await dweller_ai.generate_photo(db_session=db_session, dweller_id=dweller_id)
+    return await dweller_ai.generate_photo(db_session=db_session, dweller_id=dweller_id, user=user)
 
 
 @router.post("/{dweller_id}/generate_with_ai/", response_model=DwellerReadFull)
 async def generate_data_with_ai(
     dweller_id: UUID4,
+    user: CurrentActiveUser,
     origin: str | None = None,
     db_session: AsyncSession = Depends(get_async_session),
 ):
-    return await dweller_ai.dweller_generate_pipeline(db_session=db_session, dweller_id=dweller_id, origin=origin)
+    return await dweller_ai.dweller_generate_pipeline(
+        db_session=db_session, dweller_id=dweller_id, origin=origin, user=user
+    )
 
 
 @router.get("/read_data/", response_model=list[DwellerCreateWithoutVaultID])

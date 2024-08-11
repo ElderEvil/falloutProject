@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlmodel import Field, Relationship
+from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel
 
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 
-class LLMInteractionBase:
+class LLMInteractionBase(SQLModel):
     # ai_model_type: AIModelType = Field(default=AIModelType.CHATGPT)
     parameters: str | None
     response: str | None

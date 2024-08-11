@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watchEffect } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import apiClient from '@/plugins/axios'
 
 const props = defineProps<{
@@ -14,13 +15,23 @@ const chatMessages = ref<HTMLElement | null>(null)
 const isTyping = ref(false)
 
 const sendMessage = async () => {
+  const authStore = useAuthStore()
+
   if (userMessage.value.trim()) {
     messages.value.push({ type: 'user', content: userMessage.value })
     isTyping.value = true
     try {
-      const response = await apiClient.post(`/api/v1/chat/${props.dwellerId}`, {
-        message: userMessage.value
-      })
+      const response = await apiClient.post(
+        `/api/v1/chat/${props.dwellerId}`,
+        {
+          message: userMessage.value
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${authStore.token}`
+          }
+        }
+      )
       messages.value.push({ type: 'dweller', content: response.data.response })
     } catch (error) {
       console.error('Error sending message:', error)

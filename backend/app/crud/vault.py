@@ -5,7 +5,7 @@ from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.api.deps import get_static_game_data
+from app.api.game_data_deps import get_static_game_data
 from app.crud.base import CRUDBase
 from app.models import Dweller, Room, Storage
 from app.models.vault import Vault

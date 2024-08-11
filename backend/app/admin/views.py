@@ -176,6 +176,7 @@ class LLInteractionAdmin(ModelView, model=LLMInteraction):
         LLMInteraction.id,
         # LLMInteraction.ai_model_type,
         LLMInteraction.prompt,
+        LLMInteraction.user,
     ]
 
     icon = "fa-solid fa-comment-dots"

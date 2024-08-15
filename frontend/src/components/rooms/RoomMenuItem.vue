@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import LockIcon from '@/components/icons/LockIcon.vue'
+import { LockClosedIcon } from '@heroicons/vue/24/solid'
 
 const props = defineProps<{
   room: Room
@@ -19,7 +19,7 @@ const emit = defineEmits<{
       <div class="flex items-center space-x-2">
         <div>{{ room.name }}</div>
         <div v-if="room.population_required > 0">
-          <LockIcon />
+          <LockClosedIcon class="h-5 w-5 text-gray-400" />
         </div>
       </div>
       <div class="my-2">

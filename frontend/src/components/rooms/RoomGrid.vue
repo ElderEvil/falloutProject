@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { useRoomStore } from '@/stores/room'
 import { useAuthStore } from '@/stores/auth'
-import DestroyIcon from '@/components/icons/DestroyButton.vue'
+import { TrashIcon } from '@heroicons/vue/24/solid'
 
 const roomStore = useRoomStore()
 const authStore = useAuthStore()
@@ -97,7 +97,7 @@ const isValidPlacement = computed(() => {
           class="destroy-button"
           title="Destroy Room"
         >
-          <DestroyIcon />
+          <TrashIcon />
         </button>
       </div>
     </div>

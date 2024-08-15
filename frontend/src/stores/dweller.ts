@@ -33,6 +33,20 @@ export const useDwellerStore = defineStore('dweller', {
         console.error(`Failed to fetch details for dweller ${id}`, error)
         return null
       }
+    },
+    async generateDwellerImage(id: string, token: string) {
+      try {
+        const response = await axios.post(`/api/v1/dwellers/${id}/generate_photo/`, null, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        })
+        this.detailedDwellers[id] = response.data
+        return this.detailedDwellers[id]
+      } catch (error) {
+        console.error(`Failed to generate image for dweller ${id}`, error)
+        return null
+      }
     }
   }
 })

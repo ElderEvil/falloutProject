@@ -3,7 +3,7 @@ import { useDwellerStore } from '@/stores/dweller'
 import { useAuthStore } from '@/stores/auth'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import DwellerIcon from '@/components/icons/DwellerIcon.vue'
+import { SparklesIcon, UserCircleIcon } from '@heroicons/vue/24/solid'
 
 const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
@@ -41,6 +41,17 @@ const shouldShowThumbnail = computed(
 const navigateToChatPage = (dwellerId: string) => {
   router.push(`/dweller/${dwellerId}/chat`)
 }
+
+const generateDwellerImage = async (dwellerId: string) => {
+  loadingDetails.value = true
+  try {
+    await dwellerStore.generateDwellerImage(dwellerId, authStore.token as string)
+  } catch (error) {
+    console.error('Error generating image:', error)
+  } finally {
+    loadingDetails.value = false
+  }
+}
 </script>
 
 <template>
@@ -66,7 +77,11 @@ const navigateToChatPage = (dwellerId: string) => {
                 />
               </template>
               <template v-else>
-                <DwellerIcon />
+                <UserCircleIcon class="h-24 w-24 text-gray-400" />
+                <SparklesIcon
+                  @click.stop="generateDwellerImage(dweller.id)"
+                  class="mt-2 h-6 w-6 cursor-pointer text-green-500 hover:text-green-600"
+                />
               </template>
             </div>
             <div class="flex-grow">

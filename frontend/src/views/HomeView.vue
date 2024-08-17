@@ -9,21 +9,22 @@ const authStore = useAuthStore()
 const vaultStore = useVaultStore()
 const roomStore = useRoomStore()
 const router = useRouter()
-const newVaultName = ref('')
 
+const newVaultName = ref('')
 const selectedVaultId = ref<string | null>(null)
 
-const sortedVaults = computed(() => {
-  return [...vaultStore.vaults].sort(
+const sortedVaults = computed(() =>
+  [...vaultStore.vaults].sort(
     (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
   )
-})
+)
 
 const createVault = async () => {
-  if (newVaultName.value.trim()) {
-    await vaultStore.createVault(newVaultName.value.trim(), authStore.token as string)
+  const name = newVaultName.value.trim()
+  if (name) {
+    await vaultStore.createVault(name, authStore.token as string)
     newVaultName.value = ''
-    await vaultStore.fetchVaults(authStore.token as string) // Fetch vaults after creation
+    await vaultStore.fetchVaults(authStore.token as string)
   }
 }
 
@@ -42,7 +43,6 @@ const selectVault = (id: string) => {
 }
 
 const loadVault = async (id: string) => {
-  console.log(`Loading vault ${id}`)
   localStorage.setItem('selectedVaultId', id)
   await roomStore.fetchRooms(id, authStore.token as string)
   await router.push('/vault')
@@ -64,6 +64,7 @@ onMounted(async () => {
       <div class="mb-8 text-center">
         <h1 class="mb-4 text-4xl font-bold">Welcome to Fallout Shelter</h1>
       </div>
+
       <div class="mb-8 w-full max-w-md">
         <h2 class="mb-4 text-2xl font-bold">Create New Vault</h2>
         <form @submit.prevent="createVault" class="flex space-x-2">
@@ -81,6 +82,7 @@ onMounted(async () => {
           </button>
         </form>
       </div>
+
       <div v-if="sortedVaults.length" class="w-full max-w-4xl">
         <h2 class="mb-4 text-2xl font-bold">Your Vaults</h2>
         <ul class="space-y-4">
@@ -123,13 +125,10 @@ onMounted(async () => {
           </li>
         </ul>
       </div>
+
       <div v-else class="text-center">
         <p class="text-lg">No vaults found. Create your first vault to get started!</p>
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-/* Scoped styles here if needed */
-</style>

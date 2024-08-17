@@ -30,11 +30,10 @@ export const authService = {
   register(form: RegisterForm): Promise<AxiosResponse<User>> {
     return apiClient.post('/users/open', form)
   },
-  getCurrentUser(token: string): Promise<AxiosResponse<User>> {
-    return apiClient.get('/login/test-token', {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+  // TODO: Implement the refreshToken method
+  refreshToken(refreshToken: string): Promise<AxiosResponse<Token>> {
+    return apiClient.post('/login/refresh-token', {
+      refresh_token: refreshToken
     })
   }
 }

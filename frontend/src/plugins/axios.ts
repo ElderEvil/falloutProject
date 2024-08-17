@@ -1,7 +1,6 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 
-// Create an axios instance with the base URL from environment variables
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   headers: {
@@ -10,7 +9,6 @@ const apiClient = axios.create({
   }
 })
 
-// Add a request interceptor
 apiClient.interceptors.request.use((config) => {
   const authStore = useAuthStore()
   if (authStore.token) {

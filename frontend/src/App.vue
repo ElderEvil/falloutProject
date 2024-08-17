@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import NavBar from '@/components/common/NavBar.vue'
+import { provide } from 'vue'
+import DefaultLayout from '@/components/layout/DefaultLayout.vue'
+import { useFlickering } from '@/composables/useFlickering'
+
+const { isFlickering, toggleFlickering } = useFlickering()
+
+provide('isFlickering', isFlickering)
+provide('toggleFlickering', toggleFlickering)
 </script>
 
 <template>
-  <div class="flex min-h-screen flex-col">
-    <NavBar />
-    <!-- Main Content -->
-    <main class="flex-grow">
-      <router-view></router-view>
-    </main>
-  </div>
+  <DefaultLayout :isFlickering="isFlickering">
+    <router-view></router-view>
+  </DefaultLayout>
 </template>
-
-<style scoped></style>

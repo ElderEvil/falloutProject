@@ -2,32 +2,41 @@
 import { computed, onMounted, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRoomStore } from '@/stores/room'
+import { useVaultStore } from '@/stores/vault'
 import RoomGrid from '@/components/rooms/RoomGrid.vue'
 import BuildModeButton from '@/components/common/BuildModeButton.vue'
 import RoomMenu from '@/components/rooms/RoomMenu.vue'
+import ResourceBar from '@/components/common/ResourceBar.vue'
 
-interface Room {
-  name: string
-  // Add other properties as needed
-}
-
-interface Position {
-  x: number
-  y: number
-}
+import { BoldIcon, FireIcon, BeakerIcon } from '@heroicons/vue/24/solid'
 
 const authStore = useAuthStore()
 const roomStore = useRoomStore()
+const vaultStore = useVaultStore()
 const showRoomMenu = ref(false)
 const selectedRoom = ref<Room | null>(null)
 const isPlacingRoom = ref(false)
 
 const buildModeActive = computed(() => showRoomMenu.value || isPlacingRoom.value)
 
+const energy = computed(() => ({
+  current: vaultStore.selectedVault?.power ?? 0,
+  max: vaultStore.selectedVault?.power_max ?? 100
+}))
+const food = computed(() => ({
+  current: vaultStore.selectedVault?.food ?? 0,
+  max: vaultStore.selectedVault?.food_max ?? 100
+}))
+const water = computed(() => ({
+  current: vaultStore.selectedVault?.water ?? 0,
+  max: vaultStore.selectedVault?.water_max ?? 100
+}))
+
 onMounted(async () => {
   const vaultId = localStorage.getItem('selectedVaultId')
   if (vaultId) {
     await roomStore.fetchRooms(vaultId, authStore.token as string)
+    await vaultStore.fetchVaults(authStore.token as string)
   }
 })
 
@@ -54,9 +63,6 @@ const handleRoomSelected = (room: Room) => {
 
 const handleRoomPlaced = async (position: Position) => {
   if (selectedRoom.value && isPlacingRoom.value) {
-    // Here you would call your API to place the room
-    // For example:
-    // await roomStore.placeRoom(selectedRoom.value, position, authStore.token)
     console.log(`Placing ${selectedRoom.value.name} at position ${JSON.stringify(position)}`)
     isPlacingRoom.value = false
     selectedRoom.value = null
@@ -71,6 +77,14 @@ const handleRoomPlaced = async (position: Position) => {
       class="flicker container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8"
     >
       <h1 class="mb-8 text-4xl font-bold">Vault Rooms</h1>
+
+      <!-- Resources Display -->
+      <div class="mb-4 flex w-full items-center justify-between space-x-4">
+        <ResourceBar :current="energy.current" :max="energy.max" :icon="BoldIcon" />
+        <ResourceBar :current="food.current" :max="food.max" :icon="FireIcon" />
+        <ResourceBar :current="water.current" :max="water.max" :icon="BeakerIcon" />
+      </div>
+
       <div class="mb-4 flex w-full items-center justify-between">
         <BuildModeButton :buildModeActive="buildModeActive" @toggleBuildMode="toggleBuildMode" />
       </div>

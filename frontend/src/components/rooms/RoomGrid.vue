@@ -1,26 +1,17 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useRoomStore } from '@/stores/room'
 import { useAuthStore } from '@/stores/auth'
+import { useRoomInteractions } from '@/composables/useRoomInteractions'
+import { useHoverPreview } from '@/composables/useHoverPreview'
 import { TrashIcon } from '@heroicons/vue/24/solid'
 
 const roomStore = useRoomStore()
 const authStore = useAuthStore()
 const rooms = computed(() => roomStore.rooms)
-const selectedRoomId = ref<string | null>(null)
-const hoverPosition = ref<{ x: number; y: number } | null>(null)
 
-const toggleRoomSelection = (roomId: string) => {
-  selectedRoomId.value = selectedRoomId.value === roomId ? null : roomId
-}
-
-const destroyRoom = async (roomId: string, event: Event) => {
-  event.stopPropagation()
-  if (confirm('Are you sure you want to destroy this room?')) {
-    await roomStore.destroyRoom(roomId, authStore.token as string)
-    selectedRoomId.value = null
-  }
-}
+const { selectedRoomId, toggleRoomSelection, destroyRoom } = useRoomInteractions()
+const { hoverPosition, handleHover, clearHover, previewCells, isValidPlacement } = useHoverPreview()
 
 const placeRoom = async (x: number, y: number) => {
   if (roomStore.selectedRoom && roomStore.isPlacingRoom) {
@@ -37,42 +28,6 @@ const placeRoom = async (x: number, y: number) => {
     roomStore.deselectRoom()
   }
 }
-
-const handleHover = (x: number, y: number) => {
-  if (roomStore.selectedRoom && roomStore.isPlacingRoom) {
-    hoverPosition.value = { x, y }
-  } else {
-    hoverPosition.value = null
-  }
-}
-
-const clearHover = () => {
-  hoverPosition.value = null
-}
-
-const previewCells = computed(() => {
-  if (!hoverPosition.value || !roomStore.selectedRoom) return []
-  const { x, y } = hoverPosition.value
-  const roomSize = roomStore.selectedRoom.size_min
-  const cellsCount = Math.ceil(roomSize / 3)
-  const startX = roomSize <= 3 ? x : x - Math.floor(cellsCount / 2)
-  return Array.from({ length: cellsCount }, (_, i) => ({ x: startX + i, y }))
-})
-
-const isValidPlacement = computed(() => {
-  if (!hoverPosition.value || !roomStore.selectedRoom) return false
-  return previewCells.value.every(
-    (cell) =>
-      cell.x >= 0 &&
-      cell.x < 8 &&
-      !rooms.value.some(
-        (room) =>
-          room.coordinate_x <= cell.x &&
-          room.coordinate_x + Math.ceil(room.size / 3) > cell.x &&
-          room.coordinate_y === cell.y
-      )
-  )
-})
 </script>
 
 <template>
@@ -125,46 +80,51 @@ const isValidPlacement = computed(() => {
 .room-grid {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
-  grid-template-rows: repeat(25, 1fr);
-  gap: 2px;
-  position: relative;
-  max-width: 100%;
+  gap: 10px;
 }
 
 .room {
-  border: 1px solid #00ff00;
-  background-color: rgba(0, 0, 0, 0.5);
-  text-align: center;
-  transition:
-    transform 0.3s,
-    background-color 0.3s;
+  position: relative;
+  background-color: #333;
+  border: 1px solid #555;
   cursor: pointer;
-}
-
-.room:hover {
-  transform: scale(1.05);
+  transition: transform 0.2s;
 }
 
 .room.selected {
-  background-color: rgba(0, 128, 0, 0.7);
+  border-color: #00ff00;
+  transform: scale(1.05);
 }
 
 .room-content {
-  padding: 8px;
+  padding: 10px;
+  text-align: center;
 }
 
 .room-name {
   font-size: 1.2em;
-  font-weight: bold;
+  margin-bottom: 5px;
 }
 
 .room-category {
   font-size: 0.9em;
+  color: #aaa;
+}
+
+.destroy-button {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #ff0000;
 }
 
 .empty {
   border: 1px dashed #555;
   background-color: rgba(0, 0, 0, 0.3);
+  aspect-ratio: 2 / 1;
 }
 
 .hover-preview {
@@ -173,7 +133,7 @@ const isValidPlacement = computed(() => {
 }
 
 .valid-placement .hover-preview {
-  background-color: transparent; /* Remove solid background */
+  background-color: transparent;
   background-image: linear-gradient(
     45deg,
     rgba(0, 255, 0, 0.5) 25%,
@@ -184,12 +144,12 @@ const isValidPlacement = computed(() => {
     transparent 75%,
     transparent
   );
-  background-size: 20px 20px; /* Adjust size as needed */
+  background-size: 20px 20px;
   border: 2px solid #00ff00;
 }
 
 .invalid-placement .hover-preview {
-  background-color: transparent; /* Remove solid background */
+  background-color: transparent;
   background-image: linear-gradient(
     45deg,
     rgba(255, 0, 0, 0.5) 25%,
@@ -200,40 +160,7 @@ const isValidPlacement = computed(() => {
     transparent 75%,
     transparent
   );
-  background-size: 20px 20px; /* Adjust size as needed */
+  background-size: 20px 20px;
   border: 2px solid #ff0000;
-}
-
-.room-grid::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border: 2px solid #00ff00;
-  pointer-events: none;
-  box-sizing: border-box;
-}
-
-.destroy-button {
-  position: absolute;
-  bottom: 4px;
-  right: 4px;
-  background-color: rgba(255, 0, 0, 0.7);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.destroy-button:hover {
-  background-color: rgba(255, 0, 0, 0.9);
 }
 </style>

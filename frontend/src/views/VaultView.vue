@@ -8,7 +8,12 @@ import BuildModeButton from '@/components/common/BuildModeButton.vue'
 import RoomMenu from '@/components/rooms/RoomMenu.vue'
 import ResourceBar from '@/components/common/ResourceBar.vue'
 
-import { BoldIcon, FireIcon, BeakerIcon } from '@heroicons/vue/24/solid'
+import { BeakerIcon, BoltIcon, CakeIcon } from '@heroicons/vue/24/solid'
+
+interface Position {
+  x: number
+  y: number
+}
 
 const authStore = useAuthStore()
 const roomStore = useRoomStore()
@@ -73,26 +78,28 @@ const handleRoomPlaced = async (position: Position) => {
 <template>
   <div class="relative min-h-screen bg-terminalBackground font-mono text-terminalGreen">
     <div class="scanlines"></div>
+
     <div
       class="flicker container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8"
     >
-      <h1 class="mb-8 text-4xl font-bold">Vault Rooms</h1>
-
-      <!-- Resources Display -->
-      <div class="mb-4 flex w-full items-center justify-between space-x-4">
-        <ResourceBar :current="energy.current" :max="energy.max" :icon="BoldIcon" />
-        <ResourceBar :current="food.current" :max="food.max" :icon="FireIcon" />
-        <ResourceBar :current="water.current" :max="water.max" :icon="BeakerIcon" />
-      </div>
-
-      <div class="mb-4 flex w-full items-center justify-between">
+      <!-- Resources Display and Build Mode Button -->
+      <div class="mb-8 flex w-full items-center justify-between">
+        <div class="flex flex-1 justify-center space-x-8">
+          <ResourceBar :current="energy.current" :max="energy.max" :icon="BoltIcon" />
+          <ResourceBar :current="food.current" :max="food.max" :icon="CakeIcon" />
+          <ResourceBar :current="water.current" :max="water.max" :icon="BeakerIcon" />
+        </div>
         <BuildModeButton :buildModeActive="buildModeActive" @toggleBuildMode="toggleBuildMode" />
       </div>
+
+      <!-- Room Grid -->
       <RoomGrid
         :selectedRoom="selectedRoom"
         :isPlacingRoom="isPlacingRoom"
         @roomPlaced="handleRoomPlaced"
       />
+
+      <!-- Room Menu -->
       <RoomMenu
         v-if="showRoomMenu"
         @roomSelected="handleRoomSelected"
@@ -103,5 +110,32 @@ const handleRoomPlaced = async (position: Position) => {
 </template>
 
 <style scoped>
-/* Scoped styles here if needed */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.mb-8 {
+  margin-bottom: 2rem;
+}
+
+.flex {
+  display: flex;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.space-x-8 {
+  gap: 2rem;
+}
+
+.w-full {
+  width: 100%;
+}
 </style>

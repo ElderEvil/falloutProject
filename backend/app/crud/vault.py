@@ -114,12 +114,9 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         vaults = result.all()
         return [
             VaultReadWithNumbers(
-                id=vault_obj.id,
-                name=vault_obj.name,
+                **vault_obj.dict(),
                 room_count=room_count,
                 dweller_count=dweller_count,
-                created_at=vault_obj.created_at,
-                updated_at=vault_obj.updated_at,
             )
             for vault_obj, room_count, dweller_count in vaults
         ]

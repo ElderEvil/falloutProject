@@ -20,10 +20,7 @@ const percentage = computed(() => {
 
     <div class="relative h-6 w-40 rounded-full border-2 border-gray-600 bg-gray-800">
       <!-- Filled part of the bar -->
-      <div
-        class="h-full rounded-full bg-green-500"
-        :style="{ width: `${percentage.value}%` }"
-      ></div>
+      <div class="h-full rounded-full bg-green-500" :style="{ width: `${percentage}%` }"></div>
       <!-- Overlay with resource numbers, always visible -->
       <div class="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">
         <span>{{ props.current }}/{{ props.max }}</span>

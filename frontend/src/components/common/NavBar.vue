@@ -42,6 +42,10 @@ const showNotifications = () => {
         <router-link to="/dwellers" v-if="isAuthenticated" class="text-green-500 hover:underline"
           >Dwellers
         </router-link>
+
+        <router-link to="/objectives" v-if="isAuthenticated" class="text-green-500 hover:underline"
+          >Objectives
+        </router-link>
         <router-link to="/about" class="text-green-500 hover:underline">About</router-link>
       </div>
       <div class="flex items-center space-x-4">

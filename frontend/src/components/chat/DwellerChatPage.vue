@@ -59,7 +59,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  padding: 20px;
+  padding: 10px;
   box-sizing: border-box;
   background-color: #0a0a0a;
   color: #33ff00;
@@ -83,11 +83,6 @@ onMounted(async () => {
   border-radius: 50%;
   margin-right: 15px;
   border: 2px solid #33ff00;
-}
-
-h1 {
-  margin: 0;
-  font-family: 'VT323', monospace;
 }
 
 /* Ensure DwellerChat component takes full height of its container */

@@ -16,11 +16,13 @@ async def create_objective(objective_data: QuestObjectiveCreate, db_session: Asy
 
 
 @router.get("/{vault_id}/", response_model=list[QuestObjective])
-async def read_objective_list(skip: int = 0, limit: int = 100, db_session: AsyncSession = Depends(get_async_session)):
-    return await crud.objective_crud.get_multi(db_session, skip=skip, limit=limit)
+async def read_objective_list(
+    vault_id: UUID4, skip: int = 0, limit: int = 100, db_session: AsyncSession = Depends(get_async_session)
+):
+    return await crud.objective_crud.get_multi_for_vault(db_session, vault_id, skip=skip, limit=limit)
 
 
-@router.get("/{vault_id}/{objective_id}", response_model=QuestObjective)
+@router.get("/{objective_id}", response_model=QuestObjective)
 async def read_objective(objective_id: UUID4, db_session: AsyncSession = Depends(get_async_session)):
     return await crud.objective_crud.get(db_session, objective_id)
 

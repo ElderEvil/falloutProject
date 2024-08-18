@@ -68,8 +68,6 @@ watchEffect(() => {
 </template>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
-
 .chat-container {
   display: flex;
   flex-direction: column;

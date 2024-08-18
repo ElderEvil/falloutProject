@@ -86,7 +86,7 @@ class CRUDQuestChain(
                 for quest_objective in quest_data.quest_objective
             ]
 
-            await objective_crud.create_all(db_session, objectives_create)
+            await quest_objective_crud.create_all(db_session, objectives_create)
 
 
 class CRUDQuest(CRUDBase[Quest, QuestCreate, QuestUpdate], CompletionMixin[VaultQuestCompletionLink]):
@@ -101,7 +101,7 @@ class CRUDQuest(CRUDBase[Quest, QuestCreate, QuestUpdate], CompletionMixin[Vault
         pass
 
 
-class CRUDObjective(
+class CRUDQuestObjective(
     CRUDBase[QuestObjective, QuestObjectiveCreate, QuestObjectiveUpdate],
     CompletionMixin[VaultQuestObjectiveCompletionLink],
 ):
@@ -118,4 +118,4 @@ class CRUDObjective(
 
 quest_chain_crud = CRUDQuestChain(QuestChain, VaultQuestChainCompletionLink)
 quest_crud = CRUDQuest(Quest, VaultQuestCompletionLink)
-objective_crud = CRUDObjective(QuestObjective, VaultQuestObjectiveCompletionLink)
+quest_objective_crud = CRUDQuestObjective(QuestObjective, VaultQuestObjectiveCompletionLink)

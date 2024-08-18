@@ -7,7 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.crud.base import CRUDBase
 from app.models import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
-from app.schemas.objective import ObjectiveCreate, ObjectiveUpdate
+from app.schemas.objective import ObjectiveCreate, ObjectiveRead, ObjectiveUpdate
 
 
 class CRUDObjective(
@@ -19,18 +19,28 @@ class CRUDObjective(
 
     async def get_multi_for_vault(
         self, db_session: AsyncSession, vault_id: UUID4, skip: int = 0, limit: int = 100
-    ) -> Sequence[Objective]:
+    ) -> Sequence[ObjectiveRead]:
         query = (
-            select(self.model)
+            select(self.model, self.link_model.progress, self.link_model.total, self.link_model.is_completed)
             .join(self.link_model)
-            .where(
-                self.link_model.vault_id == vault_id,
-            )
+            .where(self.link_model.vault_id == vault_id)
             .offset(skip)
             .limit(limit)
         )
         response = await db_session.execute(query)
-        return response.scalars().all()
+        results = response.all()
+
+        return [
+            ObjectiveRead(
+                id=obj.id,
+                challenge=obj.challenge,
+                reward=obj.reward,
+                progress=progress,
+                total=total,
+                is_completed=is_completed,
+            )
+            for obj, progress, total, is_completed in results
+        ]
 
 
 objective_crud = CRUDObjective(Objective, VaultObjectiveProgressLink)

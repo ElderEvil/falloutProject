@@ -10,6 +10,9 @@ class ObjectiveCreate(ObjectiveBase):
 
 class ObjectiveRead(ObjectiveBase):
     id: UUID4
+    progress: int
+    total: int
+    is_completed: bool
 
 
 @optional()

@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useObjectivesStore } from '@/stores/objectives'
 
 const vaultId = localStorage.getItem('selectedVaultId') // Assuming vaultId is stored in localStorage
 const objectivesStore = useObjectivesStore()
+const activeTab = ref('notCompleted')
 
 onMounted(() => {
   if (vaultId) {
@@ -11,37 +12,71 @@ onMounted(() => {
   }
 })
 
-const markAsComplete = async (objectiveId: string) => {
-  if (vaultId) {
-    await objectivesStore.completeObjective(vaultId, objectiveId)
-  }
+const filterObjectives = (status: boolean) => {
+  return objectivesStore.objectives.filter((objective) => objective.is_completed === status)
 }
 </script>
 
 <template>
   <div class="objectives-container">
     <h1 class="title">Objectives</h1>
-    <ul class="objective-list">
-      <li
-        v-for="objective in objectivesStore.objectives"
-        :key="objective.id"
-        class="objective-item"
+    <div class="tabs">
+      <button
+        @click="activeTab = 'notCompleted'"
+        :class="{ active: activeTab === 'notCompleted' }"
+        class="tab-button"
       >
-        <div class="objective-details">
-          <h3 class="objective-title">{{ objective.challenge }}</h3>
-          <p class="objective-reward">Reward: {{ objective.reward }}</p>
-        </div>
-        <button @click="markAsComplete(objective.id)" class="complete-button">Complete</button>
-      </li>
-    </ul>
+        Active
+      </button>
+      <button
+        @click="activeTab = 'completed'"
+        :class="{ active: activeTab === 'completed' }"
+        class="tab-button"
+      >
+        Completed
+      </button>
+    </div>
+
+    <div v-if="activeTab === 'notCompleted'" class="tab-content">
+      <ul class="objective-list">
+        <li v-for="objective in filterObjectives(false)" :key="objective.id" class="objective-item">
+          <div class="objective-details">
+            <h3 class="objective-title">{{ objective.challenge }}</h3>
+            <p class="objective-progress">
+              Progress: {{ objective.progress }} / {{ objective.total }}
+            </p>
+            <p class="objective-reward">Reward: {{ objective.reward }}</p>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <div v-if="activeTab === 'completed'" class="tab-content">
+      <ul class="objective-list">
+        <li
+          v-for="objective in filterObjectives(true)"
+          :key="objective.id"
+          class="objective-item completed-objective"
+        >
+          <div class="objective-details">
+            <h3 class="objective-title">{{ objective.challenge }}</h3>
+            <p class="objective-reward">Reward: {{ objective.reward }}</p>
+            <p class="objective-progress">
+              Progress: {{ objective.progress }} / {{ objective.total }}
+            </p>
+            <p class="objective-status">Status: Completed</p>
+          </div>
+        </li>
+      </ul>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .objectives-container {
-  max-width: 800px;
+  max-width: 1200px; /* Increased the width */
   margin: 0 auto;
-  padding: 16px;
+  padding: 24px; /* Increased padding for more space */
   background-color: #1a1a1a;
   color: #00ff00;
   border: 2px solid #00ff00;
@@ -49,10 +84,36 @@ const markAsComplete = async (objectiveId: string) => {
 }
 
 .title {
-  font-size: 2rem;
+  font-size: 2.5rem; /* Increased font size for title */
   font-weight: bold;
-  margin-bottom: 16px;
+  margin-bottom: 24px; /* Increased bottom margin */
   text-align: center;
+}
+
+.tabs {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px; /* Increased bottom margin */
+}
+
+.tab-button {
+  padding: 10px 20px; /* Adjusted padding for larger buttons */
+  background-color: #2a2a2a;
+  color: #00ff00;
+  border: 1px solid #00ff00;
+  border-radius: 4px;
+  margin: 0 12px; /* Increased margin between buttons */
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.tab-button.active {
+  background-color: #00ff00;
+  color: #000000;
+}
+
+.tab-button:hover {
+  background-color: #00ff44;
 }
 
 .objective-list {
@@ -66,8 +127,8 @@ const markAsComplete = async (objectiveId: string) => {
   justify-content: space-between;
   align-items: center;
   background-color: #2a2a2a;
-  padding: 12px 16px;
-  margin-bottom: 12px;
+  padding: 16px 20px; /* Increased padding for each item */
+  margin-bottom: 16px; /* Increased margin between items */
   border: 1px solid #00ff00;
   border-radius: 6px;
   transition:
@@ -85,29 +146,21 @@ const markAsComplete = async (objectiveId: string) => {
 }
 
 .objective-title {
-  font-size: 1.25rem;
+  font-size: 1.5rem; /* Increased font size for objective titles */
   font-weight: bold;
-  margin-bottom: 4px;
+  margin-bottom: 8px; /* Adjusted bottom margin */
 }
 
-.objective-reward {
-  font-size: 1rem;
+.objective-reward,
+.objective-progress,
+.objective-status {
+  font-size: 1.1rem; /* Slightly increased font size */
   font-weight: normal;
   color: #b2ffb2;
+  margin: 4px 0; /* Adjusted margins */
 }
 
-.complete-button {
-  background-color: #ff0000;
-  color: #fff;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: background-color 0.3s;
-}
-
-.complete-button:hover {
-  background-color: #ff4444;
+.completed-objective .objective-details {
+  color: #777777;
 }
 </style>

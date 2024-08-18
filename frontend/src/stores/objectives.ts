@@ -17,15 +17,6 @@ export const useObjectivesStore = defineStore('objectives', {
         throw error
       }
     },
-    async completeObjective(vaultId: string, objectiveId: string) {
-      try {
-        await axios.post(`/api/v1/${vaultId}/${objectiveId}/complete`)
-        await this.fetchObjectives(vaultId) // Refresh the objectives list after completion
-      } catch (error) {
-        console.error('Failed to complete objective:', error)
-        throw error
-      }
-    },
     async addObjective(vaultId: string, objectiveData: any) {
       try {
         await axios.post(`/api/v1/${vaultId}/`, objectiveData)

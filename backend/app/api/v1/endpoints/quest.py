@@ -4,7 +4,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.db.session import get_async_session
-from app.models.quest import QuestObjective
 from app.schemas.quest import (
     QuestChainReadWithQuests,
     QuestCreate,
@@ -52,10 +51,3 @@ async def read_quest_chain_list(
     return await crud.quest_chain_crud.get_multi_for_vault(
         skip=skip, limit=limit, db_session=db_session, vault_id=vault_id
     )
-
-
-@router.post("/{vault_id}/objectives/{objective_id}/complete", response_model=QuestObjective)
-async def complete_objective(
-    vault_id: UUID4, objective_id: UUID4, db_session: AsyncSession = Depends(get_async_session)
-):
-    return await crud.objective_crud.complete(db_session=db_session, quest_entity_id=objective_id, vault_id=vault_id)

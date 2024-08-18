@@ -175,6 +175,7 @@ class LLInteractionAdmin(ModelView, model=LLMInteraction):
     column_list = [
         LLMInteraction.id,
         # LLMInteraction.ai_model_type,
+        LLMInteraction.usage,
         LLMInteraction.prompt,
         LLMInteraction.user,
     ]

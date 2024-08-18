@@ -26,3 +26,6 @@ class LLMInteraction(BaseUUIDModel, LLMInteractionBase, table=True):
 
     prompt: "Prompt" = Relationship(back_populates="llm_interactions")
     user: "User" = Relationship(back_populates="llm_interactions")
+
+    def __str__(self):
+        return f"{self.usage}"

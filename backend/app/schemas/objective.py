@@ -8,7 +8,7 @@ class ObjectiveCreate(ObjectiveBase):
     pass
 
 
-class QuestObjectiveRead(ObjectiveBase):
+class ObjectiveRead(ObjectiveBase):
     id: UUID4
 
 

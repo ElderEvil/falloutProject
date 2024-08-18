@@ -58,14 +58,14 @@ const showNotifications = () => {
         </router-link>
 
         <!-- Flickering Icon -->
-        <button
-          @click="toggleFlickering"
-          class="rounded-full p-1 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800"
-          :class="{ 'text-yellow-300': isFlickering, 'text-gray-400': !isFlickering }"
-          :title="isFlickering ? 'Stop Flickering' : 'Start Flickering'"
-        >
-          <BoltIcon class="h-6 w-6" />
-        </button>
+        <!--        <button-->
+        <!--          @click="toggleFlickering"-->
+        <!--          class="rounded-full p-1 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800"-->
+        <!--          :class="{ 'text-yellow-300': isFlickering, 'text-gray-400': !isFlickering }"-->
+        <!--          :title="isFlickering ? 'Stop Flickering' : 'Start Flickering'"-->
+        <!--        >-->
+        <!--          <BoltIcon class="h-6 w-6" />-->
+        <!--        </button>-->
 
         <!-- Notification Icon (only if authenticated) -->
         <button v-if="isAuthenticated" @click="showNotifications" class="relative text-green-500">

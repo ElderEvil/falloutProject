@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
-ENV VITE_API_BASE_URL=http://localhost:8000
+ENV VITE_API_BASE_URL=http://37.27.195.77:30008
 RUN npm run build
 
 # Production stage

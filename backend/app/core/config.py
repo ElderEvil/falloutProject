@@ -49,7 +49,7 @@ class Settings(BaseSettings):
 
     @field_validator("ASYNC_DATABASE_URI", mode="after")
     def assemble_db_connection(cls, v: str | None, info: FieldValidationInfo) -> Any:
-        if isinstance(v, str) and v == "":
+        if isinstance(v, str) and not v:
             return PostgresDsn.build(
                 scheme="postgresql+asyncpg",
                 username=info.data["POSTGRES_USER"],
@@ -63,7 +63,7 @@ class Settings(BaseSettings):
 
     @field_validator("SYNC_CELERY_DATABASE_URI", mode="after")
     def assemble_celery_db_connection(cls, v: str | None, info: FieldValidationInfo) -> Any:
-        if isinstance(v, str) and v == "":
+        if isinstance(v, str) and not v:
             return PostgresDsn.build(
                 scheme="db+postgresql",
                 username=info.data["POSTGRES_USER"],
@@ -77,7 +77,7 @@ class Settings(BaseSettings):
 
     @field_validator("SYNC_CELERY_BEAT_DATABASE_URI", mode="after")
     def assemble_celery_beat_db_connection(cls, v: str | None, info: FieldValidationInfo) -> Any:
-        if isinstance(v, str) and v == "":
+        if isinstance(v, str) and not v:
             return PostgresDsn.build(
                 scheme="postgresql+psycopg2",
                 username=info.data["POSTGRES_USER"],
@@ -91,7 +91,7 @@ class Settings(BaseSettings):
 
     @field_validator("ASYNC_CELERY_BEAT_DATABASE_URI", mode="after")
     def assemble_async_celery_beat_db_connection(cls, v: str | None, info: FieldValidationInfo) -> Any:
-        if isinstance(v, str) and v == "":
+        if isinstance(v, str) and not v:
             return PostgresDsn.build(
                 scheme="postgresql+asyncpg",
                 username=info.data["POSTGRES_USER"],

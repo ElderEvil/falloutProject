@@ -1,6 +1,7 @@
 import json
 import random
-from enum import Enum, StrEnum
+from enum import StrEnum
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from openai import Client
@@ -19,13 +20,13 @@ from app.services.open_ai import get_openai_service
 router = APIRouter()
 
 
-class ResponseType(str, Enum):
+class ResponseType(StrEnum):
     text = "text"
     voice = "voice"
 
 
 @router.get("/", response_model=dict[str, str])
-async def test_read():
+def test_read():
     client = get_openai_service().client
     response = client.chat.completions.create(
         messages=[
@@ -41,7 +42,7 @@ async def test_read():
     return {"Assistant": f"{response.choices[0].message.content}"}
 
 
-async def text_to_audio(
+def text_to_audio(
     text: str,
     voice_type: str,
     file_name: str,
@@ -74,7 +75,7 @@ class ObjectiveKindEnum(StrEnum):
 
 
 @router.get("/generate_objectives", response_model=list[ObjectiveBase])
-async def generate_objectives(
+def generate_objectives(
     objective_kind: ObjectiveKindEnum,
     objective_count: int = 3,
 ):
@@ -133,7 +134,7 @@ async def chat_with_dweller(
     dweller_id: UUID4,
     user: CurrentActiveUser,
     message: ChatMessage,
-    db_session: AsyncSession = Depends(get_async_session),
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     dweller = await dweller_crud.get_full_info(db_session, dweller_id)
     if not dweller:

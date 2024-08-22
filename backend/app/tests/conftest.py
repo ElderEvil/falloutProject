@@ -47,7 +47,7 @@ async def db_connection():
     await async_engine.dispose()
 
 
-@pytest_asyncio.fixture()
+@pytest_asyncio.fixture
 async def async_session(db_connection: AsyncConnection) -> AsyncSession:
     session = sessionmaker(
         bind=db_connection,

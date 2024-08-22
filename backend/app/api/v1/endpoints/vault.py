@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -15,7 +17,7 @@ router = APIRouter()
 async def create_vault(
     *,
     vault_data: VaultCreate,
-    db_session: AsyncSession = Depends(get_async_session),
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ):
     return await crud.vault.create_with_user_id(db_session, vault_data, user.id)
@@ -26,7 +28,7 @@ async def read_vault_list(
     *,
     skip: int = 0,
     limit: int = 100,
-    db_session: AsyncSession = Depends(get_async_session),
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: CurrentSuperuser,
 ):
     return await crud.vault.get_multi(db_session, skip=skip, limit=limit)
@@ -35,7 +37,7 @@ async def read_vault_list(
 @router.get("/my", response_model=list[VaultReadWithNumbers])
 async def read_my_vaults(
     *,
-    db_session: AsyncSession = Depends(get_async_session),
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ):
     return await crud.vault.get_vaults_with_room_and_dweller_count(db_session=db_session, user_id=user.id)
@@ -45,7 +47,7 @@ async def read_my_vaults(
 async def read_vault(
     *,
     vault_id: UUID4,
-    db_session: AsyncSession = Depends(get_async_session),
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: CurrentSuperuser,
 ):
     return await crud.vault.get(db_session, vault_id)
@@ -56,7 +58,7 @@ async def update_vault(
     *,
     vault_id: UUID4,
     vault_data: VaultUpdate,
-    db_session: AsyncSession = Depends(get_async_session),
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ):
     vault = await crud.vault.get(db_session, vault_id)
@@ -69,7 +71,7 @@ async def update_vault(
 async def delete_vault(
     *,
     vault_id: UUID4,
-    db_session: AsyncSession = Depends(get_async_session),
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ):
     vault = await crud.vault.get(db_session, vault_id)
@@ -82,7 +84,7 @@ async def delete_vault(
 async def start_vault(
     *,
     vault_data: VaultNumber,
-    db_session: AsyncSession = Depends(get_async_session),
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ):
     return await crud.vault.initiate(db_session=db_session, obj_in=vault_data, user_id=user.id)

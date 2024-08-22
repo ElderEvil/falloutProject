@@ -62,7 +62,8 @@ class CRUDQuestChain(
     ) -> None:
         pass
 
-    async def insert_quest_chain(self, db_session: AsyncSession, quest_chain_data: QuestChainJSON):
+    @staticmethod
+    async def insert_quest_chain(db_session: AsyncSession, quest_chain_data: QuestChainJSON):
         # Create the quest chain
         quest_chain_create = QuestChainCreate(title=quest_chain_data.title)
         quest_chain = await quest_chain_crud.create(db_session, quest_chain_create)

@@ -23,8 +23,9 @@ class CompletionMixin(Generic[LinkModelType]):
         result = await db_session.execute(query)
         return result.scalars().all()
 
+    @staticmethod
     async def _get_all_objective_links_for_quest(
-        self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4, link_model: type[LinkModelType]
+        db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4, link_model: type[LinkModelType]
     ) -> Sequence[LinkModelType]:
         query = select(link_model).where(and_(link_model.vault_id == vault_id, link_model.quest_entity_id == quest_id))
         result = await db_session.execute(query)

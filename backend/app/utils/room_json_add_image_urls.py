@@ -22,14 +22,14 @@ def update_rooms_with_images(rooms):
 
 
 # Read the JSON file
-with open("../data/vault/rooms.json") as file:
+with open("../data/vault/rooms.json", encoding="utf-8") as file:
     rooms = json.load(file)
 
 # Update the rooms
 updated_rooms = update_rooms_with_images(rooms)
 
 # Write the updated rooms back to the JSON file
-with open("../data/vault/updated_rooms.json", "w") as file:
+with open("../data/vault/updated_rooms.json", "w", encoding="utf-8") as file:
     json.dump(updated_rooms, file, indent=2)
 
 print("Rooms updated and saved to 'updated_rooms.json'")

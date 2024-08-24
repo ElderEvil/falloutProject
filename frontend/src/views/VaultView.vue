@@ -8,7 +8,14 @@ import BuildModeButton from '@/components/common/BuildModeButton.vue'
 import RoomMenu from '@/components/rooms/RoomMenu.vue'
 import ResourceBar from '@/components/common/ResourceBar.vue'
 
-import { BeakerIcon, BoltIcon, CakeIcon } from '@heroicons/vue/24/solid'
+import {
+  CogIcon,
+  FaceSmileIcon,
+  BoltIcon,
+  CakeIcon,
+  BeakerIcon,
+  CurrencyDollarIcon
+} from '@heroicons/vue/24/solid'
 
 interface Position {
   x: number
@@ -23,6 +30,10 @@ const selectedRoom = ref<Room | null>(null)
 const isPlacingRoom = ref(false)
 
 const buildModeActive = computed(() => showRoomMenu.value || isPlacingRoom.value)
+
+const bottleCaps = computed(() => vaultStore.selectedVault?.bottle_caps ?? 0)
+const dwellersCount = computed(() => vaultStore.selectedVault?.dweller_count ?? 0)
+const happiness = computed(() => vaultStore.selectedVault?.happiness ?? 0)
 
 const energy = computed(() => ({
   current: vaultStore.selectedVault?.power ?? 0,
@@ -82,14 +93,34 @@ const handleRoomPlaced = async (position: Position) => {
     <div
       class="flicker container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8"
     >
-      <!-- Resources Display and Build Mode Button -->
-      <div class="mb-8 flex w-full items-center justify-between">
-        <div class="flex flex-1 justify-center space-x-8">
+      <div class="mb-8 flex w-full items-center justify-between space-x-8">
+        <!-- Dwellers Count and Happiness -->
+        <div class="flex items-center space-x-4">
+          <div class="flex items-center space-x-2">
+            <CogIcon class="h-8 w-8 text-terminalGreen" />
+            <p>{{ dwellersCount }}</p>
+          </div>
+          <div class="flex items-center space-x-2">
+            <FaceSmileIcon class="h-6 w-6 text-green-500" />
+            <p>{{ happiness }}%</p>
+          </div>
+        </div>
+
+        <!-- Resources in the Middle -->
+        <div class="flex justify-center space-x-8">
           <ResourceBar :current="energy.current" :max="energy.max" :icon="BoltIcon" />
           <ResourceBar :current="food.current" :max="food.max" :icon="CakeIcon" />
           <ResourceBar :current="water.current" :max="water.max" :icon="BeakerIcon" />
         </div>
-        <BuildModeButton :buildModeActive="buildModeActive" @toggleBuildMode="toggleBuildMode" />
+
+        <!-- Bottle Caps and Build Button -->
+        <div class="flex items-center space-x-4">
+          <div class="flex items-center space-x-2">
+            <CurrencyDollarIcon class="h-6 w-6 text-terminalGreen" />
+            <p>{{ bottleCaps }}</p>
+          </div>
+          <BuildModeButton :buildModeActive="buildModeActive" @toggleBuildMode="toggleBuildMode" />
+        </div>
       </div>
 
       <!-- Room Grid -->
@@ -99,7 +130,7 @@ const handleRoomPlaced = async (position: Position) => {
         @roomPlaced="handleRoomPlaced"
       />
 
-      <!-- Room Menu -->
+      <!-- Build Menu -->
       <RoomMenu
         v-if="showRoomMenu"
         @roomSelected="handleRoomSelected"
@@ -127,15 +158,53 @@ const handleRoomPlaced = async (position: Position) => {
   align-items: center;
 }
 
-.justify-center {
-  justify-content: center;
+.justify-between {
+  justify-content: space-between;
 }
 
 .space-x-8 {
   gap: 2rem;
 }
 
+.space-x-4 {
+  gap: 1rem;
+}
+
+.space-x-2 {
+  gap: 0.5rem;
+}
+
 .w-full {
   width: 100%;
+}
+
+.text-center p {
+  margin: 0;
+}
+
+p {
+  font-size: 1.2rem;
+  color: #39ff14;
+}
+
+p:last-child {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.h-8 {
+  height: 2rem;
+}
+
+.w-8 {
+  width: 2rem;
+}
+
+.h-6 {
+  height: 1.5rem;
+}
+
+.w-6 {
+  width: 1.5rem;
 }
 </style>

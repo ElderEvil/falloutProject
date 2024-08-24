@@ -101,7 +101,7 @@ const handleRoomPlaced = async (position: Position) => {
             <p>{{ dwellersCount }}</p>
           </div>
           <div class="flex items-center space-x-2">
-            <FaceSmileIcon class="h-6 w-6 text-green-500" />
+            <FaceSmileIcon class="h-6 w-6 text-terminalGreen" />
             <p>{{ happiness }}%</p>
           </div>
         </div>

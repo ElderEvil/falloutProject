@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     BACKEND_CORS_ORIGINS: list[str] = ["*"]
 
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
+    ALGORITHM: str = "HS256"
     SECRET_KEY: str
 
     EMAIL_TEST_USER: EmailStr
@@ -46,6 +48,10 @@ class Settings(BaseSettings):
     ]
 
     OPENAI_API_KEY: str
+
+    @property
+    def redis_url(self) -> str:
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"
 
     @field_validator("ASYNC_DATABASE_URI", mode="after")
     def assemble_db_connection(cls, v: str | None, info: FieldValidationInfo) -> Any:

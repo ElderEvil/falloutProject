@@ -1,14 +1,15 @@
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from jose import jwt
+import redis.asyncio as redis
+from jose import JWTError, jwt
 from passlib.context import CryptContext
 
 from app.core.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-ALGORITHM = "HS256"
+redis_client = redis.Redis.from_url(settings.redis_url, decode_responses=True)
 
 
 def create_access_token(
@@ -22,7 +23,7 @@ def create_access_token(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
         )
     to_encode = {"exp": expire, "sub": str(subject)}
-    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -31,3 +32,39 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
+
+
+async def create_refresh_token(subject: Any, expires_delta: timedelta | None = None) -> str:
+    if expires_delta:
+        expire = datetime.now(tz=UTC) + expires_delta
+    else:
+        expire = datetime.now(tz=UTC) + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
+
+    to_encode = {"exp": expire, "sub": str(subject)}
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+    expires_in_seconds = int(
+        expires_delta.total_seconds() if expires_delta else settings.REFRESH_TOKEN_EXPIRE_MINUTES * 60
+    )
+
+    await redis_client.setex(f"refresh_token:{subject}", expires_in_seconds, encoded_jwt)
+
+    return encoded_jwt
+
+
+async def verify_refresh_token(token: str) -> Any:
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        subject = payload.get("sub")
+
+        stored_refresh_token = await redis_client.get(f"refresh_token:{subject}")
+        if stored_refresh_token != token:
+            return None
+
+        return subject  # noqa: TRY300
+    except JWTError:
+        return None
+
+
+async def invalidate_refresh_token(subject: str) -> None:
+    await redis_client.delete(f"refresh_token:{subject}")

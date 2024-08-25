@@ -15,6 +15,7 @@ interface RegisterForm {
 interface Token {
   access_token: string
   token_type: string
+  refresh_token: string
 }
 
 interface User {
@@ -30,10 +31,9 @@ export const authService = {
   register(form: RegisterForm): Promise<AxiosResponse<User>> {
     return apiClient.post('/users/open', form)
   },
-  // TODO: Implement the refreshToken method
   refreshToken(refreshToken: string): Promise<AxiosResponse<Token>> {
-    return apiClient.post('/login/refresh-token', {
-      refresh_token: refreshToken
-    })
+    const params = new URLSearchParams()
+    params.append('refresh_token', refreshToken)
+    return apiClient.post('/login/refresh-token', params)
   }
 }

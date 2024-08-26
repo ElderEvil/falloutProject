@@ -21,13 +21,6 @@ interface Room {
   thumbnail_url: string
 }
 
-interface RoomReadShort {
-  id: string
-  name: string
-  population_required: number
-  thumbnail_url: string
-}
-
 interface RoomCreate {
   coordinate_x: number
   coordinate_y: number

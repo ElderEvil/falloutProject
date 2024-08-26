@@ -6,9 +6,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser
+from app.core import security
 from app.core.config import settings
 from app.db.session import get_async_session
-from app.schemas.user import UserCreate, UserRead, UserUpdate
+from app.schemas.user import UserCreate, UserRead, UserUpdate, UserWithTokens
 
 router = APIRouter()
 
@@ -78,7 +79,7 @@ def read_user_me(user: CurrentActiveUser):
     return user
 
 
-@router.post("/open", response_model=UserRead)
+@router.post("/open", response_model=UserWithTokens)
 async def create_user_open(
     *,
     db_session: AsyncSession = Depends(get_async_session),
@@ -87,11 +88,7 @@ async def create_user_open(
     email: EmailStr = Body(...),
 ):
     """
-    Create new user without the need to be logged in.:
-
-    - **username**: each user must have a username
-    - **password**: a long user password
-    - **email**: email of the user
+    Create new user and log them in automatically.
     """
     if not settings.USERS_OPEN_REGISTRATION:
         raise HTTPException(
@@ -105,7 +102,17 @@ async def create_user_open(
             detail="The user with this email already exists in the system",
         )
     user_in = UserCreate(username=username, password=password, email=email)
-    return await crud.user.create(db_session, obj_in=user_in)
+    user = await crud.user.create(db_session, obj_in=user_in)
+
+    access_token = security.create_access_token(user.id)
+    refresh_token = security.create_refresh_token(user.id)
+
+    return UserWithTokens(
+        **user.model_dump(),
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",  # noqa: S106
+    )
 
 
 @router.get("/{user_id}", response_model=UserRead)

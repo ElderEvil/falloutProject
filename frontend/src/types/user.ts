@@ -1,5 +1,5 @@
-interface User {
-  id: number
+export interface User {
+  id: string
   username: string
   email: string
 }

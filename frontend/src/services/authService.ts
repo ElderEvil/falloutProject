@@ -1,39 +1,54 @@
 import apiClient from '../plugins/axios'
 import type { AxiosResponse } from 'axios'
-
-interface LoginForm {
-  username: string
-  password: string
-}
-
-interface RegisterForm {
-  username: string
-  email: string
-  password: string
-}
-
-interface Token {
-  access_token: string
-  token_type: string
-  refresh_token: string
-}
-
-interface User {
-  id: string
-  username: string
-  email: string
-}
+import { AuthError, type LoginForm, type RegisterForm, type Token } from '@/types/auth'
+import type { User } from '@/types/user'
 
 export const authService = {
-  login(form: LoginForm): Promise<AxiosResponse<Token>> {
-    return apiClient.post('/login/access-token', new URLSearchParams(form as any))
+  async login(form: LoginForm): Promise<AxiosResponse<Token>> {
+    try {
+      const formAsRecord: Record<string, string> = {
+        username: form.username,
+        password: form.password
+      }
+      return await apiClient.post('/login/access-token', new URLSearchParams(formAsRecord))
+    } catch (error) {
+      throw new AuthError('Login failed')
+    }
   },
-  register(form: RegisterForm): Promise<AxiosResponse<User>> {
-    return apiClient.post('/users/open', form)
+  async register(form: RegisterForm): Promise<AxiosResponse<User>> {
+    try {
+      return await apiClient.post('/users/open', form)
+    } catch (error) {
+      throw new AuthError('Registration failed')
+    }
   },
-  refreshToken(refreshToken: string): Promise<AxiosResponse<Token>> {
-    const params = new URLSearchParams()
-    params.append('refresh_token', refreshToken)
-    return apiClient.post('/login/refresh-token', params)
+  async refreshToken(refreshToken: string): Promise<AxiosResponse<Token>> {
+    try {
+      return await apiClient.post('/login/refresh-token', { refresh_token: refreshToken })
+    } catch (error) {
+      throw new AuthError('Token refresh failed')
+    }
+  },
+  async logout(accessToken: string): Promise<AxiosResponse<void>> {
+    try {
+      return await apiClient.post(
+        '/logout',
+        {},
+        {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        }
+      )
+    } catch (error) {
+      throw new AuthError('Logout failed')
+    }
+  },
+  async getCurrentUser(accessToken: string): Promise<AxiosResponse<User>> {
+    try {
+      return await apiClient.get('/users/me', {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      })
+    } catch (error) {
+      throw new AuthError('Failed to fetch current user')
+    }
   }
 }

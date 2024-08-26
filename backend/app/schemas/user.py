@@ -17,6 +17,12 @@ class UserRead(UserBase):
     updated_at: datetime
 
 
+class UserWithTokens(UserRead):
+    access_token: str
+    refresh_token: str
+    token_type: str
+
+
 class UserReadWithVaults(UserRead):
     vaults: list["VaultRead"] = []
 

@@ -20,7 +20,7 @@ async def create_vault(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ):
-    return await crud.vault.create_with_user_id(db_session, vault_data, user.id)
+    return await crud.vault.create_with_user_id(db_session=db_session, obj_in=vault_data, user_id=user.id)
 
 
 @router.get("/", response_model=list[VaultReadWithUser])

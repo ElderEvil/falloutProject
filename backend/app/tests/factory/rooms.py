@@ -13,7 +13,7 @@ def create_fake_room():
     return {
         "name": get_name_two_words(),
         "category": random.choice(list(RoomTypeEnum)),
-        "ability": LETTER_TO_STAT[random.choice(["S", "P", "E", "C", "I", "A", "L"])].capitalize(),
+        "ability": LETTER_TO_STAT[random.choice(["S", "P", "E", "C", "I", "A", "L"])],
         "population_required": random.randint(12, 100),
         "base_cost": random.randint(100, 10_000),
         "incremental_cost": random.randint(25, 5_000),

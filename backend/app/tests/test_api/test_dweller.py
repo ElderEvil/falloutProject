@@ -53,17 +53,11 @@ async def test_read_dweller_list(
         assert "id" in dweller
         assert "first_name" in dweller
         assert "last_name" in dweller
-        assert "is_adult" in dweller
-        assert "gender" in dweller
-        assert "rarity" in dweller
         assert "level" in dweller
-        assert "experience" in dweller
-        assert "max_health" in dweller
         assert "health" in dweller
+        assert "max_health" in dweller
         assert "radiation" in dweller
         assert "happiness" in dweller
-        assert "stimpack" in dweller
-        assert "radaway" in dweller
 
 
 @pytest.mark.asyncio

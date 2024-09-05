@@ -19,3 +19,4 @@ class WeaponRead(WeaponBase):
 @optional()
 class WeaponUpdate(WeaponBase):
     dweller_id: UUID4 | None = None
+    storage_id: UUID4 | None = None

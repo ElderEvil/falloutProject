@@ -4,12 +4,15 @@ from collections.abc import Generator
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
+from sqlalchemy import JSON, event
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import (
     AsyncConnection,
     AsyncSession,
     create_async_engine,
 )
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
 
 from app import crud
@@ -29,12 +32,15 @@ def event_loop(request) -> Generator:  # noqa: ARG001
 
 
 @pytest_asyncio.fixture(scope="session")
-async def db_connection():
-    async_engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        echo=False,
-        future=True,
-    )
+async def db_connection() -> AsyncConnection:
+    async_engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False, future=True, poolclass=StaticPool)
+
+    @event.listens_for(SQLModel.metadata, "before_create")
+    def _replace_jsonb_with_json(target, connection, **kw):  # noqa: ARG001
+        for table in target.tables.values():
+            for column in table.columns:
+                if isinstance(column.type, JSONB):
+                    column.type = JSON()
 
     async with async_engine.connect() as conn:
         await conn.run_sync(SQLModel.metadata.drop_all)
@@ -83,12 +89,12 @@ async def async_client(async_session: AsyncSession, superuser: None) -> Generato
         yield client
 
 
-@pytest.fixture()
+@pytest_asyncio.fixture
 async def superuser_token_headers(async_client: AsyncClient) -> dict[str, str]:
     return await get_superuser_token_headers(async_client)
 
 
-@pytest.fixture()
+@pytest_asyncio.fixture
 async def normal_user_token_headers(async_client: AsyncClient, async_session: AsyncSession) -> dict[str, str]:
     return await authentication_token_from_email(
         client=async_client,

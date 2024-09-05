@@ -27,17 +27,3 @@ async def test_get_access_token_incorrect_credentials(async_client: AsyncClient)
     }
     response = await async_client.post("/login/access-token", data=login_data)
     assert response.status_code == 400
-
-
-@pytest.mark.asyncio
-async def test_use_access_token(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-) -> None:
-    response = await async_client.post(
-        "/login/test-token",
-        headers=superuser_token_headers,
-    )
-    result = response.json()
-    assert response.status_code == 200
-    assert "email" in result

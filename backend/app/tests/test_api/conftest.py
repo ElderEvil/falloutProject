@@ -30,10 +30,13 @@ fake = Faker()
 
 
 def get_generic_items_data():
+    dweller_or_storage = random.choice([True, False])
     return {
         "name": get_name_two_words(),
         "rarity": random.choice(list(RarityEnum)),
         "value": random.randint(1, 1_000),
+        "dweller_id": "ee3cee34-338f-4457-bb2c-1d3f6ba78d24" if dweller_or_storage else None,
+        "storage_id": None if dweller_or_storage else "b4e8dc8d-c35e-4f3c-a58c-c3499ed7343b",
     }
 
 

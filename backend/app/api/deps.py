@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -28,12 +29,13 @@ async def get_current_user(
             algorithms=[settings.ALGORITHM],
         )
         token_data = TokenPayload(**payload)
+        user_id = UUID(token_data.sub)
     except (JWTError, ValidationError) as e:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Could not validate credentials",
         ) from e
-    user = await crud.user.get(db_session=db_session, id=token_data.sub)
+    user = await crud.user.get(db_session=db_session, id=user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user

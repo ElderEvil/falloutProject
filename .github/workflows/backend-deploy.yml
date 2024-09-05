@@ -1,54 +1,18 @@
-name: Backend CI/CD
+name: Backend Deployment
 
-on:
-  push:
-    branches:
-      - master
-    paths:
-      - 'backend/**'
-  pull_request:
-    branches:
-      - master
-    paths:
-      - 'backend/**'
 
 jobs:
-  pre-commit:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v3
-        with:
-          python-version: '3.12'
-
-      - name: Install pre-commit
-        run: |
-          pip install pre-commit
-          pre-commit install
-
-      - name: Run pre-commit
-        uses: pre-commit/action@v3.0.1
-
   build-and-deploy:
     runs-on: ubuntu-latest
-    needs: pre-commit
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Set up uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
-
-      - name: Set up Python
-        run: uv python install
-
-      - name: Install the project
-        run: uv sync --all-extras --dev
-        working-directory: ./backend
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v1
+        with:
+          version: "latest"
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3

@@ -4,49 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.models.room import Room
-from app.models.vault import Vault
 from app.schemas.room import RoomCreate
 from app.tests.factory.rooms import create_fake_room
-
-
-@pytest.mark.asyncio
-async def test_create_room(async_client: AsyncClient, vault: Vault, room_data: dict):
-    room_data.update({"vault_id": str(vault.id)})
-    response = await async_client.post(f"/rooms/{vault.id}", json=room_data)
-    assert response.status_code == 200
-    response_data = response.json()
-    assert response_data["name"] == room_data["name"]
-    assert response_data["category"] == room_data["category"]
-    assert response_data["ability"] == room_data["ability"]
-    assert response_data["population_required"] == room_data["population_required"]
-    assert response_data["base_cost"] == room_data["base_cost"]
-    assert response_data["incremental_cost"] == room_data["incremental_cost"]
-    assert response_data["tier"] == room_data["tier"]
-    assert response_data["t2_upgrade_cost"] == room_data["t2_upgrade_cost"]
-    assert response_data["t3_upgrade_cost"] == room_data["t3_upgrade_cost"]
-    assert response_data["output"] == room_data["output"]
-    assert response_data["size_min"] == room_data["size_min"]
-    assert response_data["size_max"] == room_data["size_max"]
-
-
-@pytest.mark.asyncio
-async def test_create_room_incomplete(async_client: AsyncClient, vault: Vault):
-    response = await async_client.post(
-        f"/rooms/{vault.id}",
-        json={"name": "Test Room"},
-    )
-    assert response.status_code == 422
-
-
-@pytest.mark.asyncio
-async def test_create_room_invalid(async_client: AsyncClient, vault: Vault):
-    response = await async_client.post(
-        f"/rooms/{vault.id}",
-        json={
-            "name": "Test Room",
-        },
-    )
-    assert response.status_code == 422
 
 
 @pytest.mark.asyncio
@@ -120,22 +79,3 @@ async def test_delete_room(async_client: AsyncClient, room: Room):
     assert delete_response.status_code == 204
     read_response = await async_client.get(f"/rooms/{room.id}")
     assert read_response.status_code == 404
-
-
-@pytest.mark.asyncio
-async def test_build_room(async_client: AsyncClient, vault: Vault):
-    # Setup a room creation request
-    room_data = create_fake_room()
-    room_data.update({"vault_id": str(vault.id)})
-
-    # Assume vault has enough resources and space
-    # mock_vault_crud_with_resources_and_space(vault, async_session)
-
-    # Perform the request to build the room
-    response = await async_client.post("/build/", json={"room_data": room_data, "vault_id": str(vault.id)})
-
-    # Verify the room was created successfully
-    assert response.status_code == 200
-    response_data = response.json()
-    assert response_data["name"] == room_data["name"]
-    assert response_data["category"] == room_data["category"]

@@ -1,15 +1,14 @@
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-import redis.asyncio as redis
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from redis.asyncio import Redis
 
 from app.core.config import settings
+from app.db.init_db import logger
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-redis_client = redis.Redis.from_url(settings.redis_url, decode_responses=True)
 
 
 def create_access_token(
@@ -34,7 +33,11 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
-async def create_refresh_token(subject: Any, expires_delta: timedelta | None = None) -> str:
+async def create_refresh_token(
+    subject: Any,
+    redis_client: Redis,
+    expires_delta: timedelta | None = None,
+) -> str:
     if expires_delta:
         expire = datetime.now(tz=UTC) + expires_delta
     else:
@@ -52,7 +55,7 @@ async def create_refresh_token(subject: Any, expires_delta: timedelta | None = N
     return encoded_jwt
 
 
-async def verify_refresh_token(token: str) -> Any:
+async def verify_refresh_token(token: str, redis_client: Redis) -> Any:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         subject = payload.get("sub")
@@ -66,5 +69,6 @@ async def verify_refresh_token(token: str) -> Any:
         return None
 
 
-async def invalidate_refresh_token(subject: str) -> None:
+async def invalidate_refresh_token(subject: str, redis_client: Redis) -> None:
+    logger.info(f"Invalidating refresh token for subject: {subject}")
     await redis_client.delete(f"refresh_token:{subject}")

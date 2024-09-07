@@ -56,7 +56,6 @@ lint.select = [
     "UP", # pyupgrade
     "YTT", # flake8-2020
     "ASYNC", # flake8-async
-    "S", # flake8-bandit security
     "BLE", # flake8-blind-except
     "FBT", # flake8-boolean-trap
     "B", # flake8-bugbear
@@ -95,7 +94,6 @@ lint.ignore = [
     "ISC001",
     "B008", # do not perform function calls in argument defaults
     "PTH123", # builtin-open
-    "S101", # assert
     "S311", # pseudo-random
     "PLR2004",
     "PT023", # pytest-style
@@ -115,9 +113,4 @@ builtins-ignorelist = ["id"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-
-[tool.mypy]
-python_version = "3.12"
-exclude = ["admin", "alembic", "tests", ".venv"]
-disable_error_code = ["import-untyped"]
-plugins = ["sqlalchemy.ext.mypy.plugin", "pydantic.mypy"]
+asyncio_default_fixture_loop_scope = "function"

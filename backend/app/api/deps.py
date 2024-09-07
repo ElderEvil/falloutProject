@@ -5,6 +5,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from pydantic import ValidationError
+from redis.asyncio import Redis
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -16,6 +17,14 @@ from app.schemas.token import TokenPayload
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/login/access-token",
 )
+
+
+async def get_redis_client():
+    redis_client = Redis.from_url(settings.redis_url, decode_responses=True)
+    try:
+        yield redis_client
+    finally:
+        await redis_client.close()
 
 
 async def get_current_user(

@@ -9,7 +9,8 @@ from app.api.game_data_deps import get_static_game_data
 from app.crud.base import CRUDBase
 from app.models import Dweller, Room, Storage
 from app.models.vault import Vault
-from app.schemas.common import RoomActionEnum, RoomTypeEnum
+from app.schemas.common import RoomActionEnum, RoomTypeEnum, SPECIALEnum
+from app.schemas.dweller import DwellerCreateCommonOverride
 from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultNumber, VaultReadWithNumbers, VaultUpdate
 from app.utils.exceptions import InsufficientResourcesException, ResourceNotFoundException
@@ -197,8 +198,6 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         Create a new vault for a user and initialize it with essential rooms.
         Includes a vault door and multiple elevators.
         """
-        from app.crud.room import room as room_crud
-
         vault_db_obj = await self.create_with_user_id(db_session=db_session, obj_in=obj_in, user_id=user_id)
 
         await self.create_storage(db_session=db_session, vault_id=vault_db_obj.id)
@@ -210,7 +209,15 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
         initial_rooms = [RoomCreate(**vault_door_data)] + [RoomCreate(**data) for data in elevators_data]
 
+        from app.crud.room import room as room_crud
+
         await room_crud.create_all(db_session, initial_rooms)
+
+        from app.crud.dweller import dweller as dweller_crud
+
+        for stat in [SPECIALEnum.STRENGTH, SPECIALEnum.AGILITY, SPECIALEnum.PERCEPTION, None, None]:
+            obj_in = DwellerCreateCommonOverride(special_boost=stat)
+            await dweller_crud.create_random(db_session, vault_db_obj.id, obj_in=obj_in)
 
         return vault_db_obj
 

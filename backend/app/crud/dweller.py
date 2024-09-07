@@ -29,7 +29,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         """Create a random common dweller."""
         dweller_data = create_random_common_dweller()
         if obj_in:
-            new_dweller_data = obj_in.dict(exclude_unset=True)
+            new_dweller_data = obj_in.model_dump(exclude_unset=True)
             if stat := new_dweller_data.get("special_boost"):
                 dweller_data[stat.value.lower()] = BOOSTED_STAT_VALUE
                 new_dweller_data.pop("special_boost")

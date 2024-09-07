@@ -83,7 +83,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             raise ContentNoChangeException(detail="Not enough space in the vault to move dweller")
         dweller_obj = await self.update(db_session, dweller_id, DwellerUpdate(room_id=room_id))
 
-        return DwellerReadWithRoomID.from_orm(dweller_obj)
+        return DwellerReadWithRoomID.model_validate(dweller_obj)
 
     async def reanimate(self, db_session: AsyncSession, dweller_obj: Dweller) -> Dweller | None:
         """Revive a dead dweller."""
@@ -107,7 +107,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         response = await db_session.execute(query)
         dweller_obj = response.scalar_one_or_none()
 
-        return DwellerReadFull.from_orm(dweller_obj)
+        return DwellerReadFull.model_validate(dweller_obj)
 
 
 dweller = CRUDDweller(Dweller)

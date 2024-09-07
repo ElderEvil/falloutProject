@@ -88,7 +88,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         :returns: The created object, with any auto-generated fields populated by the database.
         :raises NameExistException: If the item already exists.
         """
-        db_obj = self.model.from_orm(obj_in)
+        db_obj = self.model.model_validate(obj_in)
         try:
             db_session.add(db_obj)
             await db_session.commit()
@@ -107,7 +107,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         :returns: The created objects, with any auto-generated fields populated by the database.
         :raises NameExistException: If any item already exists.
         """
-        db_objs = [self.model.from_orm(obj_in) for obj_in in objs_in]
+        db_objs = [self.model.model_validate(obj_in) for obj_in in objs_in]
         try:
             db_session.add_all(db_objs)
             await db_session.commit()

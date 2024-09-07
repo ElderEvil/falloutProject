@@ -14,9 +14,9 @@ router = APIRouter()
 
 @router.post("/{vault_id}/", response_model=Objective)
 async def create_objective(
-    objective_data: ObjectiveCreate, db_session: Annotated[AsyncSession, Depends(get_async_session)]
+    objective_data: ObjectiveCreate, vault_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]
 ):
-    return await crud.objective_crud.create(db_session, objective_data)
+    return await crud.objective_crud.create_for_vault(db_session, vault_id, objective_data)
 
 
 @router.get("/{vault_id}/", response_model=list[ObjectiveRead])

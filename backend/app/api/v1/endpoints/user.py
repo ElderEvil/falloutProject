@@ -111,7 +111,7 @@ async def create_user_open(
         **user.model_dump(),
         access_token=access_token,
         refresh_token=refresh_token,
-        token_type="bearer",  # noqa: S106
+        token_type="bearer",
     )
 
 

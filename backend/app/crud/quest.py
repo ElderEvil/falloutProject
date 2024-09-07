@@ -55,7 +55,7 @@ class CRUDQuestChain(
         response = await db_session.execute(query)
         quest_chains = response.scalars().all()
 
-        return [QuestChainReadWithQuests.from_orm(chain) for chain in quest_chains]
+        return [QuestChainReadWithQuests.model_validate(chain) for chain in quest_chains]
 
     async def _handle_completion_cascade(
         self, *, db_session: AsyncSession, db_obj: QuestObjective, vault_id: UUID4

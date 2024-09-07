@@ -26,7 +26,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
     @staticmethod
     def evaluate_capacity_formula(formula: str, level: int, size: int) -> int:
         try:
-            result = eval(formula, {"L": level, "S": size})  # noqa: S307
+            result = eval(formula, {"L": level, "S": size})
             return int(result)
         except (ValueError, SyntaxError) as e:
             logger.exception("Error evaluating capacity formula.", exc_info=e)

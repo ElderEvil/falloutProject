@@ -17,6 +17,18 @@ class CRUDObjective(
         super().__init__(model)
         self.link_model = link_model
 
+    async def create_for_vault(self, db_session: AsyncSession, vault_id: UUID4, obj_in: ObjectiveCreate) -> Objective:
+        db_obj = self.model(**obj_in.model_dump())
+        db_session.add(db_obj)
+
+        link_obj = self.link_model(vault_id=vault_id, objective_id=db_obj.id)
+        db_session.add(link_obj)
+
+        await db_session.commit()
+        await db_session.refresh(link_obj)
+
+        return db_obj
+
     async def get_multi_for_vault(
         self, db_session: AsyncSession, vault_id: UUID4, skip: int = 0, limit: int = 100
     ) -> Sequence[ObjectiveRead]:

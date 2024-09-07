@@ -25,7 +25,7 @@ users: list[dict[str, str | UserCreate]] = [
     {
         "data": UserCreate(
             username="TestUser",
-            password="testpassword",  # noqa: S106
+            password="testpassword",
             email=settings.EMAIL_TEST_USER,
         ),
     },

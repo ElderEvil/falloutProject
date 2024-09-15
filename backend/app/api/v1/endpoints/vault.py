@@ -80,6 +80,16 @@ async def delete_vault(
     return await crud.vault.delete(db_session, vault_id)
 
 
+@router.post("/{vault_id}/toggle_game_state", response_model=Vault, status_code=200)
+async def toggle_game_state(
+    *,
+    vault_id: UUID4,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    _: CurrentActiveUser,
+):
+    return await crud.vault.toggle_game_state(db_session=db_session, vault_id=vault_id)
+
+
 @router.post("/initiate", response_model=Vault, status_code=201)
 async def start_vault(
     *,
@@ -88,3 +98,13 @@ async def start_vault(
     user: CurrentActiveUser,
 ):
     return await crud.vault.initiate(db_session=db_session, obj_in=vault_data, user_id=user.id)
+
+
+@router.post("/update_resources", status_code=200)
+async def update_vault_resources(
+    *,
+    vault_id: UUID4,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    _: CurrentSuperuser,
+):
+    return await crud.vault.update_resources(db_session=db_session, vault_id=vault_id)

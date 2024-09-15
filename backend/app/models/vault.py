@@ -10,6 +10,7 @@ from app.models.vault_quest import (
     VaultQuestCompletionLink,
     VaultQuestObjectiveCompletionLink,
 )
+from app.schemas.common import GameStatusEnum
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller
@@ -36,6 +37,9 @@ class VaultBase(SQLModel):
 
     # Population limits
     population_max: int | None = Field(default=0, ge=0, le=200, nullable=True)
+
+    # Game state
+    game_state: GameStatusEnum = Field(default=GameStatusEnum.ACTIVE)
 
     def __str__(self):
         return f"Vault {self.name:03}"

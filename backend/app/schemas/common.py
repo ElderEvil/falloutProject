@@ -10,6 +10,11 @@ class CaseInsensitiveEnum(StrEnum):
         return None
 
 
+class GameStatusEnum(StrEnum):
+    ACTIVE = "active"
+    PAUSED = "paused"
+
+
 class RarityEnum(CaseInsensitiveEnum):
     COMMON = "common"
     RARE = "rare"

@@ -6,17 +6,22 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.game_data_deps import get_static_game_data
-from app.crud.base import CRUDBase
+from app.crud.base import CRUDBase, ModelType
 from app.models import Dweller, Room, Storage
 from app.models.vault import Vault
-from app.schemas.common import RoomActionEnum, RoomTypeEnum, SPECIALEnum
+from app.schemas.common import GameStatusEnum, RoomActionEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreateCommonOverride
 from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultNumber, VaultReadWithNumbers, VaultUpdate
+from app.services.resource_calculator import ResourceCalculator
 from app.utils.exceptions import InsufficientResourcesException, ResourceNotFoundException
 
 
 class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
+    def __init__(self, model: type[ModelType]):
+        super().__init__(model)
+        self.resource_calculator = ResourceCalculator()
+
     async def get_by_user_id(self, *, db_session: AsyncSession, user_id: UUID4) -> Sequence[Vault]:
         response = await db_session.execute(select(self.model).where(self.model.user_id == user_id))
         return response.scalars().all()
@@ -95,6 +100,12 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
     async def get_rooms_count(*, db_session: AsyncSession, vault_id: UUID4) -> int:
         count = await db_session.execute(select(func.count(Vault.rooms)).where(Vault.id == vault_id))
         return count.scalar()
+
+    async def toggle_game_state(self, *, db_session: AsyncSession, vault_id: UUID4) -> Vault:
+        vault_obj = await self.get(db_session, id=vault_id)
+        new_state = GameStatusEnum.PAUSED if vault_obj.game_state == GameStatusEnum.ACTIVE else GameStatusEnum.ACTIVE
+        obj_in = VaultUpdate(game_state=new_state)
+        return await self.update(db_session, id=vault_id, obj_in=obj_in)
 
     async def get_vaults_with_room_and_dweller_count(
         self, *, db_session: AsyncSession, user_id: UUID4
@@ -220,6 +231,13 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             await dweller_crud.create_random(db_session, vault_db_obj.id, obj_in=obj_in)
 
         return vault_db_obj
+
+    async def update_resources(self, db_session: AsyncSession, vault_id: UUID4):
+        updated_resources = await self.resource_calculator.calculate_resources(
+            db_session=db_session, vault_id=vault_id, seconds_passed=60
+        )
+
+        return await self.update(db_session=db_session, id=vault_id, obj_in=updated_resources)
 
 
 vault = CRUDVault(Vault)

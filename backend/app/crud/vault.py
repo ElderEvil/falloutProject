@@ -198,6 +198,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         room_data_dict.update(
             {
                 "vault_id": vault_id,
+                "size": room_data.size_min,
                 "coordinate_x": x,
                 "coordinate_y": y,
             }

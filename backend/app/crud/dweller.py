@@ -1,4 +1,8 @@
+from collections.abc import Sequence
+from typing import Any
+
 from pydantic import UUID4
+from sqlalchemy import Row, RowMapping
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -22,6 +26,18 @@ BOOSTED_STAT_VALUE = 5
 
 
 class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
+    async def get_multi_by_vault(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> Sequence[Row[Any] | RowMapping | Any]:
+        """Get multiple dwellers by vault ID."""
+        query = select(self.model).where(self.model.vault_id == vault_id).offset(skip).limit(limit)
+        response = await db_session.execute(query)
+        return response.scalars().all()
+
     @staticmethod
     async def create_random(
         db_session: AsyncSession, vault_id: UUID4, obj_in: DwellerCreateCommonOverride | None = None

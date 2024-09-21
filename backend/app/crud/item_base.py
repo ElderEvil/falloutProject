@@ -143,6 +143,8 @@ class CRUDItem(
         if not item:
             raise ResourceNotFoundException(self.model, identifier=item_id)
 
-        await self.add_caps_to_vault(db_session, item.storage.vault_id, item.value)  # TODO: test item storage
+        entity = storage if (storage := item.storage) else item.dweller
+
+        await self.add_caps_to_vault(db_session, entity.vault_id, item.value)  # TODO: test item storage
         await db_session.delete(item)
         await db_session.commit()

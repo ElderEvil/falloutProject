@@ -5,7 +5,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.deps import CurrentActiveUser
+from app.api.deps import CurrentActiveUser, CurrentSuperuser
 from app.api.game_data_deps import get_static_game_data
 from app.db.session import get_async_session
 from app.schemas.dweller import (
@@ -24,12 +24,17 @@ router = APIRouter()
 
 
 @router.post("/", response_model=DwellerRead)
-async def create_dweller(dweller_data: DwellerCreate, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
+async def create_dweller(
+    dweller_data: DwellerCreate,
+    _: CurrentSuperuser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+):
     return await crud.dweller.create(db_session, dweller_data)
 
 
 @router.get("/", response_model=list[DwellerReadLess])
 async def read_dweller_list(
+    _: CurrentSuperuser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     skip: int = 0,
     limit: int = 100,
@@ -38,7 +43,11 @@ async def read_dweller_list(
 
 
 @router.get("/{dweller_id}", response_model=DwellerRead)
-async def read_dweller(dweller_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
+async def read_dweller(
+    dweller_id: UUID4,
+    _: CurrentActiveUser,  # TODO: check if user has access to the vault
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+):
     return await crud.dweller.get(db_session, dweller_id)
 
 
@@ -46,20 +55,35 @@ async def read_dweller(dweller_id: UUID4, db_session: Annotated[AsyncSession, De
 async def update_dweller(
     dweller_id: UUID4,
     dweller_data: DwellerUpdate,
+    _: CurrentActiveUser,  # TODO: check if user has access to the vault
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     return await crud.dweller.update(db_session, dweller_id, dweller_data)
 
 
 @router.delete("/{dweller_id}", status_code=204)
-async def delete_dweller(dweller_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
+async def delete_dweller(
+    dweller_id: UUID4, _: CurrentSuperuser, db_session: Annotated[AsyncSession, Depends(get_async_session)]
+):
     return await crud.dweller.delete(db_session, dweller_id)
+
+
+@router.get("/vault/{vault_id}/", response_model=list[DwellerReadLess])
+async def read_dwellers_by_vault(
+    vault_id: UUID4,
+    _: CurrentActiveUser,  # TODO: check if user has access to the vault
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    skip: int = 0,
+    limit: int = 100,
+):
+    return await crud.dweller.get_multi_by_vault(db_session=db_session, vault_id=vault_id, skip=skip, limit=limit)
 
 
 @router.post("/{dweller_id}/move_to/{room_id}", response_model=DwellerReadWithRoomID)
 async def move_dweller_to_room(
     dweller_id: UUID4,
     room_id: UUID4,
+    _: CurrentActiveUser,  # TODO: check if user has access to the vault
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     return await crud.dweller.move_to_room(db_session, dweller_id, room_id)
@@ -67,8 +91,9 @@ async def move_dweller_to_room(
 
 @router.post("/create_random/", response_model=DwellerRead)
 async def create_random_common_dweller(
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
     vault_id: UUID4,
+    _: CurrentActiveUser,  # TODO: check if user has access to the vault
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
     dweller_override: DwellerCreateCommonOverride | None = None,
 ):
     return await crud.dweller.create_random(db_session=db_session, obj_in=dweller_override, vault_id=vault_id)
@@ -103,9 +128,9 @@ async def generate_photo(
 
 @router.post("/{dweller_id}/generate_with_ai/", response_model=DwellerReadFull)
 async def generate_data_with_ai(
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
     dweller_id: UUID4,
     user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
     origin: str | None = None,
 ):
     return await dweller_ai.dweller_generate_pipeline(

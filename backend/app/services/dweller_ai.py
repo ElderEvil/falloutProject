@@ -1,4 +1,5 @@
 import json
+import textwrap
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -62,6 +63,7 @@ class DwellerAIService:
             {"role": "assistant", "content": "Sure! Here's a brief bio about me:"},
         ]
         backstory = await self.open_ai_service.generate_completion(messages)
+        backstory = textwrap.shorten(backstory, width=BIO_MAX_LENGTH, placeholder="...")  # TODO: replace with LLM
 
         await dweller_crud.update(db_session, dweller_obj.id, DwellerUpdate(bio=backstory))
 

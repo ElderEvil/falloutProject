@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -6,7 +7,8 @@ from passlib.context import CryptContext
 from redis.asyncio import Redis
 
 from app.core.config import settings
-from app.db.init_db import logger
+
+logger = logging.getLogger(__name__)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -70,5 +72,5 @@ async def verify_refresh_token(token: str, redis_client: Redis) -> Any:
 
 
 async def invalidate_refresh_token(subject: str, redis_client: Redis) -> None:
-    logger.info(f"Invalidating refresh token for subject: {subject}")
+    logger.info("Invalidating refresh token for subject")
     await redis_client.delete(f"refresh_token:{subject}")

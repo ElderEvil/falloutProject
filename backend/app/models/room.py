@@ -21,7 +21,7 @@ class RoomBase(SQLModel):
     t2_upgrade_cost: int | None = Field(ge=500, le=50_000)
     t3_upgrade_cost: int | None = Field(ge=1_500, le=150_000)
     capacity: int | None = None
-    output: str | None = Field(default=None)
+    output: int | None = None
     size_min: int = Field(ge=1, le=9)
     size_max: int = Field(ge=1, le=9)
     size: int | None = Field(default=None, ge=1, le=9)

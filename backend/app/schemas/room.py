@@ -8,6 +8,7 @@ from app.utils.partial import optional
 
 class RoomCreateWithoutVaultID(RoomBase):
     capacity_formula: str | None = None
+    output_formula: str | None = None
 
 
 class RoomCreate(RoomCreateWithoutVaultID):

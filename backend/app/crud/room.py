@@ -33,6 +33,15 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             return 0
 
     @staticmethod
+    def evaluate_output_formula(formula: str, level: int, size: int) -> int:
+        try:
+            result = eval(formula, {"L": level, "S": size})
+            return int(result)
+        except (ValueError, SyntaxError) as e:
+            logger.exception("Error evaluating output formula.", exc_info=e)
+            return 0
+
+    @staticmethod
     async def get_room_by_coordinates(
         *, db_session: AsyncSession, vault_id: int, x_coord: int, y_coord: int
     ) -> Room | None:
@@ -110,6 +119,9 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
 
         if obj_in.capacity_formula:
             obj_in.capacity = self.evaluate_capacity_formula(obj_in.capacity_formula, obj_in.tier, obj_in.size_min)
+
+        if obj_in.output_formula:
+            obj_in.output = self.evaluate_output_formula(obj_in.output_formula, obj_in.tier, obj_in.size_min)
 
         await self.check_is_unique_room(db_session=db_session, obj_in=obj_in)
 

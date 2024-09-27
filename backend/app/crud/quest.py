@@ -60,7 +60,7 @@ class CRUDQuestChain(
     async def _handle_completion_cascade(
         self, *, db_session: AsyncSession, db_obj: QuestObjective, vault_id: UUID4
     ) -> None:
-        pass
+        raise NotImplementedError("Subclasses must implement this method")
 
     @staticmethod
     async def insert_quest_chain(db_session: AsyncSession, quest_chain_data: QuestChainJSON):
@@ -98,8 +98,7 @@ class CRUDQuest(CRUDBase[Quest, QuestCreate, QuestUpdate], CompletionMixin[Vault
     async def _handle_completion_cascade(
         self, db_session: AsyncSession, db_obj: QuestObjective, vault_id: UUID4
     ) -> None:
-        # TODO: Implement this method
-        pass
+        raise NotImplementedError("Subclasses must implement this method")
 
 
 class CRUDQuestObjective(
@@ -113,8 +112,7 @@ class CRUDQuestObjective(
     async def _handle_completion_cascade(
         self, db_session: AsyncSession, db_obj: QuestObjective, vault_id: UUID4
     ) -> None:
-        # TODO: Implement this method
-        pass
+        raise NotImplementedError("Subclasses must implement this method")
 
 
 quest_chain_crud = CRUDQuestChain(QuestChain, VaultQuestChainCompletionLink)

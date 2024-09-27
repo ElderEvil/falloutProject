@@ -5,7 +5,7 @@ from pydantic.networks import EmailStr
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.deps import CurrentActiveUser, CurrentSuperuser
+from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_redis_client
 from app.core import security
 from app.core.config import settings
 from app.db.session import get_async_session
@@ -83,6 +83,7 @@ def read_user_me(user: CurrentActiveUser):
 async def create_user_open(
     *,
     db_session: AsyncSession = Depends(get_async_session),
+    redis_client=Depends(get_redis_client),
     username: str = Body(...),
     password: str = Body(...),
     email: EmailStr = Body(...),
@@ -105,7 +106,7 @@ async def create_user_open(
     user = await crud.user.create(db_session, obj_in=user_in)
 
     access_token = security.create_access_token(user.id)
-    refresh_token = security.create_refresh_token(user.id)
+    refresh_token = security.create_refresh_token(user.id, redis_client)
 
     return UserWithTokens(
         **user.model_dump(),

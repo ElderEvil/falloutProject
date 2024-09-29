@@ -36,6 +36,12 @@ class GenderEnum(CaseInsensitiveEnum):
     FEMALE = "female"
 
 
+class ItemTypeEnum(CaseInsensitiveEnum):
+    WEAPON = "weapon"
+    OUTFIT = "outfit"
+    JUNK = "junk"
+
+
 class JunkTypeEnum(CaseInsensitiveEnum):
     CIRCUITRY = "circuitry"
     LEATHER = "leather"

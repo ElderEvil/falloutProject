@@ -2,15 +2,18 @@ import random
 from typing import Any
 
 from pydantic import UUID4
+from sqlalchemy import update
+from sqlalchemy.orm import aliased
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CreateSchemaType, CRUDBase, ModelType, UpdateSchemaType
 
 # from app.crud.mixins import SellItemMixin
-from app.models import Vault
+from app.models import Outfit, Storage, Vault, Weapon
 from app.models.dweller import Dweller
 from app.models.junk import Junk
-from app.schemas.common import JunkTypeEnum, RarityEnum
+from app.schemas.common import ItemTypeEnum, JunkTypeEnum, RarityEnum
 from app.utils.exceptions import ContentNoChangeException, InvalidItemAssignmentException, ResourceNotFoundException
 
 SAME_RARITY_JUNK_PROBABILITY = 0.4
@@ -33,50 +36,112 @@ class CRUDItem(
         id: int | UUID4,
         obj_in: UpdateSchemaType | dict[str, Any],
     ) -> ModelType:
-        if obj_in.storage_id and obj_in.dweller_id:
+        if obj_in.storage and obj_in.dweller:
             raise InvalidItemAssignmentException(self.model)
         return await super().update(db_session, id=id, obj_in=obj_in)
 
-    async def equip(self, *, db_session: AsyncSession, item_id: UUID4, dweller_id: UUID4) -> ModelType | None:
-        dweller = await db_session.get(Dweller, dweller_id)
-        if not dweller:
+    async def equip(self, *, db_session: AsyncSession, item_id: UUID4, dweller_id: UUID4) -> ModelType:
+        query = (
+            select(Dweller, self.model)
+            .outerjoin(self.model, (Dweller.id == self.model.dweller_id) | (self.model.id == item_id))
+            .where(Dweller.id == dweller_id)
+        )
+        result = await db_session.execute(query)
+        row = result.first()
+
+        if not row or not row.Dweller:
             raise ResourceNotFoundException(Dweller, identifier=dweller_id)
 
-        item_attr = f"{self.model.__name__.lower()}_id"
-        if getattr(dweller, item_attr, None) is not None:
-            raise ContentNoChangeException(
-                detail=f"Dweller {dweller_id} already has a {self.model.__name__.lower()} equipped."
-            )
+        dweller, item = row
 
-        item = await self.get(db_session=db_session, id=item_id)
         if not item:
-            raise ResourceNotFoundException(self.model, identifier=item_id)
+            # The item wasn't found in the join, so we need to fetch it separately
+            item = await db_session.get(self.model, item_id)
+            if not item:
+                raise ResourceNotFoundException(self.model, identifier=item_id)
 
-        setattr(dweller, item_attr, item.id)
+        item_attr = self.model.__name__.lower()
+        current_item = getattr(dweller, item_attr)
+
+        if current_item:
+            if current_item.id == item_id:
+                raise ContentNoChangeException(detail=f"Dweller {dweller_id} already has this {item_attr} equipped.")
+            # Unequip the current item
+            current_item.dweller_id = None
+            current_item.storage_id = dweller.vault.storage.id
+            db_session.add(current_item)
+
+        # Equip the new item
+        item.dweller_id = dweller.id
+        item.storage_id = None
+        setattr(dweller, item_attr, item)
+
+        db_session.add(item)
+        db_session.add(dweller)
         await db_session.commit()
+        await db_session.refresh(item)
+
         return item
 
-    async def unequip(self, *, db_session: AsyncSession, item_id: UUID4) -> None:
-        item_in_db = await db_session.get(self.model, item_id)
-        if not item_in_db:
-            raise ResourceNotFoundException(self.model, identifier=item_id)
+    @staticmethod
+    async def _fetch_unequip_data(
+        db_session: AsyncSession, item_id: UUID4
+    ) -> tuple[Dweller, UUID4, str] | tuple[None, None, None]:
+        WeaponAlias, OutfitAlias = aliased(Weapon), aliased(Outfit)  # noqa: N806
 
-        dweller = await db_session.get(Dweller, item_in_db.dweller_id)
+        query = (
+            select(Dweller, Storage.id.label("storage_id"), (WeaponAlias.id != None).label("is_weapon"))  # noqa: E711
+            .select_from(Dweller)
+            .join(Vault, Dweller.vault_id == Vault.id)
+            .join(Storage, Vault.id == Storage.vault_id)
+            .outerjoin(WeaponAlias, (Dweller.id == WeaponAlias.dweller_id) & (WeaponAlias.id == item_id))
+            .outerjoin(OutfitAlias, (Dweller.id == OutfitAlias.dweller_id) & (OutfitAlias.id == item_id))
+            .where((WeaponAlias.id == item_id) | (OutfitAlias.id == item_id))
+        )
+
+        result = await db_session.execute(query)
+        row = result.first()
+
+        if not row:
+            return None, None, None
+
+        dweller, storage_id, is_weapon = row
+        item_type = ItemTypeEnum.WEAPON if is_weapon else ItemTypeEnum.OUTFIT
+
+        return dweller, storage_id, item_type
+
+    @staticmethod
+    def _get_item_model(item_type: str) -> type[Weapon] | type[Outfit]:
+        return Weapon if item_type == ItemTypeEnum.WEAPON else Outfit
+
+    @staticmethod
+    async def _update_item(
+        db_session: AsyncSession, item_model: type[Weapon] | type[Outfit], item_id: UUID4, storage_id: UUID4
+    ) -> None:
+        await db_session.execute(
+            update(item_model).where(item_model.id == item_id).values(dweller_id=None, storage_id=storage_id)
+        )
+
+    @staticmethod
+    async def _update_dweller(db_session: AsyncSession, dweller: Dweller, item_type: str) -> None:
+        setattr(dweller, item_type, None)
+        db_session.add(dweller)
+
+    async def unequip(self, *, db_session: AsyncSession, item_id: UUID4) -> None:
+        dweller, storage_id, item_type = await self._fetch_unequip_data(db_session, item_id)
 
         if not dweller:
-            raise ResourceNotFoundException(Dweller, identifier=item_in_db.dweller_id)
+            raise ResourceNotFoundException(Dweller, identifier=item_id)
 
-        item_attr = f"{self.model.__name__.lower()}_id"
-        if getattr(dweller, item_attr) is None:
-            raise ContentNoChangeException(
-                detail=f"Dweller {dweller} does not have a {self.model.__name__.lower()} equipped."
-            )
+        item_model = self._get_item_model(item_type)
 
-        setattr(dweller, item_attr, None)
+        await self._update_item(db_session, item_model, item_id, storage_id)
+        await self._update_dweller(db_session, dweller, item_type)
+
         await db_session.commit()
 
     @staticmethod
-    def convert_to_junk(item) -> list[Junk]:
+    def convert_to_junk(item: Weapon | Outfit) -> list[Junk]:
         """
         Converts an item into junk based on its rarity.
         Junk is generated with probabilities depending on the item's rarity.
@@ -143,8 +208,8 @@ class CRUDItem(
         if not item:
             raise ResourceNotFoundException(self.model, identifier=item_id)
 
-        entity = storage if (storage := item.storage) else item.dweller
+        host_entity = storage if (storage := item.storage) else item.dweller
 
-        await self.add_caps_to_vault(db_session, entity.vault_id, item.value)  # TODO: test item storage
+        await self.add_caps_to_vault(db_session, host_entity.vault_id, item.value)  # TODO: test item storage
         await db_session.delete(item)
         await db_session.commit()

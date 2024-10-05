@@ -62,7 +62,7 @@ async def test_read_weapon_list(async_client: AsyncClient, async_session: AsyncS
         response_weapon_1, response_weapon_2 = response_weapon_2, response_weapon_1
     assert response_weapon_1["name"] == weapon_1.name
     assert response_weapon_1["rarity"] == weapon_1.rarity.value
-    assert response_weapon_1["value"] == weapon_1["value"]
+    assert response_weapon_1["value"] == weapon_1.value
     assert response_weapon_1["weapon_type"] == weapon_1.weapon_type.value
     assert response_weapon_1["weapon_subtype"] == weapon_1.weapon_subtype.value
     assert response_weapon_1["stat"] == weapon_1.stat
@@ -71,7 +71,7 @@ async def test_read_weapon_list(async_client: AsyncClient, async_session: AsyncS
 
     assert response_weapon_2["name"] == weapon_2.name
     assert response_weapon_2["rarity"] == weapon_2.rarity.value
-    assert response_weapon_2["value"] == weapon_2["value"]
+    assert response_weapon_2["value"] == weapon_2.value
     assert response_weapon_2["weapon_type"] == weapon_2.weapon_type.value
     assert response_weapon_2["weapon_subtype"] == weapon_2.weapon_subtype.value
     assert response_weapon_2["stat"] == weapon_2.stat

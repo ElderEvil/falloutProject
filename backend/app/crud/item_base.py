@@ -36,7 +36,7 @@ class CRUDItem(
         id: int | UUID4,
         obj_in: UpdateSchemaType | dict[str, Any],
     ) -> ModelType:
-        if obj_in.storage and obj_in.dweller:
+        if obj_in.storage_id and obj_in.dweller_id:
             raise InvalidItemAssignmentException(self.model)
         return await super().update(db_session, id=id, obj_in=obj_in)
 

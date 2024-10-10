@@ -10,9 +10,14 @@ from app.tests.factory.dwellers import create_fake_dweller
 
 
 @pytest.mark.asyncio
-async def test_create_dweller(async_client: AsyncClient, room: Room, dweller_data: dict) -> None:
+async def test_create_dweller(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    room: Room,
+    dweller_data: dict,
+) -> None:
     dweller_data.update({"vault_id": str(room.vault_id), "room_id": str(room.id)})
-    response = await async_client.post("/dwellers/", json=dweller_data)
+    response = await async_client.post("/dwellers/", json=dweller_data, headers=superuser_token_headers)
     assert response.status_code == 200
     response_data = response.json()
     assert response_data["first_name"] == dweller_data["first_name"]
@@ -34,6 +39,7 @@ async def test_create_dweller(async_client: AsyncClient, room: Room, dweller_dat
 async def test_read_dweller_list(
     async_client: AsyncClient,
     async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
     room: Room,
     dweller_data: dict,
 ) -> None:
@@ -45,7 +51,7 @@ async def test_read_dweller_list(
     dweller_2 = DwellerCreate(**dweller_2_data)
     await crud.dweller.create(async_session, dweller_1)
     await crud.dweller.create(async_session, dweller_2)
-    response = await async_client.get("/dwellers/")
+    response = await async_client.get("/dwellers/", headers=superuser_token_headers)
     assert response.status_code == 200
     dwellers = response.json()
     assert len(dwellers) == 2
@@ -61,8 +67,12 @@ async def test_read_dweller_list(
 
 
 @pytest.mark.asyncio
-async def test_read_dweller(async_client: AsyncClient, dweller: Dweller) -> None:
-    response = await async_client.get(f"/dwellers/{dweller.id}")
+async def test_read_dweller(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    dweller: Dweller,
+) -> None:
+    response = await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
     assert response.status_code == 200
     response_data = response.json()
     dweller_data = dweller.model_dump()
@@ -82,9 +92,15 @@ async def test_read_dweller(async_client: AsyncClient, dweller: Dweller) -> None
 
 
 @pytest.mark.asyncio
-async def test_update_dweller(async_client: AsyncClient, dweller: Dweller) -> None:
+async def test_update_dweller(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    dweller: Dweller,
+) -> None:
     dweller_new_data = create_fake_dweller()
-    update_response = await async_client.put(f"/dwellers/{dweller.id}", json=dweller_new_data)
+    update_response = await async_client.put(
+        f"/dwellers/{dweller.id}", json=dweller_new_data, headers=superuser_token_headers
+    )
     updated_dweller = update_response.json()
     assert update_response.status_code == 200
     assert updated_dweller["id"] == str(dweller.id)
@@ -101,8 +117,12 @@ async def test_update_dweller(async_client: AsyncClient, dweller: Dweller) -> No
 
 
 @pytest.mark.asyncio
-async def test_delete_dweller(async_client: AsyncClient, dweller: Dweller) -> None:
-    delete_response = await async_client.delete(f"/dwellers/{dweller.id}")
+async def test_delete_dweller(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    dweller: Dweller,
+) -> None:
+    delete_response = await async_client.delete(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
     assert delete_response.status_code == 204
-    read_response = await async_client.get(f"/dwellers/{dweller.id}")
+    read_response = await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
     assert read_response.status_code == 404

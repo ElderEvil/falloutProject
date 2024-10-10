@@ -4,36 +4,35 @@ version = "0.1.0"
 description = "Fallout Shelter FastAPI Game is a web-based simulation game where the player manages a vault full of dwellers, balancing their needs and resources to keep the vault thriving."
 authors = [{ name = "ElderEvil", email = "lordofelderevil@gmail.com" }, ]
 dependencies = [
-    "alembic==1.13.2",
+    "alembic==1.13.3",
     "asyncpg==0.29.0",
     "celery==5.4.0",
     "email_validator==2.2.0",
-    "faker==28.4.1",
-    "fastapi==0.114.0",
-    "logfire[fastapi,sqlalchemy,system-metrics]==0.52.0",
-    "minio==7.2.8",
-    "openai==1.44.0",
+    "faker==30.3.0",
+    "fastapi==0.115.0",
+    "minio==7.2.9",
+    "openai==1.51.2",
     "passlib[bcrypt]==1.7.4",
     "pillow==10.4.0",
-    "psycopg==3.2.1",
-    "pydantic-settings==2.4.0",
-    "python-multipart==0.0.9",
+    "psycopg==3.2.3",
+    "pydantic-settings==2.5.2",
+    "python-multipart==0.0.12",
     "python-jose[cryptography]==3.3.0",
-    "redis==5.0.8",
+    "redis==5.1.1",
     "sqladmin[full]==0.19.0",
     "sqlmodel==0.0.22",
-    "uvicorn[standard]==0.30.6",
+    "uvicorn[standard]==0.31.1",
 ]
 requires-python = ">= 3.12"
 
 [project.optional-dependencies]
 dev = [
-    "pre-commit==3.8.0",
-    "ruff==0.6.4",
+    "pre-commit==4.0.1",
+    "ruff==0.6.9",
     "aiosqlite==0.20.0",
     "factory-boy==3.3.1",
-    "coverage==7.6.1",
-    "pytest==8.3.2",
+    "coverage==7.6.2",
+    "pytest==8.3.3",
     "pytest-asyncio==0.24.0",
     "pytest-cov==5.0.0",
 ]

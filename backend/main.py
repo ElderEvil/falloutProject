@@ -11,8 +11,6 @@ from app.admin.views import (
     OutfitAdmin,
     PromptAdmin,
     QuestAdmin,
-    QuestChainAdmin,
-    QuestObjectiveAdmin,
     RoomAdmin,
     StorageAdmin,
     UserAdmin,
@@ -54,9 +52,7 @@ admin.add_view(DwellerAdmin)
 admin.add_view(OutfitAdmin)
 admin.add_view(WeaponAdmin)
 admin.add_view(JunkAdmin)
-admin.add_view(QuestChainAdmin)
 admin.add_view(QuestAdmin)
-admin.add_view(QuestObjectiveAdmin)
 admin.add_view(ObjectiveAdmin)
 admin.add_view(PromptAdmin)
 admin.add_view(LLInteractionAdmin)

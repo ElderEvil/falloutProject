@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 
 interface Vault {
   id: string
-  name: string
+  number: number
   bottle_caps: number
   happiness: number
   power: number
@@ -95,7 +95,7 @@ export const useVaultStore = defineStore('vault', {
         this.loadedVaults[id] = response.data
         this.activeVaultId = id
         const router = useRouter()
-        router.push('/vault')
+        await router.push('/vault')
       } catch (error) {
         console.error('Failed to load vault', error)
         throw error

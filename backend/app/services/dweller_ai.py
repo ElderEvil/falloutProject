@@ -46,7 +46,7 @@ class DwellerAIService:
 
         if origin and origin.lower().startswith("vault"):
             dweller_vault = await vault_crud.get(db_session, dweller_obj.vault_id)
-            if origin == dweller_vault.name:
+            if origin == dweller_vault.number:
                 origin = "this vault from childhood"
 
         special_stats = ", ".join(f"{stat}: {getattr(dweller_obj, stat)}" for stat in SPECIALModel.__annotations__)

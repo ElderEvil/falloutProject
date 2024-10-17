@@ -5,7 +5,7 @@ from app.models.dweller import Dweller
 from app.models.junk import Junk
 from app.models.outfit import Outfit
 from app.models.prompt import Prompt
-from app.models.quest import Quest, QuestChain, QuestObjective
+from app.models.quest import Quest
 from app.models.room import Room
 from app.models.user import User
 from app.models.vault import Vault
@@ -27,7 +27,7 @@ class UserAdmin(ModelView, model=User):
 class VaultAdmin(ModelView, model=Vault):
     column_list = [
         Vault.id,
-        Vault.name,
+        Vault.number,
         Vault.bottle_caps,
         Vault.happiness,
         Vault.power,
@@ -91,29 +91,11 @@ class OutfitAdmin(ModelView, model=Outfit):
     icon = "fa-solid fa-tshirt"
 
 
-class QuestChainAdmin(ModelView, model=QuestChain):
-    column_list = [
-        QuestChain.id,
-        QuestChain.title,
-    ]
-
-    icon = "fa-solid fa-tasks"
-
-
 class QuestAdmin(ModelView, model=Quest):
     column_list = [
         Quest.id,
         Quest.title,
         Quest.short_description,
-    ]
-
-    icon = "fa-solid fa-tasks"
-
-
-class QuestObjectiveAdmin(ModelView, model=QuestObjective):
-    column_list = [
-        QuestObjective.id,
-        QuestObjective.quest,
     ]
 
     icon = "fa-solid fa-tasks"

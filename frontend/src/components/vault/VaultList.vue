@@ -47,7 +47,7 @@ const handleDeleteVault = async (id: string) => {
         "
       >
         <div>
-          <h3 class="text-xl font-bold">Vault {{ vault.name }}</h3>
+          <h3 class="text-xl font-bold">Vault {{ vault.number }}</h3>
           <p>Last Updated: {{ new Date(vault.updated_at).toLocaleString() }}</p>
           <p>Bottle Caps: {{ vault.bottle_caps }}</p>
           <p>Happiness: {{ vault.happiness }}%</p>

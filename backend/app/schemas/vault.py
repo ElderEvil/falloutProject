@@ -8,7 +8,7 @@ from app.utils.partial import optional
 
 
 class VaultCreate(VaultBase):
-    name: int = Field(gt=0, lt=1_000)
+    pass
 
 
 class VaultCreateWithUserID(VaultBase):

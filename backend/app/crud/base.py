@@ -141,12 +141,53 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         await db_session.refresh(db_obj)
         return db_obj
 
+    async def upsert(
+        self, db_session: AsyncSession, obj_in: CreateSchemaType | UpdateSchemaType, id: int | UUID4 = None
+    ) -> ModelType:
+        """
+        Inserts a new item or updates an existing one based on its ID.
+
+        :param db_session: A database session.
+        :param obj_in: The object to create or update.
+        :param id: The ID to check if the object exists.
+        :returns: The created or updated item.
+        """
+        if id:
+            try:
+                existing_obj = await self.get(db_session, id)
+                update_data = obj_in.model_dump(exclude_unset=True)
+                for field, value in update_data.items():
+                    setattr(existing_obj, field, value)
+                db_session.add(existing_obj)
+            except ResourceNotFoundException:
+                existing_obj = self.model.model_validate(obj_in)
+                db_session.add(existing_obj)
+        else:
+            existing_obj = self.model.model_validate(obj_in)
+            db_session.add(existing_obj)
+
+        await db_session.commit()
+        await db_session.refresh(existing_obj)
+        return existing_obj
+
+    async def exists(self, db_session: AsyncSession, **filters: Any) -> bool:
+        """
+        Checks if any record exists matching the given filters.
+
+        :param db_session: A database session.
+        :param filters: Key-value pairs to filter the records.
+        :returns: True if a record exists, otherwise False.
+        """
+        query = select(func.count()).select_from(self.model).filter_by(**filters)
+        result = await db_session.execute(query)
+        return result.scalar() > 0
+
     async def delete(self, db_session: AsyncSession, id: int | UUID4) -> ModelType:
         """
         Remove a database object with the given ID.
 
         If the object exists, it is deleted from the database and returned.
-        If the object does not exist, None is returned instead.
+        If the object does not exist, error is raised.
 
         :param db_session: A database session
         :param id: ID of the object to remove

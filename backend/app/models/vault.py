@@ -6,15 +6,13 @@ from sqlmodel import Field, Relationship, SQLModel
 from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.models.vault_quest import (
-    VaultQuestChainCompletionLink,
     VaultQuestCompletionLink,
-    VaultQuestObjectiveCompletionLink,
 )
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller
     from app.models.objective import Objective
-    from app.models.quest import Quest, QuestChain, QuestObjective
+    from app.models.quest import Quest
     from app.models.room import Room
     from app.models.storage import Storage
     from app.models.user import User
@@ -22,7 +20,7 @@ if TYPE_CHECKING:
 
 class VaultBase(SQLModel):
     # General information
-    name: int = Field(index=True, gt=0, lt=1_000)
+    number: int = Field(index=True, gt=0, lt=1_000)
     bottle_caps: int = Field(default=1_000, ge=0, lt=1_000_000, alias="CAPS")
     happiness: int = Field(default=50, ge=0, le=100)
 
@@ -41,7 +39,7 @@ class VaultBase(SQLModel):
     # game_state: GameStatusEnum = Field(default=GameStatusEnum.ACTIVE)
 
     def __str__(self):
-        return f"Vault {self.name:03}"
+        return f"Vault {self.number:03}"
 
 
 class Vault(BaseUUIDModel, VaultBase, TimeStampMixin, table=True):
@@ -52,19 +50,9 @@ class Vault(BaseUUIDModel, VaultBase, TimeStampMixin, table=True):
     rooms: list["Room"] = Relationship(back_populates="vault", cascade_delete=True)
     storage: "Storage" = Relationship(back_populates="vault", cascade_delete=True)
 
-    quest_chains: list["QuestChain"] = Relationship(
-        back_populates="vaults",
-        link_model=VaultQuestChainCompletionLink,
-    )
-
     quests: list["Quest"] = Relationship(
         back_populates="vaults",
         link_model=VaultQuestCompletionLink,
-    )
-
-    quest_objectives: list["QuestObjective"] = Relationship(
-        back_populates="vaults",
-        link_model=VaultQuestObjectiveCompletionLink,
     )
 
     objectives: list["Objective"] = Relationship(

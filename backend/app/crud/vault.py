@@ -32,7 +32,8 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             return current_capacity + room_capacity
         if action == RoomActionEnum.DESTROY:
             return current_capacity - room_capacity
-        raise ValueError(f"Invalid room action: {action}")  # noqa: TRY003
+        msg = f"Invalid room action: {action}"
+        raise ValueError(msg)
 
     async def recalculate_vault_attributes(
         self, *, db_session: AsyncSession, vault_obj: Vault, room_obj: Room, action: RoomActionEnum
@@ -126,7 +127,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         vaults = result.all()
         return [
             VaultReadWithNumbers(
-                **vault_obj.dict(),
+                **vault_obj.model_dump(),
                 room_count=room_count,
                 dweller_count=dweller_count,
             )

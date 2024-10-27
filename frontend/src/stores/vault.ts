@@ -52,11 +52,11 @@ export const useVaultStore = defineStore('vault', {
         console.error('Failed to fetch vaults', error)
       }
     },
-    async createVault(name: string, token: string) {
+    async createVault(number: number, token: string) {
       try {
         await axios.post(
           '/api/v1/vaults/initiate',
-          { name },
+          { number },
           {
             headers: {
               Authorization: `Bearer ${token}`

@@ -20,9 +20,9 @@ const sortedVaults = computed(() =>
 )
 
 const createVault = async () => {
-  const name = newVaultName.value.trim()
-  if (name) {
-    await vaultStore.createVault(name, authStore.token as string)
+  const number = newVaultName.value.trim()
+  if (number) {
+    await vaultStore.createVault(number, authStore.token as string)
     newVaultName.value = ''
     await vaultStore.fetchVaults(authStore.token as string)
   }

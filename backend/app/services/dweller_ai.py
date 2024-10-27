@@ -6,7 +6,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
-from app.crud.vault import vault as vault_crud
 from app.models import User
 from app.models.base import SPECIALModel
 from app.schemas.common import GenderEnum
@@ -44,16 +43,13 @@ class DwellerAIService:
         if dweller_obj.bio:
             raise ContentNoChangeException(detail="Dweller already has a bio")
 
-        if origin and origin.lower().startswith("vault"):
-            dweller_vault = await vault_crud.get(db_session, dweller_obj.vault_id)
-            if origin == dweller_vault.number:
-                origin = "this vault from childhood"
+        origin = f"living in {origin}" or "living in Wasteland"
 
         special_stats = ", ".join(f"{stat}: {getattr(dweller_obj, stat)}" for stat in SPECIALModel.__annotations__)
         system_prompt = (
             "Generate a Fallout game series style biography for a dweller"
             f"Include details about {GENDER_PRONOUNS_MAP[dweller_obj.gender]} background, skills, and personality "
-            f"traits as they relate to living in {origin} and surviving in the post-apocalyptic world. "
+            f"traits as they relate to {origin} and surviving in the post-apocalyptic world. "
             f"Use the dweller's SPECIAL attributes to help create a unique backstory. {special_stats}"
             f"The bio should be a maximum of {BIO_MAX_LENGTH} symbols."
         )

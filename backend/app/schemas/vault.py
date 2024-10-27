@@ -16,7 +16,7 @@ class VaultCreateWithUserID(VaultBase):
 
 
 class VaultNumber(SQLModel):
-    name: int = Field(gt=0, lt=1_000)
+    number: int = Field(gt=0, lt=1_000)
 
 
 class VaultRead(VaultBase):

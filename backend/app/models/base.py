@@ -8,8 +8,8 @@ from sqlmodel import Field, SQLModel
 class TimeStampMixin(SQLModel):
     created_at: datetime | None = Field(default_factory=datetime.utcnow)
     updated_at: datetime | None = Field(
-        default_factory=lambda: datetime.now(tz=UTC),
-        sa_column_kwargs={"onupdate": datetime.now(tz=UTC)},
+        default_factory=datetime.utcnow,
+        sa_column_kwargs={"onupdate": datetime.utcnow},
     )
 
 

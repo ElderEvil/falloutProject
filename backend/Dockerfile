@@ -2,7 +2,7 @@
 FROM python:3.12.1-slim-bullseye
 
 # Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Create a non-root user
 RUN useradd -m appuser

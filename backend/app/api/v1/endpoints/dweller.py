@@ -34,6 +34,7 @@ async def create_dweller(
 
 @router.get("/", response_model=list[DwellerReadLess])
 async def read_dweller_list(
+    # vault_id: UUID4,
     _: CurrentSuperuser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     skip: int = 0,

@@ -12,7 +12,7 @@ fake = Faker()
 
 
 def get_gender_based_name(gender: GenderEnum):
-    return fake.first_name_male() if gender.value == "Male" else fake.first_name_female()
+    return fake.first_name_male() if gender == GenderEnum.MALE else fake.first_name_female()
 
 
 def get_name_two_words():

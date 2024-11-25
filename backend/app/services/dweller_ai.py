@@ -36,20 +36,19 @@ class DwellerAIService:
         db_session: AsyncSession,
         dweller_id: UUID4 | None = None,
         dweller_info: DwellerReadFull | None = None,
-        origin: str | None = "Wasteland",
+        origin: str | None = None,
     ) -> DwellerReadFull:
         """Generate a backstory for a dweller."""
         dweller_obj = dweller_info or await dweller_crud.get_full_info(db_session, dweller_id)
         if dweller_obj.bio:
             raise ContentNoChangeException(detail="Dweller already has a bio")
 
-        origin = f"living in {origin}" or "living in Wasteland"
-
+        location = origin or "Wasteland"
         special_stats = ", ".join(f"{stat}: {getattr(dweller_obj, stat)}" for stat in SPECIALModel.__annotations__)
         system_prompt = (
             "Generate a Fallout game series style biography for a dweller"
             f"Include details about {GENDER_PRONOUNS_MAP[dweller_obj.gender]} background, skills, and personality "
-            f"traits as they relate to {origin} and surviving in the post-apocalyptic world. "
+            f"traits as they relate to living in {location} and surviving in the post-apocalyptic world. "
             f"Use the dweller's SPECIAL attributes to help create a unique backstory. {special_stats}"
             f"The bio should be a maximum of {BIO_MAX_LENGTH} symbols."
         )

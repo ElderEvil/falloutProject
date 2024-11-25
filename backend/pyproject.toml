@@ -37,7 +37,6 @@ test = [
 ]
 lint = [
     "pre-commit>=4.0.1",
-    "pyright>=1.1.386",
     "ruff>=0.7.1",
 ]
 

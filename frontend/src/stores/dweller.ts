@@ -34,7 +34,7 @@ export const useDwellerStore = defineStore('dweller', {
         return null
       }
     },
-    async generateDwellerImage(id: string, token: string) {
+    async generateDwellerInfo(id: string, token: string) {
       try {
         const response = await axios.post(`/api/v1/dwellers/${id}/generate_with_ai/`, null, {
           headers: {

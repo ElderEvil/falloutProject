@@ -42,12 +42,12 @@ const navigateToChatPage = (dwellerId: string) => {
   router.push(`/dweller/${dwellerId}/chat`)
 }
 
-const generateDwellerImage = async (dwellerId: string) => {
+const generateDwellerInfo = async (dwellerId: string) => {
   loadingDetails.value = true
   try {
-    await dwellerStore.generateDwellerImage(dwellerId, authStore.token as string)
+    await dwellerStore.generateDwellerInfo(dwellerId, authStore.token as string)
   } catch (error) {
-    console.error('Error generating image:', error)
+    console.error('Error generating info with AI:', error)
   } finally {
     loadingDetails.value = false
   }
@@ -79,8 +79,8 @@ const generateDwellerImage = async (dwellerId: string) => {
               <template v-else>
                 <UserCircleIcon class="h-24 w-24 text-gray-400" />
                 <SparklesIcon
-                  @click.stop="generateDwellerImage(dweller.id)"
-                  class="mt-2 h-6 w-6 cursor-pointer text-green-500 hover:text-green-600"
+                  @click.stop="generateDwellerInfo(dweller.id)"
+                  class="mt-2 h-6 w-6 cursor-pointer text-green-600 hover:text-green-500"
                 />
               </template>
             </div>

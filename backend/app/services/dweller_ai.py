@@ -125,7 +125,7 @@ class DwellerAIService:
             raise ContentNoChangeException(detail="Dweller already has visual attributes")
 
         visual_options = """
-        age: teenager, adult, elder
+        age: teenager, adult, senior, elder
         height: tall, average, short
         eye_color: blue, green, brown, hazel, gray
         appearance: attractive, cute, average, unattractive

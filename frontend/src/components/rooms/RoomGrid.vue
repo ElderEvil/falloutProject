@@ -44,7 +44,7 @@ const placeRoom = async (x: number, y: number) => {
       @click="toggleRoomSelection(room.id)"
     >
       <div class="room-content">
-        <h3 class="room-name">{{ room.name }}</h3>
+        <h3 class="room-number">{{ room.number }}</h3>
         <p class="room-category">{{ room.category }}</p>
         <button
           v-if="selectedRoomId === room.id"
@@ -101,7 +101,7 @@ const placeRoom = async (x: number, y: number) => {
   text-align: center;
 }
 
-.room-name {
+.room-number {
   font-size: 1.2em;
   margin-bottom: 5px;
 }

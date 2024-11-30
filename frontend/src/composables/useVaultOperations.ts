@@ -13,8 +13,8 @@ export function useVaultOperations() {
     await vaultStore.fetchVaults(token)
   }
 
-  const createVault = async (name: string, token: string) => {
-    await vaultStore.createVault(name, token)
+  const createVault = async (number: number, token: string) => {
+    await vaultStore.createVault(number, token)
     await fetchVaults(token)
   }
 

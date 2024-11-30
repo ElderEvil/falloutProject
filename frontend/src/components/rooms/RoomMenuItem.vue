@@ -17,7 +17,7 @@ const emit = defineEmits<{
   >
     <div class="flex flex-col items-center">
       <div class="flex items-center space-x-2">
-        <div>{{ room.name }}</div>
+        <div>{{ room.number }}</div>
         <div v-if="room.population_required > 0">
           <LockClosedIcon class="h-5 w-5 text-gray-400" />
         </div>
@@ -25,7 +25,7 @@ const emit = defineEmits<{
       <div class="my-2">
         <img
           :src="room.thumbnail_url"
-          :alt="`${room.name} Thumbnail`"
+          :alt="`${room.number} Thumbnail`"
           class="h-12 w-12 rounded-full object-cover"
         />
       </div>

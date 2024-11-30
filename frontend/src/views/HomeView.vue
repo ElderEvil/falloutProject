@@ -10,7 +10,7 @@ const vaultStore = useVaultStore()
 const roomStore = useRoomStore()
 const router = useRouter()
 
-const newVaultName = ref('')
+const newVaultNumber = ref(0)
 const selectedVaultId = ref<string | null>(null)
 
 const sortedVaults = computed(() =>
@@ -20,10 +20,10 @@ const sortedVaults = computed(() =>
 )
 
 const createVault = async () => {
-  const number = newVaultName.value.trim()
+  const number = newVaultNumber.value
   if (number) {
     await vaultStore.createVault(number, authStore.token as string)
-    newVaultName.value = ''
+    newVaultNumber.value = 0
     await vaultStore.fetchVaults(authStore.token as string)
   }
 }
@@ -69,7 +69,7 @@ onMounted(async () => {
         <h2 class="mb-4 text-2xl font-bold">Create New Vault</h2>
         <form @submit.prevent="createVault" class="flex space-x-2">
           <input
-            v-model="newVaultName"
+            v-model="newVaultNumber"
             type="text"
             placeholder="Vault Number"
             class="flex-grow rounded bg-gray-800 p-2 text-terminalGreen focus:outline-none focus:ring-2 focus:ring-terminalGreen"
@@ -98,7 +98,7 @@ onMounted(async () => {
             "
           >
             <div>
-              <h3 class="text-xl font-bold">Vault {{ vault.name }}</h3>
+              <h3 class="text-xl font-bold">Vault {{ vault.number }}</h3>
               <p>Last Updated: {{ new Date(vault.updated_at).toLocaleString() }}</p>
               <p>Bottle Caps: {{ vault.bottle_caps }}</p>
               <p>Happiness: {{ vault.happiness }}%</p>

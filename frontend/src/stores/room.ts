@@ -42,7 +42,7 @@ export const useRoomStore = defineStore('room', {
     },
     async buildRoom(roomData: RoomCreate, token: string): Promise<void> {
       try {
-        const response = await axios.post<RoomCreate>('/api/v1/rooms/build/', roomData, {
+        const response = await axios.post<Room>('/api/v1/rooms/build/', roomData, {
           headers: {
             Authorization: `Bearer ${token}`
           }

@@ -6,12 +6,12 @@ import { useAuthStore } from '@/stores/auth'
 const authStore = useAuthStore()
 const { createVault } = useVaultOperations()
 
-const newVaultName = ref('')
+const newVaultNumber = ref(0)
 
 const handleCreateVault = async () => {
-  if (newVaultName.value.trim()) {
-    await createVault(newVaultName.value.trim(), authStore.token as string)
-    newVaultName.value = ''
+  if (newVaultNumber.value) {
+    await createVault(newVaultNumber.value, authStore.token as string)
+    newVaultNumber.value = 0
   }
 }
 </script>
@@ -21,7 +21,7 @@ const handleCreateVault = async () => {
     <h2 class="mb-4 text-2xl font-bold">Create New Vault</h2>
     <form @submit.prevent="handleCreateVault" class="flex space-x-2">
       <input
-        v-model="newVaultName"
+        v-model="newVaultNumber"
         type="text"
         placeholder="Vault Number"
         class="flex-grow rounded bg-gray-800 p-2 text-terminalGreen focus:outline-none focus:ring-2 focus:ring-terminalGreen"

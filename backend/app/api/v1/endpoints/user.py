@@ -106,7 +106,7 @@ async def create_user_open(
     user = await crud.user.create(db_session, obj_in=user_in)
 
     access_token = security.create_access_token(user.id)
-    refresh_token = security.create_refresh_token(user.id, redis_client)
+    refresh_token = await security.create_refresh_token(user.id, redis_client)
 
     return UserWithTokens(
         **user.model_dump(),

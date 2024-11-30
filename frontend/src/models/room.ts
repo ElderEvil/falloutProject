@@ -1,6 +1,6 @@
 interface Room {
   id: string
-  name: string
+  number: number
   category: string
   ability: string
   population_required: number

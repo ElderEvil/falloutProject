@@ -1,66 +1,61 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
+import { NForm, NFormItem, NInput, NButton, useMessage } from 'naive-ui'
+import type { AuthForm } from '../../model/types'
 
-const authStore = useAuthStore()
+const userStore = useUserStore()
 const router = useRouter()
+const message = useMessage()
 
-const username = ref('')
-const password = ref('')
-const error = ref('')
+const form = ref<AuthForm>({
+  email: '',
+  password: ''
+})
 
-const handleSubmit = async () => {
-  const success = await authStore.login(username.value, password.value)
-  if (success) {
-    await router.push('/')
-  } else {
-    error.value = 'Invalid username or password'
+const handleLogin = async () => {
+  try {
+    const result = await userStore.login(form.value)
+    if (result.success) {
+      router.push('/vaults')
+    } else {
+      message.error(result.message || 'Login failed')
+    }
+  } catch (error) {
+    message.error('An error occurred during login')
   }
 }
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-gray-900">
-    <div class="w-full max-w-sm rounded-lg bg-gray-800 p-8 shadow-lg">
-      <h2 class="mb-6 text-center text-2xl font-bold text-green-500">Login</h2>
-      <form @submit.prevent="handleSubmit" class="space-y-4">
-        <div>
-          <label for="username" class="block text-sm font-medium text-gray-300">Email:</label>
-          <input
-            type="email"
-            id="username"
-            v-model="username"
-            required
-            class="mt-1 w-full rounded bg-gray-700 p-2 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-        </div>
-        <div>
-          <label for="password" class="block text-sm font-medium text-gray-300">Password:</label>
-          <input
-            type="password"
-            id="password"
-            v-model="password"
-            required
-            class="mt-1 w-full rounded bg-gray-700 p-2 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-        </div>
-        <button
-          type="submit"
-          class="w-full rounded bg-green-500 px-4 py-2 font-bold text-white hover:bg-green-400"
-        >
-          Login
-        </button>
-      </form>
-      <p v-if="error" class="mt-4 text-red-500">{{ error }}</p>
-      <p class="mt-4 text-gray-300">
-        Don't have an account?
-        <router-link to="/register" class="text-green-500 hover:underline">Register</router-link>
-      </p>
-    </div>
-  </div>
+  <NForm>
+    <NFormItem label="EMAIL">
+      <NInput v-model:value="form.email" placeholder="ENTER EMAIL" @keyup.enter="handleLogin" />
+    </NFormItem>
+    <NFormItem label="PASSWORD">
+      <NInput
+        v-model:value="form.password"
+        type="password"
+        placeholder="ENTER PASSWORD"
+        @keyup.enter="handleLogin"
+      />
+    </NFormItem>
+    <NButton type="primary" block @click="handleLogin"> INITIALIZE LOGIN SEQUENCE </NButton>
+  </NForm>
 </template>
 
 <style scoped>
-/* Scoped styles here if needed */
+:deep(.n-form-item) {
+  margin-bottom: 20px;
+}
+
+:deep(.n-form-item-label) {
+  font-family: 'Courier New', Courier, monospace;
+  color: #00ff00;
+}
+
+:deep(.n-button) {
+  font-family: 'Courier New', Courier, monospace;
+}
 </style>

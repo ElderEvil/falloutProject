@@ -1,16 +1,72 @@
 <script setup lang="ts">
-import { provide } from 'vue'
-import DefaultLayout from '@/components/layout/DefaultLayout.vue'
-import { useFlickering } from '@/composables/useFlickering'
+import { NConfigProvider, NMessageProvider } from 'naive-ui'
+import { useThemeStore } from './stores/theme'
 
-const { isFlickering, toggleFlickering } = useFlickering()
-
-provide('isFlickering', isFlickering)
-provide('toggleFlickering', toggleFlickering)
+const themeStore = useThemeStore()
 </script>
 
 <template>
-  <DefaultLayout :isFlickering="isFlickering">
-    <router-view></router-view>
-  </DefaultLayout>
+  <NConfigProvider :theme-overrides="themeStore.themeOverrides">
+    <NMessageProvider>
+      <div
+        class="terminal"
+        :style="{
+          '--theme-primary': themeStore.theme.colors.primary,
+          '--theme-background': themeStore.theme.colors.background,
+          '--theme-border': themeStore.theme.colors.border,
+          '--theme-text': themeStore.theme.colors.text,
+          '--theme-shadow': themeStore.theme.colors.shadow
+        }"
+      >
+        <router-view></router-view>
+      </div>
+    </NMessageProvider>
+  </NConfigProvider>
 </template>
+
+<style>
+body {
+  margin: 0;
+  background-color: var(--theme-background);
+  font-family: 'Courier New', Courier, monospace;
+  color: var(--theme-text);
+  overflow-x: hidden;
+}
+
+.terminal {
+  min-height: 100vh;
+  background: var(--theme-background);
+  position: relative;
+}
+
+.terminal * {
+  text-shadow: 0 0 5px var(--theme-shadow);
+}
+
+.terminal button {
+  text-shadow: 0 0 8px var(--theme-shadow);
+}
+
+.terminal h1,
+.terminal h2,
+.terminal h3 {
+  text-shadow: 0 0 10px var(--theme-shadow);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--theme-background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--theme-primary);
+  border: 1px solid var(--theme-background);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-hover);
+}
+</style>

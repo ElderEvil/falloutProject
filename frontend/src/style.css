@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--theme-background, #000000);
+  color: var(--theme-text, #00ff00);
+  font-family: 'Courier New', monospace;
+  text-shadow: 0 0 5px var(--theme-shadow);
+  line-height: 1.6;
+  font-size: 18px;
+  font-weight: 600;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: none;
+  margin: 0;
+  padding: 0;
+}
+
+#app {
+  background-color: var(--theme-background, #000000);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px var(--theme-shadow);
+}
+
+button, input, select {
+  font-family: 'Courier New', monospace;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.n-modal-container {
+  background: var(--theme-background) !important;
+  border: 2px solid var(--theme-border) !important;
+  box-shadow: var(--theme-modal-shadow) !important;
+}
+
+.n-modal-mask {
+  background-color: rgba(0, 0, 0, 0.85) !important;
+}
+
+.n-base-select-menu {
+  background: var(--theme-background) !important;
+  border: 2px solid var(--theme-border) !important;
+  box-shadow: var(--theme-modal-shadow) !important;
+}
+
+.n-dropdown-menu {
+  background: var(--theme-background) !important;
+  border: 2px solid var(--theme-border) !important;
+  box-shadow: var(--theme-modal-shadow) !important;
+}
+
+.n-dropdown-option {
+  color: var(--theme-text) !important;
+}
+
+.n-dropdown-option:hover {
+  background-color: rgba(0, 0, 0, 0.3) !important;
+  color: var(--theme-hover) !important;
+}
+
+.n-base-select-option {
+  color: var(--theme-text) !important;
+}
+
+.n-base-select-option:hover {
+  background-color: rgba(0, 0, 0, 0.3) !important;
+  color: var(--theme-hover) !important;
+}
+
+.n-input {
+  background-color: var(--theme-background) !important;
+  border: 2px solid var(--theme-border) !important;
+}
+
+.n-input:hover {
+  border-color: var(--theme-hover) !important;
+}
+
+.n-input:focus {
+  border-color: var(--theme-pressed) !important;
+  box-shadow: 0 0 10px var(--theme-shadow) !important;
+}
+
+@layer components {
+  .terminal-text {
+    @apply font-mono font-bold;
+    color: var(--theme-text);
+    text-shadow: 0 0 5px var(--theme-shadow);
+  }
+
+  .terminal-border {
+    border: 2px solid var(--theme-border);
+    box-shadow: 0 0 15px var(--theme-shadow);
+  }
+
+  .terminal-glow {
+    color: var(--theme-text);
+    text-shadow: 0 0 5px var(--theme-shadow);
+  }
+
+  .terminal-bg {
+    background-color: var(--theme-background);
+  }
+}
+
+/* Override Naive UI default font styles */
+:root {
+  --n-font-family: 'Courier New', monospace !important;
+}
+
+.n-button {
+  font-weight: 600 !important;
+}
+
+.n-card-header__main {
+  font-weight: 800 !important;
+}
+
+.n-input__input {
+  font-weight: 600 !important;
+}

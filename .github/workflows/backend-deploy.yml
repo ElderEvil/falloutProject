@@ -33,14 +33,14 @@ jobs:
         with:
           version: 'latest'
 
-      - name: Create .kube directory
-        run: |
-          mkdir -p $HOME/.kube
-
-      - name: Configure kubectl
-        run: |
-          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
-          chmod 600 $HOME/.kube/config
+      #      - name: Create .kube directory
+      #        run: |
+      #          mkdir -p $HOME/.kube
+      #
+      #      - name: Configure kubectl
+      #        run: |
+      #          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+      #          chmod 600 $HOME/.kube/config
 
       - name: Deploy to K3s
         run: |

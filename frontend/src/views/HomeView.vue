@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { useVaultStore } from '@/stores/vault'
+import { useVaultStore } from '@/stores/vault_old'
 import { useRoomStore } from '@/stores/room'
 import { useRouter } from 'vue-router'
 

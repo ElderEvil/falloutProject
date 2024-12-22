@@ -23,7 +23,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install dependencies
         run: cd ./frontend/ && npm install
@@ -44,32 +44,3 @@ jobs:
           file: ./frontend/Dockerfile
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/vuejs:latest
-
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: 'latest'
-
-      - name: Create .kube directory
-        run: |
-          mkdir -p $HOME/.kube
-
-      - name: Configure kubectl
-        run: |
-          echo "${{ secrets.KUBE_CONFIG }}" > $HOME/.kube/config
-          chmod 600 $HOME/.kube/config
-
-      - name: Verify kubectl configuration
-        run: kubectl config view
-
-      - name: Deploy to K3s
-        run: |
-          # Apply Kubernetes configurations
-          kubectl apply -f deployment/k3s/frontend-deployment.yaml
-          kubectl apply -f deployment/k3s/frontend-service.yaml
-
-          # Ensure the deployments are updated with the latest images
-          kubectl set image deployment/frontend frontend=${{ secrets.DOCKER_USERNAME }}/vuejs:latest
-
-          # Wait for rollouts to complete
-          kubectl rollout status deployment/frontend

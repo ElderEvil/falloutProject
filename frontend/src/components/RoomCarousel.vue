@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { NCard, NButton, useMessage } from 'naive-ui'
-import { useVaultStore } from '@/stores/vault_old'
+import { useVaultStore } from '@/stores/vault'
 import type { Room } from '@/types/vault'
 
 const vaultStore = useVaultStore()

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useVaultStore } from '@/stores/vault_old'
+import { useVaultStore } from '@/stores/vault'
 import VaultRoom from './VaultRoom.vue'
 import EmptyCell from './EmptyCell.vue'
 import RoomConstructionModal from './RoomConstructionModal.vue'

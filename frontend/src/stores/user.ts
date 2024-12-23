@@ -1,11 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type {
-  UserState,
-  AuthForm,
-  UserPreferences
-} from '../../../../../Downloads/project-bolt-sb1-hubjsk (4)/project/src/types/auth'
-import { validateLoginForm, validateSignupForm } from '../utils/authUtils'
+import type { UserState, AuthForm, UserPreferences } from '@/types/auth'
+import { validateLoginForm, validateRegistrationForm } from '@/utils/authUtils'
 
 export const useUserStore = defineStore('user', () => {
   const user = ref<UserState>({
@@ -48,7 +44,7 @@ export const useUserStore = defineStore('user', () => {
 
   async function signup(form: AuthForm): Promise<{ success: boolean; message?: string }> {
     try {
-      const validation = validateSignupForm(form)
+      const validation = validateRegistrationForm(form)
       if (!validation.isValid) {
         return { success: false, message: validation.message }
       }
@@ -63,10 +59,10 @@ export const useUserStore = defineStore('user', () => {
       }
       return { success: true }
     } catch (error) {
-      console.error('Signup error:', error)
+      console.error('Registration error:', error)
       return {
         success: false,
-        message: error instanceof Error ? error.message : 'Signup failed'
+        message: error instanceof Error ? error.message : 'Registration failed'
       }
     }
   }

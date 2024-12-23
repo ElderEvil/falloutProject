@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { NModal, NForm, NFormItem, NSelect, NButton } from 'naive-ui'
-import { useUserStore } from '../../stores/user'
-import { useThemeStore } from '../../stores/theme'
+import { NButton, NForm, NFormItem, NModal, NSelect } from 'naive-ui'
+import { useUserStore } from '@/stores/user'
+import { useThemeStore } from '@/stores/theme'
 
 const props = defineProps<{
   modelValue: boolean
@@ -49,7 +49,7 @@ const savePreferences = () => {
         />
       </NFormItem>
       <div class="actions">
-        <NButton type="primary" @click="savePreferences"> CLOSE </NButton>
+        <NButton type="primary" @click="savePreferences"> CLOSE</NButton>
       </div>
     </NForm>
   </NModal>

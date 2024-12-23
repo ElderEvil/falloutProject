@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useVaultStore } from '@/stores/vault_old'
+import { useVaultStore } from '@/stores/vault'
 import { NCard } from 'naive-ui'
 import VueDraggable from 'vuedraggable'
 import DwellerCard from '@/components/dweller/DwellerCard.vue'

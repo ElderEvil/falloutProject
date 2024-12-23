@@ -9,7 +9,7 @@ export function validatePassword(password: string): boolean {
   return password.length >= 6
 }
 
-export function validateSignupForm(form: AuthForm): { isValid: boolean; message?: string } {
+export function validateRegistrationForm(form: AuthForm): { isValid: boolean; message?: string } {
   if (!validateEmail(form.email)) {
     return { isValid: false, message: 'Invalid email format' }
   }

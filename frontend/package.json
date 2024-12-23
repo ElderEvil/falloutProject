@@ -14,12 +14,11 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
-    "@heroicons/vue": "^2.1.5",
     "axios": "^1.7.2",
     "naive-ui": "^2.40.3",
     "pinia": "^2.1.7",
     "vuedraggable": "^4.1.0",
-    "vue": "^3.4.29",
+    "vue": "~3.4.29",
     "vue-router": "^4.3.3",
     "@vicons/ionicons5": "^0.12.0"
   },

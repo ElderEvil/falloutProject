@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useVaultStore } from '../../../../../Downloads/project-bolt-sb1-hubjsk (4)/project/src/stores/vault'
+import { useVaultStore } from '@/stores/vault'
 import { useRouter } from 'vue-router'
 import { NCard, NGrid, NGi, NButton, NSpace } from 'naive-ui'
 import CreateVaultModal from './CreateVaultModal.vue'
@@ -23,7 +23,7 @@ const selectVault = (vaultId: number) => {
 <template>
   <div class="vault-selection">
     <NSpace justify="end" class="header-actions">
-      <NButton @click="showCreateModal = true"> CREATE NEW VAULT </NButton>
+      <NButton @click="showCreateModal = true"> CREATE NEW VAULT</NButton>
     </NSpace>
 
     <NGrid :cols="2" :x-gap="12" :y-gap="12">

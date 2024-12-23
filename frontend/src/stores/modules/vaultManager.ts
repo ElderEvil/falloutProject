@@ -2,6 +2,7 @@ import type { Vault } from '@/types/vault'
 import { generateDefaultDwellers } from '@/utils/defaultDwellers'
 import { createEmptyGrid } from '@/utils/gridUtils'
 import { createVaultDoor } from '@/utils/roomUtils'
+import type { Ref } from 'vue'
 
 export function createVaultManager(vaults: Ref<Vault[]>, selectedVault: Ref<Vault | null>) {
   async function fetchVaults() {

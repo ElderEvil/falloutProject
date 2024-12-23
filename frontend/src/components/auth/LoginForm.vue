@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { NForm, NFormItem, NInput, NButton, useMessage } from 'naive-ui'
-import type { AuthForm } from '../../model/types'
+import type { AuthForm } from '@/features/auth/model/types'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -18,7 +18,7 @@ const handleLogin = async () => {
   try {
     const result = await userStore.login(form.value)
     if (result.success) {
-      router.push('/vaults')
+      await router.push('/vaults')
     } else {
       message.error(result.message || 'Login failed')
     }
@@ -41,21 +41,8 @@ const handleLogin = async () => {
         @keyup.enter="handleLogin"
       />
     </NFormItem>
-    <NButton type="primary" block @click="handleLogin"> INITIALIZE LOGIN SEQUENCE </NButton>
+    <NButton type="primary" block @click="handleLogin"> INITIALIZE LOGIN SEQUENCE</NButton>
   </NForm>
 </template>
 
-<style scoped>
-:deep(.n-form-item) {
-  margin-bottom: 20px;
-}
-
-:deep(.n-form-item-label) {
-  font-family: 'Courier New', Courier, monospace;
-  color: #00ff00;
-}
-
-:deep(.n-button) {
-  font-family: 'Courier New', Courier, monospace;
-}
-</style>
+<style scoped></style>

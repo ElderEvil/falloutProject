@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { NModal, NButton, NCard, NProgress, useMessage } from 'naive-ui'
-import { useVaultStore } from '@/stores/vault_old'
+import { useVaultStore } from '@/stores/vault'
 import { ROOM_CONFIGS } from '@/utils/roomUtils'
 import { CONSTRUCTION_TIME } from '@/types/grid'
 import type { Room } from '@/types/vault'

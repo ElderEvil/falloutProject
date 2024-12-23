@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/features/auth/store/auth'
-import { useVaultStore } from '@/features/vault/store/vault'
+import { useVaultStore } from '@/stores/vault'
 import { ROUTES } from '@/shared/config'
 
 const routes = [
@@ -28,7 +28,7 @@ const routes = [
         await vaultStore.fetchVaults()
       }
 
-      if (await vaultStore.selectVault(vaultId)) {
+      if (vaultStore.selectVault(vaultId)) {
         next()
       } else {
         next('/vaults')

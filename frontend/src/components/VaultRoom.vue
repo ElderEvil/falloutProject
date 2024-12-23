@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { NCard, NButton, NModal, NSpace, NProgress, NPopconfirm } from 'naive-ui'
+import { computed, ref } from 'vue'
+import { NButton, NCard, NModal, NPopconfirm } from 'naive-ui'
 import VueDraggable from 'vuedraggable'
-import DwellerCard from '../../../../../Downloads/project-bolt-sb1-hubjsk (4)/project/src/components/dweller/DwellerCard.vue'
-import { useVaultStore } from '../../../../../Downloads/project-bolt-sb1-hubjsk (4)/project/src/stores/vault'
-import { isVaultDoor } from '../utils/roomUtils'
-import type { Room } from '../types/vault'
+import DwellerCard from '@/components/dweller/DwellerCard.vue'
+import { useVaultStore } from '@/stores/vault'
+import { isVaultDoor } from '@/utils/roomUtils'
+import type { Room } from '@/types/vault'
 
 const props = defineProps<{
   room: Room
@@ -60,7 +60,7 @@ const handleDestroyRoom = () => {
   vaultStore.destroyRoom(props.room.id)
 }
 
-const handleUnassignDweller = (dwellerId: number) => {
+const handleUnassignDweller = (dwellerId: string) => {
   vaultStore.unassignDweller(dwellerId)
 }
 
@@ -81,7 +81,7 @@ const roomStyle = computed(() => ({
           @click.stop
         >
           <template #trigger>
-            <NButton quaternary circle size="small" @click.stop> × </NButton>
+            <NButton quaternary circle size="small" @click.stop> ×</NButton>
           </template>
           Destroy this room?
         </NPopconfirm>
@@ -106,7 +106,7 @@ const roomStyle = computed(() => ({
 
       <div v-if="emptySlots.length > 0" class="empty-slots">
         <div v-for="(_, index) in emptySlots" :key="index" class="dweller-slot empty">
-          <span>DROP</span>
+          <span>EMPTY</span>
         </div>
       </div>
     </NCard>
@@ -122,10 +122,9 @@ const roomStyle = computed(() => ({
     >
       <div class="room-details">
         <div class="room-info">
-          <span>LEVEL {{ room.level }}</span>
+          <span>TIER {{ room.level }}</span>
           <span>CAPACITY: {{ room.dwellers.length }}/{{ room.capacity }}</span>
           <span>SIZE: {{ room.size }} SLOT{{ room.size > 1 ? 'S' : '' }}</span>
-          <span>POSITION: {{ room.position.x }},{{ room.position.y }}</span>
         </div>
 
         <div class="dwellers-section">

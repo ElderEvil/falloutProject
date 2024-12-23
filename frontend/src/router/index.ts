@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { useVaultStore } from '@/stores/vault_new'
+import { useVaultStore } from '@/stores/vault'
 import LoginScreen from '../components/LoginScreen.vue'
 import VaultSelection from '../components/VaultSelection.vue'
 import VaultInterface from '../components/VaultInterface.vue'

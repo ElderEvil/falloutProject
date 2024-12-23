@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { NButton, NProgress } from 'naive-ui'
-import { useVaultStore } from '@/stores/vault_old'
+import { useVaultStore } from '@/stores/vault'
 import type { GridPosition } from '@/types/grid'
 import { getDigTime } from '@/types/grid'
 

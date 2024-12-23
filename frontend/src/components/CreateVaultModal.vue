@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { NModal, NButton } from 'naive-ui'
-import { useVaultStore } from '@/stores/vault_old'
+import { useVaultStore } from '@/stores/vault'
 import VaultNumberSpinner from './VaultNumberSpinner.vue'
 
 const props = defineProps<{
@@ -16,7 +16,7 @@ const vaultStore = useVaultStore()
 const vaultNumber = ref(Math.floor(Math.random() * 999) + 1)
 
 const createVault = () => {
-  vaultStore.createVault(vaultNumber.value)
+  vaultStore.createVault(vaultNumber.value.toString())
   emit('update:modelValue', false)
 }
 </script>

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useUserStore } from '../../../../../../Downloads/project-bolt-sb1-hubjsk (4)/project/src/stores/user'
+import { useUserStore } from '@/stores/user'
 import { NForm, NFormItem, NInput, NButton, useMessage } from 'naive-ui'
-import type { AuthForm } from '../../types/vault'
+import type { AuthForm } from '@/features/auth/model/types'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -21,7 +21,7 @@ const handleSignup = () => {
   if (result.success) {
     router.push('/vaults')
   } else {
-    message.error(result.message || 'Signup failed')
+    message.error(result.message || 'Registration failed')
   }
 }
 </script>
@@ -40,21 +40,8 @@ const handleSignup = () => {
     <NFormItem label="CONFIRM PASSWORD">
       <NInput v-model:value="form.confirmPassword" type="password" placeholder="CONFIRM PASSWORD" />
     </NFormItem>
-    <NButton type="primary" block @click="handleSignup"> INITIALIZE REGISTRATION </NButton>
+    <NButton type="primary" block @click="handleSignup"> INITIALIZE REGISTRATION</NButton>
   </NForm>
 </template>
 
-<style scoped>
-:deep(.n-form-item) {
-  margin-bottom: 20px;
-}
-
-:deep(.n-form-item-label) {
-  font-family: 'Courier New', Courier, monospace;
-  color: #00ff00;
-}
-
-:deep(.n-button) {
-  font-family: 'Courier New', Courier, monospace;
-}
-</style>
+<style scoped></style>

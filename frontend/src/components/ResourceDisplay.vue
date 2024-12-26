@@ -2,7 +2,7 @@
 import { NProgress } from 'naive-ui'
 import { useThemeStore } from '@/stores/theme'
 import { Flash, Water, Restaurant, Cash, Happy } from '@vicons/ionicons5'
-import type { Resource } from '@/types/vault'
+import type { Resource } from '@/types/vault.types'
 
 const props = defineProps<{
   resources: Resource[]

@@ -1,4 +1,4 @@
-import type { Vault, Resource } from '@/types/vault'
+import type { Vault, Resource } from '@/types/vault.types'
 
 export function createResourceManager(getVault: () => Vault | null) {
   function updateResource(type: Resource['type'], amount: number) {

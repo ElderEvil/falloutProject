@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { Vault } from '@/types/vault'
+import type { Vault } from '@/types/vault.types'
 import { createVaultManager } from './modules/vaultManager'
 import { createDwellerManager } from './modules/dwellerManager'
 import { createRoomManager } from './modules/roomManager'
@@ -21,18 +21,18 @@ export const useVaultStore = defineStore('vault', () => {
 
   // Grid management functions
   function startDigging(position: { x: number; y: number }) {
-    return roomManager.startDigging(position)
+    return roomManager.startDigging(position.x, position.y)
   }
 
   function completeDigging(position: { x: number; y: number }) {
-    return roomManager.completeDigging(position)
+    return roomManager.completeDigging(position.x, position.y)
   }
 
   function startConstruction(position: { x: number; y: number }) {
-    return roomManager.startConstruction(position)
+    return roomManager.startConstruction(position.x, position.y)
   }
 
-  function getRoomById(roomId: number) {
+  function getRoomById(roomId: string) {
     return roomManager.getRoomById(roomId)
   }
 

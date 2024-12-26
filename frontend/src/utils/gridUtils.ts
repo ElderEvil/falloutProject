@@ -1,5 +1,5 @@
-import type { GridPosition, GridCell } from '@/types/grid'
-import { GRID_WIDTH, GRID_DEPTH } from '@/types/grid'
+import type { GridCell } from '@/types/grid.types'
+import { GRID_WIDTH, GRID_DEPTH } from '@/types/grid.types'
 
 export function createEmptyGrid(): GridCell[][] {
   return Array(GRID_DEPTH)

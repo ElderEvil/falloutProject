@@ -1,7 +1,6 @@
-import type { Vault } from '@/types/vault'
+import type { Vault } from '@/types/vault.types'
 import { generateDefaultDwellers } from '@/utils/defaultDwellers'
 import { createEmptyGrid } from '@/utils/gridUtils'
-import { createVaultDoor } from '@/utils/roomUtils'
 import type { Ref } from 'vue'
 
 export function createVaultManager(vaults: Ref<Vault[]>, selectedVault: Ref<Vault | null>) {
@@ -27,7 +26,6 @@ export function createVaultManager(vaults: Ref<Vault[]>, selectedVault: Ref<Vaul
 
       // Add vault door to each vault
       mockVaults.forEach((vault) => {
-        const vaultDoor = createVaultDoor()
         vault.rooms.push(vaultDoor)
         vault.grid[0][0].status = 'occupied'
         vault.grid[0][0].roomId = vaultDoor.id
@@ -41,7 +39,7 @@ export function createVaultManager(vaults: Ref<Vault[]>, selectedVault: Ref<Vaul
     }
   }
 
-  function selectVault(vaultId: number) {
+  function selectVault(vaultId: string) {
     const vault = vaults.value.find((v) => v.id === vaultId)
     if (vault) {
       selectedVault.value = vault

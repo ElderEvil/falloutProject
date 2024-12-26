@@ -1,6 +1,6 @@
 import apiClient from '../plugins/axios'
 import type { AxiosResponse } from 'axios'
-import { AuthError, type LoginForm, type RegisterForm, type Token } from '@/types/auth'
+import { type LoginForm, type RegisterForm, type Token } from '@/types/auth'
 import type { User } from '@/types/user'
 
 export const authService = {

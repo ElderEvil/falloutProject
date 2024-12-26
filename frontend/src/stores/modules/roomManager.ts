@@ -1,16 +1,16 @@
-import type { Room, Vault } from '@/types/vault'
-import type { GridPosition } from '@/types/grid'
-import { canMergeRooms, getRoomCapacityBySize, mergeRooms } from '@/utils/roomUtils'
+import type { DwellerShort } from '@/types/dweller.types'
+import type { Vault } from '@/types/vault.types'
+import type { Room } from '@/types/room.types'
 
 export function createRoomManager(
   getVault: () => Vault | null,
   unassignDweller: (dwellerId: string) => boolean
 ) {
-  function startDigging(position: GridPosition) {
+  function startDigging(x: number, y: number) {
     const vault = getVault()
     if (!vault) return false
 
-    const cell = vault.grid[position.y][position.x]
+    const cell = vault.grid[y][x]
     if (cell.status !== 'empty') return false
 
     cell.status = 'digging'
@@ -18,11 +18,11 @@ export function createRoomManager(
     return true
   }
 
-  function completeDigging(position: GridPosition) {
+  function completeDigging(x: number, y: number) {
     const vault = getVault()
     if (!vault) return false
 
-    const cell = vault.grid[position.y][position.x]
+    const cell = vault.grid[y][x]
     if (cell.status !== 'digging') return false
 
     cell.status = 'ready'
@@ -30,11 +30,11 @@ export function createRoomManager(
     return true
   }
 
-  function startConstruction(position: GridPosition) {
+  function startConstruction(x: number, y: number) {
     const vault = getVault()
     if (!vault) return false
 
-    const cell = vault.grid[position.y][position.x]
+    const cell = vault.grid[y][x]
     if (cell.status !== 'ready') return false
 
     cell.status = 'constructing'
@@ -42,58 +42,52 @@ export function createRoomManager(
     return true
   }
 
-  function addRoom(type: Room['type'], position: GridPosition) {
+  function addRoom(category: Room['category'], x: number, y: number) {
     const vault = getVault()
     if (!vault) return false
 
-    const cell = vault.grid[position.y][position.x]
+    const cell = vault.grid[y][x]
     if (cell.status !== 'constructing') return false
 
-    const newRoomId = Date.now()
-
-    // Check if we can merge with adjacent rooms
-    if (canMergeRooms(vault, position, type)) {
-      const mergedRoom = mergeRooms(vault, position, type, newRoomId)
-      vault.rooms.push(mergedRoom)
-      return true
-    }
+    const newRoomId = Date.now().toString()
 
     // Create new single room if no merging possible
     const newRoom: Room = {
       id: newRoomId,
-      type,
-      level: 1,
-      capacity: getRoomCapacityBySize(1),
+      category,
+      tier: 1,
+      capacity: 1,
       dwellers: [],
-      position,
+      coordinate_x: x,
+      coordinate_y: y,
       size: 1
     }
 
-    vault.grid[position.y][position.x].status = 'occupied'
-    vault.grid[position.y][position.x].roomId = newRoom.id
-    vault.grid[position.y][position.x].progress = undefined
+    vault.grid[y][x].status = 'occupied'
+    vault.grid[y][x].roomId = newRoom.id
+    vault.grid[y][x].progress = undefined
 
     vault.rooms.push(newRoom)
     return true
   }
 
-  function destroyRoom(roomId: number) {
+  function destroyRoom(roomId: string) {
     const vault = getVault()
     if (!vault) return false
 
-    const roomIndex = vault.rooms.findIndex((r) => r.id === roomId)
+    const roomIndex = vault.rooms.findIndex((r: Room) => r.id === roomId)
     if (roomIndex === -1) return false
 
     const room = vault.rooms[roomIndex]
 
     // Unassign all dwellers from the room
-    room.dwellers.forEach((dweller) => {
+    room.dwellers.forEach((dweller: DwellerShort) => {
       unassignDweller(dweller.id)
     })
 
     // Update all cells the room occupied
     for (let i = 0; i < room.size; i++) {
-      const cell = vault.grid[room.position.y][room.position.x + i]
+      const cell = vault.grid[room.coordinate_y][room.coordinate_x + i]
       cell.status = 'ready'
       cell.roomId = null
     }
@@ -103,10 +97,10 @@ export function createRoomManager(
     return true
   }
 
-  function getRoomById(roomId: number) {
+  function getRoomById(roomId: string) {
     const vault = getVault()
     if (!vault) return null
-    return vault.rooms.find((r) => r.id === roomId) || null
+    return vault.rooms.find((r: Room) => r.id === roomId) || null
   }
 
   return {
@@ -114,7 +108,7 @@ export function createRoomManager(
     completeDigging,
     startConstruction,
     addRoom,
-    destroyRoom,
-    getRoomById
+    getRoomById,
+    destroyRoom
   }
 }

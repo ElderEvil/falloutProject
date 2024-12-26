@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/auth'
 
 const apiClient = axios.create({
@@ -9,13 +9,22 @@ const apiClient = axios.create({
   }
 })
 
-apiClient.interceptors.request.use(
-  async (config) => {
-    const authStore = useAuthStore()
+// Type for requests that can be retried
+interface RetryableRequest extends InternalAxiosRequestConfig {
+  _retry?: boolean
+}
 
-    if (authStore.token) {
-      // Optional: Check if the token is expiring soon
-      config.headers.Authorization = `Bearer ${authStore.token}`
+apiClient.interceptors.request.use(
+  async (config: RetryableRequest) => {
+    const isAuthEndpoint = ['/api/v1/login/access-token', '/api/v1/login/refresh-token'].includes(
+      config.url || ''
+    )
+
+    if (!isAuthEndpoint) {
+      const authStore = useAuthStore()
+      if (authStore.token) {
+        config.headers.Authorization = `Bearer ${authStore.token}`
+      }
     }
 
     return config
@@ -26,18 +35,32 @@ apiClient.interceptors.request.use(
 )
 
 apiClient.interceptors.response.use(
-  (response) => {
-    return response
-  },
-  async (error) => {
+  (response) => response,
+  async (error: AxiosError) => {
     const authStore = useAuthStore()
-    const originalRequest = error.config
 
-    if (error.response.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true
-      await authStore.refreshAccessToken()
-      axios.defaults.headers.common['Authorization'] = 'Bearer ' + authStore.token
-      return apiClient(originalRequest)
+    if (!error.config) {
+      return Promise.reject(error)
+    }
+
+    const originalRequest = error.config as RetryableRequest
+
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      originalRequest.url !== '/api/v1/login/refresh-token'
+    ) {
+      try {
+        originalRequest._retry = true
+        await authStore.refreshAccessToken()
+
+        if (authStore.token) {
+          originalRequest.headers.Authorization = `Bearer ${authStore.token}`
+          return apiClient(originalRequest)
+        }
+      } catch (refreshError) {
+        await authStore.logout()
+      }
     }
 
     return Promise.reject(error)

@@ -6,20 +6,6 @@
     color-scheme: dark;
 }
 
-body {
-    background-color: var(--theme-background, #000000);
-    color: var(--theme-text, #00ff00);
-    font-family: 'Courier New', monospace;
-    text-shadow: 0 0 5px var(--theme-shadow);
-    line-height: 1.6;
-    font-size: 18px;
-    font-weight: 600;
-    -webkit-font-smoothing: none;
-    -moz-osx-font-smoothing: none;
-    margin: 0;
-    padding: 0;
-}
-
 #app {
     background-color: var(--theme-background, #000000);
 }
@@ -113,7 +99,6 @@ button, input, select {
     }
 }
 
-/* Override Naive UI default font styles */
 :root {
     --n-font-family: 'Courier New', monospace;
 }

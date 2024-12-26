@@ -1,18 +1,18 @@
-import type { Vault } from '@/types/vault'
+import type { Vault } from '@/types/vault.types'
 
 export function createDwellerManager(getVault: () => Vault | null) {
-  function assignDwellerToRoom(dwellerId: string, roomId: number) {
+  function assignDwellerToRoom(dwellerId: string, roomId: string) {
     const vault = getVault()
     if (!vault) return false
 
     const dweller = vault.dwellers.find((d) => d.id === dwellerId)
     const room = vault.rooms.find((r) => r.id === roomId)
 
-    if (!dweller || !room) return false
+    if (!dweller || !room || !room.capacity) return false
     if (room.dwellers.length >= room.capacity) return false
 
     // Remove dweller from previous room if assigned
-    if (dweller.assigned) {
+    if (dweller.room_id) {
       const previousRoom = vault.rooms.find((r) => r.dwellers.some((d) => d.id === dwellerId))
       if (previousRoom) {
         previousRoom.dwellers = previousRoom.dwellers.filter((d) => d.id !== dwellerId)
@@ -20,7 +20,7 @@ export function createDwellerManager(getVault: () => Vault | null) {
     }
 
     // Assign dweller to new room
-    dweller.assigned = true
+    dweller.room_id = roomId
     room.dwellers.push(dweller)
 
     return true
@@ -38,7 +38,6 @@ export function createDwellerManager(getVault: () => Vault | null) {
       room.dwellers = room.dwellers.filter((d) => d.id !== dwellerId)
     })
 
-    dweller.assigned = false
     return true
   }
 

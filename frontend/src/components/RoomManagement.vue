@@ -2,12 +2,12 @@
 import { ref } from 'vue'
 import { NButton, NSelect, NSpace, NModal, useMessage } from 'naive-ui'
 import { useVaultStore } from '@/stores/vault'
-import type { Room } from '@/types/vault'
+import type { Room } from '@/types/room.types'
 
 const vaultStore = useVaultStore()
 const message = useMessage()
 const showNewRoomModal = ref(false)
-const selectedRoomType = ref<Room['type']>('power')
+const selectedRoomType = ref<Room['category']>('power')
 
 const roomTypes = [
   { label: 'POWER GENERATOR', value: 'power' },

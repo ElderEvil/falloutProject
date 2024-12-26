@@ -3,16 +3,16 @@ import { ref, computed } from 'vue'
 import { NModal, NCollapse, NCollapseItem, NButton, useMessage } from 'naive-ui'
 import { Star } from '@vicons/ionicons5'
 import { useThemeStore } from '@/stores/theme'
-import type { Dweller } from '@/types/vault'
 import { getDwellerFullName } from '@/utils/dwellerUtils'
 import DwellerAvatar from './DwellerAvatar.vue'
 import DwellerStats from './sections/DwellerStats.vue'
 import DwellerAttributes from './sections/DwellerAttributes.vue'
 import DwellerBasicInfo from './sections/DwellerBasicInfo.vue'
+import type { DwellerFull } from '@/types/dweller.types'
 
 const props = defineProps<{
   modelValue: boolean
-  dweller: Dweller
+  dweller: DwellerFull
 }>()
 
 const emit = defineEmits<{

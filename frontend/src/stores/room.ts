@@ -1,76 +1,105 @@
 import { defineStore } from 'pinia'
 import axios from '@/plugins/axios'
+import type { Room, RoomCreate, RoomShortInfo } from '@/types/room.types'
 
 interface RoomState {
   rooms: Room[]
-  availableRooms: Room[]
-  selectedRoom: Room | null
-  isPlacingRoom: boolean
+  buildableRooms: RoomShortInfo[]
+  isLoading: boolean
+  error: string | null
+}
+
+interface ApiResponse<T> {
+  data: T
+  message?: string
 }
 
 export const useRoomStore = defineStore('room', {
   state: (): RoomState => ({
     rooms: [],
-    availableRooms: [],
-    selectedRoom: null,
-    isPlacingRoom: false
+    buildableRooms: [],
+    isLoading: false,
+    error: null
   }),
+
+  getters: {
+    getRoomById: (state) => (id: string) => state.rooms.find((room) => room.id === id)
+  },
+
   actions: {
-    async fetchRooms(vaultId: string, token: string): Promise<void> {
+    setError(error: unknown) {
+      this.error = error instanceof Error ? error.message : 'An unknown error occurred'
+      this.isLoading = false
+    },
+
+    async fetchRooms(vaultId: string): Promise<boolean> {
+      this.isLoading = true
+      this.error = null
+
       try {
-        const response = await axios.get<Room[]>(`/api/v1/rooms/vault/${vaultId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        })
-        this.rooms = response.data
+        const response = await axios.get<ApiResponse<Room[]>>(`/api/v1/rooms/vault/${vaultId}`)
+        this.rooms = response.data.data
+        return true
       } catch (error) {
-        console.error('Failed to fetch rooms', error)
+        this.setError(error)
+        return false
+      } finally {
+        this.isLoading = false
       }
     },
-    async fetchRoomsData(token: string): Promise<void> {
+
+    async fetchBuildableRooms(): Promise<boolean> {
+      if (this.buildableRooms.length > 0) return true
+
+      this.isLoading = true
+      this.error = null
+
       try {
-        const response = await axios.get<Room[]>('/api/v1/rooms/read_data/', {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        })
-        this.availableRooms = response.data
+        const response = await axios.get<ApiResponse<RoomShortInfo[]>>('/api/v1/rooms/read_data')
+        this.buildableRooms = response.data.data
+        return true
       } catch (error) {
-        console.error('Failed to fetch rooms data', error)
+        this.setError(error)
+        return false
+      } finally {
+        this.isLoading = false
       }
     },
-    async buildRoom(roomData: RoomCreate, token: string): Promise<void> {
+
+    async buildRoom(roomData: RoomCreate): Promise<Room | null> {
+      this.isLoading = true
+      this.error = null
+
       try {
-        const response = await axios.post<Room>('/api/v1/rooms/build/', roomData, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        })
-        this.rooms.push(response.data)
+        const response = await axios.post<ApiResponse<Room>>('/api/v1/rooms/build', roomData)
+        const newRoom = response.data.data
+        this.rooms.push(newRoom)
+        return newRoom
       } catch (error) {
-        console.error('Failed to build room', error)
+        this.setError(error)
+        return null
+      } finally {
+        this.isLoading = false
       }
     },
-    async destroyRoom(roomId: string, token: string): Promise<void> {
+
+    async destroyRoom(roomId: string): Promise<boolean> {
+      this.isLoading = true
+      this.error = null
+
+      const originalRooms = [...this.rooms]
+      this.rooms = this.rooms.filter((room) => room.id !== roomId)
+
       try {
-        await axios.delete(`/api/v1/rooms/destroy/${roomId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        })
-        this.rooms = this.rooms.filter((room) => room.id !== roomId)
+        await axios.delete<ApiResponse<void>>(`/api/v1/rooms/destroy/${roomId}`)
+        return true
       } catch (error) {
-        console.error('Failed to destroy room', error)
+        this.setError(error)
+        this.rooms = originalRooms
+        return false
+      } finally {
+        this.isLoading = false
       }
-    },
-    selectRoom(room: Room): void {
-      this.selectedRoom = room
-      this.isPlacingRoom = true
-    },
-    deselectRoom(): void {
-      this.selectedRoom = null
-      this.isPlacingRoom = false
     }
   }
 })

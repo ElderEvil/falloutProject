@@ -36,8 +36,8 @@ const showChat = ref(false)
     </div>
     <div class="dweller-actions">
       <NSpace justify="space-between">
-        <NButton quaternary size="small" @click="showDetails = true"> DETAILS </NButton>
-        <NButton quaternary size="small" @click="showChat = true"> COMM LINK </NButton>
+        <NButton quaternary size="small" @click="showDetails = true"> DETAILS</NButton>
+        <NButton quaternary size="small" @click="showChat = true"> COMM LINK</NButton>
       </NSpace>
     </div>
 

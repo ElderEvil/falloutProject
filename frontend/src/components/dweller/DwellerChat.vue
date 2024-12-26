@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { NModal, NInput, NButton, NScrollbar } from 'naive-ui'
-import type { Dweller } from '@/types/vault'
+import type { DwellerShort } from '@/types/vault.types'
 import { getDwellerFullName } from '@/utils/dwellerUtils'
 
 const props = defineProps<{
   modelValue: boolean
-  dweller: Dweller
+  dweller: DwellerShort
 }>()
 
 const emit = defineEmits<{

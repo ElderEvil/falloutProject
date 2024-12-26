@@ -11,7 +11,7 @@ import ResourceDisplay from './ResourceDisplay.vue'
 const vaultStore = useVaultStore()
 
 const unassignedDwellers = computed(
-  () => vaultStore.selectedVault?.dwellers.filter((d) => !d.assigned) || []
+  () => vaultStore.selectedVault?.dwellers.filter((d) => !d.room_id) || []
 )
 
 const totalDwellers = computed(() => vaultStore.selectedVault?.dwellers.length || 0)
@@ -30,14 +30,14 @@ const averageHappiness = computed(() => {
   <div class="vault-interface" v-if="vaultStore.selectedVault">
     <NavigationHeader />
     <NCard
-      :title="`VAULT ${vaultStore.selectedVault.name} OVERSEER INTERFACE`"
+      :title="`VAULT ${vaultStore.selectedVault.number} OVERSEER INTERFACE`"
       class="terminal-card"
     >
       <ResourceDisplay
         :resources="vaultStore.selectedVault.resources"
-        :bottlecaps="vaultStore.selectedVault.bottlecaps"
+        :bottlecaps="vaultStore.selectedVault.bottle_caps"
         :total-dwellers="totalDwellers"
-        :max-dwellers="vaultStore.selectedVault.maxDwellers"
+        :max-dwellers="200"
         :average-happiness="averageHappiness"
       />
 

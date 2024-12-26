@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { NProgress } from 'naive-ui'
 import { useThemeStore } from '@/stores/theme'
-import type { Dweller } from '@/types/vault'
+import type { DwellerFull } from '@/types/dweller.types'
 
 const props = defineProps<{
-  dweller: Dweller
+  dweller: DwellerFull
 }>()
 
 const themeStore = useThemeStore()

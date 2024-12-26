@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { NCard, NProgress, NButton, NSpace } from 'naive-ui'
+import { NButton, NCard, NProgress, NSpace } from 'naive-ui'
 import { useThemeStore } from '@/stores/theme'
-import type { Dweller } from '@/types/vault'
 import DwellerAvatar from './DwellerAvatar.vue'
 import DwellerDetailsModal from './DwellerDetailsModal.vue'
 import DwellerChat from './DwellerChat.vue'
 import { getDwellerFullName } from '@/utils/dwellerUtils'
+import type { DwellerFull } from '@/types/dweller.types'
 
 const props = defineProps<{
-  dweller: Dweller
+  dweller: DwellerFull
   showActions?: boolean
   onUnassign?: () => void
 }>()
@@ -41,8 +41,8 @@ const showChat = ref(false)
     <div class="dweller-actions">
       <NSpace justify="space-between">
         <div class="action-buttons">
-          <NButton quaternary size="small" @click="showDetails = true"> DETAILS </NButton>
-          <NButton quaternary size="small" @click="showChat = true"> COMM LINK </NButton>
+          <NButton quaternary size="small" @click="showDetails = true"> DETAILS</NButton>
+          <NButton quaternary size="small" @click="showChat = true"> COMM LINK</NButton>
         </div>
         <NButton
           v-if="onUnassign"

@@ -5,8 +5,6 @@ import { useUserStore } from '@/stores/user'
 import { NButton, NDropdown, NModal, NSpace, NTabPane, NTabs } from 'naive-ui'
 import VaultSelection from './VaultSelection.vue'
 import UserProfile from '@/components/user/UserProfile.vue'
-import QuestList from '@/components/quest/QuestList.vue'
-import ObjectivesList from '@/components/quest/ObjectivesList.vue'
 
 const router = useRouter()
 const userStore = useUserStore()

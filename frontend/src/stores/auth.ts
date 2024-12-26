@@ -2,35 +2,56 @@ import { defineStore } from 'pinia'
 import axios from '@/plugins/axios'
 import type { User } from '@/types/user'
 
+interface AuthTokens {
+  access_token: string
+  refresh_token: string
+}
+
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     token: localStorage.getItem('token') as string | null,
     refreshToken: localStorage.getItem('refreshToken') as string | null,
     user: JSON.parse(localStorage.getItem('user') as string) as User | null
   }),
+
   getters: {
     isAuthenticated: (state) => !!state.token
   },
+
   actions: {
+    setTokens(tokens: AuthTokens) {
+      this.token = tokens.access_token
+      this.refreshToken = tokens.refresh_token
+
+      if (!this.token || !this.refreshToken) return false
+
+      localStorage.setItem('token', this.token)
+      localStorage.setItem('refreshToken', this.refreshToken)
+      return true
+    },
+
+    clearAuth() {
+      this.token = null
+      this.refreshToken = null
+      this.user = null
+      localStorage.removeItem('token')
+      localStorage.removeItem('refreshToken')
+      localStorage.removeItem('user')
+    },
+
     async login(username: string, password: string) {
       try {
         const formData = new URLSearchParams()
         formData.append('username', username)
         formData.append('password', password)
 
-        const response = await axios.post('/api/v1/login/access-token', formData, {
+        const response = await axios.post<AuthTokens>('/api/v1/login/access-token', formData, {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
           }
         })
 
-        this.token = response.data.access_token
-        this.refreshToken = response.data.refresh_token
-        if (!this.token || !this.refreshToken) return false
-
-        localStorage.setItem('token', this.token!)
-        localStorage.setItem('refreshToken', this.refreshToken)
-
+        if (!this.setTokens(response.data)) return false
         await this.fetchUser()
         return true
       } catch (error) {
@@ -38,21 +59,16 @@ export const useAuthStore = defineStore('auth', {
         return false
       }
     },
+
     async register(username: string, email: string, password: string) {
       try {
-        const response = await axios.post('/api/v1/users/open', {
-          username: username,
-          email: email,
-          password: password
+        const response = await axios.post<AuthTokens>('/api/v1/users/open', {
+          username,
+          email,
+          password
         })
 
-        this.token = response.data.access_token
-        this.refreshToken = response.data.refresh_token
-        if (!this.token || !this.refreshToken) return false
-
-        localStorage.setItem('token', this.token!)
-        localStorage.setItem('refreshToken', this.refreshToken)
-
+        if (!this.setTokens(response.data)) return false
         await this.fetchUser()
         return true
       } catch (error) {
@@ -60,11 +76,12 @@ export const useAuthStore = defineStore('auth', {
         return false
       }
     },
+
     async fetchUser() {
       if (!this.token) return
 
       try {
-        const response = await axios.get('/api/v1/users/me', {
+        const response = await axios.get<User>('/api/v1/users/me', {
           headers: {
             Authorization: `Bearer ${this.token}`
           }
@@ -76,6 +93,7 @@ export const useAuthStore = defineStore('auth', {
         await this.logout()
       }
     },
+
     async refreshAccessToken() {
       if (!this.refreshToken) return
 
@@ -83,19 +101,24 @@ export const useAuthStore = defineStore('auth', {
         const formData = new URLSearchParams()
         formData.append('refresh_token', this.refreshToken)
 
-        const response = await axios.post('/api/v1/login/refresh-token', formData, {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
+        const response = await axios.post<Pick<AuthTokens, 'access_token'>>(
+          '/api/v1/login/refresh-token',
+          formData,
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded'
+            }
           }
-        })
+        )
 
         this.token = response.data.access_token
-        localStorage.setItem('token', this.token!)
+        localStorage.setItem('token', this.token)
       } catch (error) {
         console.error('Failed to refresh token', error)
         await this.logout()
       }
     },
+
     async logout() {
       try {
         await axios.post(
@@ -110,12 +133,7 @@ export const useAuthStore = defineStore('auth', {
       } catch (error) {
         console.error('Logout failed', error)
       } finally {
-        this.token = null
-        this.refreshToken = null
-        this.user = null
-        localStorage.removeItem('token')
-        localStorage.removeItem('refreshToken')
-        localStorage.removeItem('user')
+        this.clearAuth()
       }
     }
   }

@@ -1,4 +1,9 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import {
+  createRouter,
+  createWebHistory,
+  type NavigationGuardNext,
+  type RouteLocationNormalized
+} from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useVaultStore } from '@/stores/vault'
 import LoginScreen from '../components/LoginScreen.vue'
@@ -18,21 +23,30 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/vault/:id',
+    path: '/vault/:id([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})',
     name: 'VaultInterface',
     component: VaultInterface,
     meta: { requiresAuth: true },
-    async beforeEnter(to, from, next) {
+    async beforeEnter(
+      to: RouteLocationNormalized,
+      from: RouteLocationNormalized,
+      next: NavigationGuardNext
+    ) {
       const vaultStore = useVaultStore()
-      const vaultId = parseInt(to.params.id as string)
+      const vaultId = to.params.id as string
 
-      if (!vaultStore.vaults.length) {
-        await vaultStore.fetchVaults()
-      }
+      try {
+        if (!vaultStore.vaults.length) {
+          await vaultStore.fetchVaults()
+        }
 
-      if (vaultStore.selectVault(vaultId)) {
-        next()
-      } else {
+        if (vaultStore.selectVault(vaultId)) {
+          next()
+        } else {
+          next('/vaults')
+        }
+      } catch (error) {
+        console.error('Failed to fetch vaults:', error)
         next('/vaults')
       }
     }
@@ -48,13 +62,18 @@ router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore()
   const vaultStore = useVaultStore()
 
-  if (to.meta.requiresAuth && !userStore.user.isAuthenticated) {
+  try {
+    if (to.meta.requiresAuth && !userStore.user.isAuthenticated) {
+      next('/')
+    } else if (to.name === 'VaultSelection' && !vaultStore.vaults.length) {
+      await vaultStore.fetchVaults()
+      next()
+    } else {
+      next()
+    }
+  } catch (error) {
+    console.error('Navigation guard error:', error)
     next('/')
-  } else if (to.name === 'VaultSelection' && !vaultStore.vaults.length) {
-    await vaultStore.fetchVaults()
-    next()
-  } else {
-    next()
   }
 })
 

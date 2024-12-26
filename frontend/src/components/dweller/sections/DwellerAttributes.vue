@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { VisualAttributes } from '@/types/vault'
+import type { VisualAttributes } from '@/types/dweller.types'
 
 const props = defineProps<{
   visualAttributes: VisualAttributes

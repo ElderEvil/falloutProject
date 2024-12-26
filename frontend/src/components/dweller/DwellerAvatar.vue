@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { PersonCircleOutline } from '@vicons/ionicons5'
-import type { Dweller } from '@/types/vault'
+import type { DwellerFull } from '@/types/dweller.types'
 import { getDwellerFullName } from '@/utils/dwellerUtils'
 
 const props = defineProps<{
-  dweller: Dweller
+  dweller: DwellerFull
   size?: 'small' | 'medium' | 'large'
   showDefaultIcon?: boolean
 }>()

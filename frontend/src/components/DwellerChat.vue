@@ -1,39 +1,39 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { NModal, NInput, NButton, NScrollbar } from 'naive-ui';
-import type { Dweller } from '../types/vault';
-import { getDwellerFullName } from '../utils/dwellerUtils';
+import { ref } from 'vue'
+import { NModal, NInput, NButton, NScrollbar } from 'naive-ui'
+import type { Dweller } from '../types/vault'
+import { getDwellerFullName } from '../utils/dwellerUtils'
 
 const props = defineProps<{
-  modelValue: boolean;
-  dweller: Dweller;
-}>();
+  modelValue: boolean
+  dweller: Dweller
+}>()
 
 const emit = defineEmits<{
-  'update:modelValue': [value: boolean];
-}>();
+  'update:modelValue': [value: boolean]
+}>()
 
-const message = ref('');
+const message = ref('')
 const chatHistory = ref([
   { sender: 'system', text: 'ESTABLISHING COMMUNICATION LINK...' },
   { sender: 'system', text: 'CONNECTION ESTABLISHED' },
   { sender: getDwellerFullName(props.dweller), text: 'How may I be of assistance, Overseer?' }
-]);
+])
 
 const sendMessage = () => {
-  if (!message.value.trim()) return;
+  if (!message.value.trim()) return
 
-  chatHistory.value.push({ sender: 'Overseer', text: message.value });
-  message.value = '';
+  chatHistory.value.push({ sender: 'Overseer', text: message.value })
+  message.value = ''
 
   // Simulate dweller response
   setTimeout(() => {
     chatHistory.value.push({
       sender: getDwellerFullName(props.dweller),
       text: `I understand, Overseer. I'll continue my duties as assigned.`
-    });
-  }, 1000);
-};
+    })
+  }, 1000)
+}
 </script>
 
 <template>

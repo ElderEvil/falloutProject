@@ -2,8 +2,8 @@
 import { ref, computed } from 'vue'
 import { NButton, NProgress } from 'naive-ui'
 import { useVaultStore } from '@/stores/vault'
-import type { GridPosition } from '@/types/grid'
-import { getDigTime } from '@/types/grid'
+import type { GridPosition } from '@/types/grid.types'
+import { getDigTime } from '@/types/grid.types'
 
 const props = defineProps<{
   position: GridPosition

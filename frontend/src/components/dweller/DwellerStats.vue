@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { NProgress } from 'naive-ui'
 import { useThemeStore } from '@/stores/theme'
-import type { Special } from '@/types/vault'
 
 defineProps<{
   special: Special

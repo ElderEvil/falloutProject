@@ -1,28 +1,28 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useVaultStore } from '@/stores/vault'
-import VaultRoom from './VaultRoom.vue'
-import EmptyCell from './EmptyCell.vue'
-import RoomConstructionModal from './RoomConstructionModal.vue'
-import { isAdjacentToExisting } from '@/utils/gridUtils'
-import type { GridPosition } from '@/types/grid'
+import { computed, ref } from 'vue';
+import { useVaultStore } from '@/stores/vault';
+import VaultRoom from './VaultRoom.vue';
+import EmptyCell from './EmptyCell.vue';
+import RoomConstructionModal from './RoomConstructionModal.vue';
+import { isAdjacentToExisting } from '@/utils/gridUtils';
+import type { GridPosition } from '@/types/grid.types';
 
-const vaultStore = useVaultStore()
-const showConstructionModal = ref(false)
-const selectedPosition = ref<GridPosition | null>(null)
+const vaultStore = useVaultStore();
+const showConstructionModal = ref(false);
+const selectedPosition = ref<GridPosition | null>(null);
 
-const grid = computed(() => vaultStore.selectedVault?.grid || [])
+const grid = computed(() => vaultStore.selectedVault?.grid || []);
 
 const handleConstruct = (position: GridPosition) => {
-  selectedPosition.value = position
-  showConstructionModal.value = true
-}
+  selectedPosition.value = position;
+  showConstructionModal.value = true;
+};
 
 const canDig = (position: GridPosition) => {
-  if (!vaultStore.selectedVault) return false
-  const cell = vaultStore.selectedVault.grid[position.y][position.x]
-  return cell.status === 'empty' && isAdjacentToExisting(vaultStore.selectedVault.grid, position)
-}
+  if (!vaultStore.selectedVault) return false;
+  const cell = vaultStore.selectedVault.grid[position.y][position.x];
+  return cell.status === 'empty' && isAdjacentToExisting(vaultStore.selectedVault.grid, position);
+};
 </script>
 
 <template>

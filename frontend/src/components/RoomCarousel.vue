@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { NCard, NButton, useMessage } from 'naive-ui'
-import { useVaultStore } from '@/stores/vault'
-import type { Room } from '@/types/vault.types'
+import { ref } from 'vue';
+import { NCard, NButton, useMessage } from 'naive-ui';
+import { useVaultStore } from '@/stores/vault';
+import type { Room } from '@/types/room.types';
 
-const vaultStore = useVaultStore()
-const message = useMessage()
-const currentIndex = ref(0)
+const vaultStore = useVaultStore();
+const message = useMessage();
+const currentIndex = ref(0);
 
 const roomTypes = [
   {
@@ -21,23 +21,23 @@ const roomTypes = [
     description: 'Produces food for vault dwellers'
   },
   { type: 'living' as const, label: 'LIVING QUARTERS', description: 'Housing for vault dwellers' }
-]
+];
 
-const handleAddRoom = (type: Room['type']) => {
+const handleAddRoom = (type: Room['category']) => {
   if (vaultStore.addRoom(type)) {
-    message.success('Room constructed successfully')
+    message.success('Room constructed successfully');
   } else {
-    message.error('Cannot construct more rooms')
+    message.error('Cannot construct more rooms');
   }
-}
+};
 
 const nextRoom = () => {
-  currentIndex.value = (currentIndex.value + 1) % roomTypes.length
-}
+  currentIndex.value = (currentIndex.value + 1) % roomTypes.length;
+};
 
 const prevRoom = () => {
-  currentIndex.value = (currentIndex.value - 1 + roomTypes.length) % roomTypes.length
-}
+  currentIndex.value = (currentIndex.value - 1 + roomTypes.length) % roomTypes.length;
+};
 </script>
 
 <template>

@@ -1,24 +1,25 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { NModal, NButton } from 'naive-ui'
-import { useVaultStore } from '@/stores/vault'
-import VaultNumberSpinner from './VaultNumberSpinner.vue'
+import { ref } from 'vue';
+import { NModal, NButton } from 'naive-ui';
+import { useVaultStore } from '@/stores/vault';
+import VaultNumberSpinner from './VaultNumberSpinner.vue';
 
 const props = defineProps<{
-  modelValue: boolean
-}>()
+  modelValue: boolean;
+  vaultNumber: number;
+}>();
 
 const emit = defineEmits<{
-  'update:modelValue': [value: boolean]
-}>()
+  'update:modelValue': [value: boolean];
+}>();
 
-const vaultStore = useVaultStore()
-const vaultNumber = ref(Math.floor(Math.random() * 999) + 1)
+const vaultStore = useVaultStore();
+const vaultNumber = ref(Math.floor(Math.random() * 999) + 1);
 
 const createVault = () => {
-  vaultStore.createVault(vaultNumber.value.toString())
-  emit('update:modelValue', false)
-}
+  vaultStore.createVault(vaultNumber.value.toString());
+  emit('update:modelValue', false);
+};
 </script>
 
 <template>

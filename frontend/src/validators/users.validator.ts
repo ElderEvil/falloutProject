@@ -1,22 +1,17 @@
-import { z } from 'zod'
+import { z } from 'zod';
 
 // Base schema with common validations
 const userBaseSchema = z.object({
   username: z
     .string()
     .min(3, 'Username must be at least 3 characters')
-    .max(50, 'Username cannot exceed 50 characters')
-    .regex(
-      /^[a-zA-Z0-9_-]+$/,
-      'Username can only contain letters, numbers, underscores, and hyphens'
-    ),
-
+    .max(50, 'Username cannot exceed 50 characters'),
   email: z
     .string()
     .email('Invalid email format')
     .min(5, 'Email must be at least 5 characters')
     .max(255, 'Email cannot exceed 255 characters')
-})
+});
 
 // Schema for user creation/registration
 const userCreateSchema = userBaseSchema
@@ -35,14 +30,14 @@ const userCreateSchema = userBaseSchema
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
     path: ['confirmPassword']
-  })
+  });
 
 // Schema for reading user data (no sensitive info)
 const userReadSchema = userBaseSchema.extend({
   id: z.string().uuid(),
   createdAt: z.date(),
   updatedAt: z.date()
-})
+});
 
 // Schema for updating user data
 const userUpdateSchema = userBaseSchema
@@ -63,9 +58,9 @@ const userUpdateSchema = userBaseSchema
   .refine(
     (data) => {
       if (data.newPassword) {
-        return data.newPassword === data.confirmNewPassword
+        return data.newPassword === data.confirmNewPassword;
       }
-      return true
+      return true;
     },
     {
       message: "New passwords don't match",
@@ -75,20 +70,20 @@ const userUpdateSchema = userBaseSchema
   .refine(
     (data) => {
       if (data.newPassword) {
-        return !!data.currentPassword
+        return !!data.currentPassword;
       }
-      return true
+      return true;
     },
     {
       message: 'Current password is required to set new password',
       path: ['currentPassword']
     }
-  )
+  );
 
 // Type inference
-type UserCreate = z.infer<typeof userCreateSchema>
-type UserRead = z.infer<typeof userReadSchema>
-type UserUpdate = z.infer<typeof userUpdateSchema>
+type UserCreate = z.infer<typeof userCreateSchema>;
+type UserRead = z.infer<typeof userReadSchema>;
+type UserUpdate = z.infer<typeof userUpdateSchema>;
 
 export {
   userBaseSchema,
@@ -98,4 +93,4 @@ export {
   type UserCreate,
   type UserRead,
   type UserUpdate
-}
+};

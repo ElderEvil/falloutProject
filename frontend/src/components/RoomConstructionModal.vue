@@ -1,74 +1,75 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { NModal, NButton, NCard, NProgress, useMessage } from 'naive-ui'
-import { useVaultStore } from '@/stores/vault'
-import { ROOM_CONFIGS } from '@/utils/roomUtils'
-import { CONSTRUCTION_TIME, GridPosition } from '@/types/grid.types'
-import { type Room } from '@/types/room.types'
+import { ref, computed } from 'vue';
+import { NModal, NButton, NCard, NProgress, useMessage } from 'naive-ui';
+import { useVaultStore } from '@/stores/vault';
+import type { GridPosition } from '@/types/grid.types';
+import { type Room } from '@/types/room.types';
+import { CONSTRUCTION_TIME } from '@/constants';
+import type { RoomConfig } from '@/utils/roomUtils';
 
 const props = defineProps<{
-  modelValue: boolean
-  position: GridPosition
-}>()
+  modelValue: boolean;
+  position: GridPosition;
+}>();
 
 const emit = defineEmits<{
-  'update:modelValue': [value: boolean]
-}>()
+  'update:modelValue': [value: boolean];
+}>();
 
-const vaultStore = useVaultStore()
-const message = useMessage()
-const currentIndex = ref(0)
-const constructing = ref(false)
-const progress = ref(0)
-const constructionInterval = ref<number | null>(null)
+const vaultStore = useVaultStore();
+const message = useMessage();
+const currentIndex = ref(0);
+const constructing = ref(false);
+const progress = ref(0);
+const constructionInterval = ref<number | null>(null);
 
-const selectedRoom = computed(() => ROOM_CONFIGS[currentIndex.value])
+const selectedRoom = computed(() => RoomConfig[currentIndex.value]);
 
-const startConstruction = (type: Room['type']) => {
-  constructing.value = true
-  progress.value = 0
+const startConstruction = (type: Room['category']) => {
+  constructing.value = true;
+  progress.value = 0;
 
-  const startTime = Date.now()
+  const startTime = Date.now();
 
-  vaultStore.startConstruction(props.position)
+  vaultStore.startConstruction(props.position);
 
   constructionInterval.value = window.setInterval(() => {
-    const elapsed = Date.now() - startTime
-    progress.value = Math.min((elapsed / CONSTRUCTION_TIME) * 100, 100)
+    const elapsed = Date.now() - startTime;
+    progress.value = Math.min((elapsed / CONSTRUCTION_TIME) * 100, 100);
 
     if (progress.value === 100) {
-      clearInterval(constructionInterval.value!)
-      completeConstruction(type)
+      clearInterval(constructionInterval.value!);
+      completeConstruction(type);
     }
-  }, 50)
-}
+  }, 50);
+};
 
-const completeConstruction = (type: Room['type']) => {
+const completeConstruction = (type: Room['category']) => {
   if (vaultStore.addRoom(type, props.position)) {
-    message.success('Room constructed successfully')
-    emit('update:modelValue', false)
+    message.success('Room constructed successfully');
+    emit('update:modelValue', false);
   } else {
-    message.error('Cannot construct room')
+    message.error('Cannot construct room');
   }
-  constructing.value = false
-}
+  constructing.value = false;
+};
 
 const nextRoom = () => {
-  currentIndex.value = (currentIndex.value + 1) % ROOM_CONFIGS.length
-}
+  currentIndex.value = (currentIndex.value + 1) % RoomConfig.length;
+};
 
 const prevRoom = () => {
-  currentIndex.value = (currentIndex.value - 1 + ROOM_CONFIGS.length) % ROOM_CONFIGS.length
-}
+  currentIndex.value = (currentIndex.value - 1 + RoomConfig.length) % RoomConfig.length;
+};
 
 const handleClose = () => {
   if (constructionInterval.value) {
-    clearInterval(constructionInterval.value)
-    constructing.value = false
-    progress.value = 0
+    clearInterval(constructionInterval.value);
+    constructing.value = false;
+    progress.value = 0;
   }
-  emit('update:modelValue', false)
-}
+  emit('update:modelValue', false);
+};
 </script>
 
 <template>

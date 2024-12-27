@@ -1,72 +1,72 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { NButton, NCard, NModal, NPopconfirm } from 'naive-ui'
-import VueDraggable from 'vuedraggable'
-import DwellerCard from '@/components/dweller/DwellerCard.vue'
-import { useVaultStore } from '@/stores/vault'
-import { isVaultDoor } from '@/utils/roomUtils'
-import type { Room } from '@/types/vault'
+import { computed, ref } from 'vue';
+import { NButton, NCard, NModal, NPopconfirm } from 'naive-ui';
+import VueDraggable from 'vuedraggable';
+import DwellerCard from '@/components/dweller/DwellerCard.vue';
+import { useVaultStore } from '@/stores/vault';
+import { isVaultDoor } from '@/utils/roomUtils';
+import type { Room } from '@/types/room.types';
 
 const props = defineProps<{
-  room: Room
-}>()
+  room: Room;
+}>();
 
-const vaultStore = useVaultStore()
-const showDetails = ref(false)
+const vaultStore = useVaultStore();
+const showDetails = ref(false);
 
 const roomDwellers = computed({
   get: () => props.room.dwellers,
   set: (newDwellers) => {
-    if (newDwellers.length > props.room.capacity) return
+    if (newDwellers.length > props.room.capacity) return;
 
     // Handle dweller removal
     if (newDwellers.length < props.room.dwellers.length) {
       const removedDweller = props.room.dwellers.find(
         (d) => !newDwellers.some((nd) => nd.id === d.id)
-      )
+      );
       if (removedDweller) {
-        vaultStore.unassignDweller(removedDweller.id)
+        vaultStore.unassignDweller(removedDweller.id);
       }
-      return
+      return;
     }
 
     // Handle dweller addition
-    const addedDweller = newDwellers[newDwellers.length - 1]
+    const addedDweller = newDwellers[newDwellers.length - 1];
     if (addedDweller) {
-      vaultStore.assignDwellerToRoom(addedDweller.id, props.room.id)
+      vaultStore.assignDwellerToRoom(addedDweller.id, props.room.id);
     }
   }
-})
+});
 
 const emptySlots = computed(() => {
-  return Array(props.room.capacity - props.room.dwellers.length).fill(null)
-})
+  return Array(props.room.capacity - props.room.dwellers.length).fill(null);
+});
 
 const getRoomTitle = (type: Room['type']) => {
   if (isVaultDoor(props.room)) {
-    return 'VAULT DOOR'
+    return 'VAULT DOOR';
   }
   const titles = {
     power: 'POWER GENERATOR',
     water: 'WATER TREATMENT',
     food: 'FOOD PRODUCTION',
     living: 'LIVING QUARTERS'
-  }
-  return titles[type]
-}
+  };
+  return titles[type];
+};
 
 const handleDestroyRoom = () => {
-  if (isVaultDoor(props.room)) return
-  vaultStore.destroyRoom(props.room.id)
-}
+  if (isVaultDoor(props.room)) return;
+  vaultStore.destroyRoom(props.room.id);
+};
 
 const handleUnassignDweller = (dwellerId: string) => {
-  vaultStore.unassignDweller(dwellerId)
-}
+  vaultStore.unassignDweller(dwellerId);
+};
 
 const roomStyle = computed(() => ({
   gridColumn: `span ${props.room.size}`
-}))
+}));
 </script>
 
 <template>

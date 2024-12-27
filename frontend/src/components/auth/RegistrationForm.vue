@@ -1,29 +1,29 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useUserStore } from '@/stores/user'
-import { NForm, NFormItem, NInput, NButton, useMessage } from 'naive-ui'
-import type { AuthForm } from '@/features/auth/model/types'
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { useUserStore } from '@/stores/user';
+import { NForm, NFormItem, NInput, NButton, useMessage } from 'naive-ui';
+import type { AuthForm } from '@/types/auth';
 
-const userStore = useUserStore()
-const router = useRouter()
-const message = useMessage()
+const userStore = useUserStore();
+const router = useRouter();
+const message = useMessage();
 
 const form = ref<AuthForm>({
   email: '',
   username: '',
   password: '',
   confirmPassword: ''
-})
+});
 
 const handleSignup = () => {
-  const result = userStore.signup(form.value)
+  const result = userStore.signup(form.value);
   if (result.success) {
-    router.push('/vaults')
+    router.push('/vaults');
   } else {
-    message.error(result.message || 'Registration failed')
+    message.error(result.message || 'Registration failed');
   }
-}
+};
 </script>
 
 <template>

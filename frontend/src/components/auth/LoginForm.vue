@@ -1,31 +1,31 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useUserStore } from '@/stores/user'
-import { NForm, NFormItem, NInput, NButton, useMessage } from 'naive-ui'
-import type { AuthForm } from '@/features/auth/model/types'
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { useUserStore } from '@/stores/user';
+import { NForm, NFormItem, NInput, NButton, useMessage } from 'naive-ui';
+import type { AuthForm } from '@/types/auth';
 
-const userStore = useUserStore()
-const router = useRouter()
-const message = useMessage()
+const userStore = useUserStore();
+const router = useRouter();
+const message = useMessage();
 
 const form = ref<AuthForm>({
   email: '',
   password: ''
-})
+});
 
 const handleLogin = async () => {
   try {
-    const result = await userStore.login(form.value)
+    const result = await userStore.login(form.value);
     if (result.success) {
-      await router.push('/vaults')
+      await router.push('/vaults');
     } else {
-      message.error(result.message || 'Login failed')
+      message.error(result.message || 'Login failed');
     }
   } catch (error) {
-    message.error('An error occurred during login')
+    message.error('An error occurred during login');
   }
-}
+};
 </script>
 
 <template>

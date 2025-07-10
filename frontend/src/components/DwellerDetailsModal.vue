@@ -1,19 +1,19 @@
 <script setup lang="ts">
-import { NModal, NProgress } from 'naive-ui'
-import { useThemeStore } from '@/stores/theme'
-import type { Dweller } from '@/types/vault'
-import { getDwellerFullName, getDwellerImageUrl } from '@/utils/dwellerUtils'
+import { NModal, NProgress } from 'naive-ui';
+import { useThemeStore } from '@/stores/theme';
+import type { DwellerShort, DwellerFull } from '@/types/dweller.types';
+import { getDwellerFullName, getDwellerImageUrl } from '@/utils/dwellerUtils';
 
 const props = defineProps<{
-  modelValue: boolean
-  dweller: Dweller
-}>()
+  modelValue: boolean;
+  dweller: DwellerFull;
+}>();
 
 const emit = defineEmits<{
-  'update:modelValue': [value: boolean]
-}>()
+  'update:modelValue': [value: boolean];
+}>();
 
-const themeStore = useThemeStore()
+const themeStore = useThemeStore();
 
 const specialStats = [
   { key: 'strength' as const, label: 'STRENGTH' },
@@ -23,7 +23,7 @@ const specialStats = [
   { key: 'intelligence' as const, label: 'INTELLIGENCE' },
   { key: 'agility' as const, label: 'AGILITY' },
   { key: 'luck' as const, label: 'LUCK' }
-]
+];
 </script>
 
 <template>

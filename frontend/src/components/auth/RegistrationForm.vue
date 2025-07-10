@@ -43,5 +43,3 @@ const handleSignup = () => {
     <NButton type="primary" block @click="handleSignup"> INITIALIZE REGISTRATION</NButton>
   </NForm>
 </template>
-
-<style scoped></style>

@@ -1,7 +1,7 @@
-import type { Vault } from '@/types/vault.types'
-import { generateDefaultDwellers } from '@/utils/defaultDwellers'
-import { createEmptyGrid } from '@/utils/gridUtils'
-import type { Ref } from 'vue'
+import type { Vault } from '@/types/vault.types';
+import { generateDefaultDwellers } from '@/utils/defaultDwellers';
+import { createEmptyGrid } from '@/utils/gridUtils';
+import type { Ref } from 'vue';
 
 export function createVaultManager(vaults: Ref<Vault[]>, selectedVault: Ref<Vault | null>) {
   async function fetchVaults() {
@@ -22,38 +22,37 @@ export function createVaultManager(vaults: Ref<Vault[]>, selectedVault: Ref<Vaul
           grid: createEmptyGrid(),
           maxDwellers: 25
         }
-      ]
+      ];
 
       // Add vault door to each vault
       mockVaults.forEach((vault) => {
-        vault.rooms.push(vaultDoor)
-        vault.grid[0][0].status = 'occupied'
-        vault.grid[0][0].roomId = vaultDoor.id
-      })
+        vault.rooms.push(vaultDoor);
+        vault.grid[0][0].status = 'occupied';
+        vault.grid[0][0].roomId = vaultDoor.id;
+      });
 
-      vaults.value = mockVaults
-      return true
+      vaults.value = mockVaults;
+      return true;
     } catch (error) {
-      console.error('Error fetching vaults:', error)
-      return false
+      console.error('Error fetching vaults:', error);
+      return false;
     }
   }
 
   function selectVault(vaultId: string) {
-    const vault = vaults.value.find((v) => v.id === vaultId)
+    const vault = vaults.value.find((v) => v.id === vaultId);
     if (vault) {
-      selectedVault.value = vault
-      return true
+      selectedVault.value = vault;
+      return true;
     }
-    return false
+    return false;
   }
 
   function createVault(name: string) {
-    const grid = createEmptyGrid()
-    const vaultDoor = createVaultDoor()
+    const grid = createEmptyGrid();
 
     const newVault: Vault = {
-      id: Date.now(),
+      id: number,
       name,
       bottlecaps: 500,
       resources: [
@@ -62,22 +61,22 @@ export function createVaultManager(vaults: Ref<Vault[]>, selectedVault: Ref<Vaul
         { type: 'water', amount: 50, capacity: 100 }
       ],
       dwellers: generateDefaultDwellers(),
-      rooms: [vaultDoor],
+      rooms: [],
       grid,
       maxDwellers: 25
-    }
+    };
 
     // Set up vault door in grid
-    grid[0][0].status = 'occupied'
-    grid[0][0].roomId = vaultDoor.id
+    grid[0][0].status = 'occupied';
+    grid[0][0].roomId = vaultDoor.id;
 
-    vaults.value.push(newVault)
-    return newVault.id
+    vaults.value.push(newVault);
+    return newVault.id;
   }
 
   return {
     fetchVaults,
     selectVault,
     createVault
-  }
+  };
 }

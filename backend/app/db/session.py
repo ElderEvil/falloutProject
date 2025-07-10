@@ -14,14 +14,15 @@ async_engine = create_async_engine(
     max_overflow=64,
 )
 
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=async_engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
-    async_session = sessionmaker(
-        autocommit=False,
-        autoflush=False,
-        bind=async_engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
-    async with async_session() as session:
-        yield session
+    async with SessionLocal() as async_session:
+        yield async_session

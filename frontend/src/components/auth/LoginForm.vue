@@ -44,5 +44,3 @@ const handleLogin = async () => {
     <NButton type="primary" block @click="handleLogin"> INITIALIZE LOGIN SEQUENCE</NButton>
   </NForm>
 </template>
-
-<style scoped></style>

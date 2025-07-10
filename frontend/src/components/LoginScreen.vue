@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { NCard } from 'naive-ui'
-import AuthTabs from '@/components/auth/AuthTabs.vue'
+import { NCard } from 'naive-ui';
+import AuthTabs from '@/components/auth/AuthTabs.vue';
 </script>
 
 <template>
@@ -34,7 +34,6 @@ import AuthTabs from '@/components/auth/AuthTabs.vue'
 
 .terminal-header {
   font-family: 'Courier New', Courier, monospace;
-  color: #00ff00;
   margin-bottom: 2em;
   text-align: center;
   line-height: 1.5;

@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
 from pydantic import UUID4
@@ -17,7 +19,7 @@ router = APIRouter()
 @router.post("/", response_model=UserRead)
 async def create_user(
     *,
-    db_session: AsyncSession = Depends(get_async_session),
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user_in: UserCreate,
     _: CurrentSuperuser,
 ):
@@ -37,7 +39,7 @@ async def create_user(
 @router.get("/", response_model=list[UserRead])
 async def read_users(
     *,
-    db_session: AsyncSession = Depends(get_async_session),
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
     skip: int = 0,
     limit: int = 100,
     _: CurrentSuperuser,
@@ -51,10 +53,10 @@ async def read_users(
 @router.put("/me", response_model=UserRead)
 async def update_user_me(
     *,
-    db_session: AsyncSession = Depends(get_async_session),
-    username: str = Body(None),
-    password: str = Body(None),
-    email: EmailStr = Body(None),
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    username: str = Body(None),  # noqa: FAST002
+    password: str = Body(None),  # noqa: FAST002
+    email: EmailStr = Body(None),  # noqa: FAST002
     user: CurrentActiveUser,
 ):
     """
@@ -82,11 +84,11 @@ def read_user_me(user: CurrentActiveUser):
 @router.post("/open", response_model=UserWithTokens)
 async def create_user_open(
     *,
-    db_session: AsyncSession = Depends(get_async_session),
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
     redis_client=Depends(get_redis_client),
-    username: str = Body(...),
-    password: str = Body(...),
-    email: EmailStr = Body(...),
+    username: str = Body(...),  # noqa: FAST002
+    password: str = Body(...),  # noqa: FAST002
+    email: EmailStr = Body(...),  # noqa: FAST002
 ):
     """
     Create new user and log them in automatically.
@@ -120,7 +122,7 @@ async def create_user_open(
 async def read_user_by_id(
     *,
     user_id: UUID4,
-    db_session: AsyncSession = Depends(get_async_session),
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ):
     """
@@ -140,7 +142,7 @@ async def read_user_by_id(
 @router.put("/{user_id}", response_model=UserRead)
 async def update_user(
     *,
-    db_session: AsyncSession = Depends(get_async_session),
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user_id: UUID4,
     user_in: UserUpdate,
     _: CurrentSuperuser,

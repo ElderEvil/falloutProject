@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar
+from typing import TypeVar
 
 from pydantic import UUID4
 from sqlmodel import SQLModel, and_, select
@@ -10,7 +10,7 @@ LinkModelType = TypeVar("LinkModelType", bound=SQLModel)
 ModelType = TypeVar("ModelType", bound=SQLModel)
 
 
-class CompletionMixin(Generic[LinkModelType]):
+class CompletionMixin[LinkModelType]:
     link_model: type[LinkModelType]
 
     async def get_link(self, *, db_session: AsyncSession, vault_id: UUID4, quest_entity_id: UUID4) -> LinkModelType:
@@ -40,9 +40,9 @@ class CompletionMixin(Generic[LinkModelType]):
     async def _handle_completion_cascade(
         self,
         *,
-        db_session: AsyncSession,  # noqa: ARG002
-        db_obj: LinkModelType,  # noqa: ARG002
-        vault_id: UUID4,  # noqa: ARG002
+        db_session: AsyncSession,
+        db_obj: LinkModelType,
+        vault_id: UUID4,
     ) -> None:
         msg = "Subclasses must implement this method"
         raise NotImplementedError(msg)

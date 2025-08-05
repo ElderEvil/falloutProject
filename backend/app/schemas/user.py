@@ -1,13 +1,10 @@
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from pydantic import UUID4
 
 from app.models.user import UserBase
+from app.schemas.vault import VaultRead  # noqa: TC001
 from app.utils.partial import optional
-
-if TYPE_CHECKING:
-    from app.schemas.vault import VaultRead
 
 
 class UserCreate(UserBase):
@@ -30,7 +27,7 @@ class UserReadWithVaults(UserRead):
     vaults: list["VaultRead"] = []
 
 
-UserReadWithVaults.update_forward_refs()
+UserReadWithVaults.model_rebuild()
 
 
 @optional()

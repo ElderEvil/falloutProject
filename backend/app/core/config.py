@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     MINIO_PUBLIC_BUCKET_WHITELIST: list[str] = [
         "dweller-images",
         "dweller-thumbnails",
-        "outfit-images",
+        "dweller-audiooutfit-images",
         "weapon-images",
     ]
 

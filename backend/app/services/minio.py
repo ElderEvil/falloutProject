@@ -1,5 +1,6 @@
 import io
 import json
+import logging
 from functools import lru_cache
 
 from minio import Minio
@@ -32,6 +33,8 @@ PUBLIC_POLICY_TEMPLATE = {
         },
     ],
 }
+
+logger = logging.getLogger(__name__)
 
 
 class MinioService:
@@ -84,13 +87,23 @@ class MinioService:
                 error_msg = f"Error setting bucket policy for {bucket_name}: {e}"
                 raise BucketNotFoundError(error_msg) from e
 
-    def upload_file(self, *, file_data: bytes, file_name: str, bucket_name: str | None = None) -> str:
+    def upload_file(
+        self, file_data: bytes, file_name: str, *, file_type: str = "image/png", bucket_name: str | None = None
+    ) -> str:
         bucket_name = bucket_name or self.default_bucket_name
         self._ensure_bucket_exists(bucket_name)
         try:
+            file_stream = io.BytesIO(file_data)
+            file_size = len(file_data)
+            if file_size == 0:
+                err_msg = f"Attempted to upload 0-byte file: {file_name} to bucket {bucket_name}"
+                logger.warning(err_msg)
+                return ""
             result = self.client.put_object(
-                bucket_name, file_name, io.BytesIO(file_data), length=len(file_data), content_type="image/png"
+                bucket_name, file_name, file_stream, length=file_size, content_type=file_type
             )
+            err_msg = f"Successfully uploaded {file_name} to {bucket_name}. ETag: {result.etag}"
+            logger.info(err_msg)
             return (
                 self.public_url(file_name=file_name, bucket_name=bucket_name)
                 if bucket_name in settings.MINIO_PUBLIC_BUCKET_WHITELIST

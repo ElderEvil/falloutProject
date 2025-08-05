@@ -4,7 +4,7 @@ from pydantic import UUID4, ConfigDict, Field
 from sqlmodel import SQLModel
 
 from app.models.dweller import DwellerBase
-from app.schemas.common import GenderEnum, RarityEnum, SPECIALEnum
+from app.schemas.common import STATE_OF_BEING_TYPE, FactionEnum, GenderEnum, RaceEnum, RarityEnum, SPECIALEnum
 from app.schemas.outfit import OutfitRead
 from app.schemas.room import RoomRead
 from app.schemas.vault import VaultRead
@@ -39,6 +39,43 @@ class DwellerCreate(DwellerCreateWithoutVaultID):
     vault_id: UUID4
 
 
+class DwellerVisualAttributesInput(SQLModel):
+    race: RaceEnum | None = None
+    faction: FactionEnum | None = None
+
+    # Appearance and Facial Features
+    skin_tone: str | None = None
+    body_type: str | None = None
+    age: int | None = Field(default=None, ge=18, le=80)
+    state_of_being: STATE_OF_BEING_TYPE | None = None  # For non-humans
+    eye_color: str | None = None
+    headgear: str | None = None
+    haircut: str | None = None
+    hair_color: str | None = None
+    facial_hair: str | None = None
+    makeup: str | None = None
+    expression: str | None = None
+
+    # Equipment
+    accessory: str | None = None
+    object_held: str | None = None
+    # TODO: Choose from inventory
+    # outfit: str | None = None
+    # weapon: str | None = None
+
+    # Scene & Action
+    pose: str | None = None
+    background: str | None = None
+
+    # Audio
+    voice_line_text: str | None = None
+
+    # More specific fields
+    # distinguishing_features: list[str] | None = None
+
+    model_config = ConfigDict(use_enum_values=True)
+
+
 class DwellerCreateCommonOverride(SQLModel):
     """Common random dweller overrides."""
 
@@ -46,6 +83,7 @@ class DwellerCreateCommonOverride(SQLModel):
     last_name: str | None = Field(default=None, min_length=2, max_length=32)
     gender: GenderEnum | None = Field(default=None)
     special_boost: SPECIALEnum | None = Field(default=None)
+    visual_attributes: DwellerVisualAttributesInput | None = Field(default=None)
 
 
 class DwellerReadLess(SQLModel):
@@ -92,3 +130,4 @@ class DwellerReadFull(DwellerRead):
 @optional()
 class DwellerUpdate(DwellerBase):
     room_id: UUID4 | None = None
+    visual_attributes: DwellerVisualAttributesInput | None = Field(default=None)

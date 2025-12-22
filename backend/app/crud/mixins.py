@@ -40,9 +40,9 @@ class CompletionMixin(Generic[LinkModelType]):
     async def _handle_completion_cascade(
         self,
         *,
-        db_session: AsyncSession,  # noqa: ARG002
-        db_obj: LinkModelType,  # noqa: ARG002
-        vault_id: UUID4,  # noqa: ARG002
+        db_session: AsyncSession,
+        db_obj: LinkModelType,
+        vault_id: UUID4,
     ) -> None:
         msg = "Subclasses must implement this method"
         raise NotImplementedError(msg)

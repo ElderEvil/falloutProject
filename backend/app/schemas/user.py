@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import UUID4
 
 from app.models.user import UserBase
-from app.schemas.vault import VaultRead  # noqa: TCH001
+from app.schemas.vault import VaultRead  # noqa: TC001
 from app.utils.partial import optional
 
 

@@ -1,43 +1,43 @@
 [project]
 name = "fallout-shelter-fast-api-vue"
 version = "0.1.0"
-authors = [{ name = "ElderEvil", email = "lordofelderevil@gmail.com" }, ]
+authors = [{ name = "ElderEvil", email = "elder.evil.dev@proton.me" }, ]
 description = "Fallout Shelter FastAPI Game is a web-based simulation game where the player manages a vault full of dwellers, balancing their needs and resources to keep the vault thriving."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.14,<3.15"
 dependencies = [
-    "alembic>=1.13.3",
+    "alembic>=1.17.0,<2.0",
     "asyncpg>=0.30.0,<1.0",
-    "celery>=5.4.0",
-    "email-validator>=2.2.0",
-    "faker>=30.8.1",
-    "fastapi>=0.115.3",
-    "minio>=7.2.10",
-    "openai>=1.52.2",
+    "celery>=5.5.3,<6.0",
+    "faker>=37.11.0",
+    "fastapi[standard]>=0.128.0",
+    "minio>=7.2.10,<8.0",
+    "openai>=2.3.0,<3",
     "passlib[bcrypt]>=1.7.4",
-    "pillow>=11.0.0",
-    "psycopg>=3.2.3",
-    "pydantic-settings>=2.6.0",
-    "python-jose[cryptography]>=3.3.0",
-    "python-multipart>=0.0.12",
-    "redis>=5.2.0",
-    "sqladmin[full]>=0.20.0",
-    "sqlmodel>=0.0.22",
-    "uvicorn[standard]>=0.32.0",
+    "pillow>=11.3.0,<12",
+    "psycopg>=3.2.10,<4",
+    "pydantic-settings>=2.12.0,<3",
+    "pydantic-extra-types>=2.10.6",
+    "python-jose[cryptography]>=3.5.0",
+    "redis>=7.1.0,<8",
+    "sqladmin[full]>=0.22.0",
+    "sqlmodel>=0.0.30,<1",
+    "ruff>=0.7.1",
 ]
 
 [dependency-groups]
 test = [
-    "aiosqlite>=0.20.0",
-    "coverage>=7.6.4",
+    "aiosqlite>=0.21.0",
+    "coverage>=7.10.7",
     "factory-boy>=3.3.1",
     "pytest>=8.3.3",
     "pytest-asyncio>=0.24.0",
     "pytest-cov>=5.0.0",
 ]
 lint = [
-    "pre-commit>=4.0.1",
-    "ruff>=0.7.1",
+    "pre-commit>=4.5.1",
+    "ruff>=0.14.10",
+    "ty>=0.0.7",
 ]
 
 [tool.uv]
@@ -52,45 +52,45 @@ line-length = 120
 target-version = "py312"
 exclude = [".git", "__pycache__", ".pytest_cache", "alembic"]
 lint.select = [
-    "F", # pyflakes
-    "E", # pycodestyle errors
-    "W", # pycodestyle warnings
-    "C90", # mccabe
-    "I", # isort
-    "N", # pep8-naming
-    "UP", # pyupgrade
-    "YTT", # flake8-2020
-    "ASYNC", # flake8-async
-    "BLE", # flake8-blind-except
-    "FBT", # flake8-boolean-trap
-    "B", # flake8-bugbear
-    "A", # flake8-builtins
-    "COM", # flake8-commas
-    "C4", # flake8-comprehensions
-    "DTZ", # flake8-datetimez
-    "EM", # flake8-errmsg
-    "ISC", # flake8-implicit-str-concat
-    "ICN", # flake8-import-conventions
-    "LOG", # flake8-logging
-    "G", # flake8-logging-format
-    "INP", # flake8-no-pep420
-    "PIE", # flake8-pie
-    "PYI", # flake8-pyi
-    "PT", # flake8-pytest-style
-    "Q", # flake8-quotes
-    "RSE", # flake8-raise
-    "RET", # flake8-return
-    "SIM", # flake8-simplify
-    "TID", # flake8-tidy-imports
-    "TCH", # flake8-type-checking
-    "INT", # flake8-gettext
-    "ARG", # flake8-arguments
-    "PTH", # flake8-pathlib
-    "PGH", # pygrep-hooks
-    "PL", # Pylint
-    "TRY", # tryceratops
-    "RUF", # Ruff
-    "FAST", # fastapi
+    "F",
+    "E",
+    "W",
+    "C90",
+    "I",
+    "N",
+    "UP",
+    "YTT",
+    "ASYNC",
+    "BLE",
+    "FBT",
+    "B",
+    "A",
+    "COM",
+    "C4",
+    "DTZ",
+    "EM",
+    "ISC",
+    "ICN",
+    "LOG",
+    "G",
+    "INP",
+    "PIE",
+    "PYI",
+    "PT",
+    "Q",
+    "RSE",
+    "RET",
+    "SIM",
+    "TID",
+    "TCH",
+    "INT",
+    "ARG",
+    "PTH",
+    "PGH",
+    "PL",
+    "TRY",
+    "RUF",
+    "FAST",
 ]
 
 lint.mccabe.max-complexity = 12
@@ -98,14 +98,14 @@ lint.mccabe.max-complexity = 12
 lint.ignore = [
     "COM812",
     "ISC001",
-    "B008", # do not perform function calls in argument defaults
-    "PTH123", # builtin-open
-    "S311", # pseudo-random
+    "B008",
+    "PTH123",
+    "S311",
     "PLR2004",
-    "PT023", # pytest-style
+    "PT023",
     "RUF012",
-    "N805", # self
-    "E712", # Avoid equality comparison
+    "N805",
+    "E712",
 ]
 
 [tool.ruff.lint.flake8-builtins]

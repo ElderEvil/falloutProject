@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useDwellerStore } from '@/stores/dweller'
 import DwellerChat from '@/components/chat/DwellerChat.vue'
+import type { Dweller } from '@/models/dweller'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -18,10 +19,11 @@ onMounted(async () => {
     if (!authStore.token) {
       throw new Error('No authentication token available')
     }
-    dweller.value = await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token)
-    if (!dweller.value) {
+    const result = await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token)
+    if (!result) {
       throw new Error('Failed to fetch dweller data')
     }
+    dweller.value = result
   } catch (error) {
     console.error('Error fetching dweller data:', error)
     // Handle error (e.g., show error message to user, redirect to error page)

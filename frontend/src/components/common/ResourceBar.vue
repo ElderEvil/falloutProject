@@ -10,6 +10,7 @@ interface Props {
 const props = defineProps<Props>()
 
 const percentage = computed(() => {
+  if (props.max === 0) return 0
   return Math.min((props.current / props.max) * 100, 100)
 })
 </script>

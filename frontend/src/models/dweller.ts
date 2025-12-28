@@ -1,4 +1,4 @@
-interface DwellerShort {
+export interface DwellerShort {
   id: string
   first_name: string
   last_name: string
@@ -9,7 +9,7 @@ interface DwellerShort {
   thumbnail_url: string
 }
 
-interface Special {
+export interface Special {
   strength: number
   perception: number
   endurance: number
@@ -19,7 +19,7 @@ interface Special {
   luck: number
 }
 
-interface Dweller extends DwellerShort {
+export interface Dweller extends DwellerShort {
   bio: string
   image_url: string
   // stats

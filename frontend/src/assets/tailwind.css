@@ -1,12 +1,19 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  /* Custom colors */
+  --color-terminal-green: #00ff00;
+  --color-terminal-background: #000000;
+
+  /* Custom font families */
+  --font-family-mono: "Courier New", monospace;
+}
 
 body {
-    background-color: #000;
-    color: #00ff00;
-    font-family: 'Courier New', monospace;
-    text-shadow: 0 0 10px #00ff00;
+    background-color: var(--color-terminal-background);
+    color: var(--color-terminal-green);
+    font-family: var(--font-family-mono);
+    text-shadow: 0 0 10px var(--color-terminal-green);
 }
 
 .scanlines {

@@ -45,3 +45,5 @@ class SPECIALModel(SQLModel):
     intelligence: int = Field(ge=1, le=10, alias="I")
     agility: int = Field(ge=1, le=10, alias="A")
     luck: int = Field(ge=1, le=10, alias="L")
+
+    model_config = {"populate_by_name": True}

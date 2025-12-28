@@ -54,9 +54,9 @@ async def read_users(
 async def update_user_me(
     *,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    username: str = Body(None),  # noqa: FAST002
-    password: str = Body(None),  # noqa: FAST002
-    email: EmailStr = Body(None),  # noqa: FAST002
+    username: Annotated[str | None, Body()] = None,
+    password: Annotated[str | None, Body()] = None,
+    email: Annotated[EmailStr, Body()] = None,
     user: CurrentActiveUser,
 ):
     """

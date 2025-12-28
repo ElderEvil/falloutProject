@@ -1,7 +1,12 @@
 version: '3.9'
+
+# Podman Compose configuration for Fallout Shelter API
+# Compatible with podman-compose and can replace docker-compose
+# Usage: podman-compose up -d
+
 services:
   db:
-    image: postgres:18-alpine
+    image: docker.io/library/postgres:18-alpine
     restart: always
     env_file: ".env"
     volumes:
@@ -45,7 +50,7 @@ services:
       - ./frontend:/app
 
   redis:
-    image: redis:alpine
+    image: docker.io/library/redis:alpine
     restart: always
     env_file: ".env"
     expose:
@@ -76,7 +81,7 @@ services:
     command: "celery -A app.core.celery beat -l info"
 
   flower:
-    image: mher/flower:latest
+    image: docker.io/mher/flower:latest
     restart: always
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
@@ -86,7 +91,7 @@ services:
       - celery_worker
 
   minio:
-    image: minio/minio
+    image: docker.io/minio/minio
     container_name: minio
     env_file:
       - .env

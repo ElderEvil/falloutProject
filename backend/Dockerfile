@@ -1,5 +1,5 @@
 # Base image
-FROM python:3.12.1-slim-bullseye
+FROM python:3.14-slim-bookworm
 
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -8,7 +8,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN useradd -m appuser
 
 # Set working directory
-WORKDIR //
+WORKDIR /app
 
 # Set environment variables
 ENV VIRTUAL_ENV=/opt/venv \

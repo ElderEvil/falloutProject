@@ -8,14 +8,14 @@ from app.core.config import settings
 
 async_engine = create_async_engine(
     str(settings.ASYNC_DATABASE_URI),
-    echo=True,
+    echo=settings.ENVIRONMENT == "local",
     future=True,
     pool_size=settings.POOL_SIZE,
     max_overflow=64,
 )
 
 
-async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_async_session() -> AsyncGenerator[AsyncSession]:
     async_session = sessionmaker(
         autocommit=False,
         autoflush=False,

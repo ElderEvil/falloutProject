@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  backend-ci:
+    name: Backend CI
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' || contains(github.event.head_commit.modified, 'backend/') || contains(github.event.head_commit.added, 'backend/') }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "backend/uv.lock"
+
+      - name: Set up Python
+        working-directory: backend
+        run: uv python install
+
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --locked --all-extras --dev
+
+      - name: Run linter (prek)
+        working-directory: backend
+        run: prek run
+
+      - name: Run tests
+        working-directory: backend
+        run: uv run pytest app/tests -v --tb=short
+
+  frontend-ci:
+    name: Frontend CI
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' || contains(github.event.head_commit.modified, 'frontend/') || contains(github.event.head_commit.added, 'frontend/') }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: 'frontend/.nvmrc'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Run linter
+        working-directory: frontend
+        run: pnpm run lint
+
+      - name: Run tests
+        working-directory: frontend
+        run: pnpm run test -- --run
+
+      - name: Build check
+        working-directory: frontend
+        run: pnpm run build

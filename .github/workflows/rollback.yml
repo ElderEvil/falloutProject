@@ -1,0 +1,228 @@
+name: Rollback Deployment (TrueNAS)
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to rollback'
+        required: true
+        type: choice
+        options:
+          - backend
+          - frontend
+          - both
+        default: 'both'
+      backend_image_tag:
+        description: 'Backend image tag to rollback to (required if service is backend or both)'
+        required: false
+        default: ''
+      frontend_image_tag:
+        description: 'Frontend image tag to rollback to (required if service is frontend or both)'
+        required: false
+        default: ''
+      restart_dependencies:
+        description: 'Restart dependent services (celery for backend)'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  rollback:
+    name: Rollback ${{ inputs.service }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.TRUENAS_SSH_KEY }}" > ~/.ssh/truenas_key
+          chmod 600 ~/.ssh/truenas_key
+          ssh-keyscan -H ${{ secrets.TRUENAS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Test SSH connection
+        run: |
+          ssh -i ~/.ssh/truenas_key ${{ secrets.TRUENAS_USER }}@${{ secrets.TRUENAS_HOST }} "echo '✅ SSH connection successful'"
+
+      - name: Get current deployment info
+        run: |
+          echo "📊 Current deployment status:"
+
+          ssh -i ~/.ssh/truenas_key ${{ secrets.TRUENAS_USER }}@${{ secrets.TRUENAS_HOST }} << 'EOF'
+            cd ${{ secrets.TRUENAS_PROJECT_PATH }}
+
+            echo "=== Current running containers ==="
+            docker-compose ps
+
+            if [[ "${{ inputs.service }}" == "backend" || "${{ inputs.service }}" == "both" ]]; then
+              echo ""
+              echo "=== Backend image ==="
+              docker-compose images fastapi
+            fi
+
+            if [[ "${{ inputs.service }}" == "frontend" || "${{ inputs.service }}" == "both" ]]; then
+              echo ""
+              echo "=== Frontend image ==="
+              docker-compose images vuejs
+            fi
+          EOF
+
+      - name: Pull rollback images
+        run: |
+          echo "🔄 Pulling rollback images..."
+
+          ssh -i ~/.ssh/truenas_key ${{ secrets.TRUENAS_USER }}@${{ secrets.TRUENAS_HOST }} << 'EOF'
+            cd ${{ secrets.TRUENAS_PROJECT_PATH }}
+
+            # Login to Docker Hub
+            if [ -n "${{ secrets.DOCKER_USERNAME }}" ] && [ -n "${{ secrets.DOCKER_PASSWORD }}" ]; then
+              echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+            fi
+
+            # Pull rollback images
+            if [[ "${{ inputs.service }}" == "backend" || "${{ inputs.service }}" == "both" ]] && [[ -n "${{ inputs.backend_image_tag }}" ]]; then
+              echo "Pulling backend rollback image: ${{ secrets.DOCKER_USERNAME }}/fastapi:${{ inputs.backend_image_tag }}"
+              docker pull ${{ secrets.DOCKER_USERNAME }}/fastapi:${{ inputs.backend_image_tag }}
+            fi
+
+            if [[ "${{ inputs.service }}" == "frontend" || "${{ inputs.service }}" == "both" ]] && [[ -n "${{ inputs.frontend_image_tag }}" ]]; then
+              echo "Pulling frontend rollback image: ${{ secrets.DOCKER_USERNAME }}/vuejs:${{ inputs.frontend_image_tag }}"
+              docker pull ${{ secrets.DOCKER_USERNAME }}/vuejs:${{ inputs.frontend_image_tag }}
+            fi
+          EOF
+
+      - name: Update docker-compose for rollback
+        run: |
+          echo "📝 Updating docker-compose.yml for rollback..."
+
+          ssh -i ~/.ssh/truenas_key ${{ secrets.TRUENAS_USER }}@${{ secrets.TRUENAS_HOST }} << 'EOF'
+            cd ${{ secrets.TRUENAS_PROJECT_PATH }}
+
+            # Backup current state
+            cp docker-compose.yml docker-compose.yml.before-rollback
+
+            # Update image tags
+            if [[ "${{ inputs.service }}" == "backend" || "${{ inputs.service }}" == "both" ]] && [[ -n "${{ inputs.backend_image_tag }}" ]]; then
+              # Replace or add image tag for backend services
+              sed -i '/fastapi:/,/build:/ s|build:|image: ${{ secrets.DOCKER_USERNAME }}/fastapi:${{ inputs.backend_image_tag }}\n    #build:|' docker-compose.yml
+              sed -i '/celery_worker:/,/build:/ s|build:|image: ${{ secrets.DOCKER_USERNAME }}/fastapi:${{ inputs.backend_image_tag }}\n    #build:|' docker-compose.yml
+              sed -i '/celery_beat:/,/build:/ s|build:|image: ${{ secrets.DOCKER_USERNAME }}/fastapi:${{ inputs.backend_image_tag }}\n    #build:|' docker-compose.yml
+            fi
+
+            if [[ "${{ inputs.service }}" == "frontend" || "${{ inputs.service }}" == "both" ]] && [[ -n "${{ inputs.frontend_image_tag }}" ]]; then
+              sed -i '/vuejs:/,/build:/ s|build:|image: ${{ secrets.DOCKER_USERNAME }}/vuejs:${{ inputs.frontend_image_tag }}\n    #build:|' docker-compose.yml
+            fi
+          EOF
+
+      - name: Rollback Backend
+        if: ${{ inputs.service == 'backend' || inputs.service == 'both' }}
+        run: |
+          echo "⏪ Rolling back backend to: ${{ secrets.DOCKER_USERNAME }}/fastapi:${{ inputs.backend_image_tag }}"
+
+          ssh -i ~/.ssh/truenas_key ${{ secrets.TRUENAS_USER }}@${{ secrets.TRUENAS_HOST }} << 'EOF'
+            cd ${{ secrets.TRUENAS_PROJECT_PATH }}
+
+            SERVICES="fastapi"
+
+            if [[ "${{ inputs.restart_dependencies }}" == "true" ]]; then
+              SERVICES="$SERVICES celery_worker celery_beat"
+            fi
+
+            echo "Restarting services: $SERVICES"
+            docker-compose up -d --force-recreate --no-deps $SERVICES
+
+            echo "⏳ Waiting for backend to be healthy..."
+            sleep 10
+
+            docker-compose ps fastapi
+          EOF
+
+      - name: Rollback Frontend
+        if: ${{ inputs.service == 'frontend' || inputs.service == 'both' }}
+        run: |
+          echo "⏪ Rolling back frontend to: ${{ secrets.DOCKER_USERNAME }}/vuejs:${{ inputs.frontend_image_tag }}"
+
+          ssh -i ~/.ssh/truenas_key ${{ secrets.TRUENAS_USER }}@${{ secrets.TRUENAS_HOST }} << 'EOF'
+            cd ${{ secrets.TRUENAS_PROJECT_PATH }}
+
+            echo "Restarting service: vuejs"
+            docker-compose up -d --force-recreate --no-deps vuejs
+
+            echo "⏳ Waiting for frontend to be ready..."
+            sleep 5
+
+            docker-compose ps vuejs
+          EOF
+
+      - name: Verify rollback
+        run: |
+          echo "📊 Post-rollback status:"
+
+          ssh -i ~/.ssh/truenas_key ${{ secrets.TRUENAS_USER }}@${{ secrets.TRUENAS_HOST }} << 'EOF'
+            cd ${{ secrets.TRUENAS_PROJECT_PATH }}
+
+            echo "=== Running containers ==="
+            docker-compose ps
+
+            echo ""
+            echo "=== Recent logs ==="
+            if [[ "${{ inputs.service }}" == "backend" || "${{ inputs.service }}" == "both" ]]; then
+              echo "--- FastAPI ---"
+              docker-compose logs --tail=20 fastapi
+            fi
+
+            if [[ "${{ inputs.service }}" == "frontend" || "${{ inputs.service }}" == "both" ]]; then
+              echo "--- Vue.js ---"
+              docker-compose logs --tail=20 vuejs
+            fi
+          EOF
+
+      - name: Health check
+        run: |
+          echo "🏥 Running health checks..."
+
+          ssh -i ~/.ssh/truenas_key ${{ secrets.TRUENAS_USER }}@${{ secrets.TRUENAS_HOST }} << 'EOF'
+            cd ${{ secrets.TRUENAS_PROJECT_PATH }}
+
+            if [[ "${{ inputs.service }}" == "backend" || "${{ inputs.service }}" == "both" ]]; then
+              echo "Checking backend health..."
+              docker-compose exec -T fastapi curl -f http://localhost:8000/health && echo "✅ Backend is healthy" || echo "⚠️ Backend health check failed"
+            fi
+
+            echo "✅ Health checks complete"
+          EOF
+
+      - name: Cleanup
+        if: always()
+        run: |
+          ssh -i ~/.ssh/truenas_key ${{ secrets.TRUENAS_USER }}@${{ secrets.TRUENAS_HOST }} << 'EOF'
+            cd ${{ secrets.TRUENAS_PROJECT_PATH }}
+
+            # Restore original docker-compose
+            if [ -f docker-compose.yml.before-rollback ]; then
+              mv docker-compose.yml.before-rollback docker-compose.yml
+            fi
+
+            # Clean up old images
+            docker image prune -f
+          EOF
+
+      - name: Rollback summary
+        run: |
+          echo "## ⏪ Rollback Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Service:** ${{ inputs.service }}" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ inputs.backend_image_tag }}" != "" ]]; then
+            echo "**Backend:** ${{ secrets.DOCKER_USERNAME }}/fastapi:${{ inputs.backend_image_tag }}" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [[ "${{ inputs.frontend_image_tag }}" != "" ]]; then
+            echo "**Frontend:** ${{ secrets.DOCKER_USERNAME }}/vuejs:${{ inputs.frontend_image_tag }}" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "**Restart Dependencies:** ${{ inputs.restart_dependencies }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Rollback completed successfully!" >> $GITHUB_STEP_SUMMARY

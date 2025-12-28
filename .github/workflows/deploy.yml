@@ -1,50 +1,252 @@
-name: Deploy to Kubernetes
+name: Deploy to Staging (TrueNAS)
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'deployment/k3s/**'
+  workflow_dispatch:
+    inputs:
+      backend_image_tag:
+        description: 'Backend image tag (e.g., latest, sha-abc123)'
+        required: false
+        default: 'latest'
+      frontend_image_tag:
+        description: 'Frontend image tag (e.g., latest, sha-abc123)'
+        required: false
+        default: 'latest'
+      run_migrations:
+        description: 'Run database migrations'
+        required: false
+        type: boolean
+        default: true
+      deploy_backend:
+        description: 'Deploy backend services'
+        required: false
+        type: boolean
+        default: true
+      deploy_frontend:
+        description: 'Deploy frontend'
+        required: false
+        type: boolean
+        default: true
+      restart_all:
+        description: 'Restart all services (hard restart)'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   deploy:
+    name: Deploy to TrueNAS Staging
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
 
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: 'latest'
-
-      - name: Create .kube directory
+      - name: Setup SSH key
         run: |
-          mkdir -p $HOME/.kube
+          mkdir -p ~/.ssh
+          echo "${{ secrets.TRUENAS_SSH_KEY }}" > ~/.ssh/truenas_key
+          chmod 600 ~/.ssh/truenas_key
+          ssh-keyscan -H ${{ secrets.TRUENAS_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Configure kubectl
+      - name: Test SSH connection
         run: |
-          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
-          chmod 600 $HOME/.kube/config
+          ssh -i ~/.ssh/truenas_key ${{ secrets.TRUENAS_USER }}@${{ secrets.TRUENAS_HOST }} "echo '✅ SSH connection successful'"
 
-      - name: Deploy Backend
+      - name: Pull latest images
         run: |
-          kubectl apply -f deployment/k3s/backend-deployment.yaml
-          kubectl apply -f deployment/k3s/backend-service.yaml
+          echo "🔄 Pulling Docker images on TrueNAS..."
 
-      - name: Deploy Frontend
-        run: |
-          kubectl apply -f deployment/k3s/frontend-deployment.yaml
-          kubectl apply -f deployment/k3s/frontend-service.yaml
+          ssh -i ~/.ssh/truenas_key ${{ secrets.TRUENAS_USER }}@${{ secrets.TRUENAS_HOST }} << 'EOF'
+            cd ${{ secrets.TRUENAS_PROJECT_PATH }}
 
-      - name: Deploy Caddy
-        run: |
-          kubectl apply -f deployment/k3s/caddy-deployment.yaml
-          kubectl apply -f deployment/k3s/caddy-service.yaml
+            # Login to Docker Hub if credentials provided
+            if [ -n "${{ secrets.DOCKER_USERNAME }}" ] && [ -n "${{ secrets.DOCKER_PASSWORD }}" ]; then
+              echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+            fi
 
-      - name: Deploy MinIO
+            # Pull specified images
+            if [[ "${{ inputs.deploy_backend }}" == "true" ]]; then
+              echo "Pulling backend image: ${{ secrets.DOCKER_USERNAME }}/fastapi:${{ inputs.backend_image_tag }}"
+              docker pull ${{ secrets.DOCKER_USERNAME }}/fastapi:${{ inputs.backend_image_tag }}
+            fi
+
+            if [[ "${{ inputs.deploy_frontend }}" == "true" ]]; then
+              echo "Pulling frontend image: ${{ secrets.DOCKER_USERNAME }}/vuejs:${{ inputs.frontend_image_tag }}"
+              docker pull ${{ secrets.DOCKER_USERNAME }}/vuejs:${{ inputs.frontend_image_tag }}
+            fi
+          EOF
+
+      - name: Update docker-compose to use specific tags
+        if: ${{ inputs.backend_image_tag != 'latest' || inputs.frontend_image_tag != 'latest' }}
         run: |
-          kubectl apply -f deployment/k3s/minio-deployment.yaml
-          kubectl apply -f deployment/k3s/minio-service.yaml
+          echo "📝 Updating docker-compose.yml with specific image tags..."
+
+          ssh -i ~/.ssh/truenas_key ${{ secrets.TRUENAS_USER }}@${{ secrets.TRUENAS_HOST }} << 'EOF'
+            cd ${{ secrets.TRUENAS_PROJECT_PATH }}
+
+            # Backup original
+            cp docker-compose.yml docker-compose.yml.bak
+
+            # Update image tags in docker-compose
+            if [[ "${{ inputs.deploy_backend }}" == "true" ]]; then
+              sed -i "s|build:|image: ${{ secrets.DOCKER_USERNAME }}/fastapi:${{ inputs.backend_image_tag }}\n    #build:|g" docker-compose.yml
+            fi
+
+            if [[ "${{ inputs.deploy_frontend }}" == "true" ]]; then
+              sed -i "s|build:|image: ${{ secrets.DOCKER_USERNAME }}/vuejs:${{ inputs.frontend_image_tag }}\n    #build:|g" docker-compose.yml
+            fi
+          EOF
+
+      - name: Run database migrations
+        if: ${{ inputs.run_migrations && inputs.deploy_backend }}
+        run: |
+          echo "🔄 Running Alembic migrations..."
+
+          ssh -i ~/.ssh/truenas_key ${{ secrets.TRUENAS_USER }}@${{ secrets.TRUENAS_HOST }} << 'EOF'
+            cd ${{ secrets.TRUENAS_PROJECT_PATH }}
+
+            # Run migrations in a temporary container
+            docker-compose run --rm fastapi alembic upgrade head
+
+            if [ $? -eq 0 ]; then
+              echo "✅ Migrations completed successfully"
+            else
+              echo "❌ Migration failed!"
+              exit 1
+            fi
+          EOF
+
+      - name: Deploy services (restart all)
+        if: ${{ inputs.restart_all }}
+        run: |
+          echo "🔄 Restarting all services..."
+
+          ssh -i ~/.ssh/truenas_key ${{ secrets.TRUENAS_USER }}@${{ secrets.TRUENAS_HOST }} << 'EOF'
+            cd ${{ secrets.TRUENAS_PROJECT_PATH }}
+
+            # Stop and remove all containers
+            docker-compose down
+
+            # Start all services
+            docker-compose up -d
+
+            echo "✅ All services restarted"
+          EOF
+
+      - name: Deploy specific services (rolling restart)
+        if: ${{ !inputs.restart_all }}
+        run: |
+          echo "🚀 Deploying services..."
+
+          ssh -i ~/.ssh/truenas_key ${{ secrets.TRUENAS_USER }}@${{ secrets.TRUENAS_HOST }} << 'EOF'
+            cd ${{ secrets.TRUENAS_PROJECT_PATH }}
+
+            SERVICES=""
+
+            if [[ "${{ inputs.deploy_backend }}" == "true" ]]; then
+              SERVICES="$SERVICES fastapi celery_worker celery_beat"
+            fi
+
+            if [[ "${{ inputs.deploy_frontend }}" == "true" ]]; then
+              SERVICES="$SERVICES vuejs"
+            fi
+
+            if [ -n "$SERVICES" ]; then
+              echo "Restarting services: $SERVICES"
+              docker-compose up -d --force-recreate --no-deps $SERVICES
+              echo "✅ Services deployed"
+            else
+              echo "⚠️ No services selected for deployment"
+            fi
+          EOF
+
+      - name: Wait for services to be healthy
+        run: |
+          echo "⏳ Waiting for services to be healthy..."
+
+          ssh -i ~/.ssh/truenas_key ${{ secrets.TRUENAS_USER }}@${{ secrets.TRUENAS_HOST }} << 'EOF'
+            cd ${{ secrets.TRUENAS_PROJECT_PATH }}
+
+            # Wait up to 60 seconds for services to be healthy
+            timeout=60
+            elapsed=0
+
+            while [ $elapsed -lt $timeout ]; do
+              if docker-compose ps | grep -q "Up (healthy)"; then
+                echo "✅ Services are healthy"
+                break
+              fi
+              echo "Waiting for services... ($elapsed/$timeout)"
+              sleep 5
+              elapsed=$((elapsed + 5))
+            done
+
+            if [ $elapsed -ge $timeout ]; then
+              echo "⚠️ Timeout waiting for services to be healthy"
+              docker-compose ps
+            fi
+          EOF
+
+      - name: Verify deployment
+        run: |
+          echo "📊 Deployment status:"
+
+          ssh -i ~/.ssh/truenas_key ${{ secrets.TRUENAS_USER }}@${{ secrets.TRUENAS_HOST }} << 'EOF'
+            cd ${{ secrets.TRUENAS_PROJECT_PATH }}
+
+            echo "=== Running containers ==="
+            docker-compose ps
+
+            echo ""
+            echo "=== Container logs (last 20 lines) ==="
+            if [[ "${{ inputs.deploy_backend }}" == "true" ]]; then
+              echo "--- FastAPI ---"
+              docker-compose logs --tail=20 fastapi
+            fi
+
+            if [[ "${{ inputs.deploy_frontend }}" == "true" ]]; then
+              echo "--- Vue.js ---"
+              docker-compose logs --tail=20 vuejs
+            fi
+          EOF
+
+      - name: Health check
+        run: |
+          echo "🏥 Running health checks..."
+
+          ssh -i ~/.ssh/truenas_key ${{ secrets.TRUENAS_USER }}@${{ secrets.TRUENAS_HOST }} << 'EOF'
+            cd ${{ secrets.TRUENAS_PROJECT_PATH }}
+
+            if [[ "${{ inputs.deploy_backend }}" == "true" ]]; then
+              echo "Checking backend health..."
+              docker-compose exec -T fastapi curl -f http://localhost:8000/health || echo "⚠️ Backend health check failed"
+            fi
+
+            echo "✅ Health checks complete"
+          EOF
+
+      - name: Cleanup
+        run: |
+          ssh -i ~/.ssh/truenas_key ${{ secrets.TRUENAS_USER }}@${{ secrets.TRUENAS_HOST }} << 'EOF'
+            cd ${{ secrets.TRUENAS_PROJECT_PATH }}
+
+            # Restore original docker-compose if backup exists
+            if [ -f docker-compose.yml.bak ]; then
+              mv docker-compose.yml.bak docker-compose.yml
+            fi
+
+            # Clean up old images
+            docker image prune -f
+          EOF
+
+      - name: Deployment summary
+        run: |
+          echo "## 🎉 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** TrueNAS Staging" >> $GITHUB_STEP_SUMMARY
+          echo "**Backend:** ${{ secrets.DOCKER_USERNAME }}/fastapi:${{ inputs.backend_image_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Frontend:** ${{ secrets.DOCKER_USERNAME }}/vuejs:${{ inputs.frontend_image_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Migrations:** ${{ inputs.run_migrations }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Restart All:** ${{ inputs.restart_all }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Deployment completed successfully!" >> $GITHUB_STEP_SUMMARY

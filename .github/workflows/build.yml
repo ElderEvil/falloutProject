@@ -1,0 +1,112 @@
+name: Build Docker Images
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+    inputs:
+      build_backend:
+        description: 'Build backend image'
+        required: false
+        type: boolean
+        default: true
+      build_frontend:
+        description: 'Build frontend image'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  build-backend:
+    name: Build Backend Image
+    runs-on: ubuntu-latest
+    if: ${{ (github.event_name == 'push' && (contains(github.event.head_commit.modified, 'backend/') || contains(github.event.head_commit.added, 'backend/'))) || (github.event_name == 'workflow_dispatch' && inputs.build_backend) }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Read Python version
+        id: python-version
+        run: echo "version=$(cat backend/.python-version)" >> $GITHUB_OUTPUT
+
+      - name: Generate image tags
+        id: tags
+        run: |
+          echo "sha=sha-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "date=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+
+      - name: Build and push Backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/fastapi:latest
+            ${{ secrets.DOCKER_USERNAME }}/fastapi:${{ steps.tags.outputs.sha }}
+            ${{ secrets.DOCKER_USERNAME }}/fastapi:${{ steps.tags.outputs.date }}
+          build-args: |
+            PYTHON_VERSION=${{ steps.python-version.outputs.version }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/fastapi:latest
+          cache-to: type=inline
+
+      - name: Output image tags
+        run: |
+          echo "✅ Backend images pushed:"
+          echo "  - ${{ secrets.DOCKER_USERNAME }}/fastapi:latest"
+          echo "  - ${{ secrets.DOCKER_USERNAME }}/fastapi:${{ steps.tags.outputs.sha }}"
+          echo "  - ${{ secrets.DOCKER_USERNAME }}/fastapi:${{ steps.tags.outputs.date }}"
+
+  build-frontend:
+    name: Build Frontend Image
+    runs-on: ubuntu-latest
+    if: ${{ (github.event_name == 'push' && (contains(github.event.head_commit.modified, 'frontend/') || contains(github.event.head_commit.added, 'frontend/'))) || (github.event_name == 'workflow_dispatch' && inputs.build_frontend) }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Generate image tags
+        id: tags
+        run: |
+          echo "sha=sha-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "date=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+
+      - name: Build and push Frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/vuejs:latest
+            ${{ secrets.DOCKER_USERNAME }}/vuejs:${{ steps.tags.outputs.sha }}
+            ${{ secrets.DOCKER_USERNAME }}/vuejs:${{ steps.tags.outputs.date }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/vuejs:latest
+          cache-to: type=inline
+
+      - name: Output image tags
+        run: |
+          echo "✅ Frontend images pushed:"
+          echo "  - ${{ secrets.DOCKER_USERNAME }}/vuejs:latest"
+          echo "  - ${{ secrets.DOCKER_USERNAME }}/vuejs:${{ steps.tags.outputs.sha }}"
+          echo "  - ${{ secrets.DOCKER_USERNAME }}/vuejs:${{ steps.tags.outputs.date }}"

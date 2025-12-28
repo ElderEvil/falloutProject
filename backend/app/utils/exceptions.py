@@ -7,7 +7,7 @@ from sqlmodel import SQLModel
 ModelType = TypeVar("ModelType", bound=SQLModel)
 
 
-class AccessDeniedException(HTTPException, Generic[ModelType]):  # noqa: UP046
+class AccessDeniedException(HTTPException, Generic[ModelType]):
     """
     Exception raised when a user attempts to perform an action without the necessary permissions.
 
@@ -21,7 +21,7 @@ class AccessDeniedException(HTTPException, Generic[ModelType]):  # noqa: UP046
         super().__init__(status_code=status.HTTP_403_FORBIDDEN, detail=detail, headers=headers)
 
 
-class ResourceNotFoundException(HTTPException, Generic[ModelType]):  # noqa: UP046
+class ResourceNotFoundException(HTTPException, Generic[ModelType]):
     """
     Exception raised when a specific resource identified by its unique identifier or name is not found.
 
@@ -42,7 +42,7 @@ class ResourceNotFoundException(HTTPException, Generic[ModelType]):  # noqa: UP0
         super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail=detail, headers=headers)
 
 
-class ResourceAlreadyExistsException(HTTPException, Generic[ModelType]):  # noqa: UP046
+class ResourceAlreadyExistsException(HTTPException, Generic[ModelType]):
     """
     Exception raised when attempting to create or update a resource that would violate unique constraints.
 
@@ -89,7 +89,7 @@ class ContentNoChangeException(HTTPException):
         super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail=detail, headers=headers)
 
 
-class InvalidItemAssignmentException(HTTPException, Generic[ModelType]):  # noqa: UP046
+class InvalidItemAssignmentException(HTTPException, Generic[ModelType]):
     """
     Exception raised when attempting to assign an item to both a storage and a dweller.
 

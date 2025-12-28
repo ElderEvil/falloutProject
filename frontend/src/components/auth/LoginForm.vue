@@ -11,6 +11,7 @@ const password = ref('')
 const error = ref('')
 
 const handleSubmit = async () => {
+  error.value = ''
   const success = await authStore.login(username.value, password.value)
   if (success) {
     await router.push('/')

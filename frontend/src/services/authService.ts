@@ -11,21 +11,21 @@ export const authService = {
         password: form.password
       }
       return await apiClient.post('/login/access-token', new URLSearchParams(formAsRecord))
-    } catch (error) {
+    } catch {
       throw new AuthError('Login failed')
     }
   },
   async register(form: RegisterForm): Promise<AxiosResponse<User>> {
     try {
       return await apiClient.post('/users/open', form)
-    } catch (error) {
+    } catch {
       throw new AuthError('Registration failed')
     }
   },
   async refreshToken(refreshToken: string): Promise<AxiosResponse<Token>> {
     try {
       return await apiClient.post('/login/refresh-token', { refresh_token: refreshToken })
-    } catch (error) {
+    } catch {
       throw new AuthError('Token refresh failed')
     }
   },
@@ -38,7 +38,7 @@ export const authService = {
           headers: { Authorization: `Bearer ${accessToken}` }
         }
       )
-    } catch (error) {
+    } catch {
       throw new AuthError('Logout failed')
     }
   },
@@ -47,7 +47,7 @@ export const authService = {
       return await apiClient.get('/users/me', {
         headers: { Authorization: `Bearer ${accessToken}` }
       })
-    } catch (error) {
+    } catch {
       throw new AuthError('Failed to fetch current user')
     }
   }

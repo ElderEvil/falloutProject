@@ -1,0 +1,30 @@
+{
+  "rules": {
+    "correctness": "warn",
+    "suspicious": "warn",
+    "perf": "warn"
+  },
+  "env": {
+    "browser": true,
+    "es2021": true
+  },
+  "globals": {
+    "NodeJS": "readonly"
+  },
+  "plugins": ["vue"],
+  "ignorePatterns": [
+    "node_modules",
+    "dist",
+    ".pnpm-store",
+    "*.config.*"
+  ],
+  "format": {
+    "indentWidth": 2,
+    "useTabs": false,
+    "lineWidth": 100,
+    "indentStyle": "space",
+    "semicolons": "asNeeded",
+    "trailingCommas": "none",
+    "quoteStyle": "single"
+  }
+}

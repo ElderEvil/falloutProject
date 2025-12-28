@@ -1,4 +1,4 @@
-interface Room {
+export interface Room {
   id: string
   number: number
   category: string
@@ -21,7 +21,7 @@ interface Room {
   thumbnail_url: string
 }
 
-interface RoomCreate {
+export interface RoomCreate {
   coordinate_x: number
   coordinate_y: number
   type: string

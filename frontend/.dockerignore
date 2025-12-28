@@ -1,0 +1,16 @@
+node_modules
+.pnpm-store
+npm-debug.log
+pnpm-debug.log
+.git
+.gitignore
+*.md
+tests
+.vscode
+.idea
+*.tsbuildinfo
+coverage
+.env*.local
+dist
+.DS_Store
+*.log

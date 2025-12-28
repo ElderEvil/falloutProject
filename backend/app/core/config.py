@@ -48,7 +48,11 @@ class Settings(BaseSettings):
         "weapon-images",
     ]
 
-    OPENAI_API_KEY: str
+    AI_PROVIDER: Literal["openai", "anthropic", "ollama"] = "openai"
+    AI_MODEL: str = "gpt-4o"
+    OPENAI_API_KEY: str | None = None
+    ANTHROPIC_API_KEY: str | None = None
+    OLLAMA_BASE_URL: str = "http://localhost:11434/v1"
 
     @property
     def redis_url(self) -> str:
@@ -108,7 +112,7 @@ class Settings(BaseSettings):
             )
         return v
 
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file="backend/.env")
 
 
 settings = Settings()

@@ -29,7 +29,7 @@ class SoftDeleteMixin:
     def soft_delete(self):
         """Marks the object as deleted."""
         self.is_deleted = True
-        self.deleted_at = datetime.utcnow()
+        self.deleted_at = datetime.utcnow()  # noqa: DTZ003
 
     def restore(self):
         """Restores the object if it was soft-deleted."""

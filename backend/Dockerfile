@@ -1,5 +1,6 @@
-# Base image
-FROM python:3.14-slim-bookworm
+# Read Python version from .python-version file
+ARG PYTHON_VERSION
+FROM python:${PYTHON_VERSION:-3.13}-slim-bookworm
 
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/

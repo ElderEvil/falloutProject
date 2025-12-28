@@ -29,14 +29,17 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "backend/uv.lock"
 
-      - name: Set up Python 3.14
-        run: uv python install 3.14
+      - name: Set up Python
+        working-directory: backend
+        run: uv python install
 
       - name: Install the project
-        run: cd backend && uv sync --locked --all-extras --dev
+        working-directory: backend
+        run: uv sync --locked --all-extras --dev
 
       #      - name: Type check with ty
       #        run: cd backend && uv run ty check app/
 
       - name: Run tests
-        run: cd backend && uv run pytest app/tests
+        working-directory: backend
+        run: uv run pytest app/tests

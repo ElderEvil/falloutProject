@@ -1,11 +1,11 @@
-import json
 import logging
-import textwrap
 
 from fastapi import HTTPException
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.agents.deps import BackstoryDeps, ExtendBioDeps, VisualAttributesDeps
+from app.agents.dweller_agents import backstory_agent, bio_extension_agent, visual_attributes_agent
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.models import User
@@ -14,7 +14,7 @@ from app.schemas.common import GenderEnum
 from app.schemas.dweller import DwellerReadFull, DwellerUpdate, DwellerVisualAttributesInput
 from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.minio import get_minio_client
-from app.services.open_ai import get_openai_service
+from app.services.open_ai import get_ai_service
 from app.utils.exceptions import ContentNoChangeException
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ BIO_MAX_LENGTH = 1_000
 class DwellerAIService:
     def __init__(self):
         self.minio_service = get_minio_client()
-        self.open_ai_service = get_openai_service()
+        self.open_ai_service = get_ai_service()
 
     async def generate_backstory(
         self,
@@ -42,27 +42,31 @@ class DwellerAIService:
         dweller_info: DwellerReadFull | None = None,
         origin: str | None = None,
     ) -> DwellerReadFull:
-        """Generate a backstory for a dweller."""
+        """Generate a backstory for a dweller using PydanticAI agent."""
         dweller_obj = dweller_info or await dweller_crud.get_full_info(db_session, dweller_id)
         if dweller_obj.bio:
             raise ContentNoChangeException(detail="Dweller already has a bio")
 
         location = origin or "Wasteland"
         special_stats = ", ".join(f"{stat}: {getattr(dweller_obj, stat)}" for stat in SPECIALModel.__annotations__)
-        system_prompt = (
-            "Generate a Fallout game series style biography for a dweller"
-            f"Include details about {GENDER_PRONOUNS_MAP[dweller_obj.gender]} background, skills, and personality "
-            f"traits as they relate to living in {location} and surviving in the post-apocalyptic world. "
-            f"Use the dweller's SPECIAL attributes to help create a unique backstory. {special_stats}"
-            f"The bio should be a maximum of {BIO_MAX_LENGTH} symbols."
+
+        # Create dependencies for the agent
+        deps = BackstoryDeps(
+            first_name=dweller_obj.first_name,
+            gender=dweller_obj.gender,
+            special_stats=special_stats,
+            location=location,
         )
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Tell me about yourself, {dweller_obj.first_name}."},
-            {"role": "assistant", "content": "Sure! Here's a brief bio about me:"},
-        ]
-        backstory = await self.open_ai_service.generate_completion(messages)
-        backstory = textwrap.shorten(backstory, width=BIO_MAX_LENGTH, placeholder="...")  # TODO: replace with LLM
+
+        # Run the backstory agent
+        result = await backstory_agent.run(f"Tell me about yourself, {dweller_obj.first_name}.", deps=deps)
+        backstory = result.output.bio
+
+        # Safety check: truncate if exceeds max length (shouldn't happen with proper prompts)
+        if len(backstory) > BIO_MAX_LENGTH:
+            backstory = backstory[: BIO_MAX_LENGTH - 3] + "..."
+            msg = f"Backstory exceeded max length, truncated to {BIO_MAX_LENGTH} characters"
+            logger.warning(msg)
 
         await dweller_crud.update(db_session, dweller_obj.id, DwellerUpdate(bio=backstory))
 
@@ -80,23 +84,17 @@ class DwellerAIService:
         return dweller_obj
 
     async def extend_bio(self, db_session: AsyncSession, dweller_id: UUID4, user: User) -> DwellerReadFull:
+        """Extend existing dweller bio using PydanticAI agent."""
         dweller_obj = await dweller_crud.get_full_info(db_session, dweller_id)
         if not dweller_obj.bio:
             raise ContentNoChangeException(detail="Dweller doesn't have a bio to extend")
 
-        extension_prompt = (
-            "You are a helpful assistant. You must assist the user in generating a response to the following prompt."
-            "You are helping a dweller to extend their bio with more details."
-        )
+        # Create dependencies for the agent
+        deps = ExtendBioDeps(current_bio=dweller_obj.bio)
 
-        messages = [
-            {"role": "system", "content": extension_prompt},
-            {
-                "role": "user",
-                "content": f"Here's the current bio: {dweller_obj.bio}\nPlease extend it with more details.",
-            },
-        ]
-        extended_bio = await self.open_ai_service.generate_completion(messages)
+        # Run the bio extension agent
+        result = await bio_extension_agent.run("Please extend this biography with more details.", deps=deps)
+        extended_bio = result.output.extended_bio
 
         full_bio = f"{dweller_obj.bio}\n\n{extended_bio}"
 
@@ -123,39 +121,26 @@ class DwellerAIService:
         dweller_id: UUID4 | None = None,
         dweller_info: DwellerReadFull | None = None,
     ) -> DwellerReadFull:
-        """Generate visual attributes for a dweller."""
+        """Generate visual attributes for a dweller using PydanticAI agent."""
         dweller_obj = dweller_info or await dweller_crud.get_full_info(db_session, dweller_id)
         if dweller_obj.visual_attributes:
             raise ContentNoChangeException(detail="Dweller already has visual attributes")
 
-        visual_options = """
-        age: teenager, adult, senior, elder
-        height: tall, average, short
-        eye_color: blue, green, brown, hazel, gray
-        appearance: attractive, cute, average, unattractive
-        skin_tone: fair, medium, olive, tan, dark, black
-        build: slim, athletic, muscular, stocky, average, overweight
-        hair_style: short, long, curly, straight, wavy, bald
-        hair_color: blonde, brunette, redhead, black, gray, colored
-        distinguishing_features: scar, tattoo, mole, freckles, birthmark, piercing, eyepatch, prosthetic limb
-        clothing_style: casual, military, formal, rugged, eclectic
-        (Only for male) facial_hair: clean - shaven, mustache, beard, goatee, stubble
-        (Only for female) makeup: natural, glamorous, goth, no makeup
-        """
-        prompt = (
-            f"Create visual attributes for {dweller_obj.first_name} {dweller_obj.last_name}."
-            f"That's {GENDER_PRONOUNS_MAP[dweller_obj.gender]} backstory: {dweller_obj.bio}"
-            "Include details about their appearance, clothing, and any other distinguishing features."
-            "Use dweller backstory in case it can help to generate visual attributes."
-            "Use JSON format to describe the visual attributes."
-            "Examples: "
-            '{"age": "teenager", "hair_color": "brown", "eye_color": "blue", "height": "average", "build": "slim"},'
-            '{"hair_color": "blonde", "eye_color": "green", "height": "short", "distinguishing_features": ["glasses", "freckles"]}'  # noqa:E501
-            '{"hair_color": "grey", "eye_color": "brown", "height": "tall", "distinguishing_features": ["tattoo", "prosthetic arm"], "clothing_style": "military"}'  # noqa:E501
-            f"You can use variations and combinations of this options: {visual_options}"
+        # Create dependencies for the agent
+        deps = VisualAttributesDeps(
+            first_name=dweller_obj.first_name,
+            last_name=dweller_obj.last_name or "",
+            gender=dweller_obj.gender,
+            bio=dweller_obj.bio,
         )
-        visual_attributes_json = await self.open_ai_service.generate_completion_json(prompt)
-        visual_attributes = json.loads(visual_attributes_json)
+
+        # Run the visual attributes agent
+        result = await visual_attributes_agent.run(
+            f"Create visual attributes for {dweller_obj.first_name} {dweller_obj.last_name}.", deps=deps
+        )
+
+        # Convert Pydantic model to dict, excluding None values
+        visual_attributes = result.output.model_dump(exclude_none=True)
 
         await dweller_crud.update(db_session, dweller_obj.id, DwellerUpdate(visual_attributes=visual_attributes))
 

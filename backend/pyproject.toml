@@ -25,6 +25,7 @@ dependencies = [
     "sqlmodel>=0.0.30,<1",
     "httpcore>=1.0.9",
     "greenlet>=3.3.0",
+    "pydantic-ai-slim[openai, anthropic]>=1.39.0",
 ]
 
 [dependency-groups]
@@ -70,7 +71,7 @@ lint.select = [
     "A",
     "COM",
     "C4",
-    "DTZ",
+    #    "DTZ",
     "EM",
     "ISC",
     "ICN",

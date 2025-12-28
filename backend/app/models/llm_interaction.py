@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -22,7 +22,7 @@ class LLMInteractionBase(SQLModel):
 
 
 class LLMInteraction(BaseUUIDModel, LLMInteractionBase, table=True):
-    created_at: datetime | None = Field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime | None = Field(default_factory=lambda: datetime.utcnow())
 
     prompt: "Prompt" = Relationship(back_populates="llm_interactions")
     user: "User" = Relationship(back_populates="llm_interactions")

@@ -14,7 +14,7 @@ CreateSchemaType = TypeVar("CreateSchemaType", bound=SQLModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=SQLModel)
 
 
-class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
+class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):  # noqa: UP046
     """
     Base class for CRUD (Create, Read, Update, Delete) operations on a SQLModel in a database session.
 

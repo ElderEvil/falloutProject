@@ -1,6 +1,8 @@
 import json
+import logging
 import textwrap
 
+from fastapi import HTTPException
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -9,11 +11,13 @@ from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.models import User
 from app.models.base import SPECIALModel
 from app.schemas.common import GenderEnum
-from app.schemas.dweller import DwellerReadFull, DwellerUpdate
+from app.schemas.dweller import DwellerReadFull, DwellerUpdate, DwellerVisualAttributesInput
 from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.minio import get_minio_client
 from app.services.open_ai import get_openai_service
 from app.utils.exceptions import ContentNoChangeException
+
+logger = logging.getLogger(__name__)
 
 GENDER_PRONOUNS_MAP = {
     GenderEnum.MALE: "his",
@@ -31,9 +35,9 @@ class DwellerAIService:
 
     async def generate_backstory(
         self,
-        *,
         user: User,
         db_session: AsyncSession,
+        *,
         dweller_id: UUID4 | None = None,
         dweller_info: DwellerReadFull | None = None,
         origin: str | None = None,
@@ -113,9 +117,9 @@ class DwellerAIService:
 
     async def generate_visual_attributes(
         self,
-        *,
         user: User,
         db_session: AsyncSession,
+        *,
         dweller_id: UUID4 | None = None,
         dweller_info: DwellerReadFull | None = None,
     ) -> DwellerReadFull:
@@ -170,9 +174,9 @@ class DwellerAIService:
 
     async def generate_photo(
         self,
-        *,
         user: User,
         db_session: AsyncSession,
+        *,
         dweller_id: UUID4 | None = None,
         dweller_info: DwellerReadFull | None = None,
     ) -> DwellerReadFull:
@@ -212,6 +216,101 @@ class DwellerAIService:
         )
 
         return dweller_obj
+
+    async def generate_audio(  # noqa: PLR0913
+        self,
+        text: str,
+        user: User,
+        db_session: AsyncSession,
+        *,
+        dweller_id: UUID4 | None = None,
+        dweller_info: DwellerReadFull | None = None,
+        voice_type: str = "echo",
+    ) -> DwellerReadFull:
+        """
+        Generates a voice line for a dweller, uploads it to MinIO, and updates dweller info.
+        """
+        dweller_obj = dweller_info or await dweller_crud.get_full_info(db_session, dweller_id)
+        if dweller_obj.visual_attributes and dweller_obj.visual_attributes.get("voice_line_url"):
+            raise ContentNoChangeException(detail="Dweller already has an audio line. Overwrite not implemented yet.")
+
+        try:
+            audio_bytes = await self.open_ai_service.generate_audio(text=text, voice=voice_type, model="tts-1")
+            if not len(audio_bytes):
+                logger.warning("Empty input")
+        except Exception as e:  # noqa: BLE001
+            raise HTTPException(status_code=500, detail=f"Failed to generate audio via OpenAI: {e}")  # noqa: B904
+
+        audio_url = self.minio_service.upload_file(
+            file_data=audio_bytes,
+            file_name=f"{dweller_obj.id}_voice.mp3",
+            file_type="audio/mpeg",
+            bucket_name="dweller-audio",
+        )
+
+        updated_visual_attributes = dweller_obj.visual_attributes or {}
+        updated_visual_attributes["voice_line_text"] = text
+        updated_visual_attributes["voice_line_url"] = audio_url
+
+        await dweller_crud.update(
+            db_session,
+            dweller_obj.id,
+            DwellerUpdate(visual_attributes=updated_visual_attributes),
+        )
+
+        llm_int_create = LLMInteractionCreate(
+            parameters=f"text_input: {text}, voice_type: {voice_type}",  # Store input parameters
+            response=audio_url,
+            usage="generate_audio",
+            user_id=user.id,
+        )
+        await llm_interaction_crud.create(
+            db_session,
+            obj_in=llm_int_create,
+        )
+
+        return await dweller_crud.get_full_info(db_session, dweller_obj.id)
+
+    async def generate_dweller_avatar(  # noqa: PLR0913
+        self,
+        dweller_id: UUID4,
+        dweller_first_name: str,
+        dweller_last_name: str,
+        visual_attributes_input: DwellerVisualAttributesInput,
+        db_session: AsyncSession,
+        user: User,
+    ) -> DwellerReadFull:
+        # 1. Update Dweller with provided visual attributes
+        # This is where we save the user's choices.
+        update_data = DwellerUpdate(
+            first_name=dweller_first_name,
+            last_name=dweller_last_name,
+            visual_attributes=visual_attributes_input,
+        )
+        updated_dweller = await dweller_crud.update(db_session, dweller_id, update_data)
+
+        # 2. Refine the prompt
+        # The prompt should be built based on the *updated* dweller's attributes.
+        # This could be more sophisticated using the visual_attributes_input.
+        # You would need to add a method to your DwellerAIService for this.
+        # For simplicity, let's assume `generate_photo` handles prompt building internally
+        # or takes a prompt from this endpoint if you implement a prompt building service here.
+
+        # Example: Building prompt from current dweller object
+        # You'll need to pass 'character' (from Streamlit) to build_prompt here,
+        # or integrate prompt building into DwellerAIService.
+        # For now, let's assume dweller_ai_service.generate_photo pulls what it needs from dweller_obj
+        # after it's updated.
+
+        # 3. Generate Photo (using your existing DwellerAIService)
+        dweller_obj = await dweller_ai.generate_photo(db_session=db_session, dweller_info=updated_dweller, user=user)
+        # 4. Generate Audio
+        return await dweller_ai.generate_audio(
+            db_session=db_session,
+            dweller_info=dweller_obj,
+            user=user,
+            text=visual_attributes_input.voice_line_text,
+        )
 
     async def dweller_generate_pipeline(
         self,

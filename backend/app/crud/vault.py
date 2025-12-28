@@ -222,11 +222,11 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
         initial_rooms = [RoomCreate(**vault_door_data)] + [RoomCreate(**data) for data in elevators_data]
 
-        from app.crud.room import room as room_crud
+        from app.crud.room import room as room_crud  # noqa: PLC0415
 
         await room_crud.create_all(db_session, initial_rooms)
 
-        from app.crud.dweller import dweller as dweller_crud
+        from app.crud.dweller import dweller as dweller_crud  # noqa: PLC0415
 
         for stat in [SPECIALEnum.STRENGTH, SPECIALEnum.AGILITY, SPECIALEnum.PERCEPTION, None, None]:
             obj_in = DwellerCreateCommonOverride(special_boost=stat)

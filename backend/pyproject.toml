@@ -23,6 +23,7 @@ dependencies = [
     "redis>=7.1.0,<8",
     "sqladmin[full]>=0.22.0",
     "sqlmodel>=0.0.30,<1",
+    "httpcore>=1.0.9",
 ]
 
 [dependency-groups]

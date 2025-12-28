@@ -36,6 +36,46 @@ class GenderEnum(CaseInsensitiveEnum):
     FEMALE = "female"
 
 
+class RaceEnum(CaseInsensitiveEnum):
+    HUMAN = "human"
+    GHOUL = "ghoul"
+    SUPER_MUTANT = "super_mutant"
+    SYNTH = "synth"
+
+
+class FactionEnum(CaseInsensitiveEnum):
+    NONE = "none"
+    VAULT_DWELLER = "vault_dweller"
+    BOS = "brotherhood_of_steel"
+    ENCLAVE = "enclave"
+    MINUTEMEN = "minutemen"
+    RAIDERS = "raiders"
+    SM_TRIBE = "super_mutant_tribe"
+    COA = "children_of_atom"
+    INSTITUTE = "the_institute"
+    RAILROAD = "railroad"
+    NCR = "ncr"
+    LEGION = "caesars_legion"
+
+
+class SynthTypeEnum(CaseInsensitiveEnum):
+    GEN_1 = "gen_1"
+    GEN_2 = "gen_2"
+    GEN_3 = "gen_3"
+
+
+class GhoulFeralnessEnum(CaseInsensitiveEnum):
+    SANE = "sane"
+    WILD = "wild"
+    FERAL = "feral"
+
+
+class SuperMutantMutationEnum(CaseInsensitiveEnum):
+    MILD = "mild"
+    AVERAGE = "average"
+    BEHEMOTH = "behemoth"
+
+
 class ItemTypeEnum(CaseInsensitiveEnum):
     WEAPON = "weapon"
     OUTFIT = "outfit"
@@ -99,3 +139,6 @@ class AIModelType(CaseInsensitiveEnum):
     CHATGPT = "ChatGPT"
     DALLE = "DALL-E"
     OTHER = "Other"
+
+
+STATE_OF_BEING_TYPE = GhoulFeralnessEnum | SuperMutantMutationEnum | SynthTypeEnum

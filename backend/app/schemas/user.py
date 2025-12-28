@@ -30,7 +30,7 @@ class UserReadWithVaults(UserRead):
     vaults: list["VaultRead"] = []
 
 
-UserReadWithVaults.update_forward_refs()
+UserReadWithVaults.model_rebuild()
 
 
 @optional()

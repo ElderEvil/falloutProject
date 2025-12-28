@@ -17,6 +17,7 @@ from app.schemas.dweller import (
     DwellerReadLess,
     DwellerReadWithRoomID,
     DwellerUpdate,
+    DwellerVisualAttributesInput,
 )
 from app.services.dweller_ai import dweller_ai
 
@@ -127,6 +128,16 @@ async def generate_photo(
     return await dweller_ai.generate_photo(db_session=db_session, dweller_id=dweller_id, user=user)
 
 
+@router.post("/{dweller_id}/generate_audio/", response_model=DwellerReadFull)
+async def generate_audio(
+    dweller_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    text: str | None = None,
+):
+    return await dweller_ai.generate_audio(db_session=db_session, dweller_id=dweller_id, user=user, text=text)
+
+
 @router.post("/{dweller_id}/generate_with_ai/", response_model=DwellerReadFull)
 async def generate_data_with_ai(
     dweller_id: UUID4,
@@ -136,6 +147,25 @@ async def generate_data_with_ai(
 ):
     return await dweller_ai.dweller_generate_pipeline(
         db_session=db_session, dweller_id=dweller_id, origin=origin, user=user
+    )
+
+
+@router.post("/{dweller_id}/generate_avatar", response_model=DwellerReadFull)
+async def generate_dweller_avatar(  # noqa: PLR0913
+    dweller_id: UUID4,
+    dweller_first_name: str,
+    dweller_last_name: str,
+    visual_attributes_input: DwellerVisualAttributesInput,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    current_user: CurrentActiveUser,
+):
+    return await dweller_ai.generate_dweller_avatar(
+        db_session=db_session,
+        dweller_id=dweller_id,
+        dweller_first_name=dweller_first_name,
+        dweller_last_name=dweller_last_name,
+        visual_attributes_input=visual_attributes_input,
+        user=current_user,
     )
 
 

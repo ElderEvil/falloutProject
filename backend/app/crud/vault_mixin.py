@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import Generic, TypeVar
+from typing import TypeVar
 
 from pydantic import UUID4
 from sqlmodel import SQLModel, and_, select
@@ -11,7 +11,7 @@ from app.utils.exceptions import ResourceNotFoundException
 ModelType = TypeVar("ModelType", bound=SQLModel)
 
 
-class VaultActionsMixin(Generic[ModelType]):
+class VaultActionsMixin[ModelType]:
     model: type[ModelType]
 
     async def get_for_vault(

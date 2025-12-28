@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useRoomStore } from '@/stores/room'
 import RoomMenuItem from './RoomMenuItem.vue'
+import type { Room } from '@/models/room'
 
 const roomStore = useRoomStore()
 const availableRooms = computed(() => roomStore.availableRooms)

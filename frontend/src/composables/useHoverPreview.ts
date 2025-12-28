@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import { useRoomStore } from '@/stores/room'
+import type { Room } from '@/models/room'
 
 export function useHoverPreview() {
   const roomStore = useRoomStore()
@@ -33,7 +34,7 @@ export function useHoverPreview() {
         cell.x >= 0 &&
         cell.x < 8 &&
         !roomStore.rooms.some(
-          (room) =>
+          (room: Room) =>
             room.coordinate_x <= cell.x &&
             room.coordinate_x + Math.ceil(room.size / 3) > cell.x &&
             room.coordinate_y === cell.y

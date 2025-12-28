@@ -7,6 +7,7 @@ import RoomGrid from '@/components/rooms/RoomGrid.vue'
 import BuildModeButton from '@/components/common/BuildModeButton.vue'
 import RoomMenu from '@/components/rooms/RoomMenu.vue'
 import ResourceBar from '@/components/common/ResourceBar.vue'
+import type { Room } from '@/models/room'
 
 import {
   CogIcon,

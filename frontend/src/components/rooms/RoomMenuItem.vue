@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { LockClosedIcon } from '@heroicons/vue/24/solid'
+import type { Room } from '@/models/room'
 
 const props = defineProps<{
   room: Room

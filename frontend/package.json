@@ -22,6 +22,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
     "@tsconfig/node22": "^22.0.0",
+    "@types/jsdom": "27.0.0",
     "@types/node": "^22.10.5",
     "@vitejs/plugin-vue": "^5.2.1",
     "@vue/test-utils": "^2.4.6",

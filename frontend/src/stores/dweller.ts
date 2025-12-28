@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import axios from '@/plugins/axios'
+import type { Dweller, DwellerShort } from '@/models/dweller'
 
 export const useDwellerStore = defineStore('dweller', {
   state: () => ({

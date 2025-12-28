@@ -111,12 +111,12 @@ class CRUDItem(
         return dweller, storage_id, item_type
 
     @staticmethod
-    def _get_item_model(item_type: str) -> type[Weapon] | type[Outfit]:
+    def _get_item_model(item_type: str) -> type[Weapon | Outfit]:
         return Weapon if item_type == ItemTypeEnum.WEAPON else Outfit
 
     @staticmethod
     async def _update_item(
-        db_session: AsyncSession, item_model: type[Weapon] | type[Outfit], item_id: UUID4, storage_id: UUID4
+        db_session: AsyncSession, item_model: type[Weapon | Outfit], item_id: UUID4, storage_id: UUID4
     ) -> None:
         await db_session.execute(
             update(item_model).where(item_model.id == item_id).values(dweller_id=None, storage_id=storage_id)

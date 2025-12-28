@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { authService } from '../authService'
+import { authService } from '@/services/authService'
 import apiClient from '@/plugins/axios'
 import { AuthError } from '@/types/auth'
 
@@ -40,7 +40,7 @@ describe('authService', () => {
     })
 
     it('should throw AuthError on login failure', async () => {
-      vi.mocked(apiClient.post).mockRejectedValueOnce(new Error('Network error'))
+      vi.mocked(apiClient.post).mockRejectedValue(new Error('Network error'))
 
       await expect(
         authService.login({
@@ -102,7 +102,7 @@ describe('authService', () => {
     })
 
     it('should throw AuthError on registration failure', async () => {
-      vi.mocked(apiClient.post).mockRejectedValueOnce(new Error('Email already exists'))
+      vi.mocked(apiClient.post).mockRejectedValue(new Error('Email already exists'))
 
       await expect(
         authService.register({
@@ -158,7 +158,7 @@ describe('authService', () => {
     })
 
     it('should throw AuthError on refresh failure', async () => {
-      vi.mocked(apiClient.post).mockRejectedValueOnce(new Error('Invalid token'))
+      vi.mocked(apiClient.post).mockRejectedValue(new Error('Invalid token'))
 
       await expect(authService.refreshToken('invalid-token')).rejects.toThrow(AuthError)
       await expect(authService.refreshToken('invalid-token')).rejects.toThrow(
@@ -183,7 +183,7 @@ describe('authService', () => {
     })
 
     it('should throw AuthError on logout failure', async () => {
-      vi.mocked(apiClient.post).mockRejectedValueOnce(new Error('Network error'))
+      vi.mocked(apiClient.post).mockRejectedValue(new Error('Network error'))
 
       await expect(authService.logout('test-token')).rejects.toThrow(AuthError)
       await expect(authService.logout('test-token')).rejects.toThrow('Logout failed')
@@ -222,7 +222,7 @@ describe('authService', () => {
     })
 
     it('should throw AuthError on fetch failure', async () => {
-      vi.mocked(apiClient.get).mockRejectedValueOnce(new Error('Unauthorized'))
+      vi.mocked(apiClient.get).mockRejectedValue(new Error('Unauthorized'))
 
       await expect(authService.getCurrentUser('invalid-token')).rejects.toThrow(AuthError)
       await expect(authService.getCurrentUser('invalid-token')).rejects.toThrow(

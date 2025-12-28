@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import { useVaultStore } from '../vault'
+import { useVaultStore } from '@/stores/vault'
 import axios from '@/plugins/axios'
 import { useRouter } from 'vue-router'
 

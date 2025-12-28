@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
-import ResourceBar from '../ResourceBar.vue'
+import ResourceBar from '@/components/common/ResourceBar.vue'
 import { h } from 'vue'
 
 // Mock icon component

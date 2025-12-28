@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import { useAuthStore } from '../auth'
+import { useAuthStore } from '@/stores/auth'
 import axios from '@/plugins/axios'
 
 vi.mock('@/plugins/axios')

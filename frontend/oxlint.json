@@ -23,7 +23,7 @@
     "useTabs": false,
     "lineWidth": 100,
     "indentStyle": "space",
-    "semicolons": "asNeeded",
+    "semicolons": "never",
     "trailingCommas": "none",
     "quoteStyle": "single"
   }

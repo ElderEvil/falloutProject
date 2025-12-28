@@ -72,7 +72,7 @@ class Settings(BaseSettings):
     def assemble_celery_db_connection(cls, v: str | None, info: FieldValidationInfo) -> Any:
         if isinstance(v, str) and not v:
             return PostgresDsn.build(
-                scheme="db+postgresql",
+                scheme="postgresql",
                 username=info.data["POSTGRES_USER"],
                 password=info.data["POSTGRES_PASSWORD"],
                 host=info.data["POSTGRES_SERVER"],

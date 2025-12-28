@@ -30,9 +30,6 @@ class UserReadWithVaults(UserRead):
     vaults: list["VaultRead"] = []
 
 
-UserReadWithVaults.model_rebuild()
-
-
 @optional()
 class UserUpdate(UserBase):
     password: str | None

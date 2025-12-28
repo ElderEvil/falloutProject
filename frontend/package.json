@@ -12,7 +12,7 @@
     "lint": "oxlint src"
   },
   "dependencies": {
-    "@heroicons/vue": "^2.2.0",
+    "@nuxt/icon": "2.1.1",
     "@nuxt/ui": "^3.0.0",
     "axios": "^1.7.9",
     "pinia": "^3.0.4",

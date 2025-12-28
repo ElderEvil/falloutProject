@@ -4,7 +4,7 @@ import { useRoomStore } from '@/stores/room'
 import { useAuthStore } from '@/stores/auth'
 import { useRoomInteractions } from '@/composables/useRoomInteractions'
 import { useHoverPreview } from '@/composables/useHoverPreview'
-import { TrashIcon } from '@heroicons/vue/24/solid'
+
 
 const roomStore = useRoomStore()
 const authStore = useAuthStore()
@@ -52,7 +52,7 @@ const placeRoom = async (x: number, y: number) => {
           class="destroy-button"
           title="Destroy Room"
         >
-          <TrashIcon />
+          <UIcon name="i-lucide-trash-2" />
         </button>
       </div>
     </div>

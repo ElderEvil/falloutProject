@@ -3,7 +3,7 @@ import { useDwellerStore } from '@/stores/dweller'
 import { useAuthStore } from '@/stores/auth'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { SparklesIcon, UserCircleIcon } from '@heroicons/vue/24/solid'
+
 
 const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
@@ -77,8 +77,8 @@ const generateDwellerInfo = async (dwellerId: string) => {
                 />
               </template>
               <template v-else>
-                <UserCircleIcon class="h-24 w-24 text-gray-400" />
-                <SparklesIcon
+                <UIcon name="i-lucide-user-circle" class="h-24 w-24 text-gray-400" />
+                <UIcon name="i-lucide-sparkles"
                   @click.stop="generateDwellerInfo(dweller.id)"
                   class="mt-2 h-6 w-6 cursor-pointer text-green-600 hover:text-green-500"
                 />

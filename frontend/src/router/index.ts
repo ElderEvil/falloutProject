@@ -3,8 +3,9 @@ import { useAuthStore } from '@/stores/auth'
 import HomeView from '@/views/HomeView.vue'
 import LoginPage from '@/components/auth/LoginForm.vue'
 import RegisterPage from '@/components/auth/RegisterForm.vue'
+import VaultLayout from '@/components/layout/VaultLayout.vue'
 import VaultView from '@/views/VaultView.vue'
-import DwellersView from '@/views/DwellersView.vue'
+import DwellerDetailView from '@/views/DwellerDetailView.vue'
 import DwellerChatPage from '@/components/chat/DwellerChatPage.vue'
 import ObjectivesView from '@/views/ObjectivesView.vue'
 
@@ -18,26 +19,34 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
-      path: '/vault',
-      name: 'vault',
-      component: VaultView,
-      meta: { requiresAuth: true }
+      path: '/vault/:vaultId',
+      component: VaultLayout,
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: '',
+          name: 'vault',
+          component: VaultView
+        }
+      ]
     },
     {
-      path: '/dwellers',
-      name: 'dwellers',
-      component: DwellersView,
+      path: '/dweller/:id',
+      name: 'dweller',
+      component: DwellerDetailView,
       meta: { requiresAuth: true }
     },
     {
       path: '/dweller/:id/chat',
-      name: 'DwellerChatPage',
-      component: DwellerChatPage
+      name: 'dweller-chat',
+      component: DwellerChatPage,
+      meta: { requiresAuth: true }
     },
     {
       path: '/objectives',
       name: 'objectives',
-      component: ObjectivesView
+      component: ObjectivesView,
+      meta: { requiresAuth: true }
     },
     {
       path: '/login',
@@ -52,7 +61,6 @@ const router = createRouter({
     {
       path: '/about',
       name: 'about',
-      // Lazy-load the AboutView component
       component: () => import('../views/AboutView.vue')
     }
   ]

@@ -1,15 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ResourceBar from '@/components/common/ResourceBar.vue'
-import { h } from 'vue'
 
-// Mock icon component
-const MockIcon = {
-  name: 'MockIcon',
-  render() {
-    return h('div', { class: 'mock-icon' })
-  }
-}
+const TEST_ICON = 'i-lucide-zap'
 
 describe('ResourceBar', () => {
   describe('Props', () => {
@@ -18,7 +11,7 @@ describe('ResourceBar', () => {
         props: {
           current: 50,
           max: 100,
-          icon: MockIcon
+          icon: TEST_ICON
         }
       })
 
@@ -31,7 +24,7 @@ describe('ResourceBar', () => {
         props: {
           current: 75,
           max: 150,
-          icon: MockIcon
+          icon: TEST_ICON
         }
       })
 
@@ -45,11 +38,11 @@ describe('ResourceBar', () => {
         props: {
           current: 50,
           max: 100,
-          icon: MockIcon
+          icon: TEST_ICON
         }
       })
 
-      const progressBar = wrapper.find('.bg-terminalGreen')
+      const progressBar = wrapper.find('.bg-primary-500')
       expect(progressBar.attributes('style')).toContain('width: 50%')
     })
 
@@ -58,11 +51,11 @@ describe('ResourceBar', () => {
         props: {
           current: 0,
           max: 100,
-          icon: MockIcon
+          icon: TEST_ICON
         }
       })
 
-      const progressBar = wrapper.find('.bg-terminalGreen')
+      const progressBar = wrapper.find('.bg-primary-500')
       expect(progressBar.attributes('style')).toContain('width: 0%')
     })
 
@@ -71,11 +64,11 @@ describe('ResourceBar', () => {
         props: {
           current: 100,
           max: 100,
-          icon: MockIcon
+          icon: TEST_ICON
         }
       })
 
-      const progressBar = wrapper.find('.bg-terminalGreen')
+      const progressBar = wrapper.find('.bg-primary-500')
       expect(progressBar.attributes('style')).toContain('width: 100%')
     })
 
@@ -84,11 +77,11 @@ describe('ResourceBar', () => {
         props: {
           current: 150,
           max: 100,
-          icon: MockIcon
+          icon: TEST_ICON
         }
       })
 
-      const progressBar = wrapper.find('.bg-terminalGreen')
+      const progressBar = wrapper.find('.bg-primary-500')
       expect(progressBar.attributes('style')).toContain('width: 100%')
     })
 
@@ -97,39 +90,28 @@ describe('ResourceBar', () => {
         props: {
           current: 33,
           max: 100,
-          icon: MockIcon
+          icon: TEST_ICON
         }
       })
 
-      const progressBar = wrapper.find('.bg-terminalGreen')
+      const progressBar = wrapper.find('.bg-primary-500')
       expect(progressBar.attributes('style')).toContain('width: 33%')
     })
   })
 
   describe('Icon Rendering', () => {
-    it('should render the provided icon component', () => {
+    it('should render the provided icon', () => {
       const wrapper = mount(ResourceBar, {
         props: {
           current: 50,
           max: 100,
-          icon: MockIcon
+          icon: TEST_ICON
         }
       })
 
-      expect(wrapper.find('.mock-icon').exists()).toBe(true)
-    })
-
-    it('should apply correct icon classes', () => {
-      const wrapper = mount(ResourceBar, {
-        props: {
-          current: 50,
-          max: 100,
-          icon: MockIcon
-        }
-      })
-
-      const iconWrapper = wrapper.find('.h-8.w-8.text-terminalGreen')
-      expect(iconWrapper.exists()).toBe(true)
+      // Icon should be rendered as SVG
+      const svg = wrapper.find('svg')
+      expect(svg.exists()).toBe(true)
     })
   })
 
@@ -139,25 +121,12 @@ describe('ResourceBar', () => {
         props: {
           current: 50,
           max: 100,
-          icon: MockIcon
+          icon: TEST_ICON
         }
       })
 
-      const container = wrapper.find('.relative.flex.items-center.space-x-4')
+      const container = wrapper.find('.flex.items-center')
       expect(container.exists()).toBe(true)
-    })
-
-    it('should have progress bar with correct classes', () => {
-      const wrapper = mount(ResourceBar, {
-        props: {
-          current: 50,
-          max: 100,
-          icon: MockIcon
-        }
-      })
-
-      const barContainer = wrapper.find('.h-6.w-40.rounded-full.border-2.border-gray-600.bg-gray-800')
-      expect(barContainer.exists()).toBe(true)
     })
 
     it('should display text overlay with values', () => {
@@ -165,7 +134,7 @@ describe('ResourceBar', () => {
         props: {
           current: 75,
           max: 100,
-          icon: MockIcon
+          icon: TEST_ICON
         }
       })
 
@@ -181,13 +150,13 @@ describe('ResourceBar', () => {
         props: {
           current: 0,
           max: 0,
-          icon: MockIcon
+          icon: TEST_ICON
         }
       })
 
       expect(wrapper.text()).toContain('0/0')
       // When max is 0, percentage should be 100% to avoid division by zero issues
-      const progressBar = wrapper.find('.bg-terminalGreen')
+      const progressBar = wrapper.find('.bg-primary-500')
       expect(progressBar.attributes('style')).toBeDefined()
     })
 
@@ -196,12 +165,12 @@ describe('ResourceBar', () => {
         props: {
           current: 9999,
           max: 10000,
-          icon: MockIcon
+          icon: TEST_ICON
         }
       })
 
       expect(wrapper.text()).toContain('9999/10000')
-      const progressBar = wrapper.find('.bg-terminalGreen')
+      const progressBar = wrapper.find('.bg-primary-500')
       expect(progressBar.attributes('style')).toContain('width: 99.99%')
     })
 
@@ -210,7 +179,7 @@ describe('ResourceBar', () => {
         props: {
           current: -10,
           max: 100,
-          icon: MockIcon
+          icon: TEST_ICON
         }
       })
 
@@ -224,7 +193,7 @@ describe('ResourceBar', () => {
         props: {
           current: 50,
           max: 100,
-          icon: MockIcon
+          icon: TEST_ICON
         }
       })
 
@@ -233,7 +202,7 @@ describe('ResourceBar', () => {
       await wrapper.setProps({ current: 75 })
 
       expect(wrapper.text()).toContain('75/100')
-      const progressBar = wrapper.find('.bg-terminalGreen')
+      const progressBar = wrapper.find('.bg-primary-500')
       expect(progressBar.attributes('style')).toContain('width: 75%')
     })
 
@@ -242,16 +211,16 @@ describe('ResourceBar', () => {
         props: {
           current: 50,
           max: 100,
-          icon: MockIcon
+          icon: TEST_ICON
         }
       })
 
-      let progressBar = wrapper.find('.bg-terminalGreen')
+      let progressBar = wrapper.find('.bg-primary-500')
       expect(progressBar.attributes('style')).toContain('width: 50%')
 
       await wrapper.setProps({ max: 200 })
 
-      progressBar = wrapper.find('.bg-terminalGreen')
+      progressBar = wrapper.find('.bg-primary-500')
       expect(progressBar.attributes('style')).toContain('width: 25%')
     })
   })

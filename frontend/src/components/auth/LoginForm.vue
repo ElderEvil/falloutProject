@@ -6,62 +6,113 @@ import { useRouter } from 'vue-router'
 const authStore = useAuthStore()
 const router = useRouter()
 
-const username = ref('')
-const password = ref('')
+const state = ref({
+  username: '',
+  password: ''
+})
+const loading = ref(false)
 const error = ref('')
 
 const handleSubmit = async () => {
   error.value = ''
-  const success = await authStore.login(username.value, password.value)
-  if (success) {
-    await router.push('/')
-  } else {
-    error.value = 'Invalid username or password'
+  loading.value = true
+
+  try {
+    const success = await authStore.login(state.value.username, state.value.password)
+    if (success) {
+      await router.push('/')
+    } else {
+      error.value = 'Invalid username or password'
+    }
+  } finally {
+    loading.value = false
   }
 }
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-gray-900">
-    <div class="w-full max-w-sm rounded-lg bg-gray-800 p-8 shadow-lg">
-      <h2 class="mb-6 text-center text-2xl font-bold text-green-500">Login</h2>
-      <form @submit.prevent="handleSubmit" class="space-y-4">
-        <div>
-          <label for="username" class="block text-sm font-medium text-gray-300">Email:</label>
-          <input
+  <div class="flex min-h-screen items-center justify-center bg-black">
+    <UCard class="w-full max-w-md border-2 border-primary-500 bg-black shadow-[0_0_20px_rgba(0,255,0,0.3)]">
+      <template #header>
+        <h2 class="text-center text-2xl font-bold text-primary-500 uppercase tracking-wider">
+          VAULT-TEC LOGIN TERMINAL
+        </h2>
+      </template>
+
+      <form @submit.prevent="handleSubmit" class="space-y-6">
+        <UFormGroup label="EMAIL ADDRESS" name="username" class="text-primary-500">
+          <UInput
+            v-model="state.username"
             type="email"
-            id="username"
-            v-model="username"
+            placeholder="overseer@vault-tec.com"
             required
-            class="mt-1 w-full rounded bg-gray-700 p-2 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+            :disabled="loading"
+            color="primary"
+            variant="outline"
+            size="lg"
+            class="font-mono"
+            :ui="{ base: 'bg-black border-primary-600 text-primary-500 placeholder-primary-900' }"
           />
-        </div>
-        <div>
-          <label for="password" class="block text-sm font-medium text-gray-300">Password:</label>
-          <input
+        </UFormGroup>
+
+        <UFormGroup label="PASSWORD" name="password" class="text-primary-500">
+          <UInput
+            v-model="state.password"
             type="password"
-            id="password"
-            v-model="password"
+            placeholder="••••••••"
             required
-            class="mt-1 w-full rounded bg-gray-700 p-2 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+            :disabled="loading"
+            color="primary"
+            variant="outline"
+            size="lg"
+            class="font-mono"
+            :ui="{ base: 'bg-black border-primary-600 text-primary-500' }"
           />
-        </div>
-        <button
+        </UFormGroup>
+
+        <UAlert
+          v-if="error"
+          icon="i-heroicons-exclamation-triangle"
+          color="red"
+          variant="subtle"
+          :title="error"
+          :ui="{ base: 'border-2 border-red-500' }"
+        />
+
+        <UButton
           type="submit"
-          class="w-full rounded bg-green-500 px-4 py-2 font-bold text-white hover:bg-green-400"
+          block
+          size="lg"
+          :loading="loading"
+          :disabled="loading"
+          color="primary"
+          variant="solid"
+          class="font-bold uppercase tracking-wider"
         >
-          Login
-        </button>
+          {{ loading ? 'AUTHENTICATING...' : 'ACCESS TERMINAL' }}
+        </UButton>
       </form>
-      <p v-if="error" class="mt-4 text-red-500">{{ error }}</p>
-      <p class="mt-4 text-gray-300">
-        Don't have an account?
-        <router-link to="/register" class="text-green-500 hover:underline">Register</router-link>
-      </p>
-    </div>
+
+      <template #footer>
+        <div class="text-center text-sm text-primary-700">
+          NEW OVERSEER?
+          <UButton
+            :to="'/register'"
+            variant="link"
+            color="primary"
+            class="uppercase font-bold"
+          >
+            REGISTER TERMINAL
+          </UButton>
+        </div>
+      </template>
+    </UCard>
   </div>
 </template>
 
 <style scoped>
-/* Scoped styles here if needed */
+/* Terminal glow effect */
+:deep(.text-primary-500) {
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
 </style>

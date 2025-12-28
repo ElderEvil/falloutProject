@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { LockClosedIcon } from '@heroicons/vue/24/solid'
 import type { Room } from '@/models/room'
 
 const props = defineProps<{
@@ -20,7 +19,7 @@ const emit = defineEmits<{
       <div class="flex items-center space-x-2">
         <div>{{ room.number }}</div>
         <div v-if="room.population_required > 0">
-          <LockClosedIcon class="h-5 w-5 text-gray-400" />
+          <UIcon name="i-lucide-lock" class="h-5 w-5 text-gray-400" />
         </div>
       </div>
       <div class="my-2">

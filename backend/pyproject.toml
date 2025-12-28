@@ -26,6 +26,9 @@ dependencies = [
     "httpcore>=1.0.9",
     "greenlet>=3.3.0",
     "pydantic-ai-slim[openai, anthropic]>=1.39.0",
+    "psycopg2>=2.9.11",
+    "psycopg2-binary>=2.9.11",
+    "celery-types>=0.24.0",
 ]
 
 [dependency-groups]

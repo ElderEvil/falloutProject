@@ -2,7 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqladmin import Admin
 from starlette import status
+from starlette.middleware.sessions import SessionMiddleware
 
+from app.admin.auth import AdminAuth
 from app.admin.views import (
     DwellerAdmin,
     JunkAdmin,
@@ -27,7 +29,14 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
 )
 
-admin = Admin(app, async_engine)
+# Add session middleware for admin authentication
+app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
+
+# Create authentication backend
+authentication_backend = AdminAuth(secret_key=settings.SECRET_KEY)
+
+# Create admin with authentication
+admin = Admin(app, async_engine, authentication_backend=authentication_backend)
 
 app.add_middleware(
     CORSMiddleware,

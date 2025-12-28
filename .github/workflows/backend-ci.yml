@@ -30,4 +30,4 @@ jobs:
         run: cd backend && uv sync --locked --all-extras --dev
 
       - name: Run tests
-        run: cd backend && uv run pytest tests
+        run: cd backend && uv run pytest app/tests

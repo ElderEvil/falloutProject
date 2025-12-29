@@ -4,11 +4,14 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useRoomStore } from '@/stores/room'
 import { useVaultStore } from '@/stores/vault'
+import { useDwellerStore } from '@/stores/dweller'
 import RoomGrid from '@/components/rooms/RoomGrid.vue'
 import BuildModeButton from '@/components/common/BuildModeButton.vue'
 import RoomMenu from '@/components/rooms/RoomMenu.vue'
 import ResourceBar from '@/components/common/ResourceBar.vue'
 import GameControlPanel from '@/components/common/GameControlPanel.vue'
+import UnassignedDwellers from '@/components/dwellers/UnassignedDwellers.vue'
+import WastelandPanel from '@/components/wasteland/WastelandPanel.vue'
 import type { Room } from '@/models/room'
 import { Icon } from '@iconify/vue'
 
@@ -21,6 +24,7 @@ const route = useRoute()
 const authStore = useAuthStore()
 const roomStore = useRoomStore()
 const vaultStore = useVaultStore()
+const dwellerStore = useDwellerStore()
 const showRoomMenu = ref(false)
 const selectedRoom = ref<Room | null>(null)
 const isPlacingRoom = ref(false)
@@ -84,6 +88,9 @@ const loadVaultData = async (id: string) => {
 
     // Fetch rooms for this vault
     await roomStore.fetchRooms(id, authStore.token)
+
+    // Fetch dwellers for this vault
+    await dwellerStore.fetchDwellersByVault(id, authStore.token)
 
     // Fetch game state and start polling
     try {
@@ -210,6 +217,16 @@ const handleRoomPlaced = async (position: Position) => {
           </div>
           <BuildModeButton :buildModeActive="buildModeActive" @toggleBuildMode="toggleBuildMode" />
         </div>
+      </div>
+
+      <!-- Unassigned Dwellers Panel -->
+      <div class="w-full mb-4">
+        <UnassignedDwellers />
+      </div>
+
+      <!-- Wasteland Panel -->
+      <div class="w-full mb-8">
+        <WastelandPanel />
       </div>
 
       <!-- Room Grid -->

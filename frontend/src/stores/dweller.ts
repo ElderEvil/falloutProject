@@ -60,6 +60,65 @@ export const useDwellerStore = defineStore('dweller', {
         console.error(`Failed to generate image for dweller ${id}`, error)
         return null
       }
+    },
+    async assignDwellerToRoom(dwellerId: string, roomId: string, token: string) {
+      try {
+        const response = await axios.post(
+          `/api/v1/dwellers/${dwellerId}/move_to/${roomId}`,
+          null,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        )
+
+        // Update the dweller in the list
+        const dwellerIndex = this.dwellers.findIndex(d => d.id === dwellerId)
+        if (dwellerIndex !== -1) {
+          this.dwellers[dwellerIndex] = { ...this.dwellers[dwellerIndex], room_id: roomId }
+        }
+
+        // Update detailed dweller if cached
+        if (this.detailedDwellers[dwellerId]) {
+          this.detailedDwellers[dwellerId] = response.data
+        }
+
+        return response.data
+      } catch (error) {
+        console.error(`Failed to assign dweller ${dwellerId} to room ${roomId}`, error)
+        throw error
+      }
+    },
+    async unassignDwellerFromRoom(dwellerId: string, token: string) {
+      try {
+        // Move dweller to null room (unassign)
+        const response = await axios.put(
+          `/api/v1/dwellers/${dwellerId}`,
+          { room_id: null },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        )
+
+        // Update the dweller in the list
+        const dwellerIndex = this.dwellers.findIndex(d => d.id === dwellerId)
+        if (dwellerIndex !== -1) {
+          this.dwellers[dwellerIndex] = { ...this.dwellers[dwellerIndex], room_id: null }
+        }
+
+        // Update detailed dweller if cached
+        if (this.detailedDwellers[dwellerId]) {
+          this.detailedDwellers[dwellerId] = response.data
+        }
+
+        return response.data
+      } catch (error) {
+        console.error(`Failed to unassign dweller ${dwellerId}`, error)
+        throw error
+      }
     }
   }
 })

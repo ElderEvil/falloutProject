@@ -6,6 +6,7 @@ vault thriving. Built with modern Python tooling and designed for Python 3.14.
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/charliermarsh/ruff/main/assets/badge/v2.json)](https://github.com/charliermarsh/ruff)
 [![Python 3.14](https://img.shields.io/badge/python-3.14-blue.svg)](https://www.python.org/downloads/)
 [![PostgreSQL 18](https://img.shields.io/badge/postgresql-18-blue.svg)](https://www.postgresql.org/)
+[![Coverage](https://img.shields.io/badge/coverage-check%20reports-blue.svg)](#-testing)
 
 ## ✨ Tech Stack
 

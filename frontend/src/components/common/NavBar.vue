@@ -53,7 +53,7 @@ const showNotifications = () => {
             Dwellers
           </router-link>
           <router-link
-            to="/objectives"
+            :to="`/vault/${currentVaultId}/objectives`"
             class="text-green-500 hover:underline"
           >
             Objectives

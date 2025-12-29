@@ -35,9 +35,10 @@ const router = createRouter({
       component: DwellerChatPage
     },
     {
-      path: '/objectives',
+      path: '/vault/:id/objectives',
       name: 'objectives',
-      component: ObjectivesView
+      component: ObjectivesView,
+      meta: { requiresAuth: true, hideFromNav: true }
     },
     {
       path: '/login',

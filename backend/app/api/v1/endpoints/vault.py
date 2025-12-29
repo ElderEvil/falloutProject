@@ -43,14 +43,14 @@ async def read_my_vaults(
     return await crud.vault.get_vaults_with_room_and_dweller_count(db_session=db_session, user_id=user.id)
 
 
-@router.get("/{vault_id}", response_model=VaultReadWithUser)
+@router.get("/{vault_id}", response_model=VaultReadWithNumbers)
 async def read_vault(
     *,
     vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: CurrentSuperuser,
 ):
-    return await crud.vault.get(db_session, vault_id)
+    return await crud.vault.get_vault_with_room_and_dweller_count(db_session=db_session, vault_id=vault_id)
 
 
 @router.put("/{vault_id}", response_model=VaultReadWithUser)

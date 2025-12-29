@@ -1,14 +1,20 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { useObjectivesStore } from '@/stores/objectives'
+import { useVaultStore } from '@/stores/vault'
 
-const vaultId = localStorage.getItem('selectedVaultId') // Assuming vaultId is stored in localStorage
+const route = useRoute()
 const objectivesStore = useObjectivesStore()
+const vaultStore = useVaultStore()
 const activeTab = ref('notCompleted')
 
+const vaultId = computed(() => route.params.id as string)
+const currentVault = computed(() => vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null)
+
 onMounted(() => {
-  if (vaultId) {
-    objectivesStore.fetchObjectives(vaultId)
+  if (vaultId.value) {
+    objectivesStore.fetchObjectives(vaultId.value)
   }
 })
 
@@ -19,7 +25,9 @@ const filterObjectives = (status: boolean) => {
 
 <template>
   <div class="objectives-container">
-    <h1 class="title">Objectives</h1>
+    <h1 class="title">
+      {{ currentVault ? `Vault ${currentVault.number} Objectives` : 'Objectives' }}
+    </h1>
     <div class="tabs">
       <button
         @click="activeTab = 'notCompleted'"

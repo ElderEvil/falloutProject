@@ -143,6 +143,30 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             for vault_obj, room_count, dweller_count in vaults
         ]
 
+    async def get_vault_with_room_and_dweller_count(
+        self, *, db_session: AsyncSession, vault_id: UUID4
+    ) -> VaultReadWithNumbers:
+        result = await db_session.execute(
+            select(
+                self.model,
+                func.count(Room.id.distinct()).label("room_count"),
+                func.count(Dweller.id.distinct()).label("dweller_count"),
+            )
+            .select_from(Vault)
+            .join(Room, Room.vault_id == self.model.id, isouter=True)
+            .join(Dweller, Dweller.vault_id == self.model.id, isouter=True)
+            .where(Vault.id == vault_id)
+            .group_by(Vault.id)
+        )
+
+        vault_data = result.one()
+        vault_obj, room_count, dweller_count = vault_data
+        return VaultReadWithNumbers(
+            **vault_obj.model_dump(),
+            room_count=room_count,
+            dweller_count=dweller_count,
+        )
+
     @staticmethod
     async def create_storage(*, db_session: AsyncSession, vault_id: UUID4) -> Storage:
         storage = Storage(vault_id=vault_id)

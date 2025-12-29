@@ -7,10 +7,12 @@ from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.crud import exploration as crud_exploration
 from app.crud.vault import vault as vault_crud
 from app.models.game_state import GameState
 from app.models.vault import Vault
 from app.services.resource_manager import ResourceManager
+from app.services.wasteland_service import wasteland_service
 
 logger = logging.getLogger(__name__)
 
@@ -126,11 +128,19 @@ class GameLoopService:
         # TODO: Implement in next phase
         results["updates"]["incidents"] = {"processed": 0, "spawned": 0}
 
-        # === PHASE 3: Dweller Management ===
+        # === PHASE 3: Wasteland Exploration ===
+        try:
+            exploration_update = await self._process_explorations(db_session, vault_id)
+            results["updates"]["explorations"] = exploration_update
+        except Exception as e:
+            self.logger.error(f"Error processing explorations for vault {vault_id}: {e}", exc_info=True)  # noqa: G004, G201
+            results["updates"]["explorations"] = {"error": str(e)}
+
+        # === PHASE 4: Dweller Management ===
         # TODO: Implement in next phase
         results["updates"]["dwellers"] = {"health_updated": 0, "leveled_up": 0}
 
-        # === PHASE 4: Event System ===
+        # === PHASE 5: Event System ===
         # TODO: Implement in next phase
         results["updates"]["events"] = {"triggered": 0}
 
@@ -206,6 +216,53 @@ class GameLoopService:
             self.logger.info(f"Created new game state for vault {vault_id}")  # noqa: G004
 
         return game_state
+
+    async def _process_explorations(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
+        """
+        Process all active explorations for a vault.
+
+        - Generate events for explorations that are due
+        - Auto-complete explorations that have reached their duration
+        """
+        stats = {
+            "active_count": 0,
+            "events_generated": 0,
+            "completed": 0,
+        }
+
+        # Get all active explorations for this vault
+        active_explorations = await crud_exploration.get_active_by_vault(
+            db_session,
+            vault_id=vault_id,
+        )
+
+        stats["active_count"] = len(active_explorations)
+
+        for exploration in active_explorations:
+            try:
+                # Check if exploration should be auto-completed
+                if exploration.time_remaining_seconds() <= 0:
+                    # Auto-complete the exploration
+                    await wasteland_service.complete_exploration(db_session, exploration.id)
+                    stats["completed"] += 1
+                    self.logger.info(
+                        f"Auto-completed exploration {exploration.id} for dweller {exploration.dweller_id}"  # noqa: G004
+                    )
+                    continue
+
+                # Try to generate an event
+                event_generated = wasteland_service.generate_event(exploration)
+                if event_generated:
+                    await wasteland_service.process_event(db_session, exploration)
+                    stats["events_generated"] += 1
+
+            except Exception as e:
+                self.logger.error(  # noqa: G201
+                    f"Error processing exploration {exploration.id}: {e}",  # noqa: G004
+                    exc_info=True,
+                )
+
+        return stats
 
 
 # Global instance

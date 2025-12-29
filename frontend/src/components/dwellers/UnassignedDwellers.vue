@@ -1,16 +1,25 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useDwellerStore } from '@/stores/dweller'
+import { useExplorationStore } from '@/stores/exploration'
 import { useAuthStore } from '@/stores/auth'
 import { Icon } from '@iconify/vue'
 import type { DwellerShort } from '@/models/dweller'
 
 const dwellerStore = useDwellerStore()
+const explorationStore = useExplorationStore()
 const authStore = useAuthStore()
 
-// Filter dwellers without room assignment
+// Filter dwellers without room assignment AND not exploring in wasteland
 const unassignedDwellers = computed(() => {
-  return dwellerStore.dwellers.filter(dweller => !dweller.room_id)
+  return dwellerStore.dwellers.filter(dweller => {
+    // Must not have a room assignment
+    if (dweller.room_id) return false
+
+    // Must not be actively exploring in wasteland
+    const isExploring = explorationStore.isDwellerExploring(dweller.id)
+    return !isExploring
+  })
 })
 
 const isDraggingOver = ref(false)

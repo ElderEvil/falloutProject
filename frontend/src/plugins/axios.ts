@@ -33,7 +33,7 @@ apiClient.interceptors.response.use(
     const authStore = useAuthStore()
     const originalRequest = error.config
 
-    if (error.response.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
       await authStore.refreshAccessToken()
       axios.defaults.headers.common['Authorization'] = 'Bearer ' + authStore.token

@@ -101,3 +101,89 @@ async def normal_user_token_headers(async_client: AsyncClient, async_session: As
         email=settings.EMAIL_TEST_USER,
         db_session=async_session,
     )
+
+
+# Common fixtures for tests
+@pytest.fixture(name="vault_data")
+def vault_data_fixture():
+    import random  # noqa: PLC0415
+
+    return {
+        "number": random.randint(1, 1_000),
+        "bottle_caps": random.randint(100, 1_000_000),
+        "happiness": random.randint(0, 100),
+        "power": random.randint(0, 100),
+        "food": random.randint(0, 100),
+        "water": random.randint(0, 100),
+    }
+
+
+@pytest.fixture(name="dweller_data")
+def dweller_data_fixture():
+    import random  # noqa: PLC0415
+
+    from faker import Faker  # noqa: PLC0415
+
+    from app.schemas.common import GenderEnum, RarityEnum  # noqa: PLC0415
+    from app.tests.utils.utils import get_gender_based_name, get_stats_by_rarity  # noqa: PLC0415
+
+    fake = Faker()
+    gender = random.choice(list(GenderEnum))
+    rarity = random.choice(list(RarityEnum))
+    stats = get_stats_by_rarity(rarity)
+
+    max_health = random.randint(50, 1_000)
+    health = random.randint(0, max_health)
+    radiation = random.randint(0, 1_000)
+
+    return stats | {
+        "first_name": get_gender_based_name(gender),
+        "last_name": fake.last_name(),
+        "is_adult": random.choice([True, False]),
+        "gender": gender,
+        "rarity": rarity.value,
+        "level": random.randint(1, 50),
+        "experience": random.randint(0, 1_000),
+        "max_health": max_health,
+        "health": health,
+        "radiation": radiation,
+        "happiness": random.randint(10, 100),
+        "stimpack": random.randint(0, 15),
+        "radaway": random.randint(0, 15),
+    }
+
+
+@pytest_asyncio.fixture(name="vault")
+async def vault_fixture(async_session: AsyncSession) -> "Vault":  # noqa: F821
+    import random  # noqa: PLC0415
+
+    from faker import Faker  # noqa: PLC0415
+
+    from app.schemas.user import UserCreate  # noqa: PLC0415
+    from app.schemas.vault import VaultCreateWithUserID  # noqa: PLC0415
+
+    fake = Faker()
+
+    # Create user first
+    user_in = UserCreate(username=fake.user_name(), email=fake.email(), password=fake.password())
+    user = await crud.user.create(db_session=async_session, obj_in=user_in)
+
+    # Create vault
+    vault_data = {
+        "number": random.randint(1, 1_000),
+        "bottle_caps": random.randint(100, 1_000_000),
+        "happiness": random.randint(0, 100),
+        "power": random.randint(0, 100),
+        "food": random.randint(0, 100),
+        "water": random.randint(0, 100),
+    }
+    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
+    return await crud.vault.create(db_session=async_session, obj_in=vault_in)
+
+
+@pytest_asyncio.fixture(name="dweller")
+async def dweller_fixture(async_session: AsyncSession, vault: "Vault", dweller_data: dict) -> "Dweller":  # noqa: F821
+    from app.schemas.dweller import DwellerCreate  # noqa: PLC0415
+
+    dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
+    return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)

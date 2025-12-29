@@ -12,8 +12,8 @@
     "lint": "oxlint src"
   },
   "dependencies": {
-    "@heroicons/vue": "^2.2.0",
-    "@nuxt/ui": "^3.0.0",
+    "@iconify/vue": "5.0.0",
+    "@nuxt/ui": "^4.3.0",
     "axios": "^1.7.9",
     "pinia": "^3.0.4",
     "vue": "^3.5.13",

@@ -43,9 +43,7 @@ const selectVault = (id: string) => {
 }
 
 const loadVault = async (id: string) => {
-  localStorage.setItem('selectedVaultId', id)
-  await roomStore.fetchRooms(id, authStore.token as string)
-  await router.push('/vault')
+  await router.push(`/vault/${id}`)
 }
 
 onMounted(async () => {

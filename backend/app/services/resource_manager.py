@@ -52,7 +52,7 @@ class ResourceManager:
 
         return resource_update, events
 
-    async def _calculate_net_resource_change(  # noqa: C901, PLR0912, PLR0915
+    async def _calculate_net_resource_change(
         self,
         vault: Vault,
         rooms: Sequence[Room],
@@ -68,30 +68,54 @@ class ResourceManager:
         """
         events = {"warnings": [], "production": {}, "consumption": {}}
 
-        # Initialize resource deltas
-        power_delta = 0
-        food_delta = 0
-        water_delta = 0
+        # Calculate consumption
+        consumption = self._calculate_consumption(rooms, dweller_count, seconds_passed)
+        events["consumption"] = consumption
 
-        # === CONSUMPTION ===
+        # Calculate production
+        production = self._calculate_production(rooms_with_dwellers, seconds_passed)
+        events["production"] = production
+
+        # Calculate new resource levels
+        new_resources = self._apply_resource_changes(vault, consumption, production)
+
+        # Check for warnings
+        warnings = self._check_resource_warnings(vault, new_resources)
+        events["warnings"] = warnings
+
+        # Log resource changes
+        self._log_resource_changes(vault, new_resources)
+
+        return (
+            VaultUpdate(
+                power=round(new_resources["power"]),
+                food=round(new_resources["food"]),
+                water=round(new_resources["water"]),
+            ),
+            events,
+        )
+
+    def _calculate_consumption(
+        self, rooms: Sequence[Room], dweller_count: int, seconds_passed: int
+    ) -> dict[str, float]:
+        """Calculate resource consumption for power, food, and water."""
         power_consumption = sum(
             POWER_CONSUMPTION_RATE * room.size * room.tier * seconds_passed for room in rooms if room.size
         )
         food_consumption = dweller_count * FOOD_CONSUMPTION_PER_DWELLER * seconds_passed
         water_consumption = dweller_count * WATER_CONSUMPTION_PER_DWELLER * seconds_passed
 
-        power_delta -= power_consumption
-        food_delta -= food_consumption
-        water_delta -= water_consumption
-
-        events["consumption"] = {
+        return {
             "power": round(power_consumption, 2),
             "food": round(food_consumption, 2),
             "water": round(water_consumption, 2),
         }
 
-        # === PRODUCTION ===
-        production_totals = {"power": 0, "food": 0, "water": 0}
+    def _calculate_production(
+        self, rooms_with_dwellers: list[tuple[Room, list[Dweller]]], seconds_passed: int
+    ) -> dict[str, float]:
+        """Calculate resource production from all production rooms."""
+        production_totals = {"power": 0.0, "food": 0.0, "water": 0.0}
 
         for room, dwellers in rooms_with_dwellers:
             if room.category != RoomTypeEnum.PRODUCTION or not room.ability or not room.output:
@@ -100,72 +124,74 @@ class ResourceManager:
                 )
                 continue
 
-            # Calculate production based on dweller stats and room tier
-            ability_sum = sum(getattr(dweller, room.ability.lower(), 0) for dweller in dwellers)
-            tier_mult = TIER_MULTIPLIER.get(room.tier, 1.0)
-            production = room.output * ability_sum * BASE_PRODUCTION_RATE * tier_mult * seconds_passed
+            production = self._calculate_room_production(room, dwellers, seconds_passed)
+            self._apply_room_production(room.ability, production, production_totals)
 
-            self.logger.info(
-                f"Room {room.name} producing: output={room.output}, ability_sum={ability_sum}, "  # noqa: G004
-                f"production={production:.2f} (tier={room.tier}, dwellers={len(dwellers)})"
-            )
+        return {k: round(v, 2) for k, v in production_totals.items()}
 
-            # Apply production to appropriate resources
-            match room.ability:
-                case SPECIALEnum.STRENGTH:  # Power plants
-                    production_totals["power"] += production
-                case SPECIALEnum.AGILITY:  # Gardens/Diners
-                    production_totals["food"] += production
-                case SPECIALEnum.PERCEPTION:  # Water treatment
-                    production_totals["water"] += production
-                case SPECIALEnum.ENDURANCE:  # Special rooms that produce all
-                    for resource in production_totals:
-                        production_totals[resource] += production / 3
-                case _:
-                    pass
+    def _calculate_room_production(self, room: Room, dwellers: list[Dweller], seconds_passed: int) -> float:
+        """Calculate production for a single room based on dweller stats and room tier."""
+        ability_sum = sum(getattr(dweller, room.ability.lower(), 0) for dweller in dwellers)
+        tier_mult = TIER_MULTIPLIER.get(room.tier, 1.0)
+        production = room.output * ability_sum * BASE_PRODUCTION_RATE * tier_mult * seconds_passed
 
-        # Apply production
-        power_delta += production_totals["power"]
-        food_delta += production_totals["food"]
-        water_delta += production_totals["water"]
-
-        events["production"] = {k: round(v, 2) for k, v in production_totals.items()}
-
-        # === CALCULATE NEW VALUES ===
-        new_power = max(0, min(vault.power + power_delta, vault.power_max))
-        new_food = max(0, min(vault.food + food_delta, vault.food_max))
-        new_water = max(0, min(vault.water + water_delta, vault.water_max))
-
-        # === CHECK FOR WARNINGS ===
-        if new_power < vault.power_max * CRITICAL_RESOURCE_THRESHOLD:
-            events["warnings"].append({"type": "critical_power", "message": "Power critically low!"})
-        elif new_power < vault.power_max * LOW_RESOURCE_THRESHOLD:
-            events["warnings"].append({"type": "low_power", "message": "Power running low"})
-
-        if new_food < vault.food_max * CRITICAL_RESOURCE_THRESHOLD:
-            events["warnings"].append({"type": "critical_food", "message": "Food critically low!"})
-        elif new_food < vault.food_max * LOW_RESOURCE_THRESHOLD:
-            events["warnings"].append({"type": "low_food", "message": "Food running low"})
-
-        if new_water < vault.water_max * CRITICAL_RESOURCE_THRESHOLD:
-            events["warnings"].append({"type": "critical_water", "message": "Water critically low!"})
-        elif new_water < vault.water_max * LOW_RESOURCE_THRESHOLD:
-            events["warnings"].append({"type": "low_water", "message": "Water running low"})
-
-        # Log resource changes
-        self.logger.debug(
-            f"Vault {vault.id}: Power {vault.power:.0f} -> {new_power:.0f}, "  # noqa: G004
-            f"Food {vault.food:.0f} -> {new_food:.0f}, "
-            f"Water {vault.water:.0f} -> {new_water:.0f}"
+        self.logger.info(
+            f"Room {room.name} producing: output={room.output}, ability_sum={ability_sum}, "  # noqa: G004
+            f"production={production:.2f} (tier={room.tier}, dwellers={len(dwellers)})"
         )
 
-        return (
-            VaultUpdate(
-                power=round(new_power),
-                food=round(new_food),
-                water=round(new_water),
-            ),
-            events,
+        return production
+
+    @staticmethod
+    def _apply_room_production(ability: SPECIALEnum, production: float, totals: dict[str, float]) -> None:
+        """Apply production to the appropriate resource type based on room ability."""
+        match ability:
+            case SPECIALEnum.STRENGTH:  # Power plants
+                totals["power"] += production
+            case SPECIALEnum.AGILITY:  # Gardens/Diners
+                totals["food"] += production
+            case SPECIALEnum.PERCEPTION:  # Water treatment
+                totals["water"] += production
+            case SPECIALEnum.ENDURANCE:  # Special rooms that produce all
+                for resource in totals:
+                    totals[resource] += production / 3
+
+    @staticmethod
+    def _apply_resource_changes(
+        vault: Vault, consumption: dict[str, float], production: dict[str, float]
+    ) -> dict[str, float]:
+        """Calculate new resource levels after applying consumption and production."""
+        return {
+            "power": max(0, min(vault.power - consumption["power"] + production["power"], vault.power_max)),
+            "food": max(0, min(vault.food - consumption["food"] + production["food"], vault.food_max)),
+            "water": max(0, min(vault.water - consumption["water"] + production["water"], vault.water_max)),
+        }
+
+    @staticmethod
+    def _check_resource_warnings(vault: Vault, new_resources: dict[str, float]) -> list[dict[str, str]]:
+        """Check for low or critical resource warnings."""
+        warnings = []
+
+        resource_checks = [
+            ("power", vault.power_max, "Power"),
+            ("food", vault.food_max, "Food"),
+            ("water", vault.water_max, "Water"),
+        ]
+
+        for resource, max_value, label in resource_checks:
+            if new_resources[resource] < max_value * CRITICAL_RESOURCE_THRESHOLD:
+                warnings.append({"type": f"critical_{resource}", "message": f"{label} critically low!"})
+            elif new_resources[resource] < max_value * LOW_RESOURCE_THRESHOLD:
+                warnings.append({"type": f"low_{resource}", "message": f"{label} running low"})
+
+        return warnings
+
+    def _log_resource_changes(self, vault: Vault, new_resources: dict[str, float]) -> None:
+        """Log resource changes for debugging."""
+        self.logger.debug(
+            f"Vault {vault.id}: Power {vault.power:.0f} -> {new_resources['power']:.0f}, "  # noqa: G004
+            f"Food {vault.food:.0f} -> {new_resources['food']:.0f}, "
+            f"Water {vault.water:.0f} -> {new_resources['water']:.0f}"
         )
 
     @staticmethod

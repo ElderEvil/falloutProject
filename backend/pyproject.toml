@@ -63,7 +63,7 @@ app = ["py.typed"]
 
 [tool.ruff]
 line-length = 120
-target-version = "py314"
+target-version = "py313"
 exclude = [".git", "__pycache__", ".pytest_cache", "alembic"]
 lint.select = [
     "FAST",
@@ -82,7 +82,6 @@ lint.select = [
     "A",
     "COM",
     "C4",
-    #    "DTZ",
     "EM",
     "ISC",
     "ICN",

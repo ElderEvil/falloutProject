@@ -4,16 +4,18 @@ import { useAuthStore } from '@/stores/auth'
 import { useVaultStore } from '@/stores/vault'
 import { useRoomStore } from '@/stores/room'
 import { useRouter } from 'vue-router'
+import { vaultNumberSchema } from '@/schemas'
 
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
 const roomStore = useRoomStore()
 const router = useRouter()
 
-const newVaultNumber = ref(0)
+const newVaultNumber = ref('')
 const selectedVaultId = ref<string | null>(null)
 const creatingVault = ref(false)
 const deletingVault = ref<string | null>(null)
+const vaultNumberError = ref<string | null>(null)
 
 const sortedVaults = computed(() =>
   [...vaultStore.vaults].sort(
@@ -21,17 +23,36 @@ const sortedVaults = computed(() =>
   )
 )
 
+const validateVaultNumber = () => {
+  vaultNumberError.value = null
+  if (!newVaultNumber.value) {
+    return false
+  }
+
+  try {
+    const parsed = parseInt(newVaultNumber.value, 10)
+    vaultNumberSchema.parse({ number: parsed })
+    return true
+  } catch (error: any) {
+    vaultNumberError.value = error.errors?.[0]?.message || 'Invalid vault number'
+    return false
+  }
+}
+
 const createVault = async () => {
-  const number = newVaultNumber.value
-  if (number && !creatingVault.value) {
-    creatingVault.value = true
-    try {
-      await vaultStore.createVault(number, authStore.token as string)
-      newVaultNumber.value = 0
-      await vaultStore.fetchVaults(authStore.token as string)
-    } finally {
-      creatingVault.value = false
-    }
+  if (!validateVaultNumber() || creatingVault.value) {
+    return
+  }
+
+  creatingVault.value = true
+  try {
+    const number = parseInt(newVaultNumber.value, 10)
+    await vaultStore.createVault(number, authStore.token as string)
+    newVaultNumber.value = ''
+    vaultNumberError.value = null
+    await vaultStore.fetchVaults(authStore.token as string)
+  } finally {
+    creatingVault.value = false
   }
 }
 
@@ -77,20 +98,27 @@ onMounted(async () => {
 
       <div class="mb-8 w-full max-w-md">
         <h2 class="mb-4 text-2xl font-bold">Create New Vault</h2>
-        <form @submit.prevent="createVault" class="flex space-x-2">
-          <input
-            v-model="newVaultNumber"
-            type="text"
-            placeholder="Vault Number"
-            class="flex-grow rounded bg-gray-800 p-2 text-terminalGreen focus:outline-none focus:ring-2 focus:ring-terminalGreen"
-          />
-          <button
-            type="submit"
-            :disabled="creatingVault"
-            class="rounded-lg border border-terminalGreen bg-terminalGreen px-4 py-2 font-bold text-terminalBackground transition duration-200 hover:bg-green-400 hover:text-terminalBackground disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {{ creatingVault ? 'Creating...' : 'Create' }}
-          </button>
+        <form @submit.prevent="createVault" class="space-y-2">
+          <div class="flex space-x-2">
+            <input
+              v-model="newVaultNumber"
+              type="number"
+              placeholder="Vault Number (0-999)"
+              min="0"
+              max="999"
+              @input="validateVaultNumber"
+              class="flex-grow rounded bg-gray-800 p-2 text-terminalGreen focus:outline-none focus:ring-2 focus:ring-terminalGreen"
+              :class="{ 'ring-2 ring-red-500': vaultNumberError }"
+            />
+            <button
+              type="submit"
+              :disabled="creatingVault || !!vaultNumberError"
+              class="rounded-lg border border-terminalGreen bg-terminalGreen px-4 py-2 font-bold text-terminalBackground transition duration-200 hover:bg-green-400 hover:text-terminalBackground disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {{ creatingVault ? 'Creating...' : 'Create' }}
+            </button>
+          </div>
+          <p v-if="vaultNumberError" class="text-sm text-red-500">{{ vaultNumberError }}</p>
         </form>
       </div>
 

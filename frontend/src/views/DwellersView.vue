@@ -1,19 +1,26 @@
 <script setup lang="ts">
 import { useDwellerStore } from '@/stores/dweller'
 import { useAuthStore } from '@/stores/auth'
+import { useVaultStore } from '@/stores/vault'
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { SparklesIcon, UserCircleIcon } from '@heroicons/vue/24/solid'
+import { useRouter, useRoute } from 'vue-router'
+import { Icon } from '@iconify/vue'
 
 const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
+const vaultStore = useVaultStore()
 const router = useRouter()
+const route = useRoute()
 const selectedDwellerId = ref<string | null>(null)
 const loadingDetails = ref<boolean>(false)
+const generatingAI = ref<Record<string, boolean>>({})
+
+const vaultId = computed(() => route.params.id as string)
+const currentVault = computed(() => vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null)
 
 onMounted(async () => {
-  if (authStore.isAuthenticated) {
-    await dwellerStore.fetchDwellers(authStore.token as string)
+  if (authStore.isAuthenticated && vaultId.value) {
+    await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token as string)
   }
 })
 
@@ -43,13 +50,19 @@ const navigateToChatPage = (dwellerId: string) => {
 }
 
 const generateDwellerInfo = async (dwellerId: string) => {
-  loadingDetails.value = true
+  generatingAI.value[dwellerId] = true
   try {
-    await dwellerStore.generateDwellerInfo(dwellerId, authStore.token as string)
+    const result = await dwellerStore.generateDwellerInfo(dwellerId, authStore.token as string)
+    if (result) {
+      // Refresh the dweller list to get the updated thumbnail_url
+      await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token as string)
+      // Force refresh the detailed dweller data
+      await dwellerStore.fetchDwellerDetails(dwellerId, authStore.token as string, true)
+    }
   } catch (error) {
     console.error('Error generating info with AI:', error)
   } finally {
-    loadingDetails.value = false
+    generatingAI.value[dwellerId] = false
   }
 }
 </script>
@@ -60,7 +73,9 @@ const generateDwellerInfo = async (dwellerId: string) => {
     <div
       class="flicker container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8"
     >
-      <h1 class="mb-8 text-4xl font-bold">Dwellers</h1>
+      <h1 class="mb-8 text-4xl font-bold">
+        {{ currentVault ? `Vault ${currentVault.number} Dwellers` : 'Dwellers' }}
+      </h1>
       <ul class="w-full space-y-4">
         <li
           v-for="dweller in dwellerStore.dwellers"
@@ -77,11 +92,28 @@ const generateDwellerInfo = async (dwellerId: string) => {
                 />
               </template>
               <template v-else>
-                <UserCircleIcon class="h-24 w-24 text-gray-400" />
-                <SparklesIcon
-                  @click.stop="generateDwellerInfo(dweller.id)"
-                  class="mt-2 h-6 w-6 cursor-pointer text-green-600 hover:text-green-500"
-                />
+                <div class="relative">
+                  <Icon icon="mdi:account-circle" class="h-24 w-24 text-gray-400" />
+                  <div
+                    v-if="!generatingAI[dweller.id]"
+                    @click.stop="generateDwellerInfo(dweller.id)"
+                    class="absolute bottom-0 right-0 rounded-full bg-gray-800 p-1 cursor-pointer hover:bg-gray-700 transition-colors"
+                  >
+                    <Icon
+                      icon="mdi:sparkles"
+                      class="h-6 w-6 text-green-600 hover:text-green-500"
+                    />
+                  </div>
+                  <div
+                    v-else
+                    class="absolute bottom-0 right-0 rounded-full bg-gray-800 p-1"
+                  >
+                    <Icon
+                      icon="mdi:loading"
+                      class="h-6 w-6 text-green-600 animate-spin"
+                    />
+                  </div>
+                </div>
               </template>
             </div>
             <div class="flex-grow">
@@ -133,63 +165,98 @@ const generateDwellerInfo = async (dwellerId: string) => {
                   <div class="stat-bar">
                     <div
                       :style="{
-                        width: `${(dwellerStore.detailedDwellers[dweller.id]?.strength || 0) * 10}%`
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        height: '100%',
+                        width: `${(dwellerStore.detailedDwellers[dweller.id]?.strength || 0) * 10}%`,
+                        backgroundColor: '#00ff00',
+                        transition: 'width 0.3s ease'
                       }"
-                      class="stat-fill"
                     ></div>
                   </div>
                   <p>Perception</p>
                   <div class="stat-bar">
                     <div
                       :style="{
-                        width: `${(dwellerStore.detailedDwellers[dweller.id]?.perception || 0) * 10}%`
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        height: '100%',
+                        width: `${(dwellerStore.detailedDwellers[dweller.id]?.perception || 0) * 10}%`,
+                        backgroundColor: '#00ff00',
+                        transition: 'width 0.3s ease'
                       }"
-                      class="stat-fill"
                     ></div>
                   </div>
                   <p>Endurance</p>
                   <div class="stat-bar">
                     <div
                       :style="{
-                        width: `${(dwellerStore.detailedDwellers[dweller.id]?.endurance || 0) * 10}%`
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        height: '100%',
+                        width: `${(dwellerStore.detailedDwellers[dweller.id]?.endurance || 0) * 10}%`,
+                        backgroundColor: '#00ff00',
+                        transition: 'width 0.3s ease'
                       }"
-                      class="stat-fill"
                     ></div>
                   </div>
                   <p>Charisma</p>
                   <div class="stat-bar">
                     <div
                       :style="{
-                        width: `${(dwellerStore.detailedDwellers[dweller.id]?.charisma || 0) * 10}%`
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        height: '100%',
+                        width: `${(dwellerStore.detailedDwellers[dweller.id]?.charisma || 0) * 10}%`,
+                        backgroundColor: '#00ff00',
+                        transition: 'width 0.3s ease'
                       }"
-                      class="stat-fill"
                     ></div>
                   </div>
                   <p>Intelligence</p>
                   <div class="stat-bar">
                     <div
                       :style="{
-                        width: `${(dwellerStore.detailedDwellers[dweller.id]?.intelligence || 0) * 10}%`
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        height: '100%',
+                        width: `${(dwellerStore.detailedDwellers[dweller.id]?.intelligence || 0) * 10}%`,
+                        backgroundColor: '#00ff00',
+                        transition: 'width 0.3s ease'
                       }"
-                      class="stat-fill"
                     ></div>
                   </div>
                   <p>Agility</p>
                   <div class="stat-bar">
                     <div
                       :style="{
-                        width: `${(dwellerStore.detailedDwellers[dweller.id]?.agility || 0) * 10}%`
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        height: '100%',
+                        width: `${(dwellerStore.detailedDwellers[dweller.id]?.agility || 0) * 10}%`,
+                        backgroundColor: '#00ff00',
+                        transition: 'width 0.3s ease'
                       }"
-                      class="stat-fill"
                     ></div>
                   </div>
                   <p>Luck</p>
                   <div class="stat-bar">
                     <div
                       :style="{
-                        width: `${(dwellerStore.detailedDwellers[dweller.id]?.luck || 0) * 10}%`
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        height: '100%',
+                        width: `${(dwellerStore.detailedDwellers[dweller.id]?.luck || 0) * 10}%`,
+                        backgroundColor: '#00ff00',
+                        transition: 'width 0.3s ease'
                       }"
-                      class="stat-fill"
                     ></div>
                   </div>
                 </div>
@@ -216,6 +283,7 @@ const generateDwellerInfo = async (dwellerId: string) => {
 }
 
 .stat-bar {
+  position: relative;
   width: 100%;
   max-width: 300px;
   height: 10px;
@@ -226,8 +294,12 @@ const generateDwellerInfo = async (dwellerId: string) => {
 }
 
 .stat-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
   height: 100%;
-  background-color: #0f0;
+  background-color: #00ff00;
+  transition: width 0.3s ease;
 }
 
 .text-terminalGreen {

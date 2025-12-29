@@ -8,6 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.api.game_data_deps import get_static_game_data
 from app.crud.base import CRUDBase, ModelType
 from app.models import Dweller, Room, Storage
+from app.models.game_state import GameState
 from app.models.vault import Vault
 from app.schemas.common import GameStatusEnum, RoomActionEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreateCommonOverride
@@ -142,6 +143,30 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             )
             for vault_obj, room_count, dweller_count in vaults
         ]
+
+    async def get_vault_with_room_and_dweller_count(
+        self, *, db_session: AsyncSession, vault_id: UUID4
+    ) -> VaultReadWithNumbers:
+        result = await db_session.execute(
+            select(
+                self.model,
+                func.count(Room.id.distinct()).label("room_count"),
+                func.count(Dweller.id.distinct()).label("dweller_count"),
+            )
+            .select_from(Vault)
+            .join(Room, Room.vault_id == self.model.id, isouter=True)
+            .join(Dweller, Dweller.vault_id == self.model.id, isouter=True)
+            .where(Vault.id == vault_id)
+            .group_by(Vault.id)
+        )
+
+        vault_data = result.one()
+        vault_obj, room_count, dweller_count = vault_data
+        return VaultReadWithNumbers(
+            **vault_obj.model_dump(),
+            room_count=room_count,
+            dweller_count=dweller_count,
+        )
 
     @staticmethod
     async def create_storage(*, db_session: AsyncSession, vault_id: UUID4) -> Storage:
@@ -338,6 +363,18 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         )
 
         return await self.update(db_session=db_session, id=vault_id, obj_in=updated_resources)
+
+    async def delete(self, db_session: AsyncSession, id: UUID4) -> None:
+        """Delete vault and its associated gamestate."""
+        # First, delete the associated gamestate if it exists
+        result = await db_session.execute(select(GameState).where(GameState.vault_id == id))
+        gamestate = result.scalar_one_or_none()
+        if gamestate:
+            await db_session.delete(gamestate)
+            await db_session.commit()
+
+        # Now delete the vault using the base class method
+        return await super().delete(db_session, id)
 
 
 vault = CRUDVault(Vault)

@@ -20,8 +20,20 @@ export const useDwellerStore = defineStore('dweller', {
         console.error('Failed to fetch dwellers', error)
       }
     },
-    async fetchDwellerDetails(id: string, token: string) {
-      if (this.detailedDwellers[id]) return this.detailedDwellers[id]
+    async fetchDwellersByVault(vaultId: string, token: string) {
+      try {
+        const response = await axios.get(`/api/v1/dwellers/vault/${vaultId}/`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        })
+        this.dwellers = response.data
+      } catch (error) {
+        console.error(`Failed to fetch dwellers for vault ${vaultId}`, error)
+      }
+    },
+    async fetchDwellerDetails(id: string, token: string, forceRefresh = false) {
+      if (this.detailedDwellers[id] && !forceRefresh) return this.detailedDwellers[id]
       try {
         const response = await axios.get(`/api/v1/dwellers/${id}`, {
           headers: {

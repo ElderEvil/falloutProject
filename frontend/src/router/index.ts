@@ -1,12 +1,12 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
-import HomeView from '@/views/HomeView.vue'
-import LoginPage from '@/components/auth/LoginForm.vue'
-import RegisterPage from '@/components/auth/RegisterForm.vue'
-import VaultView from '@/views/VaultView.vue'
-import DwellersView from '@/views/DwellersView.vue'
-import DwellerChatPage from '@/components/chat/DwellerChatPage.vue'
-import ObjectivesView from '@/views/ObjectivesView.vue'
+import { createRouter, createWebHistory } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
+import HomeView from '@/views/HomeView.vue';
+import LoginPage from '@/components/auth/LoginForm.vue';
+import RegisterPage from '@/components/auth/RegisterForm.vue';
+import VaultView from '@/views/VaultView.vue';
+import DwellersView from '@/views/DwellersView.vue';
+import DwellerChatPage from '@/components/chat/DwellerChatPage.vue';
+import ObjectivesView from '@/views/ObjectivesView.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -15,19 +15,19 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: HomeView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true, hideFromNav: false }
     },
     {
-      path: '/vault',
+      path: '/vault/:id',
       name: 'vault',
       component: VaultView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true, hideFromNav: true }
     },
     {
-      path: '/dwellers',
+      path: '/vault/:id/dwellers',
       name: 'dwellers',
       component: DwellersView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true, hideFromNav: true }
     },
     {
       path: '/dweller/:id/chat',
@@ -35,19 +35,22 @@ const router = createRouter({
       component: DwellerChatPage
     },
     {
-      path: '/objectives',
+      path: '/vault/:id/objectives',
       name: 'objectives',
-      component: ObjectivesView
+      component: ObjectivesView,
+      meta: { requiresAuth: true, hideFromNav: true }
     },
     {
       path: '/login',
       name: 'login',
-      component: LoginPage
+      component: LoginPage,
+      meta: { hideFromNav: true }
     },
     {
       path: '/register',
       name: 'register',
-      component: RegisterPage
+      component: RegisterPage,
+      meta: { hideFromNav: true }
     },
     {
       path: '/about',
@@ -56,15 +59,15 @@ const router = createRouter({
       component: () => import('../views/AboutView.vue')
     }
   ]
-})
+});
 
 router.beforeEach((to, from, next) => {
-  const authStore = useAuthStore()
+  const authStore = useAuthStore();
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    next('/login')
+    next('/login');
   } else {
-    next()
+    next();
   }
-})
+});
 
-export default router
+export default router;

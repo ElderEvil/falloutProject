@@ -4,15 +4,15 @@ A web-based simulation game where you manage a vault full of dwellers, balancing
 vault thriving. Built with modern Python tooling and designed for Python 3.14.
 
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/charliermarsh/ruff/main/assets/badge/v2.json)](https://github.com/charliermarsh/ruff)
-[![Python 3.14](https://img.shields.io/badge/python-3.14-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![PostgreSQL 18](https://img.shields.io/badge/postgresql-18-blue.svg)](https://www.postgresql.org/)
 [![Vue 3.5](https://img.shields.io/badge/vue-3.5-00ff00.svg)](https://vuejs.org/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.7-00ff00.svg)](https://www.typescriptlang.org/)
-[![Tests](https://img.shields.io/badge/frontend_tests-88_passing-00ff00.svg)](#-testing)
 
 ## ✨ Tech Stack
 
 ### Backend
+
 - **FastAPI** + SQLModel + Pydantic v2 - Modern Python API framework
 - **PostgreSQL 18** - Database with UUID v7 support
 - **Celery + Redis** - Task queue and caching
@@ -20,6 +20,7 @@ vault thriving. Built with modern Python tooling and designed for Python 3.14.
 - **PydanticAI** - AI integration for dweller chat
 
 ### Frontend
+
 - **Vue 3.5** - Composition API with TypeScript
 - **Vite (rolldown-vite)** - Ultra-fast bundler with Rolldown
 - **Pinia 3.0** - State management
@@ -28,6 +29,7 @@ vault thriving. Built with modern Python tooling and designed for Python 3.14.
 - **Vitest 2.1** - Unit testing (88 tests passing)
 
 ### Infrastructure
+
 - **Docker/Podman** - Containerization
 - **K3s (Kubernetes)** - Production orchestration
 
@@ -36,12 +38,14 @@ vault thriving. Built with modern Python tooling and designed for Python 3.14.
 This project uses cutting-edge **Rust-based** tools for maximum performance:
 
 **Backend (Python):**
+
 - 🦀 **[uv](https://github.com/astral-sh/uv)** - Ultra-fast package installer (replaces pip)
 - 🦀 **[ruff](https://github.com/astral-sh/ruff)** - Blazingly fast linter/formatter (replaces flake8/black/isort)
 - 🦀 **[prek](https://github.com/j178/prek)** - Pre-commit hook runner
 - 🦀 **[ty](https://github.com/gao-artur/ty)** - Fast type checker (mypy alternative)
 
 **Frontend (JavaScript):**
+
 - 🦀 **[Rolldown](https://rolldown.rs/)** - Rust bundler (built into Vite)
 - 🦀 **[Oxlint](https://oxc.rs/)** - 50-100x faster linter (replaces ESLint + Prettier)
 - ⚡ **[Vitest](https://vitest.dev/)** - Fast unit test framework
@@ -49,15 +53,18 @@ This project uses cutting-edge **Rust-based** tools for maximum performance:
 ## 📋 Prerequisites
 
 **Backend:**
-- **Python 3.14** (required)
-- **PostgreSQL 18** (required for UUID v7)
+
+- **Python 3.13**
+- **PostgreSQL 18**
 - **Redis** (for Celery)
 
 **Frontend:**
+
 - **Node.js 22+** (required)
 - **pnpm 10.26+** (recommended)
 
 **Optional:**
+
 - **Docker/Podman** (for containerized setup)
 
 ## 🚀 Quick Start
@@ -159,6 +166,7 @@ Visit [http://localhost:8080](http://localhost:8080) to start playing!
 ### Backend Development
 
 **Install Development Tools:**
+
 ```bash
 cd backend
 uv sync --all-extras --dev
@@ -166,6 +174,7 @@ prek install  # Install pre-commit hooks
 ```
 
 **Available Commands:**
+
 ```bash
 # Testing
 uv run pytest app/tests/
@@ -189,12 +198,14 @@ uv run celery -A app.core.celery beat -l info
 ### Frontend Development
 
 **Install Dependencies:**
+
 ```bash
 cd frontend
 pnpm install
 ```
 
 **Available Commands:**
+
 ```bash
 # Development
 pnpm run dev          # Start dev server
@@ -210,6 +221,7 @@ pnpm run lint         # Lint with Oxlint
 ```
 
 **Frontend Documentation:**
+
 - See [`frontend/README.md`](./frontend/README.md) for detailed frontend docs
 - See [`frontend/STYLEGUIDE.md`](./frontend/STYLEGUIDE.md) for design system
 - See [`frontend/src/components/ui/README.md`](./frontend/src/components/ui/README.md) for UI components
@@ -317,12 +329,14 @@ pnpm run test -- --coverage
 ```
 
 **Test Coverage:**
+
 - Backend: Check `backend/htmlcov/index.html` after running with `--cov`
 - Frontend: 88/88 tests passing (Auth, Vault, Components, Services, Router)
 
 ## 📊 Code Quality
 
 ### Backend Quality Tools
+
 - **Ruff** - Linting and formatting (configured in `pyproject.toml`)
 - **ty** - Type checking with Python 3.14 support
 - **prek** - Pre-commit hooks for automated checks
@@ -330,12 +344,14 @@ pnpm run test -- --coverage
 - **coverage** - Code coverage reporting
 
 ### Frontend Quality Tools
+
 - **Oxlint** - Ultra-fast linting (50-100x faster than ESLint)
 - **vue-tsc** - TypeScript type checking for Vue
 - **Vitest** - Fast unit testing framework
 - **TailwindCSS** - Utility-first CSS with design system
 
 All checks run automatically on:
+
 - Pre-commit (via hooks)
 - Pull requests (via GitHub Actions)
 - Before deployment
@@ -476,6 +492,7 @@ netstat -ano | findstr :8000  # Windows
 ## 📚 Additional Resources
 
 ### Backend
+
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
 - [SQLModel Documentation](https://sqlmodel.tiangolo.com/)
 - [uv Documentation](https://docs.astral.sh/uv/)
@@ -483,6 +500,7 @@ netstat -ano | findstr :8000  # Windows
 - [Podman Migration Guide](./CONTAINER_MIGRATION.md)
 
 ### Frontend
+
 - [Vue 3 Documentation](https://vuejs.org/)
 - [Vite Documentation](https://vitejs.dev/)
 - [TailwindCSS v4 Beta](https://tailwindcss.com/docs/v4-beta)
@@ -503,4 +521,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-Built with ❤️ using Python 3.14 and modern tooling
+Built with ❤️ using Python, Vue and modern tooling

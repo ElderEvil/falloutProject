@@ -3,7 +3,7 @@ from collections.abc import Generator
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import JSON, event
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import (
@@ -83,7 +83,7 @@ async def async_client(async_session: AsyncSession, superuser: None) -> Generato
     app.dependency_overrides[get_async_session] = lambda: async_session
 
     async with AsyncClient(
-        app=app,
+        transport=ASGITransport(app=app),
         base_url=f"https://{settings.API_V1_STR}",
     ) as client:
         yield client

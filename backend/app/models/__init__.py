@@ -1,4 +1,6 @@
 from .dweller import Dweller
+from .game_state import GameState
+from .incident import Incident, IncidentStatus, IncidentType
 from .junk import Junk
 from .llm_interaction import LLMInteraction
 from .objective import Objective

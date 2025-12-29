@@ -75,13 +75,8 @@ class Settings(BaseSettings):
     @field_validator("SYNC_CELERY_DATABASE_URI", mode="after")
     def assemble_celery_db_connection(cls, v: str | None, info: FieldValidationInfo) -> Any:
         if isinstance(v, str) and not v:
-            return PostgresDsn.build(
-                scheme="postgresql",
-                username=info.data["POSTGRES_USER"],
-                password=info.data["POSTGRES_PASSWORD"],
-                host=info.data["POSTGRES_SERVER"],
-                path=info.data["POSTGRES_DB"],
-            )
+            # Return raw string for Celery SQLAlchemy backend (needs db+postgresql scheme)
+            return f"db+postgresql://{info.data['POSTGRES_USER']}:{info.data['POSTGRES_PASSWORD']}@{info.data['POSTGRES_SERVER']}/{info.data['POSTGRES_DB']}"
         return v
 
     SYNC_CELERY_BEAT_DATABASE_URI: PostgresDsn | str = ""

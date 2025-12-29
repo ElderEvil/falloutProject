@@ -1,12 +1,19 @@
 import asyncio
 from logging.config import fileConfig
+from pathlib import Path
 
+from dotenv import load_dotenv
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 from sqlmodel import SQLModel
 
 from alembic import context
+
+# Load environment variables before importing config
+env_path = Path(__file__).parent.parent.parent / ".env"
+load_dotenv(env_path)
+
 from app.core.config import settings
 
 from app.models import *  # noqa: F403

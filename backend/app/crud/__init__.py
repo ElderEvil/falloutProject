@@ -1,4 +1,6 @@
 from .dweller import dweller
+from .game_state import game_state_crud
+from .incident import incident_crud
 from .junk import junk
 from .llm_interaction import llm_interaction
 from .objective import objective_crud

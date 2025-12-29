@@ -82,10 +82,19 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
                     )
                     await _update_vault(VaultUpdate(population_max=new_population_max))
                 case "storage room":
-                    new_storage_space_max = self._calculate_new_capacity(
-                        action, vault_obj.storage.max_space or 0, room_obj.capacity
-                    )
-                    await _update_storage(vault_obj.id, new_storage_space_max)
+                    # Only process if room has capacity defined
+                    if room_obj.capacity is not None:
+                        # Query storage to get current max_space (avoid lazy load issue)
+                        storage_result = await db_session.execute(
+                            select(Storage).where(Storage.vault_id == vault_obj.id)
+                        )
+                        storage_obj = storage_result.scalars().first()
+                        current_max_space = storage_obj.max_space if storage_obj else 0
+
+                        new_storage_space_max = self._calculate_new_capacity(
+                            action, current_max_space, room_obj.capacity
+                        )
+                        await _update_storage(vault_obj.id, new_storage_space_max)
                 case _:
                     error_msg = f"Invalid room name: {room_obj.name}"
                     raise ValueError(error_msg)
@@ -194,12 +203,27 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
     @staticmethod
     def _prepare_room_data(rooms: list[RoomCreate], room_name: str, vault_id: UUID4, x: int, y: int) -> dict:
+        from app.crud.room import room as room_crud  # noqa: PLC0415
+
         room_data = next(room for room in rooms if room.name.lower() == room_name)
         room_data_dict = room_data.model_dump()
+
+        # Evaluate capacity and output formulas if present
+        size = room_data.size_min
+        tier = 1  # Initial tier
+
+        # Check in the dumped dict for formula fields
+        if room_data_dict.get("capacity_formula"):
+            room_data_dict["capacity"] = room_crud.evaluate_capacity_formula(
+                room_data_dict["capacity_formula"], tier, size
+            )
+        if room_data_dict.get("output_formula"):
+            room_data_dict["output"] = room_crud.evaluate_output_formula(room_data_dict["output_formula"], tier, size)
+
         room_data_dict.update(
             {
                 "vault_id": vault_id,
-                "size": room_data.size_min,
+                "size": size,
                 "coordinate_x": x,
                 "coordinate_y": y,
             }
@@ -208,29 +232,103 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
     async def initiate(self, *, db_session: AsyncSession, obj_in: VaultNumber, user_id: UUID4) -> Vault:
         """
-        Create a new vault for a user and initialize it with essential rooms.
-        Includes a vault door and multiple elevators.
+        Create a new vault for a user and initialize it with essential rooms and dwellers.
+        Includes:
+        - Vault door and elevators (infrastructure)
+        - Production rooms (power generator, diner, water treatment) with assigned dwellers
+        - Storage room
+        - 6 dwellers with boosted SPECIAL stats assigned to production rooms
         """
         vault_db_obj = await self.create_with_user_id(db_session=db_session, obj_in=obj_in, user_id=user_id)
 
+        # Create storage
         await self.create_storage(db_session=db_session, vault_id=vault_db_obj.id)
+
+        # Refresh vault to load storage relationship
+        await db_session.refresh(vault_db_obj)
 
         game_data_store = get_static_game_data()
         rooms = game_data_store.rooms
+
+        # Infrastructure rooms (existing)
         vault_door_data = self._prepare_room_data(rooms, "vault door", vault_db_obj.id, 0, 0)
         elevators_data = [self._prepare_room_data(rooms, "elevator", vault_db_obj.id, 0, y) for y in range(1, 4)]
 
-        initial_rooms = [RoomCreate(**vault_door_data)] + [RoomCreate(**data) for data in elevators_data]
+        # Production rooms (new)
+        power_generator_data = self._prepare_room_data(rooms, "power generator", vault_db_obj.id, 1, 1)
+        diner_data = self._prepare_room_data(rooms, "diner", vault_db_obj.id, 1, 2)
+        water_treatment_data = self._prepare_room_data(rooms, "water treatment", vault_db_obj.id, 1, 3)
+        storage_room_data = self._prepare_room_data(rooms, "storage room", vault_db_obj.id, 1, 4)
+
+        infrastructure_rooms = [RoomCreate(**vault_door_data)] + [RoomCreate(**data) for data in elevators_data]
+        production_rooms = [
+            RoomCreate(**power_generator_data),
+            RoomCreate(**diner_data),
+            RoomCreate(**water_treatment_data),
+            RoomCreate(**storage_room_data),
+        ]
 
         from app.crud.room import room as room_crud  # noqa: PLC0415
 
-        await room_crud.create_all(db_session, initial_rooms)
+        # Create infrastructure rooms (don't affect vault capacity)
+        await room_crud.create_all(db_session, infrastructure_rooms)
+
+        # Create production rooms and update vault capacities
+        created_production_rooms = []
+        for room_create in production_rooms:
+            room_obj = await room_crud.create(db_session, room_create)
+            created_production_rooms.append(room_obj)
+            # Recalculate vault attributes after each room
+            vault_db_obj = await self.recalculate_vault_attributes(
+                db_session=db_session, vault_obj=vault_db_obj, room_obj=room_obj, action=RoomActionEnum.BUILD
+            )
+
+        # Refresh vault to get updated capacities
+        await db_session.refresh(vault_db_obj)
+
+        # Set initial resources to 50% of max capacity
+        initial_power = vault_db_obj.power_max // 2
+        initial_food = vault_db_obj.food_max // 2
+        initial_water = vault_db_obj.water_max // 2
+
+        vault_db_obj = await self.update(
+            db_session=db_session,
+            id=vault_db_obj.id,
+            obj_in=VaultUpdate(power=initial_power, food=initial_food, water=initial_water),
+        )
+
+        # Create dwellers with boosted SPECIAL stats
+        import logging  # noqa: PLC0415
 
         from app.crud.dweller import dweller as dweller_crud  # noqa: PLC0415
+        from app.schemas.dweller import DwellerUpdate  # noqa: PLC0415
 
-        for stat in [SPECIALEnum.STRENGTH, SPECIALEnum.AGILITY, SPECIALEnum.PERCEPTION, None, None]:
-            obj_in = DwellerCreateCommonOverride(special_boost=stat)
-            await dweller_crud.create_random(db_session, vault_db_obj.id, obj_in=obj_in)
+        logger = logging.getLogger(__name__)
+
+        # 2 dwellers for each production room (Strength, Agility, Perception)
+        dweller_specs = [
+            (SPECIALEnum.STRENGTH, created_production_rooms[0].id),  # Power Generator
+            (SPECIALEnum.STRENGTH, created_production_rooms[0].id),
+            (SPECIALEnum.AGILITY, created_production_rooms[1].id),  # Diner
+            (SPECIALEnum.AGILITY, created_production_rooms[1].id),
+            (SPECIALEnum.PERCEPTION, created_production_rooms[2].id),  # Water Treatment
+            (SPECIALEnum.PERCEPTION, created_production_rooms[2].id),
+        ]
+
+        try:
+            for i, (special_stat, room_id) in enumerate(dweller_specs):
+                logger.info(f"Creating dweller {i + 1}/6 with {special_stat} for room {room_id}")  # noqa: G004
+                obj_in = DwellerCreateCommonOverride(special_boost=special_stat)
+                dweller_obj = await dweller_crud.create_random(db_session, vault_db_obj.id, obj_in=obj_in)
+                logger.info(f"Created dweller {dweller_obj.id}, assigning to room {room_id}")  # noqa: G004
+                # Assign dweller to room
+                await dweller_crud.update(
+                    db_session=db_session, id=dweller_obj.id, obj_in=DwellerUpdate(room_id=room_id)
+                )
+                logger.info(f"Dweller {dweller_obj.id} assigned to room {room_id}")  # noqa: G004
+        except Exception as e:
+            logger.error(f"Failed to create dwellers: {e}", exc_info=True)  # noqa: G004, G201
+            raise
 
         return vault_db_obj
 

@@ -14,14 +14,16 @@ async_engine = create_async_engine(
     max_overflow=64,
 )
 
+# Session maker for Celery tasks and other contexts
+async_session_maker = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=async_engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+
 
 async def get_async_session() -> AsyncGenerator[AsyncSession]:
-    async_session = sessionmaker(
-        autocommit=False,
-        autoflush=False,
-        bind=async_engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
-    async with async_session() as session:
+    async with async_session_maker() as session:
         yield session

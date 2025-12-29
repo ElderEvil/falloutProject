@@ -3,7 +3,6 @@ name = "fallout-shelter-fast-api-vue"
 version = "0.1.0"
 authors = [{ name = "ElderEvil", email = "elder.evil.dev@proton.me" }, ]
 description = "Fallout Shelter FastAPI Game is a web-based simulation game where the player manages a vault full of dwellers, balancing their needs and resources to keep the vault thriving."
-readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
     "alembic>=1.17.2,<2.0",
@@ -55,6 +54,12 @@ default-groups = ["test", "lint"]
 [build-system]
 requires = ["setuptools >= 75.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["app"]
+
+[tool.setuptools.package-data]
+app = ["py.typed"]
 
 [tool.ruff]
 line-length = 120

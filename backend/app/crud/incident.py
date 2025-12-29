@@ -38,8 +38,8 @@ class CRUDIncident:
     async def get(db_session: AsyncSession, incident_id: UUID4) -> Incident | None:
         """Get incident by ID."""
         query = select(Incident).where(Incident.id == incident_id)
-        result = await db_session.exec(query)
-        return result.first()
+        result = await db_session.execute(query)
+        return result.scalar_one_or_none()
 
     @staticmethod
     async def get_active_by_vault(db_session: AsyncSession, vault_id: UUID4) -> list[Incident]:
@@ -47,8 +47,8 @@ class CRUDIncident:
         query = select(Incident).where(
             (Incident.vault_id == vault_id) & (Incident.status.in_([IncidentStatus.ACTIVE, IncidentStatus.SPREADING]))
         )
-        result = await db_session.exec(query)
-        return list(result.all())
+        result = await db_session.execute(query)
+        return list(result.scalars().all())
 
     @staticmethod
     async def get_by_room(db_session: AsyncSession, room_id: UUID4) -> list[Incident]:
@@ -56,8 +56,8 @@ class CRUDIncident:
         query = select(Incident).where(
             (Incident.room_id == room_id) & (Incident.status.in_([IncidentStatus.ACTIVE, IncidentStatus.SPREADING]))
         )
-        result = await db_session.exec(query)
-        return list(result.all())
+        result = await db_session.execute(query)
+        return list(result.scalars().all())
 
     @staticmethod
     async def resolve(db_session: AsyncSession, incident_id: UUID4, success: bool = True) -> Incident:  # noqa: FBT001, FBT002
@@ -85,8 +85,8 @@ class CRUDIncident:
     async def get_spreading_incidents(db_session: AsyncSession) -> list[Incident]:
         """Get all incidents that should spread."""
         query = select(Incident).where(Incident.status.in_([IncidentStatus.ACTIVE, IncidentStatus.SPREADING]))
-        result = await db_session.exec(query)
-        incidents = list(result.all())
+        result = await db_session.execute(query)
+        incidents = list(result.scalars().all())
 
         # Filter for incidents that should spread
         return [inc for inc in incidents if inc.should_spread()]

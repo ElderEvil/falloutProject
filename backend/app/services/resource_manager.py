@@ -52,7 +52,7 @@ class ResourceManager:
 
         return resource_update, events
 
-    async def _calculate_net_resource_change(  # noqa: C901, PLR0912
+    async def _calculate_net_resource_change(  # noqa: C901, PLR0912, PLR0915
         self,
         vault: Vault,
         rooms: Sequence[Room],
@@ -95,12 +95,20 @@ class ResourceManager:
 
         for room, dwellers in rooms_with_dwellers:
             if room.category != RoomTypeEnum.PRODUCTION or not room.ability or not room.output:
+                self.logger.debug(
+                    f"Skipping room {room.name}: category={room.category}, ability={room.ability}, output={room.output}"  # noqa: G004
+                )
                 continue
 
             # Calculate production based on dweller stats and room tier
             ability_sum = sum(getattr(dweller, room.ability.lower(), 0) for dweller in dwellers)
             tier_mult = TIER_MULTIPLIER.get(room.tier, 1.0)
             production = room.output * ability_sum * BASE_PRODUCTION_RATE * tier_mult * seconds_passed
+
+            self.logger.info(
+                f"Room {room.name} producing: output={room.output}, ability_sum={ability_sum}, "  # noqa: G004
+                f"production={production:.2f} (tier={room.tier}, dwellers={len(dwellers)})"
+            )
 
             # Apply production to appropriate resources
             match room.ability:

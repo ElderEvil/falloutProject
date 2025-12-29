@@ -13,14 +13,14 @@ from app.schemas.common import GameStatusEnum, RoomActionEnum, RoomTypeEnum, SPE
 from app.schemas.dweller import DwellerCreateCommonOverride
 from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultNumber, VaultReadWithNumbers, VaultUpdate
-from app.services.resource_calculator import ResourceCalculator
+from app.services.resource_manager import ResourceManager
 from app.utils.exceptions import InsufficientResourcesException, ResourceNotFoundException
 
 
 class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
     def __init__(self, model: type[ModelType]):
         super().__init__(model)
-        self.resource_calculator = ResourceCalculator()
+        self.resource_manager = ResourceManager()
 
     async def get_by_user_id(self, *, db_session: AsyncSession, user_id: UUID4) -> Sequence[Vault]:
         response = await db_session.execute(select(self.model).where(self.model.user_id == user_id))
@@ -333,7 +333,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         return vault_db_obj
 
     async def update_resources(self, db_session: AsyncSession, vault_id: UUID4):
-        updated_resources = await self.resource_calculator.calculate_resources(
+        updated_resources, _events = await self.resource_manager.process_vault_resources(
             db_session=db_session, vault_id=vault_id, seconds_passed=60
         )
 

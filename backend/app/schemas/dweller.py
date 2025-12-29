@@ -96,6 +96,16 @@ class DwellerReadLess(SQLModel):
     max_health: int
     radiation: int
     happiness: int
+    room_id: UUID4 | None = None
+
+    # SPECIAL stats
+    strength: int
+    perception: int
+    endurance: int
+    charisma: int
+    intelligence: int
+    agility: int
+    luck: int
 
     # TBD
     # status: str

@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useRoomStore } from '@/stores/room'
 import { useVaultStore } from '@/stores/vault'
 import { useDwellerStore } from '@/stores/dweller'
+import { useExplorationStore } from '@/stores/exploration'
 import RoomGrid from '@/components/rooms/RoomGrid.vue'
 import BuildModeButton from '@/components/common/BuildModeButton.vue'
 import RoomMenu from '@/components/rooms/RoomMenu.vue'
@@ -25,6 +26,7 @@ const authStore = useAuthStore()
 const roomStore = useRoomStore()
 const vaultStore = useVaultStore()
 const dwellerStore = useDwellerStore()
+const explorationStore = useExplorationStore()
 const showRoomMenu = ref(false)
 const selectedRoom = ref<Room | null>(null)
 const isPlacingRoom = ref(false)
@@ -91,6 +93,15 @@ const loadVaultData = async (id: string) => {
 
     // Fetch dwellers for this vault
     await dwellerStore.fetchDwellersByVault(id, authStore.token)
+
+    // Fetch explorations for this vault
+    try {
+      await explorationStore.fetchExplorationsByVault(id, authStore.token)
+      console.log('[VaultView] Loaded explorations:', explorationStore.explorations.length)
+    } catch (error) {
+      console.error('[VaultView] Failed to load explorations:', error)
+      // Don't fail the whole page load if explorations fail
+    }
 
     // Fetch game state and start polling
     try {

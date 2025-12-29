@@ -1,4 +1,5 @@
 from .dweller import dweller
+from .exploration import exploration
 from .game_state import game_state_crud
 from .incident import incident_crud
 from .junk import junk

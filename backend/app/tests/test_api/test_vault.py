@@ -75,7 +75,9 @@ async def test_read_vault(
     assert response_data["number"] == vault_data["number"]
     assert response_data["bottle_caps"] == vault_data["bottle_caps"]
     assert response_data["happiness"] == vault_data["happiness"]
-    assert response_data["user_id"] == vault_data["user_id"]
+    # user_id is not included in VaultReadWithNumbers response (GET /vaults/{id})
+    assert "room_count" in response_data
+    assert "dweller_count" in response_data
 
 
 @pytest.mark.asyncio

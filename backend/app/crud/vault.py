@@ -198,22 +198,31 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
     async def is_enough_population_space(*, db_session: AsyncSession, vault_id: UUID4, space_required: int) -> bool:
         """
         Check if the vault has enough space to perform an operation.
+        Only counts dwellers that are assigned to rooms (have room_id).
+        Unassigned dwellers don't take up living space.
         """
         result = await db_session.execute(
             select(Vault.population_max, func.count(Dweller.id))
             .select_from(Vault)
             .join(Dweller, Dweller.vault_id == Vault.id)
             .where(Vault.id == vault_id)
+            .where(Dweller.room_id.is_not(None))  # Only count assigned dwellers
             .group_by(Vault.id)
         )
         vault_obj = result.first()
         if not vault_obj:
-            error_msg = f"Vault with ID {vault_id} not found"
-            raise ValueError(error_msg)
-        population_max, current_population = vault_obj
+            # Vault exists but has no assigned dwellers yet
+            # Check if vault exists
+            vault_check = await db_session.execute(select(Vault.population_max).where(Vault.id == vault_id))
+            population_max = vault_check.scalar_one_or_none()
+            if population_max is None:
+                error_msg = f"Vault with ID {vault_id} not found"
+                raise ValueError(error_msg)
+            return space_required <= population_max
+        population_max, current_assigned_population = vault_obj
         if population_max is None:
             return False
-        return current_population + space_required <= population_max
+        return current_assigned_population + space_required <= population_max
 
     async def deposit_caps(self, *, db_session: AsyncSession, vault_obj: Vault, amount: int):
         """Deposit the specified amount to the vault's bottle caps as part of a revenue operation."""

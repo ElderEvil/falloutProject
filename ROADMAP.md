@@ -58,5 +58,27 @@ Here’s a task list to implement the features you outlined:
     - **Security Considerations:** Make sure the refresh token is stored securely (e.g., in HttpOnly cookies) and that
       the refresh process is safe from CSRF attacks.
 
+8. **Infrastructure & DevOps**
+    - **Configuration Management:**
+        - Split configuration into environment-specific files (dev/staging/prod)
+        - Separate secrets management from application config
+        - Consider using config hierarchy (base + environment overrides)
+    - **CI/CD Pipeline:**
+        - Set up automated testing on pull requests
+        - Add test coverage requirements (minimum threshold)
+        - Backend: pytest with coverage reports
+        - Frontend: Vitest coverage tracking
+        - Automated deployment to staging/production
+    - **Frontend Performance & Quality:**
+        - Integrate Lighthouse CI for performance audits
+        - Set up automated accessibility checks
+        - Monitor bundle size and performance metrics
+        - Add performance budgets (Core Web Vitals)
+    - **Monitoring & Observability:**
+        - Health check endpoints for all services
+        - Application performance monitoring (APM)
+        - Error tracking and logging
+        - Resource usage alerts
+
 This task list should help you organize the development process and track the progress of each feature in your Vue.js 3
 web game.

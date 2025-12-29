@@ -8,6 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.api.game_data_deps import get_static_game_data
 from app.crud.base import CRUDBase, ModelType
 from app.models import Dweller, Room, Storage
+from app.models.game_state import GameState
 from app.models.vault import Vault
 from app.schemas.common import GameStatusEnum, RoomActionEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreateCommonOverride
@@ -362,6 +363,18 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         )
 
         return await self.update(db_session=db_session, id=vault_id, obj_in=updated_resources)
+
+    async def delete(self, db_session: AsyncSession, id: UUID4) -> None:
+        """Delete vault and its associated gamestate."""
+        # First, delete the associated gamestate if it exists
+        result = await db_session.execute(select(GameState).where(GameState.vault_id == id))
+        gamestate = result.scalar_one_or_none()
+        if gamestate:
+            await db_session.delete(gamestate)
+            await db_session.commit()
+
+        # Now delete the vault using the base class method
+        return await super().delete(db_session, id)
 
 
 vault = CRUDVault(Vault)

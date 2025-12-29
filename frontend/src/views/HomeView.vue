@@ -12,6 +12,8 @@ const router = useRouter()
 
 const newVaultNumber = ref(0)
 const selectedVaultId = ref<string | null>(null)
+const creatingVault = ref(false)
+const deletingVault = ref<string | null>(null)
 
 const sortedVaults = computed(() =>
   [...vaultStore.vaults].sort(
@@ -21,20 +23,30 @@ const sortedVaults = computed(() =>
 
 const createVault = async () => {
   const number = newVaultNumber.value
-  if (number) {
-    await vaultStore.createVault(number, authStore.token as string)
-    newVaultNumber.value = 0
-    await vaultStore.fetchVaults(authStore.token as string)
+  if (number && !creatingVault.value) {
+    creatingVault.value = true
+    try {
+      await vaultStore.createVault(number, authStore.token as string)
+      newVaultNumber.value = 0
+      await vaultStore.fetchVaults(authStore.token as string)
+    } finally {
+      creatingVault.value = false
+    }
   }
 }
 
 const deleteVault = async (id: string) => {
-  if (confirm('Are you sure you want to delete this vault?')) {
-    await vaultStore.deleteVault(id, authStore.token as string)
-    if (selectedVaultId.value === id) {
-      selectedVaultId.value = null
+  if (confirm('Are you sure you want to delete this vault?') && !deletingVault.value) {
+    deletingVault.value = id
+    try {
+      await vaultStore.deleteVault(id, authStore.token as string)
+      if (selectedVaultId.value === id) {
+        selectedVaultId.value = null
+      }
+      await vaultStore.fetchVaults(authStore.token as string)
+    } finally {
+      deletingVault.value = null
     }
-    await vaultStore.fetchVaults(authStore.token as string)
   }
 }
 
@@ -74,9 +86,10 @@ onMounted(async () => {
           />
           <button
             type="submit"
-            class="rounded-lg border border-terminalGreen bg-terminalGreen px-4 py-2 font-bold text-terminalBackground transition duration-200 hover:bg-green-400 hover:text-terminalBackground"
+            :disabled="creatingVault"
+            class="rounded-lg border border-terminalGreen bg-terminalGreen px-4 py-2 font-bold text-terminalBackground transition duration-200 hover:bg-green-400 hover:text-terminalBackground disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Create
+            {{ creatingVault ? 'Creating...' : 'Create' }}
           </button>
         </form>
       </div>
@@ -115,9 +128,10 @@ onMounted(async () => {
               </button>
               <button
                 @click.stop="deleteVault(vault.id)"
-                class="rounded-lg border border-red-500 bg-red-500 px-4 py-2 font-bold text-terminalBackground transition duration-200 hover:bg-red-400 hover:text-terminalBackground"
+                :disabled="deletingVault === vault.id"
+                class="rounded-lg border border-red-500 bg-red-500 px-4 py-2 font-bold text-terminalBackground transition duration-200 hover:bg-red-400 hover:text-terminalBackground disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Delete
+                {{ deletingVault === vault.id ? 'Deleting...' : 'Delete' }}
               </button>
             </div>
           </li>

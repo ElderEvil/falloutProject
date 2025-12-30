@@ -11,7 +11,7 @@ from app.crud.base import CRUDBase
 from app.crud.room import room as room_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
-from app.schemas.common import DwellerStatusEnum
+from app.schemas.common import DwellerStatusEnum, RoomTypeEnum
 from app.schemas.dweller import (
     DwellerCreate,
     DwellerCreateCommonOverride,
@@ -143,8 +143,20 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         ):
             raise ContentNoChangeException(detail="Not enough space in the vault to move dweller")
 
-        # Update status to WORKING when assigned to room, IDLE when removed
-        new_status = DwellerStatusEnum.WORKING if room_id else DwellerStatusEnum.IDLE
+        # Determine status based on room type
+        if room_id:
+            # Assign status based on room category
+            if room_obj.category == RoomTypeEnum.TRAINING:
+                new_status = DwellerStatusEnum.TRAINING
+            elif room_obj.category == RoomTypeEnum.PRODUCTION:
+                new_status = DwellerStatusEnum.WORKING
+            else:
+                # Default to WORKING for other room types (CAPACITY, CRAFTING, MISC, QUESTS, THEME)
+                new_status = DwellerStatusEnum.WORKING
+        else:
+            # No room assigned - dweller is IDLE
+            new_status = DwellerStatusEnum.IDLE
+
         dweller_obj = await self.update(db_session, dweller_id, DwellerUpdate(room_id=room_id, status=new_status))
 
         return DwellerReadWithRoomID.model_validate(dweller_obj)

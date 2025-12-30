@@ -139,8 +139,8 @@ async def test_filter_dwellers_by_status(
     room: Room,
 ) -> None:
     """Test filtering dwellers by status."""
-    from app.schemas.common import DwellerStatusEnum  # noqa: PLC0415
-    from app.schemas.dweller import DwellerCreate, DwellerUpdate  # noqa: PLC0415
+    from app.schemas.common import DwellerStatusEnum
+    from app.schemas.dweller import DwellerCreate, DwellerUpdate
 
     # Create dwellers with different statuses
     dweller_1_data = create_fake_dweller()
@@ -183,7 +183,7 @@ async def test_search_dwellers_by_name(
     room: Room,
 ) -> None:
     """Test searching dwellers by name."""
-    from app.schemas.dweller import DwellerCreate  # noqa: PLC0415
+    from app.schemas.dweller import DwellerCreate
 
     # Create dwellers with specific names
     dweller_1_data = create_fake_dweller()
@@ -232,7 +232,7 @@ async def test_sort_dwellers(
     room: Room,
 ) -> None:
     """Test sorting dwellers."""
-    from app.schemas.dweller import DwellerCreate  # noqa: PLC0415
+    from app.schemas.dweller import DwellerCreate
 
     # Create dwellers with different levels
     dweller_1_data = create_fake_dweller()

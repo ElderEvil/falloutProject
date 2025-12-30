@@ -106,7 +106,7 @@ async def normal_user_token_headers(async_client: AsyncClient, async_session: As
 # Common fixtures for tests
 @pytest.fixture(name="vault_data")
 def vault_data_fixture():
-    import random  # noqa: PLC0415
+    import random
 
     return {
         "number": random.randint(1, 1_000),
@@ -120,12 +120,12 @@ def vault_data_fixture():
 
 @pytest.fixture(name="dweller_data")
 def dweller_data_fixture():
-    import random  # noqa: PLC0415
+    import random
 
-    from faker import Faker  # noqa: PLC0415
+    from faker import Faker
 
-    from app.schemas.common import GenderEnum, RarityEnum  # noqa: PLC0415
-    from app.tests.utils.utils import get_gender_based_name, get_stats_by_rarity  # noqa: PLC0415
+    from app.schemas.common import GenderEnum, RarityEnum
+    from app.tests.utils.utils import get_gender_based_name, get_stats_by_rarity
 
     fake = Faker()
     gender = random.choice(list(GenderEnum))
@@ -155,12 +155,12 @@ def dweller_data_fixture():
 
 @pytest_asyncio.fixture(name="vault")
 async def vault_fixture(async_session: AsyncSession) -> "Vault":  # noqa: F821
-    import random  # noqa: PLC0415
+    import random
 
-    from faker import Faker  # noqa: PLC0415
+    from faker import Faker
 
-    from app.schemas.user import UserCreate  # noqa: PLC0415
-    from app.schemas.vault import VaultCreateWithUserID  # noqa: PLC0415
+    from app.schemas.user import UserCreate
+    from app.schemas.vault import VaultCreateWithUserID
 
     fake = Faker()
 
@@ -183,7 +183,7 @@ async def vault_fixture(async_session: AsyncSession) -> "Vault":  # noqa: F821
 
 @pytest_asyncio.fixture(name="dweller")
 async def dweller_fixture(async_session: AsyncSession, vault: "Vault", dweller_data: dict) -> "Dweller":  # noqa: F821
-    from app.schemas.dweller import DwellerCreate  # noqa: PLC0415
+    from app.schemas.dweller import DwellerCreate
 
     dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
     return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)

@@ -99,8 +99,8 @@ async def test_list_explorations_active_only(
     )
 
     # Create completed exploration
-    from app.schemas.dweller import DwellerCreate  # noqa: PLC0415
-    from app.tests.factory.dwellers import create_fake_dweller  # noqa: PLC0415
+    from app.schemas.dweller import DwellerCreate
+    from app.tests.factory.dwellers import create_fake_dweller
 
     dweller2_data = create_fake_dweller()
     dweller2_data["vault_id"] = vault.id

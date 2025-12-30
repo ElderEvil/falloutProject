@@ -37,9 +37,9 @@ def game_tick_task(self):
 
         async def run_tick():
             # Create a new session maker in the current event loop context
-            from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine  # noqa: PLC0415
+            from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-            from app.core.config import settings  # noqa: PLC0415
+            from app.core.config import settings
 
             engine = create_async_engine(
                 str(settings.ASYNC_DATABASE_URI),
@@ -75,9 +75,9 @@ def process_vault_tick_task(self, vault_id: str):
 
         async def run_vault_tick():
             # Create a new session maker in the current event loop context
-            from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine  # noqa: PLC0415
+            from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-            from app.core.config import settings  # noqa: PLC0415
+            from app.core.config import settings
 
             engine = create_async_engine(
                 str(settings.ASYNC_DATABASE_URI),

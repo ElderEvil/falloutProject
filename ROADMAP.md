@@ -29,16 +29,20 @@ Here’s a task list to implement the features you outlined:
         - **Design Status Indicators:** Create visual indicators (e.g., icons or color codes) for each status
         - **Implement Status Display:** Add indicators to dweller cards in both grid and list views
         - **Update Status in Real-Time:** Ensure indicators update dynamically as statuses change
-    - **Enhancement: Room-Type-Specific Status** ⚠️ **(Needs Implementation)**
-        - **Context-Aware Status Logic:** Currently assigns WORKING status for all room assignments
-        - **Production Rooms:** Dwellers should have status WORKING (e.g., Power Plant, Diner, Water Treatment)
-        - **Training Rooms:** Dwellers should have status TRAINING (e.g., Gym, Armory, Classroom)
-        - **Implementation Notes:**
-            - Update `backend/app/crud/dweller.py:move_to_room()` to check room category (RoomTypeEnum)
-            - If `room.category == RoomTypeEnum.TRAINING`, set status to TRAINING
-            - If `room.category == RoomTypeEnum.PRODUCTION`, set status to WORKING
-            - Other room types (CAPACITY, CRAFTING, MISC, QUESTS, THEME) need status mapping
-        - **Testing:** Add tests for status assignment based on room type
+    - ✅ **Enhancement: Room-Type-Specific Status** **(Complete)**
+        - **Context-Aware Status Logic:** Dwellers now receive appropriate status based on room type
+        - **Production Rooms:** Dwellers get status WORKING (e.g., Power Plant, Diner, Water Treatment)
+        - **Training Rooms:** Dwellers get status TRAINING (e.g., Gym, Armory, Classroom)
+        - **Other Room Types:** Default to WORKING (CAPACITY, CRAFTING, MISC, QUESTS, THEME)
+        - **Implementation:**
+            - Updated `backend/app/crud/dweller.py:move_to_room()` to check room category (RoomTypeEnum)
+            - Added logic: `room.category == RoomTypeEnum.TRAINING` → TRAINING status
+            - Added logic: `room.category == RoomTypeEnum.PRODUCTION` → WORKING status
+            - All other room types default to WORKING status
+        - **Testing:** Added comprehensive tests:
+            - `test_dweller_status_production_room` - Verifies WORKING status for production rooms
+            - `test_dweller_status_training_room` - Verifies TRAINING status for training rooms
+            - All existing tests continue to pass
 
 4. **User Profile** ✅ **(Backend Complete - Frontend Pending)**
     - ✅ **Backend Implementation Complete:**

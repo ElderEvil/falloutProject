@@ -17,7 +17,10 @@ const statusOptions = [
   { value: 'all', label: 'All', icon: 'mdi:account-multiple' },
   { value: 'idle', label: 'Idle', icon: 'mdi:coffee-outline' },
   { value: 'working', label: 'Working', icon: 'mdi:hammer-wrench' },
-  { value: 'exploring', label: 'Exploring', icon: 'mdi:compass-outline' }
+  { value: 'training', label: 'Training', icon: 'mdi:dumbbell' },
+  { value: 'exploring', label: 'Exploring', icon: 'mdi:compass-outline' },
+  { value: 'resting', label: 'Resting', icon: 'mdi:sleep' },
+  { value: 'dead', label: 'Dead', icon: 'mdi:skull' }
 ]
 
 const sortOptions = [

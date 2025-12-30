@@ -18,31 +18,35 @@ Here’s a task list to implement the features you outlined:
     - **Integrate with View:** Ensure filtering and sorting are responsive to changes and interact smoothly with the
       grid/list view.
 
-3. **Dweller Status** ✅ **(Backend Complete - Frontend Pending)**
-    - ✅ **Backend Implementation Complete:**
+3. **Dweller Status** ✅ **(Complete)**
+    - ✅ **Backend Implementation:**
         - Added `DwellerStatusEnum` with statuses: IDLE, WORKING, EXPLORING, TRAINING, RESTING, DEAD
         - Implemented status field in Dweller model with auto-updates on room assignment
         - Created filtering/sorting/search endpoints for dwellers by status
         - Added comprehensive test coverage (API + CRUD tests)
         - Integrated with admin panel
-    - **Frontend Tasks:**
-        - **Design Status Indicators:** Create visual indicators (e.g., icons or color codes) for each status
-        - **Implement Status Display:** Add indicators to dweller cards in both grid and list views
-        - **Update Status in Real-Time:** Ensure indicators update dynamically as statuses change
-    - ✅ **Enhancement: Room-Type-Specific Status** **(Complete)**
-        - **Context-Aware Status Logic:** Dwellers now receive appropriate status based on room type
+    - ✅ **Frontend Implementation:**
+        - ✅ **Design Status Indicators:** Created DwellerStatusBadge component with icons and color codes
+        - ✅ **Implement Status Display:** Added status badges to dweller displays in DwellersView
+        - ✅ **Update Status in Real-Time:** Implemented watchers to refetch data when filters change
+        - ✅ **Filter Panel:** Created DwellerFilterPanel with status filtering and sorting
+        - ✅ **Test Coverage:** Added comprehensive frontend tests for components and store
+    - ✅ **Enhancement: Room-Type-Specific Status:**
+        - **Context-Aware Status Logic:** Dwellers receive appropriate status based on room type
         - **Production Rooms:** Dwellers get status WORKING (e.g., Power Plant, Diner, Water Treatment)
         - **Training Rooms:** Dwellers get status TRAINING (e.g., Gym, Armory, Classroom)
         - **Other Room Types:** Default to WORKING (CAPACITY, CRAFTING, MISC, QUESTS, THEME)
         - **Implementation:**
             - Updated `backend/app/crud/dweller.py:move_to_room()` to check room category (RoomTypeEnum)
+            - Updated `backend/app/api/v1/endpoints/dweller.py` PUT endpoint to auto-update status
+            - Added status updates for exploration lifecycle (start/complete/recall)
             - Added logic: `room.category == RoomTypeEnum.TRAINING` → TRAINING status
             - Added logic: `room.category == RoomTypeEnum.PRODUCTION` → WORKING status
             - All other room types default to WORKING status
-        - **Testing:** Added comprehensive tests:
-            - `test_dweller_status_production_room` - Verifies WORKING status for production rooms
-            - `test_dweller_status_training_room` - Verifies TRAINING status for training rooms
-            - All existing tests continue to pass
+        - **Testing:** Comprehensive test coverage:
+            - Backend: 9 new tests covering all status scenarios (room assignment, exploration, API endpoints)
+            - Frontend: Tests for DwellerStatusBadge, DwellerFilterPanel, and dweller store
+            - All tests passing ✅
 
 4. **User Profile** ✅ **(Backend Complete - Frontend Pending)**
     - ✅ **Backend Implementation Complete:**

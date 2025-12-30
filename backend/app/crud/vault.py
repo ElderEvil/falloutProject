@@ -355,9 +355,22 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
                 obj_in = DwellerCreateCommonOverride(special_boost=special_stat)
                 dweller_obj = await dweller_crud.create_random(db_session, vault_db_obj.id, obj_in=obj_in)
                 logger.info(f"Created dweller {dweller_obj.id}, assigning to room {room_id}")  # noqa: G004
-                # Assign dweller to room
+
+                # Get room to determine status based on category
+                room_obj = await room_crud.get(db_session, room_id)
+                from app.schemas.common import DwellerStatusEnum, RoomTypeEnum
+
+                # Determine status based on room type
+                if room_obj.category == RoomTypeEnum.TRAINING:
+                    new_status = DwellerStatusEnum.TRAINING
+                elif room_obj.category == RoomTypeEnum.PRODUCTION:
+                    new_status = DwellerStatusEnum.WORKING
+                else:
+                    new_status = DwellerStatusEnum.WORKING
+
+                # Assign dweller to room with correct status
                 await dweller_crud.update(
-                    db_session=db_session, id=dweller_obj.id, obj_in=DwellerUpdate(room_id=room_id)
+                    db_session=db_session, id=dweller_obj.id, obj_in=DwellerUpdate(room_id=room_id, status=new_status)
                 )
                 logger.info(f"Dweller {dweller_obj.id} assigned to room {room_id}")  # noqa: G004
         except Exception as e:

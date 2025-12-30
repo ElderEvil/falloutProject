@@ -3,7 +3,7 @@ import axios from '@/plugins/axios'
 import type { Dweller, DwellerShort } from '@/models/dweller'
 import { useExplorationStore } from './exploration'
 
-export type DwellerStatus = 'idle' | 'working' | 'exploring' | 'unknown'
+export type DwellerStatus = 'idle' | 'working' | 'exploring' | 'training' | 'resting' | 'dead' | 'unknown'
 
 export interface DwellerWithStatus extends DwellerShort {
   status: DwellerStatus
@@ -23,59 +23,38 @@ export const useDwellerStore = defineStore('dweller', {
   }),
   getters: {
     /**
-     * Get dweller status based on their current assignment
+     * Get dweller status - now directly from backend
      */
     getDwellerStatus: (state) => {
       return (dwellerId: string): DwellerStatus => {
-        const explorationStore = useExplorationStore()
         const dweller = state.dwellers.find(d => d.id === dwellerId)
-
         if (!dweller) return 'unknown'
 
-        // Check if exploring
-        if (explorationStore.isDwellerExploring(dwellerId)) {
-          return 'exploring'
-        }
-
-        // Check if working (assigned to a room)
-        if (dweller.room_id) {
-          return 'working'
-        }
-
-        // Otherwise idle
-        return 'idle'
+        // Backend now provides status directly
+        return (dweller.status as DwellerStatus) || 'unknown'
       }
     },
 
     /**
-     * Get all dwellers with their computed status
+     * Get all dwellers with their status (already provided by backend)
      */
     dwellersWithStatus(): DwellerWithStatus[] {
-      const explorationStore = useExplorationStore()
       return this.dwellers.map(dweller => ({
         ...dweller,
-        status: this.getDwellerStatus(dweller.id)
+        status: (dweller.status as DwellerStatus) || 'unknown'
       }))
     },
 
     /**
-     * Get dwellers filtered by status
+     * Get dwellers filtered by status - filters are now applied on backend
      */
     getDwellersByStatus: (state) => {
       return (status: DwellerStatus): DwellerWithStatus[] => {
-        const explorationStore = useExplorationStore()
         return state.dwellers
-          .filter(dweller => {
-            const dwellerStatus = explorationStore.isDwellerExploring(dweller.id)
-              ? 'exploring'
-              : dweller.room_id
-                ? 'working'
-                : 'idle'
-            return dwellerStatus === status
-          })
+          .filter(dweller => dweller.status === status)
           .map(dweller => ({
             ...dweller,
-            status
+            status: (dweller.status as DwellerStatus) || 'unknown'
           }))
       }
     },
@@ -125,9 +104,27 @@ export const useDwellerStore = defineStore('dweller', {
         console.error('Failed to fetch dwellers', error)
       }
     },
-    async fetchDwellersByVault(vaultId: string, token: string) {
+    async fetchDwellersByVault(vaultId: string, token: string, options?: {
+      status?: DwellerStatus
+      search?: string
+      sortBy?: string
+      order?: 'asc' | 'desc'
+      skip?: number
+      limit?: number
+    }) {
       try {
-        const response = await axios.get(`/api/v1/dwellers/vault/${vaultId}/`, {
+        const params = new URLSearchParams()
+        if (options?.status && options.status !== 'all') params.append('status', options.status)
+        if (options?.search) params.append('search', options.search)
+        if (options?.sortBy) params.append('sort_by', options.sortBy)
+        if (options?.order) params.append('order', options.order)
+        if (options?.skip !== undefined) params.append('skip', options.skip.toString())
+        if (options?.limit !== undefined) params.append('limit', options.limit.toString())
+
+        const queryString = params.toString()
+        const url = `/api/v1/dwellers/vault/${vaultId}/${queryString ? `?${queryString}` : ''}`
+
+        const response = await axios.get(url, {
           headers: {
             Authorization: `Bearer ${token}`
           }

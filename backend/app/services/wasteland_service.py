@@ -234,6 +234,29 @@ class WastelandService:
         # Mark as completed
         await crud_exploration.complete_exploration(db_session, exploration_id=exploration_id)
 
+        # Update dweller status back to IDLE (or WORKING if they have a room)
+        from app.crud.dweller import dweller as dweller_crud
+        from app.schemas.common import DwellerStatusEnum, RoomTypeEnum
+        from app.schemas.dweller import DwellerUpdate
+
+        dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+        if dweller_obj.room_id:
+            # Dweller has a room - set status based on room type
+            from app.crud.room import room as room_crud
+
+            room_obj = await room_crud.get(db_session, dweller_obj.room_id)
+            if room_obj.category == RoomTypeEnum.TRAINING:
+                new_status = DwellerStatusEnum.TRAINING
+            elif room_obj.category == RoomTypeEnum.PRODUCTION:
+                new_status = DwellerStatusEnum.WORKING
+            else:
+                new_status = DwellerStatusEnum.WORKING
+        else:
+            # No room - set to IDLE
+            new_status = DwellerStatusEnum.IDLE
+
+        await dweller_crud.update(db_session, exploration.dweller_id, DwellerUpdate(status=new_status))
+
         # Calculate rewards
         total_caps = exploration.total_caps_found
         total_items = len(exploration.loot_collected)  # noqa: F841
@@ -277,6 +300,29 @@ class WastelandService:
 
         # Mark as recalled
         await crud_exploration.recall_exploration(db_session, exploration_id=exploration_id)
+
+        # Update dweller status back to IDLE (or WORKING if they have a room)
+        from app.crud.dweller import dweller as dweller_crud
+        from app.schemas.common import DwellerStatusEnum, RoomTypeEnum
+        from app.schemas.dweller import DwellerUpdate
+
+        dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+        if dweller_obj.room_id:
+            # Dweller has a room - set status based on room type
+            from app.crud.room import room as room_crud
+
+            room_obj = await room_crud.get(db_session, dweller_obj.room_id)
+            if room_obj.category == RoomTypeEnum.TRAINING:
+                new_status = DwellerStatusEnum.TRAINING
+            elif room_obj.category == RoomTypeEnum.PRODUCTION:
+                new_status = DwellerStatusEnum.WORKING
+            else:
+                new_status = DwellerStatusEnum.WORKING
+        else:
+            # No room - set to IDLE
+            new_status = DwellerStatusEnum.IDLE
+
+        await dweller_crud.update(db_session, exploration.dweller_id, DwellerUpdate(status=new_status))
 
         # Calculate reduced rewards based on progress
         total_caps = exploration.total_caps_found

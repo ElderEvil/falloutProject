@@ -61,6 +61,25 @@ async def update_dweller(
     _: CurrentActiveUser,  # TODO: check if user has access to the vault
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
+    # If room_id is being updated, automatically update status
+    if dweller_data.room_id is not None or (
+        hasattr(dweller_data, "model_fields_set") and "room_id" in dweller_data.model_fields_set
+    ):
+        from app.schemas.common import DwellerStatusEnum, RoomTypeEnum
+
+        if dweller_data.room_id is None:
+            # Unassigning from room - set to IDLE
+            dweller_data.status = DwellerStatusEnum.IDLE
+        else:
+            # Assigning to room - set status based on room type
+            room_obj = await crud.room.get(db_session, dweller_data.room_id)
+            if room_obj.category == RoomTypeEnum.TRAINING:
+                dweller_data.status = DwellerStatusEnum.TRAINING
+            elif room_obj.category == RoomTypeEnum.PRODUCTION:
+                dweller_data.status = DwellerStatusEnum.WORKING
+            else:
+                dweller_data.status = DwellerStatusEnum.WORKING
+
     return await crud.dweller.update(db_session, dweller_id, dweller_data)
 
 

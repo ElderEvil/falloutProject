@@ -34,6 +34,33 @@ const statusConfig = computed(() => {
         borderColor: 'border-green-500/50',
         glowColor: 'shadow-green-500/30'
       }
+    case 'training':
+      return {
+        icon: 'mdi:dumbbell',
+        label: 'Training',
+        color: 'text-purple-400',
+        bgColor: 'bg-purple-900/30',
+        borderColor: 'border-purple-500/50',
+        glowColor: 'shadow-purple-500/30'
+      }
+    case 'resting':
+      return {
+        icon: 'mdi:sleep',
+        label: 'Resting',
+        color: 'text-cyan-400',
+        bgColor: 'bg-cyan-900/30',
+        borderColor: 'border-cyan-500/50',
+        glowColor: 'shadow-cyan-500/30'
+      }
+    case 'dead':
+      return {
+        icon: 'mdi:skull',
+        label: 'Dead',
+        color: 'text-red-400',
+        bgColor: 'bg-red-900/30',
+        borderColor: 'border-red-500/50',
+        glowColor: 'shadow-red-500/30'
+      }
     case 'idle':
       return {
         icon: 'mdi:coffee-outline',

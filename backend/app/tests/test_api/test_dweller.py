@@ -176,6 +176,87 @@ async def test_filter_dwellers_by_status(
 
 
 @pytest.mark.asyncio
+async def test_update_dweller_room_auto_updates_status(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    room: Room,
+) -> None:
+    """Test that updating dweller room_id automatically updates status."""
+    from app.schemas.common import RoomTypeEnum
+    from app.schemas.dweller import DwellerCreate
+    from app.schemas.room import RoomCreate
+    from app.tests.factory.rooms import create_fake_room
+
+    # Create a dweller with no room (IDLE)
+    dweller_data = create_fake_dweller()
+    dweller_data.update({"vault_id": str(room.vault_id)})
+    dweller_in = DwellerCreate(**dweller_data)
+    dweller = await crud.dweller.create(async_session, dweller_in)
+
+    assert dweller.status.value == "idle"
+    assert dweller.room_id is None
+
+    # Create a production room
+    production_room_data = create_fake_room()
+    production_room_data["category"] = RoomTypeEnum.PRODUCTION
+    production_room = await crud.room.create(async_session, RoomCreate(**production_room_data, vault_id=room.vault_id))
+
+    # Update dweller to assign to production room via API
+    update_response = await async_client.put(
+        f"/dwellers/{dweller.id}",
+        json={"room_id": str(production_room.id)},
+        headers=superuser_token_headers,
+    )
+    assert update_response.status_code == 200
+    updated_dweller = update_response.json()
+
+    # Status should automatically be WORKING
+    assert updated_dweller["status"] == "working"
+
+    # Verify room assignment by fetching the dweller from DB
+    await async_session.refresh(dweller)
+    assert dweller.room_id == production_room.id
+
+    # Create a training room
+    training_room_data = create_fake_room()
+    training_room_data["category"] = RoomTypeEnum.TRAINING
+    training_room = await crud.room.create(async_session, RoomCreate(**training_room_data, vault_id=room.vault_id))
+
+    # Move dweller to training room
+    update_response = await async_client.put(
+        f"/dwellers/{dweller.id}",
+        json={"room_id": str(training_room.id)},
+        headers=superuser_token_headers,
+    )
+    assert update_response.status_code == 200
+    updated_dweller = update_response.json()
+
+    # Status should automatically be TRAINING
+    assert updated_dweller["status"] == "training"
+
+    # Verify room assignment by fetching the dweller from DB
+    await async_session.refresh(dweller)
+    assert dweller.room_id == training_room.id
+
+    # Unassign dweller (set room_id to null)
+    update_response = await async_client.put(
+        f"/dwellers/{dweller.id}",
+        json={"room_id": None},
+        headers=superuser_token_headers,
+    )
+    assert update_response.status_code == 200
+    updated_dweller = update_response.json()
+
+    # Status should automatically be IDLE
+    assert updated_dweller["status"] == "idle"
+
+    # Verify room unassignment by fetching the dweller from DB
+    await async_session.refresh(dweller)
+    assert dweller.room_id is None
+
+
+@pytest.mark.asyncio
 async def test_search_dwellers_by_name(
     async_client: AsyncClient,
     async_session: AsyncSession,

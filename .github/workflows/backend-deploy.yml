@@ -1,5 +1,13 @@
 name: Backend Deployment
 
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'backend/**'
+  release:
+    types: [published]
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -25,12 +33,41 @@ jobs:
         id: python-version
         run: echo "version=$(cat backend/.python-version)" >> $GITHUB_OUTPUT
 
+      - name: Get version tags
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "is_release=true" >> $GITHUB_OUTPUT
+          else
+            VERSION="dev-$(git rev-parse --short HEAD)"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "is_release=false" >> $GITHUB_OUTPUT
+          fi
+          echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "date=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+
       - name: Build and push FastAPI image
         uses: docker/build-push-action@v5
         with:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/fastapi:latest
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/fastapi:latest
+            ${{ secrets.DOCKER_USERNAME }}/fastapi:${{ steps.version.outputs.version }}
+            ${{ secrets.DOCKER_USERNAME }}/fastapi:sha-${{ steps.version.outputs.sha }}
+            ${{ secrets.DOCKER_USERNAME }}/fastapi:${{ steps.version.outputs.date }}
           build-args: |
             PYTHON_VERSION=${{ steps.python-version.outputs.version }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/fastapi:latest
+          cache-to: type=inline
+
+      - name: Output image tags
+        run: |
+          echo "✅ Backend images pushed:"
+          echo "  - ${{ secrets.DOCKER_USERNAME }}/fastapi:latest"
+          echo "  - ${{ secrets.DOCKER_USERNAME }}/fastapi:${{ steps.version.outputs.version }}"
+          echo "  - ${{ secrets.DOCKER_USERNAME }}/fastapi:sha-${{ steps.version.outputs.sha }}"
+          echo "  - ${{ secrets.DOCKER_USERNAME }}/fastapi:${{ steps.version.outputs.date }}"

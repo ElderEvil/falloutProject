@@ -8,7 +8,7 @@ vault thriving. Built with modern Python tooling and designed for Python 3.14.
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![PostgreSQL 18](https://img.shields.io/badge/postgresql-18-blue.svg)](https://www.postgresql.org/)
 [![Vue 3.5](https://img.shields.io/badge/vue-3.5-00ff00.svg)](https://vuejs.org/)
-[![TypeScript](https://img.shields.io/badge/typescript-5.7-00ff00.svg)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/typescript-5.9-00ff00.svg)](https://www.typescriptlang.org/)
 
 ## ✨ Tech Stack
 

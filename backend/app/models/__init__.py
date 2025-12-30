@@ -10,5 +10,6 @@ from .quest import Quest
 from .room import Room
 from .storage import Storage
 from .user import User
+from .user_profile import UserProfile
 from .vault import Vault
 from .weapon import Weapon

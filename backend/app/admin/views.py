@@ -8,12 +8,21 @@ from app.models.prompt import Prompt
 from app.models.quest import Quest
 from app.models.room import Room
 from app.models.user import User
+from app.models.user_profile import UserProfile
 from app.models.vault import Vault
 from app.models.weapon import Weapon
 
 
 class UserAdmin(ModelView, model=User):
-    column_list = [User.id, User.username, User.email, User.is_active, User.is_superuser]
+    column_list = [
+        User.id,
+        User.username,
+        User.email,
+        User.is_active,
+        User.is_superuser,
+        User.created_at,
+        User.updated_at,
+    ]
     column_details_exclude_list = [User.hashed_password]
 
     icon = "fa-solid fa-user"
@@ -21,6 +30,29 @@ class UserAdmin(ModelView, model=User):
     can_create = False
     can_edit = False
     can_export = False
+    can_delete = False
+
+
+class UserProfileAdmin(ModelView, model=UserProfile):
+    column_list = [
+        UserProfile.id,
+        UserProfile.user,
+        UserProfile.bio,
+        UserProfile.avatar_url,
+        UserProfile.total_dwellers_created,
+        UserProfile.total_caps_earned,
+        UserProfile.total_explorations,
+        UserProfile.total_rooms_built,
+        UserProfile.created_at,
+        UserProfile.updated_at,
+    ]
+
+    name = "User Profile"
+    name_plural = "User Profiles"
+
+    icon = "fa-solid fa-id-card"
+
+    can_create = False
     can_delete = False
 
 
@@ -57,6 +89,7 @@ class DwellerAdmin(ModelView, model=Dweller):
         Dweller.last_name,
         Dweller.gender,
         Dweller.rarity,
+        Dweller.status,
         Dweller.level,
         Dweller.experience,
         Dweller.max_health,
@@ -64,6 +97,9 @@ class DwellerAdmin(ModelView, model=Dweller):
         Dweller.happiness,
         Dweller.is_adult,
         Dweller.vault,
+        Dweller.room,
+        Dweller.created_at,
+        Dweller.updated_at,
     ]
 
     icon = "fa-solid fa-person"

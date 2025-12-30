@@ -114,6 +114,7 @@ lint.ignore = [
     "PTH123",
     "S311",
     "PLR2004",
+    "PLC0415",
     "PT023",
     "RUF012",
     "N805",
@@ -132,6 +133,7 @@ builtins-ignorelist = ["id"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
+pythonpath = ["."]
 addopts = [
     "--cov=app",
     "--cov-report=term-missing",

@@ -237,7 +237,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
     @staticmethod
     def _prepare_room_data(rooms: list[RoomCreate], room_name: str, vault_id: UUID4, x: int, y: int) -> dict:
-        from app.crud.room import room as room_crud  # noqa: PLC0415
+        from app.crud.room import room as room_crud
 
         room_data = next(room for room in rooms if room.name.lower() == room_name)
         room_data_dict = room_data.model_dump()
@@ -302,7 +302,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             RoomCreate(**storage_room_data),
         ]
 
-        from app.crud.room import room as room_crud  # noqa: PLC0415
+        from app.crud.room import room as room_crud
 
         # Create infrastructure rooms (don't affect vault capacity)
         await room_crud.create_all(db_session, infrastructure_rooms)
@@ -332,10 +332,10 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         )
 
         # Create dwellers with boosted SPECIAL stats
-        import logging  # noqa: PLC0415
+        import logging
 
-        from app.crud.dweller import dweller as dweller_crud  # noqa: PLC0415
-        from app.schemas.dweller import DwellerUpdate  # noqa: PLC0415
+        from app.crud.dweller import dweller as dweller_crud
+        from app.schemas.dweller import DwellerUpdate
 
         logger = logging.getLogger(__name__)
 

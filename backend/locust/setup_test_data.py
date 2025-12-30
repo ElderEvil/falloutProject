@@ -104,7 +104,7 @@ async def setup():
 
     except Exception as e:  # noqa: BLE001
         print(f"\n❌ Error during setup: {e}")
-        import traceback  # noqa: PLC0415
+        import traceback
 
         traceback.print_exc()
         sys.exit(1)

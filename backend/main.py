@@ -20,6 +20,7 @@ from app.admin.views import (
     RoomAdmin,
     StorageAdmin,
     UserAdmin,
+    UserProfileAdmin,
     VaultAdmin,
     WeaponAdmin,
 )
@@ -118,6 +119,7 @@ async def perform_healthcheck(*, detailed: bool = False):
 
 app.include_router(api_router_v1, prefix=settings.API_V1_STR)
 admin.add_view(UserAdmin)
+admin.add_view(UserProfileAdmin)
 admin.add_view(VaultAdmin)
 admin.add_view(StorageAdmin)
 admin.add_view(RoomAdmin)

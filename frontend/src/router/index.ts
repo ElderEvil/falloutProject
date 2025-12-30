@@ -3,6 +3,9 @@ import { useAuthStore } from '@/stores/auth';
 import HomeView from '@/views/HomeView.vue';
 import LoginPage from '@/components/auth/LoginForm.vue';
 import RegisterPage from '@/components/auth/RegisterForm.vue';
+import ForgotPasswordPage from '@/components/auth/ForgotPasswordForm.vue';
+import ResetPasswordPage from '@/components/auth/ResetPasswordForm.vue';
+import VerifyEmailView from '@/views/VerifyEmailView.vue';
 import VaultView from '@/views/VaultView.vue';
 import DwellersView from '@/views/DwellersView.vue';
 import DwellerChatPage from '@/components/chat/DwellerChatPage.vue';
@@ -57,6 +60,24 @@ const router = createRouter({
       path: '/register',
       name: 'register',
       component: RegisterPage,
+      meta: { hideFromNav: true }
+    },
+    {
+      path: '/forgot-password',
+      name: 'forgot-password',
+      component: ForgotPasswordPage,
+      meta: { hideFromNav: true }
+    },
+    {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: ResetPasswordPage,
+      meta: { hideFromNav: true }
+    },
+    {
+      path: '/verify-email',
+      name: 'verify-email',
+      component: VerifyEmailView,
       meta: { hideFromNav: true }
     },
     {

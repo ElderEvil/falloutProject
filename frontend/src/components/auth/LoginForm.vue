@@ -54,10 +54,17 @@ const handleSubmit = async () => {
         </button>
       </form>
       <p v-if="error" class="mt-4 text-red-500">{{ error }}</p>
-      <p class="mt-4 text-gray-300">
-        Don't have an account?
-        <router-link to="/register" class="text-green-500 hover:underline">Register</router-link>
-      </p>
+      <div class="mt-4 space-y-2 text-sm text-gray-300">
+        <p class="text-center">
+          <router-link to="/forgot-password" class="text-green-500 hover:underline"
+            >Forgot password?</router-link
+          >
+        </p>
+        <p class="text-center">
+          Don't have an account?
+          <router-link to="/register" class="text-green-500 hover:underline">Register</router-link>
+        </p>
+      </div>
     </div>
   </div>
 </template>

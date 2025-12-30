@@ -34,15 +34,22 @@ async def forgot_password(
 
     # Store token and expiry in database
     user.password_reset_token = token
-    user.password_reset_expires = datetime.now(tz=UTC) + timedelta(hours=1)
+    user.password_reset_expires = datetime.now(tz=UTC).replace(tzinfo=None) + timedelta(hours=1)
     await db_session.commit()
 
-    # Send password reset email
-    await send_password_reset_email(
-        email_to=user.email,
-        username=user.username,
-        token=token,
-    )
+    # Send password reset email (don't fail if email sending fails)
+    try:
+        await send_password_reset_email(
+            email_to=user.email,
+            username=user.username,
+            token=token,
+        )
+    except Exception as e:  # noqa: BLE001
+        # Log the error but don't fail the request
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.error(f"Failed to send password reset email: {e}")  # noqa: G004, TRY400
 
     return {"msg": "If that email exists, a password reset link has been sent"}
 

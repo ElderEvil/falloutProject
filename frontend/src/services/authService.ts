@@ -50,5 +50,56 @@ export const authService = {
     } catch {
       throw new AuthError('Failed to fetch current user')
     }
+  },
+  async verifyEmail(token: string): Promise<AxiosResponse<{ msg: string }>> {
+    try {
+      return await apiClient.post('/api/v1/auth/verify-email', { token })
+    } catch {
+      throw new AuthError('Email verification failed')
+    }
+  },
+  async forgotPassword(email: string): Promise<AxiosResponse<{ msg: string }>> {
+    try {
+      return await apiClient.post('/api/v1/auth/forgot-password', { email })
+    } catch {
+      throw new AuthError('Failed to send password reset email')
+    }
+  },
+  async resetPassword(token: string, new_password: string): Promise<AxiosResponse<{ msg: string }>> {
+    try {
+      return await apiClient.post('/api/v1/auth/reset-password', { token, new_password })
+    } catch {
+      throw new AuthError('Password reset failed')
+    }
+  },
+  async resendVerification(accessToken: string): Promise<AxiosResponse<{ msg: string }>> {
+    try {
+      return await apiClient.post(
+        '/api/v1/auth/resend-verification',
+        {},
+        {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        }
+      )
+    } catch {
+      throw new AuthError('Failed to resend verification email')
+    }
+  },
+  async changePassword(
+    accessToken: string,
+    current_password: string,
+    new_password: string
+  ): Promise<AxiosResponse<{ msg: string }>> {
+    try {
+      return await apiClient.put(
+        '/api/v1/auth/change-password',
+        { current_password, new_password },
+        {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        }
+      )
+    } catch {
+      throw new AuthError('Failed to change password')
+    }
   }
 }

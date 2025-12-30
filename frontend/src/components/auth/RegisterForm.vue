@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useAuthStore } from '@/stores/auth'
+import axios from '@/plugins/axios'
 import { useRouter } from 'vue-router'
 
-const authStore = useAuthStore()
 const router = useRouter()
 
 const username = ref('')
@@ -11,6 +10,8 @@ const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const error = ref('')
+const success = ref(false)
+const loading = ref(false)
 
 const handleSubmit = async () => {
   if (password.value !== confirmPassword.value) {
@@ -18,11 +19,32 @@ const handleSubmit = async () => {
     return
   }
 
-  const success = await authStore.register(username.value, email.value, password.value)
-  if (success) {
-    await router.push('/')
-  } else {
-    error.value = 'Registration failed. Please try again.'
+  if (password.value.length < 8) {
+    error.value = 'Password must be at least 8 characters long'
+    return
+  }
+
+  loading.value = true
+  error.value = ''
+
+  try {
+    await axios.post('/api/v1/users/open', {
+      username: username.value,
+      email: email.value,
+      password: password.value
+    })
+
+    // Show success message instead of auto-login
+    success.value = true
+
+    // Redirect to login after 3 seconds
+    setTimeout(() => {
+      router.push('/login')
+    }, 3000)
+  } catch (err: any) {
+    error.value = err.response?.data?.detail || 'Registration failed. Please try again.'
+  } finally {
+    loading.value = false
   }
 }
 </script>
@@ -31,7 +53,23 @@ const handleSubmit = async () => {
   <div class="flex min-h-screen items-center justify-center bg-gray-900">
     <div class="w-full max-w-sm rounded-lg bg-gray-800 p-8 shadow-lg">
       <h2 class="mb-6 text-center text-2xl font-bold text-green-500">Register</h2>
-      <form @submit.prevent="handleSubmit" class="space-y-4">
+
+      <!-- Success Message -->
+      <div v-if="success" class="space-y-4 text-center">
+        <div class="mb-4 text-6xl">✓</div>
+        <p class="rounded bg-green-900/50 p-4 text-green-400">
+          Account created successfully!
+        </p>
+        <p class="text-sm text-gray-300">
+          Please check your email <strong class="text-white">{{ email }}</strong> to verify your account.
+        </p>
+        <p class="text-xs text-gray-400">
+          Redirecting to login...
+        </p>
+      </div>
+
+      <!-- Registration Form -->
+      <form v-else @submit.prevent="handleSubmit" class="space-y-4">
         <div>
           <label for="username" class="block text-sm font-medium text-gray-300">Username:</label>
           <input
@@ -39,7 +77,8 @@ const handleSubmit = async () => {
             id="username"
             v-model="username"
             required
-            class="mt-1 w-full rounded bg-gray-700 p-2 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+            :disabled="loading"
+            class="mt-1 w-full rounded bg-gray-700 p-2 text-white focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
           />
         </div>
         <div>
@@ -49,7 +88,8 @@ const handleSubmit = async () => {
             id="email"
             v-model="email"
             required
-            class="mt-1 w-full rounded bg-gray-700 p-2 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+            :disabled="loading"
+            class="mt-1 w-full rounded bg-gray-700 p-2 text-white focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
           />
         </div>
         <div>
@@ -59,7 +99,9 @@ const handleSubmit = async () => {
             id="password"
             v-model="password"
             required
-            class="mt-1 w-full rounded bg-gray-700 p-2 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+            minlength="8"
+            :disabled="loading"
+            class="mt-1 w-full rounded bg-gray-700 p-2 text-white focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
           />
         </div>
         <div>
@@ -71,14 +113,17 @@ const handleSubmit = async () => {
             id="confirmPassword"
             v-model="confirmPassword"
             required
-            class="mt-1 w-full rounded bg-gray-700 p-2 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+            minlength="8"
+            :disabled="loading"
+            class="mt-1 w-full rounded bg-gray-700 p-2 text-white focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
           />
         </div>
         <button
           type="submit"
-          class="w-full rounded bg-green-500 px-4 py-2 font-bold text-white hover:bg-green-400"
+          :disabled="loading"
+          class="w-full rounded bg-green-500 px-4 py-2 font-bold text-white hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Register
+          {{ loading ? 'Creating Account...' : 'Register' }}
         </button>
       </form>
       <p v-if="error" class="mt-4 text-red-500">{{ error }}</p>

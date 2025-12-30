@@ -291,7 +291,7 @@ podman-compose logs -f fastapi
 podman-compose down
 ```
 
-See [CONTAINER_MIGRATION.md](./CONTAINER_MIGRATION.md) for detailed Podman migration guide.
+See [CONTAINER_MIGRATION.md](docs/CONTAINER_MIGRATION.md) for detailed Podman migration guide.
 
 ## 🧪 Testing
 
@@ -497,7 +497,7 @@ netstat -ano | findstr :8000  # Windows
 - [SQLModel Documentation](https://sqlmodel.tiangolo.com/)
 - [uv Documentation](https://docs.astral.sh/uv/)
 - [Ruff Documentation](https://docs.astral.sh/ruff/)
-- [Podman Migration Guide](./CONTAINER_MIGRATION.md)
+- [Podman Migration Guide](docs/CONTAINER_MIGRATION.md)
 
 ### Frontend
 

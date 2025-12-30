@@ -30,6 +30,10 @@ jobs:
         working-directory: backend
         run: uv sync --locked --all-extras
 
+      - name: Set up test environment
+        working-directory: backend
+        run: cp .env.example .env
+
       - name: Run linter (prek)
         working-directory: backend
         run: uv run prek run

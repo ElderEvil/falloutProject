@@ -28,11 +28,11 @@ jobs:
 
       - name: Install dependencies
         working-directory: backend
-        run: uv sync --locked --all-extras --dev
+        run: uv sync --locked --all-extras
 
       - name: Run linter (prek)
         working-directory: backend
-        run: prek run
+        run: uv run prek run
 
       - name: Run tests
         working-directory: backend

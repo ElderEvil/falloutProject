@@ -188,7 +188,7 @@ jobs:
 
             if [[ "${{ inputs.service }}" == "backend" || "${{ inputs.service }}" == "both" ]]; then
               echo "Checking backend health..."
-              docker-compose exec -T fastapi curl -f http://localhost:8000/health && echo "✅ Backend is healthy" || echo "⚠️ Backend health check failed"
+              docker-compose exec -T fastapi curl -f http://localhost:8000/healthcheck && echo "✅ Backend is healthy" || echo "⚠️ Backend health check failed"
             fi
 
             echo "✅ Health checks complete"

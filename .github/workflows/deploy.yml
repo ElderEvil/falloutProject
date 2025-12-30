@@ -219,7 +219,7 @@ jobs:
 
             if [[ "${{ inputs.deploy_backend }}" == "true" ]]; then
               echo "Checking backend health..."
-              docker-compose exec -T fastapi curl -f http://localhost:8000/health || echo "⚠️ Backend health check failed"
+              docker-compose exec -T fastapi curl -f http://localhost:8000/healthcheck || echo "⚠️ Backend health check failed"
             fi
 
             echo "✅ Health checks complete"

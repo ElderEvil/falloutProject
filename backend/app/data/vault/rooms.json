@@ -50,7 +50,7 @@
     "capacity_formula": "25*S*(L+1)",
     "size_min": 3,
     "size_max": 9,
-    "output_formula": "3*S*L+15*2^(S-1)*-8*(S-1)-9+?"
+    "output_formula": "(2*S*(L+4))-2"
   },
   {
     "name": "Diner",

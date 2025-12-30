@@ -10,6 +10,7 @@ from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_redis_client
 from app.core import security
 from app.core.config import settings
+from app.core.email import send_verification_email
 from app.db.session import get_async_session
 from app.schemas.user import UserCreate, UserRead, UserUpdate, UserWithTokens
 
@@ -106,6 +107,25 @@ async def create_user_open(
         )
     user_in = UserCreate(username=username, password=password, email=email)
     user = await crud.user.create(db_session, obj_in=user_in)
+
+    # Generate email verification token
+    verification_token = security.create_email_verification_token(str(user.id))
+    user.email_verification_token = verification_token
+    await db_session.commit()
+    await db_session.refresh(user)
+
+    # Send verification email (non-blocking, failures won't stop registration)
+    try:
+        await send_verification_email(
+            email_to=user.email,
+            username=user.username,
+            token=verification_token,
+        )
+    except Exception as e:
+        # Log error but don't fail registration
+        import logging
+
+        logging.exception(f"Failed to send verification email: {e}")  # noqa: G004, LOG015, TRY401
 
     access_token = security.create_access_token(user.id)
     refresh_token = await security.create_refresh_token(user.id, redis_client)

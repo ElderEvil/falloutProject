@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pydantic import EmailStr
@@ -7,6 +8,7 @@ from app.models.base import BaseUUIDModel, TimeStampMixin
 
 if TYPE_CHECKING:
     from app.models.llm_interaction import LLMInteraction
+    from app.models.user_profile import UserProfile
     from app.models.vault import Vault
 
 
@@ -15,11 +17,18 @@ class UserBase(SQLModel):
     email: EmailStr = Field(nullable=True, index=True, sa_column_kwargs={"unique": True}, sa_type=AutoString)
     is_active: bool = Field(default=True)
     is_superuser: bool = Field(default=False)
+    email_verified: bool = Field(default=False)
+    email_verification_token: str | None = Field(default=None, index=True)
+    password_reset_token: str | None = Field(default=None, index=True)
+    password_reset_expires: datetime | None = Field(default=None)
 
 
 class User(BaseUUIDModel, UserBase, TimeStampMixin, table=True):
     hashed_password: str = Field(nullable=False)
 
+    profile: "UserProfile" = Relationship(
+        back_populates="user", cascade_delete=True, sa_relationship_kwargs={"uselist": False}
+    )
     llm_interactions: list["LLMInteraction"] = Relationship(back_populates="user")
     vaults: list["Vault"] = Relationship(back_populates="user", cascade_delete=True)
 

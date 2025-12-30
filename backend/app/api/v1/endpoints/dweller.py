@@ -8,6 +8,7 @@ from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser
 from app.api.game_data_deps import get_static_game_data
 from app.db.session import get_async_session
+from app.schemas.common import DwellerStatusEnum
 from app.schemas.dweller import (
     DwellerCreate,
     DwellerCreateCommonOverride,
@@ -60,6 +61,25 @@ async def update_dweller(
     _: CurrentActiveUser,  # TODO: check if user has access to the vault
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
+    # If room_id is being updated, automatically update status
+    if dweller_data.room_id is not None or (
+        hasattr(dweller_data, "model_fields_set") and "room_id" in dweller_data.model_fields_set
+    ):
+        from app.schemas.common import DwellerStatusEnum, RoomTypeEnum
+
+        if dweller_data.room_id is None:
+            # Unassigning from room - set to IDLE
+            dweller_data.status = DwellerStatusEnum.IDLE
+        else:
+            # Assigning to room - set status based on room type
+            room_obj = await crud.room.get(db_session, dweller_data.room_id)
+            if room_obj.category == RoomTypeEnum.TRAINING:
+                dweller_data.status = DwellerStatusEnum.TRAINING
+            elif room_obj.category == RoomTypeEnum.PRODUCTION:
+                dweller_data.status = DwellerStatusEnum.WORKING
+            else:
+                dweller_data.status = DwellerStatusEnum.WORKING
+
     return await crud.dweller.update(db_session, dweller_id, dweller_data)
 
 
@@ -71,14 +91,28 @@ async def delete_dweller(
 
 
 @router.get("/vault/{vault_id}/", response_model=list[DwellerReadLess])
-async def read_dwellers_by_vault(
+async def read_dwellers_by_vault(  # noqa: PLR0913
     vault_id: UUID4,
     _: CurrentActiveUser,  # TODO: check if user has access to the vault
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     skip: int = 0,
     limit: int = 100,
+    status: DwellerStatusEnum | None = None,
+    search: str | None = None,
+    sort_by: str = "created_at",
+    order: str = "desc",
 ):
-    return await crud.dweller.get_multi_by_vault(db_session=db_session, vault_id=vault_id, skip=skip, limit=limit)
+    """Get dwellers by vault with optional filtering by status, search by name, and sorting."""
+    return await crud.dweller.get_multi_by_vault(
+        db_session=db_session,
+        vault_id=vault_id,
+        skip=skip,
+        limit=limit,
+        status=status,
+        search=search,
+        sort_by=sort_by,
+        order=order,
+    )
 
 
 @router.post("/{dweller_id}/move_to/{room_id}", response_model=DwellerReadWithRoomID)

@@ -97,6 +97,20 @@ services:
       - minio_data:/data
     command: server /data --console-address ":9001"
 
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    restart: always
+    ports:
+      - "1025:1025"  # SMTP server
+      - "8025:8025"  # Web UI
+    environment:
+      - MH_STORAGE=maildir
+      - MH_MAILDIR_PATH=/maildir
+    volumes:
+      - mailhog_data:/maildir
+
 volumes:
   postgres-data:
   minio_data:
+  mailhog_data:

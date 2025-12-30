@@ -11,6 +11,7 @@ from app.crud.base import CRUDBase
 from app.crud.room import room as room_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
+from app.schemas.common import DwellerStatusEnum, RoomTypeEnum
 from app.schemas.dweller import (
     DwellerCreate,
     DwellerCreateCommonOverride,
@@ -26,15 +27,59 @@ BOOSTED_STAT_VALUE = 5
 
 
 class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
-    async def get_multi_by_vault(
+    async def get_multi_by_vault(  # noqa: PLR0913
         self,
         db_session: AsyncSession,
         vault_id: UUID4,
         skip: int = 0,
         limit: int = 100,
+        status: DwellerStatusEnum | None = None,
+        search: str | None = None,
+        sort_by: str = "created_at",
+        order: str = "desc",
     ) -> Sequence[Row[Any] | RowMapping | Any]:
-        """Get multiple dwellers by vault ID."""
-        query = select(self.model).where(self.model.vault_id == vault_id).offset(skip).limit(limit)
+        """Get multiple dwellers by vault ID with optional filtering and sorting."""
+        query = select(self.model).where(self.model.vault_id == vault_id)
+
+        # Filter by status
+        if status:
+            query = query.where(self.model.status == status)
+
+        # Search by name
+        if search:
+            search_pattern = f"%{search}%"
+            query = query.where(
+                (self.model.first_name.ilike(search_pattern)) | (self.model.last_name.ilike(search_pattern))
+            )
+
+        # Sorting
+        if hasattr(self.model, sort_by):
+            sort_column = getattr(self.model, sort_by)
+            if order.lower() == "asc":  # noqa: SIM108
+                query = query.order_by(sort_column.asc())
+            else:
+                query = query.order_by(sort_column.desc())
+
+        query = query.offset(skip).limit(limit)
+        response = await db_session.execute(query)
+        return response.scalars().all()
+
+    async def get_by_status(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        status: DwellerStatusEnum,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> Sequence[Dweller]:
+        """Get dwellers by status."""
+        query = (
+            select(self.model)
+            .where(self.model.vault_id == vault_id)
+            .where(self.model.status == status)
+            .offset(skip)
+            .limit(limit)
+        )
         response = await db_session.execute(query)
         return response.scalars().all()
 
@@ -97,7 +142,22 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             db_session=db_session, vault_id=dweller_obj.vault_id, space_required=1
         ):
             raise ContentNoChangeException(detail="Not enough space in the vault to move dweller")
-        dweller_obj = await self.update(db_session, dweller_id, DwellerUpdate(room_id=room_id))
+
+        # Determine status based on room type
+        if room_id:
+            # Assign status based on room category
+            if room_obj.category == RoomTypeEnum.TRAINING:
+                new_status = DwellerStatusEnum.TRAINING
+            elif room_obj.category == RoomTypeEnum.PRODUCTION:
+                new_status = DwellerStatusEnum.WORKING
+            else:
+                # Default to WORKING for other room types (CAPACITY, CRAFTING, MISC, QUESTS, THEME)
+                new_status = DwellerStatusEnum.WORKING
+        else:
+            # No room assigned - dweller is IDLE
+            new_status = DwellerStatusEnum.IDLE
+
+        dweller_obj = await self.update(db_session, dweller_id, DwellerUpdate(room_id=room_id, status=new_status))
 
         return DwellerReadWithRoomID.model_validate(dweller_obj)
 
@@ -105,8 +165,14 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         """Revive a dead dweller."""
         if self.is_alive(dweller_obj):
             raise ContentNoChangeException(detail="Dweller is already alive")
-        await self.update(db_session, dweller_obj.id, DwellerUpdate(health=dweller_obj.max_health))
+        await self.update(
+            db_session, dweller_obj.id, DwellerUpdate(health=dweller_obj.max_health, status=DwellerStatusEnum.IDLE)
+        )
         return dweller_obj
+
+    async def mark_as_dead(self, db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
+        """Mark dweller as dead (health=0, status=DEAD)."""
+        return await self.update(db_session, dweller_id, DwellerUpdate(health=0, status=DwellerStatusEnum.DEAD))
 
     async def get_full_info(self, db_session: AsyncSession, dweller_id: UUID4) -> DwellerReadFull:
         """Get full information about a dweller."""

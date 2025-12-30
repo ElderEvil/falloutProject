@@ -1,9 +1,10 @@
 import asyncio
 from collections.abc import Generator
+from unittest.mock import MagicMock, patch
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import JSON, event
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import (
@@ -15,13 +16,18 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
 
+# Mock MinIO before importing main
+with patch("app.services.minio.MinioService") as mock_minio:
+    mock_instance = MagicMock()
+    mock_minio.return_value = mock_instance
+    from main import app
+
 from app import crud
 from app.core.config import settings
 from app.db.session import get_async_session
 from app.schemas.user import UserCreate
 from app.tests.utils.user import authentication_token_from_email
 from app.tests.utils.utils import get_superuser_token_headers
-from main import app
 
 
 @pytest.fixture(scope="session")
@@ -83,7 +89,7 @@ async def async_client(async_session: AsyncSession, superuser: None) -> Generato
     app.dependency_overrides[get_async_session] = lambda: async_session
 
     async with AsyncClient(
-        app=app,
+        transport=ASGITransport(app=app),
         base_url=f"https://{settings.API_V1_STR}",
     ) as client:
         yield client
@@ -101,3 +107,89 @@ async def normal_user_token_headers(async_client: AsyncClient, async_session: As
         email=settings.EMAIL_TEST_USER,
         db_session=async_session,
     )
+
+
+# Common fixtures for tests
+@pytest.fixture(name="vault_data")
+def vault_data_fixture():
+    import random
+
+    return {
+        "number": random.randint(1, 1_000),
+        "bottle_caps": random.randint(100, 1_000_000),
+        "happiness": random.randint(0, 100),
+        "power": random.randint(0, 100),
+        "food": random.randint(0, 100),
+        "water": random.randint(0, 100),
+    }
+
+
+@pytest.fixture(name="dweller_data")
+def dweller_data_fixture():
+    import random
+
+    from faker import Faker
+
+    from app.schemas.common import GenderEnum, RarityEnum
+    from app.tests.utils.utils import get_gender_based_name, get_stats_by_rarity
+
+    fake = Faker()
+    gender = random.choice(list(GenderEnum))
+    rarity = random.choice(list(RarityEnum))
+    stats = get_stats_by_rarity(rarity)
+
+    max_health = random.randint(50, 1_000)
+    health = random.randint(0, max_health)
+    radiation = random.randint(0, 1_000)
+
+    return stats | {
+        "first_name": get_gender_based_name(gender),
+        "last_name": fake.last_name(),
+        "is_adult": random.choice([True, False]),
+        "gender": gender,
+        "rarity": rarity.value,
+        "level": random.randint(1, 50),
+        "experience": random.randint(0, 1_000),
+        "max_health": max_health,
+        "health": health,
+        "radiation": radiation,
+        "happiness": random.randint(10, 100),
+        "stimpack": random.randint(0, 15),
+        "radaway": random.randint(0, 15),
+    }
+
+
+@pytest_asyncio.fixture(name="vault")
+async def vault_fixture(async_session: AsyncSession) -> "Vault":  # noqa: F821
+    import random
+
+    from faker import Faker
+
+    from app.schemas.user import UserCreate
+    from app.schemas.vault import VaultCreateWithUserID
+
+    fake = Faker()
+
+    # Create user first
+    user_in = UserCreate(username=fake.user_name(), email=fake.email(), password=fake.password())
+    user = await crud.user.create(db_session=async_session, obj_in=user_in)
+
+    # Create vault
+    vault_data = {
+        "number": random.randint(1, 1_000),
+        "bottle_caps": random.randint(100, 1_000_000),
+        "happiness": random.randint(0, 100),
+        "power": random.randint(0, 100),
+        "food": random.randint(0, 100),
+        "water": random.randint(0, 100),
+    }
+    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
+    return await crud.vault.create(db_session=async_session, obj_in=vault_in)
+
+
+@pytest_asyncio.fixture(name="dweller")
+async def dweller_fixture(async_session: AsyncSession, vault: "Vault", dweller_data: dict) -> "Dweller":  # noqa: F821
+    from app.schemas.dweller import DwellerCreate
+
+    dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
+    return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)

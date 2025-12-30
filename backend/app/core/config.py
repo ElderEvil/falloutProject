@@ -48,7 +48,22 @@ class Settings(BaseSettings):
         "weapon-images",
     ]
 
-    OPENAI_API_KEY: str
+    AI_PROVIDER: Literal["openai", "anthropic", "ollama"] = "openai"
+    AI_MODEL: str = "gpt-4o"
+    OPENAI_API_KEY: str | None = None
+    ANTHROPIC_API_KEY: str | None = None
+    OLLAMA_BASE_URL: str = "http://localhost:11434/v1"
+
+    # Email Configuration
+    SMTP_HOST: str = "localhost"
+    SMTP_PORT: int = 1025  # MailHog default for local dev
+    SMTP_USER: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_TLS: bool = False
+    SMTP_SSL: bool = False
+    EMAIL_FROM_ADDRESS: str = "noreply@falloutshelter.com"
+    EMAIL_FROM_NAME: str = "Fallout Shelter"
+    FRONTEND_URL: str = "http://localhost:5173"  # For email links
 
     @property
     def redis_url(self) -> str:
@@ -71,13 +86,8 @@ class Settings(BaseSettings):
     @field_validator("SYNC_CELERY_DATABASE_URI", mode="after")
     def assemble_celery_db_connection(cls, v: str | None, info: FieldValidationInfo) -> Any:
         if isinstance(v, str) and not v:
-            return PostgresDsn.build(
-                scheme="postgresql",
-                username=info.data["POSTGRES_USER"],
-                password=info.data["POSTGRES_PASSWORD"],
-                host=info.data["POSTGRES_SERVER"],
-                path=info.data["POSTGRES_DB"],
-            )
+            # Return raw string for Celery SQLAlchemy backend (needs db+postgresql scheme)
+            return f"db+postgresql://{info.data['POSTGRES_USER']}:{info.data['POSTGRES_PASSWORD']}@{info.data['POSTGRES_SERVER']}/{info.data['POSTGRES_DB']}"
         return v
 
     SYNC_CELERY_BEAT_DATABASE_URI: PostgresDsn | str = ""
@@ -108,7 +118,7 @@ class Settings(BaseSettings):
             )
         return v
 
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file="backend/.env")
 
 
 settings = Settings()

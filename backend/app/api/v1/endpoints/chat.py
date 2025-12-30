@@ -15,7 +15,7 @@ from app.db.session import get_async_session
 from app.models.base import SPECIALModel
 from app.models.objective import ObjectiveBase
 from app.schemas.llm_interaction import LLMInteractionCreate
-from app.services.open_ai import get_openai_service
+from app.services.open_ai import get_ai_service
 
 router = APIRouter()
 
@@ -27,7 +27,7 @@ class ResponseType(StrEnum):
 
 @router.get("/", response_model=dict[str, str])
 def test_read():
-    client = get_openai_service().client
+    client = get_ai_service().client
     response = client.chat.completions.create(
         messages=[
             {
@@ -108,7 +108,7 @@ def generate_objectives(
     ]
     """
     try:
-        client = get_openai_service().client
+        client = get_ai_service().client
         response = client.chat.completions.create(
             model="gpt-4-turbo",
             messages=[
@@ -164,7 +164,7 @@ async def chat_with_dweller(
     Try to be in character and be in line with the Fallout universe.
     """
 
-    client = get_openai_service().client
+    client = get_ai_service().client
 
     response = client.chat.completions.create(
         model="gpt-4-turbo-preview",

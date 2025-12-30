@@ -1,0 +1,539 @@
+# 12-Factor App Methodology Compliance Report
+## Fallout Shelter Management Game
+
+---
+
+## Executive Summary
+
+This Fallout Shelter management game demonstrates **strong partial compliance** with the 12-factor app methodology. The application shows excellent practices in dependency management, configuration, and containerization, but has gaps in disposability, log management, and admin process handling. Overall compliance: **7 Fully Compliant, 4 Partially Compliant, 1 Non-Compliant**.
+
+---
+
+## Detailed Assessment
+
+### 1. Codebase ✅ **COMPLIANT**
+
+**Status**: One codebase tracked in revision control, many deploys
+
+**Evidence**:
+- Single Git repository at project root
+- Git tracking confirmed (`.git/` directory present)
+- Multiple deployment targets:
+  - Docker Compose: `docker-compose.yml`
+  - Podman Compose: `podman-compose.yml`
+  - Kubernetes (K3s): `deployment/k3s/`
+- Proper `.gitignore` excluding build artifacts, dependencies, and secrets
+- GitHub Actions workflows for CI/CD:
+  - `.github/workflows/backend-ci.yml`
+  - `.github/workflows/backend-deploy.yml`
+  - `.github/workflows/frontend.yml`
+  - `.github/workflows/deploy.yml`
+
+**Recommendations**: None - fully compliant.
+
+---
+
+### 2. Dependencies ✅ **COMPLIANT**
+
+**Status**: Explicitly declare and isolate dependencies
+
+**Evidence**:
+
+**Backend (Python/FastAPI)**:
+- `backend/pyproject.toml` - Explicit dependency declarations using modern Python packaging
+- `backend/uv.lock` - Lockfile for reproducible builds
+- Virtual environment isolation (`.venv/` in `.gitignore`)
+- Uses `uv` package manager for dependency management
+- Separate dependency groups: `test`, `lint`, `perf`
+
+**Frontend (Vue 3/TypeScript)**:
+- `frontend/package.json` - NPM package declarations
+- `frontend/pnpm-lock.yaml` - Locked dependencies
+- Uses `pnpm` package manager (specified: `"packageManager": "pnpm@10.26.2"`)
+- Node version pinned: `.nvmrc` present
+
+**Recommendations**: None - excellent dependency management with modern tooling.
+
+---
+
+### 3. Config ✅ **COMPLIANT**
+
+**Status**: Store config in the environment
+
+**Evidence**:
+
+**Backend Configuration**:
+- `backend/app/core/config.py` - Uses `pydantic-settings` for environment-based configuration
+- Configuration class `Settings(BaseSettings)` loads from environment variables
+- Example file provided: `backend/.env.example`
+- All sensitive data configured via environment:
+  - Database credentials (POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB)
+  - Secret keys (SECRET_KEY)
+  - API keys (OPENAI_API_KEY, ANTHROPIC_API_KEY)
+  - Service endpoints (REDIS_HOST, MINIO_HOSTNAME)
+  - Environment switching (ENVIRONMENT: local/staging/production)
+
+**Frontend Configuration**:
+- `frontend/.env` - Environment-based config
+- Uses Vite environment variables: `VITE_API_BASE_URL`
+- Axios configuration: `frontend/src/plugins/axios.ts` reads from `import.meta.env.VITE_API_BASE_URL`
+
+**Docker/Kubernetes**:
+- Docker Compose uses `env_file: ".env"`
+- Kubernetes uses Secrets: `backend-env` in `deployment/k3s/backend-deployment.yaml`
+- Frontend Dockerfile hardcodes API URL (line 18) - minor issue
+
+**Recommendations**:
+- ⚠️ Remove hardcoded `ENV VITE_API_BASE_URL=http://37.27.195.77:30008` from `frontend/Dockerfile` and use build args or runtime config instead
+
+---
+
+### 4. Backing Services ✅ **COMPLIANT**
+
+**Status**: Treat backing services as attached resources
+
+**Evidence**:
+
+**Backend backing services** (all configurable via environment):
+- PostgreSQL: `POSTGRES_SERVER`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
+- Redis: `REDIS_HOST`, `REDIS_PORT`
+- MinIO: `MINIO_HOSTNAME`, `MINIO_PORT`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`
+- AI Providers: `AI_PROVIDER` (openai/anthropic/ollama), `OPENAI_API_KEY`, `OLLAMA_BASE_URL`
+
+**Connection string assembly** in `config.py`:
+```python
+@field_validator("ASYNC_DATABASE_URI", mode="after")
+def assemble_db_connection(cls, v: str | None, info: FieldValidationInfo) -> Any:
+    if isinstance(v, str) and not v:
+        return PostgresDsn.build(
+            scheme="postgresql+asyncpg",
+            username=info.data["POSTGRES_USER"],
+            password=info.data["POSTGRES_PASSWORD"],
+            host=info.data["POSTGRES_SERVER"],
+            path=info.data["POSTGRES_DB"],
+        )
+```
+
+**Docker Compose** demonstrates swappable services - local development services run as containers, production can use managed services (just change env vars)
+
+**Celery configuration** (`backend/app/core/celery.py`):
+```python
+celery_app = Celery(
+    "async_task",
+    broker=f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
+    backend=str(settings.SYNC_CELERY_DATABASE_URI),
+)
+```
+
+**Recommendations**: None - backing services properly abstracted.
+
+---
+
+### 5. Build, Release, Run ✅ **COMPLIANT**
+
+**Status**: Strictly separate build and run stages
+
+**Evidence**:
+
+**Backend Build Process**:
+- **Build**: Dockerfile at `backend/Dockerfile`
+  - Multi-stage potential (uses `uv` for dependency installation)
+  - Separates dependency installation from code copy
+- **Release**: GitHub Actions builds and pushes images (`elerevil/fastapi:latest`)
+- **Run**: Docker/K8s uses pre-built images with environment-specific config
+
+**Frontend Build Process**:
+- **Build**: Multi-stage Dockerfile at `frontend/Dockerfile`
+  ```dockerfile
+  # Build stage
+  FROM node:22-alpine AS build-stage
+  RUN pnpm run build
+
+  # Production stage
+  FROM node:22-alpine
+  COPY --from=build-stage /app/dist .
+  ```
+- **Release**: Separate build artifacts in `dist/`
+- **Run**: Serves static files via `serve`
+
+**CI/CD Pipeline**:
+- Build automation: `.github/workflows/backend-ci.yml`
+- Deployment automation: `.github/workflows/deploy.yml`
+- Database migrations run at startup: `command: "sh -c 'alembic upgrade head && uvicorn main:app'"`
+
+**Recommendations**:
+- ⚠️ Database migrations running at container startup is an anti-pattern (see Factor 12)
+- Consider separating migration execution into admin processes
+
+---
+
+### 6. Processes ⚠️ **PARTIAL COMPLIANCE**
+
+**Status**: Execute the app as one or more stateless processes
+
+**Evidence**:
+
+**Stateless Design**:
+- FastAPI application properly uses database sessions
+- Session management: `backend/app/db/session.py` - dependency injection pattern
+- No in-memory session storage (uses database-backed auth)
+
+**State Management Issues**:
+- Game state tracked in database: `backend/app/models/vault.py`
+- Celery beat schedule stored in database: `beat_dburi` configuration
+- Celery task state in database backend
+- Session middleware for admin: `app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)` in `main.py`
+
+**Potential Issues**:
+- Celery worker file artifacts: `celerybeat-schedule`, `celerybeat-schedule-shm`, `celerybeat-schedule-wal` in project root (should be in volume)
+- Game loop processes vault state every 60 seconds - state in database (good), but offline catchup logic present
+
+**Sticky Sessions**: None detected - load balancing would work
+
+**Recommendations**:
+- ⚠️ Move Celery Beat schedule files to persistent volume (not project root)
+- ⚠️ Ensure SessionMiddleware uses Redis or database backend instead of in-memory
+- Document crash recovery behavior for game loop state
+
+---
+
+### 7. Port Binding ✅ **COMPLIANT**
+
+**Status**: Export services via port binding
+
+**Evidence**:
+
+**Backend**:
+- FastAPI binds to port via Uvicorn: `uvicorn main:app --host 0.0.0.0 --port 8000`
+- Dockerfile CMD: `CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]`
+- Port exposed: `EXPOSE 8000`
+- No dependency on external web servers (self-contained)
+
+**Frontend**:
+- Vite dev server binds to port 5173 (development)
+- Production uses `serve` package on port 3000
+- Dockerfile: `EXPOSE 3000`
+
+**Docker Compose** port mappings:
+```yaml
+fastapi:
+  ports: ["8000:8000"]
+vuejs:
+  ports: ["3000:3000"]
+redis:
+  ports: ["6379:6379"]
+```
+
+**Kubernetes Services**:
+- Backend Service: `deployment/k3s/backend-service.yaml`
+- Frontend Service: `deployment/k3s/frontend-service.yaml`
+
+**Recommendations**: None - proper port binding throughout.
+
+---
+
+### 8. Concurrency ✅ **COMPLIANT**
+
+**Status**: Scale out via the process model
+
+**Evidence**:
+
+**Backend Scaling**:
+- Uvicorn workers configurable via environment
+- Database connection pooling: `pool_size=settings.POOL_SIZE` (calculated dynamically)
+- Pool sizing logic in `config.py`:
+  ```python
+  DB_POOL_SIZE: int = 83
+  WEB_CONCURRENCY: int = 9
+  POOL_SIZE: int = max(DB_POOL_SIZE // WEB_CONCURRENCY, 5)
+  ```
+- Stateless design enables horizontal scaling
+
+**Celery Workers**:
+- Separate worker and beat containers in docker-compose
+- Workers can scale independently: `celery_worker` service
+- Beat scheduler (single instance by design): `celery_beat` service
+
+**Kubernetes Deployment**:
+- Replica configuration: `replicas: 1` in `backend-deployment.yaml`
+- Can easily scale: `kubectl scale deployment backend --replicas=3`
+
+**Process Types**:
+1. Web processes (FastAPI)
+2. Background workers (Celery worker)
+3. Scheduler (Celery beat)
+4. Frontend static serving
+
+**Recommendations**:
+- Document recommended scaling configurations
+- Add horizontal pod autoscaler (HPA) examples for Kubernetes
+- Consider worker auto-scaling based on queue depth
+
+---
+
+### 9. Disposability ⚠️ **PARTIAL COMPLIANCE**
+
+**Status**: Maximize robustness with fast startup and graceful shutdown
+
+**Evidence**:
+
+**Startup Time**:
+- FastAPI startup with lifespan context manager: `backend/main.py`
+  ```python
+  @asynccontextmanager
+  async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
+      logger.info("Starting Fallout Shelter API...")
+      health_check_service = HealthCheckService()
+      results = await health_check_service.check_all_services(async_engine)
+      yield
+      logger.info("Shutting down Fallout Shelter API...")
+  ```
+- Health checks on startup may slow initialization
+- Database migrations at startup (`alembic upgrade head`) increases startup time significantly
+
+**Graceful Shutdown**:
+- FastAPI lifespan handles cleanup (yield in context manager)
+- No explicit SIGTERM handling found
+- Celery tasks have retry logic but no graceful shutdown handling detected
+
+**Container Health Checks**:
+- PostgreSQL has health check in docker-compose:
+  ```yaml
+  healthcheck:
+    test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+  ```
+- No health check for FastAPI container
+- `/healthcheck` endpoint exists: `backend/app/api/v1/endpoints/health.py`
+
+**Fast Startup Issues**:
+- Database migration at startup is blocking
+- Health check service runs synchronously on startup
+- No readiness vs liveness probe distinction
+
+**Recommendations**:
+- ❌ **Critical**: Remove database migrations from container startup (run as admin process)
+- ⚠️ Add Docker health check using `/healthcheck` endpoint
+- ⚠️ Implement graceful shutdown handlers for Celery tasks
+- ⚠️ Add Kubernetes readiness and liveness probes
+- ⚠️ Consider making startup health checks non-blocking or move to readiness probe
+
+---
+
+### 10. Dev/Prod Parity ✅ **COMPLIANT**
+
+**Status**: Keep development, staging, and production as similar as possible
+
+**Evidence**:
+
+**Time Gap**: Continuous deployment via GitHub Actions
+- CI runs on every push to master
+- Automated deployment pipeline exists
+
+**People Gap**: Developers can deploy
+- Docker Compose for local development
+- Same containers in production (K3s)
+- Documentation in README for local setup
+
+**Tools Gap**: Same backing services
+- **Development**: Docker Compose with PostgreSQL 18, Redis, MinIO, Celery
+- **Production**: K8s with same service versions
+- Same Python version (3.12-3.14)
+- Same Node version (22+)
+
+**Environment Configuration**:
+- `ENVIRONMENT` variable in `config.py`: `Literal["local", "staging", "production"]`
+- Same codebase deployed to all environments
+- Environment-specific config via environment variables only
+
+**Database**:
+- PostgreSQL 18 Alpine in all environments
+- Alembic migrations ensure schema consistency
+- Same connection patterns (asyncpg)
+
+**Differences**:
+- Development uses volume mounts for hot reload
+- Production uses built images
+- These differences are appropriate and unavoidable
+
+**Recommendations**:
+- Document any production-specific configurations
+- Consider adding a staging environment configuration example
+
+---
+
+### 11. Logs ❌ **NON-COMPLIANT**
+
+**Status**: Treat logs as event streams
+
+**Evidence**:
+
+**Backend Logging**:
+- Python logging configured in `main.py`:
+  ```python
+  logging.basicConfig(
+      level=logging.INFO,
+      format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+      datefmt="%Y-%m-%d %H:%M:%S",
+  )
+  ```
+- Logs to stdout (good) but also has file-based logging configured
+- Multiple loggers throughout: `logger = logging.getLogger(__name__)`
+- Services use logging: `backend/app/services/game_loop.py`, `backend/app/services/health_check.py`
+
+**Issues**:
+- No centralized log aggregation configured
+- Application manages log format (should be environment's responsibility)
+- File-based logging in Alembic configuration (`alembic.ini`)
+- Celery logs may not be properly aggregated
+- Print statements found in utility files (not using logging framework):
+  - `backend/app/api/v1/endpoints/chat.py`
+  - `backend/app/utils/room_json_add_image_urls.py`
+  - `backend/app/utils/image_processing.py`
+  - `backend/app/utils/load_quests.py`
+
+**What's Missing**:
+- No log aggregation service (ELK, Grafana Loki, CloudWatch, etc.)
+- No structured logging (JSON logs)
+- No correlation IDs for request tracing
+- No log rotation configuration (should be external)
+
+**Recommendations**:
+- ❌ **Critical**: Remove print statements, use proper logging
+- ❌ **Critical**: Implement structured logging (JSON format) using `python-json-logger` or similar
+- ⚠️ Remove log formatting from application (let log aggregator handle)
+- ⚠️ Add correlation IDs for request tracing (middleware)
+- ⚠️ Configure log aggregation (suggest: Grafana Loki stack for Docker/K8s)
+- ⚠️ Add logging configuration examples for production environments
+
+---
+
+### 12. Admin Processes ⚠️ **PARTIAL COMPLIANCE**
+
+**Status**: Run admin/management tasks as one-off processes
+
+**Evidence**:
+
+**Database Migrations**:
+- Alembic configured: `backend/alembic.ini`
+- Migration scripts in `backend/app/alembic/versions/`
+- **PROBLEM**: Migrations run at container startup in docker-compose:
+  ```yaml
+  command: "sh -c 'alembic upgrade head && uvicorn main:app'"
+  ```
+- Should be separate one-off task
+
+**Initial Data Script**:
+- `backend/initial_data.py` - Separate admin script
+- Calls `init_db()` function
+- **GOOD**: Can be run as one-off: `uv run python initial_data.py`
+
+**Management Tasks Available**:
+- Database initialization: `backend/app/db/init_db.py`
+- Data seeding scripts present
+- Celery tasks can be invoked manually
+
+**Admin Panel**:
+- SQLAdmin integrated in main app (not separate process)
+- Accessible at `/admin` endpoint
+- Uses same process as main app
+
+**Kubernetes Admin Jobs**: None found
+- No Job or CronJob manifests for migrations
+- No init containers configured
+
+**Recommendations**:
+- ❌ **Critical**: Separate database migrations from app startup
+  - Create Kubernetes Job for migrations
+  - Run migrations as CI/CD step before deployment
+  - Use init containers if migration must be part of deployment
+- ⚠️ Create separate admin command script/CLI (e.g., using Typer)
+- ⚠️ Document all admin processes in operations guide
+- ⚠️ Example admin tasks that need proper handling:
+  - Database migrations
+  - Database seeding/fixtures
+  - Cache clearing
+  - User management
+  - Report generation
+
+---
+
+## Summary Matrix
+
+| Factor | Status | Priority | Notes |
+|--------|--------|----------|-------|
+| 1. Codebase | ✅ Compliant | - | Single repo, multiple deploys |
+| 2. Dependencies | ✅ Compliant | - | Excellent with uv/pnpm |
+| 3. Config | ✅ Compliant | Low | Minor hardcoded URL in Dockerfile |
+| 4. Backing Services | ✅ Compliant | - | Properly abstracted |
+| 5. Build/Release/Run | ✅ Compliant | Medium | Migrations in startup |
+| 6. Processes | ⚠️ Partial | Medium | Session storage, Celery files |
+| 7. Port Binding | ✅ Compliant | - | Self-contained services |
+| 8. Concurrency | ✅ Compliant | - | Scales well |
+| 9. Disposability | ⚠️ Partial | **HIGH** | Slow startup, no graceful shutdown |
+| 10. Dev/Prod Parity | ✅ Compliant | - | Same stack everywhere |
+| 11. Logs | ❌ Non-Compliant | **HIGH** | No aggregation, print statements |
+| 12. Admin Processes | ⚠️ Partial | **HIGH** | Migrations at startup |
+
+---
+
+## Priority Recommendations
+
+### High Priority (Production Readiness)
+
+1. **Logging (Factor 11)**:
+   - Remove all `print()` statements, use `logging`
+   - Implement structured JSON logging
+   - Set up log aggregation (Grafana Loki, ELK, or cloud-native solution)
+   - Add request correlation IDs
+
+2. **Admin Processes (Factor 12)**:
+   - Extract database migrations from container startup
+   - Create Kubernetes Job manifest for migrations
+   - Run migrations in CI/CD before deployment
+   - Create admin CLI tool for one-off tasks
+
+3. **Disposability (Factor 9)**:
+   - Add Docker/Kubernetes health checks
+   - Implement graceful shutdown handlers
+   - Separate readiness vs liveness probes
+   - Optimize startup time (async health checks)
+
+### Medium Priority (Operational Excellence)
+
+4. **Processes (Factor 6)**:
+   - Move Celery Beat schedule files to persistent volumes
+   - Verify SessionMiddleware uses external store (Redis/DB)
+   - Document crash recovery procedures
+
+5. **Build/Release/Run (Factor 5)**:
+   - Create separate migration execution strategy
+   - Add release pipeline documentation
+
+6. **Config (Factor 3)**:
+   - Remove hardcoded API URL from frontend Dockerfile
+   - Use build args or runtime config injection
+
+### Low Priority (Nice to Have)
+
+7. **Concurrency (Factor 8)**:
+   - Document scaling best practices
+   - Add Kubernetes HPA examples
+   - Implement worker auto-scaling
+
+8. **Dev/Prod Parity (Factor 10)**:
+   - Add staging environment examples
+   - Document production-specific configs
+
+---
+
+## Conclusion
+
+This application demonstrates a **solid foundation** for 12-factor compliance with excellent dependency management, configuration handling, and backing service abstraction. The main areas requiring improvement are:
+
+1. **Logging infrastructure** - needs centralized aggregation and structured logging
+2. **Admin process separation** - migrations should not run at startup
+3. **Graceful shutdown** - needs proper signal handling and health checks
+
+With these improvements, this application would achieve **full 12-factor compliance** and be production-ready for cloud-native deployments at scale.
+
+**Overall Score: 7/12 Fully Compliant, 4/12 Partially Compliant, 1/12 Non-Compliant**

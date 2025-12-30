@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { ref, computed, inject } from 'vue'
+import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/stores/auth'
-import { useRouter } from 'vue-router'
-import { BoltIcon, BellIcon } from '@heroicons/vue/24/solid'
+import { useVaultStore } from '@/stores/vault'
+import { useRouter, useRoute } from 'vue-router'
 
 const authStore = useAuthStore()
+const vaultStore = useVaultStore()
 const router = useRouter()
+const route = useRoute()
 const isAuthenticated = computed(() => authStore.isAuthenticated)
+const currentVaultId = computed(() => route.params.id as string | undefined)
 
 const logout = () => {
   authStore.logout()
@@ -33,19 +37,29 @@ const showNotifications = () => {
 <template>
   <nav class="bg-gray-800 p-4 shadow-lg">
     <div class="container mx-auto flex items-center justify-between">
-      <div class="flex space-x-4">
-        <!-- Main navigation links on the left -->
-        <router-link to="/" class="text-green-500 hover:underline">Home</router-link>
-        <router-link to="/vault" v-if="isAuthenticated" class="text-green-500 hover:underline"
-          >Vault
-        </router-link>
-        <router-link to="/dwellers" v-if="isAuthenticated" class="text-green-500 hover:underline"
-          >Dwellers
+      <div class="flex space-x-4 items-center">
+        <!-- Vault List Button (main navigation) -->
+        <router-link to="/" class="text-green-500 hover:underline font-bold">
+          Vaults
         </router-link>
 
-        <router-link to="/objectives" v-if="isAuthenticated" class="text-green-500 hover:underline"
-          >Objectives
-        </router-link>
+        <!-- Context-aware navigation (only when in a vault) -->
+        <template v-if="isAuthenticated && currentVaultId">
+          <span class="text-gray-600">|</span>
+          <router-link
+            :to="`/vault/${currentVaultId}/dwellers`"
+            class="text-green-500 hover:underline"
+          >
+            Dwellers
+          </router-link>
+          <router-link
+            :to="`/vault/${currentVaultId}/objectives`"
+            class="text-green-500 hover:underline"
+          >
+            Objectives
+          </router-link>
+        </template>
+
         <router-link to="/about" class="text-green-500 hover:underline">About</router-link>
       </div>
       <div class="flex items-center space-x-4">
@@ -69,7 +83,7 @@ const showNotifications = () => {
 
         <!-- Notification Icon (only if authenticated) -->
         <button v-if="isAuthenticated" @click="showNotifications" class="relative text-green-500">
-          <BellIcon class="h-6 w-6" />
+          <Icon icon="mdi:bell" class="h-6 w-6" />
           <span
             v-if="hasNewNotifications"
             class="absolute right-0 top-0 block h-2 w-2 rounded-full bg-red-600"

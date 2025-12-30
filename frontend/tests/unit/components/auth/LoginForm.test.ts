@@ -17,7 +17,8 @@ describe('LoginForm', () => {
       history: createMemoryHistory(),
       routes: [
         { path: '/', component: { template: '<div>Home</div>' } },
-        { path: '/login', component: LoginForm }
+        { path: '/login', component: LoginForm },
+        { path: '/register', component: { template: '<div>Register</div>' } }
       ]
     });
   });

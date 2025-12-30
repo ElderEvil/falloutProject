@@ -3,8 +3,7 @@ name = "fallout-shelter-fast-api-vue"
 version = "0.1.0"
 authors = [{ name = "ElderEvil", email = "elder.evil.dev@proton.me" }, ]
 description = "Fallout Shelter FastAPI Game is a web-based simulation game where the player manages a vault full of dwellers, balancing their needs and resources to keep the vault thriving."
-readme = "README.md"
-requires-python = ">=3.13,<3.14"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "alembic>=1.17.2,<2.0",
     "asyncpg>=0.30.0,<1.0",
@@ -25,6 +24,11 @@ dependencies = [
     "sqlmodel>=0.0.30,<1",
     "httpcore>=1.0.9",
     "greenlet>=3.3.0",
+    "pydantic-ai-slim[openai, anthropic]>=1.39.0",
+    "psycopg2>=2.9.11",
+    "psycopg2-binary>=2.9.11",
+    "celery-types>=0.24.0",
+    "aiosmtplib>=5.0.0",
 ]
 
 [dependency-groups]
@@ -41,6 +45,9 @@ lint = [
     "ruff>=0.14.10",
     "ty>=0.0.7",
 ]
+perf = [
+    "locust>=2.33.0",
+]
 
 [tool.uv]
 default-groups = ["test", "lint"]
@@ -49,9 +56,15 @@ default-groups = ["test", "lint"]
 requires = ["setuptools >= 75.0"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+packages = ["app"]
+
+[tool.setuptools.package-data]
+app = ["py.typed"]
+
 [tool.ruff]
 line-length = 120
-target-version = "py314"
+target-version = "py313"
 exclude = [".git", "__pycache__", ".pytest_cache", "alembic"]
 lint.select = [
     "FAST",
@@ -70,7 +83,6 @@ lint.select = [
     "A",
     "COM",
     "C4",
-    "DTZ",
     "EM",
     "ISC",
     "ICN",
@@ -103,6 +115,7 @@ lint.ignore = [
     "PTH123",
     "S311",
     "PLR2004",
+    "PLC0415",
     "PT023",
     "RUF012",
     "N805",
@@ -121,3 +134,33 @@ builtins-ignorelist = ["id"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
+pythonpath = ["."]
+addopts = [
+    "--cov=app",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=json",
+]
+
+[tool.coverage.run]
+source = ["app"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/alembic/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+show_missing = true
+precision = 2

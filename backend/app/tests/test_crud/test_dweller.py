@@ -39,6 +39,7 @@ async def test_create_dweller(async_session: AsyncSession) -> None:
     assert dweller.health == dweller_data["health"]
     assert dweller.radiation == dweller_data["radiation"]
     assert dweller.happiness == dweller_data["happiness"]
+    assert dweller.status.value == "idle"  # Default status should be IDLE
 
 
 @pytest.mark.asyncio
@@ -147,3 +148,226 @@ async def test_move_dweller_to_room(async_session: AsyncSession):
     room_3 = await crud.room.create(async_session, obj_in=RoomCreate(**room_data_3, vault_id=vault_2.id))
     with pytest.raises(InvalidVaultTransferException):
         await crud.dweller.move_to_room(async_session, dweller_id=dweller.id, room_id=room_3.id)
+
+
+@pytest.mark.asyncio
+async def test_dweller_status_on_room_assignment(async_session: AsyncSession):
+    """Test that dweller status changes when assigned to/removed from a room."""
+    from app.schemas.common import DwellerStatusEnum
+
+    # Setup - create user, vault, and dweller
+    user_data = create_fake_user()
+    user_in = UserCreate(**user_data)
+    user = await crud.user.create(async_session, obj_in=user_in)
+
+    vault_data = create_fake_vault()
+    vault_data["population_max"] = 200  # Ensure enough space
+    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(async_session, obj_in=vault_in)
+
+    dweller_data = create_fake_dweller()
+    dweller_in = DwellerCreate(**dweller_data, vault_id=str(vault.id))
+    dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
+
+    # Dweller should start as IDLE
+    assert dweller.status == DwellerStatusEnum.IDLE
+
+    # Create a room
+    room_data = create_fake_room()
+    room = await crud.room.create(async_session, obj_in=RoomCreate(**room_data, vault_id=vault.id))
+
+    # Move dweller to room - should become WORKING
+    await crud.dweller.move_to_room(async_session, dweller_id=dweller.id, room_id=room.id)
+    await async_session.refresh(dweller)
+    assert dweller.status == DwellerStatusEnum.WORKING
+    assert dweller.room_id == room.id
+
+
+@pytest.mark.asyncio
+async def test_dweller_status_production_room(async_session: AsyncSession):
+    """Test that dwellers in production rooms get WORKING status."""
+    from app.schemas.common import DwellerStatusEnum, RoomTypeEnum
+
+    # Setup - create user, vault, and dweller
+    user_data = create_fake_user()
+    user_in = UserCreate(**user_data)
+    user = await crud.user.create(async_session, obj_in=user_in)
+
+    vault_data = create_fake_vault()
+    vault_data["population_max"] = 200
+    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(async_session, obj_in=vault_in)
+
+    dweller_data = create_fake_dweller()
+    dweller_in = DwellerCreate(**dweller_data, vault_id=str(vault.id))
+    dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
+
+    # Create a production room
+    room_data = create_fake_room()
+    room_data["category"] = RoomTypeEnum.PRODUCTION
+    room = await crud.room.create(async_session, obj_in=RoomCreate(**room_data, vault_id=vault.id))
+
+    # Move dweller to production room - should become WORKING
+    await crud.dweller.move_to_room(async_session, dweller_id=dweller.id, room_id=room.id)
+    await async_session.refresh(dweller)
+    assert dweller.status == DwellerStatusEnum.WORKING
+    assert dweller.room_id == room.id
+
+
+@pytest.mark.asyncio
+async def test_dweller_status_training_room(async_session: AsyncSession):
+    """Test that dwellers in training rooms get TRAINING status."""
+    from app.schemas.common import DwellerStatusEnum, RoomTypeEnum
+
+    # Setup - create user, vault, and dweller
+    user_data = create_fake_user()
+    user_in = UserCreate(**user_data)
+    user = await crud.user.create(async_session, obj_in=user_in)
+
+    vault_data = create_fake_vault()
+    vault_data["population_max"] = 200
+    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(async_session, obj_in=vault_in)
+
+    dweller_data = create_fake_dweller()
+    dweller_in = DwellerCreate(**dweller_data, vault_id=str(vault.id))
+    dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
+
+    # Create a training room
+    room_data = create_fake_room()
+    room_data["category"] = RoomTypeEnum.TRAINING
+    room = await crud.room.create(async_session, obj_in=RoomCreate(**room_data, vault_id=vault.id))
+
+    # Move dweller to training room - should become TRAINING
+    await crud.dweller.move_to_room(async_session, dweller_id=dweller.id, room_id=room.id)
+    await async_session.refresh(dweller)
+    assert dweller.status == DwellerStatusEnum.TRAINING
+    assert dweller.room_id == room.id
+
+
+@pytest.mark.asyncio
+async def test_get_dwellers_by_status(async_session: AsyncSession):
+    """Test getting dwellers filtered by status."""
+    from app.schemas.common import DwellerStatusEnum
+    from app.schemas.dweller import DwellerUpdate
+
+    # Setup - create user, vault, and multiple dwellers
+    user_data = create_fake_user()
+    user_in = UserCreate(**user_data)
+    user = await crud.user.create(async_session, obj_in=user_in)
+
+    vault_data = create_fake_vault()
+    vault_data["population_max"] = 200  # Ensure enough space
+    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(async_session, obj_in=vault_in)
+
+    # Create 3 dwellers with different statuses
+    dweller_1_data = create_fake_dweller()
+    dweller_1_in = DwellerCreate(**dweller_1_data, vault_id=str(vault.id))
+    dweller_1 = await crud.dweller.create(async_session, obj_in=dweller_1_in)
+
+    dweller_2_data = create_fake_dweller()
+    dweller_2_in = DwellerCreate(**dweller_2_data, vault_id=str(vault.id))
+    dweller_2 = await crud.dweller.create(async_session, obj_in=dweller_2_in)
+
+    dweller_3_data = create_fake_dweller()
+    dweller_3_in = DwellerCreate(**dweller_3_data, vault_id=str(vault.id))
+    dweller_3 = await crud.dweller.create(async_session, obj_in=dweller_3_in)
+
+    # Set different statuses
+    await crud.dweller.update(async_session, dweller_1.id, DwellerUpdate(status=DwellerStatusEnum.WORKING))
+    await crud.dweller.update(async_session, dweller_2.id, DwellerUpdate(status=DwellerStatusEnum.EXPLORING))
+    # dweller_3 stays IDLE
+
+    # Get only WORKING dwellers
+    working_dwellers = await crud.dweller.get_by_status(async_session, vault.id, DwellerStatusEnum.WORKING)
+    assert len(working_dwellers) == 1
+    assert working_dwellers[0].id == dweller_1.id
+
+    # Get only EXPLORING dwellers
+    exploring_dwellers = await crud.dweller.get_by_status(async_session, vault.id, DwellerStatusEnum.EXPLORING)
+    assert len(exploring_dwellers) == 1
+    assert exploring_dwellers[0].id == dweller_2.id
+
+    # Get only IDLE dwellers
+    idle_dwellers = await crud.dweller.get_by_status(async_session, vault.id, DwellerStatusEnum.IDLE)
+    assert len(idle_dwellers) == 1
+    assert idle_dwellers[0].id == dweller_3.id
+
+
+@pytest.mark.asyncio
+async def test_dweller_status_on_unassign(async_session: AsyncSession):
+    """Test that dweller status becomes IDLE when unassigned from room via update."""
+    from app.schemas.common import DwellerStatusEnum, RoomTypeEnum
+    from app.schemas.dweller import DwellerUpdate
+
+    # Setup - create user, vault, and dweller
+    user_data = create_fake_user()
+    user_in = UserCreate(**user_data)
+    user = await crud.user.create(async_session, obj_in=user_in)
+
+    vault_data = create_fake_vault()
+    vault_data["population_max"] = 200
+    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(async_session, obj_in=vault_in)
+
+    dweller_data = create_fake_dweller()
+    dweller_in = DwellerCreate(**dweller_data, vault_id=str(vault.id))
+    dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
+
+    # Create a production room and assign dweller
+    room_data = create_fake_room()
+    room_data["category"] = RoomTypeEnum.PRODUCTION
+    room = await crud.room.create(async_session, obj_in=RoomCreate(**room_data, vault_id=vault.id))
+
+    await crud.dweller.move_to_room(async_session, dweller_id=dweller.id, room_id=room.id)
+    await async_session.refresh(dweller)
+    assert dweller.status == DwellerStatusEnum.WORKING
+    assert dweller.room_id == room.id
+
+    # Unassign dweller by setting room_id to None via update
+    await crud.dweller.update(async_session, dweller.id, DwellerUpdate(room_id=None, status=DwellerStatusEnum.IDLE))
+    await async_session.refresh(dweller)
+    assert dweller.status == DwellerStatusEnum.IDLE
+    assert dweller.room_id is None
+
+
+@pytest.mark.asyncio
+async def test_dweller_status_on_room_reassignment(async_session: AsyncSession):
+    """Test that dweller status changes correctly when moved between different room types."""
+    from app.schemas.common import DwellerStatusEnum, RoomTypeEnum
+
+    # Setup
+    user_data = create_fake_user()
+    user_in = UserCreate(**user_data)
+    user = await crud.user.create(async_session, obj_in=user_in)
+
+    vault_data = create_fake_vault()
+    vault_data["population_max"] = 200
+    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(async_session, obj_in=vault_in)
+
+    dweller_data = create_fake_dweller()
+    dweller_in = DwellerCreate(**dweller_data, vault_id=str(vault.id))
+    dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
+
+    # Create production room and training room
+    production_room_data = create_fake_room()
+    production_room_data["category"] = RoomTypeEnum.PRODUCTION
+    production_room = await crud.room.create(
+        async_session, obj_in=RoomCreate(**production_room_data, vault_id=vault.id)
+    )
+
+    training_room_data = create_fake_room()
+    training_room_data["category"] = RoomTypeEnum.TRAINING
+    training_room = await crud.room.create(async_session, obj_in=RoomCreate(**training_room_data, vault_id=vault.id))
+
+    # Assign to production room
+    await crud.dweller.move_to_room(async_session, dweller_id=dweller.id, room_id=production_room.id)
+    await async_session.refresh(dweller)
+    assert dweller.status == DwellerStatusEnum.WORKING
+
+    # Move to training room
+    await crud.dweller.move_to_room(async_session, dweller_id=dweller.id, room_id=training_room.id)
+    await async_session.refresh(dweller)
+    assert dweller.status == DwellerStatusEnum.TRAINING

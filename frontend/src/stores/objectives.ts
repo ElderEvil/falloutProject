@@ -19,7 +19,7 @@ export const useObjectivesStore = defineStore('objectives', {
     },
     async addObjective(vaultId: string, objectiveData: any) {
       try {
-        await axios.post(`/api/v1/${vaultId}/`, objectiveData)
+        await axios.post(`/api/v1/objectives/${vaultId}/`, objectiveData)
         await this.fetchObjectives(vaultId) // Refresh the objectives list after adding a new one
       } catch (error) {
         console.error('Failed to add objective:', error)
@@ -28,7 +28,7 @@ export const useObjectivesStore = defineStore('objectives', {
     },
     async getObjective(vaultId: string, objectiveId: string) {
       try {
-        const response = await axios.get(`/api/v1/${vaultId}/${objectiveId}`)
+        const response = await axios.get(`/api/v1/objectives/${vaultId}/${objectiveId}`)
         return response.data
       } catch (error) {
         console.error('Failed to fetch objective:', error)

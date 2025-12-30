@@ -5,7 +5,7 @@ import RoomMenuItem from './RoomMenuItem.vue'
 import type { Room } from '@/models/room'
 
 const roomStore = useRoomStore()
-const availableRooms = computed(() => roomStore.availableRooms)
+const availableRooms = computed(() => Array.isArray(roomStore.availableRooms) ? roomStore.availableRooms : [])
 
 const emit = defineEmits<{
   (e: 'roomSelected', room: Room): void

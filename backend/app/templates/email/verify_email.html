@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Email</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #4CAF50;
+            margin: 0;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #4CAF50;
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .button:hover {
+            background-color: #45a049;
+        }
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{{ project_name }}</h1>
+        </div>
+        <div class="content">
+            <h2>Welcome, {{ username }}!</h2>
+            <p>Thank you for registering with {{ project_name }}. Please verify your email address to complete your registration.</p>
+            <p style="text-align: center; margin: 30px 0;">
+                <a href="{{ verification_url }}" class="button">Verify Email Address</a>
+            </p>
+            <p><strong>Note:</strong> If the button doesn't work, you can copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; color: #666; font-size: 12px;">{{ verification_url }}</p>
+        </div>
+        <div class="footer">
+            <p>If you didn't create an account with {{ project_name }}, you can safely ignore this email.</p>
+            <p>&copy; {{ project_name }}. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -15,6 +15,15 @@ class GameStatusEnum(StrEnum):
     PAUSED = "paused"
 
 
+class DwellerStatusEnum(CaseInsensitiveEnum):
+    IDLE = "idle"
+    WORKING = "working"
+    EXPLORING = "exploring"
+    TRAINING = "training"
+    RESTING = "resting"
+    DEAD = "dead"
+
+
 class RarityEnum(CaseInsensitiveEnum):
     COMMON = "common"
     RARE = "rare"

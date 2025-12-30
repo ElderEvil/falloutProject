@@ -1,0 +1,19 @@
+# Locust test reports and data
+*.html
+*_stats.csv
+*_failures.csv
+*_exceptions.csv
+*_stats_history.csv
+
+# Environment files
+.env.locust
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Locust logs
+*.log

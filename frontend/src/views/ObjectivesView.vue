@@ -1,25 +1,36 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { useObjectivesStore } from '@/stores/objectives'
+import { useVaultStore } from '@/stores/vault'
 
-const vaultId = localStorage.getItem('selectedVaultId') // Assuming vaultId is stored in localStorage
+const route = useRoute()
 const objectivesStore = useObjectivesStore()
+const vaultStore = useVaultStore()
 const activeTab = ref('notCompleted')
 
+const vaultId = computed(() => route.params.id as string)
+const currentVault = computed(() => vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null)
+
 onMounted(() => {
-  if (vaultId) {
-    objectivesStore.fetchObjectives(vaultId)
+  if (vaultId.value) {
+    objectivesStore.fetchObjectives(vaultId.value)
   }
 })
 
 const filterObjectives = (status: boolean) => {
   return objectivesStore.objectives.filter((objective) => objective.is_completed === status)
 }
+
+const activeObjectives = computed(() => filterObjectives(false))
+const completedObjectives = computed(() => filterObjectives(true))
 </script>
 
 <template>
   <div class="objectives-container">
-    <h1 class="title">Objectives</h1>
+    <h1 class="title">
+      {{ currentVault ? `Vault ${currentVault.number} Objectives` : 'Objectives' }}
+    </h1>
     <div class="tabs">
       <button
         @click="activeTab = 'notCompleted'"
@@ -38,8 +49,11 @@ const filterObjectives = (status: boolean) => {
     </div>
 
     <div v-if="activeTab === 'notCompleted'" class="tab-content">
-      <ul class="objective-list">
-        <li v-for="objective in filterObjectives(false)" :key="objective.id" class="objective-item">
+      <div v-if="activeObjectives.length === 0" class="empty-state">
+        <p>No active objectives</p>
+      </div>
+      <ul v-else class="objective-list">
+        <li v-for="objective in activeObjectives" :key="objective.id" class="objective-item">
           <div class="objective-details">
             <h3 class="objective-title">{{ objective.challenge }}</h3>
             <p class="objective-progress">
@@ -52,9 +66,12 @@ const filterObjectives = (status: boolean) => {
     </div>
 
     <div v-if="activeTab === 'completed'" class="tab-content">
-      <ul class="objective-list">
+      <div v-if="completedObjectives.length === 0" class="empty-state">
+        <p>No completed objectives yet</p>
+      </div>
+      <ul v-else class="objective-list">
         <li
-          v-for="objective in filterObjectives(true)"
+          v-for="objective in completedObjectives"
           :key="objective.id"
           class="objective-item completed-objective"
         >
@@ -162,5 +179,12 @@ const filterObjectives = (status: boolean) => {
 
 .completed-objective .objective-details {
   color: #777777;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: #666666;
+  font-size: 1.25rem;
 }
 </style>

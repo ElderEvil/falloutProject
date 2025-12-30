@@ -5,19 +5,23 @@
   "type": "module",
   "packageManager": "pnpm@10.26.2",
   "scripts": {
-    "dev": "vite",
-    "build": "vue-tsc -b && vite build",
+    "types:generate": "openapi-typescript http://localhost:8000/api/v1/openapi.json -o src/types/api.generated.ts",
+    "dev": "pnpm types:generate && vite",
+    "build": "vite build",
+    "build:strict": "vue-tsc -b && vite build",
+    "build:with-types": "pnpm types:generate && vue-tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest",
     "lint": "oxlint src"
   },
   "dependencies": {
-    "@heroicons/vue": "^2.2.0",
-    "@nuxt/ui": "^3.0.0",
+    "@iconify/vue": "5.0.0",
+    "@nuxt/ui": "^4.3.0",
     "axios": "^1.7.9",
     "pinia": "^3.0.4",
     "vue": "^3.5.13",
-    "vue-router": "^4.5.0"
+    "vue-router": "^4.5.0",
+    "zod": "4.2.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
@@ -28,7 +32,8 @@
     "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.8.0",
     "jsdom": "^25.0.1",
-    "oxlint": "^0.16.2",
+    "openapi-typescript": "7.10.1",
+    "oxlint": "^1.36.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.3",
     "vite": "npm:rolldown-vite@latest",

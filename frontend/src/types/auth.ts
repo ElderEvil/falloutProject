@@ -1,19 +1,11 @@
-export interface LoginForm {
-  username: string
-  password: string
-}
+import type { components } from './api.generated'
 
-export interface RegisterForm {
-  username: string
-  email: string
-  password: string
-}
+// Re-export generated API types
+export type Token = components['schemas']['Token']
+export type UserWithTokens = components['schemas']['UserWithTokens']
 
-export interface Token {
-  access_token: string
-  token_type: string
-  refresh_token: string | null
-}
+// Form types are now in schemas/auth.ts with Zod validation
+// Import from there for form validation
 
 export class AuthError extends Error {
   constructor(

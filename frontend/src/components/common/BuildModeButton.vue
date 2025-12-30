@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { WrenchScrewdriverIcon } from '@heroicons/vue/24/solid'
+import { Icon } from '@iconify/vue'
+import { UButton } from '@/components/ui'
+import { computed } from 'vue'
 
 const props = defineProps<{
   buildModeActive: boolean
@@ -8,16 +10,18 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'toggleBuildMode'): void
 }>()
+
+const iconName = computed(() => props.buildModeActive ? 'mdi:close' : 'mdi:hammer-wrench')
 </script>
 
 <template>
-  <button
+  <UButton
+    :variant="buildModeActive ? 'danger' : 'secondary'"
     @click="emit('toggleBuildMode')"
-    class="flex items-center rounded px-4 py-2"
-    :class="buildModeActive ? 'bg-red-700' : 'bg-gray-700'"
   >
-    <WrenchScrewdriverIcon class="h-5 w-5" v-if="!buildModeActive" />
-    <span v-else>X</span>
-    <span class="ml-2">{{ buildModeActive ? 'Cancel Building' : 'Build Mode' }}</span>
-  </button>
+    <template #leading>
+      <Icon :icon="iconName" class="h-5 w-5" />
+    </template>
+    {{ buildModeActive ? 'Cancel Building' : 'Build Mode' }}
+  </UButton>
 </template>

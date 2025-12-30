@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { TrashIcon } from '@heroicons/vue/24/solid'
+import { Icon } from '@iconify/vue'
 import { useRoomInteractions } from '@/composables/useRoomInteractions'
 
 const props = defineProps({
@@ -44,7 +44,7 @@ const handleDestroyClick = (event: Event) => {
         class="destroy-button"
         title="Destroy Room"
       >
-        <TrashIcon />
+        <Icon icon="mdi:delete" class="h-5 w-5" />
       </button>
     </div>
   </div>

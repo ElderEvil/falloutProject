@@ -60,12 +60,14 @@ jobs:
           uv pip install coverage-badge
           uv run coverage-badge -o coverage.svg -f
 
-      - name: Upload coverage badge
+      - name: Upload coverage badge to Gist
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-        uses: actions/upload-artifact@v4
+        uses: exuanbo/actions-deploy-gist@v1
         with:
-          name: coverage-badge
-          path: backend/coverage.svg
+          token: ${{ secrets.GIST_TOKEN }}
+          gist_id: 7cc382e5dbf89fbe5bc026b6d8a0ab88
+          file_path: backend/coverage.svg
+          file_type: text
 
   frontend-ci:
     name: Frontend CI

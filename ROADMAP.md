@@ -18,19 +18,42 @@ Here’s a task list to implement the features you outlined:
     - **Integrate with View:** Ensure filtering and sorting are responsive to changes and interact smoothly with the
       grid/list view.
 
-3. **Dweller Status**
-    - **Design Status Indicators:** Create visual indicators (e.g., icons or color codes) that show the current status
-      of each dweller (e.g., idle, working, on a quest).
-    - **Implement Status Display:** Add these indicators to the dweller cards in both grid and list views.
-    - **Update Status in Real-Time:** Ensure the status indicators update dynamically as the dwellers' statuses change.
+3. **Dweller Status** ✅ **(Backend Complete - Frontend Pending)**
+    - ✅ **Backend Implementation Complete:**
+        - Added `DwellerStatusEnum` with statuses: IDLE, WORKING, EXPLORING, TRAINING, RESTING, DEAD
+        - Implemented status field in Dweller model with auto-updates on room assignment
+        - Created filtering/sorting/search endpoints for dwellers by status
+        - Added comprehensive test coverage (API + CRUD tests)
+        - Integrated with admin panel
+    - **Frontend Tasks:**
+        - **Design Status Indicators:** Create visual indicators (e.g., icons or color codes) for each status
+        - **Implement Status Display:** Add indicators to dweller cards in both grid and list views
+        - **Update Status in Real-Time:** Ensure indicators update dynamically as statuses change
+    - **Enhancement: Room-Type-Specific Status** ⚠️ **(Needs Implementation)**
+        - **Context-Aware Status Logic:** Currently assigns WORKING status for all room assignments
+        - **Production Rooms:** Dwellers should have status WORKING (e.g., Power Plant, Diner, Water Treatment)
+        - **Training Rooms:** Dwellers should have status TRAINING (e.g., Gym, Armory, Classroom)
+        - **Implementation Notes:**
+            - Update `backend/app/crud/dweller.py:move_to_room()` to check room category (RoomTypeEnum)
+            - If `room.category == RoomTypeEnum.TRAINING`, set status to TRAINING
+            - If `room.category == RoomTypeEnum.PRODUCTION`, set status to WORKING
+            - Other room types (CAPACITY, CRAFTING, MISC, QUESTS, THEME) need status mapping
+        - **Testing:** Add tests for status assignment based on room type
 
-4. **User Profile**
-    - **Design Profile UI:** Create a profile section where users can view and edit their profile information (e.g.,
-      username, avatar).
-    - **Implement Profile Editing:** Allow users to update their profile information and save changes.
-    - **Profile Picture Upload:** Implement a feature to upload and change the user’s avatar.
-    - **Integrate with Authentication:** Ensure profile information is linked to the user’s account and is accessible
-      only when authenticated.
+4. **User Profile** ✅ **(Backend Complete - Frontend Pending)**
+    - ✅ **Backend Implementation Complete:**
+        - Created UserProfile model with bio, avatar_url, preferences (JSONB), and statistics tracking
+        - Implemented profile CRUD operations with increment statistics methods
+        - Created profile API endpoints (GET/PUT /api/v1/users/me/profile)
+        - Auto-creates profile on user registration
+        - Added comprehensive test coverage (API + CRUD tests)
+        - Integrated with admin panel
+    - **Frontend Tasks:**
+        - **Design Profile UI:** Create a profile section where users can view and edit their profile information
+        - **Implement Profile Editing:** Allow users to update bio, avatar_url, and preferences
+        - **Profile Picture Upload:** Implement avatar upload feature
+        - **Display Statistics:** Show read-only statistics (total_dwellers_created, total_caps_earned, etc.)
+        - **Integrate with Authentication:** Ensure profile information is linked to authenticated user
 
 5. **Vault Inventory**
     - **Design Inventory UI:** Create a categorized inventory view within the vault, showing all resources, items, and

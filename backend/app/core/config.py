@@ -54,6 +54,17 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str | None = None
     OLLAMA_BASE_URL: str = "http://localhost:11434/v1"
 
+    # Email Configuration
+    SMTP_HOST: str = "localhost"
+    SMTP_PORT: int = 1025  # MailHog default for local dev
+    SMTP_USER: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_TLS: bool = False
+    SMTP_SSL: bool = False
+    EMAIL_FROM_ADDRESS: str = "noreply@falloutshelter.com"
+    EMAIL_FROM_NAME: str = "Fallout Shelter"
+    FRONTEND_URL: str = "http://localhost:5173"  # For email links
+
     @property
     def redis_url(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"

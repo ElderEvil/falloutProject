@@ -48,8 +48,16 @@ async def read_vault(
     *,
     vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    _: CurrentSuperuser,
+    user: CurrentActiveUser,
 ):
+    vault = await crud.vault.get(db_session, vault_id)
+    if not vault:
+        raise HTTPException(status_code=404, detail="Vault not found")
+
+    # Only allow users to view their own vaults, unless they're superuser
+    if vault.user_id != user.id and not user.is_superuser:
+        raise HTTPException(status_code=403, detail="The user doesn't have enough privileges")
+
     return await crud.vault.get_vault_with_room_and_dweller_count(db_session=db_session, vault_id=vault_id)
 
 

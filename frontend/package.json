@@ -7,7 +7,9 @@
   "scripts": {
     "types:generate": "openapi-typescript http://localhost:8000/api/v1/openapi.json -o src/types/api.generated.ts",
     "dev": "pnpm types:generate && vite",
-    "build": "pnpm types:generate && vue-tsc -b && vite build",
+    "build": "vite build",
+    "build:strict": "vue-tsc -b && vite build",
+    "build:with-types": "pnpm types:generate && vue-tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest",
     "lint": "oxlint src"

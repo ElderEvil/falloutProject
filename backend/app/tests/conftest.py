@@ -1,5 +1,6 @@
 import asyncio
 from collections.abc import Generator
+from unittest.mock import MagicMock, patch
 
 import pytest
 import pytest_asyncio
@@ -15,13 +16,18 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
 
+# Mock MinIO before importing main
+with patch("app.services.minio.MinioService") as mock_minio:
+    mock_instance = MagicMock()
+    mock_minio.return_value = mock_instance
+    from main import app
+
 from app import crud
 from app.core.config import settings
 from app.db.session import get_async_session
 from app.schemas.user import UserCreate
 from app.tests.utils.user import authentication_token_from_email
 from app.tests.utils.utils import get_superuser_token_headers
-from main import app
 
 
 @pytest.fixture(scope="session")

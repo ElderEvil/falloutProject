@@ -2,6 +2,14 @@
 ARG PYTHON_VERSION
 FROM python:${PYTHON_VERSION:-3.13}-slim-bookworm
 
+# Install build dependencies for Python packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    libffi-dev \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
@@ -15,12 +23,12 @@ WORKDIR /app
 ENV VIRTUAL_ENV=/opt/venv \
     PATH="/opt/venv/bin:$PATH"
 
-# Copy requirements file
-COPY requirements.txt /app/
+# Copy uv files for dependency installation
+COPY pyproject.toml uv.lock /app/
 
-# Create virtual environment and install dependencies
+# Create virtual environment and install dependencies using uv sync
 RUN uv venv $VIRTUAL_ENV && \
-    uv pip install --no-cache -r app/requirements.txt
+    uv sync --frozen --no-dev
 
 # Copy application code
 COPY . .

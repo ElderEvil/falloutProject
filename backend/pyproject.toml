@@ -28,6 +28,7 @@ dependencies = [
     "psycopg2>=2.9.11",
     "psycopg2-binary>=2.9.11",
     "celery-types>=0.24.0",
+    "aiosmtplib>=5.0.0",
 ]
 
 [dependency-groups]

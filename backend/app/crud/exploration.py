@@ -51,6 +51,14 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
             status=ExplorationStatus.ACTIVE,
         )
         db_session.add(db_obj)
+
+        # Update dweller status to EXPLORING
+        from app.crud.dweller import dweller as dweller_crud
+        from app.schemas.common import DwellerStatusEnum
+        from app.schemas.dweller import DwellerUpdate
+
+        await dweller_crud.update(db_session, dweller_id, DwellerUpdate(status=DwellerStatusEnum.EXPLORING))
+
         await db_session.commit()
         await db_session.refresh(db_obj)
         return db_obj

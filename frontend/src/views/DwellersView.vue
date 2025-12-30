@@ -2,9 +2,11 @@
 import { useDwellerStore } from '@/stores/dweller'
 import { useAuthStore } from '@/stores/auth'
 import { useVaultStore } from '@/stores/vault'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
+import DwellerStatusBadge from '@/components/dwellers/DwellerStatusBadge.vue'
+import DwellerFilterPanel from '@/components/dwellers/DwellerFilterPanel.vue'
 
 const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
@@ -18,11 +20,27 @@ const generatingAI = ref<Record<string, boolean>>({})
 const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null)
 
-onMounted(async () => {
+const fetchDwellers = async () => {
   if (authStore.isAuthenticated && vaultId.value) {
-    await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token as string)
+    await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token as string, {
+      status: dwellerStore.filterStatus !== 'all' ? dwellerStore.filterStatus : undefined,
+      sortBy: dwellerStore.sortBy,
+      order: dwellerStore.sortDirection
+    })
   }
+}
+
+onMounted(async () => {
+  await fetchDwellers()
 })
+
+// Watch for filter/sort changes and refetch
+watch(
+  () => [dwellerStore.filterStatus, dwellerStore.sortBy, dwellerStore.sortDirection],
+  async () => {
+    await fetchDwellers()
+  }
+)
 
 const toggleDweller = async (id: string) => {
   if (selectedDwellerId.value === id) {
@@ -55,7 +73,7 @@ const generateDwellerInfo = async (dwellerId: string) => {
     const result = await dwellerStore.generateDwellerInfo(dwellerId, authStore.token as string)
     if (result) {
       // Refresh the dweller list to get the updated thumbnail_url
-      await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token as string)
+      await fetchDwellers()
       // Force refresh the detailed dweller data
       await dwellerStore.fetchDwellerDetails(dwellerId, authStore.token as string, true)
     }
@@ -76,6 +94,12 @@ const generateDwellerInfo = async (dwellerId: string) => {
       <h1 class="mb-8 text-4xl font-bold">
         {{ currentVault ? `Vault ${currentVault.number} Dwellers` : 'Dwellers' }}
       </h1>
+
+      <!-- Filter Panel -->
+      <div class="w-full mb-6">
+        <DwellerFilterPanel />
+      </div>
+
       <ul class="w-full space-y-4">
         <li
           v-for="dweller in dwellerStore.dwellers"
@@ -117,7 +141,10 @@ const generateDwellerInfo = async (dwellerId: string) => {
               </template>
             </div>
             <div class="flex-grow">
-              <h3 class="text-xl font-bold">{{ dweller.first_name }} {{ dweller.last_name }}</h3>
+              <div class="flex items-center gap-2 mb-2">
+                <h3 class="text-xl font-bold">{{ dweller.first_name }} {{ dweller.last_name }}</h3>
+                <DwellerStatusBadge :status="dweller.status" :show-label="true" size="medium" />
+              </div>
               <p>Level: {{ dweller.level }}</p>
               <p>Health: {{ dweller.health }} / {{ dweller.max_health }}</p>
               <p>Happiness: {{ dweller.happiness }}%</p>

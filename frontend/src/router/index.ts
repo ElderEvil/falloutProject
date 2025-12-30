@@ -7,6 +7,7 @@ import VaultView from '@/views/VaultView.vue';
 import DwellersView from '@/views/DwellersView.vue';
 import DwellerChatPage from '@/components/chat/DwellerChatPage.vue';
 import ObjectivesView from '@/views/ObjectivesView.vue';
+import ProfileView from '@/views/ProfileView.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -38,6 +39,12 @@ const router = createRouter({
       path: '/vault/:id/objectives',
       name: 'objectives',
       component: ObjectivesView,
+      meta: { requiresAuth: true, hideFromNav: true }
+    },
+    {
+      path: '/profile',
+      name: 'profile',
+      component: ProfileView,
       meta: { requiresAuth: true, hideFromNav: true }
     },
     {

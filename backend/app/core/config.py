@@ -118,7 +118,7 @@ class Settings(BaseSettings):
             )
         return v
 
-    model_config = SettingsConfigDict(env_file="backend/.env")
+    model_config = SettingsConfigDict(env_file=".env")
 
 
 settings = Settings()

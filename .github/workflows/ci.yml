@@ -49,9 +49,23 @@ jobs:
         working-directory: backend
         run: uv run prek run
 
-      - name: Run tests
+      - name: Run tests with coverage
         working-directory: backend
         run: uv run pytest app/tests -v --tb=short
+
+      - name: Generate coverage badge
+        working-directory: backend
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          uv pip install coverage-badge
+          uv run coverage-badge -o coverage.svg -f
+
+      - name: Upload coverage badge
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-badge
+          path: backend/coverage.svg
 
   frontend-ci:
     name: Frontend CI

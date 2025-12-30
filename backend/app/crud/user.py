@@ -9,6 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.security import get_password_hash, verify_password
 from app.crud.base import CRUDBase
 from app.models.user import User
+from app.models.user_profile import UserProfile
 from app.schemas.user import UserCreate, UserUpdate
 
 
@@ -31,13 +32,18 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         try:
             db_session.add(db_obj)
             await db_session.commit()
+            await db_session.refresh(db_obj)
+
+            # Auto-create user profile
+            profile = UserProfile(user_id=db_obj.id)
+            db_session.add(profile)
+            await db_session.commit()
         except IntegrityError as e:
             await db_session.rollback()
             raise HTTPException(
                 status_code=409,
                 detail="User already exists",
             ) from e
-        await db_session.refresh(db_obj)
         return db_obj
 
     async def update(

@@ -4,7 +4,15 @@ from pydantic import UUID4, ConfigDict, Field
 from sqlmodel import SQLModel
 
 from app.models.dweller import DwellerBase
-from app.schemas.common import STATE_OF_BEING_TYPE, FactionEnum, GenderEnum, RaceEnum, RarityEnum, SPECIALEnum
+from app.schemas.common import (
+    STATE_OF_BEING_TYPE,
+    DwellerStatusEnum,
+    FactionEnum,
+    GenderEnum,
+    RaceEnum,
+    RarityEnum,
+    SPECIALEnum,
+)
 from app.schemas.outfit import OutfitRead
 from app.schemas.room import RoomRead
 from app.schemas.vault import VaultRead
@@ -97,6 +105,7 @@ class DwellerReadLess(SQLModel):
     radiation: int
     happiness: int
     room_id: UUID4 | None = None
+    status: DwellerStatusEnum
 
     # SPECIAL stats
     strength: int
@@ -108,7 +117,6 @@ class DwellerReadLess(SQLModel):
     luck: int
 
     # TBD
-    # status: str
     # job: str | None
 
 

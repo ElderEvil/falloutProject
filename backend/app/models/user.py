@@ -7,6 +7,7 @@ from app.models.base import BaseUUIDModel, TimeStampMixin
 
 if TYPE_CHECKING:
     from app.models.llm_interaction import LLMInteraction
+    from app.models.user_profile import UserProfile
     from app.models.vault import Vault
 
 
@@ -20,6 +21,9 @@ class UserBase(SQLModel):
 class User(BaseUUIDModel, UserBase, TimeStampMixin, table=True):
     hashed_password: str = Field(nullable=False)
 
+    profile: "UserProfile" = Relationship(
+        back_populates="user", cascade_delete=True, sa_relationship_kwargs={"uselist": False}
+    )
     llm_interactions: list["LLMInteraction"] = Relationship(back_populates="user")
     vaults: list["Vault"] = Relationship(back_populates="user", cascade_delete=True)
 

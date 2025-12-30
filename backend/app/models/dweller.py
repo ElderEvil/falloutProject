@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel, SPECIALModel, TimeStampMixin
-from app.schemas.common import GenderEnum, RarityEnum
+from app.schemas.common import DwellerStatusEnum, GenderEnum, RarityEnum
 
 if TYPE_CHECKING:
     from app.models.outfit import Outfit
@@ -41,8 +41,10 @@ class DwellerBaseWithoutStats(SQLModel):
     stimpack: int = Field(default=0, ge=0, le=15)
     radaway: int = Field(default=0, ge=0, le=15)
 
+    # Status
+    status: DwellerStatusEnum = Field(default=DwellerStatusEnum.IDLE, index=True)
+
     # TBD
-    # status: str
     # job: str | None
 
 

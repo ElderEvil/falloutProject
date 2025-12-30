@@ -4,6 +4,7 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 
+import aiosmtplib
 from minio import Minio
 from minio.error import S3Error
 from redis.asyncio import Redis
@@ -199,8 +200,72 @@ class HealthCheckService:
                 details={"host": settings.MINIO_HOSTNAME, "error": str(e)},
             )
 
+    @staticmethod
+    async def check_smtp() -> HealthCheckResult:
+        """
+        Check SMTP email service connectivity.
+
+        Returns:
+            HealthCheckResult with connection status
+        """
+        try:
+            smtp = aiosmtplib.SMTP(
+                hostname=settings.SMTP_HOST,
+                port=settings.SMTP_PORT,
+                timeout=5,  # 5 second timeout
+            )
+
+            await smtp.connect()
+
+            # Test authentication if configured
+            if settings.SMTP_USER and settings.SMTP_PASSWORD:
+                await smtp.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+
+            await smtp.quit()
+
+            return HealthCheckResult(
+                service="smtp",
+                status=ServiceStatus.HEALTHY,
+                message="SMTP connection successful",
+                details={
+                    "host": settings.SMTP_HOST,
+                    "port": settings.SMTP_PORT,
+                    "tls": settings.SMTP_TLS,
+                    "ssl": settings.SMTP_SSL,
+                    "auth": bool(settings.SMTP_USER),
+                },
+            )
+        except aiosmtplib.SMTPException as e:
+            logger.exception("SMTP health check failed")
+            return HealthCheckResult(
+                service="smtp",
+                status=ServiceStatus.UNHEALTHY,
+                message=f"SMTP connection failed: {e!s}",
+                details={"host": settings.SMTP_HOST, "port": settings.SMTP_PORT, "error": str(e)},
+            )
+        except TimeoutError:
+            logger.exception("SMTP health check timed out")
+            return HealthCheckResult(
+                service="smtp",
+                status=ServiceStatus.UNHEALTHY,
+                message="SMTP connection timed out",
+                details={
+                    "host": settings.SMTP_HOST,
+                    "port": settings.SMTP_PORT,
+                    "error": "Connection timeout after 5 seconds",
+                },
+            )
+        except Exception as e:
+            logger.exception("SMTP health check failed")
+            return HealthCheckResult(
+                service="smtp",
+                status=ServiceStatus.UNHEALTHY,
+                message=f"SMTP connection failed: {e!s}",
+                details={"host": settings.SMTP_HOST, "port": settings.SMTP_PORT, "error": str(e)},
+            )
+
     async def check_all_services(
-        self, engine: AsyncEngine, *, include_celery: bool = True
+        self, engine: AsyncEngine, *, include_celery: bool = True, include_smtp: bool = True
     ) -> dict[str, HealthCheckResult]:
         """
         Check all services and return results.
@@ -208,6 +273,7 @@ class HealthCheckService:
         Args:
             engine: AsyncEngine for database connection
             include_celery: Whether to check Celery workers (default: True)
+            include_smtp: Whether to check SMTP email service (default: True)
 
         Returns:
             Dictionary mapping service names to health check results
@@ -225,6 +291,11 @@ class HealthCheckService:
         # Check MinIO
         minio_result = self.check_minio()
         results["minio"] = minio_result
+
+        # Check SMTP (optional, may timeout if mail service unavailable)
+        if include_smtp:
+            smtp_result = await self.check_smtp()
+            results["smtp"] = smtp_result
 
         # Check Celery (optional, may be slow on startup)
         if include_celery:

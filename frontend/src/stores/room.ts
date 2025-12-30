@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import axios from '@/plugins/axios'
+import { AxiosError } from 'axios'
 import type { Room, RoomCreate } from '@/models/room'
+import { useVaultStore } from './vault'
 
 interface RoomState {
   rooms: Room[]
@@ -19,7 +21,7 @@ export const useRoomStore = defineStore('room', {
   actions: {
     async fetchRooms(vaultId: string, token: string): Promise<void> {
       try {
-        const response = await axios.get<Room[]>(`/api/v1/rooms/vault/${vaultId}`, {
+        const response = await axios.get<Room[]>(`/api/v1/rooms/vault/${vaultId}/`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -27,6 +29,7 @@ export const useRoomStore = defineStore('room', {
         this.rooms = response.data
       } catch (error) {
         console.error('Failed to fetch rooms', error)
+        this.rooms = [] // Reset to empty array on error
       }
     },
     async fetchRoomsData(token: string): Promise<void> {
@@ -41,7 +44,7 @@ export const useRoomStore = defineStore('room', {
         console.error('Failed to fetch rooms data', error)
       }
     },
-    async buildRoom(roomData: RoomCreate, token: string): Promise<void> {
+    async buildRoom(roomData: RoomCreate, token: string, vaultId: string): Promise<void> {
       try {
         const response = await axios.post<Room>('/api/v1/rooms/build/', roomData, {
           headers: {
@@ -49,8 +52,16 @@ export const useRoomStore = defineStore('room', {
           }
         })
         this.rooms.push(response.data)
+
+        // Refresh vault data to update caps
+        const vaultStore = useVaultStore()
+        await vaultStore.refreshVault(vaultId, token)
       } catch (error) {
         console.error('Failed to build room', error)
+        if (error instanceof AxiosError && error.response?.data?.detail) {
+          throw new Error(error.response.data.detail)
+        }
+        throw error
       }
     },
     async destroyRoom(roomId: string, token: string): Promise<void> {

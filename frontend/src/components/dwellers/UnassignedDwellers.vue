@@ -1,18 +1,25 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useDwellerStore } from '@/stores/dweller'
 import { useExplorationStore } from '@/stores/exploration'
 import { useAuthStore } from '@/stores/auth'
 import { Icon } from '@iconify/vue'
 import type { DwellerShort } from '@/models/dweller'
+import DwellerStatusBadge from './DwellerStatusBadge.vue'
+import DwellerFilterPanel from './DwellerFilterPanel.vue'
 
 const dwellerStore = useDwellerStore()
 const explorationStore = useExplorationStore()
 const authStore = useAuthStore()
 
-// Filter dwellers without room assignment AND not exploring in wasteland
+// Load filter preferences on mount
+onMounted(() => {
+  dwellerStore.loadFilterPreferences()
+})
+
+// Use filtered and sorted dwellers from store, but only show unassigned ones
 const unassignedDwellers = computed(() => {
-  return dwellerStore.dwellers.filter(dweller => {
+  return dwellerStore.filteredAndSortedDwellers.filter(dweller => {
     // Must not have a room assignment
     if (dweller.room_id) return false
 
@@ -114,6 +121,9 @@ const getImageUrl = (imagePath: string | null) => {
       <p class="panel-subtitle">Drag dwellers here to unassign them from rooms</p>
     </div>
 
+    <!-- Filter Panel (sort only, no status filter since all unassigned dwellers are idle) -->
+    <DwellerFilterPanel :show-status-filter="false" />
+
     <div
       v-if="unassignedDwellers.length === 0"
       class="empty-state"
@@ -163,8 +173,13 @@ const getImageUrl = (imagePath: string | null) => {
         </div>
 
         <div class="dweller-info">
-          <p class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</p>
-          <p class="dweller-level">Level {{ dweller.level }}</p>
+          <div class="dweller-header">
+            <div>
+              <p class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</p>
+              <p class="dweller-level">Level {{ dweller.level }}</p>
+            </div>
+            <DwellerStatusBadge :status="dwellerStore.getDwellerStatus(dweller.id)" size="small" />
+          </div>
 
           <div class="dweller-stats">
             <div class="stat-item" title="Strength">
@@ -409,6 +424,14 @@ const getImageUrl = (imagePath: string | null) => {
 
 .dweller-info {
   flex: 1;
+}
+
+.dweller-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .dweller-name {

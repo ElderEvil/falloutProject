@@ -23,7 +23,8 @@ export function useHoverPreview() {
     const { x, y } = hoverPosition.value
     const roomSize = roomStore.selectedRoom.size_min
     const cellsCount = Math.ceil(roomSize / 3)
-    const startX = roomSize <= 3 ? x : x - Math.floor(cellsCount / 2)
+    // Center the room preview on hover cell for multi-cell rooms
+    const startX = cellsCount === 1 ? x : x - Math.floor(cellsCount / 2)
     return Array.from({ length: cellsCount }, (_, i) => ({ x: startX + i, y }))
   })
 
@@ -35,9 +36,9 @@ export function useHoverPreview() {
         cell.x < 8 &&
         !roomStore.rooms.some(
           (room: Room) =>
-            room.coordinate_x <= cell.x &&
-            room.coordinate_x + Math.ceil(room.size / 3) > cell.x &&
-            room.coordinate_y === cell.y
+            (room.coordinate_x ?? 0) <= cell.x &&
+            (room.coordinate_x ?? 0) + Math.ceil((room.size || room.size_min) / 3) > cell.x &&
+            (room.coordinate_y ?? 0) === cell.y
         )
     )
   })

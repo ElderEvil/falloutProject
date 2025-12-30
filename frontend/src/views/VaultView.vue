@@ -156,7 +156,7 @@ const handleRoomSelected = (room: Room) => {
 
 const handleRoomPlaced = async (position: Position) => {
   if (selectedRoom.value && isPlacingRoom.value) {
-    console.log(`Placing ${selectedRoom.value.number} at position ${JSON.stringify(position)}`)
+    console.log(`Placing ${selectedRoom.value.name} at position ${JSON.stringify(position)}`)
     isPlacingRoom.value = false
     selectedRoom.value = null
   }

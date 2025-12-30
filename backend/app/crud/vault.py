@@ -264,7 +264,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         )
         return room_data_dict
 
-    async def initiate(self, *, db_session: AsyncSession, obj_in: VaultNumber, user_id: UUID4) -> Vault:
+    async def initiate(self, *, db_session: AsyncSession, obj_in: VaultNumber, user_id: UUID4) -> Vault:  # noqa: PLR0915
         """
         Create a new vault for a user and initialize it with essential rooms and dwellers.
         Includes:
@@ -288,24 +288,37 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         vault_door_data = self._prepare_room_data(rooms, "vault door", vault_db_obj.id, 0, 0)
         elevators_data = [self._prepare_room_data(rooms, "elevator", vault_db_obj.id, 0, y) for y in range(1, 4)]
 
-        # Production rooms (new)
+        # Capacity rooms (must be created before assigning dwellers to other rooms)
+        living_room_data = self._prepare_room_data(rooms, "living room", vault_db_obj.id, 2, 1)
+        storage_room_data = self._prepare_room_data(rooms, "storage room", vault_db_obj.id, 2, 2)
+
+        # Production rooms
         power_generator_data = self._prepare_room_data(rooms, "power generator", vault_db_obj.id, 1, 1)
         diner_data = self._prepare_room_data(rooms, "diner", vault_db_obj.id, 1, 2)
         water_treatment_data = self._prepare_room_data(rooms, "water treatment", vault_db_obj.id, 1, 3)
-        storage_room_data = self._prepare_room_data(rooms, "storage room", vault_db_obj.id, 1, 4)
 
         infrastructure_rooms = [RoomCreate(**vault_door_data)] + [RoomCreate(**data) for data in elevators_data]
+        capacity_rooms = [
+            RoomCreate(**living_room_data),
+            RoomCreate(**storage_room_data),
+        ]
         production_rooms = [
             RoomCreate(**power_generator_data),
             RoomCreate(**diner_data),
             RoomCreate(**water_treatment_data),
-            RoomCreate(**storage_room_data),
         ]
 
         from app.crud.room import room as room_crud
 
         # Create infrastructure rooms (don't affect vault capacity)
         await room_crud.create_all(db_session, infrastructure_rooms)
+
+        # Create capacity rooms FIRST (Living Rooms increase population_max)
+        for room_create in capacity_rooms:
+            room_obj = await room_crud.create(db_session, room_create)
+            vault_db_obj = await self.recalculate_vault_attributes(
+                db_session=db_session, vault_obj=vault_db_obj, room_obj=room_obj, action=RoomActionEnum.BUILD
+            )
 
         # Create production rooms and update vault capacities
         created_production_rooms = []

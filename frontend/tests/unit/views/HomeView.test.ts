@@ -15,13 +15,15 @@ describe('HomeView', () => {
   let vaultStore: any
 
   beforeEach(() => {
+    localStorage.clear()
     setActivePinia(createPinia())
+
+    // Set token in localStorage before initializing store
+    // so useLocalStorage picks it up
+    localStorage.setItem('token', 'test-token')
+
     authStore = useAuthStore()
     vaultStore = useVaultStore()
-
-    // Set authenticated state
-    authStore.token = 'test-token'
-    authStore.isAuthenticated = true
 
     router = createRouter({
       history: createMemoryHistory(),

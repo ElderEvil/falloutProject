@@ -27,6 +27,26 @@ BOOSTED_STAT_VALUE = 5
 
 
 class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
+    async def get(self, db_session: AsyncSession, id: UUID4) -> Dweller:
+        """Override to eager load weapon and outfit relationships."""
+        from app.utils.exceptions import ResourceNotFoundException
+
+        query = (
+            select(self.model)
+            .where(self.model.id == id)
+            .options(
+                selectinload(Dweller.vault),
+                selectinload(Dweller.room),
+                selectinload(Dweller.weapon),
+                selectinload(Dweller.outfit),
+            )
+        )
+        response = await db_session.execute(query)
+        db_obj = response.scalar_one_or_none()
+        if db_obj is None:
+            raise ResourceNotFoundException(self.model, identifier=id)
+        return db_obj
+
     async def get_multi_by_vault(  # noqa: PLR0913
         self,
         db_session: AsyncSession,

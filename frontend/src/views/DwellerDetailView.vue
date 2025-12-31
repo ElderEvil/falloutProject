@@ -68,6 +68,10 @@ const generateDwellerInfo = async () => {
     generatingAI.value = false
   }
 }
+
+const handleRefresh = async () => {
+  await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
+}
 </script>
 
 <template>
@@ -128,7 +132,7 @@ const generateDwellerInfo = async () => {
               />
 
               <!-- Right Column: Dweller Panel -->
-              <DwellerPanel :dweller="dweller" />
+              <DwellerPanel :dweller="dweller" @refresh="handleRefresh" />
             </div>
           </div>
         </div>

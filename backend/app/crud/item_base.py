@@ -41,10 +41,16 @@ class CRUDItem(
         return await super().update(db_session, id=id, obj_in=obj_in)
 
     async def equip(self, *, db_session: AsyncSession, item_id: UUID4, dweller_id: UUID4) -> ModelType:
+        from sqlalchemy.orm import selectinload
+
+        # Determine which relationship to eager load (weapon or outfit)
+        item_attr = self.model.__name__.lower()
+
         query = (
             select(Dweller, self.model)
             .outerjoin(self.model, (Dweller.id == self.model.dweller_id) | (self.model.id == item_id))
             .where(Dweller.id == dweller_id)
+            .options(selectinload(Dweller.vault).selectinload(Vault.storage), selectinload(getattr(Dweller, item_attr)))
         )
         result = await db_session.execute(query)
         row = result.first()
@@ -60,7 +66,6 @@ class CRUDItem(
             if not item:
                 raise ResourceNotFoundException(self.model, identifier=item_id)
 
-        item_attr = self.model.__name__.lower()
         current_item = getattr(dweller, item_attr)
 
         if current_item:

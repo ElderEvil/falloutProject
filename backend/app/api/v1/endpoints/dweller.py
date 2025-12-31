@@ -45,7 +45,7 @@ async def read_dweller_list(
     return await crud.dweller.get_multi(db_session=db_session, skip=skip, limit=limit)
 
 
-@router.get("/{dweller_id}", response_model=DwellerRead)
+@router.get("/{dweller_id}", response_model=DwellerReadFull)
 async def read_dweller(
     dweller_id: UUID4,
     _: CurrentActiveUser,  # TODO: check if user has access to the vault

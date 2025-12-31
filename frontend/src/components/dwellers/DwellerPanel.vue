@@ -11,6 +11,9 @@ interface Props {
 }
 
 defineProps<Props>()
+const emit = defineEmits<{
+  refresh: []
+}>()
 
 const activeTab = ref('profile')
 
@@ -41,7 +44,7 @@ const tabs = [
             :A="dweller.A"
             :L="dweller.L"
           />
-          <DwellerEquipment v-else-if="currentTab === 'equipment'" />
+          <DwellerEquipment v-else-if="currentTab === 'equipment'" :dweller="dweller" @refresh="emit('refresh')" />
         </div>
       </template>
     </UTabs>

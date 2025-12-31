@@ -4,12 +4,16 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useDwellerStore } from '@/stores/dweller'
 import { useExplorationStore } from '@/stores/exploration'
+import { useVaultStore } from '@/stores/vault'
 import { Icon } from '@iconify/vue'
+import ExplorationRewardsModal from '@/components/exploration/ExplorationRewardsModal.vue'
+import type { RewardsSummary } from '@/stores/exploration'
 
 const route = useRoute()
 const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
 const explorationStore = useExplorationStore()
+const vaultStore = useVaultStore()
 
 const vaultId = computed(() => route.params.id as string)
 
@@ -19,6 +23,14 @@ const sendSuccess = ref<string | null>(null)
 const showDurationModal = ref(false)
 const pendingDweller = ref<{ dwellerId: string; firstName: string; lastName: string; currentRoomId?: string } | null>(null)
 const selectedDuration = ref(4)
+
+// Rewards modal state
+const showRewardsModal = ref(false)
+const completedExplorationRewards = ref<RewardsSummary | null>(null)
+const completedDwellerName = ref('')
+
+// Track explorations being completed to prevent duplicate calls
+const completingExplorations = ref<Set<string>>(new Set())
 
 // Fetch active explorations on mount
 onMounted(async () => {
@@ -31,13 +43,22 @@ onMounted(async () => {
   }
 })
 
-// Poll for exploration updates every 30 seconds
+// Poll for exploration updates every 30 seconds and check for completion
 let pollInterval: NodeJS.Timeout | null = null
 onMounted(() => {
   pollInterval = setInterval(async () => {
     if (vaultId.value && authStore.token && explorationStore.activeExplorations) {
       try {
         await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
+
+        // Check for completed explorations
+        for (const exploration of activeExplorationsArray.value) {
+          const progress = getProgressPercentage(exploration.id)
+          if (progress >= 100 && exploration.status === 'active' && !completingExplorations.value.has(exploration.id)) {
+            // Auto-complete exploration
+            await handleCompleteExploration(exploration.id)
+          }
+        }
       } catch (error) {
         console.error('Failed to poll explorations:', error)
       }
@@ -145,10 +166,11 @@ const getProgressPercentage = (explorationId: string) => {
   const exploration = explorationStore.activeExplorations[explorationId]
   if (!exploration) return 0
 
-  const now = new Date().getTime()
+  const now = Date.now()
   const start = new Date(exploration.start_time).getTime()
   const duration = exploration.duration * 3600 * 1000 // hours to ms
   const elapsed = now - start
+
   return Math.min(100, (elapsed / duration) * 100)
 }
 
@@ -156,11 +178,32 @@ const recallDweller = async (explorationId: string) => {
   if (!authStore.token) return
 
   try {
-    await explorationStore.recallDweller(explorationId, authStore.token)
-    sendSuccess.value = 'Dweller recalled successfully!'
-    setTimeout(() => {
-      sendSuccess.value = null
-    }, 3000)
+    const exploration = explorationStore.activeExplorations[explorationId]
+    if (!exploration) {
+      console.error('Exploration not found:', explorationId)
+      return
+    }
+
+    const dweller = getDwellerById(exploration.dweller_id)
+    if (!dweller) {
+      console.error('Dweller not found:', exploration.dweller_id)
+      return
+    }
+
+    const result = await explorationStore.recallDweller(explorationId, authStore.token)
+
+    // Show rewards modal
+    if (result?.rewards_summary) {
+      completedExplorationRewards.value = result.rewards_summary
+      completedDwellerName.value = `${dweller.first_name} ${dweller.last_name}`
+      showRewardsModal.value = true
+    }
+
+    // Refresh vault and dweller data
+    if (vaultId.value) {
+      await vaultStore.refreshVault(vaultId.value, authStore.token)
+      await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
+    }
   } catch (error) {
     console.error('Failed to recall dweller:', error)
     sendError.value = 'Failed to recall dweller'
@@ -168,6 +211,62 @@ const recallDweller = async (explorationId: string) => {
       sendError.value = null
     }, 3000)
   }
+}
+
+const handleCompleteExploration = async (explorationId: string) => {
+  if (!authStore.token) return
+
+  // Prevent duplicate calls
+  if (completingExplorations.value.has(explorationId)) {
+    return
+  }
+
+  completingExplorations.value.add(explorationId)
+
+  try {
+    const exploration = explorationStore.activeExplorations[explorationId]
+    if (!exploration) {
+      console.error('Exploration not found:', explorationId)
+      completingExplorations.value.delete(explorationId)
+      return
+    }
+
+    const dweller = getDwellerById(exploration.dweller_id)
+    if (!dweller) {
+      console.error('Dweller not found:', exploration.dweller_id)
+      completingExplorations.value.delete(explorationId)
+      return
+    }
+
+    const result = await explorationStore.completeExploration(explorationId, authStore.token)
+
+    // Show rewards modal
+    if (result?.rewards_summary) {
+      completedExplorationRewards.value = result.rewards_summary
+      completedDwellerName.value = `${dweller.first_name} ${dweller.last_name}`
+      showRewardsModal.value = true
+    }
+
+    // Refresh vault and dweller data
+    if (vaultId.value) {
+      await vaultStore.refreshVault(vaultId.value, authStore.token)
+      await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
+    }
+  } catch (error) {
+    console.error('Failed to complete exploration:', error)
+    sendError.value = 'Failed to complete exploration'
+    setTimeout(() => {
+      sendError.value = null
+    }, 3000)
+  } finally {
+    completingExplorations.value.delete(explorationId)
+  }
+}
+
+const closeRewardsModal = () => {
+  showRewardsModal.value = false
+  completedExplorationRewards.value = null
+  completedDwellerName.value = ''
 }
 </script>
 
@@ -246,14 +345,25 @@ const recallDweller = async (explorationId: string) => {
                 {{ Math.round(getProgressPercentage(exploration.id)) }}% complete
               </div>
             </div>
-            <button
-              @click="recallDweller(exploration.id)"
-              class="recall-button"
-              title="Recall Dweller"
-            >
-              <Icon icon="mdi:arrow-u-left-top" class="h-5 w-5" />
-              Recall
-            </button>
+            <div class="explorer-actions">
+              <button
+                v-if="getProgressPercentage(exploration.id) >= 100"
+                @click="handleCompleteExploration(exploration.id)"
+                class="complete-button"
+                title="Complete Exploration"
+              >
+                <Icon icon="mdi:check-circle" class="h-5 w-5" />
+                Complete
+              </button>
+              <button
+                @click="recallDweller(exploration.id)"
+                class="recall-button"
+                title="Recall Dweller"
+              >
+                <Icon icon="mdi:arrow-u-left-top" class="h-5 w-5" />
+                Recall
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -298,6 +408,14 @@ const recallDweller = async (explorationId: string) => {
         </div>
       </div>
     </div>
+
+    <!-- Rewards Modal -->
+    <ExplorationRewardsModal
+      :show="showRewardsModal"
+      :rewards="completedExplorationRewards"
+      :dweller-name="completedDwellerName"
+      @close="closeRewardsModal"
+    />
   </div>
 </template>
 
@@ -496,6 +614,36 @@ const recallDweller = async (explorationId: string) => {
   background: linear-gradient(90deg, rgba(205, 133, 63, 0.6), rgba(205, 133, 63, 1));
   border-radius: 4px;
   transition: width 0.3s ease;
+}
+
+.explorer-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.complete-button {
+  background: rgba(0, 180, 0, 0.2);
+  border: 2px solid rgba(0, 255, 0, 0.5);
+  color: #00ff00;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  font-family: 'Courier New', monospace;
+  text-shadow: 0 0 4px rgba(0, 255, 0, 0.5);
+}
+
+.complete-button:hover {
+  background: rgba(0, 220, 0, 0.3);
+  border-color: #00ff00;
+  transform: scale(1.05);
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
 }
 
 .recall-button {

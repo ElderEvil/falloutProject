@@ -11,6 +11,11 @@ from sqlmodel import Field, SQLModel
 from app.models.base import BaseUUIDModel, TimeStampMixin
 
 
+def get_utc_now() -> datetime:
+    """Get current UTC time."""
+    return datetime.utcnow()
+
+
 class ExplorationStatus(StrEnum):
     """Status of a wasteland exploration."""
 
@@ -23,7 +28,7 @@ class ExplorationBase(SQLModel):
     """Base model for explorations."""
 
     duration: int = Field(ge=1, le=24, description="Duration in hours")
-    start_time: datetime = Field(default_factory=datetime.utcnow)
+    start_time: datetime = Field(default_factory=get_utc_now)
     end_time: datetime | None = Field(default=None)
     status: ExplorationStatus = Field(default=ExplorationStatus.ACTIVE, index=True)
 
@@ -62,7 +67,8 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
 
     def elapsed_time_seconds(self) -> int:
         """Calculate elapsed time in seconds."""
-        return int((datetime.utcnow() - self.start_time).total_seconds())
+        now = datetime.utcnow()
+        return int((now - self.start_time).total_seconds())
 
     def progress_percentage(self) -> float:
         """Calculate progress as percentage (0-100)."""
@@ -89,7 +95,8 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
             # First event should happen after 5-10 minutes
             return self.elapsed_time_seconds() >= 300
 
-        time_since_last_event = (datetime.utcnow() - last_event_time).total_seconds()
+        now = datetime.utcnow()
+        time_since_last_event = (now - last_event_time).total_seconds()
         return time_since_last_event >= 600  # 10 minutes
 
     def complete(self) -> None:

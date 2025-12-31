@@ -50,6 +50,7 @@ onMounted(async () => {
         :dweller-id="dwellerId"
         :dweller-name="dweller.first_name"
         :username="username"
+        :dweller-avatar="dweller.thumbnail_url"
       />
       <p v-else>Please wait while we set up the chat...</p>
     </div>
@@ -60,11 +61,11 @@ onMounted(async () => {
 .dweller-chat-page {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  padding: 10px;
+  min-height: 100vh;
+  padding: 20px;
   box-sizing: border-box;
   background-color: #0a0a0a;
-  color: #33ff00;
+  color: #00ff00;
 }
 
 .chat-header {
@@ -79,35 +80,26 @@ onMounted(async () => {
   align-items: center;
 }
 
+.dweller-info h1 {
+  font-size: 2rem;
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+}
+
 .dweller-thumbnail {
-  width: 50px;
-  height: 50px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   margin-right: 15px;
-  border: 2px solid #33ff00;
+  border: 2px solid #00ff00;
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
 }
 
-/* Ensure DwellerChat component takes full height of its container */
-:deep(.chat-interface) {
+.chat-container {
+  flex: 1;
   display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-/* Style adjustments for Fallout theme */
-:deep(*) {
-  font-family: 'VT323', monospace;
-}
-
-:deep(input),
-:deep(button) {
-  background-color: #1a1a1a;
-  color: #33ff00;
-  border: 1px solid #33ff00;
-}
-
-:deep(button:hover) {
-  background-color: #33ff00;
-  color: #0a0a0a;
+  justify-content: center;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
 }
 </style>

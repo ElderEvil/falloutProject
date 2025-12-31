@@ -191,9 +191,13 @@ const recallDweller = async (explorationId: string) => {
       @drop="handleDrop"
     >
       <div class="dropzone-content">
-        <Icon icon="mdi:map-marker-radius" class="dropzone-icon" />
-        <h3 class="dropzone-title">The Wasteland</h3>
-        <p class="dropzone-subtitle">Drag dwellers here to send them exploring</p>
+        <div class="dropzone-header">
+          <Icon icon="mdi:map-marker-radius" class="dropzone-icon" />
+          <div>
+            <h3 class="dropzone-title">The Wasteland</h3>
+            <p class="dropzone-subtitle">Drag dwellers here to send them exploring</p>
+          </div>
+        </div>
         <div v-if="isDraggingOver" class="drop-indicator">
           <Icon icon="mdi:arrow-down-bold" class="h-8 w-8 animate-bounce" />
           <span>Release to send!</span>
@@ -344,12 +348,12 @@ const recallDweller = async (explorationId: string) => {
   background: rgba(139, 69, 19, 0.2);
   border: 2px dashed rgba(205, 133, 63, 0.5);
   border-radius: 8px;
-  padding: 1.5rem;
+  padding: 1rem;
   transition: all 0.3s ease;
-  min-height: 150px;
+  min-height: 80px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   cursor: pointer;
 }
 
@@ -368,14 +372,19 @@ const recallDweller = async (explorationId: string) => {
 }
 
 .dropzone-content {
-  text-align: center;
   position: relative;
 }
 
+.dropzone-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
 .dropzone-icon {
-  font-size: 3rem;
+  font-size: 2rem;
   color: rgba(205, 133, 63, 0.8);
-  margin-bottom: 0.5rem;
+  flex-shrink: 0;
 }
 
 .drag-over .dropzone-icon {
@@ -384,10 +393,10 @@ const recallDweller = async (explorationId: string) => {
 
 .dropzone-title {
   color: rgba(205, 133, 63, 1);
-  font-size: 1.5rem;
+  font-size: 1.125rem;
   font-weight: bold;
   font-family: 'Courier New', monospace;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.125rem;
 }
 
 .drag-over .dropzone-title {
@@ -396,7 +405,7 @@ const recallDweller = async (explorationId: string) => {
 
 .dropzone-subtitle {
   color: rgba(205, 133, 63, 0.7);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-family: 'Courier New', monospace;
 }
 

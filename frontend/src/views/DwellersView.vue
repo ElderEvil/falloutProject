@@ -9,6 +9,8 @@ import { Icon } from '@iconify/vue'
 import DwellerStatusBadge from '@/components/dwellers/DwellerStatusBadge.vue'
 import DwellerFilterPanel from '@/components/dwellers/DwellerFilterPanel.vue'
 import DwellerGridItem from '@/components/dwellers/DwellerGridItem.vue'
+import DwellerCardSkeleton from '@/components/dwellers/DwellerCardSkeleton.vue'
+import DwellerGridItemSkeleton from '@/components/dwellers/DwellerGridItemSkeleton.vue'
 import SidePanel from '@/components/common/SidePanel.vue'
 import UTooltip from '@/components/ui/UTooltip.vue'
 import UButton from '@/components/ui/UButton.vue'
@@ -110,7 +112,14 @@ const getRoomForDweller = computed(() => (roomId: string | null | undefined) => 
 
       <!-- List View -->
       <ul v-if="dwellerStore.viewMode === 'list'" class="w-full space-y-4">
+        <!-- Loading Skeletons -->
+        <template v-if="dwellerStore.isLoading">
+          <DwellerCardSkeleton v-for="i in 3" :key="`skeleton-${i}`" />
+        </template>
+
+        <!-- Dweller Cards -->
         <li
+          v-else
           v-for="dweller in dwellerStore.dwellers"
           :key="dweller.id"
           class="flex items-start rounded-lg bg-gray-800 p-4 shadow-md hover:bg-gray-750 transition-all cursor-pointer"
@@ -193,7 +202,14 @@ const getRoomForDweller = computed(() => (roomId: string | null | undefined) => 
 
       <!-- Grid View -->
       <div v-else class="w-full dweller-grid">
+        <!-- Loading Skeletons -->
+        <template v-if="dwellerStore.isLoading">
+          <DwellerGridItemSkeleton v-for="i in 6" :key="`grid-skeleton-${i}`" />
+        </template>
+
+        <!-- Grid Items -->
         <DwellerGridItem
+          v-else
           v-for="dweller in dwellerStore.dwellers"
           :key="dweller.id"
           :dweller="dweller"

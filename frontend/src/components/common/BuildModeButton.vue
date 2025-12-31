@@ -11,7 +11,7 @@ const emit = defineEmits<{
   (e: 'toggleBuildMode'): void
 }>()
 
-const iconName = computed(() => props.buildModeActive ? 'mdi:close' : 'mdi:hammer-wrench')
+const iconName = computed(() => props.buildModeActive ? 'mdi:close' : 'mdi:hammer')
 </script>
 
 <template>

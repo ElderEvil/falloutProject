@@ -5,6 +5,7 @@ import LoginPage from '@/components/auth/LoginForm.vue';
 import RegisterPage from '@/components/auth/RegisterForm.vue';
 import VaultView from '@/views/VaultView.vue';
 import DwellersView from '@/views/DwellersView.vue';
+import DwellerDetailView from '@/views/DwellerDetailView.vue';
 import DwellerChatPage from '@/components/chat/DwellerChatPage.vue';
 import ObjectivesView from '@/views/ObjectivesView.vue';
 import ProfileView from '@/views/ProfileView.vue';
@@ -28,6 +29,12 @@ const router = createRouter({
       path: '/vault/:id/dwellers',
       name: 'dwellers',
       component: DwellersView,
+      meta: { requiresAuth: true, hideFromNav: true }
+    },
+    {
+      path: '/vault/:id/dwellers/:dwellerId',
+      name: 'dwellerDetail',
+      component: DwellerDetailView,
       meta: { requiresAuth: true, hideFromNav: true }
     },
     {

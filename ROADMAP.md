@@ -50,14 +50,33 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 ### Room System
 - [x] Room types (production, living quarters, storage, etc.)
 - [x] Room capacity management
-- [x] Room level and upgrade system
-- [x] Dweller assignment to rooms (backend)
+- [x] Room level and upgrade system (backend + frontend)
+- [x] Dweller assignment to rooms (backend + drag-and-drop UI)
+- [x] **Room Building UI**:
+  - 4×8 grid layout visualization
+  - Build mode with room selection menu
+  - Click-to-place room placement
+  - Cost calculation and caps deduction
+- [x] **Room Upgrade System**:
+  - Tier progression (1→2→3)
+  - Upgrade cost calculation (t2/t3_upgrade_cost)
+  - Capacity and output recalculation
+  - Visual upgrade button with cost display
+- [x] **Room Management**:
+  - Destroy rooms with partial refund
+  - Room selection and detail view
+  - Dweller assignment via drag-and-drop
 
 ### Exploration System
 - [x] Send dwellers to wasteland
 - [x] Exploration duration tracking
 - [x] Item discovery during exploration
 - [x] Experience and caps rewards
+- [x] **Exploration Rewards UI**:
+  - Terminal-themed rewards modal
+  - Experience, caps, items, distance display
+  - Auto-complete at 100% progress
+  - Manual complete button
 
 ### Objectives & Quests
 - [x] Objective creation and tracking
@@ -106,8 +125,15 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
   - Equip/unequip actions with real-time updates
 
 ### Testing & Quality
-- [x] **88 Frontend Tests** (Vitest) - all passing
+- [x] **Frontend Tests** (Vitest) - comprehensive coverage
+  - Room store tests (build, upgrade, destroy)
+  - Dweller management tests
+  - Exploration tests
+  - Auth and profile tests
 - [x] **Backend Test Suite** (pytest)
+  - Room API tests including upgrade functionality
+  - CRUD operation tests
+  - Integration tests
 - [x] **Code Quality Tools**:
   - Ruff (linting/formatting)
   - Oxlint (frontend)
@@ -119,11 +145,11 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 ## 🚧 In Progress
 
 ### Dweller Actions
-- [ ] **Assign to Room Modal** (UI implementation)
+- [ ] **Assign to Room Modal** (Enhanced UI)
   - Show available rooms with capacity
   - Filter by room type and requirements
   - Confirm assignment workflow
-- [ ] **Recall from Exploration** (UI implementation)
+  - *(Note: Drag-and-drop assignment already implemented)*
 
 ---
 
@@ -132,23 +158,28 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 ### Phase 1: Core Gameplay Loop (Q1 2025)
 
 #### Room Management
-- [ ] **Room Assignment UI**
+- [x] **Room Assignment UI** ✅
   - Drag-and-drop dweller assignment
   - Room detail panel with current workers
-  - Optimal dweller suggestion based on SPECIAL
+- [ ] **Optimal Dweller Suggestions**
+  - Suggest best dwellers for room based on SPECIAL
+  - Efficiency indicators
 - [ ] **Room Production**
   - Resource generation (power, water, food)
   - Production rates based on dweller stats
   - Resource consumption and balance
-- [ ] **Room Upgrades**
-  - Multi-level room upgrades
+- [x] **Room Upgrades** ✅
+  - Multi-level room upgrades (Tier 1→2→3)
   - Increased capacity and efficiency
-  - Visual upgrades in UI
+  - Visual upgrade button in UI
 
 #### Resource Management
-- [ ] **Power, Water, Food Systems**
+- [x] **Power, Water, Food Systems** ✅
   - Resource bars in vault dashboard
-  - Consumption rates
+  - Display current/max values
+- [ ] **Resource Consumption & Production**
+  - Active consumption rates
+  - Production rates based on dweller stats
   - Warning system for low resources
   - Outage effects (no power = rooms stop working)
 - [ ] **Storage System UI**
@@ -325,22 +356,23 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ## 📊 Progress Metrics
 
-### Current Stats (as of December 2024)
-- **Backend Endpoints**: 17 routers with 60+ endpoints
+### Current Stats (as of December 31, 2024)
+- **Backend Endpoints**: 17 routers with 70+ endpoints
 - **Frontend Components**: 50+ Vue components
 - **UI Components**: 8 custom reusable components
 - **Test Coverage**:
-  - Frontend: 88 tests passing
-  - Backend: Comprehensive API and CRUD tests
+  - Frontend: 95+ tests passing (including room upgrade tests)
+  - Backend: Comprehensive API and CRUD tests (including 7 room upgrade tests)
 - **Models**: 15+ database models
-- **Lines of Code**: ~15,000+ (backend + frontend)
+- **Lines of Code**: ~17,000+ (backend + frontend)
 
 ### Version Milestones
 - **v0.1** - Basic vault and dweller management ✅
-- **v0.2** - Equipment system ✅ (Current)
-- **v0.3** - Room management and resource production (Q1 2025)
-- **v0.4** - Combat and events (Q2 2025)
-- **v0.5** - Advanced progression (Q3 2025)
+- **v0.2** - Equipment system ✅
+- **v0.3** - Room management and upgrades ✅ (Current)
+- **v0.4** - Resource production and consumption (Q1 2025)
+- **v0.5** - Combat and events (Q2 2025)
+- **v0.6** - Advanced progression (Q3 2025)
 - **v1.0** - Full release with polish (Q4 2025)
 
 ---
@@ -358,3 +390,15 @@ This roadmap is subject to change based on:
 - Community contributions
 
 Last updated: December 31, 2024
+
+---
+
+## 🎉 Recent Highlights (December 2024)
+
+### Room Management System v0.3
+- ✅ **4×8 Grid Layout** - Visual vault room grid with drag-and-drop
+- ✅ **Build System** - Click-to-place room building with cost calculation
+- ✅ **Upgrade System** - Tier progression (1→2→3) with capacity scaling
+- ✅ **Dweller Assignment** - Drag-and-drop dwellers to rooms
+- ✅ **Exploration Rewards** - Auto-complete with detailed rewards modal
+- ✅ **Comprehensive Testing** - 7 backend + 5 frontend tests for upgrades

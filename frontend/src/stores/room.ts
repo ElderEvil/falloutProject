@@ -74,6 +74,32 @@ export const useRoomStore = defineStore('room', () => {
     }
   }
 
+  async function upgradeRoom(roomId: string, token: string, vaultId: string): Promise<void> {
+    try {
+      const response = await axios.post<Room>(`/api/v1/rooms/upgrade/${roomId}`, {}, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+
+      // Update the room in the local array
+      const index = rooms.value.findIndex((room) => room.id === roomId)
+      if (index !== -1) {
+        rooms.value[index] = response.data
+      }
+
+      // Refresh vault data to update caps
+      const vaultStore = useVaultStore()
+      await vaultStore.refreshVault(vaultId, token)
+    } catch (error) {
+      console.error('Failed to upgrade room', error)
+      if (error instanceof AxiosError && error.response?.data?.detail) {
+        throw new Error(error.response.data.detail)
+      }
+      throw error
+    }
+  }
+
   function selectRoom(room: Room): void {
     selectedRoom.value = room
     isPlacingRoom.value = true
@@ -95,6 +121,7 @@ export const useRoomStore = defineStore('room', () => {
     fetchRoomsData,
     buildRoom,
     destroyRoom,
+    upgradeRoom,
     selectRoom,
     deselectRoom
   }

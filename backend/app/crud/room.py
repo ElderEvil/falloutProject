@@ -151,5 +151,72 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
 
         return db_obj
 
+    async def upgrade(self, *, db_session: AsyncSession, room_id: UUID4) -> Room:
+        """Upgrade a room to the next tier."""
+        room = await self.get(db_session, room_id)
+        vault = await vault_crud.get(db_session, id=room.vault_id)
+
+        # Determine max tier based on available upgrade costs
+        max_tier = room.max_tier
+
+        # Check if room can be upgraded
+        if room.tier >= max_tier:
+            msg = f"Room {room.name} is already at maximum tier {max_tier}"
+            raise ValueError(msg)
+
+        # Determine upgrade cost
+        if room.tier == 1 and room.t2_upgrade_cost:
+            upgrade_cost = room.t2_upgrade_cost
+        elif room.tier == 2 and room.t3_upgrade_cost:
+            upgrade_cost = room.t3_upgrade_cost
+        else:
+            msg = f"No upgrade cost defined for room {room.name} at tier {room.tier}"
+            raise ValueError(msg)
+
+        # Withdraw caps from vault
+        await vault_crud.withdraw_caps(db_session=db_session, vault_obj=vault, amount=upgrade_cost)
+
+        # Store old tier for recalculation
+        old_tier = room.tier
+
+        # Upgrade room tier
+        room.tier += 1
+
+        # Recalculate capacity and output proportionally based on tier increase
+        # Capacity and output scale with tier level, so we multiply by the ratio
+        new_capacity = None
+        new_output = None
+
+        if room.capacity is not None:
+            # Recalculate based on tier scaling (capacity increases with tier)
+            # Formula typically has (L+constant) factor, so we scale proportionally
+            tier_ratio = (room.tier + 4) / (old_tier + 4)  # Using +4 from common formula pattern
+            new_capacity = int(room.capacity * tier_ratio)
+
+        if room.output is not None:
+            # Recalculate based on tier scaling (output increases with tier)
+            tier_ratio = (room.tier + 4) / (old_tier + 4)
+            new_output = int(room.output * tier_ratio)
+
+        # Update room in database
+        await self.update(
+            db_session=db_session,
+            obj_in=RoomUpdate(tier=room.tier, capacity=new_capacity, output=new_output),
+            id=room.id,
+        )
+
+        # Update local room object for recalculation
+        room.capacity = new_capacity
+        room.output = new_output
+
+        # Recalculate vault attributes if needed
+        if self.requires_recalculation(room):
+            await vault_crud.recalculate_vault_attributes(
+                db_session=db_session, vault_obj=vault, room_obj=room, action=RoomActionEnum.UPGRADE
+            )
+
+        await db_session.refresh(room)
+        return room
+
 
 room = CRUDRoom(Room)

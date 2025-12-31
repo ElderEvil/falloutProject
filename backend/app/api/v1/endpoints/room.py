@@ -64,3 +64,17 @@ async def build_room(room_data: RoomCreate, db_session: Annotated[AsyncSession, 
 @router.delete("/destroy/{room_id}", status_code=204)
 async def destroy_room(room_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
     return await crud.room.destroy(db_session, room_id)
+
+
+@router.post("/upgrade/{room_id}", response_model=RoomRead)
+async def upgrade_room(room_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
+    from fastapi import HTTPException
+
+    from app.utils.exceptions import InsufficientResourcesException
+
+    try:
+        return await crud.room.upgrade(db_session=db_session, room_id=room_id)
+    except (ValueError, InsufficientResourcesException) as e:
+        if isinstance(e, InsufficientResourcesException):
+            raise  # Re-raise HTTPException as-is
+        raise HTTPException(status_code=400, detail=str(e))  # noqa: B904

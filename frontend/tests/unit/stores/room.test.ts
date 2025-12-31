@@ -194,6 +194,107 @@ describe('Room Store', () => {
     })
   })
 
+  describe('upgradeRoom', () => {
+    it('should upgrade a room and refresh vault', async () => {
+      const originalRoom = {
+        id: 'room-1',
+        name: 'Power Generator',
+        tier: 1,
+        capacity: 10,
+        output: 20,
+        vault_id: 'vault-1'
+      }
+
+      const upgradedRoom = {
+        ...originalRoom,
+        tier: 2,
+        capacity: 12,
+        output: 24
+      }
+
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: upgradedRoom })
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: { id: 'vault-1', bottle_caps: 500 } })
+
+      const store = useRoomStore()
+      const vaultStore = useVaultStore()
+      store.rooms = [originalRoom as any]
+      vaultStore.loadedVaults['vault-1'] = { id: 'vault-1', bottle_caps: 1000 } as any
+
+      await store.upgradeRoom('room-1', 'test-token', 'vault-1')
+
+      expect(axios.post).toHaveBeenCalledWith(
+        '/api/v1/rooms/upgrade/room-1',
+        {},
+        expect.objectContaining({
+          headers: { Authorization: 'Bearer test-token' }
+        })
+      )
+      expect(store.rooms[0].tier).toBe(2)
+      expect(store.rooms[0].capacity).toBe(12)
+      expect(store.rooms[0].output).toBe(24)
+    })
+
+    it('should throw error when insufficient caps', async () => {
+      const error = new AxiosError('Request failed')
+      error.response = {
+        data: {
+          detail: 'Insufficient caps for upgrade'
+        }
+      } as any
+
+      vi.mocked(axios.post).mockRejectedValueOnce(error)
+
+      const store = useRoomStore()
+      await expect(
+        store.upgradeRoom('room-1', 'test-token', 'vault-1')
+      ).rejects.toThrow('Insufficient caps for upgrade')
+    })
+
+    it('should throw error when room is at max tier', async () => {
+      const error = new AxiosError('Request failed')
+      error.response = {
+        data: {
+          detail: 'Room is already at maximum tier 3'
+        }
+      } as any
+
+      vi.mocked(axios.post).mockRejectedValueOnce(error)
+
+      const store = useRoomStore()
+      await expect(
+        store.upgradeRoom('room-1', 'test-token', 'vault-1')
+      ).rejects.toThrow('Room is already at maximum tier 3')
+    })
+
+    it('should handle generic errors', async () => {
+      vi.mocked(axios.post).mockRejectedValueOnce(new Error('Network error'))
+
+      const store = useRoomStore()
+      await expect(
+        store.upgradeRoom('room-1', 'test-token', 'vault-1')
+      ).rejects.toThrow()
+    })
+
+    it('should update the correct room in the array', async () => {
+      const room1 = { id: 'room-1', name: 'Power Gen', tier: 1 }
+      const room2 = { id: 'room-2', name: 'Diner', tier: 1 }
+      const upgradedRoom1 = { ...room1, tier: 2 }
+
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: upgradedRoom1 })
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: { id: 'vault-1' } })
+
+      const store = useRoomStore()
+      const vaultStore = useVaultStore()
+      store.rooms = [room1 as any, room2 as any]
+      vaultStore.loadedVaults['vault-1'] = { id: 'vault-1' } as any
+
+      await store.upgradeRoom('room-1', 'test-token', 'vault-1')
+
+      expect(store.rooms[0].tier).toBe(2)
+      expect(store.rooms[1].tier).toBe(1) // Other room unchanged
+    })
+  })
+
   describe('Room Selection', () => {
     it('should select a room for placement', () => {
       const store = useRoomStore()

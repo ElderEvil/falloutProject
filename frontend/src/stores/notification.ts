@@ -1,58 +1,78 @@
 import { defineStore } from 'pinia'
+import { ref } from 'vue'
+import { useTimeoutFn } from '@vueuse/core'
 
 export interface Notification {
-  id: string
-  type: 'success' | 'error' | 'warning' | 'info'
-  title: string
-  message: string
-  details?: string
-  duration?: number
+  id: string;
+  type: 'success' | 'error' | 'warning' | 'info';
+  title: string;
+  message: string;
+  details?: string;
+  duration?: number;
 }
 
-export const useNotificationStore = defineStore('notification', {
-  state: () => ({
-    notifications: [] as Notification[]
-  }),
-  actions: {
-    add(notification: Omit<Notification, 'id'>) {
-      const id = Date.now().toString() + Math.random().toString(36).substring(2, 9)
-      const newNotification: Notification = {
-        id,
-        duration: 5000,
-        ...notification
-      }
+export const useNotificationStore = defineStore('notification', () => {
+  // State
+  const notifications = ref<Notification[]>([]);
 
-      this.notifications.push(newNotification)
+  // Actions
+  function add(notification: Omit<Notification, 'id'>): string {
+    const id = Date.now().toString() + Math.random().toString(36).substring(2, 9);
+    const newNotification: Notification = {
+      id,
+      duration: 5000,
+      ...notification
+    };
 
-      // Auto remove after duration
-      if (newNotification.duration && newNotification.duration > 0) {
-        setTimeout(() => {
-          this.remove(id)
-        }, newNotification.duration)
-      }
+    notifications.value.push(newNotification);
 
-      return id
-    },
-    remove(id: string) {
-      const index = this.notifications.findIndex(n => n.id === id)
-      if (index > -1) {
-        this.notifications.splice(index, 1)
-      }
-    },
-    success(title: string, message: string, details?: string) {
-      return this.add({ type: 'success', title, message, details })
-    },
-    error(title: string, message: string, details?: string) {
-      return this.add({ type: 'error', title, message, details, duration: 8000 })
-    },
-    warning(title: string, message: string, details?: string) {
-      return this.add({ type: 'warning', title, message, details })
-    },
-    info(title: string, message: string, details?: string) {
-      return this.add({ type: 'info', title, message, details })
-    },
-    clear() {
-      this.notifications = []
+    // Auto remove after duration using VueUse's useTimeoutFn
+    if (newNotification.duration && newNotification.duration > 0) {
+      useTimeoutFn(() => {
+        remove(id);
+      }, newNotification.duration);
+    }
+
+    return id;
+  }
+
+  function remove(id: string): void {
+    const index = notifications.value.findIndex((n) => n.id === id);
+    if (index > -1) {
+      notifications.value.splice(index, 1);
     }
   }
-})
+
+  function success(title: string, message: string, details?: string): string {
+    return add({ type: 'success', title, message, details });
+  }
+
+  function error(title: string, message: string, details?: string): string {
+    return add({ type: 'error', title, message, details, duration: 8000 });
+  }
+
+  function warning(title: string, message: string, details?: string): string {
+    return add({ type: 'warning', title, message, details });
+  }
+
+  function info(title: string, message: string, details?: string): string {
+    return add({ type: 'info', title, message, details });
+  }
+
+  function clear(): void {
+    notifications.value = [];
+  }
+
+  return {
+    // State
+    notifications,
+    // Actions
+    add,
+    remove,
+    success,
+    error,
+    warning,
+    info,
+    clear
+  };
+});

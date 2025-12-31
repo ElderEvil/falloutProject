@@ -15,7 +15,6 @@ apiClient.interceptors.request.use(
     const authStore = useAuthStore()
 
     if (authStore.token) {
-      // Optional: Check if the token is expiring soon
       config.headers.Authorization = `Bearer ${authStore.token}`
     }
 
@@ -39,7 +38,9 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
       await authStore.refreshAccessToken()
-      axios.defaults.headers.common['Authorization'] = 'Bearer ' + authStore.token
+      if (authStore.token) {
+        axios.defaults.headers.common['Authorization'] = 'Bearer ' + authStore.token
+      }
       return apiClient(originalRequest)
     }
 

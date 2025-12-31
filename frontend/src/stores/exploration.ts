@@ -1,5 +1,6 @@
-import { defineStore } from 'pinia';
-import axios from '@/plugins/axios';
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import axios from '@/plugins/axios'
 
 export interface ExplorationEvent {
   type: string;
@@ -68,207 +69,226 @@ export interface RewardsSummary {
   recalled_early?: boolean;
 }
 
-export const useExplorationStore = defineStore('exploration', {
-  state: () => ({
-    explorations: [] as Exploration[],
-    activeExplorations: {} as Record<string, Exploration>,
-    lastRewards: null as RewardsSummary | null,
-    isLoading: false,
-    error: null as string | null
-  }),
+export const useExplorationStore = defineStore('exploration', () => {
+  // State
+  const explorations = ref<Exploration[]>([])
+  const activeExplorations = ref<Record<string, Exploration>>({})
+  const lastRewards = ref<RewardsSummary | null>(null)
+  const isLoading = ref(false)
+  const error = ref<string | null>(null)
 
-  getters: {
-    getExplorationByDwellerId: (state) => (dwellerId: string) => {
-      return state.explorations.find((e) => e.dweller_id === dwellerId && e.status === 'active');
-    },
+  // Getters
+  const getExplorationByDwellerId = computed(() => (dwellerId: string) => {
+    return explorations.value.find((e) => e.dweller_id === dwellerId && e.status === 'active')
+  })
 
-    getActiveExplorationsForVault: (state) => (vaultId: string) => {
-      return state.explorations.filter((e) => e.vault_id === vaultId && e.status === 'active');
-    },
+  const getActiveExplorationsForVault = computed(() => (vaultId: string) => {
+    return explorations.value.filter((e) => e.vault_id === vaultId && e.status === 'active')
+  })
 
-    isDwellerExploring: (state) => (dwellerId: string) => {
-      return state.explorations.some((e) => e.dweller_id === dwellerId && e.status === 'active');
-    }
-  },
+  const isDwellerExploring = computed(() => (dwellerId: string) => {
+    return explorations.value.some((e) => e.dweller_id === dwellerId && e.status === 'active')
+  })
 
-  actions: {
-    async sendDwellerToWasteland(
-      vaultId: string,
-      dwellerId: string,
-      duration: number,
-      token: string
-    ) {
-      this.isLoading = true;
-      this.error = null;
-      try {
-        const response = await axios.post(
-          `/api/v1/explorations/send?vault_id=${vaultId}`,
-          {
-            dweller_id: dwellerId,
-            duration
-          },
-          {
-            headers: { Authorization: `Bearer ${token}` }
-          }
-        );
-
-        const exploration = response.data;
-        this.explorations.push(exploration);
-        this.activeExplorations[exploration.id] = exploration;
-
-        return exploration;
-      } catch (error) {
-        console.error('Failed to send dweller to wasteland:', error);
-        this.error = 'Failed to send dweller to wasteland';
-        throw error;
-      } finally {
-        this.isLoading = false;
-      }
-    },
-
-    async fetchExplorationsByVault(vaultId: string, token: string, activeOnly = true) {
-      this.isLoading = true;
-      this.error = null;
-      try {
-        const response = await axios.get(
-          `/api/v1/explorations/vault/${vaultId}?active_only=${activeOnly}`,
-          {
-            headers: { Authorization: `Bearer ${token}` }
-          }
-        );
-
-        this.explorations = response.data;
-        // Update active explorations map
-        this.activeExplorations = {};
-        response.data
-          .filter((e: Exploration) => e.status === 'active')
-          .forEach((e: Exploration) => {
-            this.activeExplorations[e.id] = e;
-          });
-
-        return response.data;
-      } catch (error) {
-        console.error('Failed to fetch explorations:', error);
-        this.error = 'Failed to fetch explorations';
-        throw error;
-      } finally {
-        this.isLoading = false;
-      }
-    },
-
-    async fetchExplorationDetails(explorationId: string, token: string) {
-      try {
-        const response = await axios.get(`/api/v1/explorations/${explorationId}`, {
+  // Actions
+  async function sendDwellerToWasteland(
+    vaultId: string,
+    dwellerId: string,
+    duration: number,
+    token: string
+  ): Promise<Exploration> {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await axios.post(
+        `/api/v1/explorations/send?vault_id=${vaultId}`,
+        {
+          dweller_id: dwellerId,
+          duration
+        },
+        {
           headers: { Authorization: `Bearer ${token}` }
-        });
-
-        // Update in explorations list
-        const index = this.explorations.findIndex((e) => e.id === explorationId);
-        if (index !== -1) {
-          this.explorations[index] = response.data;
         }
+      )
 
-        // Update in active explorations
-        if (response.data.status === 'active') {
-          this.activeExplorations[explorationId] = response.data;
-        } else {
-          delete this.activeExplorations[explorationId];
-        }
+      const exploration = response.data
+      explorations.value.push(exploration)
+      activeExplorations.value[exploration.id] = exploration
 
-        return response.data;
-      } catch (error) {
-        console.error('Failed to fetch exploration details:', error);
-        throw error;
-      }
-    },
-
-    async fetchExplorationProgress(explorationId: string, token: string) {
-      try {
-        const response = await axios.get(`/api/v1/explorations/${explorationId}/progress`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        return response.data as ExplorationProgress;
-      } catch (error) {
-        console.error('Failed to fetch exploration progress:', error);
-        throw error;
-      }
-    },
-
-    async recallDweller(explorationId: string, token: string) {
-      this.isLoading = true;
-      this.error = null;
-      try {
-        const response = await axios.post(
-          `/api/v1/explorations/${explorationId}/recall`,
-          {},
-          {
-            headers: { Authorization: `Bearer ${token}` }
-          }
-        );
-
-        const { exploration, rewards_summary } = response.data;
-        this.lastRewards = rewards_summary;
-
-        // Update exploration in state
-        const index = this.explorations.findIndex((e) => e.id === explorationId);
-        if (index !== -1) {
-          this.explorations[index] = exploration;
-        }
-
-        // Remove from active explorations
-        delete this.activeExplorations[explorationId];
-
-        return response.data;
-      } catch (error) {
-        console.error('Failed to recall dweller:', error);
-        this.error = 'Failed to recall dweller';
-        throw error;
-      } finally {
-        this.isLoading = false;
-      }
-    },
-
-    async completeExploration(explorationId: string, token: string) {
-      this.isLoading = true;
-      this.error = null;
-      try {
-        const response = await axios.post(
-          `/api/v1/explorations/${explorationId}/complete`,
-          {},
-          {
-            headers: { Authorization: `Bearer ${token}` }
-          }
-        );
-
-        const { exploration, rewards_summary } = response.data;
-        this.lastRewards = rewards_summary;
-
-        // Update exploration in state
-        const index = this.explorations.findIndex((e) => e.id === explorationId);
-        if (index !== -1) {
-          this.explorations[index] = exploration;
-        }
-
-        // Remove from active explorations
-        delete this.activeExplorations[explorationId];
-
-        return response.data;
-      } catch (error) {
-        console.error('Failed to complete exploration:', error);
-        this.error = 'Failed to complete exploration';
-        throw error;
-      } finally {
-        this.isLoading = false;
-      }
-    },
-
-    clearLastRewards() {
-      this.lastRewards = null;
-    },
-
-    clearError() {
-      this.error = null;
+      return exploration
+    } catch (err) {
+      console.error('Failed to send dweller to wasteland:', err)
+      error.value = 'Failed to send dweller to wasteland'
+      throw err
+    } finally {
+      isLoading.value = false
     }
   }
-});
+
+  async function fetchExplorationsByVault(vaultId: string, token: string, activeOnly = true): Promise<Exploration[]> {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await axios.get(
+        `/api/v1/explorations/vault/${vaultId}?active_only=${activeOnly}`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      )
+
+      explorations.value = response.data
+      // Update active explorations map
+      activeExplorations.value = {}
+      response.data
+        .filter((e: Exploration) => e.status === 'active')
+        .forEach((e: Exploration) => {
+          activeExplorations.value[e.id] = e
+        })
+
+      return response.data
+    } catch (err) {
+      console.error('Failed to fetch explorations:', err)
+      error.value = 'Failed to fetch explorations'
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function fetchExplorationDetails(explorationId: string, token: string): Promise<Exploration> {
+    try {
+      const response = await axios.get(`/api/v1/explorations/${explorationId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+
+      // Update in explorations list
+      const index = explorations.value.findIndex((e) => e.id === explorationId)
+      if (index !== -1) {
+        explorations.value[index] = response.data
+      }
+
+      // Update in active explorations
+      if (response.data.status === 'active') {
+        activeExplorations.value[explorationId] = response.data
+      } else {
+        delete activeExplorations.value[explorationId]
+      }
+
+      return response.data
+    } catch (err) {
+      console.error('Failed to fetch exploration details:', err)
+      throw err
+    }
+  }
+
+  async function fetchExplorationProgress(explorationId: string, token: string): Promise<ExplorationProgress> {
+    try {
+      const response = await axios.get(`/api/v1/explorations/${explorationId}/progress`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+
+      return response.data as ExplorationProgress
+    } catch (err) {
+      console.error('Failed to fetch exploration progress:', err)
+      throw err
+    }
+  }
+
+  async function recallDweller(explorationId: string, token: string): Promise<any> {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await axios.post(
+        `/api/v1/explorations/${explorationId}/recall`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      )
+
+      const { exploration, rewards_summary } = response.data
+      lastRewards.value = rewards_summary
+
+      // Update exploration in state
+      const index = explorations.value.findIndex((e) => e.id === explorationId)
+      if (index !== -1) {
+        explorations.value[index] = exploration
+      }
+
+      // Remove from active explorations
+      delete activeExplorations.value[explorationId]
+
+      return response.data
+    } catch (err) {
+      console.error('Failed to recall dweller:', err)
+      error.value = 'Failed to recall dweller'
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function completeExploration(explorationId: string, token: string): Promise<any> {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await axios.post(
+        `/api/v1/explorations/${explorationId}/complete`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      )
+
+      const { exploration, rewards_summary } = response.data
+      lastRewards.value = rewards_summary
+
+      // Update exploration in state
+      const index = explorations.value.findIndex((e) => e.id === explorationId)
+      if (index !== -1) {
+        explorations.value[index] = exploration
+      }
+
+      // Remove from active explorations
+      delete activeExplorations.value[explorationId]
+
+      return response.data
+    } catch (err) {
+      console.error('Failed to complete exploration:', err)
+      error.value = 'Failed to complete exploration'
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  function clearLastRewards(): void {
+    lastRewards.value = null
+  }
+
+  function clearError(): void {
+    error.value = null
+  }
+
+  return {
+    // State
+    explorations,
+    activeExplorations,
+    lastRewards,
+    isLoading,
+    error,
+    // Getters
+    getExplorationByDwellerId,
+    getActiveExplorationsForVault,
+    isDwellerExploring,
+    // Actions
+    sendDwellerToWasteland,
+    fetchExplorationsByVault,
+    fetchExplorationDetails,
+    fetchExplorationProgress,
+    recallDweller,
+    completeExploration,
+    clearLastRewards,
+    clearError
+  }
+})

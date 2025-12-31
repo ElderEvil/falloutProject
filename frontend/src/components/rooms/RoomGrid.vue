@@ -169,19 +169,6 @@ const handleDrop = async (event: DragEvent, roomId: string) => {
       {{ assignmentError }}
     </div>
 
-    <!-- Debug info -->
-    <div class="debug-info" style="color: white; padding: 10px; background: rgba(0,0,0,0.8); margin-bottom: 10px; font-family: monospace;">
-      <p>Rooms count: {{ rooms.length }}</p>
-      <p>Grid cells count: {{ gridCells.length }}</p>
-      <p>Room store rooms: {{ roomStore.rooms.length }}</p>
-      <p>Is array: {{ Array.isArray(roomStore.rooms) }}</p>
-      <p v-if="rooms.length > 0">First room: {{ rooms[0].name }} at ({{ rooms[0].coordinate_x }}, {{ rooms[0].coordinate_y }}), size: {{ rooms[0].size || rooms[0].size_min }}</p>
-      <details style="margin-top: 10px;">
-        <summary>Raw rooms data</summary>
-        <pre style="max-height: 200px; overflow: auto; font-size: 10px;">{{ JSON.stringify(roomStore.rooms, null, 2) }}</pre>
-      </details>
-    </div>
-
     <div class="room-grid">
       <!-- Render built rooms -->
       <div
@@ -327,21 +314,23 @@ const handleDrop = async (event: DragEvent, roomId: string) => {
 }
 
 .room-name {
-  font-size: 1.2em;
+  font-size: 0.95em; /* Reduced from 1.2em */
   margin-bottom: 5px;
   color: #00ff00;
-  font-weight: bold;
+  font-weight: 600; /* Slightly less bold but still readable */
 }
 
 .room-category {
-  font-size: 0.9em;
+  font-size: 0.75em; /* Reduced from 0.9em */
   color: #aaa;
+  font-weight: 500;
 }
 
 .room-tier {
-  font-size: 0.75em;
+  font-size: 0.65em; /* Reduced from 0.75em */
   color: #fbbf24;
   margin-top: 2px;
+  font-weight: 600;
 }
 
 .built-room {

@@ -1,122 +1,156 @@
+import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import { useLocalStorage } from '@vueuse/core'
 import axios from '@/plugins/axios'
 import type { User } from '@/types/user'
 
-export const useAuthStore = defineStore('auth', {
-  state: () => ({
-    token: localStorage.getItem('token') as string | null,
-    refreshToken: localStorage.getItem('refreshToken') as string | null,
-    user: JSON.parse(localStorage.getItem('user') as string) as User | null
-  }),
-  getters: {
-    isAuthenticated: (state) => !!state.token
-  },
-  actions: {
-    async login(username: string, password: string) {
-      try {
-        const formData = new URLSearchParams()
-        formData.append('username', username)
-        formData.append('password', password)
+export const useAuthStore = defineStore('auth', () => {
+  // State (using VueUse for reactive localStorage)
+  const token = useLocalStorage<string | null>('token', null)
+  const refreshToken = useLocalStorage<string | null>('refreshToken', null)
+  const user = useLocalStorage<User | null>('user', null, {
+    serializer: {
+      read: (v: string) => {
+        try {
+          return JSON.parse(v)
+        } catch {
+          return null
+        }
+      },
+      write: (v: User | null) => JSON.stringify(v)
+    }
+  })
 
-        const response = await axios.post('/api/v1/login/access-token', formData, {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
-        })
+  // Getters
+  const isAuthenticated = computed(() => !!token.value)
 
-        this.token = response.data.access_token
-        this.refreshToken = response.data.refresh_token
-        if (!this.token || !this.refreshToken) return false
+  // Actions
+  async function login(username: string, password: string): Promise<boolean> {
+    try {
+      const formData = new URLSearchParams()
+      formData.append('username', username)
+      formData.append('password', password)
 
-        localStorage.setItem('token', this.token!)
-        localStorage.setItem('refreshToken', this.refreshToken)
+      const response = await axios.post('/api/v1/login/access-token', formData, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      })
 
-        await this.fetchUser()
-        return true
-      } catch (error) {
-        console.error('Login failed', error)
+      token.value = response.data.access_token
+      refreshToken.value = response.data.refresh_token
+
+      if (!token.value || !refreshToken.value) {
         return false
       }
-    },
-    async register(username: string, email: string, password: string) {
-      try {
-        const response = await axios.post('/api/v1/users/open', {
-          username: username,
-          email: email,
-          password: password
-        })
 
-        this.token = response.data.access_token
-        this.refreshToken = response.data.refresh_token
-        if (!this.token || !this.refreshToken) return false
+      await fetchUser()
+      return true
+    } catch (error) {
+      console.error('Login failed', error)
+      return false
+    }
+  }
 
-        localStorage.setItem('token', this.token!)
-        localStorage.setItem('refreshToken', this.refreshToken)
+  async function register(username: string, email: string, password: string): Promise<boolean> {
+    try {
+      const response = await axios.post('/api/v1/users/open', {
+        username,
+        email,
+        password
+      })
 
-        await this.fetchUser()
-        return true
-      } catch (error) {
-        console.error('Registration failed', error)
+      token.value = response.data.access_token
+      refreshToken.value = response.data.refresh_token
+
+      if (!token.value || !refreshToken.value) {
         return false
       }
-    },
-    async fetchUser() {
-      if (!this.token) return
 
-      try {
-        const response = await axios.get('/api/v1/users/me', {
-          headers: {
-            Authorization: `Bearer ${this.token}`
-          }
-        })
-        this.user = response.data
-        localStorage.setItem('user', JSON.stringify(this.user))
-      } catch (error) {
-        console.error('Failed to fetch user', error)
-        await this.logout()
-      }
-    },
-    async refreshAccessToken() {
-      if (!this.refreshToken) return
+      await fetchUser()
+      return true
+    } catch (error) {
+      console.error('Registration failed', error)
+      return false
+    }
+  }
 
-      try {
-        const formData = new URLSearchParams()
-        formData.append('refresh_token', this.refreshToken)
+  async function fetchUser(): Promise<void> {
+    if (!token.value) return
 
-        const response = await axios.post('/api/v1/login/refresh-token', formData, {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
-        })
+    try {
+      const response = await axios.get('/api/v1/users/me', {
+        headers: {
+          Authorization: `Bearer ${token.value}`
+        }
+      })
+      user.value = response.data
+    } catch (error) {
+      console.error('Failed to fetch user', error)
+      await logout()
+    }
+  }
 
-        this.token = response.data.access_token
-        localStorage.setItem('token', this.token!)
-      } catch (error) {
-        console.error('Failed to refresh token', error)
-        await this.logout()
-      }
-    },
-    async logout() {
-      try {
+  async function refreshAccessToken(): Promise<void> {
+    if (!refreshToken.value) return
+
+    try {
+      const formData = new URLSearchParams()
+      formData.append('refresh_token', refreshToken.value)
+
+      const response = await axios.post('/api/v1/login/refresh-token', formData, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      })
+
+      token.value = response.data.access_token
+    } catch (error) {
+      console.error('Failed to refresh token', error)
+      await logout()
+    }
+  }
+
+  async function logout(): Promise<void> {
+    try {
+      if (token.value) {
         await axios.post(
           '/api/v1/logout',
           {},
           {
             headers: {
-              Authorization: `Bearer ${this.token}`
+              Authorization: `Bearer ${token.value}`
             }
           }
         )
-      } catch (error) {
-        console.error('Logout failed', error)
-      } finally {
-        this.token = null
-        this.refreshToken = null
-        this.user = null
-        localStorage.removeItem('token')
-        localStorage.removeItem('refreshToken')
-        localStorage.removeItem('user')
       }
+    } catch (error) {
+      console.error('Logout failed', error)
+    } finally {
+      // Clear all stored data (VueUse handles localStorage automatically)
+      token.value = null
+      refreshToken.value = null
+      user.value = null
     }
+  }
+
+  // Initialize: fetch user if we have a token but no user data
+  if (token.value && !user.value) {
+    fetchUser()
+  }
+
+  return {
+    // State
+    token,
+    refreshToken,
+    user,
+    // Getters
+    isAuthenticated,
+    // Actions
+    login,
+    register,
+    fetchUser,
+    refreshAccessToken,
+    logout
   }
 })

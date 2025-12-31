@@ -9,7 +9,7 @@ defineProps<{
 <template>
   <div class="flex min-h-screen flex-col">
     <NavBar />
-    <main class="flex-grow" :class="{ flicker: isFlickering }">
+    <main id="main-content" class="flex-grow" :class="{ flicker: isFlickering }" role="main">
       <slot></slot>
     </main>
   </div>

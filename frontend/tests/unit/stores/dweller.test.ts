@@ -9,6 +9,8 @@ describe('Dweller Store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    // Clear localStorage to reset filter/sort preferences
+    localStorage.clear()
   })
 
   describe('Filter State Management', () => {

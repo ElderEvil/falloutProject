@@ -1,58 +1,71 @@
 import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
 import type { UserProfile, ProfileUpdate } from '@/models/profile'
 import axios from '@/plugins/axios'
 
-export const useProfileStore = defineStore('profile', {
-  state: () => ({
-    profile: null as UserProfile | null,
-    loading: false,
-    error: null as string | null
-  }),
+export const useProfileStore = defineStore('profile', () => {
+  // State
+  const profile = ref<UserProfile | null>(null)
+  const loading = ref(false)
+  const error = ref<string | null>(null)
 
-  getters: {
-    hasProfile: (state) => state.profile !== null,
-    statistics: (state) => {
-      if (!state.profile) return null
-      return {
-        totalDwellersCreated: state.profile.total_dwellers_created,
-        totalCapsEarned: state.profile.total_caps_earned,
-        totalExplorations: state.profile.total_explorations,
-        totalRoomsBuilt: state.profile.total_rooms_built
-      }
+  // Getters
+  const hasProfile = computed(() => profile.value !== null)
+
+  const statistics = computed(() => {
+    if (!profile.value) return null
+    return {
+      totalDwellersCreated: profile.value.total_dwellers_created,
+      totalCapsEarned: profile.value.total_caps_earned,
+      totalExplorations: profile.value.total_explorations,
+      totalRoomsBuilt: profile.value.total_rooms_built
     }
-  },
+  })
 
-  actions: {
-    async fetchProfile() {
-      this.loading = true
-      this.error = null
-      try {
-        const response = await axios.get<UserProfile>('/api/v1/users/me/profile')
-        this.profile = response.data
-      } catch (error: any) {
-        this.error = error.response?.data?.detail || 'Failed to fetch profile'
-        throw error
-      } finally {
-        this.loading = false
-      }
-    },
-
-    async updateProfile(data: ProfileUpdate) {
-      this.loading = true
-      this.error = null
-      try {
-        const response = await axios.put<UserProfile>('/api/v1/users/me/profile', data)
-        this.profile = response.data
-      } catch (error: any) {
-        this.error = error.response?.data?.detail || 'Failed to update profile'
-        throw error
-      } finally {
-        this.loading = false
-      }
-    },
-
-    clearError() {
-      this.error = null
+  // Actions
+  async function fetchProfile(): Promise<void> {
+    loading.value = true
+    error.value = null
+    try {
+      const response = await axios.get<UserProfile>('/api/v1/users/me/profile')
+      profile.value = response.data
+    } catch (err: any) {
+      error.value = err.response?.data?.detail || 'Failed to fetch profile'
+      throw err
+    } finally {
+      loading.value = false
     }
+  }
+
+  async function updateProfile(data: ProfileUpdate): Promise<void> {
+    loading.value = true
+    error.value = null
+    try {
+      const response = await axios.put<UserProfile>('/api/v1/users/me/profile', data)
+      profile.value = response.data
+    } catch (err: any) {
+      error.value = err.response?.data?.detail || 'Failed to update profile'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  function clearError(): void {
+    error.value = null
+  }
+
+  return {
+    // State
+    profile,
+    loading,
+    error,
+    // Getters
+    hasProfile,
+    statistics,
+    // Actions
+    fetchProfile,
+    updateProfile,
+    clearError
   }
 })

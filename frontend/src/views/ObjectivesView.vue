@@ -3,10 +3,13 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useObjectivesStore } from '@/stores/objectives'
 import { useVaultStore } from '@/stores/vault'
+import SidePanel from '@/components/common/SidePanel.vue'
+import { useSidePanel } from '@/composables/useSidePanel'
 
 const route = useRoute()
 const objectivesStore = useObjectivesStore()
 const vaultStore = useVaultStore()
+const { isCollapsed } = useSidePanel()
 const activeTab = ref('notCompleted')
 
 const vaultId = computed(() => route.params.id as string)
@@ -27,7 +30,17 @@ const completedObjectives = computed(() => filterObjectives(true))
 </script>
 
 <template>
-  <div class="objectives-container">
+  <div class="relative min-h-screen bg-terminalBackground font-mono text-terminalGreen">
+    <div class="scanlines"></div>
+
+    <div class="vault-layout">
+      <!-- Side Panel -->
+      <SidePanel />
+
+      <!-- Main Content Area -->
+      <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
+        <div class="container mx-auto px-4 py-8">
+          <div class="objectives-container">
     <h1 class="title">
       {{ currentVault ? `Vault ${currentVault.number} Objectives` : 'Objectives' }}
     </h1>
@@ -86,10 +99,58 @@ const completedObjectives = computed(() => filterObjectives(true))
         </li>
       </ul>
     </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
+.vault-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  margin-left: 240px; /* Width of expanded side panel */
+  transition: margin-left 0.3s ease;
+  font-weight: 600; /* Bold font for better readability */
+  letter-spacing: 0.025em; /* Slight letter spacing for clarity */
+  line-height: 1.6; /* Better line height for readability */
+}
+
+.main-content.collapsed {
+  margin-left: 64px;
+}
+
+/* Enhanced text styles */
+.main-content h1,
+.main-content h2,
+.main-content h3 {
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+}
+
+.main-content p,
+.main-content span,
+.main-content div {
+  text-shadow: 0 0 2px rgba(0, 255, 0, 0.3);
+}
+
+.scanlines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 50%, transparent 50%);
+  background-size: 100% 2px;
+  pointer-events: none;
+}
+
+
 .objectives-container {
   max-width: 1200px; /* Increased the width */
   margin: 0 auto;

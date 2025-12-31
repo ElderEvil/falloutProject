@@ -38,6 +38,54 @@ describe('Auth Store', () => {
       expect(store.refreshToken).toBe(mockRefreshToken)
       expect(store.user).toEqual(mockUser)
     })
+
+    it('should fetch user automatically if token exists but user data is missing', async () => {
+      const mockToken = 'test-token'
+      const mockRefreshToken = 'test-refresh-token'
+      const mockUserResponse = {
+        data: {
+          id: '1',
+          username: 'testuser',
+          email: 'test@test.com'
+        }
+      }
+
+      localStorage.setItem('token', mockToken)
+      localStorage.setItem('refreshToken', mockRefreshToken)
+      // User is NOT in localStorage (simulating the bug)
+
+      vi.mocked(axios.get).mockResolvedValueOnce(mockUserResponse)
+
+      const store = useAuthStore()
+
+      // Wait for async fetchUser to complete
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      expect(axios.get).toHaveBeenCalledWith(
+        '/api/v1/users/me',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${mockToken}`
+          })
+        })
+      )
+      expect(store.user).toEqual(mockUserResponse.data)
+    })
+
+    it('should not fetch user if both token and user exist in localStorage', () => {
+      const mockToken = 'test-token'
+      const mockRefreshToken = 'test-refresh-token'
+      const mockUser = { id: '1', username: 'test', email: 'test@test.com' }
+
+      localStorage.setItem('token', mockToken)
+      localStorage.setItem('refreshToken', mockRefreshToken)
+      localStorage.setItem('user', JSON.stringify(mockUser))
+
+      const store = useAuthStore()
+
+      expect(axios.get).not.toHaveBeenCalled()
+      expect(store.user).toEqual(mockUser)
+    })
   })
 
   describe('Getters', () => {

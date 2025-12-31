@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
+import UTooltip from '@/components/ui/UTooltip.vue'
 
 interface Props {
   current: number
   max: number
   icon: string // Icon name (e.g., 'mdi:lightning-bolt')
   label?: string
+  productionRate?: number // Optional: production/consumption rate per minute
+  tooltipInfo?: string // Optional: additional tooltip information
 }
 
 const props = defineProps<Props>()
@@ -66,30 +69,68 @@ const iconColor = computed(() => {
     default: return 'text-terminalGreen'
   }
 })
+
+// Tooltip text with detailed information
+const tooltipText = computed(() => {
+  let text = `${props.label || 'Resource'}: ${props.current}/${props.max} (${percentage.value.toFixed(1)}%)`
+
+  if (props.productionRate !== undefined) {
+    const rateText = props.productionRate >= 0 ? `+${props.productionRate}` : `${props.productionRate}`
+    text += `\nRate: ${rateText}/min`
+  }
+
+  if (props.tooltipInfo) {
+    text += `\n${props.tooltipInfo}`
+  }
+
+  // Add status warning
+  if (status.value === 'critical') {
+    text += '\n⚠️ CRITICAL - Immediate action required!'
+  } else if (status.value === 'low') {
+    text += '\n⚠️ LOW - Attention needed'
+  }
+
+  return text
+})
+
+// ARIA label for accessibility
+const ariaLabel = computed(() =>
+  `${props.label || 'Resource'}: ${props.current} out of ${props.max}, ${percentage.value.toFixed(1)}% full, status: ${status.value}`
+)
 </script>
 
 <template>
-  <div class="relative flex items-center space-x-2">
-    <Icon :icon="props.icon" class="h-8 w-8 transition-colors duration-300" :class="iconColor" />
+  <UTooltip :text="tooltipText" position="top">
+    <div
+      class="relative flex items-center space-x-2"
+      role="meter"
+      :aria-label="ariaLabel"
+      :aria-valuenow="props.current"
+      :aria-valuemin="0"
+      :aria-valuemax="props.max"
+      tabindex="0"
+    >
+      <Icon :icon="props.icon" class="h-8 w-8 transition-colors duration-300" :class="iconColor" aria-hidden="true" />
 
-    <div class="relative">
-      <div class="relative h-6 w-40 rounded-full border-2 border-gray-600 bg-gray-800 overflow-hidden">
-        <!-- Filled part of the bar with smooth transition -->
-        <div
-          class="absolute top-0 left-0 h-full rounded-full transition-all duration-500 ease-out z-0"
-          :style="{
-            width: `${percentage}%`,
-            backgroundColor: barColorStyle
-          }"
-        ></div>
+      <div class="relative">
+        <div class="relative h-6 w-40 rounded-full border-2 border-gray-600 bg-gray-800 overflow-hidden">
+          <!-- Filled part of the bar with smooth transition -->
+          <div
+            class="absolute top-0 left-0 h-full rounded-full transition-all duration-500 ease-out z-0"
+            :style="{
+              width: `${percentage}%`,
+              backgroundColor: barColorStyle
+            }"
+            aria-hidden="true"
+          ></div>
 
-        <!-- Overlay with resource numbers -->
-        <div class="absolute inset-0 flex items-center justify-center text-xs font-bold z-10">
-          <span class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
-            {{ props.current }}/{{ props.max }}
-          </span>
+          <!-- Overlay with resource numbers -->
+          <div class="absolute inset-0 flex items-center justify-center text-xs font-bold z-10" aria-hidden="true">
+            <span class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
+              {{ props.current }}/{{ props.max }}
+            </span>
+          </div>
         </div>
-      </div>
 
       <!-- Trend Indicator -->
       <div
@@ -110,9 +151,10 @@ const iconColor = computed(() => {
       </div>
     </div>
 
-    <!-- Label (optional) -->
-    <span v-if="label" class="text-xs text-gray-400">{{ label }}</span>
-  </div>
+      <!-- Label (optional) -->
+      <span v-if="label" class="text-xs text-gray-400" aria-hidden="true">{{ label }}</span>
+    </div>
+  </UTooltip>
 </template>
 
 <style scoped>

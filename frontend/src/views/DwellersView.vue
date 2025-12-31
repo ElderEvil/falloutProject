@@ -8,8 +8,10 @@ import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import DwellerStatusBadge from '@/components/dwellers/DwellerStatusBadge.vue'
 import DwellerFilterPanel from '@/components/dwellers/DwellerFilterPanel.vue'
+import DwellerGridItem from '@/components/dwellers/DwellerGridItem.vue'
 import SidePanel from '@/components/common/SidePanel.vue'
 import UTooltip from '@/components/ui/UTooltip.vue'
+import UButton from '@/components/ui/UButton.vue'
 import { useSidePanel } from '@/composables/useSidePanel'
 
 const authStore = useAuthStore()
@@ -101,12 +103,13 @@ const getRoomForDweller = computed(() => (roomId: string | null | undefined) => 
         {{ currentVault ? `Vault ${currentVault.number} Dwellers` : 'Dwellers' }}
       </h1>
 
-      <!-- Filter Panel -->
+      <!-- Filter Panel with View Toggle -->
       <div class="w-full mb-6">
-        <DwellerFilterPanel />
+        <DwellerFilterPanel :show-view-toggle="true" />
       </div>
 
-      <ul class="w-full space-y-4">
+      <!-- List View -->
+      <ul v-if="dwellerStore.viewMode === 'list'" class="w-full space-y-4">
         <li
           v-for="dweller in dwellerStore.dwellers"
           :key="dweller.id"
@@ -187,6 +190,20 @@ const getRoomForDweller = computed(() => (roomId: string | null | undefined) => 
             <Icon icon="mdi:chevron-right" class="h-6 w-6 text-terminalGreen" />
         </li>
       </ul>
+
+      <!-- Grid View -->
+      <div v-else class="w-full dweller-grid">
+        <DwellerGridItem
+          v-for="dweller in dwellerStore.dwellers"
+          :key="dweller.id"
+          :dweller="dweller"
+          :room-name="getRoomForDweller(dweller.room_id)?.name"
+          :generating-a-i="generatingAI[dweller.id]"
+          @click="viewDwellerDetails(dweller.id)"
+          @generate-ai="generateDwellerInfo(dweller.id)"
+          @room-click="router.push(`/vault/${vaultId}`)"
+        />
+      </div>
         </div>
       </div>
     </div>
@@ -269,6 +286,27 @@ const getRoomForDweller = computed(() => (roomId: string | null | undefined) => 
   }
   50% {
     box-shadow: 0 0 25px rgba(0, 255, 0, 0.7);
+  }
+}
+
+/* Dweller Grid */
+.dweller-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .dweller-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1rem;
+  }
+}
+
+@media (min-width: 1536px) {
+  .dweller-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   }
 }
 

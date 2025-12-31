@@ -13,6 +13,7 @@ import ResourceBar from '@/components/common/ResourceBar.vue'
 import GameControlPanel from '@/components/common/GameControlPanel.vue'
 import UnassignedDwellers from '@/components/dwellers/UnassignedDwellers.vue'
 import WastelandPanel from '@/components/wasteland/WastelandPanel.vue'
+import UTooltip from '@/components/ui/UTooltip.vue'
 import type { Room } from '@/models/room'
 import { Icon } from '@iconify/vue'
 
@@ -97,7 +98,6 @@ const loadVaultData = async (id: string) => {
     // Fetch explorations for this vault
     try {
       await explorationStore.fetchExplorationsByVault(id, authStore.token)
-      console.log('[VaultView] Loaded explorations:', explorationStore.explorations.length)
     } catch (error) {
       console.error('[VaultView] Failed to load explorations:', error)
       // Don't fail the whole page load if explorations fail
@@ -156,7 +156,6 @@ const handleRoomSelected = (room: Room) => {
 
 const handleRoomPlaced = async (position: Position) => {
   if (selectedRoom.value && isPlacingRoom.value) {
-    console.log(`Placing ${selectedRoom.value.name} at position ${JSON.stringify(position)}`)
     isPlacingRoom.value = false
     selectedRoom.value = null
   }
@@ -203,29 +202,35 @@ const handleRoomPlaced = async (position: Position) => {
       <div class="mb-8 flex w-full items-center justify-between space-x-8">
         <!-- Dwellers Count and Happiness -->
         <div class="flex items-center space-x-4">
-          <div class="flex items-center space-x-2">
-            <Icon icon="mdi:account-group" class="h-8 w-8 text-terminalGreen" />
-            <p>{{ dwellersCount }}</p>
-          </div>
-          <div class="flex items-center space-x-2">
-            <Icon icon="mdi:emoticon-happy" class="h-6 w-6 text-terminalGreen" />
-            <p>{{ happiness }}%</p>
-          </div>
+          <UTooltip text="Total dwellers in vault" position="bottom">
+            <div class="flex items-center space-x-2 cursor-help" tabindex="0">
+              <Icon icon="mdi:account-group" class="h-8 w-8 text-terminalGreen" />
+              <p>{{ dwellersCount }}</p>
+            </div>
+          </UTooltip>
+          <UTooltip :text="`Vault Happiness: ${happiness}%\n${happiness >= 75 ? '😊 Excellent morale!' : happiness >= 50 ? '😐 Acceptable morale' : happiness >= 25 ? '😟 Low morale - needs attention' : '😢 Critical - dwellers are unhappy!'}`" position="bottom">
+            <div class="flex items-center space-x-2 cursor-help" tabindex="0">
+              <Icon icon="mdi:emoticon-happy" class="h-6 w-6 text-terminalGreen" />
+              <p>{{ happiness }}%</p>
+            </div>
+          </UTooltip>
         </div>
 
         <!-- Resources in the Middle -->
         <div class="flex justify-center space-x-8">
-          <ResourceBar :current="energy.current" :max="energy.max" icon="mdi:lightning-bolt" />
-          <ResourceBar :current="food.current" :max="food.max" icon="mdi:food-apple" />
-          <ResourceBar :current="water.current" :max="water.max" icon="mdi:water" />
+          <ResourceBar :current="energy.current" :max="energy.max" icon="mdi:lightning-bolt" label="Power" />
+          <ResourceBar :current="food.current" :max="food.max" icon="mdi:food-apple" label="Food" />
+          <ResourceBar :current="water.current" :max="water.max" icon="mdi:water" label="Water" />
         </div>
 
         <!-- Bottle Caps and Build Button -->
         <div class="flex items-center space-x-4">
-          <div class="flex items-center space-x-2">
-            <Icon icon="mdi:currency-usd" class="h-6 w-6 text-terminalGreen" />
-            <p>{{ bottleCaps }}</p>
-          </div>
+          <UTooltip :text="`Bottle Caps: ${bottleCaps}\nVault currency for construction and upgrades`" position="bottom">
+            <div class="flex items-center space-x-2 cursor-help" tabindex="0">
+              <Icon icon="mdi:currency-usd" class="h-6 w-6 text-terminalGreen" />
+              <p>{{ bottleCaps }}</p>
+            </div>
+          </UTooltip>
           <BuildModeButton :buildModeActive="buildModeActive" @toggleBuildMode="toggleBuildMode" />
         </div>
       </div>

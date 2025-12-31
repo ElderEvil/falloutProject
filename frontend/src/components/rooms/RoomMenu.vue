@@ -13,10 +13,8 @@ const emit = defineEmits<{
 }>()
 
 const selectRoom = (room: Room) => {
-  console.log('Selecting room:', room)
   emit('roomSelected', room)
   roomStore.selectRoom(room)
-  console.log('Store state after selection:', roomStore.selectedRoom, roomStore.isPlacingRoom)
 }
 
 const closeModal = () => {

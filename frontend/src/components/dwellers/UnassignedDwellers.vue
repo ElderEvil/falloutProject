@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref } from 'vue'
 import { useDwellerStore } from '@/stores/dweller'
 import { useExplorationStore } from '@/stores/exploration'
 import { useAuthStore } from '@/stores/auth'
@@ -12,10 +12,7 @@ const dwellerStore = useDwellerStore()
 const explorationStore = useExplorationStore()
 const authStore = useAuthStore()
 
-// Load filter preferences on mount
-onMounted(() => {
-  dwellerStore.loadFilterPreferences()
-})
+// Filter preferences are now automatically loaded via useLocalStorage in the store
 
 // Use filtered and sorted dwellers from store, but only show unassigned ones
 const unassignedDwellers = computed(() => {

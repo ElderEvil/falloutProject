@@ -70,10 +70,12 @@ const arrowClasses = {
       <div
         v-if="isVisible"
         :class="[
-          'absolute z-tooltip whitespace-nowrap',
-          'bg-terminalGreen text-black',
-          'px-3 py-1.5 rounded text-sm font-medium',
-          'shadow-glow-md',
+          'absolute z-tooltip',
+          'bg-black text-terminalGreen',
+          'px-3 py-2 rounded text-sm font-mono',
+          'border border-terminalGreen',
+          'shadow-[0_0_20px_rgba(0,255,0,0.4)]',
+          'max-w-xs whitespace-pre-line',
           positionClasses[position]
         ]"
         role="tooltip"

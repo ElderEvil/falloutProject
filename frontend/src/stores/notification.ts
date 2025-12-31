@@ -1,5 +1,6 @@
-import { defineStore } from 'pinia';
-import { useTimeoutFn } from '@vueuse/core';
+import { defineStore } from 'pinia'
+import { ref } from 'vue'
+import { useTimeoutFn } from '@vueuse/core'
 
 export interface Notification {
   id: string;

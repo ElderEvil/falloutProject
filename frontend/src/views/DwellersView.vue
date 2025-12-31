@@ -7,10 +7,13 @@ import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import DwellerStatusBadge from '@/components/dwellers/DwellerStatusBadge.vue'
 import DwellerFilterPanel from '@/components/dwellers/DwellerFilterPanel.vue'
+import SidePanel from '@/components/common/SidePanel.vue'
+import { useSidePanel } from '@/composables/useSidePanel'
 
 const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
 const vaultStore = useVaultStore()
+const { isCollapsed } = useSidePanel()
 const router = useRouter()
 const route = useRoute()
 const selectedDwellerId = ref<string | null>(null)
@@ -88,9 +91,14 @@ const generateDwellerInfo = async (dwellerId: string) => {
 <template>
   <div class="relative min-h-screen bg-terminalBackground font-mono text-terminalGreen">
     <div class="scanlines"></div>
-    <div
-      class="flicker container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8"
-    >
+
+    <div class="vault-layout">
+      <!-- Side Panel -->
+      <SidePanel />
+
+      <!-- Main Content Area -->
+      <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
+        <div class="container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8">
       <h1 class="mb-8 text-4xl font-bold">
         {{ currentVault ? `Vault ${currentVault.number} Dwellers` : 'Dwellers' }}
       </h1>
@@ -292,11 +300,45 @@ const generateDwellerInfo = async (dwellerId: string) => {
           </template>
         </li>
       </ul>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+.vault-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  margin-left: 240px; /* Width of expanded side panel */
+  transition: margin-left 0.3s ease;
+  font-weight: 600; /* Bold font for better readability */
+  letter-spacing: 0.025em; /* Slight letter spacing for clarity */
+  line-height: 1.6; /* Better line height for readability */
+}
+
+.main-content.collapsed {
+  margin-left: 64px;
+}
+
+/* Enhanced text styles */
+.main-content h1,
+.main-content h2,
+.main-content h3 {
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+}
+
+.main-content p,
+.main-content span,
+.main-content div {
+  text-shadow: 0 0 2px rgba(0, 255, 0, 0.3);
+}
+
 .dweller-image {
   width: 6rem;
   height: auto;

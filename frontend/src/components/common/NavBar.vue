@@ -71,15 +71,6 @@ const toggleDropdown = () => {
             Objectives
           </router-link>
         </template>
-
-        <router-link
-          to="/about"
-          class="text-green-500 hover:underline focus:outline-none focus:ring-2 focus:ring-terminalGreen focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1"
-          role="menuitem"
-          aria-label="Navigate to about page"
-        >
-          About
-        </router-link>
       </div>
       <div class="flex items-center space-x-4">
         <!-- User-related actions on the right -->
@@ -114,25 +105,39 @@ const toggleDropdown = () => {
           </button>
           <div
             v-if="isDropdownOpen"
-            class="absolute right-0 mt-2 w-48 bg-gray-800 shadow-lg rounded border border-gray-700"
+            class="absolute right-0 mt-2 w-48 bg-black shadow-[0_0_20px_rgba(0,255,0,0.3)] rounded border border-terminalGreen"
             role="menu"
             aria-label="User menu"
             style="z-index: 50"
           >
             <router-link
               to="/profile"
-              class="block px-4 py-2 text-green-500 hover:bg-gray-700 focus:outline-none focus:bg-gray-700 rounded-t"
+              class="block px-4 py-2 text-terminalGreen hover:bg-gray-900 focus:outline-none focus:bg-gray-900 transition-colors"
               role="menuitem"
               aria-label="View profile"
+              @click="isDropdownOpen = false"
             >
+              <Icon icon="mdi:account" class="inline h-4 w-4 mr-2" />
               Profile
             </router-link>
+            <router-link
+              to="/about"
+              class="block px-4 py-2 text-terminalGreen hover:bg-gray-900 focus:outline-none focus:bg-gray-900 transition-colors"
+              role="menuitem"
+              aria-label="About this application"
+              @click="isDropdownOpen = false"
+            >
+              <Icon icon="mdi:information" class="inline h-4 w-4 mr-2" />
+              About
+            </router-link>
+            <hr class="border-gray-700 my-1" />
             <button
               @click="logout"
-              class="block w-full px-4 py-2 text-left text-green-500 hover:bg-gray-700 focus:outline-none focus:bg-gray-700 rounded-b"
+              class="block w-full px-4 py-2 text-left text-terminalGreen hover:bg-gray-900 focus:outline-none focus:bg-gray-900 rounded-b transition-colors"
               role="menuitem"
               aria-label="Logout"
             >
+              <Icon icon="mdi:logout" class="inline h-4 w-4 mr-2" />
               Logout
             </button>
           </div>

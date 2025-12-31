@@ -314,21 +314,23 @@ const handleDrop = async (event: DragEvent, roomId: string) => {
 }
 
 .room-name {
-  font-size: 1.2em;
+  font-size: 0.95em; /* Reduced from 1.2em */
   margin-bottom: 5px;
   color: #00ff00;
-  font-weight: bold;
+  font-weight: 600; /* Slightly less bold but still readable */
 }
 
 .room-category {
-  font-size: 0.9em;
+  font-size: 0.75em; /* Reduced from 0.9em */
   color: #aaa;
+  font-weight: 500;
 }
 
 .room-tier {
-  font-size: 0.75em;
+  font-size: 0.65em; /* Reduced from 0.75em */
   color: #fbbf24;
   margin-top: 2px;
+  font-weight: 600;
 }
 
 .built-room {

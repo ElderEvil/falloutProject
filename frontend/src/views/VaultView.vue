@@ -14,6 +14,8 @@ import GameControlPanel from '@/components/common/GameControlPanel.vue'
 import UnassignedDwellers from '@/components/dwellers/UnassignedDwellers.vue'
 import WastelandPanel from '@/components/wasteland/WastelandPanel.vue'
 import UTooltip from '@/components/ui/UTooltip.vue'
+import SidePanel from '@/components/common/SidePanel.vue'
+import { useSidePanel } from '@/composables/useSidePanel'
 import type { Room } from '@/models/room'
 import { Icon } from '@iconify/vue'
 
@@ -28,6 +30,7 @@ const roomStore = useRoomStore()
 const vaultStore = useVaultStore()
 const dwellerStore = useDwellerStore()
 const explorationStore = useExplorationStore()
+const { isCollapsed } = useSidePanel()
 const showRoomMenu = ref(false)
 const selectedRoom = ref<Room | null>(null)
 const isPlacingRoom = ref(false)
@@ -190,10 +193,13 @@ const handleRoomPlaced = async (position: Position) => {
     </div>
 
     <!-- Main Vault View -->
-    <div
-      v-else
-      class="flicker container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8"
-    >
+    <div v-else class="vault-layout">
+      <!-- Side Panel -->
+      <SidePanel />
+
+      <!-- Main Content Area -->
+      <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
+        <div class="container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8">
       <!-- Game Control Panel -->
       <div v-if="vaultId" class="mb-4 w-full flex justify-center">
         <GameControlPanel :vaultId="vaultId" />
@@ -258,10 +264,42 @@ const handleRoomPlaced = async (position: Position) => {
         @roomSelected="handleRoomSelected"
         @close="showRoomMenu = false"
       />
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* All styling handled by Tailwind utilities - no custom styles needed */
+.vault-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  margin-left: 240px; /* Width of expanded side panel */
+  transition: margin-left 0.3s ease;
+  font-weight: 600; /* Bold font for better readability */
+  letter-spacing: 0.025em; /* Slight letter spacing for clarity */
+  line-height: 1.6; /* Better line height for readability */
+}
+
+.main-content.collapsed {
+  margin-left: 64px;
+}
+
+/* Enhanced text styles */
+.main-content h1,
+.main-content h2,
+.main-content h3 {
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+}
+
+.main-content p,
+.main-content span,
+.main-content div {
+  text-shadow: 0 0 2px rgba(0, 255, 0, 0.3);
+}
 </style>

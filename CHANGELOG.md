@@ -1,42 +1,106 @@
 # Changelog
 
-All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+All notable changes to this project will be documented in this file.
+See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
+## [1.1.0] - 2024-12-31
+
+### Added
+
+#### Room Management System
+
+- **Backend**:
+    - Added room upgrade endpoint `POST /api/v1/rooms/upgrade/{room_id}`
+    - Implemented tier progression system (1→2→3) with capacity/output recalculation
+    - Added proportional scaling formula for capacity and output based on tier ratio
+    - Implemented upgrade cost validation (t2_upgrade_cost, t3_upgrade_cost)
+    - Added proper error handling for insufficient caps and max tier validation
+    - Added 7 comprehensive pytest tests for room upgrade functionality
+
+- **Frontend**:
+    - Implemented 4×8 grid layout for visual vault room management
+    - Created room upgrade UI with cost display and tier progression
+    - Added `upgradeRoom()` function to room store with vault refresh
+    - Implemented upgrade button with golden styling and cost tooltip
+    - Added `canUpgrade()` and `getUpgradeCost()` helper functions
+    - Built room selection and detail view system
+    - Added 5 comprehensive Vitest tests for upgrade store functionality
+
+#### Exploration System Enhancements
+
+- **Backend**:
+    - Fixed datetime timezone handling (reverted to `datetime.utcnow()`)
+    - Removed debug logging from exploration models
+    - Improved timezone compatibility between database and application
+
+- **Frontend**:
+    - Implemented auto-complete detection for explorations at 100% progress
+    - Added manual Complete button for explorations
+    - Created `ExplorationRewardsModal.vue` with terminal-themed design
+    - Display experience (with golden pulse animation), caps, items, distance, enemies
+    - Added recalled early indicator with reduced rewards display
+    - Implemented duplicate call prevention for completion actions
+
+### Fixed
+
+- Fixed room upgrade `AttributeError` by removing formula access from Room model
+- Added HTTP error handling in upgrade endpoint (ValueError → 400, InsufficientResourcesException → 422)
+- Fixed grid dimensions from 8×25 to 4×8 as specified
+- Fixed exploration timezone calculation issues with UTC handling
+- Fixed Vue component update errors with null checks and duplicate prevention
+- Fixed exploration rewards modal props validation with nullable rewards
+
+### Changed
+
+- Changed grid layout from 8×25 to 4×8 (4 columns, 8 rows)
+- Updated room upgrade logic to use proportional tier scaling instead of formulas
+- Improved room store to update local state and refresh vault after upgrade
+- Enhanced error messages for room upgrade failures
+
+### Testing
+
+- Added 7 backend tests for room upgrade (tier progression, capacity calculation, error cases)
+- Added 5 frontend tests for room upgrade store functionality
+- All tests passing with comprehensive coverage of upgrade scenarios
 
 ## [0.2.0] - 2024-12-31
 
 ### Added
 
 #### Equipment System
+
 - **Backend**:
-  - Added weapon and outfit equip/unequip endpoints
-  - Implemented eager loading for equipment relationships to prevent lazy loading errors
-  - Updated `DwellerReadFull` schema to include weapon and outfit fields
-  - Override `CRUDDweller.get()` to eager load weapon, outfit, vault, and room relationships
-  - Fixed SQLAlchemy async session issues with `selectinload()`
+    - Added weapon and outfit equip/unequip endpoints
+    - Implemented eager loading for equipment relationships to prevent lazy loading errors
+    - Updated `DwellerReadFull` schema to include weapon and outfit fields
+    - Override `CRUDDweller.get()` to eager load weapon, outfit, vault, and room relationships
+    - Fixed SQLAlchemy async session issues with `selectinload()`
 
 - **Frontend**:
-  - Created comprehensive TypeScript equipment type system (`equipment.ts`)
-    - Weapon types: MELEE, RANGED with subtypes (FIST, BLADE, PISTOL, RIFLE, etc.)
-    - Outfit types: CASUAL, WORK, COMBAT, SPECIAL
-    - Rarity system: COMMON, UNCOMMON, RARE, LEGENDARY
-  - Implemented equipment service layer with API integration
-  - Created Pinia equipment store with state management
-  - Built `WeaponCard.vue` component with damage stats and rarity coloring
-  - Built `OutfitCard.vue` component with SPECIAL stat bonuses
-  - Implemented `DwellerEquipment.vue` with:
-    - Equipment slots for weapon and outfit
-    - Inventory modal with tabbed interface
-    - Real-time equipment updates
-    - Empty states for unequipped slots
-  - Added refresh event chain for automatic data updates after equipment changes
+    - Created comprehensive TypeScript equipment type system (`equipment.ts`)
+        - Weapon types: MELEE, RANGED with subtypes (FIST, BLADE, PISTOL, RIFLE, etc.)
+        - Outfit types: CASUAL, WORK, COMBAT, SPECIAL
+        - Rarity system: COMMON, UNCOMMON, RARE, LEGENDARY
+    - Implemented equipment service layer with API integration
+    - Created Pinia equipment store with state management
+    - Built `WeaponCard.vue` component with damage stats and rarity coloring
+    - Built `OutfitCard.vue` component with SPECIAL stat bonuses
+    - Implemented `DwellerEquipment.vue` with:
+        - Equipment slots for weapon and outfit
+        - Inventory modal with tabbed interface
+        - Real-time equipment updates
+        - Empty states for unequipped slots
+    - Added refresh event chain for automatic data updates after equipment changes
 
 #### UI/UX Improvements
+
 - Terminal-themed equipment cards with rarity-based styling
 - Modal overlay with inventory tabs for weapons and outfits
 - Loading states and toast notifications for equipment actions
 - Responsive equipment grid layout
 
 ### Fixed
+
 - Fixed backend SQLAlchemy `MissingGreenlet` error by adding eager loading for equipment relationships
 - Fixed frontend equipment rendering by reading from dweller object instead of store
 - Fixed unequip API endpoint paths (changed from `/{dwellerId}/unequip/{itemId}` to `/{itemId}/unequip/`)
@@ -44,6 +108,7 @@ All notable changes to this project will be documented in this file. See [Conven
 - Fixed props undefined errors in DwellerEquipment component with optional chaining
 
 ### Changed
+
 - Updated `/api/v1/dwellers/{dweller_id}` endpoint to return `DwellerReadFull` instead of `DwellerRead`
 - Modified equipment fetch logic to include weapon and outfit data in dweller responses
 
@@ -52,6 +117,7 @@ All notable changes to this project will be documented in this file. See [Conven
 ### Initial Release
 
 #### Core Features
+
 - User authentication and authorization (JWT-based)
 - Vault management system
 - Dweller CRUD operations with SPECIAL stats
@@ -63,6 +129,7 @@ All notable changes to this project will be documented in this file. See [Conven
 - Item system (weapons, outfits, junk)
 
 #### Frontend
+
 - Vue 3.5 with TypeScript and Composition API
 - Terminal-themed design system with TailwindCSS v4
 - 8 custom UI components
@@ -73,6 +140,7 @@ All notable changes to this project will be documented in this file. See [Conven
 - 88 passing frontend tests (Vitest)
 
 #### Backend
+
 - FastAPI with SQLModel and Pydantic v2
 - PostgreSQL 18 with UUID v7 support
 - Celery + Redis for background tasks
@@ -82,6 +150,7 @@ All notable changes to this project will be documented in this file. See [Conven
 - Type checking with ty
 
 #### Infrastructure
+
 - Docker/Podman containerization
 - Development and production configurations
 - Pre-commit hooks with prek

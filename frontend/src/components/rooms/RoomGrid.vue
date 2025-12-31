@@ -19,8 +19,8 @@ const { selectedRoomId, toggleRoomSelection, destroyRoom } = useRoomInteractions
 const { hoverPosition, handleHover, clearHover, previewCells, isValidPlacement } = useHoverPreview()
 
 // Grid configuration
-const GRID_COLS = 8
-const GRID_ROWS = 25
+const GRID_COLS = 4
+const GRID_ROWS = 8
 
 const placeRoom = async (x: number, y: number) => {
   if (!roomStore.selectedRoom || !roomStore.isPlacingRoom) return
@@ -155,6 +155,45 @@ const handleDrop = async (event: DragEvent, roomId: string) => {
     }, 3000)
   }
 }
+
+// Helper to check if room can be upgraded
+const canUpgrade = (room: any) => {
+  const maxTier = room.t2_upgrade_cost && room.t3_upgrade_cost ? 3 : room.t2_upgrade_cost ? 2 : 1
+  return room.tier < maxTier
+}
+
+// Helper to get upgrade cost
+const getUpgradeCost = (room: any) => {
+  if (room.tier === 1 && room.t2_upgrade_cost) return room.t2_upgrade_cost
+  if (room.tier === 2 && room.t3_upgrade_cost) return room.t3_upgrade_cost
+  return 0
+}
+
+// Upgrade room handler
+const handleUpgradeRoom = async (roomId: string, event: Event) => {
+  event.stopPropagation()
+
+  const vaultId = route.params.id as string
+  if (!vaultId) {
+    assignmentError.value = 'No vault ID available'
+    setTimeout(() => { assignmentError.value = null }, 3000)
+    return
+  }
+
+  try {
+    await roomStore.upgradeRoom(roomId, authStore.token as string, vaultId)
+    assignmentSuccess.value = 'Room upgraded successfully!'
+    setTimeout(() => {
+      assignmentSuccess.value = null
+    }, 3000)
+  } catch (error) {
+    console.error('Failed to upgrade room:', error)
+    assignmentError.value = error instanceof Error ? error.message : 'Failed to upgrade room'
+    setTimeout(() => {
+      assignmentError.value = null
+    }, 3000)
+  }
+}
 </script>
 
 <template>
@@ -196,14 +235,24 @@ const handleDrop = async (event: DragEvent, roomId: string) => {
             <Icon icon="mdi:account-plus" class="h-6 w-6" />
             <span>Drop to assign</span>
           </div>
-          <button
-            v-if="selectedRoomId === room.id"
-            @click="destroyRoom(room.id, $event)"
-            class="destroy-button"
-            title="Destroy Room"
-          >
-            <Icon icon="mdi:delete" class="h-5 w-5" />
-          </button>
+          <div v-if="selectedRoomId === room.id" class="room-actions">
+            <button
+              v-if="canUpgrade(room)"
+              @click="handleUpgradeRoom(room.id, $event)"
+              class="upgrade-button"
+              :title="`Upgrade to Tier ${room.tier + 1} (${getUpgradeCost(room)} caps)`"
+            >
+              <Icon icon="mdi:arrow-up-circle" class="h-5 w-5" />
+              <span class="upgrade-cost">{{ getUpgradeCost(room) }}</span>
+            </button>
+            <button
+              @click="destroyRoom(room.id, $event)"
+              class="destroy-button"
+              title="Destroy Room"
+            >
+              <Icon icon="mdi:delete" class="h-5 w-5" />
+            </button>
+          </div>
 
           <!-- Display dwellers in room -->
           <RoomDwellers :roomId="room.id" />
@@ -282,7 +331,7 @@ const handleDrop = async (event: DragEvent, roomId: string) => {
 
 .room-grid {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 10px;
 }
 
@@ -354,15 +403,51 @@ const handleDrop = async (event: DragEvent, roomId: string) => {
   z-index: 10;
 }
 
-.destroy-button {
+.room-actions {
   position: absolute;
   top: 5px;
   right: 5px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  z-index: 5;
+}
+
+.upgrade-button {
+  background: none;
+  border: 1px solid #fbbf24;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #fbbf24;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  transition: all 0.2s;
+}
+
+.upgrade-button:hover {
+  background: rgba(251, 191, 36, 0.1);
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
+}
+
+.upgrade-cost {
+  font-weight: bold;
+}
+
+.destroy-button {
   background: none;
   border: none;
   cursor: pointer;
   color: #ff0000;
-  z-index: 5;
+  padding: 4px;
+  transition: all 0.2s;
+}
+
+.destroy-button:hover {
+  color: #ff4444;
+  transform: scale(1.1);
 }
 
 .empty {

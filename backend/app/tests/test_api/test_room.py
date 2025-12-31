@@ -79,3 +79,185 @@ async def test_delete_room(async_client: AsyncClient, room: Room):
     assert delete_response.status_code == 204
     read_response = await async_client.get(f"/rooms/{room.id}")
     assert read_response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_upgrade_room_tier_1_to_2(async_client: AsyncClient, async_session: AsyncSession, vault, room_data: dict):
+    """Test upgrading a room from tier 1 to tier 2."""
+    # Create room with specific upgrade costs and capacity
+    room_data.update(
+        {
+            "tier": 1,
+            "t2_upgrade_cost": 500,
+            "t3_upgrade_cost": 1500,
+            "capacity": 10,
+            "output": 20,
+        }
+    )
+
+    # Ensure vault has enough caps
+    vault.bottle_caps = 1000
+    await crud.vault.update(async_session, vault.id, vault)
+
+    room_in = RoomCreate(**room_data, vault_id=vault.id)
+    room = await crud.room.create(async_session, room_in)
+
+    initial_caps = vault.bottle_caps
+    initial_capacity = room.capacity
+    initial_output = room.output
+
+    # Upgrade room
+    response = await async_client.post(f"/rooms/upgrade/{room.id}")
+    assert response.status_code == 200
+
+    upgraded_room = response.json()
+    assert upgraded_room["tier"] == 2
+    assert upgraded_room["id"] == str(room.id)
+
+    # Check capacity and output increased (tier ratio: (2+4)/(1+4) = 1.2)
+    assert upgraded_room["capacity"] > initial_capacity
+    assert upgraded_room["output"] > initial_output
+
+    # Verify vault caps were deducted
+    await async_session.refresh(vault)
+    assert vault.bottle_caps == initial_caps - 500
+
+
+@pytest.mark.asyncio
+async def test_upgrade_room_tier_2_to_3(async_client: AsyncClient, async_session: AsyncSession, vault, room_data: dict):
+    """Test upgrading a room from tier 2 to tier 3."""
+    room_data.update(
+        {
+            "tier": 2,
+            "t2_upgrade_cost": 500,
+            "t3_upgrade_cost": 1500,
+            "capacity": 12,
+            "output": 24,
+        }
+    )
+
+    vault.bottle_caps = 2000
+    await crud.vault.update(async_session, vault.id, vault)
+
+    room_in = RoomCreate(**room_data, vault_id=vault.id)
+    room = await crud.room.create(async_session, room_in)
+
+    initial_caps = vault.bottle_caps
+
+    # Upgrade room
+    response = await async_client.post(f"/rooms/upgrade/{room.id}")
+    assert response.status_code == 200
+
+    upgraded_room = response.json()
+    assert upgraded_room["tier"] == 3
+
+    # Verify vault caps were deducted
+    await async_session.refresh(vault)
+    assert vault.bottle_caps == initial_caps - 1500
+
+
+@pytest.mark.asyncio
+async def test_upgrade_room_insufficient_caps(
+    async_client: AsyncClient, async_session: AsyncSession, vault, room_data: dict
+):
+    """Test that upgrading fails when vault doesn't have enough caps."""
+    room_data.update(
+        {
+            "tier": 1,
+            "t2_upgrade_cost": 500,
+            "t3_upgrade_cost": 1500,
+        }
+    )
+
+    # Set vault caps below upgrade cost
+    vault.bottle_caps = 100
+    await crud.vault.update(async_session, vault.id, vault)
+
+    room_in = RoomCreate(**room_data, vault_id=vault.id)
+    room = await crud.room.create(async_session, room_in)
+
+    # Attempt to upgrade room
+    response = await async_client.post(f"/rooms/upgrade/{room.id}")
+    assert response.status_code == 422 or response.status_code == 400  # noqa: PLR1714
+
+
+@pytest.mark.asyncio
+async def test_upgrade_room_already_max_tier(
+    async_client: AsyncClient, async_session: AsyncSession, vault, room_data: dict
+):
+    """Test that upgrading fails when room is already at max tier."""
+    room_data.update(
+        {
+            "tier": 3,
+            "t2_upgrade_cost": 500,
+            "t3_upgrade_cost": 1500,
+        }
+    )
+
+    vault.bottle_caps = 10000
+    await crud.vault.update(async_session, vault.id, vault)
+
+    room_in = RoomCreate(**room_data, vault_id=vault.id)
+    room = await crud.room.create(async_session, room_in)
+
+    # Attempt to upgrade room beyond max tier
+    response = await async_client.post(f"/rooms/upgrade/{room.id}")
+    assert response.status_code == 422 or response.status_code == 400  # noqa: PLR1714
+    assert "maximum tier" in response.json().get("detail", "").lower()
+
+
+@pytest.mark.asyncio
+async def test_upgrade_room_no_t2_cost(async_client: AsyncClient, async_session: AsyncSession, vault, room_data: dict):
+    """Test that upgrading fails when room has no t2_upgrade_cost defined."""
+    room_data.update(
+        {
+            "tier": 1,
+            "t2_upgrade_cost": None,
+            "t3_upgrade_cost": None,
+        }
+    )
+
+    vault.bottle_caps = 10000
+    await crud.vault.update(async_session, vault.id, vault)
+
+    room_in = RoomCreate(**room_data, vault_id=vault.id)
+    room = await crud.room.create(async_session, room_in)
+
+    # Attempt to upgrade room with no upgrade cost
+    response = await async_client.post(f"/rooms/upgrade/{room.id}")
+    assert response.status_code == 422 or response.status_code == 400  # noqa: PLR1714
+
+
+@pytest.mark.asyncio
+async def test_upgrade_room_capacity_calculation(
+    async_client: AsyncClient, async_session: AsyncSession, vault, room_data: dict
+):
+    """Test that capacity is calculated correctly after upgrade."""
+    room_data.update(
+        {
+            "tier": 1,
+            "t2_upgrade_cost": 500,
+            "t3_upgrade_cost": 1500,
+            "capacity": 15,  # Known starting capacity
+            "output": 30,
+        }
+    )
+
+    vault.bottle_caps = 1000
+    await crud.vault.update(async_session, vault.id, vault)
+
+    room_in = RoomCreate(**room_data, vault_id=vault.id)
+    room = await crud.room.create(async_session, room_in)
+
+    # Upgrade room
+    response = await async_client.post(f"/rooms/upgrade/{room.id}")
+    assert response.status_code == 200
+
+    upgraded_room = response.json()
+
+    # Expected tier ratio: (2+4)/(1+4) = 6/5 = 1.2
+    expected_capacity = int(15 * 1.2)  # 18
+    expected_output = int(30 * 1.2)  # 36
+
+    assert upgraded_room["capacity"] == expected_capacity
+    assert upgraded_room["output"] == expected_output

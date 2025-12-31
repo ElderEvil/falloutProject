@@ -30,68 +30,108 @@ const toggleDropdown = () => {
 </script>
 
 <template>
-  <nav class="bg-gray-800 p-4 shadow-lg">
+  <nav class="bg-gray-800 p-4 shadow-lg" role="navigation" aria-label="Main navigation">
+    <!-- Skip to main content link for accessibility -->
+    <a
+      href="#main-content"
+      class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:bg-terminalGreen focus:text-black focus:px-4 focus:py-2 focus:rounded"
+    >
+      Skip to main content
+    </a>
+
     <div class="container mx-auto flex items-center justify-between">
-      <div class="flex space-x-4 items-center">
+      <div class="flex space-x-4 items-center" role="menubar">
         <!-- Vault List Button (main navigation) -->
-        <router-link to="/" class="text-green-500 hover:underline font-bold">
+        <router-link
+          to="/"
+          class="text-green-500 hover:underline font-bold focus:outline-none focus:ring-2 focus:ring-terminalGreen focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1"
+          role="menuitem"
+          aria-label="Navigate to vaults list"
+        >
           Vaults
         </router-link>
 
         <!-- Context-aware navigation (only when in a vault) -->
         <template v-if="isAuthenticated && currentVaultId">
-          <span class="text-gray-600">|</span>
+          <span class="text-gray-600" aria-hidden="true">|</span>
           <router-link
             :to="`/vault/${currentVaultId}/dwellers`"
-            class="text-green-500 hover:underline"
+            class="text-green-500 hover:underline focus:outline-none focus:ring-2 focus:ring-terminalGreen focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1"
+            role="menuitem"
+            aria-label="Navigate to dwellers management"
           >
             Dwellers
           </router-link>
           <router-link
             :to="`/vault/${currentVaultId}/objectives`"
-            class="text-green-500 hover:underline"
+            class="text-green-500 hover:underline focus:outline-none focus:ring-2 focus:ring-terminalGreen focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1"
+            role="menuitem"
+            aria-label="Navigate to objectives"
           >
             Objectives
           </router-link>
         </template>
 
-        <router-link to="/about" class="text-green-500 hover:underline">About</router-link>
+        <router-link
+          to="/about"
+          class="text-green-500 hover:underline focus:outline-none focus:ring-2 focus:ring-terminalGreen focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1"
+          role="menuitem"
+          aria-label="Navigate to about page"
+        >
+          About
+        </router-link>
       </div>
       <div class="flex items-center space-x-4">
         <!-- User-related actions on the right -->
-        <router-link to="/login" v-if="!isAuthenticated" class="text-green-500 hover:underline"
-        >Login
+        <router-link
+          to="/login"
+          v-if="!isAuthenticated"
+          class="text-green-500 hover:underline focus:outline-none focus:ring-2 focus:ring-terminalGreen focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1"
+          aria-label="Go to login page"
+        >
+          Login
         </router-link>
-        <router-link to="/register" v-if="!isAuthenticated" class="text-green-500 hover:underline"
-        >Register
+        <router-link
+          to="/register"
+          v-if="!isAuthenticated"
+          class="text-green-500 hover:underline focus:outline-none focus:ring-2 focus:ring-terminalGreen focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1"
+          aria-label="Go to registration page"
+        >
+          Register
         </router-link>
-
-        <!-- Flickering Icon -->
-        <!--        <button-->
-        <!--          @click="toggleFlickering"-->
-        <!--          class="rounded-full p-1 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800"-->
-        <!--          :class="{ 'text-yellow-300': isFlickering, 'text-gray-400': !isFlickering }"-->
-        <!--          :title="isFlickering ? 'Stop Flickering' : 'Start Flickering'"-->
-        <!--        >-->
-        <!--          <BoltIcon class="h-6 w-6" />-->
-        <!--        </button>-->
 
         <!-- User Dropdown -->
         <div v-if="isAuthenticated" class="relative">
-          <button @click="toggleDropdown" class="glow text-green-500 hover:underline">
+          <button
+            @click="toggleDropdown"
+            @keydown.escape="isDropdownOpen = false"
+            class="glow text-green-500 hover:underline focus:outline-none focus:ring-2 focus:ring-terminalGreen focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1"
+            :aria-expanded="isDropdownOpen"
+            aria-haspopup="true"
+            :aria-label="`User menu for ${user?.username || 'user'}`"
+          >
             {{ user?.username }}
           </button>
           <div
             v-if="isDropdownOpen"
-            class="absolute right-0 mt-2 w-48 bg-gray-800 shadow-lg"
+            class="absolute right-0 mt-2 w-48 bg-gray-800 shadow-lg rounded border border-gray-700"
+            role="menu"
+            aria-label="User menu"
             style="z-index: 50"
           >
-            <router-link to="/profile" class="block px-4 py-2 text-green-500 hover:bg-gray-700"
-            >Profile
+            <router-link
+              to="/profile"
+              class="block px-4 py-2 text-green-500 hover:bg-gray-700 focus:outline-none focus:bg-gray-700 rounded-t"
+              role="menuitem"
+              aria-label="View profile"
+            >
+              Profile
             </router-link>
             <button
               @click="logout"
-              class="block w-full px-4 py-2 text-left text-green-500 hover:bg-gray-700"
+              class="block w-full px-4 py-2 text-left text-green-500 hover:bg-gray-700 focus:outline-none focus:bg-gray-700 rounded-b"
+              role="menuitem"
+              aria-label="Logout"
             >
               Logout
             </button>

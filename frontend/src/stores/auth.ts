@@ -8,7 +8,18 @@ export const useAuthStore = defineStore('auth', () => {
   // State (using VueUse for reactive localStorage)
   const token = useLocalStorage<string | null>('token', null)
   const refreshToken = useLocalStorage<string | null>('refreshToken', null)
-  const user = useLocalStorage<User | null>('user', null)
+  const user = useLocalStorage<User | null>('user', null, {
+    serializer: {
+      read: (v: string) => {
+        try {
+          return JSON.parse(v)
+        } catch {
+          return null
+        }
+      },
+      write: (v: User | null) => JSON.stringify(v)
+    }
+  })
 
   // Getters
   const isAuthenticated = computed(() => !!token.value)
@@ -121,6 +132,11 @@ export const useAuthStore = defineStore('auth', () => {
       refreshToken.value = null
       user.value = null
     }
+  }
+
+  // Initialize: fetch user if we have a token but no user data
+  if (token.value && !user.value) {
+    fetchUser()
   }
 
   return {

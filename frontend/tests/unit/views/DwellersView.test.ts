@@ -45,6 +45,7 @@ describe('DwellersView', () => {
       history: createMemoryHistory(),
       routes: [
         { path: '/vault/:id/dwellers', component: DwellersView },
+        { path: '/vault/:id/dwellers/:dwellerId', name: 'dwellerDetail', component: { template: '<div>Dweller Detail</div>' } },
         { path: '/vault/:id', component: { template: '<div>Vault View</div>' } },
         { path: '/dweller/:id/chat', component: { template: '<div>Chat</div>' } }
       ]
@@ -385,8 +386,8 @@ describe('DwellersView', () => {
     })
   })
 
-  describe('Dweller Details Expansion', () => {
-    it('should expand dweller details when clicking', async () => {
+  describe('Dweller Navigation', () => {
+    it('should navigate to dweller detail page when clicking', async () => {
       const mockDwellers = [
         {
           id: 'dweller-1',
@@ -402,24 +403,9 @@ describe('DwellersView', () => {
         }
       ]
 
-      const mockDetails = {
-        id: 'dweller-1',
-        first_name: 'John',
-        last_name: 'Doe',
-        bio: 'A brave vault dweller',
-        S: 7,
-        P: 5,
-        E: 6,
-        C: 4,
-        I: 8,
-        A: 6,
-        L: 5
-      }
-
       vi.mocked(axios.get)
         .mockResolvedValueOnce({ data: mockDwellers }) // fetchDwellersByVault
         .mockResolvedValueOnce({ data: [] }) // fetchRooms
-        .mockResolvedValueOnce({ data: mockDetails }) // fetchDwellerDetails
 
       await router.isReady()
       const wrapper = mount(DwellersView, {
@@ -429,14 +415,15 @@ describe('DwellersView', () => {
       })
       await flushPromises()
 
-      // Click the dweller card div to expand
+      // Click the dweller card to navigate
       const dwellerCards = wrapper.findAll('li')
       const dwellerCard = dwellerCards[0]
-      const clickableDiv = dwellerCard.find('.flex.w-full.items-center')
-      await clickableDiv.trigger('click')
+      await dwellerCard.trigger('click')
       await flushPromises()
 
-      expect(wrapper.text()).toContain('A brave vault dweller')
+      // Verify router navigation was called
+      expect(router.currentRoute.value.name).toBe('dwellerDetail')
+      expect(router.currentRoute.value.params.dwellerId).toBe('dweller-1')
     })
   })
 

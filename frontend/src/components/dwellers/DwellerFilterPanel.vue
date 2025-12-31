@@ -5,10 +5,12 @@ import { useDwellerStore, type DwellerStatus, type DwellerSortBy } from '@/store
 
 interface Props {
   showStatusFilter?: boolean
+  showViewToggle?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  showStatusFilter: true
+  showStatusFilter: true,
+  showViewToggle: false
 })
 
 const dwellerStore = useDwellerStore()
@@ -76,24 +78,49 @@ const toggleSortDirection = () => {
       </div>
     </div>
 
-    <div class="filter-section">
-      <div class="section-header">
-        <Icon icon="mdi:sort" />
-        <span>Sort By</span>
+    <div class="filter-section-row">
+      <div class="filter-section">
+        <div class="section-header">
+          <Icon icon="mdi:sort" />
+          <span>Sort By</span>
+        </div>
+        <div class="sort-controls">
+          <select v-model="currentSortBy" class="sort-select">
+            <option v-for="option in sortOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+          <button @click="toggleSortDirection" class="sort-direction-button">
+            <Icon
+              :icon="currentSortDirection === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'"
+              width="20"
+              height="20"
+            />
+          </button>
+        </div>
       </div>
-      <div class="sort-controls">
-        <select v-model="currentSortBy" class="sort-select">
-          <option v-for="option in sortOptions" :key="option.value" :value="option.value">
-            {{ option.label }}
-          </option>
-        </select>
-        <button @click="toggleSortDirection" class="sort-direction-button">
-          <Icon
-            :icon="currentSortDirection === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'"
-            width="20"
-            height="20"
-          />
-        </button>
+
+      <div v-if="showViewToggle" class="filter-section">
+        <div class="section-header">
+          <Icon icon="mdi:view-comfy" />
+          <span>View</span>
+        </div>
+        <div class="view-toggle-controls">
+          <button
+            :class="['view-toggle-btn', dwellerStore.viewMode === 'list' ? 'active' : '']"
+            @click="dwellerStore.setViewMode('list')"
+          >
+            <Icon icon="mdi:view-list" width="18" height="18" />
+            <span>List</span>
+          </button>
+          <button
+            :class="['view-toggle-btn', dwellerStore.viewMode === 'grid' ? 'active' : '']"
+            @click="dwellerStore.setViewMode('grid')"
+          >
+            <Icon icon="mdi:view-grid" width="18" height="18" />
+            <span>Grid</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -198,5 +225,44 @@ const toggleSortDirection = () => {
 .sort-direction-button:hover {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.2);
+}
+
+.filter-section-row {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.view-toggle-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.view-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #d1d5db;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.view-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.view-toggle-btn.active {
+  background: rgba(251, 191, 36, 0.2);
+  border-color: #fbbf24;
+  color: #fbbf24;
+  font-weight: 600;
 }
 </style>

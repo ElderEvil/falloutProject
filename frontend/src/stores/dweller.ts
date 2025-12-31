@@ -22,6 +22,7 @@ export const useDwellerStore = defineStore('dweller', () => {
   const filterStatus = useLocalStorage<DwellerStatus | 'all'>('dwellerFilterStatus', 'all')
   const sortBy = useLocalStorage<DwellerSortBy>('dwellerSortBy', 'name')
   const sortDirection = useLocalStorage<SortDirection>('dwellerSortDirection', 'asc')
+  const viewMode = useLocalStorage<'list' | 'grid'>('dwellerViewMode', 'list')
 
   /**
    * Get dweller status - now directly from backend
@@ -249,6 +250,10 @@ export const useDwellerStore = defineStore('dweller', () => {
     sortDirection.value = direction
   }
 
+  function setViewMode(mode: 'list' | 'grid'): void {
+    viewMode.value = mode
+  }
+
   return {
     // State
     dwellers,
@@ -256,6 +261,7 @@ export const useDwellerStore = defineStore('dweller', () => {
     filterStatus,
     sortBy,
     sortDirection,
+    viewMode,
     // Computed
     getDwellerStatus,
     dwellersWithStatus,
@@ -270,6 +276,7 @@ export const useDwellerStore = defineStore('dweller', () => {
     unassignDwellerFromRoom,
     setFilterStatus,
     setSortBy,
-    setSortDirection
+    setSortDirection,
+    setViewMode
   }
 })

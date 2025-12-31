@@ -223,54 +223,8 @@ pnpm run lint         # Lint with Oxlint
 
 **Frontend Documentation:**
 
-- See [`frontend/README.md`](./frontend/README.md) for detailed frontend docs
-- See [`frontend/STYLEGUIDE.md`](./frontend/STYLEGUIDE.md) for design system
-- See [`frontend/src/components/ui/README.md`](./frontend/src/components/ui/README.md) for UI components
-
-### Project Structure
-
-```
-falloutProject/
-├── backend/                    # FastAPI Backend
-│   ├── app/
-│   │   ├── admin/             # Admin panel views
-│   │   ├── api/v1/endpoints/  # API endpoints
-│   │   ├── core/              # Core configuration
-│   │   ├── crud/              # CRUD operations
-│   │   ├── db/                # Database setup
-│   │   ├── models/            # SQLModel models
-│   │   ├── schemas/           # Pydantic schemas
-│   │   ├── services/          # Business logic
-│   │   ├── tests/             # Test suite
-│   │   └── utils/             # Utilities
-│   ├── alembic/               # Database migrations
-│   ├── locust/                # Performance tests
-│   ├── Dockerfile
-│   ├── pyproject.toml         # Python dependencies
-│   └── uv.lock                # Locked dependencies
-├── frontend/                   # Vue 3 Frontend
-│   ├── src/
-│   │   ├── assets/            # Styles (TailwindCSS)
-│   │   ├── components/
-│   │   │   ├── ui/            # 8 custom UI components
-│   │   │   ├── common/        # Shared components
-│   │   │   ├── auth/          # Auth components
-│   │   │   ├── vault/         # Vault components
-│   │   │   └── rooms/         # Room components
-│   │   ├── composables/       # Vue composables
-│   │   ├── router/            # Vue Router
-│   │   ├── stores/            # Pinia stores
-│   │   ├── views/             # Page components
-│   │   └── main.ts            # Entry point
-│   ├── tests/unit/            # Unit tests (88 tests)
-│   ├── package.json           # JS dependencies
-│   ├── vite.config.ts         # Vite config
-│   ├── STYLEGUIDE.md          # Design system
-│   └── MIGRATION_GUIDE.md     # VoidZero stack docs
-├── docker-compose.yml
-├── podman-compose.yml
-└── CONTAINER_MIGRATION.md
-```
+- See [`frontend/README.md`](./frontend/README.md) for detailed frontend architecture
+- See [`frontend/STYLEGUIDE.md`](./frontend/STYLEGUIDE.md) for design system and components
 
 ## 🐳 Container Options
 

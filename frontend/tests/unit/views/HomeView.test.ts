@@ -18,9 +18,14 @@ describe('HomeView', () => {
     localStorage.clear()
     setActivePinia(createPinia())
 
-    // Set token in localStorage before initializing store
-    // so useLocalStorage picks it up
+    // Set token and user in localStorage before initializing store
+    // so useLocalStorage picks them up and doesn't trigger fetchUser
     localStorage.setItem('token', 'test-token')
+    localStorage.setItem('user', JSON.stringify({
+      id: 'test-user-id',
+      username: 'testuser',
+      email: 'test@example.com'
+    }))
 
     authStore = useAuthStore()
     vaultStore = useVaultStore()

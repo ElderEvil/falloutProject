@@ -269,6 +269,31 @@ class WastelandService:
         # Calculate experience based on distance and encounters
         experience = (exploration.total_distance * 10) + (exploration.enemies_encountered * 50)
 
+        # Apply experience to dweller
+        dweller_obj.experience += experience
+        db_session.add(dweller_obj)
+
+        # Transfer loot items to vault storage
+        if exploration.loot_collected:
+            from app.models.junk import Junk
+            from app.schemas.common import JunkTypeEnum
+
+            # Get vault storage
+            vault = await crud_vault.get(db_session, exploration.vault_id)
+
+            for loot_item in exploration.loot_collected:
+                # Create junk item in storage
+                junk = Junk(
+                    name=loot_item.get("item_name", "Unknown Item"),
+                    junk_type=JunkTypeEnum.MISC,  # Default type
+                    rarity=loot_item.get("rarity", "Common"),
+                    description="Found during wasteland exploration",
+                    storage_id=vault.storage.id,
+                )
+                db_session.add(junk)
+
+        await db_session.commit()
+
         rewards_summary = {
             "caps": total_caps,
             "items": exploration.loot_collected,
@@ -336,6 +361,31 @@ class WastelandService:
         # Calculate reduced experience
         base_experience = (exploration.total_distance * 10) + (exploration.enemies_encountered * 50)
         experience = int(base_experience * (progress / 100))
+
+        # Apply experience to dweller
+        dweller_obj.experience += experience
+        db_session.add(dweller_obj)
+
+        # Transfer loot items to vault storage
+        if exploration.loot_collected:
+            from app.models.junk import Junk
+            from app.schemas.common import JunkTypeEnum
+
+            # Get vault storage
+            vault = await crud_vault.get(db_session, exploration.vault_id)
+
+            for loot_item in exploration.loot_collected:
+                # Create junk item in storage
+                junk = Junk(
+                    name=loot_item.get("item_name", "Unknown Item"),
+                    junk_type=JunkTypeEnum.MISC,  # Default type
+                    rarity=loot_item.get("rarity", "Common"),
+                    description="Found during wasteland exploration (recalled early)",
+                    storage_id=vault.storage.id,
+                )
+                db_session.add(junk)
+
+        await db_session.commit()
 
         rewards_summary = {
             "caps": total_caps,

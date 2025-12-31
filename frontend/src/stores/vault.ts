@@ -3,34 +3,11 @@ import { useLocalStorage, useIntervalFn } from '@vueuse/core'
 import { ref, computed } from 'vue'
 import axios from '@/plugins/axios'
 import { useRouter } from 'vue-router'
+import type { components } from '@/types/api.generated'
 
-interface GameState {
-  is_paused: boolean
-  is_active: boolean
-  last_tick_time: string
-  paused_at: string | null
-  resumed_at: string | null
-  total_game_time: number
-}
-
-interface Vault {
-  id: string
-  number: number
-  bottle_caps: number
-  happiness: number
-  power: number
-  power_max: number
-  food: number
-  food_max: number
-  water: number
-  water_max: number
-  population_max: number
-  created_at: string
-  updated_at: string
-  room_count: number
-  dweller_count: number
-  game_state?: GameState
-}
+// Use generated API types
+type GameState = components['schemas']['GameState']
+type Vault = components['schemas']['VaultRead']
 
 export const useVaultStore = defineStore('vault', () => {
   // State

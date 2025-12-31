@@ -2,6 +2,7 @@
 import { useDwellerStore } from '@/stores/dweller'
 import { useAuthStore } from '@/stores/auth'
 import { useVaultStore } from '@/stores/vault'
+import { useRoomStore } from '@/stores/room'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
@@ -14,6 +15,7 @@ import { useSidePanel } from '@/composables/useSidePanel'
 const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
 const vaultStore = useVaultStore()
+const roomStore = useRoomStore()
 const { isCollapsed } = useSidePanel()
 const router = useRouter()
 const route = useRoute()
@@ -36,6 +38,10 @@ const fetchDwellers = async () => {
 
 onMounted(async () => {
   await fetchDwellers()
+  // Fetch rooms to show room assignments
+  if (authStore.isAuthenticated && vaultId.value) {
+    await roomStore.fetchRooms(vaultId.value, authStore.token as string)
+  }
 })
 
 // Watch for filter/sort changes and refetch
@@ -87,6 +93,12 @@ const generateDwellerInfo = async (dwellerId: string) => {
     generatingAI.value[dwellerId] = false
   }
 }
+
+// Get room info for a dweller
+const getRoomForDweller = computed(() => (roomId: string | null | undefined) => {
+  if (!roomId) return null
+  return roomStore.rooms.find(room => room.id === roomId)
+})
 </script>
 
 <template>
@@ -162,9 +174,28 @@ const generateDwellerInfo = async (dwellerId: string) => {
               </template>
             </div>
             <div class="flex-grow">
-              <div class="flex items-center gap-2 mb-2">
+              <div class="flex items-center gap-2 mb-2 flex-wrap">
                 <h3 class="text-xl font-bold">{{ dweller.first_name }} {{ dweller.last_name }}</h3>
                 <DwellerStatusBadge :status="dweller.status" :show-label="true" size="medium" />
+
+                <!-- Room Assignment Badge -->
+                <template v-if="getRoomForDweller(dweller.room_id)">
+                  <UTooltip :text="`Assigned to ${getRoomForDweller(dweller.room_id)?.name}`" position="top">
+                    <div
+                      class="room-badge px-2 py-1 rounded text-xs font-semibold bg-gray-800 text-gray-300 border border-gray-600 cursor-pointer hover:bg-gray-700 transition-all flex items-center gap-1"
+                      @click.stop="router.push(`/vault/${vaultId}`)"
+                    >
+                      <Icon icon="mdi:office-building" class="h-3 w-3" />
+                      <span>{{ getRoomForDweller(dweller.room_id)?.name || 'Room' }}</span>
+                    </div>
+                  </UTooltip>
+                </template>
+                <template v-else>
+                  <div class="room-badge px-2 py-1 rounded text-xs font-semibold bg-gray-700 text-gray-400 border border-gray-600 flex items-center gap-1">
+                    <Icon icon="mdi:account-off" class="h-3 w-3" />
+                    <span>Unassigned</span>
+                  </div>
+                </template>
               </div>
               <p>Level: {{ dweller.level }}</p>
               <p>Health: {{ dweller.health }} / {{ dweller.max_health }}</p>
@@ -598,5 +629,15 @@ const generateDwellerInfo = async (dwellerId: string) => {
   background: linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 50%, transparent 50%);
   background-size: 100% 2px;
   pointer-events: none;
+}
+
+/* Room Badge Styling */
+.room-badge {
+  font-family: monospace;
+  text-shadow: 0 0 2px rgba(0, 255, 0, 0.3);
+}
+
+.room-badge:hover {
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.4);
 }
 </style>

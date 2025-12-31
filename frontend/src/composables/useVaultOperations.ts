@@ -31,7 +31,7 @@ export function useVaultOperations() {
   }
 
   const loadVault = async (id: string, token: string) => {
-    localStorage.setItem('selectedVaultId', id)
+    vaultStore.selectedVaultId = id
     await roomStore.fetchRooms(id, token)
     await router.push('/vault')
   }

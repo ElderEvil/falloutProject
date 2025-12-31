@@ -1,11 +1,7 @@
-import { ref } from 'vue'
+import { useToggle } from '@vueuse/core'
 
 export function useFlickering() {
-  const isFlickering = ref(true)
-
-  const toggleFlickering = () => {
-    isFlickering.value = !isFlickering.value
-  }
+  const [isFlickering, toggleFlickering] = useToggle(true)
 
   return {
     isFlickering,

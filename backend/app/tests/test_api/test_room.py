@@ -126,34 +126,43 @@ async def test_upgrade_room_tier_1_to_2(async_client: AsyncClient, async_session
 @pytest.mark.asyncio
 async def test_upgrade_room_tier_2_to_3(async_client: AsyncClient, async_session: AsyncSession, vault, room_data: dict):
     """Test upgrading a room from tier 2 to tier 3."""
+    # Start with tier 1 room
     room_data.update(
         {
-            "tier": 2,
+            "tier": 1,
             "t2_upgrade_cost": 500,
             "t3_upgrade_cost": 1500,
-            "capacity": 12,
-            "output": 24,
+            "capacity": 10,
+            "output": 20,
         }
     )
 
-    vault.bottle_caps = 2000
+    vault.bottle_caps = 2500
     await crud.vault.update(async_session, vault.id, vault)
 
     room_in = RoomCreate(**room_data, vault_id=vault.id)
     room = await crud.room.create(async_session, room_in)
 
-    initial_caps = vault.bottle_caps
+    # First upgrade to tier 2
+    response = await async_client.post(f"/rooms/upgrade/{room.id}")
+    assert response.status_code == 200
+    tier2_room = response.json()
+    assert tier2_room["tier"] == 2
 
-    # Upgrade room
+    # Refresh vault to get updated caps
+    await async_session.refresh(vault)
+    caps_after_first_upgrade = vault.bottle_caps
+
+    # Now upgrade from tier 2 to tier 3
     response = await async_client.post(f"/rooms/upgrade/{room.id}")
     assert response.status_code == 200
 
     upgraded_room = response.json()
     assert upgraded_room["tier"] == 3
 
-    # Verify vault caps were deducted
+    # Verify vault caps were deducted for tier 3 upgrade
     await async_session.refresh(vault)
-    assert vault.bottle_caps == initial_caps - 1500
+    assert vault.bottle_caps == caps_after_first_upgrade - 1500
 
 
 @pytest.mark.asyncio

@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import axios from '@/plugins/axios'
 import type { Dweller, DwellerShort } from '@/models/dweller'
+import { useToast } from '@/composables/useToast'
 
 export type DwellerStatus = 'idle' | 'working' | 'exploring' | 'training' | 'resting' | 'dead' | 'unknown'
 
@@ -14,9 +15,12 @@ export type DwellerSortBy = 'name' | 'level' | 'strength' | 'perception' | 'endu
 export type SortDirection = 'asc' | 'desc'
 
 export const useDwellerStore = defineStore('dweller', () => {
+  const toast = useToast()
+
   // State
   const dwellers = ref<DwellerShort[]>([])
   const detailedDwellers = ref<Record<string, Dweller | null>>({})
+  const isLoading = ref(false)
 
   // Filter and sort state (persisted in localStorage)
   const filterStatus = useLocalStorage<DwellerStatus | 'all'>('dwellerFilterStatus', 'all')
@@ -119,6 +123,7 @@ export const useDwellerStore = defineStore('dweller', () => {
       limit?: number
     }
   ): Promise<void> {
+    isLoading.value = true
     try {
       const params = new URLSearchParams()
       if (options?.status && options.status !== 'all') params.append('status', options.status)
@@ -139,6 +144,8 @@ export const useDwellerStore = defineStore('dweller', () => {
       dwellers.value = response.data
     } catch (error) {
       console.error(`Failed to fetch dwellers for vault ${vaultId}`, error)
+    } finally {
+      isLoading.value = false
     }
   }
 
@@ -170,9 +177,11 @@ export const useDwellerStore = defineStore('dweller', () => {
         }
       })
       detailedDwellers.value[id] = response.data
+      toast.success('AI portrait generated successfully!')
       return detailedDwellers.value[id]
     } catch (error) {
       console.error(`Failed to generate image for dweller ${id}`, error)
+      toast.error('Failed to generate AI portrait')
       return null
     }
   }
@@ -200,9 +209,11 @@ export const useDwellerStore = defineStore('dweller', () => {
         detailedDwellers.value[dwellerId] = response.data
       }
 
+      toast.success('Dweller assigned to room successfully!')
       return response.data
     } catch (error) {
       console.error(`Failed to assign dweller ${dwellerId} to room ${roomId}`, error)
+      toast.error('Failed to assign dweller to room')
       throw error
     }
   }
@@ -231,9 +242,11 @@ export const useDwellerStore = defineStore('dweller', () => {
         detailedDwellers.value[dwellerId] = response.data
       }
 
+      toast.success('Dweller recalled successfully!')
       return response.data
     } catch (error) {
       console.error(`Failed to unassign dweller ${dwellerId}`, error)
+      toast.error('Failed to recall dweller')
       throw error
     }
   }
@@ -258,6 +271,7 @@ export const useDwellerStore = defineStore('dweller', () => {
     // State
     dwellers,
     detailedDwellers,
+    isLoading,
     filterStatus,
     sortBy,
     sortDirection,

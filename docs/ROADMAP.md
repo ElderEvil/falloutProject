@@ -1,206 +1,216 @@
 # Fallout Shelter Game - Roadmap
 
-## 🎯 High Priority Features
+## 🎯 **Core Vision: AI-Powered Dweller Interactions**
 
-### 1. **Dweller View Grid/List Switcher**
-
-- **Design UI Toggle:** Create a toggle button in the Dwellers section to switch between grid and list views
-- **Implement Grid View:** Layout dwellers in a grid format with larger thumbnails and essential stats visible
-- **Implement List View:** Layout dwellers in a list format, showing more details in a compact vertical layout
-- **Persist View Preference:** Store the user's preference (grid/list) in local storage or Pinia store
-
-### 2. **Dweller Filter/Sort**
-
-- **Design Filter/Sort UI:** Add dropdowns or buttons to filter dwellers by status (e.g., idle, working, exploring)
-- **Implement Filtering Logic:** Write methods to filter the displayed dwellers based on selected criteria
-- **Implement Sorting Logic:** Write methods to sort dwellers in ascending/descending order
-- **Integrate with View:** Ensure filtering and sorting work smoothly with the grid/list view
-
-### 3. **User Profile - Frontend Implementation**
-
-- ✅ **Backend Complete:** UserProfile model, CRUD operations, API endpoints, statistics tracking
-- **Frontend Tasks:**
-    - Design profile section UI for viewing and editing profile information
-    - Implement profile editing (bio, avatar_url, preferences)
-    - Profile picture upload feature with MinIO integration
-    - Display read-only statistics (total_dwellers_created, total_caps_earned, etc.)
-    - Integrate with authentication system
-
-### 4. **Vault Inventory Management**
-
-- **Design Inventory UI:** Create categorized inventory view showing resources, items, and equipment
-- **Item Categorization:** Organize items into weapons, outfits, junk, and consumables
-- **Display Item Details:** Click on item to view detailed stats and actions (equip, use, sell)
-- **Integration:** Make inventory easily accessible from vault overview
-
-### 5. **User Flow Enhancement - Vault as Main View**
-
-- **Set Vault as Main Tab:** Make vault overview the default view on login
-- **Vault Switcher:** Add button/dropdown to switch between multiple vaults
-- **Smooth Transitions:** Ensure intuitive navigation between vault views
+This is an **AI-first game** built on **PydanticAI**. The ultimate goal is rich, dynamic dweller interactions using AI agents with tool-calling capabilities.
 
 ---
 
-## ✅ Completed Features
+## 🚀 **Phase 1: AI & Core Gameplay Loop** (HIGHEST PRIORITY)
+
+### **1. Enhanced AI Dweller Chat with Tools** 🤖
+**Status:** Partially Complete (Basic chat exists)
+**Priority:** 🔥🔥🔥 CRITICAL
+
+**What's Missing:**
+- [ ] PydanticAI tool integration for dwellers
+- [ ] Dwellers can request actions via chat (equip weapon, go explore, train stats)
+- [ ] AI-driven personality responses based on SPECIAL stats
+- [ ] Context-aware conversations (dweller remembers vault state, recent events)
+- [ ] Multi-turn conversation memory
+- [ ] Emotional state system influencing responses
+
+**Backend Tasks:**
+- Implement PydanticAI tools for dweller actions
+- Create tool schemas for: equip_item, start_exploration, train_stat, change_room
+- Add conversation context management
+- Personality engine based on SPECIAL scores
+
+**Frontend Tasks:**
+- Enhanced chat UI with tool action previews
+- Show when dweller is "thinking" or executing actions
+- Visual feedback for tool calls (animations, confirmations)
+- Chat history persistence
+
+---
+
+### **2. Weapons & Outfits System** ⚔️
+**Status:** Backend exists, Frontend minimal
+**Priority:** 🔥🔥🔥 CRITICAL
+
+**Quick Integration:**
+- [ ] Weapon/Outfit inventory UI
+- [ ] Equip items to dwellers (drag-drop or click)
+- [ ] Show equipped items on dweller cards
+- [ ] Visual stat bonuses from equipment
+- [ ] Loot system integration with wasteland
+
+**Backend:** Already has weapon/outfit endpoints ✅
+**Frontend:** Need equipment UI in dweller detail page
+
+---
+
+### **3. Combat System** ⚔️
+**Status:** Not implemented
+**Priority:** 🔥🔥🔥 CRITICAL
+
+**What to Build:**
+- [ ] Wasteland combat encounters
+- [ ] Enemy types and difficulty
+- [ ] Combat calculations (SPECIAL + weapon stats)
+- [ ] Combat animations/feedback
+- [ ] Loot drops from combat
+- [ ] Dweller damage and health system
+- [ ] Combat logs and history
+
+**Integration Points:**
+- Exploration system triggers combat
+- Weapons/outfits affect combat outcomes
+- AI chat can discuss combat strategies
+
+---
+
+### **4. Enhanced Wasteland Exploration** 🗺️
+**Status:** Basic system exists
+**Priority:** 🔥🔥 HIGH
+
+**What's Missing:**
+- [ ] Richer event system (encounters, discoveries, choices)
+- [ ] Multi-stage explorations (journey with checkpoints)
+- [ ] Resource discoveries (weapons, outfits, caps, junk)
+- [ ] Danger/risk system based on dweller stats
+- [ ] Visual exploration map/progress
+- [ ] AI-generated exploration narratives
+
+**Integration:**
+- Combat encounters during exploration
+- AI dwellers can tell stories about exploration
+- Equipment affects exploration success
+
+---
+
+## 📦 **Phase 2: Polish & UX Quick Wins** (IMMEDIATE)
+
+### **UI/UX Improvements**
+- [ ] Loading skeletons (replace "Loading..." text)
+- [ ] Empty states with friendly messages + CTAs
+- [ ] Toast notifications for user actions
+- [ ] Confirmation dialogs for destructive actions
+- [ ] Better error messages with recovery suggestions
+- [ ] Micro-animations (button clicks, state changes)
+- [ ] Progress indicators for long operations
+- [ ] Visual feedback for resource changes
+
+### **Onboarding Experience**
+- [ ] Welcome screen for new users
+- [ ] First vault creation guide
+- [ ] Interactive tutorial tooltips
+- [ ] Quick tips for new overseers
+- [ ] "Getting Started" checklist
+
+### **Reward & Feedback System**
+- [ ] Celebration animations for achievements
+- [ ] Visual loot reveal system
+- [ ] Level-up celebrations
+- [ ] Milestone notifications
+- [ ] Daily login rewards (optional)
+
+---
+
+## ✅ **Recently Completed Features**
+
+### **Dweller Grid/List View** ✅
+- ✅ Toggle between grid and list layouts
+- ✅ View preference persistence in localStorage
+- ✅ Responsive grid layout
+- ✅ Integrated into filter panel
+
+### **Dweller Detail Page** ✅
+- ✅ Dedicated detail page with routing
+- ✅ Three-tab layout (Profile, Stats, Equipment)
+- ✅ Equipment tab placeholder
+- ✅ AI portrait generation integration
 
 ### **Dweller Status System** ✅
-
 - ✅ Backend: DwellerStatusEnum (IDLE, WORKING, EXPLORING, TRAINING, RESTING, DEAD)
-- ✅ Auto-status updates on room assignment based on room type
+- ✅ Auto-status updates on room assignment
 - ✅ Filtering/sorting/search endpoints
-- ✅ Frontend: Status badges, filter panel, real-time updates
-- ✅ Comprehensive test coverage (backend + frontend)
+- ✅ Frontend: Status badges, filter panel
 
 ### **User Authentication & Authorization** ✅
-
 - ✅ Token refresh mechanism with Redis
 - ✅ Email verification system
 - ✅ Password reset flow
-- ✅ Secure token storage
-- ✅ Auto-refresh on token expiration
 
 ### **Email System** ✅
-
-- ✅ Email verification emails
-- ✅ Password reset emails
-- ✅ Password changed notification emails
-- ✅ Configured with MailHog for development
+- ✅ Email verification, password reset, notifications
+- ✅ MailHog for development
 - ✅ Template-based HTML emails
 
-### **Wasteland Exploration** ✅
-
-- ✅ Exploration mechanics (start, complete, recall)
-- ✅ Status integration (EXPLORING status)
-- ✅ Event system and loot collection
-- ✅ Frontend integration with status tracking
+### **Basic Wasteland Exploration** ✅
+- ✅ Start, complete, recall mechanics
+- ✅ Status integration
+- ✅ Basic event system
 
 ---
 
-## 🤖 Automation & DevOps
+## 🎯 **Phase 3: Advanced Features** (Future)
 
-### **Version & Dependency Management** ✅
+### **Inventory Management**
+- Categorized inventory (weapons, outfits, junk, consumables)
+- Item details and actions (equip, use, sell)
+- Vault storage system
+- Item crafting
 
-- ✅ **Dependabot:** Auto-updates for Python, npm, Docker, GitHub Actions (weekly on Mondays)
-- ✅ **Semantic Release:** Automated versioning based on conventional commits
-- ✅ **Version-Tagged Docker Images:** latest, v1.2.3, sha-abc123, timestamp tags
-- ✅ **Auto-Generated CHANGELOG:** From conventional commits
-- ✅ **GitHub Releases:** Automatic release notes and git tags
+### **User Profile Enhancement**
+- Profile picture upload (MinIO integration)
+- Statistics dashboard with charts
+- Achievement/milestone display
+- Customizable preferences
+- Overseer rank/title system
 
-### **Security & Quality** (Planned)
+### **Advanced AI Features**
+- Dweller-to-dweller conversations
+- AI-driven quests and storylines
+- Dynamic event generation
+- Personality evolution over time
 
-- Security scanning workflow (Safety, npm audit)
-- Performance regression testing with Locust
-- Code quality metrics and coverage enforcement
-
----
-
-## 🏗️ Infrastructure & Operations
-
-### **Current Infrastructure** ✅
-
-- ✅ CI/CD pipelines (backend CI, build, deploy, rollback)
-- ✅ Docker containerization (backend, frontend, celery, redis, postgres, minio, mailhog)
-- ✅ Docker Compose & Podman Compose support
-- ✅ Python 3.13 via uv package manager
-- ✅ Pre-commit hooks (ruff, uv-lock, pre-commit.ci integration)
-
-### **Monitoring & Observability** (Planned)
-
-- Health check endpoints for all services
-- Application performance monitoring (APM)
-- Structured logging with context
-- Error tracking (Sentry integration)
-- Resource usage alerts
-- Database query performance monitoring
-
-### **Configuration Management** (In Progress)
-
-- Environment-specific configuration (dev/staging/prod)
-- Secrets management improvements
-- Configuration validation on startup
-- Feature flags system
-
----
-
-## 📊 Testing Strategy
-
-### **Backend Testing** ✅
-
-- ✅ pytest with async support
-- ✅ Comprehensive test coverage for auth system (21 tests)
-- ✅ CRUD operation tests
-- ✅ API endpoint tests
-- ✅ Integration tests with test database
-
-### **Frontend Testing** (Needs Improvement)
-
-- Vitest unit tests
-- Component testing with Vue Test Utils
-- E2E tests (Playwright/Cypress)
-- Visual regression testing
-- Accessibility testing
-
-### **Performance Testing** ✅
-
-- ✅ Locust performance test suite
-- ✅ Multiple user scenarios (CasualPlayer, ActivePlayer, PowerUser)
-- ✅ Baseline, stress, and spike test configurations
-- Performance budgets and thresholds
-
----
-
-## 🎨 UI/UX Improvements (Future)
-
-### **Design System**
-
-- Component library documentation
-- Design tokens (colors, spacing, typography)
-- Consistent terminal theme across all components
-- Responsive design optimization
-
-### **Accessibility**
-
-- ARIA labels and roles
-- Keyboard navigation
-- Screen reader support
-- Color contrast compliance (WCAG AA)
-
-### **User Experience**
-
-- Loading states and skeletons
-- Error boundaries and fallbacks
-- Optimistic updates
-- Offline support (service workers)
-
----
-
-## 🔮 Future Features (Backlog)
+### **Combat Expansion**
+- Vault defense against raiders
+- Boss encounters in wasteland
+- Team-based combat
+- Strategic combat choices
 
 ### **Game Features**
-
-- Vault defenses and security
 - Dweller breeding and children
 - Radio room and recruitment
 - Quest system expansion
-- PvP/Vault raids
-- Trading system between players
+- Trading system
 - Achievements and badges
-
-### **Technical Features**
-
-- Real-time updates (WebSockets)
-- Multiplayer features
-- Mobile app (React Native/Capacitor)
-- Progressive Web App (PWA)
-- Internationalization (i18n)
-- Analytics and user behavior tracking
+- PvP/Vault raids (optional)
 
 ---
 
-## 📝 Development Workflow
+## 🤖 **Automation & DevOps**
+
+### **Current Infrastructure** ✅
+- ✅ CI/CD pipelines (backend CI, build, deploy, rollback)
+- ✅ Docker containerization
+- ✅ Python 3.13 via uv package manager
+- ✅ Pre-commit hooks (ruff, uv-lock)
+- ✅ Dependabot (weekly updates)
+- ✅ Semantic Release (automated versioning)
+
+### **Planned**
+- Security scanning workflow
+- Performance regression testing
+- Code quality metrics
+
+---
+
+## 📝 **Development Workflow**
 
 ### **Commit Message Format** (Conventional Commits)
-
 ```
 feat: new feature           → Minor version bump (0.1.0 → 0.2.0)
 fix: bug fix                → Patch version bump (0.1.0 → 0.1.1)
@@ -212,45 +222,31 @@ chore: maintenance          → No release
 feat!: breaking change      → Major version bump (0.1.0 → 1.0.0)
 ```
 
-### **Branch Strategy**
+---
 
-- `master` - Production-ready code
-- `develop` - Integration branch for features
-- `feature/*` - Feature branches
-- `fix/*` - Bug fix branches
-- `chore/*` - Maintenance branches
+## 🎯 **Next Sprint Focus**
 
-### **Release Process** (Automated)
+### **Immediate (This Week):**
+1. ✅ Grid/List view toggle (DONE)
+2. Quick UX wins (loading states, toasts, empty states)
+3. Equipment system UI (weapons/outfits display and equipping)
+4. Enhanced dweller chat with tool integration
 
-1. Merge PRs to master with conventional commits
-2. Semantic release automatically:
-    - Analyzes commits
-    - Bumps version
-    - Updates CHANGELOG.md
-    - Creates git tag
-    - Publishes GitHub release
-    - Triggers Docker image build with version tags
+### **This Month:**
+1. Combat system implementation
+2. Enhanced wasteland exploration with combat
+3. Loot and reward system
+4. AI personality improvements
+
+### **This Quarter:**
+1. Full AI agent ecosystem for dwellers
+2. Dynamic quest generation
+3. Advanced combat mechanics
+4. Mobile-responsive optimizations
 
 ---
 
-## 🚀 Next Sprint Focus
-
-### **Immediate Tasks:**
-
-1. Complete dweller grid/list view switcher
-2. Implement advanced dweller filtering/sorting UI
-3. Build user profile frontend (editing, avatar upload, stats display)
-4. Add vault inventory management UI
-
-### **DevOps Tasks:**
-
-5. Set up security scanning workflow (Phase 2)
-6. Configure performance regression tests in CI
-7. Implement staging environment auto-deployment
-
----
-
-## 📈 Success Metrics
+## 📈 **Success Metrics**
 
 - ✅ Zero manual version bumps
 - ✅ Auto-generated documentation (CHANGELOG)
@@ -258,9 +254,10 @@ feat!: breaking change      → Major version bump (0.1.0 → 1.0.0)
 - Test coverage > 80%
 - Performance budgets met (P95 < 1s)
 - Zero critical security vulnerabilities
-- CI/CD pipeline success rate > 95%
+- **User engagement: Average session time > 15 minutes**
+- **AI interactions: > 10 chat messages per session**
 
 ---
 
-**Last Updated:** Auto-updated via semantic-release
+**Last Updated:** 2025-12-31
 **Current Version:** See [CHANGELOG.md](../CHANGELOG.md) for latest version

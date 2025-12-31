@@ -200,11 +200,6 @@ const handleRoomPlaced = async (position: Position) => {
       <!-- Main Content Area -->
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
         <div class="container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8">
-      <!-- Game Control Panel -->
-      <div v-if="vaultId" class="mb-4 w-full flex justify-center">
-        <GameControlPanel :vaultId="vaultId" />
-      </div>
-
       <div class="mb-8 flex w-full items-center justify-between space-x-8">
         <!-- Dwellers Count and Happiness -->
         <div class="flex items-center space-x-4">
@@ -229,7 +224,7 @@ const handleRoomPlaced = async (position: Position) => {
           <ResourceBar :current="water.current" :max="water.max" icon="mdi:water" label="Water" />
         </div>
 
-        <!-- Bottle Caps and Build Button -->
+        <!-- Bottle Caps, Game Controls and Build Button -->
         <div class="flex items-center space-x-4">
           <UTooltip :text="`Bottle Caps: ${bottleCaps}\nVault currency for construction and upgrades`" position="bottom">
             <div class="flex items-center space-x-2 cursor-help" tabindex="0">
@@ -237,6 +232,7 @@ const handleRoomPlaced = async (position: Position) => {
               <p>{{ bottleCaps }}</p>
             </div>
           </UTooltip>
+          <GameControlPanel v-if="vaultId" :vaultId="vaultId" />
           <BuildModeButton :buildModeActive="buildModeActive" @toggleBuildMode="toggleBuildMode" />
         </div>
       </div>

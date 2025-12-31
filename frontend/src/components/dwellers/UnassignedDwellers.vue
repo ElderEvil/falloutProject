@@ -110,16 +110,20 @@ const getImageUrl = (imagePath: string | null) => {
     </div>
 
     <div class="panel-header">
-      <h3 class="panel-title">
-        <Icon icon="mdi:account-multiple" class="inline h-5 w-5" />
-        Unassigned Dwellers
-        <span class="count-badge">{{ unassignedDwellers.length }}</span>
-      </h3>
-      <p class="panel-subtitle">Drag dwellers here to unassign them from rooms</p>
-    </div>
+      <div class="header-row">
+        <div>
+          <h3 class="panel-title">
+            <Icon icon="mdi:account-multiple" class="inline h-5 w-5" />
+            Unassigned Dwellers
+            <span class="count-badge">{{ unassignedDwellers.length }}</span>
+          </h3>
+          <p class="panel-subtitle">Drag dwellers here to unassign them from rooms</p>
+        </div>
 
-    <!-- Filter Panel (sort only, no status filter since all unassigned dwellers are idle) -->
-    <DwellerFilterPanel :show-status-filter="false" />
+        <!-- Sort controls inline with header -->
+        <DwellerFilterPanel :show-status-filter="false" />
+      </div>
+    </div>
 
     <div
       v-if="unassignedDwellers.length === 0"
@@ -270,6 +274,13 @@ const getImageUrl = (imagePath: string | null) => {
   margin-bottom: 1rem;
   border-bottom: 1px solid rgba(0, 255, 0, 0.3);
   padding-bottom: 0.5rem;
+}
+
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
 }
 
 .panel-title {

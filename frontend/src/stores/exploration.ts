@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import axios from '@/plugins/axios'
+import { useToast } from '@/composables/useToast'
 
 export interface ExplorationEvent {
   type: string;
@@ -70,6 +71,8 @@ export interface RewardsSummary {
 }
 
 export const useExplorationStore = defineStore('exploration', () => {
+  const toast = useToast()
+
   // State
   const explorations = ref<Exploration[]>([])
   const activeExplorations = ref<Record<string, Exploration>>({})
@@ -115,10 +118,12 @@ export const useExplorationStore = defineStore('exploration', () => {
       explorations.value.push(exploration)
       activeExplorations.value[exploration.id] = exploration
 
+      toast.success('Dweller sent to wasteland!')
       return exploration
     } catch (err) {
       console.error('Failed to send dweller to wasteland:', err)
       error.value = 'Failed to send dweller to wasteland'
+      toast.error('Failed to send dweller to wasteland')
       throw err
     } finally {
       isLoading.value = false
@@ -218,10 +223,12 @@ export const useExplorationStore = defineStore('exploration', () => {
       // Remove from active explorations
       delete activeExplorations.value[explorationId]
 
+      toast.success('Dweller recalled from wasteland!')
       return response.data
     } catch (err) {
       console.error('Failed to recall dweller:', err)
       error.value = 'Failed to recall dweller'
+      toast.error('Failed to recall dweller')
       throw err
     } finally {
       isLoading.value = false
@@ -252,10 +259,12 @@ export const useExplorationStore = defineStore('exploration', () => {
       // Remove from active explorations
       delete activeExplorations.value[explorationId]
 
+      toast.success('Exploration completed successfully!')
       return response.data
     } catch (err) {
       console.error('Failed to complete exploration:', err)
       error.value = 'Failed to complete exploration'
+      toast.error('Failed to complete exploration')
       throw err
     } finally {
       isLoading.value = false

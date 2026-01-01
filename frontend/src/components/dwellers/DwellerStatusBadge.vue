@@ -131,9 +131,8 @@ const sizeClasses = computed(() => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="css">
 .status-badge {
-  backdrop-filter: blur(4px);
   animation: pulse-glow 2s ease-in-out infinite;
 }
 

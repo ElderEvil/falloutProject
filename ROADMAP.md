@@ -66,6 +66,15 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
   - Destroy rooms with partial refund
   - Room selection and detail view
   - Dweller assignment via drag-and-drop
+- [x] **Room Detail View** (v1.3):
+  - Comprehensive room information modal
+  - Real-time production rate calculations
+  - Efficiency metrics (dweller capacity utilization)
+  - Assigned dwellers list with relevant SPECIAL stats
+  - Clickable dweller cards with navigation to dweller details
+  - Management actions (upgrade, destroy, unassign all)
+  - Resource type and output display for production rooms
+  - Tier-based production multiplier visualization
 
 ### Exploration System
 - [x] Send dwellers to wasteland
@@ -422,22 +431,23 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ### Current Stats (as of January 1, 2026)
 - **Backend Endpoints**: 17 routers with 75+ endpoints (including incident management)
-- **Frontend Components**: 52+ Vue components (including combat UI)
+- **Frontend Components**: 53+ Vue components (including combat UI and room detail modal)
 - **UI Components**: 8 custom reusable components
 - **Test Coverage**:
-  - Frontend: 95+ tests passing (including room upgrade tests)
+  - Frontend: 428+ tests passing (including 29 room detail modal tests)
   - Backend: Comprehensive API and CRUD tests (including 7 room upgrade tests)
 - **Models**: 16 database models (including Incident and GameState)
-- **Lines of Code**: ~18,500+ (backend + frontend)
+- **Lines of Code**: ~19,000+ (backend + frontend)
 
 ### Version Milestones
 - **v0.1** - Basic vault and dweller management ✅
 - **v0.2** - Equipment system ✅
 - **v1.0** - Room upgrades and exploration enhancements ✅
 - **v1.1** - Room management and resource production ✅
-- **v1.2** - Combat and incident system ✅ (Current - Jan 2026)
-- **v1.3** - Training and progression (Jan-Feb 2026)
-- **v1.4** - Breeding and relationships (Feb-Mar 2026)
+- **v1.2** - Combat and incident system ✅
+- **v1.3** - Room detail view with clickable dweller navigation ✅ (Current - Jan 1, 2026)
+- **v1.4** - Training and progression (Jan-Feb 2026)
+- **v1.5** - Breeding and relationships (Feb-Mar 2026)
 - **v2.0** - Full release with endgame features (Mar-May 2026)
 
 ---
@@ -459,6 +469,15 @@ Last updated: January 1, 2026
 ---
 
 ## 🎉 Recent Highlights
+
+### Room Detail View v1.3 (January 1, 2026)
+- ✅ **Comprehensive Room Modal** - Click any room to view detailed statistics
+- ✅ **Production Analytics** - Real-time calculation of resource production rates
+- ✅ **Efficiency Metrics** - Visual display of room capacity utilization
+- ✅ **Dweller Management** - View assigned dwellers with their relevant SPECIAL stats
+- ✅ **Clickable Dweller Navigation** - Click dweller cards to open their detail page (v1.3.1)
+- ✅ **Quick Actions** - Upgrade, destroy, or unassign all dwellers from one place
+- ✅ **29 Component Tests** - Full test coverage for room detail functionality
 
 ### Combat System v1.2 (January 2026)
 - ✅ **Complete Incident System** - 8 incident types with dynamic spawning

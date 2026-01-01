@@ -7,9 +7,11 @@ import { useDwellerStore } from '@/stores/dweller'
 import { useRoomInteractions } from '@/composables/useRoomInteractions'
 import { useHoverPreview } from '@/composables/useHoverPreview'
 import RoomDwellers from '@/components/dwellers/RoomDwellers.vue'
+import RoomDetailModal from '@/components/rooms/RoomDetailModal.vue'
 import { Icon } from '@iconify/vue'
 import type { Incident } from '@/models/incident'
 import { IncidentType } from '@/models/incident'
+import type { Room } from '@/models/room'
 
 interface Props {
   incidents?: Incident[]
@@ -31,6 +33,10 @@ const rooms = computed(() => Array.isArray(roomStore.rooms) ? roomStore.rooms : 
 
 const { selectedRoomId, toggleRoomSelection, destroyRoom } = useRoomInteractions()
 const { hoverPosition, handleHover, clearHover, previewCells, isValidPlacement } = useHoverPreview()
+
+// Room detail modal state
+const showDetailModal = ref(false)
+const selectedRoomForDetail = ref<Room | null>(null)
 
 // Grid configuration
 const GRID_COLS = 4
@@ -248,6 +254,37 @@ const handleUpgradeRoom = async (roomId: string, event: Event) => {
     }, 3000)
   }
 }
+
+// Handle room click to open detail modal
+const handleRoomClick = (room: Room, event: Event) => {
+  // Don't open detail modal if clicking on action buttons or incident overlay
+  const target = event.target as HTMLElement
+  if (
+    target.closest('.room-actions') ||
+    target.closest('.incident-overlay') ||
+    target.closest('button')
+  ) {
+    return
+  }
+
+  selectedRoomForDetail.value = room
+  showDetailModal.value = true
+}
+
+// Handle room updated from detail modal
+const handleRoomUpdated = async () => {
+  const vaultId = route.params.id as string
+  if (vaultId && authStore.token) {
+    await roomStore.fetchRooms(vaultId, authStore.token)
+    await dwellerStore.fetchDwellers(vaultId, authStore.token)
+  }
+}
+
+// Close detail modal
+const closeDetailModal = () => {
+  showDetailModal.value = false
+  selectedRoomForDetail.value = null
+}
 </script>
 
 <template>
@@ -261,6 +298,14 @@ const handleUpgradeRoom = async (roomId: string, event: Event) => {
       <Icon icon="mdi:alert-circle" class="h-5 w-5" />
       {{ assignmentError }}
     </div>
+
+    <!-- Room Detail Modal -->
+    <RoomDetailModal
+      :room="selectedRoomForDetail"
+      v-model="showDetailModal"
+      @close="closeDetailModal"
+      @room-updated="handleRoomUpdated"
+    />
 
     <div class="room-grid">
       <!-- Render built rooms -->
@@ -277,7 +322,7 @@ const handleUpgradeRoom = async (roomId: string, event: Event) => {
           'drag-over': draggingOverRoomId === room.id,
           'has-incident': roomHasIncident(room.id)
         }"
-        @click="toggleRoomSelection(room.id)"
+        @click="handleRoomClick(room, $event)"
         @dragover="handleDragOver($event, room.id)"
         @dragleave="handleDragLeave"
         @drop="handleDrop($event, room.id)"

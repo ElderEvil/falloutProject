@@ -32,10 +32,10 @@ const emit = defineEmits<{
 }>()
 
 const variantClasses = {
-  primary: 'bg-terminalGreen text-black hover:bg-terminalGreenLight border-2 border-terminalGreen',
-  secondary: 'bg-transparent text-terminalGreen border-2 border-terminalGreen hover:bg-terminalGreenGlow',
-  danger: 'bg-danger text-white hover:opacity-80 border-2 border-danger',
-  ghost: 'bg-transparent text-terminalGreen hover:bg-surfaceLight border-2 border-transparent'
+  primary: 'btn-primary',
+  secondary: 'btn-secondary',
+  danger: 'btn-danger',
+  ghost: 'btn-ghost'
 }
 
 const sizeClasses = {
@@ -49,8 +49,7 @@ const sizeClasses = {
 const buttonClasses = [
   'inline-flex items-center justify-center gap-2',
   'font-bold rounded transition-all duration-200',
-  'focus:outline-none focus:ring-2 focus:ring-terminalGreen focus:ring-offset-2 focus:ring-offset-black',
-  'disabled:opacity-50 disabled:cursor-not-allowed',
+  'focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed',
   variantClasses[props.variant],
   sizeClasses[props.size],
   props.block ? 'w-full' : ''
@@ -85,5 +84,47 @@ const handleClick = (event: MouseEvent) => {
 
 .animate-spin {
   animation: spin 1s linear infinite;
+}
+
+/* Button Variants */
+.btn-primary {
+  background-color: var(--color-terminal-green-dark);
+  color: #000;
+  border: 2px solid var(--color-terminal-green);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--color-terminal-green);
+  box-shadow: 0 0 10px var(--color-terminal-green-glow);
+}
+
+.btn-secondary {
+  background-color: transparent;
+  color: var(--color-terminal-green);
+  border: 2px solid var(--color-terminal-green);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--color-terminal-green-glow);
+}
+
+.btn-danger {
+  background-color: var(--color-danger);
+  color: #fff;
+  border: 2px solid var(--color-danger);
+}
+
+.btn-danger:hover:not(:disabled) {
+  opacity: 0.8;
+}
+
+.btn-ghost {
+  background-color: transparent;
+  color: var(--color-terminal-green);
+  border: 2px solid transparent;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background-color: var(--color-surface-light);
 }
 </style>

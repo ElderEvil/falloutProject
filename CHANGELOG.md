@@ -3,6 +3,33 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.3.1] - 2026-01-01
+
+### Added
+
+#### Room Detail Modal Enhancements
+
+- **Frontend**:
+    - Added clickable dweller cards in Room Detail Modal
+    - Implemented navigation to dweller detail page when clicking on assigned dwellers
+    - Added hover effects with cursor pointer, lift animation, and enhanced glow for clickable dwellers
+    - Integrated Vue Router navigation with proper route params (vault ID and dweller ID)
+
+### Fixed
+
+- Fixed Vue Router mock in RoomDetailModal tests by adding `useRouter` mock
+- Updated test expectations to match new component layout:
+    - Dweller capacity display format (e.g., "2 / 2" instead of "2 / 4")
+    - Room size display format (e.g., "1x merged" instead of raw numbers)
+    - Section title changed from "Assigned Dwellers" to "Dweller Details"
+    - Efficiency calculations updated to reflect actual room capacity logic
+- Fixed router error by properly importing and using `useRouter` at component setup level
+
+### Testing
+
+- Updated 5 RoomDetailModal tests to match new layout and behavior
+- All 428+ frontend tests now passing
+
 ## [1.1.0] - 2024-12-31
 
 ### Added

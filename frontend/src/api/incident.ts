@@ -1,7 +1,5 @@
-import axios from 'axios'
+import axios from '@/plugins/axios'
 import type { Incident, IncidentListResponse, IncidentResolveResponse } from '@/models/incident'
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
 export const incidentApi = {
   /**

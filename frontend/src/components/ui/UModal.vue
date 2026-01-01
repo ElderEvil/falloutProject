@@ -29,11 +29,11 @@ const emit = defineEmits<{
 }>()
 
 const sizeClasses = {
-  sm: 'max-w-sm',
-  md: 'max-w-md',
-  lg: 'max-w-lg',
-  xl: 'max-w-xl',
-  full: 'max-w-full mx-4'
+  sm: 'max-w-sm max-h-[60vh]',
+  md: 'max-w-md max-h-[65vh]',
+  lg: 'max-w-5xl max-h-[80vh]',
+  xl: 'max-w-6xl max-h-[90vh]',
+  full: 'max-w-full mx-4 max-h-[90vh]'
 }
 
 const close = () => {
@@ -83,19 +83,20 @@ onUnmounted(() => {
         <!-- Modal Content -->
         <div
           :class="[
-            'bg-surface border-2 border-terminalGreen rounded-lg p-8 w-full crt-screen',
+            'bg-surface border-2 rounded-lg w-full crt-screen flex flex-col overflow-hidden',
             sizeClasses[size]
           ]"
+          style="border-color: var(--color-terminal-green)"
           @click.stop
         >
           <!-- Header -->
-          <div v-if="$slots.header || title" class="flex items-center justify-between mb-6">
+          <div v-if="$slots.header || title" class="flex items-center justify-between p-6 pb-4 flex-shrink-0">
             <slot name="header">
               <h2 class="text-2xl font-bold terminal-glow">{{ title }}</h2>
             </slot>
             <button
               @click="close"
-              class="text-gray-400 hover:text-terminalGreen transition-colors p-1"
+              class="modal-close-btn flex-shrink-0"
               aria-label="Close modal"
             >
               <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -105,7 +106,7 @@ onUnmounted(() => {
           </div>
 
           <!-- Body -->
-          <div class="mb-6">
+          <div class="flex-1 overflow-y-auto px-6 pb-6">
             <slot></slot>
           </div>
 
@@ -131,5 +132,19 @@ onUnmounted(() => {
 .modal-enter-from,
 .modal-leave-to {
   opacity: 0;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 0.25rem;
+  transition: all 0.2s;
+}
+
+.modal-close-btn:hover {
+  color: var(--color-terminal-green);
+  transform: scale(1.1);
 }
 </style>

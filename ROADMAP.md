@@ -144,44 +144,50 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ## 🚧 In Progress
 
-### Dweller Actions
-- [ ] **Assign to Room Modal** (Enhanced UI)
-  - Show available rooms with capacity
-  - Filter by room type and requirements
-  - Confirm assignment workflow
-  - *(Note: Drag-and-drop assignment already implemented)*
+### Phase 1 Polish
+- [ ] **Resource Warning UI** (Frontend)
+  - Toast notifications for low/critical resources
+  - Visual effects for resource shortages
+  - Power outage room indicators
+- [ ] **Optimal Dweller Suggestions**
+  - AI-powered room assignment recommendations
+  - Efficiency scoring based on SPECIAL stats
 
 ---
 
 ## 📋 Planned Features
 
-### Phase 1: Core Gameplay Loop (Q1 2025)
+### Phase 1: Core Gameplay Loop (Jan-Feb 2026)
 
 #### Room Management
 - [x] **Room Assignment UI** ✅
   - Drag-and-drop dweller assignment
   - Room detail panel with current workers
-- [ ] **Optimal Dweller Suggestions**
-  - Suggest best dwellers for room based on SPECIAL
-  - Efficiency indicators
-- [ ] **Room Production**
-  - Resource generation (power, water, food)
-  - Production rates based on dweller stats
-  - Resource consumption and balance
 - [x] **Room Upgrades** ✅
   - Multi-level room upgrades (Tier 1→2→3)
   - Increased capacity and efficiency
   - Visual upgrade button in UI
+- [x] **Room Production** ✅
+  - Resource generation (power, water, food)
+  - Production rates based on dweller stats
+  - Resource consumption and balance
+- [ ] **Optimal Dweller Suggestions**
+  - Suggest best dwellers for room based on SPECIAL
+  - Efficiency indicators
 
 #### Resource Management
 - [x] **Power, Water, Food Systems** ✅
   - Resource bars in vault dashboard
   - Display current/max values
-- [ ] **Resource Consumption & Production**
-  - Active consumption rates
-  - Production rates based on dweller stats
-  - Warning system for low resources
-  - Outage effects (no power = rooms stop working)
+- [x] **Resource Consumption & Production** ✅
+  - Active consumption rates (backend complete)
+  - Production rates based on dweller stats (backend complete)
+  - Warning system for low resources (backend complete)
+  - Game loop integration with ResourceManager
+- [ ] **Resource Warning UI** (Frontend)
+  - Toast notifications for resource warnings
+  - Visual indicators when resources critical
+  - Outage effects UI (no power = rooms show as inactive)
 - [ ] **Storage System UI**
   - Vault storage inventory view
   - Item categorization (weapons, outfits, junk)
@@ -200,7 +206,7 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
   - Dedicated crafting room
   - Queue system for multiple crafts
 
-### Phase 2: Advanced Gameplay (Q2 2025)
+### Phase 2: Advanced Gameplay (Feb-Mar 2026)
 
 #### Combat & Defense
 - [ ] **Raider Attacks**
@@ -247,7 +253,7 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
   - Child growth stages
   - Inherited traits from parents
 
-### Phase 3: Endgame & Polish (Q3 2025)
+### Phase 3: Endgame & Polish (Mar-Apr 2026)
 
 #### Advanced Systems
 - [ ] **Radio Room**
@@ -303,7 +309,7 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
   - Guided vault setup
   - Feature introductions
 
-### Phase 4: Multiplayer & Social (Q4 2025)
+### Phase 4: Multiplayer & Social (Apr-May 2026)
 
 #### Social Features
 - [ ] **Friend System**
@@ -331,6 +337,27 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ## 🔮 Future Considerations
 
+### Advanced AI Features (Deferred to Post-MVP)
+> **Note**: These AI features are moved to later phases to focus on core gameplay MVP. Basic PydanticAI chat already exists and works well.
+
+- [ ] **Enhanced AI Dweller Chat with Tools**
+  - PydanticAI tool integration for dweller actions
+  - Dwellers request actions via chat (equip weapon, explore, train)
+  - Multi-turn conversation memory and context
+  - Emotional state system influencing responses
+- [ ] **AI Personality Engine**
+  - Dynamic personality responses based on SPECIAL stats
+  - Personality evolution over time based on experiences
+  - Context-aware conversations (remembers vault state, recent events)
+- [ ] **AI-Driven Content Generation**
+  - AI-generated exploration narratives
+  - Dynamic quest and storyline generation
+  - Procedural event generation
+- [ ] **Social AI Features**
+  - Dweller-to-dweller conversations
+  - Relationship dynamics influenced by AI
+  - AI-mediated conflict resolution
+
 ### Potential Features (Backlog)
 - [ ] Mobile app (React Native or Flutter)
 - [ ] Mod support and custom content
@@ -338,7 +365,6 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 - [ ] Advanced analytics dashboard for vault performance
 - [ ] Seasons/Events (holiday themes, special events)
 - [ ] Vault customization (color schemes, layouts)
-- [ ] Advanced AI - dweller personality development over time
 - [ ] Multiplayer vault raids
 - [ ] Community marketplace for trading
 
@@ -356,7 +382,7 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ## 📊 Progress Metrics
 
-### Current Stats (as of December 31, 2024)
+### Current Stats (as of January 1, 2026)
 - **Backend Endpoints**: 17 routers with 70+ endpoints
 - **Frontend Components**: 50+ Vue components
 - **UI Components**: 8 custom reusable components
@@ -369,11 +395,12 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 ### Version Milestones
 - **v0.1** - Basic vault and dweller management ✅
 - **v0.2** - Equipment system ✅
-- **v0.3** - Room management and upgrades ✅ (Current)
-- **v0.4** - Resource production and consumption (Q1 2025)
-- **v0.5** - Combat and events (Q2 2025)
-- **v0.6** - Advanced progression (Q3 2025)
-- **v1.0** - Full release with polish (Q4 2025)
+- **v1.0** - Room upgrades and exploration enhancements ✅
+- **v1.1** - Room management and resource production ✅ (Current - Jan 2026)
+- **v1.2** - Combat system (Jan-Feb 2026)
+- **v1.3** - Training and progression (Feb 2026)
+- **v1.4** - Breeding and relationships (Feb-Mar 2026)
+- **v2.0** - Full release with endgame features (Mar-May 2026)
 
 ---
 
@@ -389,11 +416,11 @@ This roadmap is subject to change based on:
 - Priority adjustments
 - Community contributions
 
-Last updated: December 31, 2024
+Last updated: January 1, 2026
 
 ---
 
-## 🎉 Recent Highlights (December 2024)
+## 🎉 Recent Highlights (December 2025)
 
 ### Room Management System v0.3
 - ✅ **4×8 Grid Layout** - Visual vault room grid with drag-and-drop

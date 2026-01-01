@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.api.deps import CurrentActiveUser
+from app.api.deps import CurrentActiveUser, get_user_vault_or_403, verify_exploration_access
 from app.crud import exploration as crud_exploration
 from app.db.session import get_async_session
 from app.schemas.exploration import (
@@ -25,10 +25,11 @@ router = APIRouter()
 async def send_dweller_to_wasteland(
     request: ExplorationSendRequest,
     vault_id: Annotated[UUID4, Query()],
-    _: CurrentActiveUser,  # TODO: check if user has access to the vault
+    user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """Send a dweller to the wasteland for exploration."""
+    await get_user_vault_or_403(vault_id, user, db_session)
     # Check if dweller is already on an active exploration
     existing_exploration = await crud_exploration.get_by_dweller(
         db_session,
@@ -55,11 +56,12 @@ async def send_dweller_to_wasteland(
 @router.get("/vault/{vault_id}", response_model=list[ExplorationReadShort])
 async def list_explorations_by_vault(
     vault_id: UUID4,
-    _: CurrentActiveUser,  # TODO: check if user has access to the vault
+    user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     active_only: bool = True,  # noqa: FBT001, FBT002
 ):
     """List all explorations for a vault."""
+    await get_user_vault_or_403(vault_id, user, db_session)
     if active_only:
         explorations = await crud_exploration.get_active_by_vault(
             db_session,
@@ -78,10 +80,11 @@ async def list_explorations_by_vault(
 @router.get("/{exploration_id}", response_model=ExplorationRead)
 async def get_exploration(
     exploration_id: UUID4,
-    _: CurrentActiveUser,  # TODO: check if user has access to the vault
+    user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """Get detailed information about an exploration."""
+    await verify_exploration_access(exploration_id, user, db_session)
     exploration = await crud_exploration.get(db_session, exploration_id)
     return exploration  # noqa: RET504
 
@@ -89,10 +92,11 @@ async def get_exploration(
 @router.get("/{exploration_id}/progress", response_model=ExplorationProgress)
 async def get_exploration_progress(
     exploration_id: UUID4,
-    _: CurrentActiveUser,  # TODO: check if user has access to the vault
+    user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """Get current progress of an exploration."""
+    await verify_exploration_access(exploration_id, user, db_session)
     exploration = await crud_exploration.get(db_session, exploration_id)
 
     return ExplorationProgress(
@@ -109,10 +113,11 @@ async def get_exploration_progress(
 @router.post("/{exploration_id}/recall", response_model=ExplorationCompleteResponse)
 async def recall_dweller(
     exploration_id: UUID4,
-    _: CurrentActiveUser,  # TODO: check if user has access to the vault
+    user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """Recall a dweller early from exploration."""
+    await verify_exploration_access(exploration_id, user, db_session)
     try:
         rewards = await wasteland_service.recall_exploration(db_session, exploration_id)
         exploration = await crud_exploration.get(db_session, exploration_id)
@@ -128,10 +133,11 @@ async def recall_dweller(
 @router.post("/{exploration_id}/complete", response_model=ExplorationCompleteResponse)
 async def complete_exploration(
     exploration_id: UUID4,
-    _: CurrentActiveUser,  # TODO: check if user has access to the vault
+    user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """Complete an exploration and collect rewards."""
+    await verify_exploration_access(exploration_id, user, db_session)
     try:
         rewards = await wasteland_service.complete_exploration(db_session, exploration_id)
         exploration = await crud_exploration.get(db_session, exploration_id)
@@ -147,10 +153,11 @@ async def complete_exploration(
 @router.post("/{exploration_id}/generate_event", response_model=ExplorationRead)
 async def generate_event(
     exploration_id: UUID4,
-    _: CurrentActiveUser,  # TODO: check if user has access to the vault
+    user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """Manually trigger event generation for an exploration (for testing/debugging)."""
+    await verify_exploration_access(exploration_id, user, db_session)
     exploration = await crud_exploration.get(db_session, exploration_id)
 
     if not exploration.is_active():

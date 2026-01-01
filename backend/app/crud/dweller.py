@@ -20,8 +20,7 @@ from app.schemas.dweller import (
     DwellerUpdate,
 )
 from app.tests.factory.dwellers import create_random_common_dweller
-from app.utils.exceptions import ContentNoChangeException
-from app.utils.validation import validate_room_transfer, validate_vault_transfer
+from app.utils.exceptions import ContentNoChangeException, InvalidVaultTransferException, ResourceConflictException
 
 BOOSTED_STAT_VALUE = 5
 
@@ -153,10 +152,16 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     ) -> DwellerReadWithRoomID | None:
         """Move dweller to a different room."""
         dweller_obj = await self.get(db_session, dweller_id)
-        validate_room_transfer(dweller_obj.room_id, room_id)
+
+        # Validate room transfer (can't move to same room)
+        if dweller_obj.room_id == room_id:
+            raise ResourceConflictException(detail="Dweller is already in the room")
 
         room_obj = await room_crud.get(db_session, room_id)
-        validate_vault_transfer(dweller_obj.vault_id, room_obj.vault_id)
+
+        # Validate vault transfer (can't move between vaults)
+        if dweller_obj.vault_id != room_obj.vault_id:
+            raise InvalidVaultTransferException
 
         if not dweller_obj.room_id and not await vault_crud.is_enough_population_space(
             db_session=db_session, vault_id=dweller_obj.vault_id, space_required=1

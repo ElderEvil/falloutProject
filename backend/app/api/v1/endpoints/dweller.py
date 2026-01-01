@@ -5,7 +5,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.deps import CurrentActiveUser, CurrentSuperuser
+from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403, verify_dweller_access
 from app.api.game_data_deps import get_static_game_data
 from app.db.session import get_async_session
 from app.schemas.common import DwellerStatusEnum
@@ -48,9 +48,10 @@ async def read_dweller_list(
 @router.get("/{dweller_id}", response_model=DwellerReadFull)
 async def read_dweller(
     dweller_id: UUID4,
-    _: CurrentActiveUser,  # TODO: check if user has access to the vault
+    user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
+    await verify_dweller_access(dweller_id, user, db_session)
     return await crud.dweller.get(db_session, dweller_id)
 
 
@@ -58,9 +59,10 @@ async def read_dweller(
 async def update_dweller(
     dweller_id: UUID4,
     dweller_data: DwellerUpdate,
-    _: CurrentActiveUser,  # TODO: check if user has access to the vault
+    user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
+    await verify_dweller_access(dweller_id, user, db_session)
     # If room_id is being updated, automatically update status
     if dweller_data.room_id is not None or (
         hasattr(dweller_data, "model_fields_set") and "room_id" in dweller_data.model_fields_set
@@ -93,7 +95,7 @@ async def delete_dweller(
 @router.get("/vault/{vault_id}/", response_model=list[DwellerReadLess])
 async def read_dwellers_by_vault(  # noqa: PLR0913
     vault_id: UUID4,
-    _: CurrentActiveUser,  # TODO: check if user has access to the vault
+    user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     skip: int = 0,
     limit: int = 100,
@@ -103,6 +105,7 @@ async def read_dwellers_by_vault(  # noqa: PLR0913
     order: str = "desc",
 ):
     """Get dwellers by vault with optional filtering by status, search by name, and sorting."""
+    await get_user_vault_or_403(vault_id, user, db_session)
     return await crud.dweller.get_multi_by_vault(
         db_session=db_session,
         vault_id=vault_id,
@@ -119,19 +122,21 @@ async def read_dwellers_by_vault(  # noqa: PLR0913
 async def move_dweller_to_room(
     dweller_id: UUID4,
     room_id: UUID4,
-    _: CurrentActiveUser,  # TODO: check if user has access to the vault
+    user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
+    await verify_dweller_access(dweller_id, user, db_session)
     return await crud.dweller.move_to_room(db_session, dweller_id, room_id)
 
 
 @router.post("/create_random/", response_model=DwellerRead)
 async def create_random_common_dweller(
     vault_id: UUID4,
-    _: CurrentActiveUser,  # TODO: check if user has access to the vault
+    user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     dweller_override: DwellerCreateCommonOverride | None = None,
 ):
+    await get_user_vault_or_403(vault_id, user, db_session)
     return await crud.dweller.create_random(db_session=db_session, obj_in=dweller_override, vault_id=vault_id)
 
 

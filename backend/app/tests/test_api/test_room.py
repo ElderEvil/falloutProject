@@ -34,8 +34,8 @@ async def test_read_room_list(async_client: AsyncClient, async_session: AsyncSes
 
 
 @pytest.mark.asyncio
-async def test_read_room(async_client: AsyncClient, room: Room):
-    response = await async_client.get(f"/rooms/{room.id}")
+async def test_read_room(async_client: AsyncClient, superuser_token_headers: dict[str, str], room: Room):
+    response = await async_client.get(f"/rooms/{room.id}", headers=superuser_token_headers)
     assert response.status_code == 200
     response_room = response.json()
     assert response_room["name"] == room.name
@@ -53,9 +53,9 @@ async def test_read_room(async_client: AsyncClient, room: Room):
 
 
 @pytest.mark.asyncio
-async def test_update_room(async_client: AsyncClient, room: Room):
+async def test_update_room(async_client: AsyncClient, superuser_token_headers: dict[str, str], room: Room):
     room_new_data = create_fake_room()
-    update_response = await async_client.put(f"/rooms/{room.id}", json=room_new_data)
+    update_response = await async_client.put(f"/rooms/{room.id}", json=room_new_data, headers=superuser_token_headers)
     updated_room = update_response.json()
     assert update_response.status_code == 200
     assert updated_room["id"] == str(room.id)
@@ -74,15 +74,21 @@ async def test_update_room(async_client: AsyncClient, room: Room):
 
 
 @pytest.mark.asyncio
-async def test_delete_room(async_client: AsyncClient, room: Room):
-    delete_response = await async_client.delete(f"/rooms/{room.id}")
+async def test_delete_room(async_client: AsyncClient, superuser_token_headers: dict[str, str], room: Room):
+    delete_response = await async_client.delete(f"/rooms/{room.id}", headers=superuser_token_headers)
     assert delete_response.status_code == 204
-    read_response = await async_client.get(f"/rooms/{room.id}")
+    read_response = await async_client.get(f"/rooms/{room.id}", headers=superuser_token_headers)
     assert read_response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_upgrade_room_tier_1_to_2(async_client: AsyncClient, async_session: AsyncSession, vault, room_data: dict):
+async def test_upgrade_room_tier_1_to_2(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault,
+    room_data: dict,
+):
     """Test upgrading a room from tier 1 to tier 2."""
     # Create room with specific upgrade costs and capacity
     room_data.update(
@@ -107,7 +113,7 @@ async def test_upgrade_room_tier_1_to_2(async_client: AsyncClient, async_session
     initial_output = room.output
 
     # Upgrade room
-    response = await async_client.post(f"/rooms/upgrade/{room.id}")
+    response = await async_client.post(f"/rooms/upgrade/{room.id}", headers=superuser_token_headers)
     assert response.status_code == 200
 
     upgraded_room = response.json()
@@ -124,7 +130,13 @@ async def test_upgrade_room_tier_1_to_2(async_client: AsyncClient, async_session
 
 
 @pytest.mark.asyncio
-async def test_upgrade_room_tier_2_to_3(async_client: AsyncClient, async_session: AsyncSession, vault, room_data: dict):
+async def test_upgrade_room_tier_2_to_3(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault,
+    room_data: dict,
+):
     """Test upgrading a room from tier 2 to tier 3."""
     # Start with tier 1 room
     room_data.update(
@@ -144,7 +156,7 @@ async def test_upgrade_room_tier_2_to_3(async_client: AsyncClient, async_session
     room = await crud.room.create(async_session, room_in)
 
     # First upgrade to tier 2
-    response = await async_client.post(f"/rooms/upgrade/{room.id}")
+    response = await async_client.post(f"/rooms/upgrade/{room.id}", headers=superuser_token_headers)
     assert response.status_code == 200
     tier2_room = response.json()
     assert tier2_room["tier"] == 2
@@ -154,7 +166,7 @@ async def test_upgrade_room_tier_2_to_3(async_client: AsyncClient, async_session
     caps_after_first_upgrade = vault.bottle_caps
 
     # Now upgrade from tier 2 to tier 3
-    response = await async_client.post(f"/rooms/upgrade/{room.id}")
+    response = await async_client.post(f"/rooms/upgrade/{room.id}", headers=superuser_token_headers)
     assert response.status_code == 200
 
     upgraded_room = response.json()
@@ -167,7 +179,11 @@ async def test_upgrade_room_tier_2_to_3(async_client: AsyncClient, async_session
 
 @pytest.mark.asyncio
 async def test_upgrade_room_insufficient_caps(
-    async_client: AsyncClient, async_session: AsyncSession, vault, room_data: dict
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault,
+    room_data: dict,
 ):
     """Test that upgrading fails when vault doesn't have enough caps."""
     room_data.update(
@@ -186,13 +202,17 @@ async def test_upgrade_room_insufficient_caps(
     room = await crud.room.create(async_session, room_in)
 
     # Attempt to upgrade room
-    response = await async_client.post(f"/rooms/upgrade/{room.id}")
+    response = await async_client.post(f"/rooms/upgrade/{room.id}", headers=superuser_token_headers)
     assert response.status_code == 422 or response.status_code == 400  # noqa: PLR1714
 
 
 @pytest.mark.asyncio
 async def test_upgrade_room_already_max_tier(
-    async_client: AsyncClient, async_session: AsyncSession, vault, room_data: dict
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault,
+    room_data: dict,
 ):
     """Test that upgrading fails when room is already at max tier."""
     room_data.update(
@@ -210,13 +230,19 @@ async def test_upgrade_room_already_max_tier(
     room = await crud.room.create(async_session, room_in)
 
     # Attempt to upgrade room beyond max tier
-    response = await async_client.post(f"/rooms/upgrade/{room.id}")
+    response = await async_client.post(f"/rooms/upgrade/{room.id}", headers=superuser_token_headers)
     assert response.status_code == 422 or response.status_code == 400  # noqa: PLR1714
     assert "maximum tier" in response.json().get("detail", "").lower()
 
 
 @pytest.mark.asyncio
-async def test_upgrade_room_no_t2_cost(async_client: AsyncClient, async_session: AsyncSession, vault, room_data: dict):
+async def test_upgrade_room_no_t2_cost(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault,
+    room_data: dict,
+):
     """Test that upgrading fails when room has no t2_upgrade_cost defined."""
     room_data.update(
         {
@@ -233,13 +259,17 @@ async def test_upgrade_room_no_t2_cost(async_client: AsyncClient, async_session:
     room = await crud.room.create(async_session, room_in)
 
     # Attempt to upgrade room with no upgrade cost
-    response = await async_client.post(f"/rooms/upgrade/{room.id}")
+    response = await async_client.post(f"/rooms/upgrade/{room.id}", headers=superuser_token_headers)
     assert response.status_code == 422 or response.status_code == 400  # noqa: PLR1714
 
 
 @pytest.mark.asyncio
 async def test_upgrade_room_capacity_calculation(
-    async_client: AsyncClient, async_session: AsyncSession, vault, room_data: dict
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault,
+    room_data: dict,
 ):
     """Test that capacity is calculated correctly after upgrade."""
     room_data.update(
@@ -259,7 +289,7 @@ async def test_upgrade_room_capacity_calculation(
     room = await crud.room.create(async_session, room_in)
 
     # Upgrade room
-    response = await async_client.post(f"/rooms/upgrade/{room.id}")
+    response = await async_client.post(f"/rooms/upgrade/{room.id}", headers=superuser_token_headers)
     assert response.status_code == 200
 
     upgraded_room = response.json()

@@ -5,6 +5,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.api.deps import CurrentActiveUser, get_user_vault_or_403, verify_room_access
 from app.api.game_data_deps import get_static_game_data
 from app.db.session import get_async_session
 from app.schemas.room import RoomCreate, RoomCreateWithoutVaultID, RoomRead, RoomUpdate
@@ -28,26 +29,38 @@ async def read_room_list(
 async def read_rooms_by_vault(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     vault_id: UUID4,
+    user: CurrentActiveUser,
     skip: int = 0,
     limit: int = 100,
 ):
+    await get_user_vault_or_403(vault_id, user, db_session)
     return await crud.room.get_multy_by_vault(db_session=db_session, skip=skip, limit=limit, vault_id=vault_id)
 
 
 @router.get("/{room_id}", response_model=RoomRead)
-async def read_room(room_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
+async def read_room(
+    room_id: UUID4, user: CurrentActiveUser, db_session: Annotated[AsyncSession, Depends(get_async_session)]
+):
+    await verify_room_access(room_id, user, db_session)
     return await crud.room.get(db_session, room_id)
 
 
 @router.put("/{room_id}", response_model=RoomRead)
 async def update_room(
-    room_id: UUID4, room_data: RoomUpdate, db_session: Annotated[AsyncSession, Depends(get_async_session)]
+    room_id: UUID4,
+    user: CurrentActiveUser,
+    room_data: RoomUpdate,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
+    await verify_room_access(room_id, user, db_session)
     return await crud.room.update(db_session, room_id, room_data)
 
 
 @router.delete("/{room_id}", status_code=204)
-async def delete_room(room_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
+async def delete_room(
+    room_id: UUID4, user: CurrentActiveUser, db_session: Annotated[AsyncSession, Depends(get_async_session)]
+):
+    await verify_room_access(room_id, user, db_session)
     return await crud.room.delete(db_session, room_id)
 
 
@@ -57,21 +70,30 @@ def read_room_data(data_store=Depends(get_static_game_data)):
 
 
 @router.post("/build/", response_model=RoomRead)
-async def build_room(room_data: RoomCreate, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
+async def build_room(
+    room_data: RoomCreate, user: CurrentActiveUser, db_session: Annotated[AsyncSession, Depends(get_async_session)]
+):
+    await get_user_vault_or_403(room_data.vault_id, user, db_session)
     return await crud.room.build(db_session=db_session, obj_in=room_data)
 
 
 @router.delete("/destroy/{room_id}", status_code=204)
-async def destroy_room(room_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
+async def destroy_room(
+    room_id: UUID4, user: CurrentActiveUser, db_session: Annotated[AsyncSession, Depends(get_async_session)]
+):
+    await verify_room_access(room_id, user, db_session)
     return await crud.room.destroy(db_session, room_id)
 
 
 @router.post("/upgrade/{room_id}", response_model=RoomRead)
-async def upgrade_room(room_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
+async def upgrade_room(
+    room_id: UUID4, user: CurrentActiveUser, db_session: Annotated[AsyncSession, Depends(get_async_session)]
+):
     from fastapi import HTTPException
 
     from app.utils.exceptions import InsufficientResourcesException
 
+    await verify_room_access(room_id, user, db_session)
     try:
         return await crud.room.upgrade(db_session=db_session, room_id=room_id)
     except (ValueError, InsufficientResourcesException) as e:

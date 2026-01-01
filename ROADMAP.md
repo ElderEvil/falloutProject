@@ -152,6 +152,13 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 - [ ] **Optimal Dweller Suggestions**
   - AI-powered room assignment recommendations
   - Efficiency scoring based on SPECIAL stats
+- [x] **Vault Authorization System** ✅ (Jan 1, 2026)
+  - Implemented vault-level access control
+  - Resource-specific authorization (dwellers, rooms, explorations)
+  - Protection against cross-vault unauthorized access
+  - Superuser override capabilities
+  - Removed deprecated `validation.py` (replaced by deps.py)
+  - Cleaned up utils directory (removed outdated migration scripts)
 
 ---
 

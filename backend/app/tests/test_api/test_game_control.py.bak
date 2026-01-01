@@ -1,8 +1,5 @@
 """Tests for game control API endpoints."""
 
-# TODO: Fix session isolation issues in incident API tests
-# See test_services/test_incident_service.py for details
-
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -143,7 +140,6 @@ async def test_manual_tick(
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 async def test_get_incidents(
     async_client: AsyncClient,
     async_session: AsyncSession,
@@ -209,7 +205,6 @@ async def test_vault_initialization_creates_game_state(
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 async def test_spawn_incident_debug(
     async_client: AsyncClient,
     async_session: AsyncSession,
@@ -266,7 +261,6 @@ async def test_spawn_incident_debug(
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 async def test_spawn_incident_specific_type(
     async_client: AsyncClient,
     async_session: AsyncSession,
@@ -318,7 +312,6 @@ async def test_spawn_incident_specific_type(
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 async def test_get_incident_details(
     async_client: AsyncClient,
     async_session: AsyncSession,
@@ -385,7 +378,6 @@ async def test_get_incident_details(
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 async def test_resolve_incident_success(
     async_client: AsyncClient,
     async_session: AsyncSession,
@@ -455,7 +447,6 @@ async def test_resolve_incident_success(
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 async def test_resolve_incident_failure(
     async_client: AsyncClient,
     async_session: AsyncSession,

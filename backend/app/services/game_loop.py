@@ -8,6 +8,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud import exploration as crud_exploration
+from app.crud.incident import incident_crud
 from app.crud.vault import vault as vault_crud
 from app.models.game_state import GameState
 from app.models.vault import Vault
@@ -125,8 +126,12 @@ class GameLoopService:
             results["updates"]["resources"] = {"error": str(e)}
 
         # === PHASE 2: Incident Management ===
-        # TODO: Implement in next phase
-        results["updates"]["incidents"] = {"processed": 0, "spawned": 0}
+        try:
+            incident_update = await self._process_incidents(db_session, vault_id, seconds_passed)
+            results["updates"]["incidents"] = incident_update
+        except Exception as e:
+            self.logger.error(f"Error processing incidents for vault {vault_id}: {e}", exc_info=True)  # noqa: G004, G201
+            results["updates"]["incidents"] = {"error": str(e), "processed": 0, "spawned": 0}
 
         # === PHASE 3: Wasteland Exploration ===
         try:
@@ -259,6 +264,67 @@ class GameLoopService:
             except Exception as e:
                 self.logger.error(  # noqa: G201
                     f"Error processing exploration {exploration.id}: {e}",  # noqa: G004
+                    exc_info=True,
+                )
+
+        return stats
+
+    async def _process_incidents(self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int) -> dict:
+        """
+        Process all active incidents for a vault.
+
+        - Check if new incident should spawn
+        - Process existing active incidents (combat, damage, resolution)
+        - Handle incident spreading
+        """
+        # Import here to avoid circular import
+        from app.services.incident_service import incident_service
+
+        stats = {
+            "spawned": 0,
+            "processed": 0,
+            "resolved": 0,
+            "active_count": 0,
+        }
+
+        # Get vault
+        vault = await vault_crud.get(db_session, vault_id)
+        if not vault:
+            return stats
+
+        # Check if new incident should spawn
+        should_spawn = await incident_service.should_spawn_incident(vault, seconds_passed)
+        if should_spawn:
+            new_incident = await incident_service.spawn_incident(db_session, vault_id)
+            if new_incident:
+                stats["spawned"] = 1
+                self.logger.info(f"Spawned new incident {new_incident.type} in vault {vault_id}")  # noqa: G004
+
+        # Get all active incidents
+        active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
+        stats["active_count"] = len(active_incidents)
+
+        # Process each active incident
+        for incident in active_incidents:
+            try:
+                result = await incident_service.process_incident(db_session, incident, seconds_passed)
+
+                if result.get("skipped"):
+                    continue
+
+                stats["processed"] += 1
+
+                # Check if incident was resolved automatically
+                await db_session.refresh(incident)
+                if incident.status.value in ["resolved", "failed"]:
+                    stats["resolved"] += 1
+                    self.logger.info(
+                        f"Incident {incident.id} auto-resolved with status {incident.status}"  # noqa: G004
+                    )
+
+            except Exception as e:
+                self.logger.error(  # noqa: G201
+                    f"Error processing incident {incident.id}: {e}",  # noqa: G004
                     exc_info=True,
                 )
 

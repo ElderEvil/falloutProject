@@ -94,6 +94,7 @@ async def test_upgrade_room_tier_1_to_2(
     room_data.update(
         {
             "tier": 1,
+            "size": 2,
             "t2_upgrade_cost": 500,
             "t3_upgrade_cost": 1500,
             "capacity": 10,
@@ -275,6 +276,7 @@ async def test_upgrade_room_capacity_calculation(
     room_data.update(
         {
             "tier": 1,
+            "size": 2,
             "t2_upgrade_cost": 500,
             "t3_upgrade_cost": 1500,
             "capacity": 15,  # Known starting capacity

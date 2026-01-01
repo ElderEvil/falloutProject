@@ -1,33 +1,35 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { Icon } from '@iconify/vue'
-import UButton from '@/components/ui/UButton.vue'
-import UTooltip from '@/components/ui/UTooltip.vue'
-import type { DwellerDetailRead } from '@/types/dweller'
+import { computed } from 'vue';
+import { Icon } from '@iconify/vue';
+import UButton from '@/components/ui/UButton.vue';
+import UTooltip from '@/components/ui/UTooltip.vue';
+import type { DwellerDetailRead } from '@/types/dweller';
 
 interface Props {
-  dweller: DwellerDetailRead
-  imageUrl?: string | null
-  loading?: boolean
+  dweller: DwellerDetailRead;
+  imageUrl?: string | null;
+  loading?: boolean;
 }
 
-const props = defineProps<Props>()
+const props = defineProps<Props>();
 
 const emit = defineEmits<{
   (e: 'chat'): void
   (e: 'assign'): void
   (e: 'recall'): void
   (e: 'generate-ai'): void
-}>()
+  (e: 'train'): void
+  (e: 'assign-pet'): void
+}>();
 
 const getImageUrl = (imagePath: string) => {
-  return imagePath.startsWith('http') ? imagePath : `http://${imagePath}`
-}
+  return imagePath.startsWith('http') ? imagePath : `http://${imagePath}`;
+};
 
 const healthPercentage = computed(() => {
-  if (!props.dweller.max_health) return 0
-  return (props.dweller.health / props.dweller.max_health) * 100
-})
+  if (!props.dweller.max_health) return 0;
+  return (props.dweller.health / props.dweller.max_health) * 100;
+});
 </script>
 
 <template>
@@ -120,6 +122,25 @@ const healthPercentage = computed(() => {
         <Icon icon="mdi:arrow-u-left-top" class="h-5 w-5 mr-2" />
         Recall
       </UButton>
+
+      <!-- Coming Soon Actions -->
+      <div class="coming-soon-section">
+        <UTooltip text="Train SPECIAL stats in dedicated training rooms - Coming in Phase 2 (Feb-Mar 2026)">
+          <button class="locked-action-button" disabled>
+            <Icon icon="mdi:school" class="h-5 w-5" />
+            <span>Train Stats</span>
+            <Icon icon="mdi:lock" class="h-4 w-4 lock-icon" />
+          </button>
+        </UTooltip>
+
+        <UTooltip text="Assign a pet companion - Coming in Phase 3 (Mar-Apr 2026)">
+          <button class="locked-action-button" disabled>
+            <Icon icon="mdi:paw" class="h-5 w-5" />
+            <span>Assign Pet</span>
+            <Icon icon="mdi:lock" class="h-4 w-4 lock-icon" />
+          </button>
+        </UTooltip>
+      </div>
     </div>
   </div>
 </template>
@@ -244,5 +265,42 @@ const healthPercentage = computed(() => {
   flex-direction: column;
   gap: 0.75rem;
   margin-top: 0.5rem;
+}
+
+/* Coming Soon Section */
+.coming-soon-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(0, 255, 0, 0.2);
+}
+
+.locked-action-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: rgba(0, 255, 0, 0.05);
+  border: 1px solid rgba(0, 255, 0, 0.2);
+  border-radius: 0.375rem;
+  color: rgba(0, 255, 0, 0.5);
+  font-family: 'Courier New', monospace;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: not-allowed;
+  opacity: 0.6;
+  transition: all 0.2s;
+}
+
+.locked-action-button:hover {
+  background: rgba(0, 255, 0, 0.08);
+  opacity: 0.75;
+}
+
+.locked-action-button .lock-icon {
+  margin-left: auto;
 }
 </style>

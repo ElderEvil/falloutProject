@@ -1,25 +1,30 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
-import { Icon } from '@iconify/vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useSidePanel } from '@/composables/useSidePanel'
+import { computed, onMounted, onUnmounted } from 'vue';
+import { Icon } from '@iconify/vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useSidePanel } from '@/composables/useSidePanel';
+import UTooltip from '@/components/ui/UTooltip.vue';
 
-const route = useRoute()
-const router = useRouter()
-const { isCollapsed, toggle } = useSidePanel()
+const route = useRoute();
+const router = useRouter();
+const { isCollapsed, toggle } = useSidePanel();
 
-const vaultId = computed(() => route.params.id as string | undefined)
+const vaultId = computed(() => route.params.id as string | undefined);
 
 interface NavItem {
-  id: string
-  label: string
-  icon: string
-  path: string
-  hotkey?: string
+  id: string;
+  label: string;
+  icon: string;
+  path?: string;
+  hotkey?: string;
+  comingSoon?: {
+    phase: string
+    quarter: string
+  };
 }
 
 const navItems = computed((): NavItem[] => {
-  if (!vaultId.value) return []
+  if (!vaultId.value) return [];
 
   return [
     {
@@ -43,45 +48,78 @@ const navItems = computed((): NavItem[] => {
       path: `/vault/${vaultId.value}/objectives`,
       hotkey: '3'
     }
-  ]
-})
+  ];
+});
+
+const comingSoonItems = computed((): NavItem[] => [
+  {
+    id: 'workshop',
+    label: 'Workshop',
+    icon: 'mdi:hammer-wrench',
+    comingSoon: { phase: 'Phase 1', quarter: 'Jan-Feb 2026' }
+  },
+  {
+    id: 'training',
+    label: 'Training',
+    icon: 'mdi:school',
+    comingSoon: { phase: 'Phase 2', quarter: 'Feb-Mar 2026' }
+  },
+  {
+    id: 'radio',
+    label: 'Radio Room',
+    icon: 'mdi:radio-tower',
+    comingSoon: { phase: 'Phase 3', quarter: 'Mar-Apr 2026' }
+  },
+  {
+    id: 'trading',
+    label: 'Trading Post',
+    icon: 'mdi:store',
+    comingSoon: { phase: 'Phase 3', quarter: 'Mar-Apr 2026' }
+  },
+  {
+    id: 'achievements',
+    label: 'Achievements',
+    icon: 'mdi:trophy',
+    comingSoon: { phase: 'Phase 3', quarter: 'Mar-Apr 2026' }
+  }
+]);
 
 const isActive = (path: string) => {
-  return route.path === path
-}
+  return route.path === path;
+};
 
 const navigate = (path: string) => {
-  router.push(path)
-}
+  router.push(path);
+};
 
 // Keyboard shortcuts
 const handleKeyPress = (e: KeyboardEvent) => {
   // Toggle panel with Ctrl/Cmd + B
   if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
-    e.preventDefault()
-    toggle()
-    return
+    e.preventDefault();
+    toggle();
+    return;
   }
 
   // Navigate with number keys (only if not in an input)
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-    return
+    return;
   }
 
-  const item = navItems.value.find(item => item.hotkey === e.key)
+  const item = navItems.value.find(item => item.hotkey === e.key);
   if (item) {
-    e.preventDefault()
-    navigate(item.path)
+    e.preventDefault();
+    navigate(item.path);
   }
-}
+};
 
 onMounted(() => {
-  window.addEventListener('keydown', handleKeyPress)
-})
+  window.addEventListener('keydown', handleKeyPress);
+});
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeyPress)
-})
+  window.removeEventListener('keydown', handleKeyPress);
+});
 </script>
 
 <template>
@@ -119,6 +157,28 @@ onUnmounted(() => {
         <span v-if="!isCollapsed" class="nav-label">{{ item.label }}</span>
         <span v-if="!isCollapsed && item.hotkey" class="hotkey-badge">{{ item.hotkey }}</span>
       </button>
+
+      <!-- Coming Soon Divider -->
+      <div v-if="!isCollapsed" class="nav-divider">
+        <span class="divider-text">Upcoming Features</span>
+      </div>
+
+      <!-- Coming Soon Items -->
+      <div
+        v-for="item in comingSoonItems"
+        :key="item.id"
+        class="nav-item locked"
+        :title="isCollapsed ? `${item.label} - ${item.comingSoon?.phase}` : undefined"
+      >
+        <Icon :icon="item.icon" class="nav-icon" />
+        <span v-if="!isCollapsed" class="nav-label locked-label">{{ item.label }}</span>
+        <UTooltip
+          v-if="!isCollapsed && item.comingSoon"
+          :text="`${item.label} - Coming in ${item.comingSoon.phase} (${item.comingSoon.quarter})`"
+        >
+          <Icon icon="mdi:lock" class="lock-icon" />
+        </UTooltip>
+      </div>
     </nav>
   </aside>
 </template>
@@ -246,6 +306,47 @@ onUnmounted(() => {
 .collapsed .nav-label,
 .collapsed .hotkey-badge {
   display: none;
+}
+
+/* Nav Divider */
+.nav-divider {
+  margin: 16px 0 8px;
+  padding: 8px 16px;
+  border-top: 1px solid rgba(0, 255, 0, 0.2);
+  border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+}
+
+.divider-text {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(0, 255, 0, 0.6);
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
+}
+
+/* Locked Items */
+.nav-item.locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.nav-item.locked:hover {
+  background: transparent;
+  border-left-color: transparent;
+}
+
+.locked-label {
+  color: rgba(0, 255, 0, 0.5);
+}
+
+.lock-icon {
+  width: 16px;
+  height: 16px;
+  color: rgba(0, 255, 0, 0.6);
+  pointer-events: auto;
+  cursor: help;
 }
 
 /* Scanline effect */

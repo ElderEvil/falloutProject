@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.crud.dweller import BOOSTED_STAT_VALUE
-from app.schemas.common import SPECIALEnum
+from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
@@ -172,8 +172,9 @@ async def test_dweller_status_on_room_assignment(async_session: AsyncSession):
     # Dweller should start as IDLE
     assert dweller.status == DwellerStatusEnum.IDLE
 
-    # Create a room
+    # Create a production room (not training)
     room_data = create_fake_room()
+    room_data["category"] = RoomTypeEnum.PRODUCTION  # Ensure it's a production room for WORKING status
     room = await crud.room.create(async_session, obj_in=RoomCreate(**room_data, vault_id=vault.id))
 
     # Move dweller to room - should become WORKING

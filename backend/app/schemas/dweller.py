@@ -6,6 +6,7 @@ from sqlmodel import SQLModel
 from app.models.dweller import DwellerBase
 from app.schemas.common import (
     STATE_OF_BEING_TYPE,
+    AgeGroupEnum,
     DwellerStatusEnum,
     FactionEnum,
     GenderEnum,
@@ -106,6 +107,9 @@ class DwellerReadLess(SQLModel):
     happiness: int
     room_id: UUID4 | None = None
     status: DwellerStatusEnum
+    is_adult: bool
+    age_group: AgeGroupEnum
+    birth_date: datetime | None = None
 
     # SPECIAL stats
     strength: int
@@ -115,6 +119,11 @@ class DwellerReadLess(SQLModel):
     intelligence: int
     agility: int
     luck: int
+
+    # Relationships
+    partner_id: UUID4 | None = None
+    parent_1_id: UUID4 | None = None
+    parent_2_id: UUID4 | None = None
 
     # TBD
     # job: str | None

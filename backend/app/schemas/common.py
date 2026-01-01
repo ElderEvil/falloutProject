@@ -45,6 +45,26 @@ class GenderEnum(CaseInsensitiveEnum):
     FEMALE = "female"
 
 
+class AgeGroupEnum(CaseInsensitiveEnum):
+    CHILD = "child"
+    TEEN = "teen"
+    ADULT = "adult"
+
+
+class RelationshipTypeEnum(CaseInsensitiveEnum):
+    ACQUAINTANCE = "acquaintance"
+    FRIEND = "friend"
+    ROMANTIC = "romantic"
+    PARTNER = "partner"
+    EX = "ex"
+
+
+class PregnancyStatusEnum(CaseInsensitiveEnum):
+    PREGNANT = "pregnant"
+    DELIVERED = "delivered"
+    MISCARRIED = "miscarried"
+
+
 class RaceEnum(CaseInsensitiveEnum):
     HUMAN = "human"
     GHOUL = "ghoul"

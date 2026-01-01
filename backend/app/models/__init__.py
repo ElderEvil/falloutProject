@@ -5,8 +5,10 @@ from .junk import Junk
 from .llm_interaction import LLMInteraction
 from .objective import Objective
 from .outfit import Outfit
+from .pregnancy import Pregnancy
 from .prompt import Prompt
 from .quest import Quest
+from .relationship import Relationship
 from .room import Room
 from .storage import Storage
 from .user import User

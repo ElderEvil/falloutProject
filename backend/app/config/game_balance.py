@@ -90,6 +90,61 @@ WATER_CONSUMPTION_PER_DWELLER = 0.36 / 60  # Per dweller per second
 LOW_RESOURCE_THRESHOLD = 0.2  # 20% of max
 CRITICAL_RESOURCE_THRESHOLD = 0.05  # 5% of max
 
+# ===== RELATIONSHIP SYSTEM =====
+# Affinity increase per tick when dwellers are in the same room
+AFFINITY_INCREASE_PER_TICK = 2
+
+# Affinity threshold required for romantic relationship
+ROMANCE_THRESHOLD = 70
+
+# Happiness bonus when dweller has a partner
+PARTNER_HAPPINESS_BONUS = 10
+
+# Compatibility calculation weights
+COMPATIBILITY_SPECIAL_WEIGHT = 0.3  # How much SPECIAL similarity matters
+COMPATIBILITY_HAPPINESS_WEIGHT = 0.2  # How much happiness matters
+COMPATIBILITY_LEVEL_WEIGHT = 0.2  # How much similar level matters
+COMPATIBILITY_PROXIMITY_WEIGHT = 0.3  # How much being in same room matters
+
+# ===== BREEDING SYSTEM =====
+# Chance per tick for partners in living quarters to conceive
+CONCEPTION_CHANCE_PER_TICK = 0.02  # 2% when both partners in living quarters
+
+# Pregnancy duration in real-time hours
+PREGNANCY_DURATION_HOURS = 3
+
+# Variance for inherited SPECIAL stats (±)
+TRAIT_INHERITANCE_VARIANCE = 2
+
+# Chance for child to inherit higher rarity from parents
+RARITY_INHERITANCE_UPGRADE_CHANCE = 0.15  # 15% chance to be one tier higher
+
+# ===== CHILD GROWTH SYSTEM =====
+# Time for child to grow to adult (in real-time hours)
+CHILD_GROWTH_DURATION_HOURS = 3
+
+# SPECIAL stat multiplier for children (they have lower stats until adult)
+CHILD_SPECIAL_MULTIPLIER = 0.5
+
+# Children consume resources but at reduced rate
+CHILD_CONSUMPTION_MULTIPLIER = 0.7
+
+# ===== RADIO RECRUITMENT SYSTEM =====
+# Base recruitment rate: 1 recruit per 6 hours = 0.00278 per minute tick
+BASE_RECRUITMENT_RATE = 1.0 / 360.0  # 1 per 6 hours in minutes
+
+# Each CHARISMA point adds to recruitment rate
+CHARISMA_RATE_MULTIPLIER = 0.05  # +5% per charisma point
+
+# Vault happiness affects recruitment rate
+HAPPINESS_RATE_MULTIPLIER = 0.01  # +1% per happiness percentage point
+
+# Manual recruitment cost in caps
+MANUAL_RECRUITMENT_COST = 500
+
+# Radio room tier multipliers
+RADIO_TIER_MULTIPLIER = {1: 1.0, 2: 1.5, 3: 2.0}
+
 
 # ===== DIFFICULTY SCALING =====
 def calculate_incident_difficulty(vault_population: int, avg_dweller_level: float) -> int:

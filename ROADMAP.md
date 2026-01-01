@@ -424,6 +424,10 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 - [ ] Progressive Web App (PWA) features
 - [ ] Accessibility improvements (WCAG 2.1 AA compliance)
 - [ ] Internationalization (i18n) support
+- [ ] **Startup Configuration Logging** - Log loaded environment variables, config values, and system info on application startup for debugging
+
+### Security Enhancements (Optional)
+- [ ] **FastAPI Guard Integration** - Advanced authorization and access control library for more granular permissions and security policies
 
 ---
 

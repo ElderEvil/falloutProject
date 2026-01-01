@@ -78,6 +78,34 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
   - Auto-complete at 100% progress
   - Manual complete button
 
+### Combat & Incident System
+- [x] **Incident Management** (Raider Attacks, Fires, Infestations)
+  - 8 incident types (raiders, radroaches, mole rats, deathclaws, fires, radiation leaks, electrical failures, water contamination)
+  - Dynamic spawn system (5% per hour)
+  - Difficulty scaling (1-10) with weighted distribution
+  - Incident spreading mechanics (60s intervals, max 3 spreads)
+- [x] **Combat Resolution System**
+  - Dweller combat power calculation (SPECIAL stats + equipment + level)
+  - Auto-combat processing in game loop
+  - Damage distribution to dwellers
+  - Enemy defeat tracking
+  - Auto-resolution on victory
+- [x] **Loot System**
+  - Difficulty-based loot generation
+  - Caps rewards (50-1000 based on difficulty)
+  - Equipment drops (common/uncommon/rare tiers)
+  - Junk materials rewards
+- [x] **Combat UI Components**:
+  - Real-time incident alert banner with pulsing animations
+  - Combat modal with status details and progress
+  - Room incident overlays with icons
+  - Manual resolve/abandon functionality
+  - Auto-refresh every 5-10 seconds
+- [x] **Game Loop Integration**:
+  - Incident processing in tick system
+  - Combat status updates
+  - Spread mechanics execution
+
 ### Objectives & Quests
 - [x] Objective creation and tracking
 - [x] Quest system with rewards
@@ -215,18 +243,21 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ### Phase 2: Advanced Gameplay (Feb-Mar 2026)
 
-#### Combat & Defense
-- [ ] **Raider Attacks**
-  - Random raid events
+#### Combat & Defense Enhancements
+- [x] **Raider Attacks** ✅ (Jan 2026)
+  - Random raid events with 5% hourly spawn rate
   - Combat resolution based on dweller equipment and stats
-  - Damage to rooms and dwellers
-  - Loot from defeated raiders
-- [ ] **Radroach Infestations**
-  - Room-based pest control
-  - Spread mechanics
-- [ ] **Fire Events**
-  - Room fires requiring dweller intervention
-  - Fire spread to adjacent rooms
+  - Damage to dwellers with health tracking
+  - Loot from defeated raiders (caps + equipment)
+- [x] **Incident System** ✅ (Jan 2026)
+  - 8 incident types (raiders, radroaches, mole rats, deathclaws, fires, radiation, electrical, water)
+  - Room-based incident tracking with spread mechanics
+  - Real-time UI indicators and alerts
+- [ ] **Enhanced Combat Features**
+  - Room damage system
+  - Dweller death mechanics
+  - Incident prevention items (sprinklers, security stations)
+  - Combat statistics and history
 
 #### Exploration Enhancement
 - [ ] **Detailed Exploration Events**
@@ -390,22 +421,22 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 ## 📊 Progress Metrics
 
 ### Current Stats (as of January 1, 2026)
-- **Backend Endpoints**: 17 routers with 70+ endpoints
-- **Frontend Components**: 50+ Vue components
+- **Backend Endpoints**: 17 routers with 75+ endpoints (including incident management)
+- **Frontend Components**: 52+ Vue components (including combat UI)
 - **UI Components**: 8 custom reusable components
 - **Test Coverage**:
   - Frontend: 95+ tests passing (including room upgrade tests)
   - Backend: Comprehensive API and CRUD tests (including 7 room upgrade tests)
-- **Models**: 15+ database models
-- **Lines of Code**: ~17,000+ (backend + frontend)
+- **Models**: 16 database models (including Incident and GameState)
+- **Lines of Code**: ~18,500+ (backend + frontend)
 
 ### Version Milestones
 - **v0.1** - Basic vault and dweller management ✅
 - **v0.2** - Equipment system ✅
 - **v1.0** - Room upgrades and exploration enhancements ✅
-- **v1.1** - Room management and resource production ✅ (Current - Jan 2026)
-- **v1.2** - Combat system (Jan-Feb 2026)
-- **v1.3** - Training and progression (Feb 2026)
+- **v1.1** - Room management and resource production ✅
+- **v1.2** - Combat and incident system ✅ (Current - Jan 2026)
+- **v1.3** - Training and progression (Jan-Feb 2026)
 - **v1.4** - Breeding and relationships (Feb-Mar 2026)
 - **v2.0** - Full release with endgame features (Mar-May 2026)
 
@@ -427,9 +458,17 @@ Last updated: January 1, 2026
 
 ---
 
-## 🎉 Recent Highlights (December 2025)
+## 🎉 Recent Highlights
 
-### Room Management System v0.3
+### Combat System v1.2 (January 2026)
+- ✅ **Complete Incident System** - 8 incident types with dynamic spawning
+- ✅ **Combat Resolution** - Auto-combat based on dweller stats + equipment
+- ✅ **Loot Generation** - Difficulty-scaled rewards (caps + items)
+- ✅ **Real-time Combat UI** - Alert banners, combat modals, room overlays
+- ✅ **Game Loop Integration** - Automated incident processing in 60s ticks
+- ✅ **Spread Mechanics** - Incidents can spread to adjacent rooms
+
+### Room Management System v1.1 (December 2025)
 - ✅ **4×8 Grid Layout** - Visual vault room grid with drag-and-drop
 - ✅ **Build System** - Click-to-place room building with cost calculation
 - ✅ **Upgrade System** - Tier progression (1→2→3) with capacity scaling

@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useRoomStore } from '@/stores/room'
 import { useVaultStore } from '@/stores/vault'
 import { useDwellerStore } from '@/stores/dweller'
 import { useExplorationStore } from '@/stores/exploration'
+import { useIncidentStore } from '@/stores/incident'
 import RoomGrid from '@/components/rooms/RoomGrid.vue'
 import BuildModeButton from '@/components/common/BuildModeButton.vue'
 import RoomMenu from '@/components/rooms/RoomMenu.vue'
@@ -13,6 +14,8 @@ import ResourceBar from '@/components/common/ResourceBar.vue'
 import GameControlPanel from '@/components/common/GameControlPanel.vue'
 import UnassignedDwellers from '@/components/dwellers/UnassignedDwellers.vue'
 import WastelandPanel from '@/components/wasteland/WastelandPanel.vue'
+import IncidentAlert from '@/components/incidents/IncidentAlert.vue'
+import CombatModal from '@/components/incidents/CombatModal.vue'
 import UTooltip from '@/components/ui/UTooltip.vue'
 import SidePanel from '@/components/common/SidePanel.vue'
 import { useSidePanel } from '@/composables/useSidePanel'
@@ -30,12 +33,15 @@ const roomStore = useRoomStore()
 const vaultStore = useVaultStore()
 const dwellerStore = useDwellerStore()
 const explorationStore = useExplorationStore()
+const incidentStore = useIncidentStore()
 const { isCollapsed } = useSidePanel()
 const showRoomMenu = ref(false)
 const selectedRoom = ref<Room | null>(null)
 const isPlacingRoom = ref(false)
 const isLoading = ref(true)
 const errorMessage = ref<string | null>(null)
+const showCombatModal = ref(false)
+const selectedIncidentId = ref<string | null>(null)
 
 const buildModeActive = computed(() => showRoomMenu.value || isPlacingRoom.value)
 
@@ -63,6 +69,8 @@ const water = computed(() => ({
   current: currentVault.value?.water ?? 0,
   max: currentVault.value?.water_max ?? 100
 }))
+
+const activeIncidents = computed(() => incidentStore.activeIncidents)
 
 const loadVaultData = async (id: string) => {
   if (!id) {
@@ -116,6 +124,9 @@ const loadVaultData = async (id: string) => {
       console.warn('Game state not available, continuing without it', error)
     }
 
+    // Start incident polling
+    incidentStore.startPolling(id, authStore.token)
+
     isLoading.value = false
   } catch (error) {
     console.error('Failed to load vault:', error)
@@ -128,12 +139,19 @@ const loadVaultData = async (id: string) => {
 watch(() => vaultId.value, (newId) => {
   if (newId) {
     vaultStore.stopResourcePolling()
+    incidentStore.stopPolling()
     loadVaultData(newId)
   }
 }, { immediate: true })
 
 onMounted(async () => {
   // Initial load is handled by the watcher
+})
+
+onUnmounted(() => {
+  // Clean up polling when component is unmounted
+  vaultStore.stopResourcePolling()
+  incidentStore.stopPolling()
 })
 
 const toggleBuildMode = async () => {
@@ -161,6 +179,23 @@ const handleRoomPlaced = async (position: Position) => {
   if (selectedRoom.value && isPlacingRoom.value) {
     isPlacingRoom.value = false
     selectedRoom.value = null
+  }
+}
+
+const handleIncidentClicked = (incidentId: string) => {
+  selectedIncidentId.value = incidentId
+  showCombatModal.value = true
+}
+
+const handleCombatModalClose = () => {
+  showCombatModal.value = false
+  selectedIncidentId.value = null
+}
+
+const handleIncidentResolved = async () => {
+  // Refresh vault data to update resources/stats
+  if (vaultId.value && authStore.token) {
+    await vaultStore.refreshVault(vaultId.value, authStore.token)
   }
 }
 </script>
@@ -237,6 +272,11 @@ const handleRoomPlaced = async (position: Position) => {
         </div>
       </div>
 
+      <!-- Incident Alert Banner -->
+      <div v-if="activeIncidents.length > 0" class="w-full mb-4">
+        <IncidentAlert :incidents="activeIncidents" @click="handleIncidentClicked" />
+      </div>
+
       <!-- Unassigned Dwellers Panel -->
       <div class="w-full mb-4">
         <UnassignedDwellers />
@@ -251,7 +291,9 @@ const handleRoomPlaced = async (position: Position) => {
       <RoomGrid
         :selectedRoom="selectedRoom"
         :isPlacingRoom="isPlacingRoom"
+        :incidents="activeIncidents"
         @roomPlaced="handleRoomPlaced"
+        @incidentClicked="handleIncidentClicked"
       />
 
       <!-- Build Menu -->
@@ -263,6 +305,15 @@ const handleRoomPlaced = async (position: Position) => {
         </div>
       </div>
     </div>
+
+    <!-- Combat Modal -->
+    <CombatModal
+      v-if="showCombatModal && selectedIncidentId && vaultId"
+      :incidentId="selectedIncidentId"
+      :vaultId="vaultId"
+      @close="handleCombatModalClose"
+      @resolved="handleIncidentResolved"
+    />
   </div>
 </template>
 

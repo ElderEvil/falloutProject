@@ -10,6 +10,7 @@ from app import crud
 from app.api.deps import CurrentActiveUser
 from app.db.session import get_async_session
 from app.services.game_loop import game_loop_service
+from app.services.incident_service import incident_service
 
 router = APIRouter()
 
@@ -194,4 +195,87 @@ async def manual_tick(
     return {
         "message": "Manual tick processed successfully",
         **result,
+    }
+
+
+@router.post("/vaults/{vault_id}/incidents/{incident_id}/resolve", status_code=200)
+async def resolve_incident(
+    *,
+    vault_id: UUID4,
+    incident_id: UUID4,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    user: CurrentActiveUser,
+    success: bool = True,
+):
+    """
+    Manually resolve an active incident.
+
+    This endpoint allows players to mark an incident as resolved,
+    triggering loot generation and cleanup.
+    """
+    # Verify vault ownership
+    vault = await crud.vault.get(db_session, vault_id)
+    if not vault:
+        raise HTTPException(status_code=404, detail="Vault not found")
+
+    if vault.user_id != user.id and not user.is_superuser:
+        raise HTTPException(status_code=403, detail="Not authorized to resolve incidents in this vault")
+
+    # Verify incident belongs to vault
+    incident = await crud.incident_crud.get(db_session, incident_id)
+    if not incident or incident.vault_id != vault_id:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    try:
+        result = await incident_service.resolve_incident_manually(db_session, incident_id, success)
+        return result  # noqa: RET504, TRY300
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.post("/vaults/{vault_id}/incidents/spawn", status_code=201)
+async def spawn_debug_incident(
+    *,
+    vault_id: UUID4,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    user: CurrentActiveUser,
+    incident_type: str | None = None,
+):
+    """
+    [DEBUG] Manually spawn an incident for testing purposes.
+
+    If incident_type is not provided, a random type will be chosen.
+    """
+    from app.models.incident import IncidentType
+
+    # Verify vault ownership
+    vault = await crud.vault.get(db_session, vault_id)
+    if not vault:
+        raise HTTPException(status_code=404, detail="Vault not found")
+
+    if vault.user_id != user.id and not user.is_superuser:
+        raise HTTPException(status_code=403, detail="Not authorized to spawn incidents in this vault")
+
+    # Parse incident type if provided
+    spawn_type = None
+    if incident_type:
+        try:
+            spawn_type = IncidentType(incident_type)
+        except ValueError:
+            raise HTTPException(  # noqa: B904
+                status_code=400, detail=f"Invalid incident type. Valid types: {[t.value for t in IncidentType]}"
+            )
+
+    # Spawn the incident
+    incident = await incident_service.spawn_incident(db_session, vault_id, spawn_type)
+
+    if not incident:
+        raise HTTPException(status_code=400, detail="Failed to spawn incident. No occupied rooms available.")
+
+    return {
+        "message": "Incident spawned successfully",
+        "incident_id": str(incident.id),
+        "type": incident.type.value,
+        "room_id": str(incident.room_id),
+        "difficulty": incident.difficulty,
     }

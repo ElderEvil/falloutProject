@@ -8,6 +8,20 @@ import { useRoomInteractions } from '@/composables/useRoomInteractions'
 import { useHoverPreview } from '@/composables/useHoverPreview'
 import RoomDwellers from '@/components/dwellers/RoomDwellers.vue'
 import { Icon } from '@iconify/vue'
+import type { Incident } from '@/models/incident'
+import { IncidentType } from '@/models/incident'
+
+interface Props {
+  incidents?: Incident[]
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  incidents: () => []
+})
+
+const emit = defineEmits<{
+  incidentClicked: [incidentId: string]
+}>()
 
 const route = useRoute()
 const roomStore = useRoomStore()
@@ -169,6 +183,46 @@ const getUpgradeCost = (room: any) => {
   return 0
 }
 
+// Incident helpers
+const roomHasIncident = (roomId: string) => {
+  return props.incidents.some(incident => incident.room_id === roomId)
+}
+
+const getRoomIncident = (roomId: string) => {
+  return props.incidents.find(incident => incident.room_id === roomId)
+}
+
+const getIncidentIcon = (type: IncidentType) => {
+  switch (type) {
+    case IncidentType.RAIDER_ATTACK:
+      return 'mdi:skull'
+    case IncidentType.RADROACH_INFESTATION:
+      return 'mdi:bug'
+    case IncidentType.FIRE:
+      return 'mdi:fire'
+    case IncidentType.MOLE_RAT_ATTACK:
+      return 'mdi:paw'
+    case IncidentType.DEATHCLAW_ATTACK:
+      return 'mdi:claw-mark'
+    case IncidentType.RADIATION_LEAK:
+      return 'mdi:radioactive'
+    case IncidentType.ELECTRICAL_FAILURE:
+      return 'mdi:lightning-bolt'
+    case IncidentType.WATER_CONTAMINATION:
+      return 'mdi:water-alert'
+    default:
+      return 'mdi:alert-octagon'
+  }
+}
+
+const handleIncidentClick = (roomId: string, event: Event) => {
+  event.stopPropagation()
+  const incident = getRoomIncident(roomId)
+  if (incident) {
+    emit('incidentClicked', incident.id)
+  }
+}
+
 // Upgrade room handler
 const handleUpgradeRoom = async (roomId: string, event: Event) => {
   event.stopPropagation()
@@ -220,7 +274,8 @@ const handleUpgradeRoom = async (roomId: string, event: Event) => {
         class="room built-room"
         :class="{
           selected: selectedRoomId === room.id,
-          'drag-over': draggingOverRoomId === room.id
+          'drag-over': draggingOverRoomId === room.id,
+          'has-incident': roomHasIncident(room.id)
         }"
         @click="toggleRoomSelection(room.id)"
         @dragover="handleDragOver($event, room.id)"
@@ -256,6 +311,12 @@ const handleUpgradeRoom = async (roomId: string, event: Event) => {
 
           <!-- Display dwellers in room -->
           <RoomDwellers :roomId="room.id" />
+
+          <!-- Incident overlay -->
+          <div v-if="roomHasIncident(room.id)" class="incident-overlay" @click="handleIncidentClick(room.id, $event)">
+            <Icon :icon="getIncidentIcon(getRoomIncident(room.id)!.type)" class="incident-icon" />
+            <div class="incident-label">ALERT</div>
+          </div>
         </div>
       </div>
 
@@ -434,6 +495,76 @@ const handleUpgradeRoom = async (roomId: string, event: Event) => {
 
 .upgrade-cost {
   font-weight: bold;
+}
+
+/* Incident styles */
+.room.has-incident {
+  border-color: #ff3333;
+  box-shadow: 0 0 15px rgba(255, 51, 51, 0.6);
+  animation: incident-pulse 2s ease-in-out infinite;
+}
+
+@keyframes incident-pulse {
+  0%,
+  100% {
+    border-color: #ff3333;
+    box-shadow: 0 0 15px rgba(255, 51, 51, 0.6);
+  }
+  50% {
+    border-color: #ff5555;
+    box-shadow: 0 0 30px rgba(255, 51, 51, 0.9);
+  }
+}
+
+.incident-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  z-index: 20;
+  transition: background 0.3s ease;
+}
+
+.incident-overlay:hover {
+  background: rgba(255, 0, 0, 0.25);
+}
+
+.incident-icon {
+  width: 48px;
+  height: 48px;
+  color: #ff3333;
+  filter: drop-shadow(0 0 8px rgba(255, 51, 51, 0.8));
+  animation: incident-shake 0.5s ease-in-out infinite;
+}
+
+@keyframes incident-shake {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate(-2px, 0) rotate(-2deg);
+  }
+  75% {
+    transform: translate(2px, 0) rotate(2deg);
+  }
+}
+
+.incident-label {
+  font-family: 'Courier New', monospace;
+  font-size: 0.875rem;
+  font-weight: bold;
+  color: #ff3333;
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 8px rgba(255, 51, 51, 0.8);
 }
 
 .destroy-button {

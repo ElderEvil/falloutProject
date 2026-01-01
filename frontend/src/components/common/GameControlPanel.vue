@@ -3,9 +3,11 @@ import { computed, onMounted, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useVaultStore } from '@/stores/vault'
 import { useAuthStore } from '@/stores/auth'
+import { useIncidentStore } from '@/stores/incident'
 
 const vaultStore = useVaultStore()
 const authStore = useAuthStore()
+const incidentStore = useIncidentStore()
 
 const props = defineProps<{
   vaultId: string
@@ -38,6 +40,16 @@ const togglePause = async () => {
     }
   } catch (error) {
     console.error('Failed to toggle pause', error)
+  }
+}
+
+const spawnIncident = async () => {
+  if (!authStore.token) return
+
+  try {
+    await incidentStore.spawnDebugIncident(props.vaultId, authStore.token)
+  } catch (error) {
+    console.error('Failed to spawn incident', error)
   }
 }
 
@@ -94,5 +106,20 @@ onUnmounted(() => {
       <div class="h-2 w-2 rounded-full bg-yellow-500 animate-pulse"></div>
       <span class="text-xs font-semibold text-yellow-500">PAUSED</span>
     </div>
+
+    <!-- Debug: Spawn Incident Button -->
+    <button
+      @click="spawnIncident"
+      :disabled="isLoading"
+      class="flex items-center space-x-2 rounded px-3 py-1 transition-all duration-200"
+      :class="{
+        'bg-red-600 hover:bg-red-700': !isLoading,
+        'bg-gray-600 cursor-not-allowed': isLoading
+      }"
+      title="[DEBUG] Spawn a random incident"
+    >
+      <Icon icon="mdi:alert-octagon" class="h-4 w-4 text-white" />
+      <span class="text-sm font-semibold text-white">Spawn Incident</span>
+    </button>
   </div>
 </template>

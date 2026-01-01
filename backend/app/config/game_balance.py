@@ -145,6 +145,9 @@ MANUAL_RECRUITMENT_COST = 500
 # Radio room tier multipliers
 RADIO_TIER_MULTIPLIER = {1: 1.0, 2: 1.5, 3: 2.0}
 
+# Radio happiness bonus (per dweller per tick when in happiness mode)
+RADIO_HAPPINESS_BONUS = 1  # +1 happiness per dweller per tick
+
 
 # ===== DIFFICULTY SCALING =====
 def calculate_incident_difficulty(vault_population: int, avg_dweller_level: float) -> int:

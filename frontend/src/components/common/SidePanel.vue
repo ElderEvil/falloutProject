@@ -47,6 +47,20 @@ const navItems = computed((): NavItem[] => {
       icon: 'mdi:target',
       path: `/vault/${vaultId.value}/objectives`,
       hotkey: '3'
+    },
+    {
+      id: 'radio',
+      label: 'Radio Room',
+      icon: 'mdi:radio-tower',
+      path: `/vault/${vaultId.value}/radio`,
+      hotkey: '4'
+    },
+    {
+      id: 'relationships',
+      label: 'Relationships',
+      icon: 'mdi:heart-multiple',
+      path: `/vault/${vaultId.value}/relationships`,
+      hotkey: '5'
     }
   ];
 });
@@ -63,12 +77,6 @@ const comingSoonItems = computed((): NavItem[] => [
     label: 'Training',
     icon: 'mdi:school',
     comingSoon: { phase: 'Phase 2', quarter: 'Feb-Mar 2026' }
-  },
-  {
-    id: 'radio',
-    label: 'Radio Room',
-    icon: 'mdi:radio-tower',
-    comingSoon: { phase: 'Phase 3', quarter: 'Mar-Apr 2026' }
   },
   {
     id: 'trading',

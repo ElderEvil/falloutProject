@@ -15,8 +15,10 @@ from app.admin.views import (
     LLInteractionAdmin,
     ObjectiveAdmin,
     OutfitAdmin,
+    PregnancyAdmin,
     PromptAdmin,
     QuestAdmin,
+    RelationshipAdmin,
     RoomAdmin,
     StorageAdmin,
     UserAdmin,
@@ -124,6 +126,8 @@ admin.add_view(VaultAdmin)
 admin.add_view(StorageAdmin)
 admin.add_view(RoomAdmin)
 admin.add_view(DwellerAdmin)
+admin.add_view(RelationshipAdmin)
+admin.add_view(PregnancyAdmin)
 admin.add_view(OutfitAdmin)
 admin.add_view(WeaponAdmin)
 admin.add_view(JunkAdmin)

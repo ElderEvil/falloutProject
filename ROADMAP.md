@@ -292,21 +292,35 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
   - Perk system
 
 #### Breeding & Family
-- [ ] **Dweller Relationships**
-  - Relationship tracking
+- [x] **Dweller Relationships** ✅ (Jan 2026)
+  - Relationship tracking (acquaintance, friend, romantic, partner, ex)
+  - Affinity system (0-100)
   - Romantic relationships in living quarters
-- [ ] **Pregnancy & Birth**
-  - Pregnancy duration
-  - Child growth stages
-  - Inherited traits from parents
+  - Compatibility scoring system
+  - Quick-pair testing endpoint
+- [x] **Pregnancy & Birth** ✅ (Jan 2026)
+  - Pregnancy duration (3 hours real-time)
+  - Conception chance for partners in living quarters
+  - Child growth stages (child → teen → adult)
+  - Inherited SPECIAL traits from parents
+  - Pregnancy tracking UI with progress bars
+- [ ] **Relationship Visualization**
+  - Visual relationship graph/network diagram
+  - Connection lines between related dwellers
+  - Family tree visualization
+  - Partner and parent-child indicators
+  - Interactive relationship explorer
 
 ### Phase 3: Endgame & Polish (Mar-Apr 2026)
 
 #### Advanced Systems
-- [ ] **Radio Room**
+- [x] **Radio Room** ✅ (Jan 2026)
   - Attract new dwellers from wasteland
-  - Recruitment rate based on vault happiness
-  - Dweller customization for recruits
+  - Recruitment rate based on vault happiness and charisma
+  - Manual recruitment for 500 caps
+  - Mode toggle: Recruitment vs. Happiness boost
+  - Speedup multiplier (1.0x-10.0x) per radio room
+  - Initial vault includes radio room
 - [ ] **Pet System**
   - Pets with special bonuses
   - Pet assignment to dwellers

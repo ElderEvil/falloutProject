@@ -15,6 +15,11 @@ class GameStatusEnum(StrEnum):
     PAUSED = "paused"
 
 
+class RadioModeEnum(StrEnum):
+    RECRUITMENT = "recruitment"
+    HAPPINESS = "happiness"
+
+
 class DwellerStatusEnum(CaseInsensitiveEnum):
     IDLE = "idle"
     WORKING = "working"

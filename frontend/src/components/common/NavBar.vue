@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, inject } from 'vue';
+import { ref, computed, inject, onMounted, onUnmounted } from 'vue';
 import { Icon } from '@iconify/vue';
 import { useAuthStore } from '@/stores/auth';
 import { useVaultStore } from '@/stores/vault';
@@ -23,9 +23,30 @@ const toggleFlickering = inject('toggleFlickering');
 
 // User Dropdown
 const isDropdownOpen = ref(false);
+const dropdownRef = ref<HTMLElement | null>(null);
+
 const toggleDropdown = () => {
   isDropdownOpen.value = !isDropdownOpen.value;
 };
+
+const closeDropdown = () => {
+  isDropdownOpen.value = false;
+};
+
+// Close dropdown when clicking outside
+const handleClickOutside = (event: MouseEvent) => {
+  if (dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
+    closeDropdown();
+  }
+};
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
+});
 
 </script>
 
@@ -92,10 +113,10 @@ const toggleDropdown = () => {
         </router-link>
 
         <!-- User Dropdown -->
-        <div v-if="isAuthenticated" class="relative">
+        <div v-if="isAuthenticated" class="relative" ref="dropdownRef">
           <button
             @click="toggleDropdown"
-            @keydown.escape="isDropdownOpen = false"
+            @keydown.escape="closeDropdown"
             class="glow text-green-500 hover:underline focus:outline-none focus:ring-2 focus:ring-terminalGreen focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1"
             :aria-expanded="isDropdownOpen"
             aria-haspopup="true"

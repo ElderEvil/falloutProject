@@ -142,8 +142,12 @@ class GameLoopService:
             results["updates"]["explorations"] = {"error": str(e)}
 
         # === PHASE 4: Dweller Management ===
-        # TODO: Implement in next phase
-        results["updates"]["dwellers"] = {"health_updated": 0, "leveled_up": 0}
+        try:
+            dweller_update = await self._process_dwellers(db_session, vault_id)
+            results["updates"]["dwellers"] = dweller_update
+        except Exception as e:
+            self.logger.error(f"Error processing dwellers for vault {vault_id}: {e}", exc_info=True)  # noqa: G004, G201
+            results["updates"]["dwellers"] = {"error": str(e), "health_updated": 0, "leveled_up": 0}
 
         # === PHASE 5: Event System ===
         # TODO: Implement in next phase
@@ -266,6 +270,69 @@ class GameLoopService:
                     f"Error processing exploration {exploration.id}: {e}",  # noqa: G004
                     exc_info=True,
                 )
+
+        return stats
+
+    async def _process_dwellers(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
+        """
+        Process dweller updates for a vault.
+
+        - Award work XP to dwellers in production rooms
+        - Check for level-ups
+        - Update health and needs (future)
+        """
+        from app.config.game_balance import WORK_EFFICIENCY_BONUS_MULTIPLIER, WORK_XP_PER_TICK
+        from app.models.room import Room
+        from app.schemas.common import DwellerStatusEnum, RoomTypeEnum
+        from app.services.leveling_service import leveling_service
+
+        stats = {
+            "health_updated": 0,
+            "leveled_up": 0,
+            "xp_awarded": 0,
+        }
+
+        # Get all dwellers in this vault
+        vault = await vault_crud.get(db_session, vault_id)
+        if not vault:
+            return stats
+
+        # Process each dweller
+        for dweller in vault.dwellers:
+            try:
+                # Award work XP for dwellers in production rooms
+                if dweller.status == DwellerStatusEnum.WORKING and dweller.room_id:
+                    # Get room to check if it's a production room
+                    room_query = select(Room).where(Room.id == dweller.room_id)
+                    room_result = await db_session.execute(room_query)
+                    room = room_result.scalar_one_or_none()
+
+                    if room and room.category == RoomTypeEnum.PRODUCTION:
+                        # Base XP per tick
+                        xp_to_award = WORK_XP_PER_TICK
+
+                        # Efficiency bonus: if dweller has high matching SPECIAL
+                        if room.ability:
+                            dweller_stat = getattr(dweller, room.ability.value.lower(), 1)
+                            # If SPECIAL >= 7, give efficiency bonus
+                            if dweller_stat >= 7:
+                                xp_to_award = int(xp_to_award * WORK_EFFICIENCY_BONUS_MULTIPLIER)
+
+                        # Award XP
+                        dweller.experience += xp_to_award
+                        db_session.add(dweller)
+                        stats["xp_awarded"] += xp_to_award
+
+                        # Check for level-up
+                        leveled_up, levels_gained = await leveling_service.check_level_up(db_session, dweller)
+                        if leveled_up:
+                            stats["leveled_up"] += levels_gained
+                            self.logger.info(
+                                f"Dweller {dweller.name} gained {levels_gained} level(s)! Now level {dweller.level}"  # noqa: G004
+                            )
+
+            except Exception as e:
+                self.logger.error(f"Error processing dweller {dweller.id}: {e}", exc_info=True)  # noqa: G004, G201
 
         return stats
 

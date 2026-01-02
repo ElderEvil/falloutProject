@@ -196,6 +196,9 @@ class IncidentService:
                 {"bottle_caps": (await vault_crud.get(db_session, incident.vault_id)).bottle_caps + caps_earned},
             )
 
+            # Award XP to participating dwellers
+            await self._award_combat_xp(db_session, incident, dwellers)
+
             self.logger.info(
                 f"Incident {incident.id} resolved successfully! Loot: {incident.loot}"  # noqa: G004
             )
@@ -244,6 +247,11 @@ class IncidentService:
             # Award caps to vault
             vault = await vault_crud.get(db_session, incident.vault_id)
             await vault_crud.update(db_session, incident.vault_id, {"bottle_caps": vault.bottle_caps + caps_earned})
+
+            # Award XP to dwellers in the room
+            dwellers_in_room = incident.room.dwellers if incident.room else []
+            if dwellers_in_room:
+                await self._award_combat_xp(db_session, incident, dwellers_in_room)
 
         incident.loot = loot
         incident.resolve(success=success)
@@ -319,6 +327,40 @@ class IncidentService:
         """Calculate damage dealt to raiders per tick."""
         damage_per_second = dweller_power / 5  # Dwellers deal 20% of their power per second
         return damage_per_second * seconds
+
+    async def _award_combat_xp(self, db_session: AsyncSession, incident: "Incident", dwellers: list["Dweller"]) -> None:
+        """
+        Award experience to dwellers who participated in combat.
+
+        Args:
+            db_session: Database session
+            incident: Resolved incident
+            dwellers: List of dwellers who fought
+        """
+        from app.config.game_balance import COMBAT_PERFECT_BONUS_MULTIPLIER, COMBAT_XP_PER_DIFFICULTY
+        from app.services.leveling_service import leveling_service
+
+        if not dwellers:
+            return
+
+        # Base XP from difficulty
+        base_xp = incident.difficulty * COMBAT_XP_PER_DIFFICULTY
+
+        # Check for perfect combat (no damage taken)
+        perfect_combat = incident.damage_dealt == 0
+
+        if perfect_combat:
+            base_xp = int(base_xp * COMBAT_PERFECT_BONUS_MULTIPLIER)
+
+        # Distribute XP among participants
+        xp_per_dweller = base_xp // len(dwellers)
+
+        for dweller in dwellers:
+            dweller.experience += xp_per_dweller
+            db_session.add(dweller)
+
+            # Check for level-up
+            await leveling_service.check_level_up(db_session, dweller)
 
     def _generate_loot(self, difficulty: int) -> dict:
         """Generate loot rewards based on difficulty."""

@@ -148,6 +148,30 @@ RADIO_TIER_MULTIPLIER = {1: 1.0, 2: 1.5, 3: 2.0}
 # Radio happiness bonus (per dweller per tick when in happiness mode)
 RADIO_HAPPINESS_BONUS = 1  # +1 happiness per dweller per tick
 
+# ===== LEVELING SYSTEM =====
+# Experience curve: BASE_XP * (level ^ EXPONENT)
+BASE_XP_REQUIREMENT = 100
+XP_CURVE_EXPONENT = 1.5
+
+# Health gain per level
+HP_GAIN_PER_LEVEL = 5
+
+# Maximum dweller level
+MAX_LEVEL = 50
+
+# Experience sources (XP per unit)
+EXPLORATION_XP_PER_DISTANCE = 10  # Per mile traveled
+EXPLORATION_XP_PER_ENEMY = 50  # Per enemy defeated
+EXPLORATION_XP_PER_EVENT = 20  # Per event encountered
+EXPLORATION_SURVIVAL_BONUS_MULTIPLIER = 0.2  # 20% bonus if >70% health
+EXPLORATION_LUCK_BONUS_MULTIPLIER = 0.02  # 2% per luck point
+
+COMBAT_XP_PER_DIFFICULTY = 30  # Base XP per difficulty level
+COMBAT_PERFECT_BONUS_MULTIPLIER = 1.5  # 50% bonus for no damage taken
+
+WORK_XP_PER_TICK = 2  # XP per minute working (120 XP per hour)
+WORK_EFFICIENCY_BONUS_MULTIPLIER = 1.5  # 50% more XP at 100% efficiency
+
 
 # ===== DIFFICULTY SCALING =====
 def calculate_incident_difficulty(vault_population: int, avg_dweller_level: float) -> int:

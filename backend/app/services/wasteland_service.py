@@ -45,6 +45,49 @@ class WastelandService:
         endurance_bonus = 1.0 + (endurance - 1) * (0.5 / 9)
         return max(1, int(base_events * endurance_bonus))
 
+    def _calculate_exploration_xp(self, exploration, dweller) -> int:
+        """
+        Calculate total XP from exploration with all bonuses.
+
+        Includes:
+        - Base XP from distance, enemies, and events
+        - Survival bonus (if returned with >70% health)
+        - Luck bonus (scales with luck stat)
+
+        Args:
+            exploration: Completed exploration
+            dweller: Dweller who completed exploration
+
+        Returns:
+            Total XP to award
+        """
+        from app.config.game_balance import (
+            EXPLORATION_LUCK_BONUS_MULTIPLIER,
+            EXPLORATION_SURVIVAL_BONUS_MULTIPLIER,
+            EXPLORATION_XP_PER_DISTANCE,
+            EXPLORATION_XP_PER_ENEMY,
+            EXPLORATION_XP_PER_EVENT,
+        )
+
+        # Base XP sources
+        distance_xp = exploration.total_distance * EXPLORATION_XP_PER_DISTANCE
+        combat_xp = exploration.enemies_encountered * EXPLORATION_XP_PER_ENEMY
+        event_xp = len(exploration.events) * EXPLORATION_XP_PER_EVENT
+
+        base_xp = distance_xp + combat_xp + event_xp
+
+        # Survival bonus (returned with >70% health)
+        survival_bonus = 0
+        if dweller.health / dweller.max_health > 0.7:
+            survival_bonus = int(base_xp * EXPLORATION_SURVIVAL_BONUS_MULTIPLIER)
+
+        # Luck bonus (2% per luck point)
+        luck_bonus = int(base_xp * (exploration.dweller_luck * EXPLORATION_LUCK_BONUS_MULTIPLIER))
+
+        total_xp = base_xp + survival_bonus + luck_bonus
+
+        return int(total_xp)
+
     def _get_rarity_weights(self, luck: int) -> dict[str, float]:
         """Get rarity weights adjusted by luck stat."""
         base_weights = {
@@ -266,12 +309,17 @@ class WastelandService:
             vault = await crud_vault.get(db_session, exploration.vault_id)
             await crud_vault.deposit_caps(db_session=db_session, vault_obj=vault, amount=total_caps)
 
-        # Calculate experience based on distance and encounters
-        experience = (exploration.total_distance * 10) + (exploration.enemies_encountered * 50)
+        # Calculate experience with enhanced rewards
+        experience = self._calculate_exploration_xp(exploration, dweller_obj)
 
         # Apply experience to dweller
         dweller_obj.experience += experience
         db_session.add(dweller_obj)
+
+        # Check for level-up
+        from app.services.leveling_service import leveling_service
+
+        await leveling_service.check_level_up(db_session, dweller_obj)
 
         # Transfer loot items to vault storage
         if exploration.loot_collected:
@@ -358,13 +406,18 @@ class WastelandService:
             vault = await crud_vault.get(db_session, exploration.vault_id)
             await crud_vault.deposit_caps(db_session=db_session, vault_obj=vault, amount=total_caps)
 
-        # Calculate reduced experience
-        base_experience = (exploration.total_distance * 10) + (exploration.enemies_encountered * 50)
-        experience = int(base_experience * (progress / 100))
+        # Calculate reduced experience (full XP calculation, then reduced by progress)
+        full_experience = self._calculate_exploration_xp(exploration, dweller_obj)
+        experience = int(full_experience * (progress / 100))
 
         # Apply experience to dweller
         dweller_obj.experience += experience
         db_session.add(dweller_obj)
+
+        # Check for level-up
+        from app.services.leveling_service import leveling_service
+
+        await leveling_service.check_level_up(db_session, dweller_obj)
 
         # Transfer loot items to vault storage
         if exploration.loot_collected:

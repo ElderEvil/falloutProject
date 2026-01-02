@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, defineAsyncComponent, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRoomStore } from '@/stores/room'
 import { useAuthStore } from '@/stores/auth'
@@ -7,11 +7,19 @@ import { useDwellerStore } from '@/stores/dweller'
 import { useRoomInteractions } from '@/composables/useRoomInteractions'
 import { useHoverPreview } from '@/composables/useHoverPreview'
 import RoomDwellers from '@/components/dwellers/RoomDwellers.vue'
-import RoomDetailModal from '@/components/rooms/RoomDetailModal.vue'
+import ComponentLoader from '@/components/common/ComponentLoader.vue'
 import { Icon } from '@iconify/vue'
 import type { Incident } from '@/models/incident'
 import { IncidentType } from '@/models/incident'
 import type { Room } from '@/models/room'
+
+// Lazy load heavy modal
+const RoomDetailModal = defineAsyncComponent({
+  loader: () => import('@/components/rooms/RoomDetailModal.vue'),
+  loadingComponent: ComponentLoader,
+  delay: 200,
+  timeout: 10000,
+})
 
 interface Props {
   incidents?: Incident[]

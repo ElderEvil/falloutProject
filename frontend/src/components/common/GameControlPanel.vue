@@ -85,7 +85,7 @@ onUnmounted(() => {
       :disabled="isLoading"
       class="flex items-center space-x-2 rounded px-3 py-1 transition-all duration-200"
       :class="{
-        'bg-yellow-600 hover:bg-yellow-700': !isPaused && !isLoading,
+        'bg-yellow-700 hover:bg-yellow-800': !isPaused && !isLoading,
         'bg-green-600 hover:bg-green-700': isPaused && !isLoading,
         'bg-gray-600 cursor-not-allowed': isLoading
       }"

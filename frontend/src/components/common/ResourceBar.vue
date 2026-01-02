@@ -126,7 +126,8 @@ const ariaLabel = computed(() =>
 
           <!-- Overlay with resource numbers -->
           <div class="absolute inset-0 flex items-center justify-center text-xs font-bold z-10" aria-hidden="true">
-            <span class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
+            <span class="text-gray-900 drop-shadow-[0_2px_4px_rgba(255,255,255,0.9)]"
+                  style="text-shadow: 0 0 8px rgba(255,255,255,0.9), 0 0 4px rgba(255,255,255,0.8), 0 1px 2px rgba(0,0,0,0.8);">
               {{ props.current }}/{{ props.max }}
             </span>
           </div>

@@ -198,7 +198,7 @@ onUnmounted(() => {
           <button
             @click="toggleDropdown"
             @keydown.escape="closeDropdown"
-            class="terminal-glow text-[var(--color-theme-primary)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--color-theme-primary)] focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1"
+            class="text-[var(--color-theme-primary)] hover:underline hover:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-theme-primary)] focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1 border-2 border-[var(--color-theme-primary)]/30"
             :aria-expanded="isDropdownOpen"
             aria-haspopup="true"
             :aria-label="`User menu for ${user?.username || 'user'}`"

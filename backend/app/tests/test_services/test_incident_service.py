@@ -1,4 +1,4 @@
-"""Tests for incident service logic."""  # noqa: INP001
+"""Tests for incident service logic."""
 
 # TODO: Fix session isolation issues in incident tests
 # The room_with_dwellers fixture creates dwellers and commits them, but the

@@ -271,6 +271,8 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         - Vault door and elevators (infrastructure)
         - Production rooms (power generator, diner, water treatment) with assigned dwellers
         - Storage room
+        - Radio studio (for recruitment)
+        - Weight room (training room for testing leveling system)
         - 6 dwellers with boosted SPECIAL stats assigned to production rooms
         """
         vault_db_obj = await self.create_with_user_id(db_session=db_session, obj_in=obj_in, user_id=user_id)
@@ -300,6 +302,9 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         # Misc rooms (Radio Studio)
         radio_studio_data = self._prepare_room_data(rooms, "radio studio", vault_db_obj.id, 2, 3)
 
+        # Training rooms (Weight Room for testing leveling system)
+        weight_room_data = self._prepare_room_data(rooms, "weight room", vault_db_obj.id, 3, 1)
+
         infrastructure_rooms = [RoomCreate(**vault_door_data)] + [RoomCreate(**data) for data in elevators_data]
         capacity_rooms = [
             RoomCreate(**living_room_data),
@@ -312,6 +317,9 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         ]
         misc_rooms = [
             RoomCreate(**radio_studio_data),
+        ]
+        training_rooms = [
+            RoomCreate(**weight_room_data),
         ]
 
         from app.crud.room import room as room_crud
@@ -341,6 +349,9 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
         # Create misc rooms (radio, etc.) - these don't affect capacity
         await room_crud.create_all(db_session, misc_rooms)
+
+        # Create training rooms for testing leveling system
+        await room_crud.create_all(db_session, training_rooms)
 
         # Set initial resources to 50% of max capacity
         initial_power = vault_db_obj.power_max // 2

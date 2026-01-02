@@ -1,4 +1,4 @@
-"""Tests for breeding service logic."""  # noqa: INP001
+"""Tests for breeding service logic."""
 
 from datetime import datetime, timedelta
 from unittest.mock import patch

@@ -16,6 +16,7 @@ from app.api.v1.endpoints import (
     radio,
     relationship,
     room,
+    training,
     user,
     vault,
     weapon,
@@ -37,6 +38,7 @@ api_router.include_router(quest.router, prefix="/quests", tags=["Quest"])
 api_router.include_router(radio.router, prefix="/radio", tags=["Radio"])
 api_router.include_router(relationship.router, prefix="/relationships", tags=["Relationship"])
 api_router.include_router(room.router, prefix="/rooms", tags=["Room"])
+api_router.include_router(training.router, prefix="/training", tags=["Training"])
 api_router.include_router(user.router, prefix="/users", tags=["User"])
 api_router.include_router(vault.router, prefix="/vaults", tags=["Vault"])
 api_router.include_router(weapon.router, prefix="/weapons", tags=["Weapon"])

@@ -9,6 +9,7 @@ from app.models.prompt import Prompt
 from app.models.quest import Quest
 from app.models.relationship import Relationship
 from app.models.room import Room
+from app.models.training import Training
 from app.models.user import User
 from app.models.user_profile import UserProfile
 from app.models.vault import Vault
@@ -242,4 +243,31 @@ class PregnancyAdmin(ModelView, model=Pregnancy):
     icon = "fa-solid fa-baby"
 
     can_create = False
+    can_delete = False
+
+
+class TrainingAdmin(ModelView, model=Training):
+    column_list = [
+        Training.id,
+        Training.dweller_id,
+        Training.room_id,
+        Training.vault_id,
+        Training.stat_being_trained,
+        Training.current_stat_value,
+        Training.target_stat_value,
+        Training.progress,
+        Training.status,
+        Training.started_at,
+        Training.estimated_completion_at,
+        Training.completed_at,
+        Training.created_at,
+        Training.updated_at,
+    ]
+
+    name = "Training"
+    name_plural = "Training Sessions"
+    icon = "fa-solid fa-dumbbell"
+
+    can_create = False
+    can_edit = True
     can_delete = False

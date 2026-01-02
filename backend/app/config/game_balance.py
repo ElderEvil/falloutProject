@@ -66,6 +66,24 @@ HAPPINESS_DECAY_PER_TICK = 1  # Happiness loss per tick if resources low
 STARVATION_THRESHOLD = 0.0  # No food = no health regen
 DEHYDRATION_THRESHOLD = 0.0  # No water = no health regen
 
+# ===== TRAINING SYSTEM =====
+# Base training duration (2 hours)
+TRAINING_BASE_DURATION_SECONDS = 7200  # 2 hours
+
+# Additional time per current stat level (30 minutes)
+TRAINING_PER_LEVEL_INCREASE_SECONDS = 1800  # 30 minutes
+
+# Tier multipliers for training speed
+TRAINING_TIER_MULTIPLIER = {
+    1: 1.0,  # T1: Normal speed
+    2: 0.75,  # T2: 25% faster
+    3: 0.6,  # T3: 40% faster
+}
+
+# SPECIAL stat limits
+SPECIAL_STAT_MIN = 1
+SPECIAL_STAT_MAX = 10
+
 # ===== LOOT SYSTEM =====
 # Caps reward range by incident difficulty
 CAPS_REWARD_BASE = 50

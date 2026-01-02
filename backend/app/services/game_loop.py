@@ -149,6 +149,14 @@ class GameLoopService:
             self.logger.error(f"Error processing dwellers for vault {vault_id}: {e}", exc_info=True)  # noqa: G004, G201
             results["updates"]["dwellers"] = {"error": str(e), "health_updated": 0, "leveled_up": 0}
 
+        # === PHASE 4.5: Training System ===
+        try:
+            training_update = await self._process_training(db_session, vault_id)
+            results["updates"]["training"] = training_update
+        except Exception as e:
+            self.logger.error(f"Error processing training for vault {vault_id}: {e}", exc_info=True)  # noqa: G004, G201
+            results["updates"]["training"] = {"error": str(e), "sessions_updated": 0, "completed": 0}
+
         # === PHASE 5: Event System ===
         # TODO: Implement in next phase
         results["updates"]["events"] = {"triggered": 0}
@@ -333,6 +341,47 @@ class GameLoopService:
 
             except Exception as e:
                 self.logger.error(f"Error processing dweller {dweller.id}: {e}", exc_info=True)  # noqa: G004, G201
+
+        return stats
+
+    async def _process_training(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
+        """
+        Process all active training sessions for a vault.
+
+        - Update training progress
+        - Auto-complete trainings that have finished
+        - Track statistics
+        """
+        from app.crud import training as training_crud
+        from app.services.training_service import training_service
+
+        stats = {
+            "sessions_updated": 0,
+            "completed": 0,
+            "active_count": 0,
+        }
+
+        # Get all active training sessions in this vault
+        active_trainings = await training_crud.training.get_active_by_vault(db_session, vault_id)
+        stats["active_count"] = len(active_trainings)
+
+        for training in active_trainings:
+            try:
+                # Update progress (this will auto-complete if ready)
+                updated_training = await training_service.update_training_progress(db_session, training)
+
+                stats["sessions_updated"] += 1
+
+                # Check if it was completed
+                if updated_training.is_completed():
+                    stats["completed"] += 1
+                    self.logger.info(
+                        f"Training completed: Dweller gained {updated_training.stat_being_trained.value} "  # noqa: G004
+                        f"(now {updated_training.target_stat_value})"
+                    )
+
+            except Exception as e:
+                self.logger.error(f"Error processing training {training.id}: {e}", exc_info=True)  # noqa: G004, G201
 
         return stats
 

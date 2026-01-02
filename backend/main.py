@@ -21,6 +21,7 @@ from app.admin.views import (
     RelationshipAdmin,
     RoomAdmin,
     StorageAdmin,
+    TrainingAdmin,
     UserAdmin,
     UserProfileAdmin,
     VaultAdmin,
@@ -128,6 +129,7 @@ admin.add_view(RoomAdmin)
 admin.add_view(DwellerAdmin)
 admin.add_view(RelationshipAdmin)
 admin.add_view(PregnancyAdmin)
+admin.add_view(TrainingAdmin)
 admin.add_view(OutfitAdmin)
 admin.add_view(WeaponAdmin)
 admin.add_view(JunkAdmin)

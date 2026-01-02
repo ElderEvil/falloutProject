@@ -1,3 +1,40 @@
+## [1.6.0] - 2026-01-02
+
+### Added
+
+#### Training System (Backend)
+
+- **Training Rooms**: Time-based SPECIAL stat training in dedicated rooms
+  - Duration: Base 2 hours + 30 minutes per current stat level
+  - Tier bonuses: T2 (25% faster), T3 (40% faster)
+  - Capacity management and status tracking
+- **Training Service**: Start/complete/cancel operations with validation
+- **REST API**: 6 endpoints for training management
+- **Game Loop Integration**: Phase 4.5 with auto-completion
+- **Admin Panel**: TrainingAdmin view
+- **Testing**: 11 comprehensive service tests
+
+### Changed
+- Dweller: Added trainings relationship, max_health → 1500
+- Game balance: Training constants added
+
+## [1.5.0] - 2026-01-02
+
+### Added
+
+#### Core Leveling System (Backend)
+
+- **XP Calculation**: Exponential curve (100 * level^1.5) for 1-50 progression
+- **XP Sources**:
+  - Exploration (survival +20%, luck +2% per point)
+  - Combat (perfect combat +50%)
+- **Level-Up**: +5 HP per level, full heal, cap at 50
+- **LevelingService**: XP calculation and auto-leveling
+- **Testing**: 11 comprehensive tests
+
+### Changed
+- Enhanced exploration/combat XP with bonuses
+- Added ix_dweller_level index
 # Changelog
 
 All notable changes to this project will be documented in this file.

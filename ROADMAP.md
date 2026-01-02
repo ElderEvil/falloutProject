@@ -282,14 +282,18 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
   - Return time based on distance
 
 #### Dweller Progression
-- [ ] **Training Rooms**
-  - SPECIAL stat training
-  - Training time based on current stat level
-  - Multiple dwellers training simultaneously
-- [ ] **Leveling System Enhancements**
+- [x] **Core Leveling System** ✅ (v1.5 - Jan 2, 2026)
+  - Exponential XP curve (100 * level^1.5) for 1-50 progression
+  - Multiple XP sources with bonuses (exploration, combat)
+  - Auto level-up with +5 HP per level and full heal
+- [x] **Training Rooms ✅ (v1.6 - Jan 2, 2026)**
+  - Time-based SPECIAL stat training (2-6.5 hours)
+  - Room tier bonuses (T2: 25% faster, T3: 40% faster)
+  - Capacity management, progress tracking, auto-completion
+- [ ] **Leveling UI Enhancements (Frontend)**
   - Level-up notifications
-  - Skill points allocation
-  - Perk system
+  - Training UI components
+    - XP progress bars
 
 #### Breeding & Family
 - [x] **Dweller Relationships** ✅ (Jan 2026)
@@ -463,9 +467,11 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 - **v1.0** - Room upgrades and exploration enhancements ✅
 - **v1.1** - Room management and resource production ✅
 - **v1.2** - Combat and incident system ✅
-- **v1.3** - Room detail view with clickable dweller navigation ✅ (Current - Jan 1, 2026)
-- **v1.4** - Training and progression (Jan-Feb 2026)
-- **v1.5** - Breeding and relationships (Feb-Mar 2026)
+- **v1.3** - Room detail view with clickable dweller navigation ✅
+- **v1.4** - Breeding and radio system ✅ (Jan 2, 2026)
+- **v1.5** - Core leveling system ✅ (Jan 2, 2026)
+- **v1.6** - Training system ✅ (Current - Jan 2, 2026)
+- **v1.7** - Frontend UI for leveling and training (Jan-Feb 2026)
 - **v2.0** - Full release with endgame features (Mar-May 2026)
 
 ---

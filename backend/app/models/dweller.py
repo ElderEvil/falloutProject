@@ -12,6 +12,7 @@ from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, GenderEnum, Rari
 if TYPE_CHECKING:
     from app.models.outfit import Outfit
     from app.models.room import Room
+    from app.models.training import Training
     from app.models.vault import Vault
     from app.models.weapon import Weapon
 
@@ -105,3 +106,6 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, table=True):
     # Inventory
     weapon: "Weapon" = Relationship(back_populates="dweller", cascade_delete=True)
     outfit: "Outfit" = Relationship(back_populates="dweller", cascade_delete=True)
+
+    # Training
+    trainings: list["Training"] = Relationship(back_populates="dweller", cascade_delete=True)

@@ -32,12 +32,12 @@ const groupedByRoom = computed(() => {
 })
 
 const fetchTrainings = async () => {
-  if (!vaultStore.currentVault?.id || !authStore.token) return
+  if (!vaultStore.activeVault?.id || !authStore.token) return
 
   loading.value = true
   try {
     await trainingStore.fetchVaultTrainings(
-      vaultStore.currentVault.id,
+      vaultStore.activeVault.id,
       authStore.token
     )
   } finally {

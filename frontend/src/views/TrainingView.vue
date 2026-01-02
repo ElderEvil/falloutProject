@@ -14,10 +14,8 @@ const vaultId = route.params.id as string
 
 onMounted(async () => {
   if (authStore.token && vaultId) {
-    // Ensure vault is loaded
-    if (!vaultStore.currentVault || vaultStore.currentVault.id !== vaultId) {
-      await vaultStore.fetchVault(vaultId, authStore.token)
-    }
+    // Ensure vault is loaded - loadVault handles the check internally
+    await vaultStore.loadVault(vaultId, authStore.token)
   }
 })
 </script>

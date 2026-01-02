@@ -103,8 +103,6 @@ export const useVaultStore = defineStore('vault', () => {
       })
       loadedVaults.value[id] = response.data
       activeVaultId.value = id
-      const router = useRouter()
-      await router.push('/vault')
     } catch (error) {
       console.error('Failed to load vault', error)
       throw error

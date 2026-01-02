@@ -314,7 +314,7 @@ const closeDetailModal = () => {
         :key="room.id"
         :style="{
           gridRow: (room.coordinate_y ?? 0) + 1,
-          gridColumn: `${(room.coordinate_x ?? 0) + 1} / span ${Math.ceil((room.size || room.size_min) / 3)}`
+          gridColumn: `${(room.coordinate_x ?? 0) + 1} / span ${room.size === 1 ? 1 : Math.ceil((room.size || room.size_min) / 3)}`
         }"
         class="room built-room"
         :class="{
@@ -451,9 +451,12 @@ const closeDetailModal = () => {
 
 .room-grid {
   display: grid;
-  grid-template-columns: repeat(8, 1fr); /* Expanded from 4 to 8 columns */
-  grid-template-rows: repeat(16, 80px) repeat(9, 60px);  /* 16 active + 9 locked rows */
+  grid-template-columns: repeat(8, minmax(140px, 1fr)); /* 8 columns with larger min width */
+  grid-template-rows: repeat(16, 140px) repeat(9, 80px);  /* 16 active rows (larger) + 9 locked rows */
   gap: 10px;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .locked-row {
@@ -507,7 +510,10 @@ const closeDetailModal = () => {
   border: 1px solid #555;
   cursor: pointer;
   transition: all 0.2s;
-  min-height: 80px;
+  min-height: 140px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .room.selected {

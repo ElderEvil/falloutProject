@@ -258,6 +258,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             {
                 "vault_id": vault_id,
                 "size": size,
+                "tier": tier,
                 "coordinate_x": x,
                 "coordinate_y": y,
             }
@@ -363,6 +364,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         created_training_rooms = []
         for room_create in training_rooms:
             room_obj = await room_crud.create(db_session, room_create)
+            await db_session.refresh(room_obj)  # Refresh to ensure all fields are loaded
             created_training_rooms.append(room_obj)
 
         return vault_obj, created_production_rooms, created_training_rooms
@@ -426,8 +428,9 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
                 room_obj = await room_crud.get(db_session, room_id)
 
                 # Determine status based on room type
+                # Note: Training rooms get IDLE status during initialization, then start_training() will set to TRAINING
                 if room_obj.category == RoomTypeEnum.TRAINING:
-                    new_status = DwellerStatusEnum.TRAINING
+                    new_status = DwellerStatusEnum.IDLE
                 elif room_obj.category == RoomTypeEnum.PRODUCTION:
                     new_status = DwellerStatusEnum.WORKING
                 else:
@@ -440,6 +443,61 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
                 logger.info(f"Dweller {dweller_obj.id} assigned to room {room_id}")  # noqa: G004
         except Exception as e:
             logger.error(f"Failed to create dwellers: {e}", exc_info=True)  # noqa: G004, G201
+            raise
+
+    async def _start_training_sessions(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        created_training_rooms: list[Room],
+        is_superuser: bool,  # noqa: FBT001
+    ) -> None:
+        """Start training sessions for dwellers in training rooms (superuser only)."""
+        if not is_superuser:
+            return
+
+        # Import locally to avoid circular imports
+        import logging
+
+        from app.services.training_service import training_service
+
+        logger = logging.getLogger(__name__)
+
+        try:
+            # Get all dwellers in training rooms
+            for room in created_training_rooms:
+                # Re-fetch room to ensure all fields are loaded
+                await db_session.refresh(room)
+                logger.info(f"Room {room.id} ({room.name}) - tier: {room.tier}, ability: {room.ability}")  # noqa: G004
+
+                result = await db_session.execute(
+                    select(Dweller).where(Dweller.room_id == room.id).where(Dweller.vault_id == vault_id)
+                )
+                dwellers = result.scalars().all()
+
+                for dweller in dwellers:
+                    try:
+                        # Refresh dweller to ensure all fields loaded
+                        await db_session.refresh(dweller)
+
+                        # Debug: Check dweller stats
+                        stat_name = room.ability.value.lower() if room.ability else "unknown"
+                        stat_value = getattr(dweller, stat_name, None) if room.ability else None
+                        logger.info(
+                            f"Dweller {dweller.id} {stat_name}={stat_value}, "  # noqa: G004
+                            f"all stats: S={dweller.strength}, P={dweller.perception}, "
+                            f"E={dweller.endurance}, status={dweller.status}"
+                        )
+
+                        await training_service.start_training(db_session, dweller.id, room.id)
+                        logger.info(f"Started training for dweller {dweller.id} in room {room.id}")  # noqa: G004
+                    except Exception as e:  # noqa: BLE001
+                        # Log error but continue with other dwellers
+                        logger.warning(
+                            f"Failed to start training for dweller {dweller.id} in room {room.id}: {e}"  # noqa: G004
+                        )
+        except Exception as e:
+            logger.error(f"Failed to start training sessions: {e}", exc_info=True)  # noqa: G004, G201
             raise
 
     async def initiate(
@@ -492,6 +550,12 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         await self._create_initial_dwellers(
             db_session, vault_db_obj.id, created_production_rooms, created_training_rooms, is_superuser
         )
+
+        # Commit to ensure all dwellers and rooms are persisted before starting training
+        await db_session.commit()
+
+        # Start training sessions for superuser vaults
+        await self._start_training_sessions(db_session, vault_db_obj.id, created_training_rooms, is_superuser)
 
         return vault_db_obj
 

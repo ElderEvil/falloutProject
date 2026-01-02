@@ -41,7 +41,8 @@ class Pregnancy(BaseUUIDModel, PregnancyBase, TimeStampMixin, table=True):
     @property
     def is_due(self) -> bool:
         """Check if the pregnancy is due for delivery."""
-        return datetime.utcnow() >= self.due_at and self.status == PregnancyStatusEnum.PREGNANT
+        due_at = self.due_at.replace(tzinfo=None) if self.due_at.tzinfo else self.due_at
+        return datetime.utcnow() >= due_at and self.status == PregnancyStatusEnum.PREGNANT
 
     @property
     def progress_percentage(self) -> float:

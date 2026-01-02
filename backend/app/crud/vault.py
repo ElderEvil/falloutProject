@@ -176,9 +176,9 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         return storage
 
     async def create_with_user_id(
-        self, *, db_session: AsyncSession, obj_in: VaultCreate | VaultNumber, user_id: UUID4
+        self, *, db_session: AsyncSession, obj_in: VaultCreate | VaultNumber | dict, user_id: UUID4
     ) -> Vault:
-        obj_data = obj_in.model_dump()
+        obj_data = obj_in.model_dump() if hasattr(obj_in, "model_dump") else obj_in
         obj_data["user_id"] = user_id
         obj_in = VaultCreateWithUserID(**obj_data)
         return await super().create(db_session, obj_in)

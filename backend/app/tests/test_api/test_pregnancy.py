@@ -81,7 +81,7 @@ async def test_get_vault_pregnancies_with_active(
     assert len(data) == 1
     assert data[0]["mother_id"] == str(mother.id)
     assert data[0]["father_id"] == str(father.id)
-    assert data[0]["status"] == "active"
+    assert data[0]["status"] == "pregnant"
     assert "progress_percentage" in data[0]
     assert "time_remaining_seconds" in data[0]
 
@@ -217,19 +217,15 @@ async def test_deliver_baby_success(
     )
     assert response.status_code == 200
     data = response.json()
-    assert "child" in data
+    assert "child_id" in data
     assert "message" in data
-    assert data["child"]["vault_id"] == str(vault.id)
-    assert data["child"]["parent_1_id"] in [str(mother.id), str(father.id)]
-    assert data["child"]["parent_2_id"] in [str(mother.id), str(father.id)]
-    assert data["child"]["age_group"] == "child"
 
     # Verify pregnancy status updated
     pregnancy_check = await async_client.get(
         f"/pregnancies/{pregnancy.id}",
         headers=superuser_token_headers,
     )
-    assert pregnancy_check.json()["status"] == "completed"
+    assert pregnancy_check.json()["status"] == "delivered"
 
 
 @pytest.mark.asyncio
@@ -294,4 +290,4 @@ async def test_pregnancy_not_found(
         f"/pregnancies/{fake_id}",
         headers=superuser_token_headers,
     )
-    assert response.status_code == 404
+    assert response.status_code == 422

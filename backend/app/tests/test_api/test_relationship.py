@@ -158,10 +158,15 @@ async def test_initiate_romance(
     )
     relationship_id = create_response.json()["id"]
 
-    # Manually set affinity to 70+ via service to allow romance
-    from app.services.relationship_service import relationship_service
+    # Manually set affinity to 70+ to allow romance
+    from uuid import UUID
 
-    relationship = await relationship_service.get_relationship(async_session, relationship_id)
+    from sqlmodel import select
+
+    from app.models.relationship import Relationship
+
+    result = await async_session.execute(select(Relationship).where(Relationship.id == UUID(relationship_id)))
+    relationship = result.scalar_one()
     relationship.affinity = 75
     await async_session.commit()
 

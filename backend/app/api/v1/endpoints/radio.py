@@ -42,6 +42,8 @@ async def manual_recruit_dweller(
     await get_user_vault_or_403(vault_id, user, db_session)
 
     try:
+        from app.services.notification_service import notification_service
+
         dweller = await radio_service.manual_recruit(
             db_session,
             vault_id,
@@ -50,9 +52,19 @@ async def manual_recruit_dweller(
 
         # Get updated vault to check caps spent
         vault_query = select(Vault).where(Vault.id == vault_id)
-        vault = (await db_session.execute(vault_query)).scalars().first()  # noqa: F841
+        vault = (await db_session.execute(vault_query)).scalars().first()
 
         from app.config.game_balance import MANUAL_RECRUITMENT_COST
+
+        # Send new dweller notification
+        if vault and vault.user_id:
+            await notification_service.notify_radio_new_dweller(
+                db_session,
+                user_id=vault.user_id,
+                vault_id=vault_id,
+                dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
+                meta_data={"dweller_id": str(dweller.id), "caps_spent": MANUAL_RECRUITMENT_COST},
+            )
 
         return RecruitmentResponse(
             dweller=dweller,  # type: ignore  # noqa: PGH003

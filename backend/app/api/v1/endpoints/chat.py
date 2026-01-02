@@ -9,10 +9,12 @@ from pydantic import UUID4, BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentActiveUser
+from app.crud.chat_message import chat_message as chat_message_crud
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.db.session import get_async_session
 from app.models.base import SPECIALModel
+from app.models.chat_message import ChatMessageCreate, ChatMessageRead
 from app.models.objective import ObjectiveBase
 from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.open_ai import get_ai_service
@@ -176,15 +178,63 @@ async def chat_with_dweller(
 
     response_message = response.choices[0].message.content
 
+    # Save LLM interaction statistics
     llm_int_create = LLMInteractionCreate(
         parameters=message.message,
         response=response_message,
         usage="chat_with_dweller",
         user_id=user.id,
     )
-    await llm_interaction_crud.create(
+    llm_interaction = await llm_interaction_crud.create(
         db_session,
         obj_in=llm_int_create,
     )
 
+    # Save user message to chat history
+    await chat_message_crud.create_message(
+        db_session,
+        obj_in=ChatMessageCreate(
+            vault_id=dweller.vault.id,
+            from_user_id=user.id,
+            to_dweller_id=dweller.id,
+            message_text=message.message,
+        ),
+    )
+
+    # Save dweller response to chat history
+    await chat_message_crud.create_message(
+        db_session,
+        obj_in=ChatMessageCreate(
+            vault_id=dweller.vault.id,
+            from_dweller_id=dweller.id,
+            to_user_id=user.id,
+            message_text=response_message,
+            llm_interaction_id=llm_interaction.id,  # Link to AI stats
+        ),
+    )
+
     return {"response": response_message}
+
+
+@router.get("/history/{dweller_id}", response_model=list[ChatMessageRead])
+async def get_chat_history(
+    dweller_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    limit: int = 100,
+    offset: int = 0,
+):
+    """Get conversation history between user and dweller"""
+    dweller = await dweller_crud.get(db_session, dweller_id)
+    if not dweller:
+        raise HTTPException(status_code=404, detail="Dweller not found")
+
+    messages = await chat_message_crud.get_conversation(
+        db_session,
+        user_id=user.id,
+        dweller_id=dweller.id,
+        limit=limit,
+        offset=offset,
+    )
+
+    return messages  # noqa: RET504

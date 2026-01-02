@@ -72,7 +72,13 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             )
 
         # Sorting
-        if hasattr(self.model, sort_by):
+        if sort_by == "name":
+            # Special handling for name sorting - sort by first_name, then last_name
+            if order.lower() == "asc":
+                query = query.order_by(self.model.first_name.asc(), self.model.last_name.asc())
+            else:
+                query = query.order_by(self.model.first_name.desc(), self.model.last_name.desc())
+        elif hasattr(self.model, sort_by):
             sort_column = getattr(self.model, sort_by)
             if order.lower() == "asc":  # noqa: SIM108
                 query = query.order_by(sort_column.asc())
@@ -132,14 +138,38 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
 
     async def add_experience(self, db_session: AsyncSession, dweller_obj: Dweller, amount: int):
         """Add experience to dweller and level up if necessary."""
+        from app.services.notification_service import notification_service
+
+        old_level = dweller_obj.level
         dweller_obj.experience += amount
         experience_required = self.calculate_experience_required(dweller_obj)
+        leveled_up = False
+
         if dweller_obj.experience >= experience_required:
             dweller_obj.level += 1
             dweller_obj.experience -= experience_required
-        return await self.update(
+            leveled_up = True
+
+        updated_dweller = await self.update(
             db_session, dweller_obj.id, DwellerUpdate(level=dweller_obj.level, experience=dweller_obj.experience)
         )
+
+        # Send level-up notification
+        if leveled_up and updated_dweller.vault_id:
+            # Get vault to find the owner
+            vault = await vault_crud.get(db_session, updated_dweller.vault_id)
+            if vault and vault.user_id:
+                await notification_service.notify_level_up(
+                    db_session,
+                    user_id=vault.user_id,
+                    vault_id=updated_dweller.vault_id,
+                    dweller_id=updated_dweller.id,
+                    dweller_name=f"{updated_dweller.first_name} {updated_dweller.last_name or ''}".strip(),
+                    new_level=updated_dweller.level,
+                    meta_data={"old_level": old_level, "new_level": updated_dweller.level},
+                )
+
+        return updated_dweller
 
     async def get_dweller_by_name(self, db_session: AsyncSession, name: str) -> Dweller | None:
         """Get dweller by name."""

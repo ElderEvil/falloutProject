@@ -3,12 +3,14 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useDwellerStore } from '@/stores/dweller'
+import { useVaultStore } from '@/stores/vault'
 import DwellerChat from '@/components/chat/DwellerChat.vue'
 import type { Dweller } from '@/models/dweller'
 
 const route = useRoute()
 const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
+const vaultStore = useVaultStore()
 
 const dwellerId = ref(route.params.id as string)
 const dweller = ref<Dweller | null>(null)
@@ -24,6 +26,11 @@ onMounted(async () => {
       throw new Error('Failed to fetch dweller data')
     }
     dweller.value = result
+
+    // Set active vault ID from dweller's vault for navigation
+    if (result.vault?.id) {
+      vaultStore.activeVaultId = result.vault.id
+    }
   } catch (error) {
     console.error('Error fetching dweller data:', error)
     // Handle error (e.g., show error message to user, redirect to error page)

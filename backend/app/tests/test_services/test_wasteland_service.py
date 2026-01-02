@@ -216,11 +216,23 @@ async def test_complete_exploration_transfers_caps(
     # Complete exploration
     rewards = await wasteland_service.complete_exploration(async_session, exploration.id)
 
+    # Calculate expected XP with bonuses
+    await async_session.refresh(dweller)
+    base_xp = (75 * 10) + (10 * 50)  # distance*10 + enemies*50
+    expected_xp = base_xp
+
+    # Add survival bonus if dweller has >70% health
+    if dweller.health / dweller.max_health > 0.7:
+        expected_xp += int(base_xp * 0.2)  # 20% survival bonus
+
+    # Add luck bonus (2% per luck point)
+    expected_xp += int(base_xp * (exploration.dweller_luck * 0.02))
+
     # Verify rewards
     assert rewards["caps"] == 150
     assert rewards["distance"] == 75
     assert rewards["enemies_defeated"] == 10
-    assert rewards["experience"] == (75 * 10) + (10 * 50)  # distance*10 + enemies*50
+    assert rewards["experience"] == expected_xp
     # Note: Loot collection tested separately
 
     # Verify caps transferred

@@ -18,6 +18,13 @@
 - Dweller: Added trainings relationship, max_health → 1500
 - Game balance: Training constants added
 
+### Fixed
+- **Foreign Key Constraints**: Added `ondelete` behavior to prevent IntegrityError
+  - Dweller self-references (partner_id, parent_1_id, parent_2_id): `SET NULL` on delete
+  - Relationship table (dweller_1_id, dweller_2_id): `CASCADE` on delete
+  - Pregnancy table (mother_id, father_id): `CASCADE` on delete
+  - Resolves errors during vault deletion and dweller cleanup operations
+
 ## [1.5.0] - 2026-01-02
 
 ### Added

@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+import sqlalchemy as sa
 from pydantic import UUID4
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -11,8 +12,8 @@ if TYPE_CHECKING:
 
 
 class RelationshipBase(SQLModel):
-    dweller_1_id: UUID4 = Field(foreign_key="dweller.id")
-    dweller_2_id: UUID4 = Field(foreign_key="dweller.id")
+    dweller_1_id: UUID4 = Field(sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="CASCADE")))
+    dweller_2_id: UUID4 = Field(sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="CASCADE")))
     relationship_type: RelationshipTypeEnum = Field(default=RelationshipTypeEnum.ACQUAINTANCE)
     affinity: int = Field(default=0, ge=0, le=100)
 

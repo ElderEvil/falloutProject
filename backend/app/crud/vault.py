@@ -176,9 +176,9 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         return storage
 
     async def create_with_user_id(
-        self, *, db_session: AsyncSession, obj_in: VaultCreate | VaultNumber, user_id: UUID4
+        self, *, db_session: AsyncSession, obj_in: VaultCreate | VaultNumber | dict, user_id: UUID4
     ) -> Vault:
-        obj_data = obj_in.model_dump()
+        obj_data = obj_in.model_dump() if hasattr(obj_in, "model_dump") else obj_in
         obj_data["user_id"] = user_id
         obj_in = VaultCreateWithUserID(**obj_data)
         return await super().create(db_session, obj_in)
@@ -297,6 +297,9 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         diner_data = self._prepare_room_data(rooms, "diner", vault_db_obj.id, 1, 2)
         water_treatment_data = self._prepare_room_data(rooms, "water treatment", vault_db_obj.id, 1, 3)
 
+        # Misc rooms (Radio Studio)
+        radio_studio_data = self._prepare_room_data(rooms, "radio studio", vault_db_obj.id, 2, 3)
+
         infrastructure_rooms = [RoomCreate(**vault_door_data)] + [RoomCreate(**data) for data in elevators_data]
         capacity_rooms = [
             RoomCreate(**living_room_data),
@@ -306,6 +309,9 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             RoomCreate(**power_generator_data),
             RoomCreate(**diner_data),
             RoomCreate(**water_treatment_data),
+        ]
+        misc_rooms = [
+            RoomCreate(**radio_studio_data),
         ]
 
         from app.crud.room import room as room_crud
@@ -332,6 +338,9 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
         # Refresh vault to get updated capacities
         await db_session.refresh(vault_db_obj)
+
+        # Create misc rooms (radio, etc.) - these don't affect capacity
+        await room_crud.create_all(db_session, misc_rooms)
 
         # Set initial resources to 50% of max capacity
         initial_power = vault_db_obj.power_max // 2

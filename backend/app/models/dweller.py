@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
@@ -6,7 +7,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel, SPECIALModel, TimeStampMixin
-from app.schemas.common import DwellerStatusEnum, GenderEnum, RarityEnum
+from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, GenderEnum, RarityEnum
 
 if TYPE_CHECKING:
     from app.models.outfit import Outfit
@@ -20,6 +21,8 @@ class DwellerBaseWithoutStats(SQLModel):
     first_name: str = Field(index=True, min_length=2, max_length=32)
     last_name: str | None = Field(default=None, index=True, max_length=32)
     is_adult: bool = True
+    age_group: AgeGroupEnum = Field(default=AgeGroupEnum.ADULT)
+    birth_date: datetime | None = Field(default=None)
     gender: GenderEnum = Field()
     rarity: RarityEnum = Field()
 
@@ -59,6 +62,11 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, table=True):
 
     room_id: UUID4 = Field(default=None, foreign_key="room.id", nullable=True)
     room: "Room" = Relationship(back_populates="dwellers")
+
+    # Relationships and Family
+    partner_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", nullable=True)
+    parent_1_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", nullable=True)
+    parent_2_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", nullable=True)
 
     # Inventory
     weapon: "Weapon" = Relationship(back_populates="dweller", cascade_delete=True)

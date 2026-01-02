@@ -4,8 +4,10 @@ from app.models import LLMInteraction, Objective, Storage
 from app.models.dweller import Dweller
 from app.models.junk import Junk
 from app.models.outfit import Outfit
+from app.models.pregnancy import Pregnancy
 from app.models.prompt import Prompt
 from app.models.quest import Quest
+from app.models.relationship import Relationship
 from app.models.room import Room
 from app.models.user import User
 from app.models.user_profile import UserProfile
@@ -88,6 +90,7 @@ class DwellerAdmin(ModelView, model=Dweller):
         Dweller.first_name,
         Dweller.last_name,
         Dweller.gender,
+        Dweller.age_group,
         Dweller.rarity,
         Dweller.status,
         Dweller.level,
@@ -95,7 +98,9 @@ class DwellerAdmin(ModelView, model=Dweller):
         Dweller.max_health,
         Dweller.health,
         Dweller.happiness,
-        Dweller.is_adult,
+        Dweller.partner_id,
+        Dweller.parent_1_id,
+        Dweller.parent_2_id,
         Dweller.vault,
         Dweller.room,
         Dweller.created_at,
@@ -199,3 +204,42 @@ class LLInteractionAdmin(ModelView, model=LLMInteraction):
     ]
 
     icon = "fa-solid fa-comment-dots"
+
+
+class RelationshipAdmin(ModelView, model=Relationship):
+    column_list = [
+        Relationship.id,
+        Relationship.dweller_1_id,
+        Relationship.dweller_2_id,
+        Relationship.relationship_type,
+        Relationship.affinity,
+        Relationship.created_at,
+        Relationship.updated_at,
+    ]
+
+    name = "Relationship"
+    name_plural = "Relationships"
+    icon = "fa-solid fa-heart"
+
+    can_create = False
+    can_delete = False
+
+
+class PregnancyAdmin(ModelView, model=Pregnancy):
+    column_list = [
+        Pregnancy.id,
+        Pregnancy.mother_id,
+        Pregnancy.father_id,
+        Pregnancy.conceived_at,
+        Pregnancy.due_at,
+        Pregnancy.status,
+        Pregnancy.created_at,
+        Pregnancy.updated_at,
+    ]
+
+    name = "Pregnancy"
+    name_plural = "Pregnancies"
+    icon = "fa-solid fa-baby"
+
+    can_create = False
+    can_delete = False

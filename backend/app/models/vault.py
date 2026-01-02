@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from pydantic import UUID4
+from sqlalchemy import Column, String
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
@@ -34,6 +35,10 @@ class VaultBase(SQLModel):
 
     # Population limits
     population_max: int | None = Field(default=0, ge=0, le=200, nullable=True)
+
+    # Radio settings
+    # Store as string in database to avoid enum type issues
+    radio_mode: str = Field(default="recruitment", sa_column=Column(String(50)))
 
     # Game state
     # game_state: GameStatusEnum = Field(default=GameStatusEnum.ACTIVE)

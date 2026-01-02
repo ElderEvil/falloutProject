@@ -29,6 +29,7 @@ class RoomBase(SQLModel):
     coordinate_x: int | None = Field(default=None, ge=0, le=8)
     coordinate_y: int | None = Field(default=None, ge=0, le=25)
     image_url: str | None = Field(default=None)
+    speedup_multiplier: float = Field(default=1.0, ge=1.0, le=10.0)
 
     @property
     def is_unique(self) -> bool:

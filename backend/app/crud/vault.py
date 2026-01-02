@@ -264,64 +264,74 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         )
         return room_data_dict
 
-    async def initiate(self, *, db_session: AsyncSession, obj_in: VaultNumber, user_id: UUID4) -> Vault:  # noqa: PLR0915
-        """
-        Create a new vault for a user and initialize it with essential rooms and dwellers.
-        Includes:
-        - Vault door and elevators (infrastructure)
-        - Production rooms (power generator, diner, water treatment) with assigned dwellers
-        - Storage room
-        - Radio studio (for recruitment)
-        - Weight room (training room for testing leveling system)
-        - 6 dwellers with boosted SPECIAL stats assigned to production rooms
-        """
-        vault_db_obj = await self.create_with_user_id(db_session=db_session, obj_in=obj_in, user_id=user_id)
+    def _prepare_initial_rooms(
+        self,
+        rooms: list[RoomCreate],
+        vault_id: UUID4,
+        is_superuser: bool,  # noqa: FBT001
+    ) -> tuple[list[RoomCreate], list[RoomCreate], list[RoomCreate], list[RoomCreate], list[RoomCreate]]:
+        """Prepare all room data for vault initialization."""
+        # Infrastructure rooms
+        vault_door_data = self._prepare_room_data(rooms, "vault door", vault_id, 0, 0)
+        elevators_data = [self._prepare_room_data(rooms, "elevator", vault_id, 0, y) for y in range(1, 4)]
+        infrastructure_rooms = [RoomCreate(**vault_door_data)] + [RoomCreate(**data) for data in elevators_data]
 
-        # Create storage
-        await self.create_storage(db_session=db_session, vault_id=vault_db_obj.id)
+        # Capacity rooms (living rooms + storage)
+        living_room_data = self._prepare_room_data(rooms, "living room", vault_id, 2, 1)
+        storage_room_data = self._prepare_room_data(rooms, "storage room", vault_id, 2, 2)
+        capacity_rooms = [RoomCreate(**living_room_data), RoomCreate(**storage_room_data)]
 
-        # Refresh vault to load storage relationship
-        await db_session.refresh(vault_db_obj)
-
-        game_data_store = get_static_game_data()
-        rooms = game_data_store.rooms
-
-        # Infrastructure rooms (existing)
-        vault_door_data = self._prepare_room_data(rooms, "vault door", vault_db_obj.id, 0, 0)
-        elevators_data = [self._prepare_room_data(rooms, "elevator", vault_db_obj.id, 0, y) for y in range(1, 4)]
-
-        # Capacity rooms (must be created before assigning dwellers to other rooms)
-        living_room_data = self._prepare_room_data(rooms, "living room", vault_db_obj.id, 2, 1)
-        storage_room_data = self._prepare_room_data(rooms, "storage room", vault_db_obj.id, 2, 2)
+        # Add extra living rooms for superuser
+        if is_superuser:
+            extra_capacity_rooms_data = [
+                self._prepare_room_data(rooms, "living room", vault_id, 4, 3),
+                self._prepare_room_data(rooms, "living room", vault_id, 5, 3),
+            ]
+            capacity_rooms.extend([RoomCreate(**data) for data in extra_capacity_rooms_data])
 
         # Production rooms
-        power_generator_data = self._prepare_room_data(rooms, "power generator", vault_db_obj.id, 1, 1)
-        diner_data = self._prepare_room_data(rooms, "diner", vault_db_obj.id, 1, 2)
-        water_treatment_data = self._prepare_room_data(rooms, "water treatment", vault_db_obj.id, 1, 3)
-
-        # Misc rooms (Radio Studio)
-        radio_studio_data = self._prepare_room_data(rooms, "radio studio", vault_db_obj.id, 2, 3)
-
-        # Training rooms (Weight Room for testing leveling system)
-        weight_room_data = self._prepare_room_data(rooms, "weight room", vault_db_obj.id, 3, 1)
-
-        infrastructure_rooms = [RoomCreate(**vault_door_data)] + [RoomCreate(**data) for data in elevators_data]
-        capacity_rooms = [
-            RoomCreate(**living_room_data),
-            RoomCreate(**storage_room_data),
-        ]
+        power_generator_data = self._prepare_room_data(rooms, "power generator", vault_id, 1, 1)
+        diner_data = self._prepare_room_data(rooms, "diner", vault_id, 1, 2)
+        water_treatment_data = self._prepare_room_data(rooms, "water treatment", vault_id, 1, 3)
         production_rooms = [
             RoomCreate(**power_generator_data),
             RoomCreate(**diner_data),
             RoomCreate(**water_treatment_data),
         ]
-        misc_rooms = [
-            RoomCreate(**radio_studio_data),
-        ]
-        training_rooms = [
-            RoomCreate(**weight_room_data),
-        ]
 
+        # Misc rooms
+        radio_studio_data = self._prepare_room_data(rooms, "radio studio", vault_id, 2, 3)
+        misc_rooms = [RoomCreate(**radio_studio_data)]
+
+        # Training rooms
+        if is_superuser:
+            training_rooms_data = [
+                self._prepare_room_data(rooms, "weight room", vault_id, 3, 1),  # Strength
+                self._prepare_room_data(rooms, "athletics room", vault_id, 3, 2),  # Agility
+                self._prepare_room_data(rooms, "armory", vault_id, 3, 3),  # Perception
+                self._prepare_room_data(rooms, "classroom", vault_id, 4, 1),  # Intelligence
+                self._prepare_room_data(rooms, "fitness room", vault_id, 4, 2),  # Endurance
+                self._prepare_room_data(rooms, "lounge", vault_id, 5, 1),  # Charisma
+                self._prepare_room_data(rooms, "game room", vault_id, 5, 2),  # Luck
+            ]
+        else:
+            training_rooms_data = [self._prepare_room_data(rooms, "weight room", vault_id, 3, 1)]
+
+        training_rooms = [RoomCreate(**data) for data in training_rooms_data]
+
+        return infrastructure_rooms, capacity_rooms, production_rooms, misc_rooms, training_rooms
+
+    async def _create_initial_rooms(  # noqa: PLR0913
+        self,
+        db_session: AsyncSession,
+        vault_obj: Vault,
+        infrastructure_rooms: list[RoomCreate],
+        capacity_rooms: list[RoomCreate],
+        production_rooms: list[RoomCreate],
+        misc_rooms: list[RoomCreate],
+        training_rooms: list[RoomCreate],
+    ) -> tuple[Vault, list[Room], list[Room]]:
+        """Create all initial rooms and return vault with created production and training rooms."""
         from app.crud.room import room as room_crud
 
         # Create infrastructure rooms (don't affect vault capacity)
@@ -330,8 +340,8 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         # Create capacity rooms FIRST (Living Rooms increase population_max)
         for room_create in capacity_rooms:
             room_obj = await room_crud.create(db_session, room_create)
-            vault_db_obj = await self.recalculate_vault_attributes(
-                db_session=db_session, vault_obj=vault_db_obj, room_obj=room_obj, action=RoomActionEnum.BUILD
+            vault_obj = await self.recalculate_vault_attributes(
+                db_session=db_session, vault_obj=vault_obj, room_obj=room_obj, action=RoomActionEnum.BUILD
             )
 
         # Create production rooms and update vault capacities
@@ -339,59 +349,81 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         for room_create in production_rooms:
             room_obj = await room_crud.create(db_session, room_create)
             created_production_rooms.append(room_obj)
-            # Recalculate vault attributes after each room
-            vault_db_obj = await self.recalculate_vault_attributes(
-                db_session=db_session, vault_obj=vault_db_obj, room_obj=room_obj, action=RoomActionEnum.BUILD
+            vault_obj = await self.recalculate_vault_attributes(
+                db_session=db_session, vault_obj=vault_obj, room_obj=room_obj, action=RoomActionEnum.BUILD
             )
 
         # Refresh vault to get updated capacities
-        await db_session.refresh(vault_db_obj)
+        await db_session.refresh(vault_obj)
 
         # Create misc rooms (radio, etc.) - these don't affect capacity
         await room_crud.create_all(db_session, misc_rooms)
 
-        # Create training rooms for testing leveling system
-        await room_crud.create_all(db_session, training_rooms)
+        # Create training rooms
+        created_training_rooms = []
+        for room_create in training_rooms:
+            room_obj = await room_crud.create(db_session, room_create)
+            created_training_rooms.append(room_obj)
 
-        # Set initial resources to 50% of max capacity
-        initial_power = vault_db_obj.power_max // 2
-        initial_food = vault_db_obj.food_max // 2
-        initial_water = vault_db_obj.water_max // 2
+        return vault_obj, created_production_rooms, created_training_rooms
 
-        vault_db_obj = await self.update(
-            db_session=db_session,
-            id=vault_db_obj.id,
-            obj_in=VaultUpdate(power=initial_power, food=initial_food, water=initial_water),
-        )
-
-        # Create dwellers with boosted SPECIAL stats
+    async def _create_initial_dwellers(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        created_production_rooms: list[Room],
+        created_training_rooms: list[Room],
+        is_superuser: bool,  # noqa: FBT001
+    ) -> None:
+        """Create and assign initial dwellers to production and training rooms."""
         import logging
 
         from app.crud.dweller import dweller as dweller_crud
+        from app.crud.room import room as room_crud
+        from app.schemas.common import DwellerStatusEnum, RoomTypeEnum
         from app.schemas.dweller import DwellerUpdate
 
         logger = logging.getLogger(__name__)
 
-        # 2 dwellers for each production room (Strength, Agility, Perception)
-        dweller_specs = [
-            (SPECIALEnum.STRENGTH, created_production_rooms[0].id),  # Power Generator
-            (SPECIALEnum.STRENGTH, created_production_rooms[0].id),
-            (SPECIALEnum.AGILITY, created_production_rooms[1].id),  # Diner
-            (SPECIALEnum.AGILITY, created_production_rooms[1].id),
-            (SPECIALEnum.PERCEPTION, created_production_rooms[2].id),  # Water Treatment
-            (SPECIALEnum.PERCEPTION, created_production_rooms[2].id),
-        ]
+        # Build dweller specs based on user type
+        if is_superuser:
+            dweller_specs = [
+                # Production rooms (6 dwellers)
+                (SPECIALEnum.STRENGTH, created_production_rooms[0].id),
+                (SPECIALEnum.STRENGTH, created_production_rooms[0].id),
+                (SPECIALEnum.AGILITY, created_production_rooms[1].id),
+                (SPECIALEnum.AGILITY, created_production_rooms[1].id),
+                (SPECIALEnum.PERCEPTION, created_production_rooms[2].id),
+                (SPECIALEnum.PERCEPTION, created_production_rooms[2].id),
+                # Training rooms (7 dwellers)
+                (SPECIALEnum.STRENGTH, created_training_rooms[0].id),
+                (SPECIALEnum.AGILITY, created_training_rooms[1].id),
+                (SPECIALEnum.PERCEPTION, created_training_rooms[2].id),
+                (SPECIALEnum.INTELLIGENCE, created_training_rooms[3].id),
+                (SPECIALEnum.ENDURANCE, created_training_rooms[4].id),
+                (SPECIALEnum.CHARISMA, created_training_rooms[5].id),
+                (SPECIALEnum.LUCK, created_training_rooms[6].id),
+            ]
+        else:
+            dweller_specs = [
+                (SPECIALEnum.STRENGTH, created_production_rooms[0].id),
+                (SPECIALEnum.STRENGTH, created_production_rooms[0].id),
+                (SPECIALEnum.AGILITY, created_production_rooms[1].id),
+                (SPECIALEnum.AGILITY, created_production_rooms[1].id),
+                (SPECIALEnum.PERCEPTION, created_production_rooms[2].id),
+                (SPECIALEnum.PERCEPTION, created_production_rooms[2].id),
+            ]
 
+        dweller_count = len(dweller_specs)
         try:
             for i, (special_stat, room_id) in enumerate(dweller_specs):
-                logger.info(f"Creating dweller {i + 1}/6 with {special_stat} for room {room_id}")  # noqa: G004
+                logger.info(f"Creating dweller {i + 1}/{dweller_count} with {special_stat} for room {room_id}")  # noqa: G004
                 obj_in = DwellerCreateCommonOverride(special_boost=special_stat)
-                dweller_obj = await dweller_crud.create_random(db_session, vault_db_obj.id, obj_in=obj_in)
+                dweller_obj = await dweller_crud.create_random(db_session, vault_id, obj_in=obj_in)
                 logger.info(f"Created dweller {dweller_obj.id}, assigning to room {room_id}")  # noqa: G004
 
                 # Get room to determine status based on category
                 room_obj = await room_crud.get(db_session, room_id)
-                from app.schemas.common import DwellerStatusEnum, RoomTypeEnum
 
                 # Determine status based on room type
                 if room_obj.category == RoomTypeEnum.TRAINING:
@@ -409,6 +441,57 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         except Exception as e:
             logger.error(f"Failed to create dwellers: {e}", exc_info=True)  # noqa: G004, G201
             raise
+
+    async def initiate(
+        self, *, db_session: AsyncSession, obj_in: VaultNumber, user_id: UUID4, is_superuser: bool = False
+    ) -> Vault:
+        """
+        Create a new vault for a user and initialize it with essential rooms and dwellers.
+
+        Standard vault includes:
+        - Vault door and elevators (infrastructure)
+        - Production rooms (power generator, diner, water treatment) with assigned dwellers
+        - Storage room and 1 living room
+        - Radio studio (for recruitment)
+        - Weight room (training room for testing leveling system)
+        - 6 dwellers with boosted SPECIAL stats assigned to production rooms
+
+        Superuser vault additionally includes:
+        - All 7 training rooms (one for each SPECIAL stat)
+        - 2 additional living rooms (3 total for 13+ dwellers)
+        - 7 additional dwellers assigned to training rooms (13 total)
+        """
+        # Create vault and storage
+        vault_db_obj = await self.create_with_user_id(db_session=db_session, obj_in=obj_in, user_id=user_id)
+        await self.create_storage(db_session=db_session, vault_id=vault_db_obj.id)
+        await db_session.refresh(vault_db_obj)
+
+        # Prepare room data
+        game_data_store = get_static_game_data()
+        rooms = game_data_store.rooms
+        infrastructure_rooms, capacity_rooms, production_rooms, misc_rooms, training_rooms = (
+            self._prepare_initial_rooms(rooms, vault_db_obj.id, is_superuser)
+        )
+
+        # Create rooms and get created production/training rooms
+        vault_db_obj, created_production_rooms, created_training_rooms = await self._create_initial_rooms(
+            db_session, vault_db_obj, infrastructure_rooms, capacity_rooms, production_rooms, misc_rooms, training_rooms
+        )
+
+        # Set initial resources to 50% of max capacity
+        initial_power = vault_db_obj.power_max // 2
+        initial_food = vault_db_obj.food_max // 2
+        initial_water = vault_db_obj.water_max // 2
+        vault_db_obj = await self.update(
+            db_session=db_session,
+            id=vault_db_obj.id,
+            obj_in=VaultUpdate(power=initial_power, food=initial_food, water=initial_water),
+        )
+
+        # Create and assign dwellers
+        await self._create_initial_dwellers(
+            db_session, vault_db_obj.id, created_production_rooms, created_training_rooms, is_superuser
+        )
 
         return vault_db_obj
 

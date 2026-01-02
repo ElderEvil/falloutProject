@@ -39,8 +39,8 @@ const showDetailModal = ref(false)
 const selectedRoomForDetail = ref<Room | null>(null)
 
 // Grid configuration
-const GRID_COLS = 4
-const GRID_ROWS = 8
+const GRID_COLS = 8  // Expanded from 4 to accommodate more rooms
+const GRID_ROWS = 16 // Expanded from 8 (rows 16-25 locked for future expansion)
 
 const placeRoom = async (x: number, y: number) => {
   if (!roomStore.selectedRoom || !roomStore.isPlacingRoom) return
@@ -389,6 +389,20 @@ const closeDetailModal = () => {
         @mouseleave="clearHover"
         @click="handleEmptyCellClick(cell.x, cell.y)"
       ></div>
+
+      <!-- Locked rows indicator (16-25) -->
+      <div
+        v-for="y in 9"
+        :key="`locked-${y}`"
+        class="locked-row"
+        :style="{
+          gridRow: GRID_ROWS + y,
+          gridColumn: '1 / -1'
+        }"
+      >
+        <Icon icon="mdi:lock" class="locked-icon" />
+        <span class="locked-text">Locked Area - Future Expansion (Row {{ GRID_ROWS + y - 1 }})</span>
+      </div>
     </div>
   </div>
 </template>
@@ -437,8 +451,54 @@ const closeDetailModal = () => {
 
 .room-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(8, 1fr); /* Expanded from 4 to 8 columns */
+  grid-template-rows: repeat(16, 80px) repeat(9, 60px);  /* 16 active + 9 locked rows */
   gap: 10px;
+}
+
+.locked-row {
+  background: linear-gradient(
+    135deg,
+    rgba(60, 60, 60, 0.3),
+    rgba(40, 40, 40, 0.3)
+  );
+  border: 2px dashed #444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  color: #666;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  pointer-events: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.locked-row::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 10px,
+    rgba(255, 255, 255, 0.02) 10px,
+    rgba(255, 255, 255, 0.02) 20px
+  );
+}
+
+.locked-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: #555;
+}
+
+.locked-text {
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-size: 0.75rem;
 }
 
 .room {

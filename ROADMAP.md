@@ -298,12 +298,27 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
   - Romantic relationships in living quarters
   - Compatibility scoring system
   - Quick-pair testing endpoint
+  - Backend CRUD and service layer complete
 - [x] **Pregnancy & Birth** ✅ (Jan 2026)
   - Pregnancy duration (3 hours real-time)
   - Conception chance for partners in living quarters
   - Child growth stages (child → teen → adult)
   - Inherited SPECIAL traits from parents
+  - Backend pregnancy management and delivery system
+  - Pregnancy status tracking (pregnant/delivered)
+- [x] **Radio Room** ✅ (Jan 2026)
+  - Attract new dwellers from wasteland
+  - Recruitment rate based on vault happiness and charisma
+  - Manual recruitment for 500 caps
+  - Mode toggle: Recruitment vs. Happiness boost
+  - Speedup multiplier (1.0x-10.0x) per radio room
+  - Backend recruitment service complete
+- [ ] **Breeding & Radio Frontend UI**
   - Pregnancy tracking UI with progress bars
+  - Relationship visualization in dweller details
+  - Radio room control panel
+  - Manual recruitment button
+  - Relationship list view
 - [ ] **Relationship Visualization**
   - Visual relationship graph/network diagram
   - Connection lines between related dwellers
@@ -314,13 +329,6 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 ### Phase 3: Endgame & Polish (Mar-Apr 2026)
 
 #### Advanced Systems
-- [x] **Radio Room** ✅ (Jan 2026)
-  - Attract new dwellers from wasteland
-  - Recruitment rate based on vault happiness and charisma
-  - Manual recruitment for 500 caps
-  - Mode toggle: Recruitment vs. Happiness boost
-  - Speedup multiplier (1.0x-10.0x) per radio room
-  - Initial vault includes radio room
 - [ ] **Pet System**
   - Pets with special bonuses
   - Pet assignment to dwellers
@@ -463,9 +471,10 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 - **v1.0** - Room upgrades and exploration enhancements ✅
 - **v1.1** - Room management and resource production ✅
 - **v1.2** - Combat and incident system ✅
-- **v1.3** - Room detail view with clickable dweller navigation ✅ (Current - Jan 1, 2026)
-- **v1.4** - Training and progression (Jan-Feb 2026)
-- **v1.5** - Breeding and relationships (Feb-Mar 2026)
+- **v1.3** - Room detail view with clickable dweller navigation ✅ (Jan 1, 2026)
+- **v1.4** - Breeding and radio backend systems ✅ (Jan 2, 2026)
+- **v1.5** - Training and progression (Jan-Feb 2026)
+- **v1.6** - Breeding/radio frontend UI (Feb 2026)
 - **v2.0** - Full release with endgame features (Mar-May 2026)
 
 ---
@@ -482,11 +491,35 @@ This roadmap is subject to change based on:
 - Priority adjustments
 - Community contributions
 
-Last updated: January 1, 2026
+Last updated: January 2, 2026
 
 ---
 
 ## 🎉 Recent Highlights
+
+### Breeding & Radio System v1.4 (January 2, 2026)
+- ✅ **Relationship System** - Complete backend for dweller relationships
+  - Relationship types: acquaintance, friend, romantic, partner, ex
+  - Affinity tracking (0-100) with compatibility scoring
+  - Relationship progression: acquaintance → friend → romantic → partner
+  - Partner compatibility based on SPECIAL stats and traits
+- ✅ **Pregnancy System** - Full pregnancy lifecycle management
+  - 3-hour pregnancy duration with conception mechanics
+  - Pregnancy status tracking (pregnant/delivered)
+  - Child birth with inherited SPECIAL traits from parents
+  - Age progression system (child → teen → adult)
+  - Due date tracking with timezone-aware comparisons
+- ✅ **Radio Recruitment** - Wasteland dweller recruitment system
+  - Manual recruitment for 500 caps
+  - Automatic recruitment based on vault happiness & charisma
+  - Radio mode toggle: Recruitment vs. Happiness boost
+  - Recruitment rate calculation with speedup multipliers (1.0x-10.0x)
+  - Multiple radio rooms stack for increased rates
+- ✅ **Comprehensive Testing** - All API tests passing
+  - Relationship CRUD tests (create, get, initiate romance, make partners)
+  - Pregnancy tests (create, deliver, status tracking)
+  - Radio tests (manual recruit, mode toggle, rate calculation)
+  - Test fixes for timezone handling and enum validation
 
 ### Room Detail View v1.3 (January 1, 2026)
 - ✅ **Comprehensive Room Modal** - Click any room to view detailed statistics

@@ -1,4 +1,4 @@
-"""Tests for wasteland service logic."""  # noqa: INP001
+"""Tests for wasteland service logic."""
 
 from datetime import datetime, timedelta
 from unittest.mock import patch

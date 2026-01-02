@@ -1,4 +1,4 @@
-"""Tests for game loop exploration integration."""  # noqa: INP001
+"""Tests for game loop exploration integration."""
 
 from datetime import datetime, timedelta
 from unittest.mock import patch

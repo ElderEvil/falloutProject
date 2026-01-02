@@ -1,4 +1,4 @@
-"""Tests for leveling service logic."""  # noqa: INP001
+"""Tests for leveling service logic."""
 
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession

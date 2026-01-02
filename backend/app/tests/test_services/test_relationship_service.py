@@ -1,4 +1,4 @@
-"""Tests for relationship service logic."""  # noqa: INP001
+"""Tests for relationship service logic."""
 
 import pytest
 import pytest_asyncio

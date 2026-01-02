@@ -1,4 +1,4 @@
-"""Tests for radio service logic."""  # noqa: INP001
+"""Tests for radio service logic."""
 
 from unittest.mock import patch
 

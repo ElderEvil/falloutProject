@@ -27,20 +27,61 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
-    rolldownOptions: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
       output: {
-        advancedChunks: {
-          groups: [
-            {
-              name(moduleId) {
-                if (moduleId.includes('node_modules')) {
-                  return 'vendor';
-                }
-                return null;
-              }
-            }
-          ]
-        }
+        manualChunks: (id) => {
+          // Vue ecosystem
+          if (id.includes('node_modules/vue/') || id.includes('node_modules/@vue/')) {
+            return 'vue-core'
+          }
+          if (id.includes('node_modules/vue-router')) {
+            return 'vue-router'
+          }
+          if (id.includes('node_modules/pinia')) {
+            return 'pinia'
+          }
+
+          // HTTP client
+          if (id.includes('node_modules/axios')) {
+            return 'axios'
+          }
+
+          // Icons
+          if (id.includes('node_modules/@iconify')) {
+            return 'iconify'
+          }
+
+          // UI library
+          if (id.includes('node_modules/@nuxt/ui')) {
+            return 'nuxt-ui'
+          }
+
+          // Tailwind
+          if (id.includes('node_modules/tailwindcss')) {
+            return 'tailwind'
+          }
+
+          // UI Components
+          if (id.includes('/src/components/ui/')) {
+            return 'ui-components'
+          }
+
+          // Stores
+          if (id.includes('/src/stores/') && !id.includes('/src/stores/auth.ts')) {
+            return 'stores'
+          }
+
+          // Other node_modules go to vendor
+          if (id.includes('node_modules')) {
+            return 'vendor'
+          }
+        },
+
+        // Ensure deterministic chunk names for better caching
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
       }
     }
   }

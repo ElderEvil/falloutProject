@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useRoomStore } from '@/stores/room'
@@ -15,12 +15,20 @@ import GameControlPanel from '@/components/common/GameControlPanel.vue'
 import UnassignedDwellers from '@/components/dwellers/UnassignedDwellers.vue'
 import WastelandPanel from '@/components/wasteland/WastelandPanel.vue'
 import IncidentAlert from '@/components/incidents/IncidentAlert.vue'
-import CombatModal from '@/components/incidents/CombatModal.vue'
+import ComponentLoader from '@/components/common/ComponentLoader.vue'
 import UTooltip from '@/components/ui/UTooltip.vue'
 import SidePanel from '@/components/common/SidePanel.vue'
 import { useSidePanel } from '@/composables/useSidePanel'
 import type { Room } from '@/models/room'
 import { Icon } from '@iconify/vue'
+
+// Lazy load heavy modal
+const CombatModal = defineAsyncComponent({
+  loader: () => import('@/components/incidents/CombatModal.vue'),
+  loadingComponent: ComponentLoader,
+  delay: 200,
+  timeout: 10000,
+})
 
 interface Position {
   x: number

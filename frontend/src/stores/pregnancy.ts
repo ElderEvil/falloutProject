@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import axios from '@/plugins/axios'
 import type { Pregnancy, DeliveryResult } from '@/models/pregnancy'
 import { useToast } from '@/composables/useToast'
+import { getErrorMessage } from '@/types/utils'
 
 export const usePregnancyStore = defineStore('pregnancy', () => {
   const toast = useToast()
@@ -32,9 +33,9 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
     try {
       const response = await axios.get(`/api/v1/pregnancies/vault/${vaultId}`)
       pregnancies.value = response.data
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to fetch pregnancies:', error)
-      toast.error('Failed to load pregnancies')
+      toast.error(getErrorMessage(error))
     } finally {
       isLoading.value = false
     }
@@ -44,9 +45,9 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
     try {
       const response = await axios.get(`/api/v1/pregnancies/${pregnancyId}`)
       return response.data
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to fetch pregnancy:', error)
-      toast.error('Failed to load pregnancy')
+      toast.error(getErrorMessage(error))
       return null
     }
   }
@@ -65,10 +66,9 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
 
       toast.success(result.message)
       return result
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to deliver baby:', error)
-      const message = error.response?.data?.detail || 'Failed to deliver baby'
-      toast.error(message)
+      toast.error(getErrorMessage(error))
       return null
     } finally {
       isLoading.value = false

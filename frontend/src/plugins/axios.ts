@@ -1,6 +1,17 @@
-import axios from 'axios'
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notification'
+
+interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
+  _retry?: boolean
+  _skipErrorNotification?: boolean
+}
+
+interface ValidationError {
+  loc: string[]
+  msg: string
+  type: string
+}
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -29,10 +40,21 @@ apiClient.interceptors.response.use(
   (response) => {
     return response
   },
-  async (error) => {
+  async (err: unknown) => {
     const authStore = useAuthStore()
     const notificationStore = useNotificationStore()
-    const originalRequest = error.config
+
+    // Type guard to check if error is an AxiosError
+    if (!axios.isAxiosError(err)) {
+      return Promise.reject(err)
+    }
+
+    const error = err as AxiosError
+    const originalRequest = error.config as CustomAxiosRequestConfig | undefined
+
+    if (!originalRequest) {
+      return Promise.reject(error)
+    }
 
     // Handle 401 with token refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
@@ -46,7 +68,7 @@ apiClient.interceptors.response.use(
 
     // Skip notifications for specific endpoints or if explicitly disabled
     if (!originalRequest._skipErrorNotification) {
-      const errorData = error.response?.data
+      const errorData = error.response?.data as Record<string, unknown> | string | undefined
       let title = 'Request Failed'
       let message = 'An unexpected error occurred'
       let details: string | undefined
@@ -77,20 +99,24 @@ apiClient.interceptors.response.use(
         // Extract message from response body
         if (typeof errorData === 'string') {
           message = errorData
-        } else if (errorData?.detail) {
-          if (typeof errorData.detail === 'string') {
-            message = errorData.detail
-          } else if (Array.isArray(errorData.detail)) {
+        } else if (errorData && typeof errorData === 'object' && 'detail' in errorData) {
+          const detail = errorData.detail
+          if (typeof detail === 'string') {
+            message = detail
+          } else if (Array.isArray(detail)) {
             // FastAPI validation errors
-            message = errorData.detail.map((err: any) => {
+            message = detail.map((err: ValidationError) => {
               const field = err.loc?.join('.') || 'field'
               return `${field}: ${err.msg}`
             }).join(', ')
-          } else if (typeof errorData.detail === 'object') {
-            message = JSON.stringify(errorData.detail)
+          } else if (typeof detail === 'object' && detail !== null) {
+            message = JSON.stringify(detail)
           }
-        } else if (errorData?.message) {
-          message = errorData.message
+        } else if (errorData && typeof errorData === 'object' && 'message' in errorData) {
+          const msg = errorData.message
+          if (typeof msg === 'string') {
+            message = msg
+          }
         }
 
         // Add technical details

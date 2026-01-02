@@ -221,7 +221,7 @@ const getIncidentIcon = (type: IncidentType) => {
   }
 }
 
-const handleIncidentClick = (roomId: string, event: Event) => {
+const handleIncidentClick = (roomId: string, event: MouseEvent) => {
   event.stopPropagation()
   const incident = getRoomIncident(roomId)
   if (incident) {
@@ -230,7 +230,7 @@ const handleIncidentClick = (roomId: string, event: Event) => {
 }
 
 // Upgrade room handler
-const handleUpgradeRoom = async (roomId: string, event: Event) => {
+const handleUpgradeRoom = async (roomId: string, event: MouseEvent) => {
   event.stopPropagation()
 
   const vaultId = route.params.id as string
@@ -256,7 +256,7 @@ const handleUpgradeRoom = async (roomId: string, event: Event) => {
 }
 
 // Handle room click to open detail modal
-const handleRoomClick = (room: Room, event: Event) => {
+const handleRoomClick = (room: Room, event: MouseEvent) => {
   // Don't open detail modal if clicking on action buttons or incident overlay
   const target = event.target as HTMLElement
   if (

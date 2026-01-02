@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { IconComponent } from '@/types/utils'
+
 /**
  * UBadge - Terminal-themed badge component
  *
@@ -11,7 +13,7 @@
 interface Props {
   variant?: 'success' | 'warning' | 'danger' | 'info' | 'default'
   size?: 'sm' | 'md' | 'lg'
-  icon?: any
+  icon?: IconComponent
   dot?: boolean
 }
 

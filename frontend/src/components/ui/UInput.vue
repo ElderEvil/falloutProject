@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { IconComponent } from '@/types/utils'
+
 /**
  * UInput - Terminal-themed input component
  *
@@ -18,8 +20,8 @@ interface Props {
   error?: string
   required?: boolean
   disabled?: boolean
-  icon?: any
-  iconRight?: any
+  icon?: IconComponent
+  iconRight?: IconComponent
   size?: 'sm' | 'md' | 'lg'
 }
 
@@ -55,7 +57,7 @@ const inputClasses = [
   props.iconRight ? 'pr-10' : ''
 ].filter(Boolean).join(' ')
 
-const handleInput = (event: Event) => {
+const handleInput = (event: InputEvent) => {
   const target = event.target as HTMLInputElement
   emit('update:modelValue', target.value)
 }

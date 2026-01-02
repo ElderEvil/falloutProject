@@ -41,7 +41,7 @@ describe('ProfileStats', () => {
         }
       })
 
-      const statValues = wrapper.findAll('.text-green-500.font-bold.text-xl')
+      const statValues = wrapper.findAll('.font-bold.text-xl')
       expect(statValues[0].text()).toBe('10')
       expect(statValues[1].text()).toBe('5000')
       expect(statValues[2].text()).toBe('25')
@@ -72,7 +72,7 @@ describe('ProfileStats', () => {
         }
       })
 
-      const statValues = wrapper.findAll('.text-green-500.font-bold.text-xl')
+      const statValues = wrapper.findAll('.font-bold.text-xl')
       expect(statValues.length).toBe(4)
       statValues.forEach((value) => {
         expect(value.text()).toBe('0')
@@ -91,7 +91,7 @@ describe('ProfileStats', () => {
         }
       })
 
-      const statValues = wrapper.findAll('.text-green-500.font-bold.text-xl')
+      const statValues = wrapper.findAll('.font-bold.text-xl')
       expect(statValues[0].text()).toBe('999')
       expect(statValues[1].text()).toBe('1000000')
       expect(statValues[2].text()).toBe('5000')

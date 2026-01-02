@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+import type { IconComponent } from '@/types/utils'
+
 /**
  * UAlert - Terminal-themed alert/notification component
  *
@@ -12,7 +15,7 @@ interface Props {
   variant?: 'success' | 'warning' | 'danger' | 'info'
   title?: string
   dismissible?: boolean
-  icon?: any
+  icon?: IconComponent
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -24,7 +27,6 @@ const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-import { ref } from 'vue'
 const isVisible = ref(true)
 
 const close = () => {

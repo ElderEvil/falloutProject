@@ -157,12 +157,16 @@ export const useIncidentStore = defineStore('incident', () => {
 
       // Immediately fetch updated incidents
       await fetchIncidents(vaultId, token)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to spawn incident:', error)
-      notificationStore.error(
-        'Spawn Failed',
-        error.response?.data?.detail || 'Failed to spawn incident'
-      )
+
+      let errorMessage = 'Failed to spawn incident'
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { detail?: string } } }
+        errorMessage = axiosError.response?.data?.detail || errorMessage
+      }
+
+      notificationStore.error('Spawn Failed', errorMessage)
       throw error
     }
   }

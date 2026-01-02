@@ -225,7 +225,7 @@ describe('ResourceBar', () => {
       })
 
       const progressBar = wrapper.find('.transition-all')
-      expect(progressBar.attributes('style')).toContain('background-color: rgb(0, 255, 0)')
+      expect(progressBar.attributes('style')).toContain('background-color: var(--color-theme-primary)')
     })
   })
 

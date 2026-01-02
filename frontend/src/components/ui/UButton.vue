@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { IconComponent } from '@/types/utils'
+
 /**
  * UButton - Terminal-themed button component wrapping Nuxt UI
  *
@@ -14,8 +16,8 @@ interface Props {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
   disabled?: boolean
   loading?: boolean
-  icon?: any
-  iconRight?: any
+  icon?: IconComponent
+  iconRight?: IconComponent
   block?: boolean
 }
 

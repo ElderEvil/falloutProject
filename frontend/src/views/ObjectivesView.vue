@@ -130,13 +130,13 @@ const completedObjectives = computed(() => filterObjectives(true))
 .main-content h2,
 .main-content h3 {
   font-weight: 700;
-  text-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+  text-shadow: 0 0 8px var(--color-theme-glow);
 }
 
 .main-content p,
 .main-content span,
 .main-content div {
-  text-shadow: 0 0 2px rgba(0, 255, 0, 0.3);
+  text-shadow: 0 0 2px var(--color-theme-glow);
 }
 
 .scanlines {
@@ -156,8 +156,8 @@ const completedObjectives = computed(() => filterObjectives(true))
   margin: 0 auto;
   padding: 24px; /* Increased padding for more space */
   background-color: #1a1a1a;
-  color: #00ff00;
-  border: 2px solid #00ff00;
+  color: var(--color-theme-primary);
+  border: 2px solid var(--color-theme-primary);
   border-radius: 8px;
 }
 
@@ -177,8 +177,8 @@ const completedObjectives = computed(() => filterObjectives(true))
 .tab-button {
   padding: 10px 20px; /* Adjusted padding for larger buttons */
   background-color: #2a2a2a;
-  color: #00ff00;
-  border: 1px solid #00ff00;
+  color: var(--color-theme-primary);
+  border: 1px solid var(--color-theme-primary);
   border-radius: 4px;
   margin: 0 12px; /* Increased margin between buttons */
   cursor: pointer;
@@ -186,12 +186,12 @@ const completedObjectives = computed(() => filterObjectives(true))
 }
 
 .tab-button.active {
-  background-color: #00ff00;
+  background-color: var(--color-theme-primary);
   color: #000000;
 }
 
 .tab-button:hover {
-  background-color: #00ff44;
+  background-color: var(--color-theme-accent);
 }
 
 .objective-list {
@@ -207,7 +207,7 @@ const completedObjectives = computed(() => filterObjectives(true))
   background-color: #2a2a2a;
   padding: 16px 20px; /* Increased padding for each item */
   margin-bottom: 16px; /* Increased margin between items */
-  border: 1px solid #00ff00;
+  border: 1px solid var(--color-theme-primary);
   border-radius: 6px;
   transition:
     transform 0.3s,
@@ -234,7 +234,8 @@ const completedObjectives = computed(() => filterObjectives(true))
 .objective-status {
   font-size: 1.1rem; /* Slightly increased font size */
   font-weight: normal;
-  color: #b2ffb2;
+  color: var(--color-theme-primary);
+  opacity: 0.7;
   margin: 4px 0; /* Adjusted margins */
 }
 

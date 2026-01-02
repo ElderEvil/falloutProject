@@ -482,11 +482,11 @@ watchEffect(() => {
 }
 
 .chat-messages::-webkit-scrollbar-thumb {
-  background: rgba(0, 255, 0, 0.5);
+  background: var(--color-theme-glow);
   border-radius: 4px;
 }
 
 .chat-messages::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 255, 0, 0.7);
+  background: var(--color-theme-primary);
 }
 </style>

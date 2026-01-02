@@ -160,10 +160,10 @@ const healthPercentage = computed(() => {
   flex-direction: column;
   gap: 1.5rem;
   padding: 1.5rem;
-  background: rgba(0, 255, 0, 0.03);
-  border: 2px solid rgba(0, 255, 0, 0.2);
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid var(--color-theme-glow);
   border-radius: 8px;
-  box-shadow: 0 0 15px rgba(0, 255, 0, 0.1);
+  box-shadow: 0 0 15px var(--color-theme-glow);
 }
 
 .portrait-container {
@@ -177,8 +177,8 @@ const healthPercentage = computed(() => {
   width: 100%;
   height: auto;
   border-radius: 8px;
-  border: 2px solid #00ff00;
-  box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+  border: 2px solid var(--color-theme-primary);
+  box-shadow: 0 0 15px var(--color-theme-glow);
 }
 
 .portrait-placeholder {
@@ -188,7 +188,7 @@ const healthPercentage = computed(() => {
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.5);
-  border: 2px dashed rgba(0, 255, 0, 0.3);
+  border: 2px dashed var(--color-theme-glow);
   border-radius: 8px;
 }
 
@@ -208,7 +208,7 @@ const healthPercentage = computed(() => {
 
 .ai-generate-button:hover:not(:disabled) {
   animation: none;
-  box-shadow: 0 0 30px rgba(0, 255, 0, 0.9);
+  box-shadow: 0 0 30px var(--color-theme-primary);
   background: rgba(31, 41, 55, 1);
 }
 
@@ -219,10 +219,10 @@ const healthPercentage = computed(() => {
 
 @keyframes pulse-glow {
   0%, 100% {
-    box-shadow: 0 0 10px rgba(0, 255, 0, 0.4);
+    box-shadow: 0 0 10px var(--color-theme-glow);
   }
   50% {
-    box-shadow: 0 0 25px rgba(0, 255, 0, 0.7);
+    box-shadow: 0 0 25px var(--color-theme-primary);
   }
 }
 
@@ -240,14 +240,15 @@ const healthPercentage = computed(() => {
 
 .stat-label {
   font-weight: 600;
-  color: rgba(0, 255, 0, 0.8);
-  text-shadow: 0 0 3px rgba(0, 255, 0, 0.4);
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 3px var(--color-theme-glow);
+  opacity: 0.8;
 }
 
 .stat-value {
   font-weight: 700;
-  color: #00ff00;
-  text-shadow: 0 0 6px rgba(0, 255, 0, 0.6);
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 6px var(--color-theme-glow);
 }
 
 .health-bar,
@@ -255,7 +256,7 @@ const healthPercentage = computed(() => {
   width: 100%;
   height: 10px;
   background: rgba(68, 68, 68, 0.8);
-  border: 1px solid rgba(0, 255, 0, 0.3);
+  border: 1px solid var(--color-theme-glow);
   border-radius: 5px;
   overflow: hidden;
   margin-top: 0.25rem;
@@ -264,8 +265,8 @@ const healthPercentage = computed(() => {
 .health-fill,
 .happiness-fill {
   height: 100%;
-  background: linear-gradient(90deg, #00ff00 0%, #00cc00 100%);
-  box-shadow: 0 0 8px rgba(0, 255, 0, 0.6);
+  background: linear-gradient(90deg, var(--color-theme-primary) 0%, var(--color-theme-accent) 100%);
+  box-shadow: 0 0 8px var(--color-theme-glow);
   transition: width 0.3s ease;
 }
 
@@ -283,7 +284,7 @@ const healthPercentage = computed(() => {
   gap: 0.5rem;
   margin-top: 0.5rem;
   padding-top: 0.75rem;
-  border-top: 1px solid rgba(0, 255, 0, 0.2);
+  border-top: 1px solid var(--color-theme-glow);
 }
 
 .locked-action-button {
@@ -292,20 +293,20 @@ const healthPercentage = computed(() => {
   justify-content: center;
   gap: 0.5rem;
   padding: 0.625rem 1rem;
-  background: rgba(0, 255, 0, 0.05);
-  border: 1px solid rgba(0, 255, 0, 0.2);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--color-theme-glow);
   border-radius: 0.375rem;
-  color: rgba(0, 255, 0, 0.5);
+  color: var(--color-theme-primary);
   font-family: 'Courier New', monospace;
   font-size: 0.875rem;
   font-weight: 600;
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.5;
   transition: all 0.2s;
 }
 
 .locked-action-button:hover {
-  background: rgba(0, 255, 0, 0.08);
+  background: rgba(0, 0, 0, 0.5);
   opacity: 0.75;
 }
 

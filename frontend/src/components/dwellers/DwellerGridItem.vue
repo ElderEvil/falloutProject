@@ -120,17 +120,17 @@ const healthPercentage = computed(() => {
   display: flex;
   flex-direction: column;
   background: rgba(31, 41, 55, 0.8);
-  border: 1px solid rgba(0, 255, 0, 0.2);
+  border: 1px solid var(--color-theme-glow);
   border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 0 10px rgba(0, 255, 0, 0.1);
+  box-shadow: 0 0 10px var(--color-theme-glow);
 }
 
 .dweller-grid-item:hover {
-  border-color: rgba(0, 255, 0, 0.5);
-  box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+  border-color: var(--color-theme-primary);
+  box-shadow: 0 0 20px var(--color-theme-glow);
   transform: translateY(-2px);
 }
 
@@ -177,7 +177,7 @@ const healthPercentage = computed(() => {
 
 .ai-generate-button:hover:not(:disabled) {
   animation: none;
-  box-shadow: 0 0 20px rgba(0, 255, 0, 0.9);
+  box-shadow: 0 0 20px var(--color-theme-primary);
   background: rgba(31, 41, 55, 1);
 }
 
@@ -189,15 +189,15 @@ const healthPercentage = computed(() => {
 .ai-icon {
   width: 1.25rem;
   height: 1.25rem;
-  color: #00ff00;
+  color: var(--color-theme-primary);
 }
 
 @keyframes pulse-glow {
   0%, 100% {
-    box-shadow: 0 0 5px rgba(0, 255, 0, 0.4);
+    box-shadow: 0 0 5px var(--color-theme-glow);
   }
   50% {
-    box-shadow: 0 0 15px rgba(0, 255, 0, 0.7);
+    box-shadow: 0 0 15px var(--color-theme-primary);
   }
 }
 
@@ -218,8 +218,8 @@ const healthPercentage = computed(() => {
 .dweller-name {
   font-size: 1rem;
   font-weight: 700;
-  color: #00ff00;
-  text-shadow: 0 0 6px rgba(0, 255, 0, 0.5);
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 6px var(--color-theme-glow);
   line-height: 1.2;
   flex: 1;
 }
@@ -239,30 +239,31 @@ const healthPercentage = computed(() => {
 
 .stat-label {
   font-size: 0.75rem;
-  color: rgba(0, 255, 0, 0.7);
-  text-shadow: 0 0 2px rgba(0, 255, 0, 0.3);
+  color: var(--color-theme-primary);
+  opacity: 0.7;
+  text-shadow: 0 0 2px var(--color-theme-glow);
 }
 
 .stat-value {
   font-size: 0.875rem;
   font-weight: 700;
-  color: #00ff00;
-  text-shadow: 0 0 4px rgba(0, 255, 0, 0.5);
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 4px var(--color-theme-glow);
 }
 
 .health-bar {
   width: 100%;
   height: 6px;
   background: rgba(68, 68, 68, 0.8);
-  border: 1px solid rgba(0, 255, 0, 0.3);
+  border: 1px solid var(--color-theme-glow);
   border-radius: 3px;
   overflow: hidden;
 }
 
 .health-fill {
   height: 100%;
-  background: linear-gradient(90deg, #00ff00 0%, #00cc00 100%);
-  box-shadow: 0 0 6px rgba(0, 255, 0, 0.6);
+  background: var(--color-theme-primary);
+  box-shadow: 0 0 6px var(--color-theme-glow);
   transition: width 0.3s ease;
 }
 
@@ -281,14 +282,14 @@ const healthPercentage = computed(() => {
   background: rgba(31, 41, 55, 0.8);
   border: 1px solid rgba(107, 114, 128, 0.5);
   color: rgba(209, 213, 219, 0.9);
-  text-shadow: 0 0 2px rgba(0, 255, 0, 0.2);
+  text-shadow: 0 0 2px var(--color-theme-glow);
   transition: all 0.2s ease;
   cursor: pointer;
 }
 
 .room-badge:hover:not(.unassigned) {
-  border-color: rgba(0, 255, 0, 0.4);
-  box-shadow: 0 0 8px rgba(0, 255, 0, 0.3);
+  border-color: var(--color-theme-glow);
+  box-shadow: 0 0 8px var(--color-theme-glow);
 }
 
 .room-badge.unassigned {

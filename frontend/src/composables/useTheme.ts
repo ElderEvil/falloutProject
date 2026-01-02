@@ -1,66 +1,58 @@
 import { computed } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
 
-export type ThemeName = 'classic' | 'fo3' | 'fnv' | 'fo4'
+export type ThemeName = 'fo3' | 'fnv' | 'fo4'
 
 export interface Theme {
   name: ThemeName
   displayName: string
+  description: string
   colors: {
     primary: string
     secondary: string
-    background: string
-    text: string
     accent: string
+    glow: string
   }
 }
 
 /**
- * Theme definitions for different Fallout games
+ * Theme definitions based on THEMES.md
+ * - Fallout 3: Modern Teal Terminal (clean, minimal, modern)
+ * - Fallout: New Vegas: Amber Terminal (warm, dusty, analog)
+ * - Fallout 4: Classic Green Terminal (high-contrast, institutional)
  */
 export const themes: Record<ThemeName, Theme> = {
-  classic: {
-    name: 'classic',
-    displayName: 'Classic Terminal',
-    colors: {
-      primary: '#00ff00', // Terminal green
-      secondary: '#003300',
-      background: '#000000',
-      text: '#00ff00',
-      accent: '#00cc00'
-    }
-  },
   fo3: {
     name: 'fo3',
-    displayName: 'Fallout 3 (Metro)',
+    displayName: 'Fallout 3 — Modern Teal Terminal',
+    description: 'Cool teal palette. Clean, modern, rebuilt. Comfortable for long sessions.',
     colors: {
-      primary: '#ffb700', // Amber/yellow
-      secondary: '#332200',
-      background: '#0a0a0a',
-      text: '#ffb700',
-      accent: '#ff9900'
+      primary: '#00ff9f',
+      secondary: '#003322',
+      accent: '#00cc88',
+      glow: 'rgba(0, 255, 159, 0.3)'
     }
   },
   fnv: {
     name: 'fnv',
-    displayName: 'Fallout: New Vegas',
+    displayName: 'Fallout: New Vegas — Amber Terminal',
+    description: 'Warm amber tones. Dusty, analog, worn. Evokes Mojave-era terminals.',
     colors: {
-      primary: '#ff6600', // Orange/desert
-      secondary: '#331100',
-      background: '#0a0a0a',
-      text: '#ff6600',
-      accent: '#ff8800'
+      primary: '#ffb700',
+      secondary: '#332200',
+      accent: '#ff9900',
+      glow: 'rgba(255, 183, 0, 0.3)'
     }
   },
   fo4: {
     name: 'fo4',
-    displayName: 'Fallout 4 (Pip-Boy)',
+    displayName: 'Fallout 4 — Classic Green Terminal',
+    description: 'High-contrast green on black. Cold, utilitarian, institutional.',
     colors: {
-      primary: '#00ff9f', // Blue-green
-      secondary: '#003322',
-      background: '#000000',
-      text: '#00ff9f',
-      accent: '#00cc88'
+      primary: '#00ff00',
+      secondary: '#003300',
+      accent: '#00cc00',
+      glow: 'rgba(0, 255, 0, 0.3)'
     }
   }
 }
@@ -69,23 +61,28 @@ export const themes: Record<ThemeName, Theme> = {
  * Composable for managing application theme
  *
  * Provides theme switching functionality with localStorage persistence.
- * Currently only 'classic' theme is implemented, but the infrastructure
- * supports FO3, FNV, and FO4 themes for future development.
+ * Supports 3 themes from THEMES.md: FO3 (teal), FNV (amber), FO4 (green).
+ *
+ * Themes are purely cosmetic and do not impact gameplay.
+ * Theme preference is saved to user profile preferences when available.
  *
  * @example
  * ```ts
- * const { currentTheme, setTheme, availableThemes } = useTheme()
+ * const { currentTheme, setTheme, availableThemes, loadUserTheme } = useTheme()
  *
- * // Switch to Fallout 3 theme (when implemented)
- * setTheme('fo3')
+ * // Switch to Fallout: New Vegas theme
+ * setTheme('fnv')
+ *
+ * // Load theme from user profile
+ * loadUserTheme('fo3')
  *
  * // Get current theme colors
  * const primaryColor = currentTheme.value.colors.primary
  * ```
  */
 export function useTheme() {
-  // Persist theme selection in localStorage
-  const selectedTheme = useLocalStorage<ThemeName>('theme', 'classic')
+  // Persist theme selection in localStorage (default: FO4 green for backward compatibility)
+  const selectedTheme = useLocalStorage<ThemeName>('theme', 'fo4')
 
   // Current theme object
   const currentTheme = computed(() => themes[selectedTheme.value])
@@ -102,16 +99,31 @@ export function useTheme() {
   }
 
   /**
-   * Apply theme colors to CSS variables
+   * Load theme from user profile preferences
+   * This should be called after user login with their preferred theme
+   */
+  function loadUserTheme(themeName: ThemeName | undefined) {
+    if (themeName && themes[themeName]) {
+      setTheme(themeName)
+    }
+  }
+
+  /**
+   * Apply theme colors to CSS custom properties
+   * Updates --theme-* variables that control all theme-aware components
    */
   function applyTheme(theme: Theme) {
     if (typeof document === 'undefined') return
 
     const root = document.documentElement
+    root.style.setProperty('--theme-primary', theme.colors.primary)
+    root.style.setProperty('--theme-secondary', theme.colors.secondary)
+    root.style.setProperty('--theme-accent', theme.colors.accent)
+    root.style.setProperty('--theme-glow', theme.colors.glow)
+
+    // Legacy support (some components may still use these)
     root.style.setProperty('--color-primary', theme.colors.primary)
     root.style.setProperty('--color-secondary', theme.colors.secondary)
-    root.style.setProperty('--color-background', theme.colors.background)
-    root.style.setProperty('--color-text', theme.colors.text)
     root.style.setProperty('--color-accent', theme.colors.accent)
   }
 
@@ -122,6 +134,8 @@ export function useTheme() {
     currentTheme,
     availableThemes,
     selectedTheme: computed(() => selectedTheme.value),
-    setTheme
+    themes,
+    setTheme,
+    loadUserTheme
   }
 }

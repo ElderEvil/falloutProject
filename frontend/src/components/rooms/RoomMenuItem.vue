@@ -110,14 +110,14 @@ const getCategoryIcon = (category: string) => {
 }
 
 .room-menu-item.affordable {
-  border-color: #00ff00;
+  border-color: var(--color-theme-primary);
 }
 
 .room-menu-item.affordable:hover {
-  background: rgba(0, 80, 0, 0.5);
-  border-color: #00ff00;
+  background: rgba(0, 0, 0, 0.5);
+  border-color: var(--color-theme-primary);
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 255, 0, 0.3);
+  box-shadow: 0 4px 8px var(--color-theme-glow);
 }
 
 .room-menu-item.expensive {
@@ -147,7 +147,7 @@ const getCategoryIcon = (category: string) => {
 }
 
 .room-name {
-  color: #00ff00;
+  color: var(--color-theme-primary);
   font-size: 1.1rem;
   font-weight: bold;
 }
@@ -168,14 +168,14 @@ const getCategoryIcon = (category: string) => {
 .category-icon {
   width: 48px;
   height: 48px;
-  color: #00ff00;
+  color: var(--color-theme-primary);
 }
 
 .category-icon-placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 255, 0, 0.1);
+  background: rgba(0, 0, 0, 0.3);
   border-radius: 50%;
   padding: 0.5rem;
 }

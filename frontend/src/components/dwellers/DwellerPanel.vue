@@ -55,10 +55,10 @@ const tabs = [
 .dweller-panel {
   width: 100%;
   padding: 1.5rem;
-  background: rgba(0, 255, 0, 0.03);
-  border: 2px solid rgba(0, 255, 0, 0.2);
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid var(--color-theme-glow);
   border-radius: 8px;
-  box-shadow: 0 0 15px rgba(0, 255, 0, 0.1);
+  box-shadow: 0 0 15px var(--color-theme-glow);
 }
 
 .tab-content {

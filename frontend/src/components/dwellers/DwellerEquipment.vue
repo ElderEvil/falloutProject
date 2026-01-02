@@ -195,9 +195,9 @@ const openInventory = (tab: 'weapons' | 'outfits') => {
 .equipment-title {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #00ff00;
-  text-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
-  border-bottom: 2px solid rgba(0, 255, 0, 0.3);
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 8px var(--color-theme-glow);
+  border-bottom: 2px solid var(--color-theme-glow);
   padding-bottom: 0.5rem;
 }
 
@@ -222,14 +222,14 @@ const openInventory = (tab: 'weapons' | 'outfits') => {
 .slot-icon {
   width: 1.5rem;
   height: 1.5rem;
-  color: #00ff00;
+  color: var(--color-theme-primary);
 }
 
 .slot-title {
   font-size: 1.125rem;
   font-weight: 600;
-  color: #00ff00;
-  text-shadow: 0 0 4px rgba(0, 255, 0, 0.5);
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 4px var(--color-theme-glow);
 }
 
 .empty-slot {
@@ -240,14 +240,15 @@ const openInventory = (tab: 'weapons' | 'outfits') => {
   gap: 0.75rem;
   padding: 3rem 1.5rem;
   background: rgba(0, 0, 0, 0.3);
-  border: 2px dashed rgba(0, 255, 0, 0.3);
+  border: 2px dashed var(--color-theme-glow);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .empty-slot:hover {
-  border-color: rgba(0, 255, 0, 0.6);
+  border-color: var(--color-theme-primary);
+  opacity: 0.6;
   background: rgba(0, 50, 0, 0.3);
   transform: translateY(-2px);
 }
@@ -255,11 +256,13 @@ const openInventory = (tab: 'weapons' | 'outfits') => {
 .empty-icon {
   width: 3rem;
   height: 3rem;
-  color: rgba(0, 255, 0, 0.5);
+  color: var(--color-theme-primary);
+  opacity: 0.5;
 }
 
 .empty-text {
-  color: rgba(0, 255, 0, 0.7);
+  color: var(--color-theme-primary);
+  opacity: 0.7;
   font-size: 0.875rem;
 }
 
@@ -280,14 +283,14 @@ const openInventory = (tab: 'weapons' | 'outfits') => {
 
 .modal-content {
   background: #0a0a0a;
-  border: 2px solid #00ff00;
+  border: 2px solid var(--color-theme-primary);
   border-radius: 8px;
   width: 90%;
   max-width: 900px;
   max-height: 85vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 0 40px rgba(0, 255, 0, 0.4);
+  box-shadow: 0 0 40px var(--color-theme-glow);
 }
 
 .modal-header {
@@ -295,7 +298,7 @@ const openInventory = (tab: 'weapons' | 'outfits') => {
   align-items: center;
   justify-content: space-between;
   padding: 1.5rem;
-  border-bottom: 2px solid rgba(0, 255, 0, 0.3);
+  border-bottom: 2px solid var(--color-theme-glow);
 }
 
 .modal-title {
@@ -304,14 +307,14 @@ const openInventory = (tab: 'weapons' | 'outfits') => {
   gap: 0.75rem;
   font-size: 1.5rem;
   font-weight: 700;
-  color: #00ff00;
-  text-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 8px var(--color-theme-glow);
 }
 
 .close-btn {
   background: transparent;
-  border: 2px solid rgba(0, 255, 0, 0.5);
-  color: #00ff00;
+  border: 2px solid var(--color-theme-glow);
+  color: var(--color-theme-primary);
   padding: 0.5rem;
   border-radius: 4px;
   cursor: pointer;
@@ -324,14 +327,14 @@ const openInventory = (tab: 'weapons' | 'outfits') => {
 
 .close-btn:hover {
   background: rgba(0, 128, 0, 0.3);
-  border-color: #00ff00;
+  border-color: var(--color-theme-primary);
 }
 
 .modal-tabs {
   display: flex;
   gap: 0.5rem;
   padding: 1rem 1.5rem 0;
-  border-bottom: 2px solid rgba(0, 255, 0, 0.3);
+  border-bottom: 2px solid var(--color-theme-glow);
 }
 
 .tab-btn {
@@ -342,7 +345,8 @@ const openInventory = (tab: 'weapons' | 'outfits') => {
   background: transparent;
   border: 2px solid transparent;
   border-bottom: none;
-  color: rgba(0, 255, 0, 0.6);
+  color: var(--color-theme-primary);
+  opacity: 0.6;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -350,12 +354,12 @@ const openInventory = (tab: 'weapons' | 'outfits') => {
 }
 
 .tab-btn:hover {
-  color: #00ff00;
+  color: var(--color-theme-primary);
   background: rgba(0, 50, 0, 0.3);
 }
 
 .tab-btn.active {
-  color: #00ff00;
+  color: var(--color-theme-primary);
   background: rgba(0, 80, 0, 0.4);
   border-color: rgba(0, 255, 0, 0.5);
   border-bottom: 2px solid #0a0a0a;
@@ -382,7 +386,8 @@ const openInventory = (tab: 'weapons' | 'outfits') => {
   justify-content: center;
   gap: 1rem;
   padding: 4rem 2rem;
-  color: rgba(0, 255, 0, 0.5);
+  color: var(--color-theme-primary);
+  opacity: 0.5;
 }
 
 .empty-state-icon {
@@ -401,11 +406,11 @@ const openInventory = (tab: 'weapons' | 'outfits') => {
 }
 
 .modal-body::-webkit-scrollbar-thumb {
-  background: #00ff00;
+  background: var(--color-theme-primary);
   border-radius: 4px;
 }
 
 .modal-body::-webkit-scrollbar-thumb:hover {
-  background: #00cc00;
+  background: var(--color-theme-accent);
 }
 </style>

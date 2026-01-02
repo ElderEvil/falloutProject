@@ -548,11 +548,11 @@ const getRarityColor = (rarity: string): string => {
 }
 
 .modal-body::-webkit-scrollbar-thumb {
-  background: #00ff00;
+  background: var(--color-theme-primary);
   border-radius: 4px;
 }
 
 .modal-body::-webkit-scrollbar-thumb:hover {
-  background: #00cc00;
+  background: var(--color-theme-accent);
 }
 </style>

@@ -28,7 +28,7 @@ const toggleDetails = () => {
 const variantClasses = computed(() => {
   switch (props.notification.type) {
     case 'success':
-      return 'bg-green-900 bg-opacity-40 border-success text-green-300'
+      return 'bg-green-900 bg-opacity-40 text-green-300'
     case 'error':
       return 'bg-red-900 bg-opacity-50 border-red-500 text-red-200'
     case 'warning':
@@ -38,6 +38,13 @@ const variantClasses = computed(() => {
     default:
       return 'bg-blue-900 bg-opacity-40 border-blue-500 text-blue-200'
   }
+})
+
+const borderStyle = computed(() => {
+  if (props.notification.type === 'success') {
+    return { borderColor: 'var(--color-theme-primary)' }
+  }
+  return {}
 })
 
 const iconPath = computed(() => {
@@ -61,6 +68,7 @@ const iconPath = computed(() => {
     <div
       v-if="isVisible"
       :class="variantClasses"
+      :style="borderStyle"
       class="rounded-lg border-2 p-4 shadow-lg min-w-[320px] max-w-md"
       role="alert"
     >

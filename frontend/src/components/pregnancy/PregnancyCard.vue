@@ -17,16 +17,19 @@
 
       <!-- Progress bar -->
       <div class="flex-1 max-w-md">
-        <div class="flex items-center justify-between text-xs text-green-400 mb-1">
+        <div class="flex items-center justify-between text-xs mb-1" :style="{ color: 'var(--color-theme-primary)' }">
           <span>Progress: {{ Math.round(pregnancy.progress_percentage) }}%</span>
           <span v-if="!pregnancy.is_due">{{ timeRemaining }}</span>
           <span v-else class="text-yellow-400 font-bold">DUE NOW!</span>
         </div>
-        <div class="h-3 bg-gray-800 border border-green-600">
+        <div class="h-3 bg-gray-800 border" :style="{ borderColor: 'var(--color-theme-primary)' }">
           <div
             class="h-full transition-all duration-500"
-            :class="pregnancy.is_due ? 'bg-yellow-500 animate-pulse' : 'bg-green-500'"
-            :style="{ width: `${pregnancy.progress_percentage}%` }"
+            :class="pregnancy.is_due ? 'bg-yellow-500 animate-pulse' : ''"
+            :style="{
+              width: `${pregnancy.progress_percentage}%`,
+              backgroundColor: pregnancy.is_due ? undefined : 'var(--color-theme-primary)'
+            }"
           ></div>
         </div>
       </div>

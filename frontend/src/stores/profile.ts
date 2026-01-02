@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { UserProfile, ProfileUpdate } from '@/models/profile'
 import axios from '@/plugins/axios'
+import { useTheme, type ThemeName } from '@/composables/useTheme'
 
 export const useProfileStore = defineStore('profile', () => {
   // State
@@ -29,6 +30,12 @@ export const useProfileStore = defineStore('profile', () => {
     try {
       const response = await axios.get<UserProfile>('/api/v1/users/me/profile')
       profile.value = response.data
+
+      // Load user's preferred theme if available
+      const { loadUserTheme } = useTheme()
+      if (profile.value.preferences?.theme) {
+        loadUserTheme(profile.value.preferences.theme as ThemeName)
+      }
     } catch (err: any) {
       error.value = err.response?.data?.detail || 'Failed to fetch profile'
       throw err
@@ -43,6 +50,12 @@ export const useProfileStore = defineStore('profile', () => {
     try {
       const response = await axios.put<UserProfile>('/api/v1/users/me/profile', data)
       profile.value = response.data
+
+      // Update theme if it changed
+      const { loadUserTheme } = useTheme()
+      if (profile.value.preferences?.theme) {
+        loadUserTheme(profile.value.preferences.theme as ThemeName)
+      }
     } catch (err: any) {
       error.value = err.response?.data?.detail || 'Failed to update profile'
       throw err

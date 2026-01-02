@@ -74,7 +74,7 @@ const isMaxLevel = computed(() => props.level >= props.maxLevel)
   align-items: center;
   margin-bottom: 0.25rem;
   font-size: 0.75rem;
-  color: rgb(34 197 94);
+  color: var(--color-theme-primary);
   font-family: 'Courier New', monospace;
 }
 
@@ -86,7 +86,8 @@ const isMaxLevel = computed(() => props.level >= props.maxLevel)
 .xp-label {
   flex: 1;
   text-align: center;
-  color: rgb(74 222 128);
+  color: var(--color-theme-primary);
+  opacity: 0.8;
 }
 
 .xp-label.max-level {
@@ -96,14 +97,15 @@ const isMaxLevel = computed(() => props.level >= props.maxLevel)
 }
 
 .percentage {
-  color: rgb(134 239 172);
+  color: var(--color-theme-primary);
+  opacity: 0.9;
   font-size: 0.7rem;
 }
 
 .xp-bar {
   height: 0.75rem;
   background: linear-gradient(to bottom, rgb(0 0 0 / 0.8), rgb(0 0 0 / 0.6));
-  border: 1px solid rgb(34 197 94 / 0.5);
+  border: 1px solid var(--color-theme-glow);
   border-radius: 2px;
   overflow: hidden;
   position: relative;

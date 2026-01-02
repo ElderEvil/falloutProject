@@ -63,7 +63,7 @@ const selectTab = (key: string, disabled?: boolean) => {
 .utabs-header {
   display: flex;
   gap: 0.5rem;
-  border-bottom: 2px solid rgba(0, 255, 0, 0.2);
+  border-bottom: 2px solid var(--color-theme-glow);
   margin-bottom: 1.5rem;
 }
 
@@ -72,32 +72,32 @@ const selectTab = (key: string, disabled?: boolean) => {
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
-  color: rgba(0, 255, 0, 0.6);
+  color: var(--color-theme-glow);
   font-family: inherit;
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  text-shadow: 0 0 3px rgba(0, 255, 0, 0.3);
+  text-shadow: 0 0 3px var(--color-theme-glow);
   position: relative;
   margin-bottom: -2px;
 }
 
 .utabs-button:hover:not(.disabled) {
-  color: rgba(0, 255, 0, 0.9);
-  background: rgba(0, 255, 0, 0.05);
-  text-shadow: 0 0 6px rgba(0, 255, 0, 0.5);
+  color: var(--color-theme-primary);
+  background: var(--color-theme-glow);
+  text-shadow: 0 0 6px var(--color-theme-glow);
 }
 
 .utabs-button.active {
-  color: #00ff00;
-  border-bottom-color: #00ff00;
-  text-shadow: 0 0 8px rgba(0, 255, 0, 0.6);
-  background: rgba(0, 255, 0, 0.08);
+  color: var(--color-theme-primary);
+  border-bottom-color: var(--color-theme-primary);
+  text-shadow: 0 0 8px var(--color-theme-glow);
+  background: var(--color-theme-glow);
 }
 
 .utabs-button.disabled {
-  color: rgba(0, 255, 0, 0.3);
+  color: var(--color-theme-glow);
   cursor: not-allowed;
   opacity: 0.5;
 }

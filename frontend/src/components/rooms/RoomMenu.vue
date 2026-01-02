@@ -54,7 +54,7 @@ const closeModal = () => {
 
 .modal-content {
   background: #222;
-  border: 1px solid #00ff00;
+  border: 1px solid var(--color-theme-primary);
   padding: 20px;
   max-width: 90%;
   max-height: 90%;

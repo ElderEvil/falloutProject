@@ -43,8 +43,9 @@ const handleDeleteVault = async (id: string) => {
         @click="handleSelectVault(vault.id)"
         class="flex cursor-pointer items-center justify-between rounded-lg p-4 shadow-md transition duration-200"
         :class="
-          selectedVaultId === vault.id ? 'border border-terminalGreen bg-green-800' : 'bg-gray-800'
+          selectedVaultId === vault.id ? 'border' : 'bg-gray-800'
         "
+        :style="selectedVaultId === vault.id ? { borderColor: 'var(--color-theme-primary)', backgroundColor: 'rgba(var(--color-theme-primary-rgb, 0, 128, 0), 0.2)' } : {}"
       >
         <div>
           <h3 class="text-xl font-bold">Vault {{ vault.number }}</h3>

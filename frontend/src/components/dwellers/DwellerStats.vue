@@ -57,9 +57,9 @@ const stats = [
 .stats-title {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #00ff00;
-  text-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
-  border-bottom: 2px solid rgba(0, 255, 0, 0.3);
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 8px var(--color-theme-glow);
+  border-bottom: 2px solid var(--color-theme-glow);
   padding-bottom: 0.5rem;
 }
 
@@ -70,16 +70,16 @@ const stats = [
 
 .stat-item {
   padding: 0.75rem;
-  background: rgba(0, 255, 0, 0.05);
-  border-left: 3px solid rgba(0, 255, 0, 0.3);
+  background: rgba(0, 0, 0, 0.3);
+  border-left: 3px solid var(--color-theme-glow);
   border-radius: 4px;
   transition: all 0.2s ease;
 }
 
 .stat-item:hover {
-  background: rgba(0, 255, 0, 0.08);
-  border-left-color: #00ff00;
-  box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+  background: rgba(0, 0, 0, 0.5);
+  border-left-color: var(--color-theme-primary);
+  box-shadow: 0 0 10px var(--color-theme-glow);
 }
 
 .stat-header {
@@ -92,15 +92,15 @@ const stats = [
 .stat-label {
   font-weight: 600;
   font-size: 0.875rem;
-  color: #00ff00;
-  text-shadow: 0 0 4px rgba(0, 255, 0, 0.5);
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 4px var(--color-theme-glow);
 }
 
 .stat-value {
   font-weight: 700;
   font-size: 1rem;
-  color: #00ff00;
-  text-shadow: 0 0 6px rgba(0, 255, 0, 0.6);
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 6px var(--color-theme-glow);
   min-width: 1.75rem;
   text-align: right;
 }
@@ -110,7 +110,7 @@ const stats = [
   width: 100%;
   height: 10px;
   background: rgba(68, 68, 68, 0.8);
-  border: 1px solid rgba(0, 255, 0, 0.3);
+  border: 1px solid var(--color-theme-glow);
   border-radius: 5px;
   overflow: hidden;
   margin-bottom: 0.375rem;
@@ -121,15 +121,16 @@ const stats = [
   top: 0;
   left: 0;
   height: 100%;
-  background: linear-gradient(90deg, #00ff00 0%, #00cc00 100%);
-  box-shadow: 0 0 8px rgba(0, 255, 0, 0.6);
+  background: var(--color-theme-primary);
+  box-shadow: 0 0 8px var(--color-theme-glow);
   transition: width 0.3s ease;
 }
 
 .stat-description {
   font-size: 0.8125rem;
-  color: rgba(0, 255, 0, 0.7);
-  text-shadow: 0 0 2px rgba(0, 255, 0, 0.3);
+  color: var(--color-theme-primary);
+  opacity: 0.7;
+  text-shadow: 0 0 2px var(--color-theme-glow);
   line-height: 1.4;
 }
 </style>

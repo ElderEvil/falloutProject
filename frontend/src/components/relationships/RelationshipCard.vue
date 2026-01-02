@@ -5,7 +5,7 @@
       <div class="flex-1">
         <div class="flex items-center gap-2">
           <span class="font-mono">{{ dweller1Name }}</span>
-          <span class="text-green-400">♥</span>
+          <span :style="{ color: 'var(--color-theme-primary)' }">♥</span>
           <span class="font-mono">{{ dweller2Name }}</span>
         </div>
 
@@ -17,11 +17,11 @@
 
       <!-- Affinity bar -->
       <div class="w-32">
-        <div class="text-xs text-green-400 mb-1">Affinity: {{ relationship.affinity }}/100</div>
-        <div class="h-2 bg-gray-800 border border-green-600">
+        <div class="text-xs mb-1" :style="{ color: 'var(--color-theme-primary)' }">Affinity: {{ relationship.affinity }}/100</div>
+        <div class="h-2 bg-gray-800 border" :style="{ borderColor: 'var(--color-theme-primary)' }">
           <div
-            class="h-full bg-green-500"
-            :style="{ width: `${relationship.affinity}%` }"
+            class="h-full"
+            :style="{ width: `${relationship.affinity}%`, backgroundColor: 'var(--color-theme-primary)' }"
           ></div>
         </div>
       </div>

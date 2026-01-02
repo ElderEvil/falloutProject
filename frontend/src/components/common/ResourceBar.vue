@@ -57,7 +57,7 @@ const barColorStyle = computed(() => {
     case 'critical': return '#dc2626' // red-600
     case 'low': return '#f97316' // orange-500
     case 'medium': return '#eab308' // yellow-500
-    default: return '#00ff00' // terminalGreen
+    default: return 'var(--color-theme-primary)' // Theme-aware
   }
 })
 
@@ -66,7 +66,7 @@ const iconColor = computed(() => {
     case 'critical': return 'text-red-600 animate-pulse'
     case 'low': return 'text-orange-500'
     case 'medium': return 'text-yellow-500'
-    default: return 'text-terminalGreen'
+    default: return 'text-[var(--color-theme-primary)]'
   }
 })
 

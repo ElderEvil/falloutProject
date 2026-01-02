@@ -90,8 +90,8 @@ const weaponIcon = computed(() => {
 
 <style scoped>
 .weapon-card {
-  background: rgba(0, 50, 0, 0.3);
-  border: 2px solid rgba(0, 255, 0, 0.3);
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid var(--color-theme-glow);
   border-radius: 8px;
   padding: 1rem;
   transition: all 0.2s ease;
@@ -101,16 +101,16 @@ const weaponIcon = computed(() => {
 }
 
 .weapon-card:hover {
-  border-color: rgba(0, 255, 0, 0.6);
-  background: rgba(0, 50, 0, 0.4);
+  border-color: var(--color-theme-primary);
+  background: rgba(0, 0, 0, 0.5);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 255, 0, 0.2);
+  box-shadow: 0 4px 12px var(--color-theme-glow);
 }
 
 .weapon-card.equipped {
-  border-color: #00ff00;
-  background: rgba(0, 80, 0, 0.4);
-  box-shadow: 0 0 12px rgba(0, 255, 0, 0.3);
+  border-color: var(--color-theme-primary);
+  background: rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 12px var(--color-theme-glow);
 }
 
 .weapon-header {
@@ -122,8 +122,8 @@ const weaponIcon = computed(() => {
 .weapon-icon {
   width: 2.5rem;
   height: 2.5rem;
-  color: #00ff00;
-  filter: drop-shadow(0 0 4px rgba(0, 255, 0, 0.5));
+  color: var(--color-theme-primary);
+  filter: drop-shadow(0 0 4px var(--color-theme-glow));
 }
 
 .weapon-info {
@@ -139,13 +139,15 @@ const weaponIcon = computed(() => {
 
 .weapon-type {
   font-size: 0.75rem;
-  color: rgba(0, 255, 0, 0.7);
+  color: var(--color-theme-primary);
+  opacity: 0.7;
   text-transform: capitalize;
 }
 
 .weapon-description {
   font-size: 0.875rem;
-  color: rgba(0, 255, 0, 0.8);
+  color: var(--color-theme-primary);
+  opacity: 0.8;
   line-height: 1.4;
 }
 
@@ -168,15 +170,16 @@ const weaponIcon = computed(() => {
 .stat-icon {
   width: 1rem;
   height: 1rem;
-  color: #00ff00;
+  color: var(--color-theme-primary);
 }
 
 .stat-label {
-  color: rgba(0, 255, 0, 0.7);
+  color: var(--color-theme-primary);
+  opacity: 0.7;
 }
 
 .stat-value {
-  color: #00ff00;
+  color: var(--color-theme-primary);
   font-weight: 700;
   margin-left: auto;
 }
@@ -201,14 +204,14 @@ const weaponIcon = computed(() => {
 }
 
 .equip-btn {
-  background: rgba(0, 128, 0, 0.3);
-  border: 2px solid #00ff00;
-  color: #00ff00;
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid var(--color-theme-primary);
+  color: var(--color-theme-primary);
 }
 
 .equip-btn:hover {
-  background: rgba(0, 128, 0, 0.5);
-  box-shadow: 0 0 12px rgba(0, 255, 0, 0.4);
+  background: rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 12px var(--color-theme-glow);
 }
 
 .unequip-btn {

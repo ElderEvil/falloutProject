@@ -192,15 +192,15 @@ const handleRefresh = async () => {
 .error-icon {
   width: 4rem;
   height: 4rem;
-  color: #00ff00;
-  filter: drop-shadow(0 0 10px rgba(0, 255, 0, 0.6));
+  color: var(--color-theme-primary);
+  filter: drop-shadow(0 0 10px var(--color-theme-glow));
 }
 
 .loading-text,
 .error-text {
   font-size: 1.25rem;
-  color: #00ff00;
-  text-shadow: 0 0 6px rgba(0, 255, 0, 0.5);
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 6px var(--color-theme-glow);
 }
 
 .dweller-detail {
@@ -225,8 +225,8 @@ const handleRefresh = async () => {
 .dweller-name {
   font-size: 2rem;
   font-weight: 700;
-  color: #00ff00;
-  text-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 10px var(--color-theme-glow);
 }
 
 .detail-layout {

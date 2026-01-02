@@ -81,13 +81,13 @@ const close = () => {
 }
 
 const fetchRoomTrainings = async () => {
-  if (!props.room?.id || !authStore.accessToken) return
+  if (!props.room?.id || !authStore.token) return
 
   loading.value = true
   try {
     const trainings = await trainingStore.fetchRoomTrainings(
       props.room.id,
-      authStore.accessToken
+      authStore.token
     )
     activeTrainings.value = trainings.filter(t => t.status === 'active')
   } finally {
@@ -96,14 +96,14 @@ const fetchRoomTrainings = async () => {
 }
 
 const handleStartTraining = async (dwellerId: string) => {
-  if (!props.room?.id || !authStore.accessToken) return
+  if (!props.room?.id || !authStore.token) return
 
   loading.value = true
   try {
     const result = await trainingStore.startTraining(
       dwellerId,
       props.room.id,
-      authStore.accessToken
+      authStore.token
     )
 
     if (result) {
@@ -116,11 +116,11 @@ const handleStartTraining = async (dwellerId: string) => {
 }
 
 const handleCancelTraining = async (trainingId: string) => {
-  if (!authStore.accessToken) return
+  if (!authStore.token) return
 
   loading.value = true
   try {
-    const success = await trainingStore.cancelTraining(trainingId, authStore.accessToken)
+    const success = await trainingStore.cancelTraining(trainingId, authStore.token)
     if (success) {
       await fetchRoomTrainings()
       emit('refresh')

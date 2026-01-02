@@ -6,9 +6,10 @@ import UBadge from '@/components/ui/UBadge.vue'
 import type { components } from '@/types/api.generated'
 
 type TrainingRead = components['schemas']['TrainingRead']
+type TrainingProgress = components['schemas']['TrainingProgress']
 
 interface Props {
-  training: TrainingRead
+  training: TrainingRead | TrainingProgress
   dwellerName?: string
 }
 
@@ -104,7 +105,7 @@ const handleComplete = () => {
         <span class="stat-name">Training {{ training.stat_being_trained.toUpperCase() }}</span>
         <span v-if="dwellerName" class="dweller-name">{{ dwellerName }}</span>
       </div>
-      <UBadge :variant="training.status === 'active' ? 'info' : training.status === 'completed' ? 'success' : 'secondary'">
+      <UBadge :variant="training.status === 'active' ? 'info' : training.status === 'completed' ? 'success' : 'default'">
         {{ training.current_stat_value }} → {{ training.target_stat_value }}
       </UBadge>
     </div>
@@ -129,7 +130,7 @@ const handleComplete = () => {
         <UButton
           v-if="isReadyToComplete"
           size="sm"
-          variant="success"
+          variant="primary"
           @click="handleComplete"
         >
           <Icon icon="mdi:check-circle" class="h-4 w-4" />

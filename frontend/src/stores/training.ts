@@ -11,8 +11,8 @@ export const useTrainingStore = defineStore('training', () => {
   const toast = useToast()
 
   // State
-  const activeTrainings = ref<Map<string, TrainingRead>>(new Map())
-  const trainingHistory = ref<TrainingRead[]>([])
+  const activeTrainings = ref<Map<string, TrainingRead | TrainingProgress>>(new Map())
+  const trainingHistory = ref<(TrainingRead | TrainingProgress)[]>([])
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 

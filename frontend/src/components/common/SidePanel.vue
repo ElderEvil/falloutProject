@@ -93,12 +93,14 @@ const comingSoonItems = computed((): NavItem[] => [
   }
 ]);
 
-const isActive = (path: string) => {
-  return route.path === path;
+const isActive = (path: string | undefined) => {
+  return path ? route.path === path : false;
 };
 
-const navigate = (path: string) => {
-  router.push(path);
+const navigate = (path: string | undefined) => {
+  if (path) {
+    router.push(path);
+  }
 };
 
 // Keyboard shortcuts
@@ -116,7 +118,7 @@ const handleKeyPress = (e: KeyboardEvent) => {
   }
 
   const item = navItems.value.find(item => item.hotkey === e.key);
-  if (item) {
+  if (item && item.path) {
     e.preventDefault();
     navigate(item.path);
   }
@@ -156,7 +158,7 @@ onUnmounted(() => {
       <button
         v-for="item in navItems"
         :key="item.id"
-        @click="navigate(item.path)"
+        @click="item.path && navigate(item.path)"
         class="nav-item"
         :class="{ active: isActive(item.path) }"
         :aria-label="`Navigate to ${item.label}${item.hotkey ? ' (Press ' + item.hotkey + ')' : ''}`"

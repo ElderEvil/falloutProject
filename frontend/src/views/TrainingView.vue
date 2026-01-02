@@ -13,10 +13,10 @@ const authStore = useAuthStore()
 const vaultId = route.params.id as string
 
 onMounted(async () => {
-  if (authStore.accessToken && vaultId) {
+  if (authStore.token && vaultId) {
     // Ensure vault is loaded
     if (!vaultStore.currentVault || vaultStore.currentVault.id !== vaultId) {
-      await vaultStore.fetchVault(vaultId, authStore.accessToken)
+      await vaultStore.fetchVault(vaultId, authStore.token)
     }
   }
 })

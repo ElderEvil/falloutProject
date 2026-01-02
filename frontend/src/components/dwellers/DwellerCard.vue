@@ -4,7 +4,9 @@ import { Icon } from '@iconify/vue';
 import UButton from '@/components/ui/UButton.vue';
 import UTooltip from '@/components/ui/UTooltip.vue';
 import XPProgressBar from '@/components/dwellers/XPProgressBar.vue';
-import type { DwellerDetailRead } from '@/types/dweller';
+import type { components } from '@/types/api.generated';
+
+type DwellerDetailRead = components['schemas']['DwellerDetailRead'];
 
 interface Props {
   dweller: DwellerDetailRead;

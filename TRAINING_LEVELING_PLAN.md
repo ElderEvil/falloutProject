@@ -58,9 +58,23 @@ This document outlines the implementation of a comprehensive training, leveling,
 
 # Release Plan
 
-## Release v1.5: Core Leveling System
-**Estimated Time**: 6-8 hours
+## Release v1.5: Core Leveling System ✅ COMPLETED
+**Status**: Shipped (January 2, 2026)
+**Actual Time**: 8 hours
 **Goal**: Implement basic leveling mechanics and experience tracking
+
+**Commits**:
+- `4a8a3b0`: Core leveling system implementation
+- `e3f76f1`: Exploration XP test updates
+- `3c958ea`: Vault number validation fix
+
+**Deliverables**:
+- ✅ Leveling service with XP curve (100 * level^1.5)
+- ✅ Multiple XP sources (exploration, combat, work)
+- ✅ Game loop integration with dweller processing
+- ✅ HP scaling (+5 per level, full heal on level-up)
+- ✅ 11 comprehensive tests (90.70% coverage)
+- ✅ Weight Room added to new vaults for testing
 
 ### Backend Tasks
 
@@ -1425,6 +1439,144 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
 
 ---
 
+## Test Improvements & Technical Debt
+**Priority**: Medium | **Estimated Time**: 4-6 hours
+**Status**: Planned for future iteration
+
+### Issues Identified:
+
+1. **Random test failures** due to fixture edge cases
+   - Vault number fixture generated 1000 (exceeds lt=1000 validation)
+   - Random stat values exceeding new limits
+   - Timezone-aware datetime issues
+
+2. **XP calculation assumptions** in existing tests
+   - Tests expect base XP without bonuses
+   - Need updates when survival/luck bonuses added
+   - Missing edge case tests (70% health threshold)
+
+3. **Missing integration tests**
+   - Game loop dweller processing not fully tested
+   - No tests for simultaneous level-ups
+   - Work XP distribution edge cases
+
+4. **Coverage gaps** in services
+   - Incident service: 24.36% coverage
+   - Game loop: 15.62% coverage
+   - Wasteland service: 16.38% coverage
+   - Breeding service: 20.00% coverage
+
+5. **No performance tests**
+   - Game loop tick processing time not validated
+   - No benchmarks for XP calculations
+   - Training duration calculations unchecked
+
+### Test Rework Tasks:
+
+#### Phase 1: Fixture Standardization (1-2 hours)
+**Files**: `backend/app/tests/conftest.py`, `backend/app/tests/utils/`
+
+- Create deterministic test data factories
+- Add validation constraint helpers
+- Document all fixture edge cases
+- Add factory methods for common test scenarios
+
+**Deliverables**:
+```python
+# Factory pattern for test data
+class DwellerFactory:
+    @staticmethod
+    def create_with_stats(strength=5, perception=5, ...):
+        """Create dweller with specific stats."""
+
+    @staticmethod
+    def create_low_level():
+        """Level 1 dweller for leveling tests."""
+
+    @staticmethod
+    def create_max_level():
+        """Level 50 dweller for cap tests."""
+```
+
+#### Phase 2: XP Calculation Tests (1-2 hours)
+**Files**: `backend/app/tests/test_services/test_wasteland_service.py`
+
+- Parametrize tests with different dweller stats
+- Test survival bonus edge cases (69%, 70%, 71% health)
+- Test luck multiplier ranges (luck 1-10)
+- Test combined bonuses
+- Add regression tests for XP formula changes
+
+**Test Coverage**:
+- All XP source combinations
+- Boundary conditions (0 distance, 0 enemies, 0 events)
+- Maximum XP scenarios
+- Bonus stacking validation
+
+#### Phase 3: Game Loop Integration Tests (2 hours)
+**Files**: `backend/app/tests/test_services/test_game_loop_leveling.py` (NEW)
+
+- Test work XP distribution per tick
+- Test level-up during game loop
+- Test multiple dwellers leveling simultaneously
+- Test XP from multiple sources in one tick
+- Performance benchmarks (<100ms per tick)
+
+**Scenarios**:
+- Vault with 50 dwellers all working
+- Multiple dwellers level up in same tick
+- Training + working + exploration all active
+- Resource depletion affecting XP
+
+#### Phase 4: Service Coverage Improvements (2-3 hours)
+**Target**:
+- Incident service: 24% → 60%+
+- Game loop: 16% → 40%+
+- Wasteland service: 16% → 50%+
+
+**Focus Areas**:
+- Error handling paths
+- Edge case validations
+- Service integration points
+- Database transaction scenarios
+
+#### Phase 5: Performance & Stress Tests (1 hour)
+**Files**: `backend/app/tests/test_performance/` (NEW)
+
+```python
+@pytest.mark.performance
+async def test_game_loop_tick_performance():
+    """Game loop tick should complete in <100ms."""
+
+@pytest.mark.performance
+async def test_xp_calculation_performance():
+    """XP calculations should be sub-millisecond."""
+
+@pytest.mark.stress
+async def test_100_simultaneous_level_ups():
+    """Handle 100 dwellers leveling in same tick."""
+```
+
+### Deliverables:
+
+- ✅ Zero random test failures
+- ✅ All fixtures documented with constraints
+- ✅ Coverage report shows improvements:
+  - Overall: 48% → 65%+
+  - Critical services: 60%+ coverage
+- ✅ Performance benchmarks documented
+- ✅ Test suite execution time <30 seconds
+- ✅ Integration test scenarios documented
+
+### Timeline:
+
+Can be done incrementally alongside feature development:
+- Phase 1: Before v1.6 (required for training tests)
+- Phases 2-3: During v1.6 development
+- Phases 4-5: After v1.6, before v1.7
+
+---
+
 **Last Updated**: January 2, 2026
-**Status**: Planning Complete - Ready for Implementation
-**Next Step**: Begin v1.5 (Core Leveling System)
+**Status**: v1.5 Complete - Ready for v1.6 Training System
+**Next Step**: Begin v1.6 (Training System)

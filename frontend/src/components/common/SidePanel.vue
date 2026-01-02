@@ -61,6 +61,13 @@ const navItems = computed((): NavItem[] => {
       icon: 'mdi:heart-multiple',
       path: `/vault/${vaultId.value}/relationships`,
       hotkey: '5'
+    },
+    {
+      id: 'training',
+      label: 'Training',
+      icon: 'mdi:dumbbell',
+      path: `/vault/${vaultId.value}/training`,
+      hotkey: '6'
     }
   ];
 });
@@ -71,12 +78,6 @@ const comingSoonItems = computed((): NavItem[] => [
     label: 'Workshop',
     icon: 'mdi:hammer-wrench',
     comingSoon: { phase: 'Phase 1', quarter: 'Jan-Feb 2026' }
-  },
-  {
-    id: 'training',
-    label: 'Training',
-    icon: 'mdi:school',
-    comingSoon: { phase: 'Phase 2', quarter: 'Feb-Mar 2026' }
   },
   {
     id: 'trading',

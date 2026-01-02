@@ -1,18 +1,21 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
-import HomeView from '@/views/HomeView.vue';
-import LoginPage from '@/components/auth/LoginForm.vue';
-import RegisterPage from '@/components/auth/RegisterForm.vue';
-import VaultView from '@/views/VaultView.vue';
-import DwellersView from '@/views/DwellersView.vue';
-import DwellerDetailView from '@/views/DwellerDetailView.vue';
-import DwellerChatPage from '@/components/chat/DwellerChatPage.vue';
-import ObjectivesView from '@/views/ObjectivesView.vue';
-import RadioView from '@/views/RadioView.vue';
-import RelationshipsView from '@/views/RelationshipsView.vue';
 
-import TrainingView from '@/views/TrainingView.vue';
-import ProfileView from '@/views/ProfileView.vue';
+// Eager load only the home view for fastest initial load
+import HomeView from '@/views/HomeView.vue';
+
+// Lazy load all other views for code splitting
+const LoginPage = () => import('@/components/auth/LoginForm.vue');
+const RegisterPage = () => import('@/components/auth/RegisterForm.vue');
+const VaultView = () => import('@/views/VaultView.vue');
+const DwellersView = () => import('@/views/DwellersView.vue');
+const DwellerDetailView = () => import('@/views/DwellerDetailView.vue');
+const DwellerChatPage = () => import('@/components/chat/DwellerChatPage.vue');
+const ObjectivesView = () => import('@/views/ObjectivesView.vue');
+const RadioView = () => import('@/views/RadioView.vue');
+const RelationshipsView = () => import('@/views/RelationshipsView.vue');
+const TrainingView = () => import('@/views/TrainingView.vue');
+const ProfileView = () => import('@/views/ProfileView.vue');
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),

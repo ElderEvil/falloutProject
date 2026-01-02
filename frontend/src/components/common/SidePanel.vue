@@ -161,12 +161,13 @@ onUnmounted(() => {
         @click="item.path && navigate(item.path)"
         class="nav-item"
         :class="{ active: isActive(item.path) }"
-        :aria-label="`Navigate to ${item.label}${item.hotkey ? ' (Press ' + item.hotkey + ')' : ''}`"
-        :title="`${item.label}${item.hotkey ? ' (' + item.hotkey + ')' : ''}`"
+        :aria-label="`${item.label}${!isCollapsed && item.hotkey ? ' ' + item.hotkey : ''}`"
+        :aria-keyshortcuts="item.hotkey"
+        :title="`${item.label}${item.hotkey ? ' (Shortcut: ' + item.hotkey + ')' : ''}`"
       >
         <Icon :icon="item.icon" class="nav-icon" />
         <span v-if="!isCollapsed" class="nav-label">{{ item.label }}</span>
-        <span v-if="!isCollapsed && item.hotkey" class="hotkey-badge">{{ item.hotkey }}</span>
+        <span v-if="!isCollapsed && item.hotkey" class="hotkey-badge" aria-hidden="true">{{ item.hotkey }}</span>
       </button>
 
       <!-- Coming Soon Divider -->

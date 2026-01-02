@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import type { components } from '@/types/api.generated'
 import * as trainingService from '@/services/trainingService'
 import { useToast } from '@/composables/useToast'
+import { getErrorMessage } from '@/types/utils'
 
 type TrainingRead = components['schemas']['TrainingRead']
 type TrainingProgress = components['schemas']['TrainingProgress']
@@ -59,10 +60,9 @@ export const useTrainingStore = defineStore('training', () => {
       activeTrainings.value.set(training.id!, training)
       toast.success('Training started successfully!')
       return training
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to start training:', err)
-      const message = err.response?.data?.detail || 'Failed to start training'
-      toast.error(message)
+      toast.error(getErrorMessage(err))
       return null
     }
   }
@@ -74,9 +74,9 @@ export const useTrainingStore = defineStore('training', () => {
       trainingHistory.value.push(training)
       toast.success('Training cancelled')
       return true
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to cancel training:', err)
-      toast.error('Failed to cancel training')
+      toast.error(getErrorMessage(err))
       return false
     }
   }
@@ -91,7 +91,7 @@ export const useTrainingStore = defineStore('training', () => {
           activeTrainings.value.delete(training.id)
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch dweller training:', err)
     }
   }
@@ -109,9 +109,9 @@ export const useTrainingStore = defineStore('training', () => {
           activeTrainings.value.set(training.id, training)
         }
       })
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch vault trainings:', err)
-      error.value = 'Failed to load vault trainings'
+      error.value = getErrorMessage(err)
     } finally {
       isLoading.value = false
     }
@@ -129,7 +129,7 @@ export const useTrainingStore = defineStore('training', () => {
       })
 
       return trainings
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch room trainings:', err)
       return []
     }
@@ -153,7 +153,7 @@ export const useTrainingStore = defineStore('training', () => {
           activeTrainings.value.delete(progress.id)
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to update training progress:', err)
     }
   }

@@ -11,6 +11,8 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.admin.auth import AdminAuth
 from app.admin.views import (
     DwellerAdmin,
+    ExplorationAdmin,
+    IncidentAdmin,
     JunkAdmin,
     LLInteractionAdmin,
     ObjectiveAdmin,
@@ -130,6 +132,8 @@ admin.add_view(DwellerAdmin)
 admin.add_view(RelationshipAdmin)
 admin.add_view(PregnancyAdmin)
 admin.add_view(TrainingAdmin)
+admin.add_view(IncidentAdmin)
+admin.add_view(ExplorationAdmin)
 admin.add_view(OutfitAdmin)
 admin.add_view(WeaponAdmin)
 admin.add_view(JunkAdmin)

@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import axios from '@/plugins/axios'
 import type { RadioStats, ManualRecruitRequest, RecruitmentResponse, RadioMode } from '@/models/radio'
 import { useToast } from '@/composables/useToast'
+import { getErrorMessage } from '@/types/utils'
 
 export const useRadioStore = defineStore('radio', () => {
   const toast = useToast()
@@ -18,9 +19,9 @@ export const useRadioStore = defineStore('radio', () => {
     try {
       const response = await axios.get(`/api/v1/radio/vault/${vaultId}/stats`)
       radioStats.value = response.data
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to fetch radio stats:', error)
-      toast.error('Failed to load radio statistics')
+      toast.error(getErrorMessage(error))
     } finally {
       isLoading.value = false
     }
@@ -37,10 +38,9 @@ export const useRadioStore = defineStore('radio', () => {
 
       toast.success(result.message)
       return result
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to recruit dweller:', error)
-      const message = error.response?.data?.detail || 'Failed to recruit dweller'
-      toast.error(message)
+      toast.error(getErrorMessage(error))
       return null
     } finally {
       isRecruiting.value = false
@@ -83,10 +83,9 @@ export const useRadioStore = defineStore('radio', () => {
       const modeLabel = mode === 'recruitment' ? 'Recruitment' : 'Happiness Boost'
       toast.success(`Radio mode set to ${modeLabel}`)
       return true
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to set radio mode:', error)
-      const message = error.response?.data?.detail || 'Failed to set radio mode'
-      toast.error(message)
+      toast.error(getErrorMessage(error))
       return false
     }
   }
@@ -106,10 +105,9 @@ export const useRadioStore = defineStore('radio', () => {
 
       toast.success(`Radio speedup set to ${speedup}x`)
       return true
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to set radio speedup:', error)
-      const message = error.response?.data?.detail || 'Failed to set radio speedup'
-      toast.error(message)
+      toast.error(getErrorMessage(error))
       return false
     }
   }

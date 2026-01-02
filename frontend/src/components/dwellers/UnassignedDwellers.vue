@@ -133,8 +133,8 @@ const getImageUrl = (imagePath: string | null) => {
       @dragleave="handleDropZoneDragLeave"
       @drop="handleDropZoneDrop"
     >
-      <Icon v-if="!isDraggingOver" icon="mdi:check-circle" class="h-12 w-12 text-green-600" />
-      <Icon v-else icon="mdi:arrow-down-bold" class="h-12 w-12 text-green-500 animate-bounce" />
+      <Icon v-if="!isDraggingOver" icon="mdi:check-circle" class="h-12 w-12" :style="{ color: 'var(--color-theme-primary)' }" />
+      <Icon v-else icon="mdi:arrow-down-bold" class="h-12 w-12 animate-bounce" :style="{ color: 'var(--color-theme-primary)' }" />
       <p v-if="!isDraggingOver">All dwellers are assigned!</p>
       <p v-else class="drop-message">Drop to unassign</p>
     </div>
@@ -251,8 +251,8 @@ const getImageUrl = (imagePath: string | null) => {
 
 .notification-success {
   background: rgba(0, 128, 0, 0.9);
-  border: 2px solid #00ff00;
-  color: #00ff00;
+  border: 2px solid var(--color-theme-primary);
+  color: var(--color-theme-primary);
 }
 
 .notification-error {
@@ -263,7 +263,7 @@ const getImageUrl = (imagePath: string | null) => {
 
 .unassigned-dwellers-panel {
   background: rgba(0, 0, 0, 0.6);
-  border: 1px solid #00ff00;
+  border: 1px solid var(--color-theme-primary);
   border-radius: 8px;
   padding: 1rem;
   margin-bottom: 1rem;
@@ -272,7 +272,7 @@ const getImageUrl = (imagePath: string | null) => {
 
 .panel-header {
   margin-bottom: 1rem;
-  border-bottom: 1px solid rgba(0, 255, 0, 0.3);
+  border-bottom: 1px solid var(--color-theme-glow);
   padding-bottom: 0.5rem;
 }
 
@@ -284,7 +284,7 @@ const getImageUrl = (imagePath: string | null) => {
 }
 
 .panel-title {
-  color: #00ff00;
+  color: var(--color-theme-primary);
   font-size: 1.25rem;
   font-weight: bold;
   display: flex;
@@ -296,7 +296,7 @@ const getImageUrl = (imagePath: string | null) => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #00ff00;
+  background: var(--color-theme-primary);
   color: #000;
   font-size: 0.875rem;
   font-weight: bold;
@@ -307,7 +307,7 @@ const getImageUrl = (imagePath: string | null) => {
 }
 
 .panel-subtitle {
-  color: rgba(0, 255, 0, 0.7);
+  color: var(--color-theme-glow);
   font-size: 0.875rem;
   margin-top: 0.25rem;
 }
@@ -318,7 +318,7 @@ const getImageUrl = (imagePath: string | null) => {
   align-items: center;
   justify-content: center;
   padding: 2rem;
-  color: rgba(0, 255, 0, 0.7);
+  color: var(--color-theme-glow);
   gap: 0.5rem;
   transition: all 0.3s ease;
   border: 2px dashed transparent;
@@ -327,13 +327,13 @@ const getImageUrl = (imagePath: string | null) => {
 }
 
 .empty-state.drop-zone-active {
-  border-color: #00ff00;
-  background: rgba(0, 255, 0, 0.1);
-  box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+  border-color: var(--color-theme-primary);
+  background: var(--color-theme-glow);
+  box-shadow: 0 0 20px var(--color-theme-glow);
 }
 
 .drop-message {
-  color: #00ff00;
+  color: var(--color-theme-primary);
   font-weight: bold;
   font-size: 1.125rem;
 }
@@ -348,14 +348,14 @@ const getImageUrl = (imagePath: string | null) => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 255, 0, 0.15);
-  border: 3px dashed #00ff00;
+  background: var(--color-theme-glow);
+  border: 3px dashed var(--color-theme-primary);
   border-radius: 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #00ff00;
+  color: var(--color-theme-primary);
   font-size: 1.25rem;
   font-weight: bold;
   gap: 1rem;
@@ -382,18 +382,18 @@ const getImageUrl = (imagePath: string | null) => {
 }
 
 .dweller-grid::-webkit-scrollbar-thumb {
-  background: #00ff00;
+  background: var(--color-theme-primary);
   border-radius: 4px;
 }
 
 .dweller-grid::-webkit-scrollbar-thumb:hover {
-  background: #00cc00;
+  background: var(--color-theme-accent);
 }
 
 .dweller-card {
   position: relative;
   background: rgba(0, 50, 0, 0.4);
-  border: 1px solid rgba(0, 255, 0, 0.5);
+  border: 1px solid var(--color-theme-glow);
   border-radius: 6px;
   padding: 0.75rem;
   cursor: grab;
@@ -404,10 +404,10 @@ const getImageUrl = (imagePath: string | null) => {
 }
 
 .dweller-card:hover {
-  border-color: #00ff00;
+  border-color: var(--color-theme-primary);
   background: rgba(0, 80, 0, 0.5);
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 255, 0, 0.2);
+  box-shadow: 0 4px 8px var(--color-theme-glow);
 }
 
 .dweller-card:active {
@@ -427,7 +427,7 @@ const getImageUrl = (imagePath: string | null) => {
   height: 48px;
   object-fit: cover;
   border-radius: 50%;
-  border: 2px solid #00ff00;
+  border: 2px solid var(--color-theme-primary);
 }
 
 .dweller-info {
@@ -443,7 +443,7 @@ const getImageUrl = (imagePath: string | null) => {
 }
 
 .dweller-name {
-  color: #00ff00;
+  color: var(--color-theme-primary);
   font-weight: bold;
   font-size: 0.875rem;
   margin-bottom: 0.25rem;
@@ -453,7 +453,7 @@ const getImageUrl = (imagePath: string | null) => {
 }
 
 .dweller-level {
-  color: rgba(0, 255, 0, 0.7);
+  color: var(--color-theme-glow);
   font-size: 0.75rem;
   margin-bottom: 0.5rem;
 }
@@ -473,12 +473,12 @@ const getImageUrl = (imagePath: string | null) => {
 }
 
 .stat-label {
-  color: rgba(0, 255, 0, 0.6);
+  color: var(--color-theme-glow);
   font-weight: bold;
 }
 
 .stat-value {
-  color: #00ff00;
+  color: var(--color-theme-primary);
   font-weight: bold;
   font-size: 0.75rem;
 }

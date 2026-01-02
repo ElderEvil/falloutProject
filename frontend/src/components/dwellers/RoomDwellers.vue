@@ -62,7 +62,7 @@ const getImageUrl = (imagePath: string | null) => {
         :alt="`${dweller.first_name} ${dweller.last_name}`"
         class="avatar-image"
       />
-      <Icon v-else icon="mdi:account-circle" class="h-8 w-8 text-green-500" />
+      <Icon v-else icon="mdi:account-circle" class="h-8 w-8" :style="{ color: 'var(--color-theme-primary)' }" />
       <div class="dweller-level">{{ dweller.level }}</div>
       <div class="status-indicator">
         <DwellerStatusBadge :status="dwellerStore.getDwellerStatus(dweller.id)" size="small" />
@@ -86,15 +86,15 @@ const getImageUrl = (imagePath: string | null) => {
   height: 32px;
   cursor: grab;
   transition: transform 0.2s;
-  border: 1px solid rgba(0, 255, 0, 0.5);
+  border: 1px solid var(--color-theme-glow);
   border-radius: 4px;
   overflow: hidden;
 }
 
 .dweller-avatar:hover {
   transform: scale(1.1);
-  border-color: #00ff00;
-  box-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+  border-color: var(--color-theme-primary);
+  box-shadow: 0 0 8px var(--color-theme-glow);
 }
 
 .dweller-avatar:active {
@@ -113,7 +113,7 @@ const getImageUrl = (imagePath: string | null) => {
   bottom: 0;
   right: 0;
   background: rgba(0, 0, 0, 0.8);
-  color: #00ff00;
+  color: var(--color-theme-primary);
   font-size: 0.625rem;
   font-weight: bold;
   padding: 0 2px;

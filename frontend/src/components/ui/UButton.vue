@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { IconComponent } from '@/types/utils'
+
 /**
  * UButton - Terminal-themed button component wrapping Nuxt UI
  *
@@ -14,8 +16,8 @@ interface Props {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
   disabled?: boolean
   loading?: boolean
-  icon?: any
-  iconRight?: any
+  icon?: IconComponent
+  iconRight?: IconComponent
   block?: boolean
 }
 
@@ -88,24 +90,24 @@ const handleClick = (event: MouseEvent) => {
 
 /* Button Variants */
 .btn-primary {
-  background-color: var(--color-terminal-green-dark);
+  background-color: var(--color-theme-accent);
   color: #000;
-  border: 2px solid var(--color-terminal-green);
+  border: 2px solid var(--color-theme-primary);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: var(--color-terminal-green);
-  box-shadow: 0 0 10px var(--color-terminal-green-glow);
+  background-color: var(--color-theme-primary);
+  box-shadow: 0 0 10px var(--color-theme-glow);
 }
 
 .btn-secondary {
   background-color: transparent;
-  color: var(--color-terminal-green);
-  border: 2px solid var(--color-terminal-green);
+  color: var(--color-theme-primary);
+  border: 2px solid var(--color-theme-primary);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background-color: var(--color-terminal-green-glow);
+  background-color: var(--color-theme-glow);
 }
 
 .btn-danger {
@@ -120,7 +122,7 @@ const handleClick = (event: MouseEvent) => {
 
 .btn-ghost {
   background-color: transparent;
-  color: var(--color-terminal-green);
+  color: var(--color-theme-primary);
   border: 2px solid transparent;
 }
 

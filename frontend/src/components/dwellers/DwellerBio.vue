@@ -38,25 +38,25 @@ defineProps<Props>()
 .bio-title {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #00ff00;
-  text-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
-  border-bottom: 2px solid rgba(0, 255, 0, 0.3);
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 8px var(--color-theme-glow);
+  border-bottom: 2px solid var(--color-theme-glow);
   padding-bottom: 0.5rem;
 }
 
 .bio-content {
   padding: 1rem;
-  background: rgba(0, 255, 0, 0.05);
-  border-left: 3px solid #00ff00;
+  background: rgba(0, 0, 0, 0.3);
+  border-left: 3px solid var(--color-theme-primary);
   border-radius: 4px;
 }
 
 .bio-text {
   max-width: 70ch;
   line-height: 1.7;
-  color: #00ff00;
+  color: var(--color-theme-primary);
   font-size: 1rem;
-  text-shadow: 0 0 3px rgba(0, 255, 0, 0.4);
+  text-shadow: 0 0 3px var(--color-theme-glow);
   white-space: pre-wrap;
 }
 
@@ -69,15 +69,17 @@ defineProps<Props>()
 }
 
 .placeholder-text {
-  color: rgba(0, 255, 0, 0.7);
+  color: var(--color-theme-primary);
   font-size: 1rem;
-  text-shadow: 0 0 2px rgba(0, 255, 0, 0.3);
+  text-shadow: 0 0 2px var(--color-theme-glow);
+  opacity: 0.7;
 }
 
 .placeholder-hint {
-  color: rgba(0, 255, 0, 0.5);
+  color: var(--color-theme-primary);
   font-size: 0.875rem;
   font-style: italic;
-  text-shadow: 0 0 2px rgba(0, 255, 0, 0.2);
+  text-shadow: 0 0 2px var(--color-theme-glow);
+  opacity: 0.5;
 }
 </style>

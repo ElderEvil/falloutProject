@@ -452,8 +452,8 @@ const closeRewardsModal = () => {
 
 .notification-success {
   background: rgba(0, 128, 0, 0.9);
-  border: 2px solid #00ff00;
-  color: #00ff00;
+  border: 2px solid var(--color-theme-primary);
+  color: var(--color-theme-primary);
 }
 
 .notification-error {
@@ -481,11 +481,11 @@ const closeRewardsModal = () => {
 }
 
 .wasteland-dropzone.drag-over {
-  border-color: #00ff00;
+  border-color: var(--color-theme-primary);
   border-width: 3px;
   border-style: solid;
-  background: rgba(0, 255, 0, 0.1);
-  box-shadow: 0 0 20px rgba(0, 255, 0, 0.4);
+  background: var(--color-theme-glow);
+  box-shadow: 0 0 20px var(--color-theme-glow);
   transform: scale(1.02);
 }
 
@@ -506,7 +506,7 @@ const closeRewardsModal = () => {
 }
 
 .drag-over .dropzone-icon {
-  color: #00ff00;
+  color: var(--color-theme-primary);
 }
 
 .dropzone-title {
@@ -518,7 +518,7 @@ const closeRewardsModal = () => {
 }
 
 .drag-over .dropzone-title {
-  color: #00ff00;
+  color: var(--color-theme-primary);
 }
 
 .dropzone-subtitle {
@@ -540,7 +540,7 @@ const closeRewardsModal = () => {
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
-  color: #00ff00;
+  color: var(--color-theme-primary);
   font-size: 1rem;
   font-weight: bold;
   pointer-events: none;
@@ -624,8 +624,8 @@ const closeRewardsModal = () => {
 
 .complete-button {
   background: rgba(0, 180, 0, 0.2);
-  border: 2px solid rgba(0, 255, 0, 0.5);
-  color: #00ff00;
+  border: 2px solid var(--color-theme-primary);
+  color: var(--color-theme-primary);
   padding: 0.5rem 0.75rem;
   border-radius: 4px;
   cursor: pointer;
@@ -636,14 +636,14 @@ const closeRewardsModal = () => {
   font-weight: bold;
   transition: all 0.2s ease;
   font-family: 'Courier New', monospace;
-  text-shadow: 0 0 4px rgba(0, 255, 0, 0.5);
+  text-shadow: 0 0 4px var(--color-theme-glow);
 }
 
 .complete-button:hover {
   background: rgba(0, 220, 0, 0.3);
-  border-color: #00ff00;
+  border-color: var(--color-theme-primary);
   transform: scale(1.05);
-  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+  box-shadow: 0 0 10px var(--color-theme-glow);
 }
 
 .recall-button {
@@ -792,14 +792,14 @@ const closeRewardsModal = () => {
 }
 
 .modal-button.confirm {
-  background: rgba(0, 255, 0, 0.2);
-  border-color: rgba(0, 255, 0, 0.5);
-  color: rgba(0, 255, 0, 1);
+  background: var(--color-theme-glow);
+  border-color: var(--color-theme-primary);
+  color: var(--color-theme-primary);
 }
 
 .modal-button.confirm:hover {
-  background: rgba(0, 255, 0, 0.3);
-  border-color: rgba(0, 255, 0, 0.8);
-  box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+  background: var(--color-theme-glow);
+  border-color: var(--color-theme-primary);
+  box-shadow: 0 0 15px var(--color-theme-glow);
 }
 </style>

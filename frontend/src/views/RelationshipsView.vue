@@ -14,7 +14,7 @@
             <!-- Header -->
             <div class="mb-8">
               <div class="flex items-center justify-between mb-2">
-                <h1 class="text-4xl font-bold text-green-400 flex items-center gap-3">
+                <h1 class="text-4xl font-bold flex items-center gap-3" :style="{ color: 'var(--color-theme-primary)' }">
                   <Icon icon="mdi:heart-multiple" class="text-5xl" />
                   Dweller Relationships
                 </h1>

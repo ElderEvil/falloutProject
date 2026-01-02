@@ -19,7 +19,7 @@ const handleRoomClick = () => {
   toggleRoomSelection(props.room.id)
 }
 
-const handleDestroyClick = (event: Event) => {
+const handleDestroyClick = (event: MouseEvent) => {
   event.stopPropagation()
   destroyRoom(props.room.id, event)
 }

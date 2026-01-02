@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { IconComponent } from '@/types/utils'
+
 /**
  * UBadge - Terminal-themed badge component
  *
@@ -11,7 +13,7 @@
 interface Props {
   variant?: 'success' | 'warning' | 'danger' | 'info' | 'default'
   size?: 'sm' | 'md' | 'lg'
-  icon?: any
+  icon?: IconComponent
   dot?: boolean
 }
 
@@ -22,11 +24,19 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const variantClasses = {
-  success: 'bg-success text-black border-success',
+  success: 'bg-success text-black',
   warning: 'bg-warning text-black border-warning',
   danger: 'bg-danger text-white border-danger',
   info: 'bg-info text-black border-info',
-  default: 'bg-gray-700 text-terminalGreen border-gray-600'
+  default: 'bg-gray-700 border-gray-600'
+}
+
+const variantStyles = {
+  success: { color: '#000', borderColor: 'var(--color-theme-primary)' },
+  warning: {},
+  danger: {},
+  info: {},
+  default: { color: 'var(--color-theme-primary)' }
 }
 
 const sizeClasses = {
@@ -44,7 +54,7 @@ const badgeClasses = [
 </script>
 
 <template>
-  <span :class="badgeClasses">
+  <span :class="badgeClasses" :style="variantStyles[variant]">
     <!-- Dot indicator -->
     <span
       v-if="dot"

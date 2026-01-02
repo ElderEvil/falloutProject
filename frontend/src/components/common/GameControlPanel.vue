@@ -72,9 +72,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex items-center space-x-4 rounded bg-gray-900/50 px-4 py-2 shadow-lg border border-terminalGreen/30">
+  <div class="flex items-center space-x-4 rounded bg-gray-900/50 px-4 py-2 shadow-lg border" :style="{ borderColor: 'rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3)' }">
     <!-- Game Time -->
-    <div class="flex items-center space-x-2 text-terminalGreen">
+    <div class="flex items-center space-x-2" :style="{ color: 'var(--color-theme-primary)' }">
       <Icon icon="mdi:clock-outline" class="h-5 w-5" />
       <span class="font-mono text-sm">{{ totalGameTime }}</span>
     </div>

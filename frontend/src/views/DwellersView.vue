@@ -149,8 +149,9 @@ const getRoomForDweller = computed(() => (roomId: string | null | undefined) => 
                     >
                       <Icon
                         icon="mdi:sparkles"
-                        class="h-5 w-5 text-green-600"
+                        class="h-5 w-5"
                         :class="{ 'opacity-30': generatingAI[dweller.id] }"
+                        :style="{ color: 'var(--color-theme-primary)' }"
                       />
 
                       <!-- Loading spinner overlay when generating -->
@@ -160,7 +161,8 @@ const getRoomForDweller = computed(() => (roomId: string | null | undefined) => 
                       >
                         <Icon
                           icon="mdi:loading"
-                          class="h-5 w-5 text-green-600 animate-spin"
+                          class="h-5 w-5 animate-spin"
+                          :style="{ color: 'var(--color-theme-primary)' }"
                         />
                       </div>
                     </div>
@@ -250,13 +252,13 @@ const getRoomForDweller = computed(() => (roomId: string | null | undefined) => 
 .main-content h2,
 .main-content h3 {
   font-weight: 700;
-  text-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+  text-shadow: 0 0 8px var(--color-theme-glow);
 }
 
 .main-content p,
 .main-content span,
 .main-content div {
-  text-shadow: 0 0 2px rgba(0, 255, 0, 0.3);
+  text-shadow: 0 0 2px var(--color-theme-glow);
 }
 
 .dweller-image {
@@ -273,7 +275,7 @@ const getRoomForDweller = computed(() => (roomId: string | null | undefined) => 
 
 .ai-generate-button:hover {
   animation: none;
-  box-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+  box-shadow: 0 0 20px var(--color-theme-primary);
 }
 
 /* AI Generate Button (Large - Expanded View) */
@@ -284,24 +286,24 @@ const getRoomForDweller = computed(() => (roomId: string | null | undefined) => 
 
 .ai-generate-button-large:hover {
   animation: none;
-  box-shadow: 0 0 30px rgba(0, 255, 0, 0.9);
+  box-shadow: 0 0 30px var(--color-theme-primary);
 }
 
 @keyframes pulse-glow {
   0%, 100% {
-    box-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
+    box-shadow: 0 0 5px var(--color-theme-glow);
   }
   50% {
-    box-shadow: 0 0 15px rgba(0, 255, 0, 0.6);
+    box-shadow: 0 0 15px var(--color-theme-primary);
   }
 }
 
 @keyframes pulse-glow-large {
   0%, 100% {
-    box-shadow: 0 0 10px rgba(0, 255, 0, 0.4);
+    box-shadow: 0 0 10px var(--color-theme-glow);
   }
   50% {
-    box-shadow: 0 0 25px rgba(0, 255, 0, 0.7);
+    box-shadow: 0 0 25px var(--color-theme-primary);
   }
 }
 
@@ -327,7 +329,7 @@ const getRoomForDweller = computed(() => (roomId: string | null | undefined) => 
 }
 
 .text-terminalGreen {
-  color: #00ff00;
+  color: var(--color-theme-primary);
 }
 
 .scanlines {

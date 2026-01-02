@@ -118,7 +118,6 @@ export const useExplorationStore = defineStore('exploration', () => {
       explorations.value.push(exploration)
       activeExplorations.value[exploration.id] = exploration
 
-      toast.success('Dweller sent to wasteland!')
       return exploration
     } catch (err) {
       console.error('Failed to send dweller to wasteland:', err)

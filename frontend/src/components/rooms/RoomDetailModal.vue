@@ -506,7 +506,7 @@ watch(() => props.modelValue, (newValue) => {
 <style scoped>
 .modal-header {
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid rgba(0, 255, 0, 0.3);
+  border-bottom: 1px solid var(--color-theme-glow);
 }
 
 .header-content {
@@ -521,7 +521,7 @@ watch(() => props.modelValue, (newValue) => {
   gap: 0.5rem;
   font-size: 1.25rem;
   font-weight: bold;
-  color: #00ff00;
+  color: var(--color-theme-primary);
   margin: 0;
 }
 
@@ -529,7 +529,7 @@ watch(() => props.modelValue, (newValue) => {
   width: 1.5rem;
   height: 1.5rem;
   color: var(--color-terminal-green);
-  filter: drop-shadow(0 0 4px rgba(0, 255, 0, 0.5));
+  filter: drop-shadow(0 0 4px var(--color-theme-glow));
 }
 
 .header-metadata {
@@ -553,14 +553,14 @@ watch(() => props.modelValue, (newValue) => {
 .close-btn {
   background: none;
   border: none;
-  color: #00ff00;
+  color: var(--color-theme-primary);
   cursor: pointer;
   padding: 0.5rem;
   transition: all 0.2s;
 }
 
 .close-btn:hover {
-  color: #00ff00;
+  color: var(--color-theme-primary);
   transform: scale(1.1);
 }
 
@@ -595,7 +595,7 @@ watch(() => props.modelValue, (newValue) => {
   gap: 0.5rem;
   font-size: 1.125rem;
   font-weight: 600;
-  color: #00ff00;
+  color: var(--color-theme-primary);
   margin: 0;
 }
 
@@ -610,8 +610,8 @@ watch(() => props.modelValue, (newValue) => {
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem;
-  background: rgba(0, 255, 0, 0.05);
-  border: 1px solid rgba(0, 255, 0, 0.2);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--color-theme-glow);
   border-radius: 4px;
 }
 
@@ -622,7 +622,7 @@ watch(() => props.modelValue, (newValue) => {
 }
 
 .info-value {
-  color: #00ff00;
+  color: var(--color-theme-primary);
   font-weight: 600;
   text-align: right;
 }
@@ -635,8 +635,8 @@ watch(() => props.modelValue, (newValue) => {
 
 .stat-card {
   padding: 1rem;
-  background: rgba(0, 255, 0, 0.05);
-  border: 1px solid rgba(0, 255, 0, 0.2);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--color-theme-glow);
   border-radius: 4px;
   text-align: center;
 }
@@ -651,7 +651,7 @@ watch(() => props.modelValue, (newValue) => {
 .stat-value {
   font-size: 1.5rem;
   font-weight: bold;
-  color: #00ff00;
+  color: var(--color-theme-primary);
   margin-top: 0.5rem;
 }
 
@@ -663,13 +663,13 @@ watch(() => props.modelValue, (newValue) => {
 
 .text-success {
   color: #00ff00 !important;
-  text-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+  text-shadow: 0 0 8px var(--color-theme-glow);
 }
 
 .dweller-section {
   margin-top: 2rem;
   padding-top: 1.5rem;
-  border-top: 1px solid rgba(0, 255, 0, 0.2);
+  border-top: 1px solid var(--color-theme-glow);
 }
 
 .dweller-section-title {
@@ -690,8 +690,8 @@ watch(() => props.modelValue, (newValue) => {
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem;
-  background: rgba(0, 255, 0, 0.05);
-  border: 1px solid rgba(0, 255, 0, 0.2);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--color-theme-glow);
   border-radius: 4px;
   transition: all 0.2s;
 }
@@ -701,10 +701,10 @@ watch(() => props.modelValue, (newValue) => {
 }
 
 .dweller-card.clickable:hover {
-  background: rgba(0, 255, 0, 0.15);
-  border-color: rgba(0, 255, 0, 0.5);
+  background: rgba(0, 0, 0, 0.5);
+  border-color: var(--color-theme-primary);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 255, 0, 0.2);
+  box-shadow: 0 4px 12px var(--color-theme-glow);
 }
 
 .dweller-info {
@@ -717,7 +717,7 @@ watch(() => props.modelValue, (newValue) => {
 
 .dweller-name {
   font-weight: 600;
-  color: #00ff00;
+  color: var(--color-theme-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -749,7 +749,7 @@ watch(() => props.modelValue, (newValue) => {
 .dweller-stat .stat-value {
   font-size: 1.125rem;
   font-weight: bold;
-  color: #00ff00;
+  color: var(--color-theme-primary);
 }
 
 .empty-state {
@@ -848,10 +848,10 @@ watch(() => props.modelValue, (newValue) => {
 
 /* Room Preview Section Styles */
 .room-preview-section {
-  background: rgba(0, 255, 0, 0.02);
+  background: rgba(0, 0, 0, 0.2);
   padding: 0.75rem;
   border-radius: 8px;
-  border: 1px solid rgba(0, 255, 0, 0.1);
+  border: 1px solid var(--color-theme-glow);
 }
 
 .preview-container {
@@ -868,7 +868,7 @@ watch(() => props.modelValue, (newValue) => {
   justify-content: center;
   min-height: 150px;
   background: rgba(0, 0, 0, 0.3);
-  border: 2px dashed rgba(0, 255, 0, 0.3);
+  border: 2px dashed var(--color-theme-glow);
   border-radius: 8px;
   padding: 1.25rem;
   animation: pulse-border 3s ease-in-out infinite;
@@ -876,10 +876,10 @@ watch(() => props.modelValue, (newValue) => {
 
 @keyframes pulse-border {
   0%, 100% {
-    border-color: rgba(0, 255, 0, 0.3);
+    border-color: var(--color-theme-glow);
   }
   50% {
-    border-color: rgba(0, 255, 0, 0.5);
+    border-color: var(--color-theme-primary);
   }
 }
 
@@ -887,7 +887,7 @@ watch(() => props.modelValue, (newValue) => {
   margin: 1rem 0 0.25rem;
   font-size: 1.125rem;
   font-weight: 600;
-  color: #00ff00;
+  color: var(--color-theme-primary);
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
@@ -921,8 +921,8 @@ watch(() => props.modelValue, (newValue) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 255, 0, 0.1);
-  border: 2px dashed rgba(0, 255, 0, 0.3);
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px dashed var(--color-theme-glow);
   border-radius: 8px;
   transition: all 0.3s;
 }
@@ -933,31 +933,31 @@ watch(() => props.modelValue, (newValue) => {
 }
 
 .slot-filled .placeholder-dweller {
-  background: rgba(0, 255, 0, 0.2);
-  border: 2px solid rgba(0, 255, 0, 0.5);
+  background: rgba(0, 0, 0, 0.4);
+  border: 2px solid var(--color-theme-primary);
   animation: glow-pulse 2s ease-in-out infinite;
 }
 
 @keyframes glow-pulse {
   0%, 100% {
-    box-shadow: 0 0 8px rgba(0, 255, 0, 0.3);
+    box-shadow: 0 0 8px var(--color-theme-glow);
   }
   50% {
-    box-shadow: 0 0 16px rgba(0, 255, 0, 0.6);
+    box-shadow: 0 0 16px var(--color-theme-primary);
   }
 }
 
 .dweller-initial {
   font-size: 1.5rem;
   font-weight: bold;
-  color: #00ff00;
-  text-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 8px var(--color-theme-glow);
 }
 
 .dweller-slot-name {
   font-size: 0.75rem;
   font-weight: 500;
-  color: #00ff00;
+  color: var(--color-theme-primary);
   text-align: center;
   max-width: 100%;
   overflow: hidden;

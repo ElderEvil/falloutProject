@@ -249,9 +249,19 @@ class IncidentService:
             await vault_crud.update(db_session, incident.vault_id, {"bottle_caps": vault.bottle_caps + caps_earned})
 
             # Award XP to dwellers in the room
-            dwellers_in_room = incident.room.dwellers if incident.room else []
-            if dwellers_in_room:
-                await self._award_combat_xp(db_session, incident, dwellers_in_room)
+            if incident.room_id:
+                from sqlalchemy.orm import selectinload
+                from sqlmodel import select
+
+                from app.models.room import Room
+
+                # Load room with dwellers relationship
+                query = select(Room).where(Room.id == incident.room_id).options(selectinload(Room.dwellers))
+                result = await db_session.execute(query)
+                room = result.scalar_one_or_none()
+
+                if room and room.dwellers:
+                    await self._award_combat_xp(db_session, incident, room.dwellers)
 
         incident.loot = loot
         incident.resolve(success=success)

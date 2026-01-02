@@ -202,8 +202,8 @@ onUnmounted(() => {
   bottom: 0;
   width: 240px;
   background: rgba(0, 0, 0, 0.95);
-  border-right: 2px solid #00ff00;
-  box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+  border-right: 2px solid var(--color-theme-primary);
+  box-shadow: 0 0 20px var(--color-theme-glow);
   transition: width 0.3s ease, transform 0.3s ease;
   z-index: 40;
   display: flex;
@@ -222,26 +222,26 @@ onUnmounted(() => {
   width: 24px;
   height: 24px;
   background: #000;
-  border: 2px solid #00ff00;
+  border: 2px solid var(--color-theme-primary);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #00ff00;
+  color: var(--color-theme-primary);
   cursor: pointer;
   transition: all 0.2s;
   z-index: 10;
 }
 
 .toggle-btn:hover {
-  background: #00ff00;
+  background: var(--color-theme-primary);
   color: #000;
-  box-shadow: 0 0 15px rgba(0, 255, 0, 0.6);
+  box-shadow: 0 0 15px var(--color-theme-glow);
 }
 
 .toggle-btn:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(0, 255, 0, 0.4);
+  box-shadow: 0 0 0 3px var(--color-theme-glow);
 }
 
 .nav-items {
@@ -255,7 +255,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   padding: 12px 16px;
-  color: #00ff00;
+  color: var(--color-theme-primary);
   background: transparent;
   border: none;
   border-left: 3px solid transparent;
@@ -273,20 +273,20 @@ onUnmounted(() => {
 }
 
 .nav-item:hover {
-  background: rgba(0, 255, 0, 0.1);
-  border-left-color: #00ff00;
+  background: var(--color-theme-glow);
+  border-left-color: var(--color-theme-primary);
 }
 
 .nav-item:focus {
   outline: none;
-  background: rgba(0, 255, 0, 0.15);
-  box-shadow: inset 0 0 0 2px rgba(0, 255, 0, 0.4);
+  background: var(--color-theme-glow);
+  box-shadow: inset 0 0 0 2px var(--color-theme-glow);
 }
 
 .nav-item.active {
-  background: rgba(0, 255, 0, 0.2);
-  border-left-color: #00ff00;
-  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+  background: var(--color-theme-glow);
+  border-left-color: var(--color-theme-primary);
+  box-shadow: 0 0 10px var(--color-theme-glow);
 }
 
 .nav-icon {
@@ -297,21 +297,21 @@ onUnmounted(() => {
 
 .nav-label {
   flex: 1;
-  font-size: 16px; /* Increased from 14px */
-  font-weight: 700; /* Bold for better readability */
+  font-size: 16px;
+  font-weight: 700;
   white-space: nowrap;
-  letter-spacing: 0.025em; /* Better spacing */
-  text-shadow: 0 0 4px rgba(0, 255, 0, 0.4); /* Subtle glow */
+  letter-spacing: 0.025em;
+  text-shadow: 0 0 4px var(--color-theme-glow);
 }
 
 .hotkey-badge {
-  font-size: 11px; /* Slightly larger */
-  padding: 3px 7px; /* More padding */
-  background: rgba(0, 255, 0, 0.2);
-  border: 1px solid #00ff00;
+  font-size: 11px;
+  padding: 3px 7px;
+  background: var(--color-theme-glow);
+  border: 1px solid var(--color-theme-primary);
   border-radius: 3px;
-  font-weight: 700; /* Bolder */
-  text-shadow: 0 0 3px rgba(0, 255, 0, 0.5);
+  font-weight: 700;
+  text-shadow: 0 0 3px var(--color-theme-glow);
 }
 
 .collapsed .nav-label,
@@ -323,8 +323,8 @@ onUnmounted(() => {
 .nav-divider {
   margin: 16px 0 8px;
   padding: 8px 16px;
-  border-top: 1px solid rgba(0, 255, 0, 0.2);
-  border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+  border-top: 1px solid var(--color-theme-glow);
+  border-bottom: 1px solid var(--color-theme-glow);
 }
 
 .divider-text {
@@ -332,8 +332,8 @@ onUnmounted(() => {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: rgba(0, 255, 0, 0.6);
-  text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
+  color: var(--color-theme-accent);
+  text-shadow: 0 0 5px var(--color-theme-glow);
 }
 
 /* Locked Items */
@@ -349,18 +349,19 @@ onUnmounted(() => {
 }
 
 .locked-label {
-  color: rgba(0, 255, 0, 0.5);
+  color: var(--color-theme-accent);
+  opacity: 0.7;
 }
 
 .lock-icon {
   width: 16px;
   height: 16px;
-  color: rgba(0, 255, 0, 0.6);
+  color: var(--color-theme-accent);
   pointer-events: auto;
   cursor: help;
 }
 
-/* Scanline effect */
+/* Scanline effect - theme-aware */
 .side-panel::before {
   content: '';
   position: absolute;
@@ -370,11 +371,12 @@ onUnmounted(() => {
   bottom: 0;
   background: repeating-linear-gradient(
     0deg,
-    rgba(0, 255, 0, 0.03) 0px,
+    var(--color-theme-glow) 0px,
     transparent 1px,
     transparent 2px,
-    rgba(0, 255, 0, 0.03) 3px
+    var(--color-theme-glow) 3px
   );
+  opacity: 0.15;
   pointer-events: none;
 }
 </style>

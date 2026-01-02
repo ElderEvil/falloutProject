@@ -2,6 +2,8 @@ from sqladmin import ModelView
 
 from app.models import LLMInteraction, Objective, Storage
 from app.models.dweller import Dweller
+from app.models.exploration import Exploration
+from app.models.incident import Incident
 from app.models.junk import Junk
 from app.models.outfit import Outfit
 from app.models.pregnancy import Pregnancy
@@ -267,6 +269,56 @@ class TrainingAdmin(ModelView, model=Training):
     name = "Training"
     name_plural = "Training Sessions"
     icon = "fa-solid fa-dumbbell"
+
+    can_create = False
+    can_edit = True
+    can_delete = False
+
+
+class IncidentAdmin(ModelView, model=Incident):
+    column_list = [
+        Incident.id,
+        Incident.vault_id,
+        Incident.room_id,
+        Incident.type,
+        Incident.status,
+        Incident.difficulty,
+        Incident.start_time,
+        Incident.end_time,
+        Incident.duration,
+        Incident.damage_dealt,
+        Incident.created_at,
+        Incident.updated_at,
+    ]
+
+    name = "Incident"
+    name_plural = "Incidents"
+    icon = "fa-solid fa-exclamation-triangle"
+
+    can_create = False
+    can_edit = True
+    can_delete = False
+
+
+class ExplorationAdmin(ModelView, model=Exploration):
+    column_list = [
+        Exploration.id,
+        Exploration.vault_id,
+        Exploration.dweller_id,
+        Exploration.status,
+        Exploration.duration,
+        Exploration.start_time,
+        Exploration.end_time,
+        Exploration.total_distance,
+        Exploration.total_caps_found,
+        Exploration.enemies_encountered,
+        Exploration.created_at,
+        Exploration.updated_at,
+    ]
+
+    name = "Exploration"
+    name_plural = "Explorations"
+    icon = "fa-solid fa-map-marked-alt"
 
     can_create = False
     can_edit = True

@@ -221,7 +221,7 @@ const getIncidentIcon = (type: IncidentType) => {
   }
 }
 
-const handleIncidentClick = (roomId: string, event: Event) => {
+const handleIncidentClick = (roomId: string, event: MouseEvent) => {
   event.stopPropagation()
   const incident = getRoomIncident(roomId)
   if (incident) {
@@ -230,7 +230,7 @@ const handleIncidentClick = (roomId: string, event: Event) => {
 }
 
 // Upgrade room handler
-const handleUpgradeRoom = async (roomId: string, event: Event) => {
+const handleUpgradeRoom = async (roomId: string, event: MouseEvent) => {
   event.stopPropagation()
 
   const vaultId = route.params.id as string
@@ -256,7 +256,7 @@ const handleUpgradeRoom = async (roomId: string, event: Event) => {
 }
 
 // Handle room click to open detail modal
-const handleRoomClick = (room: Room, event: Event) => {
+const handleRoomClick = (room: Room, event: MouseEvent) => {
   // Don't open detail modal if clicking on action buttons or incident overlay
   const target = event.target as HTMLElement
   if (
@@ -439,8 +439,8 @@ const closeDetailModal = () => {
 
 .notification-success {
   background: rgba(0, 128, 0, 0.9);
-  border: 2px solid #00ff00;
-  color: #00ff00;
+  border: 2px solid var(--color-theme-primary);
+  color: var(--color-theme-primary);
 }
 
 .notification-error {
@@ -517,15 +517,15 @@ const closeDetailModal = () => {
 }
 
 .room.selected {
-  border-color: #00ff00;
+  border-color: var(--color-theme-primary);
   transform: scale(1.05);
 }
 
 .room.drag-over {
-  border-color: #00ff00;
+  border-color: var(--color-theme-primary);
   border-width: 3px;
-  background-color: rgba(0, 255, 0, 0.1);
-  box-shadow: 0 0 20px rgba(0, 255, 0, 0.4);
+  background-color: var(--color-theme-glow);
+  box-shadow: 0 0 20px var(--color-theme-glow);
 }
 
 .room-content {
@@ -537,7 +537,7 @@ const closeDetailModal = () => {
 .room-name {
   font-size: 0.95em; /* Reduced from 1.2em */
   margin-bottom: 5px;
-  color: #00ff00;
+  color: var(--color-theme-primary);
   font-weight: 600; /* Slightly less bold but still readable */
 }
 
@@ -568,7 +568,7 @@ const closeDetailModal = () => {
   flex-direction: column;
   align-items: center;
   gap: 0.25rem;
-  color: #00ff00;
+  color: var(--color-theme-primary);
   font-size: 0.875rem;
   font-weight: bold;
   pointer-events: none;
@@ -700,7 +700,7 @@ const closeDetailModal = () => {
 }
 
 .hover-preview {
-  background-color: rgba(0, 255, 0, 0.3);
+  background-color: var(--color-theme-glow);
   z-index: 1;
 }
 
@@ -708,16 +708,16 @@ const closeDetailModal = () => {
   background-color: transparent;
   background-image: linear-gradient(
     45deg,
-    rgba(0, 255, 0, 0.5) 25%,
+    var(--color-theme-glow) 25%,
     transparent 25%,
     transparent 50%,
-    rgba(0, 255, 0, 0.5) 50%,
-    rgba(0, 255, 0, 0.5) 75%,
+    var(--color-theme-glow) 50%,
+    var(--color-theme-glow) 75%,
     transparent 75%,
     transparent
   );
   background-size: 20px 20px;
-  border: 2px solid #00ff00;
+  border: 2px solid var(--color-theme-primary);
 }
 
 .invalid-placement .hover-preview {

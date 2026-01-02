@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import axios from '@/plugins/axios'
 import type { Relationship, RelationshipCreate, CompatibilityScore } from '@/models/relationship'
 import { useToast } from '@/composables/useToast'
+import { getErrorMessage } from '@/types/utils'
 
 export const useRelationshipStore = defineStore('relationship', () => {
   const toast = useToast()
@@ -36,9 +37,9 @@ export const useRelationshipStore = defineStore('relationship', () => {
     try {
       const response = await axios.get(`/api/v1/relationships/vault/${vaultId}`)
       relationships.value = response.data
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to fetch relationships:', error)
-      toast.error('Failed to load relationships')
+      toast.error(getErrorMessage(error))
     } finally {
       isLoading.value = false
     }
@@ -48,9 +49,9 @@ export const useRelationshipStore = defineStore('relationship', () => {
     try {
       const response = await axios.get(`/api/v1/relationships/${relationshipId}`)
       return response.data
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to fetch relationship:', error)
-      toast.error('Failed to load relationship')
+      toast.error(getErrorMessage(error))
       return null
     }
   }
@@ -69,9 +70,9 @@ export const useRelationshipStore = defineStore('relationship', () => {
 
       toast.success('Relationship created')
       return relationship
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to create relationship:', error)
-      toast.error('Failed to create relationship')
+      toast.error(getErrorMessage(error))
       return null
     } finally {
       isLoading.value = false
@@ -92,10 +93,9 @@ export const useRelationshipStore = defineStore('relationship', () => {
 
       toast.success('Romance initiated!')
       return updated
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to initiate romance:', error)
-      const message = error.response?.data?.detail || 'Failed to initiate romance'
-      toast.error(message)
+      toast.error(getErrorMessage(error))
       return null
     } finally {
       isLoading.value = false
@@ -116,10 +116,9 @@ export const useRelationshipStore = defineStore('relationship', () => {
 
       toast.success('Dwellers are now partners!')
       return updated
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to make partners:', error)
-      const message = error.response?.data?.detail || 'Failed to make partners'
-      toast.error(message)
+      toast.error(getErrorMessage(error))
       return null
     } finally {
       isLoading.value = false
@@ -140,10 +139,9 @@ export const useRelationshipStore = defineStore('relationship', () => {
 
       toast.success('Relationship ended')
       return true
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to break up:', error)
-      const message = error.response?.data?.detail || 'Failed to end relationship'
-      toast.error(message)
+      toast.error(getErrorMessage(error))
       return false
     } finally {
       isLoading.value = false
@@ -159,9 +157,9 @@ export const useRelationshipStore = defineStore('relationship', () => {
         `/api/v1/relationships/compatibility/${dweller1Id}/${dweller2Id}`
       )
       return response.data
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to calculate compatibility:', error)
-      toast.error('Failed to calculate compatibility')
+      toast.error(getErrorMessage(error))
       return null
     }
   }
@@ -177,10 +175,9 @@ export const useRelationshipStore = defineStore('relationship', () => {
 
       toast.success('Dwellers paired successfully!')
       return relationship
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to quick pair:', error)
-      const message = error.response?.data?.detail || 'Failed to pair dwellers'
-      toast.error(message)
+      toast.error(getErrorMessage(error))
       return null
     } finally {
       isLoading.value = false

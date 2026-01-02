@@ -3,15 +3,23 @@
 @theme {
   /* ============================================
      FALLOUT SHELTER DESIGN SYSTEM
+     Multi-theme support: FO3 (Green), FNV (Amber), FO4 (Teal)
+     Based on THEMES.md specification
      ============================================ */
 
-  /* === COLORS === */
-  /* Terminal Green Palette */
-  --color-terminal-green: #00ff00;
-  --color-terminal-green-light: #39ff14;
-  --color-terminal-green-dark: #00cc00;
-  --color-terminal-green-dim: #00aa00;
-  --color-terminal-green-glow: rgba(0, 255, 0, 0.3);
+  /* === THEME COLORS (Dynamic via CSS vars) === */
+  /* These colors change based on active theme */
+  --color-theme-primary: var(--theme-primary, #00ff00);
+  --color-theme-secondary: var(--theme-secondary, #003300);
+  --color-theme-accent: var(--theme-accent, #00cc00);
+  --color-theme-glow: var(--theme-glow, rgba(0, 255, 0, 0.3));
+
+  /* Legacy terminal green (maps to theme colors for compatibility) */
+  --color-terminal-green: var(--color-theme-primary);
+  --color-terminal-green-light: var(--color-theme-primary);
+  --color-terminal-green-dark: var(--color-theme-accent);
+  --color-terminal-green-dim: var(--color-theme-accent);
+  --color-terminal-green-glow: var(--color-theme-glow);
 
   /* Background & Surface Colors */
   --color-terminal-background: #000000;
@@ -31,8 +39,8 @@
   --color-gray-800: #262626;
   --color-gray-900: #171717;
 
-  /* Semantic Colors */
-  --color-success: #00ff00;
+  /* Semantic Colors (theme-aware) */
+  --color-success: var(--color-theme-primary);
   --color-warning: #ffaa00;
   --color-danger: #ff0000;
   --color-info: #00aaff;
@@ -94,10 +102,10 @@
   --border-radius-full: 9999px;
 
   /* === SHADOWS === */
-  --shadow-glow-sm: 0 0 5px var(--color-terminal-green-glow);
-  --shadow-glow-md: 0 0 10px var(--color-terminal-green-glow);
-  --shadow-glow-lg: 0 0 20px var(--color-terminal-green-glow);
-  --shadow-terminal: 0 0 10px var(--color-terminal-green);
+  --shadow-glow-sm: 0 0 5px var(--color-theme-glow);
+  --shadow-glow-md: 0 0 10px var(--color-theme-glow);
+  --shadow-glow-lg: 0 0 20px var(--color-theme-glow);
+  --shadow-terminal: 0 0 10px var(--color-theme-primary);
 
   /* === TRANSITIONS === */
   --transition-fast: 150ms;
@@ -121,9 +129,9 @@
 /* === GLOBAL STYLES === */
 body {
   background-color: var(--color-terminal-background);
-  color: var(--color-terminal-green);
+  color: var(--color-theme-primary);
   font-family: var(--font-family-mono);
-  text-shadow: 0 0 10px var(--color-terminal-green);
+  text-shadow: 0 0 10px var(--color-theme-glow);
   min-height: 100vh;
   line-height: var(--line-height-normal);
   font-size: var(--font-size-base);
@@ -166,14 +174,14 @@ body {
 /* Terminal Glow */
 .terminal-glow {
   text-shadow:
-    0 0 5px var(--color-terminal-green),
-    0 0 10px var(--color-terminal-green),
-    0 0 15px var(--color-terminal-green),
-    0 0 20px var(--color-terminal-green);
+    0 0 5px var(--color-theme-primary),
+    0 0 10px var(--color-theme-primary),
+    0 0 15px var(--color-theme-primary),
+    0 0 20px var(--color-theme-primary);
 }
 
 .terminal-glow-subtle {
-  text-shadow: 0 0 10px var(--color-terminal-green);
+  text-shadow: 0 0 10px var(--color-theme-primary);
 }
 
 /* CRT Screen Curve (optional enhancement) */
@@ -181,5 +189,104 @@ body {
   border-radius: 5px;
   box-shadow:
     inset 0 0 50px rgba(0, 0, 0, 0.5),
-    0 0 20px rgba(0, 255, 0, 0.2);
+    0 0 20px var(--color-theme-glow);
+}
+
+/* === THEME-AWARE COMPONENT CLASSES === */
+/* These are plain CSS classes that use theme variables */
+
+/* Terminal Card */
+.terminal-card {
+  border: 1px solid var(--color-theme-primary);
+  background-color: rgba(0, 0, 0, 0.9);
+  border-radius: 0.25rem;
+  box-shadow: 0 0 10px var(--color-theme-glow);
+  transition: all 200ms;
+}
+
+.terminal-card:hover {
+  box-shadow: 0 0 20px var(--color-theme-glow);
+}
+
+/* Terminal Button */
+.terminal-button {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-theme-primary);
+  color: var(--color-theme-primary);
+  background-color: transparent;
+  border-radius: 0.25rem;
+  transition: all 200ms;
+  cursor: pointer;
+}
+
+.terminal-button:hover:not(:disabled) {
+  background-color: rgba(var(--color-theme-primary), 0.1);
+  box-shadow: 0 0 10px var(--color-theme-glow);
+}
+
+.terminal-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Terminal Input */
+.terminal-input {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-theme-primary);
+  background-color: #000000;
+  color: var(--color-theme-primary);
+  border-radius: 0.25rem;
+  transition: all 200ms;
+}
+
+.terminal-input:focus {
+  outline: none;
+  box-shadow: 0 0 10px var(--color-theme-glow);
+}
+
+/* Terminal Badge */
+.terminal-badge {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  border: 1px solid var(--color-theme-primary);
+  color: var(--color-theme-primary);
+  border-radius: 0.25rem;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* Notification */
+.terminal-notification {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-theme-primary);
+  background-color: rgba(0, 0, 0, 0.95);
+  color: var(--color-theme-primary);
+  border-radius: 0.25rem;
+  box-shadow: 0 0 20px var(--color-theme-glow);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.terminal-notification-success {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-theme-primary);
+  background-color: rgba(0, 0, 0, 0.95);
+  color: var(--color-theme-primary);
+  border-radius: 0.25rem;
+  box-shadow: 0 0 20px var(--color-theme-glow);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.terminal-notification-error {
+  padding: 0.75rem 1rem;
+  border: 1px solid #ff0000;
+  background-color: rgba(0, 0, 0, 0.95);
+  color: #ff0000;
+  border-radius: 0.25rem;
+  box-shadow: 0 0 20px rgba(255, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }

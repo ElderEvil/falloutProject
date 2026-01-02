@@ -1,7 +1,7 @@
 <template>
   <div class="pregnancy-tracker">
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-xl font-mono text-green-400">Pregnancies</h2>
+      <h2 class="text-xl font-mono" :style="{ color: 'var(--color-theme-primary)' }">Pregnancies</h2>
       <div class="flex gap-2">
         <UBadge v-if="dueCount > 0" color="yellow" class="animate-pulse">
           {{ dueCount }} Due!
@@ -14,7 +14,7 @@
 
     <div v-if="isLoading" class="text-center py-8">
       <div class="text-4xl animate-pulse">👶</div>
-      <p class="mt-2 text-green-400">Loading pregnancies...</p>
+      <p class="mt-2" :style="{ color: 'var(--color-theme-primary)' }">Loading pregnancies...</p>
     </div>
 
     <div v-else-if="pregnancies.length === 0" class="text-center py-8 text-gray-400">

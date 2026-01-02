@@ -115,7 +115,7 @@ def vault_data_fixture():
     import random
 
     return {
-        "number": random.randint(1, 1_000),
+        "number": random.randint(1, 999),  # Must be < 1000 per validation
         "bottle_caps": random.randint(100, 1_000_000),
         "happiness": random.randint(0, 100),
         "power": random.randint(0, 100),
@@ -176,7 +176,7 @@ async def vault_fixture(async_session: AsyncSession) -> "Vault":  # noqa: F821
 
     # Create vault
     vault_data = {
-        "number": random.randint(1, 1_000),
+        "number": random.randint(1, 999),  # Must be < 1000 per validation
         "bottle_caps": random.randint(100, 1_000_000),
         "happiness": random.randint(0, 100),
         "power": random.randint(0, 100),

@@ -10,6 +10,8 @@ import DwellerChatPage from '@/components/chat/DwellerChatPage.vue';
 import ObjectivesView from '@/views/ObjectivesView.vue';
 import RadioView from '@/views/RadioView.vue';
 import RelationshipsView from '@/views/RelationshipsView.vue';
+
+import TrainingView from '@/views/TrainingView.vue';
 import ProfileView from '@/views/ProfileView.vue';
 
 const router = createRouter({
@@ -60,6 +62,12 @@ const router = createRouter({
       path: '/vault/:id/relationships',
       name: 'relationships',
       component: RelationshipsView,
+      meta: { requiresAuth: true, hideFromNav: true }
+    },
+    {
+      path: '/vault/:id/training',
+      name: 'training',
+      component: TrainingView,
       meta: { requiresAuth: true, hideFromNav: true }
     },
     {

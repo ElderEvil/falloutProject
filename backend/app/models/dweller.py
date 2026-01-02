@@ -99,9 +99,18 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, table=True):
     room: "Room" = Relationship(back_populates="dwellers")
 
     # Relationships and Family
-    partner_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", nullable=True)
-    parent_1_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", nullable=True)
-    parent_2_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", nullable=True)
+    partner_id: UUID4 | None = Field(
+        default=None,
+        sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="SET NULL"), nullable=True),
+    )
+    parent_1_id: UUID4 | None = Field(
+        default=None,
+        sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="SET NULL"), nullable=True),
+    )
+    parent_2_id: UUID4 | None = Field(
+        default=None,
+        sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="SET NULL"), nullable=True),
+    )
 
     # Inventory
     weapon: "Weapon" = Relationship(back_populates="dweller", cascade_delete=True)

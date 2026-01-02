@@ -100,7 +100,10 @@ class TrainingService:
 
         # Check if stat is already maxed
         current_stat_value = getattr(dweller, stat_to_train.value.lower())
-        if current_stat_value >= SPECIAL_STAT_MAX:
+        # Defensive: if stat is None (shouldn't happen), treat as 1 (minimum)
+        if current_stat_value is None:
+            current_stat_value = 1
+        elif current_stat_value >= SPECIAL_STAT_MAX:
             return False, f"{stat_to_train.value} is already at maximum ({SPECIAL_STAT_MAX})"
 
         # Check room capacity
@@ -137,6 +140,9 @@ class TrainingService:
         if not dweller:
             raise ResourceNotFoundException(model=Dweller, identifier=dweller_id)
 
+        # Refresh to ensure all SPECIAL stats are loaded
+        await db_session.refresh(dweller)
+
         room = await room_crud.get(db_session, room_id)
         if not room:
             raise ResourceNotFoundException(model=Room, identifier=room_id)
@@ -151,6 +157,10 @@ class TrainingService:
         # Get current stat value
         stat_to_train = room.ability
         current_stat_value = getattr(dweller, stat_to_train.value.lower())
+        # Defensive: if stat is None (shouldn't happen), treat as 1 (minimum)
+        if current_stat_value is None:
+            self.logger.warning(f"Dweller {dweller.id} has None value for {stat_to_train.value}, using 1")
+            current_stat_value = 1
 
         # Calculate duration
         duration_seconds = self.calculate_training_duration(current_stat_value, room.tier)

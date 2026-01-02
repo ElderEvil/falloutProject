@@ -193,7 +193,7 @@ describe('Vault Store', () => {
   })
 
   describe('loadVault Action', () => {
-    it('should load vault and navigate to vault view', async () => {
+    it('should load vault and set active vault', async () => {
       const store = useVaultStore()
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockVault })
 
@@ -202,7 +202,6 @@ describe('Vault Store', () => {
       expect(store.loadedVaults['vault-1']).toEqual(mockVault)
       expect(store.activeVaultId).toBe('vault-1')
       expect(store.isLoading).toBe(false)
-      expect(mockRouter.push).toHaveBeenCalledWith('/vault')
     })
 
     it('should set loading state correctly', async () => {

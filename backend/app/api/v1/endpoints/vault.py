@@ -105,7 +105,9 @@ async def start_vault(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ):
-    return await crud.vault.initiate(db_session=db_session, obj_in=vault_data, user_id=user.id)
+    return await crud.vault.initiate(
+        db_session=db_session, obj_in=vault_data, user_id=user.id, is_superuser=user.is_superuser
+    )
 
 
 @router.post("/update_resources", status_code=200)

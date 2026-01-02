@@ -38,12 +38,12 @@ class SoftDeleteMixin:
 
 
 class SPECIALModel(SQLModel):
-    strength: int = Field(ge=1, le=10, alias="S")
-    perception: int = Field(ge=1, le=10, alias="P")
-    endurance: int = Field(ge=1, le=10, alias="E")
-    charisma: int = Field(ge=1, le=10, alias="C")
-    intelligence: int = Field(ge=1, le=10, alias="I")
-    agility: int = Field(ge=1, le=10, alias="A")
-    luck: int = Field(ge=1, le=10, alias="L")
+    strength: int = Field(default=1, ge=1, le=10, alias="S")
+    perception: int = Field(default=1, ge=1, le=10, alias="P")
+    endurance: int = Field(default=1, ge=1, le=10, alias="E")
+    charisma: int = Field(default=1, ge=1, le=10, alias="C")
+    intelligence: int = Field(default=1, ge=1, le=10, alias="I")
+    agility: int = Field(default=1, ge=1, le=10, alias="A")
+    luck: int = Field(default=1, ge=1, le=10, alias="L")
 
     model_config = {"populate_by_name": True}

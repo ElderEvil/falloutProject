@@ -3,7 +3,10 @@ import { computed } from 'vue';
 import { Icon } from '@iconify/vue';
 import UButton from '@/components/ui/UButton.vue';
 import UTooltip from '@/components/ui/UTooltip.vue';
-import type { DwellerDetailRead } from '@/types/dweller';
+import XPProgressBar from '@/components/dwellers/XPProgressBar.vue';
+import type { components } from '@/types/api.generated';
+
+type DwellerDetailRead = components['schemas']['DwellerDetailRead'];
 
 interface Props {
   dweller: DwellerDetailRead;
@@ -87,6 +90,12 @@ const healthPercentage = computed(() => {
       <div class="happiness-bar">
         <div class="happiness-fill" :style="{ width: `${dweller.happiness}%` }"></div>
       </div>
+
+      <!-- XP Progress Bar -->
+      <XPProgressBar
+        :level="dweller.level"
+        :current-x-p="dweller.experience"
+      />
     </div>
 
     <!-- Action Buttons -->

@@ -5,6 +5,37 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ---
 
+## 🚧 Current Sprint: v1.7 Training System & Testing (IN PROGRESS)
+
+### ⚠️ BLOCKING ISSUE: SPECIAL Stats Lazy Loading
+**Status**: Critical bug preventing training auto-start
+- Dwellers have SPECIAL stats in database but load as `None` via `dweller_crud.get()`
+- SQLAlchemy/SQLModel lazy loading issue with inherited `SPECIALModel` columns
+- Defensive workarounds added, but root cause needs investigation
+- See `TODO.md` for detailed analysis and fix approaches
+
+### What's Done ✅
+- Superuser vault creates all 7 training rooms + extra dwellers
+- Refactored vault initialization (180 lines → 4 focused methods)
+- Fixed `TrainingStatus` enum migration (varchar → PostgreSQL enum)
+- Frontend grid expanded to 8x16 with locked rows
+- Room tier now properly initialized
+- Test infrastructure in place
+
+### What's Blocked ❌
+- Training session auto-start (blocked by SPECIAL stats bug)
+- Full test validation (expectations temporarily weakened)
+- Frontend training queue display
+
+### Next Steps
+1. Fix SPECIAL stats lazy loading (try selectinload/joinedload)
+2. Verify training auto-start creates 7 sessions
+3. Test frontend training queue UI
+4. Clean up debug logging
+5. Full commit with working functionality
+
+---
+
 ## ✅ Completed Features
 
 ### Core Infrastructure

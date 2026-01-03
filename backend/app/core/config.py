@@ -65,6 +65,11 @@ class Settings(BaseSettings):
     EMAIL_FROM_NAME: str = "Fallout Shelter"
     FRONTEND_URL: str = "http://localhost:5173"  # For email links
 
+    # Logging Configuration
+    LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
+    LOG_JSON_FORMAT: bool = False  # True for production (JSON), False for development (human-readable)
+    LOG_FILE_PATH: str | None = None  # Optional: "/var/log/fallout_shelter/app.log"
+
     @property
     def redis_url(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"

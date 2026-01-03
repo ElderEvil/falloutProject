@@ -25,8 +25,8 @@ from app.api.v1.endpoints import (
 )
 
 api_router = APIRouter()
-api_router.include_router(login.router, tags=["login"])
-api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+api_router.include_router(login.router, tags=["Login"])
+api_router.include_router(auth.router, prefix="/auth", tags=["Auth"])
 api_router.include_router(chat.router, prefix="/chat", tags=["Chat"])
 api_router.include_router(dweller.router, prefix="/dwellers", tags=["Dweller"])
 api_router.include_router(exploration.router, prefix="/explorations", tags=["Exploration"])

@@ -211,3 +211,25 @@ async def generate_dweller_avatar(  # noqa: PLR0913
 @router.get("/read_data/", response_model=list[DwellerCreateWithoutVaultID])
 def read_dwellers_data(data_store=Depends(get_static_game_data)):
     return data_store.dwellers
+
+
+@router.post("/{dweller_id}/use_stimpack", response_model=DwellerRead)
+async def use_stimpack(
+    dweller_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+):
+    """Use a stimpack to heal the dweller (restores 40% of max health)."""
+    await verify_dweller_access(dweller_id, user, db_session)
+    return await crud.dweller.use_stimpack(db_session, dweller_id)
+
+
+@router.post("/{dweller_id}/use_radaway", response_model=DwellerRead)
+async def use_radaway(
+    dweller_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+):
+    """Use a radaway to remove radiation from the dweller (removes 50% of radiation)."""
+    await verify_dweller_access(dweller_id, user, db_session)
+    return await crud.dweller.use_radaway(db_session, dweller_id)

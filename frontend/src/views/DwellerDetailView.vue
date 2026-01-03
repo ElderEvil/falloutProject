@@ -72,6 +72,37 @@ const generateDwellerInfo = async () => {
 const handleRefresh = async () => {
   await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
 }
+
+const usingStimpack = ref(false)
+const usingRadaway = ref(false)
+
+const handleUseStimpack = async () => {
+  if (!dweller.value || usingStimpack.value) return
+
+  usingStimpack.value = true
+  try {
+    await dwellerStore.useStimpack(dwellerId.value, authStore.token as string)
+    await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
+  } catch (error) {
+    console.error('Error using stimpack:', error)
+  } finally {
+    usingStimpack.value = false
+  }
+}
+
+const handleUseRadaway = async () => {
+  if (!dweller.value || usingRadaway.value) return
+
+  usingRadaway.value = true
+  try {
+    await dwellerStore.useRadaway(dwellerId.value, authStore.token as string)
+    await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
+  } catch (error) {
+    console.error('Error using radaway:', error)
+  } finally {
+    usingRadaway.value = false
+  }
+}
 </script>
 
 <template>
@@ -124,11 +155,13 @@ const handleRefresh = async () => {
               <DwellerCard
                 :dweller="dweller"
                 :image-url="dweller.image_url"
-                :loading="generatingAI"
+                :loading="generatingAI || usingStimpack || usingRadaway"
                 @chat="navigateToChatPage"
                 @assign="handleAssign"
                 @recall="handleRecall"
                 @generate-ai="generateDwellerInfo"
+                @use-stimpack="handleUseStimpack"
+                @use-radaway="handleUseRadaway"
               />
 
               <!-- Right Column: Dweller Panel -->

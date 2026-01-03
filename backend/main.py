@@ -31,14 +31,16 @@ from app.admin.views import (
 )
 from app.api.v1.api import api_router as api_router_v1
 from app.core.config import settings
+from app.core.logging import setup_logging
 from app.db.session import async_engine
+from app.middleware.request_id import RequestIdMiddleware
 from app.services.health_check import HealthCheckService
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
+# Configure logging with centralized setup
+setup_logging(
+    log_level=settings.LOG_LEVEL,
+    json_format=settings.LOG_JSON_FORMAT,
+    log_file=settings.LOG_FILE_PATH,
 )
 
 logger = logging.getLogger(__name__)
@@ -52,7 +54,15 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     Performs health checks on startup and cleanup on shutdown.
     """
     # Startup: Check service health
-    logger.info("Starting Fallout Shelter API...")
+    logger.info(
+        "Starting Fallout Shelter API",
+        extra={
+            "environment": settings.ENVIRONMENT,
+            "api_version": settings.API_VERSION,
+            "log_level": settings.LOG_LEVEL,
+            "json_logging": settings.LOG_JSON_FORMAT,
+        },
+    )
 
     health_check_service = HealthCheckService()
     results = await health_check_service.check_all_services(async_engine)
@@ -72,6 +82,9 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     lifespan=lifespan,
 )
+
+# Add request ID middleware (first, so it wraps all other middleware)
+app.add_middleware(RequestIdMiddleware)
 
 # Add session middleware for admin authentication
 app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)

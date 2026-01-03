@@ -1,3 +1,100 @@
+## [1.7.0] - 2026-01-03
+
+### Added
+
+#### Structured Logging System
+
+- **Centralized Logging Configuration** (`app/core/logging.py`):
+  - `setup_logging()` function with environment-based configuration
+  - JSON formatter for production (structured logs with timestamps, levels, context)
+  - Human-readable formatter for development (colored, request ID tracking)
+  - Context vars for request ID propagation across async operations
+  - Custom JSON formatter with additional fields (timestamp, level, module, function, exception)
+
+- **Request ID Middleware** (`app/middleware/request_id.py`):
+  - Automatic request ID generation (UUID4)
+  - Support for X-Request-ID header from proxies/load balancers
+  - Request ID added to all log records
+  - X-Request-ID returned in response headers for client-side tracing
+
+- **Configuration** (`app/core/config.py`):
+  - `LOG_LEVEL`: Configurable log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+  - `LOG_JSON_FORMAT`: Toggle JSON vs human-readable format
+  - `LOG_FILE_PATH`: Optional file logging
+
+- **Print Statement Replacement**:
+  - `app/utils/load_quests.py`: Replaced 2 print statements with `logger.info/debug`
+  - `app/utils/image_processing.py`: Replaced print with `logger.error` (with exc_info)
+  - `app/api/v1/endpoints/chat.py`: Replaced print with `logger.debug`
+
+- **Startup Logging** (`main.py`):
+  - Log environment, API version, log level, JSON logging status on startup
+  - Request ID middleware integrated into app
+
+- **Dependencies**:
+  - Added `python-json-logger>=4.0.0` for structured JSON logging
+
+#### Stimpack & RadAway System
+
+- **Backend API**:
+  - `POST /api/v1/dwellers/{id}/use_stimpack` - Heal dweller for 40% of max health
+  - `POST /api/v1/dwellers/{id}/use_radaway` - Remove 50% of radiation
+  - Validation: Checks for item availability and need (no healing at full health, no radiation removal at 0 radiation)
+  - Error handling with descriptive messages
+
+- **CRUD Operations**:
+  - `use_stimpack()` method in CRUDDweller with health restoration logic
+  - `use_radaway()` method in CRUDDweller with radiation removal logic
+  - Proper exception handling (ResourceConflictException, ContentNoChangeException)
+
+- **Frontend UI**:
+  - Inventory display in DwellerCard showing stimpack/radaway counts
+  - Icon-based inventory stats with color coding (green for stimpack, yellow for radaway)
+  - Radiation stat display when radiation > 0
+  - "Use Stimpack" and "Use RadAway" buttons with smart validation
+  - Buttons disabled when items unavailable or not needed
+  - Loading states during item usage
+  - Toast notifications for success/error feedback
+
+- **Store Integration**:
+  - `useStimpack()` and `useRadaway()` methods in dwellerStore
+  - Automatic state updates after item usage
+  - Error message extraction from API responses
+
+#### Chat & Notification System (v1.7)
+
+- **ChatMessage Model**: Persistent user-dweller conversations
+  - Database-backed message storage with relationships (user_id, vault_id, dweller_id)
+  - Message history preserved across sessions
+  - Timestamp tracking for conversation ordering
+
+- **Notification Model**: One-way system notifications
+  - Level-up notifications
+  - Birth announcements
+  - Recruitment alerts
+  - Event-driven notification creation
+
+- **WebSocket Infrastructure**:
+  - ConnectionManager for real-time message delivery
+  - Instant message delivery without polling
+  - Backend notification service integrated with game events
+
+- **Frontend Chat System**:
+  - Chat history loading and display
+  - Messages restored when re-entering chat
+  - Real-time message updates via WebSocket
+
+### Fixed
+
+- **Dweller Sorting**: Backend now properly sorts dwellers by `first_name + last_name` when using "name" sort parameter
+- **Navigation Bug**: Fixed chat page → dwellers button to use correct vault ID instead of dweller ID
+
+### Technical
+
+- WebSocket connection management with async support
+- Notification service layer for game event integration
+- Enhanced chat endpoints with history retrieval
+
 ## [1.6.0] - 2026-01-02
 
 ### Added

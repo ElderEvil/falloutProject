@@ -5,7 +5,9 @@ from pathlib import Path
 from app.crud.base import CreateSchemaType
 from app.schemas.dweller import DwellerCreateWithoutVaultID
 from app.schemas.junk import JunkCreate
+from app.schemas.objective import ObjectiveCreate
 from app.schemas.outfit import OutfitCreate
+from app.schemas.quest import QuestChainJSON
 from app.schemas.room import RoomCreateWithoutVaultID
 from app.schemas.weapon import WeaponCreate
 
@@ -22,6 +24,8 @@ class StaticGameData:
         self._junk_items: list[JunkCreate] | None = None
         self._outfits: list[OutfitCreate] | None = None
         self._weapons: list[WeaponCreate] | None = None
+        self._quests: list[QuestChainJSON] | None = None
+        self._objectives: list[ObjectiveCreate] | None = None
 
     @property
     def dwellers(self) -> list[DwellerCreateWithoutVaultID]:
@@ -59,6 +63,36 @@ class StaticGameData:
         if self._rooms is None:
             self._rooms = self.load_data(DATA_DIR / "vault/rooms.json", RoomCreateWithoutVaultID)
         return self._rooms
+
+    @property
+    def quests(self) -> list[QuestChainJSON]:
+        """Load all quest chains from JSON files."""
+        if self._quests is None:
+            from app.utils.load_quests import load_all_quest_chain_files
+
+            try:
+                self._quests = load_all_quest_chain_files(quest_dir=DATA_DIR / "quests")
+            except Exception:
+                logger.exception("Failed to load quest chains")
+                self._quests = []
+        return self._quests
+
+    @property
+    def objectives(self) -> list[ObjectiveCreate]:
+        """Load all objectives from JSON files."""
+        if self._objectives is None:
+            objectives_dir = DATA_DIR / "objectives"
+            all_objectives = []
+            if objectives_dir.exists():
+                for json_file in objectives_dir.glob("*.json"):
+                    objectives_data = self.load_data(json_file, ObjectiveCreate)
+                    all_objectives.extend(objectives_data)
+                    logger.debug(
+                        "Loaded objectives from file", extra={"file": json_file.name, "count": len(objectives_data)}
+                    )
+            self._objectives = all_objectives
+            logger.info("Loaded all objectives", extra={"total_objectives": len(all_objectives)})
+        return self._objectives
 
     @staticmethod
     def load_data(file_path: Path, model: type[CreateSchemaType]) -> list[CreateSchemaType]:

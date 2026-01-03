@@ -57,3 +57,33 @@ async def update_quest(
 @router.delete("/{vault_id}/{quest_id}", status_code=204)
 async def delete_quest(quest_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
     return await crud.quest_crud.delete(db_session, quest_id)
+
+
+@router.post("/{vault_id}/{quest_id}/assign", status_code=201)
+async def assign_quest_to_vault(
+    vault_id: UUID4,
+    quest_id: UUID4,
+    user: CurrentActiveUser,  # noqa: ARG001
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    *,
+    is_visible: bool = True,
+):
+    """
+    Assign a quest to a vault, making it available for completion.
+    """
+    return await crud.quest_crud.assign_to_vault(
+        db_session=db_session, quest_id=quest_id, vault_id=vault_id, is_visible=is_visible
+    )
+
+
+@router.post("/{vault_id}/{quest_id}/complete", status_code=200)
+async def complete_quest(
+    vault_id: UUID4,
+    quest_id: UUID4,
+    user: CurrentActiveUser,  # noqa: ARG001
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+):
+    """
+    Mark a quest as completed for a vault.
+    """
+    return await crud.quest_crud.complete(db_session=db_session, quest_entity_id=quest_id, vault_id=vault_id)

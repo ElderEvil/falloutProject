@@ -32,9 +32,11 @@ from app.admin.views import (
 from app.api.v1.api import api_router as api_router_v1
 from app.core.config import settings
 from app.core.logging import setup_logging
-from app.db.session import async_engine
+from app.db.session import async_engine, get_async_session
 from app.middleware.request_id import RequestIdMiddleware
 from app.services.health_check import HealthCheckService
+from app.utils.seed_objectives import seed_objectives_from_json
+from app.utils.seed_quests import seed_quests_from_json
 
 # Configure logging with centralized setup
 setup_logging(
@@ -67,6 +69,17 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     health_check_service = HealthCheckService()
     results = await health_check_service.check_all_services(async_engine)
     health_check_service.log_health_check_results(results)
+
+    # Seed quests and objectives from JSON files
+    async for session in get_async_session():
+        quest_count = await seed_quests_from_json(session)
+        objective_count = await seed_objectives_from_json(session)
+
+        if quest_count > 0:
+            logger.info("Quest seeding complete: %d quests added", quest_count)
+        if objective_count > 0:
+            logger.info("Objective seeding complete: %d objectives added", objective_count)
+        break
 
     logger.info("Fallout Shelter API startup complete")
 

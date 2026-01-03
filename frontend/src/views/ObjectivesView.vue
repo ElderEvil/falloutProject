@@ -5,6 +5,7 @@ import { useObjectivesStore } from '@/stores/objectives'
 import { useVaultStore } from '@/stores/vault'
 import SidePanel from '@/components/common/SidePanel.vue'
 import { useSidePanel } from '@/composables/useSidePanel'
+import { Icon } from '@iconify/vue'
 
 const route = useRoute()
 const objectivesStore = useObjectivesStore()
@@ -50,6 +51,7 @@ const completedObjectives = computed(() => filterObjectives(true))
         :class="{ active: activeTab === 'notCompleted' }"
         class="tab-button"
       >
+        <Icon icon="mdi:target" class="inline mr-2" />
         Active
       </button>
       <button
@@ -57,6 +59,7 @@ const completedObjectives = computed(() => filterObjectives(true))
         :class="{ active: activeTab === 'completed' }"
         class="tab-button"
       >
+        <Icon icon="mdi:check-circle" class="inline mr-2" />
         Completed
       </button>
     </div>
@@ -152,71 +155,84 @@ const completedObjectives = computed(() => filterObjectives(true))
 
 
 .objectives-container {
-  max-width: 1200px; /* Increased the width */
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 24px; /* Increased padding for more space */
-  background-color: #1a1a1a;
-  color: var(--color-theme-primary);
-  border: 2px solid var(--color-theme-primary);
-  border-radius: 8px;
 }
 
 .title {
-  font-size: 2.5rem; /* Increased font size for title */
+  font-size: 2.5rem;
   font-weight: bold;
-  margin-bottom: 24px; /* Increased bottom margin */
+  margin-bottom: 24px;
   text-align: center;
 }
 
 .tabs {
   display: flex;
-  justify-content: center;
-  margin-bottom: 24px; /* Increased bottom margin */
+  justify-content: flex-start;
+  gap: 0;
+  margin-bottom: 24px;
+  border-bottom: 2px solid var(--color-theme-glow);
 }
 
 .tab-button {
-  padding: 10px 20px; /* Adjusted padding for larger buttons */
-  background-color: #2a2a2a;
+  padding: 10px 24px;
+  background-color: transparent;
   color: var(--color-theme-primary);
-  border: 1px solid var(--color-theme-primary);
-  border-radius: 4px;
-  margin: 0 12px; /* Increased margin between buttons */
+  border: none;
+  border-bottom: 3px solid transparent;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: all 0.2s;
+  font-size: 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.6;
 }
 
 .tab-button.active {
-  background-color: var(--color-theme-primary);
-  color: #000000;
+  opacity: 1;
+  border-bottom-color: var(--color-theme-primary);
+  background-color: var(--color-theme-glow);
 }
 
-.tab-button:hover {
-  background-color: var(--color-theme-accent);
+.tab-button:hover:not(.active) {
+  opacity: 0.8;
+  background-color: rgba(0, 0, 0, 0.2);
 }
 
 .objective-list {
   list-style-type: none;
   padding: 0;
   margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 16px;
 }
 
 .objective-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: #2a2a2a;
-  padding: 16px 20px; /* Increased padding for each item */
-  margin-bottom: 16px; /* Increased margin between items */
-  border: 1px solid var(--color-theme-primary);
+  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+  border: 2px solid var(--color-theme-primary);
   border-radius: 6px;
-  transition:
-    transform 0.3s,
-    background-color 0.3s;
+  padding: 16px;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.objective-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--color-theme-primary);
+  box-shadow: 0 0 8px var(--color-theme-glow);
 }
 
 .objective-item:hover {
-  transform: scale(1.02);
-  background-color: #333333;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px var(--color-theme-glow);
 }
 
 .objective-details {
@@ -224,19 +240,31 @@ const completedObjectives = computed(() => filterObjectives(true))
 }
 
 .objective-title {
-  font-size: 1.5rem; /* Increased font size for objective titles */
+  font-size: 1.1rem;
   font-weight: bold;
-  margin-bottom: 8px; /* Adjusted bottom margin */
+  margin-bottom: 8px;
+  color: var(--color-theme-primary);
 }
 
 .objective-reward,
 .objective-progress,
 .objective-status {
-  font-size: 1.1rem; /* Slightly increased font size */
+  font-size: 0.9rem;
   font-weight: normal;
   color: var(--color-theme-primary);
-  opacity: 0.7;
-  margin: 4px 0; /* Adjusted margins */
+  opacity: 0.85;
+  margin: 4px 0;
+  line-height: 1.5;
+}
+
+.completed-objective {
+  border-color: #666666;
+  opacity: 0.75;
+  background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
+}
+
+.completed-objective::before {
+  background: #666666;
 }
 
 .completed-objective .objective-details {

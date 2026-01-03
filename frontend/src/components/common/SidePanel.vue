@@ -42,32 +42,46 @@ const navItems = computed((): NavItem[] => {
       hotkey: '2'
     },
     {
+      id: 'exploration',
+      label: 'Exploration',
+      icon: 'mdi:compass',
+      comingSoon: { phase: 'Phase 2', quarter: 'Feb-Mar 2026' },
+      hotkey: '3'
+    },
+    {
       id: 'objectives',
       label: 'Objectives',
       icon: 'mdi:target',
       path: `/vault/${vaultId.value}/objectives`,
-      hotkey: '3'
+      hotkey: '4'
+    },
+    {
+      id: 'quests',
+      label: 'Quests',
+      icon: 'mdi:book-open-page-variant',
+      path: `/vault/${vaultId.value}/quests`,
+      hotkey: '5'
     },
     {
       id: 'radio',
       label: 'Radio Room',
       icon: 'mdi:radio-tower',
       path: `/vault/${vaultId.value}/radio`,
-      hotkey: '4'
+      hotkey: '6'
     },
     {
       id: 'relationships',
       label: 'Relationships',
       icon: 'mdi:heart-multiple',
       path: `/vault/${vaultId.value}/relationships`,
-      hotkey: '5'
+      hotkey: '7'
     },
     {
       id: 'training',
       label: 'Training',
       icon: 'mdi:dumbbell',
       path: `/vault/${vaultId.value}/training`,
-      hotkey: '6'
+      hotkey: '8'
     }
   ];
 });
@@ -160,14 +174,20 @@ onUnmounted(() => {
         :key="item.id"
         @click="item.path && navigate(item.path)"
         class="nav-item"
-        :class="{ active: isActive(item.path) }"
+        :class="{ active: isActive(item.path), locked: item.comingSoon }"
         :aria-label="`${item.label}${!isCollapsed && item.hotkey ? ' ' + item.hotkey : ''}`"
         :aria-keyshortcuts="item.hotkey"
-        :title="`${item.label}${item.hotkey ? ' (Shortcut: ' + item.hotkey + ')' : ''}`"
+        :title="item.comingSoon ? `${item.label} - ${item.comingSoon.phase} (${item.comingSoon.quarter})` : `${item.label}${item.hotkey ? ' (Shortcut: ' + item.hotkey + ')' : ''}`"
       >
         <Icon :icon="item.icon" class="nav-icon" />
-        <span v-if="!isCollapsed" class="nav-label">{{ item.label }}</span>
-        <span v-if="!isCollapsed && item.hotkey" class="hotkey-badge" aria-hidden="true">{{ item.hotkey }}</span>
+        <span v-if="!isCollapsed" class="nav-label" :class="{ 'locked-label': item.comingSoon }">{{ item.label }}</span>
+        <UTooltip
+          v-if="!isCollapsed && item.comingSoon"
+          :text="`${item.label} - Coming in ${item.comingSoon.phase} (${item.comingSoon.quarter})`"
+        >
+          <Icon icon="mdi:lock" class="lock-icon" />
+        </UTooltip>
+        <span v-else-if="!isCollapsed && item.hotkey" class="hotkey-badge" aria-hidden="true">{{ item.hotkey }}</span>
       </button>
 
       <!-- Coming Soon Divider -->

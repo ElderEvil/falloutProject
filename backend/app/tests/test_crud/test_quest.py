@@ -162,7 +162,7 @@ async def test_assign_quest_twice_updates_visibility(async_session: AsyncSession
 
 @pytest.mark.asyncio
 async def test_get_multi_for_vault(async_session: AsyncSession) -> None:
-    """Test getting multiple quests for a vault (only visible, not completed)."""
+    """Test getting multiple quests for a vault (returns all with visibility status)."""
     # Create user and vault
     user_data = create_fake_user()
     user_in = UserCreate(**user_data)
@@ -211,11 +211,14 @@ async def test_get_multi_for_vault(async_session: AsyncSession) -> None:
         db_session=async_session, quest_id=quest3.id, vault_id=vault.id, is_visible=True
     )
 
-    # Get quests for vault (should only return visible, not completed)
+    # Get quests for vault (returns all assigned quests with their visibility status)
     quests = await crud.quest_crud.get_multi_for_vault(db_session=async_session, skip=0, limit=100, vault_id=vault.id)
 
-    assert len(quests) == 2  # Only quest1 and quest3 should be returned
-    quest_titles = {q.title for q in quests}
-    assert "Quest 1" in quest_titles
-    assert "Quest 3" in quest_titles
-    assert "Quest 2" not in quest_titles  # Not visible
+    assert len(quests) == 3  # All three quests should be returned
+    quest_dict = {q.title: q for q in quests}
+    assert "Quest 1" in quest_dict
+    assert quest_dict["Quest 1"].is_visible is True
+    assert "Quest 2" in quest_dict
+    assert quest_dict["Quest 2"].is_visible is False  # Not visible but still returned
+    assert "Quest 3" in quest_dict
+    assert quest_dict["Quest 3"].is_visible is True

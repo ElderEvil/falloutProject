@@ -3,12 +3,15 @@ import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import TrainingQueuePanel from '@/components/training/TrainingQueuePanel.vue'
+import SidePanel from '@/components/common/SidePanel.vue'
 import { useVaultStore } from '@/stores/vault'
 import { useAuthStore } from '@/stores/auth'
+import { useSidePanel } from '@/composables/useSidePanel'
 
 const route = useRoute()
 const vaultStore = useVaultStore()
 const authStore = useAuthStore()
+const { isCollapsed } = useSidePanel()
 
 const vaultId = route.params.id as string
 
@@ -21,7 +24,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="training-view">
+  <div class="training-layout">
+    <SidePanel />
+
+    <div class="training-view" :class="{ collapsed: isCollapsed }">
     <div class="training-header">
       <div class="header-content">
         <Icon icon="mdi:dumbbell" class="header-icon" />
@@ -116,10 +122,16 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
+.training-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
 .training-view {
   display: flex;
   flex-direction: column;
@@ -127,49 +139,57 @@ onMounted(async () => {
   padding: 1.5rem;
   gap: 1.5rem;
   overflow: hidden;
+  margin-left: 240px;
+  transition: margin-left 0.3s ease;
+  flex: 1;
+}
+
+.training-view.collapsed {
+  margin-left: 64px;
 }
 
 .training-header {
-  background: linear-gradient(135deg, rgb(0 0 0 / 0.7), rgb(15 23 42 / 0.7));
-  border: 1px solid rgb(34 197 94 / 0.3);
+  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+  border: 2px solid var(--color-theme-primary);
   border-radius: 0.5rem;
-  padding: 1.5rem;
-  box-shadow: 0 0 20px rgb(34 197 94 / 0.2);
+  padding: 1rem;
+  box-shadow: 0 0 20px var(--color-theme-glow);
 }
 
 .header-content {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .header-icon {
-  font-size: 3rem;
-  color: rgb(34 197 94);
-  filter: drop-shadow(0 0 8px rgb(34 197 94 / 0.6));
+  font-size: 2rem;
+  color: var(--color-theme-primary);
+  filter: drop-shadow(0 0 8px var(--color-theme-glow));
 }
 
 .header-text {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.25rem;
 }
 
 .header-title {
   margin: 0;
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: bold;
-  color: rgb(34 197 94);
+  color: var(--color-theme-primary);
   font-family: 'Courier New', monospace;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  text-shadow: 0 0 10px rgb(34 197 94 / 0.5);
+  text-shadow: 0 0 10px var(--color-theme-glow);
 }
 
 .header-subtitle {
   margin: 0;
-  font-size: 1rem;
-  color: rgb(134 239 172);
+  font-size: 0.875rem;
+  color: var(--color-theme-primary);
+  opacity: 0.7;
   font-family: 'Courier New', monospace;
 }
 
@@ -203,25 +223,25 @@ onMounted(async () => {
 }
 
 .info-card {
-  background: linear-gradient(135deg, rgb(0 0 0 / 0.7), rgb(15 23 42 / 0.7));
-  border: 1px solid rgb(34 197 94 / 0.3);
+  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+  border: 2px solid var(--color-theme-primary);
   border-radius: 0.5rem;
-  padding: 1.5rem;
-  box-shadow: 0 0 10px rgb(34 197 94 / 0.1);
+  padding: 1rem;
+  box-shadow: 0 0 10px var(--color-theme-glow);
 }
 
 .info-icon {
-  font-size: 2rem;
-  color: rgb(34 197 94);
-  filter: drop-shadow(0 0 4px rgb(34 197 94 / 0.5));
-  margin-bottom: 0.75rem;
+  font-size: 1.5rem;
+  color: var(--color-theme-primary);
+  filter: drop-shadow(0 0 4px var(--color-theme-glow));
+  margin-bottom: 0.5rem;
 }
 
 .info-title {
-  margin: 0 0 1rem 0;
-  font-size: 1.25rem;
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
   font-weight: bold;
-  color: rgb(74 222 128);
+  color: var(--color-theme-primary);
   font-family: 'Courier New', monospace;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -229,13 +249,14 @@ onMounted(async () => {
 
 .info-text {
   font-size: 0.875rem;
-  color: rgb(134 239 172);
+  color: var(--color-theme-primary);
+  opacity: 0.85;
   font-family: 'Courier New', monospace;
   line-height: 1.6;
 }
 
 .info-text p {
-  margin: 0 0 1rem 0;
+  margin: 0 0 0.75rem 0;
 }
 
 .stat-list,
@@ -243,25 +264,25 @@ onMounted(async () => {
 .tips-list {
   list-style: none;
   padding: 0;
-  margin: 1rem 0;
+  margin: 0.75rem 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.375rem;
 }
 
 .stat-list li {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem;
-  background: rgb(0 0 0 / 0.3);
-  border: 1px solid rgb(34 197 94 / 0.2);
+  padding: 0.375rem 0.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--color-theme-glow);
   border-radius: 0.25rem;
 }
 
 .stat-list li :deep(svg) {
-  color: rgb(34 197 94);
-  font-size: 1.25rem;
+  color: var(--color-theme-primary);
+  font-size: 1rem;
 }
 
 .duration-list li {
@@ -272,16 +293,17 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem;
-  background: rgb(250 204 21 / 0.1);
-  border: 1px solid rgb(250 204 21 / 0.3);
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--color-theme-accent);
   border-radius: 0.25rem;
-  color: rgb(250 204 21);
+  color: var(--color-theme-accent);
   font-style: italic;
+  font-size: 0.8rem;
 }
 
 .example :deep(svg) {
-  font-size: 1.25rem;
+  font-size: 1rem;
   flex-shrink: 0;
 }
 
@@ -293,8 +315,8 @@ onMounted(async () => {
 }
 
 .tip-icon {
-  color: rgb(34 197 94);
-  font-size: 1rem;
+  color: var(--color-theme-primary);
+  font-size: 0.875rem;
   flex-shrink: 0;
   margin-top: 0.125rem;
 }

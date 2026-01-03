@@ -25,25 +25,37 @@ class CRUDQuest(
         self, *, db_session: AsyncSession, skip: int, limit: int, vault_id: UUID4
     ) -> Sequence[QuestRead]:
         """
-        Get multiple not completed visible quests for a vault.
+        Get all quests assigned to a vault with their completion status.
         """
         query = (
-            select(Quest)
-            .join(self.link_model)
-            .where(
-                and_(
-                    self.link_model.vault_id == vault_id,
-                    self.link_model.is_visible == True,
-                    self.link_model.is_completed == False,
-                )
+            select(
+                Quest,
+                self.link_model.is_visible,
+                self.link_model.is_completed,
             )
+            .join(self.link_model)
+            .where(self.link_model.vault_id == vault_id)
             .offset(skip)
             .limit(limit)
         )
         response = await db_session.execute(query)
-        quests = response.scalars().all()
+        results = response.all()
 
-        return [QuestRead.model_validate(quest) for quest in quests]
+        return [
+            QuestRead(
+                id=quest.id,
+                title=quest.title,
+                short_description=quest.short_description,
+                long_description=quest.long_description,
+                requirements=quest.requirements,
+                rewards=quest.rewards,
+                created_at=quest.created_at,
+                updated_at=quest.updated_at,
+                is_visible=is_visible,
+                is_completed=is_completed,
+            )
+            for quest, is_visible, is_completed in results
+        ]
 
     @staticmethod
     async def create_quest(db_session: AsyncSession, quest_data: QuestCreate) -> Quest:

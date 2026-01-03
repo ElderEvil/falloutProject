@@ -15,7 +15,7 @@ class CompletionMixin[LinkModelType]:
 
     async def get_link(self, *, db_session: AsyncSession, vault_id: UUID4, quest_entity_id: UUID4) -> LinkModelType:
         query = select(self.link_model).where(
-            and_(self.link_model.vault_id == vault_id, self.link_model.quest_entity_id == quest_entity_id)
+            and_(self.link_model.vault_id == vault_id, self.link_model.quest_id == quest_entity_id)
         )
         result = await db_session.execute(query)
         quest_completion_link = result.scalar_one_or_none()

@@ -137,9 +137,21 @@ class QuestAdmin(ModelView, model=Quest):
         Quest.id,
         Quest.title,
         Quest.short_description,
+        Quest.requirements,
+        Quest.rewards,
+        Quest.created_at,
+        Quest.updated_at,
     ]
+    column_searchable_list = [Quest.title, Quest.short_description]
+    column_sortable_list = [Quest.title, Quest.created_at]
+    column_default_sort = [(Quest.created_at, True)]
 
-    icon = "fa-solid fa-tasks"
+    icon = "fa-solid fa-book-open"
+
+    can_create = True
+    can_edit = True
+    can_delete = True
+    can_export = True
 
 
 class ObjectiveAdmin(ModelView, model=Objective):
@@ -148,8 +160,15 @@ class ObjectiveAdmin(ModelView, model=Objective):
         Objective.challenge,
         Objective.reward,
     ]
+    column_searchable_list = [Objective.challenge, Objective.reward]
+    column_sortable_list = [Objective.challenge]
 
-    icon = "fa-solid fa-tasks"
+    icon = "fa-solid fa-bullseye"
+
+    can_create = True
+    can_edit = True
+    can_delete = True
+    can_export = True
 
 
 class RoomAdmin(ModelView, model=Room):

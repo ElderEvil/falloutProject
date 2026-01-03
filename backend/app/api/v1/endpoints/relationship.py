@@ -194,15 +194,22 @@ async def quick_pair_dwellers(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """
-    Quick pair two random compatible dwellers for testing.
-    Creates a relationship, sets it to romantic, and makes them partners.
+    ☢️ Irradiated Cupid ☢️
+
+    Instantly pairs two random compatible dwellers for testing/fun.
+    - Finds one male and one female without partners
+    - Creates a high-affinity relationship (90%)
+    - Makes them romantic partners
+    - Moves them to a private living quarters (kicks out any third wheels!)
+    - Ready to breed immediately with 90% conception chance per tick
     """
     await get_user_vault_or_403(vault_id, user, db_session)
 
     from sqlmodel import select
 
     from app.models.dweller import Dweller
-    from app.schemas.common import GenderEnum
+    from app.models.room import Room
+    from app.schemas.common import GenderEnum, RoomTypeEnum
 
     # Get all adult dwellers in the vault without partners
     query = (
@@ -249,7 +256,52 @@ async def quick_pair_dwellers(
         dweller_2.id,
     )
 
-    return relationship  # noqa: RET504
+    # Find living quarters in the vault
+    living_quarters_query = select(Room).where(Room.vault_id == vault_id).where(Room.category == RoomTypeEnum.CAPACITY)
+    living_quarters_result = await db_session.execute(living_quarters_query)
+    living_quarters = living_quarters_result.scalars().all()
+
+    if not living_quarters:
+        raise HTTPException(status_code=400, detail="No living quarters found in vault")
+
+    # Find the living quarters with fewest dwellers (preferably empty)
+    best_room = None
+    min_dwellers = float("inf")
+
+    for room in living_quarters:
+        # Count dwellers in this room
+        dwellers_in_room_query = select(Dweller).where(Dweller.room_id == room.id)
+        dwellers_in_room_result = await db_session.execute(dwellers_in_room_query)
+        dweller_count = len(dwellers_in_room_result.scalars().all())
+
+        if dweller_count < min_dwellers:
+            min_dwellers = dweller_count
+            best_room = room
+
+        # If we found an empty room, use it
+        if dweller_count == 0:
+            break
+
+    if not best_room:
+        raise HTTPException(status_code=400, detail="No suitable living quarters found")
+
+    # Unassign all other dwellers from the chosen living quarters
+    dwellers_to_unassign_query = select(Dweller).where(Dweller.room_id == best_room.id)
+    dwellers_to_unassign_result = await db_session.execute(dwellers_to_unassign_query)
+    dwellers_to_unassign = dwellers_to_unassign_result.scalars().all()
+
+    for dweller in dwellers_to_unassign:
+        if dweller.id not in [dweller_1.id, dweller_2.id]:
+            dweller.room_id = None
+
+    # Move the couple to the living quarters
+    dweller_1.room_id = best_room.id
+    dweller_2.room_id = best_room.id
+
+    await db_session.commit()
+    await db_session.refresh(relationship)
+
+    return relationship
 
 
 @router.get("/compatibility/{dweller_1_id}/{dweller_2_id}", response_model=CompatibilityScore)
@@ -319,3 +371,30 @@ async def calculate_compatibility(
         level_score=level_score,
         proximity_score=proximity_score,
     )
+
+
+@router.post("/vault/{vault_id}/process")
+async def process_vault_breeding(
+    vault_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+):
+    """
+    Manually trigger breeding and relationship processing for a vault.
+    This includes:
+    - Updating relationship affinity for dwellers in the same room
+    - Checking for conception in living quarters
+    - Processing due pregnancies and delivering babies
+    - Aging children to adults
+    """
+    await get_user_vault_or_403(vault_id, user, db_session)
+
+    from app.services.game_loop import game_loop_service
+
+    # Call the breeding processing method
+    result = await game_loop_service._process_breeding(db_session, vault_id)
+
+    return {
+        "message": "Breeding and relationships processed successfully",
+        "stats": result,
+    }

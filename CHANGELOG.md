@@ -1,3 +1,81 @@
+## [1.8.0] - 2026-01-03
+
+### Added
+
+#### Quest System (Backend + Frontend)
+
+- **Backend API**:
+  - Quest CRUD operations with visibility tracking
+  - Quest assignment endpoint `POST /api/v1/quests/{quest_id}/assign`
+  - Quest completion endpoint `POST /api/v1/quests/{quest_id}/complete`
+  - Get vault quests endpoint with assignment status
+  - VaultQuestCompletionLink model for tracking quest progress
+  - 7 comprehensive quest CRUD tests
+
+- **Frontend UI**:
+  - QuestsView component with active/completed tabs
+  - Overseer's Office requirement check (quests locked until built)
+  - Quest store with state management (15 tests)
+  - Quest assignment and completion actions
+  - Terminal-themed quest cards with rewards display
+  - Empty states for no available quests
+  - 11 component tests for QuestsView
+
+#### Objective System Improvements
+
+- **UI Enhancements**:
+  - ObjectivesView with active/completed tabs
+  - Objective progress tracking with progress bars
+  - Theme-consistent styling with CSS custom properties
+  - Icons for active/completed tabs
+
+- **Bug Fixes**:
+  - Fixed objective validation error by shortening challenge text to fit 32-char limit
+  - Updated `assign.json` objectives with shorter challenge texts
+
+#### Navigation & UI Consistency
+
+- **Navigation Reorganization**:
+  - Fixed hotkey duplication conflicts
+  - Reserved hotkey 3 for future Exploration feature
+  - Reorganized by early-game usefulness:
+    - 1: Overview, 2: Dwellers, 3: Exploration (coming soon), 4: Objectives
+    - 5: Quests, 6: Radio, 7: Relationships, 8: Training
+  - Added SidePanel to TrainingView for navigation
+
+- **Theme Consistency**:
+  - Replaced all hardcoded colors with CSS custom properties in:
+    - QuestsView (green → theme variables)
+    - ObjectivesView (green → theme variables)
+    - TrainingView (green → theme variables)
+    - TrainingQueuePanel (all colors themed)
+  - Reduced element sizes in TrainingView (20-30% smaller)
+
+### Fixed
+
+- **Quest System**:
+  - Fixed quest completion mixin to use `quest_id` instead of `quest_entity_id`
+  - Updated `get_multi_for_vault` to return all assigned quests with visibility status
+
+- **Objective System**:
+  - Fixed ObjectiveCreate validation by shortening challenge texts from 38 to 28 characters
+  - Challenge text format: "Assign X dwellers correctly" (fits 32-char limit)
+
+- **Navigation**:
+  - Fixed hotkey conflicts between Quests and Radio Room
+  - Added missing SidePanel to TrainingView
+
+### Testing
+
+- **Frontend Tests**:
+  - Added 15 quest store tests (fetch, assign, complete, computed properties)
+  - Added 11 QuestsView component tests (UI, actions, Overseer check)
+  - All 489 frontend tests passing
+
+- **Backend Tests**:
+  - All 33 quest/objective CRUD tests passing
+  - Fixed test expectations for quest visibility behavior
+
 ## [1.7.0] - 2026-01-03
 
 ### Added

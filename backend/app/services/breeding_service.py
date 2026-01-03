@@ -35,7 +35,7 @@ class BreedingService:
     """Service for managing breeding, pregnancy, and child growth."""
 
     @staticmethod
-    async def check_for_conception(
+    async def check_for_conception(  # noqa: PLR0912
         db_session: AsyncSession,
         vault_id: UUID4,
     ) -> list[Pregnancy]:
@@ -107,8 +107,25 @@ class BreedingService:
             if partner.age_group != AgeGroupEnum.ADULT:
                 continue
 
+            # Get relationship to check affinity
+            from app.models.relationship import Relationship
+
+            relationship_query = select(Relationship).where(
+                ((Relationship.dweller_1_id == dweller.id) & (Relationship.dweller_2_id == partner.id))
+                | ((Relationship.dweller_1_id == partner.id) & (Relationship.dweller_2_id == dweller.id))
+            )
+            relationship_result = await db_session.execute(relationship_query)
+            relationship = relationship_result.scalars().first()
+
+            # Calculate conception chance based on affinity (1% per affinity point)
+            # If no relationship found, use base chance
+            if relationship:  # noqa: SIM108
+                conception_chance = relationship.affinity / 100.0  # 90 affinity = 90% chance
+            else:
+                conception_chance = CONCEPTION_CHANCE_PER_TICK  # Fallback to base 2%
+
             # Roll for conception
-            if random.random() < CONCEPTION_CHANCE_PER_TICK:
+            if random.random() < conception_chance:
                 # Determine mother and father
                 if dweller.gender == GenderEnum.FEMALE:
                     mother_id = dweller.id
@@ -124,7 +141,9 @@ class BreedingService:
                     father_id,
                 )
                 new_pregnancies.append(pregnancy)
-                logger.info(f"Conception: Mother={mother_id}, Father={father_id}")  # noqa: G004
+                logger.info(
+                    f"Conception with {conception_chance * 100:.0f}% chance: Mother={mother_id}, Father={father_id}"  # noqa: G004
+                )
 
         return new_pregnancies
 
@@ -412,8 +431,7 @@ class BreedingService:
             .where(Pregnancy.status == PregnancyStatusEnum.PREGNANT)
         )
 
-        pregnancies = (await db_session.execute(query)).scalars().all()
-        return pregnancies  # noqa: RET504
+        return (await db_session.execute(query)).scalars().all()
 
 
 breeding_service = BreedingService()

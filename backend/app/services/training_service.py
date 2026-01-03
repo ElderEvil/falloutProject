@@ -107,8 +107,9 @@ class TrainingService:
             return False, f"{stat_to_train.value} is already at maximum ({SPECIAL_STAT_MAX})"
 
         # Check room capacity
+        # TODO: Capacity should be calculated based on room size: size/3*2 or similar formula
         active_trainees = await training_crud.training.get_active_by_room(db_session, room.id)
-        if len(active_trainees) >= room.capacity:
+        if room.capacity is not None and len(active_trainees) >= room.capacity:
             return False, "Training room is at full capacity"
 
         return True, "Can start training"

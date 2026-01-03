@@ -103,23 +103,26 @@ class RelationshipService:
         Returns:
             Updated relationship
         """
-        old_affinity = relationship.affinity
         relationship.affinity = min(100, relationship.affinity + amount)
         relationship.updated_at = datetime.utcnow()
+        old_type = relationship.relationship_type
 
-        # Check if relationship should be upgraded
-        if (
-            relationship.affinity >= ROMANCE_THRESHOLD
-            and relationship.relationship_type == RelationshipTypeEnum.ACQUAINTANCE
-        ):
-            relationship.relationship_type = RelationshipTypeEnum.FRIEND
+        # Auto-upgrade relationship based on affinity thresholds
+        if relationship.affinity >= ROMANCE_THRESHOLD:
+            # Progress through relationship stages
+            if relationship.relationship_type == RelationshipTypeEnum.ACQUAINTANCE:
+                relationship.relationship_type = RelationshipTypeEnum.FRIEND
+            elif relationship.relationship_type == RelationshipTypeEnum.FRIEND:
+                # Upgrade to romantic at 70+ affinity
+                relationship.relationship_type = RelationshipTypeEnum.ROMANTIC
 
         await db_session.commit()
         await db_session.refresh(relationship)
 
-        if old_affinity < ROMANCE_THRESHOLD <= relationship.affinity:
+        # Log relationship progression
+        if old_type != relationship.relationship_type:
             logger.info(
-                f"Relationship upgraded to {relationship.relationship_type} "  # noqa: G004
+                f"Relationship upgraded from {old_type} to {relationship.relationship_type} "  # noqa: G004
                 f"between {relationship.dweller_1_id} and {relationship.dweller_2_id}"
             )
 

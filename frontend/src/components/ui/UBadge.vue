@@ -27,7 +27,7 @@ const variantClasses = {
   success: 'bg-success text-black',
   warning: 'bg-warning text-black border-warning',
   danger: 'bg-danger text-white border-danger',
-  info: 'bg-info text-black border-info',
+  info: 'border-2',
   default: 'bg-gray-700 border-gray-600'
 }
 
@@ -35,7 +35,11 @@ const variantStyles = {
   success: { color: '#000', borderColor: 'var(--color-theme-primary)' },
   warning: {},
   danger: {},
-  info: {},
+  info: {
+    backgroundColor: 'var(--color-theme-primary)',
+    color: '#000',
+    borderColor: 'var(--color-theme-primary)'
+  },
   default: { color: 'var(--color-theme-primary)' }
 }
 

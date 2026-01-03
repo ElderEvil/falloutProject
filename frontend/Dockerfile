@@ -2,8 +2,8 @@
 FROM node:25-alpine AS build-stage
 WORKDIR /app
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@10.26.2 --activate
+# Install pnpm directly
+RUN npm install -g pnpm@10.26.2
 
 # Copy package files
 COPY package.json pnpm-lock.yaml .npmrc ./
@@ -25,4 +25,4 @@ RUN npm install -g serve
 COPY --from=build-stage /app/dist .
 EXPOSE 3000
 
-CMD ["serve"]
+CMD ["serve", "-s", ".", "-l", "3000"]

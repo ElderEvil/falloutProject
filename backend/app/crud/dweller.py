@@ -282,5 +282,70 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             db_session, dweller_id, DwellerUpdate(radiation=new_radiation, radaway=dweller_obj.radaway - 1)
         )
 
+    async def auto_assign_to_best_room(
+        self, db_session: AsyncSession, dweller_id: UUID4
+    ) -> DwellerReadWithRoomID | None:
+        """Auto-assign dweller to the best matching production room based on their highest SPECIAL stat."""
+        from app.models.room import Room
+        from app.schemas.common import SPECIALEnum
+
+        dweller_obj = await self.get(db_session, dweller_id)
+
+        # Find dweller's highest SPECIAL stat
+        special_stats = {
+            SPECIALEnum.STRENGTH: dweller_obj.strength,
+            SPECIALEnum.PERCEPTION: dweller_obj.perception,
+            SPECIALEnum.ENDURANCE: dweller_obj.endurance,
+            SPECIALEnum.CHARISMA: dweller_obj.charisma,
+            SPECIALEnum.INTELLIGENCE: dweller_obj.intelligence,
+            SPECIALEnum.AGILITY: dweller_obj.agility,
+            SPECIALEnum.LUCK: dweller_obj.luck,
+        }
+
+        best_stat = max(special_stats, key=special_stats.get)
+
+        # Find production rooms in the dweller's vault that match this stat and have space
+        query = (
+            select(Room)
+            .where(Room.vault_id == dweller_obj.vault_id)
+            .where(Room.category == RoomTypeEnum.PRODUCTION)
+            .where(Room.ability == best_stat)
+        )
+        response = await db_session.execute(query)
+        matching_rooms = response.scalars().all()
+
+        if not matching_rooms:
+            raise ResourceConflictException(
+                detail=f"No production rooms found matching {best_stat.value} stat in this vault"
+            )
+
+        # Check if dweller is already in a matching room
+        if dweller_obj.room_id:
+            current_room = await room_crud.get(db_session, dweller_obj.room_id)
+            if current_room.category == RoomTypeEnum.PRODUCTION and current_room.ability == best_stat:
+                raise ContentNoChangeException(
+                    detail=f"Dweller is already assigned to the best matching room ({current_room.name})"
+                )
+
+        # Find room with available capacity (based on room size)
+        best_room = None
+        for room in matching_rooms:
+            # Get current dweller count in room
+            dweller_count_query = select(Dweller).where(Dweller.room_id == room.id)
+            dweller_count_response = await db_session.execute(dweller_count_query)
+            current_dwellers = len(dweller_count_response.scalars().all())
+
+            # Room capacity: 2 dwellers per 3 size units (e.g., size 3 = 2 dwellers, size 6 = 4 dwellers)
+            max_dwellers = room.size // 3 * 2 if room.size else 0
+            if current_dwellers < max_dwellers:
+                best_room = room
+                break
+
+        if not best_room:
+            raise ResourceConflictException(detail=f"All {best_stat.value} production rooms are at full capacity")
+
+        # Move dweller to the best room
+        return await self.move_to_room(db_session, dweller_id, best_room.id)
+
 
 dweller = CRUDDweller(Dweller)

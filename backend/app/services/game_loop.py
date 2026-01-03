@@ -7,19 +7,17 @@ from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.config.game_balance import MAX_OFFLINE_CATCHUP, TICK_INTERVAL
 from app.crud import exploration as crud_exploration
 from app.crud.incident import incident_crud
 from app.crud.vault import vault as vault_crud
 from app.models.game_state import GameState
 from app.models.vault import Vault
+from app.services.happiness_service import happiness_service
 from app.services.resource_manager import ResourceManager
 from app.services.wasteland_service import wasteland_service
 
 logger = logging.getLogger(__name__)
-
-# Game loop configuration
-TICK_INTERVAL = 60  # Seconds between ticks
-MAX_OFFLINE_CATCHUP = 3600  # Maximum 1 hour of catch-up per tick
 
 
 class GameLoopService:
@@ -67,7 +65,7 @@ class GameLoopService:
 
         return stats
 
-    async def process_vault_tick(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
+    async def process_vault_tick(self, db_session: AsyncSession, vault_id: UUID4) -> dict:  # noqa: PLR0915
         """
         Process a single tick for a specific vault.
 
@@ -130,7 +128,10 @@ class GameLoopService:
             incident_update = await self._process_incidents(db_session, vault_id, seconds_passed)
             results["updates"]["incidents"] = incident_update
         except Exception as e:
-            self.logger.error(f"Error processing incidents for vault {vault_id}: {e}", exc_info=True)  # noqa: G004, G201
+            self.logger.error(  # noqa: G201
+                f"Error processing incidents for vault {vault_id}: {e}",  # noqa: G004
+                exc_info=True,
+            )
             results["updates"]["incidents"] = {"error": str(e), "processed": 0, "spawned": 0}
 
         # === PHASE 3: Wasteland Exploration ===
@@ -138,7 +139,10 @@ class GameLoopService:
             exploration_update = await self._process_explorations(db_session, vault_id)
             results["updates"]["explorations"] = exploration_update
         except Exception as e:
-            self.logger.error(f"Error processing explorations for vault {vault_id}: {e}", exc_info=True)  # noqa: G004, G201
+            self.logger.error(  # noqa: G201
+                f"Error processing explorations for vault {vault_id}: {e}",  # noqa: G004
+                exc_info=True,
+            )
             results["updates"]["explorations"] = {"error": str(e)}
 
         # === PHASE 4: Dweller Management ===
@@ -156,6 +160,34 @@ class GameLoopService:
         except Exception as e:
             self.logger.error(f"Error processing training for vault {vault_id}: {e}", exc_info=True)  # noqa: G004, G201
             results["updates"]["training"] = {"error": str(e), "sessions_updated": 0, "completed": 0}
+
+        # === PHASE 4.6: Happiness System ===
+        try:
+            happiness_update = await self._process_happiness(db_session, vault_id, seconds_passed)
+            results["updates"]["happiness"] = happiness_update
+        except Exception as e:
+            self.logger.error(  # noqa: G201
+                f"Error processing happiness for vault {vault_id}: {e}",  # noqa: G004
+                exc_info=True,
+            )
+            results["updates"]["happiness"] = {"error": str(e), "dwellers_processed": 0}
+
+        # === PHASE 4.7: Relationships & Breeding System ===
+        try:
+            breeding_update = await self._process_breeding(db_session, vault_id)
+            results["updates"]["breeding"] = breeding_update
+        except Exception as e:
+            self.logger.error(  # noqa: G201
+                f"Error processing breeding for vault {vault_id}: {e}",  # noqa: G004
+                exc_info=True,
+            )
+            results["updates"]["breeding"] = {
+                "error": str(e),
+                "relationships_updated": 0,
+                "conceptions": 0,
+                "births": 0,
+                "children_aged": 0,
+            }
 
         # === PHASE 5: Event System ===
         # TODO: Implement in next phase
@@ -301,12 +333,14 @@ class GameLoopService:
         }
 
         # Get all dwellers in this vault
-        vault = await vault_crud.get(db_session, vault_id)
-        if not vault:
-            return stats
+        from app.models.dweller import Dweller
+
+        dwellers_query = select(Dweller).where(Dweller.vault_id == vault_id)
+        dwellers_result = await db_session.execute(dwellers_query)
+        dwellers = dwellers_result.scalars().all()
 
         # Process each dweller
-        for dweller in vault.dwellers:
+        for dweller in dwellers:
             try:
                 # Award work XP for dwellers in production rooms
                 if dweller.status == DwellerStatusEnum.WORKING and dweller.room_id:
@@ -385,6 +419,23 @@ class GameLoopService:
 
         return stats
 
+    async def _process_happiness(self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int) -> dict:
+        """
+        Process happiness updates for all dwellers in a vault.
+
+        - Calculate happiness changes based on vault conditions
+        - Update individual dweller happiness
+        - Update vault-wide average happiness
+        """
+        try:
+            return await happiness_service.update_vault_happiness(db_session, vault_id, seconds_passed)
+        except Exception as e:
+            self.logger.error(  # noqa: G201
+                f"Error in happiness service for vault {vault_id}: {e}",  # noqa: G004
+                exc_info=True,
+            )
+            return {"error": str(e), "dwellers_processed": 0}
+
     async def _process_incidents(self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int) -> dict:
         """
         Process all active incidents for a vault.
@@ -403,13 +454,8 @@ class GameLoopService:
             "active_count": 0,
         }
 
-        # Get vault
-        vault = await vault_crud.get(db_session, vault_id)
-        if not vault:
-            return stats
-
         # Check if new incident should spawn
-        should_spawn = await incident_service.should_spawn_incident(vault, seconds_passed)
+        should_spawn = await incident_service.should_spawn_incident(db_session, vault_id, seconds_passed)
         if should_spawn:
             new_incident = await incident_service.spawn_incident(db_session, vault_id)
             if new_incident:
@@ -443,6 +489,104 @@ class GameLoopService:
                     f"Error processing incident {incident.id}: {e}",  # noqa: G004
                     exc_info=True,
                 )
+
+        return stats
+
+    async def _process_breeding(self, db_session: AsyncSession, vault_id: UUID4) -> dict:  # noqa: C901, PLR0912
+        """
+        Process relationships and breeding for a vault.
+
+        - Update relationship affinity for dwellers in the same room
+        - Check for conception in living quarters
+        - Process due pregnancies and deliver babies
+        - Age children to adults
+        """
+        from app.services.breeding_service import breeding_service
+        from app.services.relationship_service import relationship_service
+
+        stats = {
+            "relationships_updated": 0,
+            "conceptions": 0,
+            "births": 0,
+            "children_aged": 0,
+        }
+
+        # 1. Update relationships for dwellers in the same room
+        try:
+            from app.config.game_balance import AFFINITY_INCREASE_PER_TICK
+            from app.models.dweller import Dweller
+
+            # Get all dwellers in this vault that are in rooms
+            dwellers_query = select(Dweller).where(Dweller.vault_id == vault_id, Dweller.room_id.is_not(None))
+            dwellers_result = await db_session.execute(dwellers_query)
+            dwellers = dwellers_result.scalars().all()
+
+            # Group dwellers by room
+            room_dwellers = {}
+            for dweller in dwellers:
+                if dweller.room_id not in room_dwellers:
+                    room_dwellers[dweller.room_id] = []
+                room_dwellers[dweller.room_id].append(dweller)
+
+            # Update affinity for dwellers in the same room
+            for _room_id, room_dweller_list in room_dwellers.items():
+                if len(room_dweller_list) < 2:
+                    continue
+
+                # For each pair in the room, increase affinity
+                for i, dweller1 in enumerate(room_dweller_list):
+                    for dweller2 in room_dweller_list[i + 1 :]:
+                        try:
+                            # Get or create relationship
+                            relationship = await relationship_service.create_or_get_relationship(
+                                db_session, dweller1.id, dweller2.id
+                            )
+                            # Increase affinity
+                            await relationship_service.increase_affinity(
+                                db_session, relationship, AFFINITY_INCREASE_PER_TICK
+                            )
+                            stats["relationships_updated"] += 1
+                        except Exception as e:
+                            self.logger.error(  # noqa: G201
+                                f"Error updating relationship between {dweller1.id} and {dweller2.id}: {e}",  # noqa: G004
+                                exc_info=True,
+                            )
+        except Exception as e:
+            self.logger.error(f"Error updating relationships: {e}", exc_info=True)  # noqa: G004, G201
+
+        # 2. Check for conception
+        try:
+            new_pregnancies = await breeding_service.check_for_conception(db_session, vault_id)
+            stats["conceptions"] = len(new_pregnancies)
+            if new_pregnancies:
+                self.logger.info(f"New pregnancies in vault {vault_id}: {len(new_pregnancies)}")  # noqa: G004
+        except Exception as e:
+            self.logger.error(f"Error checking for conception: {e}", exc_info=True)  # noqa: G004, G201
+
+        # 3. Check for due pregnancies and deliver babies
+        try:
+            due_pregnancies = await breeding_service.check_due_pregnancies(db_session, vault_id)
+            for pregnancy in due_pregnancies:
+                try:
+                    baby = await breeding_service.deliver_baby(db_session, pregnancy.id)
+                    if baby:
+                        stats["births"] += 1
+                        self.logger.info(
+                            f"Baby born in vault {vault_id}: {baby.first_name} {baby.last_name}"  # noqa: G004
+                        )
+                except Exception as e:
+                    self.logger.error(f"Error delivering baby for pregnancy {pregnancy.id}: {e}", exc_info=True)  # noqa: G004, G201
+        except Exception as e:
+            self.logger.error(f"Error checking due pregnancies: {e}", exc_info=True)  # noqa: G004, G201
+
+        # 4. Age children to adults
+        try:
+            aged_children = await breeding_service.age_children(db_session, vault_id)
+            stats["children_aged"] = len(aged_children)
+            if aged_children:
+                self.logger.info(f"Children aged to adults in vault {vault_id}: {len(aged_children)}")  # noqa: G004
+        except Exception as e:
+            self.logger.error(f"Error aging children: {e}", exc_info=True)  # noqa: G004, G201
 
         return stats
 

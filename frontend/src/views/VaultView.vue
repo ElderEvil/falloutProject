@@ -65,6 +65,14 @@ const bottleCaps = computed(() => currentVault.value?.bottle_caps ?? 0)
 const dwellersCount = computed(() => currentVault.value?.dweller_count ?? 0)
 const happiness = computed(() => currentVault.value?.happiness ?? 0)
 
+const happinessColor = computed(() => {
+  const h = happiness.value;
+  if (h >= 75) return 'text-terminalGreen';
+  if (h >= 50) return 'text-green-400';
+  if (h >= 25) return 'text-yellow-400';
+  return 'text-red-500';
+});
+
 const energy = computed(() => ({
   current: currentVault.value?.power ?? 0,
   max: currentVault.value?.power_max ?? 100
@@ -254,8 +262,8 @@ const handleIncidentResolved = async () => {
           </UTooltip>
           <UTooltip :text="`Vault Happiness: ${happiness}%\n${happiness >= 75 ? '😊 Excellent morale!' : happiness >= 50 ? '😐 Acceptable morale' : happiness >= 25 ? '😟 Low morale - needs attention' : '😢 Critical - dwellers are unhappy!'}`" position="bottom">
             <div class="flex items-center space-x-2 cursor-help" tabindex="0">
-              <Icon icon="mdi:emoticon-happy" class="h-6 w-6 text-terminalGreen" />
-              <p>{{ happiness }}%</p>
+              <Icon icon="mdi:emoticon-happy" class="h-6 w-6" :class="happinessColor" />
+              <p :class="happinessColor">{{ happiness }}%</p>
             </div>
           </UTooltip>
         </div>

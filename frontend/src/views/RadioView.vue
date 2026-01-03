@@ -13,7 +13,7 @@
           <div class="max-w-4xl mx-auto">
             <!-- Header -->
             <div class="mb-8">
-              <h1 class="text-4xl font-bold text-green-400 mb-2 flex items-center gap-3">
+              <h1 class="header-title">
                 <Icon icon="mdi:radio-tower" class="text-5xl" />
                 Radio Room
               </h1>
@@ -116,5 +116,15 @@ async function handleManualRecruit() {
   100% {
     opacity: 0.98;
   }
+}
+
+.header-title {
+  font-size: 2.25rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--color-theme-primary);
 }
 </style>

@@ -27,11 +27,10 @@ ENV VIRTUAL_ENV=/opt/venv \
 COPY pyproject.toml uv.lock /app/
 
 # Create virtual environment and install dependencies using uv sync
-RUN uv venv $VIRTUAL_ENV && \
-    uv sync --frozen --no-dev --no-install-project
+RUN uv sync --frozen --no-dev --no-install-project
 
 # Copy application code
 COPY . .
 
 # Command to run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

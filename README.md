@@ -27,7 +27,7 @@ vault thriving. Built with modern Python tooling and designed for Python 3.14.
 - **Pinia 3.0** - State management
 - **TailwindCSS v4** - Utility-first CSS with custom design system
 - **Custom UI Library** - 8 terminal-themed components
-- **Vitest 2.1** - Unit testing (88 tests passing)
+- **Vitest 2.1** - Unit testing (489+ tests passing)
 
 ### Infrastructure
 
@@ -273,7 +273,7 @@ uv run pytest app/tests/ -m "not slow"
 ```bash
 cd frontend
 
-# Run all tests (88 tests)
+# Run all tests (489+ tests)
 pnpm run test
 
 # Watch mode
@@ -286,7 +286,7 @@ pnpm run test -- --coverage
 **Test Coverage:**
 
 - Backend: Check `backend/htmlcov/index.html` after running with `--cov`
-- Frontend: 88/88 tests passing (Auth, Vault, Components, Services, Router)
+- Frontend: 489+ tests passing (Auth, Vault, Dwellers, Quests, Objectives, Components, Services, Router)
 
 ## 📊 Code Quality
 

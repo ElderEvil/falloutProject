@@ -93,10 +93,10 @@ class DwellerBase(DwellerBaseWithoutStats, SPECIALModel):
 
 
 class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, table=True):
-    vault_id: UUID4 = Field(default=None, foreign_key="vault.id")
+    vault_id: UUID4 = Field(default=None, foreign_key="vault.id", ondelete="CASCADE")
     vault: "Vault" = Relationship(back_populates="dwellers")
 
-    room_id: UUID4 = Field(default=None, foreign_key="room.id", nullable=True)
+    room_id: UUID4 = Field(default=None, foreign_key="room.id", nullable=True, ondelete="SET NULL")
     room: "Room" = Relationship(back_populates="dwellers")
 
     # Relationships and Family

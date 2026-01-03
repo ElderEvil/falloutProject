@@ -17,12 +17,12 @@ class ChatMessageBase(SQLModel):
     vault_id: UUID = Field(foreign_key="vault.id", index=True)
 
     # Source (one must be set)
-    from_user_id: UUID | None = Field(default=None, foreign_key="user.id", index=True)
-    from_dweller_id: UUID | None = Field(default=None, foreign_key="dweller.id", index=True)
+    from_user_id: UUID | None = Field(default=None, foreign_key="user.id", index=True, ondelete="CASCADE")
+    from_dweller_id: UUID | None = Field(default=None, foreign_key="dweller.id", index=True, ondelete="CASCADE")
 
     # Destination (one must be set)
-    to_user_id: UUID | None = Field(default=None, foreign_key="user.id", index=True)
-    to_dweller_id: UUID | None = Field(default=None, foreign_key="dweller.id", index=True)
+    to_user_id: UUID | None = Field(default=None, foreign_key="user.id", index=True, ondelete="CASCADE")
+    to_dweller_id: UUID | None = Field(default=None, foreign_key="dweller.id", index=True, ondelete="CASCADE")
 
     message_text: str = Field(max_length=2000)
 

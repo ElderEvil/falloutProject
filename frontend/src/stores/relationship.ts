@@ -10,7 +10,9 @@ export const useRelationshipStore = defineStore('relationship', () => {
 
   // State
   const relationships = ref<Relationship[]>([])
+  const pregnancies = ref<any[]>([])
   const isLoading = ref(false)
+  const token = ref<string | null>(null)
 
   // Computed
   const getRelationshipByDwellers = computed(() => {
@@ -42,6 +44,16 @@ export const useRelationshipStore = defineStore('relationship', () => {
       toast.error(getErrorMessage(error))
     } finally {
       isLoading.value = false
+    }
+  }
+
+  async function fetchVaultPregnancies(vaultId: string) {
+    try {
+      const response = await axios.get(`/api/v1/pregnancies/vault/${vaultId}`)
+      pregnancies.value = response.data
+    } catch (error: unknown) {
+      console.error('Failed to fetch pregnancies:', error)
+      toast.error(getErrorMessage(error))
     }
   }
 
@@ -184,6 +196,17 @@ export const useRelationshipStore = defineStore('relationship', () => {
     }
   }
 
+  async function processVaultBreeding(vaultId: string): Promise<any | null> {
+    try {
+      const response = await axios.post(`/api/v1/relationships/vault/${vaultId}/process`)
+      return response.data
+    } catch (error: unknown) {
+      console.error('Failed to process breeding:', error)
+      toast.error(getErrorMessage(error))
+      return null
+    }
+  }
+
   function clearRelationships() {
     relationships.value = []
   }
@@ -192,6 +215,8 @@ export const useRelationshipStore = defineStore('relationship', () => {
     // State
     relationships,
     isLoading,
+    pregnancies,
+    token,
 
     // Computed
     getRelationshipByDwellers,
@@ -200,6 +225,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
 
     // Actions
     fetchVaultRelationships,
+    fetchVaultPregnancies,
     getRelationship,
     createRelationship,
     initiateRomance,
@@ -207,6 +233,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
     breakUp,
     calculateCompatibility,
     quickPair,
+    processVaultBreeding,
     clearRelationships,
   }
 })

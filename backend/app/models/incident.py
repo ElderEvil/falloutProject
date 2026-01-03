@@ -62,8 +62,8 @@ class IncidentBase(SQLModel):
 class Incident(BaseUUIDModel, IncidentBase, TimeStampMixin, table=True):
     """Incident model with relationships."""
 
-    vault_id: UUID4 = Field(foreign_key="vault.id", index=True)
-    room_id: UUID4 = Field(foreign_key="room.id", index=True)
+    vault_id: UUID4 = Field(foreign_key="vault.id", index=True, ondelete="CASCADE")
+    room_id: UUID4 = Field(foreign_key="room.id", index=True, ondelete="CASCADE")
 
     def is_active(self) -> bool:
         """Check if incident is still active."""

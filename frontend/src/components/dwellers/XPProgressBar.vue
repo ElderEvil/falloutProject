@@ -46,142 +46,92 @@ const isMaxLevel = computed(() => props.level >= props.maxLevel)
 
 <template>
   <div class="xp-bar-container">
-    <div class="xp-labels">
-      <span class="level-label">Lvl {{ level }}</span>
-      <span v-if="!isMaxLevel" class="xp-label">
-        {{ xpInCurrentLevel }} / {{ xpNeededForNextLevel }} XP
+    <div class="stat-row">
+      <span class="stat-label">Experience</span>
+      <span class="stat-value" :class="{ 'max-level': isMaxLevel }">
+        <template v-if="!isMaxLevel">
+          {{ xpInCurrentLevel }} / {{ xpNeededForNextLevel }} XP
+        </template>
+        <template v-else>MAX LEVEL</template>
       </span>
-      <span v-else class="xp-label max-level">MAX LEVEL</span>
-      <span v-if="!isMaxLevel" class="percentage">{{ progressPercentage.toFixed(1) }}%</span>
     </div>
     <div class="xp-bar" :class="{ 'near-level-up': isNearLevelUp, 'max-level': isMaxLevel }">
-      <div class="xp-fill" :style="{ width: `${progressPercentage}%` }">
-        <div class="xp-shine"></div>
-      </div>
+      <div class="xp-fill" :style="{ width: `${progressPercentage}%` }"></div>
     </div>
   </div>
 </template>
 
 <style scoped>
 .xp-bar-container {
-  margin-top: 0.5rem;
-  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
-.xp-labels {
+.stat-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.25rem;
-  font-size: 0.75rem;
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
 }
 
-.level-label {
-  font-weight: bold;
-  color: rgb(250 204 21);
-}
-
-.xp-label {
-  flex: 1;
-  text-align: center;
+.stat-label {
+  font-weight: 600;
   color: var(--color-theme-primary);
+  text-shadow: 0 0 3px var(--color-theme-glow);
   opacity: 0.8;
 }
 
-.xp-label.max-level {
-  color: rgb(250 204 21);
-  font-weight: bold;
-  text-shadow: 0 0 8px rgb(250 204 21 / 0.5);
+.stat-value {
+  font-weight: 700;
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 6px var(--color-theme-glow);
 }
 
-.percentage {
-  color: var(--color-theme-primary);
-  opacity: 0.9;
-  font-size: 0.7rem;
+.stat-value.max-level {
+  color: rgb(250 204 21);
+  text-shadow: 0 0 8px rgb(250 204 21 / 0.6);
 }
 
 .xp-bar {
-  height: 0.75rem;
-  background: linear-gradient(to bottom, rgb(0 0 0 / 0.8), rgb(0 0 0 / 0.6));
+  width: 100%;
+  height: 10px;
+  background: rgba(68, 68, 68, 0.8);
   border: 1px solid var(--color-theme-glow);
-  border-radius: 2px;
+  border-radius: 5px;
   overflow: hidden;
-  position: relative;
-  box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.5);
 }
 
 .xp-bar.near-level-up {
   border-color: rgb(250 204 21 / 0.8);
-  box-shadow: 0 0 8px rgb(250 204 21 / 0.4), inset 0 1px 3px rgb(0 0 0 / 0.5);
+  box-shadow: 0 0 8px rgb(250 204 21 / 0.4);
   animation: pulse 1.5s ease-in-out infinite;
 }
 
 .xp-bar.max-level {
   border-color: rgb(250 204 21);
-  background: linear-gradient(to bottom, rgb(250 204 21 / 0.2), rgb(250 204 21 / 0.1));
-  box-shadow: 0 0 12px rgb(250 204 21 / 0.5), inset 0 1px 3px rgb(0 0 0 / 0.5);
+  box-shadow: 0 0 12px rgb(250 204 21 / 0.5);
 }
 
 .xp-fill {
   height: 100%;
-  background: linear-gradient(
-    to right,
-    rgb(250 204 21),
-    rgb(234 179 8),
-    rgb(250 204 21)
-  );
-  transition: width 0.5s ease-out;
-  position: relative;
-  box-shadow: 0 0 8px rgb(250 204 21 / 0.6);
+  background: linear-gradient(90deg, rgb(250 204 21) 0%, rgb(234 179 8) 50%, rgb(250 204 21) 100%);
+  box-shadow: 0 0 8px var(--color-theme-glow);
+  transition: width 0.3s ease;
 }
 
 .xp-bar.max-level .xp-fill {
-  background: linear-gradient(
-    to right,
-    rgb(250 204 21),
-    rgb(251 191 36),
-    rgb(250 204 21),
-    rgb(251 191 36),
-    rgb(250 204 21)
-  );
+  background: linear-gradient(90deg, rgb(250 204 21) 0%, rgb(251 191 36) 50%, rgb(250 204 21) 100%);
   background-size: 200% 100%;
   animation: shimmer 3s linear infinite;
-}
-
-.xp-shine {
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.3) 50%,
-    transparent 100%
-  );
-  animation: shine 3s ease-in-out infinite;
-}
-
-@keyframes shine {
-  0% {
-    left: -100%;
-  }
-  50%,
-  100% {
-    left: 200%;
-  }
 }
 
 @keyframes pulse {
   0%,
   100% {
-    box-shadow: 0 0 8px rgb(250 204 21 / 0.4), inset 0 1px 3px rgb(0 0 0 / 0.5);
+    box-shadow: 0 0 8px rgb(250 204 21 / 0.4);
   }
   50% {
-    box-shadow: 0 0 16px rgb(250 204 21 / 0.8), inset 0 1px 3px rgb(0 0 0 / 0.5);
+    box-shadow: 0 0 16px rgb(250 204 21 / 0.8);
   }
 }
 

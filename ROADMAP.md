@@ -7,11 +7,35 @@ AI-powered dweller interactions.
 
 ---
 
-## 🚧 Current Sprint: v1.7 Infrastructure & UX Improvements (IN PROGRESS)
+## 🚧 Current Sprint: v1.9 Happiness & UI Completion (IN PROGRESS)
 
-### 🔥 Top Priorities (Reorganized January 2, 2026)
+### 🔥 Top Priorities (Reorganized January 3, 2026)
 
-#### 1. Infrastructure & Operations (NEW TOP PRIORITY)
+#### 1. Happiness System Implementation (NEW TOP PRIORITY)
+
+**Goal**: Complete the happiness system to make vault management more engaging
+
+- [ ] **Happiness Decay & Gain Mechanics**
+    - Implement happiness decay over time based on vault conditions
+    - Resource shortages reduce happiness (power/water/food)
+    - Successful room production increases happiness
+    - Combat/incidents reduce happiness
+    - Radio room happiness boost mode (backend already exists)
+
+- [ ] **Happiness UI Indicators**
+    - Happiness bars/indicators in dweller cards
+    - Vault-wide happiness average in overview
+    - Color-coded happiness levels (red/yellow/green)
+    - Happiness change notifications
+    - Low happiness warnings
+
+- [ ] **Happiness-Based Events**
+    - Low happiness triggers negative events
+    - High happiness provides bonuses (production, XP)
+    - Happiness affects relationship formation
+    - Happiness affects radio recruitment success
+
+#### 2. Infrastructure & Operations
 
 **Goal**: Add operational visibility and maintainability before adding more features
 
@@ -47,7 +71,7 @@ AI-powered dweller interactions.
     - Runtime config validation with Pydantic v2
     - Easy tweaking of game balance without code changes
 
-#### 2. Small High-Impact UX Features (NEW PRIORITY)
+#### 3. Small High-Impact UX Features
 
 **Goal**: Quick wins that significantly improve user experience
 
@@ -74,14 +98,14 @@ AI-powered dweller interactions.
     - Retro computer login aesthetic
     - More immersive fallout-themed copy
 
-#### 3. Complete Training System UI (Frontend)
+#### 4. Complete Training System UI (Frontend)
 
 - [ ] Training queue display in TrainingView
 - [ ] Progress indicators for active training sessions
 - [ ] Training completion notifications
 - [ ] Verify auto-start functionality with backend
 
-#### 4. Wasteland Expedition Screen (NEW FEATURE)
+#### 5. Wasteland Expedition Screen (NEW FEATURE)
 
 - [ ] Add "Wasteland" to SidePanel navigation (between Dwellers and Relationships)
 - [ ] Create dedicated WastelandView page (not just panel in VaultView)
@@ -96,13 +120,15 @@ AI-powered dweller interactions.
 
 ### What's Done ✅
 
-- Training system backend implementation (v1.6)
-- Superuser vault creates all 7 training rooms + extra dwellers
-- Refactored vault initialization (180 lines → 4 focused methods)
-- Frontend grid expanded to 8x16 with locked rows
-- Room tier properly initialized
-- Test infrastructure in place
-- SPECIAL stats lazy loading issue resolved
+- **Quest & Objective Systems (v1.8 - Jan 3, 2026)**
+    - Quest CRUD with visibility tracking and assignment/completion
+    - Objective system with progress tracking
+    - Frontend QuestsView with Overseer's Office requirement
+    - ObjectivesView with active/completed tabs
+    - Navigation reorganization (hotkey conflicts fixed)
+    - UI theme consistency (all views use CSS custom properties)
+    - 26 new frontend tests (15 quest store + 11 QuestsView)
+    - 7 backend quest CRUD tests
 - **Chat & Notification system (v1.7 - Jan 3, 2026)**
     - ChatMessage & Notification models with database persistence
     - WebSocket infrastructure with ConnectionManager
@@ -111,6 +137,11 @@ AI-powered dweller interactions.
     - Backend notification service for game events
     - Dweller name sorting fixed (backend now handles "name" sort properly)
     - Navigation bug fixed (chat → dwellers button uses correct vault ID)
+- **Training system backend (v1.6 - Jan 2, 2026)**
+    - Time-based SPECIAL stat training
+    - Room tier bonuses for faster training
+    - Capacity management and auto-completion
+    - 11 comprehensive service tests
 
 ---
 
@@ -241,9 +272,19 @@ AI-powered dweller interactions.
 
 ### Objectives & Quests
 
-- [x] Objective creation and tracking
-- [x] Quest system with rewards
-- [x] Objective completion logic
+- [x] **Quest System** ✅ (v1.8 - Jan 3, 2026)
+    - Quest CRUD operations with visibility tracking
+    - Quest assignment and completion endpoints
+    - VaultQuestCompletionLink model for progress tracking
+    - Frontend QuestsView with Overseer's Office requirement
+    - Quest store with full state management
+    - 7 backend tests + 15 frontend store tests + 11 component tests
+- [x] **Objective System** ✅ (v1.8 - Jan 3, 2026)
+    - Objective creation and tracking
+    - Objective completion logic
+    - VaultObjectiveProgressLink for progress tracking
+    - Frontend ObjectivesView with active/completed tabs
+    - Progress bars and theme-consistent UI
 
 ### Items & Resources
 
@@ -390,6 +431,9 @@ AI-powered dweller interactions.
     - Resource generation (power, water, food)
     - Production rates based on dweller stats
     - Resource consumption and balance
+- [ ] **Training Room Capacity Formula**
+    - Calculate capacity based on room size (e.g., size/3*2 or similar)
+    - Replace static capacity field with dynamic calculation
 - [ ] **Optimal Dweller Suggestions**
     - Suggest best dwellers for room based on SPECIAL
     - Efficiency indicators
@@ -648,6 +692,11 @@ AI-powered dweller interactions.
 
 #### Other Technical Debt
 
+- [ ] **Email Testing Infrastructure**
+    - Migrate from MailHog to Mailpit
+    - Improved web UI with better performance
+    - Modern, actively maintained alternative
+    - Better compatibility with current Docker/Podman setup
 - [ ] Performance optimization for large vaults (100+ dwellers)
 - [ ] Database query optimization (N+1 query prevention)
 - [ ] Implement GraphQL for complex queries
@@ -665,16 +714,16 @@ AI-powered dweller interactions.
 
 ## 📊 Progress Metrics
 
-### Current Stats (as of January 1, 2026)
+### Current Stats (as of January 3, 2026)
 
-- **Backend Endpoints**: 17 routers with 75+ endpoints (including incident management)
-- **Frontend Components**: 53+ Vue components (including combat UI and room detail modal)
+- **Backend Endpoints**: 18+ routers with 80+ endpoints (including quests, objectives, incident management)
+- **Frontend Components**: 55+ Vue components (including QuestsView, ObjectivesView, combat UI, room detail modal)
 - **UI Components**: 8 custom reusable components
 - **Test Coverage**:
-    - Frontend: 428+ tests passing (including 29 room detail modal tests)
-    - Backend: Comprehensive API and CRUD tests (including 7 room upgrade tests)
-- **Models**: 16 database models (including Incident and GameState)
-- **Lines of Code**: ~19,000+ (backend + frontend)
+    - Frontend: 489+ tests passing (including quest/objective tests, room detail modal tests)
+    - Backend: Comprehensive API and CRUD tests (33+ quest/objective tests, 7 room upgrade tests)
+- **Models**: 18+ database models (including Quest, Objective, Incident, GameState, link tables)
+- **Lines of Code**: ~21,000+ (backend + frontend)
 
 ### Version Milestones
 
@@ -687,8 +736,9 @@ AI-powered dweller interactions.
 - **v1.4** - Breeding and radio system ✅ (Jan 2, 2026)
 - **v1.5** - Core leveling system ✅ (Jan 2, 2026)
 - **v1.6** - Training system backend ✅ (Jan 2, 2026)
-- **v1.7** - Chat/Notification system + Bug fixes (Current - Jan 3, 2026)
-- **v1.8** - Responsive UI + Resource warnings (Feb 2026)
+- **v1.7** - Chat/Notification system + Structured logging ✅ (Jan 3, 2026)
+- **v1.8** - Quest & Objective systems + UI consistency (Current - Jan 3, 2026)
+- **v1.9** - Happiness system + Training UI + Resource warnings (Jan 2026)
 - **v1.9** - Complete Phase 1 features (Feb 2026)
 - **v2.0** - Full MVP release (Mar 2026)
 - **v2.1+** - Performance optimizations, advanced features (Post-MVP)

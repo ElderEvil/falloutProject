@@ -16,6 +16,17 @@ from app.schemas.quest import (
 router = APIRouter()
 
 
+@router.get("/", response_model=list[QuestRead])
+async def read_all_quests(
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    user: CurrentActiveUser,  # noqa: ARG001
+    skip: int = 0,
+    limit: int = 100,
+):
+    """Get all available quests (not vault-specific)."""
+    return await crud.quest_crud.get_multi(db_session, skip=skip, limit=limit)
+
+
 @router.post("/{vault_id}/", response_model=QuestRead)
 async def create_quest(
     quest_data: QuestCreate,
@@ -26,13 +37,15 @@ async def create_quest(
 
 
 @router.get("/{vault_id}/", response_model=list[QuestRead])
-async def read_quest_list(
+async def read_vault_quests(
+    vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,  # noqa: ARG001
     skip: int = 0,
     limit: int = 100,
 ):
-    return await crud.quest_crud.get_multi(db_session, skip=skip, limit=limit)
+    """Get all quests assigned to a specific vault."""
+    return await crud.quest_crud.get_multi_for_vault(db_session=db_session, vault_id=vault_id, skip=skip, limit=limit)
 
 
 @router.get("/{vault_id}/{quest_id}", response_model=QuestRead)

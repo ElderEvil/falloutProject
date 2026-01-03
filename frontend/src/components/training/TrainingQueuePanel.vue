@@ -157,10 +157,11 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: linear-gradient(135deg, rgb(0 0 0 / 0.8), rgb(15 23 42 / 0.8));
-  border: 1px solid rgb(34 197 94 / 0.3);
+  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+  border: 2px solid var(--color-theme-primary);
   border-radius: 0.5rem;
   overflow: hidden;
+  box-shadow: 0 0 10px var(--color-theme-glow);
 }
 
 .panel-header {
@@ -168,8 +169,8 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 1rem;
-  background: linear-gradient(to bottom, rgb(0 0 0 / 0.5), transparent);
-  border-bottom: 1px solid rgb(34 197 94 / 0.3);
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent);
+  border-bottom: 1px solid var(--color-theme-glow);
 }
 
 .header-title {
@@ -180,15 +181,15 @@ onUnmounted(() => {
 
 .header-icon {
   font-size: 1.5rem;
-  color: rgb(34 197 94);
-  filter: drop-shadow(0 0 4px rgb(34 197 94 / 0.6));
+  color: var(--color-theme-primary);
+  filter: drop-shadow(0 0 4px var(--color-theme-glow));
 }
 
 .panel-header h3 {
   margin: 0;
   font-size: 1.25rem;
   font-weight: bold;
-  color: rgb(34 197 94);
+  color: var(--color-theme-primary);
   font-family: 'Courier New', monospace;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -197,15 +198,15 @@ onUnmounted(() => {
 .refresh-button {
   padding: 0.5rem;
   background: transparent;
-  border: 1px solid rgb(34 197 94 / 0.3);
+  border: 1px solid var(--color-theme-glow);
   border-radius: 0.25rem;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .refresh-button:hover:not(:disabled) {
-  border-color: rgb(34 197 94 / 0.6);
-  background: rgb(34 197 94 / 0.1);
+  border-color: var(--color-theme-primary);
+  background: var(--color-theme-glow);
 }
 
 .refresh-button:disabled {
@@ -215,7 +216,7 @@ onUnmounted(() => {
 
 .refresh-icon {
   font-size: 1.25rem;
-  color: rgb(34 197 94);
+  color: var(--color-theme-primary);
 }
 
 .panel-content {
@@ -239,28 +240,30 @@ onUnmounted(() => {
 
 .empty-icon {
   font-size: 4rem;
-  color: rgb(100 116 139);
-  opacity: 0.5;
+  color: var(--color-theme-primary);
+  opacity: 0.3;
 }
 
 .empty-text {
   margin: 0;
   font-size: 1rem;
-  color: rgb(148 163 184);
+  color: var(--color-theme-primary);
+  opacity: 0.6;
   font-family: 'Courier New', monospace;
 }
 
 .empty-hint {
   margin: 0;
   font-size: 0.875rem;
-  color: rgb(100 116 139);
+  color: var(--color-theme-primary);
+  opacity: 0.5;
   font-family: 'Courier New', monospace;
   max-width: 300px;
 }
 
 .completing-soon-section,
 .active-trainings-section {
-  border-top: 1px solid rgb(34 197 94 / 0.2);
+  border-top: 1px solid var(--color-theme-glow);
   padding-top: 1rem;
 }
 
@@ -273,13 +276,13 @@ onUnmounted(() => {
 
 .section-icon {
   font-size: 1.25rem;
-  color: rgb(34 197 94);
-  filter: drop-shadow(0 0 4px rgb(34 197 94 / 0.5));
+  color: var(--color-theme-primary);
+  filter: drop-shadow(0 0 4px var(--color-theme-glow));
 }
 
 .section-icon.pulsing {
-  color: rgb(250 204 21);
-  filter: drop-shadow(0 0 6px rgb(250 204 21 / 0.8));
+  color: var(--color-theme-accent);
+  filter: drop-shadow(0 0 6px var(--color-theme-accent));
   animation: pulse-icon 2s ease-in-out infinite;
 }
 
@@ -287,7 +290,7 @@ onUnmounted(() => {
   margin: 0;
   font-size: 0.875rem;
   font-weight: bold;
-  color: rgb(74 222 128);
+  color: var(--color-theme-primary);
   font-family: 'Courier New', monospace;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -302,7 +305,7 @@ onUnmounted(() => {
 .training-summary {
   margin-top: auto;
   padding-top: 1rem;
-  border-top: 1px solid rgb(34 197 94 / 0.2);
+  border-top: 1px solid var(--color-theme-glow);
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -317,21 +320,22 @@ onUnmounted(() => {
 
 .summary-icon {
   font-size: 1rem;
-  color: rgb(34 197 94);
+  color: var(--color-theme-primary);
 }
 
 .summary-icon.completing {
-  color: rgb(250 204 21);
-  filter: drop-shadow(0 0 4px rgb(250 204 21 / 0.6));
+  color: var(--color-theme-accent);
+  filter: drop-shadow(0 0 4px var(--color-theme-accent));
 }
 
 .summary-text {
   font-size: 0.875rem;
-  color: rgb(134 239 172);
+  color: var(--color-theme-primary);
+  opacity: 0.85;
 }
 
 .summary-text.completing {
-  color: rgb(250 204 21);
+  color: var(--color-theme-accent);
   font-weight: bold;
 }
 
@@ -339,11 +343,11 @@ onUnmounted(() => {
   0%,
   100% {
     transform: scale(1);
-    filter: drop-shadow(0 0 6px rgb(250 204 21 / 0.8));
+    filter: drop-shadow(0 0 6px var(--color-theme-accent));
   }
   50% {
     transform: scale(1.1);
-    filter: drop-shadow(0 0 12px rgb(250 204 21 / 1));
+    filter: drop-shadow(0 0 12px var(--color-theme-accent));
   }
 }
 </style>

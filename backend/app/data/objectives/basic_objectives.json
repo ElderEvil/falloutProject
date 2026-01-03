@@ -1,0 +1,42 @@
+[
+  {
+    "challenge": "Collect 100 Caps",
+    "reward": "500 Caps"
+  },
+  {
+    "challenge": "Build 3 Rooms",
+    "reward": "1000 Caps"
+  },
+  {
+    "challenge": "Assign 5 Dwellers to Rooms",
+    "reward": "750 Caps"
+  },
+  {
+    "challenge": "Level Up a Dweller",
+    "reward": "500 Caps"
+  },
+  {
+    "challenge": "Collect 500 Power",
+    "reward": "1000 Caps"
+  },
+  {
+    "challenge": "Collect 500 Food",
+    "reward": "1000 Caps"
+  },
+  {
+    "challenge": "Collect 500 Water",
+    "reward": "1000 Caps"
+  },
+  {
+    "challenge": "Train a Dweller",
+    "reward": "800 Caps"
+  },
+  {
+    "challenge": "Build a Living Quarter",
+    "reward": "600 Caps"
+  },
+  {
+    "challenge": "Reach 10 Dwellers",
+    "reward": "1500 Caps"
+  }
+]

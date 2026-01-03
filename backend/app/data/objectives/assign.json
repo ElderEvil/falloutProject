@@ -1,26 +1,26 @@
 [
   {
-    "challenge": "Assign 2 dwellers in the right room",
+    "challenge": "Assign 2 dwellers correctly",
     "reward": "25 caps"
   },
   {
-    "challenge": "Assign 4 dwellers in the right room",
+    "challenge": "Assign 4 dwellers correctly",
     "reward": "100 caps"
   },
   {
-    "challenge": "Assign 5 dwellers in the right room",
+    "challenge": "Assign 5 dwellers correctly",
     "reward": "150 caps"
   },
   {
-    "challenge": "Assign 6 dwellers in the right room",
+    "challenge": "Assign 6 dwellers correctly",
     "reward": "165 caps"
   },
   {
-    "challenge": "Assign 7 dwellers in the right room",
+    "challenge": "Assign 7 dwellers correctly",
     "reward": "175 caps"
   },
   {
-    "challenge": "Assign 10 dwellers in the right room",
+    "challenge": "Assign 10 dwellers correctly",
     "reward": "1 lunchbox"
   }
 ]

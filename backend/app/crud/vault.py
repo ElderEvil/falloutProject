@@ -304,6 +304,11 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         radio_studio_data = self._prepare_room_data(rooms, "radio studio", vault_id, 2, 3)
         misc_rooms = [RoomCreate(**radio_studio_data)]
 
+        # Add Overseer's Office for superuser
+        if is_superuser:
+            overseer_office_data = self._prepare_room_data(rooms, "overseer's office", vault_id, 6, 1)
+            misc_rooms.append(RoomCreate(**overseer_office_data))
+
         # Training rooms
         if is_superuser:
             training_rooms_data = [
@@ -500,6 +505,32 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             logger.error(f"Failed to start training sessions: {e}", exc_info=True)  # noqa: G004, G201
             raise
 
+    async def _assign_initial_objectives(self, db_session: AsyncSession, vault_id: UUID4) -> None:
+        """Assign a few initial objectives to a new vault."""
+        import logging
+
+        from app.models.objective import Objective
+        from app.models.vault_objective import VaultObjectiveProgressLink
+
+        logger = logging.getLogger(__name__)
+
+        try:
+            # Get all available objectives
+            result = await db_session.execute(select(Objective).limit(5))
+            objectives = result.scalars().all()
+
+            # Assign the first few objectives to the vault
+            for objective in objectives:
+                link = VaultObjectiveProgressLink(
+                    vault_id=vault_id, objective_id=objective.id, progress=0, total=1, is_completed=False
+                )
+                db_session.add(link)
+
+            await db_session.commit()
+            logger.info("Assigned %d initial objectives to vault %s", len(objectives), vault_id)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Failed to assign initial objectives to vault %s: %s", vault_id, e)
+
     async def initiate(
         self, *, db_session: AsyncSession, obj_in: VaultNumber, user_id: UUID4, is_superuser: bool = False
     ) -> Vault:
@@ -556,6 +587,9 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
         # Start training sessions for superuser vaults
         await self._start_training_sessions(db_session, vault_db_obj.id, created_training_rooms, is_superuser)
+
+        # Assign initial objectives to the vault
+        await self._assign_initial_objectives(db_session, vault_db_obj.id)
 
         return vault_db_obj
 

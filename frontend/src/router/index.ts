@@ -12,6 +12,7 @@ const DwellersView = () => import('@/views/DwellersView.vue');
 const DwellerDetailView = () => import('@/views/DwellerDetailView.vue');
 const DwellerChatPage = () => import('@/components/chat/DwellerChatPage.vue');
 const ObjectivesView = () => import('@/views/ObjectivesView.vue');
+const QuestsView = () => import('@/views/QuestsView.vue');
 const RadioView = () => import('@/views/RadioView.vue');
 const RelationshipsView = () => import('@/views/RelationshipsView.vue');
 const TrainingView = () => import('@/views/TrainingView.vue');
@@ -53,6 +54,12 @@ const router = createRouter({
       path: '/vault/:id/objectives',
       name: 'objectives',
       component: ObjectivesView,
+      meta: { requiresAuth: true, hideFromNav: true }
+    },
+    {
+      path: '/vault/:id/quests',
+      name: 'quests',
+      component: QuestsView,
       meta: { requiresAuth: true, hideFromNav: true }
     },
     {

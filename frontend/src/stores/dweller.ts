@@ -267,6 +267,78 @@ export const useDwellerStore = defineStore('dweller', () => {
     viewMode.value = mode
   }
 
+  async function useStimpack(dwellerId: string, token: string): Promise<DwellerShort | null> {
+    try {
+      const response = await axios.post<DwellerShort>(
+        `/api/v1/dwellers/${dwellerId}/use_stimpack`,
+        null,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      )
+
+      // Update detailed dweller if cached
+      if (detailedDwellers.value[dwellerId]) {
+        detailedDwellers.value[dwellerId] = {
+          ...detailedDwellers.value[dwellerId],
+          ...response.data
+        } as Dweller
+      }
+
+      // Update in list if exists
+      const dwellerIndex = dwellers.value.findIndex(d => d.id === dwellerId)
+      if (dwellerIndex !== -1) {
+        dwellers.value[dwellerIndex] = { ...dwellers.value[dwellerIndex], ...response.data }
+      }
+
+      toast.success('Stimpack used! Dweller healed.')
+      return response.data
+    } catch (error: unknown) {
+      const errorMessage = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to use stimpack'
+      console.error(`Failed to use stimpack for dweller ${dwellerId}`, error)
+      toast.error(errorMessage)
+      return null
+    }
+  }
+
+  async function useRadaway(dwellerId: string, token: string): Promise<DwellerShort | null> {
+    try {
+      const response = await axios.post<DwellerShort>(
+        `/api/v1/dwellers/${dwellerId}/use_radaway`,
+        null,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      )
+
+      // Update detailed dweller if cached
+      if (detailedDwellers.value[dwellerId]) {
+        detailedDwellers.value[dwellerId] = {
+          ...detailedDwellers.value[dwellerId],
+          ...response.data
+        } as Dweller
+      }
+
+      // Update in list if exists
+      const dwellerIndex = dwellers.value.findIndex(d => d.id === dwellerId)
+      if (dwellerIndex !== -1) {
+        dwellers.value[dwellerIndex] = { ...dwellers.value[dwellerIndex], ...response.data }
+      }
+
+      toast.success('RadAway used! Radiation reduced.')
+      return response.data
+    } catch (error: unknown) {
+      const errorMessage = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to use RadAway'
+      console.error(`Failed to use radaway for dweller ${dwellerId}`, error)
+      toast.error(errorMessage)
+      return null
+    }
+  }
+
   return {
     // State
     dwellers,
@@ -288,6 +360,8 @@ export const useDwellerStore = defineStore('dweller', () => {
     generateDwellerInfo,
     assignDwellerToRoom,
     unassignDwellerFromRoom,
+    useStimpack,
+    useRadaway,
     setFilterStatus,
     setSortBy,
     setSortDirection,

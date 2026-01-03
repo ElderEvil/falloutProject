@@ -1,7 +1,10 @@
 import json
+import logging
 from pathlib import Path
 
 from app.schemas.quest import QuestChainJSON, QuestJSON, QuestObjectiveJSON
+
+logger = logging.getLogger(__name__)
 
 
 def load_quest_chain_from_json(file_path: str) -> QuestChainJSON:
@@ -41,6 +44,6 @@ if __name__ == "__main__":
     all_quest_chains = load_all_quest_chain_files()
 
     for quest_chain in all_quest_chains:
-        print(f"Loaded quest chain: {quest_chain.title}")
+        logger.info("Loaded quest chain: %s", quest_chain.title, extra={"quest_count": len(quest_chain.quests)})
         for quest in quest_chain.quests:
-            print(f"  - Quest: {quest.quest_name}")
+            logger.debug("  - Quest: %s", quest.quest_name)

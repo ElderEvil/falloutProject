@@ -25,12 +25,14 @@ AI-powered dweller interactions.
     - Chat persistence across sessions
     - Navigation fixes (chat → dwellers button uses correct vault ID)
 
-- [ ] **Structured Logging**
-    - Replace `print()` statements with Python `logging` module
-    - Add request ID tracking for distributed tracing
-    - Configure log levels: DEBUG, INFO, WARNING, ERROR, CRITICAL
-    - JSON-formatted logs for production environments
-    - Log startup configuration and environment on application boot
+- [x] **Structured Logging** ✅ (v1.7 - Jan 3, 2026)
+    - Centralized logging configuration with `setup_logging()`
+    - Replaced `print()` statements with `logger` (4 occurrences fixed)
+    - Request ID tracking via middleware with `contextvars`
+    - Environment-based configuration (LOG_LEVEL, LOG_JSON_FORMAT)
+    - JSON formatter for production, human-readable for development
+    - Startup logging with environment details
+    - Request ID in all log records and response headers
 
 - [ ] **Sentry Integration**
     - Error tracking and monitoring for production issues
@@ -101,9 +103,14 @@ AI-powered dweller interactions.
 - Room tier properly initialized
 - Test infrastructure in place
 - SPECIAL stats lazy loading issue resolved
-- Chat message & notification models with WebSocket infrastructure (v1.7)
-- Dweller name sorting fixed (backend now handles "name" sort properly)
-- Navigation bug fixed (chat page → dwellers button now uses correct vault ID)
+- **Chat & Notification system (v1.7 - Jan 3, 2026)**
+    - ChatMessage & Notification models with database persistence
+    - WebSocket infrastructure with ConnectionManager
+    - Real-time message delivery
+    - Chat history loading and restoration
+    - Backend notification service for game events
+    - Dweller name sorting fixed (backend now handles "name" sort properly)
+    - Navigation bug fixed (chat → dwellers button uses correct vault ID)
 
 ---
 
@@ -144,7 +151,14 @@ AI-powered dweller interactions.
     - Visual attributes (hair color, skin tone, etc.)
 - [x] Dweller status tracking (idle, working, exploring, etc.)
 - [x] Health, happiness, radiation tracking
-- [ ] Stimpack and RadAway inventory - Check it
+- [x] **Stimpack and RadAway inventory** ✅ (v1.7 - Jan 3, 2026)
+    - Model fields and storage (0-15 range)
+    - Backend REST API endpoints for usage
+    - Stimpack heals 40% of max health
+    - RadAway removes 50% of radiation
+    - Frontend display in DwellerCard with inventory counts
+    - Use item buttons with validation (disabled when not usable)
+    - Toast notifications for success/error states
 - [x] Gender and rarity system
 - [x] Level and experience progression
 - [x] **Equipment System**:

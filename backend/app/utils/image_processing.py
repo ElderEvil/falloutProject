@@ -1,7 +1,10 @@
 import io
+import logging
 
 import httpx
 from PIL import Image
+
+logger = logging.getLogger(__name__)
 
 
 async def image_url_to_bytes(url: str) -> bytes | None:
@@ -11,7 +14,7 @@ async def image_url_to_bytes(url: str) -> bytes | None:
             response = await client.get(url, timeout=10.0)
             response.raise_for_status()
         except httpx.RequestError as e:
-            print(f"Error fetching image: {e}")
+            logger.error("Error fetching image from URL", exc_info=True, extra={"url": url, "error": str(e)})  # noqa: G201
             return None
         else:
             return response.content

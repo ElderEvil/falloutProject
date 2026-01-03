@@ -23,6 +23,8 @@ const emit = defineEmits<{
   (e: 'generate-ai'): void
   (e: 'train'): void
   (e: 'assign-pet'): void
+  (e: 'use-stimpack'): void
+  (e: 'use-radaway'): void
 }>();
 
 const getImageUrl = (imagePath: string) => {
@@ -32,6 +34,14 @@ const getImageUrl = (imagePath: string) => {
 const healthPercentage = computed(() => {
   if (!props.dweller.max_health) return 0;
   return (props.dweller.health / props.dweller.max_health) * 100;
+});
+
+const canUseStimpack = computed(() => {
+  return (props.dweller.stimpack || 0) > 0 && props.dweller.health < props.dweller.max_health;
+});
+
+const canUseRadaway = computed(() => {
+  return (props.dweller.radaway || 0) > 0 && (props.dweller.radiation || 0) > 0;
 });
 </script>
 
@@ -96,6 +106,26 @@ const healthPercentage = computed(() => {
         :level="dweller.level"
         :current-x-p="dweller.experience"
       />
+
+      <!-- Inventory Stats -->
+      <div class="inventory-stats">
+        <div class="inventory-item">
+          <Icon icon="mdi:medical-bag" class="h-5 w-5 text-green-500" />
+          <span class="inventory-value">{{ dweller.stimpack || 0 }}</span>
+          <span class="inventory-label">Stimpack</span>
+        </div>
+        <div class="inventory-item">
+          <Icon icon="mdi:radiation" class="h-5 w-5 text-yellow-500" />
+          <span class="inventory-value">{{ dweller.radaway || 0 }}</span>
+          <span class="inventory-label">RadAway</span>
+        </div>
+      </div>
+
+      <!-- Radiation Display (if any) -->
+      <div v-if="dweller.radiation && dweller.radiation > 0" class="stat-row">
+        <span class="stat-label">Radiation</span>
+        <span class="stat-value text-yellow-400">{{ dweller.radiation }}</span>
+      </div>
     </div>
 
     <!-- Action Buttons -->
@@ -131,6 +161,31 @@ const healthPercentage = computed(() => {
         <Icon icon="mdi:arrow-u-left-top" class="h-5 w-5 mr-2" />
         Recall
       </UButton>
+
+      <!-- Item Usage Buttons -->
+      <div class="item-actions">
+        <UButton
+          variant="secondary"
+          size="md"
+          @click="emit('use-stimpack')"
+          :disabled="!canUseStimpack || loading"
+          class="item-button"
+        >
+          <Icon icon="mdi:medical-bag" class="h-5 w-5 mr-2 text-green-500" />
+          Use Stimpack
+        </UButton>
+
+        <UButton
+          variant="secondary"
+          size="md"
+          @click="emit('use-radaway')"
+          :disabled="!canUseRadaway || loading"
+          class="item-button"
+        >
+          <Icon icon="mdi:radiation" class="h-5 w-5 mr-2 text-yellow-500" />
+          Use RadAway
+        </UButton>
+      </div>
 
       <!-- Coming Soon Actions -->
       <div class="coming-soon-section">
@@ -270,11 +325,56 @@ const healthPercentage = computed(() => {
   transition: width 0.3s ease;
 }
 
+.inventory-stats {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-around;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--color-theme-glow);
+  border-radius: 6px;
+  margin-top: 0.5rem;
+}
+
+.inventory-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.inventory-value {
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 6px var(--color-theme-glow);
+}
+
+.inventory-label {
+  font-size: 0.75rem;
+  color: var(--color-theme-primary);
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 .actions-container {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   margin-top: 0.5rem;
+}
+
+/* Item Actions */
+.item-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.item-button {
+  font-size: 0.875rem;
 }
 
 /* Coming Soon Section */

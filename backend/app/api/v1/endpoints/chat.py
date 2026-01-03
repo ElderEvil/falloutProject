@@ -1,4 +1,5 @@
 import json
+import logging
 import random
 from enum import StrEnum
 from typing import Annotated
@@ -20,6 +21,7 @@ from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.open_ai import get_ai_service
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 class ResponseType(StrEnum):
@@ -39,7 +41,7 @@ def test_read():
         ],
         model="gpt-3.5-turbo",
     )
-    print(response.choices[0].message.content)
+    logger.debug("AI test response: %s", response.choices[0].message.content)
 
     return {"Assistant": f"{response.choices[0].message.content}"}
 

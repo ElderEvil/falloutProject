@@ -23,6 +23,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Getters
   const isAuthenticated = computed(() => !!token.value)
+  const isSuperuser = computed(() => user.value?.is_superuser ?? false)
 
   // Actions
   async function login(username: string, password: string): Promise<boolean> {
@@ -146,6 +147,7 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     // Getters
     isAuthenticated,
+    isSuperuser,
     // Actions
     login,
     register,

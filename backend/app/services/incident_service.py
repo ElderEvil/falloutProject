@@ -7,33 +7,14 @@ from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.config import game_balance
 from app.crud.incident import incident_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.incident import Incident, IncidentStatus, IncidentType
 from app.models.room import Room
-from app.models.vault import Vault
 
 logger = logging.getLogger(__name__)
-
-# Spawn configuration
-INCIDENT_SPAWN_CHANCE_PER_HOUR = 0.05  # 5% chance per hour
-MIN_VAULT_POPULATION_FOR_INCIDENTS = 5  # Need at least 5 dwellers
-
-# Combat configuration
-BASE_RAIDER_POWER = 10  # Power per difficulty level
-DWELLER_STRENGTH_WEIGHT = 0.4
-DWELLER_ENDURANCE_WEIGHT = 0.3
-DWELLER_AGILITY_WEIGHT = 0.3
-LEVEL_BONUS_MULTIPLIER = 2
-
-# Spread configuration
-SPREAD_INTERVAL_SECONDS = 60
-MAX_SPREAD_COUNT = 3
-
-# Loot configuration
-LOOT_CAPS_MIN = 50
-LOOT_CAPS_MAX_PER_DIFFICULTY = 100
 
 
 class IncidentService:
@@ -42,24 +23,31 @@ class IncidentService:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
-    async def should_spawn_incident(self, vault: Vault, seconds_passed: int) -> bool:
+    async def should_spawn_incident(self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int) -> bool:
         """
         Determine if an incident should spawn based on vault state and time.
 
         Args:
-            vault: The vault to check
+            db_session: Database session
+            vault_id: The vault ID to check
             seconds_passed: Seconds since last tick
 
         Returns:
             bool: True if incident should spawn
         """
         # Need minimum population
-        if vault.dweller_count < MIN_VAULT_POPULATION_FOR_INCIDENTS:
+        from app.models.dweller import Dweller
+
+        dwellers_query = select(Dweller).where(Dweller.vault_id == vault_id)
+        dwellers_result = await db_session.execute(dwellers_query)
+        dweller_count = len(dwellers_result.scalars().all())
+
+        if dweller_count < game_balance.MIN_VAULT_POPULATION_FOR_INCIDENTS:
             return False
 
         # Calculate spawn chance based on time passed
         hours_passed = seconds_passed / 3600
-        spawn_chance = INCIDENT_SPAWN_CHANCE_PER_HOUR * hours_passed
+        spawn_chance = game_balance.INCIDENT_SPAWN_CHANCE_PER_HOUR * hours_passed
 
         # Random roll
         return random.random() < spawn_chance
@@ -69,6 +57,7 @@ class IncidentService:
     ) -> Incident | None:
         """
         Spawn a new incident in a random occupied room.
+        Raiders and Deathclaws spawn at vault door (0,0) and spread inward.
 
         Args:
             db_session: Database session
@@ -78,28 +67,41 @@ class IncidentService:
         Returns:
             Incident or None if no suitable room found
         """
-        # Get all rooms with dwellers
-        rooms_query = (
-            select(Room)
-            .join(Dweller, Room.id == Dweller.room_id)
-            .where((Room.vault_id == vault_id) & (Dweller.room_id.is_not(None)))
-            .distinct()
-        )
-        rooms_result = await db_session.execute(rooms_query)
-        occupied_rooms = list(rooms_result.scalars().all())
-
-        if not occupied_rooms:
-            self.logger.warning(f"No occupied rooms found for incident spawn in vault {vault_id}")  # noqa: G004
-            return None
-
-        # Pick random room
-        target_room = random.choice(occupied_rooms)
-
         # Pick random incident type if not specified
         if not incident_type:
             incident_type = random.choice(
                 [IncidentType.RAIDER_ATTACK, IncidentType.RADROACH_INFESTATION, IncidentType.FIRE]
             )
+
+        # Determine where to spawn based on incident type
+        if incident_type.value in game_balance.VAULT_DOOR_INCIDENTS:
+            # External attacks spawn at vault door (0,0) and spread inward
+            vault_door_query = select(Room).where(
+                (Room.vault_id == vault_id) & (Room.coordinate_x == 0) & (Room.coordinate_y == 0)
+            )
+            vault_door_result = await db_session.execute(vault_door_query)
+            target_room = vault_door_result.scalar_one_or_none()
+
+            if not target_room:
+                self.logger.warning(f"No vault door found at (0,0) for {incident_type} in vault {vault_id}")  # noqa: G004
+                return None
+        else:
+            # Other incidents spawn in random occupied rooms
+            rooms_query = (
+                select(Room)
+                .join(Dweller, Room.id == Dweller.room_id)
+                .where((Room.vault_id == vault_id) & (Dweller.room_id.is_not(None)))
+                .distinct()
+            )
+            rooms_result = await db_session.execute(rooms_query)
+            occupied_rooms = list(rooms_result.scalars().all())
+
+            if not occupied_rooms:
+                self.logger.warning(f"No occupied rooms found for incident spawn in vault {vault_id}")  # noqa: G004
+                return None
+
+            # Pick random room
+            target_room = random.choice(occupied_rooms)
 
         # Determine difficulty (1-10, weighted toward medium)
         difficulty = random.choices(
@@ -115,7 +117,7 @@ class IncidentService:
             room_id=target_room.id,
             incident_type=incident_type,
             difficulty=difficulty,
-            duration=SPREAD_INTERVAL_SECONDS,
+            duration=game_balance.INCIDENT_SPREAD_DURATION,
         )
 
         self.logger.info(
@@ -150,7 +152,10 @@ class IncidentService:
 
         if not dwellers:
             # No dwellers to fight - incident spreads
-            if incident.elapsed_time() >= incident.duration and incident.spread_count < MAX_SPREAD_COUNT:
+            if (
+                incident.elapsed_time() >= incident.duration
+                and incident.spread_count < game_balance.INCIDENT_MAX_SPREAD_COUNT
+            ):
                 await self._spread_incident(db_session, incident)
             return {"no_defenders": True, "damage": 0}
 
@@ -281,23 +286,57 @@ class IncidentService:
         }
 
     async def _spread_incident(self, db_session: AsyncSession, incident: Incident) -> None:
-        """Spread incident to an adjacent room."""
-        # Get adjacent rooms (simplified: just pick another random occupied room)
-        rooms_query = (
-            select(Room)
-            .join(Dweller, Room.id == Dweller.room_id)
-            .where((Room.vault_id == incident.vault_id) & (Room.id != incident.room_id))
-            .distinct()
+        """Spread incident to an adjacent room with the same incident type."""
+        # Get the current room to find its coordinates
+        current_room_query = select(Room).where(Room.id == incident.room_id)
+        current_room_result = await db_session.execute(current_room_query)
+        current_room = current_room_result.scalar_one_or_none()
+
+        if not current_room or current_room.coordinate_x is None or current_room.coordinate_y is None:
+            return
+
+        # Find adjacent rooms (within 1-2 coordinate units horizontally or vertically)
+        adjacent_rooms_query = select(Room).where(
+            (Room.vault_id == incident.vault_id)
+            & (Room.id != incident.room_id)
+            & (Room.coordinate_x.is_not(None))
+            & (Room.coordinate_y.is_not(None))
+            & (
+                # Adjacent horizontally (same floor, next to each other)
+                (
+                    (Room.coordinate_y == current_room.coordinate_y)
+                    & (Room.coordinate_x.between(current_room.coordinate_x - 2, current_room.coordinate_x + 2))
+                )
+                # Adjacent vertically (same column, one floor up/down)
+                | (
+                    (Room.coordinate_x == current_room.coordinate_x)
+                    & (Room.coordinate_y.between(current_room.coordinate_y - 1, current_room.coordinate_y + 1))
+                )
+            )
         )
-        rooms_result = await db_session.execute(rooms_query)
-        adjacent_rooms = list(rooms_result.scalars().all())
+        adjacent_rooms_result = await db_session.execute(adjacent_rooms_query)
+        adjacent_rooms = list(adjacent_rooms_result.scalars().all())
 
         if adjacent_rooms:
+            # Pick a random adjacent room
             new_room = random.choice(adjacent_rooms)
+
+            # Create a new incident in the adjacent room with the SAME type
+            new_incident = await incident_crud.create(
+                db_session,
+                vault_id=incident.vault_id,
+                room_id=new_room.id,
+                incident_type=incident.type,  # Same type! (field is called 'type')
+                difficulty=incident.difficulty + 1,  # Slightly harder
+                duration=game_balance.INCIDENT_SPREAD_DURATION,
+            )
+
+            # Update original incident spread tracking
             incident.spread_to_room(str(new_room.id))
-            incident.difficulty += 1  # Increase difficulty when spreading
+            db_session.add(incident)
+
             self.logger.warning(
-                f"Incident {incident.id} spread to room {new_room.name} (new difficulty: {incident.difficulty})"  # noqa: G004
+                f"Incident {incident.type} spread from {current_room.name} to {new_room.name} (difficulty {new_incident.difficulty})"  # noqa: E501, G004
             )
 
     def _calculate_dweller_combat_power(self, dwellers: list[Dweller]) -> float:
@@ -306,18 +345,19 @@ class IncidentService:
         for dweller in dwellers:
             # SPECIAL contribution
             stat_power = (
-                dweller.strength * DWELLER_STRENGTH_WEIGHT
-                + dweller.endurance * DWELLER_ENDURANCE_WEIGHT
-                + dweller.agility * DWELLER_AGILITY_WEIGHT
+                dweller.strength * game_balance.DWELLER_STRENGTH_WEIGHT
+                + dweller.endurance * game_balance.DWELLER_ENDURANCE_WEIGHT
+                + dweller.agility * game_balance.DWELLER_AGILITY_WEIGHT
             )
 
             # Weapon damage (if equipped)
             weapon_damage = 0
-            if dweller.weapon:
-                weapon_damage = (dweller.weapon.damage_min + dweller.weapon.damage_max) / 2
+            # TODO: Add weapon damage when weapon relationship is properly loaded
+            # if dweller.weapon:
+            #     weapon_damage = (dweller.weapon.damage_min + dweller.weapon.damage_max) / 2
 
             # Level bonus
-            level_bonus = dweller.level * LEVEL_BONUS_MULTIPLIER
+            level_bonus = dweller.level * game_balance.LEVEL_BONUS_MULTIPLIER
 
             total_power += stat_power + weapon_damage + level_bonus
 
@@ -325,7 +365,7 @@ class IncidentService:
 
     def _calculate_raider_power(self, difficulty: int) -> float:
         """Calculate raider power based on difficulty."""
-        return difficulty * BASE_RAIDER_POWER
+        return difficulty * game_balance.BASE_RAIDER_POWER
 
     def _calculate_damage_to_dwellers(self, raider_power: float, dweller_count: int, seconds: int) -> float:  # noqa: ARG002
         """Calculate damage dealt to dwellers per tick."""
@@ -375,8 +415,8 @@ class IncidentService:
     def _generate_loot(self, difficulty: int) -> dict:
         """Generate loot rewards based on difficulty."""
         caps = random.randint(
-            LOOT_CAPS_MIN + (difficulty - 1) * LOOT_CAPS_MAX_PER_DIFFICULTY // 2,
-            LOOT_CAPS_MIN + difficulty * LOOT_CAPS_MAX_PER_DIFFICULTY,
+            game_balance.LOOT_CAPS_MIN + (difficulty - 1) * game_balance.LOOT_CAPS_MAX_PER_DIFFICULTY // 2,
+            game_balance.LOOT_CAPS_MIN + difficulty * game_balance.LOOT_CAPS_MAX_PER_DIFFICULTY,
         )
 
         items = []

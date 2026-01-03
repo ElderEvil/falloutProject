@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRadioStore } from '@/stores/radio'
 import type { RadioMode } from '@/models/radio'
 import UCard from '@/components/ui/UCard.vue'
@@ -60,24 +60,46 @@ const currentSpeedup = computed(() => {
   return stats.value.speedup_multipliers[selectedRoomIndex.value]?.speedup || 1.0
 })
 
-async function updateSpeedup(value: number) {
-  if (!stats.value?.speedup_multipliers?.length) return
+// Local state for slider to avoid lag
+const localSpeedup = ref(1.0)
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
-  const roomId = stats.value.speedup_multipliers[selectedRoomIndex.value]?.room_id
-  if (roomId) {
-    await radioStore.setRadioSpeedup(props.vaultId, roomId, value)
+// Update local speedup when actual speedup changes
+watch(currentSpeedup, (newValue) => {
+  localSpeedup.value = newValue
+})
+
+function handleSliderChange(value: number) {
+  // Update local state immediately for smooth UI
+  localSpeedup.value = value
+
+  // Debounce backend update
+  if (debounceTimer) {
+    clearTimeout(debounceTimer)
   }
+
+  debounceTimer = setTimeout(async () => {
+    if (!stats.value?.speedup_multipliers?.length) return
+
+    const roomId = stats.value.speedup_multipliers[selectedRoomIndex.value]?.room_id
+    if (roomId) {
+      await radioStore.setRadioSpeedup(props.vaultId, roomId, value)
+    }
+  }, 500) // Wait 500ms after user stops sliding
 }
 
+// Initialize local speedup on mount
 onMounted(() => {
+  localSpeedup.value = currentSpeedup.value
   refreshStats()
 })
+
 </script>
 
 <template>
   <UCard class="radio-stats-panel">
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-xl font-mono text-green-400">📻 Radio Room</h2>
+      <h2 class="text-xl font-mono" style="color: var(--color-theme-primary);">📻 Radio Room</h2>
       <UButton @click="refreshStats" :disabled="isLoading" size="sm">
         Refresh
       </UButton>
@@ -95,9 +117,9 @@ onMounted(() => {
 
     <div v-else class="space-y-4">
       <!-- Radio Mode Toggle -->
-      <div class="bg-gray-800 border border-green-700 rounded-lg p-3">
+      <div class="radio-mode-panel">
         <div class="flex items-center justify-between mb-2">
-          <span class="text-sm font-semibold text-green-400">Radio Mode</span>
+          <span class="text-sm font-semibold" style="color: var(--color-theme-primary);">Radio Mode</span>
           <UBadge :color="isRecruitmentMode ? 'blue' : 'purple'">
             {{ isRecruitmentMode ? 'Recruitment' : 'Happiness' }}
           </UBadge>
@@ -107,16 +129,16 @@ onMounted(() => {
             ? 'Attracts new dwellers to your vault'
             : 'Boosts happiness for all dwellers' }}
         </p>
-        <UButton @click="toggleMode" size="sm" class="w-full">
+        <UButton @click="toggleMode" size="sm" class="w-full mode-switch-button">
           Switch to {{ isRecruitmentMode ? 'Happiness Mode' : 'Recruitment Mode' }}
         </UButton>
       </div>
 
       <!-- Speedup Controls -->
-      <div class="bg-gray-800 border border-green-700 rounded-lg p-3">
+      <div class="speedup-panel">
         <div class="flex items-center justify-between mb-2">
-          <span class="text-sm font-semibold text-green-400">Speedup Multiplier</span>
-          <UBadge color="yellow">{{ currentSpeedup.toFixed(1) }}x</UBadge>
+          <span class="text-sm font-semibold" style="color: var(--color-theme-primary);">Speedup Multiplier</span>
+          <UBadge color="yellow">{{ localSpeedup.toFixed(1) }}x</UBadge>
         </div>
 
         <!-- Room selector if multiple radio rooms -->
@@ -124,7 +146,7 @@ onMounted(() => {
           <label class="text-xs text-gray-400 mb-1 block">Radio Room:</label>
           <select
             v-model="selectedRoomIndex"
-            class="w-full bg-gray-900 border border-green-700 text-green-400 rounded px-2 py-1 text-sm"
+            class="room-selector"
           >
             <option
               v-for="(_, index) in stats.speedup_multipliers"
@@ -143,9 +165,9 @@ onMounted(() => {
             min="1"
             max="10"
             step="0.5"
-            :value="currentSpeedup"
-            @input="(e) => updateSpeedup(parseFloat((e.target as HTMLInputElement).value))"
-            class="w-full accent-green-500"
+            :value="localSpeedup"
+            @input="(e) => handleSliderChange(parseFloat((e.target as HTMLInputElement).value))"
+            class="speedup-slider"
           />
           <div class="flex justify-between text-xs text-gray-500">
             <span>1x</span>
@@ -158,27 +180,27 @@ onMounted(() => {
         </p>
       </div>
 
-      <div class="border-t border-green-800"></div>
+      <div class="divider"></div>
 
       <!-- Stats (only show if in recruitment mode) -->
       <div v-if="isRecruitmentMode" class="space-y-2">
         <div class="flex justify-between items-center">
           <span class="text-gray-400">Radio Rooms:</span>
-          <span class="font-mono text-green-400">{{ stats.radio_rooms_count }}</span>
+          <span class="stat-value">{{ stats.radio_rooms_count }}</span>
         </div>
 
         <div class="flex justify-between items-center">
           <span class="text-gray-400">Recruitment Rate:</span>
-          <span class="font-mono text-green-400">{{ formatRate }}</span>
+          <span class="stat-value">{{ formatRate }}</span>
         </div>
 
         <div class="flex justify-between items-center">
           <span class="text-gray-400">Avg. Time Per Recruit:</span>
-          <span class="font-mono text-green-400">{{ estimatedTime }}</span>
+          <span class="stat-value">{{ estimatedTime }}</span>
         </div>
       </div>
 
-      <div class="border-t border-green-800"></div>
+      <div class="divider"></div>
 
       <!-- Manual recruitment -->
       <div class="space-y-2">
@@ -193,7 +215,7 @@ onMounted(() => {
           @click="$emit('manual-recruit')"
           :disabled="isRecruiting"
           variant="primary"
-          class="w-full"
+          class="w-full recruit-button"
         >
           {{ isRecruiting ? 'Recruiting...' : 'Recruit Dweller Now' }}
         </UButton>
@@ -201,3 +223,115 @@ onMounted(() => {
     </div>
   </UCard>
 </template>
+
+<style scoped>
+.radio-mode-panel,
+.speedup-panel {
+  background-color: rgba(0, 0, 0, 0.3);
+  border: 2px solid var(--color-theme-border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.room-selector {
+  width: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  border: 2px solid var(--color-theme-border);
+  color: var(--color-theme-primary);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.875rem;
+}
+
+.room-selector:focus {
+  outline: none;
+  border-color: var(--color-theme-primary);
+  box-shadow: 0 0 0 2px var(--color-theme-glow);
+}
+
+.speedup-slider {
+  width: 100%;
+  height: 6px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 5px;
+  outline: none;
+}
+
+.speedup-slider::-webkit-slider-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 5px;
+}
+
+.speedup-slider::-moz-range-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 5px;
+}
+
+.speedup-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-theme-primary);
+  border: 2px solid var(--color-theme-accent);
+  cursor: pointer;
+  box-shadow: 0 0 8px var(--color-theme-glow);
+  transition: transform 0.2s;
+}
+
+.speedup-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.speedup-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-theme-primary);
+  border: 2px solid var(--color-theme-accent);
+  cursor: pointer;
+  box-shadow: 0 0 8px var(--color-theme-glow);
+  transition: transform 0.2s;
+}
+
+.speedup-slider::-moz-range-thumb:hover {
+  transform: scale(1.2);
+}
+
+.divider {
+  border-top: 1px solid var(--color-theme-border);
+}
+
+.stat-value {
+  font-family: monospace;
+  color: var(--color-theme-primary);
+}
+
+.mode-switch-button,
+.recruit-button {
+  background: var(--color-theme-primary);
+  border: 2px solid var(--color-theme-primary);
+  transition: all 0.2s;
+}
+
+.mode-switch-button:hover:not(:disabled),
+.recruit-button:hover:not(:disabled) {
+  background: var(--color-theme-accent);
+  border-color: var(--color-theme-accent);
+  box-shadow: 0 0 8px var(--color-theme-glow);
+}
+
+.mode-switch-button:disabled,
+.recruit-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+</style>

@@ -13,7 +13,6 @@ from app.config.game_balance import (
     CHARISMA_RATE_MULTIPLIER,
     HAPPINESS_RATE_MULTIPLIER,
     MANUAL_RECRUITMENT_COST,
-    RADIO_HAPPINESS_BONUS,
     RADIO_TIER_MULTIPLIER,
 )
 from app.models.dweller import Dweller
@@ -97,57 +96,6 @@ class RadioService:
         rate *= happiness_multiplier
 
         return rate
-
-    @staticmethod
-    async def apply_happiness_bonus(
-        db_session: AsyncSession,
-        vault_id: UUID4,
-    ) -> int:
-        """
-        Apply happiness bonus to all dwellers when radio is in happiness mode.
-
-        Args:
-            db_session: Database session
-            vault_id: Vault ID
-
-        Returns:
-            Number of dwellers affected
-        """
-        # Get vault
-        vault_query = select(Vault).where(Vault.id == vault_id)
-        vault = (await db_session.execute(vault_query)).scalars().first()
-
-        if not vault or vault.radio_mode != "happiness":
-            return 0
-
-        # Get radio rooms
-        radio_rooms = await RadioService.get_radio_rooms(db_session, vault_id)
-
-        if not radio_rooms:
-            return 0
-
-        # Get all dwellers in the vault
-        dwellers_query = select(Dweller).where(Dweller.vault_id == vault_id)
-        dwellers = (await db_session.execute(dwellers_query)).scalars().all()
-
-        # Calculate total speedup from all radio rooms
-        total_speedup = sum(room.speedup_multiplier for room in radio_rooms)
-        happiness_increase = int(RADIO_HAPPINESS_BONUS * total_speedup)
-
-        # Apply happiness bonus to all dwellers
-        affected_count = 0
-        for dweller in dwellers:
-            if dweller.happiness < 100:
-                dweller.happiness = min(100, dweller.happiness + happiness_increase)
-                affected_count += 1
-
-        await db_session.commit()
-
-        logger.info(
-            f"Radio happiness mode: +{happiness_increase} happiness to {affected_count} dwellers in vault {vault_id}"  # noqa: G004
-        )
-
-        return affected_count
 
     @staticmethod
     async def check_for_recruitment(

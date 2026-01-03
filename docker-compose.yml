@@ -14,7 +14,6 @@ services:
       timeout: 5s
       retries: 5
     environment:
-      # Enable UUID v7 extension on startup
       - POSTGRES_INITDB_ARGS=--locale=C --encoding=UTF8
 
   fastapi:
@@ -22,7 +21,7 @@ services:
     build:
       context: ./backend
     restart: always
-    env_file: ".env"
+    env_file: ".env.docker"
     depends_on:
       db:
         condition: service_healthy
@@ -30,9 +29,10 @@ services:
         condition: service_started
     ports:
       - "8000:8000"
-    command: "sh -c 'alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000'"
+    working_dir: /app
+    command: ["sh", "-c", "uv run alembic upgrade head && uv run uvicorn main:app --host 0.0.0.0 --port 8000"]
     volumes:
-      - ./app:/code/app
+      - ./backend/app:/app/app
 
   vuejs:
     container_name: vuejs
@@ -48,8 +48,6 @@ services:
     image: redis:alpine
     restart: always
     env_file: ".env"
-    expose:
-      - 6379
     ports:
       - "6379:6379"
 
@@ -58,28 +56,35 @@ services:
     build:
       context: ./backend
     restart: always
-    env_file: ".env"
+    env_file: ".env.docker"
     depends_on:
-      - db
-      - redis
-    command: "celery -A app.core.celery worker -l info"
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    working_dir: /app
+    command: ["uv", "run", "celery", "-A", "app.core.celery", "worker", "-l", "info"]
 
   celery_beat:
     container_name: celery_beat
     build:
       context: ./backend
     restart: always
-    env_file: ".env"
+    env_file: ".env.docker"
     depends_on:
-      - db
-      - redis
-    command: "celery -A app.core.celery beat -l info"
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    working_dir: /app
+    command: ["uv", "run", "celery", "-A", "app.core.celery", "beat", "-l", "info", "--scheduler", "sqlalchemy_celery_beat.schedulers:DatabaseScheduler"]
 
   flower:
     image: mher/flower:latest
     restart: always
+    env_file: ".env"
     environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
     ports:
       - "5555:5555"
     depends_on:
@@ -102,11 +107,8 @@ services:
     container_name: mailhog
     restart: always
     ports:
-      - "1025:1025"  # SMTP server
-      - "8025:8025"  # Web UI
-    environment:
-      - MH_STORAGE=maildir
-      - MH_MAILDIR_PATH=/maildir
+      - "1025:1025"
+      - "8025:8025"
     volumes:
       - mailhog_data:/maildir
 

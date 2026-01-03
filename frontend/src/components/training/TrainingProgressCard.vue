@@ -153,27 +153,27 @@ const handleComplete = () => {
 <style scoped>
 .training-card {
   background: linear-gradient(135deg, rgb(0 0 0 / 0.7), rgb(15 23 42 / 0.7));
-  border: 1px solid rgb(0 191 255 / 0.5);
+  border: 1px solid var(--color-theme-primary);
   border-radius: 0.5rem;
   padding: 1rem;
-  box-shadow: 0 0 10px rgb(0 191 255 / 0.2), inset 0 0 10px rgb(0 0 0 / 0.5);
+  box-shadow: 0 0 10px var(--color-theme-primary), inset 0 0 10px rgb(0 0 0 / 0.5);
   transition: all 0.3s ease;
 }
 
 .training-card:hover {
-  border-color: rgb(0 191 255 / 0.8);
-  box-shadow: 0 0 15px rgb(0 191 255 / 0.3), inset 0 0 10px rgb(0 0 0 / 0.5);
+  border-color: var(--color-theme-primary);
+  box-shadow: 0 0 15px var(--color-theme-primary), inset 0 0 10px rgb(0 0 0 / 0.5);
 }
 
 .training-card.ready {
-  border-color: rgb(34 197 94 / 0.8);
-  box-shadow: 0 0 15px rgb(34 197 94 / 0.4), inset 0 0 10px rgb(0 0 0 / 0.5);
+  border-color: var(--color-theme-accent);
+  box-shadow: 0 0 15px var(--color-theme-accent), inset 0 0 10px rgb(0 0 0 / 0.5);
   animation: pulse 2s ease-in-out infinite;
 }
 
 .training-card.inactive {
   opacity: 0.6;
-  border-color: rgb(100 116 139 / 0.5);
+  border-color: var(--color-theme-glow);
 }
 
 .training-header {
@@ -185,13 +185,13 @@ const handleComplete = () => {
 
 .stat-icon {
   font-size: 2rem;
-  color: rgb(0 191 255);
-  filter: drop-shadow(0 0 4px rgb(0 191 255 / 0.6));
+  color: var(--color-theme-primary);
+  filter: drop-shadow(0 0 4px var(--color-theme-primary));
 }
 
 .training-card.ready .stat-icon {
-  color: rgb(34 197 94);
-  filter: drop-shadow(0 0 4px rgb(34 197 94 / 0.6));
+  color: var(--color-theme-accent);
+  filter: drop-shadow(0 0 4px var(--color-theme-accent));
   animation: bounce 1s ease-in-out infinite;
 }
 
@@ -205,7 +205,7 @@ const handleComplete = () => {
 .stat-name {
   font-size: 0.875rem;
   font-weight: bold;
-  color: rgb(134 239 172);
+  color: var(--color-theme-primary);
   font-family: 'Courier New', monospace;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -213,7 +213,7 @@ const handleComplete = () => {
 
 .dweller-name {
   font-size: 0.75rem;
-  color: rgb(74 222 128);
+  color: var(--color-theme-primary);
   font-family: 'Courier New', monospace;
 }
 
@@ -228,7 +228,7 @@ const handleComplete = () => {
   flex: 1;
   height: 1rem;
   background: linear-gradient(to bottom, rgb(0 0 0 / 0.8), rgb(0 0 0 / 0.6));
-  border: 1px solid rgb(0 191 255 / 0.5);
+  border: 1px solid var(--color-theme-primary);
   border-radius: 0.25rem;
   overflow: hidden;
   position: relative;
@@ -236,30 +236,30 @@ const handleComplete = () => {
 }
 
 .training-card.ready .progress-bar {
-  border-color: rgb(34 197 94);
+  border-color: var(--color-theme-accent);
 }
 
 .progress-fill {
   height: 100%;
   background: linear-gradient(
     to right,
-    rgb(0 191 255),
+    var(--color-theme-primary),
     rgb(0 149 255),
-    rgb(0 191 255)
+    var(--color-theme-primary)
   );
   transition: width 0.5s ease-out;
   position: relative;
-  box-shadow: 0 0 8px rgb(0 191 255 / 0.6);
+  box-shadow: 0 0 8px var(--color-theme-primary);
 }
 
 .training-card.ready .progress-fill {
   background: linear-gradient(
     to right,
-    rgb(34 197 94),
-    rgb(74 222 128),
-    rgb(34 197 94)
+    var(--color-theme-accent),
+    var(--color-theme-primary),
+    var(--color-theme-accent)
   );
-  box-shadow: 0 0 8px rgb(34 197 94 / 0.6);
+  box-shadow: 0 0 8px var(--color-theme-accent);
 }
 
 .progress-shine {
@@ -279,7 +279,7 @@ const handleComplete = () => {
 
 .progress-text {
   font-size: 0.75rem;
-  color: rgb(134 239 172);
+  color: var(--color-theme-primary);
   font-family: 'Courier New', monospace;
   min-width: 3rem;
   text-align: right;
@@ -300,19 +300,19 @@ const handleComplete = () => {
 
 .time-icon {
   font-size: 1rem;
-  color: rgb(0 191 255);
+  color: var(--color-theme-primary);
 }
 
 .time-remaining {
   font-size: 0.875rem;
-  color: rgb(74 222 128);
+  color: var(--color-theme-primary);
   font-family: 'Courier New', monospace;
   font-weight: bold;
 }
 
 .time-remaining.ready-text {
-  color: rgb(34 197 94);
-  text-shadow: 0 0 4px rgb(34 197 94 / 0.6);
+  color: var(--color-theme-accent);
+  text-shadow: 0 0 4px var(--color-theme-accent);
   animation: pulse-text 1s ease-in-out infinite;
 }
 
@@ -334,10 +334,10 @@ const handleComplete = () => {
 @keyframes pulse {
   0%,
   100% {
-    box-shadow: 0 0 15px rgb(34 197 94 / 0.4), inset 0 0 10px rgb(0 0 0 / 0.5);
+    box-shadow: 0 0 15px var(--color-theme-accent), inset 0 0 10px rgb(0 0 0 / 0.5);
   }
   50% {
-    box-shadow: 0 0 25px rgb(34 197 94 / 0.6), inset 0 0 10px rgb(0 0 0 / 0.5);
+    box-shadow: 0 0 25px var(--color-theme-accent), inset 0 0 10px rgb(0 0 0 / 0.5);
   }
 }
 

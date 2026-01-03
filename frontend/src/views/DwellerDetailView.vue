@@ -44,9 +44,21 @@ const navigateToChatPage = () => {
   router.push(`/dweller/${dwellerId.value}/chat`)
 }
 
-const handleAssign = () => {
-  // TODO: Implement assign to room modal
-  console.log('Assign to room - coming soon')
+const assigning = ref(false)
+
+const handleAssign = async () => {
+  if (!dweller.value || assigning.value) return
+
+  assigning.value = true
+  try {
+    await dwellerStore.autoAssignToRoom(dwellerId.value, authStore.token as string)
+    // Refresh dweller details to show updated room assignment
+    await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
+  } catch (error) {
+    console.error('Error auto-assigning dweller:', error)
+  } finally {
+    assigning.value = false
+  }
 }
 
 const handleRecall = () => {
@@ -155,7 +167,7 @@ const handleUseRadaway = async () => {
               <DwellerCard
                 :dweller="dweller"
                 :image-url="dweller.image_url"
-                :loading="generatingAI || usingStimpack || usingRadaway"
+                :loading="generatingAI || usingStimpack || usingRadaway || assigning"
                 @chat="navigateToChatPage"
                 @assign="handleAssign"
                 @recall="handleRecall"

@@ -7,16 +7,15 @@ TICK_INTERVAL = 60  # Seconds between game ticks
 MAX_OFFLINE_CATCHUP = 3600  # Maximum seconds to catch up (1 hour)
 
 # ===== INCIDENT SPAWN RATES =====
-# Base chance per tick (0.3% = 0.003)
-INCIDENT_BASE_CHANCE = 0.003  # Rare by default
+INCIDENT_SPAWN_CHANCE_PER_HOUR = 0.05  # 5% chance per hour
+MIN_VAULT_POPULATION_FOR_INCIDENTS = 5  # Need at least 5 dwellers
 
-# Modifiers that increase spawn chance
-INCIDENT_POPULATION_MODIFIER = 0.0001  # +0.01% per dweller
-INCIDENT_LOW_RESOURCE_MODIFIER = 0.002  # +0.2% if any resource below 20%
-INCIDENT_CRITICAL_RESOURCE_MODIFIER = 0.005  # +0.5% if any resource below 5%
-
-# Maximum spawn chance (cap at 5%)
-INCIDENT_MAX_CHANCE = 0.05
+# Incidents that spawn at vault door (0,0) and spread inward
+VAULT_DOOR_INCIDENTS = [
+    "raider_attack",
+    "deathclaw_attack",
+    "feral_ghoul_attack",
+]
 
 # ===== INCIDENT DIFFICULTIES =====
 # Difficulty range (min, max) for each incident type
@@ -46,25 +45,59 @@ INCIDENT_WEIGHTS = {
 }
 
 # Incident duration before auto-spread (seconds)
-INCIDENT_SPREAD_DURATION = 120  # 2 minutes
+INCIDENT_SPREAD_DURATION = 60
+INCIDENT_MAX_SPREAD_COUNT = 3
 
 # ===== COMBAT BALANCE =====
-DWELLER_BASE_DAMAGE = 5
-STRENGTH_DAMAGE_MULTIPLIER = 0.5
-PERCEPTION_HIT_CHANCE_BONUS = 0.02  # +2% per point
-DEFENSE_REDUCTION_MULTIPLIER = 0.3
+# Combat configuration
+BASE_RAIDER_POWER = 10  # Power per difficulty level
+DWELLER_STRENGTH_WEIGHT = 0.4
+DWELLER_ENDURANCE_WEIGHT = 0.3
+DWELLER_AGILITY_WEIGHT = 0.3
+LEVEL_BONUS_MULTIPLIER = 2
 
-# Enemy damage per difficulty level
-ENEMY_DAMAGE_PER_DIFFICULTY = 3
+# Loot configuration
+LOOT_CAPS_MIN = 50
+LOOT_CAPS_MAX_PER_DIFFICULTY = 100
 
 # ===== HEALTH & NEEDS =====
 HEALTH_REGEN_PER_TICK = 5  # HP per 60s (when not in combat, resources available)
 RADIATION_DECAY_PER_TICK = 2  # RAD per 60s (when in safe room)
-HAPPINESS_DECAY_PER_TICK = 1  # Happiness loss per tick if resources low
 
 # Resource thresholds for dweller effects
 STARVATION_THRESHOLD = 0.0  # No food = no health regen
 DEHYDRATION_THRESHOLD = 0.0  # No water = no health regen
+
+# ===== HAPPINESS SYSTEM =====
+# Decay rates (per 60-second tick)
+BASE_HAPPINESS_DECAY = 0.5  # Natural happiness decay per tick
+RESOURCE_SHORTAGE_DECAY = 2.0  # Extra decay when resources low (<20%)
+CRITICAL_RESOURCE_DECAY = 5.0  # Extra decay when resources critical (<5%)
+INCIDENT_HAPPINESS_PENALTY = 3.0  # Penalty per active incident per tick
+IDLE_HAPPINESS_DECAY = 1.0  # Extra decay for idle dwellers
+
+# Gain rates (per 60-second tick)
+WORKING_HAPPINESS_GAIN = 1.0  # Gain per tick when working in any room
+HIGH_HEALTH_BONUS = 0.5  # Bonus when health > 80% while working
+PARTNER_NEARBY_BONUS = 1.0  # Bonus when partner in same room
+
+# Room-specific bonuses (per 60-second tick)
+LIVING_QUARTERS_HAPPINESS_BONUS = 1.5  # Extra happiness in living quarters (romance, privacy)
+TRAINING_ROOM_HAPPINESS_BONUS = 0.5  # Training gives purpose and growth
+RADIO_ROOM_HAPPINESS_BONUS = 1.0  # Entertainment and music boost morale
+RECREATION_ROOM_HAPPINESS_BONUS = 2.0  # Lounges, game rooms (future feature)
+
+# Status-specific modifiers
+COMBAT_HAPPINESS_PENALTY = 2.0  # Fighting incidents is stressful
+TRAINING_HAPPINESS_GAIN = 0.5  # Learning and self-improvement
+
+# Vault-wide bonuses
+HIGH_VAULT_RESOURCES_BONUS = 0.5  # Bonus when all resources > 80%
+NO_INCIDENTS_BONUS = 0.3  # Bonus when vault has no active incidents
+
+# Happiness thresholds
+HIGH_HEALTH_THRESHOLD = 0.8  # 80% health
+CRITICAL_RESOURCE_THRESHOLD_HAPPINESS = 0.05  # 5% resources
 
 # ===== TRAINING SYSTEM =====
 # Base training duration (2 hours)
@@ -213,34 +246,3 @@ def calculate_incident_difficulty(vault_population: int, avg_dweller_level: floa
     difficulty = 1 + int((population_factor + level_factor) / 2 * 9)
 
     return max(1, min(difficulty, 10))
-
-
-def get_incident_spawn_chance(
-    vault_population: int,
-    has_low_resources: bool,  # noqa: FBT001
-    has_critical_resources: bool,  # noqa: FBT001
-) -> float:
-    """
-    Calculate incident spawn chance for this tick.
-
-    Args:
-        vault_population: Number of dwellers
-        has_low_resources: Any resource below 20%
-        has_critical_resources: Any resource below 5%
-
-    Returns:
-        Spawn chance (0.0 - 1.0)
-    """
-    chance = INCIDENT_BASE_CHANCE
-
-    # Population modifier
-    chance += vault_population * INCIDENT_POPULATION_MODIFIER
-
-    # Resource modifiers
-    if has_critical_resources:
-        chance += INCIDENT_CRITICAL_RESOURCE_MODIFIER
-    elif has_low_resources:
-        chance += INCIDENT_LOW_RESOURCE_MODIFIER
-
-    # Cap at maximum
-    return min(chance, INCIDENT_MAX_CHANCE)

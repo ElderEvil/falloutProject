@@ -339,6 +339,39 @@ export const useDwellerStore = defineStore('dweller', () => {
     }
   }
 
+  async function autoAssignToRoom(dwellerId: string, token: string): Promise<Dweller | null> {
+    try {
+      const response = await axios.post(
+        `/api/v1/dwellers/${dwellerId}/auto_assign`,
+        null,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      )
+
+      // Update the dweller in the list
+      const dwellerIndex = dwellers.value.findIndex(d => d.id === dwellerId)
+      if (dwellerIndex !== -1) {
+        dwellers.value[dwellerIndex] = { ...dwellers.value[dwellerIndex], room_id: response.data.room_id }
+      }
+
+      // Update detailed dweller if cached
+      if (detailedDwellers.value[dwellerId]) {
+        detailedDwellers.value[dwellerId] = response.data
+      }
+
+      toast.success('Dweller auto-assigned to best matching room!')
+      return response.data
+    } catch (error: unknown) {
+      const errorMessage = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to auto-assign dweller'
+      console.error(`Failed to auto-assign dweller ${dwellerId}`, error)
+      toast.error(errorMessage)
+      return null
+    }
+  }
+
   return {
     // State
     dwellers,
@@ -360,6 +393,7 @@ export const useDwellerStore = defineStore('dweller', () => {
     generateDwellerInfo,
     assignDwellerToRoom,
     unassignDwellerFromRoom,
+    autoAssignToRoom,
     useStimpack,
     useRadaway,
     setFilterStatus,

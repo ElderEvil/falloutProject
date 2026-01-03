@@ -43,6 +43,47 @@ const canUseStimpack = computed(() => {
 const canUseRadaway = computed(() => {
   return (props.dweller.radaway || 0) > 0 && (props.dweller.radiation || 0) > 0;
 });
+
+const happinessLevel = computed(() => {
+  const happiness = props.dweller.happiness || 50;
+  if (happiness >= 75) return 'high';
+  if (happiness >= 50) return 'medium';
+  if (happiness >= 25) return 'low';
+  return 'critical';
+});
+
+const happinessColor = computed(() => {
+  switch (happinessLevel.value) {
+    case 'high': return 'var(--color-theme-primary)';
+    case 'medium': return '#4ade80'; // green-400
+    case 'low': return '#fbbf24'; // yellow-400
+    case 'critical': return '#ef4444'; // red-500
+    default: return 'var(--color-theme-primary)';
+  }
+});
+
+const genderIcon = computed(() => {
+  return props.dweller.gender === 'male' ? 'mdi:gender-male' : 'mdi:gender-female';
+});
+
+const genderColor = computed(() => {
+  return props.dweller.gender === 'male' ? '#60a5fa' : '#f472b6'; // blue-400 : pink-400
+});
+
+const rarityColor = computed(() => {
+  const rarity = props.dweller.rarity?.toLowerCase();
+  switch (rarity) {
+    case 'legendary': return '#fbbf24'; // yellow-400 (gold)
+    case 'rare': return '#a78bfa'; // violet-400 (purple)
+    case 'uncommon': return '#60a5fa'; // blue-400
+    case 'common':
+    default: return '#9ca3af'; // gray-400
+  }
+});
+
+const rarityLabel = computed(() => {
+  return props.dweller.rarity || 'Common';
+});
 </script>
 
 <template>
@@ -78,6 +119,18 @@ const canUseRadaway = computed(() => {
       </template>
     </div>
 
+    <!-- Gender & Rarity Info -->
+    <div class="info-badges">
+      <div class="info-badge gender-badge" :style="{ borderColor: genderColor }">
+        <Icon :icon="genderIcon" class="badge-icon" :style="{ color: genderColor }" />
+        <span class="badge-text" :style="{ color: genderColor }">{{ dweller.gender }}</span>
+      </div>
+      <div class="info-badge rarity-badge" :style="{ borderColor: rarityColor }">
+        <Icon icon="mdi:star" class="badge-icon" :style="{ color: rarityColor }" />
+        <span class="badge-text" :style="{ color: rarityColor }">{{ rarityLabel }}</span>
+      </div>
+    </div>
+
     <!-- Core Stats -->
     <div class="stats-container">
       <div class="stat-row">
@@ -95,10 +148,10 @@ const canUseRadaway = computed(() => {
 
       <div class="stat-row">
         <span class="stat-label">Happiness</span>
-        <span class="stat-value">{{ dweller.happiness }}%</span>
+        <span class="stat-value" :style="{ color: happinessColor }">{{ dweller.happiness }}%</span>
       </div>
       <div class="happiness-bar">
-        <div class="happiness-fill" :style="{ width: `${dweller.happiness}%` }"></div>
+        <div class="happiness-fill" :style="{ width: `${dweller.happiness}%`, background: happinessColor }"></div>
       </div>
 
       <!-- XP Progress Bar -->
@@ -145,7 +198,7 @@ const canUseRadaway = computed(() => {
         size="md"
         block
         @click="emit('assign')"
-        disabled
+        :disabled="loading"
       >
         <Icon icon="mdi:office-building" class="h-5 w-5 mr-2" />
         Assign to Room
@@ -279,6 +332,45 @@ const canUseRadaway = computed(() => {
   50% {
     box-shadow: 0 0 25px var(--color-theme-primary);
   }
+}
+
+/* Info Badges */
+.info-badges {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.info-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(0, 0, 0, 0.4);
+  border: 2px solid;
+  border-radius: 999px;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: capitalize;
+  box-shadow: 0 0 10px currentColor;
+  transition: all 0.2s;
+}
+
+.info-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px currentColor;
+}
+
+.badge-icon {
+  font-size: 1.25rem;
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
+.badge-text {
+  font-weight: 700;
+  text-shadow: 0 0 8px currentColor;
 }
 
 .stats-container {

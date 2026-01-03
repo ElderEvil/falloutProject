@@ -233,3 +233,27 @@ async def use_radaway(
     """Use a radaway to remove radiation from the dweller (removes 50% of radiation)."""
     await verify_dweller_access(dweller_id, user, db_session)
     return await crud.dweller.use_radaway(db_session, dweller_id)
+
+
+@router.get("/{dweller_id}/happiness_modifiers")
+async def get_happiness_modifiers(
+    dweller_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+):
+    """Get detailed breakdown of happiness modifiers for a dweller."""
+    from app.services.happiness_service import happiness_service
+
+    await verify_dweller_access(dweller_id, user, db_session)
+    return await happiness_service.get_happiness_modifiers(db_session, dweller_id)
+
+
+@router.post("/{dweller_id}/auto_assign", response_model=DwellerReadWithRoomID)
+async def auto_assign_to_room(
+    dweller_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+):
+    """Auto-assign dweller to the best matching production room based on their highest SPECIAL stat."""
+    await verify_dweller_access(dweller_id, user, db_session)
+    return await crud.dweller.auto_assign_to_best_room(db_session, dweller_id)

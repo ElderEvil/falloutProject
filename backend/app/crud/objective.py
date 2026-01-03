@@ -5,6 +5,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
+from app.crud.mixins import CompletionMixin
 from app.models import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.schemas.objective import ObjectiveCreate, ObjectiveRead, ObjectiveUpdate
@@ -12,6 +13,7 @@ from app.schemas.objective import ObjectiveCreate, ObjectiveRead, ObjectiveUpdat
 
 class CRUDObjective(
     CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate],
+    CompletionMixin[VaultObjectiveProgressLink],
 ):
     def __init__(self, model: type[Objective], link_model: type[VaultObjectiveProgressLink]):
         super().__init__(model)
@@ -53,6 +55,83 @@ class CRUDObjective(
             )
             for obj, progress, total, is_completed in results
         ]
+
+    async def _handle_completion_cascade(self, db_session: AsyncSession, db_obj: Objective, vault_id: UUID4) -> None:
+        """Handle any cascading logic when an objective is completed."""
+        # Could trigger rewards, notifications, etc.
+
+    async def complete(self, *, db_session: AsyncSession, objective_id: UUID4, vault_id: UUID4) -> Objective:
+        """
+        Mark an objective as completed for a vault.
+
+        Args:
+            db_session: Database session
+            objective_id: ID of the objective to complete
+            vault_id: ID of the vault
+
+        Returns:
+            Completed objective
+        """
+        # Get the objective
+        db_obj = await self.get(db_session, objective_id)
+
+        # Get or create the link
+        query = select(self.link_model).where(
+            self.link_model.vault_id == vault_id, self.link_model.objective_id == objective_id
+        )
+        result = await db_session.execute(query)
+        link = result.scalar_one_or_none()
+
+        if not link:
+            # Create new link if it doesn't exist
+            link = self.link_model(vault_id=vault_id, objective_id=objective_id, progress=1, total=1, is_completed=True)
+            db_session.add(link)
+        else:
+            # Mark as completed
+            link.is_completed = True
+            link.progress = link.total
+
+        await db_session.commit()
+        await self._handle_completion_cascade(db_session=db_session, db_obj=db_obj, vault_id=vault_id)
+
+        return db_obj
+
+    async def update_progress(
+        self, db_session: AsyncSession, objective_id: UUID4, vault_id: UUID4, progress: int
+    ) -> VaultObjectiveProgressLink:
+        """
+        Update the progress of an objective for a vault.
+
+        Args:
+            db_session: Database session
+            objective_id: ID of the objective
+            vault_id: ID of the vault
+            progress: New progress value
+
+        Returns:
+            Updated VaultObjectiveProgressLink
+        """
+        # Get or create the link
+        query = select(self.link_model).where(
+            self.link_model.vault_id == vault_id, self.link_model.objective_id == objective_id
+        )
+        result = await db_session.execute(query)
+        link = result.scalar_one_or_none()
+
+        if not link:
+            # Create new link if it doesn't exist
+            link = self.link_model(vault_id=vault_id, objective_id=objective_id, progress=progress, total=1)
+            db_session.add(link)
+        else:
+            # Update progress
+            link.progress = progress
+            # Auto-complete if progress reaches total
+            if link.progress >= link.total:
+                link.is_completed = True
+
+        await db_session.commit()
+        await db_session.refresh(link)
+        return link
 
 
 objective_crud = CRUDObjective(Objective, VaultObjectiveProgressLink)

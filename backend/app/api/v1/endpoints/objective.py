@@ -34,8 +34,22 @@ async def read_objective(objective_id: UUID4, db_session: Annotated[AsyncSession
     return await crud.objective_crud.get(db_session, objective_id)
 
 
-@router.post("/{vault_id}/{objective_id}/complete", response_model=ObjectiveRead)
+@router.post("/{vault_id}/{objective_id}/complete", response_model=Objective)
 async def complete_objective(
     vault_id: UUID4, objective_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]
 ):
-    return await crud.objective_crud.complete(db_session=db_session, quest_entity_id=objective_id, vault_id=vault_id)
+    """Mark an objective as completed for a vault."""
+    return await crud.objective_crud.complete(db_session=db_session, objective_id=objective_id, vault_id=vault_id)
+
+
+@router.post("/{vault_id}/{objective_id}/progress")
+async def update_objective_progress(
+    vault_id: UUID4,
+    objective_id: UUID4,
+    progress: int,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+):
+    """Update the progress of an objective for a vault."""
+    return await crud.objective_crud.update_progress(
+        db_session=db_session, objective_id=objective_id, vault_id=vault_id, progress=progress
+    )

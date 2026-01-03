@@ -10,6 +10,7 @@ from app.models.base import BaseUUIDModel, SPECIALModel, TimeStampMixin
 from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, GenderEnum, RarityEnum
 
 if TYPE_CHECKING:
+    from app.models.notification import Notification
     from app.models.outfit import Outfit
     from app.models.room import Room
     from app.models.training import Training
@@ -118,3 +119,9 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, table=True):
 
     # Training
     trainings: list["Training"] = Relationship(back_populates="dweller", cascade_delete=True)
+
+    # Notifications sent by this dweller
+    sent_notifications: list["Notification"] = Relationship(
+        back_populates="from_dweller",
+        sa_relationship_kwargs={"foreign_keys": "[Notification.from_dweller_id]"},
+    )

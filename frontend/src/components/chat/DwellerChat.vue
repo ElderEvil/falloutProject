@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watchEffect, computed } from 'vue'
+import { ref, watchEffect, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { Icon } from '@iconify/vue'
 import apiClient from '@/plugins/axios'
@@ -20,6 +20,31 @@ const isTyping = ref(false)
 
 const userAvatar = computed(() => authStore.user?.avatar_url)
 const dwellerAvatarUrl = computed(() => props.dwellerAvatar ? `http://${props.dwellerAvatar}` : '')
+
+const loadChatHistory = async () => {
+  try {
+    const response = await apiClient.get(
+      `/api/v1/chat/history/${props.dwellerId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${authStore.token}`
+        }
+      }
+    )
+
+    // Transform backend ChatMessageRead[] to frontend ChatMessageDisplay[]
+    const history = response.data.map((msg: any) => ({
+      type: msg.from_user_id ? 'user' : 'dweller',
+      content: msg.message_text,
+      timestamp: new Date(msg.created_at),
+      avatar: msg.from_user_id ? userAvatar.value : props.dwellerAvatar
+    }))
+
+    messages.value = history
+  } catch (error) {
+    console.error('Error loading chat history:', error)
+  }
+}
 
 const sendMessage = async () => {
   if (userMessage.value.trim()) {
@@ -74,6 +99,10 @@ watchEffect(() => {
   if (chatMessages.value) {
     chatMessages.value.scrollTop = chatMessages.value.scrollHeight
   }
+})
+
+onMounted(() => {
+  loadChatHistory()
 })
 </script>
 

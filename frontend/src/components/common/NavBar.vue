@@ -12,7 +12,14 @@ const router = useRouter();
 const route = useRoute();
 const isAuthenticated = computed(() => authStore.isAuthenticated);
 const user = computed(() => authStore.user);
-const currentVaultId = computed(() => route.params.id as string | undefined);
+const currentVaultId = computed(() => {
+  // For chat routes, use activeVaultId from store
+  // For vault routes, use route param
+  if (route.name === 'DwellerChatPage') {
+    return vaultStore.activeVaultId;
+  }
+  return route.params.id as string | undefined;
+});
 
 const logout = async () => {
   await authStore.logout();

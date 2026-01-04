@@ -62,11 +62,7 @@ async def test_create_or_get_relationship_creates_new(
     dweller_2: Dweller,
 ):
     """Test creating a new relationship."""
-    relationship = await RelationshipService.create_or_get_relationship(
-        async_session,
-        dweller.id,
-        dweller_2.id,
-    )
+    relationship = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
 
     assert relationship is not None
     assert relationship.dweller_1_id == dweller.id
@@ -83,18 +79,10 @@ async def test_create_or_get_relationship_returns_existing(
 ):
     """Test that create_or_get_relationship returns existing relationship."""
     # Create first relationship
-    rel1 = await RelationshipService.create_or_get_relationship(
-        async_session,
-        dweller.id,
-        dweller_2.id,
-    )
+    rel1 = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
 
     # Try to create again - should return same one
-    rel2 = await RelationshipService.create_or_get_relationship(
-        async_session,
-        dweller.id,
-        dweller_2.id,
-    )
+    rel2 = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
 
     assert rel1.id == rel2.id
 
@@ -107,11 +95,7 @@ async def test_get_relationship_bidirectional(
 ):
     """Test that relationship lookup works in both directions."""
     # Create relationship A -> B
-    await RelationshipService.create_or_get_relationship(
-        async_session,
-        dweller.id,
-        dweller_2.id,
-    )
+    await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
 
     # Should find it when querying B -> A
     relationship = await RelationshipService.get_relationship(
@@ -133,11 +117,7 @@ async def test_increase_affinity(
     dweller_2: Dweller,
 ):
     """Test increasing affinity between dwellers."""
-    relationship = await RelationshipService.create_or_get_relationship(
-        async_session,
-        dweller.id,
-        dweller_2.id,
-    )
+    relationship = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
 
     # Increase affinity
     updated = await RelationshipService.increase_affinity(
@@ -157,11 +137,7 @@ async def test_increase_affinity_caps_at_100(
     dweller_2: Dweller,
 ):
     """Test that affinity is capped at 100."""
-    relationship = await RelationshipService.create_or_get_relationship(
-        async_session,
-        dweller.id,
-        dweller_2.id,
-    )
+    relationship = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
 
     # Increase by large amount
     updated = await RelationshipService.increase_affinity(
@@ -180,11 +156,7 @@ async def test_increase_affinity_auto_upgrades_to_friend(
     dweller_2: Dweller,
 ):
     """Test that relationship auto-upgrades to friend at threshold."""
-    relationship = await RelationshipService.create_or_get_relationship(
-        async_session,
-        dweller.id,
-        dweller_2.id,
-    )
+    relationship = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
 
     assert relationship.relationship_type == RelationshipTypeEnum.ACQUAINTANCE
 
@@ -287,11 +259,7 @@ async def test_initiate_romance_success(
 ):
     """Test successfully initiating romance."""
     # Create relationship and increase affinity past threshold
-    relationship = await RelationshipService.create_or_get_relationship(
-        async_session,
-        dweller.id,
-        dweller_2.id,
-    )
+    relationship = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
 
     await RelationshipService.increase_affinity(
         async_session,
@@ -317,11 +285,7 @@ async def test_initiate_romance_fails_low_affinity(
 ):
     """Test that romance fails with low affinity."""
     # Create relationship but don't increase affinity
-    await RelationshipService.create_or_get_relationship(
-        async_session,
-        dweller.id,
-        dweller_2.id,
-    )
+    await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
 
     # Try to initiate romance - should fail
     with pytest.raises(ValueError, match="Affinity too low"):
@@ -355,11 +319,7 @@ async def test_make_partners_success(
 ):
     """Test successfully making dwellers partners."""
     # Create relationship, increase affinity, initiate romance
-    relationship = await RelationshipService.create_or_get_relationship(
-        async_session,
-        dweller.id,
-        dweller_2.id,
-    )
+    relationship = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
 
     await RelationshipService.increase_affinity(
         async_session,
@@ -398,11 +358,7 @@ async def test_make_partners_fails_not_romantic(
 ):
     """Test that making partners fails if not in romantic relationship."""
     # Create relationship but don't initiate romance
-    await RelationshipService.create_or_get_relationship(
-        async_session,
-        dweller.id,
-        dweller_2.id,
-    )
+    await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
 
     with pytest.raises(ValueError, match="must be in a romantic relationship"):
         await RelationshipService.make_partners(
@@ -435,11 +391,7 @@ async def test_break_up_clears_partner_ids(
 ):
     """Test that breaking up clears partner_id on both dwellers."""
     # Create partners
-    relationship = await RelationshipService.create_or_get_relationship(
-        async_session,
-        dweller.id,
-        dweller_2.id,
-    )
+    relationship = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
 
     await RelationshipService.increase_affinity(
         async_session,
@@ -481,11 +433,7 @@ async def test_break_up_marks_as_ex(
 ):
     """Test that breaking up marks relationship as EX."""
     # Create partners
-    relationship = await RelationshipService.create_or_get_relationship(
-        async_session,
-        dweller.id,
-        dweller_2.id,
-    )
+    relationship = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
 
     await RelationshipService.increase_affinity(
         async_session,
@@ -529,11 +477,7 @@ async def test_break_up_applies_affinity_penalty(
 ):
     """Test that breaking up applies affinity penalty."""
     # Create romantic relationship
-    relationship = await RelationshipService.create_or_get_relationship(
-        async_session,
-        dweller.id,
-        dweller_2.id,
-    )
+    relationship = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
 
     await RelationshipService.increase_affinity(
         async_session,
@@ -567,11 +511,7 @@ async def test_break_up_affinity_doesnt_go_negative(
 ):
     """Test that affinity doesn't go below 0 on breakup."""
     # Create relationship with low affinity
-    relationship = await RelationshipService.create_or_get_relationship(
-        async_session,
-        dweller.id,
-        dweller_2.id,
-    )
+    relationship = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
 
     # Set low affinity manually
     relationship.affinity = 10

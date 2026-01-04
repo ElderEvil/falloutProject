@@ -97,6 +97,7 @@ AI-powered dweller interactions.
     - ASCII art or terminal boot sequence animation
     - Retro computer login aesthetic
     - More immersive fallout-themed copy
+    - **A/B Testing**: Terminal theme version created (`LoginFormTerminal.vue`) - test against original
 
 #### 4. Complete Training System UI (Frontend)
 
@@ -415,6 +416,17 @@ AI-powered dweller interactions.
 ---
 
 ## 📋 Planned Features
+
+### UI/UX Polish Backlog
+
+#### Future A/B Tests & UI Experiments
+- [ ] **Terminal Login Theme** - A/B test `LoginFormTerminal.vue` vs current simple login
+- [ ] **Vault-Tec Corporate Naming** - Consider more "corporate/technical" naming for RelationshipsView
+    - Examples: "Paired Dwellers" vs "Partners", "Gestation Cycles" vs "Pregnancies"
+    - May be too corporate/clinical - test with users first
+- [ ] **Scoped Styles Refactor** - Move component-specific styles to global theme system
+    - Maintain consistent styling across app
+    - Reduce duplication and improve maintainability
 
 ### Phase 1: Core Gameplay Loop (Jan-Feb 2026)
 

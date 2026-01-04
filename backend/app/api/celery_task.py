@@ -55,13 +55,12 @@ def game_tick_task(self):
                 return result
 
         stats = asyncio.run(run_tick())
-
-        logger.info(f"Game tick completed: {stats}")  # noqa: G004
-        return stats  # noqa: TRY300
-
     except Exception as e:
-        logger.error(f"Game tick failed: {e}", exc_info=True)  # noqa: G004, G201
-        raise self.retry(exc=e, countdown=60)  # Retry after 60 seconds  # noqa: B904
+        logger.exception("Game tick failed")
+        raise self.retry(exc=e, countdown=60) from e
+    else:
+        logger.info(f"Game tick completed: {stats}")
+        return stats
 
 
 @celery_app.task(name="process_vault_tick", bind=True)
@@ -71,7 +70,7 @@ def process_vault_tick_task(self, vault_id: str):
     Can be called manually or for catch-up processing.
     """
     try:
-        logger.info(f"Processing vault tick for {vault_id}")  # noqa: G004
+        logger.info(f"Processing vault tick for {vault_id}")
 
         async def run_vault_tick():
             # Create a new session maker in the current event loop context
@@ -93,10 +92,9 @@ def process_vault_tick_task(self, vault_id: str):
                 return result
 
         result = asyncio.run(run_vault_tick())
-
-        logger.info(f"Vault {vault_id} tick completed")  # noqa: G004
-        return result  # noqa: TRY300
-
     except Exception as e:
-        logger.error(f"Vault {vault_id} tick failed: {e}", exc_info=True)  # noqa: G004, G201
+        logger.exception(f"Vault {vault_id} tick failed")
         raise self.retry(exc=e, countdown=30)  # noqa: B904
+    else:
+        logger.info(f"Vault {vault_id} tick completed")
+        return result

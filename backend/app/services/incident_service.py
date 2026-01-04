@@ -83,7 +83,7 @@ class IncidentService:
             target_room = vault_door_result.scalar_one_or_none()
 
             if not target_room:
-                self.logger.warning(f"No vault door found at (0,0) for {incident_type} in vault {vault_id}")  # noqa: G004
+                self.logger.warning(f"No vault door found at (0,0) for {incident_type} in vault {vault_id}")
                 return None
         else:
             # Other incidents spawn in random occupied rooms
@@ -97,7 +97,7 @@ class IncidentService:
             occupied_rooms = list(rooms_result.scalars().all())
 
             if not occupied_rooms:
-                self.logger.warning(f"No occupied rooms found for incident spawn in vault {vault_id}")  # noqa: G004
+                self.logger.warning(f"No occupied rooms found for incident spawn in vault {vault_id}")
                 return None
 
             # Pick random room
@@ -121,7 +121,7 @@ class IncidentService:
         )
 
         self.logger.info(
-            f"Spawned {incident_type} (difficulty {difficulty}) in room {target_room.name} of vault {vault_id}"  # noqa: G004
+            f"Spawned {incident_type} (difficulty {difficulty}) in room {target_room.name} of vault {vault_id}"
         )
 
         return incident
@@ -164,7 +164,7 @@ class IncidentService:
         raider_power = self._calculate_raider_power(incident.difficulty)
 
         # Apply damage over time
-        damage_to_dwellers = self._calculate_damage_to_dwellers(raider_power, len(dwellers), seconds_passed)
+        damage_to_dwellers = self._calculate_damage_to_dwellers(raider_power, seconds_passed)
         damage_to_raiders = self._calculate_damage_to_raiders(dweller_power, seconds_passed)
 
         # Apply damage to dwellers
@@ -204,9 +204,7 @@ class IncidentService:
             # Award XP to participating dwellers
             await self._award_combat_xp(db_session, incident, dwellers)
 
-            self.logger.info(
-                f"Incident {incident.id} resolved successfully! Loot: {incident.loot}"  # noqa: G004
-            )
+            self.logger.info(f"Incident {incident.id} resolved successfully! Loot: {incident.loot}")
 
         db_session.add(incident)
         await db_session.commit()
@@ -274,7 +272,7 @@ class IncidentService:
         await db_session.commit()
 
         self.logger.info(
-            f"Incident {incident_id} manually resolved ({'success' if success else 'failure'}). Loot: {loot}"  # noqa: G004
+            f"Incident {incident_id} manually resolved ({'success' if success else 'failure'}). Loot: {loot}"
         )
 
         return {
@@ -336,7 +334,8 @@ class IncidentService:
             db_session.add(incident)
 
             self.logger.warning(
-                f"Incident {incident.type} spread from {current_room.name} to {new_room.name} (difficulty {new_incident.difficulty})"  # noqa: E501, G004
+                f"Incident {incident.type} spread from {current_room.name} to {new_room.name} "
+                f"(difficulty {new_incident.difficulty})"
             )
 
     def _calculate_dweller_combat_power(self, dwellers: list[Dweller]) -> float:
@@ -367,7 +366,7 @@ class IncidentService:
         """Calculate raider power based on difficulty."""
         return difficulty * game_balance.BASE_RAIDER_POWER
 
-    def _calculate_damage_to_dwellers(self, raider_power: float, dweller_count: int, seconds: int) -> float:  # noqa: ARG002
+    def _calculate_damage_to_dwellers(self, raider_power: float, seconds: int) -> float:
         """Calculate damage dealt to dwellers per tick."""
         # Damage reduced by number of dwellers (distributed)
         damage_per_second = raider_power / 10  # Raiders deal 10% of their power per second

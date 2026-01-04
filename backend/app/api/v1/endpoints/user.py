@@ -125,7 +125,7 @@ async def create_user_open(
         # Log error but don't fail registration
         import logging
 
-        logging.exception(f"Failed to send verification email: {e}")  # noqa: G004, LOG015, TRY401
+        logging.exception(f"Failed to send verification email: {e}")  # noqa: LOG015, TRY401
 
     access_token = security.create_access_token(user.id)
     refresh_token = await security.create_refresh_token(user.id, redis_client)

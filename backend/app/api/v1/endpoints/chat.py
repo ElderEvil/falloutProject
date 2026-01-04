@@ -231,12 +231,10 @@ async def get_chat_history(
     if not dweller:
         raise HTTPException(status_code=404, detail="Dweller not found")
 
-    messages = await chat_message_crud.get_conversation(
+    return await chat_message_crud.get_conversation(
         db_session,
         user_id=user.id,
         dweller_id=dweller.id,
         limit=limit,
         offset=offset,
     )
-
-    return messages  # noqa: RET504

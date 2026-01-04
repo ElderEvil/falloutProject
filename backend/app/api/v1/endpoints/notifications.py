@@ -21,14 +21,13 @@ async def get_notifications(
     offset: int = 0,
 ):
     """Get notifications for the current user"""
-    notifications = await notification_crud.get_user_notifications(
+    return await notification_crud.get_user_notifications(
         db_session,
         user_id=user.id,
         unread_only=unread_only,
         limit=limit,
         offset=offset,
     )
-    return notifications  # noqa: RET504
 
 
 @router.get("/unread-count", response_model=dict[str, int])
@@ -48,8 +47,7 @@ async def create_notification(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """Create a new notification (admin/system use)"""
-    notification = await notification_crud.create(db_session, obj_in=notification_data)
-    return notification  # noqa: RET504
+    return await notification_crud.create(db_session, obj_in=notification_data)
 
 
 @router.patch("/{notification_id}/read", response_model=NotificationRead)

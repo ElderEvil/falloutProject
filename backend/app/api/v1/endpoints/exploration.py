@@ -43,14 +43,12 @@ async def send_dweller_to_wasteland(
         )
 
     # Create new exploration with dweller's current stats
-    exploration = await crud_exploration.create_with_dweller_stats(
+    return await crud_exploration.create_with_dweller_stats(
         db_session,
         vault_id=vault_id,
         dweller_id=request.dweller_id,
         duration=request.duration,
     )
-
-    return exploration  # noqa: RET504
 
 
 @router.get("/vault/{vault_id}", response_model=list[ExplorationReadShort])
@@ -85,8 +83,7 @@ async def get_exploration(
 ):
     """Get detailed information about an exploration."""
     await verify_exploration_access(exploration_id, user, db_session)
-    exploration = await crud_exploration.get(db_session, exploration_id)
-    return exploration  # noqa: RET504
+    return await crud_exploration.get(db_session, exploration_id)
 
 
 @router.get("/{exploration_id}/progress", response_model=ExplorationProgress)
@@ -163,5 +160,4 @@ async def generate_event(
     if not exploration.is_active():
         raise HTTPException(status_code=400, detail="Exploration is not active")
 
-    exploration = await wasteland_service.process_event(db_session, exploration)
-    return exploration  # noqa: RET504
+    return await wasteland_service.process_event(db_session, exploration)

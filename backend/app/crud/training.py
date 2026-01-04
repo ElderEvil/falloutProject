@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
+from app.models.dweller import Dweller
 from app.models.training import Training, TrainingStatus
 from app.schemas.training import TrainingCreate, TrainingUpdate
 
@@ -69,6 +70,31 @@ class CRUDTraining(CRUDBase[Training, TrainingCreate, TrainingUpdate]):
 
         result = await db_session.execute(query)
         return list(result.scalars().all())
+
+    async def get_dwellers_for_trainings(
+        self,
+        db_session: AsyncSession,
+        training_sessions: list[Training],
+    ) -> dict[UUID4, Dweller]:
+        """
+        Batch-fetch dwellers for multiple training sessions.
+
+        Args:
+            db_session: Database session
+            training_sessions: List of training sessions
+
+        Returns:
+            Dictionary mapping dweller_id to Dweller object
+        """
+        if not training_sessions:
+            return {}
+
+        dweller_ids = {training.dweller_id for training in training_sessions}
+
+        result = await db_session.execute(select(Dweller).where(Dweller.id.in_(dweller_ids)))
+        dwellers = result.scalars().all()
+
+        return {dweller.id: dweller for dweller in dwellers}
 
 
 training = CRUDTraining(Training)

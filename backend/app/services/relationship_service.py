@@ -51,7 +51,7 @@ class RelationshipService:
         return result.scalars().first()
 
     @staticmethod
-    async def create_or_get_relationship(
+    async def get_or_create_relationship(
         db_session: AsyncSession,
         dweller_1_id: UUID4,
         dweller_2_id: UUID4,
@@ -83,7 +83,7 @@ class RelationshipService:
         await db_session.commit()
         await db_session.refresh(relationship)
 
-        logger.info(f"Created new relationship between {dweller_1_id} and {dweller_2_id}")  # noqa: G004
+        logger.info(f"Created new relationship between {dweller_1_id} and {dweller_2_id}")
         return relationship
 
     @staticmethod
@@ -122,7 +122,7 @@ class RelationshipService:
         # Log relationship progression
         if old_type != relationship.relationship_type:
             logger.info(
-                f"Relationship upgraded from {old_type} to {relationship.relationship_type} "  # noqa: G004
+                f"Relationship upgraded from {old_type} to {relationship.relationship_type} "
                 f"between {relationship.dweller_1_id} and {relationship.dweller_2_id}"
             )
 
@@ -215,7 +215,7 @@ class RelationshipService:
         await db_session.commit()
         await db_session.refresh(relationship)
 
-        logger.info(f"Initiated romance between {dweller_1_id} and {dweller_2_id}")  # noqa: G004
+        logger.info(f"Initiated romance between {dweller_1_id} and {dweller_2_id}")
         return relationship
 
     @staticmethod
@@ -263,7 +263,7 @@ class RelationshipService:
         await db_session.commit()
         await db_session.refresh(relationship)
 
-        logger.info(f"Made partners: {dweller_1_id} and {dweller_2_id}")  # noqa: G004
+        logger.info(f"Made partners: {dweller_1_id} and {dweller_2_id}")
         return relationship
 
     @staticmethod
@@ -305,7 +305,7 @@ class RelationshipService:
 
         await db_session.commit()
 
-        logger.info(f"Break up: {relationship.dweller_1_id} and {relationship.dweller_2_id}")  # noqa: G004
+        logger.info(f"Break up: {relationship.dweller_1_id} and {relationship.dweller_2_id}")
 
 
 relationship_service = RelationshipService()

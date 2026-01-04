@@ -9,6 +9,7 @@ from app.api.deps import CurrentActiveUser, CurrentSuperuser
 from app.db.session import get_async_session
 from app.models.vault import Vault
 from app.schemas.vault import VaultCreate, VaultNumber, VaultReadWithNumbers, VaultReadWithUser, VaultUpdate
+from app.services.vault_service import vault_service
 
 router = APIRouter()
 
@@ -105,7 +106,7 @@ async def start_vault(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ):
-    return await crud.vault.initiate(
+    return await vault_service.initiate_vault(
         db_session=db_session, obj_in=vault_data, user_id=user.id, is_superuser=user.is_superuser
     )
 
@@ -117,4 +118,4 @@ async def update_vault_resources(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: CurrentSuperuser,
 ):
-    return await crud.vault.update_resources(db_session=db_session, vault_id=vault_id)
+    return await vault_service.update_vault_resources(db_session=db_session, vault_id=vault_id)

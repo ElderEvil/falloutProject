@@ -53,9 +53,9 @@ async def send_email(
             smtp_options["start_tls"] = True
 
         await aiosmtplib.send(message, **smtp_options)
-        logger.info(f"Email sent successfully to {email_to}")  # noqa: G004
-    except Exception as e:
-        logger.error(f"Failed to send email to {email_to}: {e}")  # noqa: G004, TRY400
+        logger.info(f"Email sent successfully to {email_to}")
+    except Exception:
+        logger.exception(f"Failed to send email to {email_to}")
         raise
 
 

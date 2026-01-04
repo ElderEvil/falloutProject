@@ -208,11 +208,7 @@ async def test_make_partners(
     # Create and upgrade relationship to romantic
     from app.services.relationship_service import relationship_service
 
-    relationship = await relationship_service.create_or_get_relationship(
-        async_session,
-        dweller1.id,
-        dweller2.id,
-    )
+    relationship = await relationship_service.get_or_create_relationship(async_session, dweller1.id, dweller2.id)
     relationship.affinity = 85
     relationship.relationship_type = "romantic"
     await async_session.commit()
@@ -260,11 +256,7 @@ async def test_break_up_relationship(
 
     from app.services.relationship_service import relationship_service
 
-    relationship = await relationship_service.create_or_get_relationship(
-        async_session,
-        dweller1.id,
-        dweller2.id,
-    )
+    relationship = await relationship_service.get_or_create_relationship(async_session, dweller1.id, dweller2.id)
     relationship.relationship_type = "romantic"
     await async_session.commit()
 

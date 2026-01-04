@@ -342,7 +342,7 @@ class WastelandService:
 
         await db_session.commit()
 
-        rewards_summary = {
+        return {
             "caps": total_caps,
             "items": exploration.loot_collected,
             "experience": experience,
@@ -350,8 +350,6 @@ class WastelandService:
             "enemies_defeated": exploration.enemies_encountered,
             "events_encountered": len(exploration.events),
         }
-
-        return rewards_summary  # noqa: RET504
 
     async def recall_exploration(
         self,
@@ -440,7 +438,7 @@ class WastelandService:
 
         await db_session.commit()
 
-        rewards_summary = {
+        return {
             "caps": total_caps,
             "items": exploration.loot_collected,
             "experience": experience,
@@ -450,8 +448,6 @@ class WastelandService:
             "progress_percentage": progress,
             "recalled_early": True,
         }
-
-        return rewards_summary  # noqa: RET504
 
 
 # Singleton instance

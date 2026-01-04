@@ -45,8 +45,7 @@ class RadioService:
         # For now, we'll use name-based matching until a RADIO room type is added
         query = select(Room).where(Room.vault_id == vault_id).where(Room.name.ilike("%radio%"))
 
-        rooms = (await db_session.execute(query)).scalars().all()
-        return rooms  # noqa: RET504
+        return (await db_session.execute(query)).scalars().all()
 
     @staticmethod
     async def calculate_recruitment_rate(
@@ -136,7 +135,7 @@ class RadioService:
         if random.random() < rate:
             dweller = await RadioService.recruit_dweller(db_session, vault_id)
             logger.info(
-                f"Radio recruitment successful: {dweller.first_name} {dweller.last_name} joined vault {vault_id}"  # noqa: G004
+                f"Radio recruitment successful: {dweller.first_name} {dweller.last_name} joined vault {vault_id}"
             )
             return dweller
 
@@ -166,7 +165,7 @@ class RadioService:
             vault_id=vault_id,
         )
 
-        logger.info(f"Recruited dweller: {dweller.first_name} {dweller.last_name} to vault {vault_id}")  # noqa: G004
+        logger.info(f"Recruited dweller: {dweller.first_name} {dweller.last_name} to vault {vault_id}")
 
         return dweller
 
@@ -219,7 +218,7 @@ class RadioService:
         dweller = await RadioService.recruit_dweller(db_session, vault_id, override)
 
         logger.info(
-            f"Manual recruitment: {dweller.first_name} {dweller.last_name} to vault {vault_id} for {caps_cost} caps"  # noqa: G004
+            f"Manual recruitment: {dweller.first_name} {dweller.last_name} to vault {vault_id} for {caps_cost} caps"
         )
 
         return dweller

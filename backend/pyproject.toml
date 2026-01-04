@@ -124,6 +124,7 @@ lint.ignore = [
     "UP037",
     "UP045",
     "UP046",
+    "G004",
 ]
 
 [tool.ruff.lint.flake8-builtins]

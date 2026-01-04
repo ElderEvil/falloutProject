@@ -120,7 +120,7 @@ class ResourceManager:
         for room, dwellers in rooms_with_dwellers:
             if room.category != RoomTypeEnum.PRODUCTION or not room.ability or not room.output:
                 self.logger.debug(
-                    f"Skipping room {room.name}: category={room.category}, ability={room.ability}, output={room.output}"  # noqa: G004
+                    f"Skipping room {room.name}: category={room.category}, ability={room.ability}, output={room.output}"
                 )
                 continue
 
@@ -136,7 +136,7 @@ class ResourceManager:
         production = room.output * ability_sum * BASE_PRODUCTION_RATE * tier_mult * seconds_passed
 
         self.logger.info(
-            f"Room {room.name} producing: output={room.output}, ability_sum={ability_sum}, "  # noqa: G004
+            f"Room {room.name} producing: output={room.output}, ability_sum={ability_sum}, "
             f"production={production:.2f} (tier={room.tier}, dwellers={len(dwellers)})"
         )
 
@@ -189,7 +189,7 @@ class ResourceManager:
     def _log_resource_changes(self, vault: Vault, new_resources: dict[str, float]) -> None:
         """Log resource changes for debugging."""
         self.logger.debug(
-            f"Vault {vault.id}: Power {vault.power:.0f} -> {new_resources['power']:.0f}, "  # noqa: G004
+            f"Vault {vault.id}: Power {vault.power:.0f} -> {new_resources['power']:.0f}, "
             f"Food {vault.food:.0f} -> {new_resources['food']:.0f}, "
             f"Water {vault.water:.0f} -> {new_resources['water']:.0f}"
         )

@@ -83,9 +83,7 @@ async def get_game_state(
     if vault.user_id != user.id and not user.is_superuser:
         raise HTTPException(status_code=403, detail="Not authorized to view this vault's game state")
 
-    status = await game_loop_service.get_vault_status(db_session, vault_id)
-
-    return status  # noqa: RET504
+    return await game_loop_service.get_vault_status(db_session, vault_id)
 
 
 @router.get("/vaults/{vault_id}/incidents", status_code=200)
@@ -227,8 +225,7 @@ async def resolve_incident(
         raise HTTPException(status_code=404, detail="Incident not found")
 
     try:
-        result = await incident_service.resolve_incident_manually(db_session, incident_id, success)
-        return result  # noqa: RET504, TRY300
+        return await incident_service.resolve_incident_manually(db_session, incident_id, success)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 

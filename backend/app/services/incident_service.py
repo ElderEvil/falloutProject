@@ -143,9 +143,16 @@ class IncidentService:
         if incident.status not in [IncidentStatus.ACTIVE, IncidentStatus.SPREADING]:
             return {"skipped": True}
 
-        # Get dwellers in affected room
-        dwellers_query = select(Dweller).where(
-            (Dweller.room_id == incident.room_id) & (Dweller.health > 0)  # Only alive dwellers
+        # Get dwellers in affected room with equipment preloaded (N+1 optimization)
+        from sqlalchemy.orm import selectinload
+
+        dwellers_query = (
+            select(Dweller)
+            .options(
+                selectinload(Dweller.weapon),
+                selectinload(Dweller.outfit),
+            )
+            .where((Dweller.room_id == incident.room_id) & (Dweller.health > 0))  # Only alive dwellers
         )
         dwellers_result = await db_session.execute(dwellers_query)
         dwellers = list(dwellers_result.scalars().all())
@@ -174,7 +181,7 @@ class IncidentService:
             new_health = max(0, dweller.health - int(damage_per_dweller))
 
             if new_health != dweller.health:
-                await db_session.execute(select(Dweller).where(Dweller.id == dweller.id))  # Refresh to avoid stale data
+                # Direct update - SQLAlchemy session tracks the object, no need to refresh
                 dweller.health = new_health
                 db_session.add(dweller)
                 damaged_count += 1
@@ -188,18 +195,15 @@ class IncidentService:
 
         # Check victory condition (defeated enough raiders based on difficulty)
         expected_raider_count = incident.difficulty * 2  # Each difficulty = 2 raiders
+        caps_earned = 0
+
         if incident.enemies_defeated >= expected_raider_count:
             # Victory! Generate loot and resolve
             incident.loot = self._generate_loot(incident.difficulty)
             incident.resolve(success=True)
 
-            # Award caps to vault
+            # Track caps for batch vault update (done at game loop level)
             caps_earned = incident.loot.get("caps", 0)
-            await vault_crud.update(
-                db_session,
-                incident.vault_id,
-                {"bottle_caps": (await vault_crud.get(db_session, incident.vault_id)).bottle_caps + caps_earned},
-            )
 
             # Award XP to participating dwellers
             await self._award_combat_xp(db_session, incident, dwellers)
@@ -214,6 +218,7 @@ class IncidentService:
             "damage_to_raiders": damage_to_raiders,
             "dwellers_damaged": damaged_count,
             "enemies_defeated": enemies_this_tick,
+            "caps_earned": caps_earned,  # Return for batch update
         }
 
     async def resolve_incident_manually(
@@ -351,9 +356,8 @@ class IncidentService:
 
             # Weapon damage (if equipped)
             weapon_damage = 0
-            # TODO: Add weapon damage when weapon relationship is properly loaded
-            # if dweller.weapon:
-            #     weapon_damage = (dweller.weapon.damage_min + dweller.weapon.damage_max) / 2
+            if dweller.weapon:
+                weapon_damage = (dweller.weapon.damage_min + dweller.weapon.damage_max) / 2
 
             # Level bonus
             level_bonus = dweller.level * game_balance.LEVEL_BONUS_MULTIPLIER

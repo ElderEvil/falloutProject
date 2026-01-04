@@ -471,6 +471,7 @@ class GameLoopService:
             "processed": 0,
             "resolved": 0,
             "active_count": 0,
+            "caps_earned": 0,
         }
 
         try:
@@ -486,6 +487,9 @@ class GameLoopService:
             active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
             stats["active_count"] = len(active_incidents)
 
+            # Track total caps earned from all incidents
+            total_caps_earned = 0
+
             # Process each active incident
             for incident in active_incidents:
                 try:
@@ -496,6 +500,11 @@ class GameLoopService:
 
                     stats["processed"] += 1
 
+                    # Accumulate caps earned
+                    caps_earned = result.get("caps_earned", 0)
+                    if caps_earned > 0:
+                        total_caps_earned += caps_earned
+
                     # Check if incident was resolved automatically
                     await db_session.refresh(incident)
                     if incident.status.value in ["resolved", "failed"]:
@@ -505,6 +514,16 @@ class GameLoopService:
                 except Exception as e:
                     # Keep broad exception for individual incident processing
                     self.logger.error(f"Error processing incident {incident.id}: {e}", exc_info=True)  # noqa: G201
+
+            # Batch update vault caps (single query instead of N queries)
+            if total_caps_earned > 0:
+                vault = await vault_crud.get(db_session, vault_id)
+                if vault:
+                    await vault_crud.update(
+                        db_session, vault_id, {"bottle_caps": vault.bottle_caps + total_caps_earned}
+                    )
+                    stats["caps_earned"] = total_caps_earned
+                    self.logger.info(f"Awarded {total_caps_earned} caps to vault {vault_id} from incidents")
 
         except (SQLAlchemyError, ResourceNotFoundException) as e:
             self.logger.error(f"Error managing incidents for vault {vault_id}: {e}", exc_info=True)  # noqa: G201

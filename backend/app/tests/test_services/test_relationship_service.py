@@ -5,7 +5,7 @@ import pytest_asyncio
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.config.game_balance import ROMANCE_THRESHOLD
+from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.vault import Vault
 from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum, RelationshipTypeEnum
@@ -164,10 +164,10 @@ async def test_increase_affinity_auto_upgrades_to_friend(
     updated = await RelationshipService.increase_affinity(
         async_session,
         relationship,
-        amount=ROMANCE_THRESHOLD,
+        amount=game_config.relationship.romance_threshold,
     )
 
-    assert updated.affinity >= ROMANCE_THRESHOLD
+    assert updated.affinity >= game_config.relationship.romance_threshold
     assert updated.relationship_type == RelationshipTypeEnum.FRIEND
 
 
@@ -264,7 +264,7 @@ async def test_initiate_romance_success(
     await RelationshipService.increase_affinity(
         async_session,
         relationship,
-        amount=ROMANCE_THRESHOLD,
+        amount=game_config.relationship.romance_threshold,
     )
 
     # Now initiate romance
@@ -324,7 +324,7 @@ async def test_make_partners_success(
     await RelationshipService.increase_affinity(
         async_session,
         relationship,
-        amount=ROMANCE_THRESHOLD,
+        amount=game_config.relationship.romance_threshold,
     )
 
     await RelationshipService.initiate_romance(
@@ -396,7 +396,7 @@ async def test_break_up_clears_partner_ids(
     await RelationshipService.increase_affinity(
         async_session,
         relationship,
-        amount=ROMANCE_THRESHOLD,
+        amount=game_config.relationship.romance_threshold,
     )
 
     await RelationshipService.initiate_romance(
@@ -438,7 +438,7 @@ async def test_break_up_marks_as_ex(
     await RelationshipService.increase_affinity(
         async_session,
         relationship,
-        amount=ROMANCE_THRESHOLD,
+        amount=game_config.relationship.romance_threshold,
     )
 
     await RelationshipService.initiate_romance(

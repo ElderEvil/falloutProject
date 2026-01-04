@@ -7,7 +7,7 @@ from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.config import game_balance
+from app.core.game_config import game_config
 from app.crud.incident import incident_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
@@ -42,12 +42,12 @@ class IncidentService:
         dwellers_result = await db_session.execute(dwellers_query)
         dweller_count = len(dwellers_result.scalars().all())
 
-        if dweller_count < game_balance.MIN_VAULT_POPULATION_FOR_INCIDENTS:
+        if dweller_count < game_config.incident.min_vault_population:
             return False
 
         # Calculate spawn chance based on time passed
         hours_passed = seconds_passed / 3600
-        spawn_chance = game_balance.INCIDENT_SPAWN_CHANCE_PER_HOUR * hours_passed
+        spawn_chance = game_config.incident.spawn_chance_per_hour * hours_passed
 
         # Random roll
         return random.random() < spawn_chance
@@ -74,7 +74,7 @@ class IncidentService:
             )
 
         # Determine where to spawn based on incident type
-        if incident_type.value in game_balance.VAULT_DOOR_INCIDENTS:
+        if incident_type.value in game_config.incident.vault_door_incidents:
             # External attacks spawn at vault door (0,0) and spread inward
             vault_door_query = select(Room).where(
                 (Room.vault_id == vault_id) & (Room.coordinate_x == 0) & (Room.coordinate_y == 0)
@@ -117,7 +117,7 @@ class IncidentService:
             room_id=target_room.id,
             incident_type=incident_type,
             difficulty=difficulty,
-            duration=game_balance.INCIDENT_SPREAD_DURATION,
+            duration=game_config.incident.spread_duration,
         )
 
         self.logger.info(
@@ -161,7 +161,7 @@ class IncidentService:
             # No dwellers to fight - incident spreads
             if (
                 incident.elapsed_time() >= incident.duration
-                and incident.spread_count < game_balance.INCIDENT_MAX_SPREAD_COUNT
+                and incident.spread_count < game_config.incident.max_spread_count
             ):
                 await self._spread_incident(db_session, incident)
             return {"no_defenders": True, "damage": 0}
@@ -331,7 +331,7 @@ class IncidentService:
                 room_id=new_room.id,
                 incident_type=incident.type,  # Same type! (field is called 'type')
                 difficulty=incident.difficulty + 1,  # Slightly harder
-                duration=game_balance.INCIDENT_SPREAD_DURATION,
+                duration=game_config.incident.spread_duration,
             )
 
             # Update original incident spread tracking
@@ -349,9 +349,9 @@ class IncidentService:
         for dweller in dwellers:
             # SPECIAL contribution
             stat_power = (
-                dweller.strength * game_balance.DWELLER_STRENGTH_WEIGHT
-                + dweller.endurance * game_balance.DWELLER_ENDURANCE_WEIGHT
-                + dweller.agility * game_balance.DWELLER_AGILITY_WEIGHT
+                dweller.strength * game_config.combat.dweller_strength_weight
+                + dweller.endurance * game_config.combat.dweller_endurance_weight
+                + dweller.agility * game_config.combat.dweller_agility_weight
             )
 
             # Weapon damage (if equipped)
@@ -360,7 +360,7 @@ class IncidentService:
                 weapon_damage = (dweller.weapon.damage_min + dweller.weapon.damage_max) / 2
 
             # Level bonus
-            level_bonus = dweller.level * game_balance.LEVEL_BONUS_MULTIPLIER
+            level_bonus = dweller.level * game_config.combat.level_bonus_multiplier
 
             total_power += stat_power + weapon_damage + level_bonus
 
@@ -368,7 +368,7 @@ class IncidentService:
 
     def _calculate_raider_power(self, difficulty: int) -> float:
         """Calculate raider power based on difficulty."""
-        return difficulty * game_balance.BASE_RAIDER_POWER
+        return difficulty * game_config.combat.base_raider_power
 
     def _calculate_damage_to_dwellers(self, raider_power: float, seconds: int) -> float:
         """Calculate damage dealt to dwellers per tick."""
@@ -390,20 +390,19 @@ class IncidentService:
             incident: Resolved incident
             dwellers: List of dwellers who fought
         """
-        from app.config.game_balance import COMBAT_PERFECT_BONUS_MULTIPLIER, COMBAT_XP_PER_DIFFICULTY
         from app.services.leveling_service import leveling_service
 
         if not dwellers:
             return
 
         # Base XP from difficulty
-        base_xp = incident.difficulty * COMBAT_XP_PER_DIFFICULTY
+        base_xp = incident.difficulty * game_config.combat.xp_per_difficulty
 
         # Check for perfect combat (no damage taken)
         perfect_combat = incident.damage_dealt == 0
 
         if perfect_combat:
-            base_xp = int(base_xp * COMBAT_PERFECT_BONUS_MULTIPLIER)
+            base_xp = int(base_xp * game_config.combat.perfect_bonus_multiplier)
 
         # Distribute XP among participants
         xp_per_dweller = base_xp // len(dwellers)
@@ -418,8 +417,8 @@ class IncidentService:
     def _generate_loot(self, difficulty: int) -> dict:
         """Generate loot rewards based on difficulty."""
         caps = random.randint(
-            game_balance.LOOT_CAPS_MIN + (difficulty - 1) * game_balance.LOOT_CAPS_MAX_PER_DIFFICULTY // 2,
-            game_balance.LOOT_CAPS_MIN + difficulty * game_balance.LOOT_CAPS_MAX_PER_DIFFICULTY,
+            game_config.combat.loot_caps_min + (difficulty - 1) * game_config.combat.loot_caps_max_per_difficulty // 2,
+            game_config.combat.loot_caps_min + difficulty * game_config.combat.loot_caps_max_per_difficulty,
         )
 
         items = []

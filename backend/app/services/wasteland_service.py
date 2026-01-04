@@ -61,28 +61,22 @@ class WastelandService:
         Returns:
             Total XP to award
         """
-        from app.config.game_balance import (
-            EXPLORATION_LUCK_BONUS_MULTIPLIER,
-            EXPLORATION_SURVIVAL_BONUS_MULTIPLIER,
-            EXPLORATION_XP_PER_DISTANCE,
-            EXPLORATION_XP_PER_ENEMY,
-            EXPLORATION_XP_PER_EVENT,
-        )
+        from app.core.game_config import game_config
 
         # Base XP sources
-        distance_xp = exploration.total_distance * EXPLORATION_XP_PER_DISTANCE
-        combat_xp = exploration.enemies_encountered * EXPLORATION_XP_PER_ENEMY
-        event_xp = len(exploration.events) * EXPLORATION_XP_PER_EVENT
+        distance_xp = exploration.total_distance * game_config.leveling.exploration_xp_per_distance
+        combat_xp = exploration.enemies_encountered * game_config.leveling.exploration_xp_per_enemy
+        event_xp = len(exploration.events) * game_config.leveling.exploration_xp_per_event
 
         base_xp = distance_xp + combat_xp + event_xp
 
         # Survival bonus (returned with >70% health)
         survival_bonus = 0
         if dweller.health / dweller.max_health > 0.7:
-            survival_bonus = int(base_xp * EXPLORATION_SURVIVAL_BONUS_MULTIPLIER)
+            survival_bonus = int(base_xp * game_config.leveling.exploration_survival_bonus)
 
         # Luck bonus (2% per luck point)
-        luck_bonus = int(base_xp * (exploration.dweller_luck * EXPLORATION_LUCK_BONUS_MULTIPLIER))
+        luck_bonus = int(base_xp * (exploration.dweller_luck * game_config.leveling.exploration_luck_bonus))
 
         total_xp = base_xp + survival_bonus + luck_bonus
 
@@ -216,13 +210,12 @@ class WastelandService:
             return exploration
 
         # Add event to exploration
-        await crud_exploration.add_event(
-            db_session,
-            exploration_id=exploration.id,
+        exploration.add_event(
             event_type=event["type"],
             description=event["description"],
             loot=event.get("loot"),
         )
+        db_session.add(exploration)
 
         # If loot was found, update stats and add to collected loot
         if event.get("loot"):
@@ -231,31 +224,23 @@ class WastelandService:
             caps = loot_data["caps"]
 
             # Add item to collected loot
-            await crud_exploration.add_loot(
-                db_session,
-                exploration_id=exploration.id,
+            exploration.add_loot(
                 item_name=item["name"],
                 quantity=1,
                 rarity=item.get("rarity", "Common"),
             )
 
             # Update stats
-            await crud_exploration.update_stats(
-                db_session,
-                exploration_id=exploration.id,
-                caps=caps,
-                distance=random.randint(1, 5),
-            )
+            exploration.total_caps_found += caps
+            exploration.total_distance += random.randint(1, 5)
 
         if event["type"] == "danger":
             # Update enemies encountered
-            await crud_exploration.update_stats(
-                db_session,
-                exploration_id=exploration.id,
-                enemies=1,
-            )
+            exploration.enemies_encountered += 1
 
-        # Refresh exploration to get updated data
+        # Commit changes
+        db_session.add(exploration)
+        await db_session.commit()
         await db_session.refresh(exploration)
         return exploration
 

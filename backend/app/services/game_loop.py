@@ -7,7 +7,7 @@ from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.config.game_balance import MAX_OFFLINE_CATCHUP, TICK_INTERVAL
+from app.core.game_config import game_config
 from app.crud import exploration as crud_exploration
 from app.crud.incident import incident_crud
 from app.crud.vault import vault as vault_crud
@@ -88,14 +88,14 @@ class GameLoopService:
         seconds_passed = game_state.calculate_offline_time()
 
         # Cap catch-up time to prevent abuse
-        if seconds_passed > MAX_OFFLINE_CATCHUP:
+        if seconds_passed > game_config.game_loop.max_offline_catchup:
             self.logger.warning(
-                f"Vault {vault_id} offline time ({seconds_passed}s) exceeds max catch-up, capping to {MAX_OFFLINE_CATCHUP}s"  # noqa: E501
+                f"Vault {vault_id} offline time ({seconds_passed}s) exceeds max catch-up, capping to {game_config.game_loop.max_offline_catchup}s"  # noqa: E501
             )
-            seconds_passed = MAX_OFFLINE_CATCHUP
+            seconds_passed = game_config.game_loopmax_offline_catchup
 
         # Use minimum tick interval if too little time has passed
-        seconds_passed = max(seconds_passed, TICK_INTERVAL)
+        seconds_passed = max(seconds_passed, game_config.game_loop.tick_interval)
 
         results = {
             "vault_id": str(vault_id),
@@ -294,7 +294,7 @@ class GameLoopService:
         Returns:
             dict: Statistics with 'xp_awarded' and 'leveled_up' counts
         """
-        from app.config.game_balance import WORK_EFFICIENCY_BONUS_MULTIPLIER, WORK_XP_PER_TICK
+        from app.core.game_config import game_config
         from app.schemas.common import RoomTypeEnum
         from app.services.leveling_service import leveling_service
 
@@ -304,14 +304,14 @@ class GameLoopService:
             return stats
 
         # Base XP per tick
-        xp_to_award = WORK_XP_PER_TICK
+        xp_to_award = game_config.leveling.work_xp_per_tick
 
         # Efficiency bonus: if dweller has high matching SPECIAL
         if room.ability:
             dweller_stat = getattr(dweller, room.ability.value.lower(), 1)
             # If SPECIAL >= 7, give efficiency bonus
             if dweller_stat >= 7:
-                xp_to_award = int(xp_to_award * WORK_EFFICIENCY_BONUS_MULTIPLIER)
+                xp_to_award = int(xp_to_award * game_config.leveling.work_efficiency_bonus_multiplier)
 
         # Award XP
         dweller.experience += xp_to_award
@@ -544,7 +544,7 @@ class GameLoopService:
         """
         from sqlalchemy.exc import SQLAlchemyError
 
-        from app.config.game_balance import AFFINITY_INCREASE_PER_TICK
+        from app.core.game_config import game_config
         from app.models.dweller import Dweller
         from app.models.relationship import Relationship
         from app.schemas.common import RelationshipTypeEnum
@@ -613,7 +613,7 @@ class GameLoopService:
 
                         # Increase affinity
                         await relationship_service.increase_affinity(
-                            db_session, relationship, AFFINITY_INCREASE_PER_TICK
+                            db_session, relationship, game_config.relationship.affinity_increase_per_tick
                         )
                         stats["relationships_updated"] += 1
 

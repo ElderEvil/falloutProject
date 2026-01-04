@@ -14,18 +14,12 @@ from app.models.base import BaseUUIDModel, TimeStampMixin
 class IncidentType(StrEnum):
     """Types of incidents that can occur in the vault."""
 
-    # Enemy attacks
     RAIDER_ATTACK = "raider_attack"
     RADROACH_INFESTATION = "radroach_infestation"
     MOLE_RAT_ATTACK = "mole_rat_attack"
     DEATHCLAW_ATTACK = "deathclaw_attack"
     FERAL_GHOUL_ATTACK = "feral_ghoul_attack"
-
-    # Disasters
     FIRE = "fire"
-    RADIATION_LEAK = "radiation_leak"
-    ELECTRICAL_FAILURE = "electrical_failure"
-    WATER_CONTAMINATION = "water_contamination"
 
 
 class IncidentStatus(StrEnum):

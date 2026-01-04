@@ -8,10 +8,7 @@ import pytest_asyncio
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.config.game_balance import (
-    CHILD_GROWTH_DURATION_HOURS,
-    PREGNANCY_DURATION_HOURS,
-)
+from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.vault import Vault
@@ -128,7 +125,7 @@ async def test_create_pregnancy(
 
     # Check duration is correct
     duration = (pregnancy.due_at - pregnancy.conceived_at).total_seconds() / 3600
-    assert duration == pytest.approx(PREGNANCY_DURATION_HOURS, abs=0.1)
+    assert duration == pytest.approx(game_config.breeding.pregnancy_duration_hours, abs=0.1)
 
 
 @pytest.mark.asyncio
@@ -547,7 +544,7 @@ async def test_age_children_old_enough(
 ):
     """Test that children old enough are aged to adults."""
     # Create child dweller with birth date in the past
-    birth_date = datetime.utcnow() - timedelta(hours=CHILD_GROWTH_DURATION_HOURS + 1)
+    birth_date = datetime.utcnow() - timedelta(hours=game_config.breeding.child_growth_duration_hours + 1)
 
     child_data = {
         "first_name": "Baby",

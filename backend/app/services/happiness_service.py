@@ -7,26 +7,7 @@ from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.config.game_balance import (
-    BASE_HAPPINESS_DECAY,
-    COMBAT_HAPPINESS_PENALTY,
-    CRITICAL_RESOURCE_DECAY,
-    CRITICAL_RESOURCE_THRESHOLD_HAPPINESS,
-    HIGH_HEALTH_BONUS,
-    HIGH_HEALTH_THRESHOLD,
-    HIGH_VAULT_RESOURCES_BONUS,
-    IDLE_HAPPINESS_DECAY,
-    INCIDENT_HAPPINESS_PENALTY,
-    LIVING_QUARTERS_HAPPINESS_BONUS,
-    LOW_RESOURCE_THRESHOLD,
-    NO_INCIDENTS_BONUS,
-    PARTNER_HAPPINESS_BONUS,
-    PARTNER_NEARBY_BONUS,
-    RADIO_ROOM_HAPPINESS_BONUS,
-    RESOURCE_SHORTAGE_DECAY,
-    TRAINING_HAPPINESS_GAIN,
-    WORKING_HAPPINESS_GAIN,
-)
+from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.incident import Incident
 from app.models.room import Room
@@ -156,25 +137,23 @@ class HappinessService:
         water_ratio = vault.water / vault.water_max if vault.water_max > 0 else 0
 
         has_low_resources = (
-            power_ratio < LOW_RESOURCE_THRESHOLD
-            or food_ratio < LOW_RESOURCE_THRESHOLD
-            or water_ratio < LOW_RESOURCE_THRESHOLD
+            power_ratio < game_config.resource.low_threshold
+            or food_ratio < game_config.resource.low_threshold
+            or water_ratio < game_config.resource.low_threshold
         )
 
         has_critical_resources = (
-            power_ratio < CRITICAL_RESOURCE_THRESHOLD_HAPPINESS
-            or food_ratio < CRITICAL_RESOURCE_THRESHOLD_HAPPINESS
-            or water_ratio < CRITICAL_RESOURCE_THRESHOLD_HAPPINESS
+            power_ratio < game_config.happiness.critical_resource_threshold
+            or food_ratio < game_config.happiness.critical_resource_threshold
+            or water_ratio < game_config.happiness.critical_resource_threshold
         )
 
         # Calculate radio happiness bonus
         radio_happiness_bonus = 0.0
         if vault.radio_mode == "happiness" and radio_rooms:
-            from app.config.game_balance import RADIO_HAPPINESS_BONUS
-
             # Sum speedup multipliers from all radio rooms
             total_speedup = sum(room.speedup_multiplier for room in radio_rooms)
-            radio_happiness_bonus = RADIO_HAPPINESS_BONUS * total_speedup
+            radio_happiness_bonus = game_config.radio.happiness_bonus * total_speedup
 
         return {
             "has_low_resources": has_low_resources,
@@ -209,23 +188,23 @@ class HappinessService:
         tick_multiplier = seconds_passed / 60.0
 
         # Start with base decay
-        change = -BASE_HAPPINESS_DECAY * tick_multiplier
+        change = -game_config.happiness.base_decay * tick_multiplier
 
         # === NEGATIVE FACTORS ===
 
         # Resource shortages
         if vault_factors["has_critical_resources"]:
-            change -= CRITICAL_RESOURCE_DECAY * tick_multiplier
+            change -= game_config.happiness.critical_resource_decay * tick_multiplier
         elif vault_factors["has_low_resources"]:
-            change -= RESOURCE_SHORTAGE_DECAY * tick_multiplier
+            change -= game_config.happiness.resource_shortage_decay * tick_multiplier
 
         # Active incidents
         if vault_factors["active_incident_count"] > 0:
-            change -= INCIDENT_HAPPINESS_PENALTY * vault_factors["active_incident_count"] * tick_multiplier
+            change -= game_config.happiness.incident_penalty * vault_factors["active_incident_count"] * tick_multiplier
 
         # Idle dwellers
         if dweller.status == "idle":
-            change -= IDLE_HAPPINESS_DECAY * tick_multiplier
+            change -= game_config.happiness.idle_decay * tick_multiplier
 
         # Low health penalty
         health_ratio = dweller.health / dweller.max_health if dweller.max_health > 0 else 0
@@ -242,11 +221,11 @@ class HappinessService:
 
         # Working dwellers gain happiness
         if dweller.status == "working" and dweller.room_id:
-            change += WORKING_HAPPINESS_GAIN * tick_multiplier
+            change += game_config.happiness.working_gain * tick_multiplier
 
             # Bonus for high health while working
-            if health_ratio > HIGH_HEALTH_THRESHOLD:
-                change += HIGH_HEALTH_BONUS * tick_multiplier
+            if health_ratio > game_config.happiness.high_health_threshold:
+                change += game_config.happiness.high_health_bonus * tick_multiplier
 
             # Room-specific bonuses
             # Get room to check category/name for specific bonuses
@@ -255,18 +234,18 @@ class HappinessService:
                 room_name_lower = (room.name or "").lower()
                 # Living quarters bonus (romance, privacy, comfort)
                 if "living" in room_name_lower or "quarters" in room_name_lower:
-                    change += LIVING_QUARTERS_HAPPINESS_BONUS * tick_multiplier
+                    change += game_config.happiness.living_quarters_bonus * tick_multiplier
                 # Radio room bonus (entertainment, music)
                 elif "radio" in room_name_lower:
-                    change += RADIO_ROOM_HAPPINESS_BONUS * tick_multiplier
+                    change += game_config.happiness.radio_room_bonus * tick_multiplier
 
         # Training gives happiness (learning, self-improvement, purpose)
         if dweller.status == "training":
-            change += TRAINING_HAPPINESS_GAIN * tick_multiplier
+            change += game_config.happiness.training_gain * tick_multiplier
 
         # Combat reduces happiness (stress, fear, danger)
         if dweller.status == "combat":
-            change -= COMBAT_HAPPINESS_PENALTY * tick_multiplier
+            change -= game_config.happiness.combat_penalty * tick_multiplier
 
         # Partner bonus
         if dweller.partner_id:
@@ -274,11 +253,11 @@ class HappinessService:
             partner = await db_session.get(Dweller, dweller.partner_id)
             if partner:
                 # Base partner bonus
-                change += PARTNER_HAPPINESS_BONUS * tick_multiplier / 60.0  # Normalize bonus
+                change += game_config.happiness.partner_nearby_bonus * tick_multiplier / 60.0  # Normalize bonus
 
                 # Extra bonus if in same room
                 if dweller.room_id and dweller.room_id == partner.room_id:
-                    change += PARTNER_NEARBY_BONUS * tick_multiplier
+                    change += game_config.happiness.partner_nearby_bonus * tick_multiplier
 
         # High vault resources bonus
         if (
@@ -286,11 +265,11 @@ class HappinessService:
             and vault_factors["food_ratio"] > 0.8
             and vault_factors["water_ratio"] > 0.8
         ):
-            change += HIGH_VAULT_RESOURCES_BONUS * tick_multiplier
+            change += game_config.happiness.high_vault_resources_bonus * tick_multiplier
 
         # No incidents bonus
         if vault_factors["active_incident_count"] == 0:
-            change += NO_INCIDENTS_BONUS * tick_multiplier
+            change += game_config.happiness.no_incidents_bonus * tick_multiplier
 
         # Radio happiness bonus (when in happiness mode)
         if vault_factors["radio_happiness_bonus"] > 0:
@@ -341,43 +320,49 @@ class HappinessService:
 
         # Analyze factors
         if dweller.status == "working":
-            modifiers["positive"].append({"name": "Working", "value": WORKING_HAPPINESS_GAIN})
+            modifiers["positive"].append({"name": "Working", "value": game_config.happiness.working_gain})
 
         if dweller.status == "training":
-            modifiers["positive"].append({"name": "Training", "value": TRAINING_HAPPINESS_GAIN})
+            modifiers["positive"].append({"name": "Training", "value": game_config.happiness.training_gain})
 
         if dweller.status == "combat":
-            modifiers["negative"].append({"name": "Combat", "value": -COMBAT_HAPPINESS_PENALTY})
+            modifiers["negative"].append({"name": "Combat", "value": -game_config.happiness.combat_penalty})
 
         if dweller.partner_id:
-            modifiers["positive"].append({"name": "Has Partner", "value": PARTNER_HAPPINESS_BONUS / 60.0})
+            modifiers["positive"].append(
+                {"name": "Has Partner", "value": game_config.happiness.partner_nearby_bonus / 60.0}
+            )
 
         health_ratio = dweller.health / dweller.max_health if dweller.max_health > 0 else 0
-        if health_ratio > HIGH_HEALTH_THRESHOLD:
-            modifiers["positive"].append({"name": "High Health", "value": HIGH_HEALTH_BONUS})
+        if health_ratio > game_config.happiness.high_health_threshold:
+            modifiers["positive"].append({"name": "High Health", "value": game_config.happiness.high_health_bonus})
         elif health_ratio < 0.5:
             modifiers["negative"].append({"name": "Low Health", "value": -1.0 if health_ratio > 0.3 else -2.0})
 
         if vault_factors["has_critical_resources"]:
-            modifiers["negative"].append({"name": "Critical Resources", "value": -CRITICAL_RESOURCE_DECAY})
+            modifiers["negative"].append(
+                {"name": "Critical Resources", "value": -game_config.happiness.critical_resource_decay}
+            )
         elif vault_factors["has_low_resources"]:
-            modifiers["negative"].append({"name": "Low Resources", "value": -RESOURCE_SHORTAGE_DECAY})
+            modifiers["negative"].append(
+                {"name": "Low Resources", "value": -game_config.happiness.resource_shortage_decay}
+            )
 
         if vault_factors["active_incident_count"] > 0:
             modifiers["negative"].append(
                 {
                     "name": f"Active Incidents ({vault_factors['active_incident_count']})",
-                    "value": -INCIDENT_HAPPINESS_PENALTY * vault_factors["active_incident_count"],
+                    "value": -game_config.happiness.incident_penalty * vault_factors["active_incident_count"],
                 }
             )
 
         if dweller.status == "idle":
-            modifiers["negative"].append({"name": "Idle", "value": -IDLE_HAPPINESS_DECAY})
+            modifiers["negative"].append({"name": "Idle", "value": -game_config.happiness.idle_decay})
 
         if dweller.radiation > 50:
             modifiers["negative"].append({"name": "Radiation", "value": -1.0})
 
-        modifiers["negative"].append({"name": "Base Decay", "value": -BASE_HAPPINESS_DECAY})
+        modifiers["negative"].append({"name": "Base Decay", "value": -game_config.happiness.base_decay})
 
         # Radio happiness bonus
         if vault_factors["radio_happiness_bonus"] > 0:

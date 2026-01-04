@@ -54,7 +54,7 @@ async def manual_recruit_dweller(
         vault_query = select(Vault).where(Vault.id == vault_id)
         vault = (await db_session.execute(vault_query)).scalars().first()
 
-        from app.config.game_balance import MANUAL_RECRUITMENT_COST
+        from app.core.game_config import game_config
 
         # Send new dweller notification
         if vault and vault.user_id:
@@ -63,13 +63,13 @@ async def manual_recruit_dweller(
                 user_id=vault.user_id,
                 vault_id=vault_id,
                 dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
-                meta_data={"dweller_id": str(dweller.id), "caps_spent": MANUAL_RECRUITMENT_COST},
+                meta_data={"dweller_id": str(dweller.id), "caps_spent": game_config.radio.manual_recruitment_cost},
             )
 
         return RecruitmentResponse(
             dweller=dweller,  # type: ignore  # noqa: PGH003
             message=f"{dweller.first_name} {dweller.last_name} has joined your vault!",
-            caps_spent=MANUAL_RECRUITMENT_COST,
+            caps_spent=game_config.radio.manual_recruitment_cost,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e

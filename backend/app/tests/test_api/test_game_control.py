@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import crud
 from app.core.config import settings
 from app.schemas.vault import VaultNumber
+from app.services.vault_service import vault_service
 from app.tests.factory.rooms import create_fake_room
 
 pytestmark = pytest.mark.asyncio(scope="module")
@@ -24,7 +25,7 @@ async def test_pause_vault(
     """Test pausing a vault's game loop."""
     # Create a vault
     user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
-    vault = await crud.vault.initiate(
+    vault = await vault_service.initiate_vault(
         db_session=async_session,
         obj_in=VaultNumber(number=999),
         user_id=user.id,
@@ -50,7 +51,7 @@ async def test_resume_vault(
     """Test resuming a paused vault's game loop."""
     # Create and pause a vault
     user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
-    vault = await crud.vault.initiate(
+    vault = await vault_service.initiate_vault(
         db_session=async_session,
         obj_in=VaultNumber(number=998),
         user_id=user.id,
@@ -82,7 +83,7 @@ async def test_get_game_state(
     """Test getting vault game state."""
     # Create a vault
     user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
-    vault = await crud.vault.initiate(
+    vault = await vault_service.initiate_vault(
         db_session=async_session,
         obj_in=VaultNumber(number=997),
         user_id=user.id,
@@ -112,7 +113,7 @@ async def test_manual_tick(
     """Test manually triggering a game tick."""
     # Create a vault
     user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
-    vault = await crud.vault.initiate(
+    vault = await vault_service.initiate_vault(
         db_session=async_session,
         obj_in=VaultNumber(number=996),
         user_id=user.id,
@@ -152,7 +153,7 @@ async def test_get_incidents(
     """Test getting list of incidents for a vault."""
     # Create a vault
     user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
-    vault = await crud.vault.initiate(
+    vault = await vault_service.initiate_vault(
         db_session=async_session,
         obj_in=VaultNumber(number=995),
         user_id=user.id,
@@ -218,7 +219,7 @@ async def test_spawn_incident_debug(
     """Test spawning an incident via debug endpoint."""
     # Create a vault with a room and dwellers
     user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
-    vault = await crud.vault.initiate(
+    vault = await vault_service.initiate_vault(
         db_session=async_session,
         obj_in=VaultNumber(number=993),
         user_id=user.id,
@@ -275,7 +276,7 @@ async def test_spawn_incident_specific_type(
     """Test spawning a specific incident type."""
     # Create a vault with a room and dwellers
     user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
-    vault = await crud.vault.initiate(
+    vault = await vault_service.initiate_vault(
         db_session=async_session,
         obj_in=VaultNumber(number=992),
         user_id=user.id,
@@ -329,7 +330,7 @@ async def test_get_incident_details(
 
     # Create a vault with incident
     user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
-    vault = await crud.vault.initiate(
+    vault = await vault_service.initiate_vault(
         db_session=async_session,
         obj_in=VaultNumber(number=991),
         user_id=user.id,
@@ -396,7 +397,7 @@ async def test_resolve_incident_success(
 
     # Create a vault with incident
     user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
-    vault = await crud.vault.initiate(
+    vault = await vault_service.initiate_vault(
         db_session=async_session,
         obj_in=VaultNumber(number=990),
         user_id=user.id,
@@ -466,7 +467,7 @@ async def test_resolve_incident_failure(
 
     # Create a vault with incident
     user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
-    vault = await crud.vault.initiate(
+    vault = await vault_service.initiate_vault(
         db_session=async_session,
         obj_in=VaultNumber(number=989),
         user_id=user.id,

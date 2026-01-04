@@ -408,10 +408,18 @@ class GameLoopService:
             active_trainings = await training_crud.training.get_active_by_vault(db_session, vault_id)
             stats["active_count"] = len(active_trainings)
 
+            # Batch-fetch all dwellers for these training sessions (N+1 optimization)
+            dwellers_map = await training_crud.training.get_dwellers_for_trainings(db_session, active_trainings)
+
             for training in active_trainings:
                 try:
+                    # Get pre-fetched dweller
+                    dweller = dwellers_map.get(training.dweller_id)
+
                     # Update progress (this will auto-complete if ready)
-                    updated_training = await training_service.update_training_progress(db_session, training)
+                    updated_training = await training_service.update_training_progress(
+                        db_session, training, dweller=dweller
+                    )
 
                     stats["sessions_updated"] += 1
 

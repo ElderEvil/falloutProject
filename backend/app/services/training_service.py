@@ -199,6 +199,7 @@ class TrainingService:
         self,
         db_session: AsyncSession,
         training: Training,
+        dweller: Dweller | None = None,
     ) -> Training:
         """
         Update training progress based on elapsed time.
@@ -207,6 +208,7 @@ class TrainingService:
         Args:
             db_session: Database session
             training: Training session to update
+            dweller: Optional pre-fetched dweller to avoid N+1 query
 
         Returns:
             Updated training session
@@ -218,7 +220,7 @@ class TrainingService:
 
         # Check if training is complete
         if now >= training.estimated_completion_at:
-            return await self.complete_training(db_session, training.id)
+            return await self.complete_training(db_session, training.id, dweller=dweller)
 
         # Calculate progress
         total_duration = (training.estimated_completion_at - training.started_at).total_seconds()
@@ -237,6 +239,7 @@ class TrainingService:
         self,
         db_session: AsyncSession,
         training_id: UUID4,
+        dweller: Dweller | None = None,
     ) -> Training:
         """
         Complete a training session and increase the dweller's SPECIAL stat.
@@ -244,6 +247,7 @@ class TrainingService:
         Args:
             db_session: Database session
             training_id: Training session ID
+            dweller: Optional pre-fetched dweller to avoid N+1 query
 
         Returns:
             Completed training session
@@ -259,8 +263,9 @@ class TrainingService:
         if not training.is_active():
             raise VaultOperationException(detail=f"Training is {training.status}, cannot complete")
 
-        # Get dweller
-        dweller = await dweller_crud.get(db_session, training.dweller_id)
+        # Get dweller (use pre-fetched if available)
+        if dweller is None:
+            dweller = await dweller_crud.get(db_session, training.dweller_id)
         if not dweller:
             raise ResourceNotFoundException(model=Dweller, identifier=training.dweller_id)
 
@@ -297,6 +302,7 @@ class TrainingService:
         self,
         db_session: AsyncSession,
         training_id: UUID4,
+        dweller: Dweller | None = None,
     ) -> Training:
         """
         Cancel an active training session.
@@ -305,6 +311,7 @@ class TrainingService:
         Args:
             db_session: Database session
             training_id: Training session ID
+            dweller: Optional pre-fetched dweller to avoid N+1 query
 
         Returns:
             Cancelled training session
@@ -320,8 +327,9 @@ class TrainingService:
         if not training.is_active():
             raise VaultOperationException(detail=f"Training is {training.status}, cannot cancel")
 
-        # Get dweller
-        dweller = await dweller_crud.get(db_session, training.dweller_id)
+        # Get dweller (use pre-fetched if available)
+        if dweller is None:
+            dweller = await dweller_crud.get(db_session, training.dweller_id)
         if not dweller:
             raise ResourceNotFoundException(model=Dweller, identifier=training.dweller_id)
 

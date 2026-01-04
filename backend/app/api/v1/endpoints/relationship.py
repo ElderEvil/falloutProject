@@ -174,9 +174,10 @@ async def break_up_relationship(
     # Break up
     try:
         await relationship_service.break_up(db_session, relationship_id)
-        return {"message": "Relationship ended"}  # noqa: TRY300
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    else:
+        return {"message": "Relationship ended"}
 
 
 @router.post("/vault/{vault_id}/quick-pair", response_model=RelationshipRead)

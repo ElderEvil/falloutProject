@@ -40,7 +40,7 @@ class AuthMixin:
             # Add more detail to the failure message
             try:
                 error_detail = response.json().get("detail", "Unknown error")
-            except Exception:  # noqa: BLE001
+            except (ValueError, KeyError):
                 error_detail = response.text
             response.failure(f"Login failed {response.status_code}: {error_detail} (user: {email})")
             return {}

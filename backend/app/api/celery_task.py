@@ -55,13 +55,12 @@ def game_tick_task(self):
                 return result
 
         stats = asyncio.run(run_tick())
-
-        logger.info(f"Game tick completed: {stats}")
-        return stats  # noqa: TRY300
-
     except Exception as e:
         logger.exception("Game tick failed")
-        raise self.retry(exc=e, countdown=60)  # Retry after 60 seconds  # noqa: B904
+        raise self.retry(exc=e, countdown=60) from e
+    else:
+        logger.info(f"Game tick completed: {stats}")
+        return stats
 
 
 @celery_app.task(name="process_vault_tick", bind=True)

@@ -2,6 +2,7 @@ from collections.abc import Sequence
 
 from pydantic import UUID4
 from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -15,7 +16,11 @@ from app.schemas.dweller import DwellerCreateCommonOverride
 from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultNumber, VaultReadWithNumbers, VaultUpdate
 from app.services.resource_manager import ResourceManager
-from app.utils.exceptions import InsufficientResourcesException, ResourceNotFoundException
+from app.utils.exceptions import (
+    InsufficientResourcesException,
+    ResourceConflictException,
+    ResourceNotFoundException,
+)
 
 
 class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
@@ -496,7 +501,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
                         await training_service.start_training(db_session, dweller.id, room.id)
                         logger.info(f"Started training for dweller {dweller.id} in room {room.id}")
-                    except Exception as e:  # noqa: BLE001
+                    except (ResourceNotFoundException, ResourceConflictException, ValueError) as e:
                         # Log error but continue with other dwellers
                         logger.warning(f"Failed to start training for dweller {dweller.id} in room {room.id}: {e}")
         except Exception as e:
@@ -526,7 +531,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
             await db_session.commit()
             logger.info("Assigned %d initial objectives to vault %s", len(objectives), vault_id)
-        except Exception as e:  # noqa: BLE001
+        except SQLAlchemyError as e:
             logger.warning("Failed to assign initial objectives to vault %s: %s", vault_id, e)
 
     async def initiate(

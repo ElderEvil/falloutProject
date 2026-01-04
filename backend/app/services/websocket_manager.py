@@ -35,7 +35,7 @@ class ConnectionManager:
             for connection in self.active_connections[user_id]:
                 try:
                     await connection.send_json(message)
-                except Exception:  # noqa: BLE001
+                except (RuntimeError, ConnectionError):
                     # Mark for removal if connection is broken
                     disconnected.append(connection)
 

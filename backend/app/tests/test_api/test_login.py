@@ -12,7 +12,7 @@ async def test_get_access_token(async_client: AsyncClient) -> None:
         "username": settings.FIRST_SUPERUSER_EMAIL,
         "password": settings.FIRST_SUPERUSER_PASSWORD,
     }
-    response = await async_client.post("/login/access-token", data=login_data)
+    response = await async_client.post("/auth/login", data=login_data)
     tokens = response.json()
     assert response.status_code == 200
     assert "access_token" in tokens
@@ -25,7 +25,7 @@ async def test_get_access_token_incorrect_credentials(async_client: AsyncClient)
         "username": "invalid_user",
         "password": "invalid_password",
     }
-    response = await async_client.post("/login/access-token", data=login_data)
+    response = await async_client.post("/auth/login", data=login_data)
     assert response.status_code == 400
 
 
@@ -36,7 +36,7 @@ async def test_refresh_token(async_client: AsyncClient) -> None:
         "username": settings.FIRST_SUPERUSER_EMAIL,
         "password": settings.FIRST_SUPERUSER_PASSWORD,
     }
-    response = await async_client.post("/login/access-token", data=login_data)
+    response = await async_client.post("/auth/login", data=login_data)
     assert response.status_code == 200, "Login failed"
 
     tokens = response.json()
@@ -49,7 +49,7 @@ async def test_refresh_token(async_client: AsyncClient) -> None:
     assert token_type == "bearer", f"Unexpected token type: {token_type}"
 
     # Step 2: Use the refresh token to obtain a new access token
-    refresh_response = await async_client.post(f"/login/refresh-token?refresh_token={refresh_token}")
+    refresh_response = await async_client.post(f"/auth/refresh?refresh_token={refresh_token}")
     assert refresh_response.status_code == 200, "Refresh token request failed"
 
     refreshed_tokens = refresh_response.json()

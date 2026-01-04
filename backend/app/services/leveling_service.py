@@ -2,7 +2,7 @@
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.config.game_balance import BASE_XP_REQUIREMENT, HP_GAIN_PER_LEVEL, MAX_LEVEL, XP_CURVE_EXPONENT
+from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.schemas.dweller import DwellerUpdate
 
@@ -32,7 +32,7 @@ class LevelingService:
         """
         if level <= 1:
             return 0
-        return int(BASE_XP_REQUIREMENT * (level**XP_CURVE_EXPONENT))
+        return int(game_config.leveling.base_xp_requirement * (level**game_config.leveling.xp_curve_exponent))
 
     @staticmethod
     def calculate_xp_for_level_range(current_level: int, target_level: int) -> int:
@@ -63,14 +63,14 @@ class LevelingService:
         Returns:
             Tuple of (leveled_up: bool, levels_gained: int)
         """
-        if dweller.level >= MAX_LEVEL:
+        if dweller.level >= game_config.leveling.max_level:
             return False, 0
 
         levels_gained = 0
         current_level = dweller.level
 
         # Check for multiple level-ups
-        while current_level < MAX_LEVEL:
+        while current_level < game_config.leveling.max_level:
             next_level_xp = self.calculate_xp_required(current_level + 1)
             if dweller.experience >= next_level_xp:
                 levels_gained += 1
@@ -90,7 +90,7 @@ class LevelingService:
 
         Increases:
         - Level
-        - Max health (HP_GAIN_PER_LEVEL per level)
+        - Max health (hp_gain_per_level per level)
         - Current health (to match new max if below)
 
         Args:
@@ -101,15 +101,15 @@ class LevelingService:
         Returns:
             Updated dweller
         """
-        if dweller.level >= MAX_LEVEL:
+        if dweller.level >= game_config.leveling.max_level:
             return dweller
 
-        # Calculate new level (cap at MAX_LEVEL)
-        new_level = min(dweller.level + levels, MAX_LEVEL)
+        # Calculate new level (cap at max_level)
+        new_level = min(dweller.level + levels, game_config.leveling.max_level)
         actual_levels = new_level - dweller.level
 
         # Calculate health increase
-        health_increase = actual_levels * HP_GAIN_PER_LEVEL
+        health_increase = actual_levels * game_config.leveling.hp_gain_per_level
         new_max_health = dweller.max_health + health_increase
 
         # Always fully heal on level-up (rewarding mechanic)

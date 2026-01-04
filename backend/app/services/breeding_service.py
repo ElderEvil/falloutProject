@@ -8,14 +8,7 @@ from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.config.game_balance import (
-    CHILD_GROWTH_DURATION_HOURS,
-    CHILD_SPECIAL_MULTIPLIER,
-    CONCEPTION_CHANCE_PER_TICK,
-    PREGNANCY_DURATION_HOURS,
-    RARITY_INHERITANCE_UPGRADE_CHANCE,
-    TRAIT_INHERITANCE_VARIANCE,
-)
+from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.pregnancy import Pregnancy
 from app.models.room import Room
@@ -119,10 +112,10 @@ class BreedingService:
 
             # Calculate conception chance based on affinity (1% per affinity point)
             # If no relationship found, use base chance
-            if relationship:  # noqa: SIM108
+            if relationship:
                 conception_chance = relationship.affinity / 100.0  # 90 affinity = 90% chance
             else:
-                conception_chance = CONCEPTION_CHANCE_PER_TICK  # Fallback to base 2%
+                conception_chance = game_config.breeding.conception_chance_per_tick  # Fallback to base 2%
 
             # Roll for conception
             if random.random() < conception_chance:
@@ -165,7 +158,7 @@ class BreedingService:
             Created pregnancy
         """
         conceived_at = datetime.utcnow()
-        due_at = conceived_at + timedelta(hours=PREGNANCY_DURATION_HOURS)
+        due_at = conceived_at + timedelta(hours=game_config.breeding.pregnancy_duration_hours)
 
         pregnancy = Pregnancy(
             mother_id=mother_id,
@@ -319,11 +312,13 @@ class BreedingService:
             avg_stat = (mother_stat + father_stat) / 2
 
             # Add variance
-            variance = random.randint(-TRAIT_INHERITANCE_VARIANCE, TRAIT_INHERITANCE_VARIANCE)
+            variance = random.randint(
+                -game_config.breeding.trait_inheritance_variance, game_config.breeding.trait_inheritance_variance
+            )
             child_stat = avg_stat + variance
 
             # Apply child multiplier and clamp to 1-10
-            child_stat = int(child_stat * CHILD_SPECIAL_MULTIPLIER)
+            child_stat = int(child_stat * game_config.breeding.child_special_multiplier)
             child_stat = max(1, min(10, child_stat))
 
             child_stats[attr] = child_stat
@@ -351,7 +346,7 @@ class BreedingService:
         base_rarity_idx = max(mother_rarity_idx, father_rarity_idx)
 
         # Chance to upgrade rarity
-        if random.random() < RARITY_INHERITANCE_UPGRADE_CHANCE and base_rarity_idx < len(rarity_order) - 1:
+        if random.random() < game_config.breeding.rarity_upgrade_chance and base_rarity_idx < len(rarity_order) - 1:
             base_rarity_idx += 1
 
         return rarity_order[base_rarity_idx]
@@ -371,7 +366,7 @@ class BreedingService:
         Returns:
             List of aged dwellers
         """
-        growth_threshold = datetime.utcnow() - timedelta(hours=CHILD_GROWTH_DURATION_HOURS)
+        growth_threshold = datetime.utcnow() - timedelta(hours=game_config.breeding.child_growth_duration_hours)
 
         query = (
             select(Dweller)
@@ -392,7 +387,7 @@ class BreedingService:
             special_attrs = ["strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"]
             for attr in special_attrs:
                 current_stat = getattr(child, attr, 1)
-                adult_stat = int(current_stat / CHILD_SPECIAL_MULTIPLIER)
+                adult_stat = int(current_stat / game_config.breeding.child_special_multiplier)
                 adult_stat = max(1, min(10, adult_stat))
                 setattr(child, attr, adult_stat)
 

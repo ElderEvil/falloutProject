@@ -8,13 +8,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.config.game_balance import (
-    BASE_RECRUITMENT_RATE,
-    CHARISMA_RATE_MULTIPLIER,
-    HAPPINESS_RATE_MULTIPLIER,
-    MANUAL_RECRUITMENT_COST,
-    RADIO_TIER_MULTIPLIER,
-)
+from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.vault import Vault
@@ -71,11 +65,11 @@ class RadioService:
             return 0.0
 
         # Start with base rate
-        rate = BASE_RECRUITMENT_RATE
+        rate = game_config.radio.base_recruitment_rate
 
         # Apply tier and speedup multipliers for each radio room
         for room in radio_rooms:
-            tier_multiplier = RADIO_TIER_MULTIPLIER.get(room.tier, 1.0)
+            tier_multiplier = game_config.radio.get_tier_multiplier(room.tier)
             rate *= tier_multiplier
 
             # Apply speedup multiplier (1.0-10.0x)
@@ -87,11 +81,11 @@ class RadioService:
             dwellers = (await db_session.execute(dwellers_query)).scalars().all()
 
             for dweller in dwellers:
-                charisma_bonus = dweller.charisma * CHARISMA_RATE_MULTIPLIER
-                rate += BASE_RECRUITMENT_RATE * charisma_bonus
+                charisma_bonus = dweller.charisma * game_config.radio.charisma_rate_multiplier
+                rate += game_config.radio.base_recruitment_rate * charisma_bonus
 
         # Apply vault happiness multiplier
-        happiness_multiplier = 1.0 + (vault.happiness * HAPPINESS_RATE_MULTIPLIER)
+        happiness_multiplier = 1.0 + (vault.happiness * game_config.radio.happiness_rate_multiplier)
         rate *= happiness_multiplier
 
         return rate
@@ -173,7 +167,7 @@ class RadioService:
     async def manual_recruit(
         db_session: AsyncSession,
         vault_id: UUID4,
-        caps_cost: int = MANUAL_RECRUITMENT_COST,
+        caps_cost: int | None = None,
         override: DwellerCreateCommonOverride | None = None,
     ) -> Dweller:
         """
@@ -198,6 +192,9 @@ class RadioService:
         if not vault:
             msg = "Vault not found"
             raise ValueError(msg)
+
+        if caps_cost is None:
+            caps_cost = game_config.radio.manual_recruitment_cost
 
         # Check if vault has radio room
         radio_rooms = await RadioService.get_radio_rooms(db_session, vault_id)
@@ -249,7 +246,7 @@ class RadioService:
                 "rate_per_hour": 0.0,
                 "estimated_hours_per_recruit": 0.0,
                 "radio_rooms_count": 0,
-                "manual_cost_caps": MANUAL_RECRUITMENT_COST,
+                "manual_cost_caps": game_config.radio.manual_recruitment_cost,
                 "radio_mode": "recruitment",
                 "speedup_multipliers": [],
             }
@@ -264,7 +261,7 @@ class RadioService:
                 "rate_per_hour": 0.0,
                 "estimated_hours_per_recruit": 0.0,
                 "radio_rooms_count": 0,
-                "manual_cost_caps": MANUAL_RECRUITMENT_COST,
+                "manual_cost_caps": game_config.radio.manual_recruitment_cost,
                 "radio_mode": vault.radio_mode,
                 "speedup_multipliers": [],
             }
@@ -285,7 +282,7 @@ class RadioService:
             "rate_per_hour": rate_per_hour,
             "estimated_hours_per_recruit": hours_per_recruit,
             "radio_rooms_count": len(radio_rooms),
-            "manual_cost_caps": MANUAL_RECRUITMENT_COST,
+            "manual_cost_caps": game_config.radio.manual_recruitment_cost,
             "radio_mode": vault.radio_mode,
             "speedup_multipliers": speedup_multipliers,
         }

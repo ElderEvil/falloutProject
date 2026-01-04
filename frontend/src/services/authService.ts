@@ -10,7 +10,7 @@ export const authService = {
         username: form.username,
         password: form.password
       }
-      return await apiClient.post('/login/access-token', new URLSearchParams(formAsRecord))
+      return await apiClient.post('/auth/login', new URLSearchParams(formAsRecord))
     } catch {
       throw new AuthError('Login failed')
     }
@@ -24,7 +24,7 @@ export const authService = {
   },
   async refreshToken(refreshToken: string): Promise<AxiosResponse<Token>> {
     try {
-      return await apiClient.post('/login/refresh-token', { refresh_token: refreshToken })
+      return await apiClient.post('/auth/refresh', { refresh_token: refreshToken })
     } catch {
       throw new AuthError('Token refresh failed')
     }
@@ -32,7 +32,7 @@ export const authService = {
   async logout(accessToken: string): Promise<AxiosResponse<void>> {
     try {
       return await apiClient.post(
-        '/logout',
+        '/auth/logout',
         {},
         {
           headers: { Authorization: `Bearer ${accessToken}` }

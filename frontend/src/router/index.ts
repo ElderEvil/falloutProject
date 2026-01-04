@@ -17,6 +17,7 @@ const RadioView = () => import('@/views/RadioView.vue');
 const RelationshipsView = () => import('@/views/RelationshipsView.vue');
 const TrainingView = () => import('@/views/TrainingView.vue');
 const ProfileView = () => import('@/views/ProfileView.vue');
+const SettingsView = () => import('@/views/SettingsView.vue');
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -85,6 +86,12 @@ const router = createRouter({
       name: 'profile',
       component: ProfileView,
       meta: { requiresAuth: true, hideFromNav: true }
+    },
+    {
+      path: '/settings',
+      name: 'settings',
+      component: SettingsView,
+      meta: { requiresAuth: true, hideFromNav: false }
     },
     {
       path: '/login',

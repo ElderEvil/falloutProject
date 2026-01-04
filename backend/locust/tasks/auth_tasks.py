@@ -12,12 +12,12 @@ class AuthTaskSet(TaskSet):
     def login_user(self):
         """Test user login."""
         self.client.post(
-            "/api/v1/login/access-token",
+            "/api/v1/auth/login",
             data={
                 "username": config.test_user_email,
                 "password": config.test_user_password,
             },
-            name="POST /login/access-token",
+            name="POST /auth/login",
         )
 
     @task(1)

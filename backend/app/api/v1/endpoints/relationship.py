@@ -318,12 +318,7 @@ async def calculate_compatibility(
         raise HTTPException(status_code=404, detail="Dweller not found")
 
     # Calculate compatibility
-    from app.config.game_balance import (
-        COMPATIBILITY_HAPPINESS_WEIGHT,
-        COMPATIBILITY_LEVEL_WEIGHT,
-        COMPATIBILITY_PROXIMITY_WEIGHT,
-        COMPATIBILITY_SPECIAL_WEIGHT,
-    )
+    from app.core.game_config import game_config
 
     # SPECIAL similarity score
     special_attrs = ["strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"]
@@ -345,10 +340,10 @@ async def calculate_compatibility(
 
     # Weighted total
     compatibility = (
-        special_score * COMPATIBILITY_SPECIAL_WEIGHT
-        + happiness_score * COMPATIBILITY_HAPPINESS_WEIGHT
-        + level_score * COMPATIBILITY_LEVEL_WEIGHT
-        + proximity_score * COMPATIBILITY_PROXIMITY_WEIGHT
+        special_score * game_config.relationship.compatibility_special_weight
+        + happiness_score * game_config.relationship.compatibility_happiness_weight
+        + level_score * game_config.relationship.compatibility_level_weight
+        + proximity_score * game_config.relationship.compatibility_proximity_weight
     )
 
     return CompatibilityScore(

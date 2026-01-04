@@ -6,12 +6,7 @@ from datetime import datetime, timedelta
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.config.game_balance import (
-    SPECIAL_STAT_MAX,
-    TRAINING_BASE_DURATION_SECONDS,
-    TRAINING_PER_LEVEL_INCREASE_SECONDS,
-    TRAINING_TIER_MULTIPLIER,
-)
+from app.core.game_config import game_config
 from app.crud import training as training_crud
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.room import room as room_crud
@@ -50,13 +45,13 @@ class TrainingService:
         Returns:
             Duration in seconds
         """
-        base_duration = TRAINING_BASE_DURATION_SECONDS
-        per_level_increase = TRAINING_PER_LEVEL_INCREASE_SECONDS
+        base_duration = game_config.training.base_duration_seconds
+        per_level_increase = game_config.training.per_level_increase_seconds
 
         duration = base_duration + (current_stat * per_level_increase)
 
         # Apply tier multiplier
-        tier_multiplier = TRAINING_TIER_MULTIPLIER.get(room_tier, 1.0)
+        tier_multiplier = game_config.training.get_tier_multiplier(room_tier)
         duration *= tier_multiplier
 
         return int(duration)
@@ -99,8 +94,8 @@ class TrainingService:
         # Defensive: if stat is None (shouldn't happen), treat as 1 (minimum)
         current_stat_value = 1 if current_stat_value is None else current_stat_value
 
-        if current_stat_value >= SPECIAL_STAT_MAX:
-            return False, f"{stat_to_train.value} is already at maximum ({SPECIAL_STAT_MAX})"
+        if current_stat_value >= game_config.training.special_stat_max:
+            return False, f"{stat_to_train.value} is already at maximum ({game_config.training.special_stat_max})"
 
         # Check room capacity
         # TODO: Capacity should be calculated based on room size: size/3*2 or similar formula
@@ -272,7 +267,7 @@ class TrainingService:
         # Increase SPECIAL stat
         stat_name = training.stat_being_trained.value.lower()
         current_value = getattr(dweller, stat_name)
-        new_value = min(current_value + 1, SPECIAL_STAT_MAX)
+        new_value = min(current_value + 1, game_config.training.special_stat_max)
 
         setattr(dweller, stat_name, new_value)
         db_session.add(dweller)

@@ -7,14 +7,7 @@ from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.config.game_balance import (
-    AFFINITY_INCREASE_PER_TICK,
-    COMPATIBILITY_HAPPINESS_WEIGHT,
-    COMPATIBILITY_LEVEL_WEIGHT,
-    COMPATIBILITY_PROXIMITY_WEIGHT,
-    COMPATIBILITY_SPECIAL_WEIGHT,
-    ROMANCE_THRESHOLD,
-)
+from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.relationship import Relationship
 from app.schemas.common import RelationshipTypeEnum
@@ -90,7 +83,7 @@ class RelationshipService:
     async def increase_affinity(
         db_session: AsyncSession,
         relationship: Relationship,
-        amount: int = AFFINITY_INCREASE_PER_TICK,
+        amount: int | None = None,
     ) -> Relationship:
         """
         Increase affinity between two dwellers.
@@ -103,12 +96,14 @@ class RelationshipService:
         Returns:
             Updated relationship
         """
+        if amount is None:
+            amount = game_config.relationship.affinity_increase_per_tick
         relationship.affinity = min(100, relationship.affinity + amount)
         relationship.updated_at = datetime.utcnow()
         old_type = relationship.relationship_type
 
         # Auto-upgrade relationship based on affinity thresholds
-        if relationship.affinity >= ROMANCE_THRESHOLD:
+        if relationship.affinity >= game_config.relationship.romance_threshold:
             # Progress through relationship stages
             if relationship.relationship_type == RelationshipTypeEnum.ACQUAINTANCE:
                 relationship.relationship_type = RelationshipTypeEnum.FRIEND
@@ -171,10 +166,10 @@ class RelationshipService:
 
         # Weighted total
         compatibility = (
-            special_score * COMPATIBILITY_SPECIAL_WEIGHT
-            + happiness_score * COMPATIBILITY_HAPPINESS_WEIGHT
-            + level_score * COMPATIBILITY_LEVEL_WEIGHT
-            + proximity_score * COMPATIBILITY_PROXIMITY_WEIGHT
+            special_score * game_config.relationship.compatibility_special_weight
+            + happiness_score * game_config.relationship.compatibility_happiness_weight
+            + level_score * game_config.relationship.compatibility_level_weight
+            + proximity_score * game_config.relationship.compatibility_proximity_weight
         )
 
         return min(1.0, max(0.0, compatibility))
@@ -205,8 +200,8 @@ class RelationshipService:
             msg = "No relationship exists between these dwellers"
             raise ValueError(msg)
 
-        if relationship.affinity < ROMANCE_THRESHOLD:
-            msg = f"Affinity too low ({relationship.affinity}/{ROMANCE_THRESHOLD})"
+        if relationship.affinity < game_config.relationship.romance_threshold:
+            msg = f"Affinity too low ({relationship.affinity}/{game_config.relationship.romance_threshold})"
             raise ValueError(msg)
 
         relationship.relationship_type = RelationshipTypeEnum.ROMANTIC

@@ -3,11 +3,7 @@
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.config.game_balance import (
-    SPECIAL_STAT_MAX,
-    TRAINING_BASE_DURATION_SECONDS,
-    TRAINING_PER_LEVEL_INCREASE_SECONDS,
-)
+from app.core.game_config import game_config
 from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
 from app.models.vault import Vault
@@ -26,12 +22,12 @@ def test_calculate_training_duration_tier_1():
     """Test training duration for tier 1 room."""
     # Stat 1→2 at tier 1: base (2 hours)
     duration = TrainingService.calculate_training_duration(1, 1)
-    expected = TRAINING_BASE_DURATION_SECONDS + (1 * TRAINING_PER_LEVEL_INCREASE_SECONDS)
+    expected = game_config.training.base_duration_seconds + (1 * game_config.training.per_level_increase_seconds)
     assert duration == expected
 
     # Stat 5→6 at tier 1
     duration = TrainingService.calculate_training_duration(5, 1)
-    expected = TRAINING_BASE_DURATION_SECONDS + (5 * TRAINING_PER_LEVEL_INCREASE_SECONDS)
+    expected = game_config.training.base_duration_seconds + (5 * game_config.training.per_level_increase_seconds)
     assert duration == expected
 
 
@@ -39,7 +35,7 @@ def test_calculate_training_duration_tier_2():
     """Test training duration for tier 2 room (25% faster)."""
     # Stat 5→6 at tier 2
     duration = TrainingService.calculate_training_duration(5, 2)
-    base = TRAINING_BASE_DURATION_SECONDS + (5 * TRAINING_PER_LEVEL_INCREASE_SECONDS)
+    base = game_config.training.base_duration_seconds + (5 * game_config.training.per_level_increase_seconds)
     expected = int(base * 0.75)  # 25% faster
     assert duration == expected
 
@@ -48,7 +44,7 @@ def test_calculate_training_duration_tier_3():
     """Test training duration for tier 3 room (40% faster)."""
     # Stat 5→6 at tier 3
     duration = TrainingService.calculate_training_duration(5, 3)
-    base = TRAINING_BASE_DURATION_SECONDS + (5 * TRAINING_PER_LEVEL_INCREASE_SECONDS)
+    base = game_config.training.base_duration_seconds + (5 * game_config.training.per_level_increase_seconds)
     expected = int(base * 0.6)  # 40% faster
     assert duration == expected
 
@@ -158,7 +154,7 @@ async def test_can_start_training_stat_maxed(
 
     # Max out dweller's strength
     dweller.status = DwellerStatusEnum.IDLE
-    dweller.strength = SPECIAL_STAT_MAX
+    dweller.strength = game_config.training.special_stat_max
     async_session.add(dweller)
     await async_session.commit()
     await async_session.refresh(dweller)

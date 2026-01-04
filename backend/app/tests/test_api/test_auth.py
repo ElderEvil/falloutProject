@@ -231,7 +231,7 @@ async def test_resend_verification_email(
     try:
         # Login to get auth headers
         login_response = await async_client.post(
-            "login/access-token",
+            "auth/login",
             data={"username": user.email, "password": password},
         )
         assert login_response.status_code == 200
@@ -277,7 +277,7 @@ async def test_resend_verification_already_verified(
     try:
         # Login to get auth headers
         login_response = await async_client.post(
-            "login/access-token",
+            "auth/login",
             data={"username": user.email, "password": password},
         )
         access_token = login_response.json()["access_token"]
@@ -558,7 +558,7 @@ async def test_change_password_success(
     try:
         # Login to get auth headers
         login_response = await async_client.post(
-            "login/access-token",
+            "auth/login",
             data={"username": user.email, "password": old_password},
         )
         access_token = login_response.json()["access_token"]
@@ -602,7 +602,7 @@ async def test_change_password_incorrect_current_password(
     try:
         # Login to get auth headers
         login_response = await async_client.post(
-            "login/access-token",
+            "auth/login",
             data={"username": user.email, "password": password},
         )
         access_token = login_response.json()["access_token"]
@@ -639,7 +639,7 @@ async def test_change_password_min_length_validation(
     try:
         # Login to get auth headers
         login_response = await async_client.post(
-            "login/access-token",
+            "auth/login",
             data={"username": user.email, "password": password},
         )
         access_token = login_response.json()["access_token"]
@@ -721,7 +721,7 @@ async def test_full_registration_verification_flow(
 
         # Step 3: Login should work
         login_response = await async_client.post(
-            "login/access-token",
+            "auth/login",
             data={"username": user_data["email"], "password": user_data["password"]},
         )
 
@@ -774,7 +774,7 @@ async def test_full_password_reset_flow(
 
         # Step 3: Old password should not work
         old_login_response = await async_client.post(
-            "login/access-token",
+            "auth/login",
             data={"username": user.email, "password": old_password},
         )
 
@@ -782,7 +782,7 @@ async def test_full_password_reset_flow(
 
         # Step 4: New password should work
         new_login_response = await async_client.post(
-            "login/access-token",
+            "auth/login",
             data={"username": user.email, "password": new_password},
         )
 
@@ -813,7 +813,7 @@ async def test_full_change_password_flow(
     try:
         # Step 1: Login with old password
         login_response = await async_client.post(
-            "login/access-token",
+            "auth/login",
             data={"username": user.email, "password": old_password},
         )
 
@@ -833,7 +833,7 @@ async def test_full_change_password_flow(
 
         # Step 3: Old password should not work
         old_login_response = await async_client.post(
-            "login/access-token",
+            "auth/login",
             data={"username": user.email, "password": old_password},
         )
 
@@ -841,7 +841,7 @@ async def test_full_change_password_flow(
 
         # Step 4: New password should work
         new_login_response = await async_client.post(
-            "login/access-token",
+            "auth/login",
             data={"username": user.email, "password": new_password},
         )
 

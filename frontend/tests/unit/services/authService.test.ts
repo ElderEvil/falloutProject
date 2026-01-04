@@ -28,7 +28,7 @@ describe('authService', () => {
 
       expect(result.data).toEqual(mockResponse.data)
       expect(apiClient.post).toHaveBeenCalledWith(
-        '/login/access-token',
+        '/auth/login',
         expect.any(URLSearchParams)
       )
 
@@ -152,7 +152,7 @@ describe('authService', () => {
       const result = await authService.refreshToken('old-refresh-token')
 
       expect(result.data).toEqual(mockResponse.data)
-      expect(apiClient.post).toHaveBeenCalledWith('/login/refresh-token', {
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/refresh', {
         refresh_token: 'old-refresh-token'
       })
     })
@@ -174,7 +174,7 @@ describe('authService', () => {
       await authService.logout('test-access-token')
 
       expect(apiClient.post).toHaveBeenCalledWith(
-        '/logout',
+        '/auth/logout',
         {},
         {
           headers: { Authorization: 'Bearer test-access-token' }

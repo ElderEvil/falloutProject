@@ -7,7 +7,7 @@ from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.config.game_balance import MAX_OFFLINE_CATCHUP, TICK_INTERVAL
+from app.core.game_config import game_config
 from app.crud import exploration as crud_exploration
 from app.crud.incident import incident_crud
 from app.crud.vault import vault as vault_crud
@@ -88,14 +88,14 @@ class GameLoopService:
         seconds_passed = game_state.calculate_offline_time()
 
         # Cap catch-up time to prevent abuse
-        if seconds_passed > MAX_OFFLINE_CATCHUP:
+        if seconds_passed > game_config.game_loop.max_offline_catchup:
             self.logger.warning(
-                f"Vault {vault_id} offline time ({seconds_passed}s) exceeds max catch-up, capping to {MAX_OFFLINE_CATCHUP}s"  # noqa: E501
+                f"Vault {vault_id} offline time ({seconds_passed}s) exceeds max catch-up, capping to {game_config.game_loop.max_offline_catchup}s"  # noqa: E501
             )
-            seconds_passed = MAX_OFFLINE_CATCHUP
+            seconds_passed = game_config.game_loopmax_offline_catchup
 
         # Use minimum tick interval if too little time has passed
-        seconds_passed = max(seconds_passed, TICK_INTERVAL)
+        seconds_passed = max(seconds_passed, game_config.game_loop.tick_interval)
 
         results = {
             "vault_id": str(vault_id),
@@ -294,7 +294,7 @@ class GameLoopService:
         Returns:
             dict: Statistics with 'xp_awarded' and 'leveled_up' counts
         """
-        from app.config.game_balance import WORK_EFFICIENCY_BONUS_MULTIPLIER, WORK_XP_PER_TICK
+        from app.core.game_config import game_config
         from app.schemas.common import RoomTypeEnum
         from app.services.leveling_service import leveling_service
 
@@ -304,14 +304,14 @@ class GameLoopService:
             return stats
 
         # Base XP per tick
-        xp_to_award = WORK_XP_PER_TICK
+        xp_to_award = game_config.leveling.work_xp_per_tick
 
         # Efficiency bonus: if dweller has high matching SPECIAL
         if room.ability:
             dweller_stat = getattr(dweller, room.ability.value.lower(), 1)
             # If SPECIAL >= 7, give efficiency bonus
             if dweller_stat >= 7:
-                xp_to_award = int(xp_to_award * WORK_EFFICIENCY_BONUS_MULTIPLIER)
+                xp_to_award = int(xp_to_award * game_config.leveling.work_efficiency_bonus_multiplier)
 
         # Award XP
         dweller.experience += xp_to_award
@@ -471,6 +471,7 @@ class GameLoopService:
             "processed": 0,
             "resolved": 0,
             "active_count": 0,
+            "caps_earned": 0,
         }
 
         try:
@@ -486,6 +487,9 @@ class GameLoopService:
             active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
             stats["active_count"] = len(active_incidents)
 
+            # Track total caps earned from all incidents
+            total_caps_earned = 0
+
             # Process each active incident
             for incident in active_incidents:
                 try:
@@ -496,6 +500,11 @@ class GameLoopService:
 
                     stats["processed"] += 1
 
+                    # Accumulate caps earned
+                    caps_earned = result.get("caps_earned", 0)
+                    if caps_earned > 0:
+                        total_caps_earned += caps_earned
+
                     # Check if incident was resolved automatically
                     await db_session.refresh(incident)
                     if incident.status.value in ["resolved", "failed"]:
@@ -505,6 +514,16 @@ class GameLoopService:
                 except Exception as e:
                     # Keep broad exception for individual incident processing
                     self.logger.error(f"Error processing incident {incident.id}: {e}", exc_info=True)  # noqa: G201
+
+            # Batch update vault caps (single query instead of N queries)
+            if total_caps_earned > 0:
+                vault = await vault_crud.get(db_session, vault_id)
+                if vault:
+                    await vault_crud.update(
+                        db_session, vault_id, {"bottle_caps": vault.bottle_caps + total_caps_earned}
+                    )
+                    stats["caps_earned"] = total_caps_earned
+                    self.logger.info(f"Awarded {total_caps_earned} caps to vault {vault_id} from incidents")
 
         except (SQLAlchemyError, ResourceNotFoundException) as e:
             self.logger.error(f"Error managing incidents for vault {vault_id}: {e}", exc_info=True)  # noqa: G201
@@ -525,7 +544,7 @@ class GameLoopService:
         """
         from sqlalchemy.exc import SQLAlchemyError
 
-        from app.config.game_balance import AFFINITY_INCREASE_PER_TICK
+        from app.core.game_config import game_config
         from app.models.dweller import Dweller
         from app.models.relationship import Relationship
         from app.schemas.common import RelationshipTypeEnum
@@ -594,7 +613,7 @@ class GameLoopService:
 
                         # Increase affinity
                         await relationship_service.increase_affinity(
-                            db_session, relationship, AFFINITY_INCREASE_PER_TICK
+                            db_session, relationship, game_config.relationship.affinity_increase_per_tick
                         )
                         stats["relationships_updated"] += 1
 

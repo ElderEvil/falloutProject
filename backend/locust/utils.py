@@ -27,7 +27,7 @@ class AuthMixin:
             Login response data
         """
         with self.client.post(
-            "/api/v1/login/access-token",
+            "/api/v1/auth/login",
             data={"username": email, "password": password},
             name="Login",
             catch_response=True,

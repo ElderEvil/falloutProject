@@ -7,12 +7,7 @@ import pytest_asyncio
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.config.game_balance import (
-    BASE_RECRUITMENT_RATE,
-    HAPPINESS_RATE_MULTIPLIER,
-    MANUAL_RECRUITMENT_COST,
-    RADIO_TIER_MULTIPLIER,
-)
+from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.vault import Vault
@@ -124,8 +119,8 @@ async def test_calculate_recruitment_rate_tier_1(
     rate = await RadioService.calculate_recruitment_rate(async_session, vault, [radio_room])
 
     # Base rate * tier 1 multiplier (1.0) * happiness multiplier
-    happiness_mult = 1.0 + (vault.happiness * HAPPINESS_RATE_MULTIPLIER)
-    expected_rate = BASE_RECRUITMENT_RATE * RADIO_TIER_MULTIPLIER[1] * happiness_mult
+    happiness_mult = 1.0 + (vault.happiness * game_config.radio.happiness_rate_multiplier)
+    expected_rate = game_config.radio.base_recruitment_rate * game_config.radio.get_tier_multiplier(1) * happiness_mult
 
     assert rate == pytest.approx(expected_rate, abs=0.0001)
 
@@ -144,8 +139,8 @@ async def test_calculate_recruitment_rate_tier_2(
     rate = await RadioService.calculate_recruitment_rate(async_session, vault, [radio_room])
 
     # Base rate * tier 2 multiplier (1.5) * happiness multiplier
-    happiness_mult = 1.0 + (vault.happiness * HAPPINESS_RATE_MULTIPLIER)
-    expected_rate = BASE_RECRUITMENT_RATE * RADIO_TIER_MULTIPLIER[2] * happiness_mult
+    happiness_mult = 1.0 + (vault.happiness * game_config.radio.happiness_rate_multiplier)
+    expected_rate = game_config.radio.base_recruitment_rate * game_config.radio.get_tier_multiplier(2) * happiness_mult
 
     assert rate == pytest.approx(expected_rate, abs=0.0001)
 
@@ -221,7 +216,7 @@ async def test_manual_recruit_success(
 
     # Verify caps deducted
     await async_session.refresh(vault)
-    assert vault.bottle_caps == initial_caps - MANUAL_RECRUITMENT_COST
+    assert vault.bottle_caps == initial_caps - game_config.radio.manual_recruitment_cost
 
 
 @pytest.mark.asyncio
@@ -232,7 +227,7 @@ async def test_manual_recruit_insufficient_caps(
 ):
     """Test manual recruitment with insufficient caps."""
     # Set caps below cost
-    vault.bottle_caps = MANUAL_RECRUITMENT_COST - 1
+    vault.bottle_caps = game_config.radio.manual_recruitment_cost - 1
     await async_session.commit()
 
     with pytest.raises(ValueError, match="Insufficient caps"):
@@ -295,7 +290,7 @@ async def test_get_recruitment_stats_with_radio(
     assert stats["rate_per_hour"] > 0.0
     assert stats["estimated_hours_per_recruit"] > 0.0
     assert stats["radio_rooms_count"] == 1
-    assert stats["manual_cost_caps"] == MANUAL_RECRUITMENT_COST
+    assert stats["manual_cost_caps"] == game_config.radio.manual_recruitment_cost
 
 
 @pytest.mark.asyncio

@@ -463,7 +463,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         is_superuser: bool,  # noqa: FBT001
     ) -> None:
         """Start training sessions for dwellers in training rooms (superuser only)."""
-        if not is_superuser:
+        if not is_superuser or not created_training_rooms:
             return
 
         # Import locally to avoid circular imports
@@ -474,16 +474,27 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         logger = logging.getLogger(__name__)
 
         try:
-            # Get all dwellers in training rooms
+            # Batch-fetch all dwellers in training rooms (N+1 optimization)
+            room_ids = [room.id for room in created_training_rooms]
+            result = await db_session.execute(
+                select(Dweller).where(Dweller.room_id.in_(room_ids)).where(Dweller.vault_id == vault_id)
+            )
+            all_dwellers = result.scalars().all()
+
+            # Group dwellers by room_id for processing
+            dwellers_by_room = {}
+            for dweller in all_dwellers:
+                if dweller.room_id not in dwellers_by_room:
+                    dwellers_by_room[dweller.room_id] = []
+                dwellers_by_room[dweller.room_id].append(dweller)
+
+            # Process each training room
             for room in created_training_rooms:
                 # Re-fetch room to ensure all fields are loaded
                 await db_session.refresh(room)
                 logger.info(f"Room {room.id} ({room.name}) - tier: {room.tier}, ability: {room.ability}")
 
-                result = await db_session.execute(
-                    select(Dweller).where(Dweller.room_id == room.id).where(Dweller.vault_id == vault_id)
-                )
-                dwellers = result.scalars().all()
+                dwellers = dwellers_by_room.get(room.id, [])
 
                 for dweller in dwellers:
                     try:

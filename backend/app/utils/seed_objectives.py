@@ -71,11 +71,9 @@ async def seed_objectives_from_json(db_session: AsyncSession, objectives_dir: Pa
         if seeded_count > 0:
             await db_session.commit()
             logger.info("Seeded %d new objectives into database", seeded_count)
-            return seeded_count
-
-        logger.info("No new objectives to seed, all objectives already exist in database")
-        return 0  # noqa: TRY300
-
+        else:
+            logger.info("No new objectives to seed, all objectives already exist in database")
+        return seeded_count  # noqa: TRY300
     except Exception:
         logger.exception("Failed to seed objectives from JSON files")
         await db_session.rollback()

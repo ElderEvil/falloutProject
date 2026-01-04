@@ -65,10 +65,10 @@ async def verify_refresh_token(token: str, redis_client: Redis) -> Any:
         stored_refresh_token = await redis_client.get(f"refresh_token:{subject}")
         if stored_refresh_token != token:
             return None
-
-        return subject  # noqa: TRY300
     except JWTError:
         return None
+    else:
+        return subject
 
 
 async def invalidate_refresh_token(subject: str, redis_client: Redis) -> None:

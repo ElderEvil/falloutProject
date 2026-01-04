@@ -2,6 +2,7 @@ from collections.abc import Sequence
 
 from pydantic import UUID4
 from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -15,7 +16,11 @@ from app.schemas.dweller import DwellerCreateCommonOverride
 from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultNumber, VaultReadWithNumbers, VaultUpdate
 from app.services.resource_manager import ResourceManager
-from app.utils.exceptions import InsufficientResourcesException, ResourceNotFoundException
+from app.utils.exceptions import (
+    InsufficientResourcesException,
+    ResourceConflictException,
+    ResourceNotFoundException,
+)
 
 
 class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
@@ -424,10 +429,10 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         dweller_count = len(dweller_specs)
         try:
             for i, (special_stat, room_id) in enumerate(dweller_specs):
-                logger.info(f"Creating dweller {i + 1}/{dweller_count} with {special_stat} for room {room_id}")  # noqa: G004
+                logger.info(f"Creating dweller {i + 1}/{dweller_count} with {special_stat} for room {room_id}")
                 obj_in = DwellerCreateCommonOverride(special_boost=special_stat)
                 dweller_obj = await dweller_crud.create_random(db_session, vault_id, obj_in=obj_in)
-                logger.info(f"Created dweller {dweller_obj.id}, assigning to room {room_id}")  # noqa: G004
+                logger.info(f"Created dweller {dweller_obj.id}, assigning to room {room_id}")
 
                 # Get room to determine status based on category
                 room_obj = await room_crud.get(db_session, room_id)
@@ -445,9 +450,9 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
                 await dweller_crud.update(
                     db_session=db_session, id=dweller_obj.id, obj_in=DwellerUpdate(room_id=room_id, status=new_status)
                 )
-                logger.info(f"Dweller {dweller_obj.id} assigned to room {room_id}")  # noqa: G004
-        except Exception as e:
-            logger.error(f"Failed to create dwellers: {e}", exc_info=True)  # noqa: G004, G201
+                logger.info(f"Dweller {dweller_obj.id} assigned to room {room_id}")
+        except Exception:
+            logger.exception("Failed to create dwellers")
             raise
 
     async def _start_training_sessions(
@@ -473,7 +478,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             for room in created_training_rooms:
                 # Re-fetch room to ensure all fields are loaded
                 await db_session.refresh(room)
-                logger.info(f"Room {room.id} ({room.name}) - tier: {room.tier}, ability: {room.ability}")  # noqa: G004
+                logger.info(f"Room {room.id} ({room.name}) - tier: {room.tier}, ability: {room.ability}")
 
                 result = await db_session.execute(
                     select(Dweller).where(Dweller.room_id == room.id).where(Dweller.vault_id == vault_id)
@@ -489,20 +494,18 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
                         stat_name = room.ability.value.lower() if room.ability else "unknown"
                         stat_value = getattr(dweller, stat_name, None) if room.ability else None
                         logger.info(
-                            f"Dweller {dweller.id} {stat_name}={stat_value}, "  # noqa: G004
+                            f"Dweller {dweller.id} {stat_name}={stat_value}, "
                             f"all stats: S={dweller.strength}, P={dweller.perception}, "
                             f"E={dweller.endurance}, status={dweller.status}"
                         )
 
                         await training_service.start_training(db_session, dweller.id, room.id)
-                        logger.info(f"Started training for dweller {dweller.id} in room {room.id}")  # noqa: G004
-                    except Exception as e:  # noqa: BLE001
+                        logger.info(f"Started training for dweller {dweller.id} in room {room.id}")
+                    except (ResourceNotFoundException, ResourceConflictException, ValueError) as e:
                         # Log error but continue with other dwellers
-                        logger.warning(
-                            f"Failed to start training for dweller {dweller.id} in room {room.id}: {e}"  # noqa: G004
-                        )
+                        logger.warning(f"Failed to start training for dweller {dweller.id} in room {room.id}: {e}")
         except Exception as e:
-            logger.error(f"Failed to start training sessions: {e}", exc_info=True)  # noqa: G004, G201
+            logger.error(f"Failed to start training sessions: {e}", exc_info=True)  # noqa: G201
             raise
 
     async def _assign_initial_objectives(self, db_session: AsyncSession, vault_id: UUID4) -> None:
@@ -528,7 +531,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
             await db_session.commit()
             logger.info("Assigned %d initial objectives to vault %s", len(objectives), vault_id)
-        except Exception as e:  # noqa: BLE001
+        except SQLAlchemyError as e:
             logger.warning("Failed to assign initial objectives to vault %s: %s", vault_id, e)
 
     async def initiate(

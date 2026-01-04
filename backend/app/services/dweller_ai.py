@@ -223,8 +223,8 @@ class DwellerAIService:
             audio_bytes = await self.open_ai_service.generate_audio(text=text, voice=voice_type, model="tts-1")
             if not len(audio_bytes):
                 logger.warning("Empty input")
-        except Exception as e:  # noqa: BLE001
-            raise HTTPException(status_code=500, detail=f"Failed to generate audio via OpenAI: {e}")  # noqa: B904
+        except (ValueError, RuntimeError) as e:
+            raise HTTPException(status_code=500, detail=f"Failed to generate audio via OpenAI: {e}") from e
 
         audio_url = self.minio_service.upload_file(
             file_data=audio_bytes,

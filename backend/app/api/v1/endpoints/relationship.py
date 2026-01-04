@@ -39,9 +39,7 @@ async def get_vault_relationships(
     )
 
     result = await db_session.execute(query)
-    relationships = result.scalars().all()
-
-    return relationships  # noqa: RET504
+    return result.scalars().all()
 
 
 @router.get("/{relationship_id}", response_model=RelationshipRead)
@@ -80,13 +78,9 @@ async def create_relationship(
     await verify_dweller_access(relationship_data.dweller_2_id, user, db_session)
 
     # Create or get existing relationship
-    relationship = await relationship_service.create_or_get_relationship(
-        db_session,
-        relationship_data.dweller_1_id,
-        relationship_data.dweller_2_id,
+    return await relationship_service.get_or_create_relationship(
+        db_session, relationship_data.dweller_1_id, relationship_data.dweller_2_id
     )
-
-    return relationship  # noqa: RET504
 
 
 @router.put("/{relationship_id}/romance", response_model=RelationshipRead)
@@ -113,12 +107,11 @@ async def initiate_romance(
 
     # Initiate romance
     try:
-        updated_relationship = await relationship_service.initiate_romance(
+        return await relationship_service.initiate_romance(
             db_session,
             relationship.dweller_1_id,
             relationship.dweller_2_id,
         )
-        return updated_relationship  # noqa: RET504, TRY300
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -147,12 +140,11 @@ async def make_partners(
 
     # Make partners
     try:
-        updated_relationship = await relationship_service.make_partners(
+        return await relationship_service.make_partners(
             db_session,
             relationship.dweller_1_id,
             relationship.dweller_2_id,
         )
-        return updated_relationship  # noqa: RET504, TRY300
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -182,9 +174,10 @@ async def break_up_relationship(
     # Break up
     try:
         await relationship_service.break_up(db_session, relationship_id)
-        return {"message": "Relationship ended"}  # noqa: TRY300
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    else:
+        return {"message": "Relationship ended"}
 
 
 @router.post("/vault/{vault_id}/quick-pair", response_model=RelationshipRead)
@@ -237,11 +230,7 @@ async def quick_pair_dwellers(
     dweller_2 = females[0]
 
     # Create relationship
-    relationship = await relationship_service.create_or_get_relationship(
-        db_session,
-        dweller_1.id,
-        dweller_2.id,
-    )
+    relationship = await relationship_service.get_or_create_relationship(db_session, dweller_1.id, dweller_2.id)
 
     # Force set to high affinity (90) for quick pairing
     relationship.affinity = 90

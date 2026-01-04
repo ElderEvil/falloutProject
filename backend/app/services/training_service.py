@@ -1,4 +1,3 @@
-# ruff: noqa: PLR0911, G004
 """Training service for managing dweller SPECIAL stat training."""
 
 import logging
@@ -62,7 +61,7 @@ class TrainingService:
 
         return int(duration)
 
-    async def can_start_training(
+    async def can_start_training(  # noqa: PLR0911
         self,
         db_session: AsyncSession,
         dweller: Dweller,
@@ -83,27 +82,24 @@ class TrainingService:
         if room.category != RoomTypeEnum.TRAINING:
             return False, "Room is not a training room"
 
-        # Check if dweller already has active training
+        # Check dweller availability
+        if dweller.status != DwellerStatusEnum.IDLE:
+            return False, f"Dweller is {dweller.status} and cannot train"
+
         existing_training = await training_crud.training.get_active_by_dweller(db_session, dweller.id)
         if existing_training:
             return False, f"Dweller is already training {existing_training.stat_being_trained}"
 
-        # Check if dweller is available (not exploring, etc.)
-        if dweller.status != DwellerStatusEnum.IDLE:
-            return False, f"Dweller is {dweller.status} and cannot train"
-
-        # Determine which stat this room trains
+        # Determine which stat this room trains and check if maxed
         if not room.ability:
             return False, "Training room has no assigned SPECIAL stat"
 
         stat_to_train = room.ability
-
-        # Check if stat is already maxed
         current_stat_value = getattr(dweller, stat_to_train.value.lower())
         # Defensive: if stat is None (shouldn't happen), treat as 1 (minimum)
-        if current_stat_value is None:
-            current_stat_value = 1
-        elif current_stat_value >= SPECIAL_STAT_MAX:
+        current_stat_value = 1 if current_stat_value is None else current_stat_value
+
+        if current_stat_value >= SPECIAL_STAT_MAX:
             return False, f"{stat_to_train.value} is already at maximum ({SPECIAL_STAT_MAX})"
 
         # Check room capacity

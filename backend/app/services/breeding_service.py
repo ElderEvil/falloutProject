@@ -142,7 +142,7 @@ class BreedingService:
                 )
                 new_pregnancies.append(pregnancy)
                 logger.info(
-                    f"Conception with {conception_chance * 100:.0f}% chance: Mother={mother_id}, Father={father_id}"  # noqa: G004
+                    f"Conception with {conception_chance * 100:.0f}% chance: Mother={mother_id}, Father={father_id}"
                 )
 
         return new_pregnancies
@@ -179,7 +179,7 @@ class BreedingService:
         await db_session.commit()
         await db_session.refresh(pregnancy)
 
-        logger.info(f"Created pregnancy: Mother={mother_id}, Father={father_id}, Due at {due_at.isoformat()}")  # noqa: G004
+        logger.info(f"Created pregnancy: Mother={mother_id}, Father={father_id}, Due at {due_at.isoformat()}")
 
         return pregnancy
 
@@ -206,8 +206,7 @@ class BreedingService:
             .where(Pregnancy.due_at <= datetime.utcnow())
         )
 
-        pregnancies = (await db_session.execute(query)).scalars().all()
-        return pregnancies  # noqa: RET504
+        return (await db_session.execute(query)).scalars().all()
 
     @staticmethod
     async def deliver_baby(
@@ -259,7 +258,7 @@ class BreedingService:
         first_name = random.choice([mother.first_name, father.first_name])
         last_name = mother.last_name  # Use mother's last name by default
 
-        # Create child dweller
+        # Create a child dweller
         from app import crud
 
         child_data = {
@@ -293,7 +292,7 @@ class BreedingService:
         await db_session.commit()
         await db_session.refresh(pregnancy)
 
-        logger.info(f"Baby delivered: {child.first_name} {child.last_name}, Mother={mother.id}, Father={father.id}")  # noqa: G004
+        logger.info(f"Baby delivered: {child.first_name} {child.last_name}, Mother={mother.id}, Father={father.id}")
 
         return child
 
@@ -400,7 +399,7 @@ class BreedingService:
             child.updated_at = datetime.utcnow()
             aged_dwellers.append(child)
 
-            logger.info(f"Child aged to adult: {child.first_name} {child.last_name} ({child.id})")  # noqa: G004
+            logger.info(f"Child aged to adult: {child.first_name} {child.last_name} ({child.id})")
 
         await db_session.commit()
 

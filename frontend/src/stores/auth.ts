@@ -32,7 +32,7 @@ export const useAuthStore = defineStore('auth', () => {
       formData.append('username', username)
       formData.append('password', password)
 
-      const response = await axios.post('/api/v1/login/access-token', formData, {
+      const response = await axios.post('/api/v1/auth/login', formData, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
         }
@@ -99,7 +99,7 @@ export const useAuthStore = defineStore('auth', () => {
       const formData = new URLSearchParams()
       formData.append('refresh_token', refreshToken.value)
 
-      const response = await axios.post('/api/v1/login/refresh-token', formData, {
+      const response = await axios.post('/api/v1/auth/refresh', formData, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
         }
@@ -116,7 +116,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       if (token.value) {
         await axios.post(
-          '/api/v1/logout',
+          '/api/v1/auth/logout',
           {},
           {
             headers: {

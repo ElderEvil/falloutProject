@@ -33,7 +33,7 @@ async def get_superuser_token_headers(client: AsyncClient) -> dict[str, str]:
         "username": settings.FIRST_SUPERUSER_EMAIL,
         "password": settings.FIRST_SUPERUSER_PASSWORD,
     }
-    response = await client.post("/login/access-token", data=login_data)
+    response = await client.post("/auth/login", data=login_data)
     tokens = response.json()
     a_token = tokens["access_token"]
     return {"Authorization": f"Bearer {a_token}"}

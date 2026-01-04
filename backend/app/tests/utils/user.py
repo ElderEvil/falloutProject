@@ -14,7 +14,7 @@ async def user_authentication_headers(
 ) -> dict[str, str]:
     data = {"username": email, "password": password}
 
-    response = await client.post("/login/access-token", data=data)
+    response = await client.post("/auth/login", data=data)
     response = response.json()
     auth_token = response["access_token"]
     return {"Authorization": f"Bearer {auth_token}"}

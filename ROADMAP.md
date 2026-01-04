@@ -681,6 +681,121 @@ AI-powered dweller interactions.
 
 ### Technical Debt & Improvements
 
+#### v1.9.5 Technical Improvements & Chores (IN PROGRESS - Jan 2026)
+
+**Goal**: Code quality improvements, performance optimizations, and developer experience enhancements
+
+##### 1. Game Balance Configuration Migration to Pydantic Settings
+**Priority: Medium | Impact: High**
+
+**Problem**: 249 lines of hardcoded constants in `game_balance.py`, no validation, difficult to test different configurations
+
+**Solution**: Migrate to Pydantic BaseSettings with environment variable support
+
+- [ ] **Create `app/core/game_config.py`** with Pydantic BaseSettings
+- [ ] **Define Nested Config Classes**:
+  - `GameLoopConfig`: tick intervals, catchup limits
+  - `IncidentConfig`: spawn rates, difficulties, weights, spread mechanics
+  - `CombatConfig`: raider power, dweller combat weights, loot ranges
+  - `HealthConfig`: regen rates, thresholds, decay rates
+  - `HappinessConfig`: decay/gain rates, bonuses, thresholds
+  - `TrainingConfig`: durations, tier multipliers, stat limits
+  - `ResourceConfig`: production/consumption rates, warning thresholds
+  - `RelationshipConfig`: affinity rates, romance thresholds
+  - `BreedingConfig`: conception chance, pregnancy duration, inheritance
+  - `LevelingConfig`: XP curves, HP gains, max level
+- [ ] **Add `.env` Support** for balance tweaking (e.g., `INCIDENT_SPAWN_CHANCE=0.10`)
+- [ ] **Replace Imports**: `game_balance.CONSTANT` → `game_config.incident.spawn_chance`
+- [ ] **Add Validation**: Ensure valid ranges (e.g., 0.0 ≤ spawn_chance ≤ 1.0)
+- [ ] **Update Tests**: Use config fixtures for easy mocking
+- [ ] **Documentation**: Add docstrings explaining each config value
+
+**Benefits**:
+- Easy A/B testing of game balance
+- Environment-specific difficulty (easier dev mode, harder prod)
+- Runtime validation catches config errors on startup
+- Single source of truth with type hints
+
+##### 2. Auth Routes Consolidation
+**Priority: Low | Impact: Medium**
+
+**Problem**: Auth split across `login.py` (2 endpoints) and `auth.py` (5 endpoints), confusing organization
+
+**Solution**: Merge into single `auth.py` router
+
+- [ ] **Move Login Endpoints** from `login.py` to `auth.py`
+  - `POST /login/access-token` → `POST /auth/login`
+  - `POST /login/refresh-token` → `POST /auth/refresh`
+- [ ] **Update Frontend** API calls (2 files affected)
+- [ ] **Update Router** registration in `app/api/v1/api.py`
+- [ ] **Delete** `login.py`
+- [ ] **Update OpenAPI Tags** (all under "Authentication")
+- [ ] **Run Tests** to verify no regressions
+
+**Benefits**:
+- Single auth module, easier to navigate
+- Consistent URL structure (`/auth/*`)
+- Reduced cognitive load for API consumers
+
+##### 3. Incident Service N+1 Query Optimization
+**Priority: High | Impact: High**
+
+**Problem**: `incident_service.py:process_incident()` has N+1 query issues:
+- Line 177: Individual dweller refresh inside loop (unnecessary)
+- Line 198-202: Individual vault fetch per incident for cap updates
+- Current: ~10-15 queries per incident
+
+**Solution**: Eliminate redundant queries
+
+- [x] **Training Service Optimization** ✅ (Jan 4, 2026)
+  - Batch dweller fetching in training CRUD
+  - Optimized training service methods with optional dweller parameter
+  - Game loop batch operations (N queries → 2 queries)
+  - 60-80% query reduction achieved
+- [ ] **Remove Individual Dweller Refresh** (line 177)
+  - SQLAlchemy session tracks objects, no re-fetch needed
+- [ ] **Batch Vault Updates** for cap rewards
+  - Collect caps from multiple incidents
+  - Single vault fetch + update at game loop end
+- [ ] **Pre-fetch Equipment** if needed for combat
+  - Use `selectinload(Dweller.weapon, Dweller.outfit)` in initial query
+- [ ] **Add Batch Processing**: `process_incidents_batch(incidents: list[Incident])`
+  - Group by vault_id for efficient resource updates
+- [ ] **Performance Test**: Measure query count before/after
+
+**Expected Impact**:
+- Current: ~10-15 queries per incident
+- Target: ~3-4 queries per incident
+- **60-70% query reduction** for incident-heavy vaults
+
+##### 4. Additional Quick Wins
+
+- [ ] **Remove Unused Imports** (chore)
+  - Run `ruff check --select F401`
+  - Clean up unused imports (~50-100 lines)
+- [ ] **Add Missing Type Hints**
+  - Return type hints for all service methods
+  - Enable `--strict` mode for `ty` type checker
+- [ ] **Consolidate Game Constants**
+  - Move magic numbers to config (e.g., `difficulty * 2` → config)
+  - Document formulas in comments
+- [ ] **Improve Error Messages**
+  - Add context to exceptions (e.g., "Incident {id} not found in vault {vault_id}")
+  - Review all `HTTPException` messages for clarity
+
+#### v1.9+ Recent Optimizations ✅
+
+- [x] **Training Service N+1 Optimization** ✅ (Jan 4, 2026)
+  - Added batch dweller fetching to training CRUD
+  - Optimized training service with optional dweller parameters
+  - Updated game loop for batch operations
+  - Reduced training queries from N+2 to 2 (60-80% improvement)
+- [x] **Vault Service Extraction** ✅ (Jan 4, 2026)
+  - Created `VaultService` (375 lines) with business logic
+  - Reduced Vault CRUD from 619 to 244 lines (60% reduction)
+  - Clear separation: CRUD (data access) vs Service (business logic)
+  - Consistent architecture pattern across services
+
 #### v2.1+ Performance & Optimization (Deferred)
 
 > **Note**: Lighthouse optimizations deferred to post-v2.0. Current performance score of 71/100 is acceptable for MVP
@@ -704,13 +819,17 @@ AI-powered dweller interactions.
 
 #### Other Technical Debt
 
+> **Note**: See [v1.9.5 Technical Improvements](#v195-technical-improvements--chores-in-progress---jan-2026) above for active work on N+1 optimizations, config migration, and auth consolidation.
+
 - [ ] **Email Testing Infrastructure**
     - Migrate from MailHog to Mailpit
     - Improved web UI with better performance
     - Modern, actively maintained alternative
     - Better compatibility with current Docker/Podman setup
 - [ ] Performance optimization for large vaults (100+ dwellers)
-- [ ] Database query optimization (N+1 query prevention)
+- [x] ~~Database query optimization (N+1 query prevention)~~ ✅ **In Progress** (see v1.9.5)
+  - Training service optimized (60-80% reduction) ✅
+  - Incident service optimization pending
 - [ ] Implement GraphQL for complex queries
 - [ ] WebSocket for real-time updates (replace polling)
 - [ ] Progressive Web App (PWA) features
@@ -726,16 +845,20 @@ AI-powered dweller interactions.
 
 ## 📊 Progress Metrics
 
-### Current Stats (as of January 3, 2026)
+### Current Stats (as of January 4, 2026)
 
-- **Backend Endpoints**: 18+ routers with 80+ endpoints (including quests, objectives, incident management)
+- **Backend Endpoints**: 22 routers with 90+ endpoints (including quests, objectives, incident management)
 - **Frontend Components**: 55+ Vue components (including QuestsView, ObjectivesView, combat UI, room detail modal)
 - **UI Components**: 8 custom reusable components
+- **Services**: 15+ backend services (including new VaultService)
 - **Test Coverage**:
     - Frontend: 489+ tests passing (including quest/objective tests, room detail modal tests)
-    - Backend: Comprehensive API and CRUD tests (33+ quest/objective tests, 7 room upgrade tests)
+    - Backend: 293 tests passing (33+ quest/objective tests, 7 room upgrade tests, training optimization tests)
 - **Models**: 18+ database models (including Quest, Objective, Incident, GameState, link tables)
-- **Lines of Code**: ~21,000+ (backend + frontend)
+- **Lines of Code**: ~22,000+ (backend + frontend)
+- **Performance**:
+    - Training service: 60-80% query reduction ✅
+    - Vault CRUD: 60% line reduction (619 → 244 lines) ✅
 
 ### Version Milestones
 
@@ -749,11 +872,12 @@ AI-powered dweller interactions.
 - **v1.5** - Core leveling system ✅ (Jan 2, 2026)
 - **v1.6** - Training system backend ✅ (Jan 2, 2026)
 - **v1.7** - Chat/Notification system + Structured logging ✅ (Jan 3, 2026)
-- **v1.8** - Quest & Objective systems + UI consistency (Current - Jan 3, 2026)
-- **v1.9** - Happiness system + Training UI + Resource warnings (Jan 2026)
-- **v1.9** - Complete Phase 1 features (Feb 2026)
-- **v2.0** - Full MVP release (Mar 2026)
-- **v2.1+** - Performance optimizations, advanced features (Post-MVP)
+- **v1.8** - Quest & Objective systems + UI consistency ✅ (Jan 3, 2026)
+- **v1.9** - Training/Vault optimization + Service refactoring ✅ (Jan 4, 2026)
+- **v1.9.5** - Technical improvements (game config, auth consolidation, incident N+1) (Current - Jan 2026)
+- **v2.0** - Happiness system + Resource warnings + Phase 1 completion (Feb 2026)
+- **v2.1** - Full MVP release (Mar 2026)
+- **v2.2+** - Performance optimizations, advanced features (Post-MVP)
 
 ---
 
@@ -771,11 +895,39 @@ This roadmap is subject to change based on:
 - Priority adjustments
 - Community contributions
 
-Last updated: January 3, 2026
+Last updated: January 4, 2026
 
 ---
 
 ## 🎉 Recent Highlights
+
+### Training & Vault Service Optimization v1.9 (January 4, 2026)
+
+- ✅ **Training Service N+1 Optimization** - Eliminated redundant queries in training operations
+  - Added batch dweller fetching (`get_dwellers_for_trainings()`)
+  - Optimized service methods with optional dweller parameter
+  - Game loop now batch-fetches dwellers (N+2 queries → 2 queries)
+  - **60-80% query reduction** for training-heavy vaults
+- ✅ **Vault Service Extraction** - Major architectural refactoring
+  - Created `VaultService` (375 lines) with all business logic
+  - Reduced Vault CRUD from 619 to 244 lines (**60% reduction**)
+  - Clear separation: CRUD (data access) vs Service (business logic)
+  - Consistent architecture pattern with other services
+- ✅ **Bug Fixes** - Fixed 6 failing tests in game control and vault initialization
+  - Corrected dweller creation (`create_random` vs `create`)
+  - Fixed vault capacity updates for production/storage rooms
+  - Fixed enum usage (RoomTypeEnum, DwellerStatusEnum)
+- ✅ **Code Quality** - Fixed 11 ruff linting errors across 6 files
+  - G201, TRY300, BLE001, B904 errors resolved
+  - Improved exception handling patterns
+
+### Quest & Objective Systems v1.8 (January 3, 2026)
+
+- ✅ **Quest CRUD** - Full quest management with visibility tracking
+- ✅ **Objective System** - Progress tracking with VaultObjectiveProgressLink
+- ✅ **Frontend Views** - QuestsView with Overseer's Office requirement, ObjectivesView with tabs
+- ✅ **Testing** - 7 backend + 15 store + 11 component tests (33 total)
+- ✅ **UI Consistency** - All views use CSS custom properties theme system
 
 ### Chat & Notification System v1.7 (January 3, 2026)
 

@@ -8,11 +8,13 @@ import type { DwellerDetailRead } from '@/types/dweller'
 
 interface Props {
   dweller: DwellerDetailRead
+  generatingBio?: boolean
 }
 
 defineProps<Props>()
 const emit = defineEmits<{
   refresh: []
+  'generate-bio': []
 }>()
 
 const activeTab = ref('profile')
@@ -33,6 +35,8 @@ const tabs = [
             v-if="currentTab === 'profile'"
             :bio="dweller.bio"
             :first-name="dweller.first_name"
+            :generating-bio="generatingBio"
+            @generate-bio="emit('generate-bio')"
           />
           <DwellerStats
             v-else-if="currentTab === 'stats'"

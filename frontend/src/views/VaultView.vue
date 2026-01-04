@@ -50,6 +50,7 @@ const isLoading = ref(true)
 const errorMessage = ref<string | null>(null)
 const showCombatModal = ref(false)
 const selectedIncidentId = ref<string | null>(null)
+const highlightedRoomId = ref<string | null>(null)
 
 const buildModeActive = computed(() => showRoomMenu.value || isPlacingRoom.value)
 
@@ -150,6 +151,17 @@ const loadVaultData = async (id: string) => {
     isLoading.value = false
   }
 }
+
+// Watch for room highlight query parameter
+watch(() => route.query.roomId, (newRoomId) => {
+  if (newRoomId && typeof newRoomId === 'string') {
+    highlightedRoomId.value = newRoomId
+    // Clear highlight after 3 seconds
+    setTimeout(() => {
+      highlightedRoomId.value = null
+    }, 3000)
+  }
+}, { immediate: true })
 
 // Watch for vault ID changes in the URL
 watch(() => vaultId.value, (newId) => {
@@ -308,6 +320,7 @@ const handleIncidentResolved = async () => {
         :selectedRoom="selectedRoom"
         :isPlacingRoom="isPlacingRoom"
         :incidents="activeIncidents"
+        :highlightedRoomId="highlightedRoomId"
         @roomPlaced="handleRoomPlaced"
         @incidentClicked="handleIncidentClicked"
       />

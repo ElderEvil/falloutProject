@@ -10,25 +10,32 @@ vault thriving. Built with modern Python tooling and designed for Python 3.14.
 [![Vue 3.5](https://img.shields.io/badge/vue-3.5-00ff00.svg)](https://vuejs.org/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.9-00ff00.svg)](https://www.typescriptlang.org/)
 
-## 🎉 Recent Updates (v1.9.5 - January 2026)
+## 🎉 Recent Updates (January 2026)
 
-### Game Configuration System
+### v1.10 - UX Polish Sprint
+**Focus**: High-impact UX improvements for smoother vault management
+
+- ✅ **Job-Relevant Stats Display** - List/grid views show dweller's relevant SPECIAL stat for their assigned room with color coding (🟢 7+ 🟡 4-6 🔴 1-3)
+- ✅ **Clickable Room Navigation** - Room badges now clickable, navigate to vault view with room highlighted (pulses 3 seconds)
+- ✅ **Separate Regenerate Buttons** - Independent controls for portrait (📷), biography (✏️), or both (✨) regeneration
+- ✅ **Terminal-Themed Login** - Vault-Tec styled login screen now default (retro aesthetic)
+
+### v1.9.5 - Configuration & Code Quality
+**Focus**: Game balance consolidation and infrastructure improvements
+
+#### Game Configuration System
 - ✅ **Migrated to Pydantic Settings** - All game balance constants now use type-safe, validated configuration
 - ✅ **Environment Variable Support** - Easy game balance tweaking via `.env` (e.g., `INCIDENT_SPAWN_CHANCE=0.10`)
 - ✅ **Startup Logging** - Configuration values logged on initialization for visibility
 - ✅ **11 Config Classes** - Organized into logical groups (Incident, Combat, Happiness, Training, etc.)
 
-### Authentication Consolidation
+#### Authentication & Performance
 - ✅ **Unified Auth Endpoints** - All auth under `/auth/*` prefix (`/auth/login`, `/auth/refresh`, `/auth/logout`)
-- ✅ **Updated Tests & Clients** - All 11+ test references and load tests updated
-- ✅ **Consistent API Structure** - Reduced cognitive load for API consumers
-
-### Performance Optimizations
 - ✅ **Wasteland Service** - Eliminated 3+ unnecessary DB queries per exploration event
 - ✅ **Incident Service** - 60-70% query reduction for incident processing (N+1 optimization)
 - ✅ **Training Service** - Batch dweller fetching, 60-80% query reduction
 
-### Bug Fixes
+#### Bug Fixes
 - ✅ Fixed happiness config attribute name (`partner_nearby_bonus`)
 - ✅ Fixed FIXME statements (vault door incidents, resource thresholds)
 - ✅ Updated all test files to use new config system

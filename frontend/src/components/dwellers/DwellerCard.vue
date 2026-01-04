@@ -12,6 +12,8 @@ interface Props {
   dweller: DwellerDetailRead;
   imageUrl?: string | null;
   loading?: boolean;
+  generatingBio?: boolean;
+  generatingPortrait?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -21,6 +23,8 @@ const emit = defineEmits<{
   (e: 'assign'): void
   (e: 'recall'): void
   (e: 'generate-ai'): void
+  (e: 'generate-bio'): void
+  (e: 'generate-portrait'): void
   (e: 'train'): void
   (e: 'assign-pet'): void
   (e: 'use-stimpack'): void
@@ -102,16 +106,31 @@ const rarityLabel = computed(() => {
           <Icon icon="mdi:account-circle" class="h-48 w-48 text-gray-400" />
         </div>
 
-        <!-- Generate AI Button -->
-        <UTooltip text="Generate AI portrait & biography" position="right">
+        <!-- Generate Portrait Button -->
+        <UTooltip text="Generate AI portrait" position="right">
+          <button
+            @click="emit('generate-portrait')"
+            class="ai-generate-button portrait-button"
+            :disabled="generatingPortrait || loading"
+          >
+            <Icon
+              :icon="generatingPortrait ? 'mdi:loading' : 'mdi:camera'"
+              class="h-6 w-6 text-green-600"
+              :class="{ 'animate-spin': generatingPortrait }"
+            />
+          </button>
+        </UTooltip>
+
+        <!-- Generate Full AI Button (both portrait and bio) -->
+        <UTooltip text="Generate portrait & biography" position="right">
           <button
             @click="emit('generate-ai')"
-            class="ai-generate-button"
+            class="ai-generate-button full-generate-button"
             :disabled="loading"
           >
             <Icon
               :icon="loading ? 'mdi:loading' : 'mdi:sparkles'"
-              class="h-8 w-8 text-green-600"
+              class="h-6 w-6 text-green-600"
               :class="{ 'animate-spin': loading }"
             />
           </button>
@@ -302,16 +321,25 @@ const rarityLabel = computed(() => {
 
 .ai-generate-button {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   background: rgba(31, 41, 55, 0.9);
   border: none;
   border-radius: 50%;
-  padding: 1rem;
+  padding: 0.75rem;
   cursor: pointer;
   transition: all 0.3s ease;
   animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.portrait-button {
+  bottom: 0.5rem;
+  right: 0.5rem;
+}
+
+.full-generate-button {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 1rem;
 }
 
 .ai-generate-button:hover:not(:disabled) {

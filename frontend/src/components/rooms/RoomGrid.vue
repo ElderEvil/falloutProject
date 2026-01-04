@@ -23,10 +23,12 @@ const RoomDetailModal = defineAsyncComponent({
 
 interface Props {
   incidents?: Incident[]
+  highlightedRoomId?: string | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  incidents: () => []
+  incidents: () => [],
+  highlightedRoomId: null
 })
 
 const emit = defineEmits<{
@@ -328,7 +330,8 @@ const closeDetailModal = () => {
         :class="{
           selected: selectedRoomId === room.id,
           'drag-over': draggingOverRoomId === room.id,
-          'has-incident': roomHasIncident(room.id)
+          'has-incident': roomHasIncident(room.id),
+          'highlighted': highlightedRoomId === room.id
         }"
         @click="handleRoomClick(room, $event)"
         @dragover="handleDragOver($event, room.id)"
@@ -534,6 +537,22 @@ const closeDetailModal = () => {
   border-width: 3px;
   background-color: var(--color-theme-glow);
   box-shadow: 0 0 20px var(--color-theme-glow);
+}
+
+.room.highlighted {
+  border-color: var(--color-theme-primary);
+  border-width: 3px;
+  box-shadow: 0 0 30px var(--color-theme-primary);
+  animation: highlight-pulse 1s ease-in-out 3;
+}
+
+@keyframes highlight-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px var(--color-theme-primary);
+  }
+  50% {
+    box-shadow: 0 0 40px var(--color-theme-primary);
+  }
 }
 
 .room-content {

@@ -88,6 +88,30 @@ const getRoomForDweller = computed(() => (roomId: string | null | undefined) => 
   if (!roomId) return null
   return roomStore.rooms.find(room => room.id === roomId)
 })
+
+// Get relevant SPECIAL stat for room's required ability
+const getRelevantStatForRoom = (dweller: any, room: any) => {
+  if (!room?.ability) return null
+
+  const abilityMap: Record<string, { value: number; label: string; icon: string }> = {
+    'strength': { value: dweller.strength, label: 'STR', icon: '💪' },
+    'perception': { value: dweller.perception, label: 'PER', icon: '👁️' },
+    'endurance': { value: dweller.endurance, label: 'END', icon: '❤️' },
+    'charisma': { value: dweller.charisma, label: 'CHA', icon: '💬' },
+    'intelligence': { value: dweller.intelligence, label: 'INT', icon: '🧠' },
+    'agility': { value: dweller.agility, label: 'AGI', icon: '⚡' },
+    'luck': { value: dweller.luck, label: 'LCK', icon: '🍀' }
+  }
+
+  return abilityMap[room.ability.toLowerCase()] || null
+}
+
+// Get color class based on stat value
+const getStatColorClass = (value: number) => {
+  if (value >= 7) return 'text-green-400'
+  if (value >= 4) return 'text-yellow-400'
+  return 'text-red-400'
+}
 </script>
 
 <template>
@@ -180,7 +204,7 @@ const getRoomForDweller = computed(() => (roomId: string | null | undefined) => 
                   <UTooltip :text="`Assigned to ${getRoomForDweller(dweller.room_id)?.name}`" position="top">
                     <div
                       class="room-badge px-2 py-1 rounded text-xs font-semibold bg-gray-800 text-gray-300 border border-gray-600 cursor-pointer hover:bg-gray-700 transition-all flex items-center gap-1"
-                      @click.stop="router.push(`/vault/${vaultId}`)"
+                      @click.stop="router.push(`/vault/${vaultId}?roomId=${dweller.room_id}`)"
                     >
                       <Icon icon="mdi:office-building" class="h-3 w-3" />
                       <span>{{ getRoomForDweller(dweller.room_id)?.name || 'Room' }}</span>
@@ -197,6 +221,17 @@ const getRoomForDweller = computed(() => (roomId: string | null | undefined) => 
               <p>Level: {{ dweller.level }}</p>
               <p>Health: {{ dweller.health }} / {{ dweller.max_health }}</p>
               <p>Happiness: {{ dweller.happiness }}%</p>
+              <!-- Job-relevant SPECIAL stat -->
+              <p v-if="getRoomForDweller(dweller.room_id) && getRelevantStatForRoom(dweller, getRoomForDweller(dweller.room_id))" class="mt-1">
+                <span class="text-gray-400">Job Stat:</span>
+                <span class="ml-2">
+                  {{ getRelevantStatForRoom(dweller, getRoomForDweller(dweller.room_id))!.icon }}
+                  {{ getRelevantStatForRoom(dweller, getRoomForDweller(dweller.room_id))!.label }}:
+                  <span :class="getStatColorClass(getRelevantStatForRoom(dweller, getRoomForDweller(dweller.room_id))!.value)" class="font-bold">
+                    {{ getRelevantStatForRoom(dweller, getRoomForDweller(dweller.room_id))!.value }}
+                  </span>
+                </span>
+              </p>
             </div>
             <Icon icon="mdi:chevron-right" class="h-6 w-6 text-terminalGreen" />
         </li>
@@ -216,10 +251,11 @@ const getRoomForDweller = computed(() => (roomId: string | null | undefined) => 
           :key="dweller.id"
           :dweller="dweller"
           :room-name="getRoomForDweller(dweller.room_id)?.name"
+          :room-ability="getRoomForDweller(dweller.room_id)?.ability"
           :generating-a-i="generatingAI[dweller.id]"
           @click="viewDwellerDetails(dweller.id)"
           @generate-ai="generateDwellerInfo(dweller.id)"
-          @room-click="router.push(`/vault/${vaultId}`)"
+          @room-click="router.push(`/vault/${vaultId}?roomId=${dweller.room_id}`)"
         />
       </div>
         </div>

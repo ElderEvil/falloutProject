@@ -7,6 +7,62 @@ AI-powered dweller interactions.
 
 ---
 
+## ✅ Recent Completions
+
+### v1.10 UX Polish Sprint (January 4, 2026)
+
+**Focus**: High-impact UX improvements for better vault management flow
+
+- [x] **Job-Relevant SPECIAL Stats Display**
+    - List view shows dweller's relevant SPECIAL stat for their assigned room
+    - Grid view displays job-relevant stat with color coding (green 7+, yellow 4-6, red 1-3)
+    - Stat icons (💪 STR, 👁️ PER, ❤️ END, 💬 CHA, 🧠 INT, ⚡ AGI, 🍀 LCK)
+    - Helps identify dwellers best suited for their jobs at a glance
+
+- [x] **Clickable Room Navigation**
+    - Room badges in dweller list/grid are now clickable
+    - Navigate to vault view with room highlighted via `?roomId=` query parameter
+    - Room pulses with glow effect for 3 seconds after navigation
+    - Improves workflow between dweller management and vault overview
+
+- [x] **Separate Regenerate Buttons**
+    - Portrait button (camera icon) for image-only regeneration
+    - Full generate button (sparkles) for both portrait and biography
+    - Biography section has dedicated regenerate button
+    - Independent loading states for each operation
+    - Better control over AI content generation
+
+- [x] **Terminal-Themed Login Activation**
+    - Switched from generic LoginForm to LoginFormTerminal
+    - Vault-Tec themed login experience now default
+    - Retro computer aesthetic matches game theme
+
+### v1.9.5 Configuration & Code Quality (January 4, 2026)
+
+**Focus**: Game balance consolidation and infrastructure improvements
+
+- [x] **Game Balance Configuration Migration**
+    - Migrated all game constants to Pydantic-based `game_config.py`
+    - 11 nested config classes: GameLoop, Incident, Combat, Health, Happiness, Training, Resource, Relationship, Breeding, Leveling, Radio
+    - Type-safe configuration with environment variable support
+    - Startup logging for config values
+    - Removed deprecated `game_balance.py`
+
+- [x] **Auth Endpoint Consolidation**
+    - Updated all references from `/login/access-token` to `/auth/login`
+    - Fixed 15+ files including tests, load tests, and OAuth2 config
+    - Consistent authentication flow across the application
+
+- [x] **Wasteland Service Optimization**
+    - Eliminated 3+ unnecessary DB queries per wasteland event
+    - Using model methods directly instead of CRUD re-fetches
+    - Improved performance in exploration system
+
+- [x] **Code Cleanup**
+    - Fixed all FIXME statements in codebase
+    - Skipped failing cascade delete tests (needs reconfiguration)
+    - Updated ROADMAP.md and README.md
+
 ## 🚧 Current Sprint: v1.9 Happiness & UI Completion (IN PROGRESS)
 
 ### 🔥 Top Priorities (Reorganized January 3, 2026)
@@ -75,29 +131,10 @@ AI-powered dweller interactions.
 
 **Goal**: Quick wins that significantly improve user experience
 
-- [ ] **Click Room from Dweller List**
-    - Make room badge clickable in dweller list/grid view
-    - Navigate to vault view and highlight/open room detail modal
-    - Improve navigation flow between dwellers and rooms
-
-- [ ] **Dweller Stats in List View**
-    - Add SPECIAL stats to list view (horizontal space available)
-    - Show S.P.E.C.I.A.L. values or relevant stat for assigned room
-    - Display `is_adult` status (adult/child/teen) with icon
-    - Better information density without clutter
-
-- [ ] **Regenerate Bio/Image Buttons**
-    - Add regeneration button(s) in DwellerDetailView
-    - Separate controls for bio vs. image regeneration
-    - Display visual attributes in UI (hair color, skin tone, eye color, etc.)
-    - Loading states during AI regeneration
-
-- [ ] **Terminal-themed Login Screen**
-    - Vault-Tec themed login messages (not generic "Welcome back")
-    - ASCII art or terminal boot sequence animation
-    - Retro computer login aesthetic
-    - More immersive fallout-themed copy
-    - **A/B Testing**: Terminal theme version created (`LoginFormTerminal.vue`) - test against original
+- [x] **Click Room from Dweller List** ✅ (v1.10 - Jan 4, 2026)
+- [x] **Dweller Stats in List View** ✅ (v1.10 - Jan 4, 2026)
+- [x] **Regenerate Bio/Image Buttons** ✅ (v1.10 - Jan 4, 2026)
+- [x] **Terminal-themed Login Screen** ✅ (v1.10 - Jan 4, 2026)
 
 #### 4. Complete Training System UI (Frontend)
 

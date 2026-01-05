@@ -122,7 +122,6 @@
         <UButton @click="handleResolve(false)" variant="danger" :disabled="isResolving">
           ABANDON ROOM
         </UButton>
-        <UButton @click="$emit('close')" variant="secondary">CLOSE</UButton>
       </div>
     </template>
 
@@ -315,6 +314,8 @@ const estimatedCaps = computed(() => {
   font-size: 0.75rem;
   font-weight: bold;
   letter-spacing: 0.1em;
+  flex-shrink: 0;
+  align-self: center;
 }
 
 .status-active {

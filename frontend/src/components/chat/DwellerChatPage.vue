@@ -72,7 +72,7 @@ onMounted(async () => {
   padding: 20px;
   box-sizing: border-box;
   background-color: #0a0a0a;
-  color: #00ff00;
+  color: var(--color-theme-primary);
 }
 
 .chat-header {

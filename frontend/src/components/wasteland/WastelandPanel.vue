@@ -167,7 +167,12 @@ const getProgressPercentage = (explorationId: string) => {
   if (!exploration) return 0
 
   const now = Date.now()
-  const start = new Date(exploration.start_time).getTime()
+  // Parse as UTC by appending 'Z' if not present
+  let startTimeStr = exploration.start_time
+  if (!startTimeStr.endsWith('Z')) {
+    startTimeStr = startTimeStr.replace(' ', 'T') + 'Z'
+  }
+  const start = new Date(startTimeStr).getTime()
   const duration = exploration.duration * 3600 * 1000 // hours to ms
   const elapsed = now - start
 

@@ -295,7 +295,7 @@ const estimatedCaps = computed(() => {
   font-family: 'Courier New', monospace;
   font-size: 1.5rem;
   font-weight: bold;
-  color: #33ff33;
+  color: var(--color-theme-primary);
   letter-spacing: 0.05em;
   margin: 0;
 }
@@ -303,7 +303,8 @@ const estimatedCaps = computed(() => {
 .header-subtitle {
   font-family: 'Courier New', monospace;
   font-size: 0.875rem;
-  color: #ffaa33;
+  color: var(--color-theme-primary);
+  opacity: 0.7;
   margin-top: 0.25rem;
 }
 
@@ -329,9 +330,9 @@ const estimatedCaps = computed(() => {
 }
 
 .status-resolved {
-  background: rgba(51, 255, 51, 0.2);
-  border: 1px solid #33ff33;
-  color: #33ff33;
+  background: rgba(var(--color-theme-primary-rgb), 0.2);
+  border: 1px solid var(--color-theme-primary);
+  color: var(--color-theme-primary);
 }
 
 .loading {
@@ -340,7 +341,7 @@ const estimatedCaps = computed(() => {
   align-items: center;
   gap: 1rem;
   padding: 3rem;
-  color: #33ff33;
+  color: var(--color-theme-primary);
   font-family: 'Courier New', monospace;
 }
 
@@ -372,7 +373,7 @@ const estimatedCaps = computed(() => {
   font-family: 'Courier New', monospace;
   font-size: 1rem;
   font-weight: bold;
-  color: #33ff33;
+  color: var(--color-theme-primary);
   margin-bottom: 1rem;
   letter-spacing: 0.1em;
 }
@@ -390,15 +391,17 @@ const estimatedCaps = computed(() => {
 }
 
 .info-label {
-  color: #888;
+  color: var(--color-theme-primary);
+  opacity: 0.5;
 }
 
 .info-value {
-  color: #33ff33;
+  color: var(--color-theme-primary);
 }
 
 .info-value.warning {
-  color: #ffaa33;
+  color: var(--color-theme-primary);
+  opacity: 0.8;
 }
 
 .combat-stats {
@@ -417,7 +420,8 @@ const estimatedCaps = computed(() => {
 .stat-label {
   font-family: 'Courier New', monospace;
   font-size: 0.75rem;
-  color: #888;
+  color: var(--color-theme-primary);
+  opacity: 0.5;
   text-transform: uppercase;
 }
 
@@ -425,7 +429,7 @@ const estimatedCaps = computed(() => {
   font-family: 'Courier New', monospace;
   font-size: 1.25rem;
   font-weight: bold;
-  color: #33ff33;
+  color: var(--color-theme-primary);
 }
 
 .stat-value.danger {
@@ -433,7 +437,7 @@ const estimatedCaps = computed(() => {
 }
 
 .stat-value.success {
-  color: #33ff33;
+  color: var(--color-theme-primary);
 }
 
 .progress-section {
@@ -449,7 +453,8 @@ const estimatedCaps = computed(() => {
 .progress-label {
   font-family: 'Courier New', monospace;
   font-size: 0.75rem;
-  color: #888;
+  color: var(--color-theme-primary);
+  opacity: 0.5;
   text-transform: uppercase;
 }
 
@@ -457,7 +462,7 @@ const estimatedCaps = computed(() => {
   width: 100%;
   height: 20px;
   background: #1a1a1a;
-  border: 1px solid #333;
+  border: 1px solid var(--color-theme-glow);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -468,13 +473,13 @@ const estimatedCaps = computed(() => {
 }
 
 .progress-fill.success {
-  background: linear-gradient(90deg, #33ff33 0%, #22cc22 100%);
+  background: linear-gradient(90deg, var(--color-theme-primary) 0%, var(--color-theme-glow) 100%);
 }
 
 .progress-value {
   font-family: 'Courier New', monospace;
   font-size: 0.875rem;
-  color: #33ff33;
+  color: var(--color-theme-primary);
   text-align: right;
 }
 
@@ -489,32 +494,34 @@ const estimatedCaps = computed(() => {
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem;
-  background: rgba(51, 255, 51, 0.05);
-  border: 1px solid #1a4d1a;
+  background: rgba(var(--color-theme-primary-rgb), 0.05);
+  border: 1px solid var(--color-theme-glow);
   border-radius: 4px;
 }
 
 .loot-icon {
   width: 24px;
   height: 24px;
-  color: #33ff33;
+  color: var(--color-theme-primary);
 }
 
 .loot-text {
   font-family: 'Courier New', monospace;
   font-size: 0.875rem;
-  color: #33ff33;
+  color: var(--color-theme-primary);
 }
 
 .loot-rarity {
-  color: #ffaa33;
+  color: var(--color-theme-primary);
+  opacity: 0.8;
   margin-left: 0.5rem;
 }
 
 .expected-loot {
   font-family: 'Courier New', monospace;
   font-size: 0.875rem;
-  color: #888;
+  color: var(--color-theme-primary);
+  opacity: 0.5;
   line-height: 1.6;
 }
 

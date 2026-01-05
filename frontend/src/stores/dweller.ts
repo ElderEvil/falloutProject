@@ -11,7 +11,7 @@ export interface DwellerWithStatus extends DwellerShort {
   status: DwellerStatus
 }
 
-export type DwellerSortBy = 'name' | 'level' | 'strength' | 'perception' | 'endurance' | 'charisma' | 'intelligence' | 'agility' | 'luck'
+export type DwellerSortBy = 'name' | 'level' | 'happiness' | 'strength' | 'perception' | 'endurance' | 'charisma' | 'intelligence' | 'agility' | 'luck'
 export type SortDirection = 'asc' | 'desc'
 
 export const useDwellerStore = defineStore('dweller', () => {
@@ -84,8 +84,8 @@ export const useDwellerStore = defineStore('dweller', () => {
         const nameA = `${a.first_name} ${a.last_name}`.toLowerCase()
         const nameB = `${b.first_name} ${b.last_name}`.toLowerCase()
         comparison = nameA.localeCompare(nameB)
-      } else if (sortBy.value === 'level') {
-        comparison = a.level - b.level
+      } else if (sortBy.value === 'level' || sortBy.value === 'happiness') {
+        comparison = a[sortBy.value] - b[sortBy.value]
       } else {
         // SPECIAL stats sorting
         comparison = a[sortBy.value] - b[sortBy.value]

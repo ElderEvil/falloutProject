@@ -74,6 +74,11 @@ class HappinessService:
         total_happiness_change = 0
 
         for dweller in dwellers:
+            # Skip happiness calculation for idle dwellers
+            if dweller.status == "idle":
+                stats["dwellers_processed"] += 1
+                continue
+
             # Calculate happiness change for this dweller
             change = await HappinessService._calculate_happiness_change(
                 db_session,

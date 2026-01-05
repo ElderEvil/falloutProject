@@ -82,6 +82,13 @@ const navItems = computed((): NavItem[] => {
       icon: 'mdi:dumbbell',
       path: `/vault/${vaultId.value}/training`,
       hotkey: '8'
+    },
+    {
+      id: 'happiness',
+      label: 'Happiness',
+      icon: 'mdi:emoticon-happy-outline',
+      path: `/vault/${vaultId.value}/happiness`,
+      hotkey: '9'
     }
   ];
 });

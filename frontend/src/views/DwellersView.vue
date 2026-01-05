@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useDwellerStore } from '@/stores/dweller'
+import { useDwellerStore, type DwellerSortBy, type DwellerStatus, type SortDirection } from '@/stores/dweller'
 import { useAuthStore } from '@/stores/auth'
 import { useVaultStore } from '@/stores/vault'
 import { useRoomStore } from '@/stores/room'
@@ -54,6 +54,21 @@ const fetchDwellers = async () => {
 }
 
 onMounted(async () => {
+  // Handle query parameters for sorting/filtering
+  const sortByParam = route.query.sortBy as DwellerSortBy | undefined
+  const orderParam = route.query.order as SortDirection | undefined
+  const filterParam = route.query.filter as DwellerStatus | undefined
+
+  if (sortByParam && ['name', 'level', 'happiness', 'strength', 'perception', 'endurance', 'charisma', 'intelligence', 'agility', 'luck'].includes(sortByParam)) {
+    dwellerStore.setSortBy(sortByParam)
+  }
+  if (orderParam && ['asc', 'desc'].includes(orderParam)) {
+    dwellerStore.setSortDirection(orderParam)
+  }
+  if (filterParam && filterParam !== 'all') {
+    dwellerStore.setFilterStatus(filterParam)
+  }
+
   await fetchDwellers()
   // Fetch rooms to show room assignments
   if (authStore.isAuthenticated && vaultId.value) {

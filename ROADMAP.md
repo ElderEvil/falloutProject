@@ -9,6 +9,28 @@ AI-powered dweller interactions.
 
 ## ✅ Recent Completions
 
+### v1.11 Email Verification System (January 5, 2026)
+
+**Focus**: Complete authentication and user verification flow
+
+- [x] **Email Verification**
+    - Verify email endpoint with token validation
+    - VerifyEmailView component with terminal theme
+    - Verification badge in ProfileView (verified/unverified status)
+    - Email verification status in user model
+
+- [x] **Password Reset Flow**
+    - Forgot password endpoint and email delivery
+    - Reset password endpoint with token validation
+    - ForgotPasswordView and ResetPasswordView components
+    - Complete password reset user journey
+
+- [x] **Mailing Service Migration**
+    - Migrated from MailHog to Mailpit
+    - Updated docker-compose.yml configuration
+    - Improved email testing infrastructure
+    - Modern, actively maintained email testing solution
+
 ### v1.10 UX Polish Sprint (January 4, 2026)
 
 **Focus**: High-impact UX improvements for better vault management flow
@@ -69,11 +91,51 @@ AI-powered dweller interactions.
     - Skipped failing cascade delete tests (needs reconfiguration)
     - Updated ROADMAP.md and README.md
 
-## 🚧 Current Sprint: v1.9 Happiness & UI Completion (IN PROGRESS)
+## 🚧 Current Sprint: v1.12 Happiness Dashboard (IN PROGRESS - January 5, 2026)
 
-### 🔥 Top Priorities (Reorganized January 3, 2026)
+### 🔥 Top Priority: Happiness System UI
 
-#### 0. UI/UX Unification (DESIGN THINKING)
+**Goal**: Create comprehensive happiness dashboard with real-time monitoring
+
+#### Happiness Backend (COMPLETED ✅)
+- [x] **Happiness Service** - Fully functional decay/gain mechanics
+    - Base decay, resource shortages, incidents, idle dwellers
+    - Working gain, training bonus, partner bonus, health/radiation effects
+    - Radio happiness mode, living quarters bonus
+    - Vault-wide happiness calculation (average of all dwellers)
+    - Game loop integration (60s updates)
+
+- [x] **Happiness API**
+    - GET `/dwellers/{id}/happiness_modifiers` - detailed modifier breakdown
+    - Vault happiness tracked in game state
+    - Real-time updates via game loop
+
+#### Happiness UI Dashboard (IN PROGRESS 🚧)
+- [ ] **HappinessDashboard Component**
+    - Vault-wide happiness gauge with terminal styling
+    - Happiness trend indicator (↑ ↓ →)
+    - Active modifiers summary (top 3-5 factors)
+    - Dweller happiness distribution (high/medium/low/critical counts)
+    - Quick action buttons (assign idle, activate radio, view low happiness)
+
+- [ ] **Enhanced Dweller Cards**
+    - Happiness tooltip with modifier breakdown
+    - API integration for `/happiness_modifiers` endpoint
+    - Visual feedback for happiness changes
+
+- [ ] **Happiness Filters & Sorting**
+    - Filter dwellers by happiness level
+    - Sort by happiness (ascending/descending)
+    - Quick filters for critical happiness alerts
+
+- [ ] **Real-time Updates**
+    - WebSocket integration for happiness changes
+    - Subtle animations for value updates
+    - Toast notifications for critical happiness alerts
+
+### 🎯 Future Priorities (Post-Happiness Dashboard)
+
+#### 0. UI/UX Unification (DESIGN THINKING - DEFERRED)
 
 **Goal**: Create consistent visual language across vault selection, login, and in-game screens
 
@@ -95,35 +157,6 @@ AI-powered dweller interactions.
     - Standardize input field styles
     - Consistent modal/dialog patterns
     - Unified loading states and skeletons
-
-- [ ] **Implementation Plan**
-    - Prioritize high-traffic screens (vault selection, dwellers list)
-    - Progressive enhancement approach
-    - Maintain backward compatibility during transition
-
-#### 1. Happiness System Implementation (NEW TOP PRIORITY)
-
-**Goal**: Complete the happiness system to make vault management more engaging
-
-- [ ] **Happiness Decay & Gain Mechanics**
-    - Implement happiness decay over time based on vault conditions
-    - Resource shortages reduce happiness (power/water/food)
-    - Successful room production increases happiness
-    - Combat/incidents reduce happiness
-    - Radio room happiness boost mode (backend already exists)
-
-- [ ] **Happiness UI Indicators**
-    - Happiness bars/indicators in dweller cards
-    - Vault-wide happiness average in overview
-    - Color-coded happiness levels (red/yellow/green)
-    - Happiness change notifications
-    - Low happiness warnings
-
-- [ ] **Happiness-Based Events**
-    - Low happiness triggers negative events
-    - High happiness provides bonuses (production, XP)
-    - Happiness affects relationship formation
-    - Happiness affects radio recruitment success
 
 #### 2. Infrastructure & Operations
 

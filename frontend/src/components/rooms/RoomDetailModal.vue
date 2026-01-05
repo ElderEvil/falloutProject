@@ -901,10 +901,10 @@ watch(() => props.modelValue, (newValue) => {
 .dweller-sprites-overlay {
   position: absolute;
   bottom: 1rem;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 1rem;
+  right: 1rem;
   display: flex;
-  gap: 0.75rem;
+  justify-content: space-evenly;
   z-index: 10;
 }
 

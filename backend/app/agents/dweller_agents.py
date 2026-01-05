@@ -109,3 +109,8 @@ def visual_attributes_system_prompt(ctx: RunContext[VisualAttributesDeps]) -> st
         "Generate a cohesive visual description that matches their character. "
         "Use the available options to create a believable Fallout character appearance."
     )
+
+
+@visual_attributes_agent.tool()
+def forecast_tool():
+    pass

@@ -170,7 +170,7 @@ const getImageUrl = (imagePath: string | null) => {
             :alt="`${dweller.first_name} ${dweller.last_name}`"
             class="avatar-image"
           />
-          <Icon v-else icon="mdi:account-circle" class="h-12 w-12 text-gray-400" />
+          <Icon v-else icon="mdi:account-circle" class="h-12 w-12" :style="{ color: 'var(--color-theme-primary)', opacity: 0.6 }" />
         </div>
 
         <div class="dweller-info">
@@ -392,7 +392,7 @@ const getImageUrl = (imagePath: string | null) => {
 
 .dweller-card {
   position: relative;
-  background: rgba(0, 50, 0, 0.4);
+  background: rgba(0, 0, 0, 0.4);
   border: 1px solid var(--color-theme-glow);
   border-radius: 6px;
   padding: 0.75rem;
@@ -405,7 +405,7 @@ const getImageUrl = (imagePath: string | null) => {
 
 .dweller-card:hover {
   border-color: var(--color-theme-primary);
-  background: rgba(0, 80, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   transform: translateY(-2px);
   box-shadow: 0 4px 8px var(--color-theme-glow);
 }
@@ -453,7 +453,8 @@ const getImageUrl = (imagePath: string | null) => {
 }
 
 .dweller-level {
-  color: var(--color-theme-glow);
+  color: var(--color-theme-primary);
+  opacity: 0.7;
   font-size: 0.75rem;
   margin-bottom: 0.5rem;
 }
@@ -473,7 +474,8 @@ const getImageUrl = (imagePath: string | null) => {
 }
 
 .stat-label {
-  color: var(--color-theme-glow);
+  color: var(--color-theme-primary);
+  opacity: 0.6;
   font-weight: bold;
 }
 

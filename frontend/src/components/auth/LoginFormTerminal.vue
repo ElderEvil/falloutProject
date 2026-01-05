@@ -1,24 +1,24 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useAuthStore } from '@/stores/auth'
-import { useRouter } from 'vue-router'
+import { ref } from 'vue';
+import { useAuthStore } from '@/stores/auth';
+import { useRouter } from 'vue-router';
 
-const authStore = useAuthStore()
-const router = useRouter()
+const authStore = useAuthStore();
+const router = useRouter();
 
-const username = ref('')
-const password = ref('')
-const error = ref('')
+const username = ref('');
+const password = ref('');
+const error = ref('');
 
 const handleSubmit = async () => {
-  error.value = ''
-  const success = await authStore.login(username.value, password.value)
+  error.value = '';
+  const success = await authStore.login(username.value, password.value);
   if (success) {
-    await router.push('/')
+    await router.push('/');
   } else {
-    error.value = 'Invalid username or password'
+    error.value = 'Invalid username or password';
   }
-}
+};
 </script>
 
 <template>
@@ -31,11 +31,6 @@ const handleSubmit = async () => {
       <div class="login-box">
         <!-- Vault-Tec Header -->
         <div class="vault-header">
-          <div class="vault-logo">
-            <div class="logo-circle">
-              <span class="logo-vault">V</span>
-            </div>
-          </div>
           <h1 class="terminal-title">VAULT-TEC INDUSTRIES</h1>
           <p class="terminal-subtitle">Vault Network Access Terminal</p>
           <div class="terminal-line"></div>
@@ -43,8 +38,7 @@ const handleSubmit = async () => {
 
         <!-- System Messages -->
         <div class="system-messages">
-          <p class="system-msg">> INITIALIZING VAULT-TEC SECURE LOGIN v2.1.47...</p>
-          <p class="system-msg">> RADIATION SHIELDING: ACTIVE</p>
+          <p class="system-msg">> INITIALIZING VAULT-TEC SECURE LOGIN v1.10.0...</p>
           <p class="system-msg">> AWAITING CREDENTIALS...</p>
         </div>
 
@@ -75,9 +69,9 @@ const handleSubmit = async () => {
           </div>
 
           <button type="submit" class="terminal-button">
-            <span class="button-icon">☢</span>
+            <span class="button-icon">►</span>
             AUTHENTICATE
-            <span class="button-icon">☢</span>
+            <span class="button-icon">◄</span>
           </button>
         </form>
 
@@ -139,9 +133,15 @@ const handleSubmit = async () => {
 }
 
 @keyframes flicker {
-  0% { opacity: 0.98; }
-  50% { opacity: 1; }
-  100% { opacity: 0.98; }
+  0% {
+    opacity: 0.98;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.98;
+  }
 }
 
 /* CRT container */
@@ -156,9 +156,8 @@ const handleSubmit = async () => {
 .login-box {
   background: rgba(0, 0, 0, 0.85);
   border: 3px solid var(--color-theme-primary, #00ff00);
-  box-shadow:
-    0 0 20px var(--color-theme-glow, rgba(0, 255, 0, 0.5)),
-    inset 0 0 50px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 20px var(--color-theme-glow, rgba(0, 255, 0, 0.5)),
+  inset 0 0 50px rgba(0, 0, 0, 0.5);
   padding: 2rem;
   position: relative;
 }
@@ -169,31 +168,6 @@ const handleSubmit = async () => {
   margin-bottom: 2rem;
   border-bottom: 2px solid var(--color-theme-primary, #00ff00);
   padding-bottom: 1rem;
-}
-
-.vault-logo {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 1rem;
-}
-
-.logo-circle {
-  width: 80px;
-  height: 80px;
-  border: 3px solid var(--color-theme-primary, #00ff00);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.8);
-  box-shadow: 0 0 20px var(--color-theme-glow, rgba(0, 255, 0, 0.5));
-}
-
-.logo-vault {
-  font-size: 2.5rem;
-  font-weight: bold;
-  color: var(--color-theme-primary, #00ff00);
-  text-shadow: 0 0 10px var(--color-theme-glow, rgba(0, 255, 0, 0.8));
 }
 
 .terminal-title {

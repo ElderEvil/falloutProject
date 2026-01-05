@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/auth';
 import HomeView from '@/views/HomeView.vue';
 
 // Lazy load all other views for code splitting
-const LoginPage = () => import('@/components/auth/LoginForm.vue');
+const LoginPage = () => import('@/components/auth/LoginFormTerminal.vue');
 const RegisterPage = () => import('@/components/auth/RegisterForm.vue');
 const VaultView = () => import('@/views/VaultView.vue');
 const DwellersView = () => import('@/views/DwellersView.vue');
@@ -18,6 +18,7 @@ const RelationshipsView = () => import('@/views/RelationshipsView.vue');
 const TrainingView = () => import('@/views/TrainingView.vue');
 const ProfileView = () => import('@/views/ProfileView.vue');
 const SettingsView = () => import('@/views/SettingsView.vue');
+const PreferencesView = () => import('@/views/PreferencesView.vue');
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -91,6 +92,12 @@ const router = createRouter({
       path: '/settings',
       name: 'settings',
       component: SettingsView,
+      meta: { requiresAuth: true, hideFromNav: false }
+    },
+    {
+      path: '/preferences',
+      name: 'preferences',
+      component: PreferencesView,
       meta: { requiresAuth: true, hideFromNav: false }
     },
     {

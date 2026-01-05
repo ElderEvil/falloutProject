@@ -3,7 +3,7 @@ import { useDwellerStore } from '@/stores/dweller'
 import { useAuthStore } from '@/stores/auth'
 import { useVaultStore } from '@/stores/vault'
 import { useRoomStore } from '@/stores/room'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, inject, onMounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import DwellerStatusBadge from '@/components/dwellers/DwellerStatusBadge.vue'
@@ -14,16 +14,31 @@ import DwellerGridItemSkeleton from '@/components/dwellers/DwellerGridItemSkelet
 import SidePanel from '@/components/common/SidePanel.vue'
 import UTooltip from '@/components/ui/UTooltip.vue'
 import UButton from '@/components/ui/UButton.vue'
+import ComponentLoader from '@/components/common/ComponentLoader.vue'
 import { useSidePanel } from '@/composables/useSidePanel'
+import type { Room } from '@/models/room'
+
+// Lazy load room modal
+const RoomDetailModal = defineAsyncComponent({
+  loader: () => import('@/components/rooms/RoomDetailModal.vue'),
+  loadingComponent: ComponentLoader,
+  delay: 200,
+  timeout: 10000,
+})
 
 const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
 const vaultStore = useVaultStore()
 const roomStore = useRoomStore()
 const { isCollapsed } = useSidePanel()
+const scanlinesEnabled = inject('scanlines', ref(true))
 const router = useRouter()
 const route = useRoute()
 const generatingAI = ref<Record<string, boolean>>({})
+
+// Room detail modal state
+const showDetailModal = ref(false)
+const selectedRoomForDetail = ref<Room | null>(null)
 
 const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null)
@@ -88,11 +103,49 @@ const getRoomForDweller = computed(() => (roomId: string | null | undefined) => 
   if (!roomId) return null
   return roomStore.rooms.find(room => room.id === roomId)
 })
+
+// Get relevant SPECIAL stat for room's required ability
+const getRelevantStatForRoom = (dweller: any, room: any) => {
+  if (!room?.ability) return null
+
+  const abilityMap: Record<string, { value: number; label: string; icon: string; color: string }> = {
+    'strength': { value: dweller.strength, label: 'STR', icon: 'mdi:arm-flex', color: 'text-red-400' },
+    'perception': { value: dweller.perception, label: 'PER', icon: 'mdi:eye', color: 'text-blue-400' },
+    'endurance': { value: dweller.endurance, label: 'END', icon: 'mdi:shield', color: 'text-orange-400' },
+    'charisma': { value: dweller.charisma, label: 'CHA', icon: 'mdi:account-voice', color: 'text-pink-400' },
+    'intelligence': { value: dweller.intelligence, label: 'INT', icon: 'mdi:brain', color: 'text-purple-400' },
+    'agility': { value: dweller.agility, label: 'AGI', icon: 'mdi:run-fast', color: 'text-cyan-400' },
+    'luck': { value: dweller.luck, label: 'LCK', icon: 'mdi:clover', color: 'text-green-400' }
+  }
+
+  return abilityMap[room.ability.toLowerCase()] || null
+}
+
+// Get color class based on stat value
+const getStatColorClass = (value: number) => {
+  if (value >= 7) return 'text-green-400'
+  if (value >= 4) return 'text-yellow-400'
+  return 'text-red-400'
+}
+
+// Open room detail modal
+const openRoomModal = (roomId: string) => {
+  const room = roomStore.rooms.find(r => r.id === roomId)
+  if (room) {
+    selectedRoomForDetail.value = room
+    showDetailModal.value = true
+  }
+}
+
+const closeRoomModal = () => {
+  showDetailModal.value = false
+  selectedRoomForDetail.value = null
+}
 </script>
 
 <template>
   <div class="relative min-h-screen bg-terminalBackground font-mono text-terminalGreen">
-    <div class="scanlines"></div>
+    <div v-if="scanlinesEnabled" class="scanlines"></div>
 
     <div class="vault-layout">
       <!-- Side Panel -->
@@ -122,83 +175,85 @@ const getRoomForDweller = computed(() => (roomId: string | null | undefined) => 
           v-else
           v-for="dweller in dwellerStore.dwellers"
           :key="dweller.id"
-          class="flex items-start rounded-lg bg-gray-800 p-4 shadow-md hover:bg-gray-750 transition-all cursor-pointer"
+          class="flex items-center gap-3 rounded border border-gray-700 bg-gray-800/50 p-3 hover:bg-gray-800 transition-all cursor-pointer"
           @click="viewDwellerDetails(dweller.id)"
         >
-            <div class="dweller-image-container mr-4">
+            <!-- Avatar - smaller, no generate button -->
+            <div class="flex-shrink-0">
               <template v-if="dweller.thumbnail_url">
                 <img
                   :src="getImageUrl(dweller.thumbnail_url)"
                   alt="Dweller Thumbnail"
-                  class="dweller-image rounded-lg"
+                  class="h-16 w-16 rounded object-cover"
                 />
               </template>
               <template v-else>
-                <div class="relative inline-block">
-                  <Icon icon="mdi:account-circle" class="h-24 w-24 text-gray-400" />
-
-                  <!-- Generate AI button - always visible when no thumbnail -->
-                  <UTooltip
-                    text="Generate AI portrait & biography"
-                    position="top"
-                  >
-                    <div
-                      @click.stop="generateDwellerInfo(dweller.id)"
-                      class="ai-generate-button absolute bottom-1 right-1 rounded-full bg-gray-800 p-1 cursor-pointer hover:bg-gray-700 transition-all"
-                      :class="{ 'pointer-events-none': generatingAI[dweller.id] }"
-                    >
-                      <Icon
-                        icon="mdi:sparkles"
-                        class="h-5 w-5"
-                        :class="{ 'opacity-30': generatingAI[dweller.id] }"
-                        :style="{ color: 'var(--color-theme-primary)' }"
-                      />
-
-                      <!-- Loading spinner overlay when generating -->
-                      <div
-                        v-if="generatingAI[dweller.id]"
-                        class="absolute inset-0 flex items-center justify-center"
-                      >
-                        <Icon
-                          icon="mdi:loading"
-                          class="h-5 w-5 animate-spin"
-                          :style="{ color: 'var(--color-theme-primary)' }"
-                        />
-                      </div>
-                    </div>
-                  </UTooltip>
-                </div>
+                <Icon icon="mdi:account-circle" class="h-16 w-16" :style="{ color: 'var(--color-theme-primary)', opacity: 0.6 }" />
               </template>
             </div>
-            <div class="flex-grow">
-              <div class="flex items-center gap-2 mb-2 flex-wrap">
-                <h3 class="text-xl font-bold">{{ dweller.first_name }} {{ dweller.last_name }}</h3>
-                <DwellerStatusBadge :status="dweller.status" :show-label="true" size="medium" />
 
-                <!-- Room Assignment Badge -->
-                <template v-if="getRoomForDweller(dweller.room_id)">
-                  <UTooltip :text="`Assigned to ${getRoomForDweller(dweller.room_id)?.name}`" position="top">
-                    <div
-                      class="room-badge px-2 py-1 rounded text-xs font-semibold bg-gray-800 text-gray-300 border border-gray-600 cursor-pointer hover:bg-gray-700 transition-all flex items-center gap-1"
-                      @click.stop="router.push(`/vault/${vaultId}`)"
-                    >
-                      <Icon icon="mdi:office-building" class="h-3 w-3" />
-                      <span>{{ getRoomForDweller(dweller.room_id)?.name || 'Room' }}</span>
-                    </div>
-                  </UTooltip>
-                </template>
-                <template v-else>
-                  <div class="room-badge px-2 py-1 rounded text-xs font-semibold bg-gray-700 text-gray-400 border border-gray-600 flex items-center gap-1">
-                    <Icon icon="mdi:account-off" class="h-3 w-3" />
-                    <span>Unassigned</span>
-                  </div>
-                </template>
-              </div>
-              <p>Level: {{ dweller.level }}</p>
-              <p>Health: {{ dweller.health }} / {{ dweller.max_health }}</p>
-              <p>Happiness: {{ dweller.happiness }}%</p>
+            <!-- Name & Level -->
+            <div class="flex flex-col" style="min-width: 140px;">
+              <h3 class="font-bold text-base text-terminalGreen">{{ dweller.first_name }} {{ dweller.last_name }}</h3>
+              <p class="text-sm text-gray-400">Level {{ dweller.level }}</p>
             </div>
-            <Icon icon="mdi:chevron-right" class="h-6 w-6 text-terminalGreen" />
+
+            <!-- Separator -->
+            <div class="h-10 w-px bg-gray-600/50 flex-shrink-0"></div>
+
+            <!-- Status Badge -->
+            <div class="flex-shrink-0">
+              <DwellerStatusBadge :status="dweller.status" :show-label="true" size="small" />
+            </div>
+
+            <!-- Separator -->
+            <div class="h-10 w-px bg-gray-600/50 flex-shrink-0"></div>
+
+            <!-- Health & Happiness -->
+            <div class="flex items-center gap-4">
+              <div class="flex items-center gap-1.5">
+                <Icon icon="mdi:heart" class="h-4 w-4 text-red-400" />
+                <span class="text-sm font-semibold">{{ dweller.health }} / {{ dweller.max_health }}</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <Icon icon="mdi:emoticon-happy" class="h-4 w-4 text-yellow-400" />
+                <span class="text-sm font-semibold">{{ dweller.happiness }}%</span>
+              </div>
+            </div>
+
+            <!-- Separator (only if job stat exists) -->
+            <div v-if="getRoomForDweller(dweller.room_id) && getRelevantStatForRoom(dweller, getRoomForDweller(dweller.room_id))" class="h-10 w-px bg-gray-600/50 flex-shrink-0"></div>
+
+            <!-- Job Stat -->
+            <div v-if="getRoomForDweller(dweller.room_id) && getRelevantStatForRoom(dweller, getRoomForDweller(dweller.room_id))" class="flex items-center gap-1.5">
+              <span class="text-sm text-gray-400">Job Stat:</span>
+              <div class="flex items-center gap-1.5">
+                <Icon
+                  :icon="getRelevantStatForRoom(dweller, getRoomForDweller(dweller.room_id))!.icon"
+                  :class="getRelevantStatForRoom(dweller, getRoomForDweller(dweller.room_id))!.color"
+                  class="h-4 w-4"
+                />
+                <span class="text-sm">{{ getRelevantStatForRoom(dweller, getRoomForDweller(dweller.room_id))!.label }}</span>
+                <span :class="getStatColorClass(getRelevantStatForRoom(dweller, getRoomForDweller(dweller.room_id))!.value)" class="text-sm font-bold">
+                  {{ getRelevantStatForRoom(dweller, getRoomForDweller(dweller.room_id))!.value }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Room Assignment - right side -->
+            <div class="ml-auto flex items-center gap-2">
+              <template v-if="getRoomForDweller(dweller.room_id)">
+                <div
+                  class="px-3 py-1.5 rounded text-sm font-medium bg-gray-700/80 text-gray-200 border border-gray-600 cursor-pointer hover:bg-gray-700 transition-all"
+                  @click.stop="openRoomModal(dweller.room_id!)"
+                >
+                  {{ getRoomForDweller(dweller.room_id)?.name }}
+                </div>
+              </template>
+
+              <!-- Chevron -->
+              <Icon icon="mdi:chevron-right" class="h-5 w-5 text-terminalGreen/50 flex-shrink-0" />
+            </div>
         </li>
       </ul>
 
@@ -216,15 +271,24 @@ const getRoomForDweller = computed(() => (roomId: string | null | undefined) => 
           :key="dweller.id"
           :dweller="dweller"
           :room-name="getRoomForDweller(dweller.room_id)?.name"
+          :room-ability="getRoomForDweller(dweller.room_id)?.ability"
           :generating-a-i="generatingAI[dweller.id]"
           @click="viewDwellerDetails(dweller.id)"
           @generate-ai="generateDwellerInfo(dweller.id)"
-          @room-click="router.push(`/vault/${vaultId}`)"
+          @room-click="router.push(`/vault/${vaultId}?roomId=${dweller.room_id}`)"
         />
       </div>
         </div>
       </div>
     </div>
+
+    <!-- Room Detail Modal -->
+    <RoomDetailModal
+      v-if="selectedRoomForDetail"
+      :room="selectedRoomForDetail"
+      v-model="showDetailModal"
+      @close="closeRoomModal"
+    />
   </div>
 </template>
 
@@ -346,10 +410,10 @@ const getRoomForDweller = computed(() => (roomId: string | null | undefined) => 
 /* Room Badge Styling */
 .room-badge {
   font-family: monospace;
-  text-shadow: 0 0 2px rgba(0, 255, 0, 0.3);
+  text-shadow: 0 0 2px var(--color-theme-glow);
 }
 
 .room-badge:hover {
-  box-shadow: 0 0 8px rgba(0, 255, 0, 0.4);
+  box-shadow: 0 0 8px var(--color-theme-glow);
 }
 </style>

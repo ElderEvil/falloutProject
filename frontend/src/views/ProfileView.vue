@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { Icon } from '@iconify/vue';
 import { useProfileStore } from '@/stores/profile';
 import { useAuthStore } from '@/stores/auth';
 import ProfileEditor from '@/components/profile/ProfileEditor.vue';
@@ -119,7 +120,7 @@ const formatDate = (dateString: string) => {
                 class="w-32 h-32 rounded-full border-4 bg-gray-700 flex items-center justify-center"
                 :style="{ borderColor: 'var(--color-theme-primary)' }"
               >
-                <span class="text-4xl" :style="{ color: 'var(--color-theme-primary)' }">👤</span>
+                <Icon icon="mdi:account-circle" class="text-6xl" :style="{ color: 'var(--color-theme-primary)', opacity: 0.6 }" />
               </div>
             </div>
 

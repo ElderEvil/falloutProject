@@ -160,28 +160,46 @@ body {
   z-index: var(--z-index-scanlines);
 }
 
-/* Flicker Animation */
+/* Flicker Animation - Subtle and random */
 @keyframes flicker {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.95; }
-  75% { opacity: 0.98; }
+  0% { opacity: 1; }
+  10% { opacity: 0.98; }
+  20% { opacity: 1; }
+  30% { opacity: 0.99; }
+  40% { opacity: 1; }
+  50% { opacity: 0.97; }
+  60% { opacity: 1; }
+  70% { opacity: 0.98; }
+  80% { opacity: 1; }
+  85% { opacity: 0.99; }
+  90% { opacity: 1; }
+  95% { opacity: 0.98; }
+  100% { opacity: 1; }
 }
 
 .flicker {
-  animation: flicker 0.15s infinite;
+  animation: flicker 4s ease-in-out infinite;
+  animation-delay: calc(var(--flicker-delay, 0) * 1s);
 }
 
-/* Terminal Glow */
+/* Terminal Glow - Multiple intensity levels */
 .terminal-glow {
   text-shadow:
-    0 0 5px var(--color-theme-primary),
-    0 0 10px var(--color-theme-primary),
-    0 0 15px var(--color-theme-primary),
-    0 0 20px var(--color-theme-primary);
+    0 0 3px var(--color-theme-primary),
+    0 0 6px var(--color-theme-primary),
+    0 0 9px var(--color-theme-primary);
 }
 
 .terminal-glow-subtle {
   text-shadow: 0 0 10px var(--color-theme-primary);
+}
+
+.terminal-glow-strong {
+  text-shadow:
+    0 0 5px var(--color-theme-primary),
+    0 0 10px var(--color-theme-primary),
+    0 0 15px var(--color-theme-primary),
+    0 0 20px var(--color-theme-glow);
 }
 
 /* CRT Screen Curve (optional enhancement) */

@@ -164,7 +164,7 @@ onMounted(async () => {
                     size="sm"
                   >
                     <Icon icon="mdi:radioactive" class="mr-2" />
-                    {{ isLoading ? 'Matchmaking...' : '☢️ Irradiated Cupid' }}
+                    {{ isLoading ? 'Matchmaking...' : 'Vault-Tec Matchmaker' }}
                   </UButton>
                 </div>
               </div>
@@ -380,41 +380,39 @@ onMounted(async () => {
 /* Stage Tabs */
 .stages-tabs {
   display: flex;
-  gap: 0.5rem;
+  gap: 0;
   border-bottom: 2px solid var(--color-theme-glow);
-  padding-bottom: 0;
-  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
 }
 
 .stage-tab {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  background: rgba(0, 0, 0, 0.3);
-  border: 2px solid var(--color-theme-glow);
-  border-bottom: none;
-  border-radius: 8px 8px 0 0;
+  padding: 0.625rem 1.5rem;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
   color: var(--color-theme-primary);
   font-family: 'Courier New', monospace;
   font-weight: 600;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   cursor: pointer;
   transition: all 0.2s;
   opacity: 0.6;
-  position: relative;
-  bottom: -2px;
 }
 
-.stage-tab:hover {
+.stage-tab:hover:not(.active) {
   opacity: 0.8;
-  box-shadow: 0 0 15px var(--color-theme-glow);
+  background: rgba(0, 0, 0, 0.2);
 }
 
 .stage-tab.active {
   opacity: 1;
-  background: rgba(0, 255, 0, 0.1);
-  box-shadow: 0 0 20px var(--color-theme-glow);
-  border-bottom-color: rgba(0, 0, 0, 0.3);
+  border-bottom-color: var(--color-theme-primary);
+  background: var(--color-theme-glow);
 }
 
 .stage-count {
@@ -426,7 +424,6 @@ onMounted(async () => {
   padding: 0 0.5rem;
   background: var(--color-theme-primary);
   color: black;
-  border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 700;
   margin-left: 0.5rem;

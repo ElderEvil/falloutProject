@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, inject, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useRoomStore } from '@/stores/room'
@@ -43,6 +43,7 @@ const dwellerStore = useDwellerStore()
 const explorationStore = useExplorationStore()
 const incidentStore = useIncidentStore()
 const { isCollapsed } = useSidePanel()
+const scanlinesEnabled = inject('scanlines', ref(true))
 const showRoomMenu = ref(false)
 const selectedRoom = ref<Room | null>(null)
 const isPlacingRoom = ref(false)
@@ -50,6 +51,7 @@ const isLoading = ref(true)
 const errorMessage = ref<string | null>(null)
 const showCombatModal = ref(false)
 const selectedIncidentId = ref<string | null>(null)
+const highlightedRoomId = ref<string | null>(null)
 
 const buildModeActive = computed(() => showRoomMenu.value || isPlacingRoom.value)
 
@@ -151,6 +153,17 @@ const loadVaultData = async (id: string) => {
   }
 }
 
+// Watch for room highlight query parameter
+watch(() => route.query.roomId, (newRoomId) => {
+  if (newRoomId && typeof newRoomId === 'string') {
+    highlightedRoomId.value = newRoomId
+    // Clear highlight after 3 seconds
+    setTimeout(() => {
+      highlightedRoomId.value = null
+    }, 3000)
+  }
+}, { immediate: true })
+
 // Watch for vault ID changes in the URL
 watch(() => vaultId.value, (newId) => {
   if (newId) {
@@ -218,7 +231,7 @@ const handleIncidentResolved = async () => {
 
 <template>
   <div class="relative min-h-screen bg-terminalBackground font-mono text-terminalGreen">
-    <div class="scanlines"></div>
+    <div v-if="scanlinesEnabled" class="scanlines"></div>
 
     <!-- Loading State -->
     <div v-if="isLoading" class="flex min-h-screen items-center justify-center">
@@ -308,6 +321,7 @@ const handleIncidentResolved = async () => {
         :selectedRoom="selectedRoom"
         :isPlacingRoom="isPlacingRoom"
         :incidents="activeIncidents"
+        :highlightedRoomId="highlightedRoomId"
         @roomPlaced="handleRoomPlaced"
         @incidentClicked="handleIncidentClicked"
       />
@@ -357,12 +371,12 @@ const handleIncidentResolved = async () => {
 .main-content h2,
 .main-content h3 {
   font-weight: 700;
-  text-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+  text-shadow: 0 0 8px var(--color-theme-glow);
 }
 
 .main-content p,
 .main-content span,
 .main-content div {
-  text-shadow: 0 0 2px rgba(0, 255, 0, 0.3);
+  text-shadow: 0 0 2px var(--color-theme-glow);
 }
 </style>

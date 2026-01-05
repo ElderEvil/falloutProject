@@ -8,6 +8,7 @@ import type { DwellerShort } from '@/models/dweller'
 interface Props {
   dweller: DwellerShort
   roomName?: string | null
+  roomAbility?: string | null
   generatingAI?: boolean
 }
 
@@ -27,6 +28,30 @@ const healthPercentage = computed(() => {
   if (!props.dweller.max_health) return 0
   return (props.dweller.health / props.dweller.max_health) * 100
 })
+
+// Get relevant SPECIAL stat for room's required ability
+const relevantStat = computed(() => {
+  if (!props.roomAbility) return null
+
+  const abilityMap: Record<string, { value: number; label: string; icon: string }> = {
+    'strength': { value: props.dweller.strength, label: 'STR', icon: '💪' },
+    'perception': { value: props.dweller.perception, label: 'PER', icon: '👁️' },
+    'endurance': { value: props.dweller.endurance, label: 'END', icon: '❤️' },
+    'charisma': { value: props.dweller.charisma, label: 'CHA', icon: '💬' },
+    'intelligence': { value: props.dweller.intelligence, label: 'INT', icon: '🧠' },
+    'agility': { value: props.dweller.agility, label: 'AGI', icon: '⚡' },
+    'luck': { value: props.dweller.luck, label: 'LCK', icon: '🍀' }
+  }
+
+  return abilityMap[props.roomAbility.toLowerCase()] || null
+})
+
+// Get color class based on stat value
+const getStatColorClass = (value: number) => {
+  if (value >= 7) return 'text-green-400'
+  if (value >= 4) return 'text-yellow-400'
+  return 'text-red-400'
+}
 </script>
 
 <template>
@@ -89,6 +114,15 @@ const healthPercentage = computed(() => {
       <!-- Health Bar -->
       <div class="health-bar">
         <div class="health-fill" :style="{ width: `${healthPercentage}%` }"></div>
+      </div>
+
+      <!-- Job-relevant SPECIAL stat -->
+      <div v-if="relevantStat" class="job-stat">
+        <span class="job-stat-icon">{{ relevantStat.icon }}</span>
+        <span class="job-stat-label">{{ relevantStat.label }}:</span>
+        <span class="job-stat-value" :class="getStatColorClass(relevantStat.value)">
+          {{ relevantStat.value }}
+        </span>
       </div>
 
       <!-- Room Badge -->
@@ -159,7 +193,8 @@ const healthPercentage = computed(() => {
 .placeholder-icon {
   width: 60%;
   height: 60%;
-  color: rgba(156, 163, 175, 0.5);
+  color: var(--color-theme-primary);
+  opacity: 0.6;
 }
 
 .ai-generate-button {
@@ -265,6 +300,32 @@ const healthPercentage = computed(() => {
   background: var(--color-theme-primary);
   box-shadow: 0 0 6px var(--color-theme-glow);
   transition: width 0.3s ease;
+}
+
+.job-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.5rem;
+  background: rgba(31, 41, 55, 0.6);
+  border: 1px solid var(--color-theme-glow);
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.job-stat-icon {
+  font-size: 1rem;
+}
+
+.job-stat-label {
+  color: var(--color-theme-primary);
+  opacity: 0.8;
+  text-shadow: 0 0 2px var(--color-theme-glow);
+}
+
+.job-stat-value {
+  font-weight: 700;
+  text-shadow: 0 0 4px var(--color-theme-glow);
 }
 
 .room-info {

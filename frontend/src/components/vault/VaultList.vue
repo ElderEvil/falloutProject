@@ -35,39 +35,36 @@ const handleDeleteVault = async (id: string) => {
 
 <template>
   <div v-if="sortedVaults.length" class="w-full max-w-4xl">
-    <h2 class="mb-4 text-2xl font-bold">Your Vaults</h2>
+    <h2 class="mb-4 text-2xl font-bold" :style="{ color: 'var(--color-theme-primary)' }">Your Vaults</h2>
     <ul class="space-y-4">
       <li
         v-for="vault in sortedVaults"
         :key="vault.id"
         @click="handleSelectVault(vault.id)"
-        class="flex cursor-pointer items-center justify-between rounded-lg p-4 shadow-md transition duration-200"
-        :class="
-          selectedVaultId === vault.id ? 'border' : 'bg-gray-800'
-        "
-        :style="selectedVaultId === vault.id ? { borderColor: 'var(--color-theme-primary)', backgroundColor: 'rgba(var(--color-theme-primary-rgb, 0, 128, 0), 0.2)' } : {}"
+        class="vault-card flex cursor-pointer items-center justify-between rounded-lg p-4 shadow-md transition duration-200"
+        :class="{ selected: selectedVaultId === vault.id }"
       >
-        <div>
-          <h3 class="text-xl font-bold">Vault {{ vault.number }}</h3>
-          <p>Last Updated: {{ new Date(vault.updated_at).toLocaleString() }}</p>
-          <p>Bottle Caps: {{ vault.bottle_caps }}</p>
-          <p>Happiness: {{ vault.happiness }}%</p>
-          <p>Power: {{ vault.power }} / {{ vault.power_max }}</p>
-          <p>Food: {{ vault.food }} / {{ vault.food_max }}</p>
-          <p>Water: {{ vault.water }} / {{ vault.water_max }}</p>
-          <p>Rooms: {{ vault.room_count }}</p>
-          <p>Dwellers: {{ vault.dweller_count }}</p>
+        <div class="vault-info">
+          <h3 class="text-xl font-bold" :style="{ color: 'var(--color-theme-primary)' }">Vault {{ vault.number }}</h3>
+          <p :style="{ color: 'var(--color-theme-accent)' }">Last Updated: {{ new Date(vault.updated_at).toLocaleString() }}</p>
+          <p :style="{ color: 'var(--color-theme-accent)' }">Bottle Caps: {{ vault.bottle_caps }}</p>
+          <p :style="{ color: 'var(--color-theme-accent)' }">Happiness: {{ vault.happiness }}%</p>
+          <p :style="{ color: 'var(--color-theme-accent)' }">Power: {{ vault.power }} / {{ vault.power_max }}</p>
+          <p :style="{ color: 'var(--color-theme-accent)' }">Food: {{ vault.food }} / {{ vault.food_max }}</p>
+          <p :style="{ color: 'var(--color-theme-accent)' }">Water: {{ vault.water }} / {{ vault.water_max }}</p>
+          <p :style="{ color: 'var(--color-theme-accent)' }">Rooms: {{ vault.room_count }}</p>
+          <p :style="{ color: 'var(--color-theme-accent)' }">Dwellers: {{ vault.dweller_count }}</p>
         </div>
         <div v-if="selectedVaultId === vault.id" class="flex space-x-2">
           <button
             @click.stop="handleLoadVault(vault.id)"
-            class="rounded-lg border border-blue-500 bg-blue-500 px-4 py-2 font-bold text-terminalBackground transition duration-200 hover:bg-blue-400 hover:text-terminalBackground"
+            class="vault-button vault-button-load"
           >
             Load
           </button>
           <button
             @click.stop="handleDeleteVault(vault.id)"
-            class="rounded-lg border border-red-500 bg-red-500 px-4 py-2 font-bold text-terminalBackground transition duration-200 hover:bg-red-400 hover:text-terminalBackground"
+            class="vault-button vault-button-delete"
           >
             Delete
           </button>
@@ -77,6 +74,54 @@ const handleDeleteVault = async (id: string) => {
   </div>
 
   <div v-else class="text-center">
-    <p class="text-lg">No vaults found. Create your first vault to get started!</p>
+    <p class="text-lg" :style="{ color: 'var(--color-theme-primary)' }">No vaults found. Create your first vault to get started!</p>
   </div>
 </template>
+
+<style scoped>
+.vault-card {
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid transparent;
+}
+
+.vault-card:hover {
+  background: rgba(0, 0, 0, 0.4);
+  border-color: var(--color-theme-glow);
+}
+
+.vault-card.selected {
+  border-color: var(--color-theme-primary);
+  background: rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 20px var(--color-theme-glow);
+}
+
+.vault-button {
+  padding: 0.5rem 1rem;
+  font-weight: 700;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+  border: 2px solid;
+}
+
+.vault-button-load {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.vault-button-load:hover {
+  background: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 0 10px #3b82f6;
+}
+
+.vault-button-delete {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.vault-button-delete:hover {
+  background: rgba(239, 68, 68, 0.4);
+  box-shadow: 0 0 10px #ef4444;
+}
+</style>

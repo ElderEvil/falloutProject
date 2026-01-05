@@ -355,13 +355,13 @@ const openInventory = (tab: 'weapons' | 'outfits') => {
 
 .tab-btn:hover {
   color: var(--color-theme-primary);
-  background: rgba(0, 50, 0, 0.3);
+  background: var(--color-theme-hover-bg);
 }
 
 .tab-btn.active {
   color: var(--color-theme-primary);
-  background: rgba(0, 80, 0, 0.4);
-  border-color: rgba(0, 255, 0, 0.5);
+  background: var(--color-theme-active-bg);
+  border-color: var(--color-theme-glow);
   border-bottom: 2px solid #0a0a0a;
   margin-bottom: -2px;
 }

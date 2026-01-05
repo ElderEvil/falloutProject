@@ -186,6 +186,40 @@ export const useDwellerStore = defineStore('dweller', () => {
     }
   }
 
+  async function generateDwellerBio(id: string, token: string): Promise<Dweller | null> {
+    try {
+      const response = await axios.post(`/api/v1/dwellers/${id}/generate_backstory/`, null, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+      detailedDwellers.value[id] = response.data
+      toast.success('Biography generated successfully!')
+      return detailedDwellers.value[id]
+    } catch (error) {
+      console.error(`Failed to generate biography for dweller ${id}`, error)
+      toast.error('Failed to generate biography')
+      return null
+    }
+  }
+
+  async function generateDwellerPortrait(id: string, token: string): Promise<Dweller | null> {
+    try {
+      const response = await axios.post(`/api/v1/dwellers/${id}/generate_photo/`, null, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+      detailedDwellers.value[id] = response.data
+      toast.success('Portrait generated successfully!')
+      return detailedDwellers.value[id]
+    } catch (error) {
+      console.error(`Failed to generate portrait for dweller ${id}`, error)
+      toast.error('Failed to generate portrait')
+      return null
+    }
+  }
+
   async function assignDwellerToRoom(dwellerId: string, roomId: string, token: string): Promise<Dweller> {
     try {
       const response = await axios.post(
@@ -391,6 +425,8 @@ export const useDwellerStore = defineStore('dweller', () => {
     fetchDwellersByVault,
     fetchDwellerDetails,
     generateDwellerInfo,
+    generateDwellerBio,
+    generateDwellerPortrait,
     assignDwellerToRoom,
     unassignDwellerFromRoom,
     autoAssignToRoom,

@@ -25,6 +25,8 @@ const currentVault = computed(() => vaultId.value ? vaultStore.loadedVaults[vaul
 
 const loading = ref(false)
 const generatingAI = ref(false)
+const generatingBio = ref(false)
+const generatingPortrait = ref(false)
 
 const dweller = computed(() => dwellerStore.detailedDwellers[dwellerId.value])
 
@@ -78,6 +80,34 @@ const generateDwellerInfo = async () => {
     console.error('Error generating info with AI:', error)
   } finally {
     generatingAI.value = false
+  }
+}
+
+const generateDwellerBio = async () => {
+  generatingBio.value = true
+  try {
+    const result = await dwellerStore.generateDwellerBio(dwellerId.value, authStore.token as string)
+    if (result) {
+      await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
+    }
+  } catch (error) {
+    console.error('Error generating bio with AI:', error)
+  } finally {
+    generatingBio.value = false
+  }
+}
+
+const generateDwellerPortrait = async () => {
+  generatingPortrait.value = true
+  try {
+    const result = await dwellerStore.generateDwellerPortrait(dwellerId.value, authStore.token as string)
+    if (result) {
+      await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
+    }
+  } catch (error) {
+    console.error('Error generating portrait with AI:', error)
+  } finally {
+    generatingPortrait.value = false
   }
 }
 
@@ -168,16 +198,25 @@ const handleUseRadaway = async () => {
                 :dweller="dweller"
                 :image-url="dweller.image_url"
                 :loading="generatingAI || usingStimpack || usingRadaway || assigning"
+                :generating-bio="generatingBio"
+                :generating-portrait="generatingPortrait"
                 @chat="navigateToChatPage"
                 @assign="handleAssign"
                 @recall="handleRecall"
                 @generate-ai="generateDwellerInfo"
+                @generate-bio="generateDwellerBio"
+                @generate-portrait="generateDwellerPortrait"
                 @use-stimpack="handleUseStimpack"
                 @use-radaway="handleUseRadaway"
               />
 
               <!-- Right Column: Dweller Panel -->
-              <DwellerPanel :dweller="dweller" @refresh="handleRefresh" />
+              <DwellerPanel
+                :dweller="dweller"
+                :generating-bio="generatingBio"
+                @refresh="handleRefresh"
+                @generate-bio="generateDwellerBio"
+              />
             </div>
           </div>
         </div>
@@ -209,7 +248,7 @@ const handleUseRadaway = async () => {
 .main-content h2,
 .main-content h3 {
   font-weight: 700;
-  text-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+  text-shadow: 0 0 8px var(--color-theme-glow);
 }
 
 .scanlines {

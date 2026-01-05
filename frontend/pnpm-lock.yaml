@@ -13,7 +13,7 @@ importers:
         version: 5.0.0(vue@3.5.26(typescript@5.9.3))
       '@nuxt/ui':
         specifier: ^4.3.0
-        version: 4.3.0(@babel/parser@7.28.5)(@floating-ui/dom@1.7.4)(@tiptap/extension-drag-handle@3.14.0(@tiptap/core@3.13.0(@tiptap/pm@3.13.0))(@tiptap/extension-collaboration@3.14.0(@tiptap/core@3.13.0(@tiptap/pm@3.13.0))(@tiptap/pm@3.13.0)(@tiptap/y-tiptap@3.0.1(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.4)(y-protocols@1.0.7(yjs@13.6.28))(yjs@13.6.28))(yjs@13.6.28))(@tiptap/extension-node-range@3.14.0(@tiptap/core@3.13.0(@tiptap/pm@3.13.0))(@tiptap/pm@3.13.0))(@tiptap/pm@3.13.0)(@tiptap/y-tiptap@3.0.1(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.4)(y-protocols@1.0.7(yjs@13.6.28))(yjs@13.6.28)))(@tiptap/extensions@3.14.0(@tiptap/core@3.13.0(@tiptap/pm@3.13.0))(@tiptap/pm@3.13.0))(axios@1.13.2)(change-case@5.4.4)(embla-carousel@8.6.0)(rolldown-vite@7.3.0(@types/node@22.19.3)(jiti@2.6.1))(typescript@5.9.3)(vue-router@4.6.4(vue@3.5.26(typescript@5.9.3)))(vue@3.5.26(typescript@5.9.3))(zod@4.2.1)
+        version: 4.3.0(@babel/parser@7.28.5)(@floating-ui/dom@1.7.4)(@tiptap/extension-drag-handle@3.14.0(@tiptap/core@3.13.0(@tiptap/pm@3.13.0))(@tiptap/extension-collaboration@3.14.0(@tiptap/core@3.13.0(@tiptap/pm@3.13.0))(@tiptap/pm@3.13.0)(@tiptap/y-tiptap@3.0.1(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.4)(y-protocols@1.0.7(yjs@13.6.28))(yjs@13.6.28))(yjs@13.6.28))(@tiptap/extension-node-range@3.14.0(@tiptap/core@3.13.0(@tiptap/pm@3.13.0))(@tiptap/pm@3.13.0))(@tiptap/pm@3.13.0)(@tiptap/y-tiptap@3.0.1(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.4)(y-protocols@1.0.7(yjs@13.6.28))(yjs@13.6.28)))(@tiptap/extensions@3.14.0(@tiptap/core@3.13.0(@tiptap/pm@3.13.0))(@tiptap/pm@3.13.0))(axios@1.13.2)(change-case@5.4.4)(embla-carousel@8.6.0)(rolldown-vite@7.3.0(@types/node@22.19.3)(jiti@2.6.1))(typescript@5.9.3)(vue-router@4.6.4(vue@3.5.26(typescript@5.9.3)))(vue@3.5.26(typescript@5.9.3))(zod@4.3.5)
       '@vueuse/core':
         specifier: 14.1.0
         version: 14.1.0(vue@3.5.26(typescript@5.9.3))
@@ -30,8 +30,8 @@ importers:
         specifier: ^4.6.4
         version: 4.6.4(vue@3.5.26(typescript@5.9.3))
       zod:
-        specifier: 4.2.1
-        version: 4.2.1
+        specifier: 4.3.5
+        version: 4.3.5
     devDependencies:
       '@tailwindcss/vite':
         specifier: ^4.1.18
@@ -1960,8 +1960,8 @@ packages:
   knitwork@1.3.0:
     resolution: {integrity: sha512-4LqMNoONzR43B1W0ek0fhXMsDNW/zxa1NdFAVMY+k28pgZLovR4G3PB5MrpTxCy1QaZCqNoiaKPr5w5qZHfSNw==}
 
-  lib0@0.2.116:
-    resolution: {integrity: sha512-4zsosjzmt33rx5XjmFVYUAeLNh+BTeDTiwGdLt4muxiir2btsc60Nal0EvkvDRizg+pnlK1q+BtYi7M+d4eStw==}
+  lib0@0.2.117:
+    resolution: {integrity: sha512-DeXj9X5xDCjgKLU/7RR+/HQEVzuuEUiwldwOGsHK/sfAfELGWEyTcf0x+uOvCvK3O2zPmZePXWL85vtia6GyZw==}
     engines: {node: '>=16'}
     hasBin: true
 
@@ -2930,8 +2930,8 @@ packages:
     resolution: {integrity: sha512-EgnDOXs8+hBVm6mq3/S89Kiwzh5JRbn7w2wXwbrMRyKy/8dOFsLvuIfC+x19ZdtaDc0tA9rQmdZzbqqNHG44wA==}
     engines: {node: '>=16.0.0', npm: '>=8.0.0'}
 
-  zod@4.2.1:
-    resolution: {integrity: sha512-0wZ1IRqGGhMP76gLqz8EyfBXKk0J2qo2+H3fi4mcUP/KtTocoX08nmIAHl1Z2kJIZbZee8KOpBCSNPRgauucjw==}
+  zod@4.3.5:
+    resolution: {integrity: sha512-k7Nwx6vuWx1IJ9Bjuf4Zt1PEllcwe7cls3VNzm4CQ1/hgtFUK2bRNG3rvnpPUhFjmqJKAKtjV576KnUkHocg/g==}
 
 snapshots:
 
@@ -3370,7 +3370,7 @@ snapshots:
       pkg-types: 2.3.0
       std-env: 3.10.0
 
-  '@nuxt/ui@4.3.0(@babel/parser@7.28.5)(@floating-ui/dom@1.7.4)(@tiptap/extension-drag-handle@3.14.0(@tiptap/core@3.13.0(@tiptap/pm@3.13.0))(@tiptap/extension-collaboration@3.14.0(@tiptap/core@3.13.0(@tiptap/pm@3.13.0))(@tiptap/pm@3.13.0)(@tiptap/y-tiptap@3.0.1(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.4)(y-protocols@1.0.7(yjs@13.6.28))(yjs@13.6.28))(yjs@13.6.28))(@tiptap/extension-node-range@3.14.0(@tiptap/core@3.13.0(@tiptap/pm@3.13.0))(@tiptap/pm@3.13.0))(@tiptap/pm@3.13.0)(@tiptap/y-tiptap@3.0.1(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.4)(y-protocols@1.0.7(yjs@13.6.28))(yjs@13.6.28)))(@tiptap/extensions@3.14.0(@tiptap/core@3.13.0(@tiptap/pm@3.13.0))(@tiptap/pm@3.13.0))(axios@1.13.2)(change-case@5.4.4)(embla-carousel@8.6.0)(rolldown-vite@7.3.0(@types/node@22.19.3)(jiti@2.6.1))(typescript@5.9.3)(vue-router@4.6.4(vue@3.5.26(typescript@5.9.3)))(vue@3.5.26(typescript@5.9.3))(zod@4.2.1)':
+  '@nuxt/ui@4.3.0(@babel/parser@7.28.5)(@floating-ui/dom@1.7.4)(@tiptap/extension-drag-handle@3.14.0(@tiptap/core@3.13.0(@tiptap/pm@3.13.0))(@tiptap/extension-collaboration@3.14.0(@tiptap/core@3.13.0(@tiptap/pm@3.13.0))(@tiptap/pm@3.13.0)(@tiptap/y-tiptap@3.0.1(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.4)(y-protocols@1.0.7(yjs@13.6.28))(yjs@13.6.28))(yjs@13.6.28))(@tiptap/extension-node-range@3.14.0(@tiptap/core@3.13.0(@tiptap/pm@3.13.0))(@tiptap/pm@3.13.0))(@tiptap/pm@3.13.0)(@tiptap/y-tiptap@3.0.1(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.4)(y-protocols@1.0.7(yjs@13.6.28))(yjs@13.6.28)))(@tiptap/extensions@3.14.0(@tiptap/core@3.13.0(@tiptap/pm@3.13.0))(@tiptap/pm@3.13.0))(axios@1.13.2)(change-case@5.4.4)(embla-carousel@8.6.0)(rolldown-vite@7.3.0(@types/node@22.19.3)(jiti@2.6.1))(typescript@5.9.3)(vue-router@4.6.4(vue@3.5.26(typescript@5.9.3)))(vue@3.5.26(typescript@5.9.3))(zod@4.3.5)':
     dependencies:
       '@iconify/vue': 5.0.0(vue@3.5.26(typescript@5.9.3))
       '@internationalized/date': 3.10.1
@@ -3433,7 +3433,7 @@ snapshots:
       vue-component-type-helpers: 3.2.1
     optionalDependencies:
       vue-router: 4.6.4(vue@3.5.26(typescript@5.9.3))
-      zod: 4.2.1
+      zod: 4.3.5
     transitivePeerDependencies:
       - '@azure/app-configuration'
       - '@azure/cosmos'
@@ -3975,7 +3975,7 @@ snapshots:
 
   '@tiptap/y-tiptap@3.0.1(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.4)(y-protocols@1.0.7(yjs@13.6.28))(yjs@13.6.28)':
     dependencies:
-      lib0: 0.2.116
+      lib0: 0.2.117
       prosemirror-model: 1.25.4
       prosemirror-state: 1.4.4
       prosemirror-view: 1.41.4
@@ -4870,7 +4870,7 @@ snapshots:
 
   knitwork@1.3.0: {}
 
-  lib0@0.2.116:
+  lib0@0.2.117:
     dependencies:
       isomorphic.js: 0.2.5
 
@@ -5764,7 +5764,7 @@ snapshots:
 
   y-protocols@1.0.7(yjs@13.6.28):
     dependencies:
-      lib0: 0.2.116
+      lib0: 0.2.117
       yjs: 13.6.28
 
   yaml-ast-parser@0.0.43: {}
@@ -5773,6 +5773,6 @@ snapshots:
 
   yjs@13.6.28:
     dependencies:
-      lib0: 0.2.116
+      lib0: 0.2.117
 
-  zod@4.2.1: {}
+  zod@4.3.5: {}

@@ -16,6 +16,7 @@ const QuestsView = () => import('@/views/QuestsView.vue');
 const RadioView = () => import('@/views/RadioView.vue');
 const RelationshipsView = () => import('@/views/RelationshipsView.vue');
 const TrainingView = () => import('@/views/TrainingView.vue');
+const HappinessView = () => import('@/views/HappinessView.vue');
 const ProfileView = () => import('@/views/ProfileView.vue');
 const SettingsView = () => import('@/views/SettingsView.vue');
 const PreferencesView = () => import('@/views/PreferencesView.vue');
@@ -83,6 +84,12 @@ const router = createRouter({
       path: '/vault/:id/training',
       name: 'training',
       component: TrainingView,
+      meta: { requiresAuth: true, hideFromNav: true }
+    },
+    {
+      path: '/vault/:id/happiness',
+      name: 'happiness',
+      component: HappinessView,
       meta: { requiresAuth: true, hideFromNav: true }
     },
     {

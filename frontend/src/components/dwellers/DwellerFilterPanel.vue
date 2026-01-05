@@ -28,6 +28,7 @@ const statusOptions = [
 const sortOptions = [
   { value: 'name', label: 'Name', icon: 'mdi:alphabetical' },
   { value: 'level', label: 'Level', icon: 'mdi:star' },
+  { value: 'happiness', label: 'Happiness', icon: 'mdi:emoticon-happy' },
   { value: 'strength', label: 'Strength', icon: 'mdi:arm-flex' },
   { value: 'perception', label: 'Perception', icon: 'mdi:eye' },
   { value: 'endurance', label: 'Endurance', icon: 'mdi:heart' },

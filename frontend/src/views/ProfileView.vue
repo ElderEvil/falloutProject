@@ -127,7 +127,24 @@ const formatDate = (dateString: string) => {
             <!-- User Email -->
             <div class="mb-4">
               <label class="block text-sm font-medium text-gray-400 mb-1">Email</label>
-              <p class="text-white">{{ authStore.user?.email || 'Not available' }}</p>
+              <div class="flex items-center gap-2">
+                <p class="text-white">{{ authStore.user?.email || 'Not available' }}</p>
+                <span
+                  v-if="authStore.user?.email_verified"
+                  class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold"
+                  :style="{ backgroundColor: 'rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.2)', color: 'var(--color-theme-primary)' }"
+                >
+                  <Icon icon="mdi:check-circle" class="text-sm" />
+                  VERIFIED
+                </span>
+                <span
+                  v-else
+                  class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-gray-700 text-gray-400"
+                >
+                  <Icon icon="mdi:alert-circle-outline" class="text-sm" />
+                  UNVERIFIED
+                </span>
+              </div>
             </div>
 
             <!-- Bio -->

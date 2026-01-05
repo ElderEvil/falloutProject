@@ -87,6 +87,10 @@ const handleSubmit = async () => {
             > NEW OVERSEER REGISTRATION:
             <router-link to="/register" class="link-text">INITIATE PROTOCOL</router-link>
           </p>
+          <p class="terminal-text">
+            > FORGOT PASSPHRASE:
+            <router-link to="/forgot-password" class="link-text">RESET ACCESS</router-link>
+          </p>
         </div>
 
         <!-- Footer -->

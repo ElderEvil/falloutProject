@@ -56,7 +56,7 @@ class Settings(BaseSettings):
 
     # Email Configuration
     SMTP_HOST: str = "localhost"
-    SMTP_PORT: int = 1025  # MailHog default for local dev
+    SMTP_PORT: int = 1025  # Mailpit default for local dev
     SMTP_USER: str | None = None
     SMTP_PASSWORD: str | None = None
     SMTP_TLS: bool = False

@@ -19,6 +19,9 @@ const TrainingView = () => import('@/views/TrainingView.vue');
 const ProfileView = () => import('@/views/ProfileView.vue');
 const SettingsView = () => import('@/views/SettingsView.vue');
 const PreferencesView = () => import('@/views/PreferencesView.vue');
+const ResetPasswordView = () => import('@/views/ResetPasswordView.vue');
+const ForgotPasswordView = () => import('@/views/ForgotPasswordView.vue');
+const VerifyEmailView = () => import('@/views/VerifyEmailView.vue');
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -110,6 +113,24 @@ const router = createRouter({
       path: '/register',
       name: 'register',
       component: RegisterPage,
+      meta: { hideFromNav: true }
+    },
+    {
+      path: '/forgot-password',
+      name: 'forgot-password',
+      component: ForgotPasswordView,
+      meta: { hideFromNav: true }
+    },
+    {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: ResetPasswordView,
+      meta: { hideFromNav: true }
+    },
+    {
+      path: '/verify-email',
+      name: 'verify-email',
+      component: VerifyEmailView,
       meta: { hideFromNav: true }
     },
     {

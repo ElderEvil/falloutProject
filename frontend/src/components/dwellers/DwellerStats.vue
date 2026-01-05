@@ -51,27 +51,27 @@ const stats = [
 .dweller-stats {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 0.75rem;
 }
 
 .stats-title {
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 700;
   color: var(--color-theme-primary);
   text-shadow: 0 0 8px var(--color-theme-glow);
   border-bottom: 2px solid var(--color-theme-glow);
-  padding-bottom: 0.5rem;
+  padding-bottom: 0.375rem;
 }
 
 .stats-grid {
   display: grid;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .stat-item {
-  padding: 0.75rem;
+  padding: 0.5rem;
   background: rgba(0, 0, 0, 0.3);
-  border-left: 3px solid var(--color-theme-glow);
+  border-left: 2px solid var(--color-theme-glow);
   border-radius: 4px;
   transition: all 0.2s ease;
 }
@@ -86,34 +86,34 @@ const stats = [
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.375rem;
+  margin-bottom: 0.25rem;
 }
 
 .stat-label {
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   color: var(--color-theme-primary);
   text-shadow: 0 0 4px var(--color-theme-glow);
 }
 
 .stat-value {
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 0.875rem;
   color: var(--color-theme-primary);
   text-shadow: 0 0 6px var(--color-theme-glow);
-  min-width: 1.75rem;
+  min-width: 1.5rem;
   text-align: right;
 }
 
 .stat-bar {
   position: relative;
   width: 100%;
-  height: 10px;
+  height: 8px;
   background: rgba(68, 68, 68, 0.8);
   border: 1px solid var(--color-theme-glow);
-  border-radius: 5px;
+  border-radius: 4px;
   overflow: hidden;
-  margin-bottom: 0.375rem;
+  margin-bottom: 0.25rem;
 }
 
 .stat-fill {
@@ -127,10 +127,10 @@ const stats = [
 }
 
 .stat-description {
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   color: var(--color-theme-primary);
-  opacity: 0.7;
+  opacity: 0.6;
   text-shadow: 0 0 2px var(--color-theme-glow);
-  line-height: 1.4;
+  line-height: 1.3;
 }
 </style>

@@ -220,6 +220,23 @@ export const useDwellerStore = defineStore('dweller', () => {
     }
   }
 
+  async function generateDwellerAppearance(id: string, token: string): Promise<Dweller | null> {
+    try {
+      const response = await axios.post(`/api/v1/dwellers/${id}/generate_visual_attributes/`, null, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+      detailedDwellers.value[id] = response.data
+      toast.success('Appearance generated successfully!')
+      return detailedDwellers.value[id]
+    } catch (error) {
+      console.error(`Failed to generate appearance for dweller ${id}`, error)
+      toast.error('Failed to generate appearance')
+      return null
+    }
+  }
+
   async function assignDwellerToRoom(dwellerId: string, roomId: string, token: string): Promise<Dweller> {
     try {
       const response = await axios.post(
@@ -427,6 +444,7 @@ export const useDwellerStore = defineStore('dweller', () => {
     generateDwellerInfo,
     generateDwellerBio,
     generateDwellerPortrait,
+    generateDwellerAppearance,
     assignDwellerToRoom,
     unassignDwellerFromRoom,
     autoAssignToRoom,

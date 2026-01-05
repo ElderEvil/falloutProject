@@ -102,17 +102,18 @@ services:
       - minio_data:/data
     command: server /data --console-address ":9001"
 
-  mailhog:
-    image: mailhog/mailhog:latest
-    container_name: mailhog
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mailpit
     restart: always
     ports:
-      - "1025:1025"
-      - "8025:8025"
-    volumes:
-      - mailhog_data:/maildir
+      - "1025:1025"  # SMTP server
+      - "8025:8025"  # Web UI
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
 
 volumes:
   postgres-data:
   minio_data:
-  mailhog_data:

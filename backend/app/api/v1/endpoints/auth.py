@@ -116,9 +116,9 @@ async def forgot_password(
     # Generate password reset token
     token = security.create_password_reset_token(user.email)
 
-    # Store token and expiry in database
+    # Store token and expiry in database (use naive datetime for PostgreSQL TIMESTAMP WITHOUT TIME ZONE)
     user.password_reset_token = token
-    user.password_reset_expires = datetime.now(tz=UTC) + timedelta(hours=1)
+    user.password_reset_expires = datetime.now(tz=UTC).replace(tzinfo=None) + timedelta(hours=1)
     await db_session.commit()
 
     # Send password reset email

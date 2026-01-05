@@ -193,7 +193,8 @@ const getStatColorClass = (value: number) => {
 .placeholder-icon {
   width: 60%;
   height: 60%;
-  color: rgba(156, 163, 175, 0.5);
+  color: var(--color-theme-primary);
+  opacity: 0.6;
 }
 
 .ai-generate-button {

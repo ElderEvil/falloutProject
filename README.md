@@ -19,6 +19,7 @@ vault thriving. Built with modern Python tooling and designed for Python 3.14.
 - ✅ **Clickable Room Navigation** - Room badges now clickable, navigate to vault view with room highlighted (pulses 3 seconds)
 - ✅ **Separate Regenerate Buttons** - Independent controls for portrait (📷), biography (✏️), or both (✨) regeneration
 - ✅ **Terminal-Themed Login** - Vault-Tec styled login screen now default (retro aesthetic)
+- ✅ **Filter Theme Update** - All filter/sort/view controls now use terminal green theme colors for consistency
 
 ### v1.9.5 - Configuration & Code Quality
 **Focus**: Game balance consolidation and infrastructure improvements

@@ -103,7 +103,7 @@ const rarityLabel = computed(() => {
       </template>
       <template v-else>
         <div class="portrait-placeholder">
-          <Icon icon="mdi:account-circle" class="h-48 w-48 text-gray-400" />
+          <Icon icon="mdi:account-circle" class="h-48 w-48" style="color: var(--color-theme-primary); opacity: 0.3;" />
         </div>
 
         <!-- Generate Portrait Button -->
@@ -115,7 +115,8 @@ const rarityLabel = computed(() => {
           >
             <Icon
               :icon="generatingPortrait ? 'mdi:loading' : 'mdi:camera'"
-              class="h-6 w-6 text-green-600"
+              class="h-6 w-6"
+              style="color: var(--color-theme-primary);"
               :class="{ 'animate-spin': generatingPortrait }"
             />
           </button>
@@ -130,7 +131,8 @@ const rarityLabel = computed(() => {
           >
             <Icon
               :icon="loading ? 'mdi:loading' : 'mdi:sparkles'"
-              class="h-6 w-6 text-green-600"
+              class="h-6 w-6"
+              style="color: var(--color-theme-primary);"
               :class="{ 'animate-spin': loading }"
             />
           </button>
@@ -321,24 +323,24 @@ const rarityLabel = computed(() => {
 
 .ai-generate-button {
   position: absolute;
-  background: rgba(31, 41, 55, 0.9);
-  border: none;
+  background: rgba(31, 41, 55, 0.95);
+  border: 2px solid var(--color-theme-glow);
   border-radius: 50%;
   padding: 0.75rem;
   cursor: pointer;
   transition: all 0.3s ease;
   animation: pulse-glow 2s ease-in-out infinite;
+  z-index: 10;
 }
 
 .portrait-button {
-  bottom: 0.5rem;
-  right: 0.5rem;
+  bottom: 1rem;
+  right: 1rem;
 }
 
 .full-generate-button {
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  top: 1rem;
+  right: 1rem;
   padding: 1rem;
 }
 

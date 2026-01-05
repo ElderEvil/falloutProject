@@ -1,15 +1,21 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, inject, onMounted, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useVaultStore } from '@/stores/vault'
 import { useRoomStore } from '@/stores/room'
 import { useRouter } from 'vue-router'
 import { vaultNumberSchema } from '@/schemas'
+import { Icon } from '@iconify/vue'
 
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
 const roomStore = useRoomStore()
 const router = useRouter()
+
+// Inject visual effects
+const scanlinesEnabled = inject('scanlines', ref(true))
+const isFlickering = inject('isFlickering', ref(true))
+const glowClass = inject('glowClass', ref('terminal-glow'))
 
 const newVaultNumber = ref('')
 const selectedVaultId = ref<string | null>(null)
@@ -87,17 +93,20 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="relative min-h-screen bg-terminalBackground font-mono text-terminalGreen">
-    <div class="scanlines"></div>
+  <div class="relative min-h-screen bg-terminalBackground font-mono" :style="{ color: 'var(--color-theme-primary)' }">
+    <div v-if="scanlinesEnabled" class="scanlines"></div>
     <div
-      class="flicker container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8"
+      class="container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8"
+      :class="{ flicker: isFlickering }"
     >
       <div class="mb-8 text-center">
-        <h1 class="mb-4 text-4xl font-bold">Welcome to Fallout Shelter</h1>
+        <h1 class="mb-4 text-4xl font-bold" :class="glowClass" :style="{ color: 'var(--color-theme-primary)' }">
+          Welcome to Fallout Shelter
+        </h1>
       </div>
 
       <div class="mb-8 w-full max-w-md">
-        <h2 class="mb-4 text-2xl font-bold">Create New Vault</h2>
+        <h2 class="mb-4 text-2xl font-bold" :style="{ color: 'var(--color-theme-primary)' }">Create New Vault</h2>
         <form @submit.prevent="createVault" class="space-y-2">
           <div class="flex space-x-2">
             <input
@@ -107,13 +116,14 @@ onMounted(async () => {
               min="0"
               max="999"
               @input="validateVaultNumber"
-              class="flex-grow rounded bg-gray-800 p-2 text-terminalGreen focus:outline-none focus:ring-2 focus:ring-terminalGreen"
+              class="vault-input flex-grow rounded p-2 focus:outline-none focus:ring-2"
+              :style="{ color: 'var(--color-theme-primary)' }"
               :class="{ 'ring-2 ring-red-500': vaultNumberError }"
             />
             <button
               type="submit"
               :disabled="creatingVault || !!vaultNumberError"
-              class="rounded-lg border border-terminalGreen bg-terminalGreen px-4 py-2 font-bold text-terminalBackground transition duration-200 hover:bg-green-400 hover:text-terminalBackground disabled:cursor-not-allowed disabled:opacity-50"
+              class="create-button"
             >
               {{ creatingVault ? 'Creating...' : 'Create' }}
             </button>
@@ -123,41 +133,52 @@ onMounted(async () => {
       </div>
 
       <div v-if="sortedVaults.length" class="w-full max-w-4xl">
-        <h2 class="mb-4 text-2xl font-bold">Your Vaults</h2>
+        <h2 class="mb-4 text-2xl font-bold" :style="{ color: 'var(--color-theme-primary)' }">Your Vaults</h2>
         <ul class="space-y-4">
           <li
             v-for="vault in sortedVaults"
             :key="vault.id"
             @click="selectVault(vault.id)"
-            class="flex cursor-pointer items-center justify-between rounded-lg p-4 shadow-md transition duration-200"
-            :class="
-              selectedVaultId === vault.id
-                ? 'border border-terminalGreen bg-green-800'
-                : 'bg-gray-800'
-            "
+            class="vault-card rounded-lg shadow-md transition duration-200"
+            :class="{ selected: selectedVaultId === vault.id }"
           >
-            <div>
-              <h3 class="text-xl font-bold">Vault {{ vault.number }}</h3>
-              <p>Last Updated: {{ new Date(vault.updated_at).toLocaleString() }}</p>
-              <p>Bottle Caps: {{ vault.bottle_caps }}</p>
-              <p>Happiness: {{ vault.happiness }}%</p>
-              <p>Power: {{ vault.power }} / {{ vault.power_max }}</p>
-              <p>Food: {{ vault.food }} / {{ vault.food_max }}</p>
-              <p>Water: {{ vault.water }} / {{ vault.water_max }}</p>
-              <p>Rooms: {{ vault.room_count }}</p>
-              <p>Dwellers: {{ vault.dweller_count }}</p>
+            <div class="vault-content">
+              <!-- Screenshot Placeholder -->
+              <div class="vault-screenshot">
+                <div class="screenshot-placeholder">
+                  <Icon icon="mdi:image-outline" class="placeholder-icon" />
+                  <span class="placeholder-text">Vault Screenshot</span>
+                </div>
+              </div>
+
+              <!-- Vault Info -->
+              <div class="vault-info">
+                <h3 class="text-xl font-bold mb-2" :style="{ color: 'var(--color-theme-primary)' }">Vault {{ vault.number }}</h3>
+                <div class="vault-stats">
+                  <p :style="{ color: 'var(--color-theme-accent)' }">Last Updated: {{ new Date(vault.updated_at).toLocaleString() }}</p>
+                  <p :style="{ color: 'var(--color-theme-accent)' }">Bottle Caps: {{ vault.bottle_caps }}</p>
+                  <p :style="{ color: 'var(--color-theme-accent)' }">Happiness: {{ vault.happiness }}%</p>
+                  <p :style="{ color: 'var(--color-theme-accent)' }">Power: {{ vault.power }} / {{ vault.power_max }}</p>
+                  <p :style="{ color: 'var(--color-theme-accent)' }">Food: {{ vault.food }} / {{ vault.food_max }}</p>
+                  <p :style="{ color: 'var(--color-theme-accent)' }">Water: {{ vault.water }} / {{ vault.water_max }}</p>
+                  <p :style="{ color: 'var(--color-theme-accent)' }">Rooms: {{ vault.room_count }}</p>
+                  <p :style="{ color: 'var(--color-theme-accent)' }">Dwellers: {{ vault.dweller_count }}</p>
+                </div>
+              </div>
             </div>
-            <div v-if="selectedVaultId === vault.id" class="flex space-x-2">
+
+            <!-- Action Buttons -->
+            <div v-if="selectedVaultId === vault.id" class="vault-actions">
               <button
                 @click.stop="loadVault(vault.id)"
-                class="rounded-lg border border-blue-500 bg-blue-500 px-4 py-2 font-bold text-terminalBackground transition duration-200 hover:bg-blue-400 hover:text-terminalBackground"
+                class="vault-button vault-button-load"
               >
                 Load
               </button>
               <button
                 @click.stop="deleteVault(vault.id)"
                 :disabled="deletingVault === vault.id"
-                class="rounded-lg border border-red-500 bg-red-500 px-4 py-2 font-bold text-terminalBackground transition duration-200 hover:bg-red-400 hover:text-terminalBackground disabled:cursor-not-allowed disabled:opacity-50"
+                class="vault-button vault-button-delete"
               >
                 {{ deletingVault === vault.id ? 'Deleting...' : 'Delete' }}
               </button>
@@ -167,8 +188,175 @@ onMounted(async () => {
       </div>
 
       <div v-else class="text-center">
-        <p class="text-lg">No vaults found. Create your first vault to get started!</p>
+        <p class="text-lg" :style="{ color: 'var(--color-theme-primary)' }">No vaults found. Create your first vault to get started!</p>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.vault-input {
+  background: rgba(30, 30, 30, 0.8);
+  border: 2px solid rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.vault-input:focus {
+  border-color: var(--color-theme-primary);
+  background: rgba(40, 40, 40, 0.9);
+  box-shadow: 0 0 10px var(--color-theme-glow);
+}
+
+.vault-input::placeholder {
+  color: rgba(163, 163, 163, 0.5);
+}
+
+.create-button {
+  padding: 0.5rem 1rem;
+  font-weight: 700;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+  border: 2px solid var(--color-theme-primary);
+  background: rgba(0, 0, 0, 0.8);
+  color: var(--color-theme-primary);
+}
+
+.create-button:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 15px var(--color-theme-glow);
+}
+
+.create-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.vault-card {
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid transparent;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.vault-card:hover {
+  background: rgba(0, 0, 0, 0.4);
+  border-color: var(--color-theme-glow);
+}
+
+.vault-card.selected {
+  border-color: var(--color-theme-primary);
+  background: rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 20px var(--color-theme-glow);
+}
+
+.vault-content {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.vault-screenshot {
+  flex-shrink: 0;
+  width: 200px;
+  height: 150px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--color-theme-glow);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.screenshot-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--color-theme-accent);
+  opacity: 0.5;
+}
+
+.placeholder-icon {
+  font-size: 3rem;
+}
+
+.placeholder-text {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.vault-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.vault-stats {
+  font-size: 0.875rem;
+}
+
+.vault-stats p {
+  margin-bottom: 0.25rem;
+}
+
+.vault-actions {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0 1rem 1rem 1rem;
+  border-top: 1px solid var(--color-theme-glow);
+  padding-top: 1rem;
+  margin-top: 0;
+}
+
+.vault-button {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  font-weight: 700;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+  border: 2px solid;
+  font-size: 1rem;
+}
+
+.vault-button-load {
+  background: rgba(0, 0, 0, 0.3);
+  border-color: var(--color-theme-primary);
+  color: var(--color-theme-primary);
+}
+
+.vault-button-load:hover {
+  background: rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 10px var(--color-theme-glow);
+}
+
+.vault-button-delete {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.vault-button-delete:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.4);
+  box-shadow: 0 0 10px #ef4444;
+}
+
+.vault-button-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .vault-content {
+    flex-direction: column;
+  }
+
+  .vault-screenshot {
+    width: 100%;
+    height: 120px;
+  }
+
+  .vault-actions {
+    flex-direction: column;
+  }
+}
+</style>

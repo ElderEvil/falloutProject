@@ -37,6 +37,12 @@ AI-powered dweller interactions.
     - Vault-Tec themed login experience now default
     - Retro computer aesthetic matches game theme
 
+- [x] **Filter Theme Update**
+    - Updated all filter/sort/view controls to use terminal green theme
+    - Changed from yellow/white colors to `var(--color-theme-primary)` and `var(--color-theme-glow)`
+    - Consistent Fallout terminal aesthetic across all controls
+    - Opacity-based active/inactive states for better visual hierarchy
+
 ### v1.9.5 Configuration & Code Quality (January 4, 2026)
 
 **Focus**: Game balance consolidation and infrastructure improvements
@@ -66,6 +72,34 @@ AI-powered dweller interactions.
 ## 🚧 Current Sprint: v1.9 Happiness & UI Completion (IN PROGRESS)
 
 ### 🔥 Top Priorities (Reorganized January 3, 2026)
+
+#### 0. UI/UX Unification (DESIGN THINKING)
+
+**Goal**: Create consistent visual language across vault selection, login, and in-game screens
+
+- [ ] **Audit Current Screens**
+    - Analyze vault selection screen design patterns
+    - Review login/authentication flow aesthetics
+    - Compare with dwellers list and in-game views
+    - Identify inconsistencies in spacing, colors, typography, borders
+
+- [ ] **Design System Documentation**
+    - Document terminal green theme usage guidelines
+    - Standardize card/panel styles (borders vs shadows)
+    - Define spacing scale (gap-2, gap-3, gap-4 usage)
+    - Icon usage patterns (size, color coding)
+    - Button styles and hover states
+
+- [ ] **Unified Component Library**
+    - Create reusable card/panel components
+    - Standardize input field styles
+    - Consistent modal/dialog patterns
+    - Unified loading states and skeletons
+
+- [ ] **Implementation Plan**
+    - Prioritize high-traffic screens (vault selection, dwellers list)
+    - Progressive enhancement approach
+    - Maintain backward compatibility during transition
 
 #### 1. Happiness System Implementation (NEW TOP PRIORITY)
 

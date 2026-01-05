@@ -89,7 +89,7 @@ onMounted(async () => {
 
 .dweller-info h1 {
   font-size: 2rem;
-  text-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+  text-shadow: 0 0 10px var(--color-theme-glow);
 }
 
 .dweller-thumbnail {
@@ -97,8 +97,8 @@ onMounted(async () => {
   height: 60px;
   border-radius: 50%;
   margin-right: 15px;
-  border: 2px solid #00ff00;
-  box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+  border: 2px solid var(--color-theme-primary);
+  box-shadow: 0 0 15px var(--color-theme-glow);
 }
 
 .chat-container {

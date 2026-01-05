@@ -248,7 +248,7 @@ const handleUseRadaway = async () => {
 .main-content h2,
 .main-content h3 {
   font-weight: 700;
-  text-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+  text-shadow: 0 0 8px var(--color-theme-glow);
 }
 
 .scanlines {

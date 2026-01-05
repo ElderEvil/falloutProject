@@ -273,8 +273,9 @@ const estimatedCaps = computed(() => {
 .modal-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   padding: 1rem;
+  padding-top: 0.5rem;
   border-bottom: 1px solid #1a1a1a;
 }
 
@@ -315,7 +316,7 @@ const estimatedCaps = computed(() => {
   font-weight: bold;
   letter-spacing: 0.1em;
   flex-shrink: 0;
-  align-self: center;
+  margin-right: 2.5rem;
 }
 
 .status-active {

@@ -212,10 +212,10 @@ onMounted(() => {
   height: 100%;
   font-family: 'Courier New', monospace;
   background-color: #0a0a0a;
-  color: #00ff00;
-  border: 2px solid #00ff00;
+  color: var(--color-theme-primary);
+  border: 2px solid var(--color-theme-primary);
   border-radius: 8px;
-  box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+  box-shadow: 0 0 20px var(--color-theme-glow);
   overflow: hidden;
 }
 
@@ -228,10 +228,10 @@ onMounted(() => {
   bottom: 0;
   background: repeating-linear-gradient(
     0deg,
-    rgba(0, 255, 0, 0.03) 0px,
+    rgba(var(--color-theme-primary-rgb), 0.03) 0px,
     transparent 1px,
     transparent 2px,
-    rgba(0, 255, 0, 0.03) 3px
+    rgba(var(--color-theme-primary-rgb), 0.03) 3px
   );
   pointer-events: none;
   z-index: 1;
@@ -244,7 +244,7 @@ onMounted(() => {
   gap: 0.75rem;
   padding: 0.75rem 1rem;
   background-color: rgba(0, 0, 0, 0.8);
-  border-bottom: 1px solid rgba(0, 255, 0, 0.3);
+  border-bottom: 1px solid var(--color-theme-glow);
   flex-shrink: 0;
   z-index: 2;
 }
@@ -259,16 +259,16 @@ onMounted(() => {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  border: 2px solid #00ff00;
-  box-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+  border: 2px solid var(--color-theme-primary);
+  box-shadow: 0 0 8px var(--color-theme-glow);
   object-fit: cover;
 }
 
 .header-avatar-icon {
   width: 32px;
   height: 32px;
-  color: #00ff00;
-  filter: drop-shadow(0 0 4px rgba(0, 255, 0, 0.5));
+  color: var(--color-theme-primary);
+  filter: drop-shadow(0 0 4px var(--color-theme-glow));
 }
 
 .identity-info {
@@ -280,13 +280,14 @@ onMounted(() => {
 .identity-name {
   font-size: 1rem;
   font-weight: 700;
-  color: #00ff00;
-  text-shadow: 0 0 6px rgba(0, 255, 0, 0.6);
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 6px var(--color-theme-glow);
 }
 
 .identity-status {
   font-size: 0.65rem;
-  color: rgba(0, 255, 0, 0.5);
+  color: var(--color-theme-primary);
+  opacity: 0.5;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   text-shadow: none; /* Remove glow from status */
@@ -325,32 +326,32 @@ onMounted(() => {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  border: 2px solid #00ff00;
-  box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+  border: 2px solid var(--color-theme-primary);
+  box-shadow: 0 0 10px var(--color-theme-glow);
   object-fit: cover;
 }
 
 .avatar-icon {
   width: 40px;
   height: 40px;
-  color: #00ff00;
-  filter: drop-shadow(0 0 5px rgba(0, 255, 0, 0.5));
+  color: var(--color-theme-primary);
+  filter: drop-shadow(0 0 5px var(--color-theme-glow));
 }
 
 /* Message bubble */
 .message-bubble {
   flex: 1;
   max-width: 65ch; /* Constrained to 60-65 characters for readability */
-  background-color: rgba(0, 255, 0, 0.05);
-  border: 1px solid rgba(0, 255, 0, 0.3);
+  background-color: rgba(var(--color-theme-primary-rgb), 0.05);
+  border: 1px solid var(--color-theme-glow);
   border-radius: 12px; /* Softer corners for dweller */
   padding: 0.5rem 0.85rem; /* Reduced padding for lighter feel */
-  box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+  box-shadow: 0 0 10px rgba(var(--color-theme-primary-rgb), 0.2);
 }
 
 .user .message-bubble {
-  background-color: rgba(0, 255, 0, 0.1);
-  border-color: rgba(0, 255, 0, 0.5);
+  background-color: rgba(var(--color-theme-primary-rgb), 0.1);
+  border-color: rgba(var(--color-theme-primary-rgb), 0.5);
   border-radius: 2px; /* Sharper corners for player */
   padding: 0.5rem 0.75rem; /* Tighter padding for player */
   max-width: 60ch; /* Smaller max width for player messages */
@@ -364,29 +365,29 @@ onMounted(() => {
 
 .message-sender {
   font-weight: 600;
-  text-shadow: 0 0 4px rgba(0, 255, 0, 0.5);
+  text-shadow: 0 0 4px var(--color-theme-glow);
 }
 
 .terminal-prefix {
-  color: #00ff00;
+  color: var(--color-theme-primary);
   font-weight: 700;
   margin-right: 0.25rem;
-  text-shadow: 0 0 6px rgba(0, 255, 0, 0.8);
+  text-shadow: 0 0 6px var(--color-theme-glow);
 }
 
 .message-content {
-  color: #00ff00;
+  color: var(--color-theme-primary);
   font-size: 0.95rem;
   line-height: 1.75; /* Increased line height for lighter feel */
   word-wrap: break-word;
-  text-shadow: 0 0 2px rgba(0, 255, 0, 0.2); /* Reduced glow on long text */
+  text-shadow: 0 0 2px rgba(var(--color-theme-primary-rgb), 0.2); /* Reduced glow on long text */
   max-width: 65ch; /* Enforce character limit */
 }
 
 /* Slightly different styles for user messages */
 .user .message-content {
   line-height: 1.7;
-  text-shadow: 0 0 1px rgba(0, 255, 0, 0.15); /* Less glow for player messages */
+  text-shadow: 0 0 1px rgba(var(--color-theme-primary-rgb), 0.15); /* Less glow for player messages */
 }
 
 /* Typing indicator */
@@ -399,7 +400,7 @@ onMounted(() => {
 
 .typing-indicator {
   font-style: italic;
-  color: #00ff00;
+  color: var(--color-theme-primary);
   opacity: 0.8;
   font-size: 0.9rem;
 }
@@ -426,15 +427,15 @@ onMounted(() => {
   gap: 0.5rem;
   padding: 1rem;
   background-color: rgba(0, 0, 0, 0.8);
-  border-top: 1px solid rgba(0, 255, 0, 0.3);
+  border-top: 1px solid var(--color-theme-glow);
   flex-shrink: 0;
 }
 
 .terminal-prompt {
-  color: #00ff00;
+  color: var(--color-theme-primary);
   font-size: 1.2rem;
   font-weight: 700;
-  text-shadow: 0 0 6px rgba(0, 255, 0, 0.8);
+  text-shadow: 0 0 6px var(--color-theme-glow);
   flex-shrink: 0;
   margin-right: 0.25rem;
 }
@@ -443,33 +444,34 @@ onMounted(() => {
   flex: 1;
   padding: 0.75rem;
   border-radius: 6px;
-  border: 1px solid #00ff00;
+  border: 1px solid var(--color-theme-primary);
   background-color: rgba(0, 0, 0, 0.7);
-  color: #00ff00;
+  color: var(--color-theme-primary);
   font-family: 'Courier New', monospace;
   font-size: 0.95rem;
   transition: all 0.2s;
-  box-shadow: inset 0 0 10px rgba(0, 255, 0, 0.1);
+  box-shadow: inset 0 0 10px rgba(var(--color-theme-primary-rgb), 0.1);
 }
 
 .chat-input-field:focus {
   outline: none;
-  border-color: #00ff00;
+  border-color: var(--color-theme-primary);
   box-shadow:
-    inset 0 0 10px rgba(0, 255, 0, 0.2),
-    0 0 15px rgba(0, 255, 0, 0.4);
+    inset 0 0 10px rgba(var(--color-theme-primary-rgb), 0.2),
+    0 0 15px var(--color-theme-glow);
 }
 
 .chat-input-field::placeholder {
-  color: rgba(0, 255, 0, 0.5);
+  color: var(--color-theme-primary);
+  opacity: 0.5;
 }
 
 .chat-send-btn {
   padding: 0.75rem 1.25rem;
   border-radius: 6px;
-  border: 1px solid #00ff00;
-  background-color: rgba(0, 255, 0, 0.1);
-  color: #00ff00;
+  border: 1px solid var(--color-theme-primary);
+  background-color: rgba(var(--color-theme-primary-rgb), 0.1);
+  color: var(--color-theme-primary);
   cursor: pointer;
   font-family: 'Courier New', monospace;
   font-size: 1rem;
@@ -480,9 +482,9 @@ onMounted(() => {
 }
 
 .chat-send-btn:hover {
-  background-color: #00ff00;
+  background-color: var(--color-theme-primary);
   color: #000;
-  box-shadow: 0 0 20px rgba(0, 255, 0, 0.6);
+  box-shadow: 0 0 20px var(--color-theme-glow);
 }
 
 .chat-send-btn:active {
@@ -492,12 +494,12 @@ onMounted(() => {
 .chat-send-btn.disabled {
   opacity: 0.4;
   cursor: not-allowed;
-  background-color: rgba(0, 255, 0, 0.05);
+  background-color: rgba(var(--color-theme-primary-rgb), 0.05);
 }
 
 .chat-send-btn.disabled:hover {
-  background-color: rgba(0, 255, 0, 0.05);
-  color: #00ff00;
+  background-color: rgba(var(--color-theme-primary-rgb), 0.05);
+  color: var(--color-theme-primary);
   box-shadow: none;
 }
 

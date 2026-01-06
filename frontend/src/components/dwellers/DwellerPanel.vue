@@ -4,23 +4,27 @@ import UTabs from '@/components/ui/UTabs.vue'
 import DwellerBio from './DwellerBio.vue'
 import DwellerStats from './DwellerStats.vue'
 import DwellerEquipment from './DwellerEquipment.vue'
+import DwellerAppearance from './DwellerAppearance.vue'
 import type { DwellerDetailRead } from '@/types/dweller'
 
 interface Props {
   dweller: DwellerDetailRead
   generatingBio?: boolean
+  generatingAppearance?: boolean
 }
 
 defineProps<Props>()
 const emit = defineEmits<{
   refresh: []
   'generate-bio': []
+  'generate-appearance': []
 }>()
 
 const activeTab = ref('profile')
 
 const tabs = [
   { key: 'profile', label: 'Profile' },
+  { key: 'appearance', label: 'Appearance' },
   { key: 'stats', label: 'Stats' },
   { key: 'equipment', label: 'Equipment' }
 ]
@@ -37,6 +41,12 @@ const tabs = [
             :first-name="dweller.first_name"
             :generating-bio="generatingBio"
             @generate-bio="emit('generate-bio')"
+          />
+          <DwellerAppearance
+            v-else-if="currentTab === 'appearance'"
+            :visual-attributes="dweller.visual_attributes"
+            :generating-appearance="generatingAppearance"
+            @generate-appearance="emit('generate-appearance')"
           />
           <DwellerStats
             v-else-if="currentTab === 'stats'"

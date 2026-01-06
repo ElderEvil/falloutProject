@@ -1,10 +1,12 @@
 from sqladmin import ModelView
 
 from app.models import LLMInteraction, Objective, Storage
+from app.models.chat_message import ChatMessage
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration
 from app.models.incident import Incident
 from app.models.junk import Junk
+from app.models.notification import Notification
 from app.models.outfit import Outfit
 from app.models.pregnancy import Pregnancy
 from app.models.prompt import Prompt
@@ -16,6 +18,8 @@ from app.models.user import User
 from app.models.user_profile import UserProfile
 from app.models.vault import Vault
 from app.models.weapon import Weapon
+
+TRUNCATE_LENGTH = 50
 
 
 class UserAdmin(ModelView, model=User):
@@ -103,9 +107,13 @@ class DwellerAdmin(ModelView, model=Dweller):
         Dweller.happiness,
         Dweller.vault,
         Dweller.room,
-        Dweller.created_at,
-        Dweller.updated_at,
     ]
+
+    column_formatters = {
+        Dweller.bio: lambda m, a: (m.bio[:TRUNCATE_LENGTH] + "...")  # noqa: ARG005
+        if m.bio and len(m.bio) > TRUNCATE_LENGTH
+        else m.bio,
+    }
 
     icon = "fa-solid fa-person"
 
@@ -313,7 +321,7 @@ class IncidentAdmin(ModelView, model=Incident):
 
     can_create = False
     can_edit = True
-    can_delete = False
+    can_delete = True
 
 
 class ExplorationAdmin(ModelView, model=Exploration):
@@ -339,3 +347,70 @@ class ExplorationAdmin(ModelView, model=Exploration):
     can_create = False
     can_edit = True
     can_delete = False
+
+
+class ChatMessageAdmin(ModelView, model=ChatMessage):
+    column_list = [
+        ChatMessage.id,
+        ChatMessage.vault_id,
+        ChatMessage.from_user_id,
+        ChatMessage.from_dweller_id,
+        ChatMessage.to_user_id,
+        ChatMessage.to_dweller_id,
+        ChatMessage.message_text,
+        ChatMessage.llm_interaction_id,
+        ChatMessage.created_at,
+    ]
+    column_searchable_list = [ChatMessage.message_text]
+    column_sortable_list = [ChatMessage.created_at]
+    column_default_sort = [(ChatMessage.created_at, True)]
+
+    column_formatters = {
+        ChatMessage.message_text: lambda m, a: (  # noqa: ARG005
+            m.message_text[:TRUNCATE_LENGTH] + "..."
+            if m.message_text and len(m.message_text) > TRUNCATE_LENGTH
+            else m.message_text
+        ),
+    }
+
+    name = "Chat Message"
+    name_plural = "Chat Messages"
+    icon = "fa-solid fa-message"
+
+    can_create = False
+    can_edit = False
+    can_delete = True
+
+
+class NotificationAdmin(ModelView, model=Notification):
+    column_list = [
+        Notification.id,
+        Notification.user_id,
+        Notification.vault_id,
+        Notification.from_dweller_id,
+        Notification.notification_type,
+        Notification.priority,
+        Notification.title,
+        Notification.message,
+        Notification.is_read,
+        Notification.is_dismissed,
+        Notification.created_at,
+        Notification.read_at,
+    ]
+    column_searchable_list = [Notification.title, Notification.message]
+    column_sortable_list = [Notification.created_at, Notification.priority, Notification.notification_type]
+    column_default_sort = [(Notification.created_at, True)]
+
+    column_formatters = {
+        Notification.message: lambda m, a: (  # noqa: ARG005
+            m.message[:TRUNCATE_LENGTH] + "..." if m.message and len(m.message) > TRUNCATE_LENGTH else m.message
+        ),
+    }
+
+    name = "Notification"
+    name_plural = "Notifications"
+    icon = "fa-solid fa-bell"
+
+    can_create = False
+    can_edit = True
+    can_delete = True

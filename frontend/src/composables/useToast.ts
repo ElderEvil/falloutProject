@@ -10,10 +10,17 @@ export interface Toast {
 const toasts = ref<Toast[]>([])
 let toastId = 0
 
+const MAX_TOASTS = 5
+
 export function useToast() {
   const show = (message: string, variant: Toast['variant'] = 'info', duration = 5000) => {
     const id = `toast-${toastId++}`
     const toast: Toast = { id, message, variant, duration }
+
+    // Remove oldest toast if limit reached
+    if (toasts.value.length >= MAX_TOASTS) {
+      toasts.value.shift()
+    }
 
     toasts.value.push(toast)
 

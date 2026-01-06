@@ -67,7 +67,7 @@
           <SettingItem
             v-for="(weight, type) in settings.incident.spawn_weights"
             :key="type"
-            :label="formatIncidentType(type)"
+            :label="formatIncidentType(String(type))"
             :value="weight"
           />
         </UCard>
@@ -77,7 +77,7 @@
           <SettingItem
             v-for="(range, type) in settings.incident.difficulty_ranges"
             :key="type"
-            :label="formatIncidentType(type)"
+            :label="formatIncidentType(String(type))"
             :value="`${range[0]} - ${range[1]}`"
           />
         </UCard>
@@ -414,7 +414,7 @@ import UCard from '@/components/ui/UCard.vue'
 import UTabs from '@/components/ui/UTabs.vue'
 import SettingItem from '@/components/SettingItem.vue'
 
-const { showError } = useToast()
+const { error: showError } = useToast()
 
 const activeTab = ref('game-loop')
 const tabs = [

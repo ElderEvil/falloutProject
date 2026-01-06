@@ -65,8 +65,7 @@ const handleAssign = async () => {
 }
 
 const handleRecall = () => {
-  // TODO: Implement recall from exploration
-  console.log('Recall from exploration - coming soon')
+  // TODO (v1.14): Implement recall from exploration
 }
 
 const generateDwellerInfo = async () => {

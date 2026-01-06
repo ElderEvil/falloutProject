@@ -74,7 +74,7 @@ const filteredRelationships = computed(() => {
       acquaintance: 3,
       ex: 4,
     }
-    return priority[a.relationship_type] - priority[b.relationship_type]
+    return (priority[a.relationship_type] ?? 5) - (priority[b.relationship_type] ?? 5)
   })
 })
 

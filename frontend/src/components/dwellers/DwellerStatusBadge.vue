@@ -4,7 +4,7 @@ import { Icon } from '@iconify/vue'
 import type { DwellerStatus } from '@/stores/dweller'
 
 interface Props {
-  status: DwellerStatus
+  status: DwellerStatus | null
   size?: 'small' | 'medium' | 'large'
   showLabel?: boolean
 }

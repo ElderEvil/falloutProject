@@ -2,18 +2,24 @@ import { defineStore } from 'pinia'
 import { useLocalStorage, useIntervalFn } from '@vueuse/core'
 import { ref, computed } from 'vue'
 import axios from '@/plugins/axios'
-import { useRouter } from 'vue-router'
 import type { components } from '@/types/api.generated'
 
 // Use generated API types
-type GameState = components['schemas']['GameState']
-type Vault = components['schemas']['VaultRead']
+type VaultWithNumbers = components['schemas']['VaultReadWithNumbers']
+
+// GameState type (not yet in API schemas)
+interface GameState {
+  is_paused: boolean
+  paused_at?: string | null
+  resumed_at?: string | null
+  total_game_time?: number
+}
 
 export const useVaultStore = defineStore('vault', () => {
   // State
-  const vaults = ref<Vault[]>([])
+  const vaults = ref<VaultWithNumbers[]>([])
   const selectedVaultId = useLocalStorage<string | null>('selectedVaultId', null)
-  const loadedVaults = ref<Record<string, Vault>>({})
+  const loadedVaults = ref<Record<string, VaultWithNumbers>>({})
   const activeVaultId = ref<string | null>(null)
   const isLoading = ref(false)
   const gameState = ref<GameState | null>(null)

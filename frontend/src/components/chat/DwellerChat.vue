@@ -18,7 +18,7 @@ const userMessage = ref('')
 const chatMessages = ref<HTMLElement | null>(null)
 const isTyping = ref(false)
 
-const userAvatar = computed(() => authStore.user?.avatar_url)
+const userAvatar = computed(() => undefined as string | undefined)
 const dwellerAvatarUrl = computed(() => props.dwellerAvatar ? `http://${props.dwellerAvatar}` : '')
 
 const loadChatHistory = async () => {

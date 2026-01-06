@@ -8,7 +8,7 @@ import { happinessService, type HappinessModifiers } from '@/services/happinessS
 import type { components } from '@/types/api.generated';
 import type { VisualAttributes } from '@/models/dweller';
 
-type DwellerDetailRead = components['schemas']['DwellerDetailRead'];
+type DwellerDetailRead = components['schemas']['DwellerReadFull'];
 
 interface Props {
   dweller: DwellerDetailRead;
@@ -123,7 +123,7 @@ const visualAttributesTooltip = computed(() => {
 
   if (attrs.height) lines.push(`Height: ${capitalize(attrs.height)}`);
   if (attrs.hair_color || attrs.hair_style) {
-    const hair = [attrs.hair_style, attrs.hair_color].filter(Boolean).map(capitalize).join(', ');
+    const hair = [attrs.hair_style, attrs.hair_color].filter((v): v is string => Boolean(v)).map(capitalize).join(', ');
     lines.push(`Hair: ${hair}`);
   }
   if (attrs.eye_color) lines.push(`Eyes: ${capitalize(attrs.eye_color)}`);

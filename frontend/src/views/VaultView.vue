@@ -136,10 +136,10 @@ const loadVaultData = async (id: string) => {
     try {
       await vaultStore.fetchGameState(id, authStore.token)
       if (!vaultStore.gameState?.is_paused) {
-        vaultStore.startResourcePolling(id, authStore.token)
+        vaultStore.startResourcePolling()
       }
     } catch (error) {
-      console.warn('Game state not available, continuing without it', error)
+      // Game state not available, continuing without it
     }
 
     // Start incident polling

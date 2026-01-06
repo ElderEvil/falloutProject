@@ -25,20 +25,24 @@ const damageRange = computed(() => getDamageRange(props.weapon))
 
 const weaponIcon = computed(() => {
   switch (props.weapon.weapon_subtype) {
-    case 'PISTOL':
+    case 'pistol':
       return 'mdi:pistol'
-    case 'RIFLE':
+    case 'rifle':
       return 'mdi:rifle'
-    case 'SHOTGUN':
+    case 'shotgun':
       return 'mdi:shotgun'
-    case 'HEAVY':
-      return 'mdi:cannon'
-    case 'BLADE':
+    case 'automatic':
+      return 'mdi:rifle'
+    case 'explosive':
+      return 'mdi:bomb'
+    case 'flamer':
+      return 'mdi:fire'
+    case 'edged':
       return 'mdi:sword'
-    case 'BLUNT':
+    case 'blunt':
       return 'mdi:hammer'
-    case 'FIST':
-      return 'mdi:hand-back-right'
+    case 'pointed':
+      return 'mdi:spear'
     default:
       return 'mdi:pistol'
   }

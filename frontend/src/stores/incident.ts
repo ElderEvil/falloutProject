@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { incidentApi } from '@/api/incident'
 import type { Incident, IncidentListResponse } from '@/models/incident'
-import { useNotificationStore } from './notification'
+import { useToast } from '@/composables/useToast'
 
 export const useIncidentStore = defineStore('incident', () => {
   const incidents = ref<Map<string, Incident>>(new Map())
@@ -10,7 +10,7 @@ export const useIncidentStore = defineStore('incident', () => {
   const isPolling = ref(false)
   const pollInterval = ref<number | null>(null)
 
-  const notificationStore = useNotificationStore()
+  const { success: showSuccess, error: showError } = useToast()
 
   // Computed
   const activeIncidents = computed(() => {
@@ -34,11 +34,8 @@ export const useIncidentStore = defineStore('incident', () => {
     try {
       const response: IncidentListResponse = await incidentApi.getActiveIncidents(vaultId, token)
 
-      console.log('[IncidentStore] fetchIncidents response:', response)
-
       // Safety check
       if (!response || !response.incidents || !Array.isArray(response.incidents)) {
-        console.warn('Invalid response from getActiveIncidents:', response)
         activeIncidentIds.value = []
         return
       }
@@ -53,9 +50,8 @@ export const useIncidentStore = defineStore('incident', () => {
         spawned.forEach((id) => {
           const incident = response.incidents.find((inc) => inc.id === id)
           if (incident) {
-            notificationStore.error(
-              'Incident Alert!',
-              `${incident.type.replace('_', ' ').toUpperCase()} in vault!`
+            showError(
+              `Incident Alert! ${incident.type.replace('_', ' ').toUpperCase()} in vault!`
             )
           }
         })
@@ -93,20 +89,18 @@ export const useIncidentStore = defineStore('incident', () => {
 
       // Show loot notification
       if (success && response.caps_earned > 0) {
-        notificationStore.success(
-          'Incident Resolved!',
-          `Earned ${response.caps_earned} caps`
+        showSuccess(
+          `Incident Resolved! Earned ${response.caps_earned} caps`
         )
       }
 
       return Promise.resolve()
-    } catch (error) {
-      console.error('Failed to resolve incident:', error)
-      notificationStore.error(
-        'Resolution Failed',
-        'Failed to resolve incident'
+    } catch (err) {
+      console.error('Failed to resolve incident:', err)
+      showError(
+        'Resolution Failed: Failed to resolve incident'
       )
-      throw error
+      throw err
     }
   }
 
@@ -150,24 +144,23 @@ export const useIncidentStore = defineStore('incident', () => {
       const result = await incidentApi.spawnIncident(vaultId, token, incidentType)
 
       // Show success notification
-      notificationStore.success(
-        'Incident Spawned',
-        `${result.type.replace(/_/g, ' ')} spawned (Difficulty: ${result.difficulty})`
+      showSuccess(
+        `Incident Spawned: ${result.type.replace(/_/g, ' ')} (Difficulty: ${result.difficulty})`
       )
 
       // Immediately fetch updated incidents
       await fetchIncidents(vaultId, token)
-    } catch (error: unknown) {
-      console.error('Failed to spawn incident:', error)
+    } catch (err: unknown) {
+      console.error('Failed to spawn incident:', err)
 
       let errorMessage = 'Failed to spawn incident'
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: { detail?: string } } }
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosError = err as { response?: { data?: { detail?: string } } }
         errorMessage = axiosError.response?.data?.detail || errorMessage
       }
 
-      notificationStore.error('Spawn Failed', errorMessage)
-      throw error
+      showError(`Spawn Failed: ${errorMessage}`)
+      throw err
     }
   }
 

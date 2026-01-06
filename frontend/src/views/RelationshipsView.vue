@@ -104,7 +104,7 @@ async function handleProcessBreeding() {
       await Promise.all([
         relationshipStore.fetchVaultRelationships(vaultId.value),
         relationshipStore.fetchVaultPregnancies(vaultId.value),
-        dwellerStore.fetchDwellersByVault(vaultId.value, relationshipStore.token)
+        dwellerStore.fetchDwellersByVault(vaultId.value, relationshipStore.token!)
       ]);
     }
   } catch (error) {
@@ -119,7 +119,7 @@ onMounted(async () => {
     await Promise.all([
       relationshipStore.fetchVaultRelationships(vaultId.value),
       relationshipStore.fetchVaultPregnancies(vaultId.value),
-      dwellerStore.fetchDwellersByVault(vaultId.value, relationshipStore.token)
+      dwellerStore.fetchDwellersByVault(vaultId.value, relationshipStore.token!)
     ]);
   }
 });
@@ -210,7 +210,7 @@ onMounted(async () => {
               <button
                 v-for="stage in stages"
                 :key="stage.id"
-                @click="activeStage = stage.id"
+                @click="activeStage = stage.id as 'forming' | 'partners' | 'pregnancies' | 'children'"
                 :class="['stage-tab', { active: activeStage === stage.id }]"
               >
                 <Icon :icon="stage.icon" class="mr-2" />

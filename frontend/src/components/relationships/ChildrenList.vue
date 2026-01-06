@@ -24,7 +24,7 @@
         <div class="child-details">
           <div class="detail-row">
             <span class="detail-label">Gender:</span>
-            <span class="detail-value">{{ child.gender }}</span>
+            <span class="detail-value">{{ (child as any).gender || 'Unknown' }}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Health:</span>

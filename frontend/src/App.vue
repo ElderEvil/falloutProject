@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { provide } from 'vue'
 import DefaultLayout from '@/components/layout/DefaultLayout.vue'
-import UNotificationContainer from '@/components/ui/UNotificationContainer.vue'
 import UToastContainer from '@/components/ui/UToastContainer.vue'
 import { useVisualEffects } from '@/composables/useVisualEffects'
 import { useTheme } from '@/composables/useTheme'
@@ -32,6 +31,5 @@ provide('availableThemes', availableThemes)
   <DefaultLayout :isFlickering="flickering">
     <router-view></router-view>
   </DefaultLayout>
-  <UNotificationContainer />
   <UToastContainer />
 </template>

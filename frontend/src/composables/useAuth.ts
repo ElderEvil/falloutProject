@@ -1,10 +1,8 @@
 import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { useRouter } from 'vue-router'
 
 export function useAuth() {
   const authStore = useAuthStore()
-  const router = useRouter()
 
   return {
     // State

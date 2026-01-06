@@ -24,13 +24,16 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const getRarityColor = (rarity: string): string => {
+const getRarityColor = (rarity?: string): string => {
   const colors: Record<string, string> = {
     Common: '#808080',
     Rare: '#4169E1',
     Legendary: '#FFD700'
   }
-  return colors[rarity] || colors.Common
+  if (rarity && colors[rarity]) {
+    return colors[rarity]!
+  }
+  return colors.Common!
 }
 </script>
 

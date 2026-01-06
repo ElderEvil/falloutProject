@@ -1,7 +1,8 @@
 import type { components } from '@/types/api.generated'
 
 // Re-export generated API types
-export type Dweller = components['schemas']['DwellerRead']
+// Dweller is the full type with all relations (vault, room, weapon, outfit)
+export type Dweller = components['schemas']['DwellerReadFull']
 export type DwellerFull = components['schemas']['DwellerReadFull']
 export type DwellerShort = components['schemas']['DwellerReadLess']
 export type DwellerCreate = components['schemas']['DwellerCreate']

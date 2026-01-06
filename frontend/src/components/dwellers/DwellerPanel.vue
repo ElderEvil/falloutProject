@@ -5,10 +5,10 @@ import DwellerBio from './DwellerBio.vue'
 import DwellerStats from './DwellerStats.vue'
 import DwellerEquipment from './DwellerEquipment.vue'
 import DwellerAppearance from './DwellerAppearance.vue'
-import type { DwellerDetailRead } from '@/types/dweller'
+import type { Dweller } from '@/models/dweller'
 
 interface Props {
-  dweller: DwellerDetailRead
+  dweller: Dweller
   generatingBio?: boolean
   generatingAppearance?: boolean
 }

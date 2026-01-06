@@ -17,9 +17,9 @@ import { toApiError, isAxiosError } from '@/types/utils'
  * })
  *
  * if (result.success) {
- *   console.log(result.data)
+ *   // Use result.data
  * } else {
- *   console.error(result.error.message)
+ *   // Handle result.error.message
  * }
  * ```
  */

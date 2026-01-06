@@ -81,7 +81,7 @@ const roomStatus = computed(() => 'Operational')
 
 // Calculate production rate based on dwellers and room stats
 const productionInfo = computed(() => {
-  if (!props.room || !props.room.ability || props.room.category !== 'PRODUCTION') {
+  if (!props.room || !props.room.ability || props.room.category !== 'production') {
     return null
   }
 
@@ -89,7 +89,7 @@ const productionInfo = computed(() => {
   const dwellers = assignedDwellers.value
 
   // Calculate ability sum (sum of relevant SPECIAL stat)
-  const abilityKey = room.ability.toLowerCase() as 'strength' | 'perception' | 'endurance' | 'charisma' | 'intelligence' | 'agility' | 'luck'
+  const abilityKey = room.ability!.toLowerCase() as 'strength' | 'perception' | 'endurance' | 'charisma' | 'intelligence' | 'agility' | 'luck'
   const abilitySum = dwellers.reduce((sum, dweller) => {
     const value = dweller[abilityKey]
     return sum + (typeof value === 'number' ? value : 0)
@@ -104,7 +104,7 @@ const productionInfo = computed(() => {
 
   // Determine resource type
   let resourceType = 'Unknown'
-  const abilityUpper = room.ability.toUpperCase()
+  const abilityUpper = room.ability!.toUpperCase()
   switch (abilityUpper) {
     case 'STRENGTH':
       resourceType = 'Power'
@@ -218,7 +218,7 @@ const handleUnassignAll = async () => {
   try {
     // Unassign each dweller (set room_id to null)
     for (const dweller of assignedDwellers.value) {
-      await dwellerStore.assignDwellerToRoom(dweller.id, null, authStore.token as string)
+      await dwellerStore.unassignDwellerFromRoom(dweller.id, authStore.token as string)
     }
     emit('roomUpdated')
   } catch (error) {
@@ -336,7 +336,7 @@ watch(() => props.modelValue, (newValue) => {
               >
                 <template v-if="assignedDwellers[slot - 1]">
                   <div class="placeholder-dweller">
-                    <span class="dweller-initial">{{ assignedDwellers[slot - 1].first_name[0] }}</span>
+                    <span class="dweller-initial">{{ assignedDwellers[slot - 1]?.first_name[0] }}</span>
                   </div>
                 </template>
                 <template v-else>

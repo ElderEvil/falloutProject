@@ -1,47 +1,23 @@
-// Weapon types
-export enum WeaponType {
-  MELEE = 'MELEE',
-  RANGED = 'RANGED'
-}
+// Weapon types (matching API)
+export type WeaponType = 'melee' | 'gun' | 'energy' | 'heavy'
+export type WeaponSubtype = 'blunt' | 'edged' | 'pointed' | 'pistol' | 'rifle' | 'shotgun' | 'automatic' | 'explosive' | 'flamer'
 
-export enum WeaponSubtype {
-  FIST = 'FIST',
-  BLADE = 'BLADE',
-  BLUNT = 'BLUNT',
-  PISTOL = 'PISTOL',
-  RIFLE = 'RIFLE',
-  SHOTGUN = 'SHOTGUN',
-  HEAVY = 'HEAVY'
-}
+// Outfit types (matching API)
+export type OutfitType = 'common_outfit' | 'rare_outfit' | 'legendary_outfit' | 'power_armor' | 'tiered_outfit'
 
-// Outfit types
-export enum OutfitType {
-  CASUAL = 'CASUAL',
-  WORK = 'WORK',
-  COMBAT = 'COMBAT',
-  SPECIAL = 'SPECIAL'
-}
+// Gender types (matching API)
+export type Gender = 'male' | 'female'
 
-export enum Gender {
-  MALE = 'MALE',
-  FEMALE = 'FEMALE'
-}
-
-// Rarity levels
-export enum Rarity {
-  COMMON = 'COMMON',
-  UNCOMMON = 'UNCOMMON',
-  RARE = 'RARE',
-  LEGENDARY = 'LEGENDARY'
-}
+// Rarity levels (matching API)
+export type Rarity = 'common' | 'rare' | 'legendary'
 
 // Base item interface
 export interface ItemBase {
   id: string
   name: string
-  description: string
+  description?: string
   rarity: Rarity
-  value: number
+  value?: number | null
   icon_url?: string
 }
 
@@ -78,13 +54,11 @@ export interface Outfit extends ItemBase {
 // Helper function to get rarity color
 export function getRarityColor(rarity: Rarity): string {
   switch (rarity) {
-    case Rarity.COMMON:
+    case 'common':
       return '#9CA3AF' // gray-400
-    case Rarity.UNCOMMON:
-      return '#10B981' // green-500
-    case Rarity.RARE:
+    case 'rare':
       return '#3B82F6' // blue-500
-    case Rarity.LEGENDARY:
+    case 'legendary':
       return '#F59E0B' // amber-500
     default:
       return '#9CA3AF'

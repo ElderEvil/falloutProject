@@ -28,7 +28,7 @@ const formattedAttributes = computed(() => {
   if (attrs.height) formatted.push({ label: 'Height', value: capitalize(attrs.height) });
   if (attrs.build) formatted.push({ label: 'Build', value: capitalize(attrs.build) });
   if (attrs.hair_style || attrs.hair_color) {
-    const hair = [attrs.hair_style, attrs.hair_color].filter(Boolean).map(capitalize).join(', ');
+    const hair = [attrs.hair_style, attrs.hair_color].filter((val): val is string => Boolean(val)).map(capitalize).join(', ');
     formatted.push({ label: 'Hair', value: hair });
   }
   if (attrs.eye_color) formatted.push({ label: 'Eyes', value: capitalize(attrs.eye_color) });

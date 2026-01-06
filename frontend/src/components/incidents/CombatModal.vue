@@ -116,7 +116,7 @@
 
     <template #footer>
       <div class="modal-footer">
-        <UButton @click="handleResolve(true)" variant="success" :disabled="isResolving">
+        <UButton @click="handleResolve(true)" variant="primary" :disabled="isResolving">
           {{ isResolving ? 'RESOLVING...' : 'RESOLVE INCIDENT' }}
         </UButton>
         <UButton @click="handleResolve(false)" variant="danger" :disabled="isResolving">

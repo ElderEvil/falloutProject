@@ -25,13 +25,15 @@ const bonuses = computed(() => getOutfitBonuses(props.outfit))
 
 const outfitIcon = computed(() => {
   switch (props.outfit.outfit_type) {
-    case 'CASUAL':
+    case 'common_outfit':
       return 'mdi:tshirt-crew'
-    case 'WORK':
+    case 'rare_outfit':
       return 'mdi:hard-hat'
-    case 'COMBAT':
+    case 'legendary_outfit':
       return 'mdi:shield'
-    case 'SPECIAL':
+    case 'power_armor':
+      return 'mdi:robot'
+    case 'tiered_outfit':
       return 'mdi:star'
     default:
       return 'mdi:tshirt-crew'

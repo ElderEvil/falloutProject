@@ -277,7 +277,7 @@ const distributionPercentage = (count: number) => {
         <div class="actions-grid">
           <UButton
             v-if="idleDwellerCount > 0"
-            variant="outline"
+            variant="secondary"
             size="sm"
             @click="emit('assign-idle')"
             class="action-button"
@@ -288,7 +288,7 @@ const distributionPercentage = (count: number) => {
 
           <UButton
             v-if="!radioHappinessMode"
-            variant="outline"
+            variant="secondary"
             size="sm"
             @click="emit('activate-radio')"
             class="action-button"
@@ -299,7 +299,7 @@ const distributionPercentage = (count: number) => {
 
           <UButton
             v-if="dwellerDistribution.critical > 0 || dwellerDistribution.low > 0"
-            variant="outline"
+            variant="secondary"
             size="sm"
             @click="emit('view-low-happiness')"
             class="action-button"

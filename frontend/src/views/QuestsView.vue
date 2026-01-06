@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useQuestStore } from '@/stores/quest'
 import { useVaultStore } from '@/stores/vault'
 import { useRoomStore } from '@/stores/room'
+import { useAuthStore } from '@/stores/auth'
 import SidePanel from '@/components/common/SidePanel.vue'
 import { useSidePanel } from '@/composables/useSidePanel'
 import { Icon } from '@iconify/vue'
@@ -12,6 +13,7 @@ const route = useRoute()
 const questStore = useQuestStore()
 const vaultStore = useVaultStore()
 const roomStore = useRoomStore()
+const authStore = useAuthStore()
 const { isCollapsed } = useSidePanel()
 const activeTab = ref<'active' | 'completed'>('active')
 
@@ -24,9 +26,12 @@ const hasOverseerOffice = computed(() => {
   )
 })
 
-onMounted(() => {
+onMounted(async () => {
   if (vaultId.value) {
-    roomStore.fetchRooms(vaultId.value)
+    // Fetch rooms first (requires token)
+    if (authStore.token) {
+      await roomStore.fetchRooms(vaultId.value, authStore.token)
+    }
     if (hasOverseerOffice.value) {
       questStore.fetchVaultQuests(vaultId.value)
       questStore.fetchAllQuests()

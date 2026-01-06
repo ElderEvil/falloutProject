@@ -40,6 +40,7 @@
 import { computed, onMounted, ref, onUnmounted } from 'vue'
 import { usePregnancyStore } from '@/stores/pregnancy'
 import { useDwellerStore } from '@/stores/dweller'
+import { useAuthStore } from '@/stores/auth'
 import PregnancyCard from './PregnancyCard.vue'
 import UButton from '@/components/ui/UButton.vue'
 import UBadge from '@/components/ui/UBadge.vue'
@@ -57,6 +58,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const pregnancyStore = usePregnancyStore()
 const dwellerStore = useDwellerStore()
+const authStore = useAuthStore()
 
 const pregnancies = computed(() => pregnancyStore.activePregnancies)
 const isLoading = computed(() => pregnancyStore.isLoading)
@@ -91,7 +93,7 @@ async function deliverBaby(pregnancyId: string) {
     const result = await pregnancyStore.deliverBaby(pregnancyId)
     if (result) {
       // Refresh dwellers to show new baby
-      await dwellerStore.fetchVaultDwellers(props.vaultId)
+      await dwellerStore.fetchDwellersByVault(props.vaultId, authStore.token!)
     }
   } finally {
     deliveringId.value = null

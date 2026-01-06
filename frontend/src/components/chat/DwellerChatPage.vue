@@ -57,7 +57,7 @@ onMounted(async () => {
         :dweller-id="dwellerId"
         :dweller-name="dweller.first_name"
         :username="username"
-        :dweller-avatar="dweller.thumbnail_url"
+        :dweller-avatar="dweller.thumbnail_url ?? undefined"
       />
       <p v-else>Please wait while we set up the chat...</p>
     </div>

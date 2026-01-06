@@ -2,11 +2,9 @@ import { defineStore } from 'pinia'
 import { useLocalStorage, useIntervalFn } from '@vueuse/core'
 import { ref, computed } from 'vue'
 import axios from '@/plugins/axios'
-import { useRouter } from 'vue-router'
 import type { components } from '@/types/api.generated'
 
 // Use generated API types
-type Vault = components['schemas']['VaultRead']
 type VaultWithNumbers = components['schemas']['VaultReadWithNumbers']
 
 // GameState type (not yet in API schemas)

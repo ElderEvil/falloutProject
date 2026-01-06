@@ -139,7 +139,7 @@ const loadVaultData = async (id: string) => {
         vaultStore.startResourcePolling()
       }
     } catch (error) {
-      console.warn('Game state not available, continuing without it', error)
+      // Game state not available, continuing without it
     }
 
     // Start incident polling

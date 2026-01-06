@@ -66,7 +66,7 @@ const happinessLabel = computed(() => {
   }
 });
 
-// TODO: Calculate trend from historical data
+// TODO (v1.14): Calculate trend from historical data
 const happinessTrend = computed(() => {
   // For now, show stable
   return 'stable'; // 'increasing' | 'decreasing' | 'stable'

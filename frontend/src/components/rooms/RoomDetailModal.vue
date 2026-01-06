@@ -252,7 +252,7 @@ const getDwellerStatValue = (dweller: DwellerShort, ability: string) => {
 const handleRushProduction = async () => {
   if (!props.room) return
 
-  // TODO: Implement rush production logic
+  // TODO (v1.14): Implement rush production logic
   // - Calculate rush cost (caps)
   // - Calculate incident probability
   // - Show confirmation dialog with risk percentage
@@ -313,7 +313,7 @@ watch(() => props.modelValue, (newValue) => {
       </div>
 
       <!-- Room Visual Preview Section -->
-      <!-- TODO: This section will render room sprite and dweller sprites in the future -->
+      <!-- TODO (v1.15): This section will render room sprite and dweller sprites in the future -->
       <div class="section room-preview-section">
         <h3 class="section-title">
           <Icon icon="mdi:image-outline" class="h-5 w-5" />

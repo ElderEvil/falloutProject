@@ -2,7 +2,6 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import axios from '@/plugins/axios'
 import type { Objective, ObjectiveCreate } from '@/models/objective'
-import { getErrorMessage } from '@/types/utils'
 
 export const useObjectivesStore = defineStore('objectives', () => {
   // State

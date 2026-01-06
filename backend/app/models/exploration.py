@@ -54,8 +54,8 @@ class ExplorationBase(SQLModel):
 class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
     """Exploration model with relationships."""
 
-    vault_id: UUID4 = Field(foreign_key="vault.id", index=True)
-    dweller_id: UUID4 = Field(foreign_key="dweller.id", index=True)
+    vault_id: UUID4 = Field(foreign_key="vault.id", index=True, ondelete="CASCADE")
+    dweller_id: UUID4 = Field(foreign_key="dweller.id", index=True, ondelete="CASCADE")
 
     def is_active(self) -> bool:
         """Check if exploration is still active."""

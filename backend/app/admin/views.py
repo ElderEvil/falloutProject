@@ -1,10 +1,12 @@
 from sqladmin import ModelView
 
 from app.models import LLMInteraction, Objective, Storage
+from app.models.chat_message import ChatMessage
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration
 from app.models.incident import Incident
 from app.models.junk import Junk
+from app.models.notification import Notification
 from app.models.outfit import Outfit
 from app.models.pregnancy import Pregnancy
 from app.models.prompt import Prompt
@@ -339,3 +341,56 @@ class ExplorationAdmin(ModelView, model=Exploration):
     can_create = False
     can_edit = True
     can_delete = False
+
+
+class ChatMessageAdmin(ModelView, model=ChatMessage):
+    column_list = [
+        ChatMessage.id,
+        ChatMessage.vault_id,
+        ChatMessage.from_user_id,
+        ChatMessage.from_dweller_id,
+        ChatMessage.to_user_id,
+        ChatMessage.to_dweller_id,
+        ChatMessage.message_text,
+        ChatMessage.llm_interaction_id,
+        ChatMessage.created_at,
+    ]
+    column_searchable_list = [ChatMessage.message_text]
+    column_sortable_list = [ChatMessage.created_at]
+    column_default_sort = [(ChatMessage.created_at, True)]
+
+    name = "Chat Message"
+    name_plural = "Chat Messages"
+    icon = "fa-solid fa-message"
+
+    can_create = False
+    can_edit = False
+    can_delete = True
+
+
+class NotificationAdmin(ModelView, model=Notification):
+    column_list = [
+        Notification.id,
+        Notification.user_id,
+        Notification.vault_id,
+        Notification.from_dweller_id,
+        Notification.notification_type,
+        Notification.priority,
+        Notification.title,
+        Notification.message,
+        Notification.is_read,
+        Notification.is_dismissed,
+        Notification.created_at,
+        Notification.read_at,
+    ]
+    column_searchable_list = [Notification.title, Notification.message]
+    column_sortable_list = [Notification.created_at, Notification.priority, Notification.notification_type]
+    column_default_sort = [(Notification.created_at, True)]
+
+    name = "Notification"
+    name_plural = "Notifications"
+    icon = "fa-solid fa-bell"
+
+    can_create = False
+    can_edit = True
+    can_delete = True

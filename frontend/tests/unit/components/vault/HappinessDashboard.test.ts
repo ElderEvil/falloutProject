@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mount } from '@vue/test-utils';
-import HappinessDashboard from './HappinessDashboard.vue';
+import HappinessDashboard from '@/components/vault/HappinessDashboard.vue';
 
 describe('HappinessDashboard', () => {
   const defaultProps = {
@@ -126,8 +126,15 @@ describe('HappinessDashboard', () => {
       },
     });
 
-    await wrapper.find('button:has-text("Assign Idle Dwellers")').trigger('click');
-    expect(wrapper.emitted('assign-idle')).toBeTruthy();
+    const buttons = wrapper.findAll('button');
+    const assignButton = buttons.find(b => b.text().includes('Assign Idle Dwellers'));
+
+    if (assignButton) {
+      await assignButton.trigger('click');
+      expect(wrapper.emitted('assign-idle')).toBeTruthy();
+    } else {
+      throw new Error('Assign Idle Dwellers button not found');
+    }
   });
 
   it('should emit activate-radio event when button clicked', async () => {

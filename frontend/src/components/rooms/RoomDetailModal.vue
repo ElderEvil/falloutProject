@@ -81,7 +81,7 @@ const roomStatus = computed(() => 'Operational')
 
 // Calculate production rate based on dwellers and room stats
 const productionInfo = computed(() => {
-  if (!props.room || !props.room.ability || props.room.category !== 'production') {
+  if (!props.room || !props.room.ability || props.room.category?.toLowerCase() !== 'production') {
     return null
   }
 

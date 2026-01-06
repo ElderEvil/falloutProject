@@ -2,6 +2,7 @@
 
 import logging
 import random
+from datetime import UTC
 
 from pydantic import UUID4
 from sqlmodel import select
@@ -44,6 +45,22 @@ class IncidentService:
 
         if dweller_count < game_config.incident.min_vault_population:
             return False
+
+        # Check if max active incidents reached
+        from app.crud.incident import incident_crud
+
+        active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
+        if len(active_incidents) >= game_config.incident.max_active_incidents:
+            return False
+
+        # Check cooldown period (if there are any incidents, check the most recent one)
+        if active_incidents:
+            from datetime import datetime
+
+            most_recent = max(active_incidents, key=lambda i: i.start_time)
+            seconds_since_last = (datetime.now(UTC) - most_recent.start_time).total_seconds()
+            if seconds_since_last < game_config.incident.spawn_cooldown_seconds:
+                return False
 
         # Calculate spawn chance based on time passed
         hours_passed = seconds_passed / 3600

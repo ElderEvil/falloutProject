@@ -97,6 +97,11 @@ class VaultService:
         radio_studio_data = self._prepare_room_data(rooms, "radio studio", vault_id, 2, 3)
         misc_rooms = [RoomCreate(**radio_studio_data)]
 
+        # Add Overseer's Office for superuser
+        if is_superuser:
+            overseer_office_data = self._prepare_room_data(rooms, "overseer's office", vault_id, 6, 2)
+            misc_rooms.append(RoomCreate(**overseer_office_data))
+
         # Training rooms (superuser only)
         training_rooms = []
         if is_superuser:

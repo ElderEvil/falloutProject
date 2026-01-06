@@ -288,7 +288,7 @@ const handleIncidentResolved = async () => {
           <ResourceBar :current="water.current" :max="water.max" icon="mdi:water" label="Water" />
         </div>
 
-        <!-- Bottle Caps, Game Controls and Build Button -->
+        <!-- Bottle Caps and Game Controls -->
         <div class="flex items-center space-x-4">
           <UTooltip :text="`Bottle Caps: ${bottleCaps}\nVault currency for construction and upgrades`" position="bottom">
             <div class="flex items-center space-x-2 cursor-help" tabindex="0">
@@ -297,7 +297,6 @@ const handleIncidentResolved = async () => {
             </div>
           </UTooltip>
           <GameControlPanel v-if="vaultId" :vaultId="vaultId" />
-          <BuildModeButton :buildModeActive="buildModeActive" @toggleBuildMode="toggleBuildMode" />
         </div>
       </div>
 
@@ -316,15 +315,22 @@ const handleIncidentResolved = async () => {
         <WastelandPanel />
       </div>
 
-      <!-- Room Grid -->
-      <RoomGrid
-        :selectedRoom="selectedRoom"
-        :isPlacingRoom="isPlacingRoom"
-        :incidents="activeIncidents"
-        :highlightedRoomId="highlightedRoomId"
-        @roomPlaced="handleRoomPlaced"
-        @incidentClicked="handleIncidentClicked"
-      />
+      <!-- Room Grid with Floating Build Button -->
+      <div class="relative">
+        <RoomGrid
+          :selectedRoom="selectedRoom"
+          :isPlacingRoom="isPlacingRoom"
+          :incidents="activeIncidents"
+          :highlightedRoomId="highlightedRoomId"
+          @roomPlaced="handleRoomPlaced"
+          @incidentClicked="handleIncidentClicked"
+        />
+
+        <!-- Floating Build Button -->
+        <div class="floating-build-button">
+          <BuildModeButton :buildModeActive="buildModeActive" @toggleBuildMode="toggleBuildMode" />
+        </div>
+      </div>
 
       <!-- Build Menu -->
       <RoomMenu
@@ -378,5 +384,23 @@ const handleIncidentResolved = async () => {
 .main-content span,
 .main-content div {
   text-shadow: 0 0 2px var(--color-theme-glow);
+}
+
+/* Floating Build Button */
+.floating-build-button {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10;
+  animation: subtlePulse 3s ease-in-out infinite;
+}
+
+@keyframes subtlePulse {
+  0%, 100% {
+    opacity: 0.95;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 </style>

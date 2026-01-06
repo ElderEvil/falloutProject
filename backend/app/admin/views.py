@@ -19,6 +19,8 @@ from app.models.user_profile import UserProfile
 from app.models.vault import Vault
 from app.models.weapon import Weapon
 
+TRUNCATE_LENGTH = 50
+
 
 class UserAdmin(ModelView, model=User):
     column_list = [
@@ -105,9 +107,13 @@ class DwellerAdmin(ModelView, model=Dweller):
         Dweller.happiness,
         Dweller.vault,
         Dweller.room,
-        Dweller.created_at,
-        Dweller.updated_at,
     ]
+
+    column_formatters = {
+        Dweller.bio: lambda m, a: (m.bio[:TRUNCATE_LENGTH] + "...")  # noqa: ARG005
+        if m.bio and len(m.bio) > TRUNCATE_LENGTH
+        else m.bio,
+    }
 
     icon = "fa-solid fa-person"
 
@@ -315,7 +321,7 @@ class IncidentAdmin(ModelView, model=Incident):
 
     can_create = False
     can_edit = True
-    can_delete = False
+    can_delete = True
 
 
 class ExplorationAdmin(ModelView, model=Exploration):
@@ -359,6 +365,14 @@ class ChatMessageAdmin(ModelView, model=ChatMessage):
     column_sortable_list = [ChatMessage.created_at]
     column_default_sort = [(ChatMessage.created_at, True)]
 
+    column_formatters = {
+        ChatMessage.message_text: lambda m, a: (  # noqa: ARG005
+            m.message_text[:TRUNCATE_LENGTH] + "..."
+            if m.message_text and len(m.message_text) > TRUNCATE_LENGTH
+            else m.message_text
+        ),
+    }
+
     name = "Chat Message"
     name_plural = "Chat Messages"
     icon = "fa-solid fa-message"
@@ -386,6 +400,12 @@ class NotificationAdmin(ModelView, model=Notification):
     column_searchable_list = [Notification.title, Notification.message]
     column_sortable_list = [Notification.created_at, Notification.priority, Notification.notification_type]
     column_default_sort = [(Notification.created_at, True)]
+
+    column_formatters = {
+        Notification.message: lambda m, a: (  # noqa: ARG005
+            m.message[:TRUNCATE_LENGTH] + "..." if m.message and len(m.message) > TRUNCATE_LENGTH else m.message
+        ),
+    }
 
     name = "Notification"
     name_plural = "Notifications"

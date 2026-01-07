@@ -27,6 +27,7 @@ const loading = ref(false)
 const generatingAI = ref(false)
 const generatingBio = ref(false)
 const generatingPortrait = ref(false)
+const generatingAppearance = ref(false)
 
 const dweller = computed(() => dwellerStore.detailedDwellers[dwellerId.value])
 
@@ -64,8 +65,7 @@ const handleAssign = async () => {
 }
 
 const handleRecall = () => {
-  // TODO: Implement recall from exploration
-  console.log('Recall from exploration - coming soon')
+  // TODO (v1.14): Implement recall from exploration
 }
 
 const generateDwellerInfo = async () => {
@@ -108,6 +108,20 @@ const generateDwellerPortrait = async () => {
     console.error('Error generating portrait with AI:', error)
   } finally {
     generatingPortrait.value = false
+  }
+}
+
+const generateDwellerAppearance = async () => {
+  generatingAppearance.value = true
+  try {
+    const result = await dwellerStore.generateDwellerAppearance(dwellerId.value, authStore.token as string)
+    if (result) {
+      await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
+    }
+  } catch (error) {
+    console.error('Error generating appearance with AI:', error)
+  } finally {
+    generatingAppearance.value = false
   }
 }
 
@@ -214,8 +228,10 @@ const handleUseRadaway = async () => {
               <DwellerPanel
                 :dweller="dweller"
                 :generating-bio="generatingBio"
+                :generating-appearance="generatingAppearance"
                 @refresh="handleRefresh"
                 @generate-bio="generateDwellerBio"
+                @generate-appearance="generateDwellerAppearance"
               />
             </div>
           </div>

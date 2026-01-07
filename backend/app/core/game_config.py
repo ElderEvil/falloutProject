@@ -67,6 +67,18 @@ class IncidentConfig(BaseSettings):
         ge=0,
         le=10,
     )
+    max_active_incidents: int = Field(
+        default=5,
+        description="Maximum number of active incidents per vault",
+        ge=1,
+        le=20,
+    )
+    spawn_cooldown_seconds: int = Field(
+        default=120,
+        description="Minimum seconds between incident spawns",
+        ge=0,
+        le=600,
+    )
 
     # Difficulty ranges by type
     difficulty_fire: tuple[int, int] = (2, 4)

@@ -5,7 +5,7 @@ import axios from '@/plugins/axios'
 import type { Dweller, DwellerShort } from '@/models/dweller'
 import { useToast } from '@/composables/useToast'
 
-export type DwellerStatus = 'idle' | 'working' | 'exploring' | 'training' | 'resting' | 'dead' | 'unknown'
+export type DwellerStatus = 'idle' | 'working' | 'exploring' | 'training' | 'resting' | 'dead'
 
 export interface DwellerWithStatus extends DwellerShort {
   status: DwellerStatus
@@ -32,12 +32,12 @@ export const useDwellerStore = defineStore('dweller', () => {
    * Get dweller status - now directly from backend
    */
   const getDwellerStatus = computed(() => {
-    return (dwellerId: string): DwellerStatus => {
+    return (dwellerId: string): DwellerStatus | null => {
       const dweller = dwellers.value.find((d) => d.id === dwellerId)
-      if (!dweller) return 'unknown'
+      if (!dweller) return null
 
       // Backend now provides status directly
-      return (dweller.status as DwellerStatus) || 'unknown'
+      return (dweller.status as DwellerStatus) || 'idle'
     }
   })
 
@@ -47,7 +47,7 @@ export const useDwellerStore = defineStore('dweller', () => {
   const dwellersWithStatus = computed((): DwellerWithStatus[] => {
     return dwellers.value.map((dweller) => ({
       ...dweller,
-      status: (dweller.status as DwellerStatus) || 'unknown'
+      status: (dweller.status as DwellerStatus) || 'idle'
     }))
   })
 
@@ -60,7 +60,7 @@ export const useDwellerStore = defineStore('dweller', () => {
         .filter((dweller) => dweller.status === status)
         .map((dweller) => ({
           ...dweller,
-          status: (dweller.status as DwellerStatus) || 'unknown'
+          status: (dweller.status as DwellerStatus) || 'idle'
         }))
     }
   })
@@ -115,7 +115,7 @@ export const useDwellerStore = defineStore('dweller', () => {
     vaultId: string,
     token: string,
     options?: {
-      status?: DwellerStatus
+      status?: DwellerStatus | 'all'
       search?: string
       sortBy?: string
       order?: 'asc' | 'desc'
@@ -154,7 +154,7 @@ export const useDwellerStore = defineStore('dweller', () => {
     token: string,
     forceRefresh = false
   ): Promise<Dweller | null> {
-    if (detailedDwellers.value[id] && !forceRefresh) return detailedDwellers.value[id]
+    if (detailedDwellers.value[id] && !forceRefresh) return detailedDwellers.value[id] ?? null
     try {
       const response = await axios.get(`/api/v1/dwellers/${id}`, {
         headers: {
@@ -162,7 +162,7 @@ export const useDwellerStore = defineStore('dweller', () => {
         }
       })
       detailedDwellers.value[id] = response.data
-      return detailedDwellers.value[id]
+      return detailedDwellers.value[id] ?? null
     } catch (error) {
       console.error(`Failed to fetch details for dweller ${id}`, error)
       return null
@@ -178,7 +178,7 @@ export const useDwellerStore = defineStore('dweller', () => {
       })
       detailedDwellers.value[id] = response.data
       toast.success('AI portrait generated successfully!')
-      return detailedDwellers.value[id]
+      return detailedDwellers.value[id] ?? null
     } catch (error) {
       console.error(`Failed to generate image for dweller ${id}`, error)
       toast.error('Failed to generate AI portrait')
@@ -195,7 +195,7 @@ export const useDwellerStore = defineStore('dweller', () => {
       })
       detailedDwellers.value[id] = response.data
       toast.success('Biography generated successfully!')
-      return detailedDwellers.value[id]
+      return detailedDwellers.value[id] ?? null
     } catch (error) {
       console.error(`Failed to generate biography for dweller ${id}`, error)
       toast.error('Failed to generate biography')
@@ -212,10 +212,27 @@ export const useDwellerStore = defineStore('dweller', () => {
       })
       detailedDwellers.value[id] = response.data
       toast.success('Portrait generated successfully!')
-      return detailedDwellers.value[id]
+      return detailedDwellers.value[id] ?? null
     } catch (error) {
       console.error(`Failed to generate portrait for dweller ${id}`, error)
       toast.error('Failed to generate portrait')
+      return null
+    }
+  }
+
+  async function generateDwellerAppearance(id: string, token: string): Promise<Dweller | null> {
+    try {
+      const response = await axios.post(`/api/v1/dwellers/${id}/generate_visual_attributes/`, null, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+      detailedDwellers.value[id] = response.data
+      toast.success('Appearance generated successfully!')
+      return detailedDwellers.value[id] ?? null
+    } catch (error) {
+      console.error(`Failed to generate appearance for dweller ${id}`, error)
+      toast.error('Failed to generate appearance')
       return null
     }
   }
@@ -234,8 +251,8 @@ export const useDwellerStore = defineStore('dweller', () => {
 
       // Update the dweller in the list
       const dwellerIndex = dwellers.value.findIndex(d => d.id === dwellerId)
-      if (dwellerIndex !== -1) {
-        dwellers.value[dwellerIndex] = { ...dwellers.value[dwellerIndex], room_id: roomId }
+      if (dwellerIndex !== -1 && dwellers.value[dwellerIndex]) {
+        dwellers.value[dwellerIndex] = { ...dwellers.value[dwellerIndex]!, room_id: roomId }
       }
 
       // Update detailed dweller if cached
@@ -267,8 +284,8 @@ export const useDwellerStore = defineStore('dweller', () => {
 
       // Update the dweller in the list
       const dwellerIndex = dwellers.value.findIndex(d => d.id === dwellerId)
-      if (dwellerIndex !== -1) {
-        dwellers.value[dwellerIndex] = { ...dwellers.value[dwellerIndex], room_id: null }
+      if (dwellerIndex !== -1 && dwellers.value[dwellerIndex]) {
+        dwellers.value[dwellerIndex] = { ...dwellers.value[dwellerIndex]!, room_id: null }
       }
 
       // Update detailed dweller if cached
@@ -387,8 +404,8 @@ export const useDwellerStore = defineStore('dweller', () => {
 
       // Update the dweller in the list
       const dwellerIndex = dwellers.value.findIndex(d => d.id === dwellerId)
-      if (dwellerIndex !== -1) {
-        dwellers.value[dwellerIndex] = { ...dwellers.value[dwellerIndex], room_id: response.data.room_id }
+      if (dwellerIndex !== -1 && dwellers.value[dwellerIndex]) {
+        dwellers.value[dwellerIndex] = { ...dwellers.value[dwellerIndex]!, room_id: response.data.room_id }
       }
 
       // Update detailed dweller if cached
@@ -427,6 +444,7 @@ export const useDwellerStore = defineStore('dweller', () => {
     generateDwellerInfo,
     generateDwellerBio,
     generateDwellerPortrait,
+    generateDwellerAppearance,
     assignDwellerToRoom,
     unassignDwellerFromRoom,
     autoAssignToRoom,

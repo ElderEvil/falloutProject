@@ -60,7 +60,7 @@ onMounted(async () => {
 
     // Start resource polling if not paused
     if (!isPaused.value) {
-      vaultStore.startResourcePolling(props.vaultId, authStore.token)
+      vaultStore.startResourcePolling()
     }
   }
 })

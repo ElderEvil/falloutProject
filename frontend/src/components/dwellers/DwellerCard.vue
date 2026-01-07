@@ -6,8 +6,9 @@ import UTooltip from '@/components/ui/UTooltip.vue';
 import XPProgressBar from '@/components/dwellers/XPProgressBar.vue';
 import { happinessService, type HappinessModifiers } from '@/services/happinessService';
 import type { components } from '@/types/api.generated';
+import type { VisualAttributes } from '@/models/dweller';
 
-type DwellerDetailRead = components['schemas']['DwellerDetailRead'];
+type DwellerDetailRead = components['schemas']['DwellerReadFull'];
 
 interface Props {
   dweller: DwellerDetailRead;
@@ -111,6 +112,26 @@ const rarityColor = computed(() => {
 const rarityLabel = computed(() => {
   return props.dweller.rarity || 'Common';
 });
+
+// Visual attributes tooltip helper
+const visualAttributesTooltip = computed(() => {
+  const attrs = props.dweller.visual_attributes as VisualAttributes | null | undefined;
+  if (!attrs) return null;
+
+  const lines: string[] = [];
+  const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
+
+  if (attrs.height) lines.push(`Height: ${capitalize(attrs.height)}`);
+  if (attrs.hair_color || attrs.hair_style) {
+    const hair = [attrs.hair_style, attrs.hair_color].filter((v): v is string => Boolean(v)).map(capitalize).join(', ');
+    lines.push(`Hair: ${hair}`);
+  }
+  if (attrs.eye_color) lines.push(`Eyes: ${capitalize(attrs.eye_color)}`);
+  if (attrs.build) lines.push(`Build: ${capitalize(attrs.build)}`);
+  if (attrs.skin_tone) lines.push(`Skin: ${capitalize(attrs.skin_tone)}`);
+
+  return lines.length > 0 ? lines.join('\n') : null;
+});
 </script>
 
 <template>
@@ -118,7 +139,15 @@ const rarityLabel = computed(() => {
     <!-- Portrait -->
     <div class="portrait-container">
       <template v-if="imageUrl">
+        <UTooltip v-if="visualAttributesTooltip" :text="visualAttributesTooltip" position="right" :multiline="true">
+          <img
+            :src="getImageUrl(imageUrl)"
+            alt="Dweller Portrait"
+            class="portrait-image"
+          />
+        </UTooltip>
         <img
+          v-else
           :src="getImageUrl(imageUrl)"
           alt="Dweller Portrait"
           class="portrait-image"

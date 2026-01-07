@@ -7,8 +7,7 @@ import { z } from 'zod'
 export const vaultNumberSchema = z.object({
   number: z
     .number({
-      required_error: 'Vault number is required',
-      invalid_type_error: 'Vault number must be a number'
+      message: 'Vault number must be a number'
     })
     .int('Vault number must be a whole number')
     .min(0, 'Vault number must be at least 0')

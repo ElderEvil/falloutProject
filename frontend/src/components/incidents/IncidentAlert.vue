@@ -2,7 +2,7 @@
   <div
     class="incident-alert"
     :class="{ pulsing: hasActiveIncidents }"
-    @click="$emit('click', incidents[0]?.id)"
+    @click="incidents[0]?.id && $emit('click', incidents[0].id)"
   >
     <div class="alert-content">
       <!-- Icon -->

@@ -182,7 +182,6 @@ watch(preferencesJson, (newValue) => {
 
 const handleImageError = () => {
   // Could show a placeholder or error message
-  console.warn('Failed to load avatar image')
 }
 
 const handleSubmit = () => {

@@ -24,7 +24,7 @@ export const happinessService = {
    * Get detailed happiness modifiers for a specific dweller
    */
   async getDwellerModifiers(dwellerId: string): Promise<AxiosResponse<HappinessModifiers>> {
-    return await apiClient.get(`/dwellers/${dwellerId}/happiness_modifiers`);
+    return await apiClient.get(`api/v1/dwellers/${dwellerId}/happiness_modifiers`);
   },
 
   /**
@@ -35,7 +35,7 @@ export const happinessService = {
       high: 0,
       medium: 0,
       low: 0,
-      critical: 0,
+      critical: 0
     };
 
     dwellers.forEach((dweller) => {
@@ -70,11 +70,16 @@ export const happinessService = {
   getHappinessColor(happiness: number): string {
     const level = this.getHappinessLevel(happiness);
     switch (level) {
-      case 'high': return 'var(--color-theme-primary)';
-      case 'medium': return '#4ade80';
-      case 'low': return '#fbbf24';
-      case 'critical': return '#ef4444';
-      default: return 'var(--color-theme-primary)';
+      case 'high':
+        return 'var(--color-theme-primary)';
+      case 'medium':
+        return '#4ade80';
+      case 'low':
+        return '#fbbf24';
+      case 'critical':
+        return '#ef4444';
+      default:
+        return 'var(--color-theme-primary)';
     }
-  },
+  }
 };

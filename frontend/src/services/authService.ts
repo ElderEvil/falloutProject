@@ -1,10 +1,11 @@
 import apiClient from '../plugins/axios'
 import type { AxiosResponse } from 'axios'
-import { AuthError, type LoginForm, type RegisterForm, type Token } from '@/types/auth'
+import { AuthError, type Token } from '@/types/auth'
 import type { User } from '@/types/user'
+import type { LoginFormData, RegisterFormData } from '@/schemas/auth'
 
 export const authService = {
-  async login(form: LoginForm): Promise<AxiosResponse<Token>> {
+  async login(form: LoginFormData): Promise<AxiosResponse<Token>> {
     try {
       const formAsRecord: Record<string, string> = {
         username: form.username,
@@ -15,7 +16,7 @@ export const authService = {
       throw new AuthError('Login failed')
     }
   },
-  async register(form: RegisterForm): Promise<AxiosResponse<User>> {
+  async register(form: RegisterFormData): Promise<AxiosResponse<User>> {
     try {
       return await apiClient.post('/users/open', form)
     } catch {

@@ -22,7 +22,7 @@ class GameStateBase(SQLModel):
 class GameState(BaseUUIDModel, GameStateBase, TimeStampMixin, table=True):
     """Game state model linked to a specific vault."""
 
-    vault_id: UUID4 = Field(foreign_key="vault.id", unique=True, index=True)
+    vault_id: UUID4 = Field(foreign_key="vault.id", unique=True, index=True, ondelete="CASCADE")
 
     def calculate_offline_time(self) -> int:
         """Calculate seconds since last tick."""

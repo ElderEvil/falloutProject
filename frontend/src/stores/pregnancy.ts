@@ -60,8 +60,8 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
 
       // Update local state
       const index = pregnancies.value.findIndex((p) => p.id === pregnancyId)
-      if (index !== -1) {
-        pregnancies.value[index].status = 'delivered'
+      if (index !== -1 && pregnancies.value[index]) {
+        pregnancies.value[index]!.status = 'delivered'
       }
 
       toast.success(result.message)

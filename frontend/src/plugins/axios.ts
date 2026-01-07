@@ -1,6 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/auth'
-import { useNotificationStore } from '@/stores/notification'
+import { useToast } from '@/composables/useToast'
 
 interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean
@@ -42,7 +42,7 @@ apiClient.interceptors.response.use(
   },
   async (err: unknown) => {
     const authStore = useAuthStore()
-    const notificationStore = useNotificationStore()
+    const { error: showError } = useToast()
 
     // Type guard to check if error is an AxiosError
     if (!axios.isAxiosError(err)) {
@@ -131,7 +131,7 @@ apiClient.interceptors.response.use(
         details = error.message
       }
 
-      notificationStore.error(title, message, details)
+      showError(`${title}: ${message}${details ? ` (${details})` : ''}`)
     }
 
     return Promise.reject(error)

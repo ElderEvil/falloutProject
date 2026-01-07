@@ -91,6 +91,7 @@ const placeRoom = async (x: number, y: number) => {
         coordinate_x: placementX,
         coordinate_y: y,
         image_url: selectedRoom.image_url,
+        speedup_multiplier: selectedRoom.speedup_multiplier || 1,
         vault_id: vaultId
       },
       authStore.token as string,
@@ -286,7 +287,7 @@ const handleRoomUpdated = async () => {
   const vaultId = route.params.id as string
   if (vaultId && authStore.token) {
     await roomStore.fetchRooms(vaultId, authStore.token)
-    await dwellerStore.fetchDwellers(vaultId, authStore.token)
+    await dwellerStore.fetchDwellersByVault(vaultId, authStore.token)
   }
 }
 

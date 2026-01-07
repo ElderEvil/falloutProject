@@ -65,7 +65,7 @@ onMounted(async () => {
   if (orderParam && ['asc', 'desc'].includes(orderParam)) {
     dwellerStore.setSortDirection(orderParam)
   }
-  if (filterParam && filterParam !== 'all') {
+  if (filterParam && ['idle', 'working', 'exploring', 'training', 'resting', 'dead'].includes(filterParam)) {
     dwellerStore.setFilterStatus(filterParam)
   }
 

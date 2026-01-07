@@ -70,7 +70,7 @@ const loadData = async () => {
     await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token);
 
     // Load incidents
-    await incidentStore.fetchIncidents(vaultId.value);
+    await incidentStore.fetchIncidents(vaultId.value, authStore.token);
   } catch (error) {
     console.error('Failed to load happiness data:', error);
     errorMessage.value = 'Failed to load vault happiness data';

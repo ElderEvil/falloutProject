@@ -39,7 +39,10 @@ const getCategoryIcon = (category: string) => {
     'Production': 'mdi:lightning-bolt',
     'Capacity': 'mdi:home',
     'Training': 'mdi:school',
-    'Misc.': 'mdi:hammer-wrench'
+    'Misc.': 'mdi:hammer-wrench',
+    'Quests': 'mdi:book-open',
+    'Crafting': 'mdi:hammer',
+    'Theme': 'mdi:palette'
   }
   return icons[category] || 'mdi:cube'
 }
@@ -63,13 +66,9 @@ const getCategoryIcon = (category: string) => {
 
       <div class="room-icon">
         <Icon
-          v-if="room.image_url"
           :icon="getCategoryIcon(room.category)"
           class="category-icon"
         />
-        <div v-else class="category-icon-placeholder">
-          <Icon :icon="getCategoryIcon(room.category)" class="w-12 h-12" />
-        </div>
       </div>
 
       <div class="room-details">
@@ -99,92 +98,115 @@ const getCategoryIcon = (category: string) => {
 
 <style scoped>
 .room-menu-item {
-  min-width: 200px;
   padding: 1rem;
-  background: rgba(30, 30, 30, 0.9);
-  border: 2px solid #555;
-  border-radius: 8px;
+  background: rgba(20, 20, 20, 0.95);
+  border: 2px solid #444;
+  border-radius: 4px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s ease;
   font-family: 'Courier New', monospace;
+  position: relative;
+  overflow: hidden;
+}
+
+.room-menu-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 0%, rgba(0, 255, 0, 0.05) 100%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
 }
 
 .room-menu-item.affordable {
   border-color: var(--color-theme-primary);
+  background: rgba(25, 25, 25, 0.95);
+}
+
+.room-menu-item.affordable::before {
+  opacity: 1;
 }
 
 .room-menu-item.affordable:hover {
-  background: rgba(0, 0, 0, 0.5);
   border-color: var(--color-theme-primary);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px var(--color-theme-glow);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(0, 255, 0, 0.2), 0 0 12px var(--color-theme-glow);
+  background: rgba(30, 30, 30, 0.95);
 }
 
 .room-menu-item.expensive {
   border-color: #ff9900;
+  background: rgba(30, 25, 20, 0.95);
 }
 
 .room-menu-item.expensive:hover {
-  background: rgba(80, 40, 0, 0.5);
+  border-color: #ffaa33;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 153, 0, 0.2);
 }
 
 .room-menu-item.locked {
-  border-color: #666;
-  opacity: 0.6;
+  border-color: #555;
+  opacity: 0.5;
   cursor: not-allowed;
+  background: rgba(15, 15, 15, 0.95);
 }
 
 .room-item-content {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.875rem;
+  position: relative;
+  z-index: 1;
 }
 
 .room-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(0, 255, 0, 0.2);
 }
 
 .room-name {
   color: var(--color-theme-primary);
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   font-weight: bold;
+  letter-spacing: 0.025em;
+  text-shadow: 0 0 4px var(--color-theme-glow);
 }
 
 .lock-icon {
-  width: 20px;
-  height: 20px;
-  color: #ff0000;
+  width: 18px;
+  height: 18px;
+  color: #ff4444;
 }
 
 .room-icon {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 60px;
+  height: 64px;
+  margin: 0.25rem 0;
 }
 
 .category-icon {
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   color: var(--color-theme-primary);
+  filter: drop-shadow(0 0 6px var(--color-theme-glow));
+  transition: transform 0.25s ease;
 }
 
-.category-icon-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 50%;
-  padding: 0.5rem;
+.room-menu-item:hover .category-icon {
+  transform: scale(1.1);
 }
 
 .room-details {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  font-size: 0.875rem;
+  gap: 0.4rem;
+  font-size: 0.8rem;
 }
 
 .room-category,
@@ -194,11 +216,15 @@ const getCategoryIcon = (category: string) => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: #aaa;
+  color: #999;
 }
 
 .room-cost {
   color: #fbbf24;
   font-weight: bold;
+}
+
+.room-population {
+  color: #88ccff;
 }
 </style>

@@ -1,11 +1,10 @@
 import json
 import logging
-import random
 from enum import StrEnum
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
-from openai import Client
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import Response
 from pydantic import UUID4, BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -14,59 +13,14 @@ from app.crud.chat_message import chat_message as chat_message_crud
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.db.session import get_async_session
-from app.models.base import SPECIALModel
 from app.models.chat_message import ChatMessageCreate, ChatMessageRead
 from app.models.objective import ObjectiveBase
 from app.schemas.llm_interaction import LLMInteractionCreate
+from app.services.conversation_service import conversation_service
 from app.services.open_ai import get_ai_service
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-
-class ResponseType(StrEnum):
-    text = "text"
-    voice = "voice"
-
-
-@router.get("/", response_model=dict[str, str])
-def test_read():
-    client = get_ai_service().client
-    response = client.chat.completions.create(
-        messages=[
-            {
-                "role": "user",
-                "content": "Say this is a test",
-            }
-        ],
-        model="gpt-3.5-turbo",
-    )
-    logger.debug("AI test response: %s", response.choices[0].message.content)
-
-    return {"Assistant": f"{response.choices[0].message.content}"}
-
-
-def text_to_audio(
-    text: str,
-    voice_type: str,
-    file_name: str,
-    client: Client,
-):
-    """
-    Convert text to audio file using the OpenAI API.
-    """
-    voice_type_map = {
-        "Male": ["echo", "fable", "onyx"],
-        "Female": ["nova", "shimmer"],
-        None: ["alloy"],
-    }
-    speech_file_path = f"{file_name}.mp3"
-    response = client.audio.speech.create(
-        model="tts-1",
-        voice=random.choice(voice_type_map[voice_type]),
-        input=text,
-    )
-    response.stream_to_file(speech_file_path)
 
 
 class ObjectiveKindEnum(StrEnum):
@@ -144,41 +98,17 @@ async def chat_with_dweller(
     if not dweller:
         raise HTTPException(status_code=404, detail="Dweller not found")
 
-    special_stats = ", ".join(f"{stat}: {getattr(dweller, stat)}" for stat in SPECIALModel.__annotations__)
-    vault_stats = (
-        f" Average happiness: {dweller.vault.happiness}/100"
-        f" Power: {dweller.vault.power}/{dweller.vault.power_max}"
-        f" Food: {dweller.vault.food}/{dweller.vault.food_max}"
-        f" Water: {dweller.vault.water}/{dweller.vault.water_max}"
-    )
+    # Build dweller prompt using shared method
+    dweller_prompt = conversation_service._build_dweller_prompt(dweller, for_audio=False)
 
-    dweller_prompt = f"""
-    You are a Vault-Tec Dweller named {dweller.first_name} {dweller.last_name} in a post-apocalyptic world.
-    You are {dweller.gender.value} {"Adult" if dweller.is_adult else "Child"} of level {dweller.level}.
-    You are considered a {dweller.rarity.value} rarity dweller.
-    You are in a vault {dweller.vault.number} with a group of other dwellers.
-    You are in the {dweller.room.name if dweller.room else "a"} room of the vault.
-    Your outfit is {dweller.outfit.name if dweller.outfit else "Vault Suit"}.
-    Your weapon is {dweller.weapon.name if dweller.weapon else "Fist"}.
-    You have {dweller.stimpack} Stimpacks and {dweller.radaway} Radaways.
-    Your health is {dweller.health}/{dweller.max_health}.
-    Your happiness level is {dweller.happiness}/100. Don't mention this, just act accordingly.
-    Your SPECIAL stats are: {special_stats}. Don't mention them until asked, use this information for acting.
-    In case user asks about vault - here is the information: {vault_stats}. Say it in a natural way.
-    Try to be in character and be in line with the Fallout universe.
-    """
-
-    client = get_ai_service().client
-
-    response = client.chat.completions.create(
-        model="gpt-4-turbo-preview",
-        messages=[
+    # Use multi-provider chat completion
+    ai_service = get_ai_service()
+    response_message = await ai_service.chat_completion(
+        [
             {"role": "system", "content": dweller_prompt.strip()},
             {"role": "user", "content": message.message},
-        ],
+        ]
     )
-
-    response_message = response.choices[0].message.content
 
     # Save LLM interaction statistics
     llm_int_create = LLMInteractionCreate(
@@ -238,3 +168,78 @@ async def get_chat_history(
         limit=limit,
         offset=offset,
     )
+
+
+@router.post("/{dweller_id}/voice")
+async def voice_chat_with_dweller(
+    dweller_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    audio_file: Annotated[UploadFile, File()],
+    *,
+    return_audio: bool = True,
+):
+    """
+    Send an audio message to a dweller and receive an audio response.
+
+    Upload an audio file (WebM, MP3, WAV), it will be:
+    1. Transcribed to text (STT)
+    2. Processed by the dweller's AI (LLM)
+    3. Converted to audio response (TTS)
+    4. Saved to chat history
+
+    Args:
+        dweller_id: UUID of the dweller to chat with
+        user: Current authenticated user
+        db_session: Database session
+        audio_file: Audio file upload (WebM, MP3, WAV, etc.)
+        return_audio: If True, returns audio bytes; if False, returns JSON with URLs
+
+    Returns:
+        Audio response (MP3) or JSON with transcription and audio URL
+    """
+    try:
+        # Read audio file
+        audio_bytes = await audio_file.read()
+
+        if len(audio_bytes) == 0:
+            msg = "Empty audio file"
+            raise HTTPException(status_code=400, detail=msg)  # noqa: TRY301
+
+        # Get filename for format detection
+        filename = audio_file.filename or "audio.webm"
+
+        # Process the audio conversation
+        result = await conversation_service.process_audio_message(
+            db_session=db_session,
+            user=user,
+            dweller_id=dweller_id,
+            audio_bytes=audio_bytes,
+            audio_filename=filename,
+        )
+
+        # Return audio bytes directly for immediate playback
+        if return_audio:
+            return Response(
+                content=result["dweller_audio_bytes"],
+                media_type="audio/mpeg",
+                headers={
+                    "Content-Disposition": 'inline; filename="dweller_response.mp3"',
+                    "X-Transcription": result["transcription"],
+                    "X-Response-Text": result["dweller_response"],
+                },
+            )
+
+        # Or return JSON with all details
+        return {
+            "transcription": result["transcription"],
+            "user_audio_url": result["user_audio_url"],
+            "dweller_response": result["dweller_response"],
+            "dweller_audio_url": result["dweller_audio_url"],
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        logger.exception("Error processing voice chat")
+        raise HTTPException(status_code=500, detail=f"Error processing audio: {e!s}") from e

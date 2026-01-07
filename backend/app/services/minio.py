@@ -158,7 +158,7 @@ class MinioService:
 
         bucket_name = bucket_name or self.default_bucket_name
         self._ensure_bucket_policy(bucket_name)
-        return f"{settings.MINIO_HOSTNAME}:{settings.MINIO_PORT}/{bucket_name}/{file_name}"
+        return f"http://{settings.MINIO_HOSTNAME}:{settings.MINIO_PORT}/{bucket_name}/{file_name}"
 
 
 @lru_cache

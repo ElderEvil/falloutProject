@@ -8,6 +8,17 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ## ✅ Recent Completions
 
+### v1.13 Audio Conversation & Refactoring (January 7, 2026)
+- **Audio Chat System**: Real-time voice conversations with dwellers
+  - Speech-to-Text (OpenAI Whisper), Text-to-Speech with gender-based voices
+  - Browser audio recording (WebM), auto-play dweller responses
+  - MinIO audio storage with public URLs
+- **Multi-Provider AI Support**: Ollama/Anthropic/OpenAI for both text and audio chat
+- **Ollama Integration**: Health checks with model verification, local LLM support
+- **WebSocket Chat**: Real-time typing indicators, connection management
+- **Code Refactoring**: Extracted shared dweller prompt builder, removed ~100 lines of duplication
+- **Database**: Audio fields migration (audio_url, transcription, duration)
+
 ### v1.12 UI Fixes & Polish (January 6, 2026)
 - **Build UI Overhaul**: Floating build button (top-right), grid layout, improved room cards with category icons
 - **Happiness Dashboard**: Complete UI (vault gauge, distribution bars, active modifiers, quick actions)
@@ -31,13 +42,13 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ---
 
-## 🚧 Current Sprint: v1.13 Polish & Complete Features (PLANNING)
+## 🚧 Current Sprint: v1.14 Polish & Complete Features (PLANNING)
 
 ### Priority: Complete Existing Systems
 - [ ] **Resource Warning UI** - Toast notifications for low resources (< 20% warning, < 10% critical), power outage effects
 - [ ] **Training Room UI** - Training queue display, progress indicators, completion notifications
 - [ ] **Empty States** - Helpful placeholders for no dwellers/rooms/explorations/incidents
-- [ ] **WebSocket Migration** - Replace polling with real-time updates (happiness, resources, incidents)
+- [ ] **WebSocket Migration** - Extend WebSocket usage to other real-time updates (resources, incidents)
 
 ### Future Priorities
 - **Sound Effects** - Terminal UI sounds, ambient vault audio, alert sounds
@@ -81,7 +92,11 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 - Weapons (melee/ranged, damage/stat bonuses), outfits (SPECIAL bonuses), junk items, item storage
 
 ### AI Integration
-- PydanticAI chat system with context-aware responses, chat history persistence
+- PydanticAI chat system with multi-provider support (OpenAI/Anthropic/Ollama)
+- Context-aware text chat with chat history persistence
+- Audio conversations with STT/TTS, gender-based voice selection
+- WebSocket real-time typing indicators
+- Ollama health checks and local LLM support
 
 ### Frontend UI/UX
 - Terminal-themed design (TailwindCSS v4, scanline/CRT effects)
@@ -157,7 +172,8 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 - **v1.10**: UX Polish Sprint ✅
 - **v1.11**: Email verification ✅
 - **v1.12**: Happiness dashboard + UI polish ✅
-- **v1.13**: Resource warnings + training UI (Current - Jan 2026)
+- **v1.13**: Audio conversations + multi-provider AI + refactoring ✅
+- **v1.14**: Resource warnings + training UI (Current - Jan 2026)
 - **v2.0**: Phase 1 completion (Feb 2026)
 - **v2.1**: Full MVP release (Mar 2026)
 
@@ -171,4 +187,4 @@ Contributions are welcome! Check the [README.md](./README.md) for development se
 
 This roadmap is subject to change based on user feedback, technical constraints, priority adjustments, and community contributions.
 
-Last updated: January 6, 2026
+Last updated: January 7, 2026

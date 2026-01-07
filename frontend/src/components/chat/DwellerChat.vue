@@ -39,7 +39,7 @@ const chatWs = authStore.user?.id
   ? useChatWebSocket(authStore.user.id, props.dwellerId)
   : null;
 
-const userAvatar = computed(() => undefined as string | undefined);
+const userAvatar = computed(() => authStore.user?.image_url || undefined);
 const dwellerAvatarUrl = computed(() => props.dwellerAvatar ? `http://${props.dwellerAvatar}` : '');
 
 const loadChatHistory = async () => {
@@ -58,7 +58,9 @@ const loadChatHistory = async () => {
       type: msg.from_user_id ? 'user' : 'dweller',
       content: msg.message_text,
       timestamp: new Date(msg.created_at),
-      avatar: msg.from_user_id ? userAvatar.value : props.dwellerAvatar
+      avatar: msg.from_user_id ? userAvatar.value : props.dwellerAvatar,
+      audioUrl: msg.audio_url || undefined,
+      transcription: msg.transcription || undefined
     }));
 
     messages.value = history;
@@ -296,6 +298,15 @@ onUnmounted(() => {
               <span class="terminal-prefix">{{ message.type === 'user' ? '>' : '<' }}</span>
               {{ message.type === 'user' ? username : dwellerName }}
             </span>
+            <!-- Audio replay button for messages with audio -->
+            <button
+              v-if="message.audioUrl"
+              @click="playAudio(message.audioUrl)"
+              class="audio-replay-btn"
+              :title="`Play ${message.type === 'user' ? 'your' : 'dweller'} audio`"
+            >
+              <Icon icon="mdi:volume-high" class="h-4 w-4" />
+            </button>
           </div>
           <div class="message-content">
             {{ message.content }}
@@ -562,6 +573,31 @@ onUnmounted(() => {
   margin-bottom: 0.5rem;
   font-size: 0.85rem;
   opacity: 0.8;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.audio-replay-btn {
+  padding: 0.25rem;
+  border-radius: 4px;
+  border: 1px solid var(--color-theme-primary);
+  background-color: rgba(var(--color-theme-primary-rgb), 0.05);
+  color: var(--color-theme-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+}
+
+.audio-replay-btn:hover {
+  opacity: 1;
+  background-color: rgba(var(--color-theme-primary-rgb), 0.2);
+  box-shadow: 0 0 8px var(--color-theme-glow);
+  transform: scale(1.1);
 }
 
 .message-sender {

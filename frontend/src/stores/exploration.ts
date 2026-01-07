@@ -22,6 +22,7 @@ export interface LootItem {
   item_name: string;
   quantity: number;
   rarity: string;
+  item_type?: string; // 'junk', 'weapon', or 'outfit'
   found_at: string;
 }
 

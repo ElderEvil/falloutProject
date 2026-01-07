@@ -11,22 +11,44 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.crud import exploration as crud_exploration
 from app.crud import vault as crud_vault
 from app.models.exploration import Exploration
+from app.models.junk import Junk
+from app.models.outfit import Outfit
+from app.models.weapon import Weapon
+from app.schemas.common import GenderEnum, JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
 
 
 class WastelandService:
     """Service for managing wasteland exploration logic."""
 
     def __init__(self):
-        """Initialize the wasteland service with junk data."""
+        """Initialize the wasteland service with item data."""
         self.junk_items: list[dict] = []
-        self._load_junk_data()
+        self.weapons: list[dict] = []
+        self.outfits: list[dict] = []
+        self._load_item_data()
 
-    def _load_junk_data(self) -> None:
-        """Load junk items from JSON file."""
-        junk_file = Path(__file__).parent.parent / "data" / "items" / "junk.json"
+    def _load_item_data(self) -> None:
+        """Load junk, weapons, and outfits from JSON files."""
+        data_dir = Path(__file__).parent.parent / "data" / "items"
+
+        # Load junk items
+        junk_file = data_dir / "junk.json"
         if junk_file.exists():
             with open(junk_file) as f:
                 self.junk_items = json.load(f)
+
+        # Load weapons
+        weapons_file = data_dir / "weapons.json"
+        if weapons_file.exists():
+            with open(weapons_file) as f:
+                self.weapons = json.load(f)
+
+        # Load outfits from all outfit files
+        outfits_dir = data_dir / "outfits"
+        if outfits_dir.exists():
+            for outfit_file in outfits_dir.glob("*.json"):
+                with open(outfit_file) as f:
+                    self.outfits.extend(json.load(f))
 
     def _calculate_luck_multiplier(self, luck: int) -> float:
         """Calculate loot quality multiplier based on luck stat."""
@@ -101,14 +123,88 @@ class WastelandService:
             return base_weights
         return {"Common": 80.0, "Rare": 18.0, "Legendary": 2.0}
 
-    def _select_random_loot(self, luck: int) -> dict:
-        """Select a random junk item based on luck-adjusted rarity."""
-        if not self.junk_items:
-            return {"name": "Bottle Cap", "value": 1, "rarity": "Common"}
+    def _select_random_weapon(self, luck: int) -> dict:
+        """Select a random weapon based on luck-adjusted rarity."""
+        if not self.weapons:
+            return {
+                "name": "Rusty Pipe",
+                "rarity": "Common",
+                "value": 10,
+                "weapon_type": "Melee",
+                "weapon_subtype": "Blunt",
+                "stat": "strength",
+                "damage_min": 1,
+                "damage_max": 3,
+            }
 
         rarity_weights = self._get_rarity_weights(luck)
 
-        # Filter items by rarity and randomly select one
+        # Filter weapons by rarity and randomly select one
+        rarity = random.choices(
+            list(rarity_weights.keys()),
+            weights=list(rarity_weights.values()),
+            k=1,
+        )[0]
+
+        weapons_of_rarity = [weapon for weapon in self.weapons if weapon.get("rarity") == rarity]
+
+        if not weapons_of_rarity:
+            weapons_of_rarity = self.weapons
+
+        return random.choice(weapons_of_rarity)
+
+    def _select_random_outfit(self, luck: int) -> dict:
+        """Select a random outfit based on luck-adjusted rarity."""
+        if not self.outfits:
+            return {"name": "Vault Suit", "rarity": "Common", "value": 10, "outfit_type": "Common Outfit"}
+
+        rarity_weights = self._get_rarity_weights(luck)
+
+        # Filter outfits by rarity and randomly select one
+        rarity = random.choices(
+            list(rarity_weights.keys()),
+            weights=list(rarity_weights.values()),
+            k=1,
+        )[0]
+
+        outfits_of_rarity = [outfit for outfit in self.outfits if outfit.get("rarity") == rarity]
+
+        if not outfits_of_rarity:
+            outfits_of_rarity = self.outfits
+
+        return random.choice(outfits_of_rarity)
+
+    def _select_random_loot(self, luck: int) -> tuple[dict, str]:
+        """
+        Select a random loot item based on luck-adjusted rarity.
+
+        Returns tuple of (item_dict, item_type) where item_type is 'junk', 'weapon', or 'outfit'.
+        """
+        # Determine item type with luck-adjusted weights
+        # Base: 60% junk, 25% weapons, 15% outfits
+        # High luck shifts toward weapons/outfits
+        if luck >= 8:
+            type_weights = {"junk": 50.0, "weapon": 30.0, "outfit": 20.0}
+        elif luck >= 6:
+            type_weights = {"junk": 55.0, "weapon": 28.0, "outfit": 17.0}
+        else:
+            type_weights = {"junk": 60.0, "weapon": 25.0, "outfit": 15.0}
+
+        item_type = random.choices(
+            list(type_weights.keys()),
+            weights=list(type_weights.values()),
+            k=1,
+        )[0]
+
+        if item_type == "weapon":
+            return (self._select_random_weapon(luck), "weapon")
+        if item_type == "outfit":
+            return (self._select_random_outfit(luck), "outfit")
+        # Select junk item
+        if not self.junk_items:
+            return ({"name": "Bottle Cap", "value": 1, "rarity": "Common"}, "junk")
+
+        rarity_weights = self._get_rarity_weights(luck)
         rarity = random.choices(
             list(rarity_weights.keys()),
             weights=list(rarity_weights.values()),
@@ -116,11 +212,10 @@ class WastelandService:
         )[0]
 
         items_of_rarity = [item for item in self.junk_items if item.get("rarity") == rarity]
-
         if not items_of_rarity:
             items_of_rarity = self.junk_items
 
-        return random.choice(items_of_rarity)
+        return (random.choice(items_of_rarity), "junk")
 
     def generate_event(self, exploration: Exploration) -> dict | None:
         """
@@ -146,7 +241,7 @@ class WastelandService:
 
         if found_loot:
             # Generate loot based on luck
-            loot_item = self._select_random_loot(exploration.dweller_luck)
+            loot_item, item_type = self._select_random_loot(exploration.dweller_luck)
             caps_found = random.randint(5, 20 + exploration.dweller_luck * 3)
 
             event_descriptions = [
@@ -161,6 +256,7 @@ class WastelandService:
                 "description": random.choice(event_descriptions),
                 "loot": {
                     "item": loot_item,
+                    "item_type": item_type,
                     "caps": caps_found,
                 },
             }
@@ -221,6 +317,7 @@ class WastelandService:
         if event.get("loot"):
             loot_data = event["loot"]
             item = loot_data["item"]
+            item_type = loot_data.get("item_type", "junk")
             caps = loot_data["caps"]
 
             # Add item to collected loot
@@ -228,6 +325,7 @@ class WastelandService:
                 item_name=item["name"],
                 quantity=1,
                 rarity=item.get("rarity", "Common"),
+                item_type=item_type,
             )
 
             # Update stats
@@ -243,6 +341,75 @@ class WastelandService:
         await db_session.commit()
         await db_session.refresh(exploration)
         return exploration
+
+    async def _transfer_loot_to_storage(
+        self,
+        db_session: AsyncSession,
+        exploration: Exploration,
+        description_suffix: str = "",
+    ) -> None:
+        """
+        Transfer loot items from exploration to vault storage.
+
+        Creates Weapon, Outfit, or Junk instances based on item_type.
+        """
+        if not exploration.loot_collected:
+            return
+
+        # Get vault storage
+        vault = await crud_vault.get(db_session, exploration.vault_id)
+
+        for loot_item in exploration.loot_collected:
+            item_type = loot_item.get("item_type", "junk")
+            item_name = loot_item.get("item_name", "Unknown Item")
+            rarity_str = loot_item.get("rarity", "Common")
+
+            # Convert rarity string to enum
+            try:
+                rarity = RarityEnum[rarity_str.upper()]
+            except (KeyError, AttributeError):
+                rarity = RarityEnum.COMMON
+
+            if item_type == "weapon":
+                # Find the weapon data to get all attributes
+                weapon_data = next((w for w in self.weapons if w["name"] == item_name), None)
+                if weapon_data:
+                    weapon = Weapon(
+                        name=weapon_data["name"],
+                        rarity=rarity,
+                        value=weapon_data.get("value"),
+                        weapon_type=WeaponTypeEnum[weapon_data["weapon_type"].upper()],
+                        weapon_subtype=WeaponSubtypeEnum[weapon_data["weapon_subtype"].upper()],
+                        stat=weapon_data["stat"],
+                        damage_min=weapon_data["damage_min"],
+                        damage_max=weapon_data["damage_max"],
+                        storage_id=vault.storage.id,
+                    )
+                    db_session.add(weapon)
+            elif item_type == "outfit":
+                # Find the outfit data to get all attributes
+                outfit_data = next((o for o in self.outfits if o["name"] == item_name), None)
+                if outfit_data:
+                    outfit = Outfit(
+                        name=outfit_data["name"],
+                        rarity=rarity,
+                        value=outfit_data.get("value"),
+                        outfit_type=OutfitTypeEnum[outfit_data["outfit_type"].upper().replace(" ", "_")],
+                        gender=GenderEnum[outfit_data["gender"].upper()] if outfit_data.get("gender") else None,
+                        storage_id=vault.storage.id,
+                    )
+                    db_session.add(outfit)
+            else:
+                # Create junk item in storage
+                description = f"Found during wasteland exploration{description_suffix}"
+                junk = Junk(
+                    name=item_name,
+                    junk_type=JunkTypeEnum.MISC,  # Default type
+                    rarity=rarity,
+                    description=description,
+                    storage_id=vault.storage.id,
+                )
+                db_session.add(junk)
 
     async def complete_exploration(
         self,
@@ -307,23 +474,7 @@ class WastelandService:
         await leveling_service.check_level_up(db_session, dweller_obj)
 
         # Transfer loot items to vault storage
-        if exploration.loot_collected:
-            from app.models.junk import Junk
-            from app.schemas.common import JunkTypeEnum
-
-            # Get vault storage
-            vault = await crud_vault.get(db_session, exploration.vault_id)
-
-            for loot_item in exploration.loot_collected:
-                # Create junk item in storage
-                junk = Junk(
-                    name=loot_item.get("item_name", "Unknown Item"),
-                    junk_type=JunkTypeEnum.MISC,  # Default type
-                    rarity=loot_item.get("rarity", "Common"),
-                    description="Found during wasteland exploration",
-                    storage_id=vault.storage.id,
-                )
-                db_session.add(junk)
+        await self._transfer_loot_to_storage(db_session, exploration)
 
         await db_session.commit()
 
@@ -403,23 +554,7 @@ class WastelandService:
         await leveling_service.check_level_up(db_session, dweller_obj)
 
         # Transfer loot items to vault storage
-        if exploration.loot_collected:
-            from app.models.junk import Junk
-            from app.schemas.common import JunkTypeEnum
-
-            # Get vault storage
-            vault = await crud_vault.get(db_session, exploration.vault_id)
-
-            for loot_item in exploration.loot_collected:
-                # Create junk item in storage
-                junk = Junk(
-                    name=loot_item.get("item_name", "Unknown Item"),
-                    junk_type=JunkTypeEnum.MISC,  # Default type
-                    rarity=loot_item.get("rarity", "Common"),
-                    description="Found during wasteland exploration (recalled early)",
-                    storage_id=vault.storage.id,
-                )
-                db_session.add(junk)
+        await self._transfer_loot_to_storage(db_session, exploration, " (recalled early)")
 
         await db_session.commit()
 

@@ -121,13 +121,14 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
             event["loot"] = loot
         self.events.append(event)
 
-    def add_loot(self, item_name: str, quantity: int = 1, rarity: str = "common") -> None:
+    def add_loot(self, item_name: str, quantity: int = 1, rarity: str = "common", item_type: str = "junk") -> None:
         """Add loot to the collected items."""
         self.loot_collected.append(
             {
                 "item_name": item_name,
                 "quantity": quantity,
                 "rarity": rarity,
+                "item_type": item_type,
                 "found_at": datetime.utcnow().isoformat(),
             }
         )

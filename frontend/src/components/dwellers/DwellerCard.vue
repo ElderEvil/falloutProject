@@ -329,14 +329,15 @@ const visualAttributesTooltip = computed(() => {
       </UButton>
 
       <UButton
+        v-if="props.dweller.status === 'exploring'"
         variant="secondary"
         size="md"
         block
         @click="emit('recall')"
-        disabled
+        :disabled="loading"
       >
         <Icon icon="mdi:arrow-u-left-top" class="h-5 w-5 mr-2" />
-        Recall
+        Recall from Wasteland
       </UButton>
 
       <!-- Item Usage Buttons -->

@@ -44,7 +44,7 @@ onMounted(async () => {
 })
 
 // Poll for exploration updates every 30 seconds and check for completion
-let pollInterval: NodeJS.Timeout | null = null
+let pollInterval: ReturnType<typeof setInterval> | null = null
 onMounted(() => {
   pollInterval = setInterval(async () => {
     if (vaultId.value && authStore.token && explorationStore.activeExplorations) {

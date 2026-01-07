@@ -9,4 +9,7 @@ export interface ChatMessageDisplay {
   content: string
   timestamp?: Date
   avatar?: string
+  audioUrl?: string
+  transcription?: string
+  isPlaying?: boolean
 }

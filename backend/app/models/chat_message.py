@@ -29,6 +29,11 @@ class ChatMessageBase(SQLModel):
     # Optional: Link to LLMInteraction for AI-generated messages
     llm_interaction_id: UUID | None = Field(default=None, foreign_key="llminteraction.id")
 
+    # Audio conversation fields
+    audio_url: str | None = Field(default=None, max_length=500, description="MinIO URL for audio message")
+    transcription: str | None = Field(default=None, max_length=2000, description="STT transcription of audio")
+    audio_duration: float | None = Field(default=None, description="Duration of audio in seconds")
+
 
 class ChatMessage(BaseUUIDModel, ChatMessageBase, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow, index=True)

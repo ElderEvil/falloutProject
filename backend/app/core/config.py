@@ -44,6 +44,7 @@ class Settings(BaseSettings):
         "dweller-images",
         "dweller-thumbnails",
         "dweller-audio",
+        "chat-audio",
         "outfit-images",
         "weapon-images",
     ]

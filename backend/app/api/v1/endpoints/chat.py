@@ -4,7 +4,8 @@ import random
 from enum import StrEnum
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import Response
 from openai import Client
 from pydantic import UUID4, BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -18,6 +19,7 @@ from app.models.base import SPECIALModel
 from app.models.chat_message import ChatMessageCreate, ChatMessageRead
 from app.models.objective import ObjectiveBase
 from app.schemas.llm_interaction import LLMInteractionCreate
+from app.services.conversation_service import conversation_service
 from app.services.open_ai import get_ai_service
 
 router = APIRouter()
@@ -238,3 +240,78 @@ async def get_chat_history(
         limit=limit,
         offset=offset,
     )
+
+
+@router.post("/{dweller_id}/voice")
+async def voice_chat_with_dweller(
+    dweller_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    audio_file: Annotated[UploadFile, File()],
+    *,
+    return_audio: bool = True,
+):
+    """
+    Send an audio message to a dweller and receive an audio response.
+
+    Upload an audio file (WebM, MP3, WAV), it will be:
+    1. Transcribed to text (STT)
+    2. Processed by the dweller's AI (LLM)
+    3. Converted to audio response (TTS)
+    4. Saved to chat history
+
+    Args:
+        dweller_id: UUID of the dweller to chat with
+        user: Current authenticated user
+        db_session: Database session
+        audio_file: Audio file upload (WebM, MP3, WAV, etc.)
+        return_audio: If True, returns audio bytes; if False, returns JSON with URLs
+
+    Returns:
+        Audio response (MP3) or JSON with transcription and audio URL
+    """
+    try:
+        # Read audio file
+        audio_bytes = await audio_file.read()
+
+        if len(audio_bytes) == 0:
+            msg = "Empty audio file"
+            raise HTTPException(status_code=400, detail=msg)  # noqa: TRY301
+
+        # Get filename for format detection
+        filename = audio_file.filename or "audio.webm"
+
+        # Process the audio conversation
+        result = await conversation_service.process_audio_message(
+            db_session=db_session,
+            user=user,
+            dweller_id=dweller_id,
+            audio_bytes=audio_bytes,
+            audio_filename=filename,
+        )
+
+        # Return audio bytes directly for immediate playback
+        if return_audio:
+            return Response(
+                content=result["dweller_audio_bytes"],
+                media_type="audio/mpeg",
+                headers={
+                    "Content-Disposition": 'inline; filename="dweller_response.mp3"',
+                    "X-Transcription": result["transcription"],
+                    "X-Response-Text": result["dweller_response"],
+                },
+            )
+
+        # Or return JSON with all details
+        return {
+            "transcription": result["transcription"],
+            "user_audio_url": result["user_audio_url"],
+            "dweller_response": result["dweller_response"],
+            "dweller_audio_url": result["dweller_audio_url"],
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        logger.exception("Error processing voice chat")
+        raise HTTPException(status_code=500, detail=f"Error processing audio: {e!s}") from e

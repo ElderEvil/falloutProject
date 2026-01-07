@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, watchEffect, computed, onMounted } from 'vue'
+import { ref, watchEffect, computed, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { Icon } from '@iconify/vue'
 import apiClient from '@/plugins/axios'
 import type { ChatMessageDisplay } from '@/models/chat'
+import { useAudioRecorder } from '@/composables/useAudioRecorder'
+import { useChatWebSocket } from '@/composables/useWebSocket'
 
 const props = defineProps<{
   dwellerId: string
@@ -17,6 +19,25 @@ const messages = ref<ChatMessageDisplay[]>([])
 const userMessage = ref('')
 const chatMessages = ref<HTMLElement | null>(null)
 const isTyping = ref(false)
+const isSendingAudio = ref(false)
+const audioMode = ref(false)
+const currentlyPlayingAudio = ref<HTMLAudioElement | null>(null)
+
+// Audio recorder
+const {
+  recordingState,
+  recordingDuration,
+  isRecording,
+  startRecording,
+  stopRecording,
+  cancelRecording,
+  formatDuration
+} = useAudioRecorder()
+
+// WebSocket
+const chatWs = authStore.user?.id
+  ? useChatWebSocket(authStore.user.id, props.dwellerId)
+  : null
 
 const userAvatar = computed(() => undefined as string | undefined)
 const dwellerAvatarUrl = computed(() => props.dwellerAvatar ? `http://${props.dwellerAvatar}` : '')
@@ -95,6 +116,97 @@ const handleKeyDown = (e: KeyboardEvent) => {
 
 const canSend = computed(() => userMessage.value.trim().length > 0)
 
+// Audio message handling
+const sendAudioMessage = async () => {
+  try {
+    isSendingAudio.value = true
+    const audioBlob = await stopRecording()
+
+    // Create FormData for file upload
+    const formData = new FormData()
+    formData.append('audio_file', audioBlob, 'recording.webm')
+
+    // Add placeholder message
+    const placeholderIndex = messages.value.length
+    messages.value.push({
+      type: 'user',
+      content: '[🎤 Transcribing audio...]',
+      timestamp: new Date(),
+      avatar: userAvatar.value
+    })
+
+    // Send to backend
+    const response = await apiClient.post(
+      `/api/v1/chat/${props.dwellerId}/voice?return_audio=false`,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${authStore.token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    )
+
+    // Update user message with transcription
+    messages.value[placeholderIndex].content = response.data.transcription
+
+    // Add dweller response
+    messages.value.push({
+      type: 'dweller',
+      content: response.data.dweller_response,
+      timestamp: new Date(),
+      avatar: props.dwellerAvatar,
+      audioUrl: response.data.dweller_audio_url
+    })
+
+    // Auto-play dweller response if audio URL provided
+    if (response.data.dweller_audio_url) {
+      playAudio(response.data.dweller_audio_url)
+    }
+
+  } catch (error: any) {
+    console.error('Error sending audio:', error)
+    alert(`Failed to send audio: ${error.response?.data?.detail || error.message}`)
+  } finally {
+    isSendingAudio.value = false
+  }
+}
+
+// Audio playback
+const playAudio = (url: string) => {
+  // Stop currently playing audio
+  if (currentlyPlayingAudio.value) {
+    currentlyPlayingAudio.value.pause()
+    currentlyPlayingAudio.value = null
+  }
+
+  // URL already includes http:// from backend
+  const audio = new Audio(url)
+  currentlyPlayingAudio.value = audio
+
+  audio.play().catch(err => {
+    console.error('Error playing audio:', err)
+  })
+
+  audio.onended = () => {
+    currentlyPlayingAudio.value = null
+  }
+}
+
+// Typing indicator via WebSocket
+let typingTimeout: number | null = null
+const handleTyping = () => {
+  if (chatWs) {
+    chatWs.sendTypingIndicator(true)
+
+    if (typingTimeout) clearTimeout(typingTimeout)
+
+    typingTimeout = window.setTimeout(() => {
+      chatWs.sendTypingIndicator(false)
+    }, 2000)
+  }
+}
+
 watchEffect(() => {
   if (chatMessages.value) {
     chatMessages.value.scrollTop = chatMessages.value.scrollHeight
@@ -103,6 +215,32 @@ watchEffect(() => {
 
 onMounted(() => {
   loadChatHistory()
+
+  // Connect WebSocket
+  if (chatWs) {
+    chatWs.connect()
+
+    // Handle typing indicators from dweller
+    chatWs.on('typing', (msg: any) => {
+      if (msg.sender === 'dweller') {
+        isTyping.value = msg.is_typing
+      }
+    })
+  }
+})
+
+onUnmounted(() => {
+  // Cleanup
+  if (chatWs) {
+    chatWs.disconnect()
+  }
+  if (currentlyPlayingAudio.value) {
+    currentlyPlayingAudio.value.pause()
+    currentlyPlayingAudio.value = null
+  }
+  if (typingTimeout) {
+    clearTimeout(typingTimeout)
+  }
 })
 </script>
 
@@ -184,21 +322,84 @@ onMounted(() => {
 
     <!-- Chat input - always visible -->
     <div class="chat-input">
-      <span class="terminal-prompt">&gt;</span>
-      <input
-        v-model="userMessage"
-        @keydown="handleKeyDown"
-        placeholder="Type your message... (Shift+Enter for newline)"
-        class="chat-input-field"
-      />
+      <!-- Mode toggle button -->
       <button
-        @click="sendMessage"
-        :disabled="!canSend"
-        class="chat-send-btn"
-        :class="{ disabled: !canSend }"
+        @click="audioMode = !audioMode"
+        class="mode-toggle-btn"
+        :title="audioMode ? 'Switch to text' : 'Switch to voice'"
       >
-        <Icon icon="mdi:send" class="h-5 w-5" />
+        <Icon :icon="audioMode ? 'mdi:keyboard' : 'mdi:microphone'" class="h-5 w-5" />
       </button>
+
+      <!-- Text input mode -->
+      <template v-if="!audioMode">
+        <span class="terminal-prompt">&gt;</span>
+        <input
+          v-model="userMessage"
+          @keydown="handleKeyDown"
+          @input="handleTyping"
+          placeholder="Type your message..."
+          class="chat-input-field"
+        />
+        <button
+          @click="sendMessage"
+          :disabled="!canSend"
+          class="chat-send-btn"
+          :class="{ disabled: !canSend }"
+        >
+          <Icon icon="mdi:send" class="h-5 w-5" />
+        </button>
+      </template>
+
+      <!-- Voice input mode -->
+      <template v-else>
+        <!-- Recording indicator -->
+        <div v-if="isRecording" class="recording-indicator">
+          <span class="recording-dot"></span>
+          Recording: {{ formatDuration(recordingDuration) }}
+        </div>
+
+        <!-- Sending indicator -->
+        <div v-else-if="isSendingAudio" class="processing-indicator">
+          <Icon icon="mdi:loading" class="spinning h-5 w-5" />
+          Processing audio...
+        </div>
+
+        <!-- Ready to record -->
+        <div v-else class="ready-indicator">
+          <Icon icon="mdi:microphone" class="h-5 w-5" />
+          Ready to record
+        </div>
+
+        <!-- Record button -->
+        <button
+          v-if="!isRecording"
+          @click="startRecording"
+          :disabled="isSendingAudio"
+          class="record-btn"
+          title="Start recording"
+        >
+          <Icon icon="mdi:microphone" class="h-6 w-6" />
+        </button>
+
+        <!-- Stop/Cancel buttons when recording -->
+        <template v-else>
+          <button
+            @click="cancelRecording"
+            class="cancel-btn"
+            title="Cancel"
+          >
+            <Icon icon="mdi:close" class="h-5 w-5" />
+          </button>
+          <button
+            @click="sendAudioMessage"
+            class="send-audio-btn"
+            title="Send"
+          >
+            <Icon icon="mdi:send" class="h-5 w-5" />
+          </button>
+        </template>
+      </template>
     </div>
   </div>
 </template>
@@ -519,5 +720,116 @@ onMounted(() => {
 
 .chat-messages::-webkit-scrollbar-thumb:hover {
   background: var(--color-theme-primary);
+}
+
+/* Mode toggle button */
+.mode-toggle-btn {
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-theme-primary);
+  background-color: rgba(var(--color-theme-primary-rgb), 0.1);
+  color: var(--color-theme-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mode-toggle-btn:hover {
+  background-color: rgba(var(--color-theme-primary-rgb), 0.2);
+  box-shadow: 0 0 10px var(--color-theme-glow);
+}
+
+/* Voice mode indicators */
+.recording-indicator,
+.processing-indicator,
+.ready-indicator {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-theme-primary);
+  font-size: 0.9rem;
+  padding: 0 0.5rem;
+}
+
+.recording-dot {
+  width: 12px;
+  height: 12px;
+  background-color: #ff4444;
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(1.1);
+  }
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Audio control buttons */
+.record-btn,
+.send-audio-btn,
+.cancel-btn {
+  padding: 0.75rem 1.25rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-theme-primary);
+  background-color: rgba(var(--color-theme-primary-rgb), 0.1);
+  color: var(--color-theme-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.record-btn:hover,
+.send-audio-btn:hover {
+  background-color: var(--color-theme-primary);
+  color: #000;
+  box-shadow: 0 0 20px var(--color-theme-glow);
+}
+
+.cancel-btn {
+  background-color: rgba(255, 68, 68, 0.1);
+  border-color: rgba(255, 68, 68, 0.5);
+}
+
+.cancel-btn:hover {
+  background-color: rgba(255, 68, 68, 0.3);
+  border-color: #ff4444;
+  color: #ff4444;
+  box-shadow: 0 0 15px rgba(255, 68, 68, 0.3);
+}
+
+.record-btn:disabled,
+.send-audio-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.record-btn:disabled:hover,
+.send-audio-btn:disabled:hover {
+  background-color: rgba(var(--color-theme-primary-rgb), 0.1);
+  color: var(--color-theme-primary);
+  box-shadow: none;
 }
 </style>

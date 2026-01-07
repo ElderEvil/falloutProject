@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 import aiosmtplib
+import httpx
 from minio import Minio
 from minio.error import S3Error
 from redis.asyncio import Redis
@@ -210,6 +211,97 @@ class HealthCheckService:
             )
 
     @staticmethod
+    async def check_ollama() -> HealthCheckResult:
+        """
+        Check Ollama service connectivity when using ollama provider.
+
+        Returns:
+            HealthCheckResult with connection status
+        """
+        # Only check Ollama if it's the configured AI provider
+        if settings.AI_PROVIDER != "ollama":
+            return HealthCheckResult(
+                service="ollama",
+                status=ServiceStatus.DEGRADED,
+                message="Ollama not configured (using different AI provider)",
+                details={"configured": False, "ai_provider": settings.AI_PROVIDER},
+            )
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                # Check if Ollama is running
+                response = await client.get(f"{settings.OLLAMA_BASE_URL}/models")
+
+                if response.status_code == 200:
+                    models_data = response.json()
+                    models = models_data.get("data", [])
+                    model_names = [model.get("id") for model in models]
+
+                    # Check if the configured model is available
+                    configured_model = settings.AI_MODEL
+                    model_available = any(configured_model in name for name in model_names)
+
+                    if model_available:
+                        return HealthCheckResult(
+                            service="ollama",
+                            status=ServiceStatus.HEALTHY,
+                            message=f"Ollama connection successful, model '{configured_model}' available",
+                            details={
+                                "base_url": settings.OLLAMA_BASE_URL,
+                                "configured_model": configured_model,
+                                "available_models": model_names[:5],  # Show first 5 models
+                            },
+                        )
+                    return HealthCheckResult(
+                        service="ollama",
+                        status=ServiceStatus.DEGRADED,
+                        message=f"Ollama running but model '{configured_model}' not found",
+                        details={
+                            "base_url": settings.OLLAMA_BASE_URL,
+                            "configured_model": configured_model,
+                            "available_models": model_names,
+                            "recommendation": (
+                                f"Pull model with: docker exec -it ollama ollama pull {configured_model}"
+                            ),
+                        },
+                    )
+                return HealthCheckResult(
+                    service="ollama",
+                    status=ServiceStatus.UNHEALTHY,
+                    message=f"Ollama returned unexpected status: {response.status_code}",
+                    details={"base_url": settings.OLLAMA_BASE_URL, "status_code": response.status_code},
+                )
+        except (httpx.ConnectError, httpx.TimeoutException, Exception) as e:
+            if isinstance(e, httpx.ConnectError):
+                logger.warning("Ollama health check failed - connection error: %s", e)
+                message = "Cannot connect to Ollama service"
+                details = {
+                    "base_url": settings.OLLAMA_BASE_URL,
+                    "error": str(e),
+                    "recommendation": (
+                        "Ensure Ollama container is running: docker-compose -f docker-compose.local.yml up -d ollama"
+                    ),
+                }
+            elif isinstance(e, httpx.TimeoutException):
+                logger.warning("Ollama health check timed out")
+                message = "Ollama connection timed out"
+                details = {
+                    "base_url": settings.OLLAMA_BASE_URL,
+                    "error": "Connection timeout after 10 seconds",
+                }
+            else:
+                logger.exception("Ollama health check failed")
+                message = f"Ollama check failed: {e!s}"
+                details = {"base_url": settings.OLLAMA_BASE_URL, "error": str(e)}
+
+            return HealthCheckResult(
+                service="ollama",
+                status=ServiceStatus.UNHEALTHY,
+                message=message,
+                details=details,
+            )
+
+    @staticmethod
     async def check_smtp() -> HealthCheckResult:
         """
         Check SMTP email service connectivity.
@@ -274,7 +366,12 @@ class HealthCheckService:
             )
 
     async def check_all_services(
-        self, engine: AsyncEngine, *, include_celery: bool = True, include_smtp: bool = True
+        self,
+        engine: AsyncEngine,
+        *,
+        include_celery: bool = True,
+        include_smtp: bool = True,
+        include_ollama: bool = True,
     ) -> dict[str, HealthCheckResult]:
         """
         Check all services and return results.
@@ -283,6 +380,7 @@ class HealthCheckService:
             engine: AsyncEngine for database connection
             include_celery: Whether to check Celery workers (default: True)
             include_smtp: Whether to check SMTP email service (default: True)
+            include_ollama: Whether to check Ollama service (default: True)
 
         Returns:
             Dictionary mapping service names to health check results
@@ -300,6 +398,11 @@ class HealthCheckService:
         # Check MinIO
         minio_result = self.check_minio()
         results["minio"] = minio_result
+
+        # Check Ollama (if using ollama provider)
+        if include_ollama:
+            ollama_result = await self.check_ollama()
+            results["ollama"] = ollama_result
 
         # Check SMTP (optional, may timeout if mail service unavailable)
         if include_smtp:

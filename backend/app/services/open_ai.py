@@ -99,6 +99,68 @@ class AIService:
         response.stream_to_file(speech_file_path)
         return speech_file_path
 
+    async def transcribe_audio(self, audio_bytes: bytes, filename: str = "audio.webm") -> str:
+        """
+        Transcribe audio to text using OpenAI's Whisper API.
+
+        Args:
+            audio_bytes: The audio file content as bytes
+            filename: The filename (used to determine format, e.g., audio.webm, audio.mp3)
+
+        Returns:
+            Transcribed text as a string
+        """
+        try:
+            # Create a file-like object from bytes
+            from io import BytesIO
+
+            audio_file = BytesIO(audio_bytes)
+            audio_file.name = filename
+
+            # Call Whisper API
+            response = self.client.audio.transcriptions.create(
+                model="whisper-1", file=audio_file, response_format="text"
+            )
+
+            return response.strip() if isinstance(response, str) else response.text.strip()
+        except Exception as e:
+            err_msg = f"Error transcribing audio: {e}"
+            logger.exception(err_msg)
+            raise
+
+    async def chat_completion(self, messages: list[dict[str, str]]) -> str:
+        """
+        Generate chat completion using the configured AI provider and model.
+
+        Args:
+            messages: List of message dicts with 'role' and 'content' keys
+
+        Returns:
+            The response text from the AI model
+        """
+        # Use the PydanticAI model for provider-agnostic completion
+        from pydantic_ai import Agent
+
+        # Extract system prompt and user messages
+        system_prompt = None
+        user_messages = []
+        for msg in messages:
+            if msg["role"] == "system":
+                system_prompt = msg["content"]
+            elif msg["role"] == "user":
+                user_messages.append(msg["content"])
+
+        # Combine user messages
+        user_input = "\n".join(user_messages) if user_messages else ""
+
+        # Create agent with system prompt if provided
+        agent = Agent(model=self.model, system_prompt=system_prompt) if system_prompt else Agent(model=self.model)
+
+        # Run the agent
+        result = await agent.run(user_input)
+
+        return result.output
+
 
 @lru_cache
 def get_ai_service() -> AIService:

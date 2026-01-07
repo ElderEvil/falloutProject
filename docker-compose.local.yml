@@ -2,9 +2,9 @@ services:
   db:
     image: postgres:18-alpine
     restart: always
-    env_file: ".env"
+    env_file: ".env.local"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data-local:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
@@ -19,41 +19,49 @@ services:
     container_name: fastapi
     build:
       context: ./backend
+      dockerfile: Dockerfile
     restart: always
-    env_file: ".env"
+    env_file: ".env.local"
     depends_on:
       db:
         condition: service_healthy
     ports:
       - "8000:8000"
     working_dir: /app
-    command: [ "sh", "-c", "uv run alembic upgrade head && uv run uvicorn main:app --host 0.0.0.0 --port 8000" ]
+    command: [ "sh", "-c", "uv run alembic upgrade head && uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload" ]
     volumes:
       - ./backend/app:/app/app
+      - ./backend/alembic:/app/alembic
 
   vuejs:
     container_name: vuejs
     build:
       context: ./frontend
+      dockerfile: Dockerfile
     restart: always
     ports:
       - "3000:3000"
     volumes:
       - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
 
   redis:
     image: redis:alpine
     restart: always
-    env_file: ".env"
     ports:
       - "6379:6379"
+    volumes:
+      - redis-data-local:/data
 
   celery_worker:
     container_name: celery_worker
     build:
       context: ./backend
+      dockerfile: Dockerfile
     restart: always
-    env_file: ".env"
+    env_file: ".env.local"
     depends_on:
       db:
         condition: service_healthy
@@ -61,13 +69,16 @@ services:
         condition: service_started
     working_dir: /app
     command: [ "uv", "run", "celery", "-A", "app.core.celery", "worker", "-l", "info" ]
+    volumes:
+      - ./backend/app:/app/app
 
   celery_beat:
     container_name: celery_beat
     build:
       context: ./backend
+      dockerfile: Dockerfile
     restart: always
-    env_file: ".env"
+    env_file: ".env.local"
     depends_on:
       db:
         condition: service_healthy
@@ -75,28 +86,30 @@ services:
         condition: service_started
     working_dir: /app
     command: [ "uv", "run", "celery", "-A", "app.core.celery", "beat", "-l", "info", "--scheduler", "sqlalchemy_celery_beat.schedulers:DatabaseScheduler" ]
+    volumes:
+      - ./backend/app:/app/app
 
   flower:
     image: mher/flower:latest
     restart: always
-    env_file: ".env"
     environment:
-      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
+      - CELERY_BROKER_URL=redis://redis:6379/0
     ports:
       - "5555:5555"
     depends_on:
       - celery_worker
+      - redis
 
   minio:
     image: minio/minio
     container_name: minio
     env_file:
-      - .env
+      - .env.local
     ports:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - minio_data:/data
+      - minio_data_local:/data
     command: server /data --console-address ":9001"
 
   mailpit:
@@ -123,13 +136,14 @@ services:
       - OLLAMA_KEEP_ALIVE=24h
       - OLLAMA_HOST=0.0.0.0:11434
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:11434/api/tags" ]
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
 
 volumes:
-  postgres-data:
-  minio_data:
+  postgres-data-local:
+  redis-data-local:
+  minio_data_local:
   ollama_models:

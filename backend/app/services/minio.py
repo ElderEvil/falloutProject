@@ -39,14 +39,26 @@ logger = logging.getLogger(__name__)
 
 class MinioService:
     def __init__(self):
-        self.client = Minio(
-            f"{settings.MINIO_HOSTNAME}:{settings.MINIO_PORT}",
-            access_key=settings.MINIO_ROOT_USER,
-            secret_key=settings.MINIO_ROOT_PASSWORD,
-            secure=False,  # True if using https
-        )
+        self.client = None
         self.default_bucket_name = "fastapi-minio"
-        self._ensure_bucket_exists(self.default_bucket_name)
+        self.enabled = settings.minio_enabled
+
+        if self.enabled:
+            try:
+                self.client = Minio(
+                    f"{settings.MINIO_HOSTNAME}:{settings.MINIO_PORT}",
+                    access_key=settings.MINIO_ROOT_USER,
+                    secret_key=settings.MINIO_ROOT_PASSWORD,
+                    secure=False,  # True if using https
+                )
+                self._ensure_bucket_exists(self.default_bucket_name)
+                logger.info("MinIO client initialized successfully")
+            except (S3Error, OSError, ValueError, BucketNotFoundError) as e:
+                logger.warning(f"Failed to initialize MinIO client: {e}. MinIO features will be disabled.")
+                self.enabled = False
+                self.client = None
+        else:
+            logger.info("MinIO not configured. Image/audio upload features will be disabled.")
 
     @staticmethod
     def _get_public_policy(bucket_name: str) -> str:
@@ -56,6 +68,8 @@ class MinioService:
         return json.dumps(policy)
 
     def _ensure_bucket_exists(self, bucket_name: str) -> None:
+        if not self.enabled or not self.client:
+            return
         try:
             if not self.client.bucket_exists(bucket_name):
                 self.client.make_bucket(bucket_name)
@@ -68,6 +82,8 @@ class MinioService:
         Ensure that the bucket has the correct policy set.
         :param bucket_name: The name of the bucket to check.
         """
+        if not self.enabled or not self.client:
+            return
         if bucket_name not in settings.MINIO_PUBLIC_BUCKET_WHITELIST:
             return
         expected_policy = self._get_public_policy(bucket_name)
@@ -90,6 +106,10 @@ class MinioService:
     def upload_file(
         self, file_data: bytes, file_name: str, *, file_type: str = "image/png", bucket_name: str | None = None
     ) -> str:
+        if not self.enabled or not self.client:
+            logger.warning(f"MinIO disabled, skipping upload for {file_name}")
+            return ""
+
         bucket_name = bucket_name or self.default_bucket_name
         self._ensure_bucket_exists(bucket_name)
         try:
@@ -118,6 +138,11 @@ class MinioService:
         return self.upload_file(file_data=thumbnail_data, file_name=file_name, bucket_name=bucket_name)
 
     def download_file(self, *, file_name: str, bucket_name: str | None = None) -> bytes:
+        if not self.enabled or not self.client:
+            logger.warning(f"MinIO disabled, cannot download {file_name}")
+            msg = "MinIO is not available"
+            raise FileDownloadError(msg)
+
         bucket_name = bucket_name or self.default_bucket_name
         try:
             response = self.client.get_object(bucket_name, file_name)
@@ -127,9 +152,13 @@ class MinioService:
             raise FileDownloadError(error_msg) from e
 
     def public_url(self, *, file_name: str, bucket_name: str | None = None) -> str:
+        if not self.enabled or not self.client:
+            logger.warning(f"MinIO disabled, cannot generate public URL for {file_name}")
+            return ""
+
         bucket_name = bucket_name or self.default_bucket_name
         self._ensure_bucket_policy(bucket_name)
-        return f"{settings.MINIO_HOSTNAME}:{settings.MINIO_PORT}/{bucket_name}/{file_name}"
+        return f"http://{settings.MINIO_HOSTNAME}:{settings.MINIO_PORT}/{bucket_name}/{file_name}"
 
 
 @lru_cache

@@ -169,6 +169,14 @@ class DwellerAIService:
         dweller_obj = dweller_info or await dweller_crud.get_full_info(db_session, dweller_id)
         if dweller_obj.image_url:
             raise ContentNoChangeException(detail="Dweller already has a photo")
+
+        if not self.minio_service.enabled:
+            logger.warning("MinIO is disabled, cannot generate photo for dweller %s", dweller_obj.id)
+            raise HTTPException(
+                status_code=503,
+                detail="Image upload service (MinIO) is not available. Cannot generate photo.",
+            )
+
         prompt = (
             "Create a photo of a Fallout shelter game vault dweller."
             "Mood: post-apocalyptic, retro-futuristic, sci-fi"
@@ -218,6 +226,13 @@ class DwellerAIService:
         dweller_obj = dweller_info or await dweller_crud.get_full_info(db_session, dweller_id)
         if dweller_obj.visual_attributes and dweller_obj.visual_attributes.get("voice_line_url"):
             raise ContentNoChangeException(detail="Dweller already has an audio line. Overwrite not implemented yet.")
+
+        if not self.minio_service.enabled:
+            logger.warning("MinIO is disabled, cannot generate audio for dweller %s", dweller_obj.id)
+            raise HTTPException(
+                status_code=503,
+                detail="Audio upload service (MinIO) is not available. Cannot generate audio.",
+            )
 
         try:
             audio_bytes = await self.open_ai_service.generate_audio(text=text, voice=voice_type, model="tts-1")

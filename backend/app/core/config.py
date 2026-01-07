@@ -35,11 +35,11 @@ class Settings(BaseSettings):
     POOL_SIZE: int = max(DB_POOL_SIZE // WEB_CONCURRENCY, 5)
     ASYNC_DATABASE_URI: PostgresDsn | str = ""
 
-    MINIO_HOSTNAME: str
-    MINIO_PORT: str
-    MINIO_ROOT_USER: str
-    MINIO_ROOT_PASSWORD: str
-    MINIO_DEFAULT_BUCKET: str
+    MINIO_HOSTNAME: str | None = None
+    MINIO_PORT: str | None = None
+    MINIO_ROOT_USER: str | None = None
+    MINIO_ROOT_PASSWORD: str | None = None
+    MINIO_DEFAULT_BUCKET: str | None = None
     MINIO_PUBLIC_BUCKET_WHITELIST: list[str] = [
         "dweller-images",
         "dweller-thumbnails",
@@ -47,6 +47,18 @@ class Settings(BaseSettings):
         "outfit-images",
         "weapon-images",
     ]
+
+    @property
+    def minio_enabled(self) -> bool:
+        """Check if MinIO is configured and should be used."""
+        return all(
+            [
+                self.MINIO_HOSTNAME,
+                self.MINIO_PORT,
+                self.MINIO_ROOT_USER,
+                self.MINIO_ROOT_PASSWORD,
+            ]
+        )
 
     AI_PROVIDER: Literal["openai", "anthropic", "ollama"] = "openai"
     AI_MODEL: str = "gpt-4o"

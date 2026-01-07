@@ -161,6 +161,15 @@ class HealthCheckService:
         Returns:
             HealthCheckResult with connection status
         """
+        # Check if MinIO is configured
+        if not settings.minio_enabled:
+            return HealthCheckResult(
+                service="minio",
+                status=ServiceStatus.DEGRADED,
+                message="MinIO not configured (optional service)",
+                details={"configured": False, "note": "Image/audio upload features disabled"},
+            )
+
         try:
             client = Minio(
                 f"{settings.MINIO_HOSTNAME}:{settings.MINIO_PORT}",
@@ -184,19 +193,19 @@ class HealthCheckService:
                 },
             )
         except S3Error as e:
-            logger.exception("MinIO health check failed")
+            logger.warning("MinIO health check failed (non-critical): %s", e)
             return HealthCheckResult(
                 service="minio",
-                status=ServiceStatus.UNHEALTHY,
-                message=f"MinIO connection failed: {e!s}",
+                status=ServiceStatus.DEGRADED,
+                message=f"MinIO connection failed (optional service): {e!s}",
                 details={"host": settings.MINIO_HOSTNAME, "error": str(e)},
             )
-        except Exception as e:
-            logger.exception("MinIO health check failed")
+        except (OSError, ValueError) as e:
+            logger.warning("MinIO health check failed (non-critical): %s", e)
             return HealthCheckResult(
                 service="minio",
-                status=ServiceStatus.UNHEALTHY,
-                message=f"MinIO connection failed: {e!s}",
+                status=ServiceStatus.DEGRADED,
+                message=f"MinIO connection failed (optional service): {e!s}",
                 details={"host": settings.MINIO_HOSTNAME, "error": str(e)},
             )
 

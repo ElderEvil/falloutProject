@@ -15,38 +15,6 @@ services:
     environment:
       - POSTGRES_INITDB_ARGS=--locale=C --encoding=UTF8
 
-  fastapi:
-    container_name: fastapi
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    restart: always
-    env_file: ".env.local"
-    depends_on:
-      db:
-        condition: service_healthy
-    ports:
-      - "8000:8000"
-    working_dir: /app
-    command: [ "sh", "-c", "uv run alembic upgrade head && uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload" ]
-    volumes:
-      - ./backend/app:/app/app
-      - ./backend/alembic:/app/alembic
-
-  vuejs:
-    container_name: vuejs
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    restart: always
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    environment:
-      - NODE_ENV=development
-
   redis:
     image: redis:alpine
     restart: always
@@ -136,11 +104,43 @@ services:
       - OLLAMA_KEEP_ALIVE=24h
       - OLLAMA_HOST=0.0.0.0:11434
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: [ "CMD", "curl", "-f", "http://localhost:11434/api/tags" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
+
+  fastapi:
+    container_name: fastapi
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    env_file: ".env.local"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    working_dir: /app
+    command: [ "sh", "-c", "uv run alembic upgrade head && uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload" ]
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/alembic:/app/alembic
+
+  vuejs:
+    container_name: vuejs
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
 
 volumes:
   postgres-data-local:

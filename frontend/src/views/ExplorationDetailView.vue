@@ -122,6 +122,20 @@ const getEventIcon = (eventType: string): string => {
   return iconMap[eventType] || iconMap.default
 }
 
+const getEventColor = (eventType: string): string => {
+  const colorMap: Record<string, string> = {
+    combat: '#ff4444',
+    loot: '#FFD700',
+    exploration: 'var(--color-theme-primary)',
+    discovery: '#4169E1',
+    encounter: '#ff9900',
+    danger: '#ff0000',
+    rest: '#00ced1',
+    default: 'var(--color-theme-primary)'
+  }
+  return colorMap[eventType] || colorMap.default
+}
+
 const formatEventTime = (hours: number): string => {
   const h = Math.floor(hours)
   const m = Math.floor((hours - h) * 60)
@@ -341,10 +355,29 @@ watch(() => progressPercentage.value, (newProgress) => {
               v-for="(event, index) in sortedEvents"
               :key="index"
               class="event-row"
+              :style="{ borderLeftColor: getEventColor(event.type) }"
             >
               <span class="event-time">{{ formatEventTime(event.time_elapsed_hours) }}</span>
-              <Icon :icon="getEventIcon(event.type)" class="event-icon" />
-              <span class="event-text">{{ event.description }}</span>
+              <Icon
+                :icon="getEventIcon(event.type)"
+                class="event-icon"
+                :style="{ color: getEventColor(event.type) }"
+              />
+              <div class="event-content-wrapper">
+                <div class="event-header-inline">
+                  <span
+                    class="event-type-badge"
+                    :style="{
+                      backgroundColor: getEventColor(event.type) + '20',
+                      borderColor: getEventColor(event.type),
+                      color: getEventColor(event.type)
+                    }"
+                  >
+                    {{ event.type.toUpperCase() }}
+                  </span>
+                </div>
+                <span class="event-text">{{ event.description }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -461,59 +494,60 @@ watch(() => progressPercentage.value, (newProgress) => {
 }
 
 .detail-content {
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1rem;
 }
 
 .top-section {
   background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.03);
-  border: 3px solid var(--color-theme-primary);
-  border-radius: 12px;
-  padding: 2rem;
-  margin-bottom: 2rem;
-  box-shadow: 0 0 30px var(--color-theme-glow);
+  border: 2px solid var(--color-theme-primary);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 0 20px var(--color-theme-glow);
 }
 
 .dweller-card {
   display: flex;
-  gap: 2rem;
-  margin-bottom: 2rem;
-  padding-bottom: 2rem;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
   border-bottom: 2px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3);
 }
 
 .dweller-portrait {
   position: relative;
-  width: 150px;
-  height: 150px;
+  width: 70px;
+  height: 70px;
   background: rgba(0, 0, 0, 0.7);
-  border: 3px solid var(--color-theme-primary);
-  border-radius: 8px;
+  border: 2px solid var(--color-theme-primary);
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 20px var(--color-theme-glow);
+  box-shadow: 0 0 15px var(--color-theme-glow);
+  flex-shrink: 0;
 }
 
 .portrait-icon {
-  width: 80px;
-  height: 80px;
+  width: 45px;
+  height: 45px;
   color: var(--color-theme-primary);
-  filter: drop-shadow(0 0 10px var(--color-theme-glow));
+  filter: drop-shadow(0 0 8px var(--color-theme-glow));
 }
 
 .dweller-level {
   position: absolute;
-  bottom: -10px;
-  right: -10px;
+  bottom: -6px;
+  right: -6px;
   background: var(--color-theme-primary);
   color: #000;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  font-size: 1rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.75rem;
   font-weight: 700;
-  box-shadow: 0 0 15px var(--color-theme-glow);
+  box-shadow: 0 0 10px var(--color-theme-glow);
 }
 
 .dweller-info {
@@ -524,98 +558,98 @@ watch(() => progressPercentage.value, (newProgress) => {
 }
 
 .dweller-name {
-  font-size: 2rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: var(--color-theme-primary);
-  text-shadow: 0 0 15px var(--color-theme-glow);
-  margin-bottom: 1rem;
+  text-shadow: 0 0 10px var(--color-theme-glow);
+  margin-bottom: 0.5rem;
 }
 
 .dweller-stats {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.25rem;
 }
 
 .stat-bar {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .stat-label {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.8);
-  min-width: 80px;
+  min-width: 50px;
 }
 
 .stat-bar-bg {
   flex: 1;
-  height: 24px;
+  height: 16px;
   background: rgba(0, 0, 0, 0.7);
-  border: 2px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.4);
-  border-radius: 4px;
+  border: 1px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.4);
+  border-radius: 3px;
   overflow: hidden;
 }
 
 .stat-bar-fill {
   height: 100%;
   transition: width 0.3s ease;
-  box-shadow: 0 0 10px currentColor;
 }
 
 .stat-bar-fill.health {
-  background: linear-gradient(90deg, #ff4444, #ff6666);
+  background: linear-gradient(90deg, var(--color-theme-primary), var(--color-theme-accent));
+  box-shadow: 0 0 12px var(--color-theme-glow);
 }
 
 .stat-value {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--color-theme-primary);
-  min-width: 80px;
+  min-width: 60px;
   text-align: right;
 }
 
 .progress-section {
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 .section-title {
   display: flex;
   align-items: center;
-  font-size: 1.5rem;
+  font-size: 1rem;
   font-weight: 700;
   color: var(--color-theme-primary);
-  text-shadow: 0 0 10px var(--color-theme-glow);
-  margin-bottom: 1rem;
+  text-shadow: 0 0 8px var(--color-theme-glow);
+  margin-bottom: 0.5rem;
 }
 
 .progress-bar-large {
-  height: 40px;
+  height: 28px;
   background: rgba(0, 0, 0, 0.7);
-  border: 3px solid var(--color-theme-primary);
-  border-radius: 8px;
+  border: 2px solid var(--color-theme-primary);
+  border-radius: 6px;
   overflow: hidden;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
 .progress-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--color-theme-primary), var(--color-theme-accent));
-  box-shadow: 0 0 20px var(--color-theme-glow);
+  box-shadow: 0 0 15px var(--color-theme-glow);
   transition: width 0.5s ease;
 }
 
 .progress-info {
   display: flex;
   justify-content: space-between;
-  font-size: 1rem;
+  font-size: 0.875rem;
   font-weight: 700;
 }
 
 .progress-text {
   color: var(--color-theme-primary);
-  text-shadow: 0 0 6px var(--color-theme-glow);
+  text-shadow: 0 0 5px var(--color-theme-glow);
 }
 
 .progress-time {
@@ -625,32 +659,32 @@ watch(() => progressPercentage.value, (newProgress) => {
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .stat-box {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 1.5rem;
+  padding: 0.5rem;
   background: rgba(0, 0, 0, 0.5);
-  border: 2px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3);
-  border-radius: 8px;
+  border: 1px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3);
+  border-radius: 6px;
   transition: all 0.2s ease;
 }
 
 .stat-box:hover {
   border-color: var(--color-theme-primary);
-  box-shadow: 0 0 15px var(--color-theme-glow);
-  transform: translateY(-2px);
+  box-shadow: 0 0 12px var(--color-theme-glow);
+  transform: translateY(-1px);
 }
 
 .stat-icon {
-  width: 3rem;
-  height: 3rem;
+  width: 1.75rem;
+  height: 1.75rem;
   color: var(--color-theme-primary);
-  margin-bottom: 0.75rem;
-  filter: drop-shadow(0 0 8px var(--color-theme-glow));
+  margin-bottom: 0.25rem;
+  filter: drop-shadow(0 0 6px var(--color-theme-glow));
 }
 
 .stat-icon.gold {
@@ -666,34 +700,34 @@ watch(() => progressPercentage.value, (newProgress) => {
 }
 
 .stat-number {
-  font-size: 2rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: var(--color-theme-primary);
-  text-shadow: 0 0 10px var(--color-theme-glow);
+  text-shadow: 0 0 8px var(--color-theme-glow);
 }
 
 .stat-box .stat-label {
-  font-size: 0.875rem;
+  font-size: 0.625rem;
   color: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.7);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.05em;
 }
 
 .event-log-section {
   background: rgba(0, 0, 0, 0.7);
-  border: 3px solid var(--color-theme-primary);
-  border-radius: 12px;
-  padding: 2rem;
-  margin-bottom: 2rem;
-  box-shadow: 0 0 30px var(--color-theme-glow);
+  border: 2px solid var(--color-theme-primary);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 0 20px var(--color-theme-glow);
 }
 
 .event-log {
   background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.05);
-  border: 2px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3);
-  border-radius: 8px;
-  padding: 1.5rem;
-  max-height: 400px;
+  border: 1px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3);
+  border-radius: 6px;
+  padding: 1rem;
+  max-height: 250px;
   overflow-y: auto;
 }
 
@@ -715,28 +749,28 @@ watch(() => progressPercentage.value, (newProgress) => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  padding: 3rem;
+  gap: 0.5rem;
+  padding: 2rem;
   color: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.5);
 }
 
 .no-events-icon {
-  width: 4rem;
-  height: 4rem;
+  width: 2.5rem;
+  height: 2.5rem;
 }
 
 .event-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .event-row {
   display: grid;
-  grid-template-columns: 80px 40px 1fr;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
+  grid-template-columns: 55px 28px 1fr;
+  align-items: start;
+  gap: 0.5rem;
+  padding: 0.625rem;
   background: rgba(0, 0, 0, 0.5);
   border-left: 3px solid var(--color-theme-primary);
   border-radius: 4px;
@@ -744,85 +778,111 @@ watch(() => progressPercentage.value, (newProgress) => {
 }
 
 .event-row:hover {
-  background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.1);
-  transform: translateX(4px);
+  background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.08);
+  transform: translateX(3px);
+  box-shadow: 0 0 12px rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.2);
 }
 
 .event-time {
-  font-size: 1.125rem;
+  font-size: 0.875rem;
   font-weight: 700;
   color: var(--color-theme-primary);
-  text-shadow: 0 0 6px var(--color-theme-glow);
+  text-shadow: 0 0 5px var(--color-theme-glow);
   font-variant-numeric: tabular-nums;
+  padding-top: 0.125rem;
 }
 
 .event-icon {
-  width: 1.75rem;
-  height: 1.75rem;
-  color: var(--color-theme-primary);
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 0.125rem;
+  filter: drop-shadow(0 0 3px currentColor);
+}
+
+.event-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.event-header-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.event-type-badge {
+  display: inline-block;
+  padding: 0.125rem 0.375rem;
+  border: 1px solid;
+  border-radius: 3px;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-shadow: 0 0 5px currentColor;
 }
 
 .event-text {
-  font-size: 1rem;
+  font-size: 0.8125rem;
   color: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.9);
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .equipment-section {
   background: rgba(0, 0, 0, 0.5);
-  border: 2px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3);
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
+  border: 1px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3);
+  border-radius: 6px;
+  padding: 0.625rem;
+  margin-bottom: 1rem;
 }
 
 .equipment-slot {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem;
+  gap: 0.5rem;
+  padding: 0.5rem;
   background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.05);
-  border: 2px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3);
-  border-radius: 8px;
+  border: 1px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3);
+  border-radius: 4px;
 }
 
 .equipment-icon {
-  width: 3rem;
-  height: 3rem;
+  width: 1.5rem;
+  height: 1.5rem;
   color: var(--color-theme-primary);
 }
 
 .equipment-label {
-  font-size: 1.125rem;
+  font-size: 0.875rem;
   font-weight: 700;
   color: var(--color-theme-primary);
-  text-shadow: 0 0 6px var(--color-theme-glow);
+  text-shadow: 0 0 5px var(--color-theme-glow);
 }
 
 .action-buttons {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1.5rem;
+  gap: 0.75rem;
 }
 
 .action-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  padding: 1.5rem;
-  font-size: 1.25rem;
+  gap: 0.5rem;
+  padding: 0.875rem;
+  font-size: 1rem;
   font-weight: 700;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.3s ease;
   font-family: 'Courier New', monospace;
-  border: 3px solid;
+  border: 2px solid;
 }
 
 .btn-icon {
-  width: 2rem;
-  height: 2rem;
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
 .complete-btn {

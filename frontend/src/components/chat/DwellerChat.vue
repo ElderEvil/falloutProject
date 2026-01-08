@@ -595,7 +595,7 @@ onUnmounted(() => {
 
 .audio-replay-btn:hover {
   opacity: 1;
-  background-color: rgba(var(--color-theme-primary-rgb), 0.2);
+  background-color: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.2);
   box-shadow: 0 0 8px var(--color-theme-glow);
   transform: scale(1.1);
 }

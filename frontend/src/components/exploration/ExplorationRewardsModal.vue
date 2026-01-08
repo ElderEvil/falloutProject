@@ -195,14 +195,14 @@ const getRarityColor = (rarity?: string): string => {
 
 .modal-content {
   background: #0a0a0a;
-  border: 2px solid #00ff00;
+  border: 2px solid var(--color-theme-primary);
   border-radius: 8px;
   width: 90%;
   max-width: 800px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 0 40px rgba(0, 255, 0, 0.4);
+  box-shadow: 0 0 40px rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.4);
   animation: slideUp 0.3s ease;
 }
 
@@ -222,7 +222,7 @@ const getRarityColor = (rarity?: string): string => {
   align-items: center;
   justify-content: space-between;
   padding: 1.5rem;
-  border-bottom: 2px solid rgba(0, 255, 0, 0.3);
+  border-bottom: 2px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3);
 }
 
 .header-title {
@@ -241,14 +241,14 @@ const getRarityColor = (rarity?: string): string => {
 .title {
   font-size: 1.75rem;
   font-weight: 700;
-  color: #00ff00;
-  text-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 10px var(--color-theme-glow);
 }
 
 .close-btn {
   background: transparent;
-  border: 2px solid rgba(0, 255, 0, 0.5);
-  color: #00ff00;
+  border: 2px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.5);
+  color: var(--color-theme-primary);
   padding: 0.5rem;
   border-radius: 4px;
   cursor: pointer;
@@ -260,8 +260,8 @@ const getRarityColor = (rarity?: string): string => {
 }
 
 .close-btn:hover {
-  background: rgba(0, 128, 0, 0.3);
-  border-color: #00ff00;
+  background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3);
+  border-color: var(--color-theme-primary);
 }
 
 .modal-body {
@@ -275,12 +275,12 @@ const getRarityColor = (rarity?: string): string => {
   align-items: center;
   font-size: 1.125rem;
   font-weight: 600;
-  color: #00ff00;
-  text-shadow: 0 0 6px rgba(0, 255, 0, 0.5);
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 6px var(--color-theme-glow);
   margin-bottom: 1.5rem;
   padding: 1rem;
-  background: rgba(0, 255, 0, 0.05);
-  border: 1px solid rgba(0, 255, 0, 0.2);
+  background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.05);
+  border: 1px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.2);
   border-radius: 4px;
 }
 
@@ -309,15 +309,15 @@ const getRarityColor = (rarity?: string): string => {
   align-items: center;
   gap: 1rem;
   padding: 1rem;
-  background: rgba(0, 255, 0, 0.03);
-  border: 2px solid rgba(0, 255, 0, 0.2);
+  background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.03);
+  border: 2px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.2);
   border-radius: 6px;
   transition: all 0.2s ease;
 }
 
 .reward-card:hover {
-  background: rgba(0, 255, 0, 0.08);
-  border-color: rgba(0, 255, 0, 0.4);
+  background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.08);
+  border-color: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.4);
   transform: translateY(-2px);
 }
 
@@ -345,8 +345,8 @@ const getRarityColor = (rarity?: string): string => {
 }
 
 .reward-icon-container.caps {
-  background: rgba(0, 255, 0, 0.2);
-  border: 2px solid #00ff00;
+  background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.2);
+  border: 2px solid var(--color-theme-primary);
 }
 
 .reward-icon-container.distance {
@@ -375,7 +375,7 @@ const getRarityColor = (rarity?: string): string => {
 }
 
 .reward-icon-container.caps .reward-icon {
-  color: #00ff00;
+  color: var(--color-theme-primary);
 }
 
 .reward-icon-container.distance .reward-icon {
@@ -396,7 +396,7 @@ const getRarityColor = (rarity?: string): string => {
 
 .reward-label {
   font-size: 0.75rem;
-  color: rgba(0, 255, 0, 0.6);
+  color: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.6);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 0.25rem;
@@ -405,8 +405,8 @@ const getRarityColor = (rarity?: string): string => {
 .reward-value {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #00ff00;
-  text-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 8px var(--color-theme-glow);
 }
 
 .experience-value {
@@ -425,7 +425,7 @@ const getRarityColor = (rarity?: string): string => {
 }
 
 .caps-value {
-  color: #00ff00;
+  color: var(--color-theme-primary);
 }
 
 .items-section {
@@ -437,11 +437,11 @@ const getRarityColor = (rarity?: string): string => {
   align-items: center;
   font-size: 1.125rem;
   font-weight: 700;
-  color: #00ff00;
-  text-shadow: 0 0 6px rgba(0, 255, 0, 0.5);
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 6px var(--color-theme-glow);
   margin-bottom: 1rem;
   padding-bottom: 0.5rem;
-  border-bottom: 2px solid rgba(0, 255, 0, 0.3);
+  border-bottom: 2px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3);
 }
 
 .items-list {
@@ -487,13 +487,13 @@ const getRarityColor = (rarity?: string): string => {
 }
 
 .item-quantity {
-  color: rgba(0, 255, 0, 0.7);
+  color: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.7);
 }
 
 .item-check {
   width: 1.5rem;
   height: 1.5rem;
-  color: #00ff00;
+  color: var(--color-theme-primary);
   flex-shrink: 0;
 }
 
@@ -504,7 +504,7 @@ const getRarityColor = (rarity?: string): string => {
   justify-content: center;
   gap: 1rem;
   padding: 3rem 2rem;
-  color: rgba(0, 255, 0, 0.5);
+  color: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.5);
 }
 
 .no-items-icon {
@@ -514,7 +514,7 @@ const getRarityColor = (rarity?: string): string => {
 
 .modal-footer {
   padding: 1.5rem;
-  border-top: 2px solid rgba(0, 255, 0, 0.3);
+  border-top: 2px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3);
 }
 
 .collect-btn {
@@ -523,20 +523,20 @@ const getRarityColor = (rarity?: string): string => {
   justify-content: center;
   width: 100%;
   padding: 1rem;
-  background: rgba(0, 128, 0, 0.3);
-  border: 2px solid #00ff00;
+  background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.2);
+  border: 2px solid var(--color-theme-primary);
   border-radius: 6px;
-  color: #00ff00;
+  color: var(--color-theme-primary);
   font-size: 1.125rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
-  text-shadow: 0 0 6px rgba(0, 255, 0, 0.5);
+  text-shadow: 0 0 6px var(--color-theme-glow);
 }
 
 .collect-btn:hover {
-  background: rgba(0, 180, 0, 0.4);
-  box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+  background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.4);
+  box-shadow: 0 0 20px var(--color-theme-glow);
   transform: translateY(-2px);
 }
 

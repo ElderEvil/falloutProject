@@ -310,10 +310,20 @@ const closeRewardsModal = () => {
 
       <!-- Active Explorations -->
       <div v-if="activeExplorationsArray.length > 0" class="exploring-dwellers">
-        <h4 class="text-sm font-bold mb-2 text-wasteland">
-          <Icon icon="mdi:account-search" class="inline h-5 w-5" />
-          Active Explorers ({{ activeExplorationsArray.length }})
-        </h4>
+        <div class="explorers-header">
+          <h4 class="text-sm font-bold text-wasteland">
+            <Icon icon="mdi:account-search" class="inline h-5 w-5" />
+            Active Explorers ({{ activeExplorationsArray.length }})
+          </h4>
+          <router-link
+            :to="`/vault/${vaultId}/exploration`"
+            class="view-all-btn"
+            title="View full exploration dashboard"
+          >
+            <Icon icon="mdi:arrow-right" class="h-4 w-4" />
+            View All
+          </router-link>
+        </div>
         <div class="explorer-list">
           <div
             v-for="exploration in activeExplorationsArray"
@@ -555,6 +565,36 @@ const closeRewardsModal = () => {
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid rgba(205, 133, 63, 0.3);
+}
+
+.explorers-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.view-all-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem 0.75rem;
+  background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.1);
+  border: 1px solid var(--color-theme-primary);
+  border-radius: 4px;
+  color: var(--color-theme-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  font-family: 'Courier New', monospace;
+  text-shadow: 0 0 4px var(--color-theme-glow);
+}
+
+.view-all-btn:hover {
+  background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.2);
+  box-shadow: 0 0 10px var(--color-theme-glow);
+  transform: translateX(2px);
 }
 
 .text-wasteland {

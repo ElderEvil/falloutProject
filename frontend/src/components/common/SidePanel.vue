@@ -45,7 +45,7 @@ const navItems = computed((): NavItem[] => {
       id: 'exploration',
       label: 'Exploration',
       icon: 'mdi:compass',
-      comingSoon: { phase: 'Phase 2', quarter: 'Feb-Mar 2026' },
+      path: `/vault/${vaultId.value}/exploration`,
       hotkey: '3'
     },
     {

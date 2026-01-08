@@ -116,10 +116,30 @@ export function useTheme() {
     if (typeof document === 'undefined') return;
 
     const root = document.documentElement;
+
+    // Helper to extract RGB values from hex color
+    const hexToRgb = (hex: string): string => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      if (!result) return '0, 0, 0';
+      return `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}`;
+    };
+
+    // Primary theme variables
     root.style.setProperty('--theme-primary', theme.colors.primary);
     root.style.setProperty('--theme-secondary', theme.colors.secondary);
     root.style.setProperty('--theme-accent', theme.colors.accent);
     root.style.setProperty('--theme-glow', theme.colors.glow);
+
+    // Standard color-theme-* variables (used by most components)
+    root.style.setProperty('--color-theme-primary', theme.colors.primary);
+    root.style.setProperty('--color-theme-secondary', theme.colors.secondary);
+    root.style.setProperty('--color-theme-accent', theme.colors.accent);
+    root.style.setProperty('--color-theme-glow', theme.colors.glow);
+
+    // RGB variants for rgba() usage
+    root.style.setProperty('--color-theme-primary-rgb', hexToRgb(theme.colors.primary));
+    root.style.setProperty('--color-theme-secondary-rgb', hexToRgb(theme.colors.secondary));
+    root.style.setProperty('--color-theme-accent-rgb', hexToRgb(theme.colors.accent));
 
     // Legacy support (some components may still use these)
     root.style.setProperty('--color-primary', theme.colors.primary);

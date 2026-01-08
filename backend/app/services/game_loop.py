@@ -531,7 +531,7 @@ class GameLoopService:
 
         return stats
 
-    async def _update_room_relationships(self, db_session: AsyncSession, vault_id: UUID4) -> dict:  # noqa: C901
+    async def _update_room_relationships(self, db_session: AsyncSession, vault_id: UUID4) -> dict:  # noqa: C901, PLR0912
         """
         Update relationship affinity for dwellers in the same room.
 
@@ -611,16 +611,24 @@ class GameLoopService:
                             relationships_map[key] = relationship
                             relationships_map[(dweller2.id, dweller1.id)] = relationship
 
-                        # Increase affinity
-                        await relationship_service.increase_affinity(
-                            db_session, relationship, game_config.relationship.affinity_increase_per_tick
-                        )
-                        stats["relationships_updated"] += 1
+                        # Only update affinity for existing (persistent) relationships
+                        # New relationships will be added and committed below
+                        if relationship not in new_relationships:
+                            await relationship_service.increase_affinity(
+                                db_session, relationship, game_config.relationship.affinity_increase_per_tick
+                            )
+                            stats["relationships_updated"] += 1
 
-            # Bulk add new relationships
+            # Bulk add new relationships and commit
             if new_relationships:
                 db_session.add_all(new_relationships)
                 await db_session.commit()
+                # Now update affinity for newly created relationships
+                for relationship in new_relationships:
+                    await relationship_service.increase_affinity(
+                        db_session, relationship, game_config.relationship.affinity_increase_per_tick
+                    )
+                    stats["relationships_updated"] += 1
 
         except SQLAlchemyError as e:
             self.logger.error(f"Database error updating relationships for vault {vault_id}: {e}", exc_info=True)  # noqa: G201

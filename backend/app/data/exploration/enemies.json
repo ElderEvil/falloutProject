@@ -1,0 +1,37 @@
+[
+  {
+    "name": "Radroach swarm",
+    "difficulty": 1,
+    "min_damage": 5,
+    "max_damage": 15,
+    "description": "A swarm of irradiated cockroaches"
+  },
+  {
+    "name": "Mole Rat pack",
+    "difficulty": 2,
+    "min_damage": 10,
+    "max_damage": 20,
+    "description": "A pack of mutated mole rats"
+  },
+  {
+    "name": "Raider gang",
+    "difficulty": 3,
+    "min_damage": 15,
+    "max_damage": 30,
+    "description": "A hostile group of wasteland raiders"
+  },
+  {
+    "name": "Giant Radscorpion",
+    "difficulty": 4,
+    "min_damage": 20,
+    "max_damage": 40,
+    "description": "A massive irradiated scorpion"
+  },
+  {
+    "name": "Deathclaw",
+    "difficulty": 5,
+    "min_damage": 30,
+    "max_damage": 50,
+    "description": "One of the most dangerous creatures in the wasteland"
+  }
+]

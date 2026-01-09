@@ -375,6 +375,56 @@ class RadioConfig(BaseSettings):
         return multipliers.get(tier, 1.0)
 
 
+class ExplorationConfig(BaseSettings):
+    """Wasteland exploration configuration."""
+
+    model_config = SettingsConfigDict(env_prefix="EXPLORATION_")
+
+    # Event timing
+    event_interval_seconds: int = Field(default=600, description="10 minutes between events", ge=60)
+    first_event_delay_seconds: int = Field(default=300, description="5 minutes until first event", ge=60)
+
+    # Event type weights (relative probability)
+    event_weight_combat: int = Field(default=35, ge=0)
+    event_weight_loot: int = Field(default=35, ge=0)
+    event_weight_danger: int = Field(default=20, ge=0)
+    event_weight_rest: int = Field(default=10, ge=0)
+
+    # Stat calculation formulas
+    luck_multiplier_min: float = Field(default=0.5, description="Luck 1 = 0.5x", ge=0.0)
+    luck_multiplier_max: float = Field(default=2.0, description="Luck 10 = 2.0x", ge=0.0)
+
+    perception_bonus_min: float = Field(default=0.5, description="Perception 1 = 50% find chance", ge=0.0, le=1.0)
+    perception_bonus_max: float = Field(default=0.95, description="Perception 10 = 95% find chance", ge=0.0, le=1.0)
+
+    endurance_stamina_bonus: float = Field(default=0.5, description="Max 50% more events with high endurance", ge=0.0)
+
+    # Combat formulas
+    combat_success_base: float = Field(default=0.3, description="30% base success chance", ge=0.0, le=1.0)
+    combat_success_max: float = Field(default=0.9, description="90% max success chance", ge=0.0, le=1.0)
+    combat_stat_multiplier: float = Field(default=0.06, description="6% per combined combat stat point", ge=0.0)
+
+    # Loot rarity by luck
+    rarity_common_base: float = Field(default=70.0, ge=0.0)
+    rarity_rare_base: float = Field(default=25.0, ge=0.0)
+    rarity_legendary_base: float = Field(default=5.0, ge=0.0)
+
+    # Loot type weights
+    loot_type_junk: float = Field(default=60.0, ge=0.0)
+    loot_type_weapon: float = Field(default=25.0, ge=0.0)
+    loot_type_outfit: float = Field(default=15.0, ge=0.0)
+
+    # Caps rewards
+    caps_base_min: int = Field(default=10, ge=0)
+    caps_base_max: int = Field(default=30, ge=0)
+    caps_perception_multiplier: int = Field(default=2, ge=0)
+    caps_luck_multiplier: int = Field(default=3, ge=0)
+
+    # Health changes
+    rest_health_min: int = Field(default=3, ge=0)
+    rest_health_max: int = Field(default=8, ge=0)
+
+
 class GameConfig(BaseSettings):
     """Master game configuration."""
 
@@ -392,6 +442,7 @@ class GameConfig(BaseSettings):
     breeding: BreedingConfig = Field(default_factory=BreedingConfig)
     leveling: LevelingConfig = Field(default_factory=LevelingConfig)
     radio: RadioConfig = Field(default_factory=RadioConfig)
+    exploration: ExplorationConfig = Field(default_factory=ExplorationConfig)
 
 
 # Singleton instance

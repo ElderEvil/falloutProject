@@ -1,0 +1,34 @@
+{
+  "combat": {
+    "victory": [
+      "Defeated {enemy}! Took {damage} damage but emerged victorious.",
+      "Fought off {enemy} using superior combat skills. Health reduced by {damage}.",
+      "Successfully defended against {enemy}. Lost {damage} HP."
+    ],
+    "defeat": [
+      "Barely survived an encounter with {enemy}. Took {damage} damage retreating.",
+      "Fought desperately against {enemy}. Lost {damage} HP but escaped.",
+      "Wounded by {enemy} but managed to flee. Health reduced by {damage}."
+    ]
+  },
+  "loot": [
+    "Found {item} and {caps} caps in an abandoned container!",
+    "Discovered {item} along with {caps} caps in a hidden stash!",
+    "Scavenged {item} and {caps} caps from the wasteland debris!",
+    "Located {item} and {caps} caps in a wrecked vehicle!"
+  ],
+  "danger": [
+    "Caught in unexpected radiation burst. Took {damage} rads.",
+    "Exposed to harsh wasteland weather. Lost {damage} HP feeling worn down.",
+    "Triggered an old trap. Suffered {damage} damage.",
+    "Encountered toxic waste. Health reduced by {damage}.",
+    "Caught in a radiation storm. Took {damage} damage from exposure."
+  ],
+  "rest": [
+    "Found clean water and refilled supplies. Recovered {health} HP.",
+    "Located a secure shelter and rested. Restored {health} HP.",
+    "Treated wounds using scavenged medical supplies. Healed {health} HP.",
+    "Rested in a safe location and recovered. Gained {health} HP.",
+    "Found edible food and fresh water. Health restored by {health}."
+  ]
+}

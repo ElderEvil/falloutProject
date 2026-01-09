@@ -9,7 +9,7 @@ from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
-from app.services.wasteland_service import wasteland_service
+from app.services.exploration_service import exploration_service
 from app.tests.factory.dwellers import create_fake_dweller
 from app.tests.factory.rooms import create_fake_room
 from app.tests.factory.users import create_fake_user
@@ -77,7 +77,7 @@ async def test_dweller_status_idle_on_exploration_complete_no_room(async_session
     assert dweller.status == DwellerStatusEnum.EXPLORING
 
     # Complete exploration
-    await wasteland_service.complete_exploration(async_session, exploration.id)
+    await exploration_service.complete_exploration(async_session, exploration.id)
 
     # Refresh dweller and check status is now IDLE (no room assigned)
     await async_session.refresh(dweller)
@@ -123,7 +123,7 @@ async def test_dweller_status_working_on_exploration_complete_with_room(async_se
     assert dweller.status == DwellerStatusEnum.EXPLORING
 
     # Complete exploration
-    await wasteland_service.complete_exploration(async_session, exploration.id)
+    await exploration_service.complete_exploration(async_session, exploration.id)
 
     # Refresh dweller and check status is back to WORKING
     await async_session.refresh(dweller)
@@ -169,7 +169,7 @@ async def test_dweller_status_training_on_exploration_complete_with_training_roo
     assert dweller.status == DwellerStatusEnum.EXPLORING
 
     # Complete exploration
-    await wasteland_service.complete_exploration(async_session, exploration.id)
+    await exploration_service.complete_exploration(async_session, exploration.id)
 
     # Refresh dweller and check status is back to TRAINING
     await async_session.refresh(dweller)
@@ -215,7 +215,7 @@ async def test_dweller_status_on_exploration_recall(async_session: AsyncSession)
     assert dweller.status == DwellerStatusEnum.EXPLORING
 
     # Recall exploration early
-    await wasteland_service.recall_exploration(async_session, exploration.id)
+    await exploration_service.recall_exploration(async_session, exploration.id)
 
     # Refresh dweller and check status is back to WORKING
     await async_session.refresh(dweller)

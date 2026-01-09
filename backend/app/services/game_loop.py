@@ -13,9 +13,9 @@ from app.crud.incident import incident_crud
 from app.crud.vault import vault as vault_crud
 from app.models.game_state import GameState
 from app.models.vault import Vault
+from app.services.exploration_service import exploration_service
 from app.services.happiness_service import happiness_service
 from app.services.resource_manager import ResourceManager
-from app.services.wasteland_service import wasteland_service
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +92,7 @@ class GameLoopService:
             self.logger.warning(
                 f"Vault {vault_id} offline time ({seconds_passed}s) exceeds max catch-up, capping to {game_config.game_loop.max_offline_catchup}s"  # noqa: E501
             )
-            seconds_passed = game_config.game_loopmax_offline_catchup
+            seconds_passed = game_config.game_loop.max_offline_catchup
 
         # Use minimum tick interval if too little time has passed
         seconds_passed = max(seconds_passed, game_config.game_loop.tick_interval)
@@ -259,7 +259,7 @@ class GameLoopService:
                     # Check if exploration should be auto-completed
                     if exploration.time_remaining_seconds() <= 0:
                         # Auto-complete the exploration
-                        await wasteland_service.complete_exploration(db_session, exploration.id)
+                        await exploration_service.complete_exploration(db_session, exploration.id)
                         stats["completed"] += 1
                         self.logger.info(
                             f"Auto-completed exploration {exploration.id} for dweller {exploration.dweller_id}"
@@ -267,9 +267,9 @@ class GameLoopService:
                         continue
 
                     # Try to generate an event
-                    event_generated = wasteland_service.generate_event(exploration)
+                    event_generated = exploration_service.generate_event(exploration)
                     if event_generated:
-                        await wasteland_service.process_event(db_session, exploration)
+                        await exploration_service.process_event(db_session, exploration)
                         stats["events_generated"] += 1
 
                 except Exception as e:

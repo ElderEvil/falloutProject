@@ -16,7 +16,7 @@ from app.schemas.exploration import (
     ExplorationReadShort,
     ExplorationSendRequest,
 )
-from app.services.wasteland_service import wasteland_service
+from app.services.exploration_service import exploration_service
 
 router = APIRouter()
 
@@ -30,25 +30,15 @@ async def send_dweller_to_wasteland(
 ):
     """Send a dweller to the wasteland for exploration."""
     await get_user_vault_or_403(vault_id, user, db_session)
-    # Check if dweller is already on an active exploration
-    existing_exploration = await crud_exploration.get_by_dweller(
-        db_session,
-        dweller_id=request.dweller_id,
-    )
-
-    if existing_exploration:
-        raise HTTPException(
-            status_code=400,
-            detail="Dweller is already on an exploration",
+    try:
+        return await exploration_service.send_dweller(
+            db_session,
+            vault_id=vault_id,
+            dweller_id=request.dweller_id,
+            duration=request.duration,
         )
-
-    # Create new exploration with dweller's current stats
-    return await crud_exploration.create_with_dweller_stats(
-        db_session,
-        vault_id=vault_id,
-        dweller_id=request.dweller_id,
-        duration=request.duration,
-    )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))  # noqa: B904
 
 
 @router.get("/vault/{vault_id}", response_model=list[ExplorationReadShort])
@@ -94,17 +84,7 @@ async def get_exploration_progress(
 ):
     """Get current progress of an exploration."""
     await verify_exploration_access(exploration_id, user, db_session)
-    exploration = await crud_exploration.get(db_session, exploration_id)
-
-    return ExplorationProgress(
-        id=exploration.id,
-        status=exploration.status,
-        progress_percentage=exploration.progress_percentage(),
-        time_remaining_seconds=exploration.time_remaining_seconds(),
-        elapsed_time_seconds=exploration.elapsed_time_seconds(),
-        events=exploration.events,
-        loot_collected=exploration.loot_collected,
-    )
+    return await exploration_service.get_exploration_progress(db_session, exploration_id)
 
 
 @router.post("/{exploration_id}/recall", response_model=ExplorationCompleteResponse)
@@ -116,12 +96,10 @@ async def recall_dweller(
     """Recall a dweller early from exploration."""
     await verify_exploration_access(exploration_id, user, db_session)
     try:
-        rewards = await wasteland_service.recall_exploration(db_session, exploration_id)
-        exploration = await crud_exploration.get(db_session, exploration_id)
-
+        exploration, rewards = await exploration_service.recall_exploration_with_data(db_session, exploration_id)
         return ExplorationCompleteResponse(
             exploration=exploration,
-            rewards_summary=rewards,
+            rewards_summary=rewards.model_dump(),
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))  # noqa: B904
@@ -136,12 +114,10 @@ async def complete_exploration(
     """Complete an exploration and collect rewards."""
     await verify_exploration_access(exploration_id, user, db_session)
     try:
-        rewards = await wasteland_service.complete_exploration(db_session, exploration_id)
-        exploration = await crud_exploration.get(db_session, exploration_id)
-
+        exploration, rewards = await exploration_service.complete_exploration_with_data(db_session, exploration_id)
         return ExplorationCompleteResponse(
             exploration=exploration,
-            rewards_summary=rewards,
+            rewards_summary=rewards.model_dump(),
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))  # noqa: B904
@@ -155,9 +131,7 @@ async def generate_event(
 ):
     """Manually trigger event generation for an exploration (for testing/debugging)."""
     await verify_exploration_access(exploration_id, user, db_session)
-    exploration = await crud_exploration.get(db_session, exploration_id)
-
-    if not exploration.is_active():
-        raise HTTPException(status_code=400, detail="Exploration is not active")
-
-    return await wasteland_service.process_event(db_session, exploration)
+    try:
+        return await exploration_service.process_event_for_exploration(db_session, exploration_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))  # noqa: B904

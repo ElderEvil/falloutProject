@@ -5,6 +5,7 @@ from enum import StrEnum
 
 import sqlalchemy as sa
 from pydantic import UUID4
+from sqlalchemy import orm
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
@@ -120,6 +121,8 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         if loot:
             event["loot"] = loot
         self.events.append(event)
+        # Flag the field as modified so SQLAlchemy tracks the change
+        orm.attributes.flag_modified(self, "events")
 
     def add_loot(self, item_name: str, quantity: int = 1, rarity: str = "common", item_type: str = "junk") -> None:
         """Add loot to the collected items."""
@@ -132,3 +135,5 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
                 "found_at": datetime.utcnow().isoformat(),
             }
         )
+        # Flag the field as modified so SQLAlchemy tracks the change
+        orm.attributes.flag_modified(self, "loot_collected")

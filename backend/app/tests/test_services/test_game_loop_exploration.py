@@ -11,8 +11,10 @@ from app.models.dweller import Dweller
 from app.models.exploration import ExplorationStatus
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate
+from app.schemas.exploration_event import CombatEventSchema, ItemSchema, LootEventSchema, LootSchema
+from app.services.exploration.event_generator import event_generator
+from app.services.exploration_service import exploration_service
 from app.services.game_loop import game_loop_service
-from app.services.wasteland_service import wasteland_service
 from app.tests.factory.dwellers import create_fake_dweller
 
 
@@ -54,7 +56,7 @@ async def test_process_explorations_active_exploration(
         "loot": None,
     }
 
-    with patch.object(wasteland_service, "generate_event", return_value=mock_event):
+    with patch.object(exploration_service, "generate_event", return_value=mock_event):
         result = await game_loop_service._process_explorations(async_session, vault.id)
 
     assert result["active_count"] == 1
@@ -202,7 +204,7 @@ async def test_process_explorations_error_handling(
             "loot": None,
         }
 
-    with patch.object(wasteland_service, "generate_event", side_effect=side_effect_generator):
+    with patch.object(exploration_service, "generate_event", side_effect=side_effect_generator):
         # Should not raise, just log errors
         result = await game_loop_service._process_explorations(async_session, vault.id)
 
@@ -340,16 +342,16 @@ async def test_process_explorations_event_with_loot_updates_stats(
     await async_session.commit()
 
     # Mock loot event
-    mock_event = {
-        "type": "loot_found",
-        "description": "Found treasure!",
-        "loot": {
-            "item": {"name": "Duct Tape", "rarity": "Rare", "value": 20},
-            "caps": 75,
-        },
-    }
+    mock_event = LootEventSchema(
+        description="Found treasure!",
+        loot=LootSchema(
+            item=ItemSchema(name="Duct Tape", rarity="Rare", value=20),
+            item_type="junk",
+            caps=75,
+        ),
+    )
 
-    with patch.object(wasteland_service, "generate_event", return_value=mock_event):
+    with patch.object(event_generator, "generate_event", return_value=mock_event):
         result = await game_loop_service._process_explorations(async_session, vault.id)
 
     assert result["events_generated"] == 1
@@ -378,14 +380,15 @@ async def test_process_explorations_danger_event_updates_enemies(
     exploration.start_time = datetime.utcnow() - timedelta(minutes=10)
     await async_session.commit()
 
-    # Mock danger event
-    mock_event = {
-        "type": "danger",
-        "description": "Attacked by raiders!",
-        "loot": None,
-    }
+    # Mock combat event (combat events increment enemy counter)
+    mock_event = CombatEventSchema(
+        description="Attacked by raiders!",
+        health_loss=10,
+        enemy="Raider gang",
+        victory=True,
+    )
 
-    with patch.object(wasteland_service, "generate_event", return_value=mock_event):
+    with patch.object(event_generator, "generate_event", return_value=mock_event):
         result = await game_loop_service._process_explorations(async_session, vault.id)
 
     assert result["events_generated"] == 1

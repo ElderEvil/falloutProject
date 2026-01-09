@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useDwellerStore } from '@/stores/dweller'
 import { useAuthStore } from '@/stores/auth'
 import { useVaultStore } from '@/stores/vault'
+import { useExplorationStore } from '@/stores/exploration'
 import { Icon } from '@iconify/vue'
 import SidePanel from '@/components/common/SidePanel.vue'
 import DwellerCard from '@/components/dwellers/DwellerCard.vue'
@@ -17,6 +18,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
 const vaultStore = useVaultStore()
+const explorationStore = useExplorationStore()
 const { isCollapsed } = useSidePanel()
 
 const dwellerId = computed(() => route.params.dwellerId as string)
@@ -64,8 +66,24 @@ const handleAssign = async () => {
   }
 }
 
-const handleRecall = () => {
-  // TODO (v1.14): Implement recall from exploration
+const handleRecall = async () => {
+  if (!dweller.value || !authStore.token) return
+
+  // Find the active exploration for this dweller
+  const exploration = explorationStore.getExplorationByDwellerId(dwellerId.value)
+
+  if (!exploration) {
+    console.error('No active exploration found for dweller')
+    return
+  }
+
+  try {
+    await explorationStore.recallDweller(exploration.id, authStore.token)
+    // Refresh dweller details to update status
+    await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token, true)
+  } catch (error) {
+    console.error('Error recalling dweller:', error)
+  }
 }
 
 const generateDwellerInfo = async () => {

@@ -11,6 +11,8 @@ const VaultView = () => import('@/views/VaultView.vue');
 const DwellersView = () => import('@/views/DwellersView.vue');
 const DwellerDetailView = () => import('@/views/DwellerDetailView.vue');
 const DwellerChatPage = () => import('@/components/chat/DwellerChatPage.vue');
+const ExplorationView = () => import('@/views/ExplorationView.vue');
+const ExplorationDetailView = () => import('@/views/ExplorationDetailView.vue');
 const ObjectivesView = () => import('@/views/ObjectivesView.vue');
 const QuestsView = () => import('@/views/QuestsView.vue');
 const RadioView = () => import('@/views/RadioView.vue');
@@ -55,6 +57,18 @@ const router = createRouter({
       path: '/dweller/:id/chat',
       name: 'DwellerChatPage',
       component: DwellerChatPage
+    },
+    {
+      path: '/vault/:id/exploration',
+      name: 'exploration',
+      component: ExplorationView,
+      meta: { requiresAuth: true, hideFromNav: true }
+    },
+    {
+      path: '/vault/:id/exploration/:explorationId',
+      name: 'explorationDetail',
+      component: ExplorationDetailView,
+      meta: { requiresAuth: true, hideFromNav: true }
     },
     {
       path: '/vault/:id/objectives',

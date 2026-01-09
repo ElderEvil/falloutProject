@@ -67,5 +67,5 @@ async def sell_outfit(outfit_id: UUID4, db_session: Annotated[AsyncSession, Depe
 
 
 @router.get("/read_data/", response_model=list[OutfitCreate])
-def read_outfits_data(data_store=Depends(get_static_game_data)):
+async def read_outfits_data(data_store=Depends(get_static_game_data)):
     return data_store.outfits

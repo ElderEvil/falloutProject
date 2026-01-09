@@ -209,7 +209,7 @@ async def generate_dweller_avatar(  # noqa: PLR0913
 
 
 @router.get("/read_data/", response_model=list[DwellerCreateWithoutVaultID])
-def read_dwellers_data(data_store=Depends(get_static_game_data)):
+async def read_dwellers_data(data_store=Depends(get_static_game_data)):
     return data_store.dwellers
 
 

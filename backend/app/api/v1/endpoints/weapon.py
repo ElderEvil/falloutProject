@@ -67,5 +67,5 @@ async def sell_weapon(weapon_id: UUID4, db_session: Annotated[AsyncSession, Depe
 
 
 @router.get("/read_data/", response_model=list[WeaponCreate])
-def read_weapons_data(data_store=Depends(get_static_game_data)):
+async def read_weapons_data(data_store=Depends(get_static_game_data)):
     return data_store.weapons

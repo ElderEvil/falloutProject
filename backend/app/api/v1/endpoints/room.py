@@ -65,7 +65,7 @@ async def delete_room(
 
 
 @router.get("/read_data/", response_model=list[RoomCreateWithoutVaultID])
-def read_room_data(data_store=Depends(get_static_game_data)):
+async def read_room_data(data_store=Depends(get_static_game_data)):
     return data_store.rooms
 
 

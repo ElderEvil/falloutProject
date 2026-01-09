@@ -54,7 +54,7 @@ async def get_current_user(
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
-def get_current_active_user(current_user: CurrentUser) -> User:
+async def get_current_active_user(current_user: CurrentUser) -> User:
     if not crud.user.is_active(current_user):
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
@@ -63,7 +63,7 @@ def get_current_active_user(current_user: CurrentUser) -> User:
 CurrentActiveUser = Annotated[User, Depends(get_current_active_user)]
 
 
-def get_current_active_superuser(current_user: CurrentActiveUser) -> User:
+async def get_current_active_superuser(current_user: CurrentActiveUser) -> User:
     if not crud.user.is_superuser(current_user):
         raise HTTPException(
             status_code=400,

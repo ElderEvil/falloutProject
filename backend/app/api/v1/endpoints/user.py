@@ -75,7 +75,7 @@ async def update_user_me(
 
 
 @router.get("/me", response_model=UserRead)
-def read_user_me(user: CurrentActiveUser):
+async def read_user_me(user: CurrentActiveUser):
     """
     Get current user.
     """

@@ -24,11 +24,13 @@ dependencies = [
     "sqladmin[full]>=0.22.0",
     "sqlmodel>=0.0.31,<1",
     "httpcore>=1.0.9",
+    "httptools>=0.7.1,<1",
     "greenlet>=3.3.0",
     "pydantic-ai-slim[openai, anthropic]>=1.39.0",
     "aiosmtplib>=5.0.0",
     "python-json-logger>=4.0.0",
     "psycopg2>=2.9.11",
+    "uvloop>=0.21.0; sys_platform != 'win32'",
 ]
 
 [dependency-groups]

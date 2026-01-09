@@ -47,5 +47,5 @@ async def sell_junk(junk_id: UUID4, db_session: Annotated[AsyncSession, Depends(
 
 
 @router.get("/read_data/")
-def read_junk_data(data_store=Depends(get_static_game_data)):
+async def read_junk_data(data_store=Depends(get_static_game_data)):
     return data_store.junk_items

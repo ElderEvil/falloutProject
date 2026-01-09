@@ -1,4 +1,4 @@
-import configparser  # noqa: I001
+import configparser
 import logging
 from pathlib import Path
 from typing import Annotated

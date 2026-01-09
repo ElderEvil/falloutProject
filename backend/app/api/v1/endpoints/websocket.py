@@ -1,7 +1,7 @@
 import json
 import logging
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket
 from pydantic import UUID4
 
 from app.services.websocket_manager import manager
@@ -33,18 +33,13 @@ async def websocket_endpoint(websocket: WebSocket, user_id: UUID4):
     }
     """
     await manager.connect(websocket, user_id)
-    try:
-        # Keep connection alive and handle incoming messages if needed
-        while True:
-            # Wait for any messages from client (ping/pong, etc.)
-            data = await websocket.receive_text()
+    # Keep connection alive and handle incoming messages if needed
+    async for data in websocket.iter_text():
+        # Echo back for testing
+        if data == "ping":
+            await websocket.send_json({"type": "pong"})
 
-            # Echo back for testing
-            if data == "ping":
-                await websocket.send_json({"type": "pong"})
-
-    except WebSocketDisconnect:
-        manager.disconnect(websocket, user_id)
+    manager.disconnect(websocket, user_id)
 
 
 @router.websocket("/ws/chat/{user_id}/{dweller_id}")
@@ -84,39 +79,35 @@ async def chat_websocket_endpoint(websocket: WebSocket, user_id: UUID4, dweller_
     await manager.connect_chat(websocket, user_id, dweller_id)
     logger.info("Chat WebSocket connected: user=%s, dweller=%s", user_id, dweller_id)
 
-    try:
-        while True:
-            # Receive message from client
-            data = await websocket.receive_text()
+    # Receive messages from client using async for pattern
+    async for data in websocket.iter_text():
+        try:
+            message = json.loads(data)
+            message_type = message.get("type")
 
-            try:
-                message = json.loads(data)
-                message_type = message.get("type")
+            if message_type == "ping":
+                await websocket.send_json({"type": "pong"})
 
-                if message_type == "ping":
-                    await websocket.send_json({"type": "pong"})
+            elif message_type == "typing":
+                # Broadcast typing indicator
+                is_typing = message.get("is_typing", False)
+                await manager.send_typing_indicator(
+                    user_id=user_id, dweller_id=dweller_id, is_typing=is_typing, sender="user"
+                )
 
-                elif message_type == "typing":
-                    # Broadcast typing indicator
-                    is_typing = message.get("is_typing", False)
-                    await manager.send_typing_indicator(
-                        user_id=user_id, dweller_id=dweller_id, is_typing=is_typing, sender="user"
-                    )
+            elif message_type == "message":
+                # For now, just acknowledge receipt
+                # Full text chat via WebSocket can be implemented later
+                # Currently, text chat uses REST API /api/v1/chat/{dweller_id}
+                await websocket.send_json(
+                    {"type": "ack", "message": "Message received. Use REST API for full chat functionality."}
+                )
 
-                elif message_type == "message":
-                    # For now, just acknowledge receipt
-                    # Full text chat via WebSocket can be implemented later
-                    # Currently, text chat uses REST API /api/v1/chat/{dweller_id}
-                    await websocket.send_json(
-                        {"type": "ack", "message": "Message received. Use REST API for full chat functionality."}
-                    )
+            else:
+                await websocket.send_json({"type": "error", "message": f"Unknown message type: {message_type}"})
 
-                else:
-                    await websocket.send_json({"type": "error", "message": f"Unknown message type: {message_type}"})
+        except json.JSONDecodeError:
+            await websocket.send_json({"type": "error", "message": "Invalid JSON format"})
 
-            except json.JSONDecodeError:
-                await websocket.send_json({"type": "error", "message": "Invalid JSON format"})
-
-    except WebSocketDisconnect:
-        logger.info("Chat WebSocket disconnected: user=%s, dweller=%s", user_id, dweller_id)
-        manager.disconnect_chat(websocket, user_id, dweller_id)
+    logger.info("Chat WebSocket disconnected: user=%s, dweller=%s", user_id, dweller_id)
+    manager.disconnect_chat(websocket, user_id, dweller_id)

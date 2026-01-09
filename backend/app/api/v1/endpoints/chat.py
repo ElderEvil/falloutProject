@@ -33,7 +33,7 @@ class ObjectiveKindEnum(StrEnum):
 
 
 @router.get("/generate_objectives", response_model=list[ObjectiveBase])
-def generate_objectives(
+async def generate_objectives(
     objective_kind: ObjectiveKindEnum,
     objective_count: int = 3,
 ):
@@ -66,8 +66,13 @@ def generate_objectives(
     ]
     """
     try:
-        client = get_ai_service().client
-        response = client.chat.completions.create(
+        # Use AsyncOpenAI for async operations
+        from openai import AsyncOpenAI
+
+        from app.core.config import settings
+
+        async_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        response = await async_client.chat.completions.create(
             model="gpt-4-turbo",
             messages=[
                 {"role": "system", "content": instructions},

@@ -27,6 +27,40 @@ class WastelandService:
         self.outfits: list[dict] = []
         self._load_item_data()
 
+        # Biome definitions with themed variations
+        self.biomes = {
+            "urban_ruins": {
+                "name": "Urban Ruins",
+                "description": "crumbling city buildings and broken streets",
+                "enemies": ["Raider gang", "Feral Ghouls", "Giant Radroach swarm"],
+                "loot_locations": ["collapsed apartment", "abandoned store", "rusted car", "old office building"],
+            },
+            "wasteland": {
+                "name": "Wasteland",
+                "description": "barren landscape with scattered debris",
+                "enemies": ["Radscorpion", "Mole Rats", "Feral Dog pack"],
+                "loot_locations": ["buried container", "wrecked truck", "old billboard base", "traveler's corpse"],
+            },
+            "industrial": {
+                "name": "Industrial Zone",
+                "description": "rusted factories and toxic waste",
+                "enemies": ["group of Raiders", "Glowing Radroach swarm", "Giant Radscorpion"],
+                "loot_locations": ["factory floor", "chemical storage", "worker's locker", "machinery bay"],
+            },
+            "suburban": {
+                "name": "Suburbs",
+                "description": "destroyed neighborhoods with intact houses",
+                "enemies": ["Feral Dogs", "Looters", "Radroach nest"],
+                "loot_locations": ["destroyed home", "garage safe", "backyard bunker", "neighbor's shed"],
+            },
+            "military": {
+                "name": "Military Base",
+                "description": "fortified military installation",
+                "enemies": ["Sentry Bot", "Deathclaw", "Military Robots"],
+                "loot_locations": ["armory locker", "command center", "bunker vault", "weapons cache"],
+            },
+        }
+
     def _load_item_data(self) -> None:
         """Load junk, weapons, and outfits from JSON files."""
         data_dir = Path(__file__).parent.parent / "data" / "items"
@@ -217,7 +251,344 @@ class WastelandService:
 
         return (random.choice(items_of_rarity), "junk")
 
-    def generate_event(self, exploration: Exploration) -> dict | None:
+    def _get_current_biome(self, exploration: Exploration) -> dict:
+        """Determine current biome based on exploration progress."""
+        progress = exploration.progress_percentage()
+
+        # Biome changes based on distance traveled
+        if progress < 20:
+            return self.biomes["urban_ruins"]
+        if progress < 40:
+            return self.biomes["suburban"]
+        if progress < 60:
+            return self.biomes["wasteland"]
+        if progress < 80:
+            return self.biomes["industrial"]
+        return self.biomes["military"]
+
+    def _generate_combat_event(self, exploration: Exploration) -> dict:
+        """Generate combat event with stat-based outcomes."""
+        strength = exploration.dweller_strength
+        agility = exploration.dweller_agility
+        endurance = exploration.dweller_endurance
+
+        # Determine enemy type and difficulty
+        enemy_types = [
+            {"name": "Radroach swarm", "difficulty": 1, "min_damage": 5, "max_damage": 15},
+            {"name": "Feral Dog pack", "difficulty": 2, "min_damage": 10, "max_damage": 20},
+            {"name": "group of Raiders", "difficulty": 3, "min_damage": 15, "max_damage": 30},
+            {"name": "Giant Radscorpion", "difficulty": 4, "min_damage": 20, "max_damage": 40},
+            {"name": "Deathclaw", "difficulty": 5, "min_damage": 30, "max_damage": 50},
+        ]
+
+        # Select enemy based on time elapsed (harder enemies later)
+        progress = exploration.progress_percentage()
+        max_difficulty = 1 + int(progress / 25)  # 1-5 difficulty based on progress
+        available_enemies = [e for e in enemy_types if e["difficulty"] <= max_difficulty]
+        enemy = random.choice(available_enemies)
+
+        # Calculate combat outcome based on strength + agility
+        combat_power = strength + (agility // 2)
+        success_chance = min(0.9, 0.3 + (combat_power * 0.06))  # 30-90% based on stats
+
+        success = random.random() < success_chance
+
+        if success:
+            # Victory - minimal damage
+            damage = max(1, enemy["min_damage"] - (endurance * 2))
+            descriptions = [
+                f"Defeated a {enemy['name']}! Took {damage} damage but emerged victorious.",
+                f"Fought off a {enemy['name']} using superior combat skills. Health reduced by {damage}.",
+                f"Successfully defended against a {enemy['name']} attack. Lost {damage} HP.",
+            ]
+            return {
+                "type": "combat",
+                "description": random.choice(descriptions),
+                "health_loss": damage,
+                "enemy": enemy["name"],
+                "victory": True,
+            }
+
+        # Defeat/Struggle - significant damage
+        damage = random.randint(enemy["min_damage"], enemy["max_damage"]) - (endurance * 1)
+        damage = max(damage // 2, 1)  # Reduced but still significant
+        descriptions = [
+            f"Barely survived an encounter with a {enemy['name']}. Took {damage} damage retreating.",
+            f"Fought desperately against a {enemy['name']}. Lost {damage} HP but escaped.",
+            f"Wounded by a {enemy['name']} but managed to flee. Health reduced by {damage}.",
+        ]
+        return {
+            "type": "combat",
+            "description": random.choice(descriptions),
+            "health_loss": damage,
+            "enemy": enemy["name"],
+            "victory": False,
+        }
+
+    def _generate_discovery_event(self, exploration: Exploration) -> dict:
+        """Generate discovery/exploration event based on perception and intelligence."""
+        perception = exploration.dweller_perception
+        intelligence = exploration.dweller_intelligence
+        biome = self._get_current_biome(exploration)
+
+        # Discovery chance based on perception + intelligence
+        discovery_power = perception + (intelligence // 2)
+        quality_roll = random.random() + (discovery_power * 0.05)
+
+        # Biome-specific discoveries
+        biome_discoveries = {
+            "Urban Ruins": {
+                "great": [
+                    f"Found an intact Pre-War bunker hidden beneath {biome['description']}!",
+                    "Discovered a hidden weapons cache in an old police station.",
+                    "Located an abandoned Vault-Tec facility with working technology.",
+                ],
+                "good": [
+                    "Found a collapsed overpass with salvageable materials.",
+                    "Discovered a mostly intact shopping mall with supplies.",
+                    "Located an old subway station perfect for shelter.",
+                ],
+                "minor": [
+                    "Noticed useful street signs for navigation.",
+                    "Found a working water fountain in a building.",
+                    "Spotted a safe route through the rubble.",
+                ],
+            },
+            "Wasteland": {
+                "great": [
+                    "Discovered an untouched caravan wreck with supplies!",
+                    "Found a hidden underground bunker from the war!",
+                    "Located a working Pre-War radio beacon with valuable intel.",
+                ],
+                "good": [
+                    "Found fresh water source in an old well.",
+                    "Discovered a cave system perfect for shelter.",
+                    "Located a traveler's stash buried in the sand.",
+                ],
+                "minor": [
+                    "Spotted some edible desert plants.",
+                    "Found tracks of other wasteland travelers.",
+                    "Noticed landmarks for better navigation.",
+                ],
+            },
+            "Industrial Zone": {
+                "great": [
+                    "Found intact machinery and valuable tech components!",
+                    "Discovered a sealed warehouse full of Pre-War supplies!",
+                    "Located a functional industrial robot with useful parts!",
+                ],
+                "good": [
+                    "Found a workshop with usable tools.",
+                    "Discovered chemical supplies that could be valuable.",
+                    "Located an old foreman's office with supplies.",
+                ],
+                "minor": [
+                    "Found some scrap metal worth collecting.",
+                    "Spotted safe paths through the toxic areas.",
+                    "Noticed functioning emergency lights.",
+                ],
+            },
+            "Suburbs": {
+                "great": [
+                    "Discovered an untouched fallout shelter with supplies!",
+                    "Found a garage with a working generator!",
+                    "Located a neighbor's hidden gun collection!",
+                ],
+                "good": [
+                    "Found a mostly intact home with supplies.",
+                    "Discovered a backyard bunker with food.",
+                    "Located a shed full of useful tools.",
+                ],
+                "minor": [
+                    "Found some canned food in a pantry.",
+                    "Spotted a safe house to rest in.",
+                    "Noticed a cleared path between houses.",
+                ],
+            },
+            "Military Base": {
+                "great": [
+                    "Breached a sealed armory with advanced weapons!",
+                    "Found the command center with working terminals!",
+                    "Discovered a vault with Pre-War military tech!",
+                ],
+                "good": [
+                    "Located a barracks with military gear.",
+                    "Found a medical bay with supplies.",
+                    "Discovered a communications array.",
+                ],
+                "minor": [
+                    "Found military rations that are still good.",
+                    "Spotted patrol routes to avoid detection.",
+                    "Located a map of the base layout.",
+                ],
+            },
+        }
+
+        biome_name = biome["name"]
+        discoveries = biome_discoveries.get(biome_name, biome_discoveries["Wasteland"])
+
+        if quality_roll > 1.2:  # Great discovery
+            return {"type": "discovery", "description": random.choice(discoveries["great"]), "quality": "great"}
+        if quality_roll > 0.8:  # Good discovery
+            return {"type": "discovery", "description": random.choice(discoveries["good"]), "quality": "good"}
+        # Minor discovery
+        return {"type": "discovery", "description": random.choice(discoveries["minor"]), "quality": "minor"}
+
+    def _generate_stealth_event(self, exploration: Exploration) -> dict:
+        """Generate stealth/avoidance event based on agility and perception."""
+        agility = exploration.dweller_agility
+        perception = exploration.dweller_perception
+        biome = self._get_current_biome(exploration)
+
+        # Stealth power combines agility and perception
+        stealth_power = agility + (perception // 2)
+        success_chance = 0.4 + (stealth_power * 0.05)  # 40-90%
+
+        # Biome-specific stealth scenarios
+        biome_stealth = {
+            "Urban Ruins": {
+                "success": [
+                    "Spotted a Raider patrol ahead and stealthily bypassed them through back alleys.",
+                    "Heard gunfire nearby and found a safe route through abandoned buildings.",
+                    "Noticed trip wires in a doorway and carefully avoided them.",
+                    "Detected Ghoul activity ahead and quietly moved around them.",
+                ],
+                "failure": [
+                    "Stepped on broken glass. Alerted nearby threats.",
+                    "Accidentally triggered a car alarm. Drew unwanted attention.",
+                    "Knocked over debris while moving through a building.",
+                ],
+            },
+            "Wasteland": {
+                "success": [
+                    "Spotted Radscorpion tracks and detoured around their nest.",
+                    "Heard gunfire in the distance and found alternate path.",
+                    "Detected radiation storm approaching and found shelter in time.",
+                    "Saw Deathclaw in the distance and quietly moved away.",
+                ],
+                "failure": [
+                    "Stumbled into Mole Rat tunnels. Had to fight through.",
+                    "Stepped on a brittle rock. Created noise that drew attention.",
+                    "Failed to notice a sand pit trap. Took minor injuries.",
+                ],
+            },
+            "Industrial Zone": {
+                "success": [
+                    "Spotted security robots and stealthily avoided their patrol routes.",
+                    "Heard machinery activating and found safe path around it.",
+                    "Noticed toxic gas leak ahead and detoured around it.",
+                    "Detected automated turrets and snuck past them.",
+                ],
+                "failure": [
+                    "Accidentally triggered an old alarm system. Drew threats.",
+                    "Stepped on rusty metal. Made loud noise.",
+                    "Failed to notice laser tripwire. Set off old security.",
+                ],
+            },
+            "Suburbs": {
+                "success": [
+                    "Spotted looters ahead and quietly moved around them.",
+                    "Heard Feral Dogs barking and found alternate route.",
+                    "Noticed booby trap on a door and avoided it.",
+                    "Detected Radroach nest and stealthily bypassed it.",
+                ],
+                "failure": [
+                    "Stepped on creaky floorboards. Alerted nearby threats.",
+                    "Knocked over old furniture. Made noise.",
+                    "Failed to notice tripwire. Triggered trap mechanism.",
+                ],
+            },
+            "Military Base": {
+                "success": [
+                    "Spotted Sentry Bot patrol and avoided detection.",
+                    "Heard combat robots ahead and found safe infiltration route.",
+                    "Noticed pressure plates and carefully avoided them.",
+                    "Detected turret coverage zones and moved through blind spots.",
+                ],
+                "failure": [
+                    "Accidentally triggered motion sensor. Alerted security.",
+                    "Stepped into laser grid. Set off alarms.",
+                    "Failed to notice camera. Security systems activated.",
+                ],
+            },
+        }
+
+        biome_name = biome["name"]
+        scenarios = biome_stealth.get(biome_name, biome_stealth["Wasteland"])
+
+        if random.random() < success_chance:
+            # Successfully avoided danger
+            return {"type": "exploration", "description": random.choice(scenarios["success"]), "danger_avoided": True}
+
+        # Failed stealth - forced into minor conflict
+        damage = max(1, 8 - agility)
+        return {
+            "type": "exploration",
+            "description": random.choice(scenarios["failure"]),
+            "danger_avoided": False,
+            "health_loss": damage,
+        }
+
+    def _generate_survival_event(self, exploration: Exploration) -> dict:
+        """Generate survival/endurance event."""
+        endurance = exploration.dweller_endurance
+        intelligence = exploration.dweller_intelligence
+
+        # Survival challenge
+        survival_power = endurance + (intelligence // 2)
+        success_chance = 0.5 + (survival_power * 0.04)
+
+        if random.random() < success_chance:
+            # Successfully handled survival challenge
+            successes = [
+                "Found clean water source and refilled supplies.",
+                "Located edible food in an abandoned store.",
+                "Built temporary shelter from a radiation storm.",
+                "Treated minor wounds using scavenged medical supplies.",
+                "Rested in a secure location and recovered stamina.",
+            ]
+            return {"type": "rest", "description": random.choice(successes), "health_restored": random.randint(3, 8)}
+
+        # Failed survival - took environmental damage
+        failures = [
+            "Caught in unexpected radiation burst. Took some rads.",
+            "Ran low on clean water. Feeling dehydrated.",
+            "Exposed to harsh wasteland weather. Feeling worn down.",
+            "Contaminated supplies. Suffered minor radiation poisoning.",
+        ]
+        damage = max(1, 10 - endurance)
+        return {"type": "danger", "description": random.choice(failures), "health_loss": damage}
+
+    def _generate_loot_event(self, exploration: Exploration) -> dict:
+        """Generate loot discovery event."""
+        perception = exploration.dweller_perception
+        luck = exploration.dweller_luck
+
+        # Get current biome for location-specific loot spots
+        biome = self._get_current_biome(exploration)
+
+        # Generate loot based on luck
+        loot_item, item_type = self._select_random_loot(luck)
+
+        # Caps scale with perception and luck
+        base_caps = random.randint(10, 30)
+        caps_found = base_caps + (perception * 2) + (luck * 3)
+
+        # Use biome-specific loot locations
+        location = random.choice(biome["loot_locations"])
+        description = f"Searched {location} and found {loot_item['name']} along with {caps_found} caps!"
+
+        return {
+            "type": "loot",
+            "description": description,
+            "loot": {
+                "item": loot_item,
+                "item_type": item_type,
+                "caps": caps_found,
+            },
+        }
+
+    def generate_event(self, exploration: Exploration) -> dict | None:  # noqa: PLR0911
         """
         Generate a random wasteland event based on dweller stats and time elapsed.
 
@@ -235,64 +606,27 @@ class WastelandService:
         if not exploration.should_generate_event(last_event_time):
             return None
 
-        # Calculate if loot is found based on perception
-        perception_chance = self._calculate_perception_bonus(exploration.dweller_perception)
-        found_loot = random.random() < perception_chance
-
-        if found_loot:
-            # Generate loot based on luck
-            loot_item, item_type = self._select_random_loot(exploration.dweller_luck)
-            caps_found = random.randint(5, 20 + exploration.dweller_luck * 3)
-
-            event_descriptions = [
-                f"Discovered an abandoned building. Found {loot_item['name']} and {caps_found} caps!",
-                f"Stumbled upon a hidden cache containing {loot_item['name']} and {caps_found} caps.",
-                f"Found a rusted locker with {loot_item['name']} and {caps_found} caps inside.",
-                f"Scavenged through rubble and recovered {loot_item['name']} and {caps_found} caps.",
-            ]
-
-            return {
-                "type": "loot_found",
-                "description": random.choice(event_descriptions),
-                "loot": {
-                    "item": loot_item,
-                    "item_type": item_type,
-                    "caps": caps_found,
-                },
-            }
-        # Generate narrative event based on agility/luck
-        agility = exploration.dweller_agility
-        luck = exploration.dweller_luck  # noqa: F841
-
-        # Higher agility = better chances to avoid danger
-        danger_avoided = random.random() < (0.5 + agility * 0.05)
-
-        if danger_avoided:
-            safe_events = [
-                "Heard gunshots in the distance but managed to avoid the area.",
-                "Spotted a group of Raiders ahead and took a safer route around them.",
-                "Found fresh water source and rested safely.",
-                "Discovered an intact pre-war billboard with useful directions.",
-                "Met a friendly trader who shared some supplies.",
-                "Found shelter in an old subway station to rest.",
-            ]
-            return {
-                "type": "encounter",
-                "description": random.choice(safe_events),
-                "loot": None,
-            }
-        dangerous_events = [
-            "Encountered hostile Radroaches! Had to fight them off.",
-            "Ran into a pack of feral dogs. Managed to escape with minor injuries.",
-            "Got caught in a radiation storm. Took some rads but found cover.",
-            "Stumbled into Raider territory. Had to fight through them.",
-            "Nearly fell into a hidden pit trap. Agility saved the day!",
-        ]
-        return {
-            "type": "danger",
-            "description": random.choice(dangerous_events),
-            "loot": None,
+        # Determine event type with weighted probabilities
+        event_weights = {
+            "loot": 30,  # 30% loot events
+            "combat": 25,  # 25% combat
+            "exploration": 20,  # 20% exploration/stealth
+            "discovery": 15,  # 15% discovery
+            "survival": 10,  # 10% survival
         }
+
+        event_type = random.choices(list(event_weights.keys()), weights=list(event_weights.values()), k=1)[0]
+
+        # Generate event based on type
+        if event_type == "loot":
+            return self._generate_loot_event(exploration)
+        if event_type == "combat":
+            return self._generate_combat_event(exploration)
+        if event_type == "discovery":
+            return self._generate_discovery_event(exploration)
+        if event_type == "stealth":
+            return self._generate_stealth_event(exploration)
+        return self._generate_survival_event(exploration)
 
     async def process_event(
         self,
@@ -332,9 +666,48 @@ class WastelandService:
             exploration.total_caps_found += caps
             exploration.total_distance += random.randint(1, 5)
 
-        if event["type"] == "danger":
-            # Update enemies encountered
+        # Handle combat events
+        if event["type"] == "combat":
             exploration.enemies_encountered += 1
+
+            # Apply health loss to dweller
+            if event.get("health_loss"):
+                from app.crud.dweller import dweller as dweller_crud
+
+                dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+                damage = event["health_loss"]
+                dweller_obj.health = max(1, dweller_obj.health - damage)  # Don't let health go to 0
+                db_session.add(dweller_obj)
+
+        # Handle danger events with health loss
+        if event["type"] == "danger" and event.get("health_loss"):
+            from app.crud.dweller import dweller as dweller_crud
+
+            dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+            damage = event["health_loss"]
+            dweller_obj.health = max(1, dweller_obj.health - damage)
+            db_session.add(dweller_obj)
+
+        # Handle exploration events with health loss
+        if event["type"] == "exploration" and event.get("health_loss"):
+            from app.crud.dweller import dweller as dweller_crud
+
+            dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+            damage = event["health_loss"]
+            dweller_obj.health = max(1, dweller_obj.health - damage)
+            db_session.add(dweller_obj)
+
+        # Handle rest events with health restoration
+        if event["type"] == "rest" and event.get("health_restored"):
+            from app.crud.dweller import dweller as dweller_crud
+
+            dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+            healing = event["health_restored"]
+            dweller_obj.health = min(dweller_obj.max_health, dweller_obj.health + healing)
+            db_session.add(dweller_obj)
+
+        # Update distance traveled for all events
+        exploration.total_distance += random.randint(1, 3)
 
         # Commit changes
         db_session.add(exploration)

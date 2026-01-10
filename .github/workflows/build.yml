@@ -39,6 +39,10 @@ jobs:
         id: python-version
         run: echo "version=$(cat backend/.python-version)" >> $GITHUB_OUTPUT
 
+      - name: Extract version from pyproject.toml
+        id: version
+        run: echo "version=$(grep '^version = ' backend/pyproject.toml | sed 's/version = "\(.*\)"/\1/')" >> $GITHUB_OUTPUT
+
       - name: Generate image tags
         id: tags
         run: |
@@ -52,20 +56,22 @@ jobs:
           file: ./backend/Dockerfile
           push: true
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/fastapi:latest
-            ${{ secrets.DOCKER_USERNAME }}/fastapi:${{ steps.tags.outputs.sha }}
-            ${{ secrets.DOCKER_USERNAME }}/fastapi:${{ steps.tags.outputs.date }}
+            ${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:latest
+            ${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:v${{ steps.version.outputs.version }}
+            ${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ steps.tags.outputs.sha }}
+            ${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ steps.tags.outputs.date }}
           build-args: |
             PYTHON_VERSION=${{ steps.python-version.outputs.version }}
-          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/fastapi:latest
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:latest
           cache-to: type=inline
 
       - name: Output image tags
         run: |
           echo "✅ Backend images pushed:"
-          echo "  - ${{ secrets.DOCKER_USERNAME }}/fastapi:latest"
-          echo "  - ${{ secrets.DOCKER_USERNAME }}/fastapi:${{ steps.tags.outputs.sha }}"
-          echo "  - ${{ secrets.DOCKER_USERNAME }}/fastapi:${{ steps.tags.outputs.date }}"
+          echo "  - ${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:latest"
+          echo "  - ${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:v${{ steps.version.outputs.version }}"
+          echo "  - ${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ steps.tags.outputs.sha }}"
+          echo "  - ${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ steps.tags.outputs.date }}"
 
   build-frontend:
     name: Build Frontend Image
@@ -85,6 +91,12 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: Extract version from package.json
+        id: version
+        run: |
+          VERSION=$(grep '"version"' frontend/package.json | head -1 | awk -F: '{ print $2 }' | sed 's/[", ]//g')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Generate image tags
         id: tags
         run: |
@@ -98,15 +110,17 @@ jobs:
           file: ./frontend/Dockerfile
           push: true
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/vuejs:latest
-            ${{ secrets.DOCKER_USERNAME }}/vuejs:${{ steps.tags.outputs.sha }}
-            ${{ secrets.DOCKER_USERNAME }}/vuejs:${{ steps.tags.outputs.date }}
-          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/vuejs:latest
+            ${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:latest
+            ${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:v${{ steps.version.outputs.version }}
+            ${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:${{ steps.tags.outputs.sha }}
+            ${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:${{ steps.tags.outputs.date }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:latest
           cache-to: type=inline
 
       - name: Output image tags
         run: |
           echo "✅ Frontend images pushed:"
-          echo "  - ${{ secrets.DOCKER_USERNAME }}/vuejs:latest"
-          echo "  - ${{ secrets.DOCKER_USERNAME }}/vuejs:${{ steps.tags.outputs.sha }}"
-          echo "  - ${{ secrets.DOCKER_USERNAME }}/vuejs:${{ steps.tags.outputs.date }}"
+          echo "  - ${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:latest"
+          echo "  - ${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:v${{ steps.version.outputs.version }}"
+          echo "  - ${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:${{ steps.tags.outputs.sha }}"
+          echo "  - ${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:${{ steps.tags.outputs.date }}"

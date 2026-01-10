@@ -40,6 +40,12 @@ from app.services.health_check import HealthCheckService
 from app.utils.seed_objectives import seed_objectives_from_json
 from app.utils.seed_quests import seed_quests_from_json
 
+# Import security middleware (conditional on settings)
+if settings.ENABLE_RATE_LIMITING:
+    from guard.middleware import SecurityMiddleware
+
+    from app.middleware.security import create_security_config
+
 # Configure logging with centralized setup
 setup_logging(
     log_level=settings.LOG_LEVEL,
@@ -100,6 +106,12 @@ app = FastAPI(
 
 # Add request ID middleware (first, so it wraps all other middleware)
 app.add_middleware(RequestIdMiddleware)
+
+# Add security middleware (rate limiting, IP filtering, etc.)
+if settings.ENABLE_RATE_LIMITING:
+    security_config = create_security_config()
+    app.add_middleware(SecurityMiddleware, config=security_config)
+    logger.info("Security middleware enabled with rate limiting")
 
 # Add session middleware for admin authentication
 app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)

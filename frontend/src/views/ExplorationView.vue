@@ -5,7 +5,9 @@ import { useAuthStore } from '@/stores/auth'
 import { useDwellerStore } from '@/stores/dweller'
 import { useExplorationStore } from '@/stores/exploration'
 import { useVaultStore } from '@/stores/vault'
+import { useSidePanel } from '@/composables/useSidePanel'
 import { Icon } from '@iconify/vue'
+import SidePanel from '@/components/common/SidePanel.vue'
 import ExplorerCard from '@/components/exploration/ExplorerCard.vue'
 import EventTimeline from '@/components/exploration/EventTimeline.vue'
 import ExplorationRewardsModal from '@/components/exploration/ExplorationRewardsModal.vue'
@@ -13,6 +15,7 @@ import type { RewardsSummary } from '@/stores/exploration'
 
 const route = useRoute()
 const authStore = useAuthStore()
+const { isCollapsed } = useSidePanel()
 const dwellerStore = useDwellerStore()
 const explorationStore = useExplorationStore()
 const vaultStore = useVaultStore()
@@ -146,7 +149,10 @@ const closeRewardsModal = () => {
 </script>
 
 <template>
-  <div class="exploration-view">
+  <div class="exploration-layout">
+    <SidePanel />
+
+    <div class="exploration-view" :class="{ collapsed: isCollapsed }">
     <!-- Header -->
     <div class="view-header">
       <div class="header-content">
@@ -214,15 +220,30 @@ const closeRewardsModal = () => {
       :dweller-name="completedDwellerName"
       @close="closeRewardsModal"
     />
+    </div>
   </div>
 </template>
 
 <style scoped>
+.exploration-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background: #000;
+}
+
 .exploration-view {
+  flex: 1;
   padding: 2rem;
-  min-height: calc(100vh - 64px);
+  overflow-y: auto;
   background: #000;
   font-family: 'Courier New', monospace;
+  margin-left: 240px;
+  transition: margin-left 0.3s ease;
+}
+
+.exploration-view.collapsed {
+  margin-left: 64px;
 }
 
 .view-header {

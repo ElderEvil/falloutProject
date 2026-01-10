@@ -58,7 +58,12 @@ class IncidentService:
             from datetime import datetime
 
             most_recent = max(active_incidents, key=lambda i: i.start_time)
-            seconds_since_last = (datetime.now(UTC) - most_recent.start_time).total_seconds()
+            start_time_aware = (
+                most_recent.start_time.replace(tzinfo=UTC)
+                if most_recent.start_time.tzinfo is None
+                else most_recent.start_time
+            )
+            seconds_since_last = (datetime.now(UTC) - start_time_aware).total_seconds()
             if seconds_since_last < game_config.incident.spawn_cooldown_seconds:
                 return False
 

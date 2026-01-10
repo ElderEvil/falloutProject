@@ -81,6 +81,11 @@ class IncidentService:
         Spawn a new incident in a random occupied room.
         Raiders and Deathclaws spawn at vault door (0,0) and spread inward.
 
+        Rules enforced:
+        - Only one incident type per vault at a time
+        - Only one incident per room
+        - Never spawn in elevators
+
         Args:
             db_session: Database session
             vault_id: ID of the vault
@@ -89,11 +94,26 @@ class IncidentService:
         Returns:
             Incident or None if no suitable room found
         """
-        # Pick random incident type if not specified
+        # Check what incident types are already active in vault
+        active_types = await incident_crud.get_active_incident_types_in_vault(db_session, vault_id)
+
+        # If incident_type not specified, pick random or match existing type
         if not incident_type:
-            incident_type = random.choice(
-                [IncidentType.RAIDER_ATTACK, IncidentType.RADROACH_INFESTATION, IncidentType.FIRE]
-            )
+            if active_types:
+                # If vault already has incidents, use the same type
+                incident_type = next(iter(active_types))
+            else:
+                # No active incidents, pick random
+                incident_type = random.choice(
+                    [IncidentType.RAIDER_ATTACK, IncidentType.RADROACH_INFESTATION, IncidentType.FIRE]
+                )
+        # If type specified but vault has different type, don't spawn
+        elif active_types and incident_type not in active_types:
+            self.logger.info(f"Cannot spawn {incident_type} in vault {vault_id} - vault already has {active_types}")
+            return None
+
+        # Get rooms that already have active incidents
+        rooms_with_incidents = await incident_crud.get_rooms_with_active_incidents(db_session, vault_id)
 
         # Determine where to spawn based on incident type
         if incident_type.value in game_config.incident.vault_door_incidents:
@@ -107,23 +127,38 @@ class IncidentService:
             if not target_room:
                 self.logger.warning(f"No vault door found at (0,0) for {incident_type} in vault {vault_id}")
                 return None
+
+            # Check if vault door already has incident
+            if target_room.id in rooms_with_incidents:
+                self.logger.info(f"Vault door already has active incident in vault {vault_id}")
+                return None
         else:
-            # Other incidents spawn in random occupied rooms
+            # Other incidents spawn in random occupied rooms (excluding elevators)
             rooms_query = (
                 select(Room)
                 .join(Dweller, Room.id == Dweller.room_id)
-                .where((Room.vault_id == vault_id) & (Dweller.room_id.is_not(None)))
+                .where(
+                    (Room.vault_id == vault_id)
+                    & (Dweller.room_id.is_not(None))
+                    & (Room.name != "Elevator")  # Exclude elevators
+                )
                 .distinct()
             )
             rooms_result = await db_session.execute(rooms_query)
             occupied_rooms = list(rooms_result.scalars().all())
 
-            if not occupied_rooms:
-                self.logger.warning(f"No occupied rooms found for incident spawn in vault {vault_id}")
+            # Filter out rooms that already have incidents
+            available_rooms = [room for room in occupied_rooms if room.id not in rooms_with_incidents]
+
+            if not available_rooms:
+                self.logger.warning(
+                    f"No available rooms for incident spawn in vault {vault_id} "
+                    f"(all occupied non-elevator rooms already have incidents)"
+                )
                 return None
 
             # Pick random room
-            target_room = random.choice(occupied_rooms)
+            target_room = random.choice(available_rooms)
 
         # Determine difficulty (1-10, weighted toward medium)
         difficulty = random.choices(
@@ -320,12 +355,17 @@ class IncidentService:
         if not current_room or current_room.coordinate_x is None or current_room.coordinate_y is None:
             return
 
+        # Get rooms that already have active incidents
+        rooms_with_incidents = await incident_crud.get_rooms_with_active_incidents(db_session, incident.vault_id)
+
         # Find adjacent rooms (within 1-2 coordinate units horizontally or vertically)
+        # Exclude elevators and rooms with active incidents
         adjacent_rooms_query = select(Room).where(
             (Room.vault_id == incident.vault_id)
             & (Room.id != incident.room_id)
             & (Room.coordinate_x.is_not(None))
             & (Room.coordinate_y.is_not(None))
+            & (Room.name != "Elevator")  # Exclude elevators from spread
             & (
                 # Adjacent horizontally (same floor, next to each other)
                 (
@@ -340,7 +380,10 @@ class IncidentService:
             )
         )
         adjacent_rooms_result = await db_session.execute(adjacent_rooms_query)
-        adjacent_rooms = list(adjacent_rooms_result.scalars().all())
+        all_adjacent_rooms = list(adjacent_rooms_result.scalars().all())
+
+        # Filter out rooms that already have incidents
+        adjacent_rooms = [room for room in all_adjacent_rooms if room.id not in rooms_with_incidents]
 
         if adjacent_rooms:
             # Pick a random adjacent room

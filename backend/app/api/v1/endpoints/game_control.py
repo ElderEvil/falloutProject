@@ -7,7 +7,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.deps import CurrentActiveUser
+from app.api.deps import CurrentActiveUser, CurrentSuperuser
 from app.db.session import get_async_session
 from app.services.game_loop import game_loop_service
 from app.services.incident_service import incident_service
@@ -275,4 +275,62 @@ async def spawn_debug_incident(
         "type": incident.type.value,
         "room_id": str(incident.room_id),
         "difficulty": incident.difficulty,
+    }
+
+
+@router.delete("/vaults/{vault_id}/incidents", status_code=200)
+async def delete_all_incidents(
+    *,
+    vault_id: UUID4,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    user: CurrentSuperuser,
+):
+    """Delete all incidents for a vault."""
+    # Verify vault ownership
+    vault = await crud.vault.get(db_session, vault_id)
+    if not vault:
+        raise HTTPException(status_code=404, detail="Vault not found")
+
+    if vault.user_id != user.id and not user.is_superuser:
+        raise HTTPException(status_code=403, detail="Not authorized to delete incidents in this vault")
+
+    count = await crud.incident_crud.remove_all_by_vault(db_session, vault_id)
+
+    return {
+        "message": f"Successfully deleted {count} incidents",
+        "vault_id": str(vault_id),
+        "deleted_count": count,
+    }
+
+
+@router.delete("/vaults/{vault_id}/incidents/{incident_id}", status_code=200)
+async def delete_incident(
+    *,
+    vault_id: UUID4,
+    incident_id: UUID4,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    user: CurrentSuperuser,
+):
+    """Delete a specific incident."""
+    # Verify vault ownership
+    vault = await crud.vault.get(db_session, vault_id)
+    if not vault:
+        raise HTTPException(status_code=404, detail="Vault not found")
+
+    if vault.user_id != user.id and not user.is_superuser:
+        raise HTTPException(status_code=403, detail="Not authorized to delete incidents in this vault")
+
+    # Verify incident belongs to vault
+    incident = await crud.incident_crud.get(db_session, incident_id)
+    if not incident or incident.vault_id != vault_id:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    success = await crud.incident_crud.remove(db_session, incident_id)
+
+    if not success:
+        raise HTTPException(status_code=400, detail="Failed to delete incident")
+
+    return {
+        "message": "Incident deleted successfully",
+        "incident_id": str(incident_id),
     }

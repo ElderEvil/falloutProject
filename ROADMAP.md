@@ -8,6 +8,12 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ## ✅ Recent Completions
 
+### v1.13.1 Security & Production Deployment Prep (January 10, 2026)
+- **Security Middleware**: fastapi-guard integration with rate limiting (100-200 req/min), IP whitelisting/blacklisting, auto-banning (10-20 violations)
+- **Production Readiness**: Docker build fixes (frontend API URL), K8s deployment configs (health checks, resource limits), comprehensive deployment documentation
+- **Documentation**: Security guide, deployment checklist, rate limiting summary, quick deploy guide
+- **Bug Fixes**: Incident timezone handling, exploration view sidebar, Docker configuration improvements
+
 ### v1.13 Audio Conversation & Refactoring (January 7, 2026)
 - **Audio Chat System**: Real-time voice conversations with dwellers
   - Speech-to-Text (OpenAI Whisper), Text-to-Speech with gender-based voices
@@ -42,17 +48,21 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ---
 
-## 🚧 Current Sprint: v1.14 Polish & Complete Features (PLANNING)
+## 🚧 Current Sprint: Post-Deployment Polish (PLANNING)
 
-### Priority: Complete Existing Systems
+### Soon After Deployment (High Priority)
+- [ ] **Dweller Death System** - Death mechanics when health reaches 0, revival options (stimpacks, caps), memorial system
+- [ ] **Training Assignment UI** - Drag-and-drop dwellers to training room, visual assignment feedback, training queue management
+- [ ] **Birth Event System** - Update child biography with "Born in [Vault Name]" detail, update parent biographies with child references
+
+### Complete Existing Systems
 - [ ] **Resource Warning UI** - Toast notifications for low resources (< 20% warning, < 10% critical), power outage effects
 - [ ] **Training Room UI** - Training queue display, progress indicators, completion notifications
-- [ ] **Empty States** - Helpful placeholders for no dwellers/rooms/explorations/incidents
 - [ ] **WebSocket Migration** - Extend WebSocket usage to other real-time updates (resources, incidents)
 
 ### Future Priorities
 - **Sound Effects** - Terminal UI sounds, ambient vault audio, alert sounds
-- **Dweller Death & Room Damage** - Consequences for failed combat, repair mechanics
+- **Room Damage** - Consequences for failed incident combat, repair mechanics with caps/junk
 - **Training Room Capacity Formula** - Dynamic calculation based on room size
 - **Sentry Integration** - Error tracking and performance monitoring
 
@@ -102,6 +112,13 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 - Terminal-themed design (TailwindCSS v4, scanline/CRT effects)
 - 8 custom UI components (UButton, UInput, UCard, UModal, UTabs, UTooltip, UBadge, USpinner)
 - Responsive layouts, Pinia state management, toast notifications, loading skeletons
+- Empty states for better UX (no dwellers/rooms/explorations/incidents)
+
+### Security & Infrastructure
+- Rate limiting with fastapi-guard (100-200 req/min per IP)
+- IP whitelisting/blacklisting, auto-banning for suspicious activity
+- Redis-based distributed rate limiting for production
+- Production deployment documentation and K8s configurations
 
 ### Testing & Quality
 - Frontend: 489+ tests (Vitest), Backend: 293+ tests (pytest)
@@ -117,16 +134,16 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 - **Crafting System**: Weapon/outfit crafting with recipes, junk requirements, workshop room
 
 ### Phase 2: Advanced Gameplay (Feb-Mar 2026)
-- **Combat Enhancements**: Room damage, dweller death mechanics, prevention items, combat statistics
+- **Combat Enhancements**: Combat statistics, combat log/replay system
 - **Exploration Enhancement**: Detailed events with choices, exploration log/journal, recall mechanism
-- **Dweller Progression**: Leveling UI enhancements (notifications, training UI, XP progress bars)
+- **Dweller Progression**: Leveling UI enhancements (notifications, XP progress bars)
 - **Breeding & Family**: Relationship visualization (graph, family tree, interactive explorer)
 
 ### Phase 3: Endgame & Polish (Mar-Apr 2026)
 - **Advanced Systems**: Pet system, legendary dwellers with unique abilities
 - **Economy & Trading**: Merchant system, caps management
 - **Enhanced Objectives**: Achievement system, daily/weekly challenges, story campaign
-- **UI/UX Polish**: Empty states, animations, sound effects, tutorial system
+- **UI/UX Polish**: Animations, sound effects, tutorial system
 
 ### Phase 4: Multiplayer & Social (Apr-May 2026)
 - **Social Features**: Friend system, visit vaults, gift items, leaderboards, co-op quests
@@ -173,7 +190,8 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 - **v1.11**: Email verification ✅
 - **v1.12**: Happiness dashboard + UI polish ✅
 - **v1.13**: Audio conversations + multi-provider AI + refactoring ✅
-- **v1.14**: Resource warnings + training UI (Current - Jan 2026)
+- **v1.13.1**: Security middleware + production deployment prep ✅
+- **v1.14**: Post-deployment polish (dweller death, training UI, birth events) (Current - Jan 2026)
 - **v2.0**: Phase 1 completion (Feb 2026)
 - **v2.1**: Full MVP release (Mar 2026)
 
@@ -187,4 +205,4 @@ Contributions are welcome! Check the [README.md](./README.md) for development se
 
 This roadmap is subject to change based on user feedback, technical constraints, priority adjustments, and community contributions.
 
-Last updated: January 7, 2026
+Last updated: January 10, 2026

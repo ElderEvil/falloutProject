@@ -16,7 +16,7 @@ spec:
         - name: frontend
           image: elerevil/vuejs:latest
           ports:
-            - containerPort: 80
-          env:
-            - name: VITE_API_BASE_URL
-              value: http://37.27.195.77:30008
+            - containerPort: 3000
+          # Note: VITE_API_BASE_URL is baked into the build
+          # Update the Docker build command to pass the correct URL:
+          # docker build --build-arg VITE_API_BASE_URL=http://your-domain:port -t elerevil/vuejs:latest ./frontend

@@ -16,18 +16,22 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
 
+from app.core.config import settings
+
+# Disable rate limiting for tests before importing main
+settings.ENABLE_RATE_LIMITING = False
+
 # Mock MinIO before importing main
 with patch("app.services.minio.MinioService") as mock_minio:
     mock_instance = MagicMock()
     mock_minio.return_value = mock_instance
     from main import app
 
-from app import crud
-from app.core.config import settings
-from app.db.session import get_async_session
-from app.schemas.user import UserCreate
-from app.tests.utils.user import authentication_token_from_email
-from app.tests.utils.utils import get_superuser_token_headers
+from app import crud  # noqa: E402
+from app.db.session import get_async_session  # noqa: E402
+from app.schemas.user import UserCreate  # noqa: E402
+from app.tests.utils.user import authentication_token_from_email  # noqa: E402
+from app.tests.utils.utils import get_superuser_token_headers  # noqa: E402
 
 
 @pytest.fixture(scope="session")

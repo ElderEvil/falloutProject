@@ -15,7 +15,9 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 # Set environment and build
-ENV VITE_API_BASE_URL=http://37.27.195.77:30008
+# Use build argument to allow dynamic API URL configuration
+ARG VITE_API_BASE_URL=http://localhost:8000
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 RUN pnpm run build
 
 # Production stage

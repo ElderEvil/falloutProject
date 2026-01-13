@@ -1,230 +1,141 @@
-import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
-import { useToast } from "@/composables/useToast";
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
+import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
 
 interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
-  _retry?: boolean;
-  _skipErrorNotification?: boolean;
+  _retry?: boolean
+  _skipErrorNotification?: boolean
 }
 
 interface ValidationError {
-  loc: string[];
-  msg: string;
-  type: string;
+  loc: string[]
+  msg: string
+  type: string
 }
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   headers: {
-    Accept: "application/json",
-    "Content-Type": "application/json",
-  },
-});
-
-// Helper function to get token from localStorage without circular dependency
-function getStoredToken(): string | null {
-  try {
-    const tokenData = localStorage.getItem("token");
-    if (!tokenData) return null;
-    // Handle VueUse localStorage format
-    return tokenData.replace(/^"|"$/g, "");
-  } catch {
-    return null;
+    Accept: 'application/json',
+    'Content-Type': 'application/json'
   }
-}
-
-// Helper function to get refresh token from localStorage
-function getStoredRefreshToken(): string | null {
-  try {
-    const refreshTokenData = localStorage.getItem("refreshToken");
-    if (!refreshTokenData) return null;
-    // Handle VueUse localStorage format
-    return refreshTokenData.replace(/^"|"$/g, "");
-  } catch {
-    return null;
-  }
-}
-
-// Helper function to update token in localStorage
-function updateStoredToken(token: string): void {
-  try {
-    localStorage.setItem("token", JSON.stringify(token));
-  } catch {
-    console.error("Failed to update token in localStorage");
-  }
-}
-
-// Helper function to clear auth data
-function clearAuthData(): void {
-  try {
-    localStorage.removeItem("token");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("user");
-  } catch {
-    console.error("Failed to clear auth data");
-  }
-}
+})
 
 apiClient.interceptors.request.use(
   async (config) => {
-    const token = getStoredToken();
+    const authStore = useAuthStore()
 
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (authStore.token) {
+      config.headers.Authorization = `Bearer ${authStore.token}`
     }
 
-    return config;
+    return config
   },
   (error) => {
-    return Promise.reject(error);
-  },
-);
+    return Promise.reject(error)
+  }
+)
 
 apiClient.interceptors.response.use(
   (response) => {
-    return response;
+    return response
   },
   async (err: unknown) => {
-    const { error: showError } = useToast();
+    const authStore = useAuthStore()
+    const { error: showError } = useToast()
 
     // Type guard to check if error is an AxiosError
     if (!axios.isAxiosError(err)) {
-      return Promise.reject(err);
+      return Promise.reject(err)
     }
 
-    const error = err as AxiosError;
-    const originalRequest = error.config as
-      | CustomAxiosRequestConfig
-      | undefined;
+    const error = err as AxiosError
+    const originalRequest = error.config as CustomAxiosRequestConfig | undefined
 
     if (!originalRequest) {
-      return Promise.reject(error);
+      return Promise.reject(error)
     }
 
     // Handle 401 with token refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      const refreshToken = getStoredRefreshToken();
-
-      if (refreshToken) {
-        try {
-          const formData = new URLSearchParams();
-          formData.append("refresh_token", refreshToken);
-
-          const response = await axios.post(
-            `${import.meta.env.VITE_API_BASE_URL}/api/v1/auth/refresh`,
-            formData,
-            {
-              headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-              },
-            },
-          );
-
-          const newToken = response.data.access_token;
-          if (newToken) {
-            updateStoredToken(newToken);
-            originalRequest.headers.Authorization = `Bearer ${newToken}`;
-            return apiClient(originalRequest);
-          }
-        } catch (refreshError) {
-          console.error("Token refresh failed", refreshError);
-          clearAuthData();
-          // Redirect to login page
-          window.location.href = "/login";
-          return Promise.reject(refreshError);
-        }
-      } else {
-        // No refresh token available, clear auth and redirect
-        clearAuthData();
-        window.location.href = "/login";
-        return Promise.reject(error);
+      originalRequest._retry = true
+      await authStore.refreshAccessToken()
+      if (authStore.token) {
+        axios.defaults.headers.common['Authorization'] = 'Bearer ' + authStore.token
       }
+      return apiClient(originalRequest)
     }
 
     // Skip notifications for specific endpoints or if explicitly disabled
     if (!originalRequest._skipErrorNotification) {
-      const errorData = error.response?.data as
-        | Record<string, unknown>
-        | string
-        | undefined;
-      let title = "Request Failed";
-      let message = "An unexpected error occurred";
-      let details: string | undefined;
+      const errorData = error.response?.data as Record<string, unknown> | string | undefined
+      let title = 'Request Failed'
+      let message = 'An unexpected error occurred'
+      let details: string | undefined
 
       // Extract error information from backend response
       if (error.response) {
-        const status = error.response.status;
+        const status = error.response.status
 
         // Handle different status codes
         if (status === 400) {
-          title = "Invalid Request";
+          title = 'Invalid Request'
         } else if (status === 401) {
-          title = "Unauthorized";
-          message = "Please log in to continue";
+          title = 'Unauthorized'
+          message = 'Please log in to continue'
         } else if (status === 403) {
-          title = "Access Denied";
-          message = "You don't have permission to perform this action";
+          title = 'Access Denied'
+          message = "You don't have permission to perform this action"
         } else if (status === 404) {
-          title = "Not Found";
-          message = "The requested resource was not found";
+          title = 'Not Found'
+          message = 'The requested resource was not found'
         } else if (status === 422) {
-          title = "Validation Error";
+          title = 'Validation Error'
         } else if (status >= 500) {
-          title = "Server Error";
-          message = "Something went wrong on our end";
+          title = 'Server Error'
+          message = 'Something went wrong on our end'
         }
 
         // Extract message from response body
-        if (typeof errorData === "string") {
-          message = errorData;
-        } else if (
-          errorData &&
-          typeof errorData === "object" &&
-          "detail" in errorData
-        ) {
-          const detail = errorData.detail;
-          if (typeof detail === "string") {
-            message = detail;
+        if (typeof errorData === 'string') {
+          message = errorData
+        } else if (errorData && typeof errorData === 'object' && 'detail' in errorData) {
+          const detail = errorData.detail
+          if (typeof detail === 'string') {
+            message = detail
           } else if (Array.isArray(detail)) {
             // FastAPI validation errors
-            message = detail
-              .map((err: ValidationError) => {
-                const field = err.loc?.join(".") || "field";
-                return `${field}: ${err.msg}`;
-              })
-              .join(", ");
-          } else if (typeof detail === "object" && detail !== null) {
-            message = JSON.stringify(detail);
+            message = detail.map((err: ValidationError) => {
+              const field = err.loc?.join('.') || 'field'
+              return `${field}: ${err.msg}`
+            }).join(', ')
+          } else if (typeof detail === 'object' && detail !== null) {
+            message = JSON.stringify(detail)
           }
-        } else if (
-          errorData &&
-          typeof errorData === "object" &&
-          "message" in errorData
-        ) {
-          const msg = errorData.message;
-          if (typeof msg === "string") {
-            message = msg;
+        } else if (errorData && typeof errorData === 'object' && 'message' in errorData) {
+          const msg = errorData.message
+          if (typeof msg === 'string') {
+            message = msg
           }
         }
 
         // Add technical details
-        const url = originalRequest.url || "unknown";
-        const method = originalRequest.method?.toUpperCase() || "GET";
-        details = `${method} ${url} - Status ${status}`;
+        const url = originalRequest.url || 'unknown'
+        const method = originalRequest.method?.toUpperCase() || 'GET'
+        details = `${method} ${url} - Status ${status}`
       } else if (error.request) {
-        title = "Network Error";
-        message = "Unable to reach the server. Please check your connection.";
-        details = error.message;
+        title = 'Network Error'
+        message = 'Unable to reach the server. Please check your connection.'
+        details = error.message
       } else {
-        details = error.message;
+        details = error.message
       }
 
-      showError(`${title}: ${message}${details ? ` (${details})` : ""}`);
+      showError(`${title}: ${message}${details ? ` (${details})` : ''}`)
     }
 
-    return Promise.reject(error);
-  },
-);
+    return Promise.reject(error)
+  }
+)
 
-export default apiClient;
+export default apiClient

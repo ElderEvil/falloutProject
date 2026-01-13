@@ -1,18 +1,17 @@
 [project]
 name = "fallout-shelter-fast-api-vue"
-version = "1.13.0"
+version = "1.13.1"
 authors = [{ name = "ElderEvil", email = "elder.evil.dev@proton.me" }, ]
 description = "Fallout Shelter FastAPI Game is a web-based simulation game where the player manages a vault full of dwellers, balancing their needs and resources to keep the vault thriving."
 requires-python = ">=3.12,<3.14"
 dependencies = [
-    "alembic>=1.17.2,<2.0",
+    "alembic>=1.18.0,<2.0",
     "asyncpg>=0.30.0,<1.0",
     "celery>=5.6.1,<6.0",
     "sqlalchemy-celery-beat>=0.7.4",
     "faker>=40.1.0",
     "fastapi[standard]>=0.128.0",
     "minio>=7.2.20,<8.0",
-    "openai>=2.3.0,<3",
     "passlib[bcrypt]>=1.7.4",
     "pillow>=12.0,<13",
     "psycopg>=3.3.2,<4",
@@ -45,12 +44,12 @@ test = [
     "celery-types>=0.24.0",
 ]
 lint = [
-    "prek>=0.2.25",
-    "ruff>=0.14.10",
-    "ty>=0.0.8",
+    "prek>=0.2.27",
+    "ruff>=0.14.11",
+    "ty>=0.0.11",
 ]
 perf = [
-    "locust>=2.33.0",
+    "locust>=2.43.1",
 ]
 
 [tool.uv]

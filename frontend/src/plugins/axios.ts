@@ -1,5 +1,4 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
-import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 
 interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
@@ -13,6 +12,48 @@ interface ValidationError {
   type: string
 }
 
+// Helper functions to access localStorage directly (avoid circular dependency with auth store)
+function getStoredToken(): string | null {
+  try {
+    const tokenData = localStorage.getItem('token')
+    if (!tokenData) return null
+    // VueUse wraps values in quotes
+    return tokenData.replace(/^"|"$/g, '')
+  } catch {
+    return null
+  }
+}
+
+function getStoredRefreshToken(): string | null {
+  try {
+    const refreshTokenData = localStorage.getItem('refreshToken')
+    if (!refreshTokenData) return null
+    // VueUse wraps values in quotes
+    return refreshTokenData.replace(/^"|"$/g, '')
+  } catch {
+    return null
+  }
+}
+
+function updateStoredToken(token: string): void {
+  try {
+    // Store in VueUse format (wrapped in quotes)
+    localStorage.setItem('token', JSON.stringify(token))
+  } catch {
+    console.error('Failed to update token in localStorage')
+  }
+}
+
+function clearAuthData(): void {
+  try {
+    localStorage.removeItem('token')
+    localStorage.removeItem('refreshToken')
+    localStorage.removeItem('user')
+  } catch {
+    console.error('Failed to clear auth data')
+  }
+}
+
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   headers: {
@@ -23,10 +64,10 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   async (config) => {
-    const authStore = useAuthStore()
+    const token = getStoredToken()
 
-    if (authStore.token) {
-      config.headers.Authorization = `Bearer ${authStore.token}`
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
     }
 
     return config
@@ -41,7 +82,6 @@ apiClient.interceptors.response.use(
     return response
   },
   async (err: unknown) => {
-    const authStore = useAuthStore()
     const { error: showError } = useToast()
 
     // Type guard to check if error is an AxiosError
@@ -59,11 +99,42 @@ apiClient.interceptors.response.use(
     // Handle 401 with token refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
-      await authStore.refreshAccessToken()
-      if (authStore.token) {
-        axios.defaults.headers.common['Authorization'] = 'Bearer ' + authStore.token
+
+      const refreshToken = getStoredRefreshToken()
+
+      if (refreshToken) {
+        try {
+          // Call refresh endpoint directly to avoid circular dependency
+          const formData = new URLSearchParams()
+          formData.append('refresh_token', refreshToken)
+
+          const response = await axios.post(
+            `${import.meta.env.VITE_API_BASE_URL}/api/v1/auth/refresh`,
+            formData,
+            {
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+              }
+            }
+          )
+
+          const newToken = response.data.access_token
+          if (newToken) {
+            updateStoredToken(newToken)
+            originalRequest.headers.Authorization = `Bearer ${newToken}`
+            return apiClient(originalRequest)
+          }
+        } catch (refreshError) {
+          console.error('Token refresh failed', refreshError)
+          clearAuthData()
+          window.location.href = '/login'
+          return Promise.reject(refreshError)
+        }
+      } else {
+        clearAuthData()
+        window.location.href = '/login'
+        return Promise.reject(error)
       }
-      return apiClient(originalRequest)
     }
 
     // Skip notifications for specific endpoints or if explicitly disabled

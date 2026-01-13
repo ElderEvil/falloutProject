@@ -2,11 +2,13 @@
 
 > **Terminal-themed Vue 3 application with modern tooling**
 
-A retro-futuristic frontend for the Fallout Shelter management game, featuring terminal green aesthetics, CRT effects, and cutting-edge JavaScript tooling.
+A retro-futuristic frontend for the Fallout Shelter management game, featuring terminal green aesthetics, CRT effects,
+and cutting-edge JavaScript tooling.
 
 ## ✨ Tech Stack
 
 ### Core Framework
+
 - **Vue 3.5.13** - Composition API with `<script setup>`
 - **TypeScript 5.7** - Full type safety
 - **Vite (rolldown-vite)** - Ultra-fast dev server with Rolldown bundler
@@ -14,6 +16,7 @@ A retro-futuristic frontend for the Fallout Shelter management game, featuring t
 - **Vue Router 4.5** - Client-side routing
 
 ### Styling & UI
+
 - **TailwindCSS v4** - With custom `@theme` design system
 - **@tailwindcss/vite** - Native Vite integration
 - **Custom UI Components** - 8 terminal-themed wrapper components
@@ -21,6 +24,7 @@ A retro-futuristic frontend for the Fallout Shelter management game, featuring t
 - **Heroicons** - Icon library
 
 ### Development Tools
+
 - **pnpm 10.26** - Fast, disk-efficient package manager
 - **Oxlint** - Blazingly fast linting (replaces ESLint + Prettier)
 - **Vitest 2.1** - Unit testing framework
@@ -28,6 +32,7 @@ A retro-futuristic frontend for the Fallout Shelter management game, featuring t
 - **jsdom** - DOM testing environment
 
 ### Design System
+
 - **100+ Design Tokens** - Colors, typography, spacing, shadows
 - **Terminal Green Theme** - Fallout-inspired monochrome aesthetic
 - **CRT Effects** - Scanlines, flicker, phosphor glow
@@ -83,22 +88,24 @@ pnpm run lint         # Lint with Oxlint (fast!)
 
 We've built 8 custom terminal-themed UI components in `src/components/ui/`:
 
-| Component | Description |
-|-----------|-------------|
-| **UButton** | Button with 4 variants, 5 sizes, icon support |
-| **UInput** | Input field with label, validation, icons |
-| **UCard** | Card container with header/footer slots |
-| **UModal** | Modal dialog with keyboard navigation |
-| **UBadge** | Badge/tag with semantic colors |
-| **UAlert** | Alert/notification with dismissible option |
-| **UTooltip** | Tooltip with 4 positioning options |
-| **UDropdown** | Dropdown menu with click-outside support |
+| Component     | Description                                   |
+|---------------|-----------------------------------------------|
+| **UButton**   | Button with 4 variants, 5 sizes, icon support |
+| **UInput**    | Input field with label, validation, icons     |
+| **UCard**     | Card container with header/footer slots       |
+| **UModal**    | Modal dialog with keyboard navigation         |
+| **UBadge**    | Badge/tag with semantic colors                |
+| **UAlert**    | Alert/notification with dismissible option    |
+| **UTooltip**  | Tooltip with 4 positioning options            |
+| **UDropdown** | Dropdown menu with click-outside support      |
 
 **Usage Example:**
+
 ```vue
+
 <script setup lang="ts">
-import { UButton, UInput, UCard } from '@/components/ui'
-import { PlusIcon } from '@heroicons/vue/24/solid'
+  import { UButton, UInput, UCard } from '@/components/ui'
+  import { PlusIcon } from '@heroicons/vue/24/solid'
 </script>
 
 <template>
@@ -115,9 +122,11 @@ See [`src/components/ui/README.md`](./src/components/ui/README.md) for complete 
 
 ## 📐 Design System
 
-Our design system is built with TailwindCSS v4's `@theme` feature. All design tokens are defined in [`src/assets/tailwind.css`](./src/assets/tailwind.css).
+Our design system is built with TailwindCSS v4's `@theme` feature. All design tokens are defined in [
+`src/assets/tailwind.css`](./src/assets/tailwind.css).
 
 **Key Features:**
+
 - **Terminal Green Palette** - 5 variations (#00ff00 primary)
 - **Semantic Colors** - Success, warning, danger, info
 - **Resource Colors** - Power, food, water, caps
@@ -173,6 +182,7 @@ frontend/
 ## 🧪 Testing
 
 **Current Status:**
+
 - ✅ **88/88 tests passing**
 - ✅ AuthStore tests (21)
 - ✅ VaultStore tests (20)
@@ -181,6 +191,7 @@ frontend/
 - ✅ Router tests (7)
 
 **Run Tests:**
+
 ```bash
 # Run all tests
 pnpm run test
@@ -201,7 +212,8 @@ See [`TEST_COVERAGE.md`](./TEST_COVERAGE.md) for detailed test documentation.
 
 ### Recommended IDE Setup
 
-- **[VSCode](https://code.visualstudio.com/)** + **[Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar)**
+- **[VSCode](https://code.visualstudio.com/)** + *
+  *[Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar)**
 - Disable Vetur if installed
 - Install recommended extensions (see `.vscode/extensions.json`)
 
@@ -222,21 +234,23 @@ pnpm run build  # Runs type-check before build
 5. Document in component file with JSDoc
 
 **Example:**
+
 ```vue
+
 <script setup lang="ts">
-/**
- * VaultCard - Displays vault statistics
- * @component
- */
-import { UCard } from '@/components/ui'
+  /**
+   * VaultCard - Displays vault statistics
+   * @component
+   */
+  import { UCard } from '@/components/ui'
 
-interface Props {
-  vaultNumber: number
-  population: number
-  happiness: number
-}
+  interface Props {
+    vaultNumber: number
+    population: number
+    happiness: number
+  }
 
-const props = defineProps<Props>()
+  const props = defineProps<Props>()
 </script>
 
 <template>
@@ -250,6 +264,7 @@ const props = defineProps<Props>()
 ## 🎯 Code Standards
 
 ### Style Guide
+
 - Use Composition API with `<script setup>`
 - TypeScript for all new code
 - Follow Vue 3 style guide
@@ -258,6 +273,7 @@ const props = defineProps<Props>()
 - Composables start with `use`
 
 ### CSS/Styling
+
 - Use TailwindCSS utilities
 - Use design tokens from `@theme`
 - Avoid inline styles
@@ -265,6 +281,7 @@ const props = defineProps<Props>()
 - See [`STYLEGUIDE.md`](./STYLEGUIDE.md)
 
 ### State Management
+
 - Use Pinia stores for global state
 - Use composables for shared logic
 - Keep stores focused (single responsibility)
@@ -291,11 +308,12 @@ pnpm run preview
 Create `.env` file for environment-specific config:
 
 ```bash
-VITE_API_URL=http://localhost:8000
+VITE_API_BASE_URL=http://localhost:8000
 VITE_WS_URL=ws://localhost:8000
 ```
 
 Access in code:
+
 ```ts
 const apiUrl = import.meta.env.VITE_API_URL
 ```
@@ -313,6 +331,7 @@ const apiUrl = import.meta.env.VITE_API_URL
 ### Common Issues
 
 **Module not found errors:**
+
 ```bash
 # Clear cache and reinstall
 rm -rf node_modules pnpm-lock.yaml
@@ -320,12 +339,14 @@ pnpm install
 ```
 
 **Type errors:**
+
 ```bash
 # Restart TypeScript server in VSCode
 # Cmd/Ctrl + Shift + P -> "TypeScript: Restart TS Server"
 ```
 
 **Vite not starting:**
+
 ```bash
 # Check port 5173 is not in use
 # Or specify different port
@@ -333,6 +354,7 @@ pnpm run dev -- --port 3000
 ```
 
 **Tailwind classes not working:**
+
 - Verify import order in `main.ts` (tailwind.css first)
 - Check `@import "tailwindcss"` is present in `tailwind.css`
 - Restart dev server

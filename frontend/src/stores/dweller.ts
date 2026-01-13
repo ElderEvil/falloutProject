@@ -1,45 +1,55 @@
-import { ref, computed } from 'vue'
-import { defineStore } from 'pinia'
-import { useLocalStorage } from '@vueuse/core'
-import axios from '@/plugins/axios'
-import type { Dweller, DwellerShort } from '@/models/dweller'
-import { useToast } from '@/composables/useToast'
+import { ref, computed } from 'vue';
+import { defineStore } from 'pinia';
+import { useLocalStorage } from '@vueuse/core';
+import axios from '@/plugins/axios';
+import type { Dweller, DwellerShort } from '@/models/dweller';
+import { useToast } from '@/composables/useToast';
 
 export type DwellerStatus = 'idle' | 'working' | 'exploring' | 'training' | 'resting' | 'dead'
 
 export interface DwellerWithStatus extends DwellerShort {
-  status: DwellerStatus
+  status: DwellerStatus;
 }
 
-export type DwellerSortBy = 'name' | 'level' | 'happiness' | 'strength' | 'perception' | 'endurance' | 'charisma' | 'intelligence' | 'agility' | 'luck'
+export type DwellerSortBy =
+  'name'
+  | 'level'
+  | 'happiness'
+  | 'strength'
+  | 'perception'
+  | 'endurance'
+  | 'charisma'
+  | 'intelligence'
+  | 'agility'
+  | 'luck'
 export type SortDirection = 'asc' | 'desc'
 
 export const useDwellerStore = defineStore('dweller', () => {
-  const toast = useToast()
+  const toast = useToast();
 
   // State
-  const dwellers = ref<DwellerShort[]>([])
-  const detailedDwellers = ref<Record<string, Dweller | null>>({})
-  const isLoading = ref(false)
+  const dwellers = ref<DwellerShort[]>([]);
+  const detailedDwellers = ref<Record<string, Dweller | null>>({});
+  const isLoading = ref(false);
 
   // Filter and sort state (persisted in localStorage)
-  const filterStatus = useLocalStorage<DwellerStatus | 'all'>('dwellerFilterStatus', 'all')
-  const sortBy = useLocalStorage<DwellerSortBy>('dwellerSortBy', 'name')
-  const sortDirection = useLocalStorage<SortDirection>('dwellerSortDirection', 'asc')
-  const viewMode = useLocalStorage<'list' | 'grid'>('dwellerViewMode', 'list')
+  const filterStatus = useLocalStorage<DwellerStatus | 'all'>('dwellerFilterStatus', 'all');
+  const sortBy = useLocalStorage<DwellerSortBy>('dwellerSortBy', 'name');
+  const sortDirection = useLocalStorage<SortDirection>('dwellerSortDirection', 'asc');
+  const viewMode = useLocalStorage<'list' | 'grid'>('dwellerViewMode', 'list');
 
   /**
    * Get dweller status - now directly from backend
    */
   const getDwellerStatus = computed(() => {
     return (dwellerId: string): DwellerStatus | null => {
-      const dweller = dwellers.value.find((d) => d.id === dwellerId)
-      if (!dweller) return null
+      const dweller = dwellers.value.find((d) => d.id === dwellerId);
+      if (!dweller) return null;
 
       // Backend now provides status directly
-      return (dweller.status as DwellerStatus) || 'idle'
-    }
-  })
+      return (dweller.status as DwellerStatus) || 'idle';
+    };
+  });
 
   /**
    * Get all dwellers with their status (already provided by backend)
@@ -48,8 +58,8 @@ export const useDwellerStore = defineStore('dweller', () => {
     return dwellers.value.map((dweller) => ({
       ...dweller,
       status: (dweller.status as DwellerStatus) || 'idle'
-    }))
-  })
+    }));
+  });
 
   /**
    * Get dwellers filtered by status - filters are now applied on backend
@@ -61,41 +71,41 @@ export const useDwellerStore = defineStore('dweller', () => {
         .map((dweller) => ({
           ...dweller,
           status: (dweller.status as DwellerStatus) || 'idle'
-        }))
-    }
-  })
+        }));
+    };
+  });
 
   /**
    * Get filtered and sorted dwellers based on current filter/sort settings
    */
   const filteredAndSortedDwellers = computed((): DwellerWithStatus[] => {
-    let result = dwellersWithStatus.value
+    let result = dwellersWithStatus.value;
 
     // Apply status filter
     if (filterStatus.value !== 'all') {
-      result = result.filter((dweller) => dweller.status === filterStatus.value)
+      result = result.filter((dweller) => dweller.status === filterStatus.value);
     }
 
     // Apply sorting
     result = [...result].sort((a, b) => {
-      let comparison = 0
+      let comparison = 0;
 
       if (sortBy.value === 'name') {
-        const nameA = `${a.first_name} ${a.last_name}`.toLowerCase()
-        const nameB = `${b.first_name} ${b.last_name}`.toLowerCase()
-        comparison = nameA.localeCompare(nameB)
+        const nameA = `${a.first_name} ${a.last_name}`.toLowerCase();
+        const nameB = `${b.first_name} ${b.last_name}`.toLowerCase();
+        comparison = nameA.localeCompare(nameB);
       } else if (sortBy.value === 'level' || sortBy.value === 'happiness') {
-        comparison = a[sortBy.value] - b[sortBy.value]
+        comparison = a[sortBy.value] - b[sortBy.value];
       } else {
         // SPECIAL stats sorting
-        comparison = a[sortBy.value] - b[sortBy.value]
+        comparison = a[sortBy.value] - b[sortBy.value];
       }
 
-      return sortDirection.value === 'asc' ? comparison : -comparison
-    })
+      return sortDirection.value === 'asc' ? comparison : -comparison;
+    });
 
-    return result
-  })
+    return result;
+  });
 
   // Actions
   async function fetchDwellers(token: string): Promise<void> {
@@ -104,10 +114,10 @@ export const useDwellerStore = defineStore('dweller', () => {
         headers: {
           Authorization: `Bearer ${token}`
         }
-      })
-      dwellers.value = response.data
+      });
+      dwellers.value = response.data;
     } catch (error) {
-      console.error('Failed to fetch dwellers', error)
+      console.error('Failed to fetch dwellers', error);
     }
   }
 
@@ -123,29 +133,29 @@ export const useDwellerStore = defineStore('dweller', () => {
       limit?: number
     }
   ): Promise<void> {
-    isLoading.value = true
+    isLoading.value = true;
     try {
-      const params = new URLSearchParams()
-      if (options?.status && options.status !== 'all') params.append('status', options.status)
-      if (options?.search) params.append('search', options.search)
-      if (options?.sortBy) params.append('sort_by', options.sortBy)
-      if (options?.order) params.append('order', options.order)
-      if (options?.skip !== undefined) params.append('skip', options.skip.toString())
-      if (options?.limit !== undefined) params.append('limit', options.limit.toString())
+      const params = new URLSearchParams();
+      if (options?.status && options.status !== 'all') params.append('status', options.status);
+      if (options?.search) params.append('search', options.search);
+      if (options?.sortBy) params.append('sort_by', options.sortBy);
+      if (options?.order) params.append('order', options.order);
+      if (options?.skip !== undefined) params.append('skip', options.skip.toString());
+      if (options?.limit !== undefined) params.append('limit', options.limit.toString());
 
-      const queryString = params.toString()
-      const url = `/api/v1/dwellers/vault/${vaultId}/${queryString ? `?${queryString}` : ''}`
+      const queryString = params.toString();
+      const url = `/api/v1/dwellers/vault/${vaultId}/${queryString ? `?${queryString}` : ''}`;
 
       const response = await axios.get(url, {
         headers: {
           Authorization: `Bearer ${token}`
         }
-      })
-      dwellers.value = response.data
+      });
+      dwellers.value = response.data;
     } catch (error) {
-      console.error(`Failed to fetch dwellers for vault ${vaultId}`, error)
+      console.error(`Failed to fetch dwellers for vault ${vaultId}`, error);
     } finally {
-      isLoading.value = false
+      isLoading.value = false;
     }
   }
 
@@ -154,18 +164,18 @@ export const useDwellerStore = defineStore('dweller', () => {
     token: string,
     forceRefresh = false
   ): Promise<Dweller | null> {
-    if (detailedDwellers.value[id] && !forceRefresh) return detailedDwellers.value[id] ?? null
+    if (detailedDwellers.value[id] && !forceRefresh) return detailedDwellers.value[id] ?? null;
     try {
       const response = await axios.get(`/api/v1/dwellers/${id}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
-      })
-      detailedDwellers.value[id] = response.data
-      return detailedDwellers.value[id] ?? null
+      });
+      detailedDwellers.value[id] = response.data;
+      return detailedDwellers.value[id] ?? null;
     } catch (error) {
-      console.error(`Failed to fetch details for dweller ${id}`, error)
-      return null
+      console.error(`Failed to fetch details for dweller ${id}`, error);
+      return null;
     }
   }
 
@@ -175,14 +185,14 @@ export const useDwellerStore = defineStore('dweller', () => {
         headers: {
           Authorization: `Bearer ${token}`
         }
-      })
-      detailedDwellers.value[id] = response.data
-      toast.success('AI portrait generated successfully!')
-      return detailedDwellers.value[id] ?? null
+      });
+      detailedDwellers.value[id] = response.data;
+      toast.success('AI portrait generated successfully!');
+      return detailedDwellers.value[id] ?? null;
     } catch (error) {
-      console.error(`Failed to generate image for dweller ${id}`, error)
-      toast.error('Failed to generate AI portrait')
-      return null
+      console.error(`Failed to generate image for dweller ${id}`, error);
+      toast.error('Failed to generate AI portrait');
+      return null;
     }
   }
 
@@ -192,14 +202,14 @@ export const useDwellerStore = defineStore('dweller', () => {
         headers: {
           Authorization: `Bearer ${token}`
         }
-      })
-      detailedDwellers.value[id] = response.data
-      toast.success('Biography generated successfully!')
-      return detailedDwellers.value[id] ?? null
+      });
+      detailedDwellers.value[id] = response.data;
+      toast.success('Biography generated successfully!');
+      return detailedDwellers.value[id] ?? null;
     } catch (error) {
-      console.error(`Failed to generate biography for dweller ${id}`, error)
-      toast.error('Failed to generate biography')
-      return null
+      console.error(`Failed to generate biography for dweller ${id}`, error);
+      toast.error('Failed to generate biography');
+      return null;
     }
   }
 
@@ -209,14 +219,14 @@ export const useDwellerStore = defineStore('dweller', () => {
         headers: {
           Authorization: `Bearer ${token}`
         }
-      })
-      detailedDwellers.value[id] = response.data
-      toast.success('Portrait generated successfully!')
-      return detailedDwellers.value[id] ?? null
+      });
+      detailedDwellers.value[id] = response.data;
+      toast.success('Portrait generated successfully!');
+      return detailedDwellers.value[id] ?? null;
     } catch (error) {
-      console.error(`Failed to generate portrait for dweller ${id}`, error)
-      toast.error('Failed to generate portrait')
-      return null
+      console.error(`Failed to generate portrait for dweller ${id}`, error);
+      toast.error('Failed to generate portrait');
+      return null;
     }
   }
 
@@ -226,14 +236,14 @@ export const useDwellerStore = defineStore('dweller', () => {
         headers: {
           Authorization: `Bearer ${token}`
         }
-      })
-      detailedDwellers.value[id] = response.data
-      toast.success('Appearance generated successfully!')
-      return detailedDwellers.value[id] ?? null
+      });
+      detailedDwellers.value[id] = response.data;
+      toast.success('Appearance generated successfully!');
+      return detailedDwellers.value[id] ?? null;
     } catch (error) {
-      console.error(`Failed to generate appearance for dweller ${id}`, error)
-      toast.error('Failed to generate appearance')
-      return null
+      console.error(`Failed to generate appearance for dweller ${id}`, error);
+      toast.error('Failed to generate appearance');
+      return null;
     }
   }
 
@@ -247,25 +257,25 @@ export const useDwellerStore = defineStore('dweller', () => {
             Authorization: `Bearer ${token}`
           }
         }
-      )
+      );
 
       // Update the dweller in the list
-      const dwellerIndex = dwellers.value.findIndex(d => d.id === dwellerId)
+      const dwellerIndex = dwellers.value.findIndex(d => d.id === dwellerId);
       if (dwellerIndex !== -1 && dwellers.value[dwellerIndex]) {
-        dwellers.value[dwellerIndex] = { ...dwellers.value[dwellerIndex]!, room_id: roomId }
+        dwellers.value[dwellerIndex] = { ...dwellers.value[dwellerIndex]!, room_id: roomId };
       }
 
       // Update detailed dweller if cached
       if (detailedDwellers.value[dwellerId]) {
-        detailedDwellers.value[dwellerId] = response.data
+        detailedDwellers.value[dwellerId] = response.data;
       }
 
-      toast.success('Dweller assigned to room successfully!')
-      return response.data
+      toast.success('Dweller assigned to room successfully!');
+      return response.data;
     } catch (error) {
-      console.error(`Failed to assign dweller ${dwellerId} to room ${roomId}`, error)
-      toast.error('Failed to assign dweller to room')
-      throw error
+      console.error(`Failed to assign dweller ${dwellerId} to room ${roomId}`, error);
+      toast.error('Failed to assign dweller to room');
+      throw error;
     }
   }
 
@@ -280,42 +290,42 @@ export const useDwellerStore = defineStore('dweller', () => {
             Authorization: `Bearer ${token}`
           }
         }
-      )
+      );
 
       // Update the dweller in the list
-      const dwellerIndex = dwellers.value.findIndex(d => d.id === dwellerId)
+      const dwellerIndex = dwellers.value.findIndex(d => d.id === dwellerId);
       if (dwellerIndex !== -1 && dwellers.value[dwellerIndex]) {
-        dwellers.value[dwellerIndex] = { ...dwellers.value[dwellerIndex]!, room_id: null }
+        dwellers.value[dwellerIndex] = { ...dwellers.value[dwellerIndex]!, room_id: null };
       }
 
       // Update detailed dweller if cached
       if (detailedDwellers.value[dwellerId]) {
-        detailedDwellers.value[dwellerId] = response.data
+        detailedDwellers.value[dwellerId] = response.data;
       }
 
-      toast.success('Dweller recalled successfully!')
-      return response.data
+      toast.success('Dweller recalled successfully!');
+      return response.data;
     } catch (error) {
-      console.error(`Failed to unassign dweller ${dwellerId}`, error)
-      toast.error('Failed to recall dweller')
-      throw error
+      console.error(`Failed to unassign dweller ${dwellerId}`, error);
+      toast.error('Failed to recall dweller');
+      throw error;
     }
   }
 
   function setFilterStatus(status: DwellerStatus | 'all'): void {
-    filterStatus.value = status
+    filterStatus.value = status;
   }
 
   function setSortBy(sort: DwellerSortBy): void {
-    sortBy.value = sort
+    sortBy.value = sort;
   }
 
   function setSortDirection(direction: SortDirection): void {
-    sortDirection.value = direction
+    sortDirection.value = direction;
   }
 
   function setViewMode(mode: 'list' | 'grid'): void {
-    viewMode.value = mode
+    viewMode.value = mode;
   }
 
   async function useStimpack(dwellerId: string, token: string): Promise<DwellerShort | null> {
@@ -328,29 +338,31 @@ export const useDwellerStore = defineStore('dweller', () => {
             Authorization: `Bearer ${token}`
           }
         }
-      )
+      );
 
       // Update detailed dweller if cached
       if (detailedDwellers.value[dwellerId]) {
         detailedDwellers.value[dwellerId] = {
           ...detailedDwellers.value[dwellerId],
           ...response.data
-        } as Dweller
+        } as Dweller;
       }
 
       // Update in list if exists
-      const dwellerIndex = dwellers.value.findIndex(d => d.id === dwellerId)
+      const dwellerIndex = dwellers.value.findIndex(d => d.id === dwellerId);
       if (dwellerIndex !== -1) {
-        dwellers.value[dwellerIndex] = { ...dwellers.value[dwellerIndex], ...response.data }
+        dwellers.value[dwellerIndex] = { ...dwellers.value[dwellerIndex], ...response.data };
       }
 
-      toast.success('Stimpack used! Dweller healed.')
-      return response.data
+      toast.success('Stimpack used! Dweller healed.');
+      return response.data;
     } catch (error: unknown) {
-      const errorMessage = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to use stimpack'
-      console.error(`Failed to use stimpack for dweller ${dwellerId}`, error)
-      toast.error(errorMessage)
-      return null
+      const errorMessage = (error as {
+        response?: { data?: { detail?: string } }
+      })?.response?.data?.detail || 'Failed to use stimpack';
+      console.error(`Failed to use stimpack for dweller ${dwellerId}`, error);
+      toast.error(errorMessage);
+      return null;
     }
   }
 
@@ -364,29 +376,31 @@ export const useDwellerStore = defineStore('dweller', () => {
             Authorization: `Bearer ${token}`
           }
         }
-      )
+      );
 
       // Update detailed dweller if cached
       if (detailedDwellers.value[dwellerId]) {
         detailedDwellers.value[dwellerId] = {
           ...detailedDwellers.value[dwellerId],
           ...response.data
-        } as Dweller
+        } as Dweller;
       }
 
       // Update in list if exists
-      const dwellerIndex = dwellers.value.findIndex(d => d.id === dwellerId)
+      const dwellerIndex = dwellers.value.findIndex(d => d.id === dwellerId);
       if (dwellerIndex !== -1) {
-        dwellers.value[dwellerIndex] = { ...dwellers.value[dwellerIndex], ...response.data }
+        dwellers.value[dwellerIndex] = { ...dwellers.value[dwellerIndex], ...response.data };
       }
 
-      toast.success('RadAway used! Radiation reduced.')
-      return response.data
+      toast.success('RadAway used! Radiation reduced.');
+      return response.data;
     } catch (error: unknown) {
-      const errorMessage = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to use RadAway'
-      console.error(`Failed to use radaway for dweller ${dwellerId}`, error)
-      toast.error(errorMessage)
-      return null
+      const errorMessage = (error as {
+        response?: { data?: { detail?: string } }
+      })?.response?.data?.detail || 'Failed to use RadAway';
+      console.error(`Failed to use radaway for dweller ${dwellerId}`, error);
+      toast.error(errorMessage);
+      return null;
     }
   }
 
@@ -400,26 +414,28 @@ export const useDwellerStore = defineStore('dweller', () => {
             Authorization: `Bearer ${token}`
           }
         }
-      )
+      );
 
       // Update the dweller in the list
-      const dwellerIndex = dwellers.value.findIndex(d => d.id === dwellerId)
+      const dwellerIndex = dwellers.value.findIndex(d => d.id === dwellerId);
       if (dwellerIndex !== -1 && dwellers.value[dwellerIndex]) {
-        dwellers.value[dwellerIndex] = { ...dwellers.value[dwellerIndex]!, room_id: response.data.room_id }
+        dwellers.value[dwellerIndex] = { ...dwellers.value[dwellerIndex]!, room_id: response.data.room_id };
       }
 
       // Update detailed dweller if cached
       if (detailedDwellers.value[dwellerId]) {
-        detailedDwellers.value[dwellerId] = response.data
+        detailedDwellers.value[dwellerId] = response.data;
       }
 
-      toast.success('Dweller auto-assigned to best matching room!')
-      return response.data
+      toast.success('Dweller auto-assigned to best matching room!');
+      return response.data;
     } catch (error: unknown) {
-      const errorMessage = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to auto-assign dweller'
-      console.error(`Failed to auto-assign dweller ${dwellerId}`, error)
-      toast.error(errorMessage)
-      return null
+      const errorMessage = (error as {
+        response?: { data?: { detail?: string } }
+      })?.response?.data?.detail || 'Failed to auto-assign dweller';
+      console.error(`Failed to auto-assign dweller ${dwellerId}`, error);
+      toast.error(errorMessage);
+      return null;
     }
   }
 
@@ -438,7 +454,6 @@ export const useDwellerStore = defineStore('dweller', () => {
     getDwellersByStatus,
     filteredAndSortedDwellers,
     // Actions
-    fetchDwellers,
     fetchDwellersByVault,
     fetchDwellerDetails,
     generateDwellerInfo,
@@ -454,5 +469,5 @@ export const useDwellerStore = defineStore('dweller', () => {
     setSortBy,
     setSortDirection,
     setViewMode
-  }
-})
+  };
+});

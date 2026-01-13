@@ -61,14 +61,7 @@ describe('Auth Store', () => {
       // Wait for async fetchUser to complete
       await new Promise((resolve) => setTimeout(resolve, 0))
 
-      expect(axios.get).toHaveBeenCalledWith(
-        '/api/v1/users/me',
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            Authorization: `Bearer ${mockToken}`
-          })
-        })
-      )
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me')
       expect(store.user).toEqual(mockUserResponse.data)
     })
 
@@ -156,26 +149,31 @@ describe('Auth Store', () => {
       const store = useAuthStore()
       const mockResponse = {
         data: {
-          access_token: 'new-access-token',
-          refresh_token: 'new-refresh-token'
-        }
-      }
-      const mockUserResponse = {
-        data: {
           id: '1',
           username: 'newuser',
-          email: 'new@test.com'
+          email: 'new@test.com',
+          is_active: true,
+          is_superuser: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+          access_token: 'new-access-token',
+          refresh_token: 'new-refresh-token',
+          token_type: 'bearer'
         }
       }
 
       vi.mocked(axios.post).mockResolvedValueOnce(mockResponse)
-      vi.mocked(axios.get).mockResolvedValueOnce(mockUserResponse)
 
       const result = await store.register('newuser', 'new@test.com', 'password')
 
       expect(result).toBe(true)
       expect(store.token).toBe('new-access-token')
-      expect(store.user).toEqual(mockUserResponse.data)
+      expect(store.refreshToken).toBe('new-refresh-token')
+      expect(store.user).toMatchObject({
+        id: '1',
+        username: 'newuser',
+        email: 'new@test.com'
+      })
     })
 
     it('should return false on registration failure', async () => {
@@ -258,7 +256,10 @@ describe('Auth Store', () => {
       const store = useAuthStore()
       store.refreshToken = 'old-refresh-token'
       store.token = 'old-token'
+      // First mock will be called by refreshAccessToken (refresh endpoint)
       vi.mocked(axios.post).mockRejectedValueOnce(new Error('Refresh failed'))
+      // Second mock will be called by logout (logout endpoint)
+      vi.mocked(axios.post).mockResolvedValueOnce({})
 
       await store.refreshAccessToken()
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import axios from 'axios';
+import axios from '@/plugins/axios';
 
 const route = useRoute();
 const router = useRouter();
@@ -21,10 +21,7 @@ onMounted(async () => {
   }
 
   try {
-    const response = await axios.post(
-      `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/auth/verify-email`,
-      { token: token.value }
-    );
+    const response = await axios.post('/api/v1/auth/verify-email', { token: token.value });
     success.value = true;
     // Redirect to login after 3 seconds
     setTimeout(() => {

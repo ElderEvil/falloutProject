@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import axios from 'axios';
+import axios from '@/plugins/axios';
 
 const email = ref('');
 const error = ref('');
@@ -18,7 +18,7 @@ const handleSubmit = async () => {
   loading.value = true;
 
   try {
-    await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/auth/forgot-password`, {
+    await axios.post('/api/v1/auth/forgot-password', {
       email: email.value
     });
 

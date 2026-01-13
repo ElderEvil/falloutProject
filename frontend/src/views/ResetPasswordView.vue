@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import axios from 'axios';
+import axios from '@/plugins/axios';
 
 const route = useRoute();
 const router = useRouter();
@@ -36,7 +36,7 @@ const handleSubmit = async () => {
   loading.value = true;
 
   try {
-    await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/auth/reset-password`, {
+    await axios.post('/api/v1/auth/reset-password', {
       token: token.value,
       new_password: newPassword.value
     });

@@ -28,8 +28,9 @@ describe('authService', () => {
 
       expect(result.data).toEqual(mockResponse.data)
       expect(apiClient.post).toHaveBeenCalledWith(
-        '/auth/login',
-        expect.any(URLSearchParams)
+        '/api/v1/auth/login',
+        expect.any(URLSearchParams),
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
       )
 
       // Verify URLSearchParams content
@@ -94,7 +95,7 @@ describe('authService', () => {
       })
 
       expect(result.data).toEqual(mockResponse.data)
-      expect(apiClient.post).toHaveBeenCalledWith('/users/open', {
+      expect(apiClient.post).toHaveBeenCalledWith('/api/v1/users/open', {
         username: 'newuser',
         email: 'new@test.com',
         password: 'password123'
@@ -130,7 +131,7 @@ describe('authService', () => {
         password: 'secret'
       })
 
-      expect(apiClient.post).toHaveBeenCalledWith('/users/open', {
+      expect(apiClient.post).toHaveBeenCalledWith('/api/v1/users/open', {
         username: 'testuser',
         email: 'test@example.com',
         password: 'secret'
@@ -152,9 +153,15 @@ describe('authService', () => {
       const result = await authService.refreshToken('old-refresh-token')
 
       expect(result.data).toEqual(mockResponse.data)
-      expect(apiClient.post).toHaveBeenCalledWith('/auth/refresh', {
-        refresh_token: 'old-refresh-token'
-      })
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/api/v1/auth/refresh',
+        expect.any(URLSearchParams),
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+      )
+
+      const callArgs = vi.mocked(apiClient.post).mock.calls[0]
+      const formData = callArgs[1] as URLSearchParams
+      expect(formData.get('refresh_token')).toBe('old-refresh-token')
     })
 
     it('should throw AuthError on refresh failure', async () => {
@@ -171,31 +178,26 @@ describe('authService', () => {
     it('should successfully logout', async () => {
       vi.mocked(apiClient.post).mockResolvedValueOnce({ data: undefined })
 
-      await authService.logout('test-access-token')
+      await authService.logout()
 
-      expect(apiClient.post).toHaveBeenCalledWith(
-        '/auth/logout',
-        {},
-        {
-          headers: { Authorization: 'Bearer test-access-token' }
-        }
-      )
+      expect(apiClient.post).toHaveBeenCalledWith('/api/v1/auth/logout', {})
     })
 
     it('should throw AuthError on logout failure', async () => {
       vi.mocked(apiClient.post).mockRejectedValue(new Error('Network error'))
 
-      await expect(authService.logout('test-token')).rejects.toThrow(AuthError)
-      await expect(authService.logout('test-token')).rejects.toThrow('Logout failed')
+      await expect(authService.logout()).rejects.toThrow(AuthError)
+      await expect(authService.logout()).rejects.toThrow('Logout failed')
     })
 
-    it('should include authorization header', async () => {
+    it('should not include manual authorization header', async () => {
       vi.mocked(apiClient.post).mockResolvedValueOnce({ data: undefined })
 
-      await authService.logout('my-token')
+      await authService.logout()
 
       const callArgs = vi.mocked(apiClient.post).mock.calls[0]
-      expect(callArgs[2]?.headers).toEqual({ Authorization: 'Bearer my-token' })
+      // Authorization header is added by axios interceptor, not manually
+      expect(callArgs[1]).toEqual({})
     })
   })
 
@@ -213,30 +215,28 @@ describe('authService', () => {
 
       vi.mocked(apiClient.get).mockResolvedValueOnce(mockResponse)
 
-      const result = await authService.getCurrentUser('test-access-token')
+      const result = await authService.getCurrentUser()
 
       expect(result.data).toEqual(mockResponse.data)
-      expect(apiClient.get).toHaveBeenCalledWith('/users/me', {
-        headers: { Authorization: 'Bearer test-access-token' }
-      })
+      expect(apiClient.get).toHaveBeenCalledWith('/api/v1/users/me')
     })
 
     it('should throw AuthError on fetch failure', async () => {
       vi.mocked(apiClient.get).mockRejectedValue(new Error('Unauthorized'))
 
-      await expect(authService.getCurrentUser('invalid-token')).rejects.toThrow(AuthError)
-      await expect(authService.getCurrentUser('invalid-token')).rejects.toThrow(
-        'Failed to fetch current user'
-      )
+      await expect(authService.getCurrentUser()).rejects.toThrow(AuthError)
+      await expect(authService.getCurrentUser()).rejects.toThrow('Failed to fetch current user')
     })
 
-    it('should include authorization header', async () => {
+    it('should not include manual authorization header', async () => {
       vi.mocked(apiClient.get).mockResolvedValueOnce({ data: {} })
 
-      await authService.getCurrentUser('my-access-token')
+      await authService.getCurrentUser()
 
       const callArgs = vi.mocked(apiClient.get).mock.calls[0]
-      expect(callArgs[1]?.headers).toEqual({ Authorization: 'Bearer my-access-token' })
+      // Authorization header is added by axios interceptor, not manually
+      expect(callArgs[0]).toEqual('/api/v1/users/me')
+      expect(callArgs[1]).toBeUndefined()
     })
   })
 
@@ -246,8 +246,8 @@ describe('authService', () => {
         () => authService.login({ username: 'test', password: 'test' }),
         () => authService.register({ username: 'test', email: 'test', password: 'test' }),
         () => authService.refreshToken('token'),
-        () => authService.logout('token'),
-        () => authService.getCurrentUser('token')
+        () => authService.logout(),
+        () => authService.getCurrentUser()
       ]
 
       vi.mocked(apiClient.post).mockRejectedValue(new Error('Generic error'))

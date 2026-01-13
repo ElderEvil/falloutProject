@@ -1,7 +1,7 @@
 import { computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
-import axios from '@/plugins/axios'
+import { authService } from '@/services/authService'
 import type { User } from '@/types/user'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -28,15 +28,7 @@ export const useAuthStore = defineStore('auth', () => {
   // Actions
   async function login(username: string, password: string): Promise<boolean> {
     try {
-      const formData = new URLSearchParams()
-      formData.append('username', username)
-      formData.append('password', password)
-
-      const response = await axios.post('/api/v1/auth/login', formData, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
-      })
+      const response = await authService.login({ username, password })
 
       token.value = response.data.access_token
       refreshToken.value = response.data.refresh_token
@@ -55,11 +47,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function register(username: string, email: string, password: string): Promise<boolean> {
     try {
-      const response = await axios.post('/api/v1/users/open', {
-        username,
-        email,
-        password
-      })
+      const response = await authService.register({ username, email, password })
 
       token.value = response.data.access_token
       refreshToken.value = response.data.refresh_token
@@ -68,7 +56,10 @@ export const useAuthStore = defineStore('auth', () => {
         return false
       }
 
-      await fetchUser()
+      // Registration returns user data with tokens, so we can directly set it
+      const { access_token, refresh_token, token_type, ...userData } = response.data
+      user.value = userData
+
       return true
     } catch (error) {
       console.error('Registration failed', error)
@@ -80,11 +71,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (!token.value) return
 
     try {
-      const response = await axios.get('/api/v1/users/me', {
-        headers: {
-          Authorization: `Bearer ${token.value}`
-        }
-      })
+      const response = await authService.getCurrentUser()
       user.value = response.data
     } catch (error) {
       console.error('Failed to fetch user', error)
@@ -96,15 +83,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (!refreshToken.value) return
 
     try {
-      const formData = new URLSearchParams()
-      formData.append('refresh_token', refreshToken.value)
-
-      const response = await axios.post('/api/v1/auth/refresh', formData, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
-      })
-
+      const response = await authService.refreshToken(refreshToken.value)
       token.value = response.data.access_token
     } catch (error) {
       console.error('Failed to refresh token', error)
@@ -115,15 +94,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function logout(): Promise<void> {
     try {
       if (token.value) {
-        await axios.post(
-          '/api/v1/auth/logout',
-          {},
-          {
-            headers: {
-              Authorization: `Bearer ${token.value}`
-            }
-          }
-        )
+        await authService.logout()
       }
     } catch (error) {
       console.error('Logout failed', error)

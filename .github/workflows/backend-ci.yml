@@ -1,16 +1,21 @@
-name: CI
+name: Backend CI
 
 on:
   push:
     branches: [ master ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
   pull_request:
     branches: [ master ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
 
 jobs:
   backend-ci:
-    name: Backend CI
+    name: Backend Tests
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'pull_request' || contains(github.event.head_commit.modified, 'backend/') || contains(github.event.head_commit.added, 'backend/') }}
 
     services:
       redis:
@@ -68,38 +73,3 @@ jobs:
           gist_id: 7cc382e5dbf89fbe5bc026b6d8a0ab88
           file_path: backend/coverage.svg
           file_type: text
-
-  frontend-ci:
-    name: Frontend CI
-    runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'pull_request' || contains(github.event.head_commit.modified, 'frontend/') || contains(github.event.head_commit.added, 'frontend/') }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: 'frontend/.nvmrc'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Install dependencies
-        working-directory: frontend
-        run: pnpm install --frozen-lockfile
-
-      - name: Run linter
-        working-directory: frontend
-        run: pnpm run lint
-
-      - name: Run tests
-        working-directory: frontend
-        run: pnpm run test -- --run
-
-      - name: Build check
-        working-directory: frontend
-        run: pnpm run build

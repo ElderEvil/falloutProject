@@ -371,7 +371,7 @@ class HealthCheckService:
         *,
         include_celery: bool = True,
         include_smtp: bool = True,
-        include_ollama: bool = True,
+        include_ollama: bool = False,
     ) -> dict[str, HealthCheckResult]:
         """
         Check all services and return results.

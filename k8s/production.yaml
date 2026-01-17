@@ -1,0 +1,90 @@
+# Production-ready additional configurations
+
+# HorizontalPodAutoscaler for backend
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: fastapi-hpa
+  namespace: fallout-shelter
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: fastapi-backend
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+---
+# HPA for frontend
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: vue-hpa
+  namespace: fallout-shelter
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: vue-frontend
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+---
+# PodDisruptionBudget for backend
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: fastapi-pdb
+  namespace: fallout-shelter
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: fastapi-backend
+---
+# PodDisruptionBudget for frontend
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: vue-pdb
+  namespace: fallout-shelter
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: vue-frontend
+---
+# ServiceMonitor for Prometheus (if available)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: fallout-metrics
+  namespace: fallout-shelter
+  labels:
+    app: fallout-shelter
+spec:
+  selector:
+    matchLabels:
+      app: fastapi-backend
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s

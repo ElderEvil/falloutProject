@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fallout-env-config
+  namespace: fallout-shelter
+data:
+  ENVIRONMENT: "production"
+  POSTGRES_SERVER: "postgres-service"
+  POSTGRES_PORT: "5432"
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  CELERY_BROKER_URL: "redis://redis-service:6379/0"
+  CELERY_RESULT_BACKEND: "redis://redis-service:6379/0"
+  MINIO_ENDPOINT: "minio-service:9000"
+  OLLAMA_BASE_URL: "http://ollama-service:11434/v1"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: fallout-secrets
+  namespace: fallout-shelter
+type: Opaque
+data:
+  # Base64 encoded values - replace with your actual encoded secrets
+  # Example: echo -n "your-secret-key" | base64
+  SECRET_KEY: "eW91ci1zZWNyZXQta2V5LWhlcmU="  # Replace with actual base64 encoded secret
+  POSTGRES_USER: "cG9zdGdyZXM="  # postgres
+  POSTGRES_PASSWORD: "cG9zdGdyZXM="  # postgres
+  POSTGRES_DB: "ZmFsbG91dF9kYg=="  # fallout_db
+  MINIO_ROOT_USER: "bWluaW9hZG1pbg=="  # minioadmin
+  MINIO_ROOT_PASSWORD: "bWluaW9hZG1pbg=="  # minioadmin

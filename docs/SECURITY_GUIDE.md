@@ -1,6 +1,6 @@
-# 🔐 Security Guide - fastapi-guard Rate Limiting
+# 🔐 Security Guide
 
-This guide explains the security features added via `fastapi-guard` middleware, including rate limiting, IP filtering, and protection against abuse.
+This guide explains the security features of the Fallout Shelter application, including rate limiting via `fastapi-guard`, authentication, and production security best practices.
 
 ---
 
@@ -354,5 +354,137 @@ For issues or questions:
 
 ---
 
-**Last Updated**: 2026-01-09
-**Version**: v1.13 with fastapi-guard integration
+## 🛡️ Additional Security Measures
+
+### Authentication & Authorization
+
+#### JWT Token Security
+```bash
+# Secret key rotation (recommended every 90 days)
+SECRET_KEY=your-new-strong-secret-key
+
+# Token expiration settings
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+```
+
+#### Password Security
+- **Bcrypt** hashing with salt rounds
+- **Password complexity requirements**
+- **Password reset tokens** with expiration
+- **Multi-factor authentication** (planned feature)
+
+### Data Protection
+
+#### Sensitive Data Handling
+- **PII encryption** at rest and in transit
+- **API key encryption** in database
+- **Session management** with secure cookies
+- **CSRF protection** for state-changing operations
+
+#### Database Security
+```sql
+-- Row-level security example
+CREATE POLICY user_isolation ON users
+    FOR ALL TO app_user
+    USING (id = current_user_id());
+```
+
+### Infrastructure Security
+
+#### Network Security
+- **Firewall rules** restricting access to essential ports
+- **VPN access** for administrative functions
+- **Load balancer** with SSL termination
+- **DDoS protection** via Cloudflare/AWS Shield
+
+#### Container Security
+```yaml
+# Docker security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+```
+
+### Monitoring & Auditing
+
+#### Security Monitoring
+```bash
+# Failed login attempts monitoring
+grep "failed login" /var/log/app.log | tail -100
+
+# Rate limit violations
+grep "rate limit exceeded" /var/log/app.log | tail -100
+
+# Auto-ban events
+grep "auto-banned" /var/log/app.log | tail -50
+```
+
+#### Audit Logging
+- **User action logs** with timestamps
+- **API access logs** with IP tracking
+- **Database change logs** for sensitive tables
+- **Security event logs** for investigation
+
+### Compliance Checklist
+
+#### OWASP Top 10 Compliance
+- [ ] **A01: Broken Access Control** - RBAC implementation
+- [ ] **A02: Cryptographic Failures** - Encryption at rest/transit
+- [ ] **A03: Injection** - SQL injection prevention
+- [ ] **A04: Insecure Design** - Security by design principles
+- [ ] **A05: Security Misconfiguration** - Hardened configurations
+- [ ] **A06: Vulnerable Components** - Dependency scanning
+- [ ] **A07: Authentication Failures** - Strong auth mechanisms
+- [ ] **A08: Software/Data Integrity** - Code signing, verification
+- [ ] **A09: Logging/Monitoring** - Comprehensive security logging
+- [ ] **A10: SSRF** - Request validation, allowlists
+
+#### GDPR Compliance
+- [ ] **Data Minimization** - Collect only necessary data
+- [ ] **Consent Management** - Explicit user consent
+- [ ] **Right to Erasure** - Data deletion capabilities
+- [ ] **Data Portability** - Export user data
+- [ ] **Breach Notification** - Incident response procedures
+
+---
+
+## 🔧 Security Scripts
+
+### Generate Secure Secret Key
+```bash
+#!/bin/bash
+# generate-secret.sh
+python -c "import secrets; print('SECRET_KEY=' + secrets.token_urlsafe(32))"
+```
+
+### Security Audit Script
+```bash
+#!/bin/bash
+# security-audit.sh
+
+echo "🔍 Running security audit..."
+
+# Check for exposed secrets
+grep -r "sk-" . --exclude-dir=node_modules --exclude-dir=.git
+grep -r "password" . --exclude-dir=node_modules --exclude-dir=.git
+
+# Check file permissions
+find . -type f -name "*.env*" -ls
+
+# Check SSL certificates
+openssl x509 -in cert.pem -text -noout
+
+# Run dependency vulnerability scan
+cd backend && uv run safety check
+cd ../frontend && pnpm audit
+
+echo "✅ Security audit complete"
+```
+
+---
+
+**Last Updated**: 2026-01-18
+**Version**: v1.13.7 with comprehensive security features

@@ -58,7 +58,6 @@ export const useTrainingStore = defineStore('training', () => {
     try {
       const training = await trainingService.startTraining(dwellerId, roomId, token)
       activeTrainings.value.set(training.id!, training)
-      toast.success('Training started successfully!')
       return training
     } catch (err: unknown) {
       console.error('Failed to start training:', err)

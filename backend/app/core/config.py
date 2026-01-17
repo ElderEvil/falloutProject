@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     MINIO_ROOT_USER: str | None = None
     MINIO_ROOT_PASSWORD: str | None = None
     MINIO_DEFAULT_BUCKET: str | None = None
+    MINIO_PUBLIC_URL: str | None = None
     MINIO_PUBLIC_BUCKET_WHITELIST: list[str] = [
         "dweller-images",
         "dweller-thumbnails",
@@ -60,6 +61,21 @@ class Settings(BaseSettings):
                 self.MINIO_ROOT_PASSWORD,
             ]
         )
+
+    @property
+    def minio_public_base_url(self) -> str:
+        """Get the public-facing base URL for MinIO (without trailing slash)."""
+        if self.MINIO_PUBLIC_URL:
+            return self.MINIO_PUBLIC_URL.rstrip("/")
+        # Fallback to internal hostname:port for local development
+        return f"http://{self.MINIO_HOSTNAME}:{self.MINIO_PORT}"
+
+    @property
+    def minio_use_https(self) -> bool:
+        """Determine if MinIO connection should use HTTPS based on public URL."""
+        if self.MINIO_PUBLIC_URL:
+            return self.MINIO_PUBLIC_URL.startswith("https://")
+        return False
 
     AI_PROVIDER: Literal["openai", "anthropic", "ollama"] = "openai"
     AI_MODEL: str = "gpt-4o"

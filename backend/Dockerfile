@@ -27,7 +27,7 @@ ENV VIRTUAL_ENV=/opt/venv \
 COPY pyproject.toml uv.lock /app/
 
 # Create virtual environment and install dependencies using uv sync
-RUN uv sync --frozen --no-dev --no-install-project
+RUN uv sync --frozen --no-dev --no-install-project --no-cache
 
 # Copy application code
 COPY . .

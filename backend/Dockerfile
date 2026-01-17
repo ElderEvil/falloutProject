@@ -20,14 +20,15 @@ RUN useradd -m appuser
 WORKDIR /app
 
 # Set environment variables
-ENV VIRTUAL_ENV=/opt/venv \
-    PATH="/opt/venv/bin:$PATH"
+ENV VIRTUAL_ENV=/app/.venv \
+    PATH="/app/.venv/bin:$PATH"
 
 # Copy uv files for dependency installation
 COPY pyproject.toml uv.lock /app/
 
 # Create virtual environment and install dependencies using uv sync
 RUN uv sync --frozen --no-dev --no-install-project --no-cache
+ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy application code
 COPY . .

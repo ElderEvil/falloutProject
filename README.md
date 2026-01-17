@@ -100,7 +100,7 @@ See `.env.example` for all variables. Key ones:
 - [ROADMAP.md](./ROADMAP.md) - Changelog and upcoming features
 - [frontend/README.md](./frontend/README.md) - Frontend architecture
 - [frontend/STYLEGUIDE.md](./frontend/STYLEGUIDE.md) - Design system
-- [docs/CONTAINER_MIGRATION.md](docs/CONTAINER_MIGRATION.md) - Podman guide
+- [deployment/MINIO_SETUP.md](./deployment/MINIO_SETUP.md) - MinIO public access configuration
 
 ## 📄 License
 

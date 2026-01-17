@@ -49,7 +49,7 @@ class MinioService:
                     f"{settings.MINIO_HOSTNAME}:{settings.MINIO_PORT}",
                     access_key=settings.MINIO_ROOT_USER,
                     secret_key=settings.MINIO_ROOT_PASSWORD,
-                    secure=False,  # True if using https
+                    secure=settings.minio_use_https,
                 )
                 self._ensure_bucket_exists(self.default_bucket_name)
                 logger.info("MinIO client initialized successfully")
@@ -158,7 +158,7 @@ class MinioService:
 
         bucket_name = bucket_name or self.default_bucket_name
         self._ensure_bucket_policy(bucket_name)
-        return f"http://{settings.MINIO_HOSTNAME}:{settings.MINIO_PORT}/{bucket_name}/{file_name}"
+        return f"{settings.minio_public_base_url}/{bucket_name}/{file_name}"
 
 
 @lru_cache

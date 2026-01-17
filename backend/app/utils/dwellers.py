@@ -1,4 +1,5 @@
 import random
+from typing import Any
 
 from faker import Faker
 
@@ -15,19 +16,18 @@ def get_gender_based_name(gender: GenderEnum):
 
 def get_stats_by_rarity(rarity: RarityEnum) -> dict:
     """Generate stats based on rarity for production use."""
-    stats_range = STATS_RANGE_BY_RARITY[rarity.value]
-    return {
-        stat.value: random.randint(stats_range[stat_letter.value][0], stats_range[stat_letter.value][1])
-        for stat in LETTER_TO_STAT
-        for stat_letter in [stat]
-    }
+    stats_range = STATS_RANGE_BY_RARITY[rarity]
+    return {stat_name: random.randint(stats_range[0], stats_range[1]) for stat_name in LETTER_TO_STAT.values()}
 
 
-def create_random_common_dweller(gender: GenderEnum | None = None):
+def create_random_common_dweller(gender: GenderEnum | None = None) -> dict[str, Any]:
     """Create a random common dweller for production use."""
+
     rarity = RarityEnum.COMMON
     gender = gender or random.choice(list(GenderEnum))
     stats = get_stats_by_rarity(rarity)
+    max_health = random.randint(50, 1_000)
+    health = random.randint(50, max_health)
     return {
         "first_name": get_gender_based_name(gender),
         "last_name": fake.last_name(),
@@ -36,8 +36,8 @@ def create_random_common_dweller(gender: GenderEnum | None = None):
         "rarity": rarity,
         "level": random.randint(1, 50),
         "experience": random.randint(0, 1_000),
-        "max_health": random.randint(50, 1_000),
-        "health": random.randint(50, 1_000),
+        "max_health": max_health,
+        "health": health,
         "radiation": random.randint(0, 1_000),
         "happiness": random.randint(10, 100),
         "stimpack": random.randint(0, 15),

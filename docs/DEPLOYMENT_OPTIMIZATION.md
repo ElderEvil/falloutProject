@@ -223,7 +223,7 @@ jobs:
 ## 📊 Expected Results
 
 ### **Before Optimization**
-```
+```text
 Backend Build: 5-8 minutes
 - Install system deps: 30s
 - Install Python deps (including dev): 3-5 minutes
@@ -239,7 +239,7 @@ Deployment Total: 8-13+ minutes
 ```
 
 ### **After Optimization**
-```
+```text
 Backend Build: 1-2 minutes
 - Install system deps (cached): 5s
 - Install Python deps (prod only, cached): 30-60s
@@ -346,7 +346,7 @@ docker-compose up -d
 ### **Reliability**
 - [ ] 95%+ deployment success rate
 - [ ] < 1% rollback rate
-- [ ] < 30 second rollback time
+- [ ] < 30-second rollback time
 
 ### **Performance**
 - [ ] Application startup time < 30s

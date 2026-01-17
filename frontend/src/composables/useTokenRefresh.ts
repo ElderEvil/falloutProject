@@ -153,15 +153,15 @@ export function useTokenRefresh() {
    * Initialize token refresh mechanism
    */
   function initialize(): void {
+    // Always register visibility listener regardless of auth state
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
     if (!authStore.isAuthenticated) {
       console.debug('User not authenticated, skipping token refresh setup')
       return
     }
 
     startTokenRefreshTimer()
-
-    // Listen for visibility changes
-    document.addEventListener('visibilitychange', handleVisibilityChange)
   }
 
   /**

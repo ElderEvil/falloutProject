@@ -8,6 +8,21 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ## ✅ Recent Completions
 
+### v1.13.5 Production-Ready Security & Performance (January 17, 2026)
+- **Critical Authentication Fix**: Proactive token refresh system prevents session expiration during inactivity
+  - Automatic token refresh 5 minutes before expiry with tab visibility optimization
+  - Refresh token rotation for enhanced security
+  - Graceful logout handling when refresh token expires
+- **MinIO Production Infrastructure**: Fixed internal connection issues and public URL generation
+  - Separated internal Docker network (HTTP) from public access configuration
+  - Proper CORS and bucket access controls for production
+- **Enhanced CI/CD Performance**: Reduced pipeline execution time with optimized caching strategies
+- **Comprehensive Security**: Production-grade rate limiting, IP filtering, auto-banning with Redis distributed support
+- **Database Migration Fixes**: Resolved profile initialization and SQLAlchemy session errors
+- **Version Updates**: FastAPI 0.128+, Pydantic v2.11+, Vue 3.5.26+, TypeScript improvements
+- **Testing Excellence**: 639 frontend tests, 535 backend tests with comprehensive coverage
+- **Production Documentation**: Complete deployment checklists, security configuration guides, K8s manifests
+
 ### v1.13.1 Security & Production Deployment Prep (January 10, 2026)
 - **Security Middleware**: fastapi-guard integration with rate limiting (100-200 req/min), IP whitelisting/blacklisting, auto-banning (10-20 violations)
 - **Production Readiness**: Docker build fixes (frontend API URL), K8s deployment configs (health checks, resource limits), comprehensive deployment documentation
@@ -50,10 +65,10 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ## 🚨 Critical Bugs (P0 - IMMEDIATE)
 
-### Authentication & Session Management
-- [ ] **Auth Session Expiration** - Auth breaks when user is inactive for extended period, causing failed requests and requiring re-login
+### Authentication & Session Management ✅ RESOLVED
+- [x] **Auth Session Expiration** - Auth breaks when user is inactive for extended period, causing failed requests and requiring re-login
   - **Impact**: High - Users lose progress, poor UX
-  - **Fix**: Implement token refresh mechanism, add session timeout warnings, graceful re-auth flow
+  - **Fix**: ✅ Implemented proactive token refresh mechanism, refresh token rotation, graceful re-auth flow
 
 ---
 
@@ -74,10 +89,10 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 ## ✨ UX Enhancements (P2 - MEDIUM)
 
 ### Visual Feedback & Confirmations
-- [ ] **Room Upgrade Feedback** - Add visual confirmation when upgrading room levels (Tier 1→2→3)
-  - Toast notifications for successful upgrades
-  - Animation effects during tier transitions
-  - Clear visual state changes (icons, colors, effects)
+- [x] **Room Upgrade Feedback** - Add visual confirmation when upgrading room levels (Tier 1→2→3)
+  - ✅ Toast notifications for successful upgrades (shows room name, tier, cost)
+  - ✅ Animation effects during tier transitions (pulse + glow effect)
+  - ✅ Clear visual state changes (tier indicator highlights with green glow)
 
 ### Animation & Motion
 - [ ] **Motion Vue Integration** - Add Motion Vue library for smooth animations throughout app
@@ -217,12 +232,13 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ## 📊 Progress Metrics
 
-### Current Stats (January 6, 2026)
-- **Backend**: 22 routers, 90+ endpoints, 15+ services
-- **Frontend**: 55+ Vue components, 8 custom UI components
-- **Tests**: Frontend 489+, Backend 293
+### Current Stats (January 17, 2026)
+- **Backend**: 22+ routers, 90+ endpoints, 15+ services, production-ready security
+- **Frontend**: 55+ Vue components, 8 custom UI components, comprehensive auth system
+- **Tests**: Frontend 639, Backend 535 (significant increase)
 - **Models**: 18+ database models
-- **Lines of Code**: ~22,000+ (backend + frontend)
+- **Lines of Code**: ~23,000+ (backend + frontend)
+- **Production Status**: Enterprise-grade security, CI/CD optimization, deployment documentation
 
 ### Version Milestones
 - **v0.1-0.2**: Basic vault/dweller management + equipment ✅
@@ -240,6 +256,7 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 - **v1.12**: Happiness dashboard + UI polish ✅
 - **v1.13**: Audio conversations + multi-provider AI + refactoring ✅
 - **v1.13.1**: Security middleware + production deployment prep ✅
+- **v1.13.5**: Production-ready security & performance (Critical bugs resolved) ✅
 - **v1.14**: Post-deployment polish (dweller death, training UI, birth events) (Current - Jan 2026)
 - **v2.0**: Phase 1 completion (Feb 2026)
 - **v2.1**: Full MVP release (Mar 2026)
@@ -272,4 +289,4 @@ Contributions are welcome! Check the [README.md](./README.md) for development se
 
 This roadmap is subject to change based on user feedback, technical constraints, priority adjustments, and community contributions.
 
-Last updated: January 17, 2026
+Last updated: January 17, 2026 (Updated with v1.13.5 production-ready improvements)

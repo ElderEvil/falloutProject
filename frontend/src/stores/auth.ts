@@ -57,7 +57,7 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       // Registration returns user data with tokens, so we can directly set it
-      const { access_token, refresh_token, token_type, ...userData } = response.data
+      const { access_token: _access_token, refresh_token: _refresh_token, token_type: _token_type, ...userData } = response.data
       user.value = userData
 
       return true
@@ -85,6 +85,10 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await authService.refreshToken(refreshToken.value)
       token.value = response.data.access_token
+      // Backend rotates refresh tokens, so update it
+      if (response.data.refresh_token) {
+        refreshToken.value = response.data.refresh_token
+      }
     } catch (error) {
       console.error('Failed to refresh token', error)
       await logout()

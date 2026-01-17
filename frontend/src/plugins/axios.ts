@@ -119,8 +119,13 @@ apiClient.interceptors.response.use(
           )
 
           const newToken = response.data.access_token
+          const newRefreshToken = response.data.refresh_token
           if (newToken) {
             updateStoredToken(newToken)
+            // Also update refresh token since backend rotates it
+            if (newRefreshToken) {
+              localStorage.setItem('refreshToken', JSON.stringify(newRefreshToken))
+            }
             originalRequest.headers.Authorization = `Bearer ${newToken}`
             return apiClient(originalRequest)
           }

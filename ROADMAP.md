@@ -48,9 +48,18 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ---
 
-## 🚧 Current Sprint: Post-Deployment Polish (PLANNING)
+## 🚨 Critical Bugs (P0 - IMMEDIATE)
 
-### Soon After Deployment (High Priority)
+### Authentication & Session Management
+- [ ] **Auth Session Expiration** - Auth breaks when user is inactive for extended period, causing failed requests and requiring re-login
+  - **Impact**: High - Users lose progress, poor UX
+  - **Fix**: Implement token refresh mechanism, add session timeout warnings, graceful re-auth flow
+
+---
+
+## 🚧 Current Sprint: Post-Deployment Polish (P1 - HIGH)
+
+### Soon After Deployment
 - [ ] **Dweller Death System** - Death mechanics when health reaches 0, revival options (stimpacks, caps), memorial system
 - [ ] **Training Assignment UI** - Drag-and-drop dwellers to training room, visual assignment feedback, training queue management
 - [ ] **Birth Event System** - Update child biography with "Born in [Vault Name]" detail, update parent biographies with child references
@@ -60,7 +69,24 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 - [ ] **Training Room UI** - Training queue display, progress indicators, completion notifications
 - [ ] **WebSocket Migration** - Extend WebSocket usage to other real-time updates (resources, incidents)
 
-### Future Priorities
+---
+
+## ✨ UX Enhancements (P2 - MEDIUM)
+
+### Visual Feedback & Confirmations
+- [ ] **Room Upgrade Feedback** - Add visual confirmation when upgrading room levels (Tier 1→2→3)
+  - Toast notifications for successful upgrades
+  - Animation effects during tier transitions
+  - Clear visual state changes (icons, colors, effects)
+
+### Animation & Motion
+- [ ] **Motion Vue Integration** - Add Motion Vue library for smooth animations throughout app
+- [ ] **Sidebar Navigation Animations** - Sliding transitions when clicking menu items for pleasant feedback
+- [ ] **Component Transitions** - Add enter/leave animations for modals, cards, toasts
+- [ ] **Room Action Feedback** - Animated responses for build/upgrade/destroy actions
+- [ ] **General Polish** - Micro-interactions, hover effects, loading transitions
+
+### Future UX Priorities
 - **Sound Effects** - Terminal UI sounds, ambient vault audio, alert sounds
 - **Room Damage** - Consequences for failed incident combat, repair mechanics with caps/junk
 - **Training Room Capacity Formula** - Dynamic calculation based on room size
@@ -128,24 +154,24 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ## 📋 Planned Features
 
-### Phase 1: Core Gameplay Loop (Jan-Feb 2026)
+### Phase 1: Core Gameplay Loop (P4 - FUTURE | Jan-Feb 2026)
 - **Room Management**: Optimal dweller suggestions, training room capacity formula
 - **Resource Management**: Resource warning UI (toasts, visual indicators, outage effects), storage system UI
 - **Crafting System**: Weapon/outfit crafting with recipes, junk requirements, workshop room
 
-### Phase 2: Advanced Gameplay (Feb-Mar 2026)
+### Phase 2: Advanced Gameplay (P4 - FUTURE | Feb-Mar 2026)
 - **Combat Enhancements**: Combat statistics, combat log/replay system
 - **Exploration Enhancement**: Detailed events with choices, exploration log/journal, recall mechanism
 - **Dweller Progression**: Leveling UI enhancements (notifications, XP progress bars)
 - **Breeding & Family**: Relationship visualization (graph, family tree, interactive explorer)
 
-### Phase 3: Endgame & Polish (Mar-Apr 2026)
+### Phase 3: Endgame & Polish (P4 - FUTURE | Mar-Apr 2026)
 - **Advanced Systems**: Pet system, legendary dwellers with unique abilities
 - **Economy & Trading**: Merchant system, caps management
 - **Enhanced Objectives**: Achievement system, daily/weekly challenges, story campaign
 - **UI/UX Polish**: Animations, sound effects, tutorial system
 
-### Phase 4: Multiplayer & Social (Apr-May 2026)
+### Phase 4: Multiplayer & Social (P4 - FUTURE | Apr-May 2026)
 - **Social Features**: Friend system, visit vaults, gift items, leaderboards, co-op quests
 - **Cloud Saves**: Automatic backups, multi-device sync, export/import
 
@@ -159,10 +185,33 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 ### Potential Features (Backlog)
 - Mobile app, mod support, Steam integration, analytics dashboard, seasons/events, vault customization, multiplayer raids
 
-### Technical Debt
+### Technical Debt & Architecture (P3 - LOW)
+
+#### Backend Architecture
+- [ ] **Storage Migration** - Move from MinIO → [RustFS](https://github.com/s3-compat/rustfs) for improved performance and resource efficiency
+  - RustFS: Lightweight S3-compatible object storage written in Rust
+  - Benefits: Lower memory footprint, faster performance, modern implementation
+  - Maintains S3 API compatibility for easy migration
+- [ ] **DevOps Review** - Audit and optimize Docker files, CI/CD pipelines, deployment processes
+- [ ] **Performance Testing** - Add Locust performance degradation testing to nightly CI runs
+- [ ] **Test Coverage** - Increase coverage threshold to >70% across all services (currently arbitrary)
+
+#### Frontend Architecture
+- [ ] **Vue Architecture Refactor** - Adopt new Vue project structure (https://vue-faq.org/en/development/project-structure.html)
+  - Move tests → src directory
+  - Reorganize component hierarchy
+  - Follow feature-based organization pattern
+- [ ] **Component Refactoring** - Break down large/complex components into smaller, more maintainable pieces
+  - Review all components >200 lines
+  - Extract reusable logic into composables
+  - Create more granular UI components
+
+#### Completed Technical Debt ✅
 - **v1.9.5 Completed** ✅: Game config migration (Pydantic), auth consolidation, wasteland service optimization
 - **Performance** (v2.1+): Bundle optimization, virtual scrolling, WebSocket migration (Lighthouse: 71→85+)
-- **Other**: GraphQL implementation, PWA features, accessibility (WCAG 2.1 AA), i18n support
+
+#### Future Considerations
+- GraphQL implementation, PWA features, accessibility (WCAG 2.1 AA), i18n support
 
 ---
 
@@ -201,8 +250,26 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 Contributions are welcome! Check the [README.md](./README.md) for development setup instructions.
 
+## 📝 Priority System
+
+### Priority Levels
+- **P0 (Critical)**: Blocking bugs, security issues, data loss - fix immediately
+- **P1 (High)**: Current sprint work, essential features for next release
+- **P2 (Medium)**: Quality of life improvements, UX polish, non-blocking enhancements
+- **P3 (Low)**: Technical debt, refactoring, architectural improvements
+- **P4 (Future)**: Long-term features, nice-to-have additions, experimental work
+
+### Focus Strategy
+1. **Week 1-2**: Address all P0 critical bugs first
+2. **Week 3-4**: Complete P1 current sprint items
+3. **Month 2+**: Alternate between P2 UX enhancements and P1 features
+4. **Ongoing**: Tackle P3 technical debt during slow periods
+5. **Quarterly**: Review and plan P4 future features
+
+---
+
 ## 📝 Notes
 
 This roadmap is subject to change based on user feedback, technical constraints, priority adjustments, and community contributions.
 
-Last updated: January 10, 2026
+Last updated: January 17, 2026

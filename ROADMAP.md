@@ -55,11 +55,6 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
   - **Impact**: High - Users lose progress, poor UX
   - **Fix**: Implement token refresh mechanism, add session timeout warnings, graceful re-auth flow
 
-### User Feedback
-- [ ] **Room Upgrade Feedback** - No visual confirmation when upgrading room levels (Tier 1→2→3)
-  - **Impact**: Medium - Users uncertain if action succeeded
-  - **Fix**: Add toast notifications, animation effects, clear visual state changes
-
 ---
 
 ## 🚧 Current Sprint: Post-Deployment Polish (P1 - HIGH)
@@ -77,6 +72,12 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 ---
 
 ## ✨ UX Enhancements (P2 - MEDIUM)
+
+### Visual Feedback & Confirmations
+- [ ] **Room Upgrade Feedback** - Add visual confirmation when upgrading room levels (Tier 1→2→3)
+  - Toast notifications for successful upgrades
+  - Animation effects during tier transitions
+  - Clear visual state changes (icons, colors, effects)
 
 ### Animation & Motion
 - [ ] **Motion Vue Integration** - Add Motion Vue library for smooth animations throughout app
@@ -187,7 +188,10 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 ### Technical Debt & Architecture (P3 - LOW)
 
 #### Backend Architecture
-- [ ] **Storage Migration** - Move from MinIO → RustFS for improved performance and resource efficiency
+- [ ] **Storage Migration** - Move from MinIO → [RustFS](https://github.com/s3-compat/rustfs) for improved performance and resource efficiency
+  - RustFS: Lightweight S3-compatible object storage written in Rust
+  - Benefits: Lower memory footprint, faster performance, modern implementation
+  - Maintains S3 API compatibility for easy migration
 - [ ] **DevOps Review** - Audit and optimize Docker files, CI/CD pipelines, deployment processes
 - [ ] **Performance Testing** - Add Locust performance degradation testing to nightly CI runs
 - [ ] **Test Coverage** - Increase coverage threshold to >70% across all services (currently arbitrary)

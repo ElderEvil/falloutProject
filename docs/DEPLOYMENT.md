@@ -53,7 +53,7 @@ cd backend
 cp .env.example .env
 # Edit .env with your settings (add the generated SECRET_KEY)
 
-# Frontend environment  
+# Frontend environment
 cd ../frontend
 cp .env.example .env.local
 # Edit .env.local if needed
@@ -72,7 +72,7 @@ uv sync
 uv run alembic upgrade head
 uv run fastapi dev main.py
 
-# Terminal 2: Frontend  
+# Terminal 2: Frontend
 cd frontend
 pnpm install
 pnpm run dev
@@ -153,7 +153,7 @@ createuser -s postgres
 **Redis:**
 ```bash
 # Start Redis
-brew services start redis  # macOS  
+brew services start redis  # macOS
 sudo systemctl start redis # Linux
 ```
 
@@ -394,7 +394,7 @@ docker exec fastapi env | grep -E "(SECRET_KEY|DATABASE|REDIS)"
 
 ### Always Do
 - Use strong, unique passwords
-- Rotate secrets regularly  
+- Rotate secrets regularly
 - Enable rate limiting
 - Use HTTPS in production
 - Keep dependencies updated

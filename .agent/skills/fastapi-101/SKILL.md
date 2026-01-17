@@ -35,15 +35,15 @@ async def create_user(
 ) -> UserResponse:
     """
     Create a new user.
-    
+
     Args:
         user: User creation data
         db: Database session
         current_user: Authenticated user making the request
-        
+
     Returns:
         Created user data
-        
+
     Raises:
         HTTPException: If user creation fails
     """
@@ -85,7 +85,7 @@ class UserResponse(UserBase):
     id: int
     created_at: datetime
     updated_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 ```
 
@@ -114,7 +114,7 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: int = payload.get("sub")
@@ -122,7 +122,7 @@ async def get_current_user(
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    
+
     user = await user_service.get(db, id=user_id)
     if user is None:
         raise credentials_exception
@@ -135,7 +135,7 @@ async def get_current_user_optional(
 ) -> Optional[User]:
     if not token:
         return None
-    
+
     try:
         return await get_current_user(token, db)
     except HTTPException:
@@ -166,7 +166,7 @@ class UserNotFoundError(CustomException):
 
 # Global exception handler
 async def custom_exception_handler(
-    request: Request, 
+    request: Request,
     exc: CustomException
 ) -> JSONResponse:
     return JSONResponse(
@@ -186,13 +186,13 @@ from sqlmodel import Session, select
 
 class UserService:
     """Business logic layer for user operations."""
-    
+
     def __init__(self, user_repository: UserRepository):
         self.repository = user_repository
-    
+
     async def create(
-        self, 
-        db: Session, 
+        self,
+        db: Session,
         obj_in: UserCreate
     ) -> User:
         """Create a new user."""
@@ -200,28 +200,28 @@ class UserService:
         existing_user = await self.get_by_email(db, email=obj_in.email)
         if existing_user:
             raise UserAlreadyExistsError(email=obj_in.email)
-        
+
         # Hash password
         obj_in_data = obj_in.model_dump()
         obj_in_data["password"] = get_password_hash(obj_in_data["password"])
-        
+
         # Create user
         return await self.repository.create(db, obj_in=obj_in_data)
-    
+
     async def get_by_email(
-        self, 
-        db: Session, 
+        self,
+        db: Session,
         email: str
     ) -> Optional[User]:
         """Get user by email."""
         statement = select(User).where(User.email == email)
         result = await db.exec(statement)
         return result.first_one()
-    
+
     async def get_multi(
-        self, 
-        db: Session, 
-        skip: int = 0, 
+        self,
+        db: Session,
+        skip: int = 0,
         limit: int = 100
     ) -> List[User]:
         """Get multiple users with pagination."""
@@ -246,41 +246,41 @@ logger = logging.getLogger(__name__)
 
 class LoggingMiddleware(BaseHTTPMiddleware):
     """Request/response logging middleware."""
-    
+
     async def dispatch(self, request: Request, call_next):
         start_time = time.time()
-        
+
         # Log request
         logger.info(
             f"Request: {request.method} {request.url.path} "
             f"from {request.client.host if request.client else 'unknown'}"
         )
-        
+
         # Process request
         response = await call_next(request)
-        
+
         # Log response
         process_time = time.time() - start_time
         logger.info(
             f"Response: {response.status_code} "
             f"in {process_time:.4f}s"
         )
-        
+
         # Add timing header
         response.headers["X-Process-Time"] = str(process_time)
-        
+
         return response
 
 class CORSMiddleware(BaseHTTPMiddleware):
     """Custom CORS middleware."""
-    
+
     def __init__(self, app, allow_origins: list = None):
         super().__init__(app)
         self.allow_origins = allow_origins or ["*"]
-    
+
     async def dispatch(self, request: Request, call_next):
         origin = request.headers.get("origin")
-        
+
         if origin in self.allow_origins or "*" in self.allow_origins:
             response = await call_next(request)
             response.headers["Access-Control-Allow-Origin"] = origin or "*"
@@ -288,7 +288,7 @@ class CORSMiddleware(BaseHTTPMiddleware):
             response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
             response.headers["Access-Control-Allow-Credentials"] = "true"
             return response
-        
+
         return await call_next(request)
 ```
 
@@ -307,10 +307,10 @@ async def send_welcome_email(email: str, username: str):
         message["Subject"] = "Welcome to our service"
         message["From"] = "noreply@example.com"
         message["To"] = email
-        
+
         # Send email (configure SMTP properly)
         # smtplib.SMTP("localhost").send_message(message)
-        
+
         logger.info(f"Welcome email sent to {email}")
     except Exception as e:
         logger.error(f"Failed to send welcome email: {e}")
@@ -323,14 +323,14 @@ async def create_user_with_email(
 ):
     """Create user and send welcome email."""
     created_user = await user_service.create(db, obj_in=user)
-    
+
     # Add background task
     background_tasks.add_task(
-        send_welcome_email, 
-        user.email, 
+        send_welcome_email,
+        user.email,
         user.username
     )
-    
+
     return UserResponse.model_validate(created_user)
 ```
 
@@ -343,20 +343,20 @@ import json
 
 class ConnectionManager:
     """Manages WebSocket connections."""
-    
+
     def __init__(self):
         self.active_connections: List[WebSocket] = []
-    
+
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-    
+
     def disconnect(self, websocket: WebSocket):
         self.active_connections.remove(websocket)
-    
+
     async def send_personal_message(self, message: str, websocket: WebSocket):
         await websocket.send_text(message)
-    
+
     async def broadcast(self, message: str):
         for connection in self.active_connections:
             await connection.send_text(message)
@@ -370,13 +370,13 @@ async def websocket_endpoint(websocket: WebSocket, client_id: int):
         while True:
             data = await websocket.receive_text()
             message = json.loads(data)
-            
+
             # Process message
             await manager.send_personal_message(
-                f"Message received: {message['content']}", 
+                f"Message received: {message['content']}",
                 websocket
             )
-            
+
             # Broadcast to others
             await manager.broadcast(
                 f"Client #{client_id} says: {message['content']}"
@@ -412,9 +412,9 @@ def test_user():
 
 class TestUserEndpoints:
     """Test user endpoints."""
-    
+
     async def test_create_user_success(
-        self, 
+        self,
         async_client: AsyncClient,
         test_user: UserCreate
     ):
@@ -423,36 +423,36 @@ class TestUserEndpoints:
             "/users/",
             json=test_user.model_dump()
         )
-        
+
         assert response.status_code == 201
         data = response.json()
         assert data["email"] == test_user.email
         assert data["username"] == test_user.username
         assert "id" in data
         assert "password" not in data
-    
+
     async def test_create_user_duplicate_email(
-        self, 
+        self,
         async_client: AsyncClient,
         test_user: UserCreate
     ):
         """Test user creation with duplicate email."""
         # Create first user
         await async_client.post("/users/", json=test_user.model_dump())
-        
+
         # Try to create second user with same email
         response = await async_client.post("/users/", json=test_user.model_dump())
-        
+
         assert response.status_code == 409
         assert "already exists" in response.json()["detail"]
-    
+
     async def test_get_users_requires_auth(
-        self, 
+        self,
         async_client: AsyncClient
     ):
         """Test that getting users requires authentication."""
         response = await async_client.get("/users/")
-        
+
         assert response.status_code == 401
 ```
 
@@ -464,28 +464,28 @@ from typing import Optional
 
 class Settings(BaseSettings):
     """Application settings."""
-    
+
     # App settings
     app_name: str = "Fallout Shelter API"
     debug: bool = False
     version: str = "1.0.0"
-    
+
     # Database
     database_url: str = "postgresql://user:pass@localhost/dbname"
-    
+
     # Security
     secret_key: str
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
-    
+
     # CORS
     allowed_origins: list = ["*"]
-    
+
     # External services
     redis_url: str = "redis://localhost:6379"
     email_host: str = "localhost"
     email_port: int = 587
-    
+
     class Config:
         env_file = ".env"
         case_sensitive = False

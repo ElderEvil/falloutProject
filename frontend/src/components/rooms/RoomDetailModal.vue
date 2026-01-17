@@ -7,6 +7,7 @@ import type { DwellerShort } from '@/models/dweller'
 import { useDwellerStore } from '@/stores/dweller'
 import { useRoomStore } from '@/stores/room'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
 import UModal from '@/components/ui/UModal.vue'
 import UButton from '@/components/ui/UButton.vue'
 
@@ -27,11 +28,13 @@ const router = useRouter()
 const dwellerStore = useDwellerStore()
 const roomStore = useRoomStore()
 const authStore = useAuthStore()
+const toast = useToast()
 
 const isUpgrading = ref(false)
 const isDestroying = ref(false)
 const isRushing = ref(false)
 const actionError = ref<string | null>(null)
+const justUpgraded = ref(false)
 
 // Get dwellers assigned to this room
 const assignedDwellers = computed<DwellerShort[]>(() => {
@@ -167,16 +170,41 @@ const handleUpgrade = async () => {
     return
   }
 
+  const roomName = props.room.name
+  const currentTier = props.room.tier
+  const nextTier = currentTier + 1
+  const upgradeCost = upgradeInfo.value?.upgradeCost || 0
+
   isUpgrading.value = true
   actionError.value = null
 
   try {
     await roomStore.upgradeRoom(props.room.id, authStore.token as string, vaultId)
+
+    // Show success toast with upgrade details
+    toast.success(
+      `${roomName} upgraded to Tier ${nextTier}! (Cost: ${upgradeCost} caps)`,
+      5000
+    )
+
+    // Trigger visual feedback animation
+    justUpgraded.value = true
+    setTimeout(() => {
+      justUpgraded.value = false
+    }, 1000)
+
     emit('roomUpdated')
-    emit('close')
+    // Don't close immediately - let user see the upgraded state
+    setTimeout(() => {
+      emit('close')
+    }, 800)
   } catch (error) {
     console.error('Failed to upgrade room:', error)
     actionError.value = error instanceof Error ? error.message : 'Failed to upgrade room'
+    toast.error(
+      error instanceof Error ? error.message : 'Failed to upgrade room',
+      5000
+    )
   } finally {
     isUpgrading.value = false
   }
@@ -297,7 +325,7 @@ watch(() => props.modelValue, (newValue) => {
           <div class="header-metadata">
             <span class="metadata-item">{{ room?.category }} Room</span>
             <span class="metadata-divider">·</span>
-            <span class="metadata-item">Tier {{ room?.tier }}</span>
+            <span class="metadata-item" :class="{ 'tier-upgraded': justUpgraded }">Tier {{ room?.tier }}</span>
             <span v-if="room?.ability" class="metadata-divider">·</span>
             <span v-if="room?.ability" class="metadata-item">Requires: {{ room.ability.charAt(0) }}</span>
           </div>
@@ -968,5 +996,35 @@ watch(() => props.modelValue, (newValue) => {
 .dweller-slot-name.empty {
   color: #666;
   font-style: italic;
+}
+
+/* Room upgrade animation */
+.tier-upgraded {
+  animation: tier-upgrade-pulse 1s ease-out;
+  color: var(--color-terminal-green) !important;
+  font-weight: bold;
+}
+
+@keyframes tier-upgrade-pulse {
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 0px var(--color-theme-glow));
+  }
+  25% {
+    transform: scale(1.2);
+    filter: drop-shadow(0 0 8px var(--color-theme-glow));
+  }
+  50% {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 12px var(--color-theme-glow));
+  }
+  75% {
+    transform: scale(1.15);
+    filter: drop-shadow(0 0 8px var(--color-theme-glow));
+  }
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px var(--color-theme-glow));
+  }
 }
 </style>

@@ -1,4 +1,4 @@
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { jwtDecode } from 'jwt-decode'
 
@@ -46,12 +46,14 @@ export function useTokenRefresh() {
 
   /**
    * Check if token is already expired
+   * Returns false for opaque tokens (defers validation to backend)
    */
   function isTokenExpired(token: string | null): boolean {
     if (!token) return true
 
     const expiresAt = getTokenExpiration(token)
-    if (!expiresAt) return true
+    // If token can't be decoded (opaque token), defer to backend validation
+    if (!expiresAt) return false
 
     return Date.now() >= expiresAt
   }
@@ -173,6 +175,20 @@ export function useTokenRefresh() {
   // Lifecycle hooks for Vue components
   onMounted(() => {
     initialize()
+
+    // Watch auth state and start/stop refresh based on authentication
+    watch(
+      () => authStore.isAuthenticated,
+      (isAuthenticated) => {
+        if (isAuthenticated) {
+          console.debug('User authenticated, starting token refresh')
+          startTokenRefreshTimer()
+        } else {
+          console.debug('User logged out, stopping token refresh')
+          stopTokenRefreshTimer()
+        }
+      }
+    )
   })
 
   onUnmounted(() => {

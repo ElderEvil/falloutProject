@@ -14,6 +14,7 @@ export function useTokenRefresh() {
   const authStore = useAuthStore()
   const refreshTimer = ref<ReturnType<typeof setInterval> | null>(null)
   const isRefreshing = ref(false)
+  let authWatcherStop: (() => void) | null = null
 
   /**
    * Decode JWT and get expiration timestamp
@@ -142,10 +143,16 @@ export function useTokenRefresh() {
       console.debug('Tab hidden, pausing token refresh')
       stopTokenRefreshTimer()
     } else {
-      console.debug('Tab visible, resuming token refresh')
-      // When tab becomes visible, check immediately and restart timer
-      refreshToken()
-      startTokenRefreshTimer()
+      console.debug('Tab visible, checking auth state before resuming token refresh')
+      // Only resume if user is authenticated
+      if (authStore.isAuthenticated) {
+        console.debug('User authenticated, resuming token refresh')
+        // When tab becomes visible, check immediately and restart timer
+        refreshToken()
+        startTokenRefreshTimer()
+      } else {
+        console.debug('User not authenticated, skipping token refresh')
+      }
     }
   }
 
@@ -170,6 +177,11 @@ export function useTokenRefresh() {
   function cleanup(): void {
     stopTokenRefreshTimer()
     document.removeEventListener('visibilitychange', handleVisibilityChange)
+    // Stop the auth watcher to prevent memory leaks
+    if (authWatcherStop) {
+      authWatcherStop()
+      authWatcherStop = null
+    }
   }
 
   // Lifecycle hooks for Vue components
@@ -177,7 +189,7 @@ export function useTokenRefresh() {
     initialize()
 
     // Watch auth state and start/stop refresh based on authentication
-    watch(
+    authWatcherStop = watch(
       () => authStore.isAuthenticated,
       (isAuthenticated) => {
         if (isAuthenticated) {

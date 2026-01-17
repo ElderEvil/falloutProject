@@ -1,0 +1,96 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fallout-ingress
+  namespace: fallout-shelter
+  annotations:
+    kubernetes.io/ingress.class: "traefik"  # Adjust based on your k3s ingress controller
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+  - host: "fallout.local"  # Replace with your actual domain
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: fastapi-service
+            port:
+              number: 8000
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: vue-service
+            port:
+              number: 3000
+  - host: "fallout-api.local"  # Optional: separate API domain
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: fastapi-service
+            port:
+              number: 8000
+---
+# Optional: For HTTPS with cert-manager (if available)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: fallout-tls
+  namespace: fallout-shelter
+spec:
+  secretName: fallout-tls-secret
+  issuerRef:
+    name: letsencrypt-prod  # Adjust based on your cert-manager setup
+    kind: ClusterIssuer
+  dnsNames:
+  - fallout.local
+  - fallout-api.local
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fallout-ingress-https
+  namespace: fallout-shelter
+  annotations:
+    kubernetes.io/ingress.class: "traefik"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+  - hosts:
+    - fallout.local
+    - fallout-api.local
+    secretName: fallout-tls-secret
+  rules:
+  - host: "fallout.local"
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: fastapi-service
+            port:
+              number: 8000
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: vue-service
+            port:
+              number: 3000
+  - host: "fallout-api.local"
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: fastapi-service
+            port:
+              number: 8000

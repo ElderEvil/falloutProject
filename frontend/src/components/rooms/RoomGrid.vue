@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useRoomStore } from '@/stores/room'
 import { useAuthStore } from '@/stores/auth'
 import { useDwellerStore } from '@/stores/dweller'
+import { useTrainingStore } from '@/stores/training'
 import { useRoomInteractions } from '@/composables/useRoomInteractions'
 import { useHoverPreview } from '@/composables/useHoverPreview'
 import RoomDwellers from '@/components/dwellers/RoomDwellers.vue'
@@ -39,6 +40,7 @@ const route = useRoute()
 const roomStore = useRoomStore()
 const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
+const trainingStore = useTrainingStore()
 const rooms = computed(() => Array.isArray(roomStore.rooms) ? roomStore.rooms : [])
 
 const { selectedRoomId, toggleRoomSelection, destroyRoom } = useRoomInteractions()
@@ -171,7 +173,16 @@ const handleDrop = async (event: DragEvent, roomId: string) => {
       return
     }
 
+    // Find the target room to check if it's a training room
+    const targetRoom = rooms.value.find(r => r.id === roomId)
+
+    // Assign dweller to room
     await dwellerStore.assignDwellerToRoom(dwellerId, roomId, authStore.token as string)
+
+    // If it's a training room, start a training session
+    if (targetRoom?.category?.toLowerCase() === 'training') {
+      await trainingStore.startTraining(dwellerId, roomId, authStore.token as string)
+    }
 
     const action = currentRoomId ? 'moved' : 'assigned'
     assignmentSuccess.value = `${firstName} ${lastName} ${action} successfully!`

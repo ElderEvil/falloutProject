@@ -77,13 +77,14 @@ class TrainingService:
         if room.category != RoomTypeEnum.TRAINING:
             return False, "Room is not a training room"
 
-        # Check dweller availability
-        if dweller.status != DwellerStatusEnum.IDLE:
-            return False, f"Dweller is {dweller.status} and cannot train"
-
+        # Check if dweller has an active training session
         existing_training = await training_crud.training.get_active_by_dweller(db_session, dweller.id)
         if existing_training:
             return False, f"Dweller is already training {existing_training.stat_being_trained}"
+
+        # Check dweller availability (allow TRAINING status if no active session exists)
+        if dweller.status not in (DwellerStatusEnum.IDLE, DwellerStatusEnum.TRAINING):
+            return False, f"Dweller is {dweller.status} and cannot train"
 
         # Determine which stat this room trains and check if maxed
         if not room.ability:

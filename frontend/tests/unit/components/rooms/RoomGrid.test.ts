@@ -1,8 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import RoomGrid from '@/components/rooms/RoomGrid.vue'
 import { useRoomStore } from '@/stores/room'
+import { useDwellerStore } from '@/stores/dweller'
+import { useTrainingStore } from '@/stores/training'
+import { useAuthStore } from '@/stores/auth'
 
 describe('RoomGrid', () => {
   beforeEach(() => {
@@ -179,6 +182,227 @@ describe('RoomGrid', () => {
       })
 
       expect(wrapper.props('highlightedRoomId')).toBeNull()
+    })
+  })
+
+  describe('Training Assignment on Drop', () => {
+    it('should start training session when dweller is dropped into training room', async () => {
+      const roomStore = useRoomStore()
+      const dwellerStore = useDwellerStore()
+      const trainingStore = useTrainingStore()
+      const authStore = useAuthStore()
+
+      // Mock auth token
+      authStore.token = 'mock-token'
+
+      // Setup training room
+      const trainingRoom = {
+        id: 'training-room-123',
+        name: 'Weight Room',
+        category: 'training',
+        ability: 'strength',
+        coordinate_x: 0,
+        coordinate_y: 0,
+        size: 3,
+        size_min: 3,
+        tier: 1,
+        capacity: 6
+      }
+      roomStore.rooms = [trainingRoom]
+
+      // Mock store methods
+      const assignDwellerSpy = vi.spyOn(dwellerStore, 'assignDwellerToRoom').mockResolvedValue({
+        id: 'dweller-123',
+        first_name: 'John',
+        last_name: 'Doe',
+        room_id: 'training-room-123',
+        status: 'training'
+      } as any)
+
+      const startTrainingSpy = vi.spyOn(trainingStore, 'startTraining').mockResolvedValue({
+        id: 'training-session-123',
+        dweller_id: 'dweller-123',
+        room_id: 'training-room-123',
+        stat_being_trained: 'strength',
+        status: 'active'
+      } as any)
+
+      const wrapper = mount(RoomGrid, {
+        props: {
+          incidents: []
+        }
+      })
+
+      // Simulate drop event with JSON data
+      const dropEvent = {
+        preventDefault: vi.fn(),
+        dataTransfer: {
+          getData: vi.fn((type: string) => {
+            if (type === 'application/json') {
+              return JSON.stringify({
+                dwellerId: 'dweller-123',
+                firstName: 'John',
+                lastName: 'Doe',
+                currentRoomId: null
+              })
+            }
+            return ''
+          })
+        }
+      }
+
+      const roomElement = wrapper.find('.built-room')
+      await roomElement.trigger('drop', dropEvent as any)
+
+      // Wait for async operations
+      await wrapper.vm.$nextTick()
+
+      // Verify assignDwellerToRoom was called
+      expect(assignDwellerSpy).toHaveBeenCalledWith(
+        'dweller-123',
+        'training-room-123',
+        'mock-token'
+      )
+
+      // Verify startTraining was called after assignment
+      expect(startTrainingSpy).toHaveBeenCalledWith(
+        'dweller-123',
+        'training-room-123',
+        'mock-token'
+      )
+    })
+
+    it('should not start training session when dropped into non-training room', async () => {
+      const roomStore = useRoomStore()
+      const dwellerStore = useDwellerStore()
+      const trainingStore = useTrainingStore()
+      const authStore = useAuthStore()
+
+      authStore.token = 'mock-token'
+
+      // Setup production room (not training)
+      const productionRoom = {
+        id: 'production-room-123',
+        name: 'Power Generator',
+        category: 'production',
+        ability: 'strength',
+        coordinate_x: 0,
+        coordinate_y: 0,
+        size: 3,
+        size_min: 3,
+        tier: 1,
+        capacity: 6
+      }
+      roomStore.rooms = [productionRoom]
+
+      const assignDwellerSpy = vi.spyOn(dwellerStore, 'assignDwellerToRoom').mockResolvedValue({
+        id: 'dweller-123',
+        first_name: 'John',
+        last_name: 'Doe',
+        room_id: 'production-room-123',
+        status: 'working'
+      } as any)
+
+      const startTrainingSpy = vi.spyOn(trainingStore, 'startTraining')
+
+      const wrapper = mount(RoomGrid, {
+        props: {
+          incidents: []
+        }
+      })
+
+      // Simulate drop event with JSON data
+      const dropEvent = {
+        preventDefault: vi.fn(),
+        dataTransfer: {
+          getData: vi.fn((type: string) => {
+            if (type === 'application/json') {
+              return JSON.stringify({
+                dwellerId: 'dweller-123',
+                firstName: 'John',
+                lastName: 'Doe',
+                currentRoomId: null
+              })
+            }
+            return ''
+          })
+        }
+      }
+
+      const roomElement = wrapper.find('.built-room')
+      await roomElement.trigger('drop', dropEvent as any)
+      await wrapper.vm.$nextTick()
+
+      // Verify assignDwellerToRoom was called
+      expect(assignDwellerSpy).toHaveBeenCalled()
+
+      // Verify startTraining was NOT called for non-training room
+      expect(startTrainingSpy).not.toHaveBeenCalled()
+    })
+
+    it('should handle training start failure gracefully', async () => {
+      const roomStore = useRoomStore()
+      const dwellerStore = useDwellerStore()
+      const trainingStore = useTrainingStore()
+      const authStore = useAuthStore()
+
+      authStore.token = 'mock-token'
+
+      const trainingRoom = {
+        id: 'training-room-123',
+        name: 'Weight Room',
+        category: 'training',
+        ability: 'strength',
+        coordinate_x: 0,
+        coordinate_y: 0,
+        size: 3,
+        size_min: 3,
+        tier: 1,
+        capacity: 6
+      }
+      roomStore.rooms = [trainingRoom]
+
+      vi.spyOn(dwellerStore, 'assignDwellerToRoom').mockResolvedValue({
+        id: 'dweller-123',
+        first_name: 'John',
+        last_name: 'Doe',
+        room_id: 'training-room-123',
+        status: 'training'
+      } as any)
+
+      // Mock training start to fail
+      const startTrainingSpy = vi.spyOn(trainingStore, 'startTraining').mockResolvedValue(null)
+
+      const wrapper = mount(RoomGrid, {
+        props: {
+          incidents: []
+        }
+      })
+
+      const dropEvent = {
+        preventDefault: vi.fn(),
+        dataTransfer: {
+          getData: vi.fn((type: string) => {
+            if (type === 'application/json') {
+              return JSON.stringify({
+                dwellerId: 'dweller-123',
+                firstName: 'John',
+                lastName: 'Doe',
+                currentRoomId: null
+              })
+            }
+            return ''
+          })
+        }
+      }
+
+      const roomElement = wrapper.find('.built-room')
+      await roomElement.trigger('drop', dropEvent as any)
+      await wrapper.vm.$nextTick()
+
+      // Verify startTraining was called and returned null (failure)
+      expect(startTrainingSpy).toHaveBeenCalled()
+      expect(await startTrainingSpy.mock.results[0].value).toBeNull()
     })
   })
 })

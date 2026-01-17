@@ -292,10 +292,10 @@ export const useDwellerStore = defineStore('dweller', () => {
         }
       );
 
-      // Update the dweller in the list
+      // Update the dweller in the list with full response data
       const dwellerIndex = dwellers.value.findIndex(d => d.id === dwellerId);
       if (dwellerIndex !== -1 && dwellers.value[dwellerIndex]) {
-        dwellers.value[dwellerIndex] = { ...dwellers.value[dwellerIndex]!, room_id: null };
+        dwellers.value[dwellerIndex] = { ...dwellers.value[dwellerIndex]!, room_id: null, status: response.data.status };
       }
 
       // Update detailed dweller if cached
@@ -303,7 +303,6 @@ export const useDwellerStore = defineStore('dweller', () => {
         detailedDwellers.value[dwellerId] = response.data;
       }
 
-      toast.success('Dweller recalled successfully!');
       return response.data;
     } catch (error) {
       console.error(`Failed to unassign dweller ${dwellerId}`, error);

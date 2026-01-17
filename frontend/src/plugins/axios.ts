@@ -119,8 +119,17 @@ apiClient.interceptors.response.use(
           )
 
           const newToken = response.data.access_token
+          const newRefreshToken = response.data.refresh_token
           if (newToken) {
             updateStoredToken(newToken)
+            // Update refresh token through store to keep Pinia state in sync
+            if (newRefreshToken) {
+              // Import dynamically to avoid circular dependency
+              import('@/stores/auth').then(({ useAuthStore }) => {
+                const authStore = useAuthStore()
+                authStore.refreshToken = newRefreshToken
+              })
+            }
             originalRequest.headers.Authorization = `Bearer ${newToken}`
             return apiClient(originalRequest)
           }

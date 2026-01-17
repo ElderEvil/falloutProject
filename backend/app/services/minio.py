@@ -49,7 +49,7 @@ class MinioService:
                     f"{settings.MINIO_HOSTNAME}:{settings.MINIO_PORT}",
                     access_key=settings.MINIO_ROOT_USER,
                     secret_key=settings.MINIO_ROOT_PASSWORD,
-                    secure=settings.minio_use_https,
+                    secure=False,  # Internal Docker connection is always HTTP
                 )
                 self._ensure_bucket_exists(self.default_bucket_name)
                 logger.info("MinIO client initialized successfully")

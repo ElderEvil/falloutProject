@@ -6,17 +6,17 @@ from faker import Faker
 from app.schemas.common import GenderEnum
 from app.schemas.dweller import LETTER_TO_STAT, STATS_RANGE_BY_RARITY, RarityEnum
 
-fake = Faker()
+fake: Faker = Faker()
 
 
-def get_gender_based_name(gender: GenderEnum):
+def get_gender_based_name(gender: GenderEnum) -> str:
     """Generate a gender-based first name for production use."""
     return fake.first_name_male() if gender == GenderEnum.MALE else fake.first_name_female()
 
 
-def get_stats_by_rarity(rarity: RarityEnum) -> dict:
+def get_stats_by_rarity(rarity: RarityEnum) -> dict[str, int]:
     """Generate stats based on rarity for production use."""
-    stats_range = STATS_RANGE_BY_RARITY[rarity]
+    stats_range: tuple[int, int] = STATS_RANGE_BY_RARITY[rarity]
     return {stat_name: random.randint(stats_range[0], stats_range[1]) for stat_name in LETTER_TO_STAT.values()}
 
 

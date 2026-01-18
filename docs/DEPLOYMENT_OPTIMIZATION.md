@@ -1,7 +1,7 @@
 # 🚀 Deployment Optimization Guide
 
 > **Version:** 1.0.0
-> **Target:** Reduce deployment time from 10-20+ minutes to 2-5 minutes
+> **Target:** Reduce deployment time from 10-20+ minutes to 2-4 minutes
 > **Focus:** TrueNAS staging environment optimization
 
 ## 📊 Current State Analysis

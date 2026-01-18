@@ -51,14 +51,15 @@ RUN uv sync --frozen --no-dev --no-install-project --no-cache
 FROM node:25-alpine AS deps
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
+RUN npm install -g pnpm@10.26.2
 RUN pnpm install --frozen-lockfile --prod
 
 # Build stage
 FROM node:25-alpine AS build-stage
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY package.json ./
-RUN npm install -g pnpm@10.26.2
+COPY --from=deps /app/package.json ./package.json
+COPY --from=deps /app/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY . .
 ARG VITE_API_BASE_URL=http://localhost:8000
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
@@ -103,7 +104,6 @@ htmlcov/
 .env
 .venv
 .git
-.pytest_cache
 **/tests/
 
 # Frontend .dockerignore

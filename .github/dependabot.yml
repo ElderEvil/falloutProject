@@ -73,6 +73,9 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
+    ignore:
+      - dependency-name: "pydantic"
+        versions: [ "^2.13.0", "2.12.x", ]
 
   # Docker base images - Frontend
   - package-ecosystem: "docker"

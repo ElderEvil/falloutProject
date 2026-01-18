@@ -2,15 +2,21 @@
 
 import logging
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from pydantic import UUID4
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
+from app.crud import dweller as dweller_crud
+from app.crud.relationship import relationship_crud
 from app.models.dweller import Dweller
 from app.models.relationship import Relationship
 from app.schemas.common import RelationshipTypeEnum
+from app.utils.exceptions import ResourceNotFoundException
+
+if TYPE_CHECKING:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -35,13 +41,7 @@ class RelationshipService:
         Returns:
             Relationship if exists, None otherwise
         """
-        # Order doesn't matter - check both directions
-        query = select(Relationship).where(
-            ((Relationship.dweller_1_id == dweller_1_id) & (Relationship.dweller_2_id == dweller_2_id))
-            | ((Relationship.dweller_1_id == dweller_2_id) & (Relationship.dweller_2_id == dweller_1_id))
-        )
-        result = await db_session.execute(query)
-        return result.scalars().first()
+        return await relationship_crud.get_by_dweller_pair(db_session, dweller_1_id, dweller_2_id)
 
     @staticmethod
     async def get_or_create_relationship(
@@ -61,20 +61,14 @@ class RelationshipService:
             Relationship object
         """
         # Check if relationship already exists
-        existing = await RelationshipService.get_relationship(db_session, dweller_1_id, dweller_2_id)
+        existing = await relationship_crud.get_by_dweller_pair(db_session, dweller_1_id, dweller_2_id)
         if existing:
             return existing
 
-        # Create new relationship
-        relationship = Relationship(
-            dweller_1_id=dweller_1_id,
-            dweller_2_id=dweller_2_id,
-            relationship_type=RelationshipTypeEnum.ACQUAINTANCE,
-            affinity=0,
+        # Create new relationship via CRUD
+        relationship = await relationship_crud.create_with_defaults(
+            db_session, dweller_1_id, dweller_2_id, relationship_type=RelationshipTypeEnum.ACQUAINTANCE, affinity=0
         )
-        db_session.add(relationship)
-        await db_session.commit()
-        await db_session.refresh(relationship)
 
         logger.info(f"Created new relationship between {dweller_1_id} and {dweller_2_id}")
         return relationship
@@ -98,21 +92,20 @@ class RelationshipService:
         """
         if amount is None:
             amount = game_config.relationship.affinity_increase_per_tick
-        relationship.affinity = min(100, relationship.affinity + amount)
-        relationship.updated_at = datetime.utcnow()
+        update_data = {"affinity": min(100, relationship.affinity + amount), "updated_at": datetime.utcnow()}
         old_type = relationship.relationship_type
 
         # Auto-upgrade relationship based on affinity thresholds
-        if relationship.affinity >= game_config.relationship.romance_threshold:
+        if update_data["affinity"] >= game_config.relationship.romance_threshold:
             # Progress through relationship stages
             if relationship.relationship_type == RelationshipTypeEnum.ACQUAINTANCE:
-                relationship.relationship_type = RelationshipTypeEnum.FRIEND
+                update_data["relationship_type"] = RelationshipTypeEnum.FRIEND
             elif relationship.relationship_type == RelationshipTypeEnum.FRIEND:
                 # Upgrade to romantic at 70+ affinity
-                relationship.relationship_type = RelationshipTypeEnum.ROMANTIC
+                update_data["relationship_type"] = RelationshipTypeEnum.ROMANTIC
 
-        await db_session.commit()
-        await db_session.refresh(relationship)
+        # Update via CRUD
+        relationship = await relationship_crud.update(db_session, relationship.id, update_data)
 
         # Log relationship progression
         if old_type != relationship.relationship_type:
@@ -204,11 +197,10 @@ class RelationshipService:
             msg = f"Affinity too low ({relationship.affinity}/{game_config.relationship.romance_threshold})"
             raise ValueError(msg)
 
-        relationship.relationship_type = RelationshipTypeEnum.ROMANTIC
-        relationship.updated_at = datetime.utcnow()
+        update_data = {"relationship_type": RelationshipTypeEnum.ROMANTIC, "updated_at": datetime.utcnow()}
 
-        await db_session.commit()
-        await db_session.refresh(relationship)
+        # Update via CRUD
+        relationship = await relationship_crud.update(db_session, relationship.id, update_data)
 
         logger.info(f"Initiated romance between {dweller_1_id} and {dweller_2_id}")
         return relationship
@@ -240,23 +232,16 @@ class RelationshipService:
             msg = "Dwellers must be in a romantic relationship first"
             raise ValueError(msg)
 
-        relationship.relationship_type = RelationshipTypeEnum.PARTNER
-        relationship.updated_at = datetime.utcnow()
+        update_data = {"relationship_type": RelationshipTypeEnum.PARTNER, "updated_at": datetime.utcnow()}
 
-        # Update dwellers to have each other as partners
-        dweller_1_query = select(Dweller).where(Dweller.id == dweller_1_id)
-        dweller_2_query = select(Dweller).where(Dweller.id == dweller_2_id)
+        # Update relationship via CRUD
+        relationship = await relationship_crud.update(db_session, relationship.id, update_data)
 
-        dweller_1 = (await db_session.execute(dweller_1_query)).scalars().first()
-        dweller_2 = (await db_session.execute(dweller_2_query)).scalars().first()
-
-        if dweller_1:
-            dweller_1.partner_id = dweller_2_id
-        if dweller_2:
-            dweller_2.partner_id = dweller_1_id
-
-        await db_session.commit()
-        await db_session.refresh(relationship)
+        # Update dwellers to have each other as partners via CRUD
+        if dweller_1_id:
+            await dweller_crud.update(db_session, dweller_1_id, {"partner_id": dweller_2_id})
+        if dweller_2_id:
+            await dweller_crud.update(db_session, dweller_2_id, {"partner_id": dweller_1_id})
 
         logger.info(f"Made partners: {dweller_1_id} and {dweller_2_id}")
         return relationship
@@ -273,32 +258,27 @@ class RelationshipService:
             db_session: Database session
             relationship_id: Relationship ID to break up
         """
-        query = select(Relationship).where(Relationship.id == relationship_id)
-        relationship = (await db_session.execute(query)).scalars().first()
-
-        if not relationship:
+        # Get relationship via CRUD, handle ResourceNotFoundException
+        try:
+            relationship = await relationship_crud.get(db_session, relationship_id)
+        except ResourceNotFoundException:
             msg = "Relationship not found"
-            raise ValueError(msg)
+            raise ValueError(msg) from None
 
-        # If partners, clear partner_id on both dwellers
+        # If partners, clear partner_id on both dwellers via CRUD
         if relationship.relationship_type == RelationshipTypeEnum.PARTNER:
-            dweller_1_query = select(Dweller).where(Dweller.id == relationship.dweller_1_id)
-            dweller_2_query = select(Dweller).where(Dweller.id == relationship.dweller_2_id)
+            if relationship.dweller_1_id:
+                await dweller_crud.update(db_session, relationship.dweller_1_id, {"partner_id": None})
+            if relationship.dweller_2_id:
+                await dweller_crud.update(db_session, relationship.dweller_2_id, {"partner_id": None})
 
-            dweller_1 = (await db_session.execute(dweller_1_query)).scalars().first()
-            dweller_2 = (await db_session.execute(dweller_2_query)).scalars().first()
-
-            if dweller_1:
-                dweller_1.partner_id = None
-            if dweller_2:
-                dweller_2.partner_id = None
-
-        # Mark as ex
-        relationship.relationship_type = RelationshipTypeEnum.EX
-        relationship.affinity = max(0, relationship.affinity - 30)  # Penalty for breakup
-        relationship.updated_at = datetime.utcnow()
-
-        await db_session.commit()
+        # Mark as ex via CRUD
+        update_data = {
+            "relationship_type": RelationshipTypeEnum.EX,
+            "affinity": max(0, relationship.affinity - 30),  # Penalty for breakup
+            "updated_at": datetime.utcnow(),
+        }
+        await relationship_crud.update(db_session, relationship.id, update_data)
 
         logger.info(f"Break up: {relationship.dweller_1_id} and {relationship.dweller_2_id}")
 

@@ -19,7 +19,7 @@ from app.schemas.dweller import (
     DwellerReadWithRoomID,
     DwellerUpdate,
 )
-from app.tests.factory.dwellers import create_random_common_dweller
+from app.utils.dwellers import create_random_common_dweller
 from app.utils.exceptions import ContentNoChangeException, InvalidVaultTransferException, ResourceConflictException
 
 BOOSTED_STAT_VALUE = 5

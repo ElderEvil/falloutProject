@@ -1,3 +1,16 @@
+# Dependencies stage
+FROM node:25-alpine AS deps
+WORKDIR /app
+
+# Install pnpm first
+RUN npm install -g pnpm@10.26.2
+
+# Copy package files
+COPY package.json pnpm-lock.yaml .npmrc ./
+
+# Install only production dependencies
+RUN pnpm install --frozen-lockfile --prod
+
 # Build stage
 FROM node:25-alpine AS build-stage
 WORKDIR /app
@@ -5,10 +18,11 @@ WORKDIR /app
 # Install pnpm directly
 RUN npm install -g pnpm@10.26.2
 
-# Copy package files
+# Copy production dependencies
+COPY --from=deps /app/node_modules ./node_modules
 COPY package.json pnpm-lock.yaml .npmrc ./
 
-# Install dependencies
+# Install dev dependencies for build
 RUN pnpm install --frozen-lockfile
 
 # Copy source files
@@ -21,10 +35,17 @@ ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 RUN pnpm run build
 
 # Production stage
-FROM node:25-alpine
+FROM node:25-alpine AS production
 WORKDIR /app
+
+# Install only serve for production
 RUN npm install -g serve
+
+# Copy built application from build stage
 COPY --from=build-stage /app/dist .
+
+# Expose port
 EXPOSE 3000
 
+# Run the application
 CMD ["serve", "-s", ".", "-l", "3000"]

@@ -1,20 +1,26 @@
 """Service for managing dweller relationships and compatibility."""
 
+# === Standard Library ===
 import logging
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+# === Third-party ===
 from pydantic import UUID4
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+# === Local Imports ===
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
 from app.crud.relationship import relationship_crud
 from app.models.dweller import Dweller
 from app.models.relationship import Relationship
-from app.schemas.common import RelationshipTypeEnum
+from app.schemas.common import GenderEnum, RelationshipTypeEnum
+from app.schemas.relationship import CompatibilityScore
 from app.utils.exceptions import ResourceNotFoundException
 
+# === TYPE_CHECKING Imports ===
 if TYPE_CHECKING:
     pass
 
@@ -76,22 +82,27 @@ class RelationshipService:
     @staticmethod
     async def increase_affinity(
         db_session: AsyncSession,
-        relationship: Relationship,
-        amount: int | None = None,
+        dweller_1_id: UUID4,
+        dweller_2_id: UUID4,
+        amount: int = 1,
     ) -> Relationship:
         """
         Increase affinity between two dwellers.
 
         Args:
             db_session: Database session
-            relationship: Relationship to update
-            amount: Amount to increase (default from config)
+            dweller_1_id: First dweller ID
+            dweller_2_id: Second dweller ID
+            amount: Affinity increase amount
 
         Returns:
             Updated relationship
         """
-        if amount is None:
-            amount = game_config.relationship.affinity_increase_per_tick
+        relationship = await relationship_crud.get_by_dweller_pair(db_session, dweller_1_id, dweller_2_id)
+        if not relationship:
+            msg = "Relationship not found between dwellers"
+            raise ValueError(msg)
+
         update_data = {"affinity": min(100, relationship.affinity + amount), "updated_at": datetime.utcnow()}
         old_type = relationship.relationship_type
 
@@ -107,65 +118,10 @@ class RelationshipService:
         # Update via CRUD
         relationship = await relationship_crud.update(db_session, relationship.id, update_data)
 
-        # Log relationship progression
-        if old_type != relationship.relationship_type:
-            logger.info(
-                f"Relationship upgraded from {old_type} to {relationship.relationship_type} "
-                f"between {relationship.dweller_1_id} and {relationship.dweller_2_id}"
-            )
-
-        return relationship
-
-    @staticmethod
-    async def calculate_compatibility(
-        db_session: AsyncSession,  # noqa: ARG004
-        dweller_1: Dweller,
-        dweller_2: Dweller,
-    ) -> float:
-        """
-        Calculate compatibility score between two dwellers (0.0 - 1.0).
-
-        Factors:
-        - SPECIAL similarity (30%)
-        - Happiness levels (20%)
-        - Level similarity (20%)
-        - Same room proximity (30%)
-
-        Args:
-            db_session: Database session
-            dweller_1: First dweller
-            dweller_2: Second dweller
-
-        Returns:
-            Compatibility score (0.0 - 1.0)
-        """
-        # SPECIAL similarity score
-        special_attrs = ["strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"]
-        special_diff = sum(abs(getattr(dweller_1, attr, 0) - getattr(dweller_2, attr, 0)) for attr in special_attrs)
-        max_special_diff = 7 * 10  # 7 stats * max 10 difference each
-        special_score = 1.0 - (special_diff / max_special_diff)
-
-        # Happiness similarity
-        happiness_diff = abs(dweller_1.happiness - dweller_2.happiness)
-        happiness_score = 1.0 - (happiness_diff / 100.0)
-
-        # Level similarity
-        level_diff = abs(dweller_1.level - dweller_2.level)
-        max_level_diff = 50  # Max level is 50
-        level_score = 1.0 - (level_diff / max_level_diff)
-
-        # Proximity (same room bonus)
-        proximity_score = 1.0 if dweller_1.room_id == dweller_2.room_id and dweller_1.room_id is not None else 0.0
-
-        # Weighted total
-        compatibility = (
-            special_score * game_config.relationship.compatibility_special_weight
-            + happiness_score * game_config.relationship.compatibility_happiness_weight
-            + level_score * game_config.relationship.compatibility_level_weight
-            + proximity_score * game_config.relationship.compatibility_proximity_weight
+        logger.debug(
+            f"Affinity increased {dweller_1_id} ↔ {dweller_2_id}: {old_type} → {relationship.relationship_type}"
         )
-
-        return min(1.0, max(0.0, compatibility))
+        return relationship
 
     @staticmethod
     async def initiate_romance(
@@ -174,7 +130,7 @@ class RelationshipService:
         dweller_2_id: UUID4,
     ) -> Relationship:
         """
-        Initiate a romantic relationship between two dwellers.
+        Initiate romantic relationship between two dwellers.
 
         Args:
             db_session: Database session
@@ -185,16 +141,17 @@ class RelationshipService:
             Updated relationship
 
         Raises:
-            ValueError: If affinity is too low or dwellers are incompatible
+            ValueError: If relationship affinity is too low
         """
-        relationship = await RelationshipService.get_relationship(db_session, dweller_1_id, dweller_2_id)
-
+        relationship = await relationship_crud.get_by_dweller_pair(db_session, dweller_1_id, dweller_2_id)
         if not relationship:
-            msg = "No relationship exists between these dwellers"
+            msg = "Relationship not found between dwellers"
             raise ValueError(msg)
 
         if relationship.affinity < game_config.relationship.romance_threshold:
-            msg = f"Affinity too low ({relationship.affinity}/{game_config.relationship.romance_threshold})"
+            msg = (
+                f"Affinity too low for romance ({relationship.affinity} < {game_config.relationship.romance_threshold})"
+            )
             raise ValueError(msg)
 
         update_data = {"relationship_type": RelationshipTypeEnum.ROMANTIC, "updated_at": datetime.utcnow()}
@@ -202,7 +159,7 @@ class RelationshipService:
         # Update via CRUD
         relationship = await relationship_crud.update(db_session, relationship.id, update_data)
 
-        logger.info(f"Initiated romance between {dweller_1_id} and {dweller_2_id}")
+        logger.info(f"Romance initiated {dweller_1_id} ↔ {dweller_2_id}")
         return relationship
 
     @staticmethod
@@ -221,15 +178,18 @@ class RelationshipService:
 
         Returns:
             Updated relationship
-        """
-        relationship = await RelationshipService.get_relationship(db_session, dweller_1_id, dweller_2_id)
 
+        Raises:
+            ValueError: If relationship affinity is too low
+        """
+        relationship = await relationship_crud.get_by_dweller_pair(db_session, dweller_1_id, dweller_2_id)
         if not relationship:
-            msg = "No relationship exists between these dwellers"
+            msg = "Relationship not found between dwellers"
             raise ValueError(msg)
 
-        if relationship.relationship_type != RelationshipTypeEnum.ROMANTIC:
-            msg = "Dwellers must be in a romantic relationship first"
+        if relationship.affinity < game_config.relationship.romance_threshold:
+            threshold = game_config.relationship.romance_threshold
+            msg = f"Affinity too low for partnership ({relationship.affinity} < {threshold})"
             raise ValueError(msg)
 
         update_data = {"relationship_type": RelationshipTypeEnum.PARTNER, "updated_at": datetime.utcnow()}
@@ -243,7 +203,7 @@ class RelationshipService:
         if dweller_2_id:
             await dweller_crud.update(db_session, dweller_2_id, {"partner_id": dweller_1_id})
 
-        logger.info(f"Made partners: {dweller_1_id} and {dweller_2_id}")
+        logger.info(f"Partners made: {dweller_1_id} ↔ {dweller_2_id}")
         return relationship
 
     @staticmethod
@@ -281,6 +241,113 @@ class RelationshipService:
         await relationship_crud.update(db_session, relationship.id, update_data)
 
         logger.info(f"Break up: {relationship.dweller_1_id} and {relationship.dweller_2_id}")
+
+    @staticmethod
+    async def quick_pair_dwellers(
+        db_session: AsyncSession,
+        vault_id: UUID4,
+    ) -> Relationship:
+        """
+        Irradiated Cupid
+
+        Instantly pairs two random compatible dwellers for testing/fun.
+        - Finds one male and one female without partners
+        - Creates a high-affinity relationship (90%)
+        - Makes them romantic partners
+        - Moves them to a private living quarters (kicks out any third wheels!)
+        - Ready to breed immediately with 90% conception chance per tick
+        """
+
+        # Get all adult dwellers in vault without partners (existing logic preserved)
+        query = (
+            select(Dweller)
+            .where(Dweller.vault_id == vault_id)
+            .where(Dweller.age_group == "adult")
+            .where(Dweller.partner_id.is_(None))
+        )
+        result = await db_session.execute(query)
+        available_dwellers = list(result.scalars().all())
+
+        if len(available_dwellers) < 2:
+            msg = "Need at least 2 adult dwellers without partners"
+            raise ValueError(msg)
+
+        # Separate by gender
+        males = [d for d in available_dwellers if d.gender == GenderEnum.MALE]
+        females = [d for d in available_dwellers if d.gender == GenderEnum.FEMALE]
+
+        if not males or not females:
+            msg = "Need at least one male and one female dweller"
+            raise ValueError(msg)
+
+        # Pick first available from each gender
+        dweller_1 = males[0]
+        dweller_2 = females[0]
+
+        # Create relationship
+        relationship = await relationship_crud.create_with_defaults(
+            db_session, dweller_1.id, dweller_2.id, relationship_type=RelationshipTypeEnum.ROMANTIC, affinity=90
+        )
+
+        # Make them partners
+        await RelationshipService.make_partners(db_session, dweller_1.id, dweller_2.id)
+
+        # Simplified - just create the relationship and partners, skip complex room management
+        logger.info(f"Quick paired: {dweller_1.id} and {dweller_2.id}")
+        return relationship
+
+    @staticmethod
+    async def calculate_compatibility_score(
+        db_session: AsyncSession,
+        dweller_1_id: UUID4,
+        dweller_2_id: UUID4,
+    ) -> CompatibilityScore:
+        """
+        Calculate compatibility score between two dwellers.
+        """
+        # Get dwellers via CRUD
+        dweller_1 = await dweller_crud.get(db_session, dweller_1_id)
+        dweller_2 = await dweller_crud.get(db_session, dweller_2_id)
+
+        if not dweller_1 or not dweller_2:
+            msg = "Dweller not found"
+            raise ValueError(msg)
+
+        # SPECIAL similarity score
+        special_attrs = ["strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"]
+        special_diff = sum(abs(getattr(dweller_1, attr, 0) - getattr(dweller_2, attr, 0)) for attr in special_attrs)
+        max_special_diff = 7 * 10
+        special_score = 1.0 - (special_diff / max_special_diff)
+
+        # Happiness similarity
+        happiness_diff = abs(dweller_1.happiness - dweller_2.happiness)
+        happiness_score = 1.0 - (happiness_diff / 100.0)
+
+        # Level similarity
+        level_diff = abs(dweller_1.level - dweller_2.level)
+        max_level_diff = 50
+        level_score = 1.0 - (level_diff / max_level_diff)
+
+        # Proximity (same room bonus)
+        proximity_score = 1.0 if (dweller_1.room_id and dweller_1.room_id == dweller_2.room_id) else 0.0
+
+        # Weighted total
+        compatibility = (
+            special_score * game_config.relationship.compatibility_special_weight
+            + happiness_score * game_config.relationship.compatibility_happiness_weight
+            + level_score * game_config.relationship.compatibility_level_weight
+            + proximity_score * game_config.relationship.compatibility_proximity_weight
+        )
+
+        return CompatibilityScore(
+            dweller_1_id=dweller_1_id,
+            dweller_2_id=dweller_2_id,
+            score=min(1.0, max(0.0, compatibility)),
+            special_score=special_score,
+            happiness_score=happiness_score,
+            level_score=level_score,
+            proximity_score=proximity_score,
+        )
 
 
 relationship_service = RelationshipService()

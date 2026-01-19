@@ -129,6 +129,31 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         relationship = await self.get_by_dweller_pair(db, dweller_1_id, dweller_2_id)
         return relationship is not None
 
+    async def get_by_vault(
+        self,
+        db: AsyncSession,
+        vault_id: UUID4,
+    ) -> list[Relationship]:
+        """
+        Get all relationships for dwellers in a vault.
+
+        Args:
+            db: Database session
+            vault_id: Vault ID
+
+        Returns:
+            List of relationships in the vault
+        """
+        from app.models.dweller import Dweller
+
+        query = (
+            select(Relationship)
+            .join(Dweller, Relationship.dweller_1_id == Dweller.id)
+            .where(Dweller.vault_id == vault_id)
+        )
+        result = await db.execute(query)
+        return list(result.scalars().all())
+
     async def create_with_defaults(
         self,
         db: AsyncSession,

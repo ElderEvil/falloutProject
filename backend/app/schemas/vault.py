@@ -23,6 +23,7 @@ class VaultRead(VaultBase):
     id: UUID4
     created_at: datetime
     updated_at: datetime
+    resource_warnings: list[dict[str, str]] = []
 
 
 class VaultReadWithUser(VaultRead):

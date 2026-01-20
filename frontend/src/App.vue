@@ -5,6 +5,7 @@ import UToastContainer from '@/components/ui/UToastContainer.vue'
 import { useVisualEffects } from '@/composables/useVisualEffects'
 import { useTheme } from '@/composables/useTheme'
 import { useTokenRefresh } from '@/composables/useTokenRefresh'
+import { useResourceWarnings } from '@/composables/useResourceWarnings'
 
 // Visual effects (replaces old useFlickering)
 const visualEffects = useVisualEffects()
@@ -15,6 +16,9 @@ const { currentTheme, setTheme, availableThemes } = useTheme()
 
 // Token refresh system (auto-refreshes tokens before expiry)
 useTokenRefresh()
+
+// Resource warnings system
+useResourceWarnings()
 
 // Provide visual effects for components that need them
 provide('visualEffects', visualEffects)

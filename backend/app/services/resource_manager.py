@@ -73,7 +73,7 @@ class ResourceManager:
         events["consumption"] = consumption
 
         # Calculate production
-        production = self._calculate_production(rooms_with_dwellers, seconds_passed)
+        production = self._calculate_production(rooms_with_dwellers, seconds_passed, vault.power)
         events["production"] = production
 
         # Calculate new resource levels
@@ -112,7 +112,7 @@ class ResourceManager:
         }
 
     def _calculate_production(
-        self, rooms_with_dwellers: list[tuple[Room, list[Dweller]]], seconds_passed: int
+        self, rooms_with_dwellers: list[tuple[Room, list[Dweller]]], seconds_passed: int, current_power: int
     ) -> dict[str, float]:
         """Calculate resource production from all production rooms."""
         production_totals = {"power": 0.0, "food": 0.0, "water": 0.0}
@@ -122,6 +122,10 @@ class ResourceManager:
                 self.logger.debug(
                     f"Skipping room {room.name}: category={room.category}, ability={room.ability}, output={room.output}"
                 )
+                continue
+
+            # Power outage effect: Only power generators work when power is 0
+            if current_power <= 0 and room.ability != SPECIALEnum.STRENGTH:
                 continue
 
             production = self._calculate_room_production(room, dwellers, seconds_passed)

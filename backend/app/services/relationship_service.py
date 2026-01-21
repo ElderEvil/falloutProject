@@ -176,7 +176,7 @@ class RelationshipService:
         """
         relationship = await relationship_crud.get_by_dweller_pair(db_session, dweller_1_id, dweller_2_id)
         if not relationship:
-            msg = "No relationship exists"
+            msg = "Relationship not found between dwellers"
             raise ValueError(msg)
 
         if relationship.affinity < game_config.relationship.romance_threshold:

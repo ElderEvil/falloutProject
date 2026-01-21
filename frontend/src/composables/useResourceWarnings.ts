@@ -25,11 +25,11 @@ export function useResourceWarnings() {
       if (!lastState || (now - lastState.lastShown > WARNING_COOLDOWN)) {
         const isCritical = warning.type.startsWith('critical_')
 
-        toast.add({
-          message: warning.message,
-          variant: isCritical ? 'error' : 'warning',
-          duration: isCritical ? 0 : 5000 // Critical warnings don't auto-dismiss
-        })
+        if (isCritical) {
+          toast.error(warning.message, 0) // Critical warnings don't auto-dismiss
+        } else {
+          toast.warning(warning.message, 5000) // Non-critical auto-dismiss after 5s
+        }
 
         warningStates.value[warning.type] = {
           lastShown: now

@@ -40,7 +40,7 @@ Implement a comprehensive resource warning system that alerts players when vault
   - < 10%: Red critical toast
   - Power outage: Special red toast with outage icon
 - **Toast Behavior**:
-  - Auto-dismiss after 10 seconds (except critical)
+  - Auto-dismiss after 5 seconds (except critical)
   - Can be manually dismissed
   - Rate limiting: Max 1 toast per resource type per 30 seconds
   - Stacking: Multiple resource warnings stack vertically

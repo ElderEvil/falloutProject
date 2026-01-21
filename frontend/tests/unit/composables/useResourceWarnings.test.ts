@@ -3,10 +3,12 @@ import { useResourceWarnings } from '@/composables/useResourceWarnings'
 import { ref, nextTick } from 'vue'
 import { setActivePinia, createPinia } from 'pinia'
 
-const mockToastAdd = vi.fn()
+const mockToastError = vi.fn()
+const mockToastWarning = vi.fn()
 vi.mock('@/composables/useToast', () => ({
   useToast: () => ({
-    add: mockToastAdd
+    error: mockToastError,
+    warning: mockToastWarning
   })
 }))
 
@@ -28,7 +30,9 @@ const localStorageMock = (() => {
 })()
 
 Object.defineProperty(global, 'localStorage', {
-  value: localStorageMock
+  value: localStorageMock,
+  configurable: true,
+  writable: true
 })
 
 describe('useResourceWarnings', () => {
@@ -37,7 +41,8 @@ describe('useResourceWarnings', () => {
   beforeEach(() => {
     localStorage.clear()
     setActivePinia(createPinia())
-    mockToastAdd.mockClear()
+    mockToastError.mockClear()
+    mockToastWarning.mockClear()
     vi.useFakeTimers()
   })
 
@@ -60,11 +65,7 @@ describe('useResourceWarnings', () => {
 
     await nextTick()
 
-    expect(mockToastAdd).toHaveBeenCalledWith({
-      message: 'Power low',
-      variant: 'warning',
-      duration: 5000
-    })
+    expect(mockToastWarning).toHaveBeenCalledWith('Power low', 5000)
   })
 
   it('rate limits warnings (30s cooldown)', async () => {
@@ -80,7 +81,7 @@ describe('useResourceWarnings', () => {
       activeVaultId: 'test-id'
     })
     await nextTick()
-    expect(mockToastAdd).toHaveBeenCalledTimes(1)
+    expect(mockToastWarning).toHaveBeenCalledTimes(1)
 
     vaultStore.$patch({
       loadedVaults: {
@@ -91,7 +92,7 @@ describe('useResourceWarnings', () => {
       activeVaultId: 'test-id'
     })
     await nextTick()
-    expect(mockToastAdd).toHaveBeenCalledTimes(1)
+    expect(mockToastWarning).toHaveBeenCalledTimes(1)
 
     vi.advanceTimersByTime(31000)
 
@@ -105,7 +106,7 @@ describe('useResourceWarnings', () => {
     })
     await nextTick()
 
-    expect(mockToastAdd).toHaveBeenCalledTimes(2)
+    expect(mockToastWarning).toHaveBeenCalledTimes(2)
   })
 
   it('shows critical warnings as error', async () => {
@@ -122,10 +123,6 @@ describe('useResourceWarnings', () => {
     })
     await nextTick()
 
-    expect(mockToastAdd).toHaveBeenCalledWith({
-      message: 'Power Critical',
-      variant: 'error',
-      duration: 0
-    })
+    expect(mockToastError).toHaveBeenCalledWith('Power Critical', 0)
   })
 })

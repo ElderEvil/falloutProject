@@ -86,7 +86,7 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
   - ⚠️ Missing: Update child biography with "Born in [Vault Name]" detail
 
 ### Complete Existing Systems
-- [ ] **Resource Warning UI** - Toast notifications for low resources (< 20% warning, < 10% critical), power outage effects
+- [x] **Resource Warning UI** - Toast notifications for low resources (< 20% warning, < 10% critical), power outage effects
 - [x] **Training Room UI** - Progress indicators, queue management, completion notifications
 - [x] **WebSocket Migration** - WebSocket infrastructure ready, needs extension beyond chat
 

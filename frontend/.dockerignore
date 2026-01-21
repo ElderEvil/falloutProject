@@ -1,16 +1,38 @@
+# Dependencies (installed fresh in Docker)
 node_modules
 .pnpm-store
+
+# Build output (built fresh in Docker)
+dist
+
+# Testing
+tests/
+coverage/
+*.tsbuildinfo
+
+# Documentation
+*.md
+docs/
+
+# Development tools
+.vscode/
+.idea/
+.DS_Store
+
+# Git
+.git/
+.gitignore
+
+# Environment
+.env
+.env.*
+.env*.local
+
+# Logs
+*.log
 npm-debug.log
 pnpm-debug.log
-.git
-.gitignore
-*.md
-tests
-.vscode
-.idea
-*.tsbuildinfo
-coverage
-.env*.local
-dist
-.DS_Store
-*.log
+
+# Temporary files
+*.tmp
+*.temp

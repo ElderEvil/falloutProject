@@ -1,4 +1,5 @@
 import pytest
+
 from app.models.room import Room
 from app.models.vault import Vault
 from app.schemas.common import RoomTypeEnum, SPECIALEnum

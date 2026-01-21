@@ -1,9 +1,9 @@
 # Resource Warning UI Implementation Plan
 
-**Task**: Resource Warning UI - Toast notifications for low resources (< 20% warning, < 10% critical), power outage effects  
-**Priority**: P1 (High) - Current Sprint: Post-Deployment Polish  
-**Source**: ROADMAP.md line 83-84  
-**Date**: January 18, 2026  
+**Task**: Resource Warning UI - Toast notifications for low resources (< 20% warning, < 10% critical), power outage effects
+**Priority**: P1 (High) - Current Sprint: Post-Deployment Polish
+**Source**: ROADMAP.md line 83-84
+**Date**: January 18, 2026
 
 ## 🎯 Objective
 
@@ -14,8 +14,8 @@ Implement a comprehensive resource warning system that alerts players when vault
 ### Phase 1: Analysis & Design (Tasks 1-2)
 
 #### Task 1: Analyze existing resource system and current UI implementation
-**Status**: Pending  
-**Estimated Time**: 2 hours  
+**Status**: Pending
+**Estimated Time**: 2 hours
 
 **Investigation Areas:**
 - Current resource models in `backend/app/models/`
@@ -31,11 +31,11 @@ Implement a comprehensive resource warning system that alerts players when vault
 - How does power outage currently affect the vault?
 
 #### Task 2: Design toast notification system for low resource warnings
-**Status**: Pending  
-**Estimated Time**: 1 hour  
+**Status**: Pending
+**Estimated Time**: 1 hour
 
 **Design Specifications:**
-- **Warning Levels**: 
+- **Warning Levels**:
   - < 20%: Yellow warning toast
   - < 10%: Red critical toast
   - Power outage: Special red toast with outage icon
@@ -53,8 +53,8 @@ Implement a comprehensive resource warning system that alerts players when vault
 ### Phase 2: Backend Implementation (Task 3)
 
 #### Task 3: Implement backend resource monitoring and warning thresholds
-**Status**: Pending  
-**Estimated Time**: 4 hours  
+**Status**: Pending
+**Estimated Time**: 4 hours
 
 **Implementation Steps:**
 1. **Create Resource Warning Service** (`backend/app/services/resource_warning.py`)
@@ -78,8 +78,8 @@ Implement a comprehensive resource warning system that alerts players when vault
 ### Phase 3: Frontend Implementation (Task 4)
 
 #### Task 4: Create frontend resource warning UI components
-**Status**: Pending  
-**Estimated Time**: 6 hours  
+**Status**: Pending
+**Estimated Time**: 6 hours
 
 **Components to Create:**
 1. **ResourceWarningToast** (`frontend/src/components/ui/ResourceWarningToast.vue`)
@@ -101,23 +101,23 @@ Implement a comprehensive resource warning system that alerts players when vault
 ### Phase 4: Advanced Features (Tasks 5-6)
 
 #### Task 5: Implement power outage effects and visual indicators
-**Status**: Pending  
-**Estimated Time**: 3 hours  
+**Status**: Pending
+**Estimated Time**: 3 hours
 
 **Power Outage Effects:**
 - **Visual Indicators**:
   - Red flashing border around vault view
   - Power icon overlay on affected rooms
   - Darkened room tiles without power
-  
+
 - **Functional Effects**:
   - Room production stops
   - Existing warning toasts become more prominent
   - Special power outage modal option
 
 #### Task 6: Add WebSocket real-time resource updates
-**Status**: Pending  
-**Estimated Time**: 2 hours  
+**Status**: Pending
+**Estimated Time**: 2 hours
 
 **WebSocket Integration:**
 - Extend existing WebSocket system for resource updates
@@ -127,8 +127,8 @@ Implement a comprehensive resource warning system that alerts players when vault
 ### Phase 5: Testing & Documentation (Tasks 7-8)
 
 #### Task 7: Write tests for resource warning system
-**Status**: Pending  
-**Estimated Time**: 3 hours  
+**Status**: Pending
+**Estimated Time**: 3 hours
 
 **Test Coverage:**
 - **Backend Tests**:
@@ -144,8 +144,8 @@ Implement a comprehensive resource warning system that alerts players when vault
   - Integration with resource system
 
 #### Task 8: Update documentation and run quality checks
-**Status**: Pending  
-**Estimated Time**: 1 hour  
+**Status**: Pending
+**Estimated Time**: 1 hour
 
 **Documentation Updates:**
 - Update README.md with new features
@@ -198,8 +198,8 @@ Implement a comprehensive resource warning system that alerts players when vault
 
 ## 📊 Timeline Estimation
 
-**Total Estimated Time**: 22 hours  
-**Planned Duration**: 3-4 days  
+**Total Estimated Time**: 22 hours
+**Planned Duration**: 3-4 days
 
 **Daily Breakdown:**
 - **Day 1**: Tasks 1-2 (Analysis & Design) + Task 3 (Backend service)

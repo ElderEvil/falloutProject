@@ -11,7 +11,7 @@ const WARNING_COOLDOWN = 30000 // 30 seconds
 export function useResourceWarnings() {
   const toast = useToast()
   const vaultStore = useVaultStore()
-  
+
   const warningStates = ref<Record<string, WarningState>>({})
 
   watch(() => vaultStore.activeVault, (vault) => {
@@ -21,10 +21,10 @@ export function useResourceWarnings() {
 
     vault.resource_warnings.forEach((warning) => {
       const lastState = warningStates.value[warning.type]
-      
+
       if (!lastState || (now - lastState.lastShown > WARNING_COOLDOWN)) {
         const isCritical = warning.type.startsWith('critical_')
-        
+
         toast.add({
           message: warning.message,
           variant: isCritical ? 'error' : 'warning',

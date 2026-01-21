@@ -1,0 +1,21 @@
+# TrueNAS Scale Apps Integration
+#
+# This file allows TrueNAS Scale to manage the Fallout Shelter application
+# through its Apps interface by referencing external compose and env files.
+#
+# Usage:
+#   1. Place your .env and compose.yml in /mnt/<pool>/apps/fallout-shelter/config/
+#   2. Create this file or add as custom app in TrueNAS UI
+#   3. TrueNAS will use the referenced files for management
+#
+# File structure:
+#   /mnt/dead-pool/apps/fallout-shelter/
+#   ├── config/
+#   │   ├── .env              # Environment variables
+#   │   ├── compose.yml       # Docker Compose config
+#   │   └── truenas-app.yml   # This file (optional)
+
+include:
+  - env_file:
+      - /mnt/dead-pool/apps/fallout-shelter/config/.env
+    path: /mnt/dead-pool/apps/fallout-shelter/config/compose.yml

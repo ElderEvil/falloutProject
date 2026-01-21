@@ -1,0 +1,225 @@
+# TrueNAS Staging Docker Compose
+# Production-ready configuration for TrueNAS Scale deployment
+#
+# Usage:
+#   1. Copy to /mnt/<pool>/apps/fallout-shelter/config/compose.yml
+#   2. Create .env file (see .env.staging.example)
+#   3. docker compose up -d
+#
+# Images: Automatically built by GitHub Actions on semantic release
+#   - elerevil/fo-shelter-be:latest
+#   - elerevil/fo-shelter-fe:latest
+
+x-backend-env: &backend-env
+  ENVIRONMENT: ${ENVIRONMENT:-staging}
+  API_VERSION: v1
+  PROJECT_NAME: Fallout Shelter API
+  # Auth
+  SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+  ALGORITHM: HS256
+  ACCESS_TOKEN_EXPIRE_MINUTES: 30
+  REFRESH_TOKEN_EXPIRE_MINUTES: 6048
+  # Rate Limiting
+  ENABLE_RATE_LIMITING: "true"
+  RATE_LIMIT_REQUESTS: 250
+  RATE_LIMIT_WINDOW: 60
+  AUTO_BAN_THRESHOLD: 10
+  AUTO_BAN_DURATION: 3600
+  # Logging
+  LOG_LEVEL: INFO
+  LOG_JSON_FORMAT: "true"
+  # Initial Admin
+  FIRST_SUPERUSER_USERNAME: ${FIRST_SUPERUSER_USERNAME:?Required}
+  FIRST_SUPERUSER_EMAIL: ${FIRST_SUPERUSER_EMAIL:?Required}
+  FIRST_SUPERUSER_PASSWORD: ${FIRST_SUPERUSER_PASSWORD:?Required}
+  EMAIL_TEST_USER: test@example.com
+  USERS_OPEN_REGISTRATION: "true"
+  # Database
+  POSTGRES_SERVER: db
+  POSTGRES_USER: ${POSTGRES_USER:-postgres}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Required}
+  POSTGRES_DB: ${POSTGRES_DB:-fallout_db}
+  CELERY_DATABASE_NAME: celery_schedule_jobs
+  DB_POOL_SIZE: 83
+  WEB_CONCURRENCY: 9
+  # Redis
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  # AI
+  AI_PROVIDER: ${AI_PROVIDER:-openai}
+  AI_MODEL: ${AI_MODEL:-gpt-4o}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://localhost:11434/v1}
+  # MinIO
+  MINIO_HOSTNAME: minio
+  MINIO_PORT: 9000
+  MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Required}
+  MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Required}
+  MINIO_DEFAULT_BUCKET: fallout-bucket
+  MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-https://fallout-media.evillab.dev}
+  # SMTP
+  SMTP_HOST: ${SMTP_HOST:-mailpit}
+  SMTP_PORT: ${SMTP_PORT:-1025}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  SMTP_TLS: ${SMTP_TLS:-false}
+  SMTP_SSL: ${SMTP_SSL:-false}
+  EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-noreply@falloutshelter.com}
+  EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Fallout Shelter}
+  # URLs
+  FRONTEND_URL: ${FRONTEND_URL:-https://fallout.evillab.dev}
+
+services:
+  db:
+    image: postgres:18-alpine
+    container_name: fallout_db
+    restart: always
+    command:
+      - postgres
+      - -c
+      - listen_addresses=*
+      - -c
+      - max_connections=200
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Required}
+      POSTGRES_DB: ${POSTGRES_DB:-fallout_db}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    # Bind to localhost only - remove entirely if external access not needed
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  redis:
+    image: redis:alpine
+    container_name: fallout_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio
+    container_name: fallout_minio
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Required}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  fastapi:
+    image: elerevil/fo-shelter-be:${BE_VERSION:-latest}
+    container_name: fallout_api
+    restart: always
+    working_dir: /app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "uv run alembic upgrade head && uv run uvicorn main:app --host 0.0.0.0 --port 8000"
+    environment:
+      <<: *backend-env
+      BACKEND_CORS_ORIGINS: '["http://localhost:3000","http://localhost:8000","http://localhost:5173","${FRONTEND_URL}","${API_URL}"]'
+    ports:
+      - "8000:8000"
+
+  celery_worker:
+    image: elerevil/fo-shelter-be:${BE_VERSION:-latest}
+    container_name: fallout_celery_worker
+    restart: always
+    working_dir: /app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command:
+      - uv
+      - run
+      - celery
+      - -A
+      - app.core.celery
+      - worker
+      - -l
+      - info
+    environment:
+      <<: *backend-env
+
+  celery_beat:
+    image: elerevil/fo-shelter-be:${BE_VERSION:-latest}
+    container_name: fallout_celery_beat
+    restart: always
+    working_dir: /app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command:
+      - uv
+      - run
+      - celery
+      - -A
+      - app.core.celery
+      - beat
+      - -l
+      - info
+      - --scheduler
+      - sqlalchemy_celery_beat.schedulers:DatabaseScheduler
+    environment:
+      <<: *backend-env
+
+  flower:
+    image: mher/flower:latest
+    container_name: fallout_flower
+    restart: always
+    depends_on:
+      - celery_worker
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    ports:
+      - "5555:5555"
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: fallout_mailpit
+    restart: always
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  vuejs:
+    # NOTE: VITE_API_BASE_URL is embedded at BUILD TIME, not runtime.
+    # The pre-built image uses the production API URL from CI/CD.
+    # To use a different API URL, you must rebuild the image:
+    #   docker build --build-arg VITE_API_BASE_URL=https://your-api.com -t fo-shelter-fe ./frontend
+    image: elerevil/fo-shelter-fe:${FE_VERSION:-latest}
+    container_name: fallout_frontend
+    restart: always
+    ports:
+      - "3210:3000"
+
+volumes:
+  postgres-data:
+  minio_data:

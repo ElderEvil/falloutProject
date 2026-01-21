@@ -77,14 +77,26 @@ pnpm run build                  # Build for production
 
 See [`frontend/README.md`](./frontend/README.md) and [`frontend/STYLEGUIDE.md`](./frontend/STYLEGUIDE.md) for details.
 
-## 🐳 Containers
+## 🐳 Deployment
+
+### Quick Start
 
 ```bash
-docker compose up -d              # Start all services
-podman compose up -d              # Rootless alternative
+# Local development
+docker compose up -d
+# Access: http://localhost:5173
+
+# TrueNAS staging
+# See docs/deployment/TRUENAS_SETUP.md
 ```
 
-See [CONTAINER_MIGRATION.md](docs/CONTAINER_MIGRATION.md) for Podman details.
+### Docker Images
+
+Pre-built images (automated by CI/CD):
+- Backend: `elerevil/fo-shelter-be:latest`
+- Frontend: `elerevil/fo-shelter-fe:latest`
+
+See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) for complete deployment guide.
 
 ## 🔑 Environment Variables
 
@@ -98,9 +110,10 @@ See `.env.example` for all variables. Key ones:
 ## 📚 Documentation
 
 - [ROADMAP.md](./ROADMAP.md) - Changelog and upcoming features
+- [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) - Deployment guide
+- [docs/deployment/TRUENAS_SETUP.md](./docs/deployment/TRUENAS_SETUP.md) - TrueNAS staging setup
 - [frontend/README.md](./frontend/README.md) - Frontend architecture
 - [frontend/STYLEGUIDE.md](./frontend/STYLEGUIDE.md) - Design system
-- [deployment/MINIO_SETUP.md](./deployment/MINIO_SETUP.md) - MinIO public access configuration
 
 ## 📄 License
 

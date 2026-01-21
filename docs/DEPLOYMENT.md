@@ -1,316 +1,275 @@
-# Environment Setup and Deployment Guide
+# Deployment Guide
 
-This guide covers how to run the Fallout Shelter application in different environments.
+Complete guide for deploying Fallout Shelter in various environments.
 
-## Table of Contents
-- [Local Development](#local-development)
-- [Production Deployment](#production-deployment)
-- [Environment Variables](#environment-variables)
-- [Docker Commands](#docker-commands)
+## Quick Start
 
----
+```bash
+# Local development
+docker compose up -d
+# Access: http://localhost:5173
+
+# TrueNAS staging
+# See docs/deployment/TRUENAS_SETUP.md
+```
+
+## Deployment Options
+
+| Environment | Compose File | Description |
+|-------------|--------------|-------------|
+| Local Dev | `docker-compose.yml` | Hot reload, Mailpit, debug logging |
+| Local Full | `docker-compose.local.yml` | Full stack local testing |
+| TrueNAS | [examples/docker-compose.truenas.yml](examples/docker-compose.truenas.yml) | Staging/production on TrueNAS |
 
 ## Local Development
 
-### Prerequisites
-- Docker and Docker Compose installed
-- Git
+**File:** `docker-compose.yml` or `docker-compose.local.yml`
 
-### Setup Steps
+**Features:**
+- Hot reload for backend and frontend
+- Volume mounts for live code changes
+- Mailpit for email testing (no real emails)
+- Debug logging enabled
+- All ports exposed locally
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd falloutProject
-   ```
-
-2. **Create local environment file**
-   ```bash
-   cp .env.example .env.local
-   ```
-
-3. **Update `.env.local` with your local settings**
-   - Set `POSTGRES_SERVER=db` (for docker-compose)
-   - Set `REDIS_HOST=redis` (for docker-compose)
-   - Set `MINIO_HOSTNAME=minio` (for docker-compose)
-   - Set `SMTP_HOST=mailpit` (for docker-compose)
-   - Add your `OPENAI_API_KEY`
-
-4. **Start the development environment**
-   ```bash
-   docker-compose -f docker-compose.local.yml up -d
-   ```
-
-5. **Check service status**
-   ```bash
-   docker-compose -f docker-compose.local.yml ps
-   ```
-
-### Access Points (Local)
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8000
-- **API Docs**: http://localhost:8000/docs
-- **Flower (Celery)**: http://localhost:5555
-- **MinIO Console**: http://localhost:9001
-- **Mailpit (Email)**: http://localhost:8025
-
-### Development Features
-- **Hot reload enabled** for FastAPI and Vue.js
-- **Volume mounts** for live code updates
-- **Mailpit** for email testing (no real emails sent)
-- **Debug logging** enabled
-
----
-
-## Production Deployment
-
-### Prerequisites
-- Docker and Docker Compose installed
-- Domain name (optional but recommended)
-- SSL certificates (if using HTTPS)
-
-### Setup Steps
-
-1. **Create production environment file**
-   ```bash
-   cp .env.example .env.prod
-   ```
-
-2. **Update `.env.prod` with production settings**
-   - Generate a strong `SECRET_KEY`
-   - Set `ENVIRONMENT=production`
-   - Use strong passwords for all services
-   - Configure real SMTP service (not Mailpit)
-   - Set `POSTGRES_SERVER=db`
-   - Set `REDIS_HOST=redis`
-   - Set `MINIO_HOSTNAME=minio`
-   - Add production `OPENAI_API_KEY`
-   - Set `FLOWER_USER` and `FLOWER_PASSWORD`
-
-3. **Build production images**
-   ```bash
-   docker-compose -f docker-compose.prod.yml build
-   ```
-
-4. **Start production environment**
-   ```bash
-   docker-compose -f docker-compose.prod.yml up -d
-   ```
-
-### Production Differences
-- **No hot reload** - requires container restart for code changes
-- **No volume mounts** - code is baked into images
-- **Multiple workers** - FastAPI runs with 4 workers
-- **Healthchecks** - all services have health monitoring
-- **Resource limits** - Redis has memory limits
-- **Network isolation** - services use dedicated network
-- **Production logging** - warning level for Celery
-
-### Production Checklist
-- [ ] Update all default passwords
-- [ ] Generate strong `SECRET_KEY`
-- [ ] Configure real SMTP service
-- [ ] Set up SSL/TLS certificates
-- [ ] Configure backup strategy for PostgreSQL
-- [ ] Set up monitoring and alerting
-- [ ] Configure firewall rules
-- [ ] Enable HTTPS
-- [ ] Restrict Flower access (currently exposed)
-- [ ] Consider adding Nginx reverse proxy
-
----
-
-## Environment Variables
-
-### Required Variables
+**Usage:**
 ```bash
-# Security
-SECRET_KEY=your-secret-key
+# Start all services
+docker compose up -d
 
-# Database
-POSTGRES_SERVER=db  # or localhost
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=your-password
-POSTGRES_DB=fallout_db
-
-# Redis
-REDIS_HOST=redis  # or localhost
-REDIS_PORT=6379
-
-# OpenAI
-OPENAI_API_KEY=your-openai-key
-
-# MinIO
-MINIO_HOSTNAME=minio  # or localhost
-MINIO_PORT=9000
-MINIO_ROOT_USER=your-username
-MINIO_ROOT_PASSWORD=your-password
-
-# SMTP
-SMTP_HOST=your-smtp-host
-SMTP_PORT=587
-SMTP_USER=your-email
-SMTP_PASSWORD=your-password
-SMTP_TLS=True
-```
-
-### Docker Compose vs Native
-When running services inside docker-compose, use service names:
-- `POSTGRES_SERVER=db` (not `localhost`)
-- `REDIS_HOST=redis` (not `localhost`)
-- `MINIO_HOSTNAME=minio` (not `localhost`)
-
-When running services natively (without docker-compose):
-- `POSTGRES_SERVER=localhost`
-- `REDIS_HOST=localhost`
-- `MINIO_HOSTNAME=localhost`
-
----
-
-## Docker Commands
-
-### Local Development
-
-```bash
-# Start services
-docker-compose -f docker-compose.local.yml up -d
-
-# Stop services
-docker-compose -f docker-compose.local.yml down
+# Or use local config
+docker compose -f docker-compose.local.yml up -d
 
 # View logs
-docker-compose -f docker-compose.local.yml logs -f
-
-# Restart a specific service
-docker-compose -f docker-compose.local.yml restart fastapi
-
-# Rebuild a service
-docker-compose -f docker-compose.local.yml build fastapi
-docker-compose -f docker-compose.local.yml up -d fastapi
-
-# Run database migrations
-docker exec fastapi uv run alembic upgrade head
-
-# Access database shell
-docker exec -it falloutproject-db-1 psql -U postgres -d fallout_db
-
-# Clear all data (DESTRUCTIVE)
-docker-compose -f docker-compose.local.yml down -v
-```
-
-### Production
-
-```bash
-# Start services
-docker-compose -f docker-compose.prod.yml up -d
+docker compose logs -f
 
 # Stop services
-docker-compose -f docker-compose.prod.yml down
-
-# View logs (last 100 lines)
-docker-compose -f docker-compose.prod.yml logs --tail=100
-
-# Monitor logs in real-time
-docker-compose -f docker-compose.prod.yml logs -f
-
-# Check service health
-docker-compose -f docker-compose.prod.yml ps
-
-# Restart services
-docker-compose -f docker-compose.prod.yml restart
-
-# Update services (after code changes)
-docker-compose -f docker-compose.prod.yml build
-docker-compose -f docker-compose.prod.yml up -d
-
-# Scale Celery workers
-docker-compose -f docker-compose.prod.yml up -d --scale celery_worker=4
+docker compose down
 ```
 
-### Database Management
+**Access Points:**
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:5173 |
+| Backend API | http://localhost:8000 |
+| API Docs | http://localhost:8000/docs |
+| Flower | http://localhost:5555 |
+| MinIO Console | http://localhost:9001 |
+| Mailpit | http://localhost:8025 |
 
+## TrueNAS Staging
+
+**Complete Guide:** [deployment/TRUENAS_SETUP.md](deployment/TRUENAS_SETUP.md)
+
+**Summary:**
+- Production-like environment on TrueNAS Scale
+- Pre-built images from Docker Hub
+- Automated updates via semantic-release
+- Nginx Proxy Manager for SSL/reverse proxy
+- External domains (fallout.evillab.dev)
+
+**Quick Setup:**
 ```bash
-# Backup database
-docker exec falloutproject-db-1 pg_dump -U postgres fallout_db > backup.sql
+# On TrueNAS
+mkdir -p /mnt/dead-pool/apps/fallout-shelter/config
+cd /mnt/dead-pool/apps/fallout-shelter/config
 
-# Restore database
-cat backup.sql | docker exec -i falloutproject-db-1 psql -U postgres -d fallout_db
+# Download configs
+curl -o compose.yml https://raw.githubusercontent.com/ElderEvil/falloutProject/master/docs/examples/docker-compose.truenas.yml
+curl -O https://raw.githubusercontent.com/ElderEvil/falloutProject/master/docs/examples/.env.staging.example
+mv .env.staging.example .env
 
-# Clear incidents table
-docker exec -i falloutproject-db-1 psql -U postgres -d fallout_db -c "TRUNCATE TABLE incident CASCADE;"
+# Edit .env with your values
+nano .env
 
-# Check table sizes
-docker exec -i falloutproject-db-1 psql -U postgres -d fallout_db -c "
-SELECT
-    schemaname, tablename,
-    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size
-FROM pg_tables
-WHERE schemaname = 'public'
-ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
-"
+# Deploy
+docker compose up -d
 ```
 
-### Monitoring
+## Environment Configuration
 
+### Required Variables
+
+**Security (CRITICAL):**
 ```bash
-# Check container resource usage
-docker stats
-
-# Check Celery worker status
-docker exec celery_worker celery -A app.core.celery inspect active
-
-# Check scheduled tasks
-docker exec celery_beat celery -A app.core.celery inspect scheduled
-
-# View Flower UI
-# Open http://localhost:5555 in browser
+SECRET_KEY=             # Generate: openssl rand -hex 32
+FIRST_SUPERUSER_PASSWORD=  # Admin password
+POSTGRES_PASSWORD=      # Database password
+MINIO_ROOT_PASSWORD=    # Min 8 characters
 ```
 
----
+**Database:**
+```bash
+POSTGRES_SERVER=db      # Service name in Docker Compose
+POSTGRES_USER=postgres
+POSTGRES_DB=fallout_db
+```
+
+**URLs (for TrueNAS/production):**
+```bash
+FRONTEND_URL=https://fallout.evillab.dev
+API_URL=https://fallout-api.evillab.dev
+MINIO_PUBLIC_URL=https://fallout-media.evillab.dev
+```
+
+**AI Provider:**
+```bash
+AI_PROVIDER=openai      # or: anthropic, ollama
+AI_MODEL=gpt-4o
+OPENAI_API_KEY=sk-...
+```
+
+### Environment Files
+
+| File | Purpose |
+|------|---------|
+| `.env.example` | Development template |
+| `docs/examples/.env.staging.example` | TrueNAS/staging template |
+| `.env` | Your local config (never commit!) |
+
+### Docker vs Native Services
+
+When using Docker Compose, use **service names**:
+```bash
+POSTGRES_SERVER=db
+REDIS_HOST=redis
+MINIO_HOSTNAME=minio
+```
+
+When running natively:
+```bash
+POSTGRES_SERVER=localhost
+REDIS_HOST=localhost
+MINIO_HOSTNAME=localhost
+```
+
+## CI/CD Automation
+
+### Semantic Release
+
+Every push to `master` triggers:
+1. Commit analysis for version bump
+2. CHANGELOG.md update
+3. Git tag creation
+4. GitHub release publication
+
+### Docker Image Builds
+
+Images built on push to `master` (when files change):
+- `elerevil/fo-shelter-be:latest`, `v1.x.x`
+- `elerevil/fo-shelter-fe:latest`, `v1.x.x`
+
+### Commit Conventions
+
+| Type | Version Bump | Example |
+|------|--------------|---------|
+| `feat:` | Minor (1.X.0) | `feat: add dweller mood system` |
+| `fix:` | Patch (1.0.X) | `fix: correct resource calculation` |
+| `feat!:` | Major (X.0.0) | `feat!: redesign API endpoints` |
+| `docs:` | None | `docs: update deployment guide` |
+
+### GitHub Actions Setup
+
+**Required Secrets:**
+```
+DOCKER_USERNAME  - Docker Hub username
+DOCKER_PASSWORD  - Docker Hub access token
+```
+
+**Required Variables:**
+```
+PRODUCTION_API_URL  - Frontend build API URL (e.g., https://fallout-api.evillab.dev)
+```
+
+**Setup:** GitHub > Repository > Settings > Secrets and variables > Actions
+
+## Database Migrations
+
+### Automatic (Recommended)
+Migrations run on container startup:
+```yaml
+command: sh -c "uv run alembic upgrade head && uv run uvicorn main:app ..."
+```
+
+### Manual
+```bash
+# Run migrations
+docker compose exec fastapi uv run alembic upgrade head
+
+# Rollback one migration
+docker compose exec fastapi uv run alembic downgrade -1
+
+# Create new migration
+docker compose exec fastapi uv run alembic revision --autogenerate -m "description"
+```
+
+## Health Checks
+
+**Basic:**
+```bash
+curl https://your-api-domain.com/healthcheck
+# {"status":"ok"}
+```
+
+**Detailed:**
+```bash
+curl https://your-api-domain.com/healthcheck?detailed=true
+# {"status":"ok","services":{"db":"ok","redis":"ok",...}}
+```
+
+## Backup & Restore
+
+### Database Backup
+```bash
+# Backup
+docker compose exec db pg_dump -U postgres fallout_db > backup_$(date +%Y%m%d).sql
+
+# Restore
+cat backup.sql | docker compose exec -T db psql -U postgres -d fallout_db
+```
 
 ## Troubleshooting
 
-### Services won't start
-- Check logs: `docker-compose -f docker-compose.local.yml logs`
-- Ensure ports are not in use: `netstat -an | grep LISTEN`
-- Verify environment variables are set correctly
+### Services Won't Start
+```bash
+docker compose logs
+docker compose config
+```
 
-### Database connection errors
-- Ensure `POSTGRES_SERVER=db` when using docker-compose
-- Wait for database health check to pass
-- Check database logs: `docker-compose -f docker-compose.local.yml logs db`
+### Database Connection Errors
+```bash
+docker compose ps db
+docker compose exec db psql -U postgres -d fallout_db -c "SELECT 1"
+```
 
-### Celery tasks not running
-- Check Redis is running: `docker-compose -f docker-compose.local.yml ps redis`
-- Check Celery worker logs: `docker-compose -f docker-compose.local.yml logs celery_worker`
-- Verify `CELERY_BROKER_URL` is correct
+### Frontend Connection Errors
+- Check `VITE_API_BASE_URL` was set during build
+- Verify reverse proxy configuration
+- Check browser console for CORS errors
 
-### MinIO connection errors
-- Ensure `MINIO_HOSTNAME=minio` when using docker-compose
-- Check MinIO logs: `docker-compose -f docker-compose.local.yml logs minio`
-- Verify credentials in `.env.local` or `.env.prod`
+### Celery Tasks Not Running
+```bash
+docker compose ps redis
+docker compose logs celery_worker
+```
+
+## Security Checklist
+
+- [ ] Strong, unique passwords
+- [ ] `SECRET_KEY` rotated from default
+- [ ] HTTPS enabled (via reverse proxy)
+- [ ] Firewall configured
+- [ ] `.env` files never committed
+- [ ] Regular database backups
+- [ ] Rate limiting enabled
+
+## Related Documentation
+
+- [TrueNAS Setup](deployment/TRUENAS_SETUP.md) - TrueNAS-specific guide
+- [Nginx Proxy Manager](deployment/NGINX_PROXY_MANAGER_SETUP.md) - Reverse proxy setup
+- [MinIO Setup](deployment/MINIO_SETUP.md) - Object storage configuration
+- [Security Guide](SECURITY_GUIDE.md) - Security best practices
 
 ---
 
-## Security Notes
-
-### Never commit these files:
-- `.env`
-- `.env.local`
-- `.env.prod`
-- `.env.staging`
-
-### Always commit:
-- `.env.example` (with placeholder values)
-
-### Production Security:
-1. Use strong, unique passwords for all services
-2. Rotate `SECRET_KEY` regularly
-3. Enable HTTPS/TLS
-4. Restrict Flower and MinIO console access
-5. Use secrets management (AWS Secrets Manager, HashiCorp Vault, etc.)
-6. Enable Docker security scanning
-7. Keep images updated
-8. Configure firewall rules
-9. Enable audit logging
-10. Use read-only containers where possible
+**Last Updated:** 2026-01-21

@@ -172,7 +172,7 @@ class RelationshipService:
             Updated relationship
 
         Raises:
-            ValueError: If relationship affinity is too low
+            ValueError: If no relationship exists or affinity is too low
         """
         relationship = await relationship_crud.get_by_dweller_pair(db_session, dweller_1_id, dweller_2_id)
         if not relationship:
@@ -189,11 +189,9 @@ class RelationshipService:
         # Update relationship via CRUD
         relationship = await relationship_crud.update(db_session, relationship.id, update_data)
 
-        # Update dwellers to have each other as partners via CRUD
-        if dweller_1_id:
-            await dweller_crud.update(db_session, dweller_1_id, {"partner_id": dweller_2_id})
-        if dweller_2_id:
-            await dweller_crud.update(db_session, dweller_2_id, {"partner_id": dweller_1_id})
+        # Update both dwellers to have each other as partners
+        await dweller_crud.update(db_session, dweller_1_id, {"partner_id": dweller_2_id})
+        await dweller_crud.update(db_session, dweller_2_id, {"partner_id": dweller_1_id})
 
         logger.info(f"Partners made: {dweller_1_id} ↔ {dweller_2_id}")
         return relationship
@@ -249,13 +247,21 @@ class RelationshipService:
         - Moves them to a private living quarters (kicks out any third wheels!)
         - Ready to breed immediately with 90% conception chance per tick
         """
+        # Pre-validate affinity meets romance threshold before creating any records
+        quick_pair_affinity = 90
+        if quick_pair_affinity < game_config.relationship.romance_threshold:
+            msg = (
+                f"Quick pair affinity ({quick_pair_affinity}) is below romance threshold "
+                f"({game_config.relationship.romance_threshold}). Cannot create partners."
+            )
+            raise ValueError(msg)
 
         # Get all adult dwellers in vault without partners (existing logic preserved)
         query = (
             select(Dweller)
             .where(Dweller.vault_id == vault_id)
             .where(Dweller.age_group == "adult")
-            .where(Dweller.partner_id.is_(None))
+            .where(Dweller.partner_id.is_(None))  # type: ignore[union-attr]
         )
         result = await db_session.execute(query)
         available_dwellers = list(result.scalars().all())
@@ -276,13 +282,18 @@ class RelationshipService:
         dweller_1 = males[0]
         dweller_2 = females[0]
 
-        # Create relationship
+        # Create relationship with partner type directly (since we pre-validated affinity)
         relationship = await relationship_crud.create_with_defaults(
-            db_session, dweller_1.id, dweller_2.id, relationship_type=RelationshipTypeEnum.ROMANTIC, affinity=90
+            db_session,
+            dweller_1.id,
+            dweller_2.id,
+            relationship_type=RelationshipTypeEnum.PARTNER,
+            affinity=quick_pair_affinity,
         )
 
-        # Make them partners
-        await RelationshipService.make_partners(db_session, dweller_1.id, dweller_2.id)
+        # Update both dwellers to have each other as partners
+        await dweller_crud.update(db_session, dweller_1.id, {"partner_id": dweller_2.id})
+        await dweller_crud.update(db_session, dweller_2.id, {"partner_id": dweller_1.id})
 
         # Simplified - just create the relationship and partners, skip complex room management
         logger.info(f"Quick paired: {dweller_1.id} and {dweller_2.id}")
@@ -296,13 +307,13 @@ class RelationshipService:
     ) -> CompatibilityScore:
         """
         Calculate compatibility score between two dwellers.
+
+        Raises:
+            ResourceNotFoundException: If either dweller is not found (propagates as HTTP 404)
         """
-        try:
-            dweller_1 = await dweller_crud.get(db_session, dweller_1_id)
-            dweller_2 = await dweller_crud.get(db_session, dweller_2_id)
-        except ResourceNotFoundException:
-            msg = "Dweller not found"
-            raise ValueError(msg) from None
+        # Let ResourceNotFoundException propagate directly (HTTP 404)
+        dweller_1 = await dweller_crud.get(db_session, dweller_1_id)
+        dweller_2 = await dweller_crud.get(db_session, dweller_2_id)
 
         # SPECIAL similarity score
         special_attrs = ["strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"]

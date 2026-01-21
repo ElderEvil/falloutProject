@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from pydantic import UUID4
+from pydantic import Field as PydanticField
 from sqlmodel import Field, SQLModel
 
 from app.models.vault import VaultBase
@@ -23,6 +24,7 @@ class VaultRead(VaultBase):
     id: UUID4
     created_at: datetime
     updated_at: datetime
+    resource_warnings: list[dict[str, str]] = PydanticField(default_factory=list)
 
 
 class VaultReadWithUser(VaultRead):

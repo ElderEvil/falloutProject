@@ -3,23 +3,23 @@
 import logging
 
 from pydantic import UUID4
-from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.game_data_deps import get_static_game_data
 from app.crud import dweller as dweller_crud
 from app.crud import room as room_crud
+from app.crud.objective import objective_crud
 from app.crud.vault import vault as vault_crud
-from app.models import Dweller, Room, Storage
-from app.models.objective import Objective
+from app.models import Room
 from app.models.vault import Vault
 from app.models.vault_objective import VaultObjectiveProgressLink
-from app.schemas.common import RoomTypeEnum, SPECIALEnum
-from app.schemas.dweller import DwellerCreateCommonOverride
+from app.schemas.common import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
+from app.schemas.dweller import DwellerCreateCommonOverride, DwellerUpdate
 from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultNumber, VaultUpdate
 from app.services.resource_manager import ResourceManager
+from app.services.training_service import training_service
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 
 
@@ -146,11 +146,7 @@ class VaultService:
                     vault.population_max += created_room.capacity or 0
                 elif "storage" in created_room.name.lower() and created_room.capacity:
                     # Storage rooms increase Storage.max_space, not individual vault capacities
-                    storage_result = await db_session.execute(select(Storage).where(Storage.vault_id == vault.id))
-                    storage_obj = storage_result.scalars().first()
-                    if storage_obj:
-                        storage_obj.max_space += created_room.capacity
-                        db_session.add(storage_obj)
+                    await vault_crud._update_storage(vault.id, vault.storage_max_space + created_room.capacity)
 
         await db_session.commit()
         await db_session.refresh(vault)
@@ -199,8 +195,6 @@ class VaultService:
         is_superuser: bool,  # noqa: FBT001
     ) -> None:
         """Create and assign initial dwellers to production and training rooms."""
-        from app.schemas.common import DwellerStatusEnum
-        from app.schemas.dweller import DwellerUpdate
 
         try:
             # Production dwellers (always created) - all should be WORKING
@@ -244,8 +238,6 @@ class VaultService:
                         dweller_obj = await dweller_crud.create_random(db_session, vault_id, dweller_data)
 
                         # Assign to training room with IDLE status (training service will update status)
-                        from app.schemas.common import DwellerStatusEnum
-                        from app.schemas.dweller import DwellerUpdate
 
                         await dweller_crud.update(
                             db_session=db_session,
@@ -269,15 +261,13 @@ class VaultService:
         if not is_superuser or not created_training_rooms:
             return
 
-        from app.services.training_service import training_service
-
         try:
-            # Batch-fetch all dwellers in training rooms (N+1 optimization)
+            # Batch-fetch all dwellers in training rooms via CRUD
             room_ids = [room.id for room in created_training_rooms]
-            result = await db_session.execute(
-                select(Dweller).where(Dweller.room_id.in_(room_ids)).where(Dweller.vault_id == vault_id)
-            )
-            all_dwellers = result.scalars().all()
+            # Get all dwellers in vault via CRUD
+            vault_dwellers = await dweller_crud.get_multi_by_vault(db_session, vault_id)
+            # Filter by room_ids (training rooms)
+            all_dwellers = [d for d in vault_dwellers if d.room_id in room_ids]
 
             # Group dwellers by room_id for processing
             dwellers_by_room = {}
@@ -320,9 +310,8 @@ class VaultService:
     async def _assign_initial_objectives(self, db_session: AsyncSession, vault_id: UUID4) -> None:
         """Assign a few initial objectives to a new vault."""
         try:
-            # Get all available objectives
-            result = await db_session.execute(select(Objective).limit(5))
-            objectives = result.scalars().all()
+            # Get all available objectives via CRUD
+            objectives = await objective_crud.get_multi(db_session, skip=0, limit=5)
 
             # Assign the first few objectives to the vault
             for objective in objectives:

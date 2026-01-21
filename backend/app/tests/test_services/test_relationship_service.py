@@ -122,7 +122,8 @@ async def test_increase_affinity(
     # Increase affinity
     updated = await RelationshipService.increase_affinity(
         async_session,
-        relationship,
+        relationship.dweller_1_id,
+        relationship.dweller_2_id,
         amount=10,
     )
 
@@ -142,7 +143,8 @@ async def test_increase_affinity_caps_at_100(
     # Increase by large amount
     updated = await RelationshipService.increase_affinity(
         async_session,
-        relationship,
+        relationship.dweller_1_id,
+        relationship.dweller_2_id,
         amount=150,
     )
 
@@ -163,7 +165,8 @@ async def test_increase_affinity_auto_upgrades_to_friend(
     # Increase affinity past threshold
     updated = await RelationshipService.increase_affinity(
         async_session,
-        relationship,
+        relationship.dweller_1_id,
+        relationship.dweller_2_id,
         amount=game_config.relationship.romance_threshold,
     )
 
@@ -263,7 +266,8 @@ async def test_initiate_romance_success(
 
     await RelationshipService.increase_affinity(
         async_session,
-        relationship,
+        relationship.dweller_1_id,
+        relationship.dweller_2_id,
         amount=game_config.relationship.romance_threshold,
     )
 
@@ -303,7 +307,7 @@ async def test_initiate_romance_fails_no_relationship(
     dweller_2: Dweller,
 ):
     """Test that romance fails when no relationship exists."""
-    with pytest.raises(ValueError, match="No relationship exists"):
+    with pytest.raises(ValueError, match="Relationship not found between dwellers"):
         await RelationshipService.initiate_romance(
             async_session,
             dweller.id,
@@ -323,7 +327,8 @@ async def test_make_partners_success(
 
     await RelationshipService.increase_affinity(
         async_session,
-        relationship,
+        relationship.dweller_1_id,
+        relationship.dweller_2_id,
         amount=game_config.relationship.romance_threshold,
     )
 
@@ -351,16 +356,16 @@ async def test_make_partners_success(
 
 
 @pytest.mark.asyncio
-async def test_make_partners_fails_not_romantic(
+async def test_make_partners_fails_low_affinity(
     async_session: AsyncSession,
     dweller: Dweller,
     dweller_2: Dweller,
 ):
-    """Test that making partners fails if not in romantic relationship."""
-    # Create relationship but don't initiate romance
+    """Test that making partners fails if affinity is too low."""
+    # Create relationship but don't increase affinity
     await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
 
-    with pytest.raises(ValueError, match="must be in a romantic relationship"):
+    with pytest.raises(ValueError, match="Affinity too low"):
         await RelationshipService.make_partners(
             async_session,
             dweller.id,
@@ -395,7 +400,8 @@ async def test_break_up_clears_partner_ids(
 
     await RelationshipService.increase_affinity(
         async_session,
-        relationship,
+        relationship.dweller_1_id,
+        relationship.dweller_2_id,
         amount=game_config.relationship.romance_threshold,
     )
 
@@ -437,7 +443,8 @@ async def test_break_up_marks_as_ex(
 
     await RelationshipService.increase_affinity(
         async_session,
-        relationship,
+        relationship.dweller_1_id,
+        relationship.dweller_2_id,
         amount=game_config.relationship.romance_threshold,
     )
 
@@ -481,7 +488,8 @@ async def test_break_up_applies_affinity_penalty(
 
     await RelationshipService.increase_affinity(
         async_session,
-        relationship,
+        relationship.dweller_1_id,
+        relationship.dweller_2_id,
         amount=80,
     )
 

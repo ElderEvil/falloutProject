@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Icon } from '@iconify/vue';
-import UCard from '@/components/ui/UCard.vue';
-import UButton from '@/components/ui/UButton.vue';
+import UCard from '@/core/components/ui/UCard.vue';
+import UButton from '@/core/components/ui/UButton.vue';
 
 interface DwellerDistribution {
   high: number;    // 75-100

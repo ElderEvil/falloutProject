@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import axios from '@/plugins/axios'
+import axios from '@/core/plugins/axios'
 import type { Quest, VaultQuest } from '@/models/quest'
-import { useToast } from '@/composables/useToast'
+import { useToast } from '@/core/composables/useToast'
 
 export const useQuestStore = defineStore('quest', () => {
   const toast = useToast()

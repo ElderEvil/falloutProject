@@ -6,12 +6,12 @@ import { useAuthStore } from '@/stores/auth'
 import { useVaultStore } from '@/stores/vault'
 import { useExplorationStore } from '@/stores/exploration'
 import { Icon } from '@iconify/vue'
-import SidePanel from '@/components/common/SidePanel.vue'
+import SidePanel from '@/core/components/common/SidePanel.vue'
 import DwellerCard from '@/components/dwellers/DwellerCard.vue'
 import DwellerPanel from '@/components/dwellers/DwellerPanel.vue'
 import DwellerStatusBadge from '@/components/dwellers/DwellerStatusBadge.vue'
-import UButton from '@/components/ui/UButton.vue'
-import { useSidePanel } from '@/composables/useSidePanel'
+import UButton from '@/core/components/ui/UButton.vue'
+import { useSidePanel } from '@/core/composables/useSidePanel'
 
 const route = useRoute()
 const router = useRouter()

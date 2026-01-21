@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import type { Toast } from '@/composables/useToast'
+import type { Toast } from '@/core/composables/useToast'
 
 interface Props {
   toast: Toast

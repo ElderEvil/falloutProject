@@ -14,7 +14,9 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@/core': fileURLToPath(new URL('./src/core', import.meta.url)),
+      '@/modules': fileURLToPath(new URL('./src/modules', import.meta.url))
     }
   },
   server: {
@@ -62,8 +64,8 @@ export default defineConfig({
             return 'tailwind'
           }
 
-          // UI Components
-          if (id.includes('/src/components/ui/')) {
+          // UI Components (now in core)
+          if (id.includes('/src/core/components/ui/')) {
             return 'ui-components'
           }
 

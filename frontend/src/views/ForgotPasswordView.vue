@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import axios from '@/plugins/axios';
+import axios from '@/core/plugins/axios';
 
 const email = ref('');
 const error = ref('');

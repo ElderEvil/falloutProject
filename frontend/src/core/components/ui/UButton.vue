@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { IconComponent } from '@/types/utils'
+import type { IconComponent } from '@/core/types/utils'
 
 /**
  * UButton - Terminal-themed button component wrapping Nuxt UI

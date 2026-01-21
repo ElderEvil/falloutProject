@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, inject, ref } from 'vue';
-import { useSidePanel } from '@/composables/useSidePanel';
-import { useVisualEffects, type EffectIntensity } from '@/composables/useVisualEffects';
-import { useTheme, type ThemeName } from '@/composables/useTheme';
-import SidePanel from '@/components/common/SidePanel.vue';
-import UCard from '@/components/ui/UCard.vue';
+import { useSidePanel } from '@/core/composables/useSidePanel';
+import { useVisualEffects, type EffectIntensity } from '@/core/composables/useVisualEffects';
+import { useTheme, type ThemeName } from '@/core/composables/useTheme';
+import SidePanel from '@/core/components/common/SidePanel.vue';
+import UCard from '@/core/components/ui/UCard.vue';
 import { Icon } from '@iconify/vue';
 
 const { isCollapsed } = useSidePanel();

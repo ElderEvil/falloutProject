@@ -2,16 +2,16 @@
 import { computed, ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { Icon } from '@iconify/vue';
-import { useSidePanel } from '@/composables/useSidePanel';
+import { useSidePanel } from '@/core/composables/useSidePanel';
 import { useRelationshipStore } from '@/stores/relationship';
 import { useDwellerStore } from '@/stores/dweller';
 import { useAuthStore } from '@/stores/auth';
-import { useToast } from '@/composables/useToast';
-import SidePanel from '@/components/common/SidePanel.vue';
+import { useToast } from '@/core/composables/useToast';
+import SidePanel from '@/core/components/common/SidePanel.vue';
 import RelationshipList from '@/components/relationships/RelationshipList.vue';
 import PregnancyTracker from '@/components/pregnancy/PregnancyTracker.vue';
 import ChildrenList from '@/components/relationships/ChildrenList.vue';
-import UButton from '@/components/ui/UButton.vue';
+import UButton from '@/core/components/ui/UButton.vue';
 
 const route = useRoute();
 const { isCollapsed } = useSidePanel();

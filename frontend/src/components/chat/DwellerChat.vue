@@ -2,10 +2,10 @@
 import { ref, watchEffect, computed, onMounted, onUnmounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { Icon } from '@iconify/vue';
-import apiClient from '@/plugins/axios';
+import apiClient from '@/core/plugins/axios';
 import type { ChatMessageDisplay } from '@/models/chat';
 import { useAudioRecorder } from '@/composables/useAudioRecorder';
-import { useChatWebSocket } from '@/composables/useWebSocket';
+import { useChatWebSocket } from '@/core/composables/useWebSocket';
 
 const props = defineProps<{
   dwellerId: string

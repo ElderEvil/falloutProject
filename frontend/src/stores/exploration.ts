@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import axios from '@/plugins/axios'
-import { useToast } from '@/composables/useToast'
+import axios from '@/core/plugins/axios'
+import { useToast } from '@/core/composables/useToast'
 
 export interface ExplorationEvent {
   type: string;

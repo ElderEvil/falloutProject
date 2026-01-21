@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { UserProfile, ProfileUpdate } from '@/models/profile'
-import axios from '@/plugins/axios'
-import { useTheme, type ThemeName } from '@/composables/useTheme'
+import axios from '@/core/plugins/axios'
+import { useTheme, type ThemeName } from '@/core/composables/useTheme'
 
 export const useProfileStore = defineStore('profile', () => {
   // State

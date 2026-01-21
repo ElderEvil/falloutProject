@@ -1,5 +1,5 @@
-import axios from '@/plugins/axios'
-import type { components } from '@/types/api.generated'
+import axios from '@/core/plugins/axios'
+import type { components } from '@/core/types/api.generated'
 
 type TrainingRead = components['schemas']['TrainingRead']
 type TrainingProgress = components['schemas']['TrainingProgress']

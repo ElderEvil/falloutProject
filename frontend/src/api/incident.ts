@@ -1,4 +1,4 @@
-import axios from '@/plugins/axios'
+import axios from '@/core/plugins/axios'
 import type { Incident, IncidentListResponse, IncidentResolveResponse } from '@/models/incident'
 
 export const incidentApi = {

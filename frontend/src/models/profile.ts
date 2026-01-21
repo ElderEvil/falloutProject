@@ -1,4 +1,4 @@
-import type { components } from '@/types/api.generated'
+import type { components } from '@/core/types/api.generated'
 
 export type UserProfile = components['schemas']['ProfileRead']
 export type ProfileUpdate = components['schemas']['ProfileUpdate']

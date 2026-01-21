@@ -7,9 +7,9 @@ import type { DwellerShort } from '@/models/dweller'
 import { useDwellerStore } from '@/stores/dweller'
 import { useRoomStore } from '@/stores/room'
 import { useAuthStore } from '@/stores/auth'
-import { useToast } from '@/composables/useToast'
-import UModal from '@/components/ui/UModal.vue'
-import UButton from '@/components/ui/UButton.vue'
+import { useToast } from '@/core/composables/useToast'
+import UModal from '@/core/components/ui/UModal.vue'
+import UButton from '@/core/components/ui/UButton.vue'
 
 interface Props {
   room: Room | null

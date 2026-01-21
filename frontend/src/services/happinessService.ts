@@ -1,4 +1,4 @@
-import apiClient from '../plugins/axios';
+import apiClient from '@/core/plugins/axios';
 import type { AxiosResponse } from 'axios';
 
 export interface HappinessModifier {

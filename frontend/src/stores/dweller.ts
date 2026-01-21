@@ -1,9 +1,9 @@
 import { ref, computed } from 'vue';
 import { defineStore } from 'pinia';
 import { useLocalStorage } from '@vueuse/core';
-import axios from '@/plugins/axios';
+import axios from '@/core/plugins/axios';
 import type { Dweller, DwellerShort } from '@/models/dweller';
-import { useToast } from '@/composables/useToast';
+import { useToast } from '@/core/composables/useToast';
 
 export type DwellerStatus = 'idle' | 'working' | 'exploring' | 'training' | 'resting' | 'dead'
 

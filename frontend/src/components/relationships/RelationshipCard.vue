@@ -58,9 +58,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Relationship } from '@/models/relationship'
-import UCard from '@/components/ui/UCard.vue'
-import UBadge from '@/components/ui/UBadge.vue'
-import UButton from '@/components/ui/UButton.vue'
+import UCard from '@/core/components/ui/UCard.vue'
+import UBadge from '@/core/components/ui/UBadge.vue'
+import UButton from '@/core/components/ui/UButton.vue'
 
 interface Props {
   relationship: Relationship

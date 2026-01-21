@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { Icon } from '@iconify/vue';
-import UButton from '@/components/ui/UButton.vue';
-import UTooltip from '@/components/ui/UTooltip.vue';
+import UButton from '@/core/components/ui/UButton.vue';
+import UTooltip from '@/core/components/ui/UTooltip.vue';
 import XPProgressBar from '@/components/dwellers/XPProgressBar.vue';
 import { happinessService, type HappinessModifiers } from '@/services/happinessService';
-import type { components } from '@/types/api.generated';
+import type { components } from '@/core/types/api.generated';
 import type { VisualAttributes } from '@/models/dweller';
 
 type DwellerDetailRead = components['schemas']['DwellerReadFull'];

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Icon } from '@iconify/vue';
-import UTooltip from '@/components/ui/UTooltip.vue';
+import UTooltip from '@/core/components/ui/UTooltip.vue';
 import type { VisualAttributes } from '@/models/dweller';
 
 interface Props {

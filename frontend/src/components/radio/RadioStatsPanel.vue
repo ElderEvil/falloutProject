@@ -2,9 +2,9 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRadioStore } from '@/stores/radio'
 import type { RadioMode } from '@/models/radio'
-import UCard from '@/components/ui/UCard.vue'
-import UButton from '@/components/ui/UButton.vue'
-import UBadge from '@/components/ui/UBadge.vue'
+import UCard from '@/core/components/ui/UCard.vue'
+import UButton from '@/core/components/ui/UButton.vue'
+import UBadge from '@/core/components/ui/UBadge.vue'
 
 interface Props {
   vaultId: string

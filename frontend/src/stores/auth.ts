@@ -2,7 +2,7 @@ import { computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import { authService } from '@/services/authService'
-import type { User } from '@/types/user'
+import type { User } from '@/core/types/user'
 
 export const useAuthStore = defineStore('auth', () => {
   // State (using VueUse for reactive localStorage)

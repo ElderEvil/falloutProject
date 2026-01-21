@@ -2,8 +2,8 @@
 import { computed, onMounted, onUnmounted } from 'vue';
 import { Icon } from '@iconify/vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useSidePanel } from '@/composables/useSidePanel';
-import UTooltip from '@/components/ui/UTooltip.vue';
+import { useSidePanel } from '@/core/composables/useSidePanel';
+import UTooltip from '@/core/components/ui/UTooltip.vue';
 
 const route = useRoute();
 const router = useRouter();

@@ -5,8 +5,8 @@ import { useQuestStore } from '@/stores/quest'
 import { useVaultStore } from '@/stores/vault'
 import { useRoomStore } from '@/stores/room'
 import { useAuthStore } from '@/stores/auth'
-import SidePanel from '@/components/common/SidePanel.vue'
-import { useSidePanel } from '@/composables/useSidePanel'
+import SidePanel from '@/core/components/common/SidePanel.vue'
+import { useSidePanel } from '@/core/composables/useSidePanel'
 import { Icon } from '@iconify/vue'
 
 const route = useRoute()

@@ -1,8 +1,8 @@
-import apiClient from '../plugins/axios'
+import apiClient from '@/core/plugins/axios'
 import type { AxiosResponse } from 'axios'
-import { AuthError, type Token, type UserWithTokens } from '@/types/auth'
-import type { User } from '@/types/user'
-import type { LoginFormData, RegisterFormData } from '@/schemas/auth'
+import { AuthError, type Token, type UserWithTokens } from '@/core/types/auth'
+import type { User } from '@/core/types/user'
+import type { LoginFormData, RegisterFormData } from '@/core/schemas/auth'
 
 export const authService = {
   async login(form: LoginFormData): Promise<AxiosResponse<Token>> {

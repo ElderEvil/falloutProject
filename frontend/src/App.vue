@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { provide } from 'vue'
-import DefaultLayout from '@/components/layout/DefaultLayout.vue'
-import UToastContainer from '@/components/ui/UToastContainer.vue'
-import { useVisualEffects } from '@/composables/useVisualEffects'
-import { useTheme } from '@/composables/useTheme'
-import { useTokenRefresh } from '@/composables/useTokenRefresh'
+import DefaultLayout from '@/core/components/layout/DefaultLayout.vue'
+import UToastContainer from '@/core/components/ui/UToastContainer.vue'
+import { useVisualEffects } from '@/core/composables/useVisualEffects'
+import { useTheme } from '@/core/composables/useTheme'
+import { useTokenRefresh } from '@/core/composables/useTokenRefresh'
 import { useResourceWarnings } from '@/composables/useResourceWarnings'
 
 // Visual effects (replaces old useFlickering)

@@ -1,4 +1,4 @@
-import axios from '@/plugins/axios'
+import axios from '@/core/plugins/axios'
 import type { Weapon, Outfit } from '@/models/equipment'
 
 // Weapon API calls

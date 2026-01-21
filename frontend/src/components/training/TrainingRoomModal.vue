@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import UModal from '@/components/ui/UModal.vue'
-import UButton from '@/components/ui/UButton.vue'
-import UAlert from '@/components/ui/UAlert.vue'
+import UModal from '@/core/components/ui/UModal.vue'
+import UButton from '@/core/components/ui/UButton.vue'
+import UAlert from '@/core/components/ui/UAlert.vue'
 import TrainingProgressCard from './TrainingProgressCard.vue'
 import { useTrainingStore } from '@/stores/training'
 import { useAuthStore } from '@/stores/auth'
-import type { components } from '@/types/api.generated'
+import type { components } from '@/core/types/api.generated'
 
 type Room = any // You can type this properly based on your Room type
 type Dweller = any // You can type this properly based on your Dweller type

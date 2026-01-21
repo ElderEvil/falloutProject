@@ -1,4 +1,4 @@
-import type { components } from '@/types/api.generated'
+import type { components } from '@/core/types/api.generated'
 
 // Re-export generated API types
 export type ChatMessage = components['schemas']['ChatMessage']

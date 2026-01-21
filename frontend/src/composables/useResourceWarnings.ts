@@ -1,5 +1,5 @@
 import { ref, watch } from 'vue'
-import { useToast } from '@/composables/useToast'
+import { useToast } from '@/core/composables/useToast'
 import { useVaultStore } from '@/stores/vault'
 
 interface WarningState {

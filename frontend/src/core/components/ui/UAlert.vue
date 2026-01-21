@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { IconComponent } from '@/types/utils'
+import type { IconComponent } from '@/core/types/utils'
 
 /**
  * UAlert - Terminal-themed alert/notification component

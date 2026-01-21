@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import DwellerStatusBadge from './DwellerStatusBadge.vue'
-import UTooltip from '@/components/ui/UTooltip.vue'
+import UTooltip from '@/core/components/ui/UTooltip.vue'
 import type { DwellerShort } from '@/models/dweller'
 
 interface Props {

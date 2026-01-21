@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
 import { useLocalStorage, useIntervalFn } from '@vueuse/core'
 import { ref, computed } from 'vue'
-import axios from '@/plugins/axios'
-import type { components } from '@/types/api.generated'
+import axios from '@/core/plugins/axios'
+import type { components } from '@/core/types/api.generated'
 
 // Use generated API types
 type VaultReadWithNumbers = components['schemas']['VaultReadWithNumbers']

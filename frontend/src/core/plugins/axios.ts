@@ -1,5 +1,5 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
-import { useToast } from '@/composables/useToast'
+import { useToast } from '@/core/composables/useToast'
 
 interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean

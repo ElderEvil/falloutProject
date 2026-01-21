@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import NavBar from '@/components/common/NavBar.vue'
+import NavBar from '@/core/components/common/NavBar.vue'
 
 defineProps<{
   isFlickering: boolean

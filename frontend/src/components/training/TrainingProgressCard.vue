@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
-import UButton from '@/components/ui/UButton.vue'
-import UBadge from '@/components/ui/UBadge.vue'
-import type { components } from '@/types/api.generated'
+import UButton from '@/core/components/ui/UButton.vue'
+import UBadge from '@/core/components/ui/UBadge.vue'
+import type { components } from '@/core/types/api.generated'
 
 type TrainingRead = components['schemas']['TrainingRead']
 type TrainingProgress = components['schemas']['TrainingProgress']

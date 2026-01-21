@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import UTabs from '@/components/ui/UTabs.vue'
+import UTabs from '@/core/components/ui/UTabs.vue'
 import DwellerBio from './DwellerBio.vue'
 import DwellerStats from './DwellerStats.vue'
 import DwellerEquipment from './DwellerEquipment.vue'

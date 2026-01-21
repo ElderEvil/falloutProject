@@ -1,7 +1,7 @@
 import type { AxiosResponse } from 'axios'
-import axios from '@/plugins/axios'
-import type { ApiResponse, ApiError, AsyncResult } from '@/types/utils'
-import { toApiError, isAxiosError } from '@/types/utils'
+import axios from '@/core/plugins/axios'
+import type { ApiResponse, ApiError, AsyncResult } from '@/core/types/utils'
+import { toApiError, isAxiosError } from '@/core/types/utils'
 
 /**
  * Generic wrapper for API calls with automatic error handling

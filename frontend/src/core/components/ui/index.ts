@@ -2,7 +2,7 @@
  * UI Component Library - Terminal Theme
  *
  * Export all custom UI components for easy importing
- * Usage: import { UButton, UInput, UCard } from '@/components/ui'
+ * Usage: import { UButton, UInput, UCard } from '@/core/components/ui'
  */
 
 export { default as UButton } from './UButton.vue'

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { UButton } from '@/components/ui'
+import { UButton } from '@/core/components/ui'
 import { computed } from 'vue'
 
 const props = defineProps<{

@@ -408,10 +408,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
-import { useToast } from '@/composables/useToast'
-import apiClient from '@/plugins/axios'
-import UCard from '@/components/ui/UCard.vue'
-import UTabs from '@/components/ui/UTabs.vue'
+import { useToast } from '@/core/composables/useToast'
+import apiClient from '@/core/plugins/axios'
+import UCard from '@/core/components/ui/UCard.vue'
+import UTabs from '@/core/components/ui/UTabs.vue'
 import SettingItem from '@/components/SettingItem.vue'
 
 const { error: showError } = useToast()

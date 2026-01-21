@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import UTooltip from '@/components/ui/UTooltip.vue'
+import UTooltip from '@/core/components/ui/UTooltip.vue'
 
 interface Props {
   bio?: string | null

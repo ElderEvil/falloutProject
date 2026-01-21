@@ -113,7 +113,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import type { ProfileUpdate } from '@/models/profile'
-import { useTheme, type ThemeName } from '@/composables/useTheme'
+import { useTheme, type ThemeName } from '@/core/composables/useTheme'
 
 interface Props {
   initialData: {

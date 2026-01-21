@@ -1,9 +1,9 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import axios from '@/plugins/axios'
+import axios from '@/core/plugins/axios'
 import type { RadioStats, ManualRecruitRequest, RecruitmentResponse, RadioMode } from '@/models/radio'
-import { useToast } from '@/composables/useToast'
-import { getErrorMessage } from '@/types/utils'
+import { useToast } from '@/core/composables/useToast'
+import { getErrorMessage } from '@/core/types/utils'
 
 export const useRadioStore = defineStore('radio', () => {
   const toast = useToast()

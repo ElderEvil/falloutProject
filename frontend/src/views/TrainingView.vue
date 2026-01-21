@@ -3,10 +3,10 @@ import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import TrainingQueuePanel from '@/components/training/TrainingQueuePanel.vue'
-import SidePanel from '@/components/common/SidePanel.vue'
+import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useVaultStore } from '@/stores/vault'
 import { useAuthStore } from '@/stores/auth'
-import { useSidePanel } from '@/composables/useSidePanel'
+import { useSidePanel } from '@/core/composables/useSidePanel'
 
 const route = useRoute()
 const vaultStore = useVaultStore()

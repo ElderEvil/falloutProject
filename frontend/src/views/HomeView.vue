@@ -4,7 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useVaultStore } from '@/stores/vault'
 import { useRoomStore } from '@/stores/room'
 import { useRouter } from 'vue-router'
-import { vaultNumberSchema } from '@/schemas'
+import { vaultNumberSchema } from '@/core/schemas'
 import { Icon } from '@iconify/vue'
 
 const authStore = useAuthStore()

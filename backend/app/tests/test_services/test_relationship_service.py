@@ -380,7 +380,7 @@ async def test_make_partners_fails_no_relationship(
     dweller_2: Dweller,
 ):
     """Test that making partners fails when no relationship exists."""
-    with pytest.raises(ValueError, match="No relationship exists"):
+    with pytest.raises(ValueError, match="Relationship not found between dwellers"):
         await RelationshipService.make_partners(
             async_session,
             dweller.id,

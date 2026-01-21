@@ -615,7 +615,10 @@ class GameLoopService:
                         # New relationships will be added and committed below
                         if relationship not in new_relationships:
                             await relationship_service.increase_affinity(
-                                db_session, relationship, game_config.relationship.affinity_increase_per_tick
+                                db_session,
+                                relationship.dweller_1_id,
+                                relationship.dweller_2_id,
+                                game_config.relationship.affinity_increase_per_tick,
                             )
                             stats["relationships_updated"] += 1
 
@@ -626,7 +629,10 @@ class GameLoopService:
                 # Now update affinity for newly created relationships
                 for relationship in new_relationships:
                     await relationship_service.increase_affinity(
-                        db_session, relationship, game_config.relationship.affinity_increase_per_tick
+                        db_session,
+                        relationship.dweller_1_id,
+                        relationship.dweller_2_id,
+                        game_config.relationship.affinity_increase_per_tick,
                     )
                     stats["relationships_updated"] += 1
 

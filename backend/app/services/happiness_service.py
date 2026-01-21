@@ -1,20 +1,21 @@
 """Service for managing dweller happiness system."""
 
 import logging
-from typing import TYPE_CHECKING
 
 from pydantic import UUID4
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
+from app.crud import dweller as dweller_crud
+from app.crud import room as room_crud
+from app.crud.incident import incident_crud
+from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.incident import Incident
 from app.models.room import Room
 from app.models.vault import Vault
-
-if TYPE_CHECKING:
-    pass
+from app.services.radio_service import RadioService
+from app.utils.exceptions import ResourceNotFoundException
 
 logger = logging.getLogger(__name__)
 
@@ -39,25 +40,21 @@ class HappinessService:
         Returns:
             Dictionary with update statistics
         """
-        # Get vault
-        vault = await db_session.get(Vault, vault_id)
-        if not vault:
+        try:
+            vault = await vault_crud.get(db_session, vault_id)
+        except ResourceNotFoundException:
             return {"error": "Vault not found"}
 
-        # Get all dwellers
-        dwellers_query = select(Dweller).where(Dweller.vault_id == vault_id)
-        dwellers = (await db_session.execute(dwellers_query)).scalars().all()
+        # Get all dwellers via CRUD
+        dwellers = await dweller_crud.get_multi_by_vault(db_session, vault_id)
 
         if not dwellers:
             return {"dwellers_processed": 0, "happiness_changes": 0}
 
-        # Get active incidents
-        incidents_query = select(Incident).where((Incident.vault_id == vault_id) & (Incident.is_active == True))
-        active_incidents = (await db_session.execute(incidents_query)).scalars().all()
+        # Get active incidents via CRUD
+        active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
 
         # Get radio rooms for happiness bonus calculation
-        from app.services.radio_service import RadioService
-
         radio_rooms = await RadioService.get_radio_rooms(db_session, vault_id)
 
         # Calculate vault-wide factors
@@ -233,8 +230,8 @@ class HappinessService:
                 change += game_config.happiness.high_health_bonus * tick_multiplier
 
             # Room-specific bonuses
-            # Get room to check category/name for specific bonuses
-            room = await db_session.get(Room, dweller.room_id)
+            # Get room to check category/name for specific bonuses via CRUD
+            room = await room_crud.get(db_session, dweller.room_id) if dweller.room_id else None
             if room:
                 room_name_lower = (room.name or "").lower()
                 # Living quarters bonus (romance, privacy, comfort)
@@ -254,8 +251,8 @@ class HappinessService:
 
         # Partner bonus
         if dweller.partner_id:
-            # Check if partner exists and is alive
-            partner = await db_session.get(Dweller, dweller.partner_id)
+            # Check if partner exists and is alive via CRUD
+            partner = await dweller_crud.get(db_session, dweller.partner_id) if dweller.partner_id else None
             if partner:
                 # Base partner bonus
                 change += game_config.happiness.partner_nearby_bonus * tick_multiplier / 60.0  # Normalize bonus
@@ -301,18 +298,14 @@ class HappinessService:
         if not dweller:
             return {"error": "Dweller not found"}
 
-        # Get vault
-        vault = await db_session.get(Vault, dweller.vault_id)
-        if not vault:
+        try:
+            vault = await vault_crud.get(db_session, dweller.vault_id)
+        except ResourceNotFoundException:
             return {"error": "Vault not found"}
 
-        # Get active incidents
-        incidents_query = select(Incident).where((Incident.vault_id == dweller.vault_id) & (Incident.is_active == True))
-        active_incidents = (await db_session.execute(incidents_query)).scalars().all()
+        active_incidents = await incident_crud.get_active_by_vault(db_session, dweller.vault_id)
 
         # Get radio rooms
-        from app.services.radio_service import RadioService
-
         radio_rooms = await RadioService.get_radio_rooms(db_session, dweller.vault_id)
 
         vault_factors = await HappinessService._calculate_vault_factors(vault, active_incidents, radio_rooms)

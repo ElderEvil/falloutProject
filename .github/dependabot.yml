@@ -22,6 +22,9 @@ updates:
       prefix: "chore"
       prefix-development: "chore"
       include: "scope"
+    ignore:
+      - dependency-name: "pydantic"
+        versions: [ "^2.13.0", "2.12.x" ]
 
   # Frontend dependencies (pnpm)
   - package-ecosystem: "npm"

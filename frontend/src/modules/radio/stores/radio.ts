@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import axios from '@/core/plugins/axios'
-import type { RadioStats, ManualRecruitRequest, RecruitmentResponse, RadioMode } from '@/models/radio'
+import type { RadioStats, ManualRecruitRequest, RecruitmentResponse, RadioMode } from '../models/radio'
 import { useToast } from '@/core/composables/useToast'
 import { getErrorMessage } from '@/core/types/utils'
 

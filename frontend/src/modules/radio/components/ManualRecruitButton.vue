@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useRadioStore } from '@/stores/radio';
+import { useRadioStore } from '../stores/radio';
 import UButton from '@/core/components/ui/UButton.vue';
 
 interface Props {

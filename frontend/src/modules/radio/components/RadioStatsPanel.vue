@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRadioStore } from '@/stores/radio'
+import { useRadioStore } from '../stores/radio'
 import type { RadioMode } from '@/models/radio'
 import UCard from '@/core/components/ui/UCard.vue'
 import UButton from '@/core/components/ui/UButton.vue'

@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useDwellerStore } from '@/stores/dweller'
 import { useVaultStore } from '@/stores/vault'
-import DwellerChat from '@/components/chat/DwellerChat.vue'
+import DwellerChat from './DwellerChat.vue'
 import type { Dweller } from '@/models/dweller'
 
 const route = useRoute()

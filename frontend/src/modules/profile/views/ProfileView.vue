@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { Icon } from '@iconify/vue';
-import { useProfileStore } from '@/stores/profile';
+import { useProfileStore } from '../stores/profile';
 import { useAuthStore } from '@/stores/auth';
-import ProfileEditor from '@/components/profile/ProfileEditor.vue';
-import ProfileStats from '@/components/profile/ProfileStats.vue';
-import type { ProfileUpdate } from '@/models/profile';
+import ProfileEditor from '../components/ProfileEditor.vue';
+import ProfileStats from '../components/ProfileStats.vue';
+import type { ProfileUpdate } from '../models/profile';
 
 const profileStore = useProfileStore();
 const authStore = useAuthStore();

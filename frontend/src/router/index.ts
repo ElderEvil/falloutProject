@@ -1,6 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
+// Module routes
+import { radioRoutes } from '@/modules/radio/routes';
+import { profileRoutes } from '@/modules/profile/routes';
+import { chatRoutes } from '@/modules/chat/routes';
+
 // Eager load only the home view for fastest initial load
 import HomeView from '@/views/HomeView.vue';
 
@@ -10,18 +15,15 @@ const RegisterPage = () => import('@/components/auth/RegisterForm.vue');
 const VaultView = () => import('@/views/VaultView.vue');
 const DwellersView = () => import('@/views/DwellersView.vue');
 const DwellerDetailView = () => import('@/views/DwellerDetailView.vue');
-const DwellerChatPage = () => import('@/components/chat/DwellerChatPage.vue');
+
 const ExplorationView = () => import('@/views/ExplorationView.vue');
 const ExplorationDetailView = () => import('@/views/ExplorationDetailView.vue');
 const ObjectivesView = () => import('@/views/ObjectivesView.vue');
 const QuestsView = () => import('@/views/QuestsView.vue');
-const RadioView = () => import('@/views/RadioView.vue');
 const RelationshipsView = () => import('@/views/RelationshipsView.vue');
 const TrainingView = () => import('@/views/TrainingView.vue');
 const HappinessView = () => import('@/views/HappinessView.vue');
-const ProfileView = () => import('@/views/ProfileView.vue');
-const SettingsView = () => import('@/views/SettingsView.vue');
-const PreferencesView = () => import('@/views/PreferencesView.vue');
+
 const ResetPasswordView = () => import('@/views/ResetPasswordView.vue');
 const ForgotPasswordView = () => import('@/views/ForgotPasswordView.vue');
 const VerifyEmailView = () => import('@/views/VerifyEmailView.vue');
@@ -53,11 +55,8 @@ const router = createRouter({
       component: DwellerDetailView,
       meta: { requiresAuth: true, hideFromNav: true }
     },
-    {
-      path: '/dweller/:id/chat',
-      name: 'DwellerChatPage',
-      component: DwellerChatPage
-    },
+    // Chat module routes
+    ...chatRoutes,
     {
       path: '/vault/:id/exploration',
       name: 'exploration',
@@ -82,12 +81,8 @@ const router = createRouter({
       component: QuestsView,
       meta: { requiresAuth: true, hideFromNav: true }
     },
-    {
-      path: '/vault/:id/radio',
-      name: 'radio',
-      component: RadioView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
+    // Radio module routes
+    ...radioRoutes,
     {
       path: '/vault/:id/relationships',
       name: 'relationships',
@@ -106,24 +101,8 @@ const router = createRouter({
       component: HappinessView,
       meta: { requiresAuth: true, hideFromNav: true }
     },
-    {
-      path: '/profile',
-      name: 'profile',
-      component: ProfileView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
-    {
-      path: '/settings',
-      name: 'settings',
-      component: SettingsView,
-      meta: { requiresAuth: true, hideFromNav: false }
-    },
-    {
-      path: '/preferences',
-      name: 'preferences',
-      component: PreferencesView,
-      meta: { requiresAuth: true, hideFromNav: false }
-    },
+    // Profile module routes
+    ...profileRoutes,
     {
       path: '/login',
       name: 'login',

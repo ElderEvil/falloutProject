@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { UserProfile, ProfileUpdate } from '@/models/profile'
+import type { UserProfile, ProfileUpdate } from '../models/profile'
 import axios from '@/core/plugins/axios'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
 

@@ -40,12 +40,12 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
-import { useRadioStore } from '@/stores/radio'
+import { useRadioStore } from '../stores/radio'
 import { useDwellerStore } from '@/stores/dweller'
 import { useVaultStore } from '@/stores/vault'
 import { useAuthStore } from '@/stores/auth'
 import SidePanel from '@/core/components/common/SidePanel.vue'
-import RadioStatsPanel from '@/components/radio/RadioStatsPanel.vue'
+import RadioStatsPanel from '../components/RadioStatsPanel.vue'
 
 const route = useRoute()
 const { isCollapsed } = useSidePanel()

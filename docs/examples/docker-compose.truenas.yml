@@ -81,7 +81,6 @@ services:
       - -c
       - max_connections=200
     environment:
-      POSTGRES_HOST_AUTH_METHOD: trust
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Required}
       POSTGRES_DB: ${POSTGRES_DB:-fallout_db}
@@ -92,8 +91,9 @@ services:
       retries: 5
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    # Bind to localhost only - remove entirely if external access not needed
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
 
   redis:
     image: redis:alpine
@@ -210,11 +210,13 @@ services:
       - "8025:8025"
 
   vuejs:
+    # NOTE: VITE_API_BASE_URL is embedded at BUILD TIME, not runtime.
+    # The pre-built image uses the production API URL from CI/CD.
+    # To use a different API URL, you must rebuild the image:
+    #   docker build --build-arg VITE_API_BASE_URL=https://your-api.com -t fo-shelter-fe ./frontend
     image: elerevil/fo-shelter-fe:${FE_VERSION:-latest}
     container_name: fallout_frontend
     restart: always
-    environment:
-      VITE_API_BASE_URL: ${API_URL:-https://fallout-api.evillab.dev}
     ports:
       - "3210:3000"
 

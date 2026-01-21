@@ -284,8 +284,18 @@ docker compose logs db
 ### Frontend Shows Connection Error
 - Verify `API_URL` in .env matches your domain
 - Check Nginx Proxy Manager configuration
-- Verify frontend was built with correct API URL
 - Check browser console for CORS errors
+
+**Important:** `VITE_API_BASE_URL` is embedded at **build time**, not runtime. The pre-built Docker images use the production API URL configured in CI/CD. If you need a different API URL:
+
+```bash
+# Option 1: Rebuild the image locally
+cd frontend
+docker build --build-arg VITE_API_BASE_URL=https://your-api.com -t fo-shelter-fe .
+
+# Option 2: Use the pre-built image (uses https://fallout-api.evillab.dev)
+# This is fine if your API is at fallout-api.evillab.dev
+```
 
 ### MinIO/Media Files Not Loading
 See [NGINX_PROXY_MANAGER_SETUP.md](NGINX_PROXY_MANAGER_SETUP.md) for CORS configuration.

@@ -25,7 +25,7 @@ API Layer → Service Layer → CRUD Layer → Database
 
 **Services Refactored:**
 1. **relationship_service.py** - 11+ direct SQL queries → CRUD calls
-2. **vault_service.py** - Storage/dweller/objective queries → CRUD calls  
+2. **vault_service.py** - Storage/dweller/objective queries → CRUD calls
 3. **happiness_service.py** - 50+ direct queries → CRUD calls
 
 **Key Deliverable:** Created `backend/app/crud/relationship_crud.py` with:

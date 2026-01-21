@@ -10,10 +10,7 @@ import { chatRoutes } from '@/modules/chat/routes';
 import { explorationRoutes } from '@/modules/exploration/routes';
 import { progressionRoutes } from '@/modules/progression/routes';
 import { socialRoutes } from '@/modules/social/routes';
-
-// Lazy load dweller views (will be moved to module in Phase 5)
-const DwellersView = () => import('@/views/DwellersView.vue');
-const DwellerDetailView = () => import('@/views/DwellerDetailView.vue');
+import { dwellersRoutes } from '@/modules/dwellers/routes';
 
 
 
@@ -22,19 +19,8 @@ const router = createRouter({
   routes: [
     // Vault module routes (includes home, vault, happiness)
     ...vaultRoutes,
-    // Dweller routes (will be moved to module in Phase 5)
-    {
-      path: '/vault/:id/dwellers',
-      name: 'dwellers',
-      component: DwellersView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
-    {
-      path: '/vault/:id/dwellers/:dwellerId',
-      name: 'dwellerDetail',
-      component: DwellerDetailView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
+    // Dweller module routes
+    ...dwellersRoutes,
     // Chat module routes
     ...chatRoutes,
     // Exploration module routes

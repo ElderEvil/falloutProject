@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useVaultStore } from '@/stores/vault'
-import { useVaultOperations } from '@/composables/useVaultOperations'
-import { useAuthStore } from '@/stores/auth'
+import { useVaultStore } from '../stores/vault'
+import { useVaultOperations } from '../composables/useVaultOperations'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 
 const vaultStore = useVaultStore()
 const authStore = useAuthStore()

@@ -1,18 +1,14 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import { useAuthStore } from '@/stores/auth';
+import { useAuthStore } from '@/modules/auth/stores/auth';
 
 // Module routes
+import { authRoutes } from '@/modules/auth/routes';
+import { vaultRoutes } from '@/modules/vault/routes';
 import { radioRoutes } from '@/modules/radio/routes';
 import { profileRoutes } from '@/modules/profile/routes';
 import { chatRoutes } from '@/modules/chat/routes';
 
-// Eager load only the home view for fastest initial load
-import HomeView from '@/views/HomeView.vue';
-
 // Lazy load all other views for code splitting
-const LoginPage = () => import('@/components/auth/LoginFormTerminal.vue');
-const RegisterPage = () => import('@/components/auth/RegisterForm.vue');
-const VaultView = () => import('@/views/VaultView.vue');
 const DwellersView = () => import('@/views/DwellersView.vue');
 const DwellerDetailView = () => import('@/views/DwellerDetailView.vue');
 
@@ -22,27 +18,14 @@ const ObjectivesView = () => import('@/views/ObjectivesView.vue');
 const QuestsView = () => import('@/views/QuestsView.vue');
 const RelationshipsView = () => import('@/views/RelationshipsView.vue');
 const TrainingView = () => import('@/views/TrainingView.vue');
-const HappinessView = () => import('@/views/HappinessView.vue');
 
-const ResetPasswordView = () => import('@/views/ResetPasswordView.vue');
-const ForgotPasswordView = () => import('@/views/ForgotPasswordView.vue');
-const VerifyEmailView = () => import('@/views/VerifyEmailView.vue');
+
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    {
-      path: '/',
-      name: 'home',
-      component: HomeView,
-      meta: { requiresAuth: true, hideFromNav: false }
-    },
-    {
-      path: '/vault/:id',
-      name: 'vault',
-      component: VaultView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
+    // Vault module routes (includes home, vault, happiness)
+    ...vaultRoutes,
     {
       path: '/vault/:id/dwellers',
       name: 'dwellers',
@@ -95,44 +78,10 @@ const router = createRouter({
       component: TrainingView,
       meta: { requiresAuth: true, hideFromNav: true }
     },
-    {
-      path: '/vault/:id/happiness',
-      name: 'happiness',
-      component: HappinessView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
     // Profile module routes
     ...profileRoutes,
-    {
-      path: '/login',
-      name: 'login',
-      component: LoginPage,
-      meta: { hideFromNav: true }
-    },
-    {
-      path: '/register',
-      name: 'register',
-      component: RegisterPage,
-      meta: { hideFromNav: true }
-    },
-    {
-      path: '/forgot-password',
-      name: 'forgot-password',
-      component: ForgotPasswordView,
-      meta: { hideFromNav: true }
-    },
-    {
-      path: '/reset-password',
-      name: 'reset-password',
-      component: ResetPasswordView,
-      meta: { hideFromNav: true }
-    },
-    {
-      path: '/verify-email',
-      name: 'verify-email',
-      component: VerifyEmailView,
-      meta: { hideFromNav: true }
-    },
+    // Auth module routes
+    ...authRoutes,
     {
       path: '/about',
       name: 'about',

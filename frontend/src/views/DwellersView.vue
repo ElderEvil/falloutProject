@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useDwellerStore, type DwellerSortBy, type DwellerStatus, type SortDirection } from '@/stores/dweller'
-import { useAuthStore } from '@/stores/auth'
-import { useVaultStore } from '@/stores/vault'
+import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRoomStore } from '@/stores/room'
 import { computed, defineAsyncComponent, inject, onMounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'

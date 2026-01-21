@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { useVaultStore } from '@/stores/vault'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRoute } from 'vue-router'
 import type { Room } from '@/models/room'
 

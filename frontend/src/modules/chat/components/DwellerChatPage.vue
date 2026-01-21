@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/stores/dweller'
-import { useVaultStore } from '@/stores/vault'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import DwellerChat from './DwellerChat.vue'
 import type { Dweller } from '@/models/dweller'
 

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, inject, onMounted, onUnmounted } from 'vue';
 import { Icon } from '@iconify/vue';
-import { useAuthStore } from '@/stores/auth';
-import { useVaultStore } from '@/stores/vault';
+import { useAuthStore } from '@/modules/auth/stores/auth';
+import { useVaultStore } from '@/modules/vault/stores/vault';
 import { useRouter, useRoute } from 'vue-router';
 
 const authStore = useAuthStore();

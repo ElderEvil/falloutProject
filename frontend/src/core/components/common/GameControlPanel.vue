@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
-import { useVaultStore } from '@/stores/vault'
-import { useAuthStore } from '@/stores/auth'
+import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useIncidentStore } from '@/stores/incident'
 
 const vaultStore = useVaultStore()

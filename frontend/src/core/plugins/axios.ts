@@ -125,7 +125,7 @@ apiClient.interceptors.response.use(
             // Update refresh token through store to keep Pinia state in sync
             if (newRefreshToken) {
               // Import dynamically to avoid circular dependency
-              import('@/stores/auth').then(({ useAuthStore }) => {
+              import('@/modules/auth/stores/auth').then(({ useAuthStore }) => {
                 const authStore = useAuthStore()
                 authStore.refreshToken = newRefreshToken
               })

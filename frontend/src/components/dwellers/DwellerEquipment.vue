@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useEquipmentStore } from '@/stores/equipment'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 import WeaponCard from '@/components/equipment/WeaponCard.vue'
 import OutfitCard from '@/components/equipment/OutfitCard.vue'
 import type { Dweller } from '@/models/dweller'

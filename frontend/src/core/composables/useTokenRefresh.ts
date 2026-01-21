@@ -1,5 +1,5 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 import { jwtDecode } from 'jwt-decode'
 
 interface JWTPayload {

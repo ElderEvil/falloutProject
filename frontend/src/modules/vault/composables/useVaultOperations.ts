@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { useVaultStore } from '@/stores/vault'
+import { useVaultStore } from '../stores/vault'
 import { useRoomStore } from '@/stores/room'
 import { useRouter } from 'vue-router'
 

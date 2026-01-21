@@ -40,7 +40,7 @@
 import { computed, onMounted, ref, onUnmounted } from 'vue'
 import { usePregnancyStore } from '@/stores/pregnancy'
 import { useDwellerStore } from '@/stores/dweller'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 import PregnancyCard from './PregnancyCard.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import UBadge from '@/core/components/ui/UBadge.vue'

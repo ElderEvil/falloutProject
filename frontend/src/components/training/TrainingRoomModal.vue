@@ -6,7 +6,7 @@ import UButton from '@/core/components/ui/UButton.vue'
 import UAlert from '@/core/components/ui/UAlert.vue'
 import TrainingProgressCard from './TrainingProgressCard.vue'
 import { useTrainingStore } from '@/stores/training'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 import type { components } from '@/core/types/api.generated'
 
 type Room = any // You can type this properly based on your Room type

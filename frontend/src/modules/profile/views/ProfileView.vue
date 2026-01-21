@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { Icon } from '@iconify/vue';
 import { useProfileStore } from '../stores/profile';
-import { useAuthStore } from '@/stores/auth';
+import { useAuthStore } from '@/modules/auth/stores/auth';
 import ProfileEditor from '../components/ProfileEditor.vue';
 import ProfileStats from '../components/ProfileStats.vue';
 import type { ProfileUpdate } from '../models/profile';

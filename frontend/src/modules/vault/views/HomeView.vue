@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, ref } from 'vue'
-import { useAuthStore } from '@/stores/auth'
-import { useVaultStore } from '@/stores/vault'
+import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useVaultStore } from '../stores/vault'
 import { useRoomStore } from '@/stores/room'
 import { useRouter } from 'vue-router'
-import { vaultNumberSchema } from '@/core/schemas'
+import { vaultNumberSchema } from '../schemas/vault'
 import { Icon } from '@iconify/vue'
 
 const authStore = useAuthStore()

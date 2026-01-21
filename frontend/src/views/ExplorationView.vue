@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/stores/dweller'
 import { useExplorationStore } from '@/stores/exploration'
-import { useVaultStore } from '@/stores/vault'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { Icon } from '@iconify/vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'

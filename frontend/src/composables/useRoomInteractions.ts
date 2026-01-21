@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { useRoomStore } from '@/stores/room'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 
 export function useRoomInteractions() {
   const roomStore = useRoomStore()

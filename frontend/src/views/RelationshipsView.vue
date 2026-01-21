@@ -5,7 +5,7 @@ import { Icon } from '@iconify/vue';
 import { useSidePanel } from '@/core/composables/useSidePanel';
 import { useRelationshipStore } from '@/stores/relationship';
 import { useDwellerStore } from '@/stores/dweller';
-import { useAuthStore } from '@/stores/auth';
+import { useAuthStore } from '@/modules/auth/stores/auth';
 import { useToast } from '@/core/composables/useToast';
 import SidePanel from '@/core/components/common/SidePanel.vue';
 import RelationshipList from '@/components/relationships/RelationshipList.vue';

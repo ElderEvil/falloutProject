@@ -1,6 +1,6 @@
 import { ref, watch } from 'vue'
 import { useToast } from '@/core/composables/useToast'
-import { useVaultStore } from '@/stores/vault'
+import { useVaultStore } from '../stores/vault'
 
 interface WarningState {
   lastShown: number

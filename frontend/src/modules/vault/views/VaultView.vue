@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, inject, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useRoomStore } from '@/stores/room'
-import { useVaultStore } from '@/stores/vault'
+import { useVaultStore } from '../stores/vault'
 import { useDwellerStore } from '@/stores/dweller'
 import { useExplorationStore } from '@/stores/exploration'
 import { useIncidentStore } from '@/stores/incident'

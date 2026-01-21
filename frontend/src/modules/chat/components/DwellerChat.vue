@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watchEffect, computed, onMounted, onUnmounted } from 'vue';
-import { useAuthStore } from '@/stores/auth';
+import { useAuthStore } from '@/modules/auth/stores/auth';
 import { Icon } from '@iconify/vue';
 import apiClient from '@/core/plugins/axios';
 import type { ChatMessageDisplay } from '../models/chat';

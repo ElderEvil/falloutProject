@@ -6,74 +6,22 @@
  *
  * Usage:
  * ```ts
- * import { Dweller, Room, Weapon } from '@/types'
+ * import type { components } from '@/core/types'
+ * import type { Dweller } from '@/models/dweller'  // Use module-specific imports
  * ```
+ *
+ * Note: Module-specific types are now in their respective modules:
+ * - Auth types: @/modules/auth/types
+ * - Vault types: @/modules/vault/types
+ * - Radio types: @/modules/radio/models
+ * - Profile types: @/modules/profile/models
+ * - Chat types: @/modules/chat/models
  */
 
 // Re-export all API generated types
 export type { components } from './api.generated'
 
-// Re-export auth types
-export type { Token, UserWithTokens, AuthError } from './auth'
-export type { User } from './user'
+// Utility types
+export * from './utils'
 
-// Re-export model types
-export type {
-  Dweller,
-  DwellerFull,
-  DwellerShort,
-  DwellerCreate,
-  DwellerUpdate,
-  Special,
-  VisualAttributes
-} from '@/models/dweller'
-
-export type {
-  Room,
-  RoomCreate,
-  RoomUpdate
-} from '@/models/room'
-
-export type {
-  Weapon,
-  Outfit,
-  ItemBase,
-  WeaponType,
-  WeaponSubtype,
-  OutfitType,
-  Gender,
-  Rarity
-} from '@/models/equipment'
-
-export type {
-  Relationship,
-  RelationshipCreate,
-  RelationshipUpdate
-} from '@/models/relationship'
-
-export type {
-  Pregnancy
-} from '@/models/pregnancy'
-
-export type {
-  Objective,
-  ObjectiveCreate
-} from '@/models/objective'
-
-export type {
-  Quest,
-  QuestCreate
-} from '@/models/quest'
-
-export type {
-  RadioStats
-} from '@/models/radio'
-
-export type {
-  UserProfile,
-  ProfileUpdate
-} from '@/models/profile'
-
-export type {
-  ChatMessage
-} from '@/models/chat'
+// Note: For model types, import directly from @/models/* or respective modules

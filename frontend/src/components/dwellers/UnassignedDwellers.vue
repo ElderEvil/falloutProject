@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { useDwellerStore } from '@/stores/dweller'
 import { useExplorationStore } from '@/stores/exploration'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 import { Icon } from '@iconify/vue'
 import type { DwellerShort } from '@/models/dweller'
 import DwellerStatusBadge from './DwellerStatusBadge.vue'

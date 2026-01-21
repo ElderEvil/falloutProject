@@ -11,6 +11,7 @@ from app.models.game_state import GameState
 from app.models.vault import Vault
 from app.schemas.common import GameStatusEnum, RoomActionEnum, RoomTypeEnum
 from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultNumber, VaultReadWithNumbers, VaultUpdate
+from app.services.resource_manager import ResourceManager
 from app.utils.exceptions import InsufficientResourcesException, ResourceNotFoundException
 
 
@@ -147,6 +148,14 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
                 **vault_obj.model_dump(),
                 room_count=room_count,
                 dweller_count=dweller_count,
+                resource_warnings=ResourceManager._check_resource_warnings(
+                    vault_obj,
+                    {
+                        "power": float(vault_obj.power),
+                        "food": float(vault_obj.food),
+                        "water": float(vault_obj.water),
+                    },
+                ),
             )
             for vault_obj, room_count, dweller_count in vaults
         ]
@@ -173,6 +182,14 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             **vault_obj.model_dump(),
             room_count=room_count,
             dweller_count=dweller_count,
+            resource_warnings=ResourceManager._check_resource_warnings(
+                vault_obj,
+                {
+                    "power": float(vault_obj.power),
+                    "food": float(vault_obj.food),
+                    "water": float(vault_obj.water),
+                },
+            ),
         )
 
     @staticmethod

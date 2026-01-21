@@ -5,7 +5,12 @@ import axios from '@/plugins/axios'
 import type { components } from '@/types/api.generated'
 
 // Use generated API types
-type VaultWithNumbers = components['schemas']['VaultReadWithNumbers']
+type VaultReadWithNumbers = components['schemas']['VaultReadWithNumbers']
+
+// Extend with resource_warnings which might not be in generated types yet
+export interface VaultWithNumbers extends VaultReadWithNumbers {
+  resource_warnings: Array<{ type: string; message: string }>
+}
 
 // GameState type (not yet in API schemas)
 interface GameState {

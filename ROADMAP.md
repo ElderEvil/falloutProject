@@ -76,13 +76,19 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ### Soon After Deployment
 - [ ] **Dweller Death System** - Death mechanics when health reaches 0, revival options (stimpacks, caps), memorial system
-- [ ] **Training Assignment UI** - Drag-and-drop dwellers to training room, visual assignment feedback, training queue management
-- [ ] **Birth Event System** - Update child biography with "Born in [Vault Name]" detail, update parent biographies with child references
+- [x] **Training Assignment UI** - Training rooms, progress indicators, queue management implemented
+  - ✅ Training queue display with real-time progress bars and countdowns
+  - ✅ Completion notifications and auto-completion via game loop
+  - ⚠️ Missing: Drag-and-drop dweller assignment to training rooms
+- [x] **Birth Event System** - Full birthing system with child aging and inheritance
+  - ✅ Complete pregnancy and birth mechanics with stat inheritance
+  - ✅ Birth notifications and child aging system
+  - ⚠️ Missing: Update child biography with "Born in [Vault Name]" detail
 
 ### Complete Existing Systems
-- [ ] **Resource Warning UI** - Toast notifications for low resources (< 20% warning, < 10% critical), power outage effects
-- [ ] **Training Room UI** - Training queue display, progress indicators, completion notifications
-- [ ] **WebSocket Migration** - Extend WebSocket usage to other real-time updates (resources, incidents)
+- [x] **Resource Warning UI** - Toast notifications for low resources (< 20% warning, < 10% critical), power outage effects
+- [x] **Training Room UI** - Progress indicators, queue management, completion notifications
+- [x] **WebSocket Migration** - WebSocket infrastructure ready, needs extension beyond chat
 
 ---
 

@@ -3,6 +3,7 @@ import { computed, defineAsyncComponent, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRoomStore } from '@/stores/room'
 import { useAuthStore } from '@/stores/auth'
+import { useVaultStore } from '@/stores/vault'
 import { useDwellerStore } from '@/stores/dweller'
 import { useTrainingStore } from '@/stores/training'
 import { useRoomInteractions } from '@/composables/useRoomInteractions'
@@ -39,9 +40,21 @@ const emit = defineEmits<{
 const route = useRoute()
 const roomStore = useRoomStore()
 const authStore = useAuthStore()
+const vaultStore = useVaultStore()
 const dwellerStore = useDwellerStore()
 const trainingStore = useTrainingStore()
 const rooms = computed(() => Array.isArray(roomStore.rooms) ? roomStore.rooms : [])
+
+// Power outage logic
+const isPowerOutage = computed(() => {
+  return (vaultStore.activeVault?.power ?? 1) <= 0
+})
+
+const isRoomAffectedByOutage = (room: Room) => {
+  if (!isPowerOutage.value) return false
+  // Power generators (STRENGTH) continue working
+  return room.ability?.toLowerCase() !== 'strength'
+}
 
 const { selectedRoomId, toggleRoomSelection, destroyRoom } = useRoomInteractions()
 const { hoverPosition, handleHover, clearHover, previewCells, isValidPlacement } = useHoverPreview()
@@ -329,7 +342,7 @@ const closeDetailModal = () => {
       @room-updated="handleRoomUpdated"
     />
 
-    <div class="room-grid">
+    <div class="room-grid" :class="{ 'critical-power': isPowerOutage }">
       <!-- Render built rooms -->
       <div
         v-for="room in rooms"
@@ -343,7 +356,8 @@ const closeDetailModal = () => {
           selected: selectedRoomId === room.id,
           'drag-over': draggingOverRoomId === room.id,
           'has-incident': roomHasIncident(room.id),
-          'highlighted': highlightedRoomId === room.id
+          'highlighted': highlightedRoomId === room.id,
+          'power-outage': isRoomAffectedByOutage(room)
         }"
         @click="handleRoomClick(room, $event)"
         @dragover="handleDragOver($event, room.id)"
@@ -773,5 +787,27 @@ const closeDetailModal = () => {
   );
   background-size: 20px 20px;
   border: 2px solid #ff0000;
+}
+
+.room.power-outage {
+  filter: brightness(0.3) grayscale(0.8);
+  border-color: #330000;
+  pointer-events: none; /* Disable interaction with powerless rooms */
+}
+
+.room.power-outage .room-name,
+.room.power-outage .room-category {
+  color: #666;
+}
+
+.critical-power {
+  animation: critical-pulse 2s infinite;
+  border: 2px solid rgba(255, 0, 0, 0.5);
+}
+
+@keyframes critical-pulse {
+  0% { box-shadow: 0 0 10px rgba(255, 0, 0, 0.2) inset; }
+  50% { box-shadow: 0 0 50px rgba(255, 0, 0, 0.5) inset; }
+  100% { box-shadow: 0 0 10px rgba(255, 0, 0, 0.2) inset; }
 }
 </style>

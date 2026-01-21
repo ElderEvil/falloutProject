@@ -1,16 +1,12 @@
 """Service for managing dweller relationships and compatibility."""
 
-# === Standard Library ===
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING
 
-# === Third-party ===
 from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-# === Local Imports ===
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
 from app.crud.relationship import relationship_crud
@@ -19,10 +15,6 @@ from app.models.relationship import Relationship
 from app.schemas.common import GenderEnum, RelationshipTypeEnum
 from app.schemas.relationship import CompatibilityScore
 from app.utils.exceptions import ResourceNotFoundException
-
-# === TYPE_CHECKING Imports ===
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

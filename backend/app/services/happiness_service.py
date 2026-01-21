@@ -1,14 +1,10 @@
 """Service for managing dweller happiness system."""
 
-# === Standard Library ===
 import logging
-from typing import TYPE_CHECKING
 
-# === Third-party ===
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-# === Local Imports ===
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
 from app.crud import room as room_crud
@@ -20,10 +16,6 @@ from app.models.room import Room
 from app.models.vault import Vault
 from app.services.radio_service import RadioService
 from app.utils.exceptions import ResourceNotFoundException
-
-# === TYPE_CHECKING Imports ===
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

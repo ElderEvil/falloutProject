@@ -1,15 +1,11 @@
 """Service for vault initialization and resource management."""
 
-# === Standard Library ===
 import logging
-from typing import TYPE_CHECKING
 
-# === Third-party ===
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-# === Local Imports ===
 from app.api.game_data_deps import get_static_game_data
 from app.crud import dweller as dweller_crud
 from app.crud import room as room_crud
@@ -25,10 +21,6 @@ from app.schemas.vault import VaultNumber, VaultUpdate
 from app.services.resource_manager import ResourceManager
 from app.services.training_service import training_service
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
-
-# === TYPE_CHECKING Imports ===
-if TYPE_CHECKING:
-    pass
 
 
 class VaultService:

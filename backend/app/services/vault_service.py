@@ -4,6 +4,7 @@ import logging
 
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.game_data_deps import get_static_game_data
@@ -11,7 +12,7 @@ from app.crud import dweller as dweller_crud
 from app.crud import room as room_crud
 from app.crud.objective import objective_crud
 from app.crud.vault import vault as vault_crud
-from app.models import Room
+from app.models import Room, Storage
 from app.models.vault import Vault
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.schemas.common import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
@@ -146,7 +147,10 @@ class VaultService:
                     vault.population_max += created_room.capacity or 0
                 elif "storage" in created_room.name.lower() and created_room.capacity:
                     # Storage rooms increase Storage.max_space, not individual vault capacities
-                    await vault_crud._update_storage(vault.id, vault.storage_max_space + created_room.capacity)
+                    storage_result = await db_session.execute(select(Storage).where(Storage.vault_id == vault.id))
+                    storage_obj = storage_result.scalar_one_or_none()
+                    if storage_obj:
+                        storage_obj.max_space = (storage_obj.max_space or 0) + created_room.capacity
 
         await db_session.commit()
         await db_session.refresh(vault)

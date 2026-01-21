@@ -1,8 +1,46 @@
 # Python
-__pycache__
+__pycache__/
+*.py[cod]
+*$py.class
 app.egg-info
 .mypy_cache
 .pytest_cache
 .coverage
 htmlcov
 .venv
+venv/
+env/
+build/
+dist/
+*.egg-info/
+
+# Testing
+tests/
+test_*
+*_test.py
+conftest.py
+
+# Documentation
+*.md
+docs/
+
+# Development tools
+.vscode/
+.idea/
+*.log
+
+# Git
+.git/
+.gitignore
+
+# Environment
+.env
+.env.*
+
+# Database
+*.db
+*.sqlite3
+
+# Temporary files
+*.tmp
+*.temp

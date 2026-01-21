@@ -754,6 +754,55 @@ VITE_APP_VERSION=1.13.0
 
 ---
 
+## Deployment
+
+### Environments
+
+| Environment | Config File | Description |
+|-------------|-------------|-------------|
+| Local Dev | `docker-compose.yml` | Development with hot reload |
+| TrueNAS Staging | [docs/examples/docker-compose.truenas.yml](docs/examples/docker-compose.truenas.yml) | Production-like staging |
+
+### Docker Images
+
+Automated builds on semantic release (push to `master`):
+- `elerevil/fo-shelter-be:latest`, `elerevil/fo-shelter-be:v1.x.x`
+- `elerevil/fo-shelter-fe:latest`, `elerevil/fo-shelter-fe:v1.x.x`
+
+### CI/CD
+
+**Workflows:**
+- `.github/workflows/release.yml` - Semantic release
+- `.github/workflows/build.yml` - Docker image builds
+
+**Required GitHub Secrets:**
+- `DOCKER_USERNAME` - Docker Hub username
+- `DOCKER_PASSWORD` - Docker Hub access token
+
+**Required GitHub Variables:**
+- `PRODUCTION_API_URL` - Frontend API URL (e.g., `https://fallout-api.evillab.dev`)
+
+### TrueNAS Staging
+
+**Location:** `/mnt/dead-pool/apps/fallout-shelter/config/`
+
+**Domains:**
+- Frontend: `https://fallout.evillab.dev`
+- Backend: `https://fallout-api.evillab.dev`
+- Media: `https://fallout-media.evillab.dev`
+
+**Update procedure:**
+```bash
+cd /mnt/dead-pool/apps/fallout-shelter/config
+docker compose pull
+docker compose up -d
+docker compose exec fastapi uv run alembic upgrade head  # if needed
+```
+
+**Complete guide:** [docs/deployment/TRUENAS_SETUP.md](docs/deployment/TRUENAS_SETUP.md)
+
+---
+
 ## Plans
 
 - Make the plan extremely concise. Sacrifice grammar for the sake of concision.
@@ -761,4 +810,4 @@ VITE_APP_VERSION=1.13.0
 
 ---
 
-*This guide is maintained for agentic coding agents working on the Fallout Shelter project. Last updated: 2025-01-13*
+*This guide is maintained for agentic coding agents working on the Fallout Shelter project. Last updated: 2026-01-21*

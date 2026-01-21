@@ -189,9 +189,26 @@ class RelationshipService:
         # Update relationship via CRUD
         relationship = await relationship_crud.update(db_session, relationship.id, update_data)
 
-        # Update both dwellers to have each other as partners
-        await dweller_crud.update(db_session, dweller_1_id, {"partner_id": dweller_2_id})
-        await dweller_crud.update(db_session, dweller_2_id, {"partner_id": dweller_1_id})
+        # Update both dwellers to have each other as partners in a single transaction
+        # Fetch both dwellers, update in memory, then commit once to ensure atomicity
+        try:
+            dweller_1 = await dweller_crud.get(db_session, dweller_1_id)
+            dweller_2 = await dweller_crud.get(db_session, dweller_2_id)
+
+            # Update partner_id in memory
+            dweller_1.partner_id = dweller_2_id
+            dweller_2.partner_id = dweller_1_id
+
+            # Add both to session and commit atomically
+            db_session.add(dweller_1)
+            db_session.add(dweller_2)
+            await db_session.commit()
+            await db_session.refresh(dweller_1)
+            await db_session.refresh(dweller_2)
+        except Exception as e:
+            await db_session.rollback()
+            msg = f"Failed to update partner IDs for dwellers: {e}"
+            raise ValueError(msg) from e
 
         logger.info(f"Partners made: {dweller_1_id} ↔ {dweller_2_id}")
         return relationship
@@ -215,12 +232,29 @@ class RelationshipService:
             msg = "Relationship not found"
             raise ValueError(msg) from None
 
-        # If partners, clear partner_id on both dwellers via CRUD
+        # If partners, clear partner_id on both dwellers atomically
         if relationship.relationship_type == RelationshipTypeEnum.PARTNER:
-            if relationship.dweller_1_id:
-                await dweller_crud.update(db_session, relationship.dweller_1_id, {"partner_id": None})
-            if relationship.dweller_2_id:
-                await dweller_crud.update(db_session, relationship.dweller_2_id, {"partner_id": None})
+            try:
+                dweller_1 = await dweller_crud.get(db_session, relationship.dweller_1_id)
+                dweller_2 = await dweller_crud.get(db_session, relationship.dweller_2_id)
+
+                # Clear partner_id in memory
+                dweller_1.partner_id = None
+                dweller_2.partner_id = None
+
+                # Add both to session and commit atomically
+                db_session.add(dweller_1)
+                db_session.add(dweller_2)
+                await db_session.commit()
+                await db_session.refresh(dweller_1)
+                await db_session.refresh(dweller_2)
+            except ResourceNotFoundException:
+                # One or both dwellers may have been deleted, continue with breakup
+                pass
+            except Exception as e:
+                await db_session.rollback()
+                msg = f"Failed to clear partner IDs for dwellers: {e}"
+                raise ValueError(msg) from e
 
         # Mark as ex via CRUD
         update_data = {
@@ -291,9 +325,22 @@ class RelationshipService:
             affinity=quick_pair_affinity,
         )
 
-        # Update both dwellers to have each other as partners
-        await dweller_crud.update(db_session, dweller_1.id, {"partner_id": dweller_2.id})
-        await dweller_crud.update(db_session, dweller_2.id, {"partner_id": dweller_1.id})
+        # Update both dwellers to have each other as partners atomically
+        try:
+            # dweller_1 and dweller_2 are already loaded, update in memory
+            dweller_1.partner_id = dweller_2.id
+            dweller_2.partner_id = dweller_1.id
+
+            # Add both to session and commit atomically
+            db_session.add(dweller_1)
+            db_session.add(dweller_2)
+            await db_session.commit()
+            await db_session.refresh(dweller_1)
+            await db_session.refresh(dweller_2)
+        except Exception as e:
+            await db_session.rollback()
+            msg = f"Failed to update partner IDs for dwellers: {e}"
+            raise ValueError(msg) from e
 
         # Simplified - just create the relationship and partners, skip complex room management
         logger.info(f"Quick paired: {dweller_1.id} and {dweller_2.id}")

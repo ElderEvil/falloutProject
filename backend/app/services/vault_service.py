@@ -146,7 +146,16 @@ class VaultService:
                     vault.population_max += created_room.capacity or 0
                 elif "storage" in created_room.name.lower() and created_room.capacity:
                     # Storage rooms increase Storage.max_space, not individual vault capacities
-                    await vault_crud._update_storage(vault.id, vault.storage_max_space + created_room.capacity)
+                    # Query current storage max_space to avoid lazy load issue
+                    from sqlmodel import select
+
+                    from app.models.storage import Storage
+
+                    storage_result = await db_session.execute(
+                        select(Storage.max_space).where(Storage.vault_id == vault.id)
+                    )
+                    current_max_space = storage_result.scalar_one_or_none() or 0
+                    await vault_crud.update_storage(db_session, vault.id, current_max_space + created_room.capacity)
 
         await db_session.commit()
         await db_session.refresh(vault)

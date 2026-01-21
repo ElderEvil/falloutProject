@@ -28,6 +28,33 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         msg = f"Invalid room action: {action}"
         raise ValueError(msg)
 
+    async def update_storage(self, db_session: AsyncSession, vault_id: UUID4, new_space_max: int) -> Storage:
+        """
+        Update the storage max space for a vault.
+
+        Args:
+            db_session: Database session
+            vault_id: Vault ID
+            new_space_max: New maximum storage space
+
+        Returns:
+            Updated storage object
+
+        Raises:
+            ResourceNotFoundException: If storage not found for vault
+        """
+        response = await db_session.execute(select(Storage).where(Storage.vault_id == vault_id))
+        storage_obj = response.scalar_one_or_none()
+
+        if not storage_obj:
+            raise ResourceNotFoundException(model=Storage, identifier=vault_id)
+
+        storage_obj.max_space = new_space_max
+        db_session.add(storage_obj)
+        await db_session.commit()
+        await db_session.refresh(storage_obj)
+        return storage_obj
+
     async def recalculate_vault_attributes(
         self, *, db_session: AsyncSession, vault_obj: Vault, room_obj: Room, action: RoomActionEnum
     ) -> Vault:
@@ -37,18 +64,6 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
         async def _update_vault(vault_update: VaultUpdate):
             await self.update(db_session=db_session, id=vault_obj.id, obj_in=vault_update)
-
-        async def _update_storage(vault_id: UUID4, new_space_max: int):
-            response = await db_session.execute(select(Storage).where(Storage.vault_id == vault_id))
-            storage_obj = response.scalar_one_or_none()
-
-            if not storage_obj:
-                raise ResourceNotFoundException(model=Storage, identifier=vault_id)
-
-            storage_obj.max_space = new_space_max
-            db_session.add(storage_obj)
-            await db_session.commit()
-            await db_session.refresh(storage_obj)
 
         # Calculate the new vault resource capacity for production rooms
         if room_obj.category == RoomTypeEnum.PRODUCTION and room_obj.capacity is not None:
@@ -87,7 +102,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
                         new_storage_space_max = self._calculate_new_capacity(
                             action, current_max_space, room_obj.capacity
                         )
-                        await _update_storage(vault_obj.id, new_storage_space_max)
+                        await self.update_storage(db_session, vault_obj.id, new_storage_space_max)
                 case _:
                     error_msg = f"Invalid room name: {room_obj.name}"
                     raise ValueError(error_msg)

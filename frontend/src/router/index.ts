@@ -7,17 +7,13 @@ import { vaultRoutes } from '@/modules/vault/routes';
 import { radioRoutes } from '@/modules/radio/routes';
 import { profileRoutes } from '@/modules/profile/routes';
 import { chatRoutes } from '@/modules/chat/routes';
+import { explorationRoutes } from '@/modules/exploration/routes';
+import { progressionRoutes } from '@/modules/progression/routes';
+import { socialRoutes } from '@/modules/social/routes';
 
-// Lazy load all other views for code splitting
+// Lazy load dweller views (will be moved to module in Phase 5)
 const DwellersView = () => import('@/views/DwellersView.vue');
 const DwellerDetailView = () => import('@/views/DwellerDetailView.vue');
-
-const ExplorationView = () => import('@/views/ExplorationView.vue');
-const ExplorationDetailView = () => import('@/views/ExplorationDetailView.vue');
-const ObjectivesView = () => import('@/views/ObjectivesView.vue');
-const QuestsView = () => import('@/views/QuestsView.vue');
-const RelationshipsView = () => import('@/views/RelationshipsView.vue');
-const TrainingView = () => import('@/views/TrainingView.vue');
 
 
 
@@ -26,6 +22,7 @@ const router = createRouter({
   routes: [
     // Vault module routes (includes home, vault, happiness)
     ...vaultRoutes,
+    // Dweller routes (will be moved to module in Phase 5)
     {
       path: '/vault/:id/dwellers',
       name: 'dwellers',
@@ -40,44 +37,14 @@ const router = createRouter({
     },
     // Chat module routes
     ...chatRoutes,
-    {
-      path: '/vault/:id/exploration',
-      name: 'exploration',
-      component: ExplorationView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
-    {
-      path: '/vault/:id/exploration/:explorationId',
-      name: 'explorationDetail',
-      component: ExplorationDetailView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
-    {
-      path: '/vault/:id/objectives',
-      name: 'objectives',
-      component: ObjectivesView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
-    {
-      path: '/vault/:id/quests',
-      name: 'quests',
-      component: QuestsView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
+    // Exploration module routes
+    ...explorationRoutes,
+    // Progression module routes (training, quests, objectives)
+    ...progressionRoutes,
     // Radio module routes
     ...radioRoutes,
-    {
-      path: '/vault/:id/relationships',
-      name: 'relationships',
-      component: RelationshipsView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
-    {
-      path: '/vault/:id/training',
-      name: 'training',
-      component: TrainingView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
+    // Social module routes (relationships)
+    ...socialRoutes,
     // Profile module routes
     ...profileRoutes,
     // Auth module routes

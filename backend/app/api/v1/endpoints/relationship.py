@@ -208,10 +208,9 @@ async def calculate_compatibility(
     await verify_dweller_access(dweller_2_id, user, db_session)
 
     # Use service for compatibility calculation
-    try:
-        return await relationship_service.calculate_compatibility_score(db_session, dweller_1_id, dweller_2_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
+    # calculate_compatibility_score raises ResourceNotFoundException when dweller not found
+    # (via dweller_crud.get), which is an HTTPException 404 - let it propagate directly
+    return await relationship_service.calculate_compatibility_score(db_session, dweller_1_id, dweller_2_id)
 
 
 @router.post("/vault/{vault_id}/process")

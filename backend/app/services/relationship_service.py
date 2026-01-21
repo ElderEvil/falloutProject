@@ -305,13 +305,12 @@ class RelationshipService:
         """
         Calculate compatibility score between two dwellers.
         """
-        # Get dwellers via CRUD
-        dweller_1 = await dweller_crud.get(db_session, dweller_1_id)
-        dweller_2 = await dweller_crud.get(db_session, dweller_2_id)
-
-        if not dweller_1 or not dweller_2:
+        try:
+            dweller_1 = await dweller_crud.get(db_session, dweller_1_id)
+            dweller_2 = await dweller_crud.get(db_session, dweller_2_id)
+        except ResourceNotFoundException:
             msg = "Dweller not found"
-            raise ValueError(msg)
+            raise ValueError(msg) from None
 
         # SPECIAL similarity score
         special_attrs = ["strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"]
@@ -348,6 +347,26 @@ class RelationshipService:
             level_score=level_score,
             proximity_score=proximity_score,
         )
+
+    @staticmethod
+    async def calculate_compatibility(
+        db_session: AsyncSession,
+        dweller_1: Dweller,
+        dweller_2: Dweller,
+    ) -> float:
+        """
+        Backward-compatible wrapper for calculate_compatibility_score.
+
+        Args:
+            db_session: Database session
+            dweller_1: First dweller object
+            dweller_2: Second dweller object
+
+        Returns:
+            Compatibility score as a float (0.0-1.0)
+        """
+        result = await RelationshipService.calculate_compatibility_score(db_session, dweller_1.id, dweller_2.id)
+        return result.score
 
 
 relationship_service = RelationshipService()

@@ -67,7 +67,7 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         self,
         db: AsyncSession,
         relationship_type: str,
-        vault_id: UUID4 | None = None,  # noqa: ARG002
+        vault_id: UUID4 | None = None,
     ) -> list[Relationship]:
         """
         Get relationships by type, optionally filtered by vault.
@@ -80,7 +80,12 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         Returns:
             List of matching relationships
         """
+        from app.models.dweller import Dweller
+
         query = select(Relationship).where(Relationship.relationship_type == relationship_type)
+
+        if vault_id is not None:
+            query = query.join(Dweller, Relationship.dweller_1_id == Dweller.id).where(Dweller.vault_id == vault_id)
 
         result = await db.execute(query)
         return list(result.scalars().all())

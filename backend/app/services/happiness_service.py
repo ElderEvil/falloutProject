@@ -11,14 +11,15 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 # === Local Imports ===
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
-from app.crud import incident as incident_crud
 from app.crud import room as room_crud
+from app.crud.incident import incident_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.incident import Incident
 from app.models.room import Room
 from app.models.vault import Vault
 from app.services.radio_service import RadioService
+from app.utils.exceptions import ResourceNotFoundException
 
 # === TYPE_CHECKING Imports ===
 if TYPE_CHECKING:
@@ -47,9 +48,9 @@ class HappinessService:
         Returns:
             Dictionary with update statistics
         """
-        # Get vault via CRUD
-        vault = await vault_crud.get(db_session, vault_id)
-        if not vault:
+        try:
+            vault = await vault_crud.get(db_session, vault_id)
+        except ResourceNotFoundException:
             return {"error": "Vault not found"}
 
         # Get all dwellers via CRUD
@@ -305,13 +306,12 @@ class HappinessService:
         if not dweller:
             return {"error": "Dweller not found"}
 
-        # Get vault via CRUD
-        vault = await vault_crud.get(db_session, dweller.vault_id)
-        if not vault:
+        try:
+            vault = await vault_crud.get(db_session, dweller.vault_id)
+        except ResourceNotFoundException:
             return {"error": "Vault not found"}
 
-        # Get active incidents via CRUD
-        active_incidents = await incident_crud.CRUDBatch.get_active_by_vault(db_session, dweller.vault_id)
+        active_incidents = await incident_crud.get_active_by_vault(db_session, dweller.vault_id)
 
         # Get radio rooms
         radio_rooms = await RadioService.get_radio_rooms(db_session, dweller.vault_id)

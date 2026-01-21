@@ -748,4 +748,17 @@ VITE_APP_VERSION=1.13.0
 
 ---
 
+## Git
+
+- When creating branches, prefix them with feat/ fix/ chore/ etc.
+
+---
+
+## Plans
+
+- Make the plan extremely concise. Sacrifice grammar for the sake of concision.
+- At the end of each plan give me a list of unresolved questions to answer, if any.
+
+---
+
 *This guide is maintained for agentic coding agents working on the Fallout Shelter project. Last updated: 2025-01-13*

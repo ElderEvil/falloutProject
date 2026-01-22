@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import ResourceBar from '@/components/common/ResourceBar.vue'
+import ResourceBar from '@/core/components/common/ResourceBar.vue'
 
 // Mock @iconify/vue
 vi.mock('@iconify/vue', () => ({

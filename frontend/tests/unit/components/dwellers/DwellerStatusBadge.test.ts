@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
-import DwellerStatusBadge from '@/components/dwellers/DwellerStatusBadge.vue'
+import DwellerStatusBadge from '@/modules/dwellers/components/stats/DwellerStatusBadge.vue'
 
 describe('DwellerStatusBadge', () => {
   describe('Status Display', () => {

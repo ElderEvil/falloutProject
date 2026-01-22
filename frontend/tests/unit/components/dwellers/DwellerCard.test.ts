@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
-import DwellerCard from '@/components/dwellers/DwellerCard.vue'
+import DwellerCard from '@/modules/dwellers/components/cards/DwellerCard.vue'
 
 describe('DwellerCard', () => {
   const mockDweller = {

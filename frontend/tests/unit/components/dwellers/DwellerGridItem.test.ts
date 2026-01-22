@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
-import DwellerGridItem from '@/components/dwellers/DwellerGridItem.vue'
+import DwellerGridItem from '@/modules/dwellers/components/grid/DwellerGridItem.vue'
 
 describe('DwellerGridItem', () => {
   beforeEach(() => {

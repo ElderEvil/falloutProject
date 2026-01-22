@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import ProfileEditor from '@/components/profile/ProfileEditor.vue'
+import ProfileEditor from '@/modules/profile/components/ProfileEditor.vue'
 import type { ProfileUpdate } from '@/models/profile'
 
 describe('ProfileEditor', () => {

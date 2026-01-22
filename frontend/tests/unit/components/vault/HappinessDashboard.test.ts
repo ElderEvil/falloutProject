@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mount } from '@vue/test-utils';
-import HappinessDashboard from '@/components/vault/HappinessDashboard.vue';
+import HappinessDashboard from '@/modules/vault/components/HappinessDashboard.vue';
 
 describe('HappinessDashboard', () => {
   const defaultProps = {

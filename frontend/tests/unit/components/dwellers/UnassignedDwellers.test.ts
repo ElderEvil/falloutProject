@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import { setActivePinia, createPinia } from 'pinia';
-import UnassignedDwellers from '@/components/dwellers/UnassignedDwellers.vue';
+import UnassignedDwellers from '@/modules/dwellers/components/UnassignedDwellers.vue';
 import { useDwellerStore } from '@/stores/dweller';
 import { useExplorationStore } from '@/stores/exploration';
 import { useAuthStore } from '@/stores/auth';
@@ -16,11 +16,11 @@ vi.mock('@iconify/vue', () => ({
 }));
 
 // Mock components
-vi.mock('@/components/dwellers/DwellerStatusBadge.vue', () => ({
+vi.mock('@/modules/dwellers/components/stats/DwellerStatusBadge.vue', () => ({
   default: { template: '<div class="status-badge-mock"></div>', props: ['status', 'size'] }
 }));
 
-vi.mock('@/components/dwellers/DwellerFilterPanel.vue', () => ({
+vi.mock('@/modules/dwellers/components/DwellerFilterPanel.vue', () => ({
   default: { template: '<div class="filter-panel-mock"></div>', props: ['showStatusFilter'] }
 }));
 

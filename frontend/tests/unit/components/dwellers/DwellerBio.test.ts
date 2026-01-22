@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
-import DwellerBio from '@/components/dwellers/DwellerBio.vue'
+import DwellerBio from '@/modules/dwellers/components/DwellerBio.vue'
 
 describe('DwellerBio', () => {
   describe('Generate Bio Button', () => {

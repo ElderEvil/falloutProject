@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { UButton } from '@/core/components/ui'
+import { Icon } from '@iconify/vue'
 import DwellerChat from './DwellerChat.vue'
 import type { Dweller } from '@/models/dweller'
 
 const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
 const vaultStore = useVaultStore()
@@ -41,6 +44,10 @@ onMounted(async () => {
 <template>
   <div class="dweller-chat-page">
     <div class="chat-header">
+      <UButton v-if="dweller?.vault?.id" variant="ghost" size="sm" class="mr-4" @click="router.push(`/vault/${dweller.vault.id}/dwellers/${dwellerId}`)">
+        <Icon icon="mdi:arrow-left" class="h-5 w-5 mr-1" />
+        Back to Dweller
+      </UButton>
       <div v-if="dweller" class="dweller-info">
         <img
           :src="`http://${dweller.thumbnail_url}`"

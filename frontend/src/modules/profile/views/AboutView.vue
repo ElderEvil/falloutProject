@@ -4,8 +4,12 @@
  * @component
  */
 import { ref, onMounted } from 'vue'
-import { UCard, USkeleton } from '@/core/components/ui'
+import { useRouter } from 'vue-router'
+import { UCard, USkeleton, UButton } from '@/core/components/ui'
+import { Icon } from '@iconify/vue'
 import apiClient from '@/core/plugins/axios'
+
+const router = useRouter()
 
 interface InfoData {
   app_version: string
@@ -16,7 +20,7 @@ interface InfoData {
 }
 
 // Frontend version from package.json (injected at build time via vite define)
-const frontendVersion = ref('1.13.7')
+const frontendVersion = ref('1.14.2')
 const backendInfo = ref<InfoData | null>(null)
 const isLoading = ref(true)
 const error = ref<string | null>(null)
@@ -35,7 +39,13 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center p-4">
+  <div class="flex min-h-screen flex-col items-center justify-center p-4">
+    <div class="w-full max-w-2xl">
+      <UButton variant="ghost" size="sm" class="mb-4" @click="router.push('/')">
+        <Icon icon="mdi:arrow-left" class="h-5 w-5 mr-1" />
+        Back to Home
+      </UButton>
+    </div>
     <UCard title="System Information" glow crt class="w-full max-w-2xl">
       <div v-if="isLoading" class="space-y-4">
         <USkeleton class="h-6 w-full" />

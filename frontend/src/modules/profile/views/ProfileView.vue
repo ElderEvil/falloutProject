@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { Icon } from '@iconify/vue';
 import { useProfileStore } from '../stores/profile';
 import { useAuthStore } from '@/modules/auth/stores/auth';
+import { UButton } from '@/core/components/ui';
 import ProfileEditor from '../components/ProfileEditor.vue';
 import ProfileStats from '../components/ProfileStats.vue';
 import type { ProfileUpdate } from '../models/profile';
 
+const router = useRouter();
 const profileStore = useProfileStore();
 const authStore = useAuthStore();
 const isEditing = ref(false);
@@ -61,6 +64,12 @@ const formatDate = (dateString: string) => {
 <template>
   <div class="min-h-screen bg-gray-900 py-8 px-4">
     <div class="max-w-7xl mx-auto">
+      <!-- Back Button -->
+      <UButton variant="ghost" size="sm" class="mb-4" @click="router.push('/')">
+        <Icon icon="mdi:arrow-left" class="h-5 w-5 mr-1" />
+        Back to Vault
+      </UButton>
+
       <!-- Header -->
       <div class="mb-8">
         <h1 class="text-4xl font-bold" :style="{ color: 'var(--color-theme-primary)' }">Overseer Profile</h1>

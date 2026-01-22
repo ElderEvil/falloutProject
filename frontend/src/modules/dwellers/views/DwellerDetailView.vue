@@ -235,9 +235,15 @@ const handleUseRadaway = async () => {
                 :dweller="dweller"
                 :image-url="dweller.image_url"
                 :loading="generatingAI || usingStimpack || usingRadaway || assigning"
+                :generating-bio="generatingBio"
+                :generating-portrait="generatingPortrait"
+                :is-any-generating="isAnyGenerating"
                 @chat="navigateToChatPage"
                 @assign="handleAssign"
                 @recall="handleRecall"
+                @generate-ai="generateDwellerInfo"
+                @generate-bio="generateDwellerBio"
+                @generate-portrait="generateDwellerPortrait"
                 @use-stimpack="handleUseStimpack"
                 @use-radaway="handleUseRadaway"
               />
@@ -247,13 +253,10 @@ const handleUseRadaway = async () => {
                 :dweller="dweller"
                 :generating-bio="generatingBio"
                 :generating-appearance="generatingAppearance"
-                :generating-portrait="generatingPortrait"
                 :is-any-generating="isAnyGenerating"
                 @refresh="handleRefresh"
                 @generate-bio="generateDwellerBio"
                 @generate-appearance="generateDwellerAppearance"
-                @generate-portrait="generateDwellerPortrait"
-                @generate-all="generateDwellerInfo"
               />
             </div>
           </div>

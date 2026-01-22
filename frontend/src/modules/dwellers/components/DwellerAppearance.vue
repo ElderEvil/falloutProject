@@ -7,7 +7,6 @@ import type { VisualAttributes } from '../models/dweller';
 interface Props {
   visualAttributes?: VisualAttributes | null;
   generatingAppearance?: boolean;
-  generatingPortrait?: boolean;
   isAnyGenerating?: boolean;
 }
 
@@ -15,7 +14,6 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   (e: 'generate-appearance'): void;
-  (e: 'generate-portrait'): void;
 }>();
 
 // Helper to capitalize first letter
@@ -57,37 +55,20 @@ const hasAttributes = computed(() => formattedAttributes.value.length > 0);
   <div class="appearance-container">
     <div class="appearance-header">
       <h3 class="appearance-title">Appearance</h3>
-      <div class="header-buttons">
-        <UTooltip text="Generate visual attributes with AI" position="top">
-          <button
-            @click="emit('generate-appearance')"
-            class="generate-button"
-            :disabled="props.isAnyGenerating"
-          >
-            <Icon
-              :icon="generatingAppearance ? 'mdi:loading' : 'mdi:auto-fix'"
-              class="h-5 w-5"
-              :class="{ 'animate-spin': generatingAppearance }"
-            />
-            <span>{{ hasAttributes ? 'Regen' : 'Attributes' }}</span>
-          </button>
-        </UTooltip>
-
-        <UTooltip text="Generate AI portrait image" position="top">
-          <button
-            @click="emit('generate-portrait')"
-            class="generate-button"
-            :disabled="props.isAnyGenerating"
-          >
-            <Icon
-              :icon="generatingPortrait ? 'mdi:loading' : 'mdi:camera'"
-              class="h-5 w-5"
-              :class="{ 'animate-spin': generatingPortrait }"
-            />
-            <span>Portrait</span>
-          </button>
-        </UTooltip>
-      </div>
+      <UTooltip text="Generate appearance with AI" position="top">
+        <button
+          @click="emit('generate-appearance')"
+          class="generate-appearance-button"
+          :disabled="props.isAnyGenerating"
+        >
+          <Icon
+            :icon="generatingAppearance ? 'mdi:loading' : 'mdi:auto-fix'"
+            class="h-5 w-5"
+            :class="{ 'animate-spin': generatingAppearance }"
+          />
+          <span>{{ hasAttributes ? 'Regenerate' : 'Generate' }}</span>
+        </button>
+      </UTooltip>
     </div>
 
     <div v-if="hasAttributes" class="appearance-content">
@@ -116,8 +97,6 @@ const hasAttributes = computed(() => formattedAttributes.value.length > 0);
   border-bottom: 2px solid var(--color-theme-glow);
   padding-bottom: 0.5rem;
   margin-bottom: 1rem;
-  flex-wrap: wrap;
-  gap: 0.5rem;
 }
 
 .appearance-title {
@@ -127,17 +106,11 @@ const hasAttributes = computed(() => formattedAttributes.value.length > 0);
   text-shadow: 0 0 8px var(--color-theme-glow);
 }
 
-.header-buttons {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.generate-button {
+.generate-appearance-button {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 1rem;
   background: rgba(31, 41, 55, 0.8);
   border: 1px solid var(--color-theme-glow);
   border-radius: 4px;
@@ -149,17 +122,16 @@ const hasAttributes = computed(() => formattedAttributes.value.length > 0);
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
-.generate-button:hover:not(:disabled) {
+.generate-appearance-button:hover:not(:disabled) {
   animation: none;
   border-color: var(--color-theme-primary);
   box-shadow: 0 0 15px var(--color-theme-primary);
   background: rgba(31, 41, 55, 1);
 }
 
-.generate-button:disabled {
+.generate-appearance-button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
-  animation: none;
 }
 
 @keyframes pulse-glow {

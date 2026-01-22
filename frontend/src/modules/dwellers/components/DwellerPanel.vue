@@ -11,7 +11,6 @@ interface Props {
   dweller: Dweller
   generatingBio?: boolean
   generatingAppearance?: boolean
-  generatingPortrait?: boolean
   isAnyGenerating?: boolean
 }
 
@@ -20,8 +19,6 @@ const emit = defineEmits<{
   refresh: []
   'generate-bio': []
   'generate-appearance': []
-  'generate-portrait': []
-  'generate-all': []
 }>()
 
 const activeTab = ref('profile')
@@ -46,16 +43,13 @@ const tabs = [
             :generating-bio="generatingBio"
             :is-any-generating="props.isAnyGenerating"
             @generate-bio="emit('generate-bio')"
-            @generate-all="emit('generate-all')"
           />
           <DwellerAppearance
             v-else-if="currentTab === 'appearance'"
             :visual-attributes="dweller.visual_attributes"
             :generating-appearance="generatingAppearance"
-            :generating-portrait="generatingPortrait"
             :is-any-generating="props.isAnyGenerating"
             @generate-appearance="emit('generate-appearance')"
-            @generate-portrait="emit('generate-portrait')"
           />
           <DwellerStats
             v-else-if="currentTab === 'stats'"

@@ -188,7 +188,7 @@ class DeathService:
             return None
 
         permanent_date = dweller.death_timestamp + timedelta(days=game_config.death.permanent_death_days)
-        now = datetime.now(UTC)
+        now = datetime.utcnow()
 
         if now >= permanent_date:
             return 0

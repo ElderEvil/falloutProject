@@ -20,6 +20,7 @@ const equipmentStore = useEquipmentStore()
 const authStore = useAuthStore()
 
 const showInventoryModal = ref(false)
+const inventoryMode = ref<'weapon' | 'outfit'>('weapon')
 
 // Get equipped items from the dweller object
 const equippedWeapon = computed(() => props.dweller?.weapon ?? null)
@@ -62,9 +63,18 @@ const handleEquipOutfit = async (outfitId: string) => {
   emit('refresh')
 }
 
-const openInventory = () => {
+const openWeaponInventory = () => {
+  inventoryMode.value = 'weapon'
   showInventoryModal.value = true
 }
+
+const openOutfitInventory = () => {
+  inventoryMode.value = 'outfit'
+  showInventoryModal.value = true
+}
+
+const modalTitle = computed(() => inventoryMode.value === 'weapon' ? 'Select Weapon' : 'Select Outfit')
+const modalIcon = computed(() => inventoryMode.value === 'weapon' ? 'mdi:pistol' : 'mdi:tshirt-crew')
 </script>
 
 <template>
@@ -87,7 +97,7 @@ const openInventory = () => {
           @unequip="handleUnequipWeapon"
         />
 
-        <div v-else class="empty-slot" @click="openInventory">
+        <div v-else class="empty-slot" @click="openWeaponInventory">
           <Icon icon="mdi:plus-circle" class="empty-icon" />
           <p class="empty-text">Click to equip weapon</p>
         </div>
@@ -108,7 +118,7 @@ const openInventory = () => {
           @unequip="handleUnequipOutfit"
         />
 
-        <div v-else class="empty-slot" @click="openInventory">
+        <div v-else class="empty-slot" @click="openOutfitInventory">
           <Icon icon="mdi:plus-circle" class="empty-icon" />
           <p class="empty-text">Click to equip outfit</p>
         </div>
@@ -121,8 +131,8 @@ const openInventory = () => {
         <div class="modal-content" @click.stop>
           <div class="modal-header">
             <h3 class="modal-title">
-              <Icon icon="mdi:bag-personal" />
-              Inventory
+              <Icon :icon="modalIcon" />
+              {{ modalTitle }}
             </h3>
             <button @click="showInventoryModal = false" class="close-btn">
               <Icon icon="mdi:close" />
@@ -130,13 +140,8 @@ const openInventory = () => {
           </div>
 
           <div class="modal-body">
-            <!-- Weapons Section -->
-            <div class="inventory-section">
-              <div class="section-header">
-                <Icon icon="mdi:pistol" class="section-icon" />
-                <h4 class="section-title">Weapons</h4>
-                <span class="section-count">({{ availableWeapons.length }})</span>
-              </div>
+            <!-- Weapons Section (only when mode is weapon) -->
+            <div v-if="inventoryMode === 'weapon'" class="inventory-section">
               <div class="items-list">
                 <WeaponCard
                   v-for="weapon in availableWeapons"
@@ -152,13 +157,8 @@ const openInventory = () => {
               </div>
             </div>
 
-            <!-- Outfits Section -->
-            <div class="inventory-section">
-              <div class="section-header">
-                <Icon icon="mdi:tshirt-crew" class="section-icon" />
-                <h4 class="section-title">Outfits</h4>
-                <span class="section-count">({{ availableOutfits.length }})</span>
-              </div>
+            <!-- Outfits Section (only when mode is outfit) -->
+            <div v-if="inventoryMode === 'outfit'" class="inventory-section">
               <div class="items-list">
                 <OutfitCard
                   v-for="outfit in availableOutfits"
@@ -243,8 +243,8 @@ const openInventory = () => {
 
 .empty-slot:hover {
   border-color: var(--color-theme-primary);
-  opacity: 0.6;
-  background: rgba(0, 50, 0, 0.3);
+  opacity: 0.8;
+  background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.1);
   transform: translateY(-2px);
 }
 
@@ -321,7 +321,7 @@ const openInventory = () => {
 }
 
 .close-btn:hover {
-  background: rgba(0, 128, 0, 0.3);
+  background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.15);
   border-color: var(--color-theme-primary);
 }
 

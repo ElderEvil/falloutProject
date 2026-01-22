@@ -13,6 +13,7 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'generate-bio'): void
+  (e: 'generate-all'): void
 }>()
 </script>
 
@@ -20,20 +21,37 @@ const emit = defineEmits<{
   <div class="dweller-bio">
     <div class="bio-header">
       <h3 class="bio-title">Biography</h3>
-      <UTooltip text="Generate biography with AI" position="top">
-        <button
-          @click="emit('generate-bio')"
-          class="generate-bio-button"
-          :disabled="props.isAnyGenerating"
-        >
-          <Icon
-            :icon="generatingBio ? 'mdi:loading' : 'mdi:pencil-plus'"
-            class="h-5 w-5"
-            :class="{ 'animate-spin': generatingBio }"
-          />
-          <span>{{ bio ? 'Regenerate' : 'Generate' }}</span>
-        </button>
-      </UTooltip>
+      <div class="header-buttons">
+        <UTooltip text="Generate biography with AI" position="top">
+          <button
+            @click="emit('generate-bio')"
+            class="generate-button"
+            :disabled="props.isAnyGenerating"
+          >
+            <Icon
+              :icon="generatingBio ? 'mdi:loading' : 'mdi:pencil-plus'"
+              class="h-5 w-5"
+              :class="{ 'animate-spin': generatingBio }"
+            />
+            <span>{{ bio ? 'Regen' : 'Bio' }}</span>
+          </button>
+        </UTooltip>
+
+        <UTooltip text="Generate portrait & biography together" position="top">
+          <button
+            @click="emit('generate-all')"
+            class="generate-button combo-button"
+            :disabled="props.isAnyGenerating"
+          >
+            <Icon
+              :icon="generatingBio ? 'mdi:loading' : 'mdi:sparkles'"
+              class="h-5 w-5"
+              :class="{ 'animate-spin': generatingBio }"
+            />
+            <span>All</span>
+          </button>
+        </UTooltip>
+      </div>
     </div>
     <div class="bio-content">
       <template v-if="bio">
@@ -66,6 +84,8 @@ const emit = defineEmits<{
   align-items: center;
   border-bottom: 2px solid var(--color-theme-glow);
   padding-bottom: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .bio-title {
@@ -75,11 +95,17 @@ const emit = defineEmits<{
   text-shadow: 0 0 8px var(--color-theme-glow);
 }
 
-.generate-bio-button {
+.header-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.generate-button {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 0.75rem;
   background: rgba(31, 41, 55, 0.8);
   border: 1px solid var(--color-theme-glow);
   border-radius: 4px;
@@ -91,16 +117,29 @@ const emit = defineEmits<{
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
-.generate-bio-button:hover:not(:disabled) {
+.generate-button.combo-button {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: #a78bfa;
+  color: #a78bfa;
+}
+
+.generate-button:hover:not(:disabled) {
   animation: none;
   border-color: var(--color-theme-primary);
   box-shadow: 0 0 15px var(--color-theme-primary);
   background: rgba(31, 41, 55, 1);
 }
 
-.generate-bio-button:disabled {
+.generate-button.combo-button:hover:not(:disabled) {
+  border-color: #a78bfa;
+  box-shadow: 0 0 15px #a78bfa;
+  background: rgba(139, 92, 246, 0.25);
+}
+
+.generate-button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+  animation: none;
 }
 
 @keyframes pulse-glow {

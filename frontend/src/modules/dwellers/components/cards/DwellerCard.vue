@@ -13,9 +13,6 @@ interface Props {
   dweller: DwellerDetailRead;
   imageUrl?: string | null;
   loading?: boolean;
-  generatingBio?: boolean;
-  generatingPortrait?: boolean;
-  isAnyGenerating?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -24,9 +21,6 @@ const emit = defineEmits<{
   (e: 'chat'): void
   (e: 'assign'): void
   (e: 'recall'): void
-  (e: 'generate-ai'): void
-  (e: 'generate-bio'): void
-  (e: 'generate-portrait'): void
   (e: 'train'): void
   (e: 'assign-pet'): void
   (e: 'use-stimpack'): void
@@ -130,39 +124,8 @@ const rarityLabel = computed(() => {
       <template v-else>
         <div class="portrait-placeholder">
           <Icon icon="mdi:account-circle" class="h-48 w-48" style="color: var(--color-theme-primary); opacity: 0.3;" />
+          <p class="placeholder-hint">Generate portrait in Appearance tab</p>
         </div>
-
-        <!-- Generate Portrait Button -->
-        <UTooltip text="Generate AI portrait" position="right">
-          <button
-            @click="emit('generate-portrait')"
-            class="ai-generate-button portrait-button"
-            :disabled="props.isAnyGenerating || loading"
-          >
-            <Icon
-              :icon="generatingPortrait ? 'mdi:loading' : 'mdi:camera'"
-              class="h-6 w-6"
-              style="color: var(--color-theme-primary);"
-              :class="{ 'animate-spin': generatingPortrait }"
-            />
-          </button>
-        </UTooltip>
-
-        <!-- Generate Full AI Button (both portrait and bio) -->
-        <UTooltip text="Generate portrait & biography" position="right">
-          <button
-            @click="emit('generate-ai')"
-            class="ai-generate-button full-generate-button"
-            :disabled="props.isAnyGenerating || loading"
-          >
-            <Icon
-              :icon="loading ? 'mdi:loading' : 'mdi:sparkles'"
-              class="h-6 w-6"
-              style="color: var(--color-theme-primary);"
-              :class="{ 'animate-spin': loading }"
-            />
-          </button>
-        </UTooltip>
       </template>
     </div>
 
@@ -392,54 +355,20 @@ const rarityLabel = computed(() => {
   width: 100%;
   aspect-ratio: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 1rem;
   background: rgba(0, 0, 0, 0.5);
   border: 2px dashed var(--color-theme-glow);
   border-radius: 8px;
 }
 
-.ai-generate-button {
-  position: absolute;
-  background: rgba(31, 41, 55, 0.95);
-  border: 2px solid var(--color-theme-glow);
-  border-radius: 50%;
-  padding: 0.75rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  animation: pulse-glow 2s ease-in-out infinite;
-  z-index: 10;
-}
-
-.portrait-button {
-  bottom: 1rem;
-  right: 1rem;
-}
-
-.full-generate-button {
-  top: 1rem;
-  right: 1rem;
-  padding: 1rem;
-}
-
-.ai-generate-button:hover:not(:disabled) {
-  animation: none;
-  box-shadow: 0 0 30px var(--color-theme-primary);
-  background: rgba(31, 41, 55, 1);
-}
-
-.ai-generate-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-@keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 0 0 10px var(--color-theme-glow);
-  }
-  50% {
-    box-shadow: 0 0 25px var(--color-theme-primary);
-  }
+.placeholder-hint {
+  font-size: 0.875rem;
+  color: var(--color-theme-primary);
+  opacity: 0.5;
+  text-align: center;
 }
 
 /* Info Badges */

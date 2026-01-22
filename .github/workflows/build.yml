@@ -3,6 +3,8 @@ name: Build Docker Images
 on:
   push:
     branches: [ master ]
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       build_backend:
@@ -20,7 +22,7 @@ jobs:
   build-backend:
     name: Build Backend Image
     runs-on: ubuntu-latest
-    if: ${{ (github.event_name == 'push' && (contains(github.event.head_commit.modified, 'backend/') || contains(github.event.head_commit.added, 'backend/'))) || (github.event_name == 'workflow_dispatch' && inputs.build_backend) }}
+    if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.build_backend) || (github.event_name == 'push' && (contains(github.event.head_commit.modified, 'backend/') || contains(github.event.head_commit.added, 'backend/'))) }}
 
     steps:
       - name: Checkout code
@@ -76,7 +78,7 @@ jobs:
   build-frontend:
     name: Build Frontend Image
     runs-on: ubuntu-latest
-    if: ${{ (github.event_name == 'push' && (contains(github.event.head_commit.modified, 'frontend/') || contains(github.event.head_commit.added, 'frontend/'))) || (github.event_name == 'workflow_dispatch' && inputs.build_frontend) }}
+    if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.build_frontend) || (github.event_name == 'push' && (contains(github.event.head_commit.modified, 'frontend/') || contains(github.event.head_commit.added, 'frontend/'))) }}
 
     steps:
       - name: Checkout code

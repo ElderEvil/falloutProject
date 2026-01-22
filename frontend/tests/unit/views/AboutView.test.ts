@@ -27,7 +27,19 @@ vi.mock('@/core/components/ui', () => ({
   USkeleton: {
     name: 'USkeleton',
     template: '<div class="skeleton"></div>'
+  },
+  UButton: {
+    name: 'UButton',
+    props: ['variant', 'size'],
+    template: '<button class="u-button"><slot /></button>'
   }
+}))
+
+// Mock vue-router
+vi.mock('vue-router', () => ({
+  useRouter: () => ({
+    push: vi.fn()
+  })
 }))
 
 describe('AboutView', () => {

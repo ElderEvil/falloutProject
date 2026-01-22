@@ -1,3 +1,22 @@
+## [1.14.1] - 2026-01-22
+
+### Fixed
+
+#### TypeScript Build & Module Polish (PR #152)
+- **Build Strict**: Resolved all `build:strict` TypeScript errors across modular architecture
+- **Config Fixes**: Fixed vite.config.ts and vitest.config.ts plugin array type issues
+- **Type Safety**: Fixed useTheme.ts parseInt non-null assertions for regex results
+- **Import Paths**: Updated auth types, ProfileEditor, RadioStatsPanel, happinessService imports
+- **Component Fixes**: Fixed DwellerChat.vue undefined array access, exploration component return types
+- **Backward Compat**: Added Dweller type re-export from stores for compatibility
+- **Cleanup**: Deleted orphaned view files replaced by module views, updated router paths
+
+### Changed
+- Updated relative imports to `@/` alias throughout codebase (OutfitCard, WeaponCard, RadioStatsPanel, EmptyCell)
+- All 651 frontend tests passing
+
+---
+
 ## [1.14.0] - 2026-01-22
 
 ### Added

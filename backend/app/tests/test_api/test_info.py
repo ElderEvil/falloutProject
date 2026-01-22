@@ -1,4 +1,4 @@
-"""Tests for application info endpoint."""
+"""Tests for system info endpoint."""
 
 import pytest
 from httpx import AsyncClient
@@ -6,11 +6,11 @@ from httpx import AsyncClient
 
 @pytest.mark.asyncio
 class TestInfoEndpoint:
-    """Test application info endpoint."""
+    """Test system info endpoint."""
 
     async def test_get_info_success(self, async_client: AsyncClient) -> None:
         """Test successful info retrieval."""
-        response = await async_client.get("/info")
+        response = await async_client.get("/system/info")
 
         assert response.status_code == 200
         data = response.json()
@@ -30,12 +30,12 @@ class TestInfoEndpoint:
     async def test_get_info_no_auth_required(self, async_client: AsyncClient) -> None:
         """Test info endpoint is public (no auth required)."""
         # Request without Authorization header should succeed
-        response = await async_client.get("/info")
+        response = await async_client.get("/system/info")
         assert response.status_code == 200
 
     async def test_get_info_returns_valid_python_version(self, async_client: AsyncClient) -> None:
         """Test that Python version has valid format."""
-        response = await async_client.get("/info")
+        response = await async_client.get("/system/info")
         data = response.json()
 
         # Python version should be in format X.Y.Z
@@ -46,7 +46,7 @@ class TestInfoEndpoint:
 
     async def test_get_info_returns_valid_build_date(self, async_client: AsyncClient) -> None:
         """Test that build_date is a valid ISO format timestamp."""
-        response = await async_client.get("/info")
+        response = await async_client.get("/system/info")
         data = response.json()
 
         # Build date should be ISO format with timezone

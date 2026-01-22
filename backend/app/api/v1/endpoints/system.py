@@ -1,8 +1,8 @@
 """
-Application info endpoint.
+System endpoints for application metadata and status.
 
-Public endpoint (no authentication required) that provides version
-and environment information for monitoring and UI display.
+Public endpoints (no authentication required) that provide version,
+environment information, and health status for monitoring and UI display.
 """
 
 import logging

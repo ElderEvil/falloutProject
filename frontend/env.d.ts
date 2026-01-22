@@ -1,4 +1,8 @@
 /// <reference types="vite/client" />
+
+// Global constants injected by Vite define
+declare const __APP_VERSION__: string
+
 interface ImportMetaEnv {
   VITE_API_BASE_URL: string
   // Add other environment variables as needed

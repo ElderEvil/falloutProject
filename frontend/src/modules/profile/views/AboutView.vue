@@ -7,27 +7,20 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { UCard, USkeleton, UButton } from '@/core/components/ui'
 import { Icon } from '@iconify/vue'
-import apiClient from '@/core/plugins/axios'
+import { systemService } from '../services/systemService'
+import type { InfoResponse } from '../types/system'
 
 const router = useRouter()
 
-interface InfoData {
-  app_version: string
-  api_version: string
-  environment: string
-  python_version: string
-  build_date: string
-}
-
-// Frontend version from package.json (injected at build time via vite define)
-const frontendVersion = ref('1.14.2')
-const backendInfo = ref<InfoData | null>(null)
+// Frontend version from package.json
+const frontendVersion = __APP_VERSION__
+const backendInfo = ref<InfoResponse | null>(null)
 const isLoading = ref(true)
 const error = ref<string | null>(null)
 
 onMounted(async () => {
   try {
-    const response = await apiClient.get<InfoData>('/api/v1/info')
+    const response = await systemService.getInfo()
     backendInfo.value = response.data
   } catch (err) {
     error.value = 'Failed to load backend info'

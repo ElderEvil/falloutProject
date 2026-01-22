@@ -11,8 +11,10 @@ from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_redis_client
 from app.core import security
 from app.core.config import settings
 from app.core.email import send_verification_email
+from app.crud.user_profile import profile_crud
 from app.db.session import get_async_session
 from app.schemas.user import UserCreate, UserRead, UserUpdate, UserWithTokens
+from app.schemas.user_profile import ProfileRead, ProfileUpdate
 
 router = APIRouter()
 
@@ -177,3 +179,37 @@ async def update_user(
             detail="The user with this ID does not exist in the system",
         )
     return await crud.user.update(db_session, id=user_in_db.id, obj_in=user_in)
+
+
+# =============================================================================
+# Profile Endpoints (migrated from profile.py)
+# =============================================================================
+
+
+@router.get("/me/profile", response_model=ProfileRead)
+async def get_my_profile(
+    *,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    user: CurrentActiveUser,
+):
+    """Get current user's profile."""
+    profile = await profile_crud.get_by_user_id(db_session, user.id)
+    if not profile:
+        # Auto-create profile if it doesn't exist
+        profile = await profile_crud.create_for_user(db_session, user.id)
+    return profile
+
+
+@router.put("/me/profile", response_model=ProfileRead)
+async def update_my_profile(
+    *,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    profile_data: ProfileUpdate,
+    user: CurrentActiveUser,
+):
+    """Update current user's profile."""
+    profile = await profile_crud.get_by_user_id(db_session, user.id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    return await profile_crud.update(db_session, id=profile.id, obj_in=profile_data)

@@ -6,18 +6,16 @@ from app.api.v1.endpoints import (
     dweller,
     exploration,
     game_control,
-    info,
     junk,
     notifications,
     objective,
     outfit,
     pregnancy,
-    profile,
     quest,
     radio,
     relationship,
     room,
-    settings,
+    system,
     training,
     user,
     vault,
@@ -26,7 +24,7 @@ from app.api.v1.endpoints import (
 )
 
 api_router = APIRouter()
-api_router.include_router(info.router, tags=["Info"])
+api_router.include_router(system.router, prefix="/system", tags=["System"])
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(chat.router, prefix="/chat", tags=["Chat"])
 api_router.include_router(dweller.router, prefix="/dwellers", tags=["Dweller"])
@@ -37,12 +35,10 @@ api_router.include_router(notifications.router, prefix="/notifications", tags=["
 api_router.include_router(objective.router, prefix="/objectives", tags=["Objective"])
 api_router.include_router(outfit.router, prefix="/outfits", tags=["Outfit"])
 api_router.include_router(pregnancy.router, prefix="/pregnancies", tags=["Pregnancy"])
-api_router.include_router(profile.router, prefix="/users", tags=["Profile"])
 api_router.include_router(quest.router, prefix="/quests", tags=["Quest"])
 api_router.include_router(radio.router, prefix="/radio", tags=["Radio"])
 api_router.include_router(relationship.router, prefix="/relationships", tags=["Relationship"])
 api_router.include_router(room.router, prefix="/rooms", tags=["Room"])
-api_router.include_router(settings.router, prefix="/settings", tags=["Settings"])
 api_router.include_router(training.router, prefix="/training", tags=["Training"])
 api_router.include_router(user.router, prefix="/users", tags=["User"])
 api_router.include_router(vault.router, prefix="/vaults", tags=["Vault"])

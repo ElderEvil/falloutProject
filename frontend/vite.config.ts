@@ -1,4 +1,5 @@
 import { fileURLToPath, URL } from 'node:url';
+import { readFileSync } from 'node:fs';
 
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
@@ -6,8 +7,15 @@ import tailwindcss from '@tailwindcss/vite';
 import ui from '@nuxt/ui/vite';
 import { visualizer } from 'rollup-plugin-visualizer';
 
+// Read version from package.json
+const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'));
+const appVersion = packageJson.version;
+
 // https://vitejs.dev/config/
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+  },
   plugins: [
     vue(),
     ui(),

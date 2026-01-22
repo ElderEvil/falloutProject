@@ -8,6 +8,17 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ## Recent Completions
 
+### v2.1.3 Backend & Frontend Cleanup (January 22, 2026)
+- **Router Consolidation**: Reduced router count from 23 to 20
+  - Merged `settings.py` → `game_control.py` (`/game/balance`)
+  - Moved `info.py` → `system.py` (`/system/info`)
+  - Merged `profile.py` → `user.py` (`/users/me/profile`)
+  - Deleted 3 single-endpoint router files, merged tests
+- **Frontend Updates**: Updated to use new API endpoints
+  - AboutView now uses `/api/v1/system/info`
+  - Created systemService in profile module
+  - Dynamic version injection from package.json via Vite define
+
 ### v2.1.2 Quick Wins Complete (January 22, 2026)
 - **Audio Controls**: Stop/pause button for chat audio playback
 - **Animated Effects**: Pulsing glow effect on UI elements
@@ -55,7 +66,7 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
   - Incident service (28% → 75%)
   - Game loop (54% → 80%)
 - [ ] **Datetime Deprecation Fix** - Replace `datetime.utcnow()` → `datetime.now(timezone.utc)`
-- [ ] **Router Consolidation** - Move settings/info endpoints to appropriate routers (avoid 1-2 endpoint routers)
+- [x] **Router Consolidation** - Move settings/info endpoints to appropriate routers (avoid 1-2 endpoint routers)
 
 ---
 

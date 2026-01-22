@@ -139,7 +139,7 @@ const visualAttributesTooltip = computed(() => {
     <!-- Portrait -->
     <div class="portrait-container">
       <template v-if="imageUrl">
-        <UTooltip v-if="visualAttributesTooltip" :text="visualAttributesTooltip" position="right" :multiline="true">
+        <UTooltip v-if="visualAttributesTooltip" :text="visualAttributesTooltip" position="right">
           <img
             :src="getImageUrl(imageUrl)"
             alt="Dweller Portrait"

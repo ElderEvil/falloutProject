@@ -10,7 +10,7 @@
         </div>
 
         <!-- Relationship type badge -->
-        <UBadge :color="relationshipColor" class="mt-1">
+        <UBadge :variant="relationshipColor" class="mt-1">
           {{ relationship.relationship_type }}
         </UBadge>
       </div>
@@ -76,18 +76,18 @@ defineEmits<{
   'break-up': []
 }>()
 
-const relationshipColor = computed(() => {
+const relationshipColor = computed((): 'success' | 'warning' | 'danger' | 'info' | 'default' => {
   switch (props.relationship.relationship_type) {
     case 'partner':
-      return 'red'
+      return 'danger' // red for committed relationships
     case 'romantic':
-      return 'pink'
+      return 'info' // closest to pink
     case 'friend':
-      return 'yellow'
+      return 'warning' // yellow
     case 'ex':
-      return 'gray'
+      return 'default' // gray
     default:
-      return 'green'
+      return 'success' // green for acquaintance
   }
 })
 </script>

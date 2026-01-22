@@ -8,6 +8,7 @@
  * - Keyboard escape to close
  * - Click outside to close (optional)
  */
+import UButton from './UButton.vue'
 
 interface Props {
   modelValue: boolean

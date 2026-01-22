@@ -120,7 +120,7 @@ onMounted(() => {
       <div class="radio-mode-panel">
         <div class="flex items-center justify-between mb-2">
           <span class="text-sm font-semibold" style="color: var(--color-theme-primary);">Radio Mode</span>
-          <UBadge :color="isRecruitmentMode ? 'blue' : 'purple'">
+          <UBadge :variant="isRecruitmentMode ? 'info' : 'default'">
             {{ isRecruitmentMode ? 'Recruitment' : 'Happiness' }}
           </UBadge>
         </div>
@@ -138,7 +138,7 @@ onMounted(() => {
       <div class="speedup-panel">
         <div class="flex items-center justify-between mb-2">
           <span class="text-sm font-semibold" style="color: var(--color-theme-primary);">Speedup Multiplier</span>
-          <UBadge color="yellow">{{ localSpeedup.toFixed(1) }}x</UBadge>
+          <UBadge variant="warning">{{ localSpeedup.toFixed(1) }}x</UBadge>
         </div>
 
         <!-- Room selector if multiple radio rooms -->
@@ -206,7 +206,7 @@ onMounted(() => {
       <div class="space-y-2">
         <div class="flex justify-between items-center">
           <span class="text-gray-400">Manual Recruitment:</span>
-          <UBadge color="yellow">
+<UBadge variant="warning">
             {{ stats.manual_cost_caps }} caps
           </UBadge>
         </div>

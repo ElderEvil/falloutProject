@@ -1,6 +1,15 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import DwellerCard from '@/modules/dwellers/components/cards/DwellerCard.vue'
+
+// Mock the happiness service
+vi.mock('@/modules/dwellers/services/happinessService', () => ({
+  happinessService: {
+    getDwellerModifiers: vi.fn().mockResolvedValue({
+      data: { positive: [], negative: [] }
+    })
+  }
+}))
 
 describe('DwellerCard', () => {
   const mockDweller = {
@@ -23,153 +32,11 @@ describe('DwellerCard', () => {
     experience: 450,
     radiation: 0,
     stimpack: 2,
-    radaway: 1
+    radaway: 1,
+    status: 'idle'
   } as any
 
-  describe('Regenerate Buttons - No Image', () => {
-    it('should display portrait button when no image', () => {
-      const wrapper = mount(DwellerCard, {
-        props: {
-          dweller: mockDweller,
-          imageUrl: null
-        }
-      })
-
-      const portraitButton = wrapper.find('.portrait-button')
-      expect(portraitButton.exists()).toBe(true)
-    })
-
-    it('should display full generate button when no image', () => {
-      const wrapper = mount(DwellerCard, {
-        props: {
-          dweller: mockDweller,
-          imageUrl: null
-        }
-      })
-
-      const fullGenerateButton = wrapper.find('.full-generate-button')
-      expect(fullGenerateButton.exists()).toBe(true)
-    })
-
-    it('should not display generate buttons when image exists', () => {
-      const wrapper = mount(DwellerCard, {
-        props: {
-          dweller: mockDweller,
-          imageUrl: 'https://example.com/image.jpg'
-        }
-      })
-
-      const portraitButton = wrapper.find('.portrait-button')
-      const fullGenerateButton = wrapper.find('.full-generate-button')
-
-      expect(portraitButton.exists()).toBe(false)
-      expect(fullGenerateButton.exists()).toBe(false)
-    })
-
-    it('should emit generate-portrait event when portrait button clicked', async () => {
-      const wrapper = mount(DwellerCard, {
-        props: {
-          dweller: mockDweller,
-          imageUrl: null
-        }
-      })
-
-      const portraitButton = wrapper.find('.portrait-button')
-      await portraitButton.trigger('click')
-
-      expect(wrapper.emitted('generate-portrait')).toBeTruthy()
-      expect(wrapper.emitted('generate-portrait')?.length).toBe(1)
-    })
-
-    it('should emit generate-ai event when full generate button clicked', async () => {
-      const wrapper = mount(DwellerCard, {
-        props: {
-          dweller: mockDweller,
-          imageUrl: null
-        }
-      })
-
-      const fullGenerateButton = wrapper.find('.full-generate-button')
-      await fullGenerateButton.trigger('click')
-
-      expect(wrapper.emitted('generate-ai')).toBeTruthy()
-      expect(wrapper.emitted('generate-ai')?.length).toBe(1)
-    })
-  })
-
-  describe('Loading States', () => {
-    it('should disable portrait button when generatingPortrait is true', () => {
-      const wrapper = mount(DwellerCard, {
-        props: {
-          dweller: mockDweller,
-          imageUrl: null,
-          generatingPortrait: true
-        }
-      })
-
-      const portraitButton = wrapper.find('.portrait-button')
-      expect(portraitButton.attributes('disabled')).toBeDefined()
-    })
-
-    it('should disable portrait button when loading is true', () => {
-      const wrapper = mount(DwellerCard, {
-        props: {
-          dweller: mockDweller,
-          imageUrl: null,
-          loading: true
-        }
-      })
-
-      const portraitButton = wrapper.find('.portrait-button')
-      expect(portraitButton.attributes('disabled')).toBeDefined()
-    })
-
-    it('should disable full generate button when loading is true', () => {
-      const wrapper = mount(DwellerCard, {
-        props: {
-          dweller: mockDweller,
-          imageUrl: null,
-          loading: true
-        }
-      })
-
-      const fullGenerateButton = wrapper.find('.full-generate-button')
-      expect(fullGenerateButton.attributes('disabled')).toBeDefined()
-    })
-
-  })
-
-  describe('Button Tooltips', () => {
-    it('should have tooltip for portrait button', () => {
-      const wrapper = mount(DwellerCard, {
-        props: {
-          dweller: mockDweller,
-          imageUrl: null
-        }
-      })
-
-      const tooltips = wrapper.findAllComponents({ name: 'UTooltip' })
-      const portraitTooltip = tooltips.find(t => t.props('text') === 'Generate AI portrait')
-
-      expect(portraitTooltip).toBeDefined()
-    })
-
-    it('should have tooltip for full generate button', () => {
-      const wrapper = mount(DwellerCard, {
-        props: {
-          dweller: mockDweller,
-          imageUrl: null
-        }
-      })
-
-      const tooltips = wrapper.findAllComponents({ name: 'UTooltip' })
-      const fullGenerateTooltip = tooltips.find(t => t.props('text') === 'Generate portrait & biography')
-
-      expect(fullGenerateTooltip).toBeDefined()
-    })
-  })
-
-  describe('Component Structure', () => {
+  describe('Portrait Display', () => {
     it('should render portrait placeholder when no image', () => {
       const wrapper = mount(DwellerCard, {
         props: {
@@ -180,6 +47,19 @@ describe('DwellerCard', () => {
 
       const placeholder = wrapper.find('.portrait-placeholder')
       expect(placeholder.exists()).toBe(true)
+    })
+
+    it('should show hint text to generate portrait in Appearance tab', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: null
+        }
+      })
+
+      const hint = wrapper.find('.placeholder-hint')
+      expect(hint.exists()).toBe(true)
+      expect(hint.text()).toContain('Generate portrait in Appearance tab')
     })
 
     it('should render portrait image when imageUrl is provided', () => {
@@ -196,8 +76,8 @@ describe('DwellerCard', () => {
     })
   })
 
-  describe('Button Positioning', () => {
-    it('should position portrait button in bottom-right', () => {
+  describe('Info Badges', () => {
+    it('should display gender badge', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
@@ -205,12 +85,12 @@ describe('DwellerCard', () => {
         }
       })
 
-      const portraitButton = wrapper.find('.portrait-button')
-      expect(portraitButton.classes()).toContain('ai-generate-button')
-      expect(portraitButton.classes()).toContain('portrait-button')
+      const genderBadge = wrapper.find('.gender-badge')
+      expect(genderBadge.exists()).toBe(true)
+      expect(genderBadge.text()).toContain('male')
     })
 
-    it('should position full generate button in center', () => {
+    it('should display rarity badge', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
@@ -218,9 +98,276 @@ describe('DwellerCard', () => {
         }
       })
 
-      const fullGenerateButton = wrapper.find('.full-generate-button')
-      expect(fullGenerateButton.classes()).toContain('ai-generate-button')
-      expect(fullGenerateButton.classes()).toContain('full-generate-button')
+      const rarityBadge = wrapper.find('.rarity-badge')
+      expect(rarityBadge.exists()).toBe(true)
+      expect(rarityBadge.text().toLowerCase()).toContain('common')
+    })
+  })
+
+  describe('Stats Display', () => {
+    it('should display level', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: null
+        }
+      })
+
+      expect(wrapper.text()).toContain('Level')
+      expect(wrapper.text()).toContain('5')
+    })
+
+    it('should display health', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: null
+        }
+      })
+
+      expect(wrapper.text()).toContain('Health')
+      expect(wrapper.text()).toContain('80 / 100')
+    })
+
+    it('should display happiness percentage', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: null
+        }
+      })
+
+      expect(wrapper.text()).toContain('Happiness')
+      expect(wrapper.text()).toContain('75%')
+    })
+
+    it('should display health bar', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: null
+        }
+      })
+
+      const healthBar = wrapper.find('.health-bar')
+      expect(healthBar.exists()).toBe(true)
+
+      const healthFill = wrapper.find('.health-fill')
+      expect(healthFill.exists()).toBe(true)
+      expect(healthFill.attributes('style')).toContain('width: 80%')
+    })
+  })
+
+  describe('Inventory Display', () => {
+    it('should display stimpack count', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: null
+        }
+      })
+
+      expect(wrapper.text()).toContain('Stimpack')
+      expect(wrapper.text()).toContain('2')
+    })
+
+    it('should display radaway count', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: null
+        }
+      })
+
+      expect(wrapper.text()).toContain('RadAway')
+      expect(wrapper.text()).toContain('1')
+    })
+  })
+
+  describe('Action Buttons', () => {
+    it('should emit chat event when chat button clicked', async () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: null
+        }
+      })
+
+      const chatButton = wrapper.findAllComponents({ name: 'UButton' })
+        .find(btn => btn.text().includes('Chat'))
+
+      expect(chatButton).toBeDefined()
+      await chatButton!.trigger('click')
+      expect(wrapper.emitted('chat')).toBeTruthy()
+    })
+
+    it('should emit assign event when assign button clicked', async () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: null
+        }
+      })
+
+      const assignButton = wrapper.findAllComponents({ name: 'UButton' })
+        .find(btn => btn.text().includes('Assign to Room'))
+
+      expect(assignButton).toBeDefined()
+      await assignButton!.trigger('click')
+      expect(wrapper.emitted('assign')).toBeTruthy()
+    })
+
+    it('should show recall button when dweller is exploring', async () => {
+      const exploringDweller = { ...mockDweller, status: 'exploring' }
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: exploringDweller,
+          imageUrl: null
+        }
+      })
+
+      const recallButton = wrapper.findAllComponents({ name: 'UButton' })
+        .find(btn => btn.text().includes('Recall from Wasteland'))
+
+      expect(recallButton).toBeDefined()
+    })
+
+    it('should not show recall button when dweller is not exploring', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: null
+        }
+      })
+
+      const recallButton = wrapper.findAllComponents({ name: 'UButton' })
+        .find(btn => btn.text().includes('Recall from Wasteland'))
+
+      expect(recallButton).toBeUndefined()
+    })
+  })
+
+  describe('Item Usage', () => {
+    it('should enable stimpack button when stimpack available and health not full', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: null
+        }
+      })
+
+      const stimpPackButton = wrapper.findAllComponents({ name: 'UButton' })
+        .find(btn => btn.text().includes('Use Stimpack'))
+
+      expect(stimpPackButton).toBeDefined()
+      expect(stimpPackButton!.attributes('disabled')).toBeUndefined()
+    })
+
+    it('should disable stimpack button when no stimpacks', () => {
+      const dwellerNoStimpack = { ...mockDweller, stimpack: 0 }
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: dwellerNoStimpack,
+          imageUrl: null
+        }
+      })
+
+      const stimpPackButton = wrapper.findAllComponents({ name: 'UButton' })
+        .find(btn => btn.text().includes('Use Stimpack'))
+
+      expect(stimpPackButton).toBeDefined()
+      expect(stimpPackButton!.attributes('disabled')).toBeDefined()
+    })
+
+    it('should disable radaway button when no radiation', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: null
+        }
+      })
+
+      const radawayButton = wrapper.findAllComponents({ name: 'UButton' })
+        .find(btn => btn.text().includes('Use RadAway'))
+
+      expect(radawayButton).toBeDefined()
+      expect(radawayButton!.attributes('disabled')).toBeDefined()
+    })
+
+    it('should enable radaway button when radiation exists', () => {
+      const dwellerWithRadiation = { ...mockDweller, radiation: 10 }
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: dwellerWithRadiation,
+          imageUrl: null
+        }
+      })
+
+      const radawayButton = wrapper.findAllComponents({ name: 'UButton' })
+        .find(btn => btn.text().includes('Use RadAway'))
+
+      expect(radawayButton).toBeDefined()
+      expect(radawayButton!.attributes('disabled')).toBeUndefined()
+    })
+  })
+
+  describe('Coming Soon Features', () => {
+    it('should show locked train stats button', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: null
+        }
+      })
+
+      const trainButton = wrapper.find('.locked-action-button')
+      expect(trainButton.exists()).toBe(true)
+      expect(wrapper.text()).toContain('Train Stats')
+    })
+
+    it('should show locked assign pet button', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: null
+        }
+      })
+
+      expect(wrapper.text()).toContain('Assign Pet')
+    })
+  })
+
+  describe('Button Tooltips', () => {
+    it('should have tooltip for train stats button', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: null
+        }
+      })
+
+      const tooltips = wrapper.findAllComponents({ name: 'UTooltip' })
+      const trainTooltip = tooltips.find(t =>
+        t.props('text')?.includes('Train SPECIAL stats')
+      )
+
+      expect(trainTooltip).toBeDefined()
+    })
+
+    it('should have tooltip for assign pet button', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: null
+        }
+      })
+
+      const tooltips = wrapper.findAllComponents({ name: 'UTooltip' })
+      const petTooltip = tooltips.find(t =>
+        t.props('text')?.includes('Assign a pet companion')
+      )
+
+      expect(petTooltip).toBeDefined()
     })
   })
 })

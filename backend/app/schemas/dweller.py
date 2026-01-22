@@ -7,6 +7,7 @@ from app.models.dweller import DwellerBase
 from app.schemas.common import (
     STATE_OF_BEING_TYPE,
     AgeGroupEnum,
+    DeathCauseEnum,
     DwellerStatusEnum,
     FactionEnum,
     GenderEnum,
@@ -158,3 +159,40 @@ class DwellerReadFull(DwellerRead):
 class DwellerUpdate(DwellerBase):
     room_id: UUID4 | None = None
     visual_attributes: DwellerVisualAttributesInput | None = Field(default=None)
+
+
+class DwellerDeadRead(SQLModel):
+    """Schema for dead dweller list items."""
+
+    id: UUID4
+    first_name: str
+    last_name: str | None
+    level: int
+    thumbnail_url: str | None
+    death_timestamp: datetime | None
+    death_cause: DeathCauseEnum | None
+    is_permanently_dead: bool
+    epitaph: str | None
+    days_until_permanent: int | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DwellerReviveResponse(SQLModel):
+    """Response schema for dweller revival."""
+
+    dweller: DwellerRead
+    caps_spent: int
+    remaining_caps: int
+
+
+class RevivalCostResponse(SQLModel):
+    """Response schema for revival cost check."""
+
+    dweller_id: UUID4
+    dweller_name: str
+    level: int
+    revival_cost: int
+    days_until_permanent: int | None
+    can_afford: bool
+    vault_caps: int

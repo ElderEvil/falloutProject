@@ -282,6 +282,88 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             db_session, dweller_id, DwellerUpdate(radiation=new_radiation, radaway=dweller_obj.radaway - 1)
         )
 
+    async def get_dead_dwellers(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        include_permanent: bool = False,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> Sequence[Dweller]:
+        """
+        Get dead dwellers for a vault.
+
+        :param db_session: Database session
+        :param vault_id: Vault ID to filter by
+        :param include_permanent: If True, include permanently dead dwellers
+        :param skip: Number of records to skip
+        :param limit: Maximum number of records to return
+        :returns: List of dead dwellers
+        """
+        query = select(self.model).where(self.model.vault_id == vault_id).where(self.model.is_dead.is_(True))
+
+        if not include_permanent:
+            query = query.where(self.model.is_permanently_dead.is_(False))
+
+        query = query.order_by(self.model.death_timestamp.desc()).offset(skip).limit(limit)
+        response = await db_session.execute(query)
+        return response.scalars().all()
+
+    async def get_revivable_dwellers(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> Sequence[Dweller]:
+        """
+        Get dwellers that can be revived (dead but not permanently dead).
+
+        :param db_session: Database session
+        :param vault_id: Vault ID to filter by
+        :param skip: Number of records to skip
+        :param limit: Maximum number of records to return
+        :returns: List of revivable dwellers
+        """
+        query = (
+            select(self.model)
+            .where(self.model.vault_id == vault_id)
+            .where(self.model.is_dead.is_(True))
+            .where(self.model.is_permanently_dead.is_(False))
+            .order_by(self.model.death_timestamp.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        response = await db_session.execute(query)
+        return response.scalars().all()
+
+    async def get_graveyard(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> Sequence[Dweller]:
+        """
+        Get permanently dead dwellers (graveyard).
+
+        :param db_session: Database session
+        :param vault_id: Vault ID to filter by
+        :param skip: Number of records to skip
+        :param limit: Maximum number of records to return
+        :returns: List of permanently dead dwellers
+        """
+        query = (
+            select(self.model)
+            .where(self.model.vault_id == vault_id)
+            .where(self.model.is_permanently_dead.is_(True))
+            .order_by(self.model.death_timestamp.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        response = await db_session.execute(query)
+        return response.scalars().all()
+
     async def auto_assign_to_best_room(
         self, db_session: AsyncSession, dweller_id: UUID4
     ) -> DwellerReadWithRoomID | None:

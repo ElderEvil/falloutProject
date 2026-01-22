@@ -332,18 +332,20 @@ class GameLoopService:
 
         - Award work XP to dwellers in production rooms
         - Check for level-ups
-        - Update health and needs (future)
+        - Check for deaths (health <= 0 or radiation threshold)
         """
         from sqlalchemy.exc import SQLAlchemyError
 
         from app.models.dweller import Dweller
         from app.models.room import Room
-        from app.schemas.common import DwellerStatusEnum
+        from app.schemas.common import DeathCauseEnum, DwellerStatusEnum
+        from app.services.death_service import death_service
 
         stats = {
             "health_updated": 0,
             "leveled_up": 0,
             "xp_awarded": 0,
+            "deaths": 0,
         }
 
         try:
@@ -365,6 +367,23 @@ class GameLoopService:
             # Process each dweller
             for dweller in dwellers:
                 try:
+                    # Skip already dead dwellers
+                    if dweller.is_dead:
+                        continue
+
+                    # Check for death conditions
+                    if dweller.health <= 0:
+                        await death_service.mark_as_dead(db_session, dweller, DeathCauseEnum.HEALTH)
+                        stats["deaths"] += 1
+                        self.logger.info(f"Dweller {dweller.first_name} {dweller.last_name} died from health depletion")
+                        continue
+
+                    if dweller.radiation >= game_config.death.radiation_death_threshold:
+                        await death_service.mark_as_dead(db_session, dweller, DeathCauseEnum.RADIATION)
+                        stats["deaths"] += 1
+                        self.logger.info(f"Dweller {dweller.first_name} {dweller.last_name} died from radiation")
+                        continue
+
                     # Award work XP for dwellers in production rooms
                     if dweller.status == DwellerStatusEnum.WORKING and dweller.room_id:
                         # Get room from pre-fetched map

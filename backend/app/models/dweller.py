@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel, SPECIALModel, TimeStampMixin
-from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, GenderEnum, RarityEnum
+from app.schemas.common import AgeGroupEnum, DeathCauseEnum, DwellerStatusEnum, GenderEnum, RarityEnum
 
 if TYPE_CHECKING:
     from app.models.notification import Notification
@@ -48,6 +48,13 @@ class DwellerBaseWithoutStats(SQLModel):
 
     # Status
     status: DwellerStatusEnum = Field(default=DwellerStatusEnum.IDLE, index=True)
+
+    # Death system
+    is_dead: bool = Field(default=False, index=True)
+    death_timestamp: datetime | None = Field(default=None)
+    death_cause: DeathCauseEnum | None = Field(default=None)
+    is_permanently_dead: bool = Field(default=False, index=True)
+    epitaph: str | None = Field(default=None, max_length=255)
 
     # TBD
     # job: str | None

@@ -29,6 +29,14 @@ class DwellerStatusEnum(CaseInsensitiveEnum):
     DEAD = "dead"
 
 
+class DeathCauseEnum(CaseInsensitiveEnum):
+    HEALTH = "health"
+    RADIATION = "radiation"
+    INCIDENT = "incident"
+    EXPLORATION = "exploration"
+    COMBAT = "combat"
+
+
 class RarityEnum(CaseInsensitiveEnum):
     COMMON = "common"
     RARE = "rare"

@@ -96,12 +96,26 @@ class ExplorationCoordinator:
         exploration.total_distance += random.randint(1, 5)
 
     async def _apply_health_loss(self, db_session: AsyncSession, exploration: Exploration, damage: int) -> None:
-        """Apply health loss to dweller."""
+        """
+        Apply health loss to dweller.
+
+        If damage would be fatal (health <= 0), the dweller dies from exploration.
+        """
         from app.crud.dweller import dweller as dweller_crud
 
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
-        dweller_obj.health = max(1, dweller_obj.health - damage)  # Don't let health go to 0
-        db_session.add(dweller_obj)
+        new_health = dweller_obj.health - damage
+
+        if new_health <= 0 and not dweller_obj.is_dead:
+            # Dweller dies in the wasteland
+            from app.schemas.common import DeathCauseEnum
+            from app.services.death_service import death_service
+
+            await death_service.mark_as_dead(db_session, dweller_obj, DeathCauseEnum.EXPLORATION)
+        else:
+            # Just apply damage (cap at 1 to give player chance to recall)
+            dweller_obj.health = max(1, new_health)
+            db_session.add(dweller_obj)
 
     async def _apply_health_restoration(self, db_session: AsyncSession, exploration: Exploration, healing: int) -> None:
         """Apply health restoration to dweller."""

@@ -50,6 +50,16 @@ async def get_game_balance_settings() -> dict[str, Any]:
         "breeding": game_config.breeding.model_dump(),
         "leveling": game_config.leveling.model_dump(),
         "radio": game_config.radio.model_dump(),
+        "death": {
+            **game_config.death.model_dump(),
+            "revival_cost_examples": {
+                "level_1": game_config.death.calculate_revival_cost(1),
+                "level_5": game_config.death.calculate_revival_cost(5),
+                "level_10": game_config.death.calculate_revival_cost(10),
+                "level_25": game_config.death.calculate_revival_cost(25),
+                "level_50": game_config.death.calculate_revival_cost(50),
+            },
+        },
     }
 
 

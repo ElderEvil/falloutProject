@@ -13,12 +13,15 @@ from app.schemas.dweller import (
     DwellerCreate,
     DwellerCreateCommonOverride,
     DwellerCreateWithoutVaultID,
+    DwellerDeadRead,
     DwellerRead,
     DwellerReadFull,
     DwellerReadLess,
     DwellerReadWithRoomID,
+    DwellerReviveResponse,
     DwellerUpdate,
     DwellerVisualAttributesInput,
+    RevivalCostResponse,
 )
 from app.services.dweller_ai import dweller_ai
 
@@ -257,3 +260,107 @@ async def auto_assign_to_room(
     """Auto-assign dweller to the best matching production room based on their highest SPECIAL stat."""
     await verify_dweller_access(dweller_id, user, db_session)
     return await crud.dweller.auto_assign_to_best_room(db_session, dweller_id)
+
+
+# ============================================
+# Death System Endpoints
+# ============================================
+
+
+@router.get("/vault/{vault_id}/dead", response_model=list[DwellerDeadRead])
+async def get_dead_dwellers(
+    vault_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    skip: int = 0,
+    limit: int = 100,
+):
+    """Get all dead dwellers (revivable) for a vault."""
+    from app.services.death_service import death_service
+
+    await get_user_vault_or_403(vault_id, user, db_session)
+    dwellers = await crud.dweller.get_dead_dwellers(
+        db_session, vault_id, include_permanent=False, skip=skip, limit=limit
+    )
+
+    # Enrich with days_until_permanent
+    result = []
+    for dweller in dwellers:
+        dweller_data = DwellerDeadRead.model_validate(dweller)
+        dweller_data.days_until_permanent = death_service.get_days_until_permanent(dweller)
+        result.append(dweller_data)
+
+    return result
+
+
+@router.get("/vault/{vault_id}/graveyard", response_model=list[DwellerDeadRead])
+async def get_graveyard(
+    vault_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    skip: int = 0,
+    limit: int = 100,
+):
+    """Get permanently dead dwellers (graveyard) for a vault."""
+    await get_user_vault_or_403(vault_id, user, db_session)
+    dwellers = await crud.dweller.get_graveyard(db_session, vault_id, skip=skip, limit=limit)
+    return [DwellerDeadRead.model_validate(dweller) for dweller in dwellers]
+
+
+@router.get("/{dweller_id}/revival_cost", response_model=RevivalCostResponse)
+async def get_revival_cost(
+    dweller_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+):
+    """Get the revival cost for a dead dweller."""
+    from app.services.death_service import death_service
+
+    await verify_dweller_access(dweller_id, user, db_session)
+    dweller = await crud.dweller.get(db_session, dweller_id)
+
+    if not dweller.is_dead:
+        from app.utils.exceptions import ContentNoChangeException
+
+        raise ContentNoChangeException(detail="Dweller is not dead")
+
+    vault = await crud.vault.get(db_session, dweller.vault_id)
+    revival_cost = death_service.get_revival_cost(dweller.level)
+
+    return RevivalCostResponse(
+        dweller_id=dweller.id,
+        dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
+        level=dweller.level,
+        revival_cost=revival_cost,
+        days_until_permanent=death_service.get_days_until_permanent(dweller),
+        can_afford=vault.caps >= revival_cost,
+        vault_caps=vault.caps,
+    )
+
+
+@router.post("/{dweller_id}/revive", response_model=DwellerReviveResponse)
+async def revive_dweller(
+    dweller_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+):
+    """Revive a dead dweller by paying the revival cost in caps."""
+    from app.services.death_service import death_service
+
+    await verify_dweller_access(dweller_id, user, db_session)
+
+    # Get dweller to calculate cost before revival
+    dweller = await crud.dweller.get(db_session, dweller_id)
+    revival_cost = death_service.get_revival_cost(dweller.level)
+
+    # Perform revival
+    revived_dweller = await death_service.revive_dweller(db_session, dweller_id, user.id)
+
+    # Get updated vault caps
+    vault = await crud.vault.get(db_session, revived_dweller.vault_id)
+
+    return DwellerReviveResponse(
+        dweller=DwellerRead.model_validate(revived_dweller),
+        caps_spent=revival_cost,
+        remaining_caps=vault.caps,
+    )

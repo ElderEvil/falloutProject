@@ -287,6 +287,14 @@ class BreedingService:
 
         logger.info(f"Baby delivered: {child.first_name} {child.last_name}, Mother={mother.id}, Father={father.id}")
 
+        # Increment birth statistics for the vault owner
+        from app.crud.user_profile import profile_crud
+        from app.crud.vault import vault as vault_crud
+
+        vault = await vault_crud.get(db_session, mother.vault_id)
+        if vault and vault.user_id:
+            await profile_crud.increment_statistic(db_session, vault.user_id, "total_dwellers_born")
+
         return child
 
     @staticmethod

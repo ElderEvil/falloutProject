@@ -233,6 +233,7 @@ class IncidentService:
 
         # Apply damage to dwellers
         damaged_count = 0
+        deaths_count = 0
         for dweller in dwellers:
             damage_per_dweller = damage_to_dwellers / len(dwellers)
             new_health = max(0, dweller.health - int(damage_per_dweller))
@@ -242,6 +243,15 @@ class IncidentService:
                 dweller.health = new_health
                 db_session.add(dweller)
                 damaged_count += 1
+
+                # Check for death from incident
+                if new_health <= 0 and not dweller.is_dead:
+                    from app.schemas.common import DeathCauseEnum
+                    from app.services.death_service import death_service
+
+                    await death_service.mark_as_dead(db_session, dweller, DeathCauseEnum.INCIDENT)
+                    deaths_count += 1
+                    self.logger.info(f"Dweller {dweller.first_name} {dweller.last_name} died during incident")
 
         # Track total damage dealt by raiders
         incident.damage_dealt += int(damage_to_dwellers)
@@ -274,6 +284,7 @@ class IncidentService:
             "damage_to_dwellers": damage_to_dwellers,
             "damage_to_raiders": damage_to_raiders,
             "dwellers_damaged": damaged_count,
+            "dwellers_killed": deaths_count,
             "enemies_defeated": enemies_this_tick,
             "caps_earned": caps_earned,  # Return for batch update
         }

@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException
@@ -15,6 +16,8 @@ from app.crud.user_profile import profile_crud
 from app.db.session import get_async_session
 from app.schemas.user import UserCreate, UserRead, UserUpdate, UserWithTokens
 from app.schemas.user_profile import ProfileRead, ProfileUpdate
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -186,30 +189,76 @@ async def update_user(
 # =============================================================================
 
 
-@router.get("/me/profile", response_model=ProfileRead)
+@router.get("/me/profile")
 async def get_my_profile(
     *,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
-):
-    """Get current user's profile."""
-    profile = await profile_crud.get_by_user_id(db_session, user.id)
-    if not profile:
-        # Auto-create profile if it doesn't exist
-        profile = await profile_crud.create_for_user(db_session, user.id)
-    return profile
+) -> ProfileRead:
+    """
+    Get current user's profile.
+
+    If the profile doesn't exist, it will be auto-created with default values.
+    This handles race conditions gracefully - if two concurrent requests try to
+    create a profile, only one will succeed and both will return the profile.
+
+    :param db_session: Database session
+    :type db_session: AsyncSession
+    :param user: Current authenticated active user
+    :type user: CurrentActiveUser
+    :returns: User's profile with statistics and preferences
+    :rtype: ProfileRead
+    :raises HTTPException: 500 if profile retrieval/creation fails unexpectedly
+    """
+    try:
+        profile = await profile_crud.get_by_user_id(db_session, user.id)
+        if not profile:
+            # Auto-create profile if it doesn't exist
+            # create_for_user handles race conditions internally
+            profile = await profile_crud.create_for_user(db_session, user.id)
+    except Exception as e:
+        logger.exception("Failed to get/create profile for user %s", user.id)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    else:
+        return profile
 
 
-@router.put("/me/profile", response_model=ProfileRead)
+@router.put("/me/profile")
 async def update_my_profile(
     *,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     profile_data: ProfileUpdate,
     user: CurrentActiveUser,
-):
-    """Update current user's profile."""
-    profile = await profile_crud.get_by_user_id(db_session, user.id)
+) -> ProfileRead:
+    """
+    Update current user's profile.
+
+    Only bio, avatar_url, and preferences can be updated via this endpoint.
+    Statistics fields (total_dwellers_created, total_caps_earned, etc.) are
+    managed internally by the game and cannot be modified directly.
+
+    :param db_session: Database session
+    :type db_session: AsyncSession
+    :param profile_data: Profile update data (bio, avatar_url, preferences)
+    :type profile_data: ProfileUpdate
+    :param user: Current authenticated active user
+    :type user: CurrentActiveUser
+    :returns: Updated profile
+    :rtype: ProfileRead
+    :raises HTTPException: 404 if profile not found
+    :raises HTTPException: 500 if profile update fails unexpectedly
+    """
+    try:
+        profile = await profile_crud.get_by_user_id(db_session, user.id)
+    except Exception as e:
+        logger.exception("Failed to get profile for user %s", user.id)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
 
-    return await profile_crud.update(db_session, id=profile.id, obj_in=profile_data)
+    try:
+        return await profile_crud.update(db_session, id=profile.id, obj_in=profile_data)
+    except Exception as e:
+        logger.exception("Failed to update profile for user %s", user.id)
+        raise HTTPException(status_code=500, detail=str(e)) from e

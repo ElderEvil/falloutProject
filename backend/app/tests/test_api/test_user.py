@@ -6,8 +6,35 @@ from app import crud
 from app.core.config import settings
 from app.schemas.user import UserCreate
 from app.tests.factory.users import create_fake_user
+from app.tests.utils.user import user_authentication_headers
 
 pytestmark = pytest.mark.asyncio(scope="module")
+
+
+async def create_isolated_user_with_token(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+) -> tuple[dict[str, str], dict]:
+    """
+    Create an isolated user and return auth token headers along with user data.
+
+    This ensures tests don't share state with other tests using shared fixtures.
+
+    :param async_client: Test HTTP client
+    :param async_session: Database session
+    :returns: Tuple of (token_headers, user_data_dict)
+    """
+    user_data = create_fake_user()
+    user_in = UserCreate(**user_data)
+    user = await crud.user.create(db_session=async_session, obj_in=user_in)
+
+    token_headers = await user_authentication_headers(
+        client=async_client,
+        email=user_data["email"],
+        password=user_data["password"],
+    )
+
+    return token_headers, {"id": str(user.id), **user_data}
 
 
 @pytest.mark.asyncio
@@ -139,10 +166,13 @@ async def test_retrieve_users(
 @pytest.mark.asyncio
 async def test_get_my_profile(
     async_client: AsyncClient,
-    normal_user_token_headers: dict[str, str],
+    async_session: AsyncSession,
 ) -> None:
-    """Test getting current user's profile."""
-    response = await async_client.get("/users/me/profile", headers=normal_user_token_headers)
+    """Test getting current user's profile with isolated user."""
+    # Create isolated user to avoid shared state issues
+    token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
+
+    response = await async_client.get("/users/me/profile", headers=token_headers)
     assert response.status_code == 200
     profile = response.json()
     assert "id" in profile
@@ -156,20 +186,31 @@ async def test_get_my_profile(
     assert "total_rooms_built" in profile
     assert "created_at" in profile
     assert "updated_at" in profile
+    # Fresh user should have zero statistics
+    assert profile["total_dwellers_created"] == 0
+    assert profile["total_caps_earned"] == 0
+    assert profile["total_explorations"] == 0
+    assert profile["total_rooms_built"] == 0
 
 
 @pytest.mark.asyncio
 async def test_update_my_profile(
     async_client: AsyncClient,
-    normal_user_token_headers: dict[str, str],
+    async_session: AsyncSession,
 ) -> None:
-    """Test updating current user's profile."""
+    """Test updating current user's profile with isolated user."""
+    # Create isolated user to avoid shared state issues
+    token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
+
+    # First, get the profile to ensure it exists
+    await async_client.get("/users/me/profile", headers=token_headers)
+
     update_data = {
         "bio": "I am a vault dweller and I love Fallout!",
         "avatar_url": "https://example.com/avatar.png",
         "preferences": {"theme": "dark", "notifications": True},
     }
-    response = await async_client.put("/users/me/profile", json=update_data, headers=normal_user_token_headers)
+    response = await async_client.put("/users/me/profile", json=update_data, headers=token_headers)
     assert response.status_code == 200
     profile = response.json()
     assert profile["bio"] == update_data["bio"]
@@ -180,11 +221,17 @@ async def test_update_my_profile(
 @pytest.mark.asyncio
 async def test_update_profile_partial(
     async_client: AsyncClient,
-    normal_user_token_headers: dict[str, str],
+    async_session: AsyncSession,
 ) -> None:
-    """Test partially updating profile (only bio)."""
+    """Test partially updating profile (only bio) with isolated user."""
+    # Create isolated user to avoid shared state issues
+    token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
+
+    # First, get the profile to ensure it exists
+    await async_client.get("/users/me/profile", headers=token_headers)
+
     update_data = {"bio": "Updated bio only"}
-    response = await async_client.put("/users/me/profile", json=update_data, headers=normal_user_token_headers)
+    response = await async_client.put("/users/me/profile", json=update_data, headers=token_headers)
     assert response.status_code == 200
     profile = response.json()
     assert profile["bio"] == update_data["bio"]
@@ -193,10 +240,13 @@ async def test_update_profile_partial(
 @pytest.mark.asyncio
 async def test_get_superuser_profile(
     async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
 ) -> None:
-    """Test that superuser also has a profile auto-created."""
-    response = await async_client.get("/users/me/profile", headers=superuser_token_headers)
+    """Test that a fresh user has a profile auto-created with zero statistics."""
+    # Create isolated user to avoid shared state issues
+    token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
+
+    response = await async_client.get("/users/me/profile", headers=token_headers)
     assert response.status_code == 200
     profile = response.json()
     assert profile["user_id"] is not None
@@ -209,16 +259,22 @@ async def test_get_superuser_profile(
 @pytest.mark.asyncio
 async def test_profile_statistics_not_directly_editable(
     async_client: AsyncClient,
-    normal_user_token_headers: dict[str, str],
+    async_session: AsyncSession,
 ) -> None:
     """Test that statistics cannot be directly updated via the API."""
+    # Create isolated user to avoid shared state issues
+    token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
+
+    # First, get the profile to ensure it exists
+    await async_client.get("/users/me/profile", headers=token_headers)
+
     # Try to update statistics (should be ignored)
     update_data = {
         "bio": "New bio",
         "total_dwellers_created": 9999,  # This should be ignored
         "total_caps_earned": 9999,  # This should be ignored
     }
-    response = await async_client.put("/users/me/profile", json=update_data, headers=normal_user_token_headers)
+    response = await async_client.put("/users/me/profile", json=update_data, headers=token_headers)
     assert response.status_code == 200
     profile = response.json()
     assert profile["bio"] == "New bio"

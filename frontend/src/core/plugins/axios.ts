@@ -171,6 +171,18 @@ apiClient.interceptors.response.use(
           message = 'The requested resource was not found'
         } else if (status === 422) {
           title = 'Validation Error'
+        } else if (status === 429) {
+          title = 'Rate Limit Exceeded'
+          message = 'Too many requests. Please slow down and try again.'
+
+          // Parse Retry-After header if present
+          const retryAfter = error.response.headers['retry-after']
+          if (retryAfter) {
+            const seconds = parseInt(retryAfter, 10)
+            if (!isNaN(seconds) && seconds > 0) {
+              message = `Too many requests. Please wait ${seconds} seconds before trying again.`
+            }
+          }
         } else if (status >= 500) {
           title = 'Server Error'
           message = 'Something went wrong on our end'

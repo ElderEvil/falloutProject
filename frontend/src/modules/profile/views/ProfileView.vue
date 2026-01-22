@@ -127,7 +127,7 @@ const formatDate = (dateString: string) => {
             <!-- User Email -->
             <div class="mb-4">
               <label class="block text-sm font-medium text-gray-400 mb-1">Email</label>
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 flex-wrap">
                 <p class="text-white">{{ authStore.user?.email || 'Not available' }}</p>
                 <span
                   v-if="authStore.user?.email_verified"
@@ -143,6 +143,27 @@ const formatDate = (dateString: string) => {
                 >
                   <Icon icon="mdi:alert-circle-outline" class="text-sm" />
                   UNVERIFIED
+                </span>
+              </div>
+            </div>
+
+            <!-- Account Type -->
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-400 mb-1">Account Type</label>
+              <div class="flex items-center gap-2">
+                <span
+                  v-if="authStore.isSuperuser"
+                  class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-yellow-500/20 text-yellow-400"
+                >
+                  <Icon icon="mdi:shield-crown" class="text-sm" />
+                  SUPERUSER
+                </span>
+                <span
+                  v-else
+                  class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-gray-700 text-gray-300"
+                >
+                  <Icon icon="mdi:account" class="text-sm" />
+                  STANDARD
                 </span>
               </div>
             </div>

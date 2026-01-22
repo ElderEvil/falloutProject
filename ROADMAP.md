@@ -8,6 +8,21 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ## ✅ Recent Completions
 
+### v1.13.7 Modular Frontend Architecture (January 22, 2026)
+- **Frontend Refactor**: Complete modular architecture implementation
+  - Feature-based module organization (auth, vault, dwellers, combat, exploration, progression, radio, social, profile)
+  - Core module with shared components, composables, and utilities
+  - Backward compatibility with re-exports for smooth migration
+  - 300+ files reorganized without breaking changes
+- **Developer Experience**: Enhanced DX with better imports and type safety
+- **Testing**: All 639 tests passing after refactor
+
+### v1.14 Tech Debt & Polish (January 22, 2026)
+- **System Info Endpoint**: Public `/api/v1/info` endpoint returning version and environment info
+- **About Page**: Terminal-themed page displaying frontend/backend versions and system info
+- **Rate Limit UX**: User-friendly 429 error messages with Retry-After header support
+- **Documentation**: Updated roadmap and changelog
+
 ### v1.13.5 Production-Ready Security & Performance (January 17, 2026)
 - **Critical Authentication Fix**: Proactive token refresh system prevents session expiration during inactivity
   - Automatic token refresh 5 minutes before expiry with tab visibility optimization
@@ -72,18 +87,18 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ---
 
-## 🚧 Current Sprint: Post-Deployment Polish (P1 - HIGH)
+## 🚧 Current Sprint: Core Gameplay Polish (P1 - HIGH)
 
-### Soon After Deployment
+### High Priority
 - [ ] **Dweller Death System** - Death mechanics when health reaches 0, revival options (stimpacks, caps), memorial system
 - [x] **Training Assignment UI** - Training rooms, progress indicators, queue management implemented
   - ✅ Training queue display with real-time progress bars and countdowns
   - ✅ Completion notifications and auto-completion via game loop
-  - ⚠️ Missing: Drag-and-drop dweller assignment to training rooms
 - [x] **Birth Event System** - Full birthing system with child aging and inheritance
   - ✅ Complete pregnancy and birth mechanics with stat inheritance
   - ✅ Birth notifications and child aging system
-  - ⚠️ Missing: Update child biography with "Born in [Vault Name]" detail
+  - ⚠️ Nice-to-have: Update child biography with "Born in [Vault Name]" detail
+- [x] **System Info & About Page** - Version display, environment info, rate limit UX improvements
 
 ### Complete Existing Systems
 - [x] **Resource Warning UI** - Toast notifications for low resources (< 20% warning, < 10% critical), power outage effects
@@ -107,7 +122,8 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 - [ ] **Room Action Feedback** - Animated responses for build/upgrade/destroy actions
 - [ ] **General Polish** - Micro-interactions, hover effects, loading transitions
 
-### Future UX Priorities
+### Future UX Priorities (P3 - LOW)
+- **Training Drag-and-Drop UI** - Drag-and-drop dweller assignment to training rooms (nice-to-have)
 - **Sound Effects** - Terminal UI sounds, ambient vault audio, alert sounds
 - **Room Damage** - Consequences for failed incident combat, repair mechanics with caps/junk
 - **Training Room Capacity Formula** - Dynamic calculation based on room size

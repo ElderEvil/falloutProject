@@ -1,3 +1,77 @@
+## [1.14.0] - 2026-01-22
+
+### Added
+
+#### System Information & About Page
+- **Backend**: Public `/api/v1/info` endpoint returning app version, API version, environment, Python version
+- **Frontend**: Terminal-themed About page displaying system information with GitHub link
+- **Testing**: 4 backend tests, 6 frontend tests for info endpoint and About page
+
+#### Rate Limit User Experience
+- **429 Error Handling**: User-friendly "Rate Limit Exceeded" messages in axios interceptor
+- **Retry-After Support**: Parses `Retry-After` header to show wait time to users
+- **Toast Notifications**: Clear messaging when rate limited instead of generic errors
+
+### Changed
+- Updated ROADMAP.md with v1.13.6-7 and v1.14 completions
+- Moved "Training Drag-and-Drop UI" from P1 to P3 (nice-to-have)
+
+---
+
+## [1.13.7] - 2026-01-22
+
+### Added
+
+#### Modular Frontend Architecture
+- **Feature-Based Organization**: Complete restructure into 10 domain modules
+  - `core/` - Shared UI components, composables, utilities
+  - `modules/auth/` - Authentication and user management
+  - `modules/vault/` - Vault operations and resource management
+  - `modules/dwellers/` - Dweller management and stats
+  - `modules/combat/` - Equipment and incident systems
+  - `modules/exploration/` - Wasteland exploration
+  - `modules/progression/` - Training, quests, objectives
+  - `modules/radio/` - Radio room and recruitment
+  - `modules/social/` - Relationships and pregnancy
+  - `modules/profile/` - User profile and settings
+- **Backward Compatibility**: Re-exports for smooth migration
+- **Documentation**: Complete architecture guide in `docs/MODULAR_FRONTEND_ARCHITECTURE.md`
+
+### Changed
+- Reorganized 300+ frontend files into modular structure
+- Updated all import paths to use new module organization
+
+### Fixed
+- All 639 frontend tests passing after refactor
+
+---
+
+## [1.13.5-1.13.6] - 2026-01-17
+
+### Added
+- **Proactive Token Refresh**: Automatic refresh 5 minutes before expiry
+- **Refresh Token Rotation**: Enhanced security with token rotation
+- **Production Security**: Rate limiting, IP filtering, auto-banning with Redis
+
+### Fixed
+- **MinIO Production**: Internal connection protocol issues resolved
+- **Database Migrations**: Profile initialization and SQLAlchemy session errors
+- **CI/CD Performance**: Optimized caching strategies
+
+---
+
+## [1.9-1.12] - 2026-01-03 to 2026-01-06
+
+### Summary
+- Audio conversation system with STT/TTS
+- Multi-provider AI support (Ollama/Anthropic/OpenAI)
+- WebSocket chat with typing indicators
+- Email verification and password reset
+- UX polish (happiness dashboard, filters, sorting)
+- See ROADMAP.md for detailed changelog
+
+---
+
 ## [1.8.0] - 2026-01-03
 
 ### Added

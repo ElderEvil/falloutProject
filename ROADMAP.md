@@ -8,7 +8,10 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ## Recent Completions
 
-### v2.1.4 Death System (January 22, 2026)
+### v2.2.0 Life & Death Cycle (January 23, 2026)
+**Major Feature Release** - Complete dweller mortality system
+
+### Death System Details
 - **Death Mechanics**: Full life/death cycle for dwellers
   - Death model fields: `is_dead`, `death_timestamp`, `death_cause`, `is_permanently_dead`, `epitaph`
   - Death causes: health, radiation, incident, exploration, combat

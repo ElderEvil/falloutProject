@@ -1,7 +1,7 @@
 # Fallout Shelter Project - Development Guide for Agentic Coding Agents
 
-> **Version:** 1.13.0
-> **Last Updated:** 2025-01-13
+> **Version:** 2.2.0
+> **Last Updated:** 2026-01-23
 > **Architecture:** FastAPI + Vue 3 monorepo
 
 ## 🏗️ Project Overview

@@ -2,10 +2,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import { setActivePinia, createPinia } from 'pinia';
 import { createRouter, createMemoryHistory } from 'vue-router';
-import RelationshipsView from '@/views/RelationshipsView.vue';
-import { useRelationshipStore } from '@/stores/relationship';
-import { useDwellerStore } from '@/stores/dweller';
-import { useAuthStore } from '@/stores/auth';
+import RelationshipsView from '@/modules/social/views/RelationshipsView.vue';
+import { useRelationshipStore } from '@/modules/social/stores/relationship';
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller';
+import { useAuthStore } from '@/modules/auth/stores/auth';
 
 // Mock Iconify
 vi.mock('@iconify/vue', () => ({

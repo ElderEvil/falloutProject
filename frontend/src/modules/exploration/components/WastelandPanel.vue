@@ -6,7 +6,7 @@ import { useDwellerStore } from '@/stores/dweller'
 import { useExplorationStore } from '@/stores/exploration'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { Icon } from '@iconify/vue'
-import ExplorationRewardsModal from '@/components/exploration/ExplorationRewardsModal.vue'
+import ExplorationRewardsModal from '@/modules/exploration/components/ExplorationRewardsModal.vue'
 import type { RewardsSummary } from '@/stores/exploration'
 
 const route = useRoute()

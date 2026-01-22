@@ -1,6 +1,2 @@
-import type { components } from '@/core/types/api.generated'
-
-// Re-export generated API types
-export type Room = components['schemas']['RoomRead']
-export type RoomCreate = components['schemas']['RoomCreate']
-export type RoomUpdate = components['schemas']['RoomUpdate']
+// Re-export from rooms module for backward compatibility
+export type { Room, RoomCreate, RoomUpdate } from '@/modules/rooms/models/room'

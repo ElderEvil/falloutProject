@@ -31,7 +31,7 @@ const exploration = computed(() => {
 
 const dweller = computed(() => {
   if (!exploration.value) return null
-  return dwellerStore.dwellers.find((d) => d.id === exploration.value.dweller_id)
+  return dwellerStore.dwellers.find((d) => d.id === exploration.value!.dweller_id)
 })
 
 const dwellerName = computed(() => {
@@ -54,14 +54,14 @@ const hasNext = computed(() => currentIndex.value < allExplorations.value.length
 const navigatePrevious = () => {
   if (hasPrevious.value) {
     const prevExploration = allExplorations.value[currentIndex.value - 1]
-    router.push(`/vault/${vaultId.value}/exploration/${prevExploration.id}`)
+    router.push(`/vault/${vaultId.value}/exploration/${prevExploration!.id}`)
   }
 }
 
 const navigateNext = () => {
   if (hasNext.value) {
     const nextExploration = allExplorations.value[currentIndex.value + 1]
-    router.push(`/vault/${vaultId.value}/exploration/${nextExploration.id}`)
+    router.push(`/vault/${vaultId.value}/exploration/${nextExploration!.id}`)
   }
 }
 
@@ -119,7 +119,7 @@ const getEventIcon = (eventType: string): string => {
     rest: 'mdi:sleep',
     default: 'mdi:circle-medium'
   }
-  return iconMap[eventType] || iconMap.default
+  return iconMap[eventType] ?? iconMap.default!
 }
 
 const getEventColor = (eventType: string): string => {
@@ -133,7 +133,7 @@ const getEventColor = (eventType: string): string => {
     rest: '#00ced1',
     default: 'var(--color-theme-primary)'
   }
-  return colorMap[eventType] || colorMap.default
+  return colorMap[eventType] ?? colorMap.default!
 }
 
 const formatEventTime = (hours: number): string => {
@@ -387,7 +387,7 @@ watch(() => progressPercentage.value, (newProgress) => {
       <div class="equipment-section">
         <div class="equipment-slot">
           <Icon icon="mdi:hanger" class="equipment-icon" />
-          <span class="equipment-label">{{ dweller.outfit?.name || 'No Outfit' }}</span>
+          <span class="equipment-label">{{ (dweller as any).outfit?.name || 'No Outfit' }}</span>
         </div>
       </div>
 

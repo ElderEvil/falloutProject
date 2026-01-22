@@ -412,7 +412,7 @@ import { useToast } from '@/core/composables/useToast'
 import apiClient from '@/core/plugins/axios'
 import UCard from '@/core/components/ui/UCard.vue'
 import UTabs from '@/core/components/ui/UTabs.vue'
-import SettingItem from '@/components/SettingItem.vue'
+import SettingItem from '@/core/components/ui/SettingItem.vue'
 
 const { error: showError } = useToast()
 

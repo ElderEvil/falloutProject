@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRoute } from 'vue-router'
-import type { Room } from '@/models/room'
+import type { Room } from '../models/room'
 
 const props = defineProps<{
   room: Room

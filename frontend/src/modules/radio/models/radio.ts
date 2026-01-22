@@ -2,7 +2,7 @@
  * TypeScript models for radio recruitment system
  */
 
-import type { Dweller } from './dweller'
+import type { Dweller } from '@/modules/dwellers/models/dweller'
 
 export type RadioMode = 'recruitment' | 'happiness'
 

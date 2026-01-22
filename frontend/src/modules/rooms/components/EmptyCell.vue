@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useHoverPreview } from '@/composables/useHoverPreview'
+import { useHoverPreview } from '../composables/useHoverPreview'
 
 const props = defineProps({
   x: {

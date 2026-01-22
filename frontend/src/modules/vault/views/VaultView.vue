@@ -2,29 +2,29 @@
 import { computed, defineAsyncComponent, inject, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import { useRoomStore } from '@/stores/room'
+import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useVaultStore } from '../stores/vault'
-import { useDwellerStore } from '@/stores/dweller'
-import { useExplorationStore } from '@/stores/exploration'
-import { useIncidentStore } from '@/stores/incident'
-import RoomGrid from '@/components/rooms/RoomGrid.vue'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { useExplorationStore } from '@/modules/exploration/stores/exploration'
+import { useIncidentStore } from '@/modules/combat/stores/incident'
+import RoomGrid from '@/modules/rooms/components/RoomGrid.vue'
 import BuildModeButton from '@/core/components/common/BuildModeButton.vue'
-import RoomMenu from '@/components/rooms/RoomMenu.vue'
+import RoomMenu from '@/modules/rooms/components/RoomMenu.vue'
 import ResourceBar from '@/core/components/common/ResourceBar.vue'
 import GameControlPanel from '@/core/components/common/GameControlPanel.vue'
 import UnassignedDwellers from '@/modules/dwellers/components/UnassignedDwellers.vue'
-import WastelandPanel from '@/components/wasteland/WastelandPanel.vue'
-import IncidentAlert from '@/components/incidents/IncidentAlert.vue'
+import WastelandPanel from '@/modules/exploration/components/WastelandPanel.vue'
+import IncidentAlert from '@/modules/combat/components/incidents/IncidentAlert.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
-import type { Room } from '@/models/room'
+import type { Room } from '@/modules/rooms/models/room'
 import { Icon } from '@iconify/vue'
 
 // Lazy load heavy modal
 const CombatModal = defineAsyncComponent({
-  loader: () => import('@/components/incidents/CombatModal.vue'),
+  loader: () => import('@/modules/combat/components/incidents/CombatModal.vue'),
   loadingComponent: ComponentLoader,
   delay: 200,
   timeout: 10000,

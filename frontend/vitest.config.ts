@@ -3,7 +3,7 @@ import { mergeConfig, defineConfig as defineVitestConfig, configDefaults } from 
 import viteConfig from './vite.config'
 
 export default mergeConfig(
-  viteConfig,
+  viteConfig as any,
   defineVitestConfig({
     test: {
       environment: 'jsdom',

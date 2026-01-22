@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import AboutView from '@/views/AboutView.vue'
+import AboutView from '@/modules/profile/views/AboutView.vue'
 
 // Mock the axios client
 vi.mock('@/core/plugins/axios', () => ({

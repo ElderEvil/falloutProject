@@ -35,7 +35,7 @@ const getEventIcon = (eventType: string): string => {
     rest: 'mdi:sleep',
     default: 'mdi:circle-medium'
   }
-  return iconMap[eventType] || iconMap.default
+  return iconMap[eventType] ?? iconMap.default!
 }
 
 const getEventColor = (eventType: string): string => {
@@ -49,7 +49,7 @@ const getEventColor = (eventType: string): string => {
     rest: '#00ced1',
     default: 'var(--color-theme-primary)'
   }
-  return colorMap[eventType] || colorMap.default
+  return colorMap[eventType] ?? colorMap.default!
 }
 
 const formatTime = (hours: number): string => {

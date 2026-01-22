@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { useRoomInteractions } from '@/composables/useRoomInteractions'
+import { useRoomInteractions } from '../composables/useRoomInteractions'
 
 const props = defineProps({
   room: {

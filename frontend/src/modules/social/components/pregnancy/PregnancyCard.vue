@@ -49,8 +49,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Pregnancy } from '@/models/pregnancy'
-import { usePregnancyStore } from '@/stores/pregnancy'
+import type { Pregnancy } from '../../models/pregnancy'
+import { usePregnancyStore } from '../../stores/pregnancy'
 import UCard from '@/core/components/ui/UCard.vue'
 import UBadge from '@/core/components/ui/UBadge.vue'
 import UButton from '@/core/components/ui/UButton.vue'

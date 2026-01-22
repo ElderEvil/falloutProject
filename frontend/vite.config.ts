@@ -13,13 +13,13 @@ export default defineConfig({
     ui(),
     tailwindcss(),
     // Bundle analyzer - run with ANALYZE=true
-    process.env.ANALYZE && visualizer({
+    process.env.ANALYZE ? visualizer({
       open: true,
       filename: 'dist/stats.html',
       gzipSize: true,
       brotliSize: true,
-    })
-  ].filter(Boolean),
+    }) : null
+  ].filter(Boolean) as any,
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

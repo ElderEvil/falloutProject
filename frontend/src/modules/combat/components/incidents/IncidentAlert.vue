@@ -39,8 +39,8 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
-import type { Incident } from '@/models/incident'
-import { IncidentType } from '@/models/incident'
+import type { Incident } from '../../models/incident'
+import { IncidentType } from '../../models/incident'
 
 interface Props {
   incidents: Incident[]

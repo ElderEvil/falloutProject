@@ -2,7 +2,7 @@
 import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import TrainingQueuePanel from '@/components/training/TrainingQueuePanel.vue'
+import TrainingQueuePanel from '@/modules/progression/components/training/TrainingQueuePanel.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'

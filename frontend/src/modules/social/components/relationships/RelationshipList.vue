@@ -37,8 +37,8 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
-import { useRelationshipStore } from '@/stores/relationship'
-import { useDwellerStore } from '@/stores/dweller'
+import { useRelationshipStore } from '../../stores/relationship'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import RelationshipCard from './RelationshipCard.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 

@@ -87,7 +87,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { useDwellerStore } from '@/stores/dweller'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 
 interface Props {
   vaultId: string

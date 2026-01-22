@@ -5,7 +5,7 @@
  * Features:
  * - Positioning options
  * - Hover and focus triggers
- * - Terminal green styling
+ * - Theme-aware styling (uses CSS variables)
  */
 
 interface Props {
@@ -19,7 +19,7 @@ const props = withDefaults(defineProps<Props>(), {
   delay: 200
 })
 
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 const isVisible = ref(false)
 let timeoutId: number | null = null
@@ -45,12 +45,23 @@ const positionClasses = {
   right: 'left-full top-1/2 -translate-y-1/2 ml-2'
 }
 
-const arrowClasses = {
-  top: 'top-full left-1/2 -translate-x-1/2 border-t-terminalGreen',
-  bottom: 'bottom-full left-1/2 -translate-x-1/2 border-b-terminalGreen',
-  left: 'left-full top-1/2 -translate-y-1/2 border-l-terminalGreen',
-  right: 'right-full top-1/2 -translate-y-1/2 border-r-terminalGreen'
+const arrowPositionClasses = {
+  top: 'top-full left-1/2 -translate-x-1/2',
+  bottom: 'bottom-full left-1/2 -translate-x-1/2',
+  left: 'left-full top-1/2 -translate-y-1/2',
+  right: 'right-full top-1/2 -translate-y-1/2'
 }
+
+const arrowStyle = computed(() => {
+  const borderColor = 'var(--color-theme-primary)'
+  switch (props.position) {
+    case 'top': return { borderTopColor: borderColor }
+    case 'bottom': return { borderBottomColor: borderColor }
+    case 'left': return { borderLeftColor: borderColor }
+    case 'right': return { borderRightColor: borderColor }
+    default: return { borderTopColor: borderColor }
+  }
+})
 </script>
 
 <template>
@@ -71,13 +82,12 @@ const arrowClasses = {
         v-if="isVisible"
         :class="[
           'absolute z-tooltip',
-          'bg-black text-terminalGreen',
+          'bg-black',
           'px-3 py-2 rounded text-sm font-mono',
-          'border border-terminalGreen',
-          'shadow-[0_0_20px_rgba(0,255,0,0.4)]',
           'max-w-xs whitespace-pre-line',
           positionClasses[position]
         ]"
+        class="tooltip-content"
         role="tooltip"
       >
         {{ text }}
@@ -87,8 +97,9 @@ const arrowClasses = {
           :class="[
             'absolute w-0 h-0',
             'border-4 border-transparent',
-            arrowClasses[position]
+            arrowPositionClasses[position]
           ]"
+          :style="arrowStyle"
         ></div>
       </div>
     </Transition>
@@ -96,6 +107,12 @@ const arrowClasses = {
 </template>
 
 <style scoped>
+.tooltip-content {
+  color: var(--color-theme-primary);
+  border: 1px solid var(--color-theme-primary);
+  box-shadow: 0 0 20px var(--color-theme-glow);
+}
+
 .tooltip-enter-active,
 .tooltip-leave-active {
   transition: opacity 0.2s ease;

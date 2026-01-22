@@ -286,7 +286,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         self,
         db_session: AsyncSession,
         vault_id: UUID4,
-        include_permanent: bool = False,
+        include_permanent: bool = False,  # noqa: FBT001, FBT002
         skip: int = 0,
         limit: int = 100,
     ) -> Sequence[Dweller]:

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import type { Weapon } from '../../models/equipment'
-import { getRarityColor, getDamageRange } from '../../models/equipment'
+import type { Weapon } from '@/modules/combat/models/equipment'
+import { getRarityColor, getDamageRange } from '@/modules/combat/models/equipment'
 
 interface Props {
   weapon: Weapon

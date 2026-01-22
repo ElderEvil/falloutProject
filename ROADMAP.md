@@ -94,7 +94,7 @@ AI-powered dweller interactions.
 
 ## Current Sprint: Backend Stability & Testing (P1)
 
-**Target: v2.2.0**
+**Target: v2.3.0**
 
 ### High Priority
 
@@ -109,22 +109,7 @@ AI-powered dweller interactions.
 
 ---
 
-## Next Sprint: UX Enhancements (P1)
-
-**Target: v2.2.0**
-
-### Death System ✅ COMPLETED (v2.2.0)
-
-- [x] **Death State** - is_dead flag, death_timestamp, death_cause on dweller model
-- [x] **Death Triggers** - Health reaches 0, radiation threshold, incidents, exploration
-- [x] **Revival System** - Tiered pricing based on level (50-2000 caps)
-- [x] **Permanent Death** - 7-day window, Celery task for daily check
-- [x] **Death UI** - Dead dweller cards, revival section, graveyard view
-- [x] **Death Statistics** - Births, deaths by cause, mortality rate
-
----
-
-## UX Enhancements (P2)
+## Next Sprint: UX Enhancements (P2)
 
 **Target: v2.4.0**
 
@@ -162,6 +147,11 @@ AI-powered dweller interactions.
 - Pet system, legendary dwellers
 - Merchant system, economy
 - Achievement system, daily/weekly challenges
+- **Dead Dweller Reuse System**
+    - Soft-delete permanently dead dwellers (keep data)
+    - Reuse as raiders attacking other vaults
+    - Transformation chance: ghoul, synth, super mutant
+    - Cross-vault encounters with former dwellers
 
 ### Phase 4: Multiplayer (May 2026)
 
@@ -174,7 +164,7 @@ AI-powered dweller interactions.
 
 ### Backend
 
-- [ ] Router consolidation: Merge small routers (settings, info) into logical groupings
+- [x] Router consolidation: Merge small routers (settings, info) into logical groupings
 - [ ] Storage migration: MinIO → RustFS (lighter, faster)
 - [ ] Performance testing: Locust in nightly CI
 - [ ] Test coverage: Target 80% (both FE/BE)
@@ -197,22 +187,22 @@ AI-powered dweller interactions.
 
 - **Backend**: 22+ routers, 90+ endpoints, 15+ services
 - **Frontend**: 55+ Vue components, 10 feature modules
-- **Tests**: Frontend 670, Backend 535
+- **Tests**: Frontend 683, Backend 535
 - **Models**: 18+ database models
 
 ### Version Milestones
 
 | Version | Release      | Highlights                             |
 |---------|--------------|----------------------------------------|
-| v2.2.0  | Jan 22, 2026 | Death system complete                  |
+| v2.2.0  | Jan 23, 2026 | Death system complete                  |
 | v2.1.3  | Jan 22, 2026 | Router consolidation                   |
 | v2.1.2  | Jan 22, 2026 | Quick wins complete                    |
 | v2.1.1  | Jan 22, 2026 | UI polish, planning                    |
 | v2.1.0  | Jan 22, 2026 | Modular frontend architecture          |
 | v2.0.0  | Jan 22, 2026 | Major release, deployment ready        |
 | v1.4.2  | Jan 21, 2026 | Final v1.x release                     |
-| v2.2.0  | Feb 2026     | Backend stability, UX polish (planned) |
-| v2.3.0  | Mar 2026     | Motion Vue, animations (planned)       |
+| v2.3.0  | Feb 2026     | Backend stability, testing (planned)   |
+| v2.4.0  | Mar 2026     | Motion Vue, animations (planned)       |
 
 ---
 

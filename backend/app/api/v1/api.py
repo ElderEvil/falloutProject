@@ -6,6 +6,7 @@ from app.api.v1.endpoints import (
     dweller,
     exploration,
     game_control,
+    info,
     junk,
     notifications,
     objective,
@@ -25,6 +26,7 @@ from app.api.v1.endpoints import (
 )
 
 api_router = APIRouter()
+api_router.include_router(info.router, tags=["Info"])
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(chat.router, prefix="/chat", tags=["Chat"])
 api_router.include_router(dweller.router, prefix="/dwellers", tags=["Dweller"])

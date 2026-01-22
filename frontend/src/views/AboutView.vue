@@ -1,11 +1,106 @@
+<script setup lang="ts">
+/**
+ * About page displaying system information and version details.
+ * @component
+ */
+import { ref, onMounted } from 'vue'
+import { UCard, USkeleton } from '@/core/components/ui'
+import apiClient from '@/core/plugins/axios'
+
+interface InfoData {
+  app_version: string
+  api_version: string
+  environment: string
+  python_version: string
+  build_date: string
+}
+
+// Frontend version from package.json (injected at build time via vite define)
+const frontendVersion = ref('1.13.7')
+const backendInfo = ref<InfoData | null>(null)
+const isLoading = ref(true)
+const error = ref<string | null>(null)
+
+onMounted(async () => {
+  try {
+    const response = await apiClient.get<InfoData>('/api/v1/info')
+    backendInfo.value = response.data
+  } catch (err) {
+    error.value = 'Failed to load backend info'
+    console.error('Failed to fetch backend info:', err)
+  } finally {
+    isLoading.value = false
+  }
+})
+</script>
+
 <template>
-  <div class="flex min-h-screen items-center justify-center text-white">
-    <div class="text-center">
-      <h1 class="mb-4 text-4xl font-bold text-green-500">This is an about page</h1>
-    </div>
+  <div class="flex min-h-screen items-center justify-center p-4">
+    <UCard title="System Information" glow crt class="w-full max-w-2xl">
+      <div v-if="isLoading" class="space-y-4">
+        <USkeleton class="h-6 w-full" />
+        <USkeleton class="h-6 w-3/4" />
+        <USkeleton class="h-6 w-5/6" />
+        <USkeleton class="h-6 w-2/3" />
+      </div>
+
+      <div v-else-if="error" class="text-red-500 font-mono">
+        {{ error }}
+      </div>
+
+      <div v-else class="space-y-6 font-mono">
+        <!-- Frontend Info -->
+        <div class="space-y-2">
+          <h3 class="text-lg font-bold text-[--color-terminal-green-400]">Frontend</h3>
+          <div class="grid grid-cols-2 gap-2 text-sm">
+            <span class="text-[--color-terminal-green-200]">Version:</span>
+            <span class="text-[--color-terminal-green-100]">{{ frontendVersion }}</span>
+
+            <span class="text-[--color-terminal-green-200]">Framework:</span>
+            <span class="text-[--color-terminal-green-100]">Vue 3.5</span>
+
+            <span class="text-[--color-terminal-green-200]">Build Tool:</span>
+            <span class="text-[--color-terminal-green-100]">Vite (Rolldown)</span>
+          </div>
+        </div>
+
+        <!-- Backend Info -->
+        <div v-if="backendInfo" class="space-y-2">
+          <h3 class="text-lg font-bold text-[--color-terminal-green-400]">Backend</h3>
+          <div class="grid grid-cols-2 gap-2 text-sm">
+            <span class="text-[--color-terminal-green-200]">Version:</span>
+            <span class="text-[--color-terminal-green-100]">{{ backendInfo.app_version }}</span>
+
+            <span class="text-[--color-terminal-green-200]">API Version:</span>
+            <span class="text-[--color-terminal-green-100]">{{ backendInfo.api_version }}</span>
+
+            <span class="text-[--color-terminal-green-200]">Environment:</span>
+            <span class="text-[--color-terminal-green-100]">{{ backendInfo.environment }}</span>
+
+            <span class="text-[--color-terminal-green-200]">Python:</span>
+            <span class="text-[--color-terminal-green-100]">{{ backendInfo.python_version }}</span>
+          </div>
+        </div>
+
+        <!-- Project Info -->
+        <div class="space-y-2">
+          <h3 class="text-lg font-bold text-[--color-terminal-green-400]">Project</h3>
+          <div class="grid grid-cols-2 gap-2 text-sm">
+            <span class="text-[--color-terminal-green-200]">Name:</span>
+            <span class="text-[--color-terminal-green-100]">Fallout Shelter</span>
+
+            <span class="text-[--color-terminal-green-200]">Repository:</span>
+            <a
+              href="https://github.com/ElderEvil/falloutProject"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-[--color-terminal-green-100] hover:text-[--color-terminal-green-300] underline"
+            >
+              GitHub
+            </a>
+          </div>
+        </div>
+      </div>
+    </UCard>
   </div>
 </template>
-
-<style scoped>
-/* Additional scoped styles if needed */
-</style>

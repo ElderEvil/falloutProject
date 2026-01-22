@@ -1,9 +1,9 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import axios from '@/plugins/axios'
+import axios from '@/core/plugins/axios'
 import type { Relationship, RelationshipCreate, CompatibilityScore } from '@/models/relationship'
-import { useToast } from '@/composables/useToast'
-import { getErrorMessage } from '@/types/utils'
+import { useToast } from '@/core/composables/useToast'
+import { getErrorMessage } from '@/core/types/utils'
 
 export const useRelationshipStore = defineStore('relationship', () => {
   const toast = useToast()

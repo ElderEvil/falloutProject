@@ -1,159 +1,40 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import { useAuthStore } from '@/stores/auth';
+import { useAuthStore } from '@/modules/auth/stores/auth';
 
-// Eager load only the home view for fastest initial load
-import HomeView from '@/views/HomeView.vue';
+// Module routes
+import { authRoutes } from '@/modules/auth/routes';
+import { vaultRoutes } from '@/modules/vault/routes';
+import { radioRoutes } from '@/modules/radio/routes';
+import { profileRoutes } from '@/modules/profile/routes';
+import { chatRoutes } from '@/modules/chat/routes';
+import { explorationRoutes } from '@/modules/exploration/routes';
+import { progressionRoutes } from '@/modules/progression/routes';
+import { socialRoutes } from '@/modules/social/routes';
+import { dwellersRoutes } from '@/modules/dwellers/routes';
 
-// Lazy load all other views for code splitting
-const LoginPage = () => import('@/components/auth/LoginFormTerminal.vue');
-const RegisterPage = () => import('@/components/auth/RegisterForm.vue');
-const VaultView = () => import('@/views/VaultView.vue');
-const DwellersView = () => import('@/views/DwellersView.vue');
-const DwellerDetailView = () => import('@/views/DwellerDetailView.vue');
-const DwellerChatPage = () => import('@/components/chat/DwellerChatPage.vue');
-const ExplorationView = () => import('@/views/ExplorationView.vue');
-const ExplorationDetailView = () => import('@/views/ExplorationDetailView.vue');
-const ObjectivesView = () => import('@/views/ObjectivesView.vue');
-const QuestsView = () => import('@/views/QuestsView.vue');
-const RadioView = () => import('@/views/RadioView.vue');
-const RelationshipsView = () => import('@/views/RelationshipsView.vue');
-const TrainingView = () => import('@/views/TrainingView.vue');
-const HappinessView = () => import('@/views/HappinessView.vue');
-const ProfileView = () => import('@/views/ProfileView.vue');
-const SettingsView = () => import('@/views/SettingsView.vue');
-const PreferencesView = () => import('@/views/PreferencesView.vue');
-const ResetPasswordView = () => import('@/views/ResetPasswordView.vue');
-const ForgotPasswordView = () => import('@/views/ForgotPasswordView.vue');
-const VerifyEmailView = () => import('@/views/VerifyEmailView.vue');
+
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    {
-      path: '/',
-      name: 'home',
-      component: HomeView,
-      meta: { requiresAuth: true, hideFromNav: false }
-    },
-    {
-      path: '/vault/:id',
-      name: 'vault',
-      component: VaultView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
-    {
-      path: '/vault/:id/dwellers',
-      name: 'dwellers',
-      component: DwellersView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
-    {
-      path: '/vault/:id/dwellers/:dwellerId',
-      name: 'dwellerDetail',
-      component: DwellerDetailView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
-    {
-      path: '/dweller/:id/chat',
-      name: 'DwellerChatPage',
-      component: DwellerChatPage
-    },
-    {
-      path: '/vault/:id/exploration',
-      name: 'exploration',
-      component: ExplorationView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
-    {
-      path: '/vault/:id/exploration/:explorationId',
-      name: 'explorationDetail',
-      component: ExplorationDetailView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
-    {
-      path: '/vault/:id/objectives',
-      name: 'objectives',
-      component: ObjectivesView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
-    {
-      path: '/vault/:id/quests',
-      name: 'quests',
-      component: QuestsView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
-    {
-      path: '/vault/:id/radio',
-      name: 'radio',
-      component: RadioView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
-    {
-      path: '/vault/:id/relationships',
-      name: 'relationships',
-      component: RelationshipsView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
-    {
-      path: '/vault/:id/training',
-      name: 'training',
-      component: TrainingView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
-    {
-      path: '/vault/:id/happiness',
-      name: 'happiness',
-      component: HappinessView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
-    {
-      path: '/profile',
-      name: 'profile',
-      component: ProfileView,
-      meta: { requiresAuth: true, hideFromNav: true }
-    },
-    {
-      path: '/settings',
-      name: 'settings',
-      component: SettingsView,
-      meta: { requiresAuth: true, hideFromNav: false }
-    },
-    {
-      path: '/preferences',
-      name: 'preferences',
-      component: PreferencesView,
-      meta: { requiresAuth: true, hideFromNav: false }
-    },
-    {
-      path: '/login',
-      name: 'login',
-      component: LoginPage,
-      meta: { hideFromNav: true }
-    },
-    {
-      path: '/register',
-      name: 'register',
-      component: RegisterPage,
-      meta: { hideFromNav: true }
-    },
-    {
-      path: '/forgot-password',
-      name: 'forgot-password',
-      component: ForgotPasswordView,
-      meta: { hideFromNav: true }
-    },
-    {
-      path: '/reset-password',
-      name: 'reset-password',
-      component: ResetPasswordView,
-      meta: { hideFromNav: true }
-    },
-    {
-      path: '/verify-email',
-      name: 'verify-email',
-      component: VerifyEmailView,
-      meta: { hideFromNav: true }
-    },
+    // Vault module routes (includes home, vault, happiness)
+    ...vaultRoutes,
+    // Dweller module routes
+    ...dwellersRoutes,
+    // Chat module routes
+    ...chatRoutes,
+    // Exploration module routes
+    ...explorationRoutes,
+    // Progression module routes (training, quests, objectives)
+    ...progressionRoutes,
+    // Radio module routes
+    ...radioRoutes,
+    // Social module routes (relationships)
+    ...socialRoutes,
+    // Profile module routes
+    ...profileRoutes,
+    // Auth module routes
+    ...authRoutes,
     {
       path: '/about',
       name: 'about',

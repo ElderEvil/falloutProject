@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { authService } from '@/services/authService'
-import apiClient from '@/plugins/axios'
+import apiClient from '@/core/plugins/axios'
 import { AuthError } from '@/types/auth'
 
-vi.mock('@/plugins/axios')
+vi.mock('@/core/plugins/axios')
 
 describe('authService', () => {
   beforeEach(() => {

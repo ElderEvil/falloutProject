@@ -4,17 +4,27 @@ import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import tailwindcss from '@tailwindcss/vite';
 import ui from '@nuxt/ui/vite';
+import { visualizer } from 'rollup-plugin-visualizer';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     vue(),
     ui(),
-    tailwindcss()
-  ],
+    tailwindcss(),
+    // Bundle analyzer - run with ANALYZE=true
+    process.env.ANALYZE && visualizer({
+      open: true,
+      filename: 'dist/stats.html',
+      gzipSize: true,
+      brotliSize: true,
+    })
+  ].filter(Boolean),
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@/core': fileURLToPath(new URL('./src/core', import.meta.url)),
+      '@/modules': fileURLToPath(new URL('./src/modules', import.meta.url))
     }
   },
   server: {
@@ -62,8 +72,8 @@ export default defineConfig({
             return 'tailwind'
           }
 
-          // UI Components
-          if (id.includes('/src/components/ui/')) {
+          // UI Components (now in core)
+          if (id.includes('/src/core/components/ui/')) {
             return 'ui-components'
           }
 

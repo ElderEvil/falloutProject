@@ -10,9 +10,14 @@
     "build": "vite build",
     "build:strict": "vue-tsc -b && vite build",
     "build:with-types": "pnpm types:generate && vue-tsc -b && vite build",
+    "build:analyze": "ANALYZE=true vite build",
     "preview": "vite preview",
     "test": "vitest",
-    "lint": "oxlint src"
+    "test:run": "vitest run",
+    "lint": "oxlint src",
+    "lint:fix": "oxlint src --fix",
+    "typecheck": "vue-tsc --noEmit",
+    "ci": "pnpm run lint && pnpm run typecheck && pnpm run test:run"
   },
   "dependencies": {
     "@iconify/vue": "5.0.0",
@@ -36,6 +41,7 @@
     "jsdom": "^25.0.1",
     "openapi-typescript": "7.10.1",
     "oxlint": "^1.41.0",
+    "rollup-plugin-visualizer": "6.0.5",
     "tailwindcss": "^4.1.18",
     "typescript": "^5.9.3",
     "vite": "npm:rolldown-vite@^7.3.0",

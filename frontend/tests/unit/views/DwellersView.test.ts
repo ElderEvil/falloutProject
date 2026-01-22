@@ -2,14 +2,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
-import DwellersView from '@/views/DwellersView.vue'
+import DwellersView from '@/modules/dwellers/views/DwellersView.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useDwellerStore } from '@/stores/dweller'
 import { useVaultStore } from '@/stores/vault'
 import { useRoomStore } from '@/stores/room'
-import axios from '@/plugins/axios'
+import axios from '@/core/plugins/axios'
 
-vi.mock('@/plugins/axios')
+vi.mock('@/core/plugins/axios')
 
 describe('DwellersView', () => {
   let router: any

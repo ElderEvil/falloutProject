@@ -2,15 +2,15 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
-import ProfileView from '@/views/ProfileView.vue'
-import ProfileEditor from '@/components/profile/ProfileEditor.vue'
-import ProfileStats from '@/components/profile/ProfileStats.vue'
+import ProfileView from '@/modules/profile/views/ProfileView.vue'
+import ProfileEditor from '@/modules/profile/components/ProfileEditor.vue'
+import ProfileStats from '@/modules/profile/components/ProfileStats.vue'
 import { useProfileStore } from '@/stores/profile'
 import { useAuthStore } from '@/stores/auth'
-import axios from '@/plugins/axios'
+import axios from '@/core/plugins/axios'
 import type { UserProfile } from '@/models/profile'
 
-vi.mock('@/plugins/axios')
+vi.mock('@/core/plugins/axios')
 
 describe('ProfileView', () => {
   let router: any

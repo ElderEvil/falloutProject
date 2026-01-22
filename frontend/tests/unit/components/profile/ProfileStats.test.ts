@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
-import ProfileStats from '@/components/profile/ProfileStats.vue'
+import ProfileStats from '@/modules/profile/components/ProfileStats.vue'
 
 describe('ProfileStats', () => {
   const mockStatistics = {

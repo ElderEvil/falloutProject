@@ -1,9 +1,9 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import axios from '@/plugins/axios'
+import axios from '@/core/plugins/axios'
 import { AxiosError } from 'axios'
 import type { Room, RoomCreate } from '@/models/room'
-import { useVaultStore } from './vault'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 
 export const useRoomStore = defineStore('room', () => {
   // State

@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useVaultStore } from '@/stores/vault'
-import axios from '@/plugins/axios'
+import axios from '@/core/plugins/axios'
 import { useRouter } from 'vue-router'
 
-vi.mock('@/plugins/axios')
+vi.mock('@/core/plugins/axios')
 vi.mock('vue-router', () => ({
   useRouter: vi.fn()
 }))

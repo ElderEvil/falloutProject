@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { incidentApi } from '@/api/incident'
 import type { Incident, IncidentListResponse } from '@/models/incident'
-import { useToast } from '@/composables/useToast'
+import { useToast } from '@/core/composables/useToast'
 
 export const useIncidentStore = defineStore('incident', () => {
   const incidents = ref<Map<string, Incident>>(new Map())

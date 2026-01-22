@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import axios from '@/plugins/axios'
+import axios from '@/core/plugins/axios'
 import type { Objective, ObjectiveCreate } from '@/models/objective'
 
 export const useObjectivesStore = defineStore('objectives', () => {

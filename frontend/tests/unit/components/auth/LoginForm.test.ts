@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import { setActivePinia, createPinia } from 'pinia';
 import { createRouter, createMemoryHistory } from 'vue-router';
-import LoginForm from '@/components/auth/LoginForm.vue';
+import LoginForm from '@/modules/auth/components/LoginForm.vue';
 import { useAuthStore } from '@/stores/auth';
 
 describe('LoginForm', () => {

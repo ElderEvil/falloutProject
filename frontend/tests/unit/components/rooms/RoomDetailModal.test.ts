@@ -16,7 +16,7 @@ vi.mock('@iconify/vue', () => ({
 }))
 
 // Mock UModal and UButton
-vi.mock('@/components/ui/UModal.vue', () => ({
+vi.mock('@/core/components/ui/UModal.vue', () => ({
   default: {
     name: 'UModal',
     props: ['show', 'size'],
@@ -29,7 +29,7 @@ vi.mock('@/components/ui/UModal.vue', () => ({
   }
 }))
 
-vi.mock('@/components/ui/UButton.vue', () => ({
+vi.mock('@/core/components/ui/UButton.vue', () => ({
   default: {
     name: 'UButton',
     props: ['disabled', 'variant'],

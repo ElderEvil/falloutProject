@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import { setActivePinia, createPinia } from 'pinia';
 import { createRouter, createMemoryHistory } from 'vue-router';
-import LoginFormTerminal from '@/components/auth/LoginFormTerminal.vue';
+import LoginFormTerminal from '@/modules/auth/components/LoginFormTerminal.vue';
 import { useAuthStore } from '@/stores/auth';
 
 // Mock Iconify

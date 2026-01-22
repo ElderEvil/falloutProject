@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import { setActivePinia, createPinia } from 'pinia';
 import { createRouter, createMemoryHistory} from 'vue-router';
-import RegisterForm from '@/components/auth/RegisterForm.vue';
+import RegisterForm from '@/modules/auth/components/RegisterForm.vue';
 import { useAuthStore } from '@/stores/auth';
 
 // Mock Iconify

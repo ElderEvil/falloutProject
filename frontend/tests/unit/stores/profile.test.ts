@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useProfileStore } from '@/stores/profile'
-import axios from '@/plugins/axios'
+import axios from '@/core/plugins/axios'
 import type { UserProfile, ProfileUpdate } from '@/models/profile'
 
-vi.mock('@/plugins/axios')
+vi.mock('@/core/plugins/axios')
 
 describe('Profile Store', () => {
   beforeEach(() => {

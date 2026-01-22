@@ -2,7 +2,7 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { Weapon, Outfit } from '@/models/equipment'
 import * as equipmentService from '@/services/equipment'
-import { useToast } from '@/composables/useToast'
+import { useToast } from '@/core/composables/useToast'
 
 export const useEquipmentStore = defineStore('equipment', () => {
   const toast = useToast()

@@ -1,9 +1,9 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import type { components } from '@/types/api.generated'
+import type { components } from '@/core/types/api.generated'
 import * as trainingService from '@/services/trainingService'
-import { useToast } from '@/composables/useToast'
-import { getErrorMessage } from '@/types/utils'
+import { useToast } from '@/core/composables/useToast'
+import { getErrorMessage } from '@/core/types/utils'
 
 type TrainingRead = components['schemas']['TrainingRead']
 type TrainingProgress = components['schemas']['TrainingProgress']

@@ -8,3 +8,7 @@ export {
   type DwellerSortBy,
   type SortDirection
 } from '@/modules/dwellers/stores/dweller'
+
+// Re-export Dweller types for components that import from @/stores/dweller
+// DwellerShort is used in the store's dwellers array
+export type { DwellerShort as Dweller, DwellerFull } from '@/modules/dwellers/models/dweller'

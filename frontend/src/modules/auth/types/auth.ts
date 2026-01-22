@@ -1,4 +1,4 @@
-import type { components } from './api.generated'
+import type { components } from '@/core/types/api.generated'
 
 // Re-export generated API types
 export type Token = components['schemas']['Token']

@@ -39,7 +39,7 @@ const router = createRouter({
       path: '/about',
       name: 'about',
       // Lazy-load the AboutView component
-      component: () => import('../views/AboutView.vue')
+      component: () => import('@/modules/profile/views/AboutView.vue')
     }
   ]
 });

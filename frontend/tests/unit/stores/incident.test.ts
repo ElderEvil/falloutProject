@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import { useIncidentStore } from '@/stores/incident'
-import { incidentApi } from '@/api/incident'
-import type { IncidentListResponse, Incident } from '@/models/incident'
-import { IncidentType, IncidentStatus } from '@/models/incident'
+import { useIncidentStore } from '@/modules/combat/stores/incident'
+import { incidentApi } from '@/modules/combat/api/incident'
+import type { IncidentListResponse, Incident } from '@/modules/combat/models/incident'
+import { IncidentType, IncidentStatus } from '@/modules/combat/models/incident'
 
-vi.mock('@/api/incident')
-vi.mock('@/composables/useToast', () => ({
+vi.mock('@/modules/combat/api/incident')
+vi.mock('@/core/composables/useToast', () => ({
   useToast: () => ({
     success: vi.fn(),
     error: vi.fn(),

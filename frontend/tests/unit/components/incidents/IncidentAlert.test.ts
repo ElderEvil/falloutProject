@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
-import IncidentAlert from '@/components/incidents/IncidentAlert.vue'
-import { IncidentType, IncidentStatus } from '@/models/incident'
-import type { Incident } from '@/models/incident'
+import IncidentAlert from '@/modules/combat/components/incidents/IncidentAlert.vue'
+import { IncidentType, IncidentStatus } from '@/modules/combat/models/incident'
+import type { Incident } from '@/modules/combat/models/incident'
 
 // Mock @iconify/vue
 vi.mock('@iconify/vue', () => ({

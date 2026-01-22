@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoomStore } from '@/stores/room'
+import { useRoomStore } from '../stores/room'
 import RoomMenuItem from './RoomMenuItem.vue'
-import type { Room } from '@/models/room'
+import type { Room } from '../models/room'
 
 const roomStore = useRoomStore()
 const availableRooms = computed(() => Array.isArray(roomStore.availableRooms) ? roomStore.availableRooms : [])

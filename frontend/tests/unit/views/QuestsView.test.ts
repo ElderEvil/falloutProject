@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import QuestsView from '@/views/QuestsView.vue'
-import { useQuestStore } from '@/stores/quest'
-import { useRoomStore } from '@/stores/room'
-import { useVaultStore } from '@/stores/vault'
+import QuestsView from '@/modules/progression/views/QuestsView.vue'
+import { useQuestStore } from '@/modules/progression/stores/quest'
+import { useRoomStore } from '@/modules/rooms/stores/room'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({

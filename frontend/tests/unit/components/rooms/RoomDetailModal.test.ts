@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import RoomDetailModal from '@/components/rooms/RoomDetailModal.vue'
-import { useDwellerStore } from '@/stores/dweller'
-import { useRoomStore } from '@/stores/room'
-import { useAuthStore } from '@/stores/auth'
+import RoomDetailModal from '@/modules/rooms/components/RoomDetailModal.vue'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { useRoomStore } from '@/modules/rooms/stores/room'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 
 // Mock @iconify/vue
 vi.mock('@iconify/vue', () => ({

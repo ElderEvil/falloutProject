@@ -2,7 +2,7 @@
 import { useDwellerStore, type DwellerSortBy, type DwellerStatus, type SortDirection } from '../stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
-import { useRoomStore } from '@/stores/room'
+import { useRoomStore } from '@/modules/rooms/stores/room'
 import { computed, defineAsyncComponent, inject, onMounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
@@ -16,11 +16,11 @@ import UTooltip from '@/core/components/ui/UTooltip.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
-import type { Room } from '@/models/room'
+import type { Room } from '@/modules/rooms/models/room'
 
 // Lazy load room modal
 const RoomDetailModal = defineAsyncComponent({
-  loader: () => import('@/components/rooms/RoomDetailModal.vue'),
+  loader: () => import('@/modules/rooms/components/RoomDetailModal.vue'),
   loadingComponent: ComponentLoader,
   delay: 200,
   timeout: 10000,

@@ -38,8 +38,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, onUnmounted } from 'vue'
-import { usePregnancyStore } from '@/stores/pregnancy'
-import { useDwellerStore } from '@/stores/dweller'
+import { usePregnancyStore } from '../../stores/pregnancy'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import PregnancyCard from './PregnancyCard.vue'
 import UButton from '@/core/components/ui/UButton.vue'

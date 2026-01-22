@@ -134,11 +134,11 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import { useIncidentStore } from '@/stores/incident'
+import { useIncidentStore } from '../../stores/incident'
 import UModal from '@/core/components/ui/UModal.vue'
 import UButton from '@/core/components/ui/UButton.vue'
-import type { Incident } from '@/models/incident'
-import { IncidentType } from '@/models/incident'
+import type { Incident } from '../../models/incident'
+import { IncidentType } from '../../models/incident'
 
 interface Props {
   incidentId: string

@@ -57,7 +57,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Relationship } from '@/models/relationship'
+import type { Relationship } from '../../models/relationship'
 import UCard from '@/core/components/ui/UCard.vue'
 import UBadge from '@/core/components/ui/UBadge.vue'
 import UButton from '@/core/components/ui/UButton.vue'

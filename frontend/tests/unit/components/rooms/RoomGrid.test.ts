@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
-import RoomGrid from '@/components/rooms/RoomGrid.vue'
-import { useRoomStore } from '@/stores/room'
-import { useDwellerStore } from '@/stores/dweller'
-import { useTrainingStore } from '@/stores/training'
-import { useAuthStore } from '@/stores/auth'
+import RoomGrid from '@/modules/rooms/components/RoomGrid.vue'
+import { useRoomStore } from '@/modules/rooms/stores/room'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { useTrainingStore } from '@/modules/progression/stores/training'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 
 describe('RoomGrid', () => {
   beforeEach(() => {

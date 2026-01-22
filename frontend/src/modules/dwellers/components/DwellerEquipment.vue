@@ -3,8 +3,8 @@ import { ref, computed, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useEquipmentStore } from '@/stores/equipment'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import WeaponCard from '@/components/equipment/WeaponCard.vue'
-import OutfitCard from '@/components/equipment/OutfitCard.vue'
+import WeaponCard from '@/modules/combat/components/equipment/WeaponCard.vue'
+import OutfitCard from '@/modules/combat/components/equipment/OutfitCard.vue'
 import type { Dweller } from '../models/dweller'
 
 interface Props {

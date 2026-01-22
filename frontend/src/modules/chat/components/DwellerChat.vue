@@ -39,7 +39,7 @@ const chatWs = authStore.user?.id
   ? useChatWebSocket(authStore.user.id, props.dwellerId)
   : null;
 
-const userAvatar = computed(() => authStore.user?.image_url || undefined);
+const userAvatar = computed(() => (authStore.user as any)?.image_url || undefined);
 const dwellerAvatarUrl = computed(() => props.dwellerAvatar ? `http://${props.dwellerAvatar}` : '');
 
 const loadChatHistory = async () => {
@@ -150,7 +150,10 @@ const sendAudioMessage = async () => {
     );
 
     // Update user message with transcription
-    messages.value[placeholderIndex].content = response.data.transcription;
+    const placeholderMessage = messages.value[placeholderIndex];
+    if (placeholderMessage) {
+      placeholderMessage.content = response.data.transcription;
+    }
 
     // Add dweller response
     messages.value.push({

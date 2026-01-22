@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import type { Outfit } from '@/models/equipment'
-import { getRarityColor, getOutfitBonuses } from '@/models/equipment'
+import type { Outfit } from '@/modules/combat/models/equipment'
+import { getRarityColor, getOutfitBonuses } from '@/modules/combat/models/equipment'
 
 interface Props {
   outfit: Outfit

@@ -8,50 +8,77 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ## Recent Completions
 
-### v1.14.1 TypeScript & Module Polish (January 22, 2026)
-- **Build Fixes**: Resolved all `build:strict` TypeScript errors across modular architecture
-- **Import Cleanup**: Updated relative imports to `@/` alias throughout codebase
-- **Testing**: 651 frontend tests passing
+### v2.1.2 Quick Wins Complete (January 22, 2026)
+- **Audio Controls**: Stop/pause button for chat audio playback
+- **Animated Effects**: Pulsing glow effect on UI elements
+- **Navigation**: Motion Vue animations on NavBar dropdowns
+- **Room Management**: Unique room filtering (needs verification)
+- **Equipment**: Dialog simplification and improved layout
+- **AI Generation**: Smart button states (Generate/Regenerate)
+- **UI Polish**: Appearance tooltip cleanup
 
-### v1.14.0 Tech Debt & Polish (January 22, 2026)
-- **System Info**: Public `/api/v1/info` endpoint, terminal-themed About page
-- **Rate Limit UX**: User-friendly 429 errors with Retry-After support
-- **Profile**: Superuser status display
+### v2.1.1 UI Polish & Planning (January 22, 2026)
+- **UI Improvements**: AI button states (Generate/Regenerate), theme colors, tooltips
+- **Equipment**: Dialog improvements, better weapon/outfit display
+- **Planning**: v2.2.0 implementation roadmap created
+- **Testing**: 670 frontend tests passing
 
-### v1.13.7 Modular Frontend Architecture (January 22, 2026)
-- **Complete Refactor**: 10 feature modules (auth, vault, dwellers, combat, exploration, progression, radio, social, chat, profile)
-- **Core Module**: Shared UI components, composables, utilities
-- **Backward Compatibility**: Re-exports for smooth migration
+### v2.1.0 Modular Architecture (January 22, 2026)
+- **Frontend Refactor**: 10 feature modules, 300+ files reorganized
+- **TypeScript**: strictTemplates enabled, all build errors resolved
+- **Backward Compat**: Re-exports for smooth migration
 - **Docs**: [MODULAR_FRONTEND_ARCHITECTURE.md](docs/MODULAR_FRONTEND_ARCHITECTURE.md)
 
-### Previous Releases (v1.10-v1.13.5)
-- v1.13.5: Production security (token refresh, MinIO fixes, CI/CD optimization)
-- v1.13.1: Security middleware (rate limiting, IP filtering, auto-banning)
-- v1.13: Audio conversations, multi-provider AI (Ollama/Anthropic/OpenAI)
-- v1.12: Happiness dashboard, UI polish, admin panel improvements
-- v1.11: Email verification, password reset flow
-- v1.10: UX polish (SPECIAL stats display, navigation improvements)
+### v2.0.0 Major Release (January 22, 2026)
+- **Deployment**: Production-ready, TrueNAS staging setup
+- **Docs**: Agent skills, consolidated documentation
+- **Stability**: Relationship service fixes, dependency updates
+- **Version**: Aligned with semantic-release automation
 
-See [CHANGELOG.md](CHANGELOG.md) for full history.
+### Previous Releases (v1.0-v1.4)
+- v1.4.2: Final v1.x release (Jan 21, 2026)
+- v1.3-1.4: Email verification, password reset, UX polish
+- v1.0-1.2: Core features, breeding system, radio recruitment
+- See [CHANGELOG.md](CHANGELOG.md) for complete v1.x history
 
 ---
 
-## Current Sprint: Core Gameplay Polish (P1)
+## Current Sprint: Backend Stability & Testing (P1)
+
+**Target: v2.2.0**
 
 ### High Priority
-- [ ] **Dweller Death System** - Death mechanics, revival options, memorial system
-- [x] **Training Assignment UI** - Progress indicators, queue management
-- [x] **Birth Event System** - Pregnancy, child aging, stat inheritance
-- [x] **System Info & About Page** - Version display, environment info
+- [ ] **Unique Room Filtering Verification** - Test and validate backend prevents duplicate unique rooms
+- [ ] **Backend Test Coverage** - Increase from 67% to 80%
+  - Security middleware (0% → 85%)
+  - DB initialization (0% → 75%)
+  - Incident service (28% → 75%)
+  - Game loop (54% → 80%)
+- [ ] **Datetime Deprecation Fix** - Replace `datetime.utcnow()` → `datetime.now(timezone.utc)`
+- [ ] **Router Consolidation** - Move settings/info endpoints to appropriate routers (avoid 1-2 endpoint routers)
 
-### Complete Existing Systems
-- [x] **Resource Warning UI** - Toast notifications for low resources
-- [x] **Training Room UI** - Progress indicators, completion notifications
-- [x] **WebSocket Migration** - Infrastructure ready
+---
+
+## Next Sprint: Death System (P1)
+
+**Target: v2.3.0**
+
+### Death Mechanics
+- [ ] **Death State** - is_dead flag, death_timestamp on dweller model
+- [ ] **Death Triggers** - Health reaches 0, radiation threshold
+- [ ] **Revival System** - Level × 50 caps cost, max 1000
+
+### Death UI
+- [ ] Death notification modal
+- [ ] Grayed-out dweller cards for dead dwellers
+- [ ] Revival button with cost display
+- [ ] Memorial/death log (optional)
 
 ---
 
 ## UX Enhancements (P2)
+
+**Target: v2.4.0**
 
 ### Animation & Motion
 - [ ] **Motion Vue Integration** - Smooth animations throughout app
@@ -92,37 +119,40 @@ See [CHANGELOG.md](CHANGELOG.md) for full history.
 ## Technical Debt (P3)
 
 ### Backend
+- [ ] Router consolidation: Merge small routers (settings, info) into logical groupings
 - [ ] Storage migration: MinIO → RustFS (lighter, faster)
 - [ ] Performance testing: Locust in nightly CI
 - [ ] Test coverage: Target 80% (both FE/BE)
 
 ### Frontend
-- [x] ~~Vue architecture refactor~~ → COMPLETED (v1.13.7)
+- [x] ~~Vue architecture refactor~~ → COMPLETED (v2.1.0)
 - [ ] Component refactoring: Break down large components (DwellerCard 813 lines, RoomGrid 814 lines)
 
-### DevOps (Backlog)
+### DevOps
 - [ ] Deployment optimization ([docs/DEPLOYMENT_OPTIMIZATION.md](docs/DEPLOYMENT_OPTIMIZATION.md))
-- [ ] Docker/CI audit
+- [x] ~~Docker build automation~~ → COMPLETED (build.yml)
 
 ---
 
 ## Progress Metrics
 
-### Current Stats (January 22, 2026)
+### Current Stats (January 23, 2026)
 - **Backend**: 22+ routers, 90+ endpoints, 15+ services
 - **Frontend**: 55+ Vue components, 10 feature modules
-- **Tests**: Frontend 651, Backend 535
+- **Tests**: Frontend 670, Backend 535
 - **Models**: 18+ database models
 
 ### Version Milestones
 | Version | Release | Highlights |
 |---------|---------|------------|
-| v1.14.1 | Jan 2026 | TypeScript fixes, module polish |
-| v1.14.0 | Jan 2026 | System info, rate limit UX |
-| v1.13.7 | Jan 2026 | Modular frontend architecture |
-| v1.13.5 | Jan 2026 | Production security |
-| v2.0 | Feb 2026 | Phase 1 completion (planned) |
-| v2.1 | Mar 2026 | Full MVP (planned) |
+| v2.1.2 | Jan 22, 2026 | Quick wins complete |
+| v2.1.1 | Jan 22, 2026 | UI polish, planning |
+| v2.1.0 | Jan 22, 2026 | Modular frontend architecture |
+| v2.0.0 | Jan 22, 2026 | Major release, deployment ready |
+| v1.4.2 | Jan 21, 2026 | Final v1.x release |
+| v2.2.0 | Feb 2026 | Backend stability, testing (planned) |
+| v2.3.0 | Feb 2026 | Death system (planned) |
+| v2.4.0 | Mar 2026 | Motion Vue, UX polish (planned) |
 
 ---
 
@@ -136,4 +166,4 @@ See [CHANGELOG.md](CHANGELOG.md) for full history.
 
 ---
 
-*Last updated: January 22, 2026*
+*Last updated: January 23, 2026*

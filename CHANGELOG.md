@@ -1,3 +1,77 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
+---
+
+## [2.1.1] - 2026-01-22
+
+### Added
+- Implementation plan for v2.2.0 (death system, UX enhancements)
+- Floating tooltips for improved UX
+
+### Fixed
+- **UI Improvements** (#155)
+  - AI generation button logic (Generate vs Regenerate states)
+  - Theme color consistency fixes
+  - Equipment UI improvements
+  - Room menu styling
+
+### Testing
+- All 670 frontend tests passing
+
+---
+
+## [2.1.0] - 2026-01-22
+
+### Added
+- **Modular Frontend Architecture** (#149)
+  - 10 feature-based domain modules
+  - 300+ files reorganized
+  - Backward compatibility via re-exports
+  - Complete architecture documentation
+
+### Fixed
+- TypeScript strict build errors (#152)
+- Template type errors with strictTemplates (#153)
+
+### Testing
+- All 639 frontend tests passing after refactor
+
+---
+
+## [2.0.2] - 2026-01-22
+
+### Added
+- Agent skills documentation (#143)
+- Deployment optimization guide (#133)
+
+### Changed
+- Documentation consolidation (#148)
+
+---
+
+## [2.0.1] - 2026-01-22
+
+### Fixed
+- Relationship service and vault CRUD issues (#144)
+- Dependency updates (urllib3, pyasn1)
+
+---
+
+## [2.0.0] - 2026-01-22
+
+### Changed
+- **BREAKING**: Major version bump from v1.4.2 for semantic-release alignment
+- No API breaking changes - version jump for release automation
+
+### Notes
+- Docker images now follow v2.x.x tagging
+- See AGENTS.md for versioning strategy
+
+---
+
 ## [1.14.1] - 2026-01-22
 
 ### Fixed
@@ -310,10 +384,8 @@
 ### Changed
 - Enhanced exploration/combat XP with bonuses
 - Added ix_dweller_level index
-# Changelog
 
-All notable changes to this project will be documented in this file.
-See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+---
 
 ## [1.4.0] - 2026-01-02
 

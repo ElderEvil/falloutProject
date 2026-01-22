@@ -25,6 +25,11 @@ celery_app.conf.beat_schedule = {
         "schedule": 60.0,  # Run every 60 seconds
         "options": {"expires": 55},  # Expire if not executed within 55 seconds
     },
+    "check-permanent-deaths-daily": {
+        "task": "check_permanent_deaths",
+        "schedule": 86400.0,  # Run every 24 hours (86400 seconds)
+        "options": {"expires": 82800},  # Expire if not executed within 23 hours
+    },
 }
 
 celery_app.conf.timezone = "UTC"

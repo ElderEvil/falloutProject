@@ -2,7 +2,7 @@ import { ref, computed } from 'vue';
 import { defineStore } from 'pinia';
 import { useLocalStorage } from '@vueuse/core';
 import axios from '@/core/plugins/axios';
-import type { Dweller, DwellerShort } from '../models/dweller';
+import type { Dweller, DwellerShort, DwellerDead, DwellerReviveResponse, RevivalCostResponse } from '../models/dweller';
 import { useToast } from '@/core/composables/useToast';
 
 export type DwellerStatus = 'idle' | 'working' | 'exploring' | 'training' | 'resting' | 'dead'
@@ -30,7 +30,10 @@ export const useDwellerStore = defineStore('dweller', () => {
   // State
   const dwellers = ref<DwellerShort[]>([]);
   const detailedDwellers = ref<Record<string, Dweller | null>>({});
+  const deadDwellers = ref<DwellerDead[]>([]);
+  const graveyardDwellers = ref<DwellerDead[]>([]);
   const isLoading = ref(false);
+  const isDeadLoading = ref(false);
 
   // Filter and sort state (persisted in localStorage)
   const filterStatus = useLocalStorage<DwellerStatus | 'all'>('dwellerFilterStatus', 'all');
@@ -438,11 +441,136 @@ export const useDwellerStore = defineStore('dweller', () => {
     }
   }
 
+  // ================================
+  // Death System Actions
+  // ================================
+
+  /**
+   * Fetch dead dwellers (revivable) for a vault
+   */
+  async function fetchDeadDwellers(vaultId: string, token: string): Promise<DwellerDead[]> {
+    isDeadLoading.value = true;
+    try {
+      const response = await axios.get<DwellerDead[]>(
+        `/api/v1/dwellers/vault/${vaultId}/dead`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      deadDwellers.value = response.data;
+      return response.data;
+    } catch (error) {
+      console.error(`Failed to fetch dead dwellers for vault ${vaultId}`, error);
+      return [];
+    } finally {
+      isDeadLoading.value = false;
+    }
+  }
+
+  /**
+   * Fetch graveyard (permanently dead) dwellers for a vault
+   */
+  async function fetchGraveyard(vaultId: string, token: string): Promise<DwellerDead[]> {
+    isDeadLoading.value = true;
+    try {
+      const response = await axios.get<DwellerDead[]>(
+        `/api/v1/dwellers/vault/${vaultId}/graveyard`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      graveyardDwellers.value = response.data;
+      return response.data;
+    } catch (error) {
+      console.error(`Failed to fetch graveyard for vault ${vaultId}`, error);
+      return [];
+    } finally {
+      isDeadLoading.value = false;
+    }
+  }
+
+  /**
+   * Get revival cost for a dead dweller
+   */
+  async function getRevivalCost(dwellerId: string, token: string): Promise<RevivalCostResponse | null> {
+    try {
+      const response = await axios.get<RevivalCostResponse>(
+        `/api/v1/dwellers/${dwellerId}/revival_cost`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      return response.data;
+    } catch (error: unknown) {
+      const errorMessage = (error as {
+        response?: { data?: { detail?: string } }
+      })?.response?.data?.detail || 'Failed to get revival cost';
+      console.error(`Failed to get revival cost for dweller ${dwellerId}`, error);
+      toast.error(errorMessage);
+      return null;
+    }
+  }
+
+  /**
+   * Revive a dead dweller
+   */
+  async function reviveDweller(dwellerId: string, token: string): Promise<DwellerReviveResponse | null> {
+    try {
+      const response = await axios.post<DwellerReviveResponse>(
+        `/api/v1/dwellers/${dwellerId}/revive`,
+        null,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      // Remove from dead dwellers list
+      deadDwellers.value = deadDwellers.value.filter(d => d.id !== dwellerId);
+
+      // Update or add revived dweller to main list
+      const revivedDweller = response.data.dweller;
+      const existingIndex = dwellers.value.findIndex(d => d.id === dwellerId);
+      if (existingIndex !== -1) {
+        // Replace existing stale entry with revived dweller data
+        dwellers.value[existingIndex] = revivedDweller as unknown as DwellerShort;
+      } else {
+        // Type cast needed since DwellerRead may have slightly different shape than DwellerShort
+        dwellers.value.push(revivedDweller as unknown as DwellerShort);
+      }
+
+      // Also update cached detailed dweller if present
+      if (dwellerId in detailedDwellers.value) {
+        detailedDwellers.value[dwellerId] = revivedDweller as unknown as Dweller;
+      }
+
+      toast.success(`${revivedDweller.first_name} has been revived! Caps spent: ${response.data.caps_spent}`);
+      return response.data;
+    } catch (error: unknown) {
+      const errorMessage = (error as {
+        response?: { data?: { detail?: string } }
+      })?.response?.data?.detail || 'Failed to revive dweller';
+      console.error(`Failed to revive dweller ${dwellerId}`, error);
+      toast.error(errorMessage);
+      return null;
+    }
+  }
+
   return {
     // State
     dwellers,
     detailedDwellers,
+    deadDwellers,
+    graveyardDwellers,
     isLoading,
+    isDeadLoading,
     filterStatus,
     sortBy,
     sortDirection,
@@ -468,6 +596,11 @@ export const useDwellerStore = defineStore('dweller', () => {
     setFilterStatus,
     setSortBy,
     setSortDirection,
-    setViewMode
+    setViewMode,
+    // Death system
+    fetchDeadDwellers,
+    fetchGraveyard,
+    getRevivalCost,
+    reviveDweller
   };
 });

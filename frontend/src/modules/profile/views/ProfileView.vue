@@ -4,9 +4,9 @@ import { useRouter } from 'vue-router';
 import { Icon } from '@iconify/vue';
 import { useProfileStore } from '../stores/profile';
 import { useAuthStore } from '@/modules/auth/stores/auth';
-import { UButton } from '@/core/components/ui';
+import { UButton, UCard } from '@/core/components/ui';
 import ProfileEditor from '../components/ProfileEditor.vue';
-import ProfileStats from '../components/ProfileStats.vue';
+import { LifeDeathStatistics } from '@/modules/dwellers/components/death';
 import type { ProfileUpdate } from '../models/profile';
 
 const router = useRouter();
@@ -16,6 +16,7 @@ const isEditing = ref(false);
 
 onMounted(async () => {
   await fetchProfile();
+  await profileStore.fetchDeathStatistics();
 });
 
 const fetchProfile = async () => {
@@ -62,7 +63,7 @@ const formatDate = (dateString: string) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-900 py-8 px-4">
+  <div class="min-h-screen bg-black py-8 px-4 font-mono">
     <div class="max-w-7xl mx-auto">
       <!-- Back Button -->
       <UButton variant="ghost" size="sm" class="mb-4" @click="router.push('/')">
@@ -72,83 +73,81 @@ const formatDate = (dateString: string) => {
 
       <!-- Header -->
       <div class="mb-8">
-        <h1 class="text-4xl font-bold" :style="{ color: 'var(--color-theme-primary)' }">Overseer Profile</h1>
-        <p class="text-gray-400 mt-2">Manage your vault overseer profile and view statistics</p>
+        <h1 class="text-4xl font-bold text-theme-primary" style="text-shadow: 0 0 10px var(--color-theme-glow);">
+          OVERSEER PROFILE
+        </h1>
+        <p class="text-theme-primary/60 mt-2 uppercase tracking-wider text-sm">Personnel File & Vital Statistics Registry</p>
       </div>
 
       <!-- Loading State -->
       <div v-if="profileStore.loading && !profileStore.profile" class="text-center py-12">
-        <div class="text-xl" :style="{ color: 'var(--color-theme-primary)' }">Loading profile...</div>
+        <Icon icon="mdi:loading" class="h-12 w-12 animate-spin text-theme-primary mx-auto" />
+        <div class="text-xl text-theme-primary mt-4">Loading profile...</div>
       </div>
 
       <!-- Error State -->
-      <div
+      <UCard
         v-else-if="profileStore.error && !profileStore.profile"
-        class="bg-red-900/20 border border-red-500 rounded-lg p-6"
+        title="ERROR: PROFILE LOAD FAILURE"
+        glow
+        crt
       >
-        <h3 class="text-red-500 font-semibold text-lg mb-2">Error Loading Profile</h3>
-        <p class="text-gray-300">{{ profileStore.error }}</p>
-        <button
-          @click="fetchProfile"
-          class="mt-4 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded transition-colors"
-        >
-          Retry
-        </button>
-      </div>
+        <div class="text-red-500 mb-4">{{ profileStore.error }}</div>
+        <UButton variant="primary" @click="fetchProfile">
+          <Icon icon="mdi:refresh" class="mr-2" />
+          Retry Connection
+        </UButton>
+      </UCard>
 
       <!-- Profile Content -->
       <div v-else-if="profileStore.profile" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Left Column: Personal Info -->
         <div>
           <!-- Display Mode -->
-          <div v-if="!isEditing" class="bg-gray-800 rounded-lg p-6 border"
-               :style="{ borderColor: 'rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3)' }">
-            <div class="flex justify-between items-start mb-6">
-              <h2 class="text-2xl font-bold" :style="{ color: 'var(--color-theme-primary)' }">Personal Information</h2>
-              <button
-                @click="startEditing"
-                class="text-black font-semibold py-2 px-4 rounded transition-colors hover:opacity-90"
-                :style="{ backgroundColor: 'var(--color-theme-primary)' }"
-              >
-                Edit Profile
-              </button>
-            </div>
+          <UCard v-if="!isEditing" title="PERSONNEL FILE" glow crt>
+            <template #header>
+              <UButton variant="primary" size="sm" @click="startEditing">
+                <Icon icon="mdi:pencil" class="mr-1" />
+                Edit
+              </UButton>
+            </template>
 
             <!-- Avatar -->
             <div class="flex justify-center mb-6">
-              <img
-                v-if="profileStore.profile.avatar_url"
-                :src="profileStore.profile.avatar_url"
-                alt="Profile avatar"
-                class="w-32 h-32 rounded-full border-4 object-cover"
-                :style="{ borderColor: 'var(--color-theme-primary)' }"
-                @error="handleAvatarError"
-              />
-              <div
-                v-else
-                class="w-32 h-32 rounded-full border-4 bg-gray-700 flex items-center justify-center"
-                :style="{ borderColor: 'var(--color-theme-primary)' }"
-              >
-                <Icon icon="mdi:account-circle" class="text-6xl" :style="{ color: 'var(--color-theme-primary)', opacity: 0.6 }" />
+              <div class="relative">
+                <img
+                  v-if="profileStore.profile.avatar_url"
+                  :src="profileStore.profile.avatar_url"
+                  alt="Profile avatar"
+                  class="w-32 h-32 rounded-full border-2 border-theme-primary object-cover"
+                  style="box-shadow: 0 0 15px var(--color-theme-glow);"
+                  @error="handleAvatarError"
+                />
+                <div
+                  v-else
+                  class="w-32 h-32 rounded-full border-2 border-theme-primary bg-black flex items-center justify-center"
+                  style="box-shadow: 0 0 15px var(--color-theme-glow);"
+                >
+                  <Icon icon="mdi:account-circle" class="text-6xl text-theme-primary/60" />
+                </div>
               </div>
             </div>
 
             <!-- User Email -->
             <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-400 mb-1">Email</label>
+              <label class="block text-xs font-medium text-theme-primary/60 uppercase tracking-wider mb-1">Email Address</label>
               <div class="flex items-center gap-2 flex-wrap">
-                <p class="text-white">{{ authStore.user?.email || 'Not available' }}</p>
+                <p class="text-theme-primary">{{ authStore.user?.email || 'Not available' }}</p>
                 <span
                   v-if="authStore.user?.email_verified"
-                  class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold"
-                  :style="{ backgroundColor: 'rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.2)', color: 'var(--color-theme-primary)' }"
+                  class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-theme-primary/20 text-theme-primary border border-theme-primary/30"
                 >
                   <Icon icon="mdi:check-circle" class="text-sm" />
                   VERIFIED
                 </span>
                 <span
                   v-else
-                  class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-gray-700 text-gray-400"
+                  class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-red-900/20 text-red-400 border border-red-500/30"
                 >
                   <Icon icon="mdi:alert-circle-outline" class="text-sm" />
                   UNVERIFIED
@@ -158,18 +157,18 @@ const formatDate = (dateString: string) => {
 
             <!-- Account Type -->
             <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-400 mb-1">Account Type</label>
+              <label class="block text-xs font-medium text-theme-primary/60 uppercase tracking-wider mb-1">Clearance Level</label>
               <div class="flex items-center gap-2">
                 <span
                   v-if="authStore.isSuperuser"
-                  class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-yellow-500/20 text-yellow-400"
+                  class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
                 >
                   <Icon icon="mdi:shield-crown" class="text-sm" />
                   SUPERUSER
                 </span>
                 <span
                   v-else
-                  class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-gray-700 text-gray-300"
+                  class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-theme-primary/10 text-theme-primary/80 border border-theme-primary/30"
                 >
                   <Icon icon="mdi:account" class="text-sm" />
                   STANDARD
@@ -179,26 +178,26 @@ const formatDate = (dateString: string) => {
 
             <!-- Bio -->
             <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-400 mb-1">Bio</label>
-              <p class="text-white whitespace-pre-wrap">
-                {{ profileStore.profile.bio || 'No bio provided yet.' }}
+              <label class="block text-xs font-medium text-theme-primary/60 uppercase tracking-wider mb-1">Personnel Notes</label>
+              <p class="text-theme-primary/80 whitespace-pre-wrap bg-black/40 p-3 rounded border border-theme-primary/20">
+                {{ profileStore.profile.bio || 'No biographical data on file.' }}
               </p>
             </div>
 
             <!-- Preferences -->
             <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-400 mb-1">Preferences</label>
+              <label class="block text-xs font-medium text-theme-primary/60 uppercase tracking-wider mb-1">System Preferences</label>
               <pre
-                class="bg-gray-700 p-3 rounded text-sm text-gray-300 overflow-x-auto"
+                class="bg-black/40 p-3 rounded text-sm text-theme-primary/70 overflow-x-auto border border-theme-primary/20"
               >{{ JSON.stringify(profileStore.profile.preferences || {}, null, 2) }}</pre>
             </div>
 
             <!-- Timestamps -->
-            <div class="text-xs text-gray-500 pt-4 border-t border-gray-700">
-              <p>Created: {{ formatDate(profileStore.profile.created_at) }}</p>
-              <p>Updated: {{ formatDate(profileStore.profile.updated_at) }}</p>
+            <div class="text-xs text-theme-primary/40 pt-4 border-t border-theme-primary/20 font-mono">
+              <p>FILE CREATED: {{ formatDate(profileStore.profile.created_at) }}</p>
+              <p>LAST MODIFIED: {{ formatDate(profileStore.profile.updated_at) }}</p>
             </div>
-          </div>
+          </UCard>
 
           <!-- Edit Mode -->
           <ProfileEditor
@@ -213,7 +212,10 @@ const formatDate = (dateString: string) => {
 
         <!-- Right Column: Statistics -->
         <div>
-          <ProfileStats :statistics="profileStore.statistics" />
+          <LifeDeathStatistics
+            :statistics="profileStore.deathStatistics"
+            :loading="profileStore.deathStatsLoading"
+          />
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 [project]
 name = "fallout-shelter-fast-api-vue"
-version = "2.1.2"
+version = "2.2.0"
 authors = [{ name = "ElderEvil", email = "elder.evil.dev@proton.me" }, ]
 description = "Fallout Shelter FastAPI Game is a web-based simulation game where the player manages a vault full of dwellers, balancing their needs and resources to keep the vault thriving."
 requires-python = ">=3.12,<3.14"

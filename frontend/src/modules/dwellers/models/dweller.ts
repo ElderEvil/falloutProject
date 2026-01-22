@@ -8,6 +8,12 @@ export type DwellerShort = components['schemas']['DwellerReadLess']
 export type DwellerCreate = components['schemas']['DwellerCreate']
 export type DwellerUpdate = components['schemas']['DwellerUpdate']
 
+// Death system types
+export type DeathCause = components['schemas']['DeathCauseEnum']
+export type DwellerDead = components['schemas']['DwellerDeadRead']
+export type DwellerReviveResponse = components['schemas']['DwellerReviveResponse']
+export type RevivalCostResponse = components['schemas']['RevivalCostResponse']
+
 // Helper type for SPECIAL stats
 export interface Special {
   strength: number

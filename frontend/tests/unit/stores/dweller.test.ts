@@ -142,5 +142,119 @@ describe('Dweller Store', () => {
 
       expect(store.filterStatus).toBe('all')
     })
+
+    it('should initialize with empty dead dwellers collections', () => {
+      const store = useDwellerStore()
+
+      expect(store.deadDwellers).toEqual([])
+      expect(store.graveyardDwellers).toEqual([])
+    })
+  })
+
+  describe('Death System API', () => {
+    it('should fetch dead dwellers', async () => {
+      const mockDeadDwellers = [
+        { id: '1', first_name: 'Dead', last_name: 'Dweller', is_dead: true, is_permanently_dead: false }
+      ]
+
+      vi.mocked(axios.get).mockResolvedValue({ data: mockDeadDwellers })
+
+      const store = useDwellerStore()
+      const result = await store.fetchDeadDwellers('vault-123', 'test-token')
+
+      expect(axios.get).toHaveBeenCalledWith(
+        '/api/v1/dwellers/vault/vault-123/dead',
+        expect.any(Object)
+      )
+      expect(result).toEqual(mockDeadDwellers)
+      expect(store.deadDwellers).toEqual(mockDeadDwellers)
+    })
+
+    it('should fetch graveyard dwellers', async () => {
+      const mockGraveyardDwellers = [
+        { id: '2', first_name: 'Permanent', last_name: 'Dead', is_dead: true, is_permanently_dead: true }
+      ]
+
+      vi.mocked(axios.get).mockResolvedValue({ data: mockGraveyardDwellers })
+
+      const store = useDwellerStore()
+      const result = await store.fetchGraveyard('vault-123', 'test-token')
+
+      expect(axios.get).toHaveBeenCalledWith(
+        '/api/v1/dwellers/vault/vault-123/graveyard',
+        expect.any(Object)
+      )
+      expect(result).toEqual(mockGraveyardDwellers)
+      expect(store.graveyardDwellers).toEqual(mockGraveyardDwellers)
+    })
+
+    it('should get revival cost', async () => {
+      const mockCost = {
+        dweller_id: 'dweller-1',
+        revival_cost: 250,
+        vault_caps: 1000,
+        can_afford: true,
+        days_until_permanent: 5
+      }
+
+      vi.mocked(axios.get).mockResolvedValue({ data: mockCost })
+
+      const store = useDwellerStore()
+      const result = await store.getRevivalCost('dweller-1', 'test-token')
+
+      expect(axios.get).toHaveBeenCalledWith(
+        '/api/v1/dwellers/dweller-1/revival_cost',
+        expect.any(Object)
+      )
+      expect(result).toEqual(mockCost)
+    })
+
+    it('should revive dweller', async () => {
+      const mockResponse = {
+        dweller: { id: 'dweller-1', first_name: 'Revived', is_dead: false },
+        caps_spent: 250
+      }
+
+      vi.mocked(axios.post).mockResolvedValue({ data: mockResponse })
+
+      const store = useDwellerStore()
+      // Add initial dead dweller to the store
+      store.deadDwellers = [
+        { id: 'dweller-1', first_name: 'Dead', last_name: 'Dweller', is_dead: true, is_permanently_dead: false } as any
+      ]
+
+      const result = await store.reviveDweller('dweller-1', 'test-token')
+
+      expect(axios.post).toHaveBeenCalledWith(
+        '/api/v1/dwellers/dweller-1/revive',
+        null,
+        expect.any(Object)
+      )
+      expect(result).toEqual(mockResponse)
+      // Dead dweller should be removed from list
+      expect(store.deadDwellers.find(d => d.id === 'dweller-1')).toBeUndefined()
+    })
+
+    it('should handle error when getting revival cost fails', async () => {
+      vi.mocked(axios.get).mockRejectedValue({
+        response: { data: { detail: 'Dweller not found' } }
+      })
+
+      const store = useDwellerStore()
+      const result = await store.getRevivalCost('invalid-id', 'test-token')
+
+      expect(result).toBeNull()
+    })
+
+    it('should handle error when reviving dweller fails', async () => {
+      vi.mocked(axios.post).mockRejectedValue({
+        response: { data: { detail: 'Insufficient caps' } }
+      })
+
+      const store = useDwellerStore()
+      const result = await store.reviveDweller('dweller-1', 'test-token')
+
+      expect(result).toBeNull()
+    })
   })
 })

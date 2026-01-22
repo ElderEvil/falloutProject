@@ -4,11 +4,12 @@ import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import ProfileView from '@/modules/profile/views/ProfileView.vue'
 import ProfileEditor from '@/modules/profile/components/ProfileEditor.vue'
-import ProfileStats from '@/modules/profile/components/ProfileStats.vue'
+import { LifeDeathStatistics } from '@/modules/dwellers/components/death'
 import { useProfileStore } from '@/stores/profile'
 import { useAuthStore } from '@/stores/auth'
 import axios from '@/core/plugins/axios'
 import type { UserProfile } from '@/models/profile'
+import type { DeathStatistics } from '@/modules/profile/stores/profile'
 
 vi.mock('@/core/plugins/axios')
 
@@ -29,6 +30,20 @@ describe('ProfileView', () => {
     total_rooms_built: 8,
     created_at: '2023-01-01T00:00:00Z',
     updated_at: '2023-01-02T00:00:00Z'
+  }
+
+  const mockDeathStatistics: DeathStatistics = {
+    total_dwellers_born: 50,
+    total_dwellers_died: 10,
+    deaths_by_cause: {
+      health: 3,
+      radiation: 2,
+      incident: 2,
+      exploration: 2,
+      combat: 1
+    },
+    revivable_count: 3,
+    permanently_dead_count: 7
   }
 
   beforeEach(() => {
@@ -54,9 +69,22 @@ describe('ProfileView', () => {
     vi.clearAllMocks()
   })
 
+  // Helper to mock both API calls
+  const mockBothApis = () => {
+    vi.mocked(axios.get).mockImplementation((url: string) => {
+      if (url === '/api/v1/users/me/profile') {
+        return Promise.resolve({ data: mockProfile })
+      }
+      if (url === '/api/v1/users/me/profile/statistics') {
+        return Promise.resolve({ data: mockDeathStatistics })
+      }
+      return Promise.reject(new Error('Unknown URL'))
+    })
+  }
+
   describe('Component Mounting', () => {
     it('should render profile view', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
+      mockBothApis()
 
       const wrapper = mount(ProfileView, {
         global: {
@@ -65,11 +93,11 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      expect(wrapper.text()).toContain('Overseer Profile')
+      expect(wrapper.text()).toContain('OVERSEER PROFILE')
     })
 
     it('should fetch profile on mount', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
+      mockBothApis()
 
       mount(ProfileView, {
         global: {
@@ -80,11 +108,24 @@ describe('ProfileView', () => {
 
       expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me/profile')
     })
+
+    it('should fetch death statistics on mount', async () => {
+      mockBothApis()
+
+      mount(ProfileView, {
+        global: {
+          plugins: [router]
+        }
+      })
+      await flushPromises()
+
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me/profile/statistics')
+    })
   })
 
   describe('Loading State', () => {
     it('should show loading indicator while fetching profile', async () => {
-      vi.mocked(axios.get).mockImplementationOnce(
+      vi.mocked(axios.get).mockImplementation(
         () => new Promise((resolve) => setTimeout(() => resolve({ data: mockProfile }), 100))
       )
 
@@ -99,7 +140,7 @@ describe('ProfileView', () => {
     })
 
     it('should hide loading indicator after profile loads', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
+      mockBothApis()
 
       const wrapper = mount(ProfileView, {
         global: {
@@ -126,7 +167,7 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      expect(wrapper.text()).toContain('Error Loading Profile')
+      expect(wrapper.text()).toContain('ERROR: PROFILE LOAD FAILURE')
       expect(wrapper.text()).toContain(errorMessage)
     })
 
@@ -142,15 +183,21 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      const retryButton = wrapper.find('.bg-red-500')
-      expect(retryButton.exists()).toBe(true)
-      expect(retryButton.text()).toContain('Retry')
+      expect(wrapper.text()).toContain('Retry Connection')
     })
 
     it('should retry fetching profile when retry button is clicked', async () => {
       vi.mocked(axios.get)
         .mockRejectedValueOnce({ response: { data: { detail: 'Network error' } } })
-        .mockResolvedValueOnce({ data: mockProfile })
+        .mockImplementation((url: string) => {
+          if (url === '/api/v1/users/me/profile') {
+            return Promise.resolve({ data: mockProfile })
+          }
+          if (url === '/api/v1/users/me/profile/statistics') {
+            return Promise.resolve({ data: mockDeathStatistics })
+          }
+          return Promise.reject(new Error('Unknown URL'))
+        })
 
       const wrapper = mount(ProfileView, {
         global: {
@@ -159,23 +206,22 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      const retryButton = wrapper.find('.bg-red-500')
-      await retryButton.trigger('click')
+      const retryButton = wrapper.findAll('button').find((btn) => btn.text().includes('Retry'))
+      await retryButton?.trigger('click')
       await flushPromises()
 
-      expect(axios.get).toHaveBeenCalledTimes(2)
-      expect(wrapper.text()).not.toContain('Error Loading Profile')
+      // Initial fail (1) + statistics attempt (2) + retry profile (3) + retry statistics (4)
+      expect(axios.get).toHaveBeenCalledTimes(4)
+      expect(wrapper.text()).not.toContain('ERROR: PROFILE LOAD FAILURE')
     })
   })
 
   describe('Profile Display', () => {
-    beforeEach(async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
+    beforeEach(() => {
+      mockBothApis()
     })
 
     it('should display user email from auth store', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
-
       const wrapper = mount(ProfileView, {
         global: {
           plugins: [router]
@@ -187,8 +233,6 @@ describe('ProfileView', () => {
     })
 
     it('should display bio when provided', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
-
       const wrapper = mount(ProfileView, {
         global: {
           plugins: [router]
@@ -200,8 +244,6 @@ describe('ProfileView', () => {
     })
 
     it('should display avatar when URL is provided', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
-
       const wrapper = mount(ProfileView, {
         global: {
           plugins: [router]
@@ -215,8 +257,6 @@ describe('ProfileView', () => {
     })
 
     it('should display preferences as JSON', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
-
       const wrapper = mount(ProfileView, {
         global: {
           plugins: [router]
@@ -230,8 +270,6 @@ describe('ProfileView', () => {
     })
 
     it('should display created and updated timestamps', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
-
       const wrapper = mount(ProfileView, {
         global: {
           plugins: [router]
@@ -239,14 +277,14 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      expect(wrapper.text()).toContain('Created:')
-      expect(wrapper.text()).toContain('Updated:')
+      expect(wrapper.text()).toContain('FILE CREATED:')
+      expect(wrapper.text()).toContain('LAST MODIFIED:')
     })
   })
 
-  describe('ProfileStats Component', () => {
-    it('should render ProfileStats component', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
+  describe('LifeDeathStatistics Component', () => {
+    it('should render LifeDeathStatistics component', async () => {
+      mockBothApis()
 
       const wrapper = mount(ProfileView, {
         global: {
@@ -255,12 +293,12 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      const statsComponent = wrapper.findComponent(ProfileStats)
+      const statsComponent = wrapper.findComponent(LifeDeathStatistics)
       expect(statsComponent.exists()).toBe(true)
     })
 
-    it('should pass statistics to ProfileStats component', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
+    it('should pass death statistics to LifeDeathStatistics component', async () => {
+      mockBothApis()
 
       const wrapper = mount(ProfileView, {
         global: {
@@ -269,19 +307,28 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      const statsComponent = wrapper.findComponent(ProfileStats)
-      expect(statsComponent.props('statistics')).toEqual({
-        totalDwellersCreated: 10,
-        totalCapsEarned: 5000,
-        totalExplorations: 25,
-        totalRoomsBuilt: 8
+      const statsComponent = wrapper.findComponent(LifeDeathStatistics)
+      expect(statsComponent.props('statistics')).toEqual(mockDeathStatistics)
+    })
+
+    it('should pass loading state to LifeDeathStatistics component', async () => {
+      mockBothApis()
+
+      const wrapper = mount(ProfileView, {
+        global: {
+          plugins: [router]
+        }
       })
+      await flushPromises()
+
+      const statsComponent = wrapper.findComponent(LifeDeathStatistics)
+      expect(statsComponent.props('loading')).toBe(false)
     })
   })
 
   describe('Edit Mode', () => {
     it('should show edit button in display mode', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
+      mockBothApis()
 
       const wrapper = mount(ProfileView, {
         global: {
@@ -290,13 +337,12 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      const editButton = wrapper.findAll('button').find((btn) => btn.text().includes('Edit Profile'))
+      const editButton = wrapper.findAll('button').find((btn) => btn.text().includes('Edit'))
       expect(editButton?.exists()).toBe(true)
-      expect(editButton?.text()).toContain('Edit Profile')
     })
 
     it('should switch to edit mode when edit button is clicked', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
+      mockBothApis()
 
       const wrapper = mount(ProfileView, {
         global: {
@@ -305,7 +351,7 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      const editButton = wrapper.findAll('button').find((btn) => btn.text().includes('Edit Profile'))
+      const editButton = wrapper.findAll('button').find((btn) => btn.text().includes('Edit'))
       await editButton?.trigger('click')
       await flushPromises()
 
@@ -314,7 +360,7 @@ describe('ProfileView', () => {
     })
 
     it('should hide display mode when in edit mode', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
+      mockBothApis()
 
       const wrapper = mount(ProfileView, {
         global: {
@@ -323,22 +369,21 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      const editButton = wrapper.findAll('button').find((btn) => btn.text().includes('Edit Profile'))
+      const editButton = wrapper.findAll('button').find((btn) => btn.text().includes('Edit'))
       await editButton?.trigger('click')
       await flushPromises()
 
-      // Check that Personal Information section is not visible (only editor is shown)
-      const personalInfoSection = wrapper.find('.bg-gray-800 h2')
-      expect(personalInfoSection.text()).not.toBe('Personal Information')
+      // Personnel File card should not be visible in edit mode
+      expect(wrapper.text()).not.toContain('PERSONNEL FILE')
     })
   })
 
   describe('ProfileEditor Integration', () => {
     const findEditButton = (wrapper: any) =>
-      wrapper.findAll('button').find((btn: any) => btn.text().includes('Edit Profile'))
+      wrapper.findAll('button').find((btn: any) => btn.text().includes('Edit'))
 
     it('should render ProfileEditor with initial data', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
+      mockBothApis()
 
       const wrapper = mount(ProfileView, {
         global: {
@@ -356,7 +401,7 @@ describe('ProfileView', () => {
     })
 
     it('should submit profile update when editor emits submit', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
+      mockBothApis()
       const updatedProfile = { ...mockProfile, bio: 'Updated bio' }
       vi.mocked(axios.put).mockResolvedValueOnce({ data: updatedProfile })
 
@@ -379,7 +424,7 @@ describe('ProfileView', () => {
     })
 
     it('should exit edit mode after successful update', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
+      mockBothApis()
       const updatedProfile = { ...mockProfile, bio: 'Updated bio' }
       vi.mocked(axios.put).mockResolvedValueOnce({ data: updatedProfile })
 
@@ -399,11 +444,10 @@ describe('ProfileView', () => {
       await flushPromises()
 
       expect(wrapper.findComponent(ProfileEditor).exists()).toBe(false)
-      expect(wrapper.text()).toContain('Edit Profile')
     })
 
     it('should cancel edit mode when editor emits cancel', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
+      mockBothApis()
 
       const wrapper = mount(ProfileView, {
         global: {
@@ -421,11 +465,10 @@ describe('ProfileView', () => {
       await flushPromises()
 
       expect(wrapper.findComponent(ProfileEditor).exists()).toBe(false)
-      expect(wrapper.text()).toContain('Edit Profile')
     })
 
     it('should stay in edit mode if update fails', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
+      mockBothApis()
       vi.mocked(axios.put).mockRejectedValueOnce({
         response: { data: { detail: 'Validation error' } }
       })
@@ -449,7 +492,7 @@ describe('ProfileView', () => {
     })
 
     it('should pass loading state to editor', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
+      mockBothApis()
       vi.mocked(axios.put).mockImplementationOnce(
         () => new Promise((resolve) => setTimeout(() => resolve({ data: mockProfile }), 100))
       )
@@ -473,7 +516,7 @@ describe('ProfileView', () => {
     })
 
     it('should pass error state to editor', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
+      mockBothApis()
       vi.mocked(axios.put).mockRejectedValueOnce({
         response: { data: { detail: 'Validation error' } }
       })
@@ -499,11 +542,10 @@ describe('ProfileView', () => {
 
   describe('Error Clearing', () => {
     const findEditButton = (wrapper: any) =>
-      wrapper.findAll('button').find((btn: any) => btn.text().includes('Edit Profile'))
+      wrapper.findAll('button').find((btn: any) => btn.text().includes('Edit'))
 
     it('should clear error when entering edit mode', async () => {
-      // Start with successful profile load, then enter edit mode to clear any residual error
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
+      mockBothApis()
 
       const wrapper = mount(ProfileView, {
         global: {
@@ -524,7 +566,7 @@ describe('ProfileView', () => {
     })
 
     it('should clear error when canceling edit mode', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
+      mockBothApis()
       vi.mocked(axios.put).mockRejectedValueOnce({
         response: { data: { detail: 'Update error' } }
       })

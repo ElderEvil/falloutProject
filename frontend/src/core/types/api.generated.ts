@@ -30,6 +30,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/system/info": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Info
+         * @description Get application version and environment information.
+         *
+         *     Public endpoint (no authentication required).
+         *     Useful for monitoring, debugging, and displaying in UI.
+         *
+         *     :returns: Application info including versions and environment
+         *     :rtype: InfoResponse
+         */
+        get: operations["get_info_api_v1_system_info_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -570,6 +596,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dwellers/vault/{vault_id}/dead": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dead Dwellers
+         * @description Get all dead dwellers (revivable) for a vault.
+         */
+        get: operations["get_dead_dwellers_api_v1_dwellers_vault__vault_id__dead_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dwellers/vault/{vault_id}/graveyard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Graveyard
+         * @description Get permanently dead dwellers (graveyard) for a vault.
+         */
+        get: operations["get_graveyard_api_v1_dwellers_vault__vault_id__graveyard_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dwellers/{dweller_id}/revival_cost": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Revival Cost
+         * @description Get the revival cost for a dead dweller.
+         */
+        get: operations["get_revival_cost_api_v1_dwellers__dweller_id__revival_cost_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dwellers/{dweller_id}/revive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revive Dweller
+         * @description Revive a dead dweller by paying the revival cost in caps.
+         */
+        post: operations["revive_dweller_api_v1_dwellers__dweller_id__revive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/explorations/send": {
         parameters: {
             query?: never;
@@ -704,6 +810,32 @@ export interface paths {
          * @description Manually trigger event generation for an exploration (for testing/debugging).
          */
         post: operations["generate_event_api_v1_explorations__exploration_id__generate_event_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/game/balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Game Balance Settings
+         * @description Get current game balance configuration (read-only).
+         *
+         *     This endpoint exposes all game balance constants that can be tuned via
+         *     environment variables. Useful for debugging and future admin panels.
+         *
+         *     :returns: Dictionary containing all game balance settings organized by category
+         *     :rtype: dict[str, Any]
+         */
+        get: operations["get_game_balance_settings_api_v1_game_balance_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1320,30 +1452,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/users/me/profile": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get My Profile
-         * @description Get current user's profile.
-         */
-        get: operations["get_my_profile_api_v1_users_me_profile_get"];
-        /**
-         * Update My Profile
-         * @description Update current user's profile.
-         */
-        put: operations["update_my_profile_api_v1_users_me_profile_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/quests/": {
         parameters: {
             query?: never;
@@ -1771,6 +1879,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rooms/buildable/{vault_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Buildable Rooms
+         * @description Get list of rooms that can be built in a vault.
+         *
+         *     Filters out:
+         *     - Vault door (never buildable by user)
+         *     - Unique rooms that are already built in this vault
+         */
+        get: operations["get_buildable_rooms_api_v1_rooms_buildable__vault_id___get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/rooms/build/": {
         parameters: {
             query?: never;
@@ -1816,32 +1948,6 @@ export interface paths {
         put?: never;
         /** Upgrade Room */
         post: operations["upgrade_room_api_v1_rooms_upgrade__room_id__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/settings/game-balance": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Game Balance Settings
-         * @description Get current game balance configuration (read-only).
-         *
-         *     This endpoint exposes all game balance constants that can be tuned via
-         *     environment variables. Useful for debugging and future admin panels.
-         *
-         *     Returns:
-         *         Dictionary containing all game balance settings organized by category
-         */
-        get: operations["get_game_balance_settings_api_v1_settings_game_balance_get"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2111,6 +2217,87 @@ export interface paths {
          * @description Update a user.
          */
         put: operations["update_user_api_v1_users__user_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get My Profile
+         * @description Get current user's profile.
+         *
+         *     If the profile doesn't exist, it will be auto-created with default values.
+         *     This handles race conditions gracefully - if two concurrent requests try to
+         *     create a profile, only one will succeed and both will return the profile.
+         *
+         *     :param db_session: Database session
+         *     :type db_session: AsyncSession
+         *     :param user: Current authenticated active user
+         *     :type user: CurrentActiveUser
+         *     :returns: User's profile with statistics and preferences
+         *     :rtype: ProfileRead
+         *     :raises HTTPException: 500 if profile retrieval/creation fails unexpectedly
+         */
+        get: operations["get_my_profile_api_v1_users_me_profile_get"];
+        /**
+         * Update My Profile
+         * @description Update current user's profile.
+         *
+         *     Only bio, avatar_url, and preferences can be updated via this endpoint.
+         *     Statistics fields (total_dwellers_created, total_caps_earned, etc.) are
+         *     managed internally by the game and cannot be modified directly.
+         *
+         *     :param db_session: Database session
+         *     :type db_session: AsyncSession
+         *     :param profile_data: Profile update data (bio, avatar_url, preferences)
+         *     :type profile_data: ProfileUpdate
+         *     :param user: Current authenticated active user
+         *     :type user: CurrentActiveUser
+         *     :returns: Updated profile
+         *     :rtype: ProfileRead
+         *     :raises HTTPException: 404 if profile not found
+         *     :raises HTTPException: 500 if profile update fails unexpectedly
+         */
+        put: operations["update_my_profile_api_v1_users_me_profile_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/profile/statistics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Death Statistics
+         * @description Get life/death statistics for the current user.
+         *
+         *     Returns statistics about dwellers born, died, and breakdown by cause of death,
+         *     as well as counts of currently revivable and permanently dead dwellers.
+         *
+         *     :param db_session: Database session
+         *     :type db_session: AsyncSession
+         *     :param user: Current authenticated active user
+         *     :type user: CurrentActiveUser
+         *     :returns: Life/death statistics dictionary
+         *     :rtype: dict
+         */
+        get: operations["get_death_statistics_api_v1_users_me_profile_statistics_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -2514,6 +2701,11 @@ export interface components {
             proximity_score: number;
         };
         /**
+         * DeathCauseEnum
+         * @enum {string}
+         */
+        DeathCauseEnum: "health" | "radiation" | "incident" | "exploration" | "combat";
+        /**
          * DeliveryResult
          * @description Result of a pregnancy delivery.
          */
@@ -2635,6 +2827,21 @@ export interface components {
             radaway: number;
             /** @default idle */
             status: components["schemas"]["DwellerStatusEnum"];
+            /**
+             * Is Dead
+             * @default false
+             */
+            is_dead: boolean;
+            /** Death Timestamp */
+            death_timestamp?: string | null;
+            death_cause?: components["schemas"]["DeathCauseEnum"] | null;
+            /**
+             * Is Permanently Dead
+             * @default false
+             */
+            is_permanently_dead: boolean;
+            /** Epitaph */
+            epitaph?: string | null;
             /** Weapon */
             weapon?: string | null;
             /** Outfit */
@@ -2762,10 +2969,53 @@ export interface components {
             radaway: number;
             /** @default idle */
             status: components["schemas"]["DwellerStatusEnum"];
+            /**
+             * Is Dead
+             * @default false
+             */
+            is_dead: boolean;
+            /** Death Timestamp */
+            death_timestamp?: string | null;
+            death_cause?: components["schemas"]["DeathCauseEnum"] | null;
+            /**
+             * Is Permanently Dead
+             * @default false
+             */
+            is_permanently_dead: boolean;
+            /** Epitaph */
+            epitaph?: string | null;
             /** Weapon */
             weapon?: string | null;
             /** Outfit */
             outfit?: string | null;
+        };
+        /**
+         * DwellerDeadRead
+         * @description Schema for dead dweller list items.
+         */
+        DwellerDeadRead: {
+            /**
+             * Id
+             * Format: uuid4
+             */
+            id: string;
+            /** First Name */
+            first_name: string;
+            /** Last Name */
+            last_name: string | null;
+            /** Level */
+            level: number;
+            /** Thumbnail Url */
+            thumbnail_url: string | null;
+            /** Death Timestamp */
+            death_timestamp: string | null;
+            death_cause: components["schemas"]["DeathCauseEnum"] | null;
+            /** Is Permanently Dead */
+            is_permanently_dead: boolean;
+            /** Epitaph */
+            epitaph: string | null;
+            /** Days Until Permanent */
+            days_until_permanent?: number | null;
         };
         /** DwellerRead */
         DwellerRead: {
@@ -2871,6 +3121,21 @@ export interface components {
             radaway: number;
             /** @default idle */
             status: components["schemas"]["DwellerStatusEnum"];
+            /**
+             * Is Dead
+             * @default false
+             */
+            is_dead: boolean;
+            /** Death Timestamp */
+            death_timestamp?: string | null;
+            death_cause?: components["schemas"]["DeathCauseEnum"] | null;
+            /**
+             * Is Permanently Dead
+             * @default false
+             */
+            is_permanently_dead: boolean;
+            /** Epitaph */
+            epitaph?: string | null;
             /**
              * Id
              * Format: uuid4
@@ -2991,6 +3256,21 @@ export interface components {
             radaway: number;
             /** @default idle */
             status: components["schemas"]["DwellerStatusEnum"];
+            /**
+             * Is Dead
+             * @default false
+             */
+            is_dead: boolean;
+            /** Death Timestamp */
+            death_timestamp?: string | null;
+            death_cause?: components["schemas"]["DeathCauseEnum"] | null;
+            /**
+             * Is Permanently Dead
+             * @default false
+             */
+            is_permanently_dead: boolean;
+            /** Epitaph */
+            epitaph?: string | null;
             /**
              * Id
              * Format: uuid4
@@ -3168,6 +3448,21 @@ export interface components {
             /** @default idle */
             status: components["schemas"]["DwellerStatusEnum"];
             /**
+             * Is Dead
+             * @default false
+             */
+            is_dead: boolean;
+            /** Death Timestamp */
+            death_timestamp?: string | null;
+            death_cause?: components["schemas"]["DeathCauseEnum"] | null;
+            /**
+             * Is Permanently Dead
+             * @default false
+             */
+            is_permanently_dead: boolean;
+            /** Epitaph */
+            epitaph?: string | null;
+            /**
              * Id
              * Format: uuid4
              */
@@ -3187,6 +3482,17 @@ export interface components {
              * Format: uuid4
              */
             room_id: string;
+        };
+        /**
+         * DwellerReviveResponse
+         * @description Response schema for dweller revival.
+         */
+        DwellerReviveResponse: {
+            dweller: components["schemas"]["DwellerRead"];
+            /** Caps Spent */
+            caps_spent: number;
+            /** Remaining Caps */
+            remaining_caps: number;
         };
         /**
          * DwellerStatusEnum
@@ -3244,6 +3550,15 @@ export interface components {
             /** Radaway */
             radaway?: number | null;
             status?: components["schemas"]["DwellerStatusEnum"] | null;
+            /** Is Dead */
+            is_dead?: boolean | null;
+            /** Death Timestamp */
+            death_timestamp?: string | null;
+            death_cause?: components["schemas"]["DeathCauseEnum"] | null;
+            /** Is Permanently Dead */
+            is_permanently_dead?: boolean | null;
+            /** Epitaph */
+            epitaph?: string | null;
             /** Room Id */
             room_id?: string | null;
         };
@@ -3475,6 +3790,22 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * InfoResponse
+         * @description Application information response schema.
+         */
+        InfoResponse: {
+            /** App Version */
+            app_version: string;
+            /** Api Version */
+            api_version: string;
+            /** Environment */
+            environment: string;
+            /** Python Version */
+            python_version: string;
+            /** Build Date */
+            build_date: string;
         };
         /** JunkCreate */
         JunkCreate: {
@@ -3851,6 +4182,48 @@ export interface components {
              */
             total_rooms_built: number;
             /**
+             * Total Dwellers Born
+             * @description Total dwellers born via breeding
+             * @default 0
+             */
+            total_dwellers_born: number;
+            /**
+             * Total Dwellers Died
+             * @description Total dweller deaths
+             * @default 0
+             */
+            total_dwellers_died: number;
+            /**
+             * Deaths By Health
+             * @description Deaths from health reaching 0
+             * @default 0
+             */
+            deaths_by_health: number;
+            /**
+             * Deaths By Radiation
+             * @description Deaths from radiation threshold
+             * @default 0
+             */
+            deaths_by_radiation: number;
+            /**
+             * Deaths By Incident
+             * @description Deaths from vault incidents
+             * @default 0
+             */
+            deaths_by_incident: number;
+            /**
+             * Deaths By Exploration
+             * @description Deaths during wasteland exploration
+             * @default 0
+             */
+            deaths_by_exploration: number;
+            /**
+             * Deaths By Combat
+             * @description Deaths from combat encounters
+             * @default 0
+             */
+            deaths_by_combat: number;
+            /**
              * Id
              * Format: uuid4
              */
@@ -4036,6 +4409,29 @@ export interface components {
          * @enum {string}
          */
         RelationshipTypeEnum: "acquaintance" | "friend" | "romantic" | "partner" | "ex";
+        /**
+         * RevivalCostResponse
+         * @description Response schema for revival cost check.
+         */
+        RevivalCostResponse: {
+            /**
+             * Dweller Id
+             * Format: uuid4
+             */
+            dweller_id: string;
+            /** Dweller Name */
+            dweller_name: string;
+            /** Level */
+            level: number;
+            /** Revival Cost */
+            revival_cost: number;
+            /** Days Until Permanent */
+            days_until_permanent: number | null;
+            /** Can Afford */
+            can_afford: boolean;
+            /** Vault Caps */
+            vault_caps: number;
+        };
         /** RoomCreate */
         RoomCreate: {
             /** Name */
@@ -5060,6 +5456,26 @@ export interface operations {
             };
         };
     };
+    get_info_api_v1_system_info_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InfoResponse"];
+                };
+            };
+        };
+    };
     login_access_token_api_v1_auth_login_post: {
         parameters: {
             query?: never;
@@ -6050,6 +6466,136 @@ export interface operations {
             };
         };
     };
+    get_dead_dwellers_api_v1_dwellers_vault__vault_id__dead_get: {
+        parameters: {
+            query?: {
+                skip?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DwellerDeadRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_graveyard_api_v1_dwellers_vault__vault_id__graveyard_get: {
+        parameters: {
+            query?: {
+                skip?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DwellerDeadRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_revival_cost_api_v1_dwellers__dweller_id__revival_cost_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dweller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevivalCostResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revive_dweller_api_v1_dwellers__dweller_id__revive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dweller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DwellerReviveResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     send_dweller_to_wasteland_api_v1_explorations_send_post: {
         parameters: {
             query: {
@@ -6269,6 +6815,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_game_balance_settings_api_v1_game_balance_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };
@@ -7533,59 +8101,6 @@ export interface operations {
             };
         };
     };
-    get_my_profile_api_v1_users_me_profile_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProfileRead"];
-                };
-            };
-        };
-    };
-    update_my_profile_api_v1_users_me_profile_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ProfileUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProfileRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     read_all_quests_api_v1_quests__get: {
         parameters: {
             query?: {
@@ -8476,6 +8991,37 @@ export interface operations {
             };
         };
     };
+    get_buildable_rooms_api_v1_rooms_buildable__vault_id___get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomCreateWithoutVaultID"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     build_room_api_v1_rooms_build__post: {
         parameters: {
             query?: never;
@@ -8565,28 +9111,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_game_balance_settings_api_v1_settings_game_balance_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
                 };
             };
         };
@@ -8991,6 +9515,81 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_profile_api_v1_users_me_profile_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileRead"];
+                };
+            };
+        };
+    };
+    update_my_profile_api_v1_users_me_profile_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_death_statistics_api_v1_users_me_profile_statistics_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };

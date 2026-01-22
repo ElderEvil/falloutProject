@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useDwellerStore } from '../stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -12,6 +12,8 @@ import DwellerPanel from '../components/DwellerPanel.vue'
 import DwellerStatusBadge from '../components/stats/DwellerStatusBadge.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { RevivalSection } from '../components/death'
+import type { RevivalCostResponse } from '../models/dweller'
 
 const route = useRoute()
 const router = useRouter()
@@ -37,12 +39,29 @@ const isAnyGenerating = computed(() =>
 )
 
 const dweller = computed(() => dwellerStore.detailedDwellers[dwellerId.value])
+const revivalCost = ref<RevivalCostResponse | null>(null)
+const revivalLoading = ref(false)
+const isDead = computed(() => dweller.value?.is_dead === true)
 
 onMounted(async () => {
   if (authStore.isAuthenticated && dwellerId.value) {
     loading.value = true
     await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string)
     loading.value = false
+
+    // Fetch revival cost if dweller is dead
+    if (dweller.value?.is_dead && !dweller.value?.is_permanently_dead) {
+      revivalCost.value = await dwellerStore.getRevivalCost(dwellerId.value, authStore.token as string)
+    }
+  }
+})
+
+// Watch for changes in dweller's dead status to fetch/clear revival cost
+watch(isDead, async (newIsDead) => {
+  if (newIsDead && !dweller.value?.is_permanently_dead && authStore.isAuthenticated) {
+    revivalCost.value = await dwellerStore.getRevivalCost(dwellerId.value, authStore.token as string)
+  } else {
+    revivalCost.value = null
   }
 })
 
@@ -152,6 +171,22 @@ const handleRefresh = async () => {
   await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
 }
 
+const handleRevive = async () => {
+  if (revivalLoading.value || !authStore.token) return
+
+  revivalLoading.value = true
+  try {
+    const result = await dwellerStore.reviveDweller(dwellerId.value, authStore.token)
+    // Only clear revival cost and refresh on successful revival
+    if (result) {
+      revivalCost.value = null
+      await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token, true)
+    }
+  } finally {
+    revivalLoading.value = false
+  }
+}
+
 const usingStimpack = ref(false)
 const usingRadaway = ref(false)
 
@@ -231,16 +266,40 @@ const handleUseRadaway = async () => {
             <!-- Two-Column Layout -->
             <div class="detail-layout">
               <!-- Left Column: Dweller Card -->
-              <DwellerCard
-                :dweller="dweller"
-                :image-url="dweller.image_url"
-                :loading="generatingAI || usingStimpack || usingRadaway || assigning"
-                @chat="navigateToChatPage"
-                @assign="handleAssign"
-                @recall="handleRecall"
-                @use-stimpack="handleUseStimpack"
-                @use-radaway="handleUseRadaway"
-              />
+              <div class="space-y-6">
+                <DwellerCard
+                  :dweller="dweller"
+                  :image-url="dweller.image_url"
+                  :loading="generatingAI || usingStimpack || usingRadaway || assigning"
+                  @chat="navigateToChatPage"
+                  @assign="handleAssign"
+                  @recall="handleRecall"
+                  @use-stimpack="handleUseStimpack"
+                  @use-radaway="handleUseRadaway"
+                />
+
+                <!-- Revival Section for Dead Dwellers -->
+                <RevivalSection
+                  v-if="isDead && !dweller.is_permanently_dead"
+                  :dweller-id="dwellerId"
+                  :revival-cost="revivalCost"
+                  :loading="revivalLoading"
+                  @revive="handleRevive"
+                />
+
+                <!-- Permanently Dead Notice -->
+                <div
+                  v-else-if="dweller.is_permanently_dead"
+                  class="bg-gray-900 border border-red-500/30 rounded-lg p-4 text-center"
+                >
+                  <Icon icon="mdi:grave-stone" class="h-12 w-12 text-gray-500 mx-auto mb-3" />
+                  <h3 class="text-lg font-bold text-red-500 mb-1">Permanently Deceased</h3>
+                  <p class="text-gray-400 text-sm">This dweller has passed beyond the revival window.</p>
+                  <p v-if="dweller.epitaph" class="text-theme-primary/60 italic mt-3 text-sm">
+                    "{{ dweller.epitaph }}"
+                  </p>
+                </div>
+              </div>
 
               <!-- Right Column: Dweller Panel -->
               <DwellerPanel

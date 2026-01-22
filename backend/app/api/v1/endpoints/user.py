@@ -262,3 +262,27 @@ async def update_my_profile(
     except Exception as e:
         logger.exception("Failed to update profile for user %s", user.id)
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/me/profile/statistics")
+async def get_death_statistics(
+    *,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    user: CurrentActiveUser,
+) -> dict:
+    """
+    Get life/death statistics for the current user.
+
+    Returns statistics about dwellers born, died, and breakdown by cause of death,
+    as well as counts of currently revivable and permanently dead dwellers.
+
+    :param db_session: Database session
+    :type db_session: AsyncSession
+    :param user: Current authenticated active user
+    :type user: CurrentActiveUser
+    :returns: Life/death statistics dictionary
+    :rtype: dict
+    """
+    from app.services.death_service import death_service
+
+    return await death_service.get_death_statistics(db_session, user.id)

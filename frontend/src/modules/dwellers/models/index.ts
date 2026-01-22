@@ -5,5 +5,10 @@ export type {
   DwellerCreate,
   DwellerUpdate,
   Special,
-  VisualAttributes
+  VisualAttributes,
+  // Death system types
+  DeathCause,
+  DwellerDead,
+  DwellerReviveResponse,
+  RevivalCostResponse
 } from './dweller'

@@ -4,10 +4,27 @@ import type { UserProfile, ProfileUpdate } from '../models/profile'
 import axios from '@/core/plugins/axios'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
 
+// Death statistics type (matches backend response)
+export interface DeathStatistics {
+  total_dwellers_born: number
+  total_dwellers_died: number
+  deaths_by_cause: {
+    health: number
+    radiation: number
+    incident: number
+    exploration: number
+    combat: number
+  }
+  revivable_count: number
+  permanently_dead_count: number
+}
+
 export const useProfileStore = defineStore('profile', () => {
   // State
   const profile = ref<UserProfile | null>(null)
+  const deathStatistics = ref<DeathStatistics | null>(null)
   const loading = ref(false)
+  const deathStatsLoading = ref(false)
   const error = ref<string | null>(null)
 
   // Getters
@@ -64,6 +81,20 @@ export const useProfileStore = defineStore('profile', () => {
     }
   }
 
+  async function fetchDeathStatistics(): Promise<DeathStatistics | null> {
+    deathStatsLoading.value = true
+    try {
+      const response = await axios.get<DeathStatistics>('/api/v1/users/me/profile/statistics')
+      deathStatistics.value = response.data
+      return response.data
+    } catch (err: any) {
+      console.error('Failed to fetch death statistics:', err)
+      return null
+    } finally {
+      deathStatsLoading.value = false
+    }
+  }
+
   function clearError(): void {
     error.value = null
   }
@@ -71,7 +102,9 @@ export const useProfileStore = defineStore('profile', () => {
   return {
     // State
     profile,
+    deathStatistics,
     loading,
+    deathStatsLoading,
     error,
     // Getters
     hasProfile,
@@ -79,6 +112,7 @@ export const useProfileStore = defineStore('profile', () => {
     // Actions
     fetchProfile,
     updateProfile,
+    fetchDeathStatistics,
     clearError
   }
 })

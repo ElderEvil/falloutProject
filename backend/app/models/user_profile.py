@@ -22,6 +22,15 @@ class UserProfileBase(SQLModel):
     total_explorations: int = Field(default=0, ge=0)
     total_rooms_built: int = Field(default=0, ge=0)
 
+    # Life & Death Statistics
+    total_dwellers_born: int = Field(default=0, ge=0, description="Total dwellers born via breeding")
+    total_dwellers_died: int = Field(default=0, ge=0, description="Total dweller deaths")
+    deaths_by_health: int = Field(default=0, ge=0, description="Deaths from health reaching 0")
+    deaths_by_radiation: int = Field(default=0, ge=0, description="Deaths from radiation threshold")
+    deaths_by_incident: int = Field(default=0, ge=0, description="Deaths from vault incidents")
+    deaths_by_exploration: int = Field(default=0, ge=0, description="Deaths during wasteland exploration")
+    deaths_by_combat: int = Field(default=0, ge=0, description="Deaths from combat encounters")
+
 
 class UserProfile(BaseUUIDModel, UserProfileBase, TimeStampMixin, table=True):
     user_id: UUID4 = Field(foreign_key="user.id", unique=True, index=True, ondelete="CASCADE")

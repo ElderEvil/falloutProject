@@ -16,6 +16,7 @@ import UTooltip from '@/core/components/ui/UTooltip.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { DeadDwellerCard } from '../components/death'
 import type { Room } from '@/modules/rooms/models/room'
 
 // Lazy load room modal
@@ -42,6 +43,8 @@ const selectedRoomForDetail = ref<Room | null>(null)
 
 const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null)
+const revivingDwellers = ref<Record<string, boolean>>({})
+const isDeadFilter = computed(() => dwellerStore.filterStatus === 'dead')
 
 const fetchDwellers = async () => {
   if (authStore.isAuthenticated && vaultId.value) {
@@ -80,9 +83,35 @@ onMounted(async () => {
 watch(
   () => [dwellerStore.filterStatus, dwellerStore.sortBy, dwellerStore.sortDirection],
   async () => {
-    await fetchDwellers()
+    if (dwellerStore.filterStatus === 'dead') {
+      // Fetch dead dwellers when dead filter is active
+      // Guard: ensure vaultId and token are present before fetching
+      if (vaultId.value && authStore.token) {
+        await dwellerStore.fetchDeadDwellers(vaultId.value, authStore.token)
+      }
+    } else {
+      await fetchDwellers()
+    }
   }
 )
+
+// Handle revive action from dead dweller card
+const handleRevive = async (dwellerId: string) => {
+  if (revivingDwellers.value[dwellerId] || !vaultId.value || !authStore.token) return
+
+  revivingDwellers.value[dwellerId] = true
+  try {
+    await dwellerStore.reviveDweller(dwellerId, authStore.token)
+    // Refresh dead dwellers list
+    await dwellerStore.fetchDeadDwellers(vaultId.value, authStore.token)
+  } finally {
+    revivingDwellers.value[dwellerId] = false
+  }
+}
+
+const navigateToGraveyard = () => {
+  router.push(`/vault/${vaultId.value}/dwellers/graveyard`)
+}
 
 const viewDwellerDetails = (dwellerId: string) => {
   router.push(`/vault/${vaultId.value}/dwellers/${dwellerId}`)
@@ -178,7 +207,51 @@ const closeRoomModal = () => {
         <DwellerFilterPanel :show-view-toggle="true" />
       </div>
 
-      <!-- List View -->
+      <!-- Dead Dwellers Section (when dead filter is active) -->
+      <template v-if="isDeadFilter">
+        <!-- Graveyard Link -->
+        <div class="w-full mb-6 flex justify-end">
+          <UButton variant="secondary" size="sm" @click="navigateToGraveyard">
+            <Icon icon="mdi:grave-stone" class="h-4 w-4 mr-2" />
+            View Graveyard
+          </UButton>
+        </div>
+
+        <!-- Loading State for Dead Dwellers -->
+        <div v-if="dwellerStore.isDeadLoading" class="w-full text-center py-12">
+          <Icon icon="mdi:loading" class="h-12 w-12 animate-spin text-theme-primary mx-auto" />
+          <p class="mt-4 text-theme-primary/60">Loading deceased dwellers...</p>
+        </div>
+
+        <!-- Empty Dead Dwellers State -->
+        <div v-else-if="dwellerStore.deadDwellers.length === 0" class="w-full text-center py-12 bg-gray-800/30 rounded-lg border border-gray-700">
+          <Icon icon="mdi:emoticon-happy" class="h-16 w-16 text-theme-primary/40 mx-auto mb-4" />
+          <h3 class="text-xl font-bold text-theme-primary mb-2">No Dead Dwellers</h3>
+          <p class="text-theme-primary/60 text-sm">
+            All dwellers are alive and well. Check the graveyard for permanently deceased.
+          </p>
+          <UButton variant="secondary" size="sm" class="mt-4" @click="navigateToGraveyard">
+            <Icon icon="mdi:grave-stone" class="h-4 w-4 mr-2" />
+            View Graveyard
+          </UButton>
+        </div>
+
+        <!-- Dead Dwellers Grid -->
+        <div v-else class="w-full dead-dweller-grid">
+          <DeadDwellerCard
+            v-for="dweller in dwellerStore.deadDwellers"
+            :key="dweller.id"
+            :dweller="dweller"
+            :loading="revivingDwellers[dweller.id]"
+            @revive="handleRevive"
+            @view-details="viewDwellerDetails"
+          />
+        </div>
+      </template>
+
+      <!-- Regular Dwellers (when not dead filter) -->
+      <template v-else>
+        <!-- List View -->
       <ul v-if="dwellerStore.viewMode === 'list'" class="w-full space-y-4">
         <!-- Loading Skeletons -->
         <template v-if="dwellerStore.isLoading">
@@ -293,6 +366,7 @@ const closeRoomModal = () => {
           @room-click="router.push(`/vault/${vaultId}?roomId=${dweller.room_id}`)"
         />
       </div>
+      </template>
         </div>
       </div>
     </div>
@@ -430,5 +504,20 @@ const closeRoomModal = () => {
 
 .room-badge:hover {
   box-shadow: 0 0 8px var(--color-theme-glow);
+}
+
+/* Dead Dweller Grid */
+.dead-dweller-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .dead-dweller-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
 }
 </style>

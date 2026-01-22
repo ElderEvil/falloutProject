@@ -375,6 +375,68 @@ class RadioConfig(BaseSettings):
         return multipliers.get(tier, 1.0)
 
 
+class DeathConfig(BaseSettings):
+    """Death and revival system configuration."""
+
+    model_config = SettingsConfigDict(env_prefix="DEATH_")
+
+    # Permanent death timing
+    permanent_death_days: int = Field(
+        default=7,
+        description="Days after death before permanent (cannot revive)",
+        ge=1,
+        le=30,
+    )
+
+    # Tiered revival cost (Option B)
+    # Levels 1-5: level x tier_1_multiplier
+    # Levels 6-10: level x tier_2_multiplier
+    # Levels 11+: level x tier_3_multiplier, capped at max
+    revival_cost_tier_1_multiplier: int = Field(default=50, description="Caps per level for levels 1-5", ge=1)
+    revival_cost_tier_2_multiplier: int = Field(default=75, description="Caps per level for levels 6-10", ge=1)
+    revival_cost_tier_3_multiplier: int = Field(default=100, description="Caps per level for levels 11+", ge=1)
+    revival_cost_max: int = Field(default=2000, description="Maximum revival cost cap", ge=100)
+
+    # Health after revival
+    revival_health_percent: float = Field(
+        default=0.5,
+        description="Health restored as percentage of max (50%)",
+        ge=0.1,
+        le=1.0,
+    )
+
+    # Radiation threshold for death
+    radiation_death_threshold: int = Field(
+        default=1000,
+        description="Radiation level that causes death",
+        ge=100,
+        le=1000,
+    )
+
+    def calculate_revival_cost(self, level: int) -> int:
+        """
+        Calculate revival cost based on dweller level (tiered).
+
+        Levels 1-5: level x 50 (50-250 caps)
+        Levels 6-10: level x 75 (450-750 caps)
+        Levels 11+: level x 100 (1100-2000 caps, capped)
+
+        :param level: Dweller level to calculate revival cost for.
+        :type level: int
+        :returns: Revival cost in caps based on tiered levels.
+        :rtype: int
+        :raises ValueError: if level is less than 1 (invalid level)
+        """
+        if level <= 5:
+            cost = level * self.revival_cost_tier_1_multiplier
+        elif level <= 10:
+            cost = level * self.revival_cost_tier_2_multiplier
+        else:
+            cost = level * self.revival_cost_tier_3_multiplier
+
+        return min(cost, self.revival_cost_max)
+
+
 class ExplorationConfig(BaseSettings):
     """Wasteland exploration configuration."""
 
@@ -443,6 +505,7 @@ class GameConfig(BaseSettings):
     leveling: LevelingConfig = Field(default_factory=LevelingConfig)
     radio: RadioConfig = Field(default_factory=RadioConfig)
     exploration: ExplorationConfig = Field(default_factory=ExplorationConfig)
+    death: DeathConfig = Field(default_factory=DeathConfig)
 
 
 # Singleton instance

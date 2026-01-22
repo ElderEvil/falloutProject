@@ -8,6 +8,15 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ## Recent Completions
 
+### v2.1.2 Quick Wins Complete (January 22, 2026)
+- **Audio Controls**: Stop/pause button for chat audio playback
+- **Animated Effects**: Pulsing glow effect on UI elements
+- **Navigation**: Motion Vue animations on NavBar dropdowns
+- **Room Management**: Unique room filtering (needs verification)
+- **Equipment**: Dialog simplification and improved layout
+- **AI Generation**: Smart button states (Generate/Regenerate)
+- **UI Polish**: Appearance tooltip cleanup
+
 ### v2.1.1 UI Polish & Planning (January 22, 2026)
 - **UI Improvements**: AI button states (Generate/Regenerate), theme colors, tooltips
 - **Equipment**: Dialog improvements, better weapon/outfit display
@@ -34,27 +43,25 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ---
 
-## Current Sprint: Quick Wins (P1)
+## Current Sprint: Backend Stability & Testing (P1)
 
-**Target: v2.1.2**
+**Target: v2.2.0**
 
 ### High Priority
-- [ ] **Audio Stop Button** - Pause/stop audio playback in chat
-- [ ] **Animated Glow Effect** - Pulsing glow on cards/buttons
-- [ ] **Unique Room Filtering** - Backend prevents duplicate unique rooms
-- [ ] **Equipment Stats Display** - Weapon damage, outfit bonuses
-
-### Completed Quick Wins
-- [x] AI button logic (Generate vs Regenerate)
-- [x] Theme color consistency
-- [x] Tooltip positioning improvements
-- [x] Equipment dialog improvements
+- [ ] **Unique Room Filtering Verification** - Test and validate backend prevents duplicate unique rooms
+- [ ] **Backend Test Coverage** - Increase from 67% to 80%
+  - Security middleware (0% → 85%)
+  - DB initialization (0% → 75%)
+  - Incident service (28% → 75%)
+  - Game loop (54% → 80%)
+- [ ] **Datetime Deprecation Fix** - Replace `datetime.utcnow()` → `datetime.now(timezone.utc)`
+- [ ] **Router Consolidation** - Move settings/info endpoints to appropriate routers (avoid 1-2 endpoint routers)
 
 ---
 
 ## Next Sprint: Death System (P1)
 
-**Target: v2.2.0**
+**Target: v2.3.0**
 
 ### Death Mechanics
 - [ ] **Death State** - is_dead flag, death_timestamp on dweller model
@@ -71,7 +78,7 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ## UX Enhancements (P2)
 
-**Target: v2.3.0**
+**Target: v2.4.0**
 
 ### Animation & Motion
 - [ ] **Motion Vue Integration** - Smooth animations throughout app
@@ -112,6 +119,7 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 ## Technical Debt (P3)
 
 ### Backend
+- [ ] Router consolidation: Merge small routers (settings, info) into logical groupings
 - [ ] Storage migration: MinIO → RustFS (lighter, faster)
 - [ ] Performance testing: Locust in nightly CI
 - [ ] Test coverage: Target 80% (both FE/BE)
@@ -137,13 +145,14 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 ### Version Milestones
 | Version | Release | Highlights |
 |---------|---------|------------|
+| v2.1.2 | Jan 22, 2026 | Quick wins complete |
 | v2.1.1 | Jan 22, 2026 | UI polish, planning |
 | v2.1.0 | Jan 22, 2026 | Modular frontend architecture |
 | v2.0.0 | Jan 22, 2026 | Major release, deployment ready |
 | v1.4.2 | Jan 21, 2026 | Final v1.x release |
-| v2.1.2 | Jan 2026 | Quick wins (planned) |
-| v2.2.0 | Feb 2026 | Death system (planned) |
-| v2.3.0 | Mar 2026 | Motion Vue, UX polish (planned) |
+| v2.2.0 | Feb 2026 | Backend stability, testing (planned) |
+| v2.3.0 | Feb 2026 | Death system (planned) |
+| v2.4.0 | Mar 2026 | Motion Vue, UX polish (planned) |
 
 ---
 

@@ -69,6 +69,26 @@ async def read_room_data(data_store=Depends(get_static_game_data)):
     return data_store.rooms
 
 
+@router.get("/buildable/{vault_id}/", response_model=list[RoomCreateWithoutVaultID])
+async def get_buildable_rooms(
+    vault_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    data_store=Depends(get_static_game_data),
+):
+    """
+    Get list of rooms that can be built in a vault.
+
+    Filters out:
+    - Vault door (never buildable by user)
+    - Unique rooms that are already built in this vault
+    """
+    await get_user_vault_or_403(vault_id, user, db_session)
+
+    existing_room_names = await crud.room.get_existing_room_names(db_session=db_session, vault_id=vault_id)
+    return data_store.get_buildable_rooms(existing_room_names)
+
+
 @router.post("/build/", response_model=RoomRead)
 async def build_room(
     room_data: RoomCreate, user: CurrentActiveUser, db_session: Annotated[AsyncSession, Depends(get_async_session)]

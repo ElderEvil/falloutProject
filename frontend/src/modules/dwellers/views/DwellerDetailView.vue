@@ -31,6 +31,11 @@ const generatingBio = ref(false)
 const generatingPortrait = ref(false)
 const generatingAppearance = ref(false)
 
+// Computed to check if any AI generation is in progress
+const isAnyGenerating = computed(() =>
+  generatingAI.value || generatingBio.value || generatingPortrait.value || generatingAppearance.value
+)
+
 const dweller = computed(() => dwellerStore.detailedDwellers[dwellerId.value])
 
 onMounted(async () => {
@@ -232,6 +237,7 @@ const handleUseRadaway = async () => {
                 :loading="generatingAI || usingStimpack || usingRadaway || assigning"
                 :generating-bio="generatingBio"
                 :generating-portrait="generatingPortrait"
+                :is-any-generating="isAnyGenerating"
                 @chat="navigateToChatPage"
                 @assign="handleAssign"
                 @recall="handleRecall"
@@ -247,6 +253,7 @@ const handleUseRadaway = async () => {
                 :dweller="dweller"
                 :generating-bio="generatingBio"
                 :generating-appearance="generatingAppearance"
+                :is-any-generating="isAnyGenerating"
                 @refresh="handleRefresh"
                 @generate-bio="generateDwellerBio"
                 @generate-appearance="generateDwellerAppearance"

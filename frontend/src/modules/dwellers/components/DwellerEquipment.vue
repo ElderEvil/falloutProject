@@ -20,7 +20,6 @@ const equipmentStore = useEquipmentStore()
 const authStore = useAuthStore()
 
 const showInventoryModal = ref(false)
-const inventoryTab = ref<'weapons' | 'outfits'>('weapons')
 
 // Get equipped items from the dweller object
 const equippedWeapon = computed(() => props.dweller?.weapon ?? null)
@@ -63,8 +62,7 @@ const handleEquipOutfit = async (outfitId: string) => {
   emit('refresh')
 }
 
-const openInventory = (tab: 'weapons' | 'outfits') => {
-  inventoryTab.value = tab
+const openInventory = () => {
   showInventoryModal.value = true
 }
 </script>
@@ -89,7 +87,7 @@ const openInventory = (tab: 'weapons' | 'outfits') => {
           @unequip="handleUnequipWeapon"
         />
 
-        <div v-else class="empty-slot" @click="openInventory('weapons')">
+        <div v-else class="empty-slot" @click="openInventory">
           <Icon icon="mdi:plus-circle" class="empty-icon" />
           <p class="empty-text">Click to equip weapon</p>
         </div>
@@ -110,7 +108,7 @@ const openInventory = (tab: 'weapons' | 'outfits') => {
           @unequip="handleUnequipOutfit"
         />
 
-        <div v-else class="empty-slot" @click="openInventory('outfits')">
+        <div v-else class="empty-slot" @click="openInventory">
           <Icon icon="mdi:plus-circle" class="empty-icon" />
           <p class="empty-text">Click to equip outfit</p>
         </div>
@@ -123,59 +121,56 @@ const openInventory = (tab: 'weapons' | 'outfits') => {
         <div class="modal-content" @click.stop>
           <div class="modal-header">
             <h3 class="modal-title">
-              <Icon :icon="inventoryTab === 'weapons' ? 'mdi:pistol' : 'mdi:tshirt-crew'" />
-              {{ inventoryTab === 'weapons' ? 'Select Weapon' : 'Select Outfit' }}
+              <Icon icon="mdi:bag-personal" />
+              Inventory
             </h3>
             <button @click="showInventoryModal = false" class="close-btn">
               <Icon icon="mdi:close" />
             </button>
           </div>
 
-          <div class="modal-tabs">
-            <button
-              :class="['tab-btn', { active: inventoryTab === 'weapons' }]"
-              @click="inventoryTab = 'weapons'"
-            >
-              <Icon icon="mdi:pistol" />
-              Weapons ({{ availableWeapons.length }})
-            </button>
-            <button
-              :class="['tab-btn', { active: inventoryTab === 'outfits' }]"
-              @click="inventoryTab = 'outfits'"
-            >
-              <Icon icon="mdi:tshirt-crew" />
-              Outfits ({{ availableOutfits.length }})
-            </button>
-          </div>
-
           <div class="modal-body">
-            <!-- Weapons List -->
-            <div v-if="inventoryTab === 'weapons'" class="items-grid">
-              <WeaponCard
-                v-for="weapon in availableWeapons"
-                :key="weapon.id"
-                :weapon="weapon"
-                :show-actions="true"
-                @equip="handleEquipWeapon(weapon.id)"
-              />
-              <div v-if="availableWeapons.length === 0" class="empty-state">
-                <Icon icon="mdi:package-variant" class="empty-state-icon" />
-                <p>No weapons available</p>
+            <!-- Weapons Section -->
+            <div class="inventory-section">
+              <div class="section-header">
+                <Icon icon="mdi:pistol" class="section-icon" />
+                <h4 class="section-title">Weapons</h4>
+                <span class="section-count">({{ availableWeapons.length }})</span>
+              </div>
+              <div class="items-list">
+                <WeaponCard
+                  v-for="weapon in availableWeapons"
+                  :key="weapon.id"
+                  :weapon="weapon"
+                  :show-actions="true"
+                  @equip="handleEquipWeapon(weapon.id)"
+                />
+                <div v-if="availableWeapons.length === 0" class="empty-state">
+                  <Icon icon="mdi:package-variant" class="empty-state-icon" />
+                  <p>No weapons available</p>
+                </div>
               </div>
             </div>
 
-            <!-- Outfits List -->
-            <div v-if="inventoryTab === 'outfits'" class="items-grid">
-              <OutfitCard
-                v-for="outfit in availableOutfits"
-                :key="outfit.id"
-                :outfit="outfit"
-                :show-actions="true"
-                @equip="handleEquipOutfit(outfit.id)"
-              />
-              <div v-if="availableOutfits.length === 0" class="empty-state">
-                <Icon icon="mdi:package-variant" class="empty-state-icon" />
-                <p>No outfits available</p>
+            <!-- Outfits Section -->
+            <div class="inventory-section">
+              <div class="section-header">
+                <Icon icon="mdi:tshirt-crew" class="section-icon" />
+                <h4 class="section-title">Outfits</h4>
+                <span class="section-count">({{ availableOutfits.length }})</span>
+              </div>
+              <div class="items-list">
+                <OutfitCard
+                  v-for="outfit in availableOutfits"
+                  :key="outfit.id"
+                  :outfit="outfit"
+                  :show-actions="true"
+                  @equip="handleEquipOutfit(outfit.id)"
+                />
+                <div v-if="availableOutfits.length === 0" class="empty-state">
+                  <Icon icon="mdi:package-variant" class="empty-state-icon" />
+                  <p>No outfits available</p>
+                </div>
               </div>
             </div>
           </div>
@@ -286,7 +281,7 @@ const openInventory = (tab: 'weapons' | 'outfits') => {
   border: 2px solid var(--color-theme-primary);
   border-radius: 8px;
   width: 90%;
-  max-width: 900px;
+  max-width: 500px;
   max-height: 85vh;
   display: flex;
   flex-direction: column;
@@ -330,69 +325,70 @@ const openInventory = (tab: 'weapons' | 'outfits') => {
   border-color: var(--color-theme-primary);
 }
 
-.modal-tabs {
-  display: flex;
-  gap: 0.5rem;
-  padding: 1rem 1.5rem 0;
-  border-bottom: 2px solid var(--color-theme-glow);
-}
-
-.tab-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  background: transparent;
-  border: 2px solid transparent;
-  border-bottom: none;
-  color: var(--color-theme-primary);
-  opacity: 0.6;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border-radius: 4px 4px 0 0;
-}
-
-.tab-btn:hover {
-  color: var(--color-theme-primary);
-  background: var(--color-theme-hover-bg);
-}
-
-.tab-btn.active {
-  color: var(--color-theme-primary);
-  background: var(--color-theme-active-bg);
-  border-color: var(--color-theme-glow);
-  border-bottom: 2px solid #0a0a0a;
-  margin-bottom: -2px;
-}
-
 .modal-body {
   flex: 1;
   overflow-y: auto;
   padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
-.items-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
+.inventory-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-theme-glow);
+}
+
+.section-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--color-theme-primary);
+}
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 4px var(--color-theme-glow);
+}
+
+.section-count {
+  font-size: 0.875rem;
+  color: var(--color-theme-primary);
+  opacity: 0.6;
+}
+
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .empty-state {
-  grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
-  padding: 4rem 2rem;
+  gap: 0.75rem;
+  padding: 2rem 1rem;
   color: var(--color-theme-primary);
   opacity: 0.5;
+  border: 1px dashed var(--color-theme-glow);
+  border-radius: 4px;
 }
 
 .empty-state-icon {
-  width: 4rem;
-  height: 4rem;
+  width: 2.5rem;
+  height: 2.5rem;
 }
 
 /* Scrollbar styling */

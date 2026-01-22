@@ -6,9 +6,10 @@ interface Props {
   bio?: string | null
   firstName: string
   generatingBio?: boolean
+  isAnyGenerating?: boolean
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'generate-bio'): void
@@ -23,7 +24,7 @@ const emit = defineEmits<{
         <button
           @click="emit('generate-bio')"
           class="generate-bio-button"
-          :disabled="generatingBio"
+          :disabled="props.isAnyGenerating"
         >
           <Icon
             :icon="generatingBio ? 'mdi:loading' : 'mdi:pencil-plus'"

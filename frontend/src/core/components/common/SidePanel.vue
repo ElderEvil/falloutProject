@@ -198,7 +198,10 @@ onUnmounted(() => {
       </button>
 
       <!-- Coming Soon Divider -->
-      <div v-if="!isCollapsed" class="nav-divider">
+      <div
+        v-if="!isCollapsed"
+        class="nav-divider"
+      >
         <span class="divider-text">Upcoming Features</span>
       </div>
 

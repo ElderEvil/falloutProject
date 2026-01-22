@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.models.room import Room
+from app.models.vault import Vault
 from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultUpdate
 from app.tests.factory.rooms import create_fake_room
@@ -312,3 +313,110 @@ async def test_upgrade_room_capacity_calculation(
 
     assert upgraded_room["capacity"] == expected_capacity
     assert upgraded_room["output"] == expected_output
+
+
+@pytest.mark.asyncio
+async def test_get_buildable_rooms_excludes_vault_door(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+):
+    """Test that buildable rooms endpoint excludes vault door."""
+    response = await async_client.get(f"/rooms/buildable/{vault.id}/", headers=superuser_token_headers)
+    assert response.status_code == 200
+
+    buildable_rooms = response.json()
+    room_names = [r["name"].lower() for r in buildable_rooms]
+
+    # Vault door should never be in buildable list
+    assert "vault door" not in room_names
+
+
+@pytest.mark.asyncio
+async def test_get_buildable_rooms_excludes_built_unique_rooms(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+):
+    """Test that buildable rooms endpoint excludes unique rooms already built in vault."""
+    # First, get the list of buildable rooms to find a unique room
+    response = await async_client.get(f"/rooms/buildable/{vault.id}/", headers=superuser_token_headers)
+    assert response.status_code == 200
+    initial_buildable = response.json()
+
+    # Find a unique room (no incremental_cost) that's buildable
+    unique_room_data = None
+    for room in initial_buildable:
+        if room.get("incremental_cost") is None:
+            unique_room_data = room
+            break
+
+    if unique_room_data is None:
+        pytest.skip("No unique rooms available for testing")
+
+    # Build the unique room in the vault - exclude fields we'll set explicitly
+    exclude_fields = ("capacity_formula", "output_formula", "size", "coordinate_x", "coordinate_y")
+    room_dict = {k: v for k, v in unique_room_data.items() if k not in exclude_fields}
+    room_create = RoomCreate(
+        **room_dict,
+        vault_id=vault.id,
+        size=unique_room_data["size_min"],
+        coordinate_x=5,
+        coordinate_y=5,
+    )
+    await crud.room.create(async_session, room_create)
+
+    # Now get buildable rooms again
+    response = await async_client.get(f"/rooms/buildable/{vault.id}/", headers=superuser_token_headers)
+    assert response.status_code == 200
+    updated_buildable = response.json()
+
+    # The unique room we just built should no longer be in the buildable list
+    updated_room_names = [r["name"].lower() for r in updated_buildable]
+    assert unique_room_data["name"].lower() not in updated_room_names
+
+
+@pytest.mark.asyncio
+async def test_get_buildable_rooms_includes_non_unique_rooms_multiple_times(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+):
+    """Test that non-unique rooms can still be built even if one exists."""
+    # Get initial buildable rooms
+    response = await async_client.get(f"/rooms/buildable/{vault.id}/", headers=superuser_token_headers)
+    assert response.status_code == 200
+    initial_buildable = response.json()
+
+    # Find a non-unique room (has incremental_cost)
+    non_unique_room_data = None
+    for room in initial_buildable:
+        if room.get("incremental_cost") is not None:
+            non_unique_room_data = room
+            break
+
+    if non_unique_room_data is None:
+        pytest.skip("No non-unique rooms available for testing")
+
+    # Build the non-unique room in the vault - exclude fields we'll set explicitly
+    exclude_fields = ("capacity_formula", "output_formula", "size", "coordinate_x", "coordinate_y")
+    room_dict = {k: v for k, v in non_unique_room_data.items() if k not in exclude_fields}
+    room_create = RoomCreate(
+        **room_dict,
+        vault_id=vault.id,
+        size=non_unique_room_data["size_min"],
+        coordinate_x=5,
+        coordinate_y=5,
+    )
+    await crud.room.create(async_session, room_create)
+
+    # Get buildable rooms again
+    response = await async_client.get(f"/rooms/buildable/{vault.id}/", headers=superuser_token_headers)
+    assert response.status_code == 200
+    updated_buildable = response.json()
+
+    # The non-unique room should still be in the buildable list
+    updated_room_names = [r["name"].lower() for r in updated_buildable]
+    assert non_unique_room_data["name"].lower() in updated_room_names

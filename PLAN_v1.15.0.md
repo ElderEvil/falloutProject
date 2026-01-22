@@ -599,6 +599,8 @@ async def generate_dweller_info(...):
 - Virtual scrolling for dweller lists
 - Crafting system
 - Pet system
+- **Navigation animations for SidePanel** - needs designer consultation for terminal-appropriate aesthetics
+- **NavBar removal/replacement** - consider removing top navbar entirely, moving user menu to SidePanel
 
 ---
 
@@ -606,7 +608,7 @@ async def generate_dweller_info(...):
 
 | Question | Decision |
 |----------|----------|
-| Animation library | Motion Vue |
+| Animation library | Motion Vue (installed, NavBar only for now) |
 | Sound effects | Future (v1.16+) |
 | Death revival cost | Level × 50 caps, max 1000 |
 | Unique room filtering | Backend handles filtering |

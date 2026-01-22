@@ -22,6 +22,17 @@ const isTyping = ref(false);
 const isSendingAudio = ref(false);
 const audioMode = ref(false);
 const currentlyPlayingAudio = ref<HTMLAudioElement | null>(null);
+const currentlyPlayingUrl = ref<string | null>(null);
+
+// Stop audio playback
+const stopAudio = () => {
+  if (currentlyPlayingAudio.value) {
+    currentlyPlayingAudio.value.pause();
+    currentlyPlayingAudio.value.currentTime = 0;
+    currentlyPlayingAudio.value = null;
+  }
+  currentlyPlayingUrl.value = null;
+};
 
 // Audio recorder
 const {
@@ -188,13 +199,16 @@ const playAudio = (url: string) => {
   // URL already includes http:// from backend
   const audio = new Audio(url);
   currentlyPlayingAudio.value = audio;
+  currentlyPlayingUrl.value = url;
 
   audio.play().catch(err => {
     console.error('Error playing audio:', err);
+    currentlyPlayingUrl.value = null;
   });
 
   audio.onended = () => {
     currentlyPlayingAudio.value = null;
+    currentlyPlayingUrl.value = null;
   };
 };
 
@@ -239,10 +253,7 @@ onUnmounted(() => {
   if (chatWs) {
     chatWs.disconnect();
   }
-  if (currentlyPlayingAudio.value) {
-    currentlyPlayingAudio.value.pause();
-    currentlyPlayingAudio.value = null;
-  }
+  stopAudio();
   if (typingTimeout) {
     clearTimeout(typingTimeout);
   }
@@ -301,14 +312,15 @@ onUnmounted(() => {
               <span class="terminal-prefix">{{ message.type === 'user' ? '>' : '<' }}</span>
               {{ message.type === 'user' ? username : dwellerName }}
             </span>
-            <!-- Audio replay button for messages with audio -->
+            <!-- Audio play/stop button for messages with audio -->
             <button
               v-if="message.audioUrl"
-              @click="playAudio(message.audioUrl)"
+              @click="currentlyPlayingUrl === message.audioUrl ? stopAudio() : playAudio(message.audioUrl)"
               class="audio-replay-btn"
-              :title="`Play ${message.type === 'user' ? 'your' : 'dweller'} audio`"
+              :class="{ 'is-playing': currentlyPlayingUrl === message.audioUrl }"
+              :title="currentlyPlayingUrl === message.audioUrl ? 'Stop audio' : `Play ${message.type === 'user' ? 'your' : 'dweller'} audio`"
             >
-              <Icon icon="mdi:volume-high" class="h-4 w-4" />
+              <Icon :icon="currentlyPlayingUrl === message.audioUrl ? 'mdi:stop' : 'mdi:volume-high'" class="h-4 w-4" />
             </button>
           </div>
           <div class="message-content">
@@ -598,9 +610,32 @@ onUnmounted(() => {
 
 .audio-replay-btn:hover {
   opacity: 1;
-  background-color: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.2);
+  background-color: rgba(var(--color-theme-primary-rgb), 0.2);
   box-shadow: 0 0 8px var(--color-theme-glow);
   transform: scale(1.1);
+}
+
+.audio-replay-btn.is-playing {
+  opacity: 1;
+  border-color: #ff4444;
+  background-color: rgba(255, 68, 68, 0.1);
+  color: #ff4444;
+  animation: audio-pulse 1.5s ease-in-out infinite;
+}
+
+.audio-replay-btn.is-playing:hover {
+  background-color: rgba(255, 68, 68, 0.2);
+  box-shadow: 0 0 8px rgba(255, 68, 68, 0.3);
+  animation: none;
+}
+
+@keyframes audio-pulse {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(255, 68, 68, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(255, 68, 68, 0.6);
+  }
 }
 
 .message-sender {

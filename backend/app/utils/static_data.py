@@ -64,6 +64,31 @@ class StaticGameData:
             self._rooms = self.load_data(DATA_DIR / "vault/rooms.json", RoomCreateWithoutVaultID)
         return self._rooms
 
+    def get_buildable_rooms(self, existing_room_names: set[str]) -> list[RoomCreateWithoutVaultID]:
+        """
+        Get list of rooms that can be built in a vault.
+
+        Filters out:
+        - Vault door (never buildable by user)
+        - Unique rooms that are already built (by name, case-insensitive)
+
+        :param existing_room_names: Set of lowercase room names already built in the vault
+        :returns: List of buildable room definitions
+        """
+        buildable_rooms = []
+        for room in self.rooms:
+            # Always exclude vault door
+            if room.name.lower() == "vault door":
+                continue
+
+            # Exclude unique rooms that are already built
+            if room.is_unique and room.name.lower() in existing_room_names:
+                continue
+
+            buildable_rooms.append(room)
+
+        return buildable_rooms
+
     @property
     def quests(self) -> list[QuestChainJSON]:
         """Load all quest chains from JSON files."""

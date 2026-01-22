@@ -7,6 +7,7 @@ import type { VisualAttributes } from '../models/dweller';
 interface Props {
   visualAttributes?: VisualAttributes | null;
   generatingAppearance?: boolean;
+  isAnyGenerating?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -58,7 +59,7 @@ const hasAttributes = computed(() => formattedAttributes.value.length > 0);
         <button
           @click="emit('generate-appearance')"
           class="generate-appearance-button"
-          :disabled="generatingAppearance"
+          :disabled="props.isAnyGenerating"
         >
           <Icon
             :icon="generatingAppearance ? 'mdi:loading' : 'mdi:auto-fix'"

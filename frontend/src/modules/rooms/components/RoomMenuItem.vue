@@ -27,11 +27,18 @@ const canAfford = computed(() => {
   return caps >= roomCost.value
 })
 
+const currentPopulation = computed(() => currentVault.value?.dweller_count ?? 0)
+
 const isLocked = computed(() => {
   const popRequired = props.room.population_required
   if (!popRequired) return false
-  const currentPop = currentVault.value?.dweller_count ?? 0
-  return currentPop < popRequired
+  return currentPopulation.value < popRequired
+})
+
+const populationProgress = computed(() => {
+  const popRequired = props.room.population_required
+  if (!popRequired) return 100
+  return Math.min(100, Math.round((currentPopulation.value / popRequired) * 100))
 })
 
 const getCategoryIcon = (category: string) => {
@@ -82,9 +89,14 @@ const getCategoryIcon = (category: string) => {
           <span>{{ roomCost }}</span>
         </div>
 
-        <div v-if="room.population_required" class="room-population">
-          <Icon icon="mdi:account-group" class="w-4 h-4" />
-          <span>{{ room.population_required }} dwellers</span>
+        <div v-if="room.population_required" class="room-population-section">
+          <div class="room-population">
+            <Icon icon="mdi:account-group" class="w-4 h-4" />
+            <span>{{ currentPopulation }}/{{ room.population_required }}</span>
+          </div>
+          <div v-if="isLocked" class="population-progress">
+            <div class="progress-bar" :style="{ width: `${populationProgress}%` }"></div>
+          </div>
         </div>
 
         <div class="room-size">
@@ -224,7 +236,28 @@ const getCategoryIcon = (category: string) => {
   font-weight: bold;
 }
 
+.room-population-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
 .room-population {
   color: #88ccff;
+}
+
+.population-progress {
+  height: 4px;
+  background: rgba(136, 204, 255, 0.2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #88ccff 0%, #44aaff 100%);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 4px rgba(136, 204, 255, 0.5);
 }
 </style>

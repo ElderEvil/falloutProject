@@ -202,6 +202,46 @@ body {
     0 0 20px var(--color-theme-glow);
 }
 
+/* Animated Glow Pulse */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 10px var(--color-theme-glow);
+  }
+  50% {
+    box-shadow: 0 0 20px var(--color-theme-glow), 0 0 30px var(--color-theme-glow);
+  }
+}
+
+@keyframes glow-pulse-subtle {
+  0%, 100% {
+    box-shadow: 0 0 5px var(--color-theme-glow);
+  }
+  50% {
+    box-shadow: 0 0 12px var(--color-theme-glow);
+  }
+}
+
+@keyframes text-glow-pulse {
+  0%, 100% {
+    text-shadow: 0 0 5px var(--color-theme-primary);
+  }
+  50% {
+    text-shadow: 0 0 10px var(--color-theme-primary), 0 0 20px var(--color-theme-glow);
+  }
+}
+
+.glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.glow-pulse-subtle {
+  animation: glow-pulse-subtle 2.5s ease-in-out infinite;
+}
+
+.text-glow-pulse {
+  animation: text-glow-pulse 2s ease-in-out infinite;
+}
+
 /* CRT Screen Curve (optional enhancement) */
 .crt-screen {
   border-radius: 5px;

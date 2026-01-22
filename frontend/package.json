@@ -23,6 +23,7 @@
     "@iconify/vue": "5.0.0",
     "@nuxt/ui": "^4.4.0",
     "@vueuse/core": "14.1.0",
+    "@vueuse/motion": "3.0.3",
     "axios": "^1.13.2",
     "jwt-decode": "4.0.0",
     "pinia": "^3.0.4",

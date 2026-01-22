@@ -133,12 +133,19 @@ onUnmounted(() => {
           </button>
           <div
             v-if="isDropdownOpen"
+            v-motion
+            :initial="{ opacity: 0, y: -10, scale: 0.95 }"
+            :enter="{ opacity: 1, y: 0, scale: 1, transition: { duration: 150 } }"
+            :leave="{ opacity: 0, y: -10, scale: 0.95, transition: { duration: 100 } }"
             class="absolute right-0 mt-2 w-48 bg-black shadow-[0_0_20px_var(--color-theme-glow)] rounded border border-[var(--color-theme-primary)]"
             role="menu"
             aria-label="User menu"
             style="z-index: 50"
           >
             <router-link
+              v-motion
+              :initial="{ opacity: 0, x: -10 }"
+              :enter="{ opacity: 1, x: 0, transition: { delay: 50 } }"
               to="/profile"
               class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-gray-900 focus:outline-none focus:bg-gray-900 transition-colors"
               role="menuitem"
@@ -149,6 +156,9 @@ onUnmounted(() => {
               Profile
             </router-link>
             <router-link
+              v-motion
+              :initial="{ opacity: 0, x: -10 }"
+              :enter="{ opacity: 1, x: 0, transition: { delay: 100 } }"
               to="/preferences"
               class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-gray-900 focus:outline-none focus:bg-gray-900 transition-colors"
               role="menuitem"
@@ -159,6 +169,9 @@ onUnmounted(() => {
               Preferences
             </router-link>
             <router-link
+              v-motion
+              :initial="{ opacity: 0, x: -10 }"
+              :enter="{ opacity: 1, x: 0, transition: { delay: 150 } }"
               to="/settings"
               class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-gray-900 focus:outline-none focus:bg-gray-900 transition-colors"
               role="menuitem"
@@ -169,6 +182,9 @@ onUnmounted(() => {
               Settings
             </router-link>
             <router-link
+              v-motion
+              :initial="{ opacity: 0, x: -10 }"
+              :enter="{ opacity: 1, x: 0, transition: { delay: 200 } }"
               to="/about"
               class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-gray-900 focus:outline-none focus:bg-gray-900 transition-colors"
               role="menuitem"
@@ -180,6 +196,9 @@ onUnmounted(() => {
             </router-link>
             <hr class="border-gray-700 my-1" />
             <button
+              v-motion
+              :initial="{ opacity: 0, x: -10 }"
+              :enter="{ opacity: 1, x: 0, transition: { delay: 250 } }"
               @click="logout"
               class="block w-full px-4 py-2 text-left text-[var(--color-theme-primary)] hover:bg-gray-900 focus:outline-none focus:bg-gray-900 rounded-b transition-colors"
               role="menuitem"

@@ -24,6 +24,12 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         return response.scalars().all()
 
     @staticmethod
+    async def get_existing_room_names(*, db_session: AsyncSession, vault_id: UUID4) -> set[str]:
+        """Get set of lowercase room names that exist in a vault."""
+        response = await db_session.execute(select(Room.name).where(Room.vault_id == vault_id))
+        return {name.lower() for name in response.scalars().all()}
+
+    @staticmethod
     def evaluate_capacity_formula(formula: str, level: int, size: int) -> int:
         try:
             result = eval(formula, {"L": level, "S": size})

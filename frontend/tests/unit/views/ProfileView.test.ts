@@ -7,10 +7,10 @@ import ProfileEditor from '@/modules/profile/components/ProfileEditor.vue'
 import ProfileStats from '@/modules/profile/components/ProfileStats.vue'
 import { useProfileStore } from '@/stores/profile'
 import { useAuthStore } from '@/stores/auth'
-import axios from '@/plugins/axios'
+import axios from '@/core/plugins/axios'
 import type { UserProfile } from '@/models/profile'
 
-vi.mock('@/plugins/axios')
+vi.mock('@/core/plugins/axios')
 
 describe('ProfileView', () => {
   let router: any

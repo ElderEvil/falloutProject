@@ -7,9 +7,9 @@ import { useAuthStore } from '@/stores/auth'
 import { useDwellerStore } from '@/stores/dweller'
 import { useVaultStore } from '@/stores/vault'
 import { useRoomStore } from '@/stores/room'
-import axios from '@/plugins/axios'
+import axios from '@/core/plugins/axios'
 
-vi.mock('@/plugins/axios')
+vi.mock('@/core/plugins/axios')
 
 describe('DwellersView', () => {
   let router: any

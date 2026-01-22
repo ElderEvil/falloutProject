@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { happinessService } from '@/services/happinessService';
 import type { AxiosResponse } from 'axios';
-import apiClient from '@/plugins/axios';
+import apiClient from '@/core/plugins/axios';
 
-vi.mock('@/plugins/axios');
+vi.mock('@/core/plugins/axios');
 
 describe('happinessService', () => {
   beforeEach(() => {

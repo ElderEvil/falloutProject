@@ -17,7 +17,7 @@ vi.mock('@iconify/vue', () => ({
 }));
 
 // Mock UButton
-vi.mock('@/components/ui/UButton.vue', () => ({
+vi.mock('@/core/components/ui/UButton.vue', () => ({
   default: {
     name: 'UButton',
     template: '<button class="u-button-mock" @click="$emit(\'click\')"><slot /></button>',
@@ -26,27 +26,27 @@ vi.mock('@/components/ui/UButton.vue', () => ({
 }));
 
 // Mock the components
-vi.mock('@/components/common/SidePanel.vue', () => ({
+vi.mock('@/core/components/common/SidePanel.vue', () => ({
   default: { template: '<div class="side-panel-mock"></div>' }
 }));
 
-vi.mock('@/components/relationships/RelationshipList.vue', () => ({
+vi.mock('@/modules/social/components/relationships/RelationshipList.vue', () => ({
   default: { template: '<div class="relationship-list-mock"></div>', props: ['vaultId', 'stageFilter'] }
 }));
 
-vi.mock('@/components/pregnancy/PregnancyTracker.vue', () => ({
+vi.mock('@/modules/social/components/pregnancy/PregnancyTracker.vue', () => ({
   default: { template: '<div class="pregnancy-tracker-mock"></div>', props: ['vaultId', 'autoRefresh'] }
 }));
 
-vi.mock('@/components/relationships/ChildrenList.vue', () => ({
+vi.mock('@/modules/social/components/relationships/ChildrenList.vue', () => ({
   default: { template: '<div class="children-list-mock"></div>', props: ['vaultId'] }
 }));
 
-vi.mock('@/composables/useSidePanel', () => ({
+vi.mock('@/core/composables/useSidePanel', () => ({
   useSidePanel: () => ({ isCollapsed: { value: false } })
 }));
 
-vi.mock('@/composables/useToast', () => ({
+vi.mock('@/core/composables/useToast', () => ({
   useToast: () => ({
     success: vi.fn(),
     info: vi.fn(),

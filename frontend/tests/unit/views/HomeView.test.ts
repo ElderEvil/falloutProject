@@ -5,9 +5,9 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import HomeView from '@/modules/vault/views/HomeView.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useVaultStore } from '@/stores/vault'
-import axios from '@/plugins/axios'
+import axios from '@/core/plugins/axios'
 
-vi.mock('@/plugins/axios')
+vi.mock('@/core/plugins/axios')
 
 describe('HomeView', () => {
   let router: any

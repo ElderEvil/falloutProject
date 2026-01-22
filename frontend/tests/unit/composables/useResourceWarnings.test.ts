@@ -5,7 +5,7 @@ import { setActivePinia, createPinia } from 'pinia'
 
 const mockToastError = vi.fn()
 const mockToastWarning = vi.fn()
-vi.mock('@/composables/useToast', () => ({
+vi.mock('@/core/composables/useToast', () => ({
   useToast: () => ({
     error: mockToastError,
     warning: mockToastWarning

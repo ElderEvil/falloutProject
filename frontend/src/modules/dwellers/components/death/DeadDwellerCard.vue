@@ -49,6 +49,18 @@ const isUrgent = computed(() => {
   return (props.dweller.days_until_permanent ?? 0) < 3 && !props.dweller.is_permanently_dead
 })
 
+// Normalize thumbnail URL to handle backend-provided relative paths
+const normalizedThumbnail = computed(() => {
+  const url = props.dweller.thumbnail_url
+  if (!url) return null
+  // If already absolute URL or data URI, return as-is
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    return url
+  }
+  // Prefix with origin for relative paths
+  return `${window.location.origin}${url.startsWith('/') ? '' : '/'}${url}`
+})
+
 const daysLeftText = computed(() => {
   if (props.dweller.is_permanently_dead) return 'PERMANENTLY DEAD'
   const days = props.dweller.days_until_permanent ?? 0
@@ -75,8 +87,8 @@ const handleViewDetails = () => {
     <div class="flex gap-4">
       <!-- Thumbnail Section -->
       <div class="relative w-24 h-24 shrink-0 bg-black border border-theme-primary/30 rounded overflow-hidden group cursor-pointer" @click="handleViewDetails">
-        <div v-if="dweller.thumbnail_url" class="absolute inset-0 grayscale contrast-125 sepia-0">
-          <img :src="dweller.thumbnail_url" :alt="dweller.first_name" class="w-full h-full object-cover opacity-70" />
+        <div v-if="normalizedThumbnail" class="absolute inset-0 grayscale contrast-125 sepia-0">
+          <img :src="normalizedThumbnail" :alt="dweller.first_name" class="w-full h-full object-cover opacity-70" />
         </div>
         <div v-else class="absolute inset-0 flex items-center justify-center bg-gray-900">
           <Icon icon="mdi:account" class="w-12 h-12 text-gray-600" />

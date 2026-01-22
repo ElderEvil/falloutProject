@@ -85,7 +85,10 @@ watch(
   async () => {
     if (dwellerStore.filterStatus === 'dead') {
       // Fetch dead dwellers when dead filter is active
-      await dwellerStore.fetchDeadDwellers(vaultId.value, authStore.token as string)
+      // Guard: ensure vaultId and token are present before fetching
+      if (vaultId.value && authStore.token) {
+        await dwellerStore.fetchDeadDwellers(vaultId.value, authStore.token)
+      }
     } else {
       await fetchDwellers()
     }
@@ -94,13 +97,13 @@ watch(
 
 // Handle revive action from dead dweller card
 const handleRevive = async (dwellerId: string) => {
-  if (revivingDwellers.value[dwellerId]) return
+  if (revivingDwellers.value[dwellerId] || !vaultId.value || !authStore.token) return
 
   revivingDwellers.value[dwellerId] = true
   try {
-    await dwellerStore.reviveDweller(dwellerId, authStore.token as string)
+    await dwellerStore.reviveDweller(dwellerId, authStore.token)
     // Refresh dead dwellers list
-    await dwellerStore.fetchDeadDwellers(vaultId.value, authStore.token as string)
+    await dwellerStore.fetchDeadDwellers(vaultId.value, authStore.token)
   } finally {
     revivingDwellers.value[dwellerId] = false
   }

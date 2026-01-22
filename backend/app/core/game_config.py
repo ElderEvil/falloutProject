@@ -420,6 +420,12 @@ class DeathConfig(BaseSettings):
         Levels 1-5: level x 50 (50-250 caps)
         Levels 6-10: level x 75 (450-750 caps)
         Levels 11+: level x 100 (1100-2000 caps, capped)
+
+        :param level: Dweller level to calculate revival cost for.
+        :type level: int
+        :returns: Revival cost in caps based on tiered levels.
+        :rtype: int
+        :raises ValueError: if level is less than 1 (invalid level)
         """
         if level <= 5:
             cost = level * self.revival_cost_tier_1_multiplier

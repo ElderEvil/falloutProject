@@ -104,9 +104,14 @@ class ExplorationCoordinator:
         from app.crud.dweller import dweller as dweller_crud
 
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+
+        # Short-circuit if dweller is already dead - don't apply damage to dead dwellers
+        if dweller_obj.is_dead:
+            return
+
         new_health = dweller_obj.health - damage
 
-        if new_health <= 0 and not dweller_obj.is_dead:
+        if new_health <= 0:
             # Dweller dies in the wasteland
             from app.schemas.common import DeathCauseEnum
             from app.services.death_service import death_service

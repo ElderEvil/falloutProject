@@ -333,8 +333,8 @@ async def get_revival_cost(
         level=dweller.level,
         revival_cost=revival_cost,
         days_until_permanent=death_service.get_days_until_permanent(dweller),
-        can_afford=vault.caps >= revival_cost,
-        vault_caps=vault.caps,
+        can_afford=vault.bottle_caps >= revival_cost,
+        vault_caps=vault.bottle_caps,
     )
 
 
@@ -362,5 +362,5 @@ async def revive_dweller(
     return DwellerReviveResponse(
         dweller=DwellerRead.model_validate(revived_dweller),
         caps_spent=revival_cost,
-        remaining_caps=vault.caps,
+        remaining_caps=vault.bottle_caps,
     )

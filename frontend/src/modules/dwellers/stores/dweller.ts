@@ -535,12 +535,20 @@ export const useDwellerStore = defineStore('dweller', () => {
       // Remove from dead dwellers list
       deadDwellers.value = deadDwellers.value.filter(d => d.id !== dwellerId);
 
-      // Add revived dweller to main list
+      // Update or add revived dweller to main list
       const revivedDweller = response.data.dweller;
       const existingIndex = dwellers.value.findIndex(d => d.id === dwellerId);
-      if (existingIndex === -1) {
+      if (existingIndex !== -1) {
+        // Replace existing stale entry with revived dweller data
+        dwellers.value[existingIndex] = revivedDweller as unknown as DwellerShort;
+      } else {
         // Type cast needed since DwellerRead may have slightly different shape than DwellerShort
         dwellers.value.push(revivedDweller as unknown as DwellerShort);
+      }
+
+      // Also update cached detailed dweller if present
+      if (dwellerId in detailedDwellers.value) {
+        detailedDwellers.value[dwellerId] = revivedDweller as unknown as Dweller;
       }
 
       toast.success(`${revivedDweller.first_name} has been revived! Caps spent: ${response.data.caps_spent}`);

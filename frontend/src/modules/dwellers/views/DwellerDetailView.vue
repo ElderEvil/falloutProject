@@ -176,10 +176,12 @@ const handleRevive = async () => {
 
   revivalLoading.value = true
   try {
-    await dwellerStore.reviveDweller(dwellerId.value, authStore.token)
-    // Refresh dweller details after revival
-    await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token, true)
-    revivalCost.value = null
+    const result = await dwellerStore.reviveDweller(dwellerId.value, authStore.token)
+    // Only clear revival cost and refresh on successful revival
+    if (result) {
+      revivalCost.value = null
+      await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token, true)
+    }
   } finally {
     revivalLoading.value = false
   }

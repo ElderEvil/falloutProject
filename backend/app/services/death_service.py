@@ -33,10 +33,15 @@ class DeathService:
         Mark a dweller as dead.
 
         :param db_session: Database session
+        :type db_session: AsyncSession
         :param dweller: Dweller to mark as dead
+        :type dweller: Dweller
         :param cause: Cause of death
+        :type cause: DeathCauseEnum
         :param epitaph: Optional memorial message
+        :type epitaph: Optional[str]
         :returns: Updated dweller
+        :rtype: Dweller
         :raises ContentNoChangeException: If dweller is already dead
         """
         if dweller.is_dead:
@@ -84,14 +89,21 @@ class DeathService:
         Revive a dead dweller by paying the revival cost.
 
         :param db_session: Database session
+        :type db_session: AsyncSession
         :param dweller_id: ID of the dweller to revive
+        :type dweller_id: UUID4
         :param user_id: ID of the user attempting revival
+        :type user_id: UUID4
         :returns: Revived dweller
+        :rtype: Dweller
         :raises ResourceNotFoundException: If dweller not found
         :raises ContentNoChangeException: If dweller is not dead or permanently dead
         :raises InsufficientResourcesException: If not enough caps
         """
         dweller = await dweller_crud.get(db_session, dweller_id)
+
+        if dweller is None:
+            raise ResourceNotFoundException(Dweller, identifier=dweller_id)
 
         if not dweller.is_dead:
             raise ContentNoChangeException(detail="Dweller is not dead")
@@ -157,7 +169,9 @@ class DeathService:
         - Levels 11+: level x 100 (1100-2000 caps, capped)
 
         :param level: Dweller level
+        :type level: int
         :returns: Revival cost in caps
+        :rtype: int
         """
         return game_config.death.calculate_revival_cost(level)
 
@@ -166,7 +180,9 @@ class DeathService:
         Calculate days until dweller's death becomes permanent.
 
         :param dweller: Dead dweller to check
+        :type dweller: Dweller
         :returns: Days remaining, or None if not dead or already permanent
+        :rtype: Optional[int]
         """
         if not dweller.is_dead or dweller.is_permanently_dead or not dweller.death_timestamp:
             return None
@@ -186,7 +202,9 @@ class DeathService:
         This should be called by a scheduled task (cron job).
 
         :param db_session: Database session
+        :type db_session: AsyncSession
         :returns: Number of dwellers marked as permanently dead
+        :rtype: int
         """
         cutoff_date = datetime.now(UTC) - timedelta(days=game_config.death.permanent_death_days)
 
@@ -223,8 +241,11 @@ class DeathService:
         Get life/death statistics for a user.
 
         :param db_session: Database session
+        :type db_session: AsyncSession
         :param user_id: User ID
+        :type user_id: UUID4
         :returns: Dictionary with death statistics
+        :rtype: dict
         """
         profile = await profile_crud.get_by_user_id(db_session, user_id)
         if not profile:

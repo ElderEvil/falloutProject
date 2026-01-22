@@ -50,10 +50,11 @@ def game_tick_task(self):
             )
             session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
-            async with session_maker() as session:
-                result = await game_loop_service.process_game_tick(session)
+            try:
+                async with session_maker() as session:
+                    return await game_loop_service.process_game_tick(session)
+            finally:
                 await engine.dispose()
-                return result
 
         stats = asyncio.run(run_tick())
     except Exception as e:
@@ -87,10 +88,11 @@ def process_vault_tick_task(self, vault_id: str):
             )
             session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
-            async with session_maker() as session:
-                result = await game_loop_service.process_vault_tick(session, UUID4(vault_id))
+            try:
+                async with session_maker() as session:
+                    return await game_loop_service.process_vault_tick(session, UUID4(vault_id))
+            finally:
                 await engine.dispose()
-                return result
 
         result = asyncio.run(run_vault_tick())
     except Exception as e:
@@ -123,11 +125,13 @@ def check_permanent_deaths_task(self):
             )
             session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
-            async with session_maker() as session:
-                count = await death_service.check_and_mark_permanent_deaths(session)
-                await session.commit()
+            try:
+                async with session_maker() as session:
+                    count = await death_service.check_and_mark_permanent_deaths(session)
+                    await session.commit()
+                    return count
+            finally:
                 await engine.dispose()
-                return count
 
         count = asyncio.run(run_check())
     except Exception as e:

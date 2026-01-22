@@ -108,8 +108,8 @@ const causeData = computed(() => {
 
               <div class="h-1.5 bg-gray-900 rounded-full overflow-hidden border border-theme-primary/20">
                 <div
-                  class="h-full bg-theme-primary/60 group-hover:bg-theme-primary transition-all duration-500 shadow-[0_0_5px_currentColor]"
-                  :style="{ width: `${cause.percentage}%` }"
+                  class="h-full w-[var(--width)] bg-theme-primary/60 group-hover:bg-theme-primary transition-all duration-500 shadow-[0_0_5px_currentColor]"
+                  :style="{ '--width': `${cause.percentage}%` }"
                 ></div>
               </div>
             </div>

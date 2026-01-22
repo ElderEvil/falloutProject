@@ -7,6 +7,7 @@
  * - Hover and focus triggers
  * - Theme-aware styling (uses CSS variables)
  */
+import { ref, computed } from 'vue'
 
 interface Props {
   text: string
@@ -18,8 +19,6 @@ const props = withDefaults(defineProps<Props>(), {
   position: 'top',
   delay: 200
 })
-
-import { ref, computed } from 'vue'
 
 const isVisible = ref(false)
 let timeoutId: number | null = null

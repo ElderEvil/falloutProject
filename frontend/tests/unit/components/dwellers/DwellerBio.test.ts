@@ -12,7 +12,7 @@ describe('DwellerBio', () => {
         }
       })
 
-      const generateButton = wrapper.find('.generate-bio-button')
+      const generateButton = wrapper.find('.generate-button')
       expect(generateButton.exists()).toBe(true)
     })
 
@@ -24,11 +24,11 @@ describe('DwellerBio', () => {
         }
       })
 
-      const generateButton = wrapper.find('.generate-bio-button')
+      const generateButton = wrapper.find('.generate-button')
       expect(generateButton.exists()).toBe(true)
     })
 
-    it('should show "Generate" text when no bio exists', () => {
+    it('should show "Bio" text when no bio exists', () => {
       const wrapper = mount(DwellerBio, {
         props: {
           firstName: 'John',
@@ -36,12 +36,11 @@ describe('DwellerBio', () => {
         }
       })
 
-      const generateButton = wrapper.find('.generate-bio-button')
-      expect(generateButton.text()).toContain('Generate')
-      expect(generateButton.text()).not.toContain('Regenerate')
+      const generateButton = wrapper.find('.generate-button')
+      expect(generateButton.text()).toContain('Bio')
     })
 
-    it('should show "Regenerate" text when bio exists', () => {
+    it('should show "Regen" text when bio exists', () => {
       const wrapper = mount(DwellerBio, {
         props: {
           firstName: 'John',
@@ -49,8 +48,8 @@ describe('DwellerBio', () => {
         }
       })
 
-      const generateButton = wrapper.find('.generate-bio-button')
-      expect(generateButton.text()).toContain('Regenerate')
+      const generateButton = wrapper.find('.generate-button')
+      expect(generateButton.text()).toContain('Regen')
     })
 
     it('should emit generate-bio event when button clicked', async () => {
@@ -61,7 +60,7 @@ describe('DwellerBio', () => {
         }
       })
 
-      const generateButton = wrapper.find('.generate-bio-button')
+      const generateButton = wrapper.find('.generate-button')
       await generateButton.trigger('click')
 
       expect(wrapper.emitted('generate-bio')).toBeTruthy()
@@ -70,29 +69,29 @@ describe('DwellerBio', () => {
   })
 
   describe('Loading State', () => {
-    it('should disable button when generatingBio is true', () => {
+    it('should disable button when isAnyGenerating is true', () => {
       const wrapper = mount(DwellerBio, {
         props: {
           firstName: 'John',
           bio: null,
-          generatingBio: true
+          isAnyGenerating: true
         }
       })
 
-      const generateButton = wrapper.find('.generate-bio-button')
+      const generateButton = wrapper.find('.generate-button')
       expect(generateButton.attributes('disabled')).toBeDefined()
     })
 
-    it('should not disable button when generatingBio is false', () => {
+    it('should not disable button when isAnyGenerating is false', () => {
       const wrapper = mount(DwellerBio, {
         props: {
           firstName: 'John',
           bio: null,
-          generatingBio: false
+          isAnyGenerating: false
         }
       })
 
-      const generateButton = wrapper.find('.generate-bio-button')
+      const generateButton = wrapper.find('.generate-button')
       expect(generateButton.attributes('disabled')).toBeUndefined()
     })
 
@@ -105,7 +104,7 @@ describe('DwellerBio', () => {
         }
       })
 
-      const icon = wrapper.find('.generate-bio-button svg')
+      const icon = wrapper.find('.generate-button svg')
       expect(icon.classes()).toContain('animate-spin')
     })
   })
@@ -215,4 +214,33 @@ describe('DwellerBio', () => {
     })
   })
 
+  describe('Generate All Button', () => {
+    it('should render combo generate button', () => {
+      const wrapper = mount(DwellerBio, {
+        props: {
+          firstName: 'John',
+          bio: null
+        }
+      })
+
+      const comboButton = wrapper.find('.combo-button')
+      expect(comboButton.exists()).toBe(true)
+      expect(comboButton.text()).toContain('All')
+    })
+
+    it('should emit generate-all event when combo button clicked', async () => {
+      const wrapper = mount(DwellerBio, {
+        props: {
+          firstName: 'John',
+          bio: null
+        }
+      })
+
+      const comboButton = wrapper.find('.combo-button')
+      await comboButton.trigger('click')
+
+      expect(wrapper.emitted('generate-all')).toBeTruthy()
+      expect(wrapper.emitted('generate-all')?.length).toBe(1)
+    })
+  })
 })

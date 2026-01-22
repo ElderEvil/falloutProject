@@ -2,11 +2,26 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import DwellerEquipment from '@/modules/dwellers/components/DwellerEquipment.vue'
-import { useEquipmentStore } from '@/stores/equipment'
-import { useAuthStore } from '@/modules/auth/stores/auth'
 
-vi.mock('@/stores/equipment')
-vi.mock('@/modules/auth/stores/auth')
+vi.mock('@/stores/equipment', () => ({
+  useEquipmentStore: () => ({
+    fetchWeapons: vi.fn().mockResolvedValue([]),
+    fetchOutfits: vi.fn().mockResolvedValue([]),
+    getAvailableWeapons: vi.fn().mockReturnValue([]),
+    getAvailableOutfits: vi.fn().mockReturnValue([]),
+    equipWeapon: vi.fn().mockResolvedValue(undefined),
+    equipOutfit: vi.fn().mockResolvedValue(undefined),
+    unequipWeapon: vi.fn().mockResolvedValue(undefined),
+    unequipOutfit: vi.fn().mockResolvedValue(undefined)
+  })
+}))
+
+vi.mock('@/modules/auth/stores/auth', () => ({
+  useAuthStore: () => ({
+    token: 'test-token',
+    isAuthenticated: true
+  })
+}))
 
 describe('DwellerEquipment', () => {
   beforeEach(() => {

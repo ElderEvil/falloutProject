@@ -44,9 +44,9 @@ const emit = defineEmits<{
             :disabled="props.isAnyGenerating"
           >
             <Icon
-              :icon="generatingBio ? 'mdi:loading' : 'mdi:sparkles'"
+              :icon="props.isAnyGenerating ? 'mdi:loading' : 'mdi:sparkles'"
               class="h-5 w-5"
-              :class="{ 'animate-spin': generatingBio }"
+              :class="{ 'animate-spin': props.isAnyGenerating }"
             />
             <span>All</span>
           </button>

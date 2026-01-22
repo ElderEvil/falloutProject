@@ -751,6 +751,7 @@ VITE_APP_VERSION=1.13.0
 ## Git
 
 - When creating branches, prefix them with feat/ fix/ chore/ etc.
+- **NEVER merge to master/main without explicit user approval** - always ask before merging release branches or any branch to master
 
 ---
 

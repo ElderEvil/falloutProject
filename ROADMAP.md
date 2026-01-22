@@ -60,7 +60,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full history.
 - [ ] **Room Action Feedback** - Animated build/upgrade/destroy responses
 
 ### Future UX (P3)
-- Training drag-and-drop UI
+- [x] ~~Training drag-and-drop UI~~ → COMPLETED
 - Sound effects (terminal UI sounds, ambient audio)
 - Room damage & repair mechanics
 - Sentry integration for error tracking

@@ -6,6 +6,7 @@ import time
 from pydantic import UUID4
 
 from app.core.celery import celery_app
+from app.services.death_service import death_service
 from app.services.game_loop import game_loop_service
 
 logger = logging.getLogger(__name__)
@@ -98,3 +99,40 @@ def process_vault_tick_task(self, vault_id: str):
     else:
         logger.info(f"Vault {vault_id} tick completed")
         return result
+
+
+@celery_app.task(name="check_permanent_deaths", bind=True)
+def check_permanent_deaths_task(self):
+    """
+    Check for dead dwellers past the revival window and mark them as permanently dead.
+    Scheduled to run daily via Celery Beat.
+    """
+    try:
+        logger.info("Starting permanent death check")
+
+        async def run_check():
+            from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+            from app.core.config import settings
+
+            engine = create_async_engine(
+                str(settings.ASYNC_DATABASE_URI),
+                echo=False,
+                future=True,
+                pool_pre_ping=True,
+            )
+            session_maker = async_sessionmaker(engine, expire_on_commit=False)
+
+            async with session_maker() as session:
+                count = await death_service.check_and_mark_permanent_deaths(session)
+                await session.commit()
+                await engine.dispose()
+                return count
+
+        count = asyncio.run(run_check())
+    except Exception as e:
+        logger.exception("Permanent death check failed")
+        raise self.retry(exc=e, countdown=3600) from e  # Retry in 1 hour
+    else:
+        logger.info(f"Permanent death check completed: {count} dwellers marked as permanently dead")
+        return {"marked_permanently_dead": count}

@@ -105,10 +105,10 @@ class DeathService:
             raise ResourceNotFoundException(Dweller, identifier=dweller_id)
 
         revival_cost = self.get_revival_cost(dweller.level)
-        if vault.caps < revival_cost:
+        if vault.bottle_caps < revival_cost:
             raise InsufficientResourcesException(
                 resource_name="caps",
-                resource_amount=revival_cost - vault.caps,
+                resource_amount=revival_cost - vault.bottle_caps,
             )
 
         # Deduct caps
@@ -117,7 +117,7 @@ class DeathService:
         await vault_crud_instance.update(
             db_session,
             vault.id,
-            {"caps": vault.caps - revival_cost},
+            {"bottle_caps": vault.bottle_caps - revival_cost},
         )
 
         # Calculate health after revival

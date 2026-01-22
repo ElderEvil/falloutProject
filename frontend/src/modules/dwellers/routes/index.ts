@@ -8,6 +8,12 @@ export const dwellersRoutes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, hideFromNav: true }
   },
   {
+    path: '/vault/:id/dwellers/graveyard',
+    name: 'graveyard',
+    component: () => import('../views/GraveyardView.vue'),
+    meta: { requiresAuth: true, hideFromNav: true }
+  },
+  {
     path: '/vault/:id/dwellers/:dwellerId',
     name: 'dwellerDetail',
     component: () => import('../views/DwellerDetailView.vue'),

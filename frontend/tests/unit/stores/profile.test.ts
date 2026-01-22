@@ -225,4 +225,65 @@ describe('Profile Store', () => {
       expect(store.error).toBeNull()
     })
   })
+
+  describe('Death Statistics', () => {
+    const mockDeathStats = {
+      total_dwellers_born: 50,
+      total_dwellers_died: 10,
+      deaths_by_cause: {
+        health: 3,
+        radiation: 2,
+        incident: 2,
+        exploration: 2,
+        combat: 1
+      },
+      revivable_count: 3,
+      permanently_dead_count: 7
+    }
+
+    it('should initialize with null death statistics', () => {
+      const store = useProfileStore()
+      expect(store.deathStatistics).toBeNull()
+      expect(store.deathStatsLoading).toBe(false)
+    })
+
+    it('should fetch death statistics successfully', async () => {
+      const store = useProfileStore()
+      const mockResponse = { data: mockDeathStats }
+
+      vi.mocked(axios.get).mockResolvedValueOnce(mockResponse)
+
+      const result = await store.fetchDeathStatistics()
+
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me/profile/statistics')
+      expect(store.deathStatistics).toEqual(mockDeathStats)
+      expect(result).toEqual(mockDeathStats)
+      expect(store.deathStatsLoading).toBe(false)
+    })
+
+    it('should set loading state during fetch', async () => {
+      const store = useProfileStore()
+      const mockResponse = { data: mockDeathStats }
+
+      vi.mocked(axios.get).mockImplementation(() => {
+        expect(store.deathStatsLoading).toBe(true)
+        return Promise.resolve(mockResponse)
+      })
+
+      await store.fetchDeathStatistics()
+      expect(store.deathStatsLoading).toBe(false)
+    })
+
+    it('should handle fetch error and return null', async () => {
+      const store = useProfileStore()
+      const mockError = new Error('Network error')
+
+      vi.mocked(axios.get).mockRejectedValueOnce(mockError)
+
+      const result = await store.fetchDeathStatistics()
+
+      expect(result).toBeNull()
+      expect(store.deathStatsLoading).toBe(false)
+    })
+  })
 })

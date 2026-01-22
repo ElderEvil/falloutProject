@@ -8,6 +8,32 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ## Recent Completions
 
+### v2.1.4 Death System (January 22, 2026)
+- **Death Mechanics**: Full life/death cycle for dwellers
+  - Death model fields: `is_dead`, `death_timestamp`, `death_cause`, `is_permanently_dead`, `epitaph`
+  - Death causes: health, radiation, incident, exploration, combat
+  - Auto-generated epitaphs based on death cause
+  - 7-day revival window before permanent death
+- **Revival System**: Tiered revival costs by level
+  - Level 1-5: 50-250 caps
+  - Level 6-10: 450-750 caps
+  - Level 11+: 1100-2000 caps (capped)
+  - Revival restores 50% max health
+- **Backend**: Complete death service and API
+  - `POST /api/v1/dwellers/{id}/revive` - Revive dead dweller
+  - `GET /api/v1/dwellers/{id}/revival_cost` - Get revival cost
+  - `GET /api/v1/dwellers/vault/{id}/dead` - List dead (revivable) dwellers
+  - `GET /api/v1/dwellers/vault/{id}/graveyard` - List permanently dead
+  - `GET /api/v1/users/me/profile/statistics` - Death statistics
+  - Celery task for daily permanent death check
+- **Frontend**: Death UI components
+  - `DeadDwellerCard.vue` - Card for deceased dwellers
+  - `RevivalSection.vue` - Revival cost and action UI
+  - `LifeDeathStatistics.vue` - Death stats dashboard
+  - `GraveyardView.vue` - Memorial for permanently dead
+  - Integration in DwellersView, DwellerDetailView, ProfileView
+- **Tests**: 23 backend + 10 frontend tests for death system
+
 ### v2.1.3 Backend & Frontend Cleanup (January 22, 2026)
 - **Router Consolidation**: Reduced router count from 23 to 20
   - Merged `settings.py` → `game_control.py` (`/game/balance`)
@@ -70,20 +96,17 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 
 ---
 
-## Next Sprint: Death System (P1)
+## Next Sprint: UX Enhancements (P1)
 
-**Target: v2.3.0**
+**Target: v2.2.0**
 
-### Death Mechanics
-- [ ] **Death State** - is_dead flag, death_timestamp on dweller model
-- [ ] **Death Triggers** - Health reaches 0, radiation threshold
-- [ ] **Revival System** - Level × 50 caps cost, max 1000
-
-### Death UI
-- [ ] Death notification modal
-- [ ] Grayed-out dweller cards for dead dwellers
-- [ ] Revival button with cost display
-- [ ] Memorial/death log (optional)
+### Death System ✅ COMPLETED (v2.1.4)
+- [x] **Death State** - is_dead flag, death_timestamp, death_cause on dweller model
+- [x] **Death Triggers** - Health reaches 0, radiation threshold, incidents, exploration
+- [x] **Revival System** - Tiered pricing based on level (50-2000 caps)
+- [x] **Permanent Death** - 7-day window, Celery task for daily check
+- [x] **Death UI** - Dead dweller cards, revival section, graveyard view
+- [x] **Death Statistics** - Births, deaths by cause, mortality rate
 
 ---
 
@@ -156,14 +179,15 @@ Build a fully-featured vault management simulation inspired by Fallout Shelter, 
 ### Version Milestones
 | Version | Release | Highlights |
 |---------|---------|------------|
+| v2.1.4 | Jan 22, 2026 | Death system complete |
+| v2.1.3 | Jan 22, 2026 | Router consolidation |
 | v2.1.2 | Jan 22, 2026 | Quick wins complete |
 | v2.1.1 | Jan 22, 2026 | UI polish, planning |
 | v2.1.0 | Jan 22, 2026 | Modular frontend architecture |
 | v2.0.0 | Jan 22, 2026 | Major release, deployment ready |
 | v1.4.2 | Jan 21, 2026 | Final v1.x release |
-| v2.2.0 | Feb 2026 | Backend stability, testing (planned) |
-| v2.3.0 | Feb 2026 | Death system (planned) |
-| v2.4.0 | Mar 2026 | Motion Vue, UX polish (planned) |
+| v2.2.0 | Feb 2026 | Backend stability, UX polish (planned) |
+| v2.3.0 | Mar 2026 | Motion Vue, animations (planned) |
 
 ---
 

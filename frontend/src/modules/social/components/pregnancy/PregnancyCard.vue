@@ -10,7 +10,7 @@
         </div>
 
         <!-- Status badge -->
-        <UBadge :color="statusColor" class="mt-1">
+        <UBadge :variant="statusColor" class="mt-1">
           {{ pregnancy.status }}
         </UBadge>
       </div>
@@ -72,16 +72,16 @@ defineEmits<{
 
 const pregnancyStore = usePregnancyStore()
 
-const statusColor = computed(() => {
+const statusColor = computed((): 'success' | 'warning' | 'danger' | 'info' | 'default' => {
   switch (props.pregnancy.status) {
     case 'pregnant':
-      return props.pregnancy.is_due ? 'yellow' : 'green'
+      return props.pregnancy.is_due ? 'warning' : 'success'
     case 'delivered':
-      return 'blue'
+      return 'info'
     case 'miscarried':
-      return 'red'
+      return 'danger'
     default:
-      return 'gray'
+      return 'default'
   }
 })
 

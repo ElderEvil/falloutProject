@@ -110,7 +110,7 @@ const ariaLabel = computed(() =>
       :aria-valuemax="props.max"
       tabindex="0"
     >
-      <Icon :icon="props.icon" class="h-8 w-8 transition-colors duration-300" :class="iconColor" aria-hidden="true" />
+      <Icon :icon="props.icon" class="h-8 w-8 transition-colors duration-300" :class="iconColor" />
 
       <div class="relative">
         <div class="relative h-6 w-40 rounded-full border-2 border-gray-600 bg-gray-800 overflow-hidden">

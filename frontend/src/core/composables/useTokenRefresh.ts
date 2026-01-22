@@ -160,6 +160,9 @@ export function useTokenRefresh() {
    * Initialize token refresh mechanism
    */
   function initialize(): void {
+    // SSR guard - only run in browser environment
+    if (typeof document === 'undefined') return
+
     // Always register visibility listener regardless of auth state
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
@@ -176,6 +179,8 @@ export function useTokenRefresh() {
    */
   function cleanup(): void {
     stopTokenRefreshTimer()
+    // SSR guard - only run in browser environment
+    if (typeof document === 'undefined') return
     document.removeEventListener('visibilitychange', handleVisibilityChange)
     // Stop the auth watcher to prevent memory leaks
     if (authWatcherStop) {

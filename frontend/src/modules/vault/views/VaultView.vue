@@ -317,12 +317,9 @@ const handleIncidentResolved = async () => {
 
       <!-- Room Grid with Floating Build Button -->
       <div class="relative">
-        <RoomGrid
-          :selectedRoom="selectedRoom"
-          :isPlacingRoom="isPlacingRoom"
+<RoomGrid
           :incidents="activeIncidents"
           :highlightedRoomId="highlightedRoomId"
-          @roomPlaced="handleRoomPlaced"
           @incidentClicked="handleIncidentClicked"
         />
 

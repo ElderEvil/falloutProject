@@ -142,7 +142,7 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      const retryButton = wrapper.find('button')
+      const retryButton = wrapper.find('.bg-red-500')
       expect(retryButton.exists()).toBe(true)
       expect(retryButton.text()).toContain('Retry')
     })
@@ -159,7 +159,7 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      const retryButton = wrapper.find('button')
+      const retryButton = wrapper.find('.bg-red-500')
       await retryButton.trigger('click')
       await flushPromises()
 
@@ -290,8 +290,9 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      const editButton = wrapper.find('button')
-      expect(editButton.text()).toContain('Edit Profile')
+      const editButton = wrapper.findAll('button').find((btn) => btn.text().includes('Edit Profile'))
+      expect(editButton?.exists()).toBe(true)
+      expect(editButton?.text()).toContain('Edit Profile')
     })
 
     it('should switch to edit mode when edit button is clicked', async () => {
@@ -304,8 +305,8 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      const editButton = wrapper.find('button')
-      await editButton.trigger('click')
+      const editButton = wrapper.findAll('button').find((btn) => btn.text().includes('Edit Profile'))
+      await editButton?.trigger('click')
       await flushPromises()
 
       const editorComponent = wrapper.findComponent(ProfileEditor)
@@ -322,8 +323,8 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      const editButton = wrapper.find('button')
-      await editButton.trigger('click')
+      const editButton = wrapper.findAll('button').find((btn) => btn.text().includes('Edit Profile'))
+      await editButton?.trigger('click')
       await flushPromises()
 
       // Check that Personal Information section is not visible (only editor is shown)
@@ -333,6 +334,9 @@ describe('ProfileView', () => {
   })
 
   describe('ProfileEditor Integration', () => {
+    const findEditButton = (wrapper: any) =>
+      wrapper.findAll('button').find((btn: any) => btn.text().includes('Edit Profile'))
+
     it('should render ProfileEditor with initial data', async () => {
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
 
@@ -343,8 +347,8 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      const editButton = wrapper.find('button')
-      await editButton.trigger('click')
+      const editButton = findEditButton(wrapper)
+      await editButton?.trigger('click')
       await flushPromises()
 
       const editorComponent = wrapper.findComponent(ProfileEditor)
@@ -363,8 +367,8 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      const editButton = wrapper.find('button')
-      await editButton.trigger('click')
+      const editButton = findEditButton(wrapper)
+      await editButton?.trigger('click')
       await flushPromises()
 
       const editorComponent = wrapper.findComponent(ProfileEditor)
@@ -386,8 +390,8 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      const editButton = wrapper.find('button')
-      await editButton.trigger('click')
+      const editButton = findEditButton(wrapper)
+      await editButton?.trigger('click')
       await flushPromises()
 
       const editorComponent = wrapper.findComponent(ProfileEditor)
@@ -408,8 +412,8 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      const editButton = wrapper.find('button')
-      await editButton.trigger('click')
+      const editButton = findEditButton(wrapper)
+      await editButton?.trigger('click')
       await flushPromises()
 
       const editorComponent = wrapper.findComponent(ProfileEditor)
@@ -433,8 +437,8 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      const editButton = wrapper.find('button')
-      await editButton.trigger('click')
+      const editButton = findEditButton(wrapper)
+      await editButton?.trigger('click')
       await flushPromises()
 
       const editorComponent = wrapper.findComponent(ProfileEditor)
@@ -457,8 +461,8 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      const editButton = wrapper.find('button')
-      await editButton.trigger('click')
+      const editButton = findEditButton(wrapper)
+      await editButton?.trigger('click')
       await flushPromises()
 
       const editorComponent = wrapper.findComponent(ProfileEditor)
@@ -481,8 +485,8 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      const editButton = wrapper.find('button')
-      await editButton.trigger('click')
+      const editButton = findEditButton(wrapper)
+      await editButton?.trigger('click')
       await flushPromises()
 
       const editorComponent = wrapper.findComponent(ProfileEditor)
@@ -494,10 +498,11 @@ describe('ProfileView', () => {
   })
 
   describe('Error Clearing', () => {
+    const findEditButton = (wrapper: any) =>
+      wrapper.findAll('button').find((btn: any) => btn.text().includes('Edit Profile'))
+
     it('should clear error when entering edit mode', async () => {
-      vi.mocked(axios.get).mockRejectedValueOnce({
-        response: { data: { detail: 'Error' } }
-      })
+      // Start with successful profile load, then enter edit mode to clear any residual error
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
 
       const wrapper = mount(ProfileView, {
@@ -507,12 +512,12 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      const retryButton = wrapper.find('button')
-      await retryButton.trigger('click')
-      await flushPromises()
+      // Manually set an error to simulate a previous error state
+      profileStore.error = 'Some previous error'
 
-      const editButton = wrapper.find('button')
-      await editButton.trigger('click')
+      // Enter edit mode - should clear error
+      const editButton = findEditButton(wrapper)
+      await editButton?.trigger('click')
       await flushPromises()
 
       expect(profileStore.error).toBeNull()
@@ -531,8 +536,8 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      const editButton = wrapper.find('button')
-      await editButton.trigger('click')
+      const editButton = findEditButton(wrapper)
+      await editButton?.trigger('click')
       await flushPromises()
 
       const editorComponent = wrapper.findComponent(ProfileEditor)

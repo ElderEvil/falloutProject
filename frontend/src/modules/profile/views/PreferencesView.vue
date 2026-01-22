@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed, inject, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { useSidePanel } from '@/core/composables/useSidePanel';
 import { useVisualEffects, type EffectIntensity } from '@/core/composables/useVisualEffects';
 import { useTheme, type ThemeName } from '@/core/composables/useTheme';
 import SidePanel from '@/core/components/common/SidePanel.vue';
-import UCard from '@/core/components/ui/UCard.vue';
+import { UCard, UButton } from '@/core/components/ui';
 import { Icon } from '@iconify/vue';
+
+const router = useRouter();
 
 const { isCollapsed } = useSidePanel();
 const {
@@ -44,6 +47,12 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
       <div class="main-content" :class="{ collapsed: isCollapsed, flicker: flickering }">
         <div class="container mx-auto px-4 py-6 lg:px-8">
           <div class="max-w-4xl mx-auto">
+<!-- Back Button -->
+            <UButton variant="ghost" size="sm" class="mb-4" @click="router.push('/profile')">
+              <Icon icon="mdi:arrow-left" class="h-5 w-5 mr-1" />
+              Back to Profile
+            </UButton>
+
             <!-- Header -->
             <div class="mb-4">
               <h1 class="text-3xl font-bold flex items-center gap-2" :class="injectedGlowClass" :style="{ color: 'var(--color-theme-primary)' }">

@@ -234,7 +234,7 @@ watch(() => props.modelValue, (isOpen) => {
       </div>
 
       <!-- Capacity Full Message -->
-      <UAlert v-else type="warning" class="capacity-alert">
+      <UAlert v-else variant="warning" class="capacity-alert">
         <Icon icon="mdi:alert" class="h-5 w-5" />
         Training room at full capacity. Wait for current training to complete or cancel one.
       </UAlert>

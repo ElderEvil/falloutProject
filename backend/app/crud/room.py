@@ -1,7 +1,7 @@
 import logging
 
 from pydantic import UUID4
-from sqlmodel import and_, select
+from sqlmodel import and_, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase, ModelType
@@ -85,7 +85,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
                     and_(
                         Room.vault_id == obj_in.vault_id,
                         Room.name == obj_in.name,
-                        Room.incremental_cost == 0,
+                        or_(Room.incremental_cost == 0, Room.incremental_cost.is_(None)),
                     )
                 )
             )

@@ -455,7 +455,8 @@ class TestUniqueRoomProperty:
         assert room.is_unique is False
 
     @pytest.mark.asyncio
-    async def test_is_unique_false_with_zero_incremental_cost(self):
+    async def test_is_unique_true_with_zero_incremental_cost(self):
+        """Test that rooms with incremental_cost=0 are considered unique."""
         room = Room(
             name="Test Room",
             category=RoomTypeEnum.PRODUCTION,

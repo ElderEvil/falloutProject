@@ -135,7 +135,7 @@ File: backend/app/tests/test_api/test_pregnancy.py
 
 ### Env Vars
 Add to .env.example:
-```
+```env
 BREEDING_DEBUG_MODE=false
 BREEDING_DEBUG_FORCE_CONCEPTION=false
 BREEDING_DEBUG_INSTANT_PREGNANCY=false
@@ -162,6 +162,7 @@ BREEDING_DEBUG_CONCEPTION_RATE=1.0
 ### Gaps
 
 #### Services (Priority 1)
+
 | Service | Current | Target | Gap |
 |---------|---------|--------|-----|
 | exploration_service | 26.39% | 85% | +58.61% |
@@ -171,6 +172,7 @@ BREEDING_DEBUG_CONCEPTION_RATE=1.0
 | training_service | 73.91% | 85% | +11.09% |
 
 #### API Endpoints (Priority 2)
+
 | Endpoint | Current | Target | Gap |
 |----------|---------|--------|-----|
 | auth | 28.32% | 80% | +51.68% |
@@ -203,7 +205,7 @@ Files: test_death_service.py, test_game_loop.py
 #### 4. Remove redundant tests
 Candidates:
 - Duplicate CRUD tests (covered by service tests)
-- Simple tests (model __repr__)
+- Simple tests (model `__repr__`)
 - Integration tests duplicating unit tests
 Target: -50 tests
 
@@ -216,14 +218,14 @@ Break monolithic tests into focused units:
 
 #### Parallel execution
 File: pyproject.toml
-```
+```toml
 [tool.pytest.ini_options]
 addopts = ["-n", "auto", "--dist", "loadgroup"]
 ```
 
 #### Coverage thresholds
 File: pyproject.toml
-```
+```toml
 [tool.coverage.report]
 fail_under = 70
 [tool.coverage.run]
@@ -233,18 +235,21 @@ parallel = true
 
 ### Timeline
 
-**Phase 1: Services (Week 1)**
+#### Phase 1: Services (Week 1)
+
 - exploration_service: 26% → 85% (+150 tests)
 - game_loop: 18% → 80% (+120 tests)
 - incident_service: 32% → 80% (+100 tests)
 
-**Phase 2: API (Week 2)**
+#### Phase 2: API (Week 2)
+
 - auth: 28% → 80% (+80 tests)
 - game_control: 27% → 80% (+60 tests)
 - pregnancy: 34% → 80% (+50 tests)
 - training: 36% → 80% (+50 tests)
 
-**Phase 3: Optimize (Week 3)**
+#### Phase 3: Optimize (Week 3)
+
 - Mock slow datetime ops
 - Remove redundant tests (-50)
 - Enable parallel execution
@@ -283,6 +288,7 @@ When addressed:
 ## Summary
 
 ### Effort
+
 | Task | Priority | Effort | Impact |
 |------|----------|--------|--------|
 | Fix exploration storage | P0 | 8h | High - prevents corruption |

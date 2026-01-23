@@ -197,3 +197,190 @@ async def dweller_fixture(async_session: AsyncSession, vault: "Vault", dweller_d
 
     dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
     return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+
+
+@pytest_asyncio.fixture(name="vault_with_rooms")
+async def vault_with_rooms_fixture(
+    async_session: AsyncSession,
+    vault: "Vault",  # noqa: F821
+) -> tuple["Vault", list["Room"]]:  # noqa: F821
+    """
+    Vault with 3 rooms of different types.
+
+    Returns:
+        Tuple of (vault, [power_generator, water_treatment, diner])
+
+    Usage:
+        async def test_something(vault_with_rooms):
+            vault, rooms = vault_with_rooms
+            assert len(rooms) == 3
+    """
+    from app.schemas.room import RoomCreate
+
+    room_configs = [
+        {"name": "Power Generator", "level": 1, "tier": 1},
+        {"name": "Water Treatment", "level": 1, "tier": 1},
+        {"name": "Diner", "level": 1, "tier": 1},
+    ]
+
+    rooms = []
+    for config in room_configs:
+        room_in = RoomCreate(**config, vault_id=vault.id)
+        room = await crud.room.create(db_session=async_session, obj_in=room_in)
+        rooms.append(room)
+
+    return vault, rooms
+
+
+@pytest_asyncio.fixture(name="room_with_dwellers")
+async def room_with_dwellers_fixture(
+    async_session: AsyncSession,
+) -> tuple["Room", list["Dweller"]]:  # noqa: F821
+    """
+    Room with 2 dwellers assigned (creates its own vault).
+
+    Returns:
+        Tuple of (room, [dweller1, dweller2])
+
+    Usage:
+        async def test_room_capacity(room_with_dwellers):
+            room, dwellers = room_with_dwellers
+            assert len(dwellers) == 2
+    """
+    import random
+
+    from faker import Faker
+
+    from app.schemas.dweller import DwellerCreate
+    from app.schemas.room import RoomCreate
+    from app.schemas.vault import VaultCreateWithUserID
+    from app.tests.factory.dwellers import create_random_common_dweller
+
+    fake = Faker()
+
+    user_in = UserCreate(username=fake.user_name(), email=fake.email(), password=fake.password())
+    user = await crud.user.create(db_session=async_session, obj_in=user_in)
+
+    vault_in = VaultCreateWithUserID(number=random.randint(1, 999), bottle_caps=1000, user_id=user.id)
+    vault = await crud.vault.create(db_session=async_session, obj_in=vault_in)
+
+    room_in = RoomCreate(name="Power Generator", level=1, tier=1, vault_id=vault.id)
+    room = await crud.room.create(db_session=async_session, obj_in=room_in)
+
+    dwellers = []
+    for _ in range(2):
+        dweller_data = create_random_common_dweller()
+        dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id, room_id=room.id)
+        dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+        dwellers.append(dweller)
+
+    return room, dwellers
+
+
+@pytest_asyncio.fixture(name="equipped_dweller")
+async def equipped_dweller_fixture(
+    async_session: AsyncSession,
+    dweller: "Dweller",  # noqa: F821
+) -> tuple["Dweller", "Outfit", "Weapon"]:  # noqa: F821
+    """
+    Dweller with outfit and weapon equipped.
+
+    Returns:
+        Tuple of (dweller, outfit, weapon)
+
+    Usage:
+        async def test_combat_power(equipped_dweller):
+            dweller, outfit, weapon = equipped_dweller
+    """
+    from app.tests.factory.items import create_fake_outfit, create_fake_weapon
+
+    outfit_data = create_fake_outfit()
+    outfit_data["dweller_id"] = dweller.id
+    outfit = await crud.outfit.create(db_session=async_session, obj_in=outfit_data)
+
+    weapon_data = create_fake_weapon()
+    weapon_data["dweller_id"] = dweller.id
+    weapon = await crud.weapon.create(db_session=async_session, obj_in=weapon_data)
+
+    return dweller, outfit, weapon
+
+
+@pytest_asyncio.fixture(name="populated_vault")
+async def populated_vault_fixture(
+    async_session: AsyncSession,
+) -> tuple["Vault", list["Room"], list["Dweller"]]:  # noqa: F821
+    """
+    Fully populated vault: 3 rooms, each with 2 dwellers (6 total).
+
+    Returns:
+        Tuple of (vault, rooms, dwellers)
+
+    Usage:
+        async def test_game_loop(populated_vault):
+            vault, rooms, dwellers = populated_vault
+            assert len(rooms) == 3
+            assert len(dwellers) == 6
+    """
+    import random
+
+    from faker import Faker
+
+    from app.schemas.dweller import DwellerCreate
+    from app.schemas.room import RoomCreate
+    from app.schemas.vault import VaultCreateWithUserID
+    from app.tests.factory.dwellers import create_random_common_dweller
+
+    fake = Faker()
+
+    user_in = UserCreate(username=fake.user_name(), email=fake.email(), password=fake.password())
+    user = await crud.user.create(db_session=async_session, obj_in=user_in)
+
+    vault_in = VaultCreateWithUserID(number=random.randint(1, 999), bottle_caps=1000, user_id=user.id)
+    vault = await crud.vault.create(db_session=async_session, obj_in=vault_in)
+
+    room_configs = [
+        {"name": "Power Generator", "level": 1, "tier": 1},
+        {"name": "Water Treatment", "level": 1, "tier": 1},
+        {"name": "Diner", "level": 1, "tier": 1},
+    ]
+
+    rooms = []
+    dwellers = []
+
+    for config in room_configs:
+        room_in = RoomCreate(**config, vault_id=vault.id)
+        room = await crud.room.create(db_session=async_session, obj_in=room_in)
+        rooms.append(room)
+
+        for _ in range(2):
+            dweller_data = create_random_common_dweller()
+            dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id, room_id=room.id)
+            dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+            dwellers.append(dweller)
+
+    return vault, rooms, dwellers
+
+
+@pytest_asyncio.fixture(name="vault_with_resources")
+async def vault_with_resources_fixture(
+    async_session: AsyncSession,
+    vault: "Vault",  # noqa: F821
+) -> "Vault":  # noqa: F821
+    """
+    Vault with abundant resources for testing economy/building.
+
+    Returns:
+        Vault with 10000 caps, 100 power/food/water
+
+    Usage:
+        async def test_expensive_build(vault_with_resources):
+            assert vault_with_resources.bottle_caps == 10000
+    """
+    vault.bottle_caps = 10000
+    vault.power = 100
+    vault.food = 100
+    vault.water = 100
+    async_session.add(vault)
+    await async_session.flush()
+    await async_session.refresh(vault)
+    return vault

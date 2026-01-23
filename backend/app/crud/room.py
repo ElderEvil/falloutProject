@@ -81,7 +81,13 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         """Raise an exception if a unique room of the same type already exists."""
         if obj_in.is_unique:
             existing_unique_room = await db_session.execute(
-                select(Room).where(and_(Room.vault_id == obj_in.vault_id, Room.is_unique is True))
+                select(Room).where(
+                    and_(
+                        Room.vault_id == obj_in.vault_id,
+                        Room.name == obj_in.name,
+                        Room.incremental_cost == 0,
+                    )
+                )
             )
             if existing_unique_room.scalars().first():
                 raise UniqueRoomViolationException(room_name=obj_in.name)

@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import crud
 from app.models.room import Room
 from app.models.vault import Vault
+from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultUpdate
 from app.tests.factory.rooms import create_fake_room
@@ -420,3 +421,97 @@ async def test_get_buildable_rooms_includes_non_unique_rooms_multiple_times(
     # The non-unique room should still be in the buildable list
     updated_room_names = [r["name"].lower() for r in updated_buildable]
     assert non_unique_room_data["name"].lower() in updated_room_names
+
+
+class TestUniqueRoomProperty:
+    @pytest.mark.asyncio
+    async def test_is_unique_true_when_no_incremental_cost(self):
+        room = Room(
+            name="Vault Door",
+            category=RoomTypeEnum.MISC,
+            ability=None,
+            base_cost=100,
+            incremental_cost=None,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            size_min=2,
+            size_max=2,
+        )
+        assert room.is_unique is True
+
+    @pytest.mark.asyncio
+    async def test_is_unique_false_when_has_incremental_cost(self):
+        room = Room(
+            name="Power Generator",
+            category=RoomTypeEnum.PRODUCTION,
+            ability=SPECIALEnum.STRENGTH,
+            base_cost=100,
+            incremental_cost=500,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            size_min=2,
+            size_max=6,
+        )
+        assert room.is_unique is False
+
+    @pytest.mark.asyncio
+    async def test_is_unique_false_with_zero_incremental_cost(self):
+        room = Room(
+            name="Test Room",
+            category=RoomTypeEnum.PRODUCTION,
+            ability=None,
+            base_cost=100,
+            incremental_cost=0,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            size_min=2,
+            size_max=6,
+        )
+        assert room.is_unique is True
+
+
+class TestRoomMaxTier:
+    @pytest.mark.asyncio
+    async def test_max_tier_with_both_upgrade_costs(self):
+        room = Room(
+            name="Full Upgrades",
+            category=RoomTypeEnum.PRODUCTION,
+            ability=None,
+            base_cost=100,
+            incremental_cost=500,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            size_min=2,
+            size_max=6,
+        )
+        assert room.max_tier == 3
+
+    @pytest.mark.asyncio
+    async def test_max_tier_with_only_t2_upgrade(self):
+        room = Room(
+            name="T2 Only",
+            category=RoomTypeEnum.PRODUCTION,
+            ability=None,
+            base_cost=100,
+            incremental_cost=500,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=None,
+            size_min=2,
+            size_max=6,
+        )
+        assert room.max_tier == 2
+
+    @pytest.mark.asyncio
+    async def test_max_tier_with_no_upgrades(self):
+        room = Room(
+            name="No Upgrades",
+            category=RoomTypeEnum.MISC,
+            ability=None,
+            base_cost=100,
+            incremental_cost=None,
+            t2_upgrade_cost=None,
+            t3_upgrade_cost=None,
+            size_min=2,
+            size_max=2,
+        )
+        assert room.max_tier == 1

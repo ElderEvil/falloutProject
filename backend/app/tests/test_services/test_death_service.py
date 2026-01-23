@@ -274,7 +274,6 @@ class TestDeathService:
         vault: Vault,
     ):
         """Test days calculation for recently dead dweller."""
-        # Use naive datetime for SQLite compatibility in tests
         dweller_data = create_fake_dweller()
         dweller_data.update(
             {
@@ -282,7 +281,7 @@ class TestDeathService:
                 "last_name": "Death",
                 "is_dead": True,
                 "is_permanently_dead": False,
-                "death_timestamp": datetime.utcnow() - timedelta(days=2),
+                "death_timestamp": datetime.now(UTC) - timedelta(days=2),
                 "death_cause": DeathCauseEnum.HEALTH.value,
                 "health": 0,
                 "max_health": 100,
@@ -291,10 +290,6 @@ class TestDeathService:
         dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
         dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
 
-        # Manually set timezone-aware timestamp for test
-        dweller.death_timestamp = datetime.now(UTC) - timedelta(days=2)
-
-        # Should have ~5 days left (7 day window - 2 days passed)
         days_left = death_service.get_days_until_permanent(dweller)
         assert days_left is not None
         assert 4 <= days_left <= 5
@@ -305,7 +300,6 @@ class TestDeathService:
         vault: Vault,
     ):
         """Test days calculation for dweller near permanent death."""
-        # Use naive datetime for SQLite compatibility in tests
         dweller_data = create_fake_dweller()
         dweller_data.update(
             {
@@ -313,7 +307,7 @@ class TestDeathService:
                 "last_name": "Expiry",
                 "is_dead": True,
                 "is_permanently_dead": False,
-                "death_timestamp": datetime.utcnow() - timedelta(days=6, hours=12),
+                "death_timestamp": datetime.now(UTC) - timedelta(days=6, hours=12),
                 "death_cause": DeathCauseEnum.RADIATION.value,
                 "health": 0,
                 "max_health": 100,
@@ -321,9 +315,6 @@ class TestDeathService:
         )
         dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
         dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
-
-        # Manually set timezone-aware timestamp for test
-        dweller.death_timestamp = datetime.now(UTC) - timedelta(days=6, hours=12)
 
         days_left = death_service.get_days_until_permanent(dweller)
         assert days_left is not None

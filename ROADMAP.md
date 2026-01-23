@@ -96,16 +96,24 @@ AI-powered dweller interactions.
 
 **Target: v2.3.0**
 
-### High Priority
+### Completed (Quick Wins)
 
-- [ ] **Unique Room Filtering Verification** - Test and validate backend prevents duplicate unique rooms
-- [ ] **Backend Test Coverage** - Increase from 67% to 80%
+- [x] **Enhanced Test Fixtures** - Added composite fixtures (vault_with_rooms, populated_vault, etc.)
+- [x] **DB Initialization Tests** - 10 tests, init_db.py coverage 0% → 97.67%
+- [x] **Unique Room Property Tests** - 6 tests for is_unique and max_tier properties
+- [x] **Router Consolidation** - Move settings/info endpoints to appropriate routers (avoid 1-2 endpoint routers)
+
+### Remaining
+
+- [ ] **Backend Test Coverage** - Continue increasing from 46% toward 80%
     - Security middleware (0% → 85%)
-    - DB initialization (0% → 75%)
     - Incident service (28% → 75%)
     - Game loop (54% → 80%)
 - [ ] **Datetime Deprecation Fix** - Replace `datetime.utcnow()` → `datetime.now(timezone.utc)`
-- [x] **Router Consolidation** - Move settings/info endpoints to appropriate routers (avoid 1-2 endpoint routers)
+
+### Known Issues (Discovered During Testing)
+
+- **check_is_unique_room bug** - `Room.is_unique is True` doesn't work in SQLAlchemy (property vs column)
 
 ---
 
@@ -185,9 +193,9 @@ AI-powered dweller interactions.
 
 ### Current Stats (January 23, 2026)
 
-- **Backend**: 22+ routers, 90+ endpoints, 15+ services
+- **Backend**: 22+ routers, 90+ endpoints, 15+ services, 46% coverage
 - **Frontend**: 55+ Vue components, 10 feature modules
-- **Tests**: Frontend 683, Backend 535
+- **Tests**: Frontend 683, Backend 551
 - **Models**: 18+ database models
 
 ### Version Milestones

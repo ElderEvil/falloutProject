@@ -16,6 +16,13 @@ class PregnancyCreate(SQLModel):
     father_id: UUID4
 
 
+class PregnancyUpdate(SQLModel):
+    """Schema for updating a pregnancy."""
+
+    status: PregnancyStatusEnum | None = None
+    due_at: datetime | None = None
+
+
 class PregnancyRead(PregnancyBase):
     """Schema for reading a pregnancy."""
 

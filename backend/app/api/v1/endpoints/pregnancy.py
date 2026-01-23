@@ -9,6 +9,7 @@ from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403
 from app.core.game_config import game_config
 from app.db.session import get_async_session
@@ -17,6 +18,7 @@ from app.models.pregnancy import Pregnancy
 from app.schemas.common import AgeGroupEnum, GenderEnum, PregnancyStatusEnum
 from app.schemas.pregnancy import DeliveryResult, PregnancyRead
 from app.services.breeding_service import breeding_service
+from app.utils.exceptions import ResourceNotFoundException
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -60,22 +62,10 @@ async def get_pregnancy(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """Get a specific pregnancy."""
-    query = select(Pregnancy).where(Pregnancy.id == pregnancy_id)
-    result = await db_session.execute(query)
-    pregnancy = result.scalars().first()
-
-    if not pregnancy:
-        raise HTTPException(status_code=404, detail="Pregnancy not found")
-
-    # Get mother to verify vault access
-    mother_query = select(Dweller).where(Dweller.id == pregnancy.mother_id)
-    mother = (await db_session.execute(mother_query)).scalars().first()
-
-    if not mother:
-        raise HTTPException(status_code=404, detail="Mother dweller not found")
-
-    # Verify user has access to the vault
-    await get_user_vault_or_403(mother.vault_id, user, db_session)
+    try:
+        pregnancy, _ = await crud.pregnancy.get_with_vault_access(db_session, pregnancy_id, user)
+    except ResourceNotFoundException as exc:
+        raise HTTPException(status_code=404, detail=exc.detail) from exc
 
     return PregnancyRead(
         id=pregnancy.id,
@@ -97,23 +87,10 @@ async def deliver_baby(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """Manually trigger delivery of a baby (must be due)."""
-    # Get pregnancy
-    query = select(Pregnancy).where(Pregnancy.id == pregnancy_id)
-    result = await db_session.execute(query)
-    pregnancy = result.scalars().first()
-
-    if not pregnancy:
-        raise HTTPException(status_code=404, detail="Pregnancy not found")
-
-    # Get mother to verify vault access
-    mother_query = select(Dweller).where(Dweller.id == pregnancy.mother_id)
-    mother = (await db_session.execute(mother_query)).scalars().first()
-
-    if not mother:
-        raise HTTPException(status_code=404, detail="Mother dweller not found")
-
-    # Verify user has access to the vault
-    await get_user_vault_or_403(mother.vault_id, user, db_session)
+    try:
+        _, mother = await crud.pregnancy.get_with_vault_access(db_session, pregnancy_id, user)
+    except ResourceNotFoundException as exc:
+        raise HTTPException(status_code=404, detail=exc.detail) from exc
 
     # Attempt delivery
     try:

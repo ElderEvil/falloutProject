@@ -1,3 +1,4 @@
+from . import storage
 from .dweller import dweller
 from .exploration import exploration
 from .game_state import game_state_crud

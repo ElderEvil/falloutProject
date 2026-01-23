@@ -705,3 +705,97 @@ async def test_deliver_baby_pregnancy_not_found(
             async_session,
             fake_id,
         )
+
+
+# =============================================================================
+# Debug Feature Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_debug_guaranteed_conception(
+    async_session: AsyncSession,
+    vault: Vault,
+    living_quarters: Room,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+):
+    """Test that guaranteed conception mode always succeeds."""
+    # Make them partners in living quarters
+    male_dweller.partner_id = female_dweller.id
+    female_dweller.partner_id = male_dweller.id
+    male_dweller.room_id = living_quarters.id
+    female_dweller.room_id = living_quarters.id
+    await async_session.commit()
+
+    # Enable debug guaranteed conception
+    with (
+        patch.object(game_config.breeding, "debug_enabled", True),  # noqa: FBT003
+        patch.object(game_config.breeding, "debug_guaranteed_conception", True),  # noqa: FBT003
+    ):
+        pregnancies = await BreedingService.check_for_conception(
+            async_session,
+            vault.id,
+        )
+
+    # Should always succeed
+    assert len(pregnancies) == 1
+    assert pregnancies[0].mother_id == female_dweller.id
+    assert pregnancies[0].father_id == male_dweller.id
+
+
+@pytest.mark.asyncio
+async def test_debug_instant_pregnancy(
+    async_session: AsyncSession,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+):
+    """Test that instant pregnancy mode sets due date in the past."""
+    with (
+        patch.object(game_config.breeding, "debug_enabled", True),  # noqa: FBT003
+        patch.object(game_config.breeding, "debug_instant_pregnancy", True),  # noqa: FBT003
+    ):
+        pregnancy = await BreedingService.create_pregnancy(
+            async_session,
+            female_dweller.id,
+            male_dweller.id,
+        )
+
+    # Pregnancy should be immediately due
+    assert pregnancy.is_due
+    assert pregnancy.due_at < pregnancy.conceived_at
+
+
+@pytest.mark.asyncio
+async def test_debug_log_conception_checks(  # noqa: PLR0913
+    async_session: AsyncSession,
+    vault: Vault,
+    living_quarters: Room,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    caplog,
+):
+    """Test that debug logging outputs conception check details."""
+    import logging
+
+    # Make them partners in living quarters
+    male_dweller.partner_id = female_dweller.id
+    female_dweller.partner_id = male_dweller.id
+    male_dweller.room_id = living_quarters.id
+    female_dweller.room_id = living_quarters.id
+    await async_session.commit()
+
+    # Enable debug logging
+    with (
+        patch.object(game_config.breeding, "debug_enabled", True),  # noqa: FBT003
+        patch.object(game_config.breeding, "debug_log_conception_checks", True),  # noqa: FBT003
+        patch("random.random", return_value=0.5),  # 50% roll, will fail with default chance
+        caplog.at_level(logging.INFO),
+    ):
+        await BreedingService.check_for_conception(
+            async_session,
+            vault.id,
+        )
+
+    # Should have logged conception check
+    assert any("DEBUG conception check" in record.message for record in caplog.records)

@@ -100,7 +100,8 @@ class RewardsSchema(BaseModel):
     """Schema for exploration completion rewards."""
 
     caps: int = Field(..., ge=0, description="Total caps earned")
-    items: list[dict] = Field(default_factory=list, description="Items collected")
+    items: list[dict] = Field(default_factory=list, description="Items collected and transferred to storage")
+    overflow_items: list[dict] = Field(default_factory=list, description="Items dropped due to storage being full")
     experience: int = Field(..., ge=0, description="Experience earned")
     distance: int = Field(..., ge=0, description="Distance traveled")
     enemies_defeated: int = Field(..., ge=0, description="Number of enemies defeated")

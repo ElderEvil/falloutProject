@@ -28,7 +28,7 @@ class BreedingService:
     """Service for managing breeding, pregnancy, and child growth."""
 
     @staticmethod
-    async def check_for_conception(  # noqa: PLR0912, PLR0915, C901
+    async def check_for_conception(  # noqa: PLR0912
         db_session: AsyncSession,
         vault_id: UUID4,
     ) -> list[Pregnancy]:

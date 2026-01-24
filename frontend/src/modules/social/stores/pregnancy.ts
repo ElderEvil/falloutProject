@@ -105,17 +105,17 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
     isLoading.value = true
     try {
       await axios.post(`/api/v1/pregnancies/${pregnancyId}/debug/accelerate`)
-      
+
       // Update local state to reflect changes (e.g. make it due)
       // Since backend logic is complex, best to re-fetch the pregnancy or just set is_due if we know it
       // But typically accelerate makes it ready for delivery.
-      
+
       const index = pregnancies.value.findIndex((p) => p.id === pregnancyId)
       if (index !== -1 && pregnancies.value[index]) {
         pregnancies.value[index]!.is_due = true
         // Maybe refresh the whole list to be safe?
       }
-      
+
       toast.success('Pregnancy accelerated!')
       return true
     } catch (error: unknown) {

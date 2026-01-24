@@ -31,7 +31,7 @@ const fathers = computed(() => {
 
 const handleForceConception = async () => {
   if (!selectedMother.value || !selectedFather.value) return
-  
+
   await pregnancyStore.forceConception(selectedMother.value, selectedFather.value)
   selectedMother.value = ''
   selectedFather.value = ''
@@ -65,12 +65,12 @@ onMounted(() => {
         <h4 class="text-xs font-bold uppercase tracking-widest text-gray-500 border-b border-gray-800 pb-1">
           Force Conception Protocol
         </h4>
-        
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs text-gray-400 mb-1 font-mono">Mother (Female/Adult)</label>
             <div class="relative">
-              <select 
+              <select
                 v-model="selectedMother"
                 class="w-full appearance-none bg-gray-900 border-2 border-gray-700 text-terminalGreen rounded px-3 py-2 focus:border-amber-500 focus:outline-none text-sm transition-colors cursor-pointer"
               >
@@ -84,11 +84,11 @@ onMounted(() => {
               </div>
             </div>
           </div>
-          
+
           <div>
             <label class="block text-xs text-gray-400 mb-1 font-mono">Father (Male/Adult)</label>
             <div class="relative">
-              <select 
+              <select
                 v-model="selectedFather"
                 class="w-full appearance-none bg-gray-900 border-2 border-gray-700 text-terminalGreen rounded px-3 py-2 focus:border-amber-500 focus:outline-none text-sm transition-colors cursor-pointer"
               >
@@ -104,9 +104,9 @@ onMounted(() => {
           </div>
         </div>
 
-        <UButton 
-          variant="secondary" 
-          block 
+        <UButton
+          variant="secondary"
+          block
           :disabled="!selectedMother || !selectedFather"
           @click="handleForceConception"
           class="!border-amber-500 !text-amber-500 hover:!bg-amber-500/10 font-mono tracking-wider"
@@ -120,22 +120,22 @@ onMounted(() => {
         <h4 class="text-xs font-bold uppercase tracking-widest text-gray-500 border-b border-gray-800 pb-1">
           Accelerate Gestation
         </h4>
-        
+
         <div class="space-y-2">
-          <div 
-            v-for="p in activePregnancies" 
+          <div
+            v-for="p in activePregnancies"
             :key="p.id"
             class="flex items-center justify-between bg-gray-900/50 p-3 rounded border border-gray-800 hover:border-amber-500/30 transition-colors"
           >
             <div class="text-sm">
               <span class="text-gray-500 font-mono text-xs uppercase block mb-1">Subject</span>
               <span class="font-bold text-terminalGreen">
-                {{ dwellers.find(d => d.id === p.mother_id)?.first_name }} 
+                {{ dwellers.find(d => d.id === p.mother_id)?.first_name }}
                 {{ dwellers.find(d => d.id === p.mother_id)?.last_name }}
               </span>
             </div>
-            
-            <UButton 
+
+            <UButton
               size="sm"
               variant="secondary"
               @click="handleAccelerate(p.id)"

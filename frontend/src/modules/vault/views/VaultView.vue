@@ -66,8 +66,13 @@ const bottleCaps = computed(() => currentVault.value?.bottle_caps ?? 0)
 const dwellersCount = computed(() => currentVault.value?.dweller_count ?? 0)
 const populationMax = computed(() => currentVault.value?.population_max ?? 0)
 const populationUtilization = computed(() => {
-  if (populationMax.value === 0) return 0
-  return (dwellersCount.value / populationMax.value) * 100
+  const max = populationMax.value
+  const current = dwellersCount.value
+
+  // Avoid division by zero
+  if (!max || max === 0) return 0
+
+  return (current / max) * 100
 })
 
 const populationColor = computed(() => {
@@ -280,7 +285,8 @@ const handleIncidentResolved = async () => {
                 <div
                   class="h-full transition-all duration-500"
                   :class="populationUtilization >= 90 ? 'bg-red-500' : populationUtilization >= 75 ? 'bg-yellow-400' : 'bg-terminalGreen'"
-                  :style="{ width: `${Math.min(populationUtilization, 100)}%` }"
+                  :style="{ width: `${populationUtilization}%` }"
+                  :title="`${populationUtilization.toFixed(1)}% capacity`"
                 ></div>
               </div>
             </div>

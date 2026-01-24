@@ -19,13 +19,20 @@ vi.mock('@iconify/vue', () => ({
 vi.mock('@/core/components/ui/UModal.vue', () => ({
   default: {
     name: 'UModal',
-    props: ['show', 'size'],
+    props: ['modelValue', 'size'],
+    emits: ['update:modelValue', 'close'],
     template: `
-      <div v-if="show" class="mock-modal">
+      <div v-if="modelValue" class="mock-modal">
         <slot name="header" />
         <slot />
       </div>
-    `
+    `,
+    methods: {
+      '$emit': (event: string, payload?: any) => {
+        // Mock emit method
+        console.log('Emitting:', event, payload)
+      }
+    }
   }
 }))
 
@@ -117,7 +124,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -129,7 +136,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
-          show: false
+          modelValue: false
         }
       })
 
@@ -140,7 +147,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -152,7 +159,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -168,7 +175,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -180,7 +187,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -192,7 +199,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -204,7 +211,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -221,7 +228,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -237,7 +244,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -256,7 +263,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -272,7 +279,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -289,7 +296,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: nonProductionRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -308,7 +315,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: foodRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -327,7 +334,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: waterRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -343,7 +350,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -360,7 +367,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -374,7 +381,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -389,7 +396,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -404,7 +411,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -421,7 +428,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: maxTierRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -438,7 +445,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: tier2Room,
-          show: true
+          modelValue: true
         }
       })
 
@@ -453,7 +460,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -464,7 +471,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -477,7 +484,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -495,7 +502,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -518,7 +525,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
-          show: true
+          modelValue: true
         }
       })
 
@@ -544,7 +551,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: tier2Room,
-          show: true
+          modelValue: true
         }
       })
 
@@ -564,7 +571,7 @@ describe('RoomDetailModal', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: tier3Room,
-          show: true
+          modelValue: true
         }
       })
 

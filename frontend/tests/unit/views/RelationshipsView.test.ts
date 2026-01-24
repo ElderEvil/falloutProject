@@ -89,6 +89,10 @@ describe('RelationshipsView', () => {
           path: '/vault/:id/relationships',
           component: RelationshipsView,
           name: 'relationships'
+        },
+        {
+          path: '/vault/:id',
+          redirect: to => ({ name: 'relationships', params: { id: to.params.id } })
         }
       ]
     });

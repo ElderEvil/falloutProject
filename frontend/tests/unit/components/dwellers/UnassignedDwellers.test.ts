@@ -53,9 +53,9 @@ describe('UnassignedDwellers', () => {
 
     // Set underlying dwellers array instead of computed property
     dwellerStore.dwellers = [];
-    explorationStore.isDwellerExploring = vi.fn(() => false);
+
+    // Mock the unassignDwellerFromRoom action
     dwellerStore.unassignDwellerFromRoom = vi.fn().mockResolvedValue(undefined);
-    dwellerStore.getDwellerStatus = vi.fn(() => 'idle');
     authStore.token = 'mock-token';
   });
 

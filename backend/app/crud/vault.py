@@ -21,7 +21,11 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         return response.scalars().all()
 
     @staticmethod
-    def _calculate_new_capacity(action: RoomActionEnum, current_capacity: int, room_capacity: int) -> int:
+    def _calculate_new_capacity(action: RoomActionEnum, current_capacity: int, room_capacity: int | None) -> int:
+        # Handle rooms without capacity (elevators, vault door, etc.)
+        if room_capacity is None:
+            return current_capacity
+
         if action in {RoomActionEnum.BUILD, RoomActionEnum.UPGRADE}:
             return current_capacity + room_capacity
         if action == RoomActionEnum.DESTROY:

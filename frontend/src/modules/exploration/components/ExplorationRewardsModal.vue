@@ -27,9 +27,9 @@ const emit = defineEmits<{
 
 const getRarityColor = (rarity?: string): string => {
   const colors: Record<string, string> = {
-    Common: '#808080',
-    Rare: '#4169E1',
-    Legendary: '#FFD700'
+    Common: 'var(--color-rarity-common)',
+    Rare: 'var(--color-rarity-rare)',
+    Legendary: 'var(--color-rarity-legendary)'
   }
   if (rarity && colors[rarity]) {
     return colors[rarity]!

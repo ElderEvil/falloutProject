@@ -51,6 +51,11 @@
   --color-water: #4dabf7;
   --color-caps: #ffd43b;
 
+  /* Rarity Colors */
+  --color-rarity-common: #808080;
+  --color-rarity-rare: #4169E1;
+  --color-rarity-legendary: #FFD700;
+
   /* === TYPOGRAPHY === */
   --font-family-mono: "Courier New", Courier, monospace;
   --font-family-base: var(--font-family-mono);

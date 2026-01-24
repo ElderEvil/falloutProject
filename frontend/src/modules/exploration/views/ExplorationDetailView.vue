@@ -160,10 +160,7 @@ const handleCompleteExploration = async () => {
       await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
     }
 
-    // Navigate back to exploration list
-    setTimeout(() => {
-      goBack()
-    }, 500)
+    // Don't auto-navigate - let user close modal first
   } catch (error) {
     console.error('Failed to complete exploration:', error)
   }
@@ -186,10 +183,7 @@ const handleRecallExploration = async () => {
       await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
     }
 
-    // Navigate back to exploration list
-    setTimeout(() => {
-      goBack()
-    }, 500)
+    // Don't auto-navigate - let user close modal first
   } catch (error) {
     console.error('Failed to recall dweller:', error)
   }
@@ -198,6 +192,8 @@ const handleRecallExploration = async () => {
 const closeRewardsModal = () => {
   showRewardsModal.value = false
   completedExplorationRewards.value = null
+  // Navigate back when modal is closed
+  goBack()
   completedDwellerName.value = ''
 }
 
@@ -209,8 +205,9 @@ onMounted(async () => {
   }
 
   pollInterval = setInterval(async () => {
-    if (vaultId.value && authStore.token) {
-      await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
+    if (explorationId.value && authStore.token) {
+      // Fetch detailed exploration data to update loot_collected
+      await explorationStore.fetchExplorationDetails(explorationId.value, authStore.token)
     }
   }, 10000)
 })

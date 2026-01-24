@@ -5,7 +5,7 @@ from app.schemas.common import RarityEnum
 
 
 class ItemBase(SQLModel):
-    name: str = Field(unique=True, index=True, min_length=3, max_length=32)
+    name: str = Field(index=True, min_length=3, max_length=32)
     rarity: RarityEnum
     value: int | None = Field(default=None, ge=0)
     image_url: str | None = Field(default=None, max_length=255)

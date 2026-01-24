@@ -36,6 +36,19 @@ RARITY_PRIORITY = {
 class ExplorationCoordinator:
     """Coordinates all exploration operations."""
 
+    @staticmethod
+    def _normalize_outfit_type(outfit_type_str: str) -> str:
+        """
+        Normalize outfit_type string to match OutfitTypeEnum values.
+
+        Maps data values like 'tiered_outfit' to enum values like 'TIERED'.
+        """
+        normalized = outfit_type_str.upper().replace(" ", "_")
+        # Remove '_OUTFIT' suffix if present (except for POWER_ARMOR)
+        if normalized.endswith("_OUTFIT") and normalized != "POWER_ARMOR":
+            normalized = normalized.replace("_OUTFIT", "")
+        return normalized
+
     async def process_event(self, db_session: AsyncSession, exploration: Exploration) -> Exploration:
         """
         Generate and process an event for an active exploration.
@@ -371,7 +384,7 @@ class ExplorationCoordinator:
                         name=outfit_data["name"],
                         rarity=rarity,
                         value=outfit_data.get("value"),
-                        outfit_type=OutfitTypeEnum[outfit_data["outfit_type"].upper().replace(" ", "_")],
+                        outfit_type=OutfitTypeEnum[self._normalize_outfit_type(outfit_data["outfit_type"])],
                         gender=GenderEnum[outfit_data["gender"].upper()] if outfit_data.get("gender") else None,
                         storage_id=storage_id,
                     )

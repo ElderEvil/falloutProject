@@ -6,6 +6,12 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { UCard, UButton } from '@/core/components/ui'
 
+interface Props {
+  vaultId: string
+}
+
+const props = defineProps<Props>()
+
 const pregnancyStore = usePregnancyStore()
 const dwellerStore = useDwellerStore()
 const authStore = useAuthStore()
@@ -41,11 +47,7 @@ const handleAccelerate = async (id: string) => {
   await pregnancyStore.acceleratePregnancy(id)
 }
 
-onMounted(() => {
-  if (dwellers.value.length === 0 && token.value) {
-    dwellerStore.fetchDwellers(token.value)
-  }
-})
+// Note: Parent component (RelationshipsView) handles fetching dwellers
 </script>
 
 <template>

@@ -161,10 +161,14 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             raise NoSpaceAvailableException(space_needed=obj_in.size_min)
 
         if obj_in.capacity_formula:
-            obj_in.capacity = self.evaluate_capacity_formula(obj_in.capacity_formula, obj_in.tier, obj_in.size_min)
+            # Use actual size if provided, otherwise fall back to size_min
+            room_size = obj_in.size if obj_in.size is not None else obj_in.size_min
+            obj_in.capacity = self.evaluate_capacity_formula(obj_in.capacity_formula, obj_in.tier, room_size)
 
         if obj_in.output_formula:
-            obj_in.output = self.evaluate_output_formula(obj_in.output_formula, obj_in.tier, obj_in.size_min)
+            # Use actual size if provided, otherwise fall back to size_min
+            room_size = obj_in.size if obj_in.size is not None else obj_in.size_min
+            obj_in.output = self.evaluate_output_formula(obj_in.output_formula, obj_in.tier, room_size)
 
         await self.check_is_unique_room(db_session=db_session, obj_in=obj_in)
 

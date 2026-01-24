@@ -11,3 +11,10 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+// Declare vMotion directive from @vueuse/motion
+declare module '@vue/runtime-core' {
+  export interface GlobalDirectives {
+    vMotion: any
+  }
+}

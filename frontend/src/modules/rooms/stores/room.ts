@@ -2,14 +2,14 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import axios from '@/core/plugins/axios'
 import { AxiosError } from 'axios'
-import type { Room, RoomCreate } from '../models/room'
+import type { Room, RoomCreate, RoomTemplate } from '../models/room'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 
 export const useRoomStore = defineStore('room', () => {
   // State
   const rooms = ref<Room[]>([])
-  const availableRooms = ref<Room[]>([])
-  const selectedRoom = ref<Room | null>(null)
+  const availableRooms = ref<RoomTemplate[]>([])
+  const selectedRoom = ref<RoomTemplate | null>(null)
   const isPlacingRoom = ref(false)
 
   // Actions
@@ -34,7 +34,7 @@ export const useRoomStore = defineStore('room', () => {
         ? `/api/v1/rooms/buildable/${vaultId}/`
         : '/api/v1/rooms/read_data/'
 
-      const response = await axios.get<Room[]>(endpoint, {
+      const response = await axios.get<RoomTemplate[]>(endpoint, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -109,7 +109,7 @@ export const useRoomStore = defineStore('room', () => {
     }
   }
 
-  function selectRoom(room: Room): void {
+  function selectRoom(room: RoomTemplate): void {
     selectedRoom.value = room
     isPlacingRoom.value = true
   }

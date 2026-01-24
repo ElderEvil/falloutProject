@@ -19,7 +19,7 @@ import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
-import type { Room } from '@/modules/rooms/models/room'
+import type { RoomTemplate } from '@/modules/rooms/models/room'
 import { Icon } from '@iconify/vue'
 
 // Lazy load heavy modal
@@ -209,7 +209,7 @@ const toggleBuildMode = async () => {
   }
 }
 
-const handleRoomSelected = (room: Room) => {
+const handleRoomSelected = (room: RoomTemplate) => {
   // roomStore.selectRoom(room) is already called by RoomMenu
   showRoomMenu.value = false
 }

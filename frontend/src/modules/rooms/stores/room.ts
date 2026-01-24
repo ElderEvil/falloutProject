@@ -27,9 +27,14 @@ export const useRoomStore = defineStore('room', () => {
     }
   }
 
-  async function fetchRoomsData(token: string): Promise<void> {
+  async function fetchRoomsData(token: string, vaultId?: string): Promise<void> {
     try {
-      const response = await axios.get<Room[]>('/api/v1/rooms/read_data/', {
+      // Use buildable endpoint if vault ID is provided to filter out vault door and unique rooms
+      const endpoint = vaultId
+        ? `/api/v1/rooms/buildable/${vaultId}/`
+        : '/api/v1/rooms/read_data/'
+
+      const response = await axios.get<Room[]>(endpoint, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -71,6 +76,10 @@ export const useRoomStore = defineStore('room', () => {
       rooms.value = rooms.value.filter((room) => room.id !== roomId)
     } catch (error) {
       console.error('Failed to destroy room', error)
+      if (error instanceof AxiosError && error.response?.data?.detail) {
+        throw new Error(error.response.data.detail)
+      }
+      throw error
     }
   }
 

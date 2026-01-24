@@ -74,7 +74,7 @@ describe('Room Store', () => {
   })
 
   describe('fetchRoomsData', () => {
-    it('should fetch available room types', async () => {
+    it('should fetch available room types without vault ID (legacy)', async () => {
       const mockAvailableRooms = [
         { id: 'power-gen', name: 'Power Generator', type: 'power', cost: 100 },
         { id: 'diner', name: 'Diner', type: 'food', cost: 150 }
@@ -92,6 +92,27 @@ describe('Room Store', () => {
         })
       )
       expect(store.availableRooms).toEqual(mockAvailableRooms)
+    })
+
+    it('should fetch buildable rooms when vault ID is provided', async () => {
+      const mockBuildableRooms = [
+        { id: 'power-gen', name: 'Power Generator', type: 'power', cost: 100 },
+        { id: 'diner', name: 'Diner', type: 'food', cost: 150 }
+        // Note: Vault Door should NOT be in this list
+      ]
+
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockBuildableRooms })
+
+      const store = useRoomStore()
+      await store.fetchRoomsData('test-token', 'vault-1')
+
+      expect(axios.get).toHaveBeenCalledWith(
+        '/api/v1/rooms/buildable/vault-1/',
+        expect.objectContaining({
+          headers: { Authorization: 'Bearer test-token' }
+        })
+      )
+      expect(store.availableRooms).toEqual(mockBuildableRooms)
     })
 
     it('should handle errors', async () => {
@@ -187,7 +208,9 @@ describe('Room Store', () => {
       const store = useRoomStore()
       store.rooms = [{ id: 'room-1' } as any]
 
-      await store.destroyRoom('room-1', 'test-token')
+      await expect(
+        store.destroyRoom('room-1', 'test-token')
+      ).rejects.toThrow('Failed')
 
       expect(console.error).toHaveBeenCalledWith('Failed to destroy room', expect.any(Error))
       expect(store.rooms).toHaveLength(1) // Room not removed on error

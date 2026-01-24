@@ -7,6 +7,8 @@ import { Icon } from '@iconify/vue'
 import type { DwellerShort } from '../models/dweller'
 import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
 import DwellerFilterPanel from './DwellerFilterPanel.vue'
+import { normalizeImageUrl } from '@/utils/image'
+
 
 const dwellerStore = useDwellerStore()
 const explorationStore = useExplorationStore()
@@ -92,9 +94,9 @@ const handleDropZoneDrop = async (event: DragEvent) => {
 }
 
 const getImageUrl = (imagePath: string | null) => {
-  if (!imagePath) return null
-  return imagePath.startsWith('http') ? imagePath : `http://${imagePath}`
+  return normalizeImageUrl(imagePath)
 }
+
 </script>
 
 <template>

@@ -4,6 +4,8 @@ import { Icon } from '@iconify/vue'
 import DwellerStatusBadge from '../stats/DwellerStatusBadge.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import type { DwellerShort } from '../../models/dweller'
+import { normalizeImageUrl } from '@/utils/image'
+
 
 interface Props {
   dweller: DwellerShort
@@ -21,8 +23,9 @@ const emit = defineEmits<{
 }>()
 
 const getImageUrl = (imagePath: string) => {
-  return imagePath.startsWith('http') ? imagePath : `http://${imagePath}`
+  return normalizeImageUrl(imagePath)
 }
+
 
 const healthPercentage = computed(() => {
   if (!props.dweller.max_health) return 0

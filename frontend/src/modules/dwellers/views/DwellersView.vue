@@ -18,6 +18,7 @@ import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { DeadDwellerCard } from '../components/death'
 import type { Room } from '@/modules/rooms/models/room'
+import { normalizeImageUrl } from '@/utils/image'
 
 // Lazy load room modal
 const RoomDetailModal = defineAsyncComponent({
@@ -118,8 +119,9 @@ const viewDwellerDetails = (dwellerId: string) => {
 }
 
 const getImageUrl = (imagePath: string) => {
-  return imagePath.startsWith('http') ? imagePath : `http://${imagePath}`
+  return normalizeImageUrl(imagePath)
 }
+
 
 const navigateToChatPage = (dwellerId: string) => {
   router.push(`/dweller/${dwellerId}/chat`)

@@ -45,15 +45,14 @@ const incidentStore = useIncidentStore()
 const { isCollapsed } = useSidePanel()
 const scanlinesEnabled = inject('scanlines', ref(true))
 const showRoomMenu = ref(false)
-const selectedRoom = ref<Room | null>(null)
-const isPlacingRoom = ref(false)
 const isLoading = ref(true)
 const errorMessage = ref<string | null>(null)
 const showCombatModal = ref(false)
 const selectedIncidentId = ref<string | null>(null)
 const highlightedRoomId = ref<string | null>(null)
 
-const buildModeActive = computed(() => showRoomMenu.value || isPlacingRoom.value)
+const buildModeActive = computed(() => showRoomMenu.value || roomStore.isPlacingRoom)
+
 
 // Get vault ID from route params
 const vaultId = computed(() => route.params.id as string)
@@ -65,6 +64,18 @@ const currentVault = computed(() => {
 
 const bottleCaps = computed(() => currentVault.value?.bottle_caps ?? 0)
 const dwellersCount = computed(() => currentVault.value?.dweller_count ?? 0)
+const populationMax = computed(() => currentVault.value?.population_max ?? 0)
+const populationUtilization = computed(() => {
+  if (populationMax.value === 0) return 0
+  return (dwellersCount.value / populationMax.value) * 100
+})
+
+const populationColor = computed(() => {
+  if (populationUtilization.value >= 90) return 'text-red-500'
+  if (populationUtilization.value >= 75) return 'text-yellow-400'
+  return 'text-terminalGreen'
+})
+
 const happiness = computed(() => currentVault.value?.happiness ?? 0)
 
 const happinessColor = computed(() => {
@@ -74,6 +85,7 @@ const happinessColor = computed(() => {
   if (h >= 25) return 'text-yellow-400';
   return 'text-red-500';
 });
+
 
 const energy = computed(() => ({
   current: currentVault.value?.power ?? 0,
@@ -187,31 +199,23 @@ const toggleBuildMode = async () => {
   if (buildModeActive.value) {
     // Cancel building
     showRoomMenu.value = false
-    isPlacingRoom.value = false
-    selectedRoom.value = null
+    roomStore.deselectRoom()
   } else {
     // Enter build mode
     if (roomStore.availableRooms.length === 0) {
-      await roomStore.fetchRoomsData(authStore.token as string)
+      await roomStore.fetchRoomsData(authStore.token as string, vaultId.value)
     }
     showRoomMenu.value = true
   }
 }
 
 const handleRoomSelected = (room: Room) => {
-  selectedRoom.value = room
+  // roomStore.selectRoom(room) is already called by RoomMenu
   showRoomMenu.value = false
-  isPlacingRoom.value = true
-}
-
-const handleRoomPlaced = async (position: Position) => {
-  if (selectedRoom.value && isPlacingRoom.value) {
-    isPlacingRoom.value = false
-    selectedRoom.value = null
-  }
 }
 
 const handleIncidentClicked = (incidentId: string) => {
+
   selectedIncidentId.value = incidentId
   showCombatModal.value = true
 }
@@ -267,13 +271,22 @@ const handleIncidentResolved = async () => {
       <div class="mb-8 flex w-full items-center justify-between space-x-8">
         <!-- Dwellers Count and Happiness -->
         <div class="flex items-center space-x-4">
-          <UTooltip text="Total dwellers in vault" position="bottom">
+          <UTooltip :text="`Total dwellers in vault: ${dwellersCount}/${populationMax}\nCapacity: ${populationMax} dwellers`" position="bottom">
             <div class="flex items-center space-x-2 cursor-help" tabindex="0">
               <Icon icon="mdi:account-group" class="h-8 w-8 text-terminalGreen" />
-              <p>{{ dwellersCount }}</p>
+              <p :class="`whitespace-nowrap ${populationColor}`">{{ dwellersCount }} / {{ populationMax }}</p>
+              <!-- Progress Bar -->
+              <div class="h-1.5 w-24 rounded-full bg-gray-800 overflow-hidden border border-gray-700">
+                <div
+                  class="h-full transition-all duration-500"
+                  :class="populationUtilization >= 90 ? 'bg-red-500' : populationUtilization >= 75 ? 'bg-yellow-400' : 'bg-terminalGreen'"
+                  :style="{ width: `${Math.min(populationUtilization, 100)}%` }"
+                ></div>
+              </div>
             </div>
           </UTooltip>
           <UTooltip :text="`Vault Happiness: ${happiness}%\n${happiness >= 75 ? '😊 Excellent morale!' : happiness >= 50 ? '😐 Acceptable morale' : happiness >= 25 ? '😟 Low morale - needs attention' : '😢 Critical - dwellers are unhappy!'}`" position="bottom">
+
             <div class="flex items-center space-x-2 cursor-help" tabindex="0">
               <Icon icon="mdi:emoticon-happy" class="h-6 w-6" :class="happinessColor" />
               <p :class="happinessColor">{{ happiness }}%</p>

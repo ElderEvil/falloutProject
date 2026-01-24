@@ -273,11 +273,9 @@ export const useDwellerStore = defineStore('dweller', () => {
         detailedDwellers.value[dwellerId] = response.data;
       }
 
-      toast.success('Dweller assigned to room successfully!');
       return response.data;
     } catch (error) {
       console.error(`Failed to assign dweller ${dwellerId} to room ${roomId}`, error);
-      toast.error('Failed to assign dweller to room');
       throw error;
     }
   }
@@ -309,7 +307,6 @@ export const useDwellerStore = defineStore('dweller', () => {
       return response.data;
     } catch (error) {
       console.error(`Failed to unassign dweller ${dwellerId}`, error);
-      toast.error('Failed to recall dweller');
       throw error;
     }
   }

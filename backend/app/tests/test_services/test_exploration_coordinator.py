@@ -92,7 +92,7 @@ async def test_transfer_prioritizes_rare_items(
     # Add items with different rarities (in non-priority order)
     exploration.add_loot(item_name="Common Junk", quantity=1, rarity="Common", item_type="junk")
     exploration.add_loot(item_name="Legendary Blade", quantity=1, rarity="Legendary", item_type="junk")
-    exploration.add_loot(item_name="Uncommon Stuff", quantity=1, rarity="Uncommon", item_type="junk")
+    exploration.add_loot(item_name="Another Common Item", quantity=1, rarity="Common", item_type="junk")
     exploration.add_loot(item_name="Rare Gem", quantity=1, rarity="Rare", item_type="junk")
 
     async_session.add(exploration)
@@ -111,10 +111,10 @@ async def test_transfer_prioritizes_rare_items(
     assert "Legendary Blade" in transferred_names
     assert "Rare Gem" in transferred_names
 
-    # Overflow should be the less rare items
+    # Overflow should be the less rare items (both common)
     overflow_names = [item["item_name"] for item in result["overflow"]]
     assert "Common Junk" in overflow_names
-    assert "Uncommon Stuff" in overflow_names
+    assert "Another Common Item" in overflow_names
 
 
 @pytest.mark.asyncio

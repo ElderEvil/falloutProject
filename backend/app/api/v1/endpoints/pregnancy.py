@@ -18,7 +18,12 @@ from app.models.pregnancy import Pregnancy
 from app.schemas.common import AgeGroupEnum, GenderEnum, PregnancyStatusEnum
 from app.schemas.pregnancy import DeliveryResult, PregnancyRead
 from app.services.breeding_service import breeding_service
-from app.utils.exceptions import ResourceNotFoundException
+from app.utils.exceptions import (
+    DebugModeDisabledException,
+    ResourceConflictException,
+    ResourceNotFoundException,
+    ValidationException,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -142,36 +147,33 @@ async def force_conception(
     """
     # Check debug mode is enabled
     if not game_config.breeding.debug_enabled:
-        raise HTTPException(
-            status_code=403,
-            detail="Debug mode is not enabled. Set BREEDING_DEBUG_ENABLED=true",
-        )
+        raise DebugModeDisabledException(feature="Force conception")
 
     # Verify mother exists and is female adult
     mother_query = select(Dweller).where(Dweller.id == mother_id)
     mother = (await db_session.execute(mother_query)).scalars().first()
 
     if not mother:
-        raise HTTPException(status_code=404, detail="Mother dweller not found")
+        raise ResourceNotFoundException(Dweller, identifier=mother_id)
 
     if mother.gender != GenderEnum.FEMALE:
-        raise HTTPException(status_code=400, detail="Mother must be female")
+        raise ValidationException(detail="Mother must be female")
 
     if mother.age_group != AgeGroupEnum.ADULT:
-        raise HTTPException(status_code=400, detail="Mother must be adult")
+        raise ValidationException(detail="Mother must be adult")
 
     # Verify father exists and is male adult
     father_query = select(Dweller).where(Dweller.id == father_id)
     father = (await db_session.execute(father_query)).scalars().first()
 
     if not father:
-        raise HTTPException(status_code=404, detail="Father dweller not found")
+        raise ResourceNotFoundException(Dweller, identifier=father_id)
 
     if father.gender != GenderEnum.MALE:
-        raise HTTPException(status_code=400, detail="Father must be male")
+        raise ValidationException(detail="Father must be male")
 
     if father.age_group != AgeGroupEnum.ADULT:
-        raise HTTPException(status_code=400, detail="Father must be adult")
+        raise ValidationException(detail="Father must be adult")
 
     # Check mother isn't already pregnant
     existing_query = select(Pregnancy).where(
@@ -181,7 +183,7 @@ async def force_conception(
     existing = (await db_session.execute(existing_query)).scalars().first()
 
     if existing:
-        raise HTTPException(status_code=400, detail="Mother is already pregnant")
+        raise ResourceConflictException(detail="Mother is already pregnant")
 
     # Create pregnancy
     logger.info(
@@ -221,20 +223,17 @@ async def accelerate_pregnancy(
     """
     # Check debug mode is enabled
     if not game_config.breeding.debug_enabled:
-        raise HTTPException(
-            status_code=403,
-            detail="Debug mode is not enabled. Set BREEDING_DEBUG_ENABLED=true",
-        )
+        raise DebugModeDisabledException(feature="Accelerate pregnancy")
 
     # Get pregnancy
     query = select(Pregnancy).where(Pregnancy.id == pregnancy_id)
     pregnancy = (await db_session.execute(query)).scalars().first()
 
     if not pregnancy:
-        raise HTTPException(status_code=404, detail="Pregnancy not found")
+        raise ResourceNotFoundException(Pregnancy, identifier=pregnancy_id)
 
     if pregnancy.status != PregnancyStatusEnum.PREGNANT:
-        raise HTTPException(status_code=400, detail="Pregnancy is not active")
+        raise ValidationException(detail="Pregnancy is not active")
 
     # Set due_at to now (actually 1 second ago to ensure is_due returns True)
     old_due_at = pregnancy.due_at

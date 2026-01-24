@@ -45,7 +45,7 @@ class CRUDPregnancy(CRUDBase[Pregnancy, PregnancyCreate, PregnancyUpdate]):
         mother = (await db_session.execute(mother_query)).scalars().first()
 
         if not mother:
-            raise ResourceNotFoundException(Dweller, identifier=preg.mother_id, detail="Mother dweller not found")
+            raise ResourceNotFoundException(Dweller, identifier=preg.mother_id)
 
         # Verify user has access to the vault (raises 403 if not)
         await get_user_vault_or_403(mother.vault_id, user, db_session)

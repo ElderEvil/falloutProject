@@ -25,7 +25,12 @@ logger = logging.getLogger(__name__)
 ERROR_NOT_ACTIVE = "Exploration is not active"
 
 # Rarity priority for storage overflow handling (higher = more valuable)
-RARITY_PRIORITY = {"legendary": 4, "rare": 3, "uncommon": 2, "common": 1}
+# Using RarityEnum.value to ensure consistent casing with the enum
+RARITY_PRIORITY = {
+    RarityEnum.LEGENDARY.value: 3,
+    RarityEnum.RARE.value: 2,
+    RarityEnum.COMMON.value: 1,
+}
 
 
 class ExplorationCoordinator:

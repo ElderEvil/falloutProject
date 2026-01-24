@@ -89,6 +89,39 @@ class ContentNoChangeException(HTTPException):
         super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail=detail, headers=headers)
 
 
+class ValidationException(HTTPException):
+    """
+    Exception raised when validation fails for a domain operation.
+
+    :param detail: Detailed message explaining the validation failure.
+    :param headers: Optional HTTP headers to be sent in the response.
+    """
+
+    def __init__(
+        self,
+        detail: str = "Validation failed.",
+        headers: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail=detail, headers=headers)
+
+
+class DebugModeDisabledException(HTTPException):
+    """
+    Exception raised when a debug-only feature is accessed without debug mode enabled.
+
+    :param feature: Name of the debug feature that was attempted.
+    :param headers: Optional HTTP headers to be sent in the response.
+    """
+
+    def __init__(
+        self,
+        feature: str = "Debug feature",
+        headers: dict[str, Any] | None = None,
+    ) -> None:
+        detail = f"{feature} requires debug mode. Set BREEDING_DEBUG_ENABLED=true"
+        super().__init__(status_code=status.HTTP_403_FORBIDDEN, detail=detail, headers=headers)
+
+
 class InvalidItemAssignmentException(HTTPException, Generic[ModelType]):
     """
     Exception raised when attempting to assign an item to both a storage and a dweller.

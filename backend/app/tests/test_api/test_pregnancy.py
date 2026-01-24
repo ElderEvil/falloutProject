@@ -334,7 +334,7 @@ async def test_force_conception_debug_disabled(
         )
 
     assert response.status_code == 403
-    assert "Debug mode is not enabled" in response.json()["detail"]
+    assert "debug mode" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -456,7 +456,7 @@ async def test_accelerate_pregnancy_debug_disabled(
         )
 
     assert response.status_code == 403
-    assert "Debug mode is not enabled" in response.json()["detail"]
+    assert "debug mode" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -524,4 +524,4 @@ async def test_accelerate_pregnancy_not_found(
         )
 
     assert response.status_code == 404
-    assert "Pregnancy not found" in response.json()["detail"]
+    assert "Pregnancy" in response.json()["detail"]

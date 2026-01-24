@@ -117,30 +117,9 @@ class BreedingService:
             else:
                 conception_chance = game_config.breeding.conception_chance_per_tick  # Fallback to base 2%
 
-            # Debug: guaranteed conception override
-            if game_config.breeding.debug_enabled and game_config.breeding.debug_guaranteed_conception:
-                conception_chance = 1.0
-
             # Roll for conception
             roll = random.random()
             conception_success = roll < conception_chance
-
-            # Debug logging
-            if game_config.breeding.debug_enabled and game_config.breeding.debug_log_conception_checks:
-                logger.info(
-                    "DEBUG conception check",
-                    extra={
-                        "dweller_id": str(dweller.id),
-                        "partner_id": str(dweller.partner_id),
-                        "dweller_gender": dweller.gender.value,
-                        "partner_gender": partner.gender.value if partner else None,
-                        "affinity": relationship.affinity if relationship else None,
-                        "conception_chance": conception_chance,
-                        "roll": roll,
-                        "success": conception_success,
-                        "debug_guaranteed": game_config.breeding.debug_guaranteed_conception,
-                    },
-                )
 
             if conception_success:
                 # Determine mother and father
@@ -182,16 +161,7 @@ class BreedingService:
             Created pregnancy
         """
         conceived_at = datetime.utcnow()
-
-        # Debug: instant pregnancy mode sets due date in the past
-        if game_config.breeding.debug_enabled and game_config.breeding.debug_instant_pregnancy:
-            due_at = conceived_at - timedelta(seconds=1)
-            logger.info(
-                "DEBUG instant pregnancy enabled - due immediately",
-                extra={"mother_id": str(mother_id), "father_id": str(father_id)},
-            )
-        else:
-            due_at = conceived_at + timedelta(hours=game_config.breeding.pregnancy_duration_hours)
+        due_at = conceived_at + timedelta(hours=game_config.breeding.pregnancy_duration_hours)
 
         pregnancy = Pregnancy(
             mother_id=mother_id,

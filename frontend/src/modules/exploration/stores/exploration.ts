@@ -67,6 +67,7 @@ export interface RewardsSummary {
   distance: number;
   enemies_defeated: number;
   events_encountered: number;
+  overflow_items?: LootItem[];
   progress_percentage?: number;
   recalled_early?: boolean;
 }

@@ -294,47 +294,8 @@ async def test_pregnancy_not_found(
 
 
 # =============================================================================
-# Debug Endpoint Tests
+# Debug Endpoint Tests (Superuser-only)
 # =============================================================================
-
-
-@pytest.mark.asyncio
-async def test_force_conception_debug_disabled(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-):
-    """Test force-conception returns 403 when debug mode is disabled."""
-    from unittest.mock import patch
-
-    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
-    vault = await crud.vault.create_with_user_id(
-        db_session=async_session,
-        obj_in={"number": 700},
-        user_id=user.id,
-    )
-
-    mother = await crud.dweller.create_random(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="female"),
-    )
-    father = await crud.dweller.create_random(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="male"),
-    )
-
-    # Ensure debug mode is disabled
-    with patch("app.api.v1.endpoints.pregnancy.game_config.breeding.debug_enabled", False):  # noqa: FBT003
-        response = await async_client.post(
-            "/pregnancies/debug/force-conception",
-            headers=superuser_token_headers,
-            params={"mother_id": str(mother.id), "father_id": str(father.id)},
-        )
-
-    assert response.status_code == 403
-    assert "debug mode" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -343,9 +304,7 @@ async def test_force_conception_success(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ):
-    """Test force-conception creates pregnancy when debug mode enabled."""
-    from unittest.mock import patch
-
+    """Test force-conception creates pregnancy for superuser."""
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault = await crud.vault.create_with_user_id(
         db_session=async_session,
@@ -364,13 +323,11 @@ async def test_force_conception_success(
         obj_in=DwellerCreateCommonOverride(gender="male"),
     )
 
-    # Enable debug mode
-    with patch("app.api.v1.endpoints.pregnancy.game_config.breeding.debug_enabled", True):  # noqa: FBT003
-        response = await async_client.post(
-            "/pregnancies/debug/force-conception",
-            headers=superuser_token_headers,
-            params={"mother_id": str(mother.id), "father_id": str(father.id)},
-        )
+    response = await async_client.post(
+        "/pregnancies/debug/force-conception",
+        headers=superuser_token_headers,
+        params={"mother_id": str(mother.id), "father_id": str(father.id)},
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -386,8 +343,6 @@ async def test_force_conception_wrong_gender(
     superuser_token_headers: dict[str, str],
 ):
     """Test force-conception rejects wrong gender assignments."""
-    from unittest.mock import patch
-
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault = await crud.vault.create_with_user_id(
         db_session=async_session,
@@ -395,7 +350,6 @@ async def test_force_conception_wrong_gender(
         user_id=user.id,
     )
 
-    # Create two males (invalid)
     male1 = await crud.dweller.create_random(
         async_session,
         vault.id,
@@ -407,56 +361,14 @@ async def test_force_conception_wrong_gender(
         obj_in=DwellerCreateCommonOverride(gender="male"),
     )
 
-    with patch("app.api.v1.endpoints.pregnancy.game_config.breeding.debug_enabled", True):  # noqa: FBT003
-        response = await async_client.post(
-            "/pregnancies/debug/force-conception",
-            headers=superuser_token_headers,
-            params={"mother_id": str(male1.id), "father_id": str(male2.id)},
-        )
+    response = await async_client.post(
+        "/pregnancies/debug/force-conception",
+        headers=superuser_token_headers,
+        params={"mother_id": str(male1.id), "father_id": str(male2.id)},
+    )
 
     assert response.status_code == 400
     assert "Mother must be female" in response.json()["detail"]
-
-
-@pytest.mark.asyncio
-async def test_accelerate_pregnancy_debug_disabled(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-):
-    """Test accelerate-pregnancy returns 403 when debug mode disabled."""
-    from unittest.mock import patch
-
-    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
-    vault = await crud.vault.create_with_user_id(
-        db_session=async_session,
-        obj_in={"number": 703},
-        user_id=user.id,
-    )
-
-    mother = await crud.dweller.create_random(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="female"),
-    )
-    father = await crud.dweller.create_random(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="male"),
-    )
-
-    from app.services.breeding_service import breeding_service
-
-    pregnancy = await breeding_service.create_pregnancy(async_session, mother.id, father.id)
-
-    with patch("app.api.v1.endpoints.pregnancy.game_config.breeding.debug_enabled", False):  # noqa: FBT003
-        response = await async_client.post(
-            f"/pregnancies/{pregnancy.id}/debug/accelerate",
-            headers=superuser_token_headers,
-        )
-
-    assert response.status_code == 403
-    assert "debug mode" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -465,9 +377,7 @@ async def test_accelerate_pregnancy_success(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ):
-    """Test accelerate-pregnancy sets due_at to past when debug enabled."""
-    from unittest.mock import patch
-
+    """Test accelerate-pregnancy sets due_at to past for superuser."""
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault = await crud.vault.create_with_user_id(
         db_session=async_session,
@@ -490,14 +400,12 @@ async def test_accelerate_pregnancy_success(
 
     pregnancy = await breeding_service.create_pregnancy(async_session, mother.id, father.id)
 
-    # Originally not due
     assert not pregnancy.is_due
 
-    with patch("app.api.v1.endpoints.pregnancy.game_config.breeding.debug_enabled", True):  # noqa: FBT003
-        response = await async_client.post(
-            f"/pregnancies/{pregnancy.id}/debug/accelerate",
-            headers=superuser_token_headers,
-        )
+    response = await async_client.post(
+        f"/pregnancies/{pregnancy.id}/debug/accelerate",
+        headers=superuser_token_headers,
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -512,16 +420,14 @@ async def test_accelerate_pregnancy_not_found(
     superuser_token_headers: dict[str, str],
 ):
     """Test accelerate-pregnancy returns 404 for non-existent pregnancy."""
-    from unittest.mock import patch
     from uuid import uuid4
 
     fake_id = uuid4()
 
-    with patch("app.api.v1.endpoints.pregnancy.game_config.breeding.debug_enabled", True):  # noqa: FBT003
-        response = await async_client.post(
-            f"/pregnancies/{fake_id}/debug/accelerate",
-            headers=superuser_token_headers,
-        )
+    response = await async_client.post(
+        f"/pregnancies/{fake_id}/debug/accelerate",
+        headers=superuser_token_headers,
+    )
 
     assert response.status_code == 404
     assert "Pregnancy" in response.json()["detail"]

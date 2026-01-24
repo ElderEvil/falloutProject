@@ -651,6 +651,21 @@ export const vaultService = {
 }
 ```
 
+### v2.3.0 API Patterns
+
+**Storage Space API** (`GET /storage/vault/{vault_id}/space`):
+- Returns `used_space`, `max_space`, `available_space`, `utilization_pct`
+- Used for exploration loot overflow handling
+
+**Pregnancy Debug Endpoints** (superuser-only):
+- `POST /pregnancies/debug/force-conception?mother_id=&father_id=` - Force pregnancy
+- `POST /pregnancies/{id}/debug/accelerate` - Make pregnancy immediately due
+
+**Storage Validation Pattern** (exploration coordinator):
+- Items sorted by rarity (legendary > rare > uncommon > common)
+- Higher rarity items prioritized when storage full
+- Overflow items tracked in `RewardsSchema.overflow_items`
+
 ## 🎯 Best Practices
 
 ### Backend

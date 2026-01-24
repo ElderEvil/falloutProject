@@ -320,24 +320,6 @@ class BreedingConfig(BaseSettings):
         le=1.0,
     )
 
-    # Debug options (for development/testing only)
-    debug_enabled: bool = Field(
-        default=False,
-        description="Enable pregnancy debug features (force conception, accelerate, etc.)",
-    )
-    debug_log_conception_checks: bool = Field(
-        default=False,
-        description="Log detailed conception check info (pairs checked, chances, rolls)",
-    )
-    debug_instant_pregnancy: bool = Field(
-        default=False,
-        description="Pregnancies complete instantly (for testing births)",
-    )
-    debug_guaranteed_conception: bool = Field(
-        default=False,
-        description="100% conception chance for all valid pairs",
-    )
-
 
 class LevelingConfig(BaseSettings):
     """Leveling and experience configuration."""

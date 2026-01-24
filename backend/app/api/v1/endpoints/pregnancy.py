@@ -11,7 +11,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403
-from app.core.game_config import game_config
 from app.db.session import get_async_session
 from app.models.dweller import Dweller
 from app.models.pregnancy import Pregnancy
@@ -19,7 +18,6 @@ from app.schemas.common import AgeGroupEnum, GenderEnum, PregnancyStatusEnum
 from app.schemas.pregnancy import DeliveryResult, PregnancyRead
 from app.services.breeding_service import breeding_service
 from app.utils.exceptions import (
-    DebugModeDisabledException,
     ResourceConflictException,
     ResourceNotFoundException,
     ValidationException,
@@ -129,7 +127,7 @@ async def deliver_baby(
 
 
 # =============================================================================
-# Debug Endpoints (Superuser only, requires debug_enabled)
+# Debug Endpoints (Superuser only)
 # =============================================================================
 
 
@@ -143,12 +141,8 @@ async def force_conception(
     """
     Force conception between two dwellers (debug only).
 
-    Requires superuser access and BREEDING_DEBUG_ENABLED=true.
+    Requires superuser access.
     """
-    # Check debug mode is enabled
-    if not game_config.breeding.debug_enabled:
-        raise DebugModeDisabledException(feature="Force conception")
-
     # Verify mother exists and is female adult
     mother_query = select(Dweller).where(Dweller.id == mother_id)
     mother = (await db_session.execute(mother_query)).scalars().first()
@@ -216,16 +210,7 @@ async def accelerate_pregnancy(
     user: CurrentSuperuser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
-    """
-    Accelerate pregnancy to be due immediately (debug only).
-
-    Requires superuser access and BREEDING_DEBUG_ENABLED=true.
-    """
-    # Check debug mode is enabled
-    if not game_config.breeding.debug_enabled:
-        raise DebugModeDisabledException(feature="Accelerate pregnancy")
-
-    # Get pregnancy
+    """Accelerate pregnancy to be due immediately (superuser only)."""
     query = select(Pregnancy).where(Pregnancy.id == pregnancy_id)
     pregnancy = (await db_session.execute(query)).scalars().first()
 

@@ -75,6 +75,58 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
     }
   }
 
+  async function forceConception(motherId: string, fatherId: string): Promise<Pregnancy | null> {
+    isLoading.value = true
+    try {
+      const response = await axios.post(
+        `/api/v1/pregnancies/debug/force-conception`,
+        null,
+        {
+          params: {
+            mother_id: motherId,
+            father_id: fatherId
+          }
+        }
+      )
+      const pregnancy: Pregnancy = response.data
+      pregnancies.value.push(pregnancy)
+      toast.success('Force conception successful!')
+      return pregnancy
+    } catch (error: unknown) {
+      console.error('Failed to force conception:', error)
+      toast.error(getErrorMessage(error))
+      return null
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function acceleratePregnancy(pregnancyId: string): Promise<boolean> {
+    isLoading.value = true
+    try {
+      await axios.post(`/api/v1/pregnancies/${pregnancyId}/debug/accelerate`)
+      
+      // Update local state to reflect changes (e.g. make it due)
+      // Since backend logic is complex, best to re-fetch the pregnancy or just set is_due if we know it
+      // But typically accelerate makes it ready for delivery.
+      
+      const index = pregnancies.value.findIndex((p) => p.id === pregnancyId)
+      if (index !== -1 && pregnancies.value[index]) {
+        pregnancies.value[index]!.is_due = true
+        // Maybe refresh the whole list to be safe?
+      }
+      
+      toast.success('Pregnancy accelerated!')
+      return true
+    } catch (error: unknown) {
+      console.error('Failed to accelerate pregnancy:', error)
+      toast.error(getErrorMessage(error))
+      return false
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   /**
    * Format time remaining as human-readable string
    */
@@ -110,6 +162,8 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
     fetchVaultPregnancies,
     getPregnancy,
     deliverBaby,
+    forceConception,
+    acceleratePregnancy,
     formatTimeRemaining,
     clearPregnancies,
   }

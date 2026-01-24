@@ -5,6 +5,31 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.3.0] - 2026-01-24
+
+### Added
+- **Pregnancy Debug Panel** - UI controls for testing pregnancy system (superuser only)
+  - Force conception between any two adult dwellers
+  - Accelerate pregnancy to be immediately due
+  - Accessible from Relationships → Pregnancies tab
+
+### Fixed
+- **Exploration Item Tracking** - Item count now updates in real-time during exploration
+- **Exploration Rewards Modal** - Modal stays open until user collects rewards (no auto-close)
+- **Storage Duplicate Items** - Removed unique constraint on item names (fixes crash when finding multiple items)
+- **Outfit Type Enum** - Fixed KeyError crash when recalling dweller with tiered outfits
+- **Rarity Colors** - Replaced hardcoded hex colors with CSS variables for theme consistency
+- **Relationships View** - Fixed dweller loading for pregnancy debug panel
+
+### Changed
+- Compacted AGENTS.md development guide (830 → 200 lines)
+- Updated pregnancy text to clarify conception chance is configurable
+
+### Testing
+- All 684 frontend tests passing
+
+---
+
 ## [2.1.1] - 2026-01-22
 
 ### Added

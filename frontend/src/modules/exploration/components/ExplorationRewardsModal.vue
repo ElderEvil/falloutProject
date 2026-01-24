@@ -15,6 +15,7 @@ const props = defineProps<Props>()
 const safeRewards = computed(() => props.rewards || {
   caps: 0,
   items: [],
+  overflow_items: [],
   experience: 0,
   distance: 0,
   enemies_defeated: 0,
@@ -26,9 +27,9 @@ const emit = defineEmits<{
 
 const getRarityColor = (rarity?: string): string => {
   const colors: Record<string, string> = {
-    Common: '#808080',
-    Rare: '#4169E1',
-    Legendary: '#FFD700'
+    Common: 'var(--color-rarity-common)',
+    Rare: 'var(--color-rarity-rare)',
+    Legendary: 'var(--color-rarity-legendary)'
   }
   if (rarity && colors[rarity]) {
     return colors[rarity]!
@@ -154,6 +155,35 @@ const getRarityColor = (rarity?: string): string => {
           <div v-else class="no-items">
             <Icon icon="mdi:package-variant-closed" class="no-items-icon" />
             <p>No items found during this exploration</p>
+          </div>
+
+          <!-- Overflow Items (Storage Full) -->
+          <div v-if="safeRewards.overflow_items && safeRewards.overflow_items.length > 0" class="items-section overflow-section">
+            <h3 class="section-title overflow-title">
+              <Icon icon="mdi:package-variant-closed-remove" class="mr-2" />
+              Storage Full - Items Left Behind
+            </h3>
+            <div class="items-list">
+              <div
+                v-for="(item, index) in safeRewards.overflow_items"
+                :key="index"
+                class="item-entry overflow-item"
+                :style="{ borderColor: getRarityColor(item.rarity) }"
+              >
+                <div class="item-info">
+                  <div class="item-name" :style="{ color: getRarityColor(item.rarity) }">
+                    {{ item.item_name }}
+                  </div>
+                  <div class="item-meta">
+                    <span class="item-rarity" :style="{ color: getRarityColor(item.rarity) }">
+                      {{ item.rarity }}
+                    </span>
+                    <span class="item-quantity">x{{ item.quantity }}</span>
+                  </div>
+                </div>
+                <Icon icon="mdi:close-circle" class="item-check overflow-icon" />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -557,5 +587,37 @@ const getRarityColor = (rarity?: string): string => {
 
 .modal-body::-webkit-scrollbar-thumb:hover {
   background: var(--color-theme-accent);
+}
+
+.overflow-section {
+  margin-top: 2rem;
+  border-top: 1px dashed rgba(255, 165, 0, 0.3);
+  padding-top: 1.5rem;
+}
+
+.overflow-title {
+  color: #ffa500;
+  border-bottom-color: rgba(255, 165, 0, 0.3);
+  text-shadow: 0 0 6px rgba(255, 165, 0, 0.5);
+}
+
+.overflow-item {
+  opacity: 0.7;
+  background: rgba(20, 0, 0, 0.3);
+  border-style: dashed;
+}
+
+.overflow-item:hover {
+  background: rgba(40, 0, 0, 0.3);
+  transform: none;
+  cursor: not-allowed;
+}
+
+.overflow-item .item-name {
+  text-decoration: line-through;
+}
+
+.overflow-icon {
+  color: #ffa500;
 }
 </style>

@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import crud
 from app.models.room import Room
 from app.models.vault import Vault
+from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultUpdate
 from app.tests.factory.rooms import create_fake_room
@@ -420,3 +421,220 @@ async def test_get_buildable_rooms_includes_non_unique_rooms_multiple_times(
     # The non-unique room should still be in the buildable list
     updated_room_names = [r["name"].lower() for r in updated_buildable]
     assert non_unique_room_data["name"].lower() in updated_room_names
+
+
+class TestUniqueRoomProperty:
+    @pytest.mark.asyncio
+    async def test_is_unique_true_when_no_incremental_cost(self):
+        room = Room(
+            name="Vault Door",
+            category=RoomTypeEnum.MISC,
+            ability=None,
+            base_cost=100,
+            incremental_cost=None,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            size_min=2,
+            size_max=2,
+        )
+        assert room.is_unique is True
+
+    @pytest.mark.asyncio
+    async def test_is_unique_false_when_has_incremental_cost(self):
+        room = Room(
+            name="Power Generator",
+            category=RoomTypeEnum.PRODUCTION,
+            ability=SPECIALEnum.STRENGTH,
+            base_cost=100,
+            incremental_cost=500,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            size_min=2,
+            size_max=6,
+        )
+        assert room.is_unique is False
+
+    @pytest.mark.asyncio
+    async def test_is_unique_true_with_zero_incremental_cost(self):
+        """Test that rooms with incremental_cost=0 are considered unique."""
+        room = Room(
+            name="Test Room",
+            category=RoomTypeEnum.PRODUCTION,
+            ability=None,
+            base_cost=100,
+            incremental_cost=0,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            size_min=2,
+            size_max=6,
+        )
+        assert room.is_unique is True
+
+
+class TestRoomMaxTier:
+    @pytest.mark.asyncio
+    async def test_max_tier_with_both_upgrade_costs(self):
+        room = Room(
+            name="Full Upgrades",
+            category=RoomTypeEnum.PRODUCTION,
+            ability=None,
+            base_cost=100,
+            incremental_cost=500,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            size_min=2,
+            size_max=6,
+        )
+        assert room.max_tier == 3
+
+    @pytest.mark.asyncio
+    async def test_max_tier_with_only_t2_upgrade(self):
+        room = Room(
+            name="T2 Only",
+            category=RoomTypeEnum.PRODUCTION,
+            ability=None,
+            base_cost=100,
+            incremental_cost=500,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=None,
+            size_min=2,
+            size_max=6,
+        )
+        assert room.max_tier == 2
+
+    @pytest.mark.asyncio
+    async def test_max_tier_with_no_upgrades(self):
+        room = Room(
+            name="No Upgrades",
+            category=RoomTypeEnum.MISC,
+            ability=None,
+            base_cost=100,
+            incremental_cost=None,
+            t2_upgrade_cost=None,
+            t3_upgrade_cost=None,
+            size_min=2,
+            size_max=2,
+        )
+        assert room.max_tier == 1
+
+
+class TestCheckIsUniqueRoom:
+    @pytest.mark.asyncio
+    async def test_check_is_unique_room_raises_when_duplicate(self, async_session: AsyncSession, vault: Vault):
+        """Test that creating duplicate unique room raises UniqueRoomViolationException."""
+        from app.utils.exceptions import UniqueRoomViolationException
+
+        unique_room_data = RoomCreate(
+            name="Test Unique Room",
+            category=RoomTypeEnum.MISC,
+            ability=None,
+            base_cost=500,
+            incremental_cost=0,
+            t2_upgrade_cost=None,
+            t3_upgrade_cost=None,
+            size_min=2,
+            size_max=2,
+            vault_id=vault.id,
+            size=2,
+            coordinate_x=1,
+            coordinate_y=1,
+        )
+
+        await crud.room.create(async_session, unique_room_data)
+
+        duplicate_room_data = RoomCreate(
+            name="Test Unique Room",
+            category=RoomTypeEnum.MISC,
+            ability=None,
+            base_cost=500,
+            incremental_cost=0,
+            t2_upgrade_cost=None,
+            t3_upgrade_cost=None,
+            size_min=2,
+            size_max=2,
+            vault_id=vault.id,
+            size=2,
+            coordinate_x=3,
+            coordinate_y=1,
+        )
+
+        with pytest.raises(UniqueRoomViolationException):
+            await crud.room.check_is_unique_room(db_session=async_session, obj_in=duplicate_room_data)
+
+    @pytest.mark.asyncio
+    async def test_check_is_unique_room_allows_different_unique_rooms(self, async_session: AsyncSession, vault: Vault):
+        """Test that different unique rooms can coexist."""
+        unique_room_1 = RoomCreate(
+            name="Unique Room A",
+            category=RoomTypeEnum.MISC,
+            ability=None,
+            base_cost=500,
+            incremental_cost=0,
+            t2_upgrade_cost=None,
+            t3_upgrade_cost=None,
+            size_min=2,
+            size_max=2,
+            vault_id=vault.id,
+            size=2,
+            coordinate_x=1,
+            coordinate_y=1,
+        )
+
+        await crud.room.create(async_session, unique_room_1)
+
+        unique_room_2 = RoomCreate(
+            name="Unique Room B",
+            category=RoomTypeEnum.MISC,
+            ability=None,
+            base_cost=600,
+            incremental_cost=0,
+            t2_upgrade_cost=None,
+            t3_upgrade_cost=None,
+            size_min=2,
+            size_max=2,
+            vault_id=vault.id,
+            size=2,
+            coordinate_x=3,
+            coordinate_y=1,
+        )
+
+        await crud.room.check_is_unique_room(db_session=async_session, obj_in=unique_room_2)
+
+    @pytest.mark.asyncio
+    async def test_check_is_unique_room_allows_non_unique_duplicates(self, async_session: AsyncSession, vault: Vault):
+        """Test that non-unique rooms can be created multiple times."""
+        non_unique_room = RoomCreate(
+            name="Power Generator",
+            category=RoomTypeEnum.PRODUCTION,
+            ability=SPECIALEnum.STRENGTH,
+            base_cost=100,
+            incremental_cost=50,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            size_min=2,
+            size_max=6,
+            vault_id=vault.id,
+            size=2,
+            coordinate_x=1,
+            coordinate_y=1,
+        )
+
+        await crud.room.create(async_session, non_unique_room)
+
+        second_non_unique = RoomCreate(
+            name="Power Generator",
+            category=RoomTypeEnum.PRODUCTION,
+            ability=SPECIALEnum.STRENGTH,
+            base_cost=100,
+            incremental_cost=50,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            size_min=2,
+            size_max=6,
+            vault_id=vault.id,
+            size=2,
+            coordinate_x=5,
+            coordinate_y=1,
+        )
+
+        await crud.room.check_is_unique_room(db_session=async_session, obj_in=second_non_unique)

@@ -1,3 +1,4 @@
+from . import storage
 from .dweller import dweller
 from .exploration import exploration
 from .game_state import game_state_crud
@@ -6,6 +7,7 @@ from .junk import junk
 from .llm_interaction import llm_interaction
 from .objective import objective_crud
 from .outfit import outfit
+from .pregnancy import pregnancy
 from .quest import quest_crud
 from .room import room
 from .user import user

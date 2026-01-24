@@ -624,3 +624,259 @@ class TestHappinessService:
 
         assert "error" in modifiers
         assert modifiers["error"] == "Dweller not found"
+
+    async def test_training_dweller_stable_happiness(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+    ):
+        """Test that training dwellers have stable happiness (training bonus offsets decay)."""
+        dweller_data = create_fake_dweller()
+        dweller_data.update(
+            {
+                "first_name": "Training",
+                "last_name": "Dweller",
+                "status": "training",
+                "happiness": 50,
+                "health": 100,
+                "max_health": 100,
+            }
+        )
+        dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
+        training_dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+
+        vault.power = 90
+        vault.power_max = 100
+        vault.food = 90
+        vault.food_max = 100
+        vault.water = 90
+        vault.water_max = 100
+        async_session.add(vault)
+        await async_session.commit()
+
+        initial_happiness = training_dweller.happiness
+
+        await happiness_service.update_vault_happiness(
+            async_session,
+            vault.id,
+            seconds_passed=60,
+        )
+
+        await async_session.refresh(training_dweller)
+
+        # Training bonus roughly offsets base decay - happiness stays stable (within 1 point)
+        assert abs(training_dweller.happiness - initial_happiness) <= 1
+
+    async def test_get_modifiers_training_dweller(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+    ):
+        """Test modifier breakdown for training dweller."""
+        # Create training dweller
+        dweller_data = create_fake_dweller()
+        dweller_data.update(
+            {
+                "first_name": "Training",
+                "last_name": "Mod",
+                "status": "training",
+                "happiness": 60,
+                "health": 100,
+                "max_health": 100,
+            }
+        )
+        dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
+        training_dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+
+        # Good conditions
+        vault.power = 90
+        vault.power_max = 100
+        vault.food = 90
+        vault.food_max = 100
+        vault.water = 90
+        vault.water_max = 100
+        async_session.add(vault)
+        await async_session.commit()
+
+        modifiers = await happiness_service.get_happiness_modifiers(
+            async_session,
+            training_dweller.id,
+        )
+
+        # Training should show up in positive modifiers
+        positive_names = [m["name"] for m in modifiers["positive"]]
+        assert "Training" in positive_names
+
+    async def test_get_modifiers_low_health_dweller(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+    ):
+        """Test modifier breakdown for dweller with low health."""
+        # Create low health dweller
+        dweller_data = create_fake_dweller()
+        dweller_data.update(
+            {
+                "first_name": "LowHealth",
+                "last_name": "Mod",
+                "status": "working",
+                "happiness": 60,
+                "health": 25,
+                "max_health": 100,
+            }
+        )
+        dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
+        low_health_dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+
+        # Good conditions
+        vault.power = 90
+        vault.power_max = 100
+        vault.food = 90
+        vault.food_max = 100
+        vault.water = 90
+        vault.water_max = 100
+        async_session.add(vault)
+        await async_session.commit()
+
+        modifiers = await happiness_service.get_happiness_modifiers(
+            async_session,
+            low_health_dweller.id,
+        )
+
+        # Low health penalty should show up
+        negative_names = [m["name"] for m in modifiers["negative"]]
+        assert "Low Health" in negative_names
+
+    async def test_get_modifiers_radiation_dweller(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+    ):
+        """Test modifier breakdown for dweller with high radiation."""
+        # Create irradiated dweller
+        dweller_data = create_fake_dweller()
+        dweller_data.update(
+            {
+                "first_name": "Radiated",
+                "last_name": "Mod",
+                "status": "working",
+                "happiness": 60,
+                "health": 100,
+                "max_health": 100,
+                "radiation": 75,
+            }
+        )
+        dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
+        radiated_dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+
+        # Good conditions
+        vault.power = 90
+        vault.power_max = 100
+        vault.food = 90
+        vault.food_max = 100
+        vault.water = 90
+        vault.water_max = 100
+        async_session.add(vault)
+        await async_session.commit()
+
+        modifiers = await happiness_service.get_happiness_modifiers(
+            async_session,
+            radiated_dweller.id,
+        )
+
+        # Radiation penalty should show up
+        negative_names = [m["name"] for m in modifiers["negative"]]
+        assert "Radiation" in negative_names
+
+    async def test_get_modifiers_idle_dweller(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+    ):
+        """Test modifier breakdown for idle dweller."""
+        # Create idle dweller
+        dweller_data = create_fake_dweller()
+        dweller_data.update(
+            {
+                "first_name": "Idle",
+                "last_name": "Mod",
+                "status": "idle",
+                "happiness": 60,
+                "health": 100,
+                "max_health": 100,
+            }
+        )
+        dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
+        idle_dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+
+        # Good conditions
+        vault.power = 90
+        vault.power_max = 100
+        vault.food = 90
+        vault.food_max = 100
+        vault.water = 90
+        vault.water_max = 100
+        async_session.add(vault)
+        await async_session.commit()
+
+        modifiers = await happiness_service.get_happiness_modifiers(
+            async_session,
+            idle_dweller.id,
+        )
+
+        # Idle penalty should show up
+        negative_names = [m["name"] for m in modifiers["negative"]]
+        assert "Idle" in negative_names
+
+    async def test_get_modifiers_with_active_incident(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+        test_room: Room,
+    ):
+        """Test modifier breakdown with active incident."""
+        # Create working dweller
+        dweller_data = create_fake_dweller()
+        dweller_data.update(
+            {
+                "first_name": "Incident",
+                "last_name": "Test",
+                "status": "working",
+                "happiness": 60,
+                "health": 100,
+                "max_health": 100,
+            }
+        )
+        dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id, room_id=test_room.id)
+        incident_dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+
+        # Create active incident
+        incident = Incident(
+            vault_id=vault.id,
+            room_id=test_room.id,
+            type=IncidentType.FIRE,
+            status=IncidentStatus.ACTIVE,
+            difficulty=2,
+            is_active=True,
+        )
+        async_session.add(incident)
+        await async_session.commit()
+
+        # Good conditions otherwise
+        vault.power = 90
+        vault.power_max = 100
+        vault.food = 90
+        vault.food_max = 100
+        vault.water = 90
+        vault.water_max = 100
+        async_session.add(vault)
+        await async_session.commit()
+
+        modifiers = await happiness_service.get_happiness_modifiers(
+            async_session,
+            incident_dweller.id,
+        )
+
+        # Incident penalty should show up
+        negative_names = [m["name"] for m in modifiers["negative"]]
+        assert any("Incident" in name for name in negative_names)

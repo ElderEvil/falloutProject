@@ -118,7 +118,10 @@ class BreedingService:
                 conception_chance = game_config.breeding.conception_chance_per_tick  # Fallback to base 2%
 
             # Roll for conception
-            if random.random() < conception_chance:
+            roll = random.random()
+            conception_success = roll < conception_chance
+
+            if conception_success:
                 # Determine mother and father
                 if dweller.gender == GenderEnum.FEMALE:
                     mother_id = dweller.id

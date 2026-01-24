@@ -81,6 +81,7 @@ describe('RelationshipsView', () => {
     relationshipStore.token = 'mock-token';
     dwellerStore.dwellers = [];
     authStore.user = { is_superuser: false } as any;
+    authStore.token = 'mock-token';
 
     router = createRouter({
       history: createMemoryHistory(),
@@ -89,6 +90,10 @@ describe('RelationshipsView', () => {
           path: '/vault/:id/relationships',
           component: RelationshipsView,
           name: 'relationships'
+        },
+        {
+          path: '/vault/:id',
+          redirect: to => ({ name: 'relationships', params: { id: to.params.id } })
         }
       ]
     });

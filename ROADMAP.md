@@ -92,20 +92,35 @@ AI-powered dweller interactions.
 
 ---
 
-## Current Sprint: Backend Stability & Testing (P1)
+## v2.3.0 Storage & Pregnancy Debug (January 24, 2026)
 
-**Target: v2.3.0**
+**Backend Stability & Testability Release**
 
-### High Priority
+### P0: Storage Validation (COMPLETE)
 
-- [ ] **Unique Room Filtering Verification** - Test and validate backend prevents duplicate unique rooms
-- [ ] **Backend Test Coverage** - Increase from 67% to 80%
-    - Security middleware (0% → 85%)
-    - DB initialization (0% → 75%)
-    - Incident service (28% → 75%)
-    - Game loop (54% → 80%)
-- [ ] **Datetime Deprecation Fix** - Replace `datetime.utcnow()` → `datetime.now(timezone.utc)`
-- [x] **Router Consolidation** - Move settings/info endpoints to appropriate routers (avoid 1-2 endpoint routers)
+- [x] **Storage overflow fix** - Items validated against max_space before transfer
+- [x] **Rarity prioritization** - Legendary > rare > uncommon when storage full
+- [x] **Storage API endpoint** - `GET /storage/vault/{id}/space`
+- [x] **Overflow tracking** - Excess items tracked in `RewardsSchema.overflow_items`
+- [x] **Comprehensive tests** - 7 exploration coordinator tests
+
+### P1: Pregnancy Debug (COMPLETE)
+
+- [x] **Force conception** - `POST /pregnancies/debug/force-conception` (superuser-only)
+- [x] **Accelerate pregnancy** - `POST /pregnancies/{id}/debug/accelerate` (superuser-only)
+- [x] **Simplified config** - No env flags, just superuser access gate
+- [x] **Pregnancy CRUD** - Helper with vault access validation
+
+### Testing Improvements
+
+- [x] Enhanced test fixtures (composite fixtures)
+- [x] DB initialization tests (97% coverage)
+- [x] Room unique property tests
+- [x] Test coverage: 46% → 68%
+
+### Known Issues (Deferred)
+
+- **datetime.utcnow() deprecation** - 88 occurrences, deferred to v2.4.0+
 
 ---
 
@@ -183,17 +198,18 @@ AI-powered dweller interactions.
 
 ## Progress Metrics
 
-### Current Stats (January 23, 2026)
+### Current Stats (January 24, 2026)
 
-- **Backend**: 22+ routers, 90+ endpoints, 15+ services
+- **Backend**: 22+ routers, 92+ endpoints, 15+ services, 68% coverage
 - **Frontend**: 55+ Vue components, 10 feature modules
-- **Tests**: Frontend 683, Backend 535
+- **Tests**: Frontend 683, Backend 388
 - **Models**: 18+ database models
 
 ### Version Milestones
 
 | Version | Release      | Highlights                             |
 |---------|--------------|----------------------------------------|
+| v2.3.0  | Jan 24, 2026 | Storage validation, pregnancy debug    |
 | v2.2.0  | Jan 23, 2026 | Death system complete                  |
 | v2.1.3  | Jan 22, 2026 | Router consolidation                   |
 | v2.1.2  | Jan 22, 2026 | Quick wins complete                    |
@@ -201,8 +217,7 @@ AI-powered dweller interactions.
 | v2.1.0  | Jan 22, 2026 | Modular frontend architecture          |
 | v2.0.0  | Jan 22, 2026 | Major release, deployment ready        |
 | v1.4.2  | Jan 21, 2026 | Final v1.x release                     |
-| v2.3.0  | Feb 2026     | Backend stability, testing (planned)   |
-| v2.4.0  | Mar 2026     | Motion Vue, animations (planned)       |
+| v2.4.0  | Feb 2026     | Motion Vue, animations (planned)       |
 
 ---
 
@@ -216,4 +231,4 @@ AI-powered dweller interactions.
 
 ---
 
-*Last updated: January 23, 2026*
+*Last updated: January 24, 2026*

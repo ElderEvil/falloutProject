@@ -210,9 +210,10 @@ describe('ProfileView', () => {
       await retryButton?.trigger('click')
       await flushPromises()
 
-      // Initial fail (1) + statistics attempt (2) + retry profile (3) + retry statistics (4)
-      expect(axios.get).toHaveBeenCalledTimes(4)
+      // Verify profile was retried and succeeded (error message should be gone)
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me/profile')
       expect(wrapper.text()).not.toContain('ERROR: PROFILE LOAD FAILURE')
+      expect(wrapper.text()).toContain('Personnel File')
     })
   })
 

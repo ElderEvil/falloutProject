@@ -10,6 +10,7 @@ import { useToast } from '@/core/composables/useToast';
 import SidePanel from '@/core/components/common/SidePanel.vue';
 import RelationshipList from '../components/relationships/RelationshipList.vue';
 import PregnancyTracker from '../components/pregnancy/PregnancyTracker.vue';
+import PregnancyDebugPanel from '../components/pregnancy/PregnancyDebugPanel.vue';
 import ChildrenList from '../components/relationships/ChildrenList.vue';
 import UButton from '@/core/components/ui/UButton.vue';
 
@@ -115,11 +116,11 @@ async function handleProcessBreeding() {
 }
 
 onMounted(async () => {
-  if (vaultId.value) {
+  if (vaultId.value && authStore.token) {
     await Promise.all([
       relationshipStore.fetchVaultRelationships(vaultId.value),
       relationshipStore.fetchVaultPregnancies(vaultId.value),
-      dwellerStore.fetchDwellersByVault(vaultId.value, relationshipStore.token!)
+      dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
     ]);
   }
 });
@@ -243,7 +244,7 @@ onMounted(async () => {
                     Partner Couples
                   </h2>
                   <p class="text-gray-400 mt-1">
-                    Committed partners in living quarters have a 2% chance per tick to conceive.
+                    Committed partners in living quarters have a chance to conceive (configurable via game settings).
                   </p>
                 </div>
                 <RelationshipList v-if="vaultId" :vaultId="vaultId" stageFilter="partners" />
@@ -260,6 +261,7 @@ onMounted(async () => {
                     Pregnancies last 3 hours. Babies inherit traits from both parents.
                   </p>
                 </div>
+                <PregnancyDebugPanel v-if="vaultId" :vaultId="vaultId" class="mb-6" />
                 <PregnancyTracker v-if="vaultId" :vaultId="vaultId" :autoRefresh="true" />
               </div>
 

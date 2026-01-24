@@ -133,6 +133,12 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             msg = f"Invalid X coordinate: {obj_in.coordinate_x}. Must be between 0 and 8."
             raise ValueError(msg)
 
+        # Validate room footprint doesn't exceed grid width
+        max_x = obj_in.coordinate_x + obj_in.size_min - 1
+        if max_x > 8:
+            msg = f"Room exceeds grid width: max X {max_x} > 8"
+            raise ValueError(msg)
+
         if obj_in.coordinate_y < 0 or obj_in.coordinate_y > 25:
             msg = f"Invalid Y coordinate: {obj_in.coordinate_y}. Must be between 0 and 25."
             raise ValueError(msg)

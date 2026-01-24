@@ -81,6 +81,7 @@ describe('RelationshipsView', () => {
     relationshipStore.token = 'mock-token';
     dwellerStore.dwellers = [];
     authStore.user = { is_superuser: false } as any;
+    authStore.token = 'mock-token';
 
     router = createRouter({
       history: createMemoryHistory(),

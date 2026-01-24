@@ -172,6 +172,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         await vault_crud.withdraw_caps(db_session=db_session, vault_obj=vault, amount=price)
 
         obj_in_db = await self.create(db_session, obj_in=obj_in)
+        await db_session.refresh(obj_in_db)  # Ensure all fields are loaded from DB
 
         if self.requires_recalculation(obj_in_db):
             await vault_crud.recalculate_vault_attributes(

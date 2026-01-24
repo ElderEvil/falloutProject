@@ -1,6 +1,7 @@
 import logging
 
 from pydantic import UUID4
+from sqlalchemy import func
 from sqlmodel import and_, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -143,10 +144,10 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             msg = f"Invalid Y coordinate: {obj_in.coordinate_y}. Must be between 0 and 25."
             raise ValueError(msg)
 
-        # Prevent building multiple vault doors
+        # Prevent building multiple vault doors (case-insensitive check)
         if obj_in.name.lower() == "vault door":
             existing_vault_door = await db_session.execute(
-                select(Room).where(and_(Room.vault_id == vault.id, Room.name == "Vault Door"))
+                select(Room).where(and_(Room.vault_id == vault.id, func.lower(Room.name) == "vault door"))
             )
             if existing_vault_door.scalars().first():
                 msg = "Cannot build multiple vault doors. A vault door already exists."
@@ -235,6 +236,11 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
     async def destroy(self, db_session: AsyncSession, id: int | UUID4) -> ModelType:
         # Get room before deletion to check if it's a vault door
         room_to_delete = await self.get(db_session, id)
+
+        # Check if room exists
+        if not room_to_delete:
+            msg = f"Room with id {id} not found"
+            raise ValueError(msg)
 
         # Prevent vault door removal
         if room_to_delete.name.lower() == "vault door":

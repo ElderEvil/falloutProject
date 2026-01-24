@@ -173,9 +173,9 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
 
         obj_in_db = await self.create(db_session, obj_in=obj_in)
 
-        if self.requires_recalculation(obj_in):
+        if self.requires_recalculation(obj_in_db):
             await vault_crud.recalculate_vault_attributes(
-                db_session=db_session, vault_obj=vault, room_obj=obj_in, action=RoomActionEnum.BUILD
+                db_session=db_session, vault_obj=vault, room_obj=obj_in_db, action=RoomActionEnum.BUILD
             )
 
         return obj_in_db

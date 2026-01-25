@@ -8,6 +8,8 @@ import { UButton } from '@/core/components/ui'
 import { Icon } from '@iconify/vue'
 import DwellerChat from './DwellerChat.vue'
 import type { Dweller } from '@/models/dweller'
+import { normalizeImageUrl } from '@/utils/image'
+
 
 const route = useRoute()
 const router = useRouter()
@@ -50,12 +52,13 @@ onMounted(async () => {
       </UButton>
       <div v-if="dweller" class="dweller-info">
         <img
-          :src="`http://${dweller.thumbnail_url}`"
+          :src="normalizeImageUrl(dweller.thumbnail_url)"
           alt="Dweller Thumbnail"
           class="dweller-thumbnail"
         />
         <h1>{{ dweller.first_name }} {{ dweller.last_name }}</h1>
       </div>
+
       <h1 v-else>Loading dweller information...</h1>
     </div>
     <div class="chat-container">

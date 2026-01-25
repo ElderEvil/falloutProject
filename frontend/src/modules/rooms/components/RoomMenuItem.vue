@@ -3,14 +3,14 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRoute } from 'vue-router'
-import type { Room } from '../models/room'
+import type { RoomTemplate } from '../models/room'
 
 const props = defineProps<{
-  room: Room
+  room: RoomTemplate
 }>()
 
 const emit = defineEmits<{
-  (e: 'select', room: Room): void
+  (e: 'select', room: RoomTemplate): void
 }>()
 
 const route = useRoute()

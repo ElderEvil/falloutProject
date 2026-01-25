@@ -2,17 +2,17 @@
 import { computed } from 'vue'
 import { useRoomStore } from '../stores/room'
 import RoomMenuItem from './RoomMenuItem.vue'
-import type { Room } from '../models/room'
+import type { RoomTemplate } from '../models/room'
 
 const roomStore = useRoomStore()
 const availableRooms = computed(() => Array.isArray(roomStore.availableRooms) ? roomStore.availableRooms : [])
 
 const emit = defineEmits<{
-  (e: 'roomSelected', room: Room): void
+  (e: 'roomSelected', room: RoomTemplate): void
   (e: 'close'): void
 }>()
 
-const selectRoom = (room: Room) => {
+const selectRoom = (room: RoomTemplate) => {
   emit('roomSelected', room)
   roomStore.selectRoom(room)
 }
@@ -33,7 +33,7 @@ const closeModal = () => {
         <ul class="rooms-grid">
           <RoomMenuItem
             v-for="room in availableRooms"
-            :key="room.id"
+            :key="`${room.name}-${room.category}`"
             :room="room"
             @select="selectRoom"
           />

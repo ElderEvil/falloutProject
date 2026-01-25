@@ -638,3 +638,256 @@ class TestCheckIsUniqueRoom:
         )
 
         await crud.room.check_is_unique_room(db_session=async_session, obj_in=second_non_unique)
+
+
+class TestVaultDoorProtection:
+    """Tests for vault door protection (v2.4.0 bug fix #1)."""
+
+    @pytest.mark.asyncio
+    async def test_cannot_destroy_vault_door(
+        self,
+        async_client: AsyncClient,
+        superuser_token_headers: dict[str, str],
+        async_session: AsyncSession,
+        vault: Vault,
+    ):
+        """Test that vault door cannot be destroyed."""
+        # Create a vault door
+        vault_door = RoomCreate(
+            name="Vault Door",
+            category=RoomTypeEnum.MISC,
+            ability=None,
+            base_cost=100,
+            incremental_cost=25,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=2000,
+            size_min=6,
+            size_max=6,
+            vault_id=vault.id,
+            size=6,
+            coordinate_x=0,
+            coordinate_y=0,
+        )
+        door_room = await crud.room.create(async_session, vault_door)
+
+        # Attempt to destroy via API
+        response = await async_client.delete(f"/rooms/destroy/{door_room.id}", headers=superuser_token_headers)
+        assert response.status_code == 400
+        assert "vault door" in response.json()["detail"].lower()
+
+        # Verify it still exists
+        existing_door = await crud.room.get(async_session, door_room.id)
+        assert existing_door is not None
+
+    @pytest.mark.asyncio
+    async def test_cannot_build_multiple_vault_doors(
+        self,
+        async_client: AsyncClient,
+        superuser_token_headers: dict[str, str],
+        async_session: AsyncSession,
+        vault: Vault,
+    ):
+        """Test that only one vault door can be built per vault."""
+        # Create first vault door
+        vault_door_1 = RoomCreate(
+            name="Vault Door",
+            category=RoomTypeEnum.MISC,
+            ability=None,
+            base_cost=100,
+            incremental_cost=25,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=2000,
+            size_min=6,
+            size_max=6,
+            vault_id=vault.id,
+            size=6,
+            coordinate_x=0,
+            coordinate_y=0,
+        )
+        await crud.room.create(async_session, vault_door_1)
+
+        # Attempt to build second vault door
+        vault_door_2_data = {
+            "name": "Vault Door",
+            "category": "Misc.",
+            "ability": None,
+            "base_cost": 100,
+            "incremental_cost": 25,
+            "t2_upgrade_cost": 500,
+            "t3_upgrade_cost": 2000,
+            "size_min": 6,
+            "size_max": 6,
+            "vault_id": str(vault.id),
+            "size": 6,
+            "coordinate_x": 0,
+            "coordinate_y": 1,
+        }
+
+        response = await async_client.post("/rooms/build/", json=vault_door_2_data, headers=superuser_token_headers)
+        assert response.status_code in [400, 422]
+        assert "vault door" in response.json()["detail"].lower()
+
+
+class TestElevatorAccessControl:
+    """Tests for elevator level access control (v2.4.0 bug fix #2)."""
+
+    @pytest.mark.asyncio
+    async def test_cannot_destroy_essential_elevator(
+        self,
+        async_client: AsyncClient,
+        superuser_token_headers: dict[str, str],
+        async_session: AsyncSession,
+        vault: Vault,
+    ):
+        """Test that essential elevators (only access to a level) cannot be destroyed."""
+        # Create elevator on level 1
+        elevator = RoomCreate(
+            name="Elevator",
+            category=RoomTypeEnum.MISC,
+            ability=None,
+            base_cost=100,
+            incremental_cost=25,
+            t2_upgrade_cost=None,
+            t3_upgrade_cost=None,
+            size_min=1,
+            size_max=1,
+            vault_id=vault.id,
+            size=1,
+            coordinate_x=0,
+            coordinate_y=1,
+        )
+        elevator_room = await crud.room.create(async_session, elevator)
+
+        # Create another room on the same level (not elevator)
+        power_gen = RoomCreate(
+            name="Power Generator",
+            category=RoomTypeEnum.PRODUCTION,
+            ability=SPECIALEnum.STRENGTH,
+            base_cost=100,
+            incremental_cost=25,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            size_min=3,
+            size_max=9,
+            vault_id=vault.id,
+            size=3,
+            coordinate_x=1,
+            coordinate_y=1,
+        )
+        await crud.room.create(async_session, power_gen)
+
+        # Attempt to destroy the elevator (should fail - it's the only access to level 1)
+        response = await async_client.delete(f"/rooms/destroy/{elevator_room.id}", headers=superuser_token_headers)
+        assert response.status_code == 400
+        assert "elevator" in response.json()["detail"].lower()
+        assert "only access" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_can_destroy_non_essential_elevator(
+        self,
+        async_client: AsyncClient,
+        superuser_token_headers: dict[str, str],
+        async_session: AsyncSession,
+        vault: Vault,
+    ):
+        """Test that non-essential elevators can be destroyed."""
+        # Create two elevators on same level
+        elevator_1 = RoomCreate(
+            name="Elevator",
+            category=RoomTypeEnum.MISC,
+            ability=None,
+            base_cost=100,
+            incremental_cost=25,
+            t2_upgrade_cost=None,
+            t3_upgrade_cost=None,
+            size_min=1,
+            size_max=1,
+            vault_id=vault.id,
+            size=1,
+            coordinate_x=0,
+            coordinate_y=1,
+        )
+        elevator_1_room = await crud.room.create(async_session, elevator_1)
+
+        elevator_2 = RoomCreate(
+            name="Elevator",
+            category=RoomTypeEnum.MISC,
+            ability=None,
+            base_cost=100,
+            incremental_cost=25,
+            t2_upgrade_cost=None,
+            t3_upgrade_cost=None,
+            size_min=1,
+            size_max=1,
+            vault_id=vault.id,
+            size=1,
+            coordinate_x=8,
+            coordinate_y=1,
+        )
+        await crud.room.create(async_session, elevator_2)
+
+        # Destroy one elevator (should succeed - there's another on same level)
+        response = await async_client.delete(f"/rooms/destroy/{elevator_1_room.id}", headers=superuser_token_headers)
+        assert response.status_code == 204
+
+
+class TestRoomSizeValidation:
+    """Tests for room size validation (v2.4.0 bug fix #9)."""
+
+    @pytest.mark.asyncio
+    async def test_build_rejects_invalid_size(
+        self, async_client: AsyncClient, superuser_token_headers: dict[str, str], vault: Vault
+    ):
+        """Test that building with invalid size returns proper error."""
+        invalid_room_data = {
+            "name": "Power Generator",
+            "category": "Production",
+            "ability": "Strength",
+            "base_cost": 100,
+            "incremental_cost": 25,
+            "t2_upgrade_cost": 500,
+            "t3_upgrade_cost": 1500,
+            "size_min": 10,  # Exceeds size_max
+            "size_max": 9,
+            "vault_id": str(vault.id),
+            "size": 10,
+            "coordinate_x": 0,
+            "coordinate_y": 2,
+        }
+
+        response = await async_client.post("/rooms/build/", json=invalid_room_data, headers=superuser_token_headers)
+        assert response.status_code in [400, 422]  # Either validation error or bad request
+
+        # Handle both string detail (400) and list detail (422 validation errors)
+        detail = response.json()["detail"]
+        detail_str = str(detail).lower() if isinstance(detail, list) else detail.lower()
+        assert "size" in detail_str
+
+    @pytest.mark.asyncio
+    async def test_build_rejects_invalid_coordinates(
+        self, async_client: AsyncClient, superuser_token_headers: dict[str, str], vault: Vault
+    ):
+        """Test that building with out-of-bounds coordinates returns proper error."""
+        invalid_room_data = {
+            "name": "Power Generator",
+            "category": "Production",
+            "ability": "Strength",
+            "base_cost": 100,
+            "incremental_cost": 25,
+            "t2_upgrade_cost": 500,
+            "t3_upgrade_cost": 1500,
+            "size_min": 3,
+            "size_max": 9,
+            "vault_id": str(vault.id),
+            "size": 3,
+            "coordinate_x": 50,  # Out of bounds (max is 8)
+            "coordinate_y": 2,
+        }
+
+        response = await async_client.post("/rooms/build/", json=invalid_room_data, headers=superuser_token_headers)
+        assert response.status_code in [400, 422]  # Either validation error or bad request
+
+        # Handle both string detail (400) and list detail (422 validation errors)
+        detail = response.json()["detail"]
+        detail_str = str(detail).lower() if isinstance(detail, list) else detail.lower()
+        assert "coordinate" in detail_str

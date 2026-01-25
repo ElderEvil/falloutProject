@@ -6,6 +6,8 @@ import UTooltip from '@/core/components/ui/UTooltip.vue';
 import XPProgressBar from '../stats/XPProgressBar.vue';
 import { happinessService, type HappinessModifiers } from '../../services/happinessService';
 import type { components } from '@/core/types/api.generated';
+import { normalizeImageUrl } from '@/utils/image';
+
 
 type DwellerDetailRead = components['schemas']['DwellerReadFull'];
 
@@ -50,8 +52,9 @@ const loadHappinessModifiers = async () => {
 };
 
 const getImageUrl = (imagePath: string) => {
-  return imagePath.startsWith('http') ? imagePath : `http://${imagePath}`;
+  return normalizeImageUrl(imagePath);
 };
+
 
 const healthPercentage = computed(() => {
   if (!props.dweller.max_health) return 0;

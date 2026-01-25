@@ -10,6 +10,8 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
 import UModal from '@/core/components/ui/UModal.vue'
 import UButton from '@/core/components/ui/UButton.vue'
+import UTooltip from '@/core/components/ui/UTooltip.vue'
+
 
 interface Props {
   room: Room | null
@@ -160,7 +162,13 @@ const upgradeInfo = computed(() => {
   }
 })
 
+// Check if room is Vault Door
+const isVaultDoor = computed(() => {
+  return props.room?.name?.toLowerCase() === 'vault door'
+})
+
 // Handle upgrade
+
 const handleUpgrade = async () => {
   if (!props.room) return
 
@@ -228,6 +236,10 @@ const handleDestroy = async () => {
   } catch (error) {
     console.error('Failed to destroy room:', error)
     actionError.value = error instanceof Error ? error.message : 'Failed to destroy room'
+    toast.error(
+      error instanceof Error ? error.message : 'Failed to destroy room',
+      5000
+    )
   } finally {
     isDestroying.value = false
   }
@@ -516,7 +528,18 @@ watch(() => props.modelValue, (newValue) => {
           </UButton>
 
           <!-- Destroy Button -->
+          <UTooltip v-if="isVaultDoor" text="The Vault Door is vital and cannot be destroyed.">
+            <UButton
+              disabled
+              variant="danger"
+              class="action-btn"
+            >
+              <Icon icon="mdi:delete" class="h-5 w-5" />
+              <span>Destroy Room</span>
+            </UButton>
+          </UTooltip>
           <UButton
+            v-else
             @click="handleDestroy"
             :disabled="isDestroying"
             variant="danger"
@@ -525,6 +548,7 @@ watch(() => props.modelValue, (newValue) => {
             <Icon icon="mdi:delete" class="h-5 w-5" />
             <span>Destroy Room</span>
           </UButton>
+
         </div>
       </div>
     </div>

@@ -313,8 +313,8 @@ class GameLoopService:
             if dweller_stat >= 7:
                 xp_to_award = int(xp_to_award * game_config.leveling.work_efficiency_bonus_multiplier)
 
-        # Award XP
-        dweller.experience += xp_to_award
+        # Award XP (ensure it never goes negative)
+        dweller.experience = max(0, dweller.experience + xp_to_award)
         db_session.add(dweller)
         stats["xp_awarded"] = xp_to_award
 

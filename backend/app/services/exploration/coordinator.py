@@ -256,7 +256,7 @@ class ExplorationCoordinator:
         full_experience = rewards_calculator.calculate_exploration_xp(exploration, dweller_obj)
         experience = int(full_experience * progress_multiplier)
 
-        dweller_obj.experience += experience
+        dweller_obj.experience = max(0, dweller_obj.experience + experience)
         db_session.add(dweller_obj)
 
         # Check for level-up

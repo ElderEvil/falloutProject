@@ -110,6 +110,7 @@ class DwellerReadLess(SQLModel):
     status: DwellerStatusEnum
     is_adult: bool
     age_group: AgeGroupEnum
+    gender: GenderEnum
     birth_date: datetime | None = None
 
     # SPECIAL stats

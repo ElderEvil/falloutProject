@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from logging import getLogger
 
 from pydantic import UUID4
 from sqlalchemy import func
@@ -14,6 +15,8 @@ from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultNumber, V
 from app.services.resource_manager import ResourceManager
 from app.utils.exceptions import InsufficientResourcesException, ResourceNotFoundException
 
+logger = getLogger(__name__)
+
 
 class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
     async def get_by_user_id(self, *, db_session: AsyncSession, user_id: UUID4) -> Sequence[Vault]:
@@ -21,7 +24,11 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         return response.scalars().all()
 
     @staticmethod
-    def _calculate_new_capacity(action: RoomActionEnum, current_capacity: int, room_capacity: int) -> int:
+    def _calculate_new_capacity(action: RoomActionEnum, current_capacity: int, room_capacity: int | None) -> int:
+        # Handle rooms without capacity (elevators, vault door, etc.)
+        if room_capacity is None:
+            return current_capacity
+
         if action in {RoomActionEnum.BUILD, RoomActionEnum.UPGRADE}:
             return current_capacity + room_capacity
         if action == RoomActionEnum.DESTROY:
@@ -84,11 +91,19 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
         # Calculate the new vault capacity for capacity rooms
         elif room_obj.category == RoomTypeEnum.CAPACITY:
+            logger.info(
+                f"Processing CAPACITY room: {room_obj.name}, capacity={room_obj.capacity}, category={room_obj.category}"
+            )
             match room_obj.name.lower():
                 case "living room":
+                    logger.info(
+                        f"Matched living room! Current population_max={vault_obj.population_max}, "
+                        f"room capacity={room_obj.capacity}"
+                    )
                     new_population_max = self._calculate_new_capacity(
                         action, vault_obj.population_max or 0, room_obj.capacity
                     )
+                    logger.info(f"New population_max calculated: {new_population_max}")
                     await _update_vault(VaultUpdate(population_max=new_population_max))
                 case "storage room":
                     # Only process if room has capacity defined

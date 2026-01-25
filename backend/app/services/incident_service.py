@@ -484,7 +484,7 @@ class IncidentService:
         xp_per_dweller = base_xp // len(dwellers)
 
         for dweller in dwellers:
-            dweller.experience += xp_per_dweller
+            dweller.experience = max(0, dweller.experience + xp_per_dweller)
             db_session.add(dweller)
 
             # Check for level-up

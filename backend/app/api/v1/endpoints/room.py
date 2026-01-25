@@ -93,16 +93,39 @@ async def get_buildable_rooms(
 async def build_room(
     room_data: RoomCreate, user: CurrentActiveUser, db_session: Annotated[AsyncSession, Depends(get_async_session)]
 ):
+    from fastapi import HTTPException
+
+    from app.utils.exceptions import (
+        InsufficientResourcesException,
+        NoSpaceAvailableException,
+        UniqueRoomViolationException,
+    )
+
     await get_user_vault_or_403(room_data.vault_id, user, db_session)
-    return await crud.room.build(db_session=db_session, obj_in=room_data)
+
+    try:
+        return await crud.room.build(db_session=db_session, obj_in=room_data)
+    except (ValueError, InsufficientResourcesException, NoSpaceAvailableException, UniqueRoomViolationException) as e:
+        # Re-raise HTTP exceptions as-is
+        if isinstance(e, (InsufficientResourcesException, NoSpaceAvailableException, UniqueRoomViolationException)):
+            raise
+        # Convert ValueError to proper 400 error
+        raise HTTPException(status_code=400, detail=str(e))  # noqa: B904
 
 
 @router.delete("/destroy/{room_id}", status_code=204)
 async def destroy_room(
     room_id: UUID4, user: CurrentActiveUser, db_session: Annotated[AsyncSession, Depends(get_async_session)]
 ):
+    from fastapi import HTTPException
+
     await verify_room_access(room_id, user, db_session)
-    return await crud.room.destroy(db_session, room_id)
+
+    try:
+        return await crud.room.destroy(db_session, room_id)
+    except ValueError as e:
+        # Convert ValueError to proper 400 error (e.g., vault door/elevator protection)
+        raise HTTPException(status_code=400, detail=str(e))  # noqa: B904
 
 
 @router.post("/upgrade/{room_id}", response_model=RoomRead)

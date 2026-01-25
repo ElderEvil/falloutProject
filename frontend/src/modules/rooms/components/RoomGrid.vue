@@ -97,8 +97,8 @@ const placeRoom = async (x: number, y: number) => {
         incremental_cost: selectedRoom.incremental_cost,
         t2_upgrade_cost: selectedRoom.t2_upgrade_cost,
         t3_upgrade_cost: selectedRoom.t3_upgrade_cost,
-        capacity: selectedRoom.capacity,
-        output: selectedRoom.output,
+        capacity_formula: selectedRoom.capacity_formula,
+        output_formula: selectedRoom.output_formula,
         size_min: selectedRoom.size_min,
         size_max: selectedRoom.size_max,
         size: selectedRoom.size_min, // Use size_min as initial size

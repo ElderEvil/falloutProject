@@ -2,14 +2,14 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import axios from '@/core/plugins/axios'
 import { AxiosError } from 'axios'
-import type { Room, RoomCreate } from '../models/room'
+import type { Room, RoomCreate, RoomTemplate } from '../models/room'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 
 export const useRoomStore = defineStore('room', () => {
   // State
   const rooms = ref<Room[]>([])
-  const availableRooms = ref<Room[]>([])
-  const selectedRoom = ref<Room | null>(null)
+  const availableRooms = ref<RoomTemplate[]>([])
+  const selectedRoom = ref<RoomTemplate | null>(null)
   const isPlacingRoom = ref(false)
 
   // Actions
@@ -27,9 +27,14 @@ export const useRoomStore = defineStore('room', () => {
     }
   }
 
-  async function fetchRoomsData(token: string): Promise<void> {
+  async function fetchRoomsData(token: string, vaultId?: string): Promise<void> {
     try {
-      const response = await axios.get<Room[]>('/api/v1/rooms/read_data/', {
+      // Use buildable endpoint if vault ID is provided to filter out vault door and unique rooms
+      const endpoint = vaultId
+        ? `/api/v1/rooms/buildable/${vaultId}/`
+        : '/api/v1/rooms/read_data/'
+
+      const response = await axios.get<RoomTemplate[]>(endpoint, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -71,6 +76,10 @@ export const useRoomStore = defineStore('room', () => {
       rooms.value = rooms.value.filter((room) => room.id !== roomId)
     } catch (error) {
       console.error('Failed to destroy room', error)
+      if (error instanceof AxiosError && error.response?.data?.detail) {
+        throw new Error(error.response.data.detail)
+      }
+      throw error
     }
   }
 
@@ -100,7 +109,7 @@ export const useRoomStore = defineStore('room', () => {
     }
   }
 
-  function selectRoom(room: Room): void {
+  function selectRoom(room: RoomTemplate): void {
     selectedRoom.value = room
     isPlacingRoom.value = true
   }

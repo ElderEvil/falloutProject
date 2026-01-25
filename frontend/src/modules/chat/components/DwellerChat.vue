@@ -6,6 +6,8 @@ import apiClient from '@/core/plugins/axios';
 import type { ChatMessageDisplay } from '../models/chat';
 import { useAudioRecorder } from '../composables/useAudioRecorder';
 import { useChatWebSocket } from '@/core/composables/useWebSocket';
+import { normalizeImageUrl } from '@/utils/image';
+
 
 const props = defineProps<{
   dwellerId: string
@@ -51,7 +53,8 @@ const chatWs = authStore.user?.id
   : null;
 
 const userAvatar = computed(() => (authStore.user as any)?.image_url || undefined);
-const dwellerAvatarUrl = computed(() => props.dwellerAvatar ? `http://${props.dwellerAvatar}` : '');
+const dwellerAvatarUrl = computed(() => normalizeImageUrl(props.dwellerAvatar));
+
 
 const loadChatHistory = async () => {
   try {
@@ -295,8 +298,9 @@ onUnmounted(() => {
             <img :src="dwellerAvatarUrl" alt="Dweller" class="avatar-image" />
           </template>
           <template v-else-if="message.type === 'user' && message.avatar">
-            <img :src="`http://${message.avatar}`" alt="User" class="avatar-image" />
+            <img :src="normalizeImageUrl(message.avatar)" alt="User" class="avatar-image" />
           </template>
+
           <template v-else>
             <Icon
               :icon="message.type === 'user' ? 'mdi:account-circle' : 'mdi:robot'"

@@ -43,7 +43,7 @@ def get_generic_items_data():
 @pytest.fixture(name="vault_data")
 def vault_data_fixture():
     return {
-        "number": random.randint(1, 1_000),
+        "number": random.randint(1, 999),  # Must be < 1000 per validation
         "bottle_caps": random.randint(100, 1_000_000),
         "happiness": random.randint(0, 100),
         "power": random.randint(0, 100),

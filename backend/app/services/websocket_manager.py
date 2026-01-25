@@ -8,6 +8,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from fastapi import WebSocket
+from fastapi.encoders import jsonable_encoder
 from redis.asyncio import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import RedisError
@@ -108,7 +109,7 @@ class ConnectionManager:
 
         data["sender_instance"] = self.instance_id
         try:
-            await self.redis.publish(self.redis_channel, json.dumps(data))
+            await self.redis.publish(self.redis_channel, json.dumps(jsonable_encoder(data)))
         except (RedisError, RedisConnectionError):
             logger.exception("Failed to publish WS message to Redis")
         except (RuntimeError, AttributeError):

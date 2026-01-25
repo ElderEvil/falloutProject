@@ -56,18 +56,30 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         )
         db_session.add(db_obj)
 
-        # Update dweller status to EXPLORING
+        # Validate that dweller has enough supplies
+        if stimpaks > dweller.stimpack:
+            msg = f"Dweller does not have enough stimpacks. Requested: {stimpaks}, Available: {dweller.stimpack}"
+            raise ValueError(msg)
+        if radaways > dweller.radaway:
+            msg = f"Dweller does not have enough radaways. Requested: {radaways}, Available: {dweller.radaway}"
+            raise ValueError(msg)
+
+        # Update dweller status to EXPLORING with safe non-negative values
         from app.crud.dweller import dweller as dweller_crud
         from app.schemas.common import DwellerStatusEnum
         from app.schemas.dweller import DwellerUpdate
+
+        # Compute safe values to prevent negative inventory
+        safe_stimpack = max(0, dweller.stimpack - stimpaks)
+        safe_radaway = max(0, dweller.radaway - radaways)
 
         await dweller_crud.update(
             db_session,
             dweller_id,
             DwellerUpdate(
                 status=DwellerStatusEnum.EXPLORING,
-                stimpack=dweller.stimpack - stimpaks,
-                radaway=dweller.radaway - radaways,
+                stimpack=safe_stimpack,
+                radaway=safe_radaway,
             ),
         )
 

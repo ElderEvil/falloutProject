@@ -101,6 +101,14 @@ class ExplorationService:
             msg = "Dweller is already on an exploration"
             raise ValueError(msg)
 
+        # Validate that stimpaks and radaways are non-negative
+        if stimpaks < 0:
+            msg = f"Stimpaks cannot be negative. Provided: {stimpaks}"
+            raise ValueError(msg)
+        if radaways < 0:
+            msg = f"Radaways cannot be negative. Provided: {radaways}"
+            raise ValueError(msg)
+
         dweller = await dweller_crud.get(db_session, dweller_id)
         if dweller.stimpack < stimpaks:
             msg = f"Dweller only has {dweller.stimpack} Stimpaks"

@@ -144,15 +144,15 @@
 
 **Implementation Details:**
 - **Backend:**
-    - Update `Exploration` model to track `stimpaks` and `radaways`.
-    - Modify `exploration_service.send_dweller` to deduct items from vault.
-    - Implement auto-heal logic in `ExplorationCoordinator`.
-    - Implement auto-equip logic for found gear.
-    - Update `LootCalculator` to generate medicine.
+  - Update `Exploration` model to track `stimpaks` and `radaways`.
+  - Modify `exploration_service.send_dweller` to deduct items from vault.
+  - Implement auto-heal logic in `ExplorationCoordinator`.
+  - Implement auto-equip logic for found gear.
+  - Update `LootCalculator` to generate medicine.
 - **Frontend:**
-    - Update exploration store/types.
-    - Add medicine selection to "Send to Wasteland" modal.
-    - Update `ExplorerCard.vue` to show stats/items/gear.
+  - Update exploration store/types.
+  - Add medicine selection to "Send to Wasteland" modal.
+  - Update `ExplorerCard.vue` to show stats/items/gear.
 
 > **Status (2026-01-25):** Fully implemented.
 
@@ -160,7 +160,6 @@
 
 ## 📋 Checklist
 
-### Bug Fixes
 ### Bug Fixes
 - [x] Fix population progress bar rendering
 - [x] Add WebSocket events for birth/death to profile stats

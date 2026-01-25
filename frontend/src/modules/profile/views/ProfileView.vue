@@ -143,8 +143,7 @@ const formatDate = (dateString: string) => {
             <!-- Header -->
             <div class="mb-8">
                 <h1
-                    class="text-4xl font-bold text-theme-primary"
-                    style="text-shadow: 0 0 10px var(--color-theme-glow)"
+                    class="text-4xl font-bold text-theme-primary terminal-glow-subtle"
                 >
                     OVERSEER PROFILE
                 </h1>
@@ -210,20 +209,12 @@ const formatDate = (dateString: string) => {
                                     v-if="profileStore.profile.avatar_url"
                                     :src="profileStore.profile.avatar_url"
                                     alt="Profile avatar"
-                                    class="w-32 h-32 rounded-full border-2 border-theme-primary object-cover"
-                                    style="
-                                        box-shadow: 0 0 15px
-                                            var(--color-theme-glow);
-                                    "
+                                    class="w-32 h-32 rounded-full border-2 border-theme-primary object-cover glow-pulse-subtle"
                                     @error="handleAvatarError"
                                 />
                                 <div
                                     v-else
-                                    class="w-32 h-32 rounded-full border-2 border-theme-primary bg-black flex items-center justify-center"
-                                    style="
-                                        box-shadow: 0 0 15px
-                                            var(--color-theme-glow);
-                                    "
+                                    class="w-32 h-32 rounded-full border-2 border-theme-primary bg-black flex items-center justify-center glow-pulse-subtle"
                                 >
                                     <Icon
                                         icon="mdi:account-circle"

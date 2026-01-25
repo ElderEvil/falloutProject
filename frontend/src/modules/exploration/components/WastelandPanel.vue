@@ -153,6 +153,7 @@ const handleDrop = async (event: DragEvent) => {
 
 const confirmSendToWasteland = async () => {
     if (!pendingDweller.value || !vaultId.value) return;
+    if (!authStore.token) return;
 
     try {
         const { dwellerId, firstName, lastName, currentRoomId } =
@@ -162,7 +163,7 @@ const confirmSendToWasteland = async () => {
         if (currentRoomId) {
             await dwellerStore.unassignDwellerFromRoom(
                 dwellerId,
-                authStore.token as string,
+                authStore.token,
             );
         }
 
@@ -171,7 +172,7 @@ const confirmSendToWasteland = async () => {
             vaultId.value,
             dwellerId,
             selectedDuration.value,
-            authStore.token as string,
+            authStore.token,
             selectedStimpaks.value,
             selectedRadaways.value,
         );

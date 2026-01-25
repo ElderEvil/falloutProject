@@ -185,7 +185,7 @@ class ExplorationCoordinator:
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
 
         # Early return if dweller is already dead
-        if dweller_obj.health <= 0:
+        if dweller_obj.is_dead:
             return
 
         # Auto-use RadAway if radiation > 30

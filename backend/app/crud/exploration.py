@@ -33,6 +33,14 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         result = await db_session.execute(select(Dweller).where(Dweller.id == dweller_id))
         dweller = result.scalar_one()
 
+        # Validate that dweller has enough supplies
+        if stimpaks > dweller.stimpack:
+            msg = f"Dweller does not have enough stimpacks. Requested: {stimpaks}, Available: {dweller.stimpack}"
+            raise ValueError(msg)
+        if radaways > dweller.radaway:
+            msg = f"Dweller does not have enough radaways. Requested: {radaways}, Available: {dweller.radaway}"
+            raise ValueError(msg)
+
         obj_in = ExplorationCreate(
             vault_id=vault_id,
             dweller_id=dweller_id,
@@ -55,14 +63,6 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
             status=ExplorationStatus.ACTIVE,
         )
         db_session.add(db_obj)
-
-        # Validate that dweller has enough supplies
-        if stimpaks > dweller.stimpack:
-            msg = f"Dweller does not have enough stimpacks. Requested: {stimpaks}, Available: {dweller.stimpack}"
-            raise ValueError(msg)
-        if radaways > dweller.radaway:
-            msg = f"Dweller does not have enough radaways. Requested: {radaways}, Available: {dweller.radaway}"
-            raise ValueError(msg)
 
         # Update dweller status to EXPLORING with safe non-negative values
         from app.crud.dweller import dweller as dweller_crud

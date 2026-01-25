@@ -1,7 +1,7 @@
 """Death service for handling dweller death, revival, and life/death statistics."""
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from pydantic import UUID4
 from sqlmodel import select
@@ -57,7 +57,7 @@ class DeathService:
             dweller.id,
             DwellerUpdate(
                 is_dead=True,
-                death_timestamp=datetime.now(UTC),
+                death_timestamp=datetime.utcnow(),
                 death_cause=cause,
                 epitaph=epitaph,
                 status=DwellerStatusEnum.DEAD,
@@ -206,7 +206,7 @@ class DeathService:
         :returns: Number of dwellers marked as permanently dead
         :rtype: int
         """
-        cutoff_date = datetime.now(UTC) - timedelta(days=game_config.death.permanent_death_days)
+        cutoff_date = datetime.utcnow() - timedelta(days=game_config.death.permanent_death_days)
 
         # Find dead dwellers past the threshold
         query = (

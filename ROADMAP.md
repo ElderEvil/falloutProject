@@ -182,6 +182,7 @@ AI-powered dweller interactions.
 - [x] Router consolidation: Merge small routers (settings, info) into logical groupings
 - [ ] Storage migration: MinIO → RustFS (lighter, faster)
 - [ ] Performance testing: Locust in nightly CI
+- [ ] Datetime consistency: Migrate all `datetime.utcnow()` and naive `datetime.now()` to aware `datetime.now(UTC)`
 - [ ] Test coverage: Target 80% (both FE/BE)
 
 ### Frontend

@@ -2,7 +2,7 @@
 
 import logging
 import random
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from pydantic import UUID4
 from sqlmodel import select
@@ -160,7 +160,8 @@ class BreedingService:
         Returns:
             Created pregnancy
         """
-        conceived_at = datetime.utcnow()
+        # NOTE: Using naive datetime to match database TIMESTAMP WITHOUT TIME ZONE
+        conceived_at = datetime.now(UTC).replace(tzinfo=None)
         due_at = conceived_at + timedelta(hours=game_config.breeding.pregnancy_duration_hours)
 
         pregnancy = Pregnancy(
@@ -199,7 +200,7 @@ class BreedingService:
             .join(Dweller, Pregnancy.mother_id == Dweller.id)
             .where(Dweller.vault_id == vault_id)
             .where(Pregnancy.status == PregnancyStatusEnum.PREGNANT)
-            .where(Pregnancy.due_at <= datetime.utcnow())
+            .where(Pregnancy.due_at <= datetime.now(UTC).replace(tzinfo=None))
         )
 
         return (await db_session.execute(query)).scalars().all()
@@ -263,7 +264,7 @@ class BreedingService:
             "gender": child_gender,
             "rarity": child_rarity,
             "age_group": AgeGroupEnum.CHILD,
-            "birth_date": datetime.utcnow(),
+            "birth_date": datetime.now(UTC).replace(tzinfo=None),
             "level": 1,
             "experience": 0,
             "max_health": 100,
@@ -284,7 +285,7 @@ class BreedingService:
 
         # Update pregnancy status
         pregnancy.status = PregnancyStatusEnum.DELIVERED
-        pregnancy.updated_at = datetime.utcnow()
+        pregnancy.updated_at = datetime.now(UTC).replace(tzinfo=None)
         await db_session.commit()
         await db_session.refresh(pregnancy)
 
@@ -380,7 +381,9 @@ class BreedingService:
         Returns:
             List of aged dwellers
         """
-        growth_threshold = datetime.utcnow() - timedelta(hours=game_config.breeding.child_growth_duration_hours)
+        growth_threshold = datetime.now(UTC).replace(tzinfo=None) - timedelta(
+            hours=game_config.breeding.child_growth_duration_hours
+        )
 
         query = (
             select(Dweller)
@@ -405,7 +408,7 @@ class BreedingService:
                 adult_stat = max(1, min(10, adult_stat))
                 setattr(child, attr, adult_stat)
 
-            child.updated_at = datetime.utcnow()
+            child.updated_at = datetime.now(UTC).replace(tzinfo=None)
             aged_dwellers.append(child)
 
             logger.info(f"Child aged to adult: {child.first_name} {child.last_name} ({child.id})")

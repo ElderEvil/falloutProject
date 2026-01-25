@@ -1,5 +1,5 @@
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from jose import JWTError, jwt
@@ -18,9 +18,9 @@ def create_access_token(
     expires_delta: timedelta | None = None,
 ) -> str:
     if expires_delta:
-        expire = datetime.now(tz=UTC) + expires_delta
+        expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.now(tz=UTC) + timedelta(
+        expire = datetime.utcnow() + timedelta(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
         )
     to_encode = {"exp": expire, "sub": str(subject)}
@@ -41,9 +41,9 @@ async def create_refresh_token(
     expires_delta: timedelta | None = None,
 ) -> str:
     if expires_delta:
-        expire = datetime.now(tz=UTC) + expires_delta
+        expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.now(tz=UTC) + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.utcnow() + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
 
     to_encode = {"exp": expire, "sub": str(subject)}
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
@@ -80,7 +80,7 @@ def create_email_verification_token(subject: str | Any) -> str:
     """
     Create a token for email verification (7 day expiry).
     """
-    expire = datetime.now(tz=UTC) + timedelta(days=7)
+    expire = datetime.utcnow() + timedelta(days=7)
     to_encode = {"exp": expire, "sub": str(subject), "type": "email_verification"}
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
@@ -102,7 +102,7 @@ def create_password_reset_token(subject: str | Any) -> str:
     """
     Create a token for password reset (1 hour expiry).
     """
-    expire = datetime.now(tz=UTC) + timedelta(hours=1)
+    expire = datetime.utcnow() + timedelta(hours=1)
     to_encode = {"exp": expire, "sub": str(subject), "type": "password_reset"}
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 

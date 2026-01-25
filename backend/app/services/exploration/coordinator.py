@@ -184,7 +184,11 @@ class ExplorationCoordinator:
 
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
 
-        # Auto-use RadAway if radiation > 50%
+        # Early return if dweller is already dead
+        if dweller_obj.is_dead:
+            return
+
+        # Auto-use RadAway if radiation > 30
         if exploration.radaways > 0 and dweller_obj.radiation > 30:
             # Radiation removal logic (50% of radiation)
             reduction = int(dweller_obj.radiation * 0.5)
@@ -235,7 +239,7 @@ class ExplorationCoordinator:
                 # Real implementation should probably create the item in DB and link it to dweller.
                 exploration.add_event(
                     event_type="equip",
-                    description=f"Found better weapon: {item_schema.name}. Equipped for better survival!",
+                    description=f"Found better weapon: {item_schema.name}. Using temporarily for better survival (not permanently equipped).",  # noqa: E501
                 )
                 db_session.add(exploration)
                 # Note: To really affect combat, we'd need to update dweller_obj.weapon_id
@@ -246,7 +250,7 @@ class ExplorationCoordinator:
             # Similar logic for outfits (e.g., total SPECIAL points)
             exploration.add_event(
                 event_type="equip",
-                description=f"Found better outfit: {item_schema.name}. Equipped!",
+                description=f"Found better outfit: {item_schema.name}. Using temporarily (not permanently equipped).",
             )
             db_session.add(exploration)
 

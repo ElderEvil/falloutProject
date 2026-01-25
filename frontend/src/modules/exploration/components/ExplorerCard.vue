@@ -141,12 +141,41 @@ const recentEvents = computed(() => {
         </div>
       </div>
 
+      <!-- Medical Supplies -->
+      <div class="stat-item medical">
+        <Icon icon="mdi:medical-bag" class="stat-icon stimpaks" />
+        <div class="stat-content">
+          <div class="stat-label">Stimpaks</div>
+          <div class="stat-value">{{ exploration.stimpaks || 0 }}</div>
+        </div>
+      </div>
+
+      <div class="stat-item medical">
+        <Icon icon="mdi:pill" class="stat-icon radaways" />
+        <div class="stat-content">
+          <div class="stat-label">RadAway</div>
+          <div class="stat-value">{{ exploration.radaways || 0 }}</div>
+        </div>
+      </div>
+
       <div class="stat-item">
         <Icon icon="mdi:skull" class="stat-icon enemies" />
         <div class="stat-content">
           <div class="stat-label">Enemies</div>
           <div class="stat-value">{{ exploration.enemies_encountered }}</div>
         </div>
+      </div>
+    </div>
+
+    <!-- Equipment Slots -->
+    <div class="equipment-section">
+      <div class="equipment-slot">
+        <Icon icon="mdi:sword" class="equip-icon" />
+        <span class="equip-name">{{ dweller?.weapon?.name || 'Unarmed' }}</span>
+      </div>
+      <div class="equipment-slot">
+        <Icon icon="mdi:tshirt-crew" class="equip-icon" />
+        <span class="equip-name">{{ dweller?.outfit?.name || 'Vault Suit' }}</span>
       </div>
     </div>
 
@@ -336,6 +365,49 @@ const recentEvents = computed(() => {
 
 .stat-icon.enemies {
   color: #ff4444;
+}
+
+.stat-icon.stimpaks {
+  color: #4caf50;
+}
+
+.stat-icon.radaways {
+  color: #ffeb3b;
+}
+
+.stat-item.medical {
+  border-color: rgba(205, 133, 63, 0.4);
+}
+
+.equipment-section {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.equipment-slot {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.15);
+  border-radius: 4px;
+}
+
+.equip-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--color-theme-secondary);
+}
+
+.equip-name {
+  font-size: 0.75rem;
+  color: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stat-content {

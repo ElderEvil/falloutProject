@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed, watch, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { Icon } from '@iconify/vue';
 import { useProfileStore } from '../stores/profile';
@@ -8,15 +8,71 @@ import { UButton, UCard } from '@/core/components/ui';
 import ProfileEditor from '../components/ProfileEditor.vue';
 import { LifeDeathStatistics } from '@/modules/dwellers/components/death';
 import type { ProfileUpdate } from '../models/profile';
+import { useWebSocket } from '@/core/composables/useWebSocket';
 
 const router = useRouter();
 const profileStore = useProfileStore();
 const authStore = useAuthStore();
 const isEditing = ref(false);
 
+// WebSocket for real-time statistical updates
+const wsUrl = computed(() => authStore.user?.id
+  ? `ws://localhost:8000/api/v1/ws/${authStore.user.id}`
+  : ''
+);
+
+// Register WebSocket composable at setup top-level to avoid lifecycle warning
+const { connect, on, disconnect } = useWebSocket(wsUrl.value);
+
+// Poll statistics every 30 seconds as a fallback
+let statsInterval: ReturnType<typeof setInterval> | null = null;
+
 onMounted(async () => {
   await fetchProfile();
   await profileStore.fetchDeathStatistics();
+
+  // Establish connection if user ID is ready
+  if (wsUrl.value) {
+    connect();
+  }
+
+  statsInterval = setInterval(() => {
+    profileStore.fetchDeathStatistics();
+  }, 30000);
+});
+
+onUnmounted(() => {
+  if (statsInterval) {
+    clearInterval(statsInterval);
+  }
+});
+
+// Watcher to handle cases where user ID arrives late or changes
+watch(() => wsUrl.value, (newUrl) => {
+  if (newUrl) {
+    connect();
+  } else {
+    disconnect();
+  }
+});
+
+// Register listeners
+on('dweller:born', (message) => {
+  console.log('Received dweller:born event:', message);
+  profileStore.fetchDeathStatistics();
+});
+
+on('dweller:died', (message) => {
+  console.log('Received dweller:died event:', message);
+  profileStore.fetchDeathStatistics();
+});
+
+on('notification', (message) => {
+  const nType = message.notification?.notification_type;
+  if (nType === 'baby_born' || nType === 'dweller_died') {
+    console.log(`Received ${nType} notification! Refreshing stats...`);
+    profileStore.fetchDeathStatistics();
+  }
 });
 
 const fetchProfile = async () => {

@@ -240,6 +240,29 @@ class NotificationService:
             meta_data=meta_data,
         )
 
+    @staticmethod
+    async def notify_dweller_died(  # noqa: PLR0913
+        db: AsyncSession,
+        user_id: UUID,
+        vault_id: UUID,
+        dweller_id: UUID,
+        dweller_name: str,
+        cause: str,
+        meta_data: dict[str, Any] | None = None,
+    ):
+        """Notify user that a dweller has died"""
+        return await NotificationService.create_and_send(
+            db,
+            user_id=user_id,
+            vault_id=vault_id,
+            from_dweller_id=dweller_id,
+            notification_type=NotificationType.DWELLER_DIED,
+            priority=NotificationPriority.URGENT,
+            title="Dweller Lost",
+            message=f"{dweller_name} has died. Cause: {cause}",
+            meta_data=meta_data,
+        )
+
 
 # Global service instance
 notification_service = NotificationService()

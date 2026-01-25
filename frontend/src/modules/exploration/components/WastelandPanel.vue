@@ -23,6 +23,8 @@ const sendSuccess = ref<string | null>(null)
 const showDurationModal = ref(false)
 const pendingDweller = ref<{ dwellerId: string; firstName: string; lastName: string; currentRoomId?: string } | null>(null)
 const selectedDuration = ref(4)
+const selectedStimpaks = ref(0)
+const selectedRadaways = ref(0)
 
 // Rewards modal state
 const showRewardsModal = ref(false)
@@ -102,6 +104,17 @@ const handleDrop = async (event: DragEvent) => {
 
     // Store dweller info and show duration modal
     pendingDweller.value = { dwellerId, firstName, lastName, currentRoomId }
+
+    // Reset medical supplies based on what the dweller already has
+    const dweller = getDwellerById(dwellerId)
+    if (dweller) {
+      selectedStimpaks.value = Math.min(dweller.stimpack || 0, 5) // Suggest up to 5
+      selectedRadaways.value = Math.min(dweller.radaway || 0, 5)
+    } else {
+      selectedStimpaks.value = 0
+      selectedRadaways.value = 0
+    }
+
     showDurationModal.value = true
   } catch (error) {
     console.error('Failed to parse dweller data:', error)
@@ -128,7 +141,9 @@ const confirmSendToWasteland = async () => {
       vaultId.value,
       dwellerId,
       selectedDuration.value,
-      authStore.token as string
+      authStore.token as string,
+      selectedStimpaks.value,
+      selectedRadaways.value
     )
 
     sendSuccess.value = `${firstName} ${lastName} sent to the wasteland for ${selectedDuration.value} hour(s)!`
@@ -141,6 +156,8 @@ const confirmSendToWasteland = async () => {
     showDurationModal.value = false
     pendingDweller.value = null
     selectedDuration.value = 4
+    selectedStimpaks.value = 0
+    selectedRadaways.value = 0
   } catch (error) {
     console.error('Failed to send dweller to wasteland:', error)
     sendError.value = 'Failed to send dweller to wasteland'
@@ -154,6 +171,8 @@ const cancelSend = () => {
   showDurationModal.value = false
   pendingDweller.value = null
   selectedDuration.value = 4
+  selectedStimpaks.value = 0
+  selectedRadaways.value = 0
 }
 
 const formatTimeRemaining = (seconds: number) => {
@@ -411,6 +430,45 @@ const closeRewardsModal = () => {
             {{ duration }}h
           </button>
         </div>
+
+        <div class="medical-supplies">
+          <h4 class="supply-title">
+            <Icon icon="mdi:medical-bag" class="inline h-5 w-5" />
+            Medical Supplies
+          </h4>
+          <div class="supply-inputs">
+            <div class="supply-item">
+              <div class="flex items-center justify-between mb-1">
+                <label class="text-xs">Stimpaks (Heals HP)</label>
+                <span class="text-xs font-bold">{{ selectedStimpaks }} / {{ getDwellerById(pendingDweller?.dwellerId || '')?.stimpack || 0 }}</span>
+              </div>
+              <input
+                type="range"
+                v-model.number="selectedStimpaks"
+                min="0"
+                :max="getDwellerById(pendingDweller?.dwellerId || '')?.stimpack || 0"
+                class="supply-slider stimpak-slider"
+              />
+            </div>
+            <div class="supply-item">
+              <div class="flex items-center justify-between mb-1">
+                <label class="text-xs">RadAway (Removes Rads)</label>
+                <span class="text-xs font-bold">{{ selectedRadaways }} / {{ getDwellerById(pendingDweller?.dwellerId || '')?.radaway || 0 }}</span>
+              </div>
+              <input
+                type="range"
+                v-model.number="selectedRadaways"
+                min="0"
+                :max="getDwellerById(pendingDweller?.dwellerId || '')?.radaway || 0"
+                class="supply-slider radaway-slider"
+              />
+            </div>
+          </div>
+          <p class="text-[10px] text-orange-400 mt-2">
+            * Selected items will be removed from dweller's inventory and used automatically in the wasteland.
+          </p>
+        </div>
+
         <div class="modal-actions">
           <button @click="cancelSend" class="modal-button cancel">
             <Icon icon="mdi:close" class="h-5 w-5" />
@@ -804,6 +862,64 @@ const closeRewardsModal = () => {
   background: rgba(205, 133, 63, 0.5);
   border-color: rgba(205, 133, 63, 1);
   box-shadow: 0 0 15px rgba(205, 133, 63, 0.4);
+}
+
+.medical-supplies {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(205, 133, 63, 0.3);
+  border-radius: 8px;
+}
+
+.supply-title {
+  color: rgba(205, 133, 63, 1);
+  font-size: 1rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.supply-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.supply-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.supply-slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  outline: none;
+  background: rgba(205, 133, 63, 0.2);
+}
+
+.stimpak-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #4caf50;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+}
+
+.radaway-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffeb3b;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(255, 235, 59, 0.5);
 }
 
 .modal-actions {

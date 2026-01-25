@@ -17,14 +17,41 @@ const authStore = useAuthStore()
 // Filter preferences are now automatically loaded via useLocalStorage in the store
 
 // Use filtered and sorted dwellers from store, but only show unassigned ones
+// Use unfiltered dwellers from store, but only show unassigned ones
+// We manually apply sorting here to respect the sort preference without being affected by the global status filter
 const unassignedDwellers = computed(() => {
-  return dwellerStore.filteredAndSortedDwellers.filter(dweller => {
+  // 1. Filter for unassigned dwellers
+  const filtered = dwellerStore.dwellersWithStatus.filter(dweller => {
     // Must not have a room assignment
     if (dweller.room_id) return false
 
     // Must not be actively exploring in wasteland
     const isExploring = explorationStore.isDwellerExploring(dweller.id)
-    return !isExploring
+    if (isExploring) return false
+
+    // Must not be dead (unless we want to see dead bodies to unassign? No, dead dwellers are handled elsewhere usually)
+    if (dweller.is_dead) return false
+
+    return true
+  })
+
+  // 2. Sort based on store preferences (shared with filter panel)
+  return filtered.sort((a, b) => {
+    let comparison = 0
+    const sortBy = dwellerStore.sortBy
+
+    if (sortBy === 'name') {
+      const nameA = `${a.first_name} ${a.last_name}`.toLowerCase()
+      const nameB = `${b.first_name} ${b.last_name}`.toLowerCase()
+      comparison = nameA.localeCompare(nameB)
+    } else if (sortBy === 'level' || sortBy === 'happiness') {
+      comparison = (a[sortBy] || 0) - (b[sortBy] || 0)
+    } else {
+      // SPECIAL stats
+      comparison = (a[sortBy] || 0) - (b[sortBy] || 0)
+    }
+
+    return dwellerStore.sortDirection === 'asc' ? comparison : -comparison
   })
 })
 

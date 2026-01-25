@@ -14,6 +14,7 @@ from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.schemas.common import DeathCauseEnum, DwellerStatusEnum
 from app.schemas.dweller import DwellerUpdate
+from app.services.notification_service import notification_service
 from app.utils.exceptions import ContentNoChangeException, InsufficientResourcesException, ResourceNotFoundException
 
 logger = logging.getLogger(__name__)
@@ -74,12 +75,21 @@ class DeathService:
         await self._increment_death_stats(db_session, dweller.vault_id, cause)
 
         logger.info(
-            "Dweller %s (%s %s) died from %s",
-            dweller.id,
-            dweller.first_name,
-            dweller.last_name or "",
             cause.value,
         )
+
+        # Broadcast WebSocket event
+        vault = await vault_crud.get(db_session, dweller.vault_id)
+        if vault and vault.user_id:
+            await notification_service.notify_dweller_died(
+                db_session,
+                user_id=vault.user_id,
+                vault_id=dweller.vault_id,
+                dweller_id=dweller.id,
+                dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
+                cause=cause.value,
+                meta_data={"cause": cause.value, "vault_id": str(dweller.vault_id)},
+            )
 
         return updated_dweller
 

@@ -48,6 +48,8 @@ export interface Exploration {
   dweller_intelligence: number;
   dweller_agility: number;
   dweller_luck: number;
+  stimpaks: number;
+  radaways: number;
 }
 
 export interface ExplorationProgress {
@@ -58,6 +60,8 @@ export interface ExplorationProgress {
   elapsed_time_seconds: number;
   events: ExplorationEvent[];
   loot_collected: LootItem[];
+  stimpaks: number;
+  radaways: number;
 }
 
 export interface RewardsSummary {
@@ -100,7 +104,9 @@ export const useExplorationStore = defineStore('exploration', () => {
     vaultId: string,
     dwellerId: string,
     duration: number,
-    token: string
+    token: string,
+    stimpaks: number = 0,
+    radaways: number = 0
   ): Promise<Exploration> {
     isLoading.value = true
     error.value = null
@@ -109,7 +115,9 @@ export const useExplorationStore = defineStore('exploration', () => {
         `/api/v1/explorations/send?vault_id=${vaultId}`,
         {
           dweller_id: dwellerId,
-          duration
+          duration,
+          stimpaks,
+          radaways
         },
         {
           headers: { Authorization: `Bearer ${token}` }

@@ -285,8 +285,13 @@ const handleIncidentResolved = async () => {
               <!-- Progress Bar -->
               <div class="h-1.5 w-24 rounded-full bg-gray-800 overflow-hidden border border-gray-700">
                 <div
-                  class="population-progress-fill h-full transition-all duration-500"
-                  :class="populationUtilization >= 90 ? 'bg-red-500' : populationUtilization >= 75 ? 'bg-yellow-400' : 'bg-terminalGreen'"
+                  class="h-full transition-all duration-500 shadow-glow-sm"
+                  :style="{ width: populationWidthPercent }"
+                  :class="{
+                    'bg-red-500': populationUtilization >= 90,
+                    'bg-yellow-400': populationUtilization >= 75 && populationUtilization < 90,
+                    'bg-theme-primary': populationUtilization < 75
+                  }"
                   :title="`${populationUtilization.toFixed(1)}% capacity`"
                 ></div>
               </div>
@@ -421,7 +426,4 @@ const handleIncidentResolved = async () => {
   }
 }
 
-.population-progress-fill {
-  width: v-bind(populationWidthPercent);
-}
 </style>

@@ -108,6 +108,8 @@ class RewardsSchema(BaseModel):
     events_encountered: int = Field(..., ge=0, description="Number of events encountered")
     progress_percentage: int | None = Field(None, ge=0, le=100, description="Progress percentage (for recalls)")
     recalled_early: bool | None = Field(None, description="Whether exploration was recalled early")
+    stimpaks: int = Field(default=0, ge=0, description="Remaining Stimpaks returned")
+    radaways: int = Field(default=0, ge=0, description="Remaining Radaways returned")
 
 
 # Union type for all event types

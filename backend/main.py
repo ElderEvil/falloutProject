@@ -37,6 +37,7 @@ from app.core.logging import setup_logging
 from app.db.session import async_engine, get_async_session
 from app.middleware.request_id import RequestIdMiddleware
 from app.services.health_check import HealthCheckService
+from app.services.websocket_manager import manager
 from app.utils.seed_objectives import seed_objectives_from_json
 from app.utils.seed_quests import seed_quests_from_json
 
@@ -95,6 +96,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
     # Shutdown
     logger.info("Shutting down Fallout Shelter API...")
+    await manager.stop_redis()
 
 
 app = FastAPI(

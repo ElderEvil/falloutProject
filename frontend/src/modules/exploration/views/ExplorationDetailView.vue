@@ -303,6 +303,7 @@ watch(() => progressPercentage.value, (newProgress) => {
           </div>
         </div>
 
+
         <!-- Stats Grid -->
         <div class="stats-grid">
           <div class="stat-box">
@@ -324,6 +325,20 @@ watch(() => progressPercentage.value, (newProgress) => {
             <div class="stat-content">
               <div class="stat-number">{{ exploration.total_caps_found }}</div>
               <div class="stat-label">Caps</div>
+            </div>
+          </div>
+          <div class="stat-box">
+            <Icon icon="mdi:medical-bag" class="stat-icon stimpaks" />
+            <div class="stat-content">
+              <div class="stat-number">{{ exploration.stimpaks || 0 }}</div>
+              <div class="stat-label">Stimpaks</div>
+            </div>
+          </div>
+          <div class="stat-box">
+            <Icon icon="mdi:pill" class="stat-icon radaways" />
+            <div class="stat-content">
+              <div class="stat-number">{{ exploration.radaways || 0 }}</div>
+              <div class="stat-label">RadAway</div>
             </div>
           </div>
           <div class="stat-box">
@@ -383,8 +398,18 @@ watch(() => progressPercentage.value, (newProgress) => {
       <!-- Equipment Section (Bottom) -->
       <div class="equipment-section">
         <div class="equipment-slot">
-          <Icon icon="mdi:hanger" class="equipment-icon" />
-          <span class="equipment-label">{{ (dweller as any).outfit?.name || 'No Outfit' }}</span>
+          <Icon icon="mdi:pistol" class="equipment-icon" />
+          <div class="equipment-info">
+            <span class="equipment-label">Weapon</span>
+            <span class="equipment-value">{{ (dweller as any).weapon?.name || 'Unarmed' }}</span>
+          </div>
+        </div>
+        <div class="equipment-slot">
+          <Icon icon="mdi:tshirt-crew" class="equipment-icon" />
+          <div class="equipment-info">
+            <span class="equipment-label">Outfit</span>
+            <span class="equipment-value">{{ (dweller as any).outfit?.name || 'Vault Suit' }}</span>
+          </div>
         </div>
       </div>
 
@@ -430,6 +455,50 @@ watch(() => progressPercentage.value, (newProgress) => {
   background: #000;
   font-family: 'Courier New', monospace;
   padding-bottom: 2rem;
+}
+
+.equipment-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.equipment-slot {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--color-theme-primary);
+  border-radius: 6px;
+  padding: 0.75rem;
+  box-shadow: 0 0 10px rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.1);
+}
+
+.equipment-icon {
+  width: 2rem;
+  height: 2rem;
+  color: var(--color-theme-primary);
+  filter: drop-shadow(0 0 5px var(--color-theme-glow));
+}
+
+.equipment-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.equipment-label {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  color: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.7);
+  letter-spacing: 0.05em;
+}
+
+.equipment-value {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 5px var(--color-theme-glow);
 }
 
 .nav-bar {
@@ -655,7 +724,7 @@ watch(() => progressPercentage.value, (newProgress) => {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 0.5rem;
 }
 
@@ -686,6 +755,14 @@ watch(() => progressPercentage.value, (newProgress) => {
 
 .stat-icon.gold {
   color: #FFD700;
+}
+
+.stat-icon.stimpaks {
+  color: #4caf50;
+}
+
+.stat-icon.radaways {
+  color: #ffeb3b;
 }
 
 .stat-icon.danger {

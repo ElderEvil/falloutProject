@@ -20,6 +20,8 @@ class ExplorationCreate(ExplorationBase):
     dweller_id: UUID4
     vault_id: UUID4
     duration: int = Field(default=4, ge=1, le=24)
+    stimpaks: int = Field(default=0, ge=0)
+    radaways: int = Field(default=0, ge=0)
 
 
 class ExplorationUpdate(SQLModel):
@@ -57,6 +59,8 @@ class ExplorationRead(ExplorationBase):
     dweller_intelligence: int
     dweller_agility: int
     dweller_luck: int
+    stimpaks: int
+    radaways: int
 
 
 class ExplorationReadShort(SQLModel):
@@ -84,6 +88,8 @@ class ExplorationProgress(SQLModel):
     elapsed_time_seconds: int
     events: list[dict]
     loot_collected: list[dict]
+    stimpaks: int
+    radaways: int
 
 
 class ExplorationEvent(SQLModel):
@@ -101,6 +107,8 @@ class ExplorationSendRequest(SQLModel):
 
     dweller_id: UUID4
     duration: int = Field(default=4, ge=1, le=24, description="Duration in hours")
+    stimpaks: int = Field(default=0, ge=0, le=25, description="Number of Stimpaks to bring")
+    radaways: int = Field(default=0, ge=0, le=25, description="Number of Radaways to bring")
 
 
 class ExplorationRecallRequest(SQLModel):

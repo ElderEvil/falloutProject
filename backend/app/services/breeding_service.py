@@ -20,6 +20,7 @@ from app.schemas.common import (
     RoomTypeEnum,
 )
 from app.schemas.dweller import DwellerCreate
+from app.services.notification_service import notification_service
 
 logger = logging.getLogger(__name__)
 
@@ -299,6 +300,17 @@ class BreedingService:
             vault = await vault_crud.get(db_session, mother.vault_id)
             if vault and vault.user_id:
                 await profile_crud.increment_statistic(db_session, vault.user_id, "total_dwellers_born")
+
+                # Broadcast via standard notification system
+                await notification_service.notify_baby_born(
+                    db_session,
+                    user_id=vault.user_id,
+                    vault_id=mother.vault_id,
+                    mother_id=mother.id,
+                    mother_name=f"{mother.first_name} {mother.last_name or ''}".strip(),
+                    baby_name=f"{child.first_name} {child.last_name or ''}".strip(),
+                    meta_data={"child_id": str(child.id), "mother_id": str(mother.id)},
+                )
         except Exception:
             logger.exception("Failed to increment birth statistics for vault %s", mother.vault_id)
 

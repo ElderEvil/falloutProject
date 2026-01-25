@@ -32,6 +32,7 @@ class NotificationType(StrEnum):
     COMBAT_VICTORY = "combat_victory"
     COMBAT_DEFEAT = "combat_defeat"
     DWELLER_INJURED = "dweller_injured"
+    DWELLER_DIED = "dweller_died"
 
     # Resource events
     RESOURCE_LOW = "resource_low"

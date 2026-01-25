@@ -443,8 +443,8 @@ class ExplorationConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="EXPLORATION_")
 
     # Event timing
-    event_interval_seconds: int = Field(default=600, description="10 minutes between events", ge=60)
-    first_event_delay_seconds: int = Field(default=300, description="5 minutes until first event", ge=60)
+    event_interval_seconds: int = Field(default=600, description="10 minutes between events", ge=0)
+    first_event_delay_seconds: int = Field(default=300, description="5 minutes until first event", ge=0)
 
     # Event type weights (relative probability)
     event_weight_combat: int = Field(default=35, ge=0)

@@ -33,7 +33,7 @@ const closeModal = () => {
         <ul class="rooms-grid">
           <RoomMenuItem
             v-for="room in availableRooms"
-            :key="room.id"
+            :key="`${room.name}-${room.category}`"
             :room="room"
             @select="selectRoom"
           />

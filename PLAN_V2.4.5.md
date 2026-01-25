@@ -27,7 +27,32 @@
 
 ---
 
-### 2. Birth/Death Stats Not Updating in Profile
+### 2. Vault Test Flakiness - Bottle Caps Mismatch
+**Priority:** Low
+**Location:** `backend/app/tests/test_api/test_vault.py::test_read_vault_list`
+
+**Issue:**
+- Test creates vault with specific bottle_caps amount
+- GET /vaults/ returns different amount (e.g., expected 722458, got 702060)
+- Suggests caps are being spent during vault creation/operations
+
+**Possible Causes:**
+- Initial room construction (vault door?) spending caps
+- Game loop running during test modifying resources
+- Test isolation issue (shared database state)
+- Random events triggering during test
+
+**Investigation Needed:**
+- Check if vault creation triggers initial room builds
+- Verify test database isolation
+- Disable game loop/events during tests
+- Check vault creation flow for cap deductions
+
+**Complexity:** Medium (requires test framework and vault creation debugging)
+
+---
+
+### 3. Birth/Death Stats Not Updating in Profile
 **Priority:** Medium
 **Location:** `frontend/src/modules/profile/views/ProfileView.vue`, `backend/app/services/*`
 

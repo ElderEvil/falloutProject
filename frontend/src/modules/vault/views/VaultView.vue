@@ -75,6 +75,8 @@ const populationUtilization = computed(() => {
   return (current / max) * 100
 })
 
+const populationWidthPercent = computed(() => `${Math.min(populationUtilization.value, 100)}%`)
+
 const populationColor = computed(() => {
   if (populationUtilization.value >= 90) return 'text-red-500'
   if (populationUtilization.value >= 75) return 'text-yellow-400'
@@ -283,9 +285,8 @@ const handleIncidentResolved = async () => {
               <!-- Progress Bar -->
               <div class="h-1.5 w-24 rounded-full bg-gray-800 overflow-hidden border border-gray-700">
                 <div
-                  class="h-full transition-all duration-500"
+                  class="population-progress-fill h-full transition-all duration-500"
                   :class="populationUtilization >= 90 ? 'bg-red-500' : populationUtilization >= 75 ? 'bg-yellow-400' : 'bg-terminalGreen'"
-                  :style="{ width: `${populationUtilization}%` }"
                   :title="`${populationUtilization.toFixed(1)}% capacity`"
                 ></div>
               </div>
@@ -418,5 +419,9 @@ const handleIncidentResolved = async () => {
   50% {
     opacity: 1;
   }
+}
+
+.population-progress-fill {
+  width: v-bind(populationWidthPercent);
 }
 </style>

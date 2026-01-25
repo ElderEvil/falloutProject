@@ -5,6 +5,53 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.4.1] - 2026-01-25
+
+### Fixed
+- **Critical: Celery Worker Crashes** - Resolved production crashes caused by mixing timezone-aware and timezone-naive datetime objects
+  - Fixed `death_service.py` - All datetime operations now use consistent naive datetime format
+  - Fixed `breeding_service.py` - Pregnancy and child aging operations use naive datetimes
+  - All datetime operations now use `datetime.now(UTC).replace(tzinfo=None)` for consistency
+- **System Info Endpoint** - Fixed `build_date` to use timezone-aware datetime for proper ISO format output
+- **Test Suite** - Fixed `test_get_info_returns_valid_build_date` expecting timezone info in ISO format
+
+### Added
+- **Documentation**
+  - `HOTFIX_TIMEZONE_NAIVE.md` - Deployment guide with rollback procedures (184 lines)
+  - `TIMEZONE_NAIVE_ANALYSIS.md` - Complete analysis of 169 timezone-naive issues across codebase (1,062 lines)
+  - `RELEASE_NOTES_v2.4.1.md` - Comprehensive release notes (206 lines)
+
+### Changed
+- Version bumped from 2.4.0 to 2.4.1 (backend and frontend)
+- Updated `uv.lock` to reflect version change
+
+### Impact
+- ✅ Celery workers no longer crash on dweller death events
+- ✅ Game tick processing continues uninterrupted
+- ✅ Breeding and pregnancy systems function correctly
+- ✅ All tests passing
+
+### Notes
+- This is a temporary fix ensuring all datetime objects remain naive to match database schema (`TIMESTAMP WITHOUT TIME ZONE`)
+- Future work: Full migration to timezone-aware system (see `TIMEZONE_NAIVE_ANALYSIS.md`)
+
+---
+
+## [2.4.0] - 2026-01-25
+
+### Added
+- **Death System** - Complete dweller death and revival mechanics
+  - Death causes: Health depletion, radiation poisoning, incidents, exploration, combat
+  - Revival system with bottle cap cost (configurable)
+  - Permanent death after 7 days (configurable)
+  - Death statistics tracking per vault and user
+  - Epitaph generation for fallen dwellers
+- **Incident Service** - Room-based incident management system
+- **Security Utilities** - Core authentication and authorization helpers
+- **System Endpoint** - Application metadata and version information
+
+---
+
 ## [2.3.0] - 2026-01-24
 
 ### Added

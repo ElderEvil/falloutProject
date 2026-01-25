@@ -9,6 +9,49 @@ AI-powered dweller interactions.
 
 ## Recent Completions
 
+### v2.4.1 Critical Hotfix (January 25, 2026)
+
+**Hotfix Release** - Resolved production Celery worker crashes
+
+- **Critical Fix**: Timezone-naive datetime mixing causing Celery crashes
+    - Fixed `death_service.py` - All datetime operations use consistent naive format
+    - Fixed `breeding_service.py` - Pregnancy and child aging use naive datetimes
+    - All datetime operations: `datetime.now(UTC).replace(tzinfo=None)`
+    - Prevents asyncpg DataError: "can't subtract offset-naive and offset-aware datetimes"
+- **System Info Fix**: `build_date` now uses timezone-aware datetime for proper ISO format
+- **Documentation**:
+    - `HOTFIX_TIMEZONE_NAIVE.md` - Deployment guide (184 lines)
+    - `TIMEZONE_NAIVE_ANALYSIS.md` - Analysis of 169 timezone issues (1,062 lines)
+    - `RELEASE_NOTES_v2.4.1.md` - Complete release notes (206 lines)
+- **Impact**: Celery workers stable, game tick processing uninterrupted, all systems operational
+- **Note**: Temporary fix - full timezone-aware migration planned for future release
+
+### v2.4.0 Death System & Infrastructure (January 25, 2026)
+
+**Feature Release** - Complete death mechanics and core services
+
+- **Death System**: Full implementation of dweller mortality
+    - Death causes: health, radiation, incidents, exploration, combat
+    - Revival system with bottle cap costs
+    - Permanent death after 7 days (configurable)
+    - Death statistics tracking
+    - Epitaph generation
+- **Incident Service**: Room-based incident management
+- **Security Utilities**: Core authentication and authorization helpers
+- **System Endpoint**: Application metadata and version information
+
+### v2.3.0 Pregnancy Debug & Storage Fixes (January 24, 2026)
+
+**Feature Release** - Testing tools and bug fixes
+
+- **Pregnancy Debug Panel**: UI controls for testing pregnancy system (superuser only)
+    - Force conception between dwellers
+    - Accelerate pregnancy to immediate due date
+- **Exploration Fixes**: Item tracking updates in real-time, rewards modal improvements
+- **Storage Fixes**: Removed unique constraint on item names (fixes duplicate item crash)
+- **Outfit Type Fix**: Fixed KeyError crash with tiered outfits
+- **UI Improvements**: Rarity colors use CSS variables, compacted AGENTS.md guide
+
 ### v2.2.0 Life & Death Cycle (January 23, 2026)
 
 **Major Feature Release** - Complete dweller mortality system

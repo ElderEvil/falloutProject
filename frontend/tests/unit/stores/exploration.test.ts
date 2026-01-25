@@ -155,7 +155,7 @@ describe('Exploration Store', () => {
 
       expect(axios.post).toHaveBeenCalledWith(
         '/api/v1/explorations/send?vault_id=vault-1',
-        { dweller_id: 'dweller-1', duration: 4 },
+        { dweller_id: 'dweller-1', duration: 4, stimpaks: 0, radaways: 0 },
         { headers: { Authorization: 'Bearer test-token' } }
       )
       expect(result).toEqual(mockExploration)

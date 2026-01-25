@@ -8,6 +8,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud import exploration as crud_exploration
+from app.crud.dweller import dweller as dweller_crud
 from app.models.exploration import Exploration
 from app.schemas.exploration import ExplorationProgress
 from app.schemas.exploration_event import RewardsSchema
@@ -16,61 +17,55 @@ from app.services.exploration.event_generator import event_generator
 
 
 class ExplorationService:
-    """
-    Exploration service for managing wasteland explorations.
+    """Exploration service for managing wasteland explorations.
 
-    This class provides a unified API for exploration operations and delegates to
-    the modular exploration system in services/exploration/.
+    This class provides a unified API for exploration operations and delegates
+    to the modular exploration system in services/exploration/.
     """
 
     def generate_event(self, exploration: Exploration) -> dict | None:
-        """
-        Generate a random wasteland event.
+        """Generate a random wasteland event.
 
-        Args:
-            exploration: Active exploration
-
-        Returns:
-            Event dict or None if no event should be generated
+        :param exploration: Active exploration
+        :type exploration: Exploration
+        :return: Event dict or None if no event should be generated
+        :rtype: dict | None
         """
         return event_generator.generate_event(exploration)
 
     async def process_event(self, db_session: AsyncSession, exploration: Exploration) -> Exploration:
-        """
-        Process and add a generated event to an exploration.
+        """Process and add a generated event to an exploration.
 
-        Args:
-            db_session: Database session
-            exploration: Active exploration
-
-        Returns:
-            Updated exploration
+        :param db_session: Database session
+        :type db_session: AsyncSession
+        :param exploration: Active exploration
+        :type exploration: Exploration
+        :return: Updated exploration
+        :rtype: Exploration
         """
         return await exploration_coordinator.process_event(db_session, exploration)
 
     async def complete_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> dict:
-        """
-        Complete an exploration and return rewards summary.
+        """Complete an exploration and return rewards summary.
 
-        Args:
-            db_session: Database session
-            exploration_id: Exploration ID
-
-        Returns:
-            Rewards summary dict
+        :param db_session: Database session
+        :type db_session: AsyncSession
+        :param exploration_id: Exploration ID
+        :type exploration_id: UUID4
+        :return: Rewards summary dict
+        :rtype: dict
         """
         return await exploration_coordinator.complete_exploration(db_session, exploration_id)
 
     async def recall_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> dict:
-        """
-        Recall a dweller early from exploration.
+        """Recall a dweller early from exploration.
 
-        Args:
-            db_session: Database session
-            exploration_id: Exploration ID
-
-        Returns:
-            Rewards summary dict with reduced rewards
+        :param db_session: Database session
+        :type db_session: AsyncSession
+        :param exploration_id: Exploration ID
+        :type exploration_id: UUID4
+        :return: Rewards summary dict with reduced rewards
+        :rtype: dict
         """
         return await exploration_coordinator.recall_exploration(db_session, exploration_id)
 
@@ -83,37 +78,37 @@ class ExplorationService:
         stimpaks: int = 0,
         radaways: int = 0,
     ) -> Exploration:
+        """Send a dweller to wasteland exploration.
+
+        :param db_session: Database session
+        :type db_session: AsyncSession
+        :param vault_id: Vault ID
+        :type vault_id: UUID4
+        :param dweller_id: Dweller ID
+        :type dweller_id: UUID4
+        :param duration: Exploration duration in hours
+        :type duration: int
+        :param stimpaks: Number of Stimpaks to bring, defaults to 0
+        :type stimpaks: int
+        :param radaways: Number of Radaways to bring, defaults to 0
+        :type radaways: int
+        :return: Created exploration
+        :rtype: Exploration
+        :raises ValueError: If dweller is already exploring or lacks supplies
         """
-        Send a dweller to wasteland exploration.
-
-        Args:
-            db_session: Database session
-            vault_id: Vault ID
-            dweller_id: Dweller ID
-            duration: Exploration duration in hours
-
-        Returns:
-            Created exploration
-
-        Raises:
-            ValueError: If dweller is already on an active exploration
-        """
-        # Check if dweller is already on an active exploration
-        existing_exploration = await crud_exploration.get_by_dweller(db_session, dweller_id=dweller_id)
-
-        if existing_exploration:
-            raise ValueError("Dweller is already on an exploration")  # noqa: EM101, TRY003
-
-        # Check if dweller has enough stimpaks/radaways
-        from app.crud.dweller import dweller as dweller_crud
+        existing = await crud_exploration.get_by_dweller(db_session, dweller_id=dweller_id)
+        if existing:
+            msg = "Dweller is already on an exploration"
+            raise ValueError(msg)
 
         dweller = await dweller_crud.get(db_session, dweller_id)
         if dweller.stimpack < stimpaks:
-            raise ValueError(f"Dweller only has {dweller.stimpack} Stimpaks")
+            msg = f"Dweller only has {dweller.stimpack} Stimpaks"
+            raise ValueError(msg)
         if dweller.radaway < radaways:
-            raise ValueError(f"Dweller only has {dweller.radaway} Radaways")
+            msg = f"Dweller only has {dweller.radaway} Radaways"
+            raise ValueError(msg)
 
-        # Create new exploration with dweller's current stats
         return await crud_exploration.create_with_dweller_stats(
             db_session,
             vault_id=vault_id,
@@ -124,15 +119,14 @@ class ExplorationService:
         )
 
     async def get_exploration_progress(self, db_session: AsyncSession, exploration_id: UUID4) -> ExplorationProgress:
-        """
-        Get current progress of an exploration.
+        """Get current progress of an exploration.
 
-        Args:
-            db_session: Database session
-            exploration_id: Exploration ID
-
-        Returns:
-            Exploration progress data
+        :param db_session: Database session
+        :type db_session: AsyncSession
+        :param exploration_id: Exploration ID
+        :type exploration_id: UUID4
+        :return: Exploration progress data
+        :rtype: ExplorationProgress
         """
         exploration = await crud_exploration.get(db_session, exploration_id)
 
@@ -151,18 +145,15 @@ class ExplorationService:
     async def complete_exploration_with_data(
         self, db_session: AsyncSession, exploration_id: UUID4
     ) -> tuple[Exploration, RewardsSchema]:
-        """
-        Complete an exploration and return both exploration and rewards.
+        """Complete exploration and return both exploration and rewards.
 
-        Args:
-            db_session: Database session
-            exploration_id: Exploration ID
-
-        Returns:
-            Tuple of (exploration, rewards)
-
-        Raises:
-            ValueError: If exploration cannot be completed
+        :param db_session: Database session
+        :type db_session: AsyncSession
+        :param exploration_id: Exploration ID
+        :type exploration_id: UUID4
+        :return: Tuple of (exploration, rewards)
+        :rtype: tuple[Exploration, RewardsSchema]
+        :raises ValueError: If exploration cannot be completed
         """
         rewards = await exploration_coordinator.complete_exploration(db_session, exploration_id)
         exploration = await crud_exploration.get(db_session, exploration_id)
@@ -171,44 +162,38 @@ class ExplorationService:
     async def recall_exploration_with_data(
         self, db_session: AsyncSession, exploration_id: UUID4
     ) -> tuple[Exploration, RewardsSchema]:
-        """
-        Recall a dweller early and return both exploration and rewards.
+        """Recall dweller early and return both exploration and rewards.
 
-        Args:
-            db_session: Database session
-            exploration_id: Exploration ID
-
-        Returns:
-            Tuple of (exploration, rewards)
-
-        Raises:
-            ValueError: If exploration cannot be recalled
+        :param db_session: Database session
+        :type db_session: AsyncSession
+        :param exploration_id: Exploration ID
+        :type exploration_id: UUID4
+        :return: Tuple of (exploration, rewards)
+        :rtype: tuple[Exploration, RewardsSchema]
+        :raises ValueError: If exploration cannot be recalled
         """
         rewards = await exploration_coordinator.recall_exploration(db_session, exploration_id)
         exploration = await crud_exploration.get(db_session, exploration_id)
         return exploration, rewards
 
     async def process_event_for_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> Exploration:
-        """
-        Generate and process an event for an exploration.
+        """Generate and process an event for an exploration.
 
-        Args:
-            db_session: Database session
-            exploration_id: Exploration ID
-
-        Returns:
-            Updated exploration
-
-        Raises:
-            ValueError: If exploration is not active
+        :param db_session: Database session
+        :type db_session: AsyncSession
+        :param exploration_id: Exploration ID
+        :type exploration_id: UUID4
+        :return: Updated exploration
+        :rtype: Exploration
+        :raises ValueError: If exploration is not active
         """
         exploration = await crud_exploration.get(db_session, exploration_id)
 
         if not exploration.is_active():
-            raise ValueError("Exploration is not active")  # noqa: EM101, TRY003
+            msg = "Exploration is not active"
+            raise ValueError(msg)
 
         return await exploration_coordinator.process_event(db_session, exploration)
 
 
-# Singleton instance
 exploration_service = ExplorationService()

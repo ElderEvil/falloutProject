@@ -40,7 +40,7 @@ class ConnectionManager:
             # Start background listener
             self.listener_task = asyncio.create_task(self._redis_listener())
             logger.info("Distributed WebSocket manager started (ID: %s)", self.instance_id)
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.exception("Failed to initialize Redis for WebSocket manager. Running in local-only mode.")
             self.redis = None
 

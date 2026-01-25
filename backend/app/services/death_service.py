@@ -52,12 +52,16 @@ class DeathService:
             epitaph = self._generate_epitaph(dweller, cause)
 
         # Update dweller death state
+        # NOTE: Using naive datetime to match database TIMESTAMP WITHOUT TIME ZONE
+        # This is a temporary fix - should migrate to timezone-aware in future
+        now_naive = datetime.now(UTC).replace(tzinfo=None)
+
         updated_dweller = await dweller_crud.update(
             db_session,
             dweller.id,
             DwellerUpdate(
                 is_dead=True,
-                death_timestamp=datetime.now(UTC),
+                death_timestamp=now_naive,
                 death_cause=cause,
                 epitaph=epitaph,
                 status=DwellerStatusEnum.DEAD,
@@ -188,7 +192,7 @@ class DeathService:
             return None
 
         permanent_date = dweller.death_timestamp + timedelta(days=game_config.death.permanent_death_days)
-        now = datetime.utcnow()
+        now = datetime.now(UTC).replace(tzinfo=None)
 
         if now >= permanent_date:
             return 0
@@ -206,7 +210,7 @@ class DeathService:
         :returns: Number of dwellers marked as permanently dead
         :rtype: int
         """
-        cutoff_date = datetime.now(UTC) - timedelta(days=game_config.death.permanent_death_days)
+        cutoff_date = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=game_config.death.permanent_death_days)
 
         # Find dead dwellers past the threshold
         query = (

@@ -36,6 +36,8 @@ async def send_dweller_to_wasteland(
             vault_id=vault_id,
             dweller_id=request.dweller_id,
             duration=request.duration,
+            stimpaks=request.stimpaks,
+            radaways=request.radaways,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))  # noqa: B904

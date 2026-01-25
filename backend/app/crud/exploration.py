@@ -15,13 +15,15 @@ from app.schemas.exploration import ExplorationCreate, ExplorationUpdate
 class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate]):
     """CRUD operations for Exploration model."""
 
-    async def create_with_dweller_stats(
+    async def create_with_dweller_stats(  # noqa: PLR0913
         self,
         db_session: AsyncSession,
         *,
         vault_id: UUID4,
         dweller_id: UUID4,
         duration: int,
+        stimpaks: int = 0,
+        radaways: int = 0,
     ) -> Exploration:
         """
         Create an exploration with dweller's SPECIAL stats.
@@ -35,6 +37,8 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
             vault_id=vault_id,
             dweller_id=dweller_id,
             duration=duration,
+            stimpaks=stimpaks,
+            radaways=radaways,
         )
 
         # Create exploration with dweller's stats
@@ -57,7 +61,15 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         from app.schemas.common import DwellerStatusEnum
         from app.schemas.dweller import DwellerUpdate
 
-        await dweller_crud.update(db_session, dweller_id, DwellerUpdate(status=DwellerStatusEnum.EXPLORING))
+        await dweller_crud.update(
+            db_session,
+            dweller_id,
+            DwellerUpdate(
+                status=DwellerStatusEnum.EXPLORING,
+                stimpack=dweller.stimpack - stimpaks,
+                radaway=dweller.radaway - radaways,
+            ),
+        )
 
         await db_session.commit()
         await db_session.refresh(db_obj)

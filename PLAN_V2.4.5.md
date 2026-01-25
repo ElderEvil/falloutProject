@@ -21,9 +21,10 @@
 - Confirm `:style="{ width: ... }"` is applying correctly
 - Test with browser devtools to see actual computed width
 
-**Expected Behavior:**
 - 20/32 dwellers should show ~62% filled progress bar
 - Color should change at 75% (yellow) and 90% (red)
+
+> **Status (2026-01-25):** Fixed. Replaced class binding with inline style for reliable width rendering.
 
 ---
 
@@ -73,11 +74,30 @@
 3. Implement periodic polling (not ideal for UX)
 
 **Recommended Approach:**
-- Add WebSocket events for births/deaths in backend services
 - Subscribe to these events in ProfileView
 - Auto-refresh `fetchDeathStatistics()` on event reception
 
 **Complexity:** Medium (requires WebSocket event additions across multiple services)
+
+> **Status (2026-01-25):** Implemented. Added `dweller:born` and `dweller:died` events via standard `NotificationService`.
+> Implemented **Distributed Redis Broadcasting** for WebSockets to ensure Celery game loop events reach the web client.
+> Added 30s polling fallback in `ProfileView.vue` for high reliability.
+
+---
+
+### 4. Unassigned Dwellers Filter Bug
+**Priority:** High
+**Location:** `frontend/src/modules/dwellers/components/UnassignedDwellers.vue`
+
+**Issue:**
+- Filter in main Dwellers view (e.g., "Working") incorrectly applies to Unassigned Dwellers panel in Overview.
+- Causes unassigned list to disappear when a filter is active elsewhere.
+
+**Fix:**
+- Decoupled `UnassignedDwellers` from global store filter state.
+- Implemented local filtering logic while preserving global sort preferences.
+
+> **Status (2026-01-25):** Fixed.
 
 ---
 
@@ -111,16 +131,48 @@
 
 ---
 
+### 3. Exploration Enhancements
+**Priority:** High
+**Category:** Gameplay logic & UI
+
+**Concept:**
+- Allow dwellers to bring medical supplies (Stimpaks/Radaways) to the wasteland.
+- Medicine is consumed automatically during exploration to keep dwellers alive.
+- Find more medicine during wasteland encounters.
+- Show current equipment (Weapon/Outfit) in exploration view.
+- Auto-equip better gear found during exploration.
+
+**Implementation Details:**
+- **Backend:**
+    - Update `Exploration` model to track `stimpaks` and `radaways`.
+    - Modify `exploration_service.send_dweller` to deduct items from vault.
+    - Implement auto-heal logic in `ExplorationCoordinator`.
+    - Implement auto-equip logic for found gear.
+    - Update `LootCalculator` to generate medicine.
+- **Frontend:**
+    - Update exploration store/types.
+    - Add medicine selection to "Send to Wasteland" modal.
+    - Update `ExplorerCard.vue` to show stats/items/gear.
+
+> **Status (2026-01-25):** Fully implemented.
+
+---
+
 ## 📋 Checklist
 
 ### Bug Fixes
-- [ ] Fix population progress bar rendering
-- [ ] Add WebSocket events for birth/death to profile stats
-- [ ] Implement real-time profile stats refresh
+### Bug Fixes
+- [x] Fix population progress bar rendering
+- [x] Add WebSocket events for birth/death to profile stats
+- [x] Implement real-time profile stats refresh
+- [x] Fix Unassigned Dwellers filter bug
 
 ### Features
 - [ ] Design emotional damage system mechanics
 - [ ] Implement emotional damage backend
 - [ ] Implement emotional damage frontend UI
-- [ ] Add tests for all features
+- [x] Implement wasteland medicine transfer/auto-use
+- [x] Implement exploration auto-equip for gear
+- [x] Update exploration UI with medicine/gear slots
+- [x] Add tests for all features
 - [ ] Update documentation

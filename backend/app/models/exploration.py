@@ -51,6 +51,10 @@ class ExplorationBase(SQLModel):
     total_caps_found: int = Field(default=0, ge=0)
     enemies_encountered: int = Field(default=0, ge=0)
 
+    # Medical supplies
+    stimpaks: int = Field(default=0, ge=0, description="Stimpaks taken on exploration")
+    radaways: int = Field(default=0, ge=0, description="Radaways taken on exploration")
+
 
 class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
     """Exploration model with relationships."""

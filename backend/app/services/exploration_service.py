@@ -74,8 +74,14 @@ class ExplorationService:
         """
         return await exploration_coordinator.recall_exploration(db_session, exploration_id)
 
-    async def send_dweller(
-        self, db_session: AsyncSession, vault_id: UUID4, dweller_id: UUID4, duration: int
+    async def send_dweller(  # noqa: PLR0913
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        dweller_id: UUID4,
+        duration: int,
+        stimpaks: int = 0,
+        radaways: int = 0,
     ) -> Exploration:
         """
         Send a dweller to wasteland exploration.
@@ -98,12 +104,23 @@ class ExplorationService:
         if existing_exploration:
             raise ValueError("Dweller is already on an exploration")  # noqa: EM101, TRY003
 
+        # Check if dweller has enough stimpaks/radaways
+        from app.crud.dweller import dweller as dweller_crud
+
+        dweller = await dweller_crud.get(db_session, dweller_id)
+        if dweller.stimpack < stimpaks:
+            raise ValueError(f"Dweller only has {dweller.stimpack} Stimpaks")
+        if dweller.radaway < radaways:
+            raise ValueError(f"Dweller only has {dweller.radaway} Radaways")
+
         # Create new exploration with dweller's current stats
         return await crud_exploration.create_with_dweller_stats(
             db_session,
             vault_id=vault_id,
             dweller_id=dweller_id,
             duration=duration,
+            stimpaks=stimpaks,
+            radaways=radaways,
         )
 
     async def get_exploration_progress(self, db_session: AsyncSession, exploration_id: UUID4) -> ExplorationProgress:
@@ -127,6 +144,8 @@ class ExplorationService:
             elapsed_time_seconds=exploration.elapsed_time_seconds(),
             events=exploration.events,
             loot_collected=exploration.loot_collected,
+            stimpaks=exploration.stimpaks,
+            radaways=exploration.radaways,
         )
 
     async def complete_exploration_with_data(

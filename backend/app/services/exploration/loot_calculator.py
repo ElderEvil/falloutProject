@@ -115,6 +115,12 @@ class LootCalculator:
 
         return JunkSchema(**random.choice(items_of_rarity))
 
+    def select_medicine(self) -> tuple[ItemSchema, str]:
+        """Select a random medicine item (stimpak or radaway)."""
+        if random.random() > 0.5:
+            return (ItemSchema(name="Stimpak", value=50, rarity="Common"), "stimpak")
+        return (ItemSchema(name="RadAway", value=50, rarity="Common"), "radaway")
+
     def select_random_loot(self, luck: int) -> tuple[ItemSchema, str]:
         """
         Select a random loot item based on luck.
@@ -137,6 +143,7 @@ class LootCalculator:
                 "junk": cfg.loot_type_junk,
                 "weapon": cfg.loot_type_weapon,
                 "outfit": cfg.loot_type_outfit,
+                "medicine": 5.0,  # 5% base chance for medicine
             }
 
         item_type = random.choices(
@@ -149,6 +156,8 @@ class LootCalculator:
             return (self.select_random_weapon(luck), "weapon")
         if item_type == "outfit":
             return (self.select_random_outfit(luck), "outfit")
+        if item_type == "medicine":
+            return self.select_medicine()
 
         return (self.select_random_junk(luck), "junk")
 

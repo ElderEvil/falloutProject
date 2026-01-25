@@ -6,7 +6,7 @@ environment information, and health status for monitoring and UI display.
 """
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -44,5 +44,5 @@ async def get_info() -> InfoResponse:
         api_version=settings.API_VERSION,
         environment=settings.ENVIRONMENT,
         python_version=get_python_version(),
-        build_date=datetime.utcnow().isoformat(),
+        build_date=datetime.now(UTC).isoformat(),
     )

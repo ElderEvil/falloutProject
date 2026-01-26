@@ -25,7 +25,7 @@ const wsUrl = computed(() => {
 });
 
 // Register WebSocket composable at setup top-level to avoid lifecycle warning
-const { connect, on, disconnect } = useWebSocket(wsUrl.value);
+const { connect, on, disconnect } = useWebSocket();
 
 // Poll statistics every 30 seconds as a fallback
 let statsInterval: ReturnType<typeof setInterval> | null = null;
@@ -36,7 +36,7 @@ onMounted(async () => {
 
     // Establish connection if user ID is ready
     if (wsUrl.value) {
-        connect();
+        connect(wsUrl.value);
     }
 
     statsInterval = setInterval(() => {
@@ -50,6 +50,14 @@ onUnmounted(() => {
     }
     // Properly close WebSocket connection
     disconnect();
+});
+
+// Watch for user ID changes and reconnect with proper URL
+watch(wsUrl, (newUrl, oldUrl) => {
+    if (newUrl && newUrl !== oldUrl) {
+        disconnect();
+        connect(newUrl);
+    }
 });
 
 // Watcher to handle cases where user ID arrives late or changes

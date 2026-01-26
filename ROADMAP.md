@@ -31,23 +31,11 @@ AI-powered dweller interactions.
   - Fix and confirm admin birth control
   - Config for rooms rendered
 
-### v2.7.0 - Notification System & UI Polish (Planned)
+### v2.7.0 - UI Polish & Enhancements (Planned)
 
-**Focus**: Complete notification system implementation and UI improvements
+**Focus**: UI improvements and notification system polish
 
 **Features:**
-- **Notification Bell Pop-up** ✅ (Frontend complete in v2.6.5)
-  - Bell icon in navbar with unread count badge
-  - Pop-up showing recent notifications
-  - Notification types: births, deaths, explorations, incidents
-  - Mark as read / Mark all as read functionality
-  - Auto-refresh every 30 seconds
-- **Backend Event Integration** ✅ (Complete in v2.6.5)
-  - Exploration completion notifications
-  - Radio recruitment notifications
-  - Incident spawn notifications
-  - Baby birth notifications (existing)
-  - Dweller death notifications (existing)
 - **Layout Improvements**
   - Fix top gray panel (make sticky/fixed)
   - Fix left interface panel coordination

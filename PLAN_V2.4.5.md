@@ -119,40 +119,7 @@
 
 ## 🎮 New Features
 
-### 2. Emotional Damage System
-
-**Priority:** Medium
-**Category:** Fun/Comedy Feature
-
-**Concept:**
-
-- Overseer can "damage" dwellers with harsh words/criticism
-- Affects dweller happiness/morale (not actual HP)
-- Funny/comedic feature for player interaction
-- Think: "critical hit to their feelings" 💔
-
-**Implementation Details:**
-
-- *(User will provide more details later)*
-
-**Potential Design:**
-
-- Add "Criticize Dweller" action in dweller detail modal
-- Random cruel/funny overseer phrases
-- Reduces happiness temporarily
-- Maybe adds "Emotionally Damaged" status effect
-- Could tie into relationship system (dweller remembers who hurt their feelings)
-
-**Technical Scope:**
-
-- Backend: New endpoint for emotional damage action
-- Frontend: UI button/action in dweller interactions
-- Database: Track emotional damage events (optional)
-- Effects: Temporary happiness debuff
-
----
-
-### 3. Exploration Enhancements
+### 2. Exploration Enhancements
 
 **Priority:** High
 **Category:** Gameplay logic & UI
@@ -207,9 +174,6 @@ In `@frontend/src/modules/profile/views/ProfileView.vue`:
 
 ### Features
 
-- [ ] Design emotional damage system mechanics
-- [ ] Implement emotional damage backend
-- [ ] Implement emotional damage frontend UI
 - [x] Implement wasteland medicine transfer/auto-use
 - [x] Implement exploration auto-equip for gear
 - [x] Update exploration UI with medicine/gear slots

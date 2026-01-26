@@ -22,9 +22,9 @@ class BaseUUIDModel(SQLModel):
     )
 
 
-class SoftDeleteMixin:
+class SoftDeleteMixin(SQLModel):
     is_deleted: bool = Field(default=False, index=True)
-    deleted_at: datetime | None = None
+    deleted_at: datetime | None = Field(default=None)
 
     def soft_delete(self):
         """Marks the object as deleted."""

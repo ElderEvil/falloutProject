@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -82,11 +82,16 @@ async def delete_vault(
     vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
+    hard_delete: Annotated[bool, Query(description="If True, permanently delete. Otherwise soft delete.")] = False,
 ):
+    """
+    Delete a vault. By default performs soft delete to preserve data.
+    Use hard_delete=True to permanently remove the vault.
+    """
     vault = await crud.vault.get(db_session, vault_id)
-    if vault and (vault.user_id != user.id or not user.is_superuser):
+    if vault and (vault.user_id != user.id and not user.is_superuser):
         raise HTTPException(status_code=403, detail="User does not have permission to delete the vault")
-    return await crud.vault.delete(db_session, vault_id)
+    return await crud.vault.delete(db_session, vault_id, soft=not hard_delete)
 
 
 @router.post("/{vault_id}/toggle_game_state", response_model=Vault, status_code=200)

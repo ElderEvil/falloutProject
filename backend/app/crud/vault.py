@@ -19,8 +19,13 @@ logger = getLogger(__name__)
 
 
 class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
-    async def get_by_user_id(self, *, db_session: AsyncSession, user_id: UUID4) -> Sequence[Vault]:
-        response = await db_session.execute(select(self.model).where(self.model.user_id == user_id))
+    async def get_by_user_id(
+        self, *, db_session: AsyncSession, user_id: UUID4, include_deleted: bool = False
+    ) -> Sequence[Vault]:
+        query = select(self.model).where(self.model.user_id == user_id)
+        if not include_deleted:
+            query = query.where(self.model.is_deleted == False)
+        response = await db_session.execute(query)
         return response.scalars().all()
 
     @staticmethod

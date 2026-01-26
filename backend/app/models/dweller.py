@@ -6,7 +6,7 @@ from pydantic import UUID4
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.models.base import BaseUUIDModel, SPECIALModel, TimeStampMixin
+from app.models.base import BaseUUIDModel, SoftDeleteMixin, SPECIALModel, TimeStampMixin
 from app.schemas.common import AgeGroupEnum, DeathCauseEnum, DwellerStatusEnum, GenderEnum, RarityEnum
 
 if TYPE_CHECKING:
@@ -99,7 +99,7 @@ class DwellerBase(DwellerBaseWithoutStats, SPECIALModel):
         return min(100.0, (current_xp_in_level / xp_required_for_level) * 100)
 
 
-class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, table=True):
+class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table=True):
     vault_id: UUID4 = Field(default=None, foreign_key="vault.id", ondelete="CASCADE")
     vault: "Vault" = Relationship(back_populates="dwellers")
 

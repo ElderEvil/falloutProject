@@ -4,7 +4,7 @@ from pydantic import UUID4
 from sqlalchemy import Column, String
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.models.base import BaseUUIDModel, TimeStampMixin
+from app.models.base import BaseUUIDModel, SoftDeleteMixin, TimeStampMixin
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.models.vault_quest import (
     VaultQuestCompletionLink,
@@ -47,7 +47,7 @@ class VaultBase(SQLModel):
         return f"Vault {self.number:03}"
 
 
-class Vault(BaseUUIDModel, VaultBase, TimeStampMixin, table=True):
+class Vault(BaseUUIDModel, VaultBase, TimeStampMixin, SoftDeleteMixin, table=True):
     user_id: UUID4 = Field(default=None, foreign_key="user.id")
     user: "User" = Relationship(back_populates="vaults")
 

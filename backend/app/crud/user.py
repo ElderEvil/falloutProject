@@ -14,12 +14,20 @@ from app.schemas.user import UserCreate, UserUpdate
 
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
-    async def get_by_email(self, db_session: AsyncSession, email: str) -> User | None:
-        response = await db_session.execute(select(self.model).where(self.model.email == email))
+    async def get_by_email(self, db_session: AsyncSession, email: str, include_deleted: bool = False) -> User | None:
+        query = select(self.model).where(self.model.email == email)
+        if not include_deleted:
+            query = query.where(self.model.is_deleted == False)
+        response = await db_session.execute(query)
         return response.scalar_one_or_none()
 
-    async def get_by_username(self, db_session: AsyncSession, username: str) -> User | None:
-        response = await db_session.execute(select(self.model).where(self.model.username == username))
+    async def get_by_username(
+        self, db_session: AsyncSession, username: str, include_deleted: bool = False
+    ) -> User | None:
+        query = select(self.model).where(self.model.username == username)
+        if not include_deleted:
+            query = query.where(self.model.is_deleted == False)
+        response = await db_session.execute(query)
         return response.scalar_one_or_none()
 
     async def create(self, db_session: AsyncSession, obj_in: UserCreate) -> User:
@@ -60,7 +68,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         return await super().update(db_session, id=id, obj_in=update_data)
 
     async def authenticate(self, db_session: AsyncSession, *, email: str, password: str) -> User | None:
-        user = await self.get_by_email(db_session, email=email)
+        user = await self.get_by_email(db_session, email=email, include_deleted=False)
         if not user:
             return None
         if not verify_password(password, user.hashed_password):
@@ -69,7 +77,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
 
     @staticmethod
     def is_active(user: User) -> bool:
-        return user.is_active
+        return user.is_active and not user.is_deleted
 
     @staticmethod
     def is_superuser(user: User) -> bool:

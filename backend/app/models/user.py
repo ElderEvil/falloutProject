@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from pydantic import EmailStr
 from sqlmodel import AutoString, Field, Relationship, SQLModel
 
-from app.models.base import BaseUUIDModel, TimeStampMixin
+from app.models.base import BaseUUIDModel, SoftDeleteMixin, TimeStampMixin
 
 if TYPE_CHECKING:
     from app.models.llm_interaction import LLMInteraction
@@ -23,7 +23,7 @@ class UserBase(SQLModel):
     password_reset_expires: datetime | None = Field(default=None)
 
 
-class User(BaseUUIDModel, UserBase, TimeStampMixin, table=True):
+class User(BaseUUIDModel, UserBase, TimeStampMixin, SoftDeleteMixin, table=True):
     hashed_password: str = Field(nullable=False)
 
     profile: "UserProfile" = Relationship(

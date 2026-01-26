@@ -48,6 +48,7 @@ class Settings(BaseSettings):
         "chat-audio",
         "outfit-images",
         "weapon-images",
+        "room-images",
     ]
 
     @property

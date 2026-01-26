@@ -176,34 +176,47 @@ class IncidentService:
             f"Spawned {incident_type} (difficulty {difficulty}) in room {target_room.name} of vault {vault_id}"
         )
 
-        # Send notification
-        vault = await vault_crud.get(db_session, vault_id)
-        if vault and vault.user_id:
-            incident_names = {
-                IncidentType.FIRE: "Fire",
-                IncidentType.RADROACH_INFESTATION: "Radroach Infestation",
-                IncidentType.RAIDER_ATTACK: "Raider Attack",
-                IncidentType.DEATHCLAW_ATTACK: "Deathclaw Attack",
-            }
-            incident_name = incident_names.get(incident_type, str(incident_type))
+        # Send notification (non-critical, don't break incident creation on failure)
+        try:
+            vault = await vault_crud.get(db_session, vault_id)
+            if vault and vault.user_id:
+                incident_names = {
+                    IncidentType.FIRE: "🔥 Fire",
+                    IncidentType.RADROACH_INFESTATION: "🪳 Radroach Infestation",
+                    IncidentType.RAIDER_ATTACK: "💀 Raider Attack",
+                    IncidentType.DEATHCLAW_ATTACK: "👹 Deathclaw Attack",
+                    IncidentType.MOLE_RAT_ATTACK: "🐀 Mole Rat Attack",
+                    IncidentType.FERAL_GHOUL_ATTACK: "🧟 Feral Ghoul Attack",
+                }
+                incident_name = incident_names.get(incident_type, str(incident_type))
 
-            from app.models.notification import NotificationPriority, NotificationType
+                from app.models.notification import NotificationPriority, NotificationType
 
-            await notification_service.create_and_send(
-                db_session,
-                user_id=vault.user_id,
-                vault_id=vault_id,
-                notification_type=NotificationType.COMBAT_STARTED,
-                priority=NotificationPriority.HIGH,
-                title=f"Incident: {incident_name}",
-                message=f"{incident_name} in {target_room.name}! Send dwellers to defend.",
-                meta_data={
-                    "incident_id": str(incident.id),
-                    "room_id": str(target_room.id),
-                    "room_name": target_room.name,
-                    "incident_type": incident_type.value,
-                    "difficulty": difficulty,
-                },
+                await notification_service.create_and_send(
+                    db_session,
+                    user_id=vault.user_id,
+                    vault_id=vault_id,
+                    notification_type=NotificationType.COMBAT_STARTED,
+                    priority=NotificationPriority.HIGH,
+                    title=f"Incident: {incident_name}",
+                    message=f"{incident_name} in {target_room.name}! Send dwellers to defend.",
+                    meta_data={
+                        "incident_id": str(incident.id),
+                        "room_id": str(target_room.id),
+                        "room_name": target_room.name,
+                        "incident_type": incident_type.value,
+                        "difficulty": difficulty,
+                    },
+                )
+        except Exception:
+            self.logger.exception(
+                "Failed to send incident notification: incident_id=%s, vault_id=%s, "
+                "incident_type=%s, room_id=%s, room_name=%s",
+                incident.id,
+                vault_id,
+                incident_type.value,
+                target_room.id,
+                target_room.name,
             )
 
         return incident

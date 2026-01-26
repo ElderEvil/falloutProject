@@ -167,7 +167,7 @@ This release focuses on implementing a notification system centered around a bel
 - Exploration improvements: 1-2 days
 - Testing & polish: 1-2 days
 
-**Total: ~7-12 days**
+## Total: ~7-12 days
 
 ---
 

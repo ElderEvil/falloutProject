@@ -10,7 +10,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403
 from app.db.session import get_async_session
 from app.models.room import Room
-from app.models.vault import Vault
 from app.schemas.common import RadioModeEnum
 from app.schemas.radio import ManualRecruitRequest, RadioStatsRead, RecruitmentResponse
 from app.services.radio_service import radio_service
@@ -42,7 +41,7 @@ async def manual_recruit_dweller(
     await get_user_vault_or_403(vault_id, user, db_session)
 
     try:
-        from app.services.notification_service import notification_service
+        from app.core.game_config import game_config
 
         dweller = await radio_service.manual_recruit(
             db_session,
@@ -50,21 +49,7 @@ async def manual_recruit_dweller(
             override=recruit_request.override,
         )
 
-        # Get updated vault to check caps spent
-        vault_query = select(Vault).where(Vault.id == vault_id)
-        vault = (await db_session.execute(vault_query)).scalars().first()
-
-        from app.core.game_config import game_config
-
-        # Send new dweller notification
-        if vault and vault.user_id:
-            await notification_service.notify_radio_new_dweller(
-                db_session,
-                user_id=vault.user_id,
-                vault_id=vault_id,
-                dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
-                meta_data={"dweller_id": str(dweller.id), "caps_spent": game_config.radio.manual_recruitment_cost},
-            )
+        # Note: notification is already sent by recruit_dweller() in radio_service
 
         return RecruitmentResponse(
             dweller=dweller,  # type: ignore  # noqa: PGH003

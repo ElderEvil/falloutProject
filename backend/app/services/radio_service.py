@@ -162,17 +162,22 @@ class RadioService:
 
         logger.info(f"Recruited dweller: {dweller.first_name} {dweller.last_name} to vault {vault_id}")
 
-        # Send notification
-        from app.crud.vault import vault as vault_crud
+        # Send notification (non-critical, don't break recruitment on failure)
+        try:
+            from app.crud.vault import vault as vault_crud
 
-        vault = await vault_crud.get(db_session, vault_id)
-        if vault and vault.user_id:
-            await notification_service.notify_radio_new_dweller(
-                db_session,
-                user_id=vault.user_id,
-                vault_id=vault_id,
-                dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
-                meta_data={"dweller_id": str(dweller.id)},
+            vault = await vault_crud.get(db_session, vault_id)
+            if vault and vault.user_id:
+                await notification_service.notify_radio_new_dweller(
+                    db_session,
+                    user_id=vault.user_id,
+                    vault_id=vault_id,
+                    dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
+                    meta_data={"dweller_id": str(dweller.id)},
+                )
+        except Exception:
+            logger.exception(
+                "Failed to send radio recruitment notification: vault_id=%s, dweller_id=%s", vault_id, dweller.id
             )
 
         return dweller

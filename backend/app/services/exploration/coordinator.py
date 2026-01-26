@@ -280,24 +280,31 @@ class ExplorationCoordinator:
         # Calculate and apply rewards
         rewards = await self._apply_rewards(db_session, exploration)
 
-        # Send notification
-        from app.crud.dweller import dweller as dweller_crud
+        # Send notification (non-critical, don't break completion on failure)
+        try:
+            from app.crud.dweller import dweller as dweller_crud
 
-        dweller = await dweller_crud.get(db_session, exploration.dweller_id)
-        vault = await crud_vault.get(db_session, exploration.vault_id)
+            dweller = await dweller_crud.get(db_session, exploration.dweller_id)
+            vault = await crud_vault.get(db_session, exploration.vault_id)
 
-        if vault and vault.user_id and dweller:
-            await notification_service.notify_exploration_complete(
-                db_session,
-                user_id=vault.user_id,
-                vault_id=exploration.vault_id,
-                dweller_id=dweller.id,
-                dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
-                meta_data={
-                    "caps_earned": rewards.caps,
-                    "xp_earned": rewards.experience,
-                    "items_found": len(rewards.items),
-                },
+            if vault and vault.user_id and dweller:
+                await notification_service.notify_exploration_complete(
+                    db_session,
+                    user_id=vault.user_id,
+                    vault_id=exploration.vault_id,
+                    dweller_id=dweller.id,
+                    dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
+                    meta_data={
+                        "caps_earned": rewards.caps,
+                        "xp_earned": rewards.experience,
+                        "items_found": len(rewards.items),
+                    },
+                )
+        except Exception:
+            logger.exception(
+                "Failed to send exploration complete notification: vault_id=%s, dweller_id=%s",
+                exploration.vault_id,
+                exploration.dweller_id,
             )
 
         return rewards

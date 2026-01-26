@@ -87,11 +87,8 @@ onUnmounted(() => {
                 </router-link>
             </div>
             <div class="flex items-center space-x-4">
-                <!-- Notification Bell (only when authenticated and in a vault) -->
-                <NotificationBell
-                    v-if="isAuthenticated && currentVaultId"
-                    :vaultId="currentVaultId"
-                />
+                <!-- Notification Bell (only when authenticated) -->
+                <NotificationBell v-if="isAuthenticated" />
 
                 <!-- User-related actions on the right -->
                 <router-link

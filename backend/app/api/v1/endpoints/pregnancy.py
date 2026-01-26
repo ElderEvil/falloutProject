@@ -91,31 +91,15 @@ async def deliver_baby(
 ):
     """Manually trigger delivery of a baby (must be due)."""
     try:
-        _, mother = await crud.pregnancy.get_with_vault_access(db_session, pregnancy_id, user)
+        _, _mother = await crud.pregnancy.get_with_vault_access(db_session, pregnancy_id, user)
     except ResourceNotFoundException as exc:
         raise HTTPException(status_code=404, detail=exc.detail) from exc
 
     # Attempt delivery
     try:
-        from app.services.notification_service import notification_service
-
         child = await breeding_service.deliver_baby(db_session, pregnancy_id)
 
-        # Send baby born notification
-        if mother.vault_id:
-            from app.crud.vault import vault as vault_crud
-
-            vault = await vault_crud.get(db_session, mother.vault_id)
-            if vault and vault.user_id:
-                await notification_service.notify_baby_born(
-                    db_session,
-                    user_id=vault.user_id,
-                    vault_id=mother.vault_id,
-                    mother_id=mother.id,
-                    mother_name=f"{mother.first_name} {mother.last_name or ''}".strip(),
-                    baby_name=f"{child.first_name} {child.last_name or ''}".strip(),
-                    meta_data={"child_id": str(child.id), "mother_id": str(mother.id)},
-                )
+        # Note: notification is already sent by deliver_baby() in breeding_service
 
         return DeliveryResult(
             pregnancy_id=pregnancy_id,

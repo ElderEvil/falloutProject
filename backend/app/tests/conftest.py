@@ -201,7 +201,7 @@ async def dweller_fixture(async_session: AsyncSession, vault: "Vault", dweller_d
 
 # Notification test fixtures
 @pytest_asyncio.fixture
-async def user_with_vault(async_session: AsyncSession) -> tuple:
+async def user_with_vault(async_session: AsyncSession) -> tuple["User", "Vault"]:  # noqa: F821
     """Create a user with a vault for notification testing."""
     from app.schemas.user import UserCreate
     from app.schemas.vault import VaultCreate
@@ -222,7 +222,7 @@ async def user_with_vault(async_session: AsyncSession) -> tuple:
 
 
 @pytest_asyncio.fixture
-async def dweller_in_vault(async_session: AsyncSession, user_with_vault: tuple):
+async def dweller_in_vault(async_session: AsyncSession, user_with_vault: tuple) -> "Dweller":  # noqa: F821
     """Create a dweller in the test vault."""
     from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
     from app.schemas.dweller import DwellerCreate
@@ -254,7 +254,7 @@ async def dweller_in_vault(async_session: AsyncSession, user_with_vault: tuple):
 
 
 @pytest_asyncio.fixture
-async def room_in_vault(async_session: AsyncSession, user_with_vault: tuple):
+async def room_in_vault(async_session: AsyncSession, user_with_vault: tuple) -> "Room":  # noqa: F821
     """Create a room in the test vault."""
     from app.schemas.common import RoomTypeEnum, SPECIALEnum
     from app.schemas.room import RoomCreate

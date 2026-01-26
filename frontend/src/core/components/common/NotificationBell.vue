@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { Icon } from "@iconify/vue";
 import { useAuthStore } from "@/modules/auth/stores/auth";
 import axios from "@/core/plugins/axios";
@@ -15,15 +15,12 @@ interface Notification {
     meta_data?: Record<string, any>;
 }
 
-const props = defineProps<{
-    vaultId: string;
-}>();
-
 const authStore = useAuthStore();
 const showPopup = ref(false);
 const notifications = ref<Notification[]>([]);
 const unreadCount = ref(0);
 const isLoading = ref(false);
+let pollIntervalId: number | null = null;
 
 const hasUnread = computed(() => unreadCount.value > 0);
 
@@ -159,7 +156,14 @@ const formatTime = (timestamp: string): string => {
 onMounted(() => {
     fetchUnreadCount();
     // Poll for new notifications every 30 seconds
-    setInterval(fetchUnreadCount, 30000);
+    pollIntervalId = setInterval(fetchUnreadCount, 30000);
+});
+
+onBeforeUnmount(() => {
+    if (pollIntervalId !== null) {
+        clearInterval(pollIntervalId);
+        pollIntervalId = null;
+    }
 });
 </script>
 

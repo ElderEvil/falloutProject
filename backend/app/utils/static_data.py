@@ -10,6 +10,7 @@ from app.schemas.outfit import OutfitCreate
 from app.schemas.quest import QuestChainJSON
 from app.schemas.room import RoomCreateWithoutVaultID
 from app.schemas.weapon import WeaponCreate
+from app.utils.room_assets import get_room_image_url
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,10 @@ class StaticGameData:
     def rooms(self) -> list[RoomCreateWithoutVaultID]:
         if self._rooms is None:
             self._rooms = self.load_data(DATA_DIR / "vault/rooms.json", RoomCreateWithoutVaultID)
+            # Set image_url for each room based on its name, tier, and size
+            for room in self._rooms:
+                room_size = room.size if room.size is not None else room.size_min
+                room.image_url = get_room_image_url(room.name, tier=room.tier, size=room_size)
         return self._rooms
 
     def get_buildable_rooms(self, existing_room_names: set[str]) -> list[RoomCreateWithoutVaultID]:

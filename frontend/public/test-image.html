@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Room Image Test</title>
+        <style>
+            body {
+                font-family: monospace;
+                padding: 20px;
+                background: #1a1a1a;
+                color: #00ff00;
+            }
+            .test-section {
+                margin: 20px 0;
+                padding: 20px;
+                border: 2px solid #00ff00;
+            }
+            img {
+                max-width: 300px;
+                border: 2px solid #00ff00;
+                margin: 10px;
+            }
+            .bg-test {
+                width: 300px;
+                height: 200px;
+                border: 2px solid #00ff00;
+                margin: 10px;
+                background-size: cover;
+                background-position: center;
+            }
+            h2 {
+                color: #00ff00;
+            }
+            .success {
+                color: #00ff00;
+            }
+            .error {
+                color: #ff0000;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>🖼️ Room Image Loading Test</h1>
+
+        <div class="test-section">
+            <h2>Test 1: Direct Backend URL (port 8000)</h2>
+            <img
+                src="http://localhost:8000/static/room_images/FOS Athletics 1-1.png"
+                onload="
+                    document.getElementById('test1').textContent = '✅ SUCCESS'
+                "
+                onerror="
+                    document.getElementById('test1').textContent = '❌ FAILED'
+                "
+            />
+            <p id="test1">Loading...</p>
+        </div>
+
+        <div class="test-section">
+            <h2>Test 2: Proxied URL (through Vite on port 5173)</h2>
+            <img
+                src="/static/room_images/FOS Athletics 1-1.png"
+                onload="
+                    document.getElementById('test2').textContent = '✅ SUCCESS'
+                "
+                onerror="
+                    document.getElementById('test2').textContent = '❌ FAILED'
+                "
+            />
+            <p id="test2">Loading...</p>
+        </div>
+
+        <div class="test-section">
+            <h2>Test 3: Background Image (Direct URL)</h2>
+            <div
+                class="bg-test"
+                style="
+                    background-image: url(&quot;http://localhost:8000/static/room_images/FOS Power 1-1.png&quot;);
+                "
+            ></div>
+            <p>Should show Power Generator room</p>
+        </div>
+
+        <div class="test-section">
+            <h2>Test 4: Background Image (Proxied URL)</h2>
+            <div
+                class="bg-test"
+                style="
+                    background-image: url(&quot;/static/room_images/FOS Living Quarters 1-2.png&quot;);
+                "
+            ></div>
+            <p>Should show Living Quarters room</p>
+        </div>
+
+        <div class="test-section">
+            <h2>Test 5: Multiple Images</h2>
+            <div id="image-gallery"></div>
+        </div>
+
+        <script>
+            // Test loading multiple images
+            const testImages = [
+                "/static/room_images/Vault Door Adv.png",
+                "/static/room_images/FOS Elevator icon.png",
+                "/static/room_images/FOS Storage 1-1.png",
+                "/static/room_images/FOS Radio 1-1.png",
+                "/static/room_images/FOS Armory 1-1.png",
+            ];
+
+            const gallery = document.getElementById("image-gallery");
+
+            testImages.forEach((src, index) => {
+                const img = document.createElement("img");
+                img.src = src;
+                img.onload = () => {
+                    console.log(`✅ Image ${index + 1} loaded:`, src);
+                };
+                img.onerror = () => {
+                    console.error(`❌ Image ${index + 1} failed:`, src);
+                    img.style.border = "2px solid red";
+                };
+                gallery.appendChild(img);
+            });
+
+            // Log to console
+            console.log("🧪 Room Image Test Page Loaded");
+            console.log("Backend URL: http://localhost:8000");
+            console.log("Frontend URL: http://localhost:5173");
+        </script>
+    </body>
+</html>

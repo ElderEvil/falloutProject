@@ -37,6 +37,11 @@ def upgrade() -> None:
         room_id, name, tier, size, size_min = room
         # Use size if available, otherwise fall back to size_min
         room_size = size if size is not None else size_min
+
+        # Skip rooms with no size information
+        if room_size is None:
+            room_size = 3  # Default to smallest valid size
+
         image_url = get_room_image_url(name, tier=tier, size=room_size)
 
         if image_url:

@@ -19,6 +19,7 @@ export function useWebSocket(initialUrl?: string) {
   const maxReconnectAttempts = 5;
   const reconnectDelay = 3000;
   const currentUrl = ref<string>(initialUrl || "");
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   const messageHandlers = new Map<
     string,
@@ -28,6 +29,13 @@ export function useWebSocket(initialUrl?: string) {
   const connect = (url?: string) => {
     // Update URL if provided
     if (url) {
+      // If URL changed and socket is open, close it to reconnect with new URL
+      if (
+        url !== currentUrl.value &&
+        socket.value?.readyState === WebSocket.OPEN
+      ) {
+        socket.value.close();
+      }
       currentUrl.value = url;
     }
 
@@ -93,7 +101,7 @@ export function useWebSocket(initialUrl?: string) {
           console.log(
             `Reconnecting in ${reconnectDelay}ms... (attempt ${reconnectAttempts.value}/${maxReconnectAttempts})`,
           );
-          setTimeout(() => {
+          reconnectTimer = setTimeout(() => {
             connect();
           }, reconnectDelay);
         } else {
@@ -109,6 +117,12 @@ export function useWebSocket(initialUrl?: string) {
   };
 
   const disconnect = () => {
+    // Clear any pending reconnect timer
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+
     if (socket.value) {
       reconnectAttempts.value = maxReconnectAttempts; // Prevent auto-reconnect
       socket.value.close();
@@ -152,6 +166,11 @@ export function useWebSocket(initialUrl?: string) {
 
   // Cleanup on unmount
   onUnmounted(() => {
+    // Clear reconnect timer before disconnecting
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
     disconnect();
     messageHandlers.clear();
   });

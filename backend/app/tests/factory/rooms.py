@@ -1,4 +1,5 @@
 import random
+from typing import Any
 
 from faker import Faker
 
@@ -9,7 +10,7 @@ from app.utils.room_assets import ROOM_NAME_TO_ASSET_KEY, get_room_image_url
 fake = Faker()
 
 
-def create_fake_room():
+def create_fake_room() -> dict[str, Any]:
     # Pick a real room name from our assets if possible
     room_name = random.choice(list(ROOM_NAME_TO_ASSET_KEY.keys()))
     tier = random.randint(1, 3)

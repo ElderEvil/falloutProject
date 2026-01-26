@@ -7,6 +7,81 @@ AI-powered dweller interactions.
 
 ---
 
+## Upcoming Releases
+
+### v2.8.0 - AI Integration & Advanced Features (Planned)
+
+**Focus**: AI/LLM integration and agent improvements
+
+**Features:**
+- **Conversation Happiness System**
+  - Dwellers react emotionally to conversations
+  - Happiness changes based on conversation quality
+- **Token Management**
+  - Limit token usage per user
+  - Usage tracking and quotas
+- **Provider Rotation**
+  - URL configuration for Ollama
+  - Automatic fallback to alternative providers
+  - Health checking and provider switching
+- **Agent Improvements**
+  - Move to room tool for Pydantic agent
+  - Enhanced dweller AI capabilities
+- **Admin & Configuration**
+  - Fix and confirm admin birth control
+  - Config for rooms rendered
+
+### v2.7.0 - Notification System & UI Polish (Planned)
+
+**Focus**: Complete notification system implementation and UI improvements
+
+**Features:**
+- **Notification Bell Pop-up** ✅ (Frontend complete in v2.6.5)
+  - Bell icon in navbar with unread count badge
+  - Pop-up showing recent notifications
+  - Notification types: births, deaths, explorations, incidents
+  - Mark as read / Mark all as read functionality
+  - Auto-refresh every 30 seconds
+- **Backend Event Integration** ✅ (Complete in v2.6.5)
+  - Exploration completion notifications
+  - Radio recruitment notifications
+  - Incident spawn notifications
+  - Baby birth notifications (existing)
+  - Dweller death notifications (existing)
+- **Layout Improvements**
+  - Fix top gray panel (make sticky/fixed)
+  - Fix left interface panel coordination
+  - Smooth scrolling behavior
+- **Toast Notifications**
+  - Unify toast system with library (vue-toastification)
+  - Group similar toasts
+  - Prevent duplicates
+  - Consistent styling and positioning
+- **Exploration UI**
+  - Handle exploration items overflow
+  - Pagination or scrolling for loot
+  - Update dweller bio after exploration
+  - Store exploration history
+
+### v2.6.5 - Notification Foundation (In Progress)
+
+**Status**: Backend complete, frontend bell implemented
+
+**Completed:**
+- ✅ Notification bell UI component with pop-up
+- ✅ Exploration completion notifications
+- ✅ Radio recruitment notifications
+- ✅ Incident spawn notifications
+- ✅ Comprehensive test coverage (4 tests passing)
+
+**Remaining:**
+- Sticky panel fixes
+- Toast notification improvements
+- Exploration UI enhancements
+- Testing & polish
+
+---
+
 ## Recent Completions
 
 ### v2.5.0 Room Visual Assets (January 26, 2026)

@@ -210,7 +210,7 @@ class DwellerAIService:
 
         return dweller_obj
 
-    async def generate_audio(  # noqa: PLR0913
+    async def generate_audio(
         self,
         text: str,
         user: User,
@@ -271,7 +271,7 @@ class DwellerAIService:
 
         return await dweller_crud.get_full_info(db_session, dweller_obj.id)
 
-    async def generate_dweller_avatar(  # noqa: PLR0913
+    async def generate_dweller_avatar(
         self,
         dweller_id: UUID4,
         dweller_first_name: str,

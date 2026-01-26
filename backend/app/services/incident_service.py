@@ -287,7 +287,7 @@ class IncidentService:
         self,
         db_session: AsyncSession,
         incident_id: UUID4,
-        success: bool = True,  # noqa: FBT001, FBT002
+        success: bool = True,
     ) -> dict:
         """
         Manually resolve an incident (player intervention).
@@ -302,10 +302,10 @@ class IncidentService:
         """
         incident = await incident_crud.get(db_session, incident_id)
         if not incident:
-            raise ValueError(f"Incident {incident_id} not found")  # noqa: EM102, TRY003
+            raise ValueError(f"Incident {incident_id} not found")
 
         if incident.status not in [IncidentStatus.ACTIVE, IncidentStatus.SPREADING]:
-            raise ValueError(f"Incident {incident_id} is not active")  # noqa: EM102, TRY003
+            raise ValueError(f"Incident {incident_id} is not active")
 
         # Generate loot if successful
         loot = {}

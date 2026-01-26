@@ -69,7 +69,7 @@ class ExplorationService:
         """
         return await exploration_coordinator.recall_exploration(db_session, exploration_id)
 
-    async def send_dweller(  # noqa: PLR0913
+    async def send_dweller(
         self,
         db_session: AsyncSession,
         vault_id: UUID4,

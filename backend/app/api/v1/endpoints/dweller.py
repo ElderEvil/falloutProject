@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -90,13 +90,21 @@ async def update_dweller(
 
 @router.delete("/{dweller_id}", status_code=204)
 async def delete_dweller(
-    dweller_id: UUID4, _: CurrentSuperuser, db_session: Annotated[AsyncSession, Depends(get_async_session)]
+    dweller_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    hard_delete: Annotated[bool, Query(description="If True, permanently delete. Otherwise soft delete.")] = False,
 ):
-    return await crud.dweller.delete(db_session, dweller_id)
+    """
+    Delete a dweller. By default performs soft delete to preserve AI-generated content for recycling.
+    Use hard_delete=True to permanently remove the dweller.
+    """
+    await verify_dweller_access(dweller_id, user, db_session)
+    return await crud.dweller.delete(db_session, dweller_id, soft=not hard_delete)
 
 
 @router.get("/vault/{vault_id}/", response_model=list[DwellerReadLess])
-async def read_dwellers_by_vault(  # noqa: PLR0913
+async def read_dwellers_by_vault(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
@@ -193,7 +201,7 @@ async def generate_data_with_ai(
 
 
 @router.post("/{dweller_id}/generate_avatar", response_model=DwellerReadFull)
-async def generate_dweller_avatar(  # noqa: PLR0913
+async def generate_dweller_avatar(
     dweller_id: UUID4,
     dweller_first_name: str,
     dweller_last_name: str,
@@ -364,3 +372,51 @@ async def revive_dweller(
         caps_spent=revival_cost,
         remaining_caps=vault.bottle_caps,
     )
+
+
+# ============================================================================
+# Soft Delete Endpoints
+# ============================================================================
+
+
+@router.post("/{dweller_id}/soft-delete", response_model=DwellerRead)
+async def soft_delete_dweller(
+    dweller_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+):
+    """
+    Soft delete a dweller, preserving their data for future use.
+    """
+    await verify_dweller_access(dweller_id, user, db_session)
+    return await crud.dweller.soft_delete(db_session, dweller_id)
+
+
+@router.post("/{dweller_id}/restore", response_model=DwellerRead)
+async def restore_dweller(
+    dweller_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+):
+    """
+    Restore a soft-deleted dweller.
+    """
+    # Note: We need to verify access with include_deleted=True
+    dweller = await crud.dweller.get(db_session, dweller_id, include_deleted=True)
+    await get_user_vault_or_403(dweller.vault_id, user, db_session)
+    return await crud.dweller.restore(db_session, dweller_id)
+
+
+@router.get("/vault/{vault_id}/deleted", response_model=list[DwellerReadLess])
+async def read_deleted_dwellers_by_vault(
+    vault_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    skip: int = 0,
+    limit: int = 100,
+):
+    """
+    Get soft-deleted dwellers for a specific vault.
+    """
+    await get_user_vault_or_403(vault_id, user, db_session)
+    return await crud.dweller.get_deleted_by_vault(db_session=db_session, vault_id=vault_id, skip=skip, limit=limit)

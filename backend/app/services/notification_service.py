@@ -12,7 +12,7 @@ class NotificationService:
     """Service for creating and sending notifications"""
 
     @staticmethod
-    async def create_and_send(  # noqa: PLR0913
+    async def create_and_send(
         db: AsyncSession,
         user_id: UUID,
         notification_type: NotificationType,
@@ -62,7 +62,7 @@ class NotificationService:
     # Convenience methods for common notification types
 
     @staticmethod
-    async def notify_exploration_update(  # noqa: PLR0913
+    async def notify_exploration_update(
         db: AsyncSession,
         user_id: UUID,
         vault_id: UUID,
@@ -85,7 +85,7 @@ class NotificationService:
         )
 
     @staticmethod
-    async def notify_exploration_complete(  # noqa: PLR0913
+    async def notify_exploration_complete(
         db: AsyncSession,
         user_id: UUID,
         vault_id: UUID,
@@ -107,7 +107,7 @@ class NotificationService:
         )
 
     @staticmethod
-    async def notify_level_up(  # noqa: PLR0913
+    async def notify_level_up(
         db: AsyncSession,
         user_id: UUID,
         vault_id: UUID,
@@ -130,7 +130,7 @@ class NotificationService:
         )
 
     @staticmethod
-    async def notify_training_complete(  # noqa: PLR0913
+    async def notify_training_complete(
         db: AsyncSession,
         user_id: UUID,
         vault_id: UUID,
@@ -153,7 +153,7 @@ class NotificationService:
         )
 
     @staticmethod
-    async def notify_baby_born(  # noqa: PLR0913
+    async def notify_baby_born(
         db: AsyncSession,
         user_id: UUID,
         vault_id: UUID,
@@ -176,7 +176,7 @@ class NotificationService:
         )
 
     @staticmethod
-    async def notify_resource_low(  # noqa: PLR0913
+    async def notify_resource_low(
         db: AsyncSession,
         user_id: UUID,
         vault_id: UUID,
@@ -198,7 +198,7 @@ class NotificationService:
         )
 
     @staticmethod
-    async def notify_combat_victory(  # noqa: PLR0913
+    async def notify_combat_victory(
         db: AsyncSession,
         user_id: UUID,
         vault_id: UUID,
@@ -241,7 +241,7 @@ class NotificationService:
         )
 
     @staticmethod
-    async def notify_dweller_died(  # noqa: PLR0913
+    async def notify_dweller_died(
         db: AsyncSession,
         user_id: UUID,
         vault_id: UUID,

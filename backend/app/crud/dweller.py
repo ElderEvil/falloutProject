@@ -26,7 +26,7 @@ BOOSTED_STAT_VALUE = 5
 
 
 class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
-    async def get(self, db_session: AsyncSession, id: UUID4) -> Dweller:
+    async def get(self, db_session: AsyncSession, id: UUID4, include_deleted: bool = False) -> Dweller:
         """Override to eager load weapon and outfit relationships."""
         from app.utils.exceptions import ResourceNotFoundException
 
@@ -40,13 +40,18 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
                 selectinload(Dweller.outfit),
             )
         )
+
+        # Filter out soft-deleted dwellers by default
+        if not include_deleted:
+            query = query.where(self.model.is_deleted == False)
+
         response = await db_session.execute(query)
         db_obj = response.scalar_one_or_none()
         if db_obj is None:
             raise ResourceNotFoundException(self.model, identifier=id)
         return db_obj
 
-    async def get_multi_by_vault(  # noqa: PLR0913
+    async def get_multi_by_vault(
         self,
         db_session: AsyncSession,
         vault_id: UUID4,
@@ -56,9 +61,14 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         search: str | None = None,
         sort_by: str = "created_at",
         order: str = "desc",
+        include_deleted: bool = False,
     ) -> Sequence[Row[Any] | RowMapping | Any]:
         """Get multiple dwellers by vault ID with optional filtering and sorting."""
         query = select(self.model).where(self.model.vault_id == vault_id)
+
+        # Filter out soft-deleted dwellers by default
+        if not include_deleted:
+            query = query.where(self.model.is_deleted == False)
 
         # Filter by status
         if status:
@@ -96,15 +106,16 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         status: DwellerStatusEnum,
         skip: int = 0,
         limit: int = 100,
+        include_deleted: bool = False,
     ) -> Sequence[Dweller]:
         """Get dwellers by status."""
-        query = (
-            select(self.model)
-            .where(self.model.vault_id == vault_id)
-            .where(self.model.status == status)
-            .offset(skip)
-            .limit(limit)
-        )
+        query = select(self.model).where(self.model.vault_id == vault_id).where(self.model.status == status)
+
+        # Filter out soft-deleted dwellers by default
+        if not include_deleted:
+            query = query.where(self.model.is_deleted == False)
+
+        query = query.offset(skip).limit(limit)
         response = await db_session.execute(query)
         return response.scalars().all()
 
@@ -286,7 +297,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         self,
         db_session: AsyncSession,
         vault_id: UUID4,
-        include_permanent: bool = False,  # noqa: FBT001, FBT002
+        include_permanent: bool = False,
         skip: int = 0,
         limit: int = 100,
     ) -> Sequence[Dweller]:
@@ -306,6 +317,33 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             query = query.where(self.model.is_permanently_dead.is_(False))
 
         query = query.order_by(self.model.death_timestamp.desc()).offset(skip).limit(limit)
+        response = await db_session.execute(query)
+        return response.scalars().all()
+
+    async def get_deleted_by_vault(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> Sequence[Dweller]:
+        """
+        Get soft-deleted dwellers for a specific vault.
+
+        :param db_session: Database session
+        :param vault_id: Vault ID to filter by
+        :param skip: Number of records to skip
+        :param limit: Maximum number of records to return
+        :returns: List of soft-deleted dwellers
+        """
+        query = (
+            select(self.model)
+            .where(self.model.vault_id == vault_id)
+            .where(self.model.is_deleted == True)
+            .order_by(self.model.deleted_at.desc())
+            .offset(skip)
+            .limit(limit)
+        )
         response = await db_session.execute(query)
         return response.scalars().all()
 

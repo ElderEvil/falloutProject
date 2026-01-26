@@ -62,7 +62,7 @@ class VaultService:
         self,
         rooms: list[RoomCreate],
         vault_id: UUID4,
-        is_superuser: bool,  # noqa: FBT001
+        is_superuser: bool,
     ) -> tuple[list[RoomCreate], list[RoomCreate], list[RoomCreate], list[RoomCreate], list[RoomCreate]]:
         """Prepare all room data for vault initialization."""
         # Infrastructure rooms
@@ -121,7 +121,7 @@ class VaultService:
 
         return infrastructure_rooms, capacity_rooms, production_rooms, misc_rooms, training_rooms
 
-    async def _create_initial_rooms(  # noqa: C901, PLR0912, PLR0913
+    async def _create_initial_rooms(  # noqa: C901, PLR0912
         self,
         db_session: AsyncSession,
         vault: Vault,
@@ -201,7 +201,7 @@ class VaultService:
         vault_id: UUID4,
         created_production_rooms: list[Room],
         created_training_rooms: list[Room],
-        is_superuser: bool,  # noqa: FBT001
+        is_superuser: bool,
     ) -> None:
         """Create and assign initial dwellers to production and training rooms."""
 
@@ -264,7 +264,7 @@ class VaultService:
         db_session: AsyncSession,
         vault_id: UUID4,
         created_training_rooms: list[Room],
-        is_superuser: bool,  # noqa: FBT001
+        is_superuser: bool,
     ) -> None:
         """Start training sessions for dwellers in training rooms (superuser only)."""
         if not is_superuser or not created_training_rooms:
@@ -339,7 +339,7 @@ class VaultService:
         db_session: AsyncSession,
         obj_in: VaultNumber,
         user_id: UUID4,
-        is_superuser: bool = False,  # noqa: FBT001, FBT002
+        is_superuser: bool = False,
     ) -> Vault:
         """
         Create a new vault for a user and initialize it with essential rooms and dwellers.

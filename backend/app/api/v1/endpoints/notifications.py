@@ -16,7 +16,7 @@ router = APIRouter()
 async def get_notifications(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    unread_only: bool = False,  # noqa: FBT001, FBT002
+    unread_only: bool = False,
     limit: int = 50,
     offset: int = 0,
 ):

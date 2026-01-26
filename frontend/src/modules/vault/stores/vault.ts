@@ -3,7 +3,6 @@ import { useLocalStorage, useIntervalFn } from "@vueuse/core";
 import { ref, computed } from "vue";
 import axios from "@/core/plugins/axios";
 import type { components } from "@/core/types/api.generated";
-import { useToast } from "vue-toastification";
 
 // Use generated API types
 type VaultReadWithNumbers = components["schemas"]["VaultReadWithNumbers"];
@@ -99,7 +98,6 @@ export const useVaultStore = defineStore("vault", () => {
   }
 
   async function deleteVault(id: string, token: string, hardDelete = false) {
-    const toast = useToast();
     try {
       const url = hardDelete
         ? `/api/v1/vaults/${id}?hard_delete=true`
@@ -121,15 +119,14 @@ export const useVaultStore = defineStore("vault", () => {
 
       // Show appropriate notification
       if (hardDelete) {
-        toast.warning("Vault permanently deleted");
+        console.warn("Vault permanently deleted");
       } else {
-        toast.info(
+        console.info(
           "Vault soft deleted - Data preserved for potential recovery",
         );
       }
     } catch (error) {
       console.error("Failed to delete vault", error);
-      toast.error("Failed to delete vault");
     }
   }
 

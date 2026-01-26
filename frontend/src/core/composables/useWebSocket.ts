@@ -27,6 +27,12 @@ export function useWebSocket(initialUrl?: string) {
   >();
 
   const connect = (url?: string) => {
+    // Clear any pending reconnect timer
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+
     // Update URL if provided
     if (url) {
       // If URL changed and socket is open, close it to reconnect with new URL
@@ -45,8 +51,12 @@ export function useWebSocket(initialUrl?: string) {
       return;
     }
 
-    if (socket.value?.readyState === WebSocket.OPEN) {
-      console.log("WebSocket already connected");
+    // Prevent duplicate connections if already connecting or connected
+    if (
+      socket.value?.readyState === WebSocket.CONNECTING ||
+      socket.value?.readyState === WebSocket.OPEN
+    ) {
+      console.log("WebSocket already connecting or connected");
       return;
     }
 

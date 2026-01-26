@@ -8,8 +8,6 @@ Create Date: 2026-01-26 13:13:11.820798
 from typing import Sequence, Union
 
 from alembic import op
-import sqlalchemy as sa
-import sqlmodel
 from sqlalchemy import text
 
 
@@ -50,11 +48,8 @@ def upgrade() -> None:
                 {"image_url": image_url, "room_id": room_id}
             )
 
-    connection.commit()
-
 
 def downgrade() -> None:
     """Clear image_url for all rooms."""
     connection = op.get_bind()
     connection.execute(text("UPDATE room SET image_url = NULL"))
-    connection.commit()

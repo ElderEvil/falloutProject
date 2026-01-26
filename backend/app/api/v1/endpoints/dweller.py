@@ -104,7 +104,7 @@ async def delete_dweller(
 
 
 @router.get("/vault/{vault_id}/", response_model=list[DwellerReadLess])
-async def read_dwellers_by_vault(  # noqa: PLR0913
+async def read_dwellers_by_vault(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
@@ -201,7 +201,7 @@ async def generate_data_with_ai(
 
 
 @router.post("/{dweller_id}/generate_avatar", response_model=DwellerReadFull)
-async def generate_dweller_avatar(  # noqa: PLR0913
+async def generate_dweller_avatar(
     dweller_id: UUID4,
     dweller_first_name: str,
     dweller_last_name: str,

@@ -1,6 +1,6 @@
 [project]
 name = "fallout-shelter-fast-api-vue"
-version = "2.5.0"
+version = "2.6.0"
 authors = [{ name = "ElderEvil", email = "elder.evil.dev@proton.me" }, ]
 description = "Fallout Shelter FastAPI Game is a web-based simulation game where the player manages a vault full of dwellers, balancing their needs and resources to keep the vault thriving."
 requires-python = ">=3.12,<3.14"
@@ -127,6 +127,12 @@ lint.ignore = [
     "UP045",
     "UP046",
     "G004",
+    "FBT001",  # Boolean-typed positional argument
+    "FBT002",  # Boolean default positional argument
+    "EM101",   # Exception must not use string literal
+    "EM102",   # Exception must not use f-string literal
+    "TRY003",  # Avoid specifying long messages outside exception class
+    "PLR0913", # Too many arguments in function definition
 ]
 
 [tool.ruff.lint.flake8-builtins]

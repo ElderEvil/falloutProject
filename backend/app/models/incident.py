@@ -71,7 +71,7 @@ class Incident(BaseUUIDModel, IncidentBase, TimeStampMixin, table=True):
         """Check if incident should spread to adjacent rooms."""
         return self.is_active() and self.elapsed_time() >= self.duration
 
-    def resolve(self, success: bool = True) -> None:  # noqa: FBT001, FBT002
+    def resolve(self, success: bool = True) -> None:
         """Resolve the incident."""
         self.status = IncidentStatus.RESOLVED if success else IncidentStatus.FAILED
         self.end_time = datetime.utcnow()

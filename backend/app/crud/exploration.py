@@ -15,7 +15,7 @@ from app.schemas.exploration import ExplorationCreate, ExplorationUpdate
 class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate]):
     """CRUD operations for Exploration model."""
 
-    async def create_with_dweller_stats(  # noqa: PLR0913
+    async def create_with_dweller_stats(
         self,
         db_session: AsyncSession,
         *,

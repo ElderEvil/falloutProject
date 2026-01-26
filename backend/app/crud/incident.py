@@ -11,7 +11,7 @@ class CRUDIncident:
     """CRUD operations for incident management."""
 
     @staticmethod
-    async def create(  # noqa: PLR0913
+    async def create(
         db_session: AsyncSession,
         *,
         vault_id: UUID4,
@@ -78,7 +78,7 @@ class CRUDIncident:
         return set(result.scalars().all())
 
     @staticmethod
-    async def resolve(db_session: AsyncSession, incident_id: UUID4, success: bool = True) -> Incident:  # noqa: FBT001, FBT002
+    async def resolve(db_session: AsyncSession, incident_id: UUID4, success: bool = True) -> Incident:
         """Resolve an incident."""
         incident = await CRUDIncident.get(db_session, incident_id)
         if incident:

@@ -8,7 +8,7 @@ from app.models.chat_message import ChatMessage, ChatMessageCreate, ChatMessageR
 
 
 class CRUDChatMessage(CRUDBase[ChatMessage, ChatMessageCreate, ChatMessageRead]):
-    async def get_conversation(  # noqa: PLR0913
+    async def get_conversation(
         self,
         db: AsyncSession,
         *,
@@ -55,7 +55,7 @@ class CRUDChatMessage(CRUDBase[ChatMessage, ChatMessageCreate, ChatMessageRead])
                 .limit(limit)
             )
         else:
-            raise ValueError("Either provide user_id and dweller_id, or dweller_to_dweller tuple")  # noqa: EM101, TRY003
+            raise ValueError("Either provide user_id and dweller_id, or dweller_to_dweller tuple")
 
         result = await db.execute(query)
         return list(result.scalars().all())

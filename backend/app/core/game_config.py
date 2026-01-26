@@ -286,7 +286,7 @@ class RelationshipConfig(BaseSettings):
         ]
         total = sum(weights)
         if not 0.99 <= total <= 1.01:  # Allow small floating point error
-            raise ValueError(f"Compatibility weights must sum to 1.0, got {total}")  # noqa: EM102, TRY003
+            raise ValueError(f"Compatibility weights must sum to 1.0, got {total}")
         return v
 
 

@@ -49,7 +49,7 @@ class CustomJsonFormatter(jsonlogger.JsonFormatter):
 
 def setup_logging(
     log_level: str = "INFO",
-    json_format: bool = False,  # noqa: FBT001, FBT002
+    json_format: bool = False,
     log_file: str | None = None,
 ) -> None:
     """

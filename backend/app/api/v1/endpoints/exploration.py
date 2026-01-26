@@ -48,7 +48,7 @@ async def list_explorations_by_vault(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    active_only: bool = True,  # noqa: FBT001, FBT002
+    active_only: bool = True,
 ):
     """List all explorations for a vault."""
     await get_user_vault_or_403(vault_id, user, db_session)

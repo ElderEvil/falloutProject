@@ -51,7 +51,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             raise ResourceNotFoundException(self.model, identifier=id)
         return db_obj
 
-    async def get_multi_by_vault(  # noqa: PLR0913
+    async def get_multi_by_vault(
         self,
         db_session: AsyncSession,
         vault_id: UUID4,
@@ -297,7 +297,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         self,
         db_session: AsyncSession,
         vault_id: UUID4,
-        include_permanent: bool = False,  # noqa: FBT001, FBT002
+        include_permanent: bool = False,
         skip: int = 0,
         limit: int = 100,
     ) -> Sequence[Dweller]:

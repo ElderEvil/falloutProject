@@ -47,14 +47,14 @@ def init(
 
 
 @migrations.command()
-def revision(  # noqa: PLR0913
+def revision(
     module: Path = Path(),
     config_file: Path = Path("alembic.ini"),
     message: Annotated[str | None, typer.Argument()] = None,
-    autogenerate: bool = True,  # noqa: FBT001, FBT002
-    sql: bool = False,  # noqa: FBT001, FBT002
+    autogenerate: bool = True,
+    sql: bool = False,
     head: str = "head",
-    splice: bool = False,  # noqa: FBT001, FBT002
+    splice: bool = False,
     version_path: Annotated[str | None, typer.Argument()] = None,
     rev_id: Annotated[str | None, typer.Argument()] = None,
     depends_on: Annotated[str | None, typer.Argument()] = None,
@@ -83,7 +83,7 @@ def show(module: Path = Path(), config_file: Path = Path("alembic.ini"), rev: st
     command.show(config, rev)  # type: ignore  # noqa: PGH003
 
 
-def merge(  # noqa: PLR0913
+def merge(
     revisions: list[str],
     module: Path = Path(),
     config_file: Path = Path("alembic.ini"),
@@ -107,7 +107,7 @@ def upgrade(
     revision: str = "head",
     module: Path = Path(),
     config_file: Path = Path("alembic.ini"),
-    sql: bool = False,  # noqa: ARG001, FBT001, FBT002
+    sql: bool = False,  # noqa: ARG001
     tag: Annotated[str | None, typer.Argument()] = None,  # noqa: ARG001
 ) -> None:
     """Upgrade to the given revision"""
@@ -120,7 +120,7 @@ def downgrade(
     revision: str = "head",
     module: Path = Path(),
     config_file: Path = Path("alembic.ini"),
-    sql: bool = False,  # noqa: ARG001, FBT001, FBT002
+    sql: bool = False,  # noqa: ARG001
     tag: Annotated[str | None, typer.Argument()] = None,  # noqa: ARG001
 ) -> None:
     """Downgrade to the given revision"""

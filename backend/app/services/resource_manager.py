@@ -211,7 +211,7 @@ class ResourceManager:
         vault = (await db_session.execute(vault_query)).scalars().first()
 
         if not vault:
-            raise ValueError(f"Vault {vault_id} not found")  # noqa: EM102, TRY003
+            raise ValueError(f"Vault {vault_id} not found")
 
         # Get all rooms
         rooms_query = select(Room).where(Room.vault_id == vault_id)

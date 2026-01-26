@@ -229,7 +229,7 @@
 - `frontend/src/modules/profile/views/ProfileView.vue` - Fixed WebSocket connection
 - `frontend/src/modules/rooms/components/RoomDetailModal.vue` - Radio Studio controls (COMPLETE)
 - `docs/features/SOFT_DELETE.md` - Feature documentation
-- `RELEASE_v2.5.0.md` - Release notes
+- `RELEASE_v2.6.0.md` - Release notes
 
 ---
 

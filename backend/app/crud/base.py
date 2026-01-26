@@ -66,13 +66,13 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         response = await db_session.execute(query)
         return response.scalars().all()
 
-    async def get_count(self, db_session: AsyncSession, include_deleted: bool = False) -> ModelType:
+    async def get_count(self, db_session: AsyncSession, include_deleted: bool = False) -> int:
         """
         Gets the number of items of the specified model type in the database.
 
         :param db_session: A database session.
         :param include_deleted: Whether to include soft-deleted items in count.
-        :returns: The number of items.
+        :returns: The number of items as an integer.
         """
         query = select(func.count()).select_from(self.model)
 

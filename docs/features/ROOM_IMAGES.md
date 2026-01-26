@@ -27,7 +27,7 @@ The Room Images feature adds visual representation to all rooms in the vault, di
 
 ### 2. Image Assets
 
-**Total Assets:** 220+ PNG images
+**Total Assets:** 220+ PNGs
 
 **Coverage:**
 - All room types (25+ different room types)
@@ -36,7 +36,7 @@ The Room Images feature adds visual representation to all rooms in the vault, di
 - Special themed variants (Holiday, faction themes for certain rooms)
 
 **File Naming Convention:**
-```
+```text
 FOS {RoomType} {Tier}-{Segment}.png
 
 Examples:
@@ -69,7 +69,7 @@ When a specific tier-segment combination doesn't exist, the system automatically
 ### 4. Room Capacity Enforcement
 
 **Capacity Calculation:**
-```
+```text
 Capacity = (Room Size / 3) * 2 dwellers
 
 Examples:
@@ -95,7 +95,7 @@ Examples:
 - Positioned absolutely at top of room
 
 **Layout:**
-```
+```text
 ┌──────────────────────────┐
 │ [Room Info Overlay]      │ ← Top (z-index: 2)
 │                          │
@@ -109,7 +109,7 @@ Examples:
 
 ### Backend
 
-**1. Database Migration**
+### 1. Database Migration
 ```python
 # Migration: fc75e738a303_add_room_image_urls
 # Populates image_url for all existing rooms
@@ -128,7 +128,7 @@ def get_room_image_url(room_name: str, tier: int = 1, size: int = 3) -> str | No
 - Room upgrades: `image_url` updated during `crud.room.upgrade()`
 - Static data: `image_url` set when loading room templates
 
-**4. Static File Serving**
+### 4. Static File Serving
 ```python
 # backend/main.py
 app.mount("/static", StaticFiles(directory="app/static"), name="static")

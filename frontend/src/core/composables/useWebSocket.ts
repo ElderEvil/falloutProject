@@ -173,7 +173,10 @@ export function useWebSocket(initialUrl?: string) {
 
 // Specific composable for chat WebSocket
 export function useChatWebSocket(userId: string, dwellerId: string) {
-  const wsUrl = `ws://localhost:8000/api/v1/ws/chat/${userId}/${dwellerId}`;
+  // Get WebSocket base URL from environment
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const host = window.location.host;
+  const wsUrl = `${protocol}//${host}/api/v1/ws/chat/${userId}/${dwellerId}`;
   const ws = useWebSocket(wsUrl);
 
   const sendTypingIndicator = (isTyping: boolean) => {

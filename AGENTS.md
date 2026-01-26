@@ -225,4 +225,4 @@ Room images and other game assets are often fetched from external wikis.
 
 ---
 
-*Agent guide for Fallout Shelter project | Last updated: 2026-01-26*
+## Agent guide for Fallout Shelter project | Last updated: 2026-01-26

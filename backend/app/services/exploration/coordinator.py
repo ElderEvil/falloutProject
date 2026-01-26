@@ -18,6 +18,7 @@ from app.schemas.exploration_event import RewardsSchema
 from app.services.exploration import data_loader
 from app.services.exploration.event_generator import event_generator
 from app.services.exploration.rewards_calculator import rewards_calculator
+from app.services.notification_service import notification_service
 
 logger = logging.getLogger(__name__)
 
@@ -277,7 +278,29 @@ class ExplorationCoordinator:
         await self._update_dweller_status_after_return(db_session, exploration)
 
         # Calculate and apply rewards
-        return await self._apply_rewards(db_session, exploration)
+        rewards = await self._apply_rewards(db_session, exploration)
+
+        # Send notification
+        from app.crud.dweller import dweller as dweller_crud
+
+        dweller = await dweller_crud.get(db_session, exploration.dweller_id)
+        vault = await crud_vault.get(db_session, exploration.vault_id)
+
+        if vault and vault.user_id and dweller:
+            await notification_service.notify_exploration_complete(
+                db_session,
+                user_id=vault.user_id,
+                vault_id=exploration.vault_id,
+                dweller_id=dweller.id,
+                dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
+                meta_data={
+                    "caps_earned": rewards.caps,
+                    "xp_earned": rewards.experience,
+                    "items_found": len(rewards.items),
+                },
+            )
+
+        return rewards
 
     async def recall_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> RewardsSchema:
         """

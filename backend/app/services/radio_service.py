@@ -13,6 +13,7 @@ from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreateCommonOverride
+from app.services.notification_service import notification_service
 
 logger = logging.getLogger(__name__)
 
@@ -160,6 +161,19 @@ class RadioService:
         )
 
         logger.info(f"Recruited dweller: {dweller.first_name} {dweller.last_name} to vault {vault_id}")
+
+        # Send notification
+        from app.crud.vault import vault as vault_crud
+
+        vault = await vault_crud.get(db_session, vault_id)
+        if vault and vault.user_id:
+            await notification_service.notify_radio_new_dweller(
+                db_session,
+                user_id=vault.user_id,
+                vault_id=vault_id,
+                dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
+                meta_data={"dweller_id": str(dweller.id)},
+            )
 
         return dweller
 

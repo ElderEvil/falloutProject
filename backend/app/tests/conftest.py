@@ -199,6 +199,89 @@ async def dweller_fixture(async_session: AsyncSession, vault: "Vault", dweller_d
     return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
 
 
+# Notification test fixtures
+@pytest_asyncio.fixture
+async def user_with_vault(async_session: AsyncSession) -> tuple:
+    """Create a user with a vault for notification testing."""
+    from app.schemas.user import UserCreate
+    from app.schemas.vault import VaultCreate
+
+    # Create user
+    user_data = UserCreate(
+        username="test_user",
+        email="test@example.com",
+        password="testpass123",
+    )
+    user = await crud.user.create(db_session=async_session, obj_in=user_data)
+
+    # Create vault
+    vault_data = VaultCreate(number=101, name="Test Vault")
+    vault = await crud.vault.create_with_user_id(db_session=async_session, obj_in=vault_data, user_id=user.id)
+
+    return user, vault
+
+
+@pytest_asyncio.fixture
+async def dweller_in_vault(async_session: AsyncSession, user_with_vault: tuple):
+    """Create a dweller in the test vault."""
+    from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
+    from app.schemas.dweller import DwellerCreate
+
+    _, vault = user_with_vault
+
+    dweller_data = DwellerCreate(
+        vault_id=vault.id,
+        first_name="Test",
+        last_name="Dweller",
+        gender=GenderEnum.MALE,
+        age_group=AgeGroupEnum.ADULT,
+        level=5,
+        experience=0,
+        max_health=100,
+        health=100,
+        radiation=0,
+        happiness=50,
+        strength=5,
+        perception=5,
+        endurance=5,
+        charisma=5,
+        intelligence=5,
+        agility=5,
+        luck=5,
+        rarity=RarityEnum.COMMON,
+    )
+    return await crud.dweller.create(db_session=async_session, obj_in=dweller_data)
+
+
+@pytest_asyncio.fixture
+async def room_in_vault(async_session: AsyncSession, user_with_vault: tuple):
+    """Create a room in the test vault."""
+    from app.schemas.common import RoomTypeEnum, SPECIALEnum
+    from app.schemas.room import RoomCreate
+
+    _, vault = user_with_vault
+
+    room_data = RoomCreate(
+        vault_id=vault.id,
+        name="Test Room",
+        category=RoomTypeEnum.PRODUCTION,
+        ability=SPECIALEnum.STRENGTH,
+        base_cost=100,
+        incremental_cost=50,
+        t2_upgrade_cost=500,
+        t3_upgrade_cost=1500,
+        capacity=4,
+        output=100,
+        size_min=1,
+        size_max=3,
+        size=2,
+        tier=1,
+        coordinate_x=1,
+        coordinate_y=1,
+    )
+    return await crud.room.create(db_session=async_session, obj_in=room_data)
+
+
 @pytest_asyncio.fixture(name="vault_with_rooms")
 async def vault_with_rooms_fixture(
     async_session: AsyncSession,

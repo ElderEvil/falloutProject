@@ -95,6 +95,7 @@
 - ✅ Auto-refresh vault and dwellers after operations
 - ✅ Validation and error handling
 - ✅ CSS styling for radio controls section
+- ✅ Button sizing consistency fixed across all room actions
 
 **Implementation:**
 - Radio room detection via `isRadioRoom` computed
@@ -103,6 +104,9 @@
 - Button disabled when not in recruitment mode or no dwellers
 - Visual feedback with active mode highlighting
 - Console notifications for operations
+- Segmented control for mode switching with optimistic UI updates
+- Visual status indicator (pulsing dot) for active mode
+- Consistent button sizing using `min-w-[140px]` across all actions
 
 ---
 
@@ -237,23 +241,27 @@ The Radio Studio is now fully self-contained with in-room controls:
 
 **Mode Switching:**
 - Toggle between "Recruitment" and "Happiness" modes directly in room detail modal
-- Active mode highlighted with primary button variant
+- Segmented control UI with optimistic updates for instant feedback
+- Active mode highlighted with visual status indicator (pulsing green dot)
 - Mode changes persist in vault settings
-- Immediate visual feedback with toast notifications
+- Immediate visual feedback with console notifications
 
 **Dweller Recruitment:**
-- "Recruit Dweller" button replaces generic "Rush Production" for Radio Studio
+- "Recruit Dweller" button with consistent sizing (`min-w-[140px]`)
 - Only available when in Recruitment mode
 - Requires dwellers assigned to operate the radio
 - Shows clear cost (100 caps) on button
 - Automatic refresh of vault resources and dweller list after recruitment
 - Success message shows recruited dweller's name
+- Fixed button sizing consistency across all room actions (rush, collect, recruit)
 
 **User Experience:**
 - No need to navigate away from vault view
 - All radio functionality accessible from room detail modal
-- Clear visual indicators for current mode
+- Clear visual indicators for current mode (pulsing status dot)
 - Proper validation and error messages
+- Consistent button sizing across all room actions
+- Optimistic UI updates for responsive feel
 - Consistent with existing room management patterns
 
 ### **Admin Controls**

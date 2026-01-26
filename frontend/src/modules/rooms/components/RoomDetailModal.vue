@@ -821,7 +821,7 @@ watch(
                                 localRadioMode !== 'recruitment'
                             "
                             variant="primary"
-                            class="action-btn recruit-btn"
+                            class="recruit-btn"
                         >
                             <Icon icon="mdi:account-plus" class="h-5 w-5" />
                             <span

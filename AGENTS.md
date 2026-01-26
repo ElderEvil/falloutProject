@@ -208,6 +208,21 @@ VITE_WS_URL=ws://localhost:8000
 - Backend: https://fallout-api.evillab.dev
 - Update: `docker compose pull && docker compose up -d`
 
+## Asset Management
+
+### External Image Assets
+Room images and other game assets are often fetched from external wikis.
+
+**Download Script:** `scripts/download_room_images.py`
+- Fetches high-resolution images from the Fallout Wiki.
+- Handles pagination and lazy loading.
+- Usage: `uv run scripts/download_room_images.py`
+
+**Storage Policy:**
+- For local development: Served via FastAPI static mounting (`/static/room_images/`).
+- Future production: Assets will be stored and served via MinIO/RustFS.
+- Always use `app.utils.room_assets.get_room_image(name)` to resolve URLs.
+
 ---
 
-*Agent guide for Fallout Shelter project | Last updated: 2026-01-24*
+## Agent guide for Fallout Shelter project | Last updated: 2026-01-26

@@ -11,6 +11,7 @@ from app.models.room import Room
 from app.schemas.common import RoomActionEnum, RoomTypeEnum
 from app.schemas.room import RoomCreate, RoomUpdate
 from app.utils.exceptions import InsufficientResourcesException, NoSpaceAvailableException, UniqueRoomViolationException
+from app.utils.room_assets import get_room_image_url
 
 logger = logging.getLogger(__name__)
 
@@ -182,6 +183,10 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         price = await self.get_room_build_price(db_session=db_session, room_in=obj_in)
         await vault_crud.withdraw_caps(db_session=db_session, vault_obj=vault, amount=price)
 
+        # Set image_url before creating the room
+        room_size = obj_in.size if obj_in.size is not None else obj_in.size_min
+        obj_in.image_url = get_room_image_url(obj_in.name, tier=obj_in.tier, size=room_size)
+
         obj_in_db = await self.create(db_session, obj_in=obj_in)
         await db_session.refresh(obj_in_db)  # Ensure all fields are loaded from DB
 
@@ -310,10 +315,14 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             tier_ratio = (room.tier + 4) / (old_tier + 4)
             new_output = int(room.output * tier_ratio)
 
+        # Update image_url for the new tier
+        room_size = room.size if room.size is not None else room.size_min
+        new_image_url = get_room_image_url(room.name, tier=room.tier, size=room_size)
+
         # Update room in database
         await self.update(
             db_session=db_session,
-            obj_in=RoomUpdate(tier=room.tier, capacity=new_capacity, output=new_output),
+            obj_in=RoomUpdate(tier=room.tier, capacity=new_capacity, output=new_output, image_url=new_image_url),
             id=room.id,
         )
 

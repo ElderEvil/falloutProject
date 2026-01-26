@@ -9,6 +9,35 @@ AI-powered dweller interactions.
 
 ## Recent Completions
 
+### v2.5.0 Room Visual Assets (January 26, 2026)
+
+**Feature Release** - Room sprite rendering and capacity enforcement
+
+- **Room Images**: Full visual representation of all rooms
+    - 220+ room sprite images for all room types, tiers, and sizes
+    - Images render in vault overview grid as backgrounds
+    - Images display in room detail modal preview section
+    - Intelligent fallback system for missing tier/segment combinations
+    - Automatic image URL generation based on room name, tier, and size
+- **Room Capacity Enforcement**: Strict dweller assignment limits
+    - Capacity calculation: 2 dwellers per cell (3-cell room = 2, 6-cell = 4, 9-cell = 6)
+    - Prevents over-assignment with user-friendly error messages
+    - Allows reordering dwellers within same room
+    - Real-time capacity validation on drag-and-drop
+- **UI Improvements**: Compact room info overlay for better visibility
+    - Reduced font sizes and padding for room name, category, tier
+    - Room info positioned at top with semi-transparent background
+    - Dwellers positioned at bottom
+    - All content properly layered with z-index
+- **Backend**: Migration to populate image_url for existing rooms
+    - Database migration: `fc75e738a303_add_room_image_urls`
+    - Automatic URL generation during room build and upgrade
+    - Static file serving through `/static` endpoint
+- **Frontend**: Vite proxy configuration for image serving
+    - `/static` proxy forwards requests to backend
+    - Image loading with error handlers and console debugging
+    - Test page for verifying image loading functionality
+
 ### v2.4.1 Critical Hotfix (January 25, 2026)
 
 **Hotfix Release** - Resolved production Celery worker crashes

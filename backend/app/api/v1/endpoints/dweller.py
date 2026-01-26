@@ -419,4 +419,4 @@ async def read_deleted_dwellers_by_vault(
     Get soft-deleted dwellers for a specific vault.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await crud.dweller.get_deleted(db_session=db_session, skip=skip, limit=limit)
+    return await crud.dweller.get_deleted_by_vault(db_session=db_session, vault_id=vault_id, skip=skip, limit=limit)

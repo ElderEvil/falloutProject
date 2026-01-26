@@ -89,7 +89,9 @@ async def delete_vault(
     Use hard_delete=True to permanently remove the vault.
     """
     vault = await crud.vault.get(db_session, vault_id)
-    if vault and (vault.user_id != user.id and not user.is_superuser):
+    if not vault:
+        raise HTTPException(status_code=404, detail="Vault not found")
+    if vault.user_id != user.id and not user.is_superuser:
         raise HTTPException(status_code=403, detail="User does not have permission to delete the vault")
     return await crud.vault.delete(db_session, vault_id, soft=not hard_delete)
 

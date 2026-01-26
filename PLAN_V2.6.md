@@ -32,7 +32,7 @@
 - Backend: models/base.py, crud/base.py, api endpoints
 - Frontend: vault store (console notifications)
 - Migrations: 3a4b32b46a8b, 7dfe123803d6
-- Docs: docs/features/SOFT_DELETE.md, RELEASE_v2.5.0.md
+- Docs: docs/features/SOFT_DELETE.md, RELEASE_v2.6.0.md
 
 **Complexity:** High
 

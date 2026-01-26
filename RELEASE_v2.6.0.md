@@ -176,7 +176,7 @@ A skeleton service exists at `backend/app/services/dweller_recycling_service.py`
 - `backend/app/services/dweller_recycling_service.py` (skeleton)
 - `docs/features/SOFT_DELETE.md`
 - `SOFT_DELETE_UPDATE.md`
-- `RELEASE_v2.5.0.md` (this file)
+- `RELEASE_v2.6.0.md` (this file)
 
 **Modified:**
 - `backend/app/models/base.py` - Added SoftDeleteMixin

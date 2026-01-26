@@ -320,6 +320,33 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         response = await db_session.execute(query)
         return response.scalars().all()
 
+    async def get_deleted_by_vault(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> Sequence[Dweller]:
+        """
+        Get soft-deleted dwellers for a specific vault.
+
+        :param db_session: Database session
+        :param vault_id: Vault ID to filter by
+        :param skip: Number of records to skip
+        :param limit: Maximum number of records to return
+        :returns: List of soft-deleted dwellers
+        """
+        query = (
+            select(self.model)
+            .where(self.model.vault_id == vault_id)
+            .where(self.model.is_deleted == True)
+            .order_by(self.model.deleted_at.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        response = await db_session.execute(query)
+        return response.scalars().all()
+
     async def get_revivable_dwellers(
         self,
         db_session: AsyncSession,

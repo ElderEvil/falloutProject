@@ -228,9 +228,9 @@ When a dweller reaches permanent death state (`is_permanently_dead = True`), the
 
 ### Vault Deletion
 - Updated `vault.ts` store to support soft delete (default) vs hard delete
-- Shows toast notification: "Vault soft deleted - Data preserved for potential recovery"
-- Hard delete shows: "Vault permanently deleted"
+- Uses console logging to indicate deletion status (soft vs hard delete)
 - Backend updated to accept `hard_delete` query parameter
+- No toast notifications (vue-toastification dependency removed in commit 8405c97)
 
 ### Migration Applied
 - `7dfe123803d6_add_soft_delete_to_vault` - Adds `is_deleted` and `deleted_at` to vault table

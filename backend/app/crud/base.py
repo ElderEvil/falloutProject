@@ -222,7 +222,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         :raises IDNotFoundException: if there is an error finding object in database
         """
         response = await db_session.execute(select(self.model).where(self.model.id == id))
-        obj = response.scalar_one()
+        obj = response.scalar_one_or_none()
         if not obj:
             raise ResourceNotFoundException(self.model, identifier=id)
 

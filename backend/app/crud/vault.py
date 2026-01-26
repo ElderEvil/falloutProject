@@ -279,7 +279,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             raise InsufficientResourcesException(resource_name="bottle caps", resource_amount=amount_needed)
         await self.update(db_session, id=vault_obj.id, obj_in=VaultUpdate(bottle_caps=vault_obj.bottle_caps - amount))
 
-    async def delete(self, db_session: AsyncSession, id: UUID4) -> None:
+    async def delete(self, db_session: AsyncSession, id: UUID4, soft: bool = True) -> Vault:
         """Delete vault and its associated gamestate."""
         # First, delete the associated gamestate if it exists
         result = await db_session.execute(select(GameState).where(GameState.vault_id == id))
@@ -288,8 +288,8 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             await db_session.delete(gamestate)
             await db_session.commit()
 
-        # Now delete the vault using the base class method
-        return await super().delete(db_session, id)
+        # Now delete the vault using the base class method with soft parameter
+        return await super().delete(db_session, id, soft=soft)
 
 
 vault = CRUDVault(Vault)

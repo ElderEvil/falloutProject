@@ -7,9 +7,9 @@ import type { components } from "@/core/types/api.generated";
 // Use generated API types
 type VaultReadWithNumbers = components["schemas"]["VaultReadWithNumbers"];
 
-// Extend with resource_warnings which might not be in generated types yet
+// Use the generated type directly without overriding resource_warnings
 export interface VaultWithNumbers extends VaultReadWithNumbers {
-  resource_warnings: Array<{ type: string; message: string }>;
+  // resource_warnings is already defined in VaultReadWithNumbers as { [key: string]: string }[]
 }
 
 // GameState type (not yet in API schemas)

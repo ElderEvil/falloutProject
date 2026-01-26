@@ -1,7 +1,7 @@
 # Release v2.6.0 - Soft Delete Implementation
 
-**Release Date:** 2026-01-26  
-**Branch:** feat/v2.6-ux-improvements  
+**Release Date:** 2026-01-26
+**Branch:** feat/v2.6-ux-improvements
 **Status:** Ready for Testing
 
 ---
@@ -25,7 +25,7 @@ Soft-deleted records are hidden from normal queries but preserved in the databas
 
 **Models with Soft Delete:**
 - ✅ User
-- ✅ Dweller  
+- ✅ Dweller
 - ✅ Vault
 
 ---
@@ -68,7 +68,7 @@ Dweller Endpoints:
 ```
 DELETE /api/v1/dwellers/{id}?hard_delete=false
 POST   /api/v1/dwellers/{id}/soft-delete
-POST   /api/v1/dwellers/{id}/restore  
+POST   /api/v1/dwellers/{id}/restore
 GET    /api/v1/dwellers/vault/{vault_id}/deleted
 ```
 
@@ -262,8 +262,8 @@ For issues or questions:
 
 ---
 
-**Version:** 2.6.0  
-**Release Type:** Feature Release  
+**Version:** 2.6.0
+**Release Type:** Feature Release
 **Stability:** Stable (Ready for Testing)
 
 ---

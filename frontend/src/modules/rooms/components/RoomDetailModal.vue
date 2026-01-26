@@ -367,9 +367,13 @@ const handleSwitchRadioMode = async (mode: "recruitment" | "happiness") => {
     if (!vaultId.value) return;
 
     try {
-        await axios.put(`/api/v1/radio/vault/${vaultId.value}/mode`, mode, {
-            headers: { Authorization: `Bearer ${authStore.token}` },
-        });
+        await axios.put(
+            `/api/v1/radio/vault/${vaultId.value}/mode?mode=${mode}`,
+            {},
+            {
+                headers: { Authorization: `Bearer ${authStore.token}` },
+            },
+        );
 
         // Refresh vault to get updated mode
         await vaultStore.refreshVault(vaultId.value, authStore.token!);

@@ -8,6 +8,8 @@ import { useDwellerStore } from "@/modules/dwellers/stores/dweller";
 import { useRoomStore } from "../stores/room";
 import { useAuthStore } from "@/modules/auth/stores/auth";
 import { useToast } from "@/core/composables/useToast";
+import { useVaultStore } from "@/modules/vault/stores/vault";
+import axios from "@/core/plugins/axios";
 import UModal from "@/core/components/ui/UModal.vue";
 import UButton from "@/core/components/ui/UButton.vue";
 import UTooltip from "@/core/components/ui/UTooltip.vue";
@@ -29,11 +31,13 @@ const router = useRouter();
 const dwellerStore = useDwellerStore();
 const roomStore = useRoomStore();
 const authStore = useAuthStore();
+const vaultStore = useVaultStore();
 const toast = useToast();
 
 const isUpgrading = ref(false);
 const isDestroying = ref(false);
 const isRushing = ref(false);
+const isRecruiting = ref(false);
 const actionError = ref<string | null>(null);
 const justUpgraded = ref(false);
 
@@ -339,6 +343,75 @@ const getDwellerStatValue = (dweller: DwellerShort, ability: string) => {
         | "luck";
     const value = dweller[key];
     return typeof value === "number" ? value : 0;
+};
+
+// Radio Studio computed properties
+const isRadioRoom = computed(() => {
+    return props.room?.name.toLowerCase().includes("radio") || false;
+});
+
+const currentRadioMode = computed(() => {
+    return vaultStore.activeVault?.radio_mode || "recruitment";
+});
+
+const vaultId = computed(() => {
+    return route.params.id as string;
+});
+
+const manualRecruitCost = computed(() => {
+    return 100; // TODO: Get from game config
+});
+
+// Radio Studio handlers
+const handleSwitchRadioMode = async (mode: "recruitment" | "happiness") => {
+    if (!vaultId.value) return;
+
+    try {
+        await axios.put(`/api/v1/radio/vault/${vaultId.value}/mode`, mode, {
+            headers: { Authorization: `Bearer ${authStore.token}` },
+        });
+
+        // Refresh vault to get updated mode
+        await vaultStore.refreshVault(vaultId.value, authStore.token!);
+
+        toast.success(`Radio mode set to ${mode}`);
+    } catch (error) {
+        console.error("Failed to switch radio mode:", error);
+        toast.error("Failed to switch radio mode");
+    }
+};
+
+const handleRecruitDweller = async () => {
+    if (!vaultId.value) return;
+
+    if (currentRadioMode.value !== "recruitment") {
+        toast.error("Radio must be in Recruitment mode");
+        return;
+    }
+
+    isRecruiting.value = true;
+    try {
+        const response = await axios.post(
+            `/api/v1/radio/vault/${vaultId.value}/recruit`,
+            {},
+            { headers: { Authorization: `Bearer ${authStore.token}` } },
+        );
+
+        toast.success(
+            response.data.message || "Dweller recruited successfully!",
+        );
+
+        // Refresh vault and dwellers
+        await vaultStore.refreshVault(vaultId.value, authStore.token!);
+        await dwellerStore.fetchDwellers(vaultId.value, authStore.token!);
+    } catch (error: any) {
+        console.error("Failed to recruit dweller:", error);
+        const message =
+            error.response?.data?.detail || "Failed to recruit dweller";
+        toast.error(message);
+    } finally {
+        isRecruiting.value = false;
+    }
 };
 
 // Handle rush production (placeholder for future implementation)
@@ -673,9 +746,61 @@ watch(
                         >
                     </div>
 
+                    <!-- Radio Studio Controls -->
+                    <div v-if="isRadioRoom" class="radio-controls">
+                        <h4 class="radio-title">Radio Studio Controls</h4>
+
+                        <!-- Mode Switch -->
+                        <div class="radio-mode-switch">
+                            <span class="mode-label">Mode:</span>
+                            <UButton
+                                @click="handleSwitchRadioMode('recruitment')"
+                                :variant="
+                                    currentRadioMode === 'recruitment'
+                                        ? 'primary'
+                                        : 'secondary'
+                                "
+                                size="sm"
+                            >
+                                Recruitment
+                            </UButton>
+                            <UButton
+                                @click="handleSwitchRadioMode('happiness')"
+                                :variant="
+                                    currentRadioMode === 'happiness'
+                                        ? 'primary'
+                                        : 'secondary'
+                                "
+                                size="sm"
+                            >
+                                Happiness
+                            </UButton>
+                        </div>
+
+                        <!-- Recruit Dweller Button -->
+                        <UButton
+                            @click="handleRecruitDweller"
+                            :disabled="
+                                isRecruiting ||
+                                assignedDwellers.length === 0 ||
+                                currentRadioMode !== 'recruitment'
+                            "
+                            variant="primary"
+                            class="action-btn recruit-btn"
+                        >
+                            <Icon icon="mdi:account-plus" class="h-5 w-5" />
+                            <span
+                                >Recruit Dweller ({{
+                                    manualRecruitCost
+                                }}
+                                caps)</span
+                            >
+                        </UButton>
+                    </div>
+
                     <!-- Rush Production Button (Placeholder) -->
                     <UButton
-                        v-if="productionInfo"
+                        v-else-if="productionInfo"
                         @click="handleRushProduction"
                         :disabled="isRushing || assignedDwellers.length === 0"
                         variant="primary"
@@ -1251,5 +1376,39 @@ watch(
         transform: scale(1);
         filter: drop-shadow(0 0 4px var(--color-theme-glow));
     }
+}
+
+/* Radio Studio Controls */
+.radio-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(0, 255, 0, 0.05);
+    border: 1px solid var(--color-theme-glow);
+    border-radius: 8px;
+    margin-top: 1rem;
+}
+
+.radio-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-theme-primary);
+    margin: 0;
+}
+
+.radio-mode-switch {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.mode-label {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+}
+
+.recruit-btn {
+    width: 100%;
 }
 </style>

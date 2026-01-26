@@ -1,4 +1,4 @@
-# Release v2.5.0 - Soft Delete Implementation
+# Release v2.6.0 - Soft Delete Implementation
 
 **Release Date:** 2026-01-26  
 **Branch:** feat/v2.6-ux-improvements  
@@ -8,7 +8,7 @@
 
 ## 🎯 Overview
 
-Version 2.5.0 introduces comprehensive **soft delete functionality** for Users, Dwellers, and Vaults. This major feature enables data preservation (especially expensive AI-generated content) while providing standard deletion capabilities.
+Version 2.6.0 introduces comprehensive **soft delete functionality** for Users, Dwellers, and Vaults. This major feature enables data preservation (especially expensive AI-generated content) while providing standard deletion capabilities.
 
 ---
 
@@ -262,7 +262,7 @@ For issues or questions:
 
 ---
 
-**Version:** 2.5.0  
+**Version:** 2.6.0  
 **Release Type:** Feature Release  
 **Stability:** Stable (Ready for Testing)
 

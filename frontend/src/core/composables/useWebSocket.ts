@@ -19,6 +19,7 @@ export function useWebSocket(initialUrl?: string) {
   const maxReconnectAttempts = 5;
   const reconnectDelay = 3000;
   const currentUrl = ref<string>(initialUrl || "");
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   const messageHandlers = new Map<
     string,
@@ -26,8 +27,21 @@ export function useWebSocket(initialUrl?: string) {
   >();
 
   const connect = (url?: string) => {
+    // Clear any pending reconnect timer
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+
     // Update URL if provided
     if (url) {
+      // If URL changed and socket is open, close it to reconnect with new URL
+      if (
+        url !== currentUrl.value &&
+        socket.value?.readyState === WebSocket.OPEN
+      ) {
+        socket.value.close();
+      }
       currentUrl.value = url;
     }
 
@@ -37,8 +51,12 @@ export function useWebSocket(initialUrl?: string) {
       return;
     }
 
-    if (socket.value?.readyState === WebSocket.OPEN) {
-      console.log("WebSocket already connected");
+    // Prevent duplicate connections if already connecting or connected
+    if (
+      socket.value?.readyState === WebSocket.CONNECTING ||
+      socket.value?.readyState === WebSocket.OPEN
+    ) {
+      console.log("WebSocket already connecting or connected");
       return;
     }
 
@@ -93,7 +111,7 @@ export function useWebSocket(initialUrl?: string) {
           console.log(
             `Reconnecting in ${reconnectDelay}ms... (attempt ${reconnectAttempts.value}/${maxReconnectAttempts})`,
           );
-          setTimeout(() => {
+          reconnectTimer = setTimeout(() => {
             connect();
           }, reconnectDelay);
         } else {
@@ -109,6 +127,12 @@ export function useWebSocket(initialUrl?: string) {
   };
 
   const disconnect = () => {
+    // Clear any pending reconnect timer
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+
     if (socket.value) {
       reconnectAttempts.value = maxReconnectAttempts; // Prevent auto-reconnect
       socket.value.close();
@@ -152,6 +176,11 @@ export function useWebSocket(initialUrl?: string) {
 
   // Cleanup on unmount
   onUnmounted(() => {
+    // Clear reconnect timer before disconnecting
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
     disconnect();
     messageHandlers.clear();
   });
@@ -173,7 +202,10 @@ export function useWebSocket(initialUrl?: string) {
 
 // Specific composable for chat WebSocket
 export function useChatWebSocket(userId: string, dwellerId: string) {
-  const wsUrl = `ws://localhost:8000/api/v1/ws/chat/${userId}/${dwellerId}`;
+  // Get WebSocket base URL from environment
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const host = window.location.host;
+  const wsUrl = `${protocol}//${host}/api/v1/ws/chat/${userId}/${dwellerId}`;
   const ws = useWebSocket(wsUrl);
 
   const sendTypingIndicator = (isTyping: boolean) => {

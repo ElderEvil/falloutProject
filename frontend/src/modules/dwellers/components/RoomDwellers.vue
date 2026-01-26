@@ -70,8 +70,7 @@ const getImageUrl = (imagePath: string | null) => {
             <Icon
                 v-else
                 icon="mdi:account-circle"
-                class="h-10 w-10"
-                :style="{ color: 'var(--color-theme-primary)' }"
+                class="h-10 w-10 icon-primary"
             />
             <div class="dweller-level">{{ dweller.level }}</div>
             <div class="status-indicator">
@@ -149,5 +148,9 @@ const getImageUrl = (imagePath: string | null) => {
 
 .dweller-avatar:hover .status-indicator {
     opacity: 1;
+}
+
+.icon-primary {
+    color: var(--color-theme-primary);
 }
 </style>

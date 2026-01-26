@@ -1,4 +1,5 @@
 import math
+from pathlib import Path
 
 from app.schemas.common import RoomTypeEnum
 
@@ -53,7 +54,7 @@ ROOM_TYPE_TO_DEFAULT_NAME = {
 }
 
 
-def _find_image_with_fallback(base_path, asset_key: str, tier: int, segment: int) -> str | None:
+def _find_image_with_fallback(base_path: Path, asset_key: str, tier: int, segment: int) -> str | None:
     """Helper function to find room image with fallback logic."""
     # Try exact tier-segment
     filename = f"FOS {asset_key} {tier}-{segment}.png"
@@ -78,8 +79,8 @@ def _find_image_with_fallback(base_path, asset_key: str, tier: int, segment: int
             if (base_path / filename).exists():
                 return f"/static/room_images/{filename}"
 
-    # Return original path as final fallback
-    return f"/static/room_images/FOS {asset_key} {tier}-{segment}.png"
+    # No matching file found
+    return None
 
 
 def get_room_image_url(room_name: str, tier: int = 1, size: int = 3) -> str | None:
@@ -96,8 +97,6 @@ def get_room_image_url(room_name: str, tier: int = 1, size: int = 3) -> str | No
     Returns:
         URL path to the room image, or None if not found
     """
-    from pathlib import Path
-
     # Handle special cases first
     if room_name in SPECIAL_CASE_ROOMS:
         return f"/static/room_images/{SPECIAL_CASE_ROOMS[room_name]}"

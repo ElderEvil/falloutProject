@@ -8,14 +8,12 @@ Create Date: 2026-01-26 13:13:11.820798
 from typing import Sequence, Union
 
 from alembic import op
-import sqlalchemy as sa
-import sqlmodel
 from sqlalchemy import text
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'fc75e738a303'
-down_revision: Union[str, None] = 'c7756d4e7543'
+revision: str = "fc75e738a303"
+down_revision: Union[str, None] = "c7756d4e7543"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -37,6 +35,11 @@ def upgrade() -> None:
         room_id, name, tier, size, size_min = room
         # Use size if available, otherwise fall back to size_min
         room_size = size if size is not None else size_min
+
+        # Skip rooms with no size information
+        if room_size is None:
+            room_size = 3  # Default to smallest valid size
+
         image_url = get_room_image_url(name, tier=tier, size=room_size)
 
         if image_url:
@@ -45,11 +48,8 @@ def upgrade() -> None:
                 {"image_url": image_url, "room_id": room_id}
             )
 
-    connection.commit()
-
 
 def downgrade() -> None:
     """Clear image_url for all rooms."""
     connection = op.get_bind()
     connection.execute(text("UPDATE room SET image_url = NULL"))
-    connection.commit()

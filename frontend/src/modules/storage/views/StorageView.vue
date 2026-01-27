@@ -266,6 +266,10 @@ const getRarityColor = (rarity?: string) => {
       </div>
 
       <div v-else class="items-grid">
+        <!-- Junk groups header and items (grouped by name/rarity) -->
+        <div v-for="item in activeItems" :key="activeTab === 'junk' ? item.item.id : item.id" class="junk-group-header" v-if="activeTab === 'junk'">
+          {{ item.item.name }} ({{ item.count }})
+        </div>
         <StorageItemCard
           v-for="item in activeItems"
           :key="activeTab === 'junk' ? item.item.id : item.id"
@@ -432,6 +436,14 @@ const getRarityColor = (rarity?: string) => {
   border-radius: 12px;
   font-size: 0.75rem;
   font-weight: 700;
+}
+
+/* Junk grouping header styling */
+.junk-group-header {
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  color: var(--color-theme-accent);
+  margin: 0.75rem 0 0.25rem 0;
 }
 
 /* Loading */

@@ -1,9 +1,9 @@
-from app.crud.base import CRUDBase
+from app.crud.item_base import CRUDItem
 from app.models.junk import Junk
 from app.schemas.junk import JunkCreate, JunkUpdate
 
 
-class CRUDJunk(CRUDBase[Junk, JunkCreate, JunkUpdate]):
+class CRUDJunk(CRUDItem[Junk, JunkCreate, JunkUpdate]):
     pass
 
 

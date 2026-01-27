@@ -14,6 +14,8 @@ class WeaponRead(WeaponBase):
     id: UUID4
     created_at: datetime
     updated_at: datetime
+    dweller_id: UUID4 | None = None
+    storage_id: UUID4 | None = None
 
 
 @optional()

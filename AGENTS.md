@@ -1,6 +1,6 @@
 # Fallout Shelter - Agent Development Guide
 
-> **Version:** 2.4.1 | **Architecture:** FastAPI + Vue 3 + PostgreSQL + Redis
+> **Version:** 2.7.0 | **Architecture:** FastAPI + Vue 3 + PostgreSQL + Redis
 
 ## Project Overview
 

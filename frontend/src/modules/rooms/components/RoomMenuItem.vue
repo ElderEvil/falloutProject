@@ -43,13 +43,13 @@ const populationProgress = computed(() => {
 
 const getCategoryIcon = (category: string) => {
   const icons: Record<string, string> = {
-    'Production': 'mdi:lightning-bolt',
-    'Capacity': 'mdi:home',
-    'Training': 'mdi:school',
+    Production: 'mdi:lightning-bolt',
+    Capacity: 'mdi:home',
+    Training: 'mdi:school',
     'Misc.': 'mdi:hammer-wrench',
-    'Quests': 'mdi:book-open',
-    'Crafting': 'mdi:hammer',
-    'Theme': 'mdi:palette'
+    Quests: 'mdi:book-open',
+    Crafting: 'mdi:hammer',
+    Theme: 'mdi:palette',
   }
   return icons[category] || 'mdi:cube'
 }
@@ -60,9 +60,9 @@ const getCategoryIcon = (category: string) => {
     @click="!isLocked && emit('select', room)"
     class="room-menu-item"
     :class="{
-      'locked': isLocked,
-      'affordable': !isLocked && canAfford,
-      'expensive': !isLocked && !canAfford
+      locked: isLocked,
+      affordable: !isLocked && canAfford,
+      expensive: !isLocked && !canAfford,
     }"
   >
     <div class="room-item-content">
@@ -72,10 +72,7 @@ const getCategoryIcon = (category: string) => {
       </div>
 
       <div class="room-icon">
-        <Icon
-          :icon="getCategoryIcon(room.category)"
-          class="category-icon"
-        />
+        <Icon :icon="getCategoryIcon(room.category)" class="category-icon" />
       </div>
 
       <div class="room-details">
@@ -142,7 +139,9 @@ const getCategoryIcon = (category: string) => {
 .room-menu-item.affordable:hover {
   border-color: var(--color-theme-primary);
   transform: translateY(-3px);
-  box-shadow: 0 6px 16px rgba(0, 255, 0, 0.2), 0 0 12px var(--color-theme-glow);
+  box-shadow:
+    0 6px 16px rgba(0, 255, 0, 0.2),
+    0 0 12px var(--color-theme-glow);
   background: rgba(30, 30, 30, 0.95);
 }
 

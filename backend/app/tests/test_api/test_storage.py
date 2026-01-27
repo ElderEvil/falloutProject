@@ -8,8 +8,11 @@ from app import crud
 from app.core.config import settings
 from app.crud.vault import vault as vault_crud
 from app.models.junk import Junk
+from app.models.outfit import Outfit
+from app.models.weapon import Weapon
 from app.schemas.common import JunkTypeEnum, RarityEnum
 from app.schemas.vault import VaultCreateWithUserID
+from app.tests.factory.items import create_fake_junk, create_fake_outfit, create_fake_weapon
 from app.tests.factory.vaults import create_fake_vault
 
 pytestmark = pytest.mark.asyncio(scope="module")
@@ -30,7 +33,7 @@ async def test_get_storage_space_info(
     vault = await crud.vault.create(async_session, vault_in)
 
     # Create storage for the vault
-    storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
+    _storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
 
     # Get storage info
     response = await async_client.get(
@@ -49,8 +52,8 @@ async def test_get_storage_space_info(
 
     # Verify empty vault storage values
     assert data["used_space"] == 0
-    assert data["max_space"] == storage.max_space
-    assert data["available_space"] == storage.max_space
+    assert data["max_space"] == _storage.max_space
+    assert data["available_space"] == _storage.max_space
     assert data["utilization_pct"] == 0.0
 
 
@@ -169,3 +172,189 @@ async def test_get_storage_space_different_user(
 
     # Should be forbidden
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_get_storage_items_success(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    """Test GET /storage/vault/{vault_id}/items returns all item types."""
+    # Create vault for superuser
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault_in = VaultCreateWithUserID(**vault_data)
+    vault = await crud.vault.create(async_session, vault_in)
+
+    # Create storage for the vault
+    storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
+
+    # Create items for storage
+    # Weapons (2)
+    for _ in range(2):
+        w = Weapon(**create_fake_weapon(), storage_id=storage.id)
+        async_session.add(w)
+    # Outfit (1)
+    o = Outfit(**create_fake_outfit(), storage_id=storage.id)
+    async_session.add(o)
+    # Junk (1)
+    j = Junk(**create_fake_junk(), storage_id=storage.id)
+    async_session.add(j)
+    await async_session.flush()
+
+    # Get items
+    response = await async_client.get(
+        f"/storage/vault/{vault.id}/items",
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    assert isinstance(data, dict)
+    assert "weapons" in data
+    assert isinstance(data["weapons"], list)
+    assert "outfits" in data
+    assert isinstance(data["outfits"], list)
+    assert "junk" in data
+    assert isinstance(data["junk"], list)
+    assert len(data["weapons"]) == 2
+    assert len(data["outfits"]) == 1
+    assert len(data["junk"]) == 1
+
+    # Basic field checks on returned items
+    for item in data["weapons"]:
+        assert "id" in item
+        assert "name" in item
+    for item in data["outfits"]:
+        assert "id" in item
+        assert "name" in item
+    for item in data["junk"]:
+        assert "id" in item
+        assert "name" in item
+
+
+@pytest.mark.asyncio
+async def test_get_storage_items_empty(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    """Test GET /storage/vault/{vault_id}/items returns empty lists when no items exist."""
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault_in = VaultCreateWithUserID(**vault_data)
+    vault = await crud.vault.create(async_session, vault_in)
+
+    await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
+
+    response = await async_client.get(
+        f"/storage/vault/{vault.id}/items",
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["weapons"] == []
+    assert data["outfits"] == []
+    assert data["junk"] == []
+
+
+@pytest.mark.asyncio
+async def test_get_storage_items_filters_by_vault(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    """Test that only items from the requested vault/storage are returned."""
+    # Vault A
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_a_data = create_fake_vault()
+    vault_a_data["user_id"] = str(user.id)
+    vault_a_in = VaultCreateWithUserID(**vault_a_data)
+    vault_a = await crud.vault.create(async_session, vault_a_in)
+    storage_a = await vault_crud.create_storage(db_session=async_session, vault_id=vault_a.id)
+
+    # Vault B
+    vault_b_data = create_fake_vault()
+    vault_b_data["user_id"] = str(user.id)
+    vault_b_in = VaultCreateWithUserID(**vault_b_data)
+    vault_b = await crud.vault.create(async_session, vault_b_in)
+    _storage_b = await vault_crud.create_storage(db_session=async_session, vault_id=vault_b.id)
+
+    # Add an item to Vault A only
+    w = Weapon(**create_fake_weapon(), storage_id=storage_a.id)
+    async_session.add(w)
+    await async_session.flush()
+
+    # Query Vault A items
+    response = await async_client.get(
+        f"/storage/vault/{vault_a.id}/items",
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["weapons"]) == 1
+    assert data["weapons"][0]["storage_id"] == str(storage_a.id)
+
+
+@pytest.mark.asyncio
+async def test_get_storage_items_unauthorized(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    normal_user_token_headers: dict[str, str],  # noqa: ARG001
+) -> None:
+    """Test GET /storage/vault/{vault_id}/items requires authentication."""
+    # Create vault/storage for test subject (no need to own it with this test)
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault_in = VaultCreateWithUserID(**vault_data)
+    vault = await crud.vault.create(async_session, vault_in)
+    await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
+
+    response = await async_client.get(
+        f"/storage/vault/{vault.id}/items",
+    )
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_get_storage_items_forbidden(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],  # noqa: ARG001
+    normal_user_token_headers: dict[str, str],
+) -> None:
+    """Test that a non-owner cannot access another user's vault items."""
+    # Create vault for superuser
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault_in = VaultCreateWithUserID(**vault_data)
+    vault = await crud.vault.create(async_session, vault_in)
+    await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
+
+    # Normal user attempts to access
+    response = await async_client.get(
+        f"/storage/vault/{vault.id}/items",
+        headers=normal_user_token_headers,
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_get_storage_items_not_found(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    """Test GET /storage/vault/{vault_id}/items returns 404 for non-existent vault."""
+    import uuid
+
+    fake_vault_id = str(uuid.uuid4())
+    response = await async_client.get(
+        f"/storage/vault/{fake_vault_id}/items",
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 404

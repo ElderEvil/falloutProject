@@ -29,7 +29,7 @@ const props = withDefaults(defineProps<Props>(), {
   type: 'text',
   size: 'md',
   disabled: false,
-  required: false
+  required: false,
 })
 
 const emit = defineEmits<{
@@ -41,7 +41,7 @@ const emit = defineEmits<{
 const sizeClasses = {
   sm: 'px-3 py-1.5 text-sm',
   md: 'px-4 py-2 text-base',
-  lg: 'px-5 py-3 text-lg'
+  lg: 'px-5 py-3 text-lg',
 }
 
 const inputClasses = [
@@ -54,8 +54,10 @@ const inputClasses = [
   'placeholder:text-gray-400',
   sizeClasses[props.size],
   props.icon ? 'pl-10' : '',
-  props.iconRight ? 'pr-10' : ''
-].filter(Boolean).join(' ')
+  props.iconRight ? 'pr-10' : '',
+]
+  .filter(Boolean)
+  .join(' ')
 
 const handleInput = (event: InputEvent) => {
   const target = event.target as HTMLInputElement
@@ -92,7 +94,10 @@ const handleInput = (event: InputEvent) => {
       />
 
       <!-- Right Icon -->
-      <div v-if="iconRight" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+      <div
+        v-if="iconRight"
+        class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+      >
         <component :is="iconRight" class="h-5 w-5" />
       </div>
     </div>

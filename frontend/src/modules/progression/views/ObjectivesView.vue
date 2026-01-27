@@ -14,7 +14,7 @@ const { isCollapsed } = useSidePanel()
 const activeTab = ref('notCompleted')
 
 const vaultId = computed(() => route.params.id as string)
-const currentVault = computed(() => vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null)
+const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
 
 onMounted(() => {
   if (vaultId.value) {
@@ -42,66 +42,70 @@ const completedObjectives = computed(() => filterObjectives(true))
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
         <div class="container mx-auto px-4 py-8">
           <div class="objectives-container">
-    <h1 class="title">
-      {{ currentVault ? `Vault ${currentVault.number} Objectives` : 'Objectives' }}
-    </h1>
-    <div class="tabs">
-      <button
-        @click="activeTab = 'notCompleted'"
-        :class="{ active: activeTab === 'notCompleted' }"
-        class="tab-button"
-      >
-        <Icon icon="mdi:target" class="inline mr-2" />
-        Active
-      </button>
-      <button
-        @click="activeTab = 'completed'"
-        :class="{ active: activeTab === 'completed' }"
-        class="tab-button"
-      >
-        <Icon icon="mdi:check-circle" class="inline mr-2" />
-        Completed
-      </button>
-    </div>
+            <h1 class="title">
+              {{ currentVault ? `Vault ${currentVault.number} Objectives` : 'Objectives' }}
+            </h1>
+            <div class="tabs">
+              <button
+                @click="activeTab = 'notCompleted'"
+                :class="{ active: activeTab === 'notCompleted' }"
+                class="tab-button"
+              >
+                <Icon icon="mdi:target" class="inline mr-2" />
+                Active
+              </button>
+              <button
+                @click="activeTab = 'completed'"
+                :class="{ active: activeTab === 'completed' }"
+                class="tab-button"
+              >
+                <Icon icon="mdi:check-circle" class="inline mr-2" />
+                Completed
+              </button>
+            </div>
 
-    <div v-if="activeTab === 'notCompleted'" class="tab-content">
-      <div v-if="activeObjectives.length === 0" class="empty-state">
-        <p>No active objectives</p>
-      </div>
-      <ul v-else class="objective-list">
-        <li v-for="objective in activeObjectives" :key="objective.id" class="objective-item">
-          <div class="objective-details">
-            <h3 class="objective-title">{{ objective.challenge }}</h3>
-            <p class="objective-progress">
-              Progress: {{ objective.progress }} / {{ objective.total }}
-            </p>
-            <p class="objective-reward">Reward: {{ objective.reward }}</p>
-          </div>
-        </li>
-      </ul>
-    </div>
+            <div v-if="activeTab === 'notCompleted'" class="tab-content">
+              <div v-if="activeObjectives.length === 0" class="empty-state">
+                <p>No active objectives</p>
+              </div>
+              <ul v-else class="objective-list">
+                <li
+                  v-for="objective in activeObjectives"
+                  :key="objective.id"
+                  class="objective-item"
+                >
+                  <div class="objective-details">
+                    <h3 class="objective-title">{{ objective.challenge }}</h3>
+                    <p class="objective-progress">
+                      Progress: {{ objective.progress }} / {{ objective.total }}
+                    </p>
+                    <p class="objective-reward">Reward: {{ objective.reward }}</p>
+                  </div>
+                </li>
+              </ul>
+            </div>
 
-    <div v-if="activeTab === 'completed'" class="tab-content">
-      <div v-if="completedObjectives.length === 0" class="empty-state">
-        <p>No completed objectives yet</p>
-      </div>
-      <ul v-else class="objective-list">
-        <li
-          v-for="objective in completedObjectives"
-          :key="objective.id"
-          class="objective-item completed-objective"
-        >
-          <div class="objective-details">
-            <h3 class="objective-title">{{ objective.challenge }}</h3>
-            <p class="objective-reward">Reward: {{ objective.reward }}</p>
-            <p class="objective-progress">
-              Progress: {{ objective.progress }} / {{ objective.total }}
-            </p>
-            <p class="objective-status">Status: Completed</p>
-          </div>
-        </li>
-      </ul>
-    </div>
+            <div v-if="activeTab === 'completed'" class="tab-content">
+              <div v-if="completedObjectives.length === 0" class="empty-state">
+                <p>No completed objectives yet</p>
+              </div>
+              <ul v-else class="objective-list">
+                <li
+                  v-for="objective in completedObjectives"
+                  :key="objective.id"
+                  class="objective-item completed-objective"
+                >
+                  <div class="objective-details">
+                    <h3 class="objective-title">{{ objective.challenge }}</h3>
+                    <p class="objective-reward">Reward: {{ objective.reward }}</p>
+                    <p class="objective-progress">
+                      Progress: {{ objective.progress }} / {{ objective.total }}
+                    </p>
+                    <p class="objective-status">Status: Completed</p>
+                  </div>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>
@@ -152,7 +156,6 @@ const completedObjectives = computed(() => filterObjectives(true))
   background-size: 100% 2px;
   pointer-events: none;
 }
-
 
 .objectives-container {
   max-width: 1400px;

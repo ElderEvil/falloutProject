@@ -1,435 +1,420 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from "vue";
-import { Icon } from "@iconify/vue";
-import { useRoute, useRouter } from "vue-router";
-import { useSidePanel } from "@/core/composables/useSidePanel";
-import UTooltip from "@/core/components/ui/UTooltip.vue";
+import { computed, onMounted, onUnmounted } from 'vue'
+import { Icon } from '@iconify/vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useSidePanel } from '@/core/composables/useSidePanel'
+import UTooltip from '@/core/components/ui/UTooltip.vue'
 
-const route = useRoute();
-const router = useRouter();
-const { isCollapsed, toggle } = useSidePanel();
+const route = useRoute()
+const router = useRouter()
+const { isCollapsed, toggle } = useSidePanel()
 
-const vaultId = computed(() => route.params.id as string | undefined);
+const vaultId = computed(() => route.params.id as string | undefined)
 
 interface NavItem {
-    id: string;
-    label: string;
-    icon: string;
-    path?: string;
-    hotkey?: string;
-    comingSoon?: {
-        phase: string;
-        quarter: string;
-    };
+  id: string
+  label: string
+  icon: string
+  path?: string
+  hotkey?: string
+  comingSoon?: {
+    phase: string
+    quarter: string
+  }
 }
 
 const navItems = computed((): NavItem[] => {
-    if (!vaultId.value) return [];
+  if (!vaultId.value) return []
 
-    return [
-        {
-            id: "overview",
-            label: "Overview",
-            icon: "mdi:view-dashboard",
-            path: `/vault/${vaultId.value}`,
-            hotkey: "1",
-        },
-        {
-            id: "dwellers",
-            label: "Dwellers",
-            icon: "mdi:account-group",
-            path: `/vault/${vaultId.value}/dwellers`,
-            hotkey: "2",
-        },
-        {
-            id: "exploration",
-            label: "Exploration",
-            icon: "mdi:compass",
-            path: `/vault/${vaultId.value}/exploration`,
-            hotkey: "3",
-        },
-        {
-            id: "objectives",
-            label: "Objectives",
-            icon: "mdi:target",
-            path: `/vault/${vaultId.value}/objectives`,
-            hotkey: "4",
-        },
-        {
-            id: "quests",
-            label: "Quests",
-            icon: "mdi:book-open-page-variant",
-            path: `/vault/${vaultId.value}/quests`,
-            hotkey: "5",
-        },
-        {
-            id: "relationships",
-            label: "Relationships",
-            icon: "mdi:heart-multiple",
-            path: `/vault/${vaultId.value}/relationships`,
-            hotkey: "6",
-        },
-        {
-            id: "training",
-            label: "Training",
-            icon: "mdi:dumbbell",
-            path: `/vault/${vaultId.value}/training`,
-            hotkey: "7",
-        },
-        {
-            id: "happiness",
-            label: "Happiness",
-            icon: "mdi:emoticon-happy-outline",
-            path: `/vault/${vaultId.value}/happiness`,
-            hotkey: "8",
-        },
-    ];
-});
+  return [
+    {
+      id: 'overview',
+      label: 'Overview',
+      icon: 'mdi:view-dashboard',
+      path: `/vault/${vaultId.value}`,
+      hotkey: '1',
+    },
+    {
+      id: 'dwellers',
+      label: 'Dwellers',
+      icon: 'mdi:account-group',
+      path: `/vault/${vaultId.value}/dwellers`,
+      hotkey: '2',
+    },
+    {
+      id: 'exploration',
+      label: 'Exploration',
+      icon: 'mdi:compass',
+      path: `/vault/${vaultId.value}/exploration`,
+      hotkey: '3',
+    },
+    {
+      id: 'objectives',
+      label: 'Objectives',
+      icon: 'mdi:target',
+      path: `/vault/${vaultId.value}/objectives`,
+      hotkey: '4',
+    },
+    {
+      id: 'quests',
+      label: 'Quests',
+      icon: 'mdi:book-open-page-variant',
+      path: `/vault/${vaultId.value}/quests`,
+      hotkey: '5',
+    },
+    {
+      id: 'relationships',
+      label: 'Relationships',
+      icon: 'mdi:heart-multiple',
+      path: `/vault/${vaultId.value}/relationships`,
+      hotkey: '6',
+    },
+    {
+      id: 'training',
+      label: 'Training',
+      icon: 'mdi:dumbbell',
+      path: `/vault/${vaultId.value}/training`,
+      hotkey: '7',
+    },
+    {
+      id: 'happiness',
+      label: 'Happiness',
+      icon: 'mdi:emoticon-happy-outline',
+      path: `/vault/${vaultId.value}/happiness`,
+      hotkey: '8',
+    },
+    {
+      id: 'storage',
+      label: 'Storage',
+      icon: 'mdi:package-variant',
+      path: `/vault/${vaultId.value}/storage`,
+      hotkey: '9',
+    },
+  ]
+})
 
 const comingSoonItems = computed((): NavItem[] => [
-    {
-        id: "workshop",
-        label: "Workshop",
-        icon: "mdi:hammer-wrench",
-        comingSoon: { phase: "Phase 1", quarter: "Jan-Feb 2026" },
-    },
-    {
-        id: "trading",
-        label: "Trading Post",
-        icon: "mdi:store",
-        comingSoon: { phase: "Phase 3", quarter: "Mar-Apr 2026" },
-    },
-    {
-        id: "achievements",
-        label: "Achievements",
-        icon: "mdi:trophy",
-        comingSoon: { phase: "Phase 3", quarter: "Mar-Apr 2026" },
-    },
-]);
+  {
+    id: 'workshop',
+    label: 'Workshop',
+    icon: 'mdi:hammer-wrench',
+    comingSoon: { phase: 'Phase 1', quarter: 'Jan-Feb 2026' },
+  },
+  {
+    id: 'trading',
+    label: 'Trading Post',
+    icon: 'mdi:store',
+    comingSoon: { phase: 'Phase 3', quarter: 'Mar-Apr 2026' },
+  },
+  {
+    id: 'achievements',
+    label: 'Achievements',
+    icon: 'mdi:trophy',
+    comingSoon: { phase: 'Phase 3', quarter: 'Mar-Apr 2026' },
+  },
+])
 
 const isActive = (path: string | undefined) => {
-    return path ? route.path === path : false;
-};
+  return path ? route.path === path : false
+}
 
 const navigate = (path: string | undefined) => {
-    if (path) {
-        router.push(path);
-    }
-};
+  if (path) {
+    router.push(path)
+  }
+}
 
 // Keyboard shortcuts
 const handleKeyPress = (e: KeyboardEvent) => {
-    // Toggle panel with Ctrl/Cmd + B
-    if ((e.ctrlKey || e.metaKey) && e.key === "b") {
-        e.preventDefault();
-        toggle();
-        return;
-    }
+  // Toggle panel with Ctrl/Cmd + B
+  if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+    e.preventDefault()
+    toggle()
+    return
+  }
 
-    // Navigate with number keys (only if not in an input)
-    if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-    ) {
-        return;
-    }
+  // Navigate with number keys (only if not in an input)
+  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+    return
+  }
 
-    const item = navItems.value.find((item) => item.hotkey === e.key);
-    if (item && item.path) {
-        e.preventDefault();
-        navigate(item.path);
-    }
-};
+  const item = navItems.value.find((item) => item.hotkey === e.key)
+  if (item && item.path) {
+    e.preventDefault()
+    navigate(item.path)
+  }
+}
 
 onMounted(() => {
-    window.addEventListener("keydown", handleKeyPress);
-});
+  window.addEventListener('keydown', handleKeyPress)
+})
 
 onUnmounted(() => {
-    window.removeEventListener("keydown", handleKeyPress);
-});
+  window.removeEventListener('keydown', handleKeyPress)
+})
 </script>
 
 <template>
-    <aside
-        class="side-panel"
-        :class="{ collapsed: isCollapsed }"
-        role="navigation"
-        aria-label="Game navigation panel"
+  <aside
+    class="side-panel"
+    :class="{ collapsed: isCollapsed }"
+    role="navigation"
+    aria-label="Game navigation panel"
+  >
+    <!-- Toggle Button -->
+    <button
+      @click="toggle"
+      class="toggle-btn"
+      :aria-label="isCollapsed ? 'Expand navigation panel' : 'Collapse navigation panel'"
+      :title="`${isCollapsed ? 'Expand' : 'Collapse'} (Ctrl+B)`"
     >
-        <!-- Toggle Button -->
-        <button
-            @click="toggle"
-            class="toggle-btn"
-            :aria-label="
-                isCollapsed
-                    ? 'Expand navigation panel'
-                    : 'Collapse navigation panel'
-            "
-            :title="`${isCollapsed ? 'Expand' : 'Collapse'} (Ctrl+B)`"
+      <Icon :icon="isCollapsed ? 'mdi:chevron-right' : 'mdi:chevron-left'" class="h-6 w-6" />
+    </button>
+
+    <!-- Navigation Items -->
+    <nav class="nav-items">
+      <button
+        v-for="item in navItems"
+        :key="item.id"
+        @click="item.path && navigate(item.path)"
+        class="nav-item"
+        :class="{
+          active: isActive(item.path),
+          locked: item.comingSoon,
+        }"
+        :aria-label="`${item.label}${!isCollapsed && item.hotkey ? ' ' + item.hotkey : ''}`"
+        :aria-keyshortcuts="item.hotkey"
+        :title="
+          item.comingSoon
+            ? `${item.label} - ${item.comingSoon.phase} (${item.comingSoon.quarter})`
+            : `${item.label}${item.hotkey ? ' (Shortcut: ' + item.hotkey + ')' : ''}`
+        "
+      >
+        <Icon :icon="item.icon" class="nav-icon" />
+        <span v-if="!isCollapsed" class="nav-label" :class="{ 'locked-label': item.comingSoon }">{{
+          item.label
+        }}</span>
+        <UTooltip
+          v-if="!isCollapsed && item.comingSoon"
+          :text="`${item.label} - Coming in ${item.comingSoon.phase} (${item.comingSoon.quarter})`"
         >
-            <Icon
-                :icon="isCollapsed ? 'mdi:chevron-right' : 'mdi:chevron-left'"
-                class="h-6 w-6"
-            />
-        </button>
+          <Icon icon="mdi:lock" class="lock-icon" />
+        </UTooltip>
+        <span v-else-if="!isCollapsed && item.hotkey" class="hotkey-badge" aria-hidden="true">{{
+          item.hotkey
+        }}</span>
+      </button>
 
-        <!-- Navigation Items -->
-        <nav class="nav-items">
-            <button
-                v-for="item in navItems"
-                :key="item.id"
-                @click="item.path && navigate(item.path)"
-                class="nav-item"
-                :class="{
-                    active: isActive(item.path),
-                    locked: item.comingSoon,
-                }"
-                :aria-label="`${item.label}${!isCollapsed && item.hotkey ? ' ' + item.hotkey : ''}`"
-                :aria-keyshortcuts="item.hotkey"
-                :title="
-                    item.comingSoon
-                        ? `${item.label} - ${item.comingSoon.phase} (${item.comingSoon.quarter})`
-                        : `${item.label}${item.hotkey ? ' (Shortcut: ' + item.hotkey + ')' : ''}`
-                "
-            >
-                <Icon :icon="item.icon" class="nav-icon" />
-                <span
-                    v-if="!isCollapsed"
-                    class="nav-label"
-                    :class="{ 'locked-label': item.comingSoon }"
-                    >{{ item.label }}</span
-                >
-                <UTooltip
-                    v-if="!isCollapsed && item.comingSoon"
-                    :text="`${item.label} - Coming in ${item.comingSoon.phase} (${item.comingSoon.quarter})`"
-                >
-                    <Icon icon="mdi:lock" class="lock-icon" />
-                </UTooltip>
-                <span
-                    v-else-if="!isCollapsed && item.hotkey"
-                    class="hotkey-badge"
-                    aria-hidden="true"
-                    >{{ item.hotkey }}</span
-                >
-            </button>
+      <!-- Coming Soon Divider -->
+      <div v-if="!isCollapsed" class="nav-divider">
+        <span class="divider-text">Upcoming Features</span>
+      </div>
 
-            <!-- Coming Soon Divider -->
-            <div v-if="!isCollapsed" class="nav-divider">
-                <span class="divider-text">Upcoming Features</span>
-            </div>
-
-            <!-- Coming Soon Items -->
-            <div
-                v-for="item in comingSoonItems"
-                :key="item.id"
-                class="nav-item locked"
-                :title="
-                    isCollapsed
-                        ? `${item.label} - ${item.comingSoon?.phase}`
-                        : undefined
-                "
-            >
-                <Icon :icon="item.icon" class="nav-icon" />
-                <span v-if="!isCollapsed" class="nav-label locked-label">{{
-                    item.label
-                }}</span>
-                <UTooltip
-                    v-if="!isCollapsed && item.comingSoon"
-                    :text="`${item.label} - Coming in ${item.comingSoon.phase} (${item.comingSoon.quarter})`"
-                >
-                    <Icon icon="mdi:lock" class="lock-icon" />
-                </UTooltip>
-            </div>
-        </nav>
-    </aside>
+      <!-- Coming Soon Items -->
+      <div
+        v-for="item in comingSoonItems"
+        :key="item.id"
+        class="nav-item locked"
+        :title="isCollapsed ? `${item.label} - ${item.comingSoon?.phase}` : undefined"
+      >
+        <Icon :icon="item.icon" class="nav-icon" />
+        <span v-if="!isCollapsed" class="nav-label locked-label">{{ item.label }}</span>
+        <UTooltip
+          v-if="!isCollapsed && item.comingSoon"
+          :text="`${item.label} - Coming in ${item.comingSoon.phase} (${item.comingSoon.quarter})`"
+        >
+          <Icon icon="mdi:lock" class="lock-icon" />
+        </UTooltip>
+      </div>
+    </nav>
+  </aside>
 </template>
 
 <style scoped>
 .side-panel {
-    position: fixed;
-    left: 0;
-    top: 64px; /* Below navbar */
-    bottom: 0;
-    width: 240px;
-    background: rgba(0, 0, 0, 0.95);
-    border-right: 2px solid var(--color-theme-primary);
-    box-shadow: 0 0 20px var(--color-theme-glow);
-    transition:
-        width 0.3s ease,
-        transform 0.3s ease;
-    z-index: 40;
-    display: flex;
-    flex-direction: column;
-    font-family: "Courier New", monospace;
+  position: fixed;
+  left: 0;
+  top: 64px; /* Below fixed navbar (NavBar height is ~64px with padding) */
+  bottom: 0;
+  width: 240px;
+  background: rgba(0, 0, 0, 0.95);
+  border-right: 2px solid var(--color-theme-primary);
+  box-shadow: 0 0 20px var(--color-theme-glow);
+  transition:
+    width 0.3s ease,
+    transform 0.3s ease;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Courier New', monospace;
 }
 
 .side-panel.collapsed {
-    width: 64px;
+  width: 64px;
 }
 
 .toggle-btn {
-    position: absolute;
-    right: -12px;
-    top: 16px;
-    width: 24px;
-    height: 24px;
-    background: #000;
-    border: 2px solid var(--color-theme-primary);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--color-theme-primary);
-    cursor: pointer;
-    transition: all 0.2s;
-    z-index: 10;
+  position: absolute;
+  right: -12px;
+  top: 16px;
+  width: 24px;
+  height: 24px;
+  background: #000;
+  border: 2px solid var(--color-theme-primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-theme-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 10;
 }
 
 .toggle-btn:hover {
-    background: var(--color-theme-primary);
-    color: #000;
-    box-shadow: 0 0 15px var(--color-theme-glow);
+  background: var(--color-theme-primary);
+  color: #000;
+  box-shadow: 0 0 15px var(--color-theme-glow);
 }
 
 .toggle-btn:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px var(--color-theme-glow);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-theme-glow);
 }
 
 .nav-items {
-    display: flex;
-    flex-direction: column;
-    padding: 24px 0;
-    gap: 8px;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 0;
+  gap: 8px;
 }
 
 .nav-item {
-    display: flex;
-    align-items: center;
-    padding: 12px 16px;
-    color: var(--color-theme-primary);
-    background: transparent;
-    border: none;
-    border-left: 3px solid transparent;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-align: left;
-    gap: 12px;
-    position: relative;
-    width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  color: var(--color-theme-primary);
+  background: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  gap: 12px;
+  position: relative;
+  width: 100%;
 }
 
 .collapsed .nav-item {
-    justify-content: center;
-    padding: 12px 8px;
+  justify-content: center;
+  padding: 12px 8px;
 }
 
 .nav-item:hover {
-    background: var(--color-theme-glow);
-    border-left-color: var(--color-theme-primary);
+  background: var(--color-theme-glow);
+  border-left-color: var(--color-theme-primary);
 }
 
 .nav-item:focus {
-    outline: none;
-    background: var(--color-theme-glow);
-    box-shadow: inset 0 0 0 2px var(--color-theme-glow);
+  outline: none;
+  background: var(--color-theme-glow);
+  box-shadow: inset 0 0 0 2px var(--color-theme-glow);
 }
 
 .nav-item.active {
-    background: var(--color-theme-glow);
-    border-left-color: var(--color-theme-primary);
-    box-shadow: 0 0 10px var(--color-theme-glow);
+  background: var(--color-theme-glow);
+  border-left-color: var(--color-theme-primary);
+  box-shadow: 0 0 10px var(--color-theme-glow);
 }
 
 .nav-icon {
-    width: 28px;
-    height: 28px;
-    flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
 }
 
 .nav-label {
-    flex: 1;
-    font-size: 16px;
-    font-weight: 700;
-    white-space: nowrap;
-    letter-spacing: 0.025em;
-    text-shadow: 0 0 4px var(--color-theme-glow);
+  flex: 1;
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: 0.025em;
+  text-shadow: 0 0 4px var(--color-theme-glow);
 }
 
 .hotkey-badge {
-    font-size: 11px;
-    padding: 3px 7px;
-    background: var(--color-theme-glow);
-    border: 1px solid var(--color-theme-primary);
-    border-radius: 3px;
-    font-weight: 700;
-    text-shadow: 0 0 3px var(--color-theme-glow);
+  font-size: 11px;
+  padding: 3px 7px;
+  background: var(--color-theme-glow);
+  border: 1px solid var(--color-theme-primary);
+  border-radius: 3px;
+  font-weight: 700;
+  text-shadow: 0 0 3px var(--color-theme-glow);
 }
 
 .collapsed .nav-label,
 .collapsed .hotkey-badge {
-    display: none;
+  display: none;
 }
 
 /* Nav Divider */
 .nav-divider {
-    margin: 16px 0 8px;
-    padding: 8px 16px;
-    border-top: 1px solid var(--color-theme-glow);
-    border-bottom: 1px solid var(--color-theme-glow);
+  margin: 16px 0 8px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--color-theme-glow);
+  border-bottom: 1px solid var(--color-theme-glow);
 }
 
 .divider-text {
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--color-theme-accent);
-    text-shadow: 0 0 5px var(--color-theme-glow);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-theme-accent);
+  text-shadow: 0 0 5px var(--color-theme-glow);
 }
 
 /* Locked Items */
 .nav-item.locked {
-    opacity: 0.5;
-    cursor: not-allowed;
-    pointer-events: none;
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .nav-item.locked:hover {
-    background: transparent;
-    border-left-color: transparent;
+  background: transparent;
+  border-left-color: transparent;
 }
 
 .locked-label {
-    color: var(--color-theme-accent);
-    opacity: 0.7;
+  color: var(--color-theme-accent);
+  opacity: 0.7;
 }
 
 .lock-icon {
-    width: 16px;
-    height: 16px;
-    color: var(--color-theme-accent);
-    pointer-events: auto;
-    cursor: help;
+  width: 16px;
+  height: 16px;
+  color: var(--color-theme-accent);
+  pointer-events: auto;
+  cursor: help;
 }
 
 /* Scanline effect - theme-aware */
 .side-panel::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: repeating-linear-gradient(
-        0deg,
-        var(--color-theme-glow) 0px,
-        transparent 1px,
-        transparent 2px,
-        var(--color-theme-glow) 3px
-    );
-    opacity: 0.15;
-    pointer-events: none;
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    var(--color-theme-glow) 0px,
+    transparent 1px,
+    transparent 2px,
+    var(--color-theme-glow) 3px
+  );
+  opacity: 0.15;
+  pointer-events: none;
 }
 </style>

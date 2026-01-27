@@ -23,9 +23,7 @@ import { toApiError, isAxiosError } from '@/core/types/utils'
  * }
  * ```
  */
-export async function apiCall<T>(
-  fn: () => Promise<T>
-): Promise<AsyncResult<T>> {
+export async function apiCall<T>(fn: () => Promise<T>): Promise<AsyncResult<T>> {
   try {
     const data = await fn()
     return { success: true, data }
@@ -109,14 +107,10 @@ export function isApiError(error: unknown): error is ApiError {
 /**
  * Create a typed API response wrapper
  */
-export function createApiResponse<T>(
-  data: T,
-  message?: string,
-  status = 200
-): ApiResponse<T> {
+export function createApiResponse<T>(data: T, message?: string, status = 200): ApiResponse<T> {
   return {
     data,
     message,
-    status
+    status,
   }
 }

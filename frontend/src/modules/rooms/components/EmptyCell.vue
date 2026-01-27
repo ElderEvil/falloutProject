@@ -5,12 +5,12 @@ import { useHoverPreview } from '@/modules/rooms/composables/useHoverPreview'
 const props = defineProps({
   x: {
     type: Number,
-    required: true
+    required: true,
   },
   y: {
     type: Number,
-    required: true
-  }
+    required: true,
+  },
 })
 
 const { handleHover, clearHover, isValidPlacement, previewCells } = useHoverPreview()
@@ -26,7 +26,7 @@ const isHoverPreview = computed(() => {
     :class="{
       'hover-preview': isHoverPreview,
       'valid-placement': isValidPlacement && isHoverPreview,
-      'invalid-placement': isHoverPreview && !isValidPlacement
+      'invalid-placement': isHoverPreview && !isValidPlacement,
     }"
     @mouseenter="handleHover(props.x, props.y)"
     @mouseleave="clearHover"

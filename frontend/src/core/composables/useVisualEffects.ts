@@ -1,5 +1,5 @@
-import { computed } from 'vue';
-import { useLocalStorage } from '@vueuse/core';
+import { computed } from 'vue'
+import { useLocalStorage } from '@vueuse/core'
 
 export type EffectIntensity = 'off' | 'subtle' | 'normal' | 'strong'
 
@@ -34,27 +34,27 @@ export interface VisualEffectsConfig {
  */
 export function useVisualEffects() {
   // Persist settings in localStorage with sensible defaults
-  const flickering = useLocalStorage('visual-effects:flickering', true);
-  const scanlines = useLocalStorage('visual-effects:scanlines', true);
-  const glowIntensity = useLocalStorage<EffectIntensity>('visual-effects:glow', 'normal');
+  const flickering = useLocalStorage('visual-effects:flickering', true)
+  const scanlines = useLocalStorage('visual-effects:scanlines', true)
+  const glowIntensity = useLocalStorage<EffectIntensity>('visual-effects:glow', 'normal')
 
   // Computed for easy binding
-  const isFlickeringEnabled = computed(() => flickering.value);
-  const areScanlinesEnabled = computed(() => scanlines.value);
-  const isGlowEnabled = computed(() => glowIntensity.value !== 'off');
+  const isFlickeringEnabled = computed(() => flickering.value)
+  const areScanlinesEnabled = computed(() => scanlines.value)
+  const isGlowEnabled = computed(() => glowIntensity.value !== 'off')
 
   /**
    * Toggle flickering effect on/off
    */
   function toggleFlickering() {
-    flickering.value = !flickering.value;
+    flickering.value = !flickering.value
   }
 
   /**
    * Toggle scanlines overlay on/off
    */
   function toggleScanlines() {
-    scanlines.value = !scanlines.value;
+    scanlines.value = !scanlines.value
   }
 
   /**
@@ -62,44 +62,44 @@ export function useVisualEffects() {
    * @param intensity - 'off', 'subtle', 'normal', or 'strong'
    */
   function setGlowIntensity(intensity: EffectIntensity) {
-    glowIntensity.value = intensity;
+    glowIntensity.value = intensity
   }
 
   /**
    * Toggle glow effect (cycles through intensities)
    */
   function toggleGlow() {
-    const intensities: EffectIntensity[] = ['off', 'subtle', 'normal', 'strong'];
-    const currentIndex = intensities.indexOf(glowIntensity.value);
-    const nextIndex = (currentIndex + 1) % intensities.length;
-    glowIntensity.value = intensities[nextIndex];
+    const intensities: EffectIntensity[] = ['off', 'subtle', 'normal', 'strong']
+    const currentIndex = intensities.indexOf(glowIntensity.value)
+    const nextIndex = (currentIndex + 1) % intensities.length
+    glowIntensity.value = intensities[nextIndex]
   }
 
   /**
    * Enable all effects with normal intensity
    */
   function enableAllEffects() {
-    flickering.value = true;
-    scanlines.value = true;
-    glowIntensity.value = 'normal';
+    flickering.value = true
+    scanlines.value = true
+    glowIntensity.value = 'normal'
   }
 
   /**
    * Disable all effects (accessibility mode)
    */
   function disableAllEffects() {
-    flickering.value = false;
-    scanlines.value = false;
-    glowIntensity.value = 'off';
+    flickering.value = false
+    scanlines.value = false
+    glowIntensity.value = 'off'
   }
 
   /**
    * Reset to default settings
    */
   function resetToDefaults() {
-    flickering.value = true;
-    scanlines.value = true;
-    glowIntensity.value = 'normal';
+    flickering.value = true
+    scanlines.value = true
+    glowIntensity.value = 'normal'
   }
 
   /**
@@ -108,18 +108,18 @@ export function useVisualEffects() {
   const currentConfig = computed<VisualEffectsConfig>(() => ({
     flickering: flickering.value,
     scanlines: scanlines.value,
-    glow: glowIntensity.value
-  }));
+    glow: glowIntensity.value,
+  }))
 
   /**
    * Get CSS class for glow intensity
    */
   const glowClass = computed(() => {
-    if (glowIntensity.value === 'off') return '';
-    if (glowIntensity.value === 'subtle') return 'terminal-glow-subtle';
-    if (glowIntensity.value === 'strong') return 'terminal-glow-strong';
-    return 'terminal-glow';
-  });
+    if (glowIntensity.value === 'off') return ''
+    if (glowIntensity.value === 'subtle') return 'terminal-glow-subtle'
+    if (glowIntensity.value === 'strong') return 'terminal-glow-strong'
+    return 'terminal-glow'
+  })
 
   return {
     // State
@@ -137,6 +137,6 @@ export function useVisualEffects() {
     toggleGlow,
     enableAllEffects,
     disableAllEffects,
-    resetToDefaults
-  };
+    resetToDefaults,
+  }
 }

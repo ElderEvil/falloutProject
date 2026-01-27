@@ -1,23 +1,22 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { Icon } from '@iconify/vue';
-import UButton from '@/core/components/ui/UButton.vue';
-import UTooltip from '@/core/components/ui/UTooltip.vue';
-import XPProgressBar from '../stats/XPProgressBar.vue';
-import { happinessService, type HappinessModifiers } from '../../services/happinessService';
-import type { components } from '@/core/types/api.generated';
-import { normalizeImageUrl } from '@/utils/image';
+import { computed, ref } from 'vue'
+import { Icon } from '@iconify/vue'
+import UButton from '@/core/components/ui/UButton.vue'
+import UTooltip from '@/core/components/ui/UTooltip.vue'
+import XPProgressBar from '../stats/XPProgressBar.vue'
+import { happinessService, type HappinessModifiers } from '../../services/happinessService'
+import type { components } from '@/core/types/api.generated'
+import { normalizeImageUrl } from '@/utils/image'
 
-
-type DwellerDetailRead = components['schemas']['DwellerReadFull'];
+type DwellerDetailRead = components['schemas']['DwellerReadFull']
 
 interface Props {
-  dweller: DwellerDetailRead;
-  imageUrl?: string | null;
-  loading?: boolean;
+  dweller: DwellerDetailRead
+  imageUrl?: string | null
+  loading?: boolean
 }
 
-const props = defineProps<Props>();
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'chat'): void
@@ -27,90 +26,96 @@ const emit = defineEmits<{
   (e: 'assign-pet'): void
   (e: 'use-stimpack'): void
   (e: 'use-radaway'): void
-}>();
+}>()
 
-const showHappinessModifiers = ref(false);
-const happinessModifiers = ref<HappinessModifiers | null>(null);
-const loadingModifiers = ref(false);
+const showHappinessModifiers = ref(false)
+const happinessModifiers = ref<HappinessModifiers | null>(null)
+const loadingModifiers = ref(false)
 
 const loadHappinessModifiers = async () => {
   if (happinessModifiers.value) {
-    showHappinessModifiers.value = !showHappinessModifiers.value;
-    return;
+    showHappinessModifiers.value = !showHappinessModifiers.value
+    return
   }
 
-  loadingModifiers.value = true;
+  loadingModifiers.value = true
   try {
-    const response = await happinessService.getDwellerModifiers(props.dweller.id);
-    happinessModifiers.value = response.data;
-    showHappinessModifiers.value = true;
+    const response = await happinessService.getDwellerModifiers(props.dweller.id)
+    happinessModifiers.value = response.data
+    showHappinessModifiers.value = true
   } catch (error) {
-    console.error('Failed to load happiness modifiers:', error);
+    console.error('Failed to load happiness modifiers:', error)
   } finally {
-    loadingModifiers.value = false;
+    loadingModifiers.value = false
   }
-};
+}
 
 const getImageUrl = (imagePath: string) => {
-  return normalizeImageUrl(imagePath);
-};
-
+  return normalizeImageUrl(imagePath)
+}
 
 const healthPercentage = computed(() => {
-  if (!props.dweller.max_health) return 0;
-  return (props.dweller.health / props.dweller.max_health) * 100;
-});
+  if (!props.dweller.max_health) return 0
+  return (props.dweller.health / props.dweller.max_health) * 100
+})
 
 const canUseStimpack = computed(() => {
-  return (props.dweller.stimpack || 0) > 0 && props.dweller.health < props.dweller.max_health;
-});
+  return (props.dweller.stimpack || 0) > 0 && props.dweller.health < props.dweller.max_health
+})
 
 const canUseRadaway = computed(() => {
-  return (props.dweller.radaway || 0) > 0 && (props.dweller.radiation || 0) > 0;
-});
+  return (props.dweller.radaway || 0) > 0 && (props.dweller.radiation || 0) > 0
+})
 
 const happinessLevel = computed(() => {
-  const happiness = props.dweller.happiness || 50;
-  if (happiness >= 75) return 'high';
-  if (happiness >= 50) return 'medium';
-  if (happiness >= 25) return 'low';
-  return 'critical';
-});
+  const happiness = props.dweller.happiness || 50
+  if (happiness >= 75) return 'high'
+  if (happiness >= 50) return 'medium'
+  if (happiness >= 25) return 'low'
+  return 'critical'
+})
 
 const happinessColor = computed(() => {
   switch (happinessLevel.value) {
-    case 'high': return 'var(--color-theme-primary)';
-    case 'medium': return '#4ade80'; // green-400
-    case 'low': return '#fbbf24'; // yellow-400
-    case 'critical': return '#ef4444'; // red-500
-    default: return 'var(--color-theme-primary)';
+    case 'high':
+      return 'var(--color-theme-primary)'
+    case 'medium':
+      return '#4ade80' // green-400
+    case 'low':
+      return '#fbbf24' // yellow-400
+    case 'critical':
+      return '#ef4444' // red-500
+    default:
+      return 'var(--color-theme-primary)'
   }
-});
+})
 
 const genderIcon = computed(() => {
-  return props.dweller.gender === 'male' ? 'mdi:gender-male' : 'mdi:gender-female';
-});
+  return props.dweller.gender === 'male' ? 'mdi:gender-male' : 'mdi:gender-female'
+})
 
 const genderColor = computed(() => {
-  return props.dweller.gender === 'male' ? '#60a5fa' : '#f472b6'; // blue-400 : pink-400
-});
+  return props.dweller.gender === 'male' ? '#60a5fa' : '#f472b6' // blue-400 : pink-400
+})
 
 const rarityColor = computed(() => {
-  const rarity = props.dweller.rarity?.toLowerCase();
+  const rarity = props.dweller.rarity?.toLowerCase()
   switch (rarity) {
-    case 'legendary': return '#fbbf24'; // yellow-400 (gold)
-    case 'rare': return '#a78bfa'; // violet-400 (purple)
-    case 'uncommon': return '#60a5fa'; // blue-400
+    case 'legendary':
+      return '#fbbf24' // yellow-400 (gold)
+    case 'rare':
+      return '#a78bfa' // violet-400 (purple)
+    case 'uncommon':
+      return '#60a5fa' // blue-400
     case 'common':
-    default: return '#9ca3af'; // gray-400
+    default:
+      return '#9ca3af' // gray-400
   }
-});
+})
 
 const rarityLabel = computed(() => {
-  return props.dweller.rarity || 'Common';
-});
-
-
+  return props.dweller.rarity || 'Common'
+})
 </script>
 
 <template>
@@ -118,15 +123,15 @@ const rarityLabel = computed(() => {
     <!-- Portrait -->
     <div class="portrait-container">
       <template v-if="imageUrl">
-        <img
-          :src="getImageUrl(imageUrl)"
-          alt="Dweller Portrait"
-          class="portrait-image"
-        />
+        <img :src="getImageUrl(imageUrl)" alt="Dweller Portrait" class="portrait-image" />
       </template>
       <template v-else>
         <div class="portrait-placeholder">
-          <Icon icon="mdi:account-circle" class="h-48 w-48" style="color: var(--color-theme-primary); opacity: 0.3;" />
+          <Icon
+            icon="mdi:account-circle"
+            class="h-48 w-48"
+            style="color: var(--color-theme-primary); opacity: 0.3"
+          />
           <p class="placeholder-hint">Generate portrait in Appearance tab</p>
         </div>
       </template>
@@ -162,7 +167,9 @@ const rarityLabel = computed(() => {
       <div class="stat-row happiness-row">
         <span class="stat-label">Happiness</span>
         <div class="happiness-value-container">
-          <span class="stat-value" :style="{ color: happinessColor }">{{ dweller.happiness }}%</span>
+          <span class="stat-value" :style="{ color: happinessColor }"
+            >{{ dweller.happiness }}%</span
+          >
           <button
             @click="loadHappinessModifiers"
             class="happiness-info-button"
@@ -179,7 +186,10 @@ const rarityLabel = computed(() => {
         </div>
       </div>
       <div class="happiness-bar">
-        <div class="happiness-fill" :style="{ width: `${dweller.happiness}%`, background: happinessColor }"></div>
+        <div
+          class="happiness-fill"
+          :style="{ width: `${dweller.happiness}%`, background: happinessColor }"
+        ></div>
       </div>
 
       <!-- Happiness Modifiers Dropdown -->
@@ -219,10 +229,7 @@ const rarityLabel = computed(() => {
       </div>
 
       <!-- XP Progress Bar -->
-      <XPProgressBar
-        :level="dweller.level"
-        :current-x-p="dweller.experience"
-      />
+      <XPProgressBar :level="dweller.level" :current-x-p="dweller.experience" />
 
       <!-- Inventory Stats -->
       <div class="inventory-stats">
@@ -247,23 +254,12 @@ const rarityLabel = computed(() => {
 
     <!-- Action Buttons -->
     <div class="actions-container">
-      <UButton
-        variant="primary"
-        size="md"
-        block
-        @click="emit('chat')"
-      >
+      <UButton variant="primary" size="md" block @click="emit('chat')">
         <Icon icon="mdi:message-text" class="h-5 w-5 mr-2" />
         Chat
       </UButton>
 
-      <UButton
-        variant="secondary"
-        size="md"
-        block
-        @click="emit('assign')"
-        :disabled="loading"
-      >
+      <UButton variant="secondary" size="md" block @click="emit('assign')" :disabled="loading">
         <Icon icon="mdi:office-building" class="h-5 w-5 mr-2" />
         Assign to Room
       </UButton>
@@ -307,7 +303,9 @@ const rarityLabel = computed(() => {
 
       <!-- Coming Soon Actions -->
       <div class="coming-soon-section">
-        <UTooltip text="Train SPECIAL stats in dedicated training rooms - Coming in Phase 2 (Feb-Mar 2026)">
+        <UTooltip
+          text="Train SPECIAL stats in dedicated training rooms - Coming in Phase 2 (Feb-Mar 2026)"
+        >
           <button class="locked-action-button" disabled>
             <Icon icon="mdi:school" class="h-5 w-5" />
             <span>Train Stats</span>

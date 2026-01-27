@@ -17,11 +17,16 @@
 
       <!-- Affinity bar -->
       <div class="w-32">
-        <div class="text-xs mb-1" :style="{ color: 'var(--color-theme-primary)' }">Affinity: {{ relationship.affinity }}/100</div>
+        <div class="text-xs mb-1" :style="{ color: 'var(--color-theme-primary)' }">
+          Affinity: {{ relationship.affinity }}/100
+        </div>
         <div class="h-2 bg-gray-800 border" :style="{ borderColor: 'var(--color-theme-primary)' }">
           <div
             class="h-full"
-            :style="{ width: `${relationship.affinity}%`, backgroundColor: 'var(--color-theme-primary)' }"
+            :style="{
+              width: `${relationship.affinity}%`,
+              backgroundColor: 'var(--color-theme-primary)',
+            }"
           ></div>
         </div>
       </div>
@@ -43,7 +48,10 @@
           Partner
         </UButton>
         <UButton
-          v-if="relationship.relationship_type === 'romantic' || relationship.relationship_type === 'partner'"
+          v-if="
+            relationship.relationship_type === 'romantic' ||
+            relationship.relationship_type === 'partner'
+          "
           @click="$emit('break-up')"
           variant="danger"
           size="sm"

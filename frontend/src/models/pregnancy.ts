@@ -3,5 +3,5 @@ export type {
   PregnancyStatus,
   Pregnancy,
   PregnancyProgress,
-  DeliveryResult
+  DeliveryResult,
 } from '@/modules/social/models/pregnancy'

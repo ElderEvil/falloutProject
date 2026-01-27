@@ -50,9 +50,7 @@ export const useIncidentStore = defineStore('incident', () => {
         spawned.forEach((id) => {
           const incident = response.incidents.find((inc) => inc.id === id)
           if (incident) {
-            showError(
-              `Incident Alert! ${incident.type.replace('_', ' ').toUpperCase()} in vault!`
-            )
+            showError(`Incident Alert! ${incident.type.replace('_', ' ').toUpperCase()} in vault!`)
           }
         })
       }
@@ -89,17 +87,13 @@ export const useIncidentStore = defineStore('incident', () => {
 
       // Show loot notification
       if (success && response.caps_earned > 0) {
-        showSuccess(
-          `Incident Resolved! Earned ${response.caps_earned} caps`
-        )
+        showSuccess(`Incident Resolved! Earned ${response.caps_earned} caps`)
       }
 
       return Promise.resolve()
     } catch (err) {
       console.error('Failed to resolve incident:', err)
-      showError(
-        'Resolution Failed: Failed to resolve incident'
-      )
+      showError('Resolution Failed: Failed to resolve incident')
       throw err
     }
   }
@@ -139,7 +133,11 @@ export const useIncidentStore = defineStore('incident', () => {
     return incidents.value.get(id)
   }
 
-  async function spawnDebugIncident(vaultId: string, token: string, incidentType?: string): Promise<void> {
+  async function spawnDebugIncident(
+    vaultId: string,
+    token: string,
+    incidentType?: string
+  ): Promise<void> {
     try {
       const result = await incidentApi.spawnIncident(vaultId, token, incidentType)
 

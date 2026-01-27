@@ -5,5 +5,5 @@ export {
   getVaultTrainings,
   getTrainingProgress,
   cancelTraining,
-  getRoomTrainings
+  getRoomTrainings,
 } from '@/modules/progression/services/trainingService'

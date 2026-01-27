@@ -34,9 +34,8 @@
           <div v-if="incident.rooms_affected.length > 1" class="info-row">
             <span class="info-label">Spreading:</span>
             <span class="info-value warning">
-              {{ incident.rooms_affected.length }} rooms affected (spread count: {{
-                incident.spread_count
-              }})
+              {{ incident.rooms_affected.length }} rooms affected (spread count:
+              {{ incident.spread_count }})
             </span>
           </div>
         </div>
@@ -66,10 +65,7 @@
             <div class="progress-item">
               <div class="progress-label">Combat Progress</div>
               <div class="progress-bar">
-                <div
-                  class="progress-fill success"
-                  :style="{ width: `${combatProgress}%` }"
-                ></div>
+                <div class="progress-fill success" :style="{ width: `${combatProgress}%` }"></div>
               </div>
               <div class="progress-value">{{ combatProgress }}%</div>
             </div>
@@ -86,11 +82,7 @@
               <Icon icon="mdi:bottle-cap" class="loot-icon" />
               <span class="loot-text">{{ incident.loot.caps }} Caps</span>
             </div>
-            <div
-              v-for="(item, idx) in incident.loot.items"
-              :key="idx"
-              class="loot-item"
-            >
+            <div v-for="(item, idx) in incident.loot.items" :key="idx" class="loot-item">
               <Icon :icon="getItemIcon(item.type)" class="loot-icon" />
               <span class="loot-text">
                 {{ item.name }}

@@ -21,7 +21,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   size: 'md',
   closeOnEscape: true,
-  closeOnClickOutside: true
+  closeOnClickOutside: true,
 })
 
 const emit = defineEmits<{
@@ -34,7 +34,7 @@ const sizeClasses = {
   md: 'max-w-md max-h-[65vh]',
   lg: 'max-w-5xl max-h-[80vh]',
   xl: 'max-w-6xl max-h-[90vh]',
-  full: 'max-w-full mx-4 max-h-[90vh]'
+  full: 'max-w-full mx-4 max-h-[90vh]',
 }
 
 const close = () => {
@@ -57,15 +57,18 @@ const handleEscape = (event: KeyboardEvent) => {
 // Register escape key listener when modal is open
 import { onMounted, onUnmounted, watch } from 'vue'
 
-watch(() => props.modelValue, (isOpen) => {
-  if (isOpen) {
-    document.addEventListener('keydown', handleEscape)
-    document.body.style.overflow = 'hidden' // Prevent background scroll
-  } else {
-    document.removeEventListener('keydown', handleEscape)
-    document.body.style.overflow = ''
+watch(
+  () => props.modelValue,
+  (isOpen) => {
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape)
+      document.body.style.overflow = 'hidden' // Prevent background scroll
+    } else {
+      document.removeEventListener('keydown', handleEscape)
+      document.body.style.overflow = ''
+    }
   }
-})
+)
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleEscape)
@@ -85,23 +88,27 @@ onUnmounted(() => {
         <div
           :class="[
             'bg-surface border-2 rounded-lg w-full crt-screen flex flex-col overflow-hidden',
-            sizeClasses[size]
+            sizeClasses[size],
           ]"
           style="border-color: var(--color-terminal-green)"
           @click.stop
         >
           <!-- Header -->
-          <div v-if="$slots.header || title" class="flex items-center justify-between p-6 pb-4 flex-shrink-0">
+          <div
+            v-if="$slots.header || title"
+            class="flex items-center justify-between p-6 pb-4 flex-shrink-0"
+          >
             <slot name="header">
               <h2 class="text-2xl font-bold terminal-glow">{{ title }}</h2>
             </slot>
-            <button
-              @click="close"
-              class="modal-close-btn flex-shrink-0"
-              aria-label="Close modal"
-            >
+            <button @click="close" class="modal-close-btn flex-shrink-0" aria-label="Close modal">
               <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>

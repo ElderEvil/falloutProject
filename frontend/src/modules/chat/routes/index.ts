@@ -6,8 +6,8 @@ export const chatRoutes: RouteRecordRaw[] = [
   {
     path: '/dweller/:id/chat',
     name: 'DwellerChatPage',
-    component: DwellerChatPage
-  }
+    component: DwellerChatPage,
+  },
 ]
 
 export default chatRoutes

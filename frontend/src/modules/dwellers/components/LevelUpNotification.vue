@@ -11,7 +11,7 @@ interface Props {
 
 withDefaults(defineProps<Props>(), {
   hpGain: 5,
-  totalXP: 0
+  totalXP: 0,
 })
 </script>
 
@@ -58,11 +58,7 @@ withDefaults(defineProps<Props>(), {
   position: relative;
   padding: 3rem;
   text-align: center;
-  background: linear-gradient(
-    135deg,
-    rgb(0 0 0 / 0.9) 0%,
-    rgb(15 23 42 / 0.9) 100%
-  );
+  background: linear-gradient(135deg, rgb(0 0 0 / 0.9) 0%, rgb(15 23 42 / 0.9) 100%);
   border: 2px solid rgb(250 204 21);
   border-radius: 0.5rem;
   box-shadow:

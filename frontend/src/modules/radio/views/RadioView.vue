@@ -92,11 +92,7 @@ async function handleManualRecruit() {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0) 50%,
-    rgba(0, 255, 0, 0.02) 50%
-  );
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 50%, rgba(0, 255, 0, 0.02) 50%);
   background-size: 100% 4px;
   pointer-events: none;
   z-index: 1000;

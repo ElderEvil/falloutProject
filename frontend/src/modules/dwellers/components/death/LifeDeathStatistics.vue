@@ -14,12 +14,15 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  loading: false
+  loading: false,
 })
 
 const mortalityRate = computed(() => {
   if (!props.statistics || props.statistics.total_dwellers_born === 0) return 0
-  return ((props.statistics.total_dwellers_died / props.statistics.total_dwellers_born) * 100).toFixed(1)
+  return (
+    (props.statistics.total_dwellers_died / props.statistics.total_dwellers_born) *
+    100
+  ).toFixed(1)
 })
 
 const causeData = computed(() => {
@@ -28,14 +31,44 @@ const causeData = computed(() => {
   const total = props.statistics.total_dwellers_died || 1 // Avoid division by zero
 
   return [
-    { id: 'health', label: 'Natural Causes', count: causes.health, icon: 'mdi:heart-broken', color: 'text-pink-500' },
-    { id: 'radiation', label: 'Radiation', count: causes.radiation, icon: 'mdi:radioactive', color: 'text-green-400' },
-    { id: 'incident', label: 'Incidents', count: causes.incident, icon: 'mdi:fire', color: 'text-orange-500' },
-    { id: 'exploration', label: 'Exploration', count: causes.exploration, icon: 'mdi:compass', color: 'text-yellow-500' },
-    { id: 'combat', label: 'Combat', count: causes.combat, icon: 'mdi:sword', color: 'text-red-500' }
-  ].map(item => ({
+    {
+      id: 'health',
+      label: 'Natural Causes',
+      count: causes.health,
+      icon: 'mdi:heart-broken',
+      color: 'text-pink-500',
+    },
+    {
+      id: 'radiation',
+      label: 'Radiation',
+      count: causes.radiation,
+      icon: 'mdi:radioactive',
+      color: 'text-green-400',
+    },
+    {
+      id: 'incident',
+      label: 'Incidents',
+      count: causes.incident,
+      icon: 'mdi:fire',
+      color: 'text-orange-500',
+    },
+    {
+      id: 'exploration',
+      label: 'Exploration',
+      count: causes.exploration,
+      icon: 'mdi:compass',
+      color: 'text-yellow-500',
+    },
+    {
+      id: 'combat',
+      label: 'Combat',
+      count: causes.combat,
+      icon: 'mdi:sword',
+      color: 'text-red-500',
+    },
+  ].map((item) => ({
     ...item,
-    percentage: ((item.count / total) * 100).toFixed(1)
+    percentage: ((item.count / total) * 100).toFixed(1),
   }))
 })
 </script>
@@ -55,8 +88,12 @@ const causeData = computed(() => {
       <!-- High Level Stats -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <!-- Births -->
-        <div class="bg-black/40 border border-theme-primary/30 p-3 rounded flex flex-col items-center justify-center text-center">
-          <div class="text-xs text-theme-primary/60 uppercase tracking-wider mb-1">Total Births</div>
+        <div
+          class="bg-black/40 border border-theme-primary/30 p-3 rounded flex flex-col items-center justify-center text-center"
+        >
+          <div class="text-xs text-theme-primary/60 uppercase tracking-wider mb-1">
+            Total Births
+          </div>
           <div class="text-3xl font-bold text-theme-primary flex items-center gap-2">
             <Icon icon="mdi:baby-carriage" class="w-6 h-6 opacity-80" />
             {{ statistics.total_dwellers_born }}
@@ -64,8 +101,12 @@ const causeData = computed(() => {
         </div>
 
         <!-- Deaths -->
-        <div class="bg-black/40 border border-theme-primary/30 p-3 rounded flex flex-col items-center justify-center text-center">
-          <div class="text-xs text-theme-primary/60 uppercase tracking-wider mb-1">Total Deaths</div>
+        <div
+          class="bg-black/40 border border-theme-primary/30 p-3 rounded flex flex-col items-center justify-center text-center"
+        >
+          <div class="text-xs text-theme-primary/60 uppercase tracking-wider mb-1">
+            Total Deaths
+          </div>
           <div class="text-3xl font-bold text-red-500 flex items-center gap-2">
             <Icon icon="mdi:skull" class="w-6 h-6 opacity-80" />
             {{ statistics.total_dwellers_died }}
@@ -73,9 +114,16 @@ const causeData = computed(() => {
         </div>
 
         <!-- Mortality Rate -->
-        <div class="bg-black/40 border border-theme-primary/30 p-3 rounded flex flex-col items-center justify-center text-center">
-          <div class="text-xs text-theme-primary/60 uppercase tracking-wider mb-1">Mortality Rate</div>
-          <div class="text-3xl font-bold flex items-center gap-2" :class="Number(mortalityRate) > 50 ? 'text-red-500' : 'text-theme-primary'">
+        <div
+          class="bg-black/40 border border-theme-primary/30 p-3 rounded flex flex-col items-center justify-center text-center"
+        >
+          <div class="text-xs text-theme-primary/60 uppercase tracking-wider mb-1">
+            Mortality Rate
+          </div>
+          <div
+            class="text-3xl font-bold flex items-center gap-2"
+            :class="Number(mortalityRate) > 50 ? 'text-red-500' : 'text-theme-primary'"
+          >
             <Icon icon="mdi:chart-line" class="w-6 h-6 opacity-80" />
             {{ mortalityRate }}%
           </div>
@@ -91,22 +139,30 @@ const causeData = computed(() => {
 
         <div class="space-y-3">
           <div v-for="cause in causeData" :key="cause.id" class="flex items-center gap-3 group">
-            <div class="w-8 h-8 rounded flex items-center justify-center bg-black border border-theme-primary/30 shrink-0">
+            <div
+              class="w-8 h-8 rounded flex items-center justify-center bg-black border border-theme-primary/30 shrink-0"
+            >
               <Icon :icon="cause.icon" class="w-5 h-5" :class="cause.color" />
             </div>
 
             <div class="flex-1 min-w-0">
               <div class="flex justify-between items-end mb-1">
-                <span class="text-sm font-medium text-theme-primary group-hover:text-theme-glow transition-colors">
+                <span
+                  class="text-sm font-medium text-theme-primary group-hover:text-theme-glow transition-colors"
+                >
                   {{ cause.label }}
                 </span>
                 <div class="flex items-center gap-2">
                   <span class="text-xs text-theme-primary/60">{{ cause.count }}</span>
-                  <span class="text-xs font-mono text-theme-primary/40 w-10 text-right">{{ cause.percentage }}%</span>
+                  <span class="text-xs font-mono text-theme-primary/40 w-10 text-right"
+                    >{{ cause.percentage }}%</span
+                  >
                 </div>
               </div>
 
-              <div class="h-1.5 bg-gray-900 rounded-full overflow-hidden border border-theme-primary/20">
+              <div
+                class="h-1.5 bg-gray-900 rounded-full overflow-hidden border border-theme-primary/20"
+              >
                 <div
                   class="h-full w-[var(--width)] bg-theme-primary/60 group-hover:bg-theme-primary transition-all duration-500 shadow-[0_0_5px_currentColor]"
                   :style="{ '--width': `${cause.percentage}%` }"
@@ -119,14 +175,22 @@ const causeData = computed(() => {
 
       <!-- Status Summary -->
       <div class="grid grid-cols-2 gap-4 pt-2">
-        <div class="flex items-center justify-between p-2 bg-theme-primary/10 rounded border border-theme-primary/30">
+        <div
+          class="flex items-center justify-between p-2 bg-theme-primary/10 rounded border border-theme-primary/30"
+        >
           <span class="text-xs uppercase text-theme-primary/80">Revivable Subjects</span>
-          <span class="font-bold font-mono text-lg text-theme-primary">{{ statistics.revivable_count }}</span>
+          <span class="font-bold font-mono text-lg text-theme-primary">{{
+            statistics.revivable_count
+          }}</span>
         </div>
 
-        <div class="flex items-center justify-between p-2 bg-red-900/10 rounded border border-red-500/30">
+        <div
+          class="flex items-center justify-between p-2 bg-red-900/10 rounded border border-red-500/30"
+        >
           <span class="text-xs uppercase text-red-400/80">Permanent Casualties</span>
-          <span class="font-bold font-mono text-lg text-red-500">{{ statistics.permanently_dead_count }}</span>
+          <span class="font-bold font-mono text-lg text-red-500">{{
+            statistics.permanently_dead_count
+          }}</span>
         </div>
       </div>
     </div>

@@ -9,12 +9,12 @@ export const authService = {
     try {
       const formAsRecord: Record<string, string> = {
         username: form.username,
-        password: form.password
+        password: form.password,
       }
       return await apiClient.post('/api/v1/auth/login', new URLSearchParams(formAsRecord), {
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
       })
     } catch {
       throw new AuthError('Login failed')
@@ -33,8 +33,8 @@ export const authService = {
       formData.append('refresh_token', refreshToken)
       return await apiClient.post('/api/v1/auth/refresh', formData, {
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
       })
     } catch {
       throw new AuthError('Token refresh failed')
@@ -53,5 +53,5 @@ export const authService = {
     } catch {
       throw new AuthError('Failed to fetch current user')
     }
-  }
+  },
 }

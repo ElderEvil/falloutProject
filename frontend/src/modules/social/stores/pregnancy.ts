@@ -78,16 +78,12 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
   async function forceConception(motherId: string, fatherId: string): Promise<Pregnancy | null> {
     isLoading.value = true
     try {
-      const response = await axios.post(
-        `/api/v1/pregnancies/debug/force-conception`,
-        null,
-        {
-          params: {
-            mother_id: motherId,
-            father_id: fatherId
-          }
-        }
-      )
+      const response = await axios.post(`/api/v1/pregnancies/debug/force-conception`, null, {
+        params: {
+          mother_id: motherId,
+          father_id: fatherId,
+        },
+      })
       const pregnancy: Pregnancy = response.data
       pregnancies.value.push(pregnancy)
       toast.success('Force conception successful!')

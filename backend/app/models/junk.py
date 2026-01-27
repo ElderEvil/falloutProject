@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from pydantic import UUID4
+from pydantic import UUID4, model_validator
 from sqlmodel import Field, Relationship
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
@@ -20,6 +20,25 @@ class JunkBase(ItemBase):
         RarityEnum.RARE: 50,
         RarityEnum.LEGENDARY: 200,
     }
+
+    @model_validator(mode="before")
+    @classmethod
+    def set_junk_value(cls, data: dict) -> dict:
+        """Set junk value based on rarity if not provided."""
+        if isinstance(data, dict) and data.get("value") is None:
+            rarity = data.get("rarity")
+            if rarity:
+                # Convert string to RarityEnum if needed
+                if isinstance(rarity, str):
+                    try:
+                        rarity = RarityEnum(rarity)
+                    except (ValueError, KeyError):
+                        # Fall back to default if conversion fails
+                        data["value"] = 2
+                        return data
+                # Lookup using enum key
+                data["value"] = cls._value_by_rarity.get(rarity, 2)
+        return data
 
 
 class Junk(BaseUUIDModel, JunkBase, TimeStampMixin, table=True):

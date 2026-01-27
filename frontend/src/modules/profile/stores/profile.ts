@@ -36,7 +36,7 @@ export const useProfileStore = defineStore('profile', () => {
       totalDwellersCreated: profile.value.total_dwellers_created,
       totalCapsEarned: profile.value.total_caps_earned,
       totalExplorations: profile.value.total_explorations,
-      totalRoomsBuilt: profile.value.total_rooms_built
+      totalRoomsBuilt: profile.value.total_rooms_built,
     }
   })
 
@@ -113,6 +113,6 @@ export const useProfileStore = defineStore('profile', () => {
     fetchProfile,
     updateProfile,
     fetchDeathStatistics,
-    clearError
+    clearError,
   }
 })

@@ -19,7 +19,7 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  loading: false
+  loading: false,
 })
 
 const emit = defineEmits<Emits>()
@@ -47,7 +47,6 @@ const handleRevive = () => {
 <template>
   <UCard title="EMERGENCY MEDICAL PROTOCOL" glow crt class="revival-section">
     <div v-if="revivalCost" class="flex flex-col gap-4">
-
       <!-- Cost Analysis -->
       <div class="grid grid-cols-2 gap-4">
         <div class="bg-black/40 border border-theme-primary/30 p-3 rounded">
@@ -58,9 +57,15 @@ const handleRevive = () => {
           </div>
         </div>
 
-        <div class="bg-black/40 border border-theme-primary/30 p-3 rounded" :class="{ 'border-red-500/50': !canAfford }">
+        <div
+          class="bg-black/40 border border-theme-primary/30 p-3 rounded"
+          :class="{ 'border-red-500/50': !canAfford }"
+        >
           <div class="text-xs text-theme-primary/60 uppercase mb-1">Vault Funds</div>
-          <div class="flex items-center gap-2 text-xl font-bold" :class="canAfford ? 'text-theme-primary' : 'text-red-500'">
+          <div
+            class="flex items-center gap-2 text-xl font-bold"
+            :class="canAfford ? 'text-theme-primary' : 'text-red-500'"
+          >
             <Icon icon="mdi:finance" class="w-5 h-5" />
             <span>{{ revivalCost.vault_caps }}</span>
           </div>
@@ -68,7 +73,10 @@ const handleRevive = () => {
       </div>
 
       <!-- Status Message -->
-      <div v-if="!canAfford" class="flex items-center gap-2 text-red-500 text-sm font-bold bg-red-900/10 p-2 rounded border border-red-500/30">
+      <div
+        v-if="!canAfford"
+        class="flex items-center gap-2 text-red-500 text-sm font-bold bg-red-900/10 p-2 rounded border border-red-500/30"
+      >
         <Icon icon="mdi:alert-circle" class="w-5 h-5 shrink-0" />
         <span>INSUFFICIENT FUNDS FOR PROCEDURE</span>
       </div>
@@ -94,7 +102,8 @@ const handleRevive = () => {
       <!-- Action -->
       <div class="pt-2">
         <p class="text-xs text-center text-theme-primary/60 mb-3 font-mono">
-          WARNING: Procedure success guaranteed. Subject will return with full health but radiation levels may persist.
+          WARNING: Procedure success guaranteed. Subject will return with full health but radiation
+          levels may persist.
         </p>
 
         <UButton
@@ -109,7 +118,6 @@ const handleRevive = () => {
           INITIATE REVIVAL SEQUENCE
         </UButton>
       </div>
-
     </div>
 
     <!-- Loading State Skeleton -->

@@ -18,7 +18,7 @@ const stats = [
   { key: 'C', label: 'Charisma', description: 'Trading and breeding success' },
   { key: 'I', label: 'Intelligence', description: 'Crafting and science efficiency' },
   { key: 'A', label: 'Agility', description: 'Speed and weapon reload' },
-  { key: 'L', label: 'Luck', description: 'Critical hits and loot quality' }
+  { key: 'L', label: 'Luck', description: 'Critical hits and loot quality' },
 ]
 </script>
 
@@ -26,11 +26,7 @@ const stats = [
   <div class="dweller-stats">
     <h3 class="stats-title">S.P.E.C.I.A.L.</h3>
     <div class="stats-grid">
-      <div
-        v-for="stat in stats"
-        :key="stat.key"
-        class="stat-item"
-      >
+      <div v-for="stat in stats" :key="stat.key" class="stat-item">
         <div class="stat-header">
           <span class="stat-label">{{ stat.label }}</span>
           <span class="stat-value">{{ ($props as any)[stat.key] || 0 }}</span>

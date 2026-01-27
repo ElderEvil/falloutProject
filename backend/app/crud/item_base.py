@@ -1,8 +1,10 @@
+import contextlib
 import random
 from typing import Any
 
 from pydantic import UUID4
 from sqlalchemy import update
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import aliased
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -174,6 +176,13 @@ class CRUDItem(
         # Generate junk based on the defined probabilities
         junk_results = []
 
+        # Junk value by rarity
+        junk_value_map = {
+            RarityEnum.COMMON: 2,
+            RarityEnum.RARE: 50,
+            RarityEnum.LEGENDARY: 200,
+        }
+
         for junk_type, (rarity, probability) in junk_options.items():
             if random.random() < probability:
                 junk_results.append(
@@ -181,6 +190,7 @@ class CRUDItem(
                         name=junk_type.value,
                         junk_type=junk_type,
                         rarity=rarity,
+                        value=junk_value_map.get(rarity, 2),
                         description=f"Derived from {item.name}",
                     )
                 )
@@ -192,13 +202,28 @@ class CRUDItem(
         if not item:
             raise ResourceNotFoundException(self.model, identifier=item_id)
 
+        # Get storage_id from the item before deleting
+        storage_id = item.storage_id
+
         junk_list = self.convert_to_junk(item)
+
+        # Assign junk items to the same storage and add to session
+        for junk in junk_list:
+            if storage_id:
+                junk.storage_id = storage_id
+            db_session.add(junk)
+
         await db_session.delete(item)
         await db_session.commit()
+
+        # Refresh junk items to get IDs
+        for junk in junk_list:
+            await db_session.refresh(junk)
+
         return junk_list
 
     @staticmethod
-    async def add_caps_to_vault(db_session: AsyncSession, vault_id: UUID4, value: int) -> None:
+    async def add_caps_to_vault(db_session: AsyncSession, vault_id: UUID4, value: int, *, commit: bool = True) -> None:
         """Add value to the vault's resources."""
         vault = await db_session.get(Vault, vault_id)
         if not vault:
@@ -206,15 +231,38 @@ class CRUDItem(
 
         vault.bottle_caps += value
         db_session.add(vault)
-        await db_session.commit()
+        if commit:
+            await db_session.commit()
 
     async def sell(self, db_session: AsyncSession, *, item_id: UUID4) -> None:
+        from sqlmodel import select
+
         item = await db_session.get(self.model, item_id)
         if not item:
             raise ResourceNotFoundException(self.model, identifier=item_id)
 
-        host_entity = storage if (storage := item.storage) else item.dweller
+        # Get vault_id without lazy loading relationships
+        vault_id = None
+        if item.storage_id:
+            # Item is in storage - get vault via storage
+            storage_result = await db_session.execute(select(Storage.vault_id).where(Storage.id == item.storage_id))
+            vault_id = storage_result.scalar_one_or_none()
+        elif item.dweller_id:
+            # Item is equipped - get vault via dweller
+            from app.models.dweller import Dweller
 
-        await self.add_caps_to_vault(db_session, host_entity.vault_id, item.value)  # TODO: test item storage
-        await db_session.delete(item)
-        await db_session.commit()
+            dweller_result = await db_session.execute(select(Dweller.vault_id).where(Dweller.id == item.dweller_id))
+            vault_id = dweller_result.scalar_one_or_none()
+
+        if not vault_id:
+            raise ResourceNotFoundException(Vault, identifier="Unknown - item has no storage or dweller")
+
+        try:
+            await self.add_caps_to_vault(db_session, vault_id, item.value, commit=False)
+            await db_session.delete(item)
+            await db_session.commit()
+        except SQLAlchemyError:
+            # Ensure we rollback on any error to avoid partial state in async contexts
+            with contextlib.suppress(Exception):
+                await db_session.rollback()
+            raise

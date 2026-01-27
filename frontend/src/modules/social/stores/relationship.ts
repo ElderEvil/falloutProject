@@ -146,7 +146,10 @@ export const useRelationshipStore = defineStore('relationship', () => {
       const index = relationships.value.findIndex((r) => r.id === relationshipId)
       if (index !== -1 && relationships.value[index]) {
         relationships.value[index]!.relationship_type = 'ex'
-        relationships.value[index]!.affinity = Math.max(0, relationships.value[index]!.affinity - 30)
+        relationships.value[index]!.affinity = Math.max(
+          0,
+          relationships.value[index]!.affinity - 30
+        )
       }
 
       toast.success('Relationship ended')

@@ -1,25 +1,25 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { Icon } from '@iconify/vue';
-import UCard from '@/core/components/ui/UCard.vue';
-import UButton from '@/core/components/ui/UButton.vue';
+import { computed } from 'vue'
+import { Icon } from '@iconify/vue'
+import UCard from '@/core/components/ui/UCard.vue'
+import UButton from '@/core/components/ui/UButton.vue'
 
 interface DwellerDistribution {
-  high: number;    // 75-100
-  medium: number;  // 50-74
-  low: number;     // 25-49
-  critical: number; // 10-24
+  high: number // 75-100
+  medium: number // 50-74
+  low: number // 25-49
+  critical: number // 10-24
 }
 
 interface Props {
-  vaultHappiness: number;
-  dwellerCount: number;
-  distribution: DwellerDistribution;
-  idleDwellerCount?: number;
-  activeIncidentCount?: number;
-  lowResourceCount?: number;
-  radioHappinessMode?: boolean;
-  loading?: boolean;
+  vaultHappiness: number
+  dwellerCount: number
+  distribution: DwellerDistribution
+  idleDwellerCount?: number
+  activeIncidentCount?: number
+  lowResourceCount?: number
+  radioHappinessMode?: boolean
+  loading?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -28,69 +28,85 @@ const props = withDefaults(defineProps<Props>(), {
   lowResourceCount: 0,
   radioHappinessMode: false,
   loading: false,
-});
+})
 
 const emit = defineEmits<{
-  (e: 'assign-idle'): void;
-  (e: 'activate-radio'): void;
-  (e: 'view-low-happiness'): void;
-}>();
+  (e: 'assign-idle'): void
+  (e: 'activate-radio'): void
+  (e: 'view-low-happiness'): void
+}>()
 
-const dwellerDistribution = computed<DwellerDistribution>(() => props.distribution);
+const dwellerDistribution = computed<DwellerDistribution>(() => props.distribution)
 
 const happinessLevel = computed(() => {
-  const h = props.vaultHappiness;
-  if (h >= 75) return 'high';
-  if (h >= 50) return 'medium';
-  if (h >= 25) return 'low';
-  return 'critical';
-});
+  const h = props.vaultHappiness
+  if (h >= 75) return 'high'
+  if (h >= 50) return 'medium'
+  if (h >= 25) return 'low'
+  return 'critical'
+})
 
 const happinessColor = computed(() => {
   switch (happinessLevel.value) {
-    case 'high': return 'var(--color-theme-primary)';
-    case 'medium': return '#4ade80';
-    case 'low': return '#fbbf24';
-    case 'critical': return '#ef4444';
-    default: return 'var(--color-theme-primary)';
+    case 'high':
+      return 'var(--color-theme-primary)'
+    case 'medium':
+      return '#4ade80'
+    case 'low':
+      return '#fbbf24'
+    case 'critical':
+      return '#ef4444'
+    default:
+      return 'var(--color-theme-primary)'
   }
-});
+})
 
 const happinessLabel = computed(() => {
   switch (happinessLevel.value) {
-    case 'high': return 'EXCELLENT';
-    case 'medium': return 'GOOD';
-    case 'low': return 'POOR';
-    case 'critical': return 'CRITICAL';
-    default: return 'UNKNOWN';
+    case 'high':
+      return 'EXCELLENT'
+    case 'medium':
+      return 'GOOD'
+    case 'low':
+      return 'POOR'
+    case 'critical':
+      return 'CRITICAL'
+    default:
+      return 'UNKNOWN'
   }
-});
+})
 
 // TODO (v1.14): Calculate trend from historical data
 const happinessTrend = computed(() => {
   // For now, show stable
-  return 'stable'; // 'increasing' | 'decreasing' | 'stable'
-});
+  return 'stable' // 'increasing' | 'decreasing' | 'stable'
+})
 
 const trendIcon = computed(() => {
   switch (happinessTrend.value) {
-    case 'increasing': return 'mdi:trending-up';
-    case 'decreasing': return 'mdi:trending-down';
-    default: return 'mdi:trending-neutral';
+    case 'increasing':
+      return 'mdi:trending-up'
+    case 'decreasing':
+      return 'mdi:trending-down'
+    default:
+      return 'mdi:trending-neutral'
   }
-});
+})
 
 const trendColor = computed(() => {
   switch (happinessTrend.value) {
-    case 'increasing': return 'var(--color-theme-primary)';
-    case 'decreasing': return '#ef4444';
-    default: return '#9ca3af';
+    case 'increasing':
+      return 'var(--color-theme-primary)'
+    case 'decreasing':
+      return '#ef4444'
+    default:
+      return '#9ca3af'
   }
-});
+})
 
 // Active modifiers affecting happiness
 const activeModifiers = computed(() => {
-  const modifiers = [];
+  const modifiers = []
 
   if (props.lowResourceCount > 0) {
     modifiers.push({
@@ -98,7 +114,7 @@ const activeModifiers = computed(() => {
       icon: 'mdi:alert-circle',
       severity: 'negative',
       color: '#ef4444',
-    });
+    })
   }
 
   if (props.activeIncidentCount > 0) {
@@ -107,7 +123,7 @@ const activeModifiers = computed(() => {
       icon: 'mdi:fire',
       severity: 'negative',
       color: '#f97316',
-    });
+    })
   }
 
   if (props.idleDwellerCount > 0) {
@@ -116,7 +132,7 @@ const activeModifiers = computed(() => {
       icon: 'mdi:sleep',
       severity: 'negative',
       color: '#fbbf24',
-    });
+    })
   }
 
   if (props.radioHappinessMode) {
@@ -125,20 +141,20 @@ const activeModifiers = computed(() => {
       icon: 'mdi:radio',
       severity: 'positive',
       color: 'var(--color-theme-primary)',
-    });
+    })
   }
 
-  return modifiers.slice(0, 5); // Show top 5
-});
+  return modifiers.slice(0, 5) // Show top 5
+})
 
 const hasNegativeModifiers = computed(() => {
-  return activeModifiers.value.some(m => m.severity === 'negative');
-});
+  return activeModifiers.value.some((m) => m.severity === 'negative')
+})
 
 const distributionPercentage = (count: number) => {
-  if (props.dwellerCount === 0) return 0;
-  return Math.round((count / props.dwellerCount) * 100);
-};
+  if (props.dwellerCount === 0) return 0
+  return Math.round((count / props.dwellerCount) * 100)
+}
 </script>
 
 <template>
@@ -172,9 +188,7 @@ const distributionPercentage = (count: number) => {
             />
           </svg>
           <div class="gauge-center">
-            <div class="gauge-value" :style="{ color: happinessColor }">
-              {{ vaultHappiness }}%
-            </div>
+            <div class="gauge-value" :style="{ color: happinessColor }">{{ vaultHappiness }}%</div>
             <div class="gauge-label" :style="{ color: happinessColor }">
               {{ happinessLabel }}
             </div>
@@ -191,15 +205,21 @@ const distributionPercentage = (count: number) => {
         <div class="distribution-bars">
           <div class="distribution-item">
             <div class="distribution-header">
-              <span class="distribution-label" style="color: var(--color-theme-primary)">High (75-100)</span>
-              <span class="distribution-count">{{ dwellerDistribution.high }} ({{ distributionPercentage(dwellerDistribution.high) }}%)</span>
+              <span class="distribution-label" style="color: var(--color-theme-primary)"
+                >High (75-100)</span
+              >
+              <span class="distribution-count"
+                >{{ dwellerDistribution.high }} ({{
+                  distributionPercentage(dwellerDistribution.high)
+                }}%)</span
+              >
             </div>
             <div class="distribution-bar">
               <div
                 class="distribution-fill"
                 :style="{
                   width: `${distributionPercentage(dwellerDistribution.high)}%`,
-                  backgroundColor: 'var(--color-theme-primary)'
+                  backgroundColor: 'var(--color-theme-primary)',
                 }"
               ></div>
             </div>
@@ -208,14 +228,18 @@ const distributionPercentage = (count: number) => {
           <div class="distribution-item">
             <div class="distribution-header">
               <span class="distribution-label" style="color: #4ade80">Medium (50-74)</span>
-              <span class="distribution-count">{{ dwellerDistribution.medium }} ({{ distributionPercentage(dwellerDistribution.medium) }}%)</span>
+              <span class="distribution-count"
+                >{{ dwellerDistribution.medium }} ({{
+                  distributionPercentage(dwellerDistribution.medium)
+                }}%)</span
+              >
             </div>
             <div class="distribution-bar">
               <div
                 class="distribution-fill"
                 :style="{
                   width: `${distributionPercentage(dwellerDistribution.medium)}%`,
-                  backgroundColor: '#4ade80'
+                  backgroundColor: '#4ade80',
                 }"
               ></div>
             </div>
@@ -224,14 +248,18 @@ const distributionPercentage = (count: number) => {
           <div class="distribution-item">
             <div class="distribution-header">
               <span class="distribution-label" style="color: #fbbf24">Low (25-49)</span>
-              <span class="distribution-count">{{ dwellerDistribution.low }} ({{ distributionPercentage(dwellerDistribution.low) }}%)</span>
+              <span class="distribution-count"
+                >{{ dwellerDistribution.low }} ({{
+                  distributionPercentage(dwellerDistribution.low)
+                }}%)</span
+              >
             </div>
             <div class="distribution-bar">
               <div
                 class="distribution-fill"
                 :style="{
                   width: `${distributionPercentage(dwellerDistribution.low)}%`,
-                  backgroundColor: '#fbbf24'
+                  backgroundColor: '#fbbf24',
                 }"
               ></div>
             </div>
@@ -240,14 +268,18 @@ const distributionPercentage = (count: number) => {
           <div class="distribution-item">
             <div class="distribution-header">
               <span class="distribution-label" style="color: #ef4444">Critical (10-24)</span>
-              <span class="distribution-count">{{ dwellerDistribution.critical }} ({{ distributionPercentage(dwellerDistribution.critical) }}%)</span>
+              <span class="distribution-count"
+                >{{ dwellerDistribution.critical }} ({{
+                  distributionPercentage(dwellerDistribution.critical)
+                }}%)</span
+              >
             </div>
             <div class="distribution-bar">
               <div
                 class="distribution-fill"
                 :style="{
                   width: `${distributionPercentage(dwellerDistribution.critical)}%`,
-                  backgroundColor: '#ef4444'
+                  backgroundColor: '#ef4444',
                 }"
               ></div>
             </div>
@@ -345,7 +377,9 @@ const distributionPercentage = (count: number) => {
 }
 
 .gauge-progress {
-  transition: stroke-dasharray 0.5s ease, stroke 0.3s ease;
+  transition:
+    stroke-dasharray 0.5s ease,
+    stroke 0.3s ease;
   filter: drop-shadow(0 0 8px currentColor);
 }
 

@@ -147,11 +147,7 @@ const handleSubmit = async () => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0) 50%,
-    rgba(0, 255, 0, 0.02) 50%
-  );
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 50%, rgba(0, 255, 0, 0.02) 50%);
   background-size: 100% 4px;
   pointer-events: none;
   z-index: 1000;
@@ -186,8 +182,9 @@ const handleSubmit = async () => {
 .register-box {
   background: rgba(0, 0, 0, 0.85);
   border: 3px solid var(--color-theme-primary, #00ff00);
-  box-shadow: 0 0 20px var(--color-theme-glow, rgba(0, 255, 0, 0.5)),
-  inset 0 0 50px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 0 20px var(--color-theme-glow, rgba(0, 255, 0, 0.5)),
+    inset 0 0 50px rgba(0, 0, 0, 0.5);
   padding: 2rem;
   position: relative;
 }

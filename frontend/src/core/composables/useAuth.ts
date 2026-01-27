@@ -14,6 +14,6 @@ export function useAuth() {
     logout: authStore.logout,
     register: authStore.register,
     fetchUser: authStore.fetchUser,
-    refreshAccessToken: authStore.refreshAccessToken
+    refreshAccessToken: authStore.refreshAccessToken,
   }
 }

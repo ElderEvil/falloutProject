@@ -5,5 +5,5 @@ export {
   type LootItem,
   type Exploration,
   type ExplorationProgress,
-  type RewardsSummary
+  type RewardsSummary,
 } from '@/modules/exploration/stores/exploration'

@@ -10,9 +10,7 @@
       <div v-for="child in children" :key="child.id" class="child-card">
         <div class="child-header">
           <div class="child-info">
-            <h3 class="child-name">
-              {{ child.first_name }} {{ child.last_name }}
-            </h3>
+            <h3 class="child-name">{{ child.first_name }} {{ child.last_name }}</h3>
             <div class="child-age-badge">
               <Icon icon="mdi:human-child" class="mr-1" />
               {{ child.age_group }}
@@ -97,9 +95,7 @@ defineProps<Props>()
 
 const dwellerStore = useDwellerStore()
 
-const children = computed(() =>
-  dwellerStore.dwellers.filter(d => d.age_group === 'child')
-)
+const children = computed(() => dwellerStore.dwellers.filter((d) => d.age_group === 'child'))
 </script>
 
 <style scoped>

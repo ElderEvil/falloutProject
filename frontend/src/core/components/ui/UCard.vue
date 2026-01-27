@@ -21,7 +21,7 @@ const props = withDefaults(defineProps<Props>(), {
   padding: 'md',
   glow: false,
   crt: false,
-  bordered: true
+  bordered: true,
 })
 
 const paddingClasses = {
@@ -29,7 +29,7 @@ const paddingClasses = {
   sm: 'p-4',
   md: 'p-6',
   lg: 'p-8',
-  xl: 'p-10'
+  xl: 'p-10',
 }
 
 const cardClasses = [
@@ -37,8 +37,10 @@ const cardClasses = [
   props.bordered ? 'border-2 border-gray-800' : '',
   props.glow ? 'shadow-glow-md' : '',
   props.crt ? 'crt-screen' : '',
-  paddingClasses[props.padding]
-].filter(Boolean).join(' ')
+  paddingClasses[props.padding],
+]
+  .filter(Boolean)
+  .join(' ')
 </script>
 
 <template>
@@ -46,7 +48,12 @@ const cardClasses = [
     <!-- Header Slot -->
     <div v-if="$slots.header || title" class="mb-4 border-b border-gray-700 pb-4">
       <slot name="header">
-        <h3 class="text-xl font-bold terminal-glow" :style="{ color: 'var(--color-theme-primary)' }">{{ title }}</h3>
+        <h3
+          class="text-xl font-bold terminal-glow"
+          :style="{ color: 'var(--color-theme-primary)' }"
+        >
+          {{ title }}
+        </h3>
       </slot>
     </div>
 

@@ -26,9 +26,7 @@
       </div>
 
       <!-- Count Badge (if multiple) -->
-      <div v-if="incidents.length > 1" class="alert-badge">
-        {{ incidents.length }} ACTIVE
-      </div>
+      <div v-if="incidents.length > 1" class="alert-badge">{{ incidents.length }} ACTIVE</div>
     </div>
 
     <!-- Scanline overlay -->
@@ -99,9 +97,7 @@ const incidentIcon = computed(() => {
 const incidentTitle = computed(() => {
   if (!primaryIncident.value) return 'INCIDENT ALERT'
 
-  return primaryIncident.value.type
-    .replace(/_/g, ' ')
-    .toUpperCase()
+  return primaryIncident.value.type.replace(/_/g, ' ').toUpperCase()
 })
 
 const incidentSubtitle = computed(() => {

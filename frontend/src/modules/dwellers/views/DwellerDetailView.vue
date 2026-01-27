@@ -25,7 +25,7 @@ const { isCollapsed } = useSidePanel()
 
 const dwellerId = computed(() => route.params.dwellerId as string)
 const vaultId = computed(() => route.params.id as string)
-const currentVault = computed(() => vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null)
+const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
 
 const loading = ref(false)
 const generatingAI = ref(false)
@@ -34,8 +34,12 @@ const generatingPortrait = ref(false)
 const generatingAppearance = ref(false)
 
 // Computed to check if any AI generation is in progress
-const isAnyGenerating = computed(() =>
-  generatingAI.value || generatingBio.value || generatingPortrait.value || generatingAppearance.value
+const isAnyGenerating = computed(
+  () =>
+    generatingAI.value ||
+    generatingBio.value ||
+    generatingPortrait.value ||
+    generatingAppearance.value
 )
 
 const dweller = computed(() => dwellerStore.detailedDwellers[dwellerId.value])
@@ -51,7 +55,10 @@ onMounted(async () => {
 
     // Fetch revival cost if dweller is dead
     if (dweller.value?.is_dead && !dweller.value?.is_permanently_dead) {
-      revivalCost.value = await dwellerStore.getRevivalCost(dwellerId.value, authStore.token as string)
+      revivalCost.value = await dwellerStore.getRevivalCost(
+        dwellerId.value,
+        authStore.token as string
+      )
     }
   }
 })
@@ -59,7 +66,10 @@ onMounted(async () => {
 // Watch for changes in dweller's dead status to fetch/clear revival cost
 watch(isDead, async (newIsDead) => {
   if (newIsDead && !dweller.value?.is_permanently_dead && authStore.isAuthenticated) {
-    revivalCost.value = await dwellerStore.getRevivalCost(dwellerId.value, authStore.token as string)
+    revivalCost.value = await dwellerStore.getRevivalCost(
+      dwellerId.value,
+      authStore.token as string
+    )
   } else {
     revivalCost.value = null
   }
@@ -113,7 +123,10 @@ const handleRecall = async () => {
 const generateDwellerInfo = async () => {
   generatingAI.value = true
   try {
-    const result = await dwellerStore.generateDwellerInfo(dwellerId.value, authStore.token as string)
+    const result = await dwellerStore.generateDwellerInfo(
+      dwellerId.value,
+      authStore.token as string
+    )
     if (result) {
       // Force refresh the detailed dweller data
       await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
@@ -142,7 +155,10 @@ const generateDwellerBio = async () => {
 const generateDwellerPortrait = async () => {
   generatingPortrait.value = true
   try {
-    const result = await dwellerStore.generateDwellerPortrait(dwellerId.value, authStore.token as string)
+    const result = await dwellerStore.generateDwellerPortrait(
+      dwellerId.value,
+      authStore.token as string
+    )
     if (result) {
       await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
     }
@@ -156,7 +172,10 @@ const generateDwellerPortrait = async () => {
 const generateDwellerAppearance = async () => {
   generatingAppearance.value = true
   try {
-    const result = await dwellerStore.generateDwellerAppearance(dwellerId.value, authStore.token as string)
+    const result = await dwellerStore.generateDwellerAppearance(
+      dwellerId.value,
+      authStore.token as string
+    )
     if (result) {
       await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
     }
@@ -256,9 +275,7 @@ const handleUseRadaway = async () => {
               </UButton>
 
               <div class="header-info">
-                <h1 class="dweller-name">
-                  {{ dweller.first_name }} {{ dweller.last_name }}
-                </h1>
+                <h1 class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</h1>
                 <DwellerStatusBadge :status="dweller.status" :show-label="true" size="large" />
               </div>
             </div>
@@ -294,7 +311,9 @@ const handleUseRadaway = async () => {
                 >
                   <Icon icon="mdi:grave-stone" class="h-12 w-12 text-gray-500 mx-auto mb-3" />
                   <h3 class="text-lg font-bold text-red-500 mb-1">Permanently Deceased</h3>
-                  <p class="text-gray-400 text-sm">This dweller has passed beyond the revival window.</p>
+                  <p class="text-gray-400 text-sm">
+                    This dweller has passed beyond the revival window.
+                  </p>
                   <p v-if="dweller.epitaph" class="text-theme-primary/60 italic mt-3 text-sm">
                     "{{ dweller.epitaph }}"
                   </p>

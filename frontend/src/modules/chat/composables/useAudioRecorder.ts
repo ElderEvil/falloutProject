@@ -66,7 +66,7 @@ export function useAudioRecorder() {
 
       mediaRecorder.value.onstop = () => {
         // Stop all tracks
-        mediaRecorder.value?.stream.getTracks().forEach(track => track.stop())
+        mediaRecorder.value?.stream.getTracks().forEach((track) => track.stop())
 
         // Create blob from chunks
         const audioBlob = new Blob(audioChunks.value, { type: 'audio/webm' })
@@ -120,7 +120,7 @@ export function useAudioRecorder() {
   const cancelRecording = () => {
     if (mediaRecorder.value) {
       mediaRecorder.value.stop()
-      mediaRecorder.value.stream.getTracks().forEach(track => track.stop())
+      mediaRecorder.value.stream.getTracks().forEach((track) => track.stop())
       mediaRecorder.value = null
     }
 
@@ -155,6 +155,6 @@ export function useAudioRecorder() {
     pauseRecording,
     resumeRecording,
     cancelRecording,
-    formatDuration
+    formatDuration,
   }
 }

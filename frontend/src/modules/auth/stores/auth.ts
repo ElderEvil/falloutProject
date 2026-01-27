@@ -17,8 +17,8 @@ export const useAuthStore = defineStore('auth', () => {
           return null
         }
       },
-      write: (v: User | null) => JSON.stringify(v)
-    }
+      write: (v: User | null) => JSON.stringify(v),
+    },
   })
 
   // Getters
@@ -57,7 +57,12 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       // Registration returns user data with tokens, so we can directly set it
-      const { access_token: _access_token, refresh_token: _refresh_token, token_type: _token_type, ...userData } = response.data
+      const {
+        access_token: _access_token,
+        refresh_token: _refresh_token,
+        token_type: _token_type,
+        ...userData
+      } = response.data
       user.value = userData
 
       return true
@@ -128,6 +133,6 @@ export const useAuthStore = defineStore('auth', () => {
     register,
     fetchUser,
     refreshAccessToken,
-    logout
+    logout,
   }
 })

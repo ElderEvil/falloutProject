@@ -11,7 +11,7 @@ export const useObjectivesStore = defineStore('objectives', () => {
   async function fetchObjectives(vaultId: string, skip = 0, limit = 100): Promise<void> {
     try {
       const response = await axios.get<Objective[]>(`/api/v1/objectives/${vaultId}/`, {
-        params: { skip, limit }
+        params: { skip, limit },
       })
       objectives.value = response.data
     } catch (error: unknown) {
@@ -44,6 +44,6 @@ export const useObjectivesStore = defineStore('objectives', () => {
     objectives,
     fetchObjectives,
     addObjective,
-    getObjective
+    getObjective,
   }
 })

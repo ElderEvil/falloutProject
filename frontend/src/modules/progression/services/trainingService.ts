@@ -16,14 +16,10 @@ export async function startTraining(
   roomId: string,
   token: string
 ): Promise<TrainingRead> {
-  const response = await axios.post(
-    '/api/v1/training/start',
-    null,
-    {
-      params: { dweller_id: dwellerId, room_id: roomId },
-      headers: { Authorization: `Bearer ${token}` }
-    }
-  )
+  const response = await axios.post('/api/v1/training/start', null, {
+    params: { dweller_id: dwellerId, room_id: roomId },
+    headers: { Authorization: `Bearer ${token}` },
+  })
   return response.data
 }
 
@@ -37,12 +33,9 @@ export async function getDwellerTraining(
   dwellerId: string,
   token: string
 ): Promise<TrainingRead | null> {
-  const response = await axios.get(
-    `/api/v1/training/dweller/${dwellerId}`,
-    {
-      headers: { Authorization: `Bearer ${token}` }
-    }
-  )
+  const response = await axios.get(`/api/v1/training/dweller/${dwellerId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
   return response.data
 }
 
@@ -52,16 +45,10 @@ export async function getDwellerTraining(
  * @param token - Auth token
  * @returns List of active training sessions
  */
-export async function getVaultTrainings(
-  vaultId: string,
-  token: string
-): Promise<TrainingRead[]> {
-  const response = await axios.get(
-    `/api/v1/training/vault/${vaultId}`,
-    {
-      headers: { Authorization: `Bearer ${token}` }
-    }
-  )
+export async function getVaultTrainings(vaultId: string, token: string): Promise<TrainingRead[]> {
+  const response = await axios.get(`/api/v1/training/vault/${vaultId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
   return response.data
 }
 
@@ -75,12 +62,9 @@ export async function getTrainingProgress(
   trainingId: string,
   token: string
 ): Promise<TrainingProgress> {
-  const response = await axios.get(
-    `/api/v1/training/${trainingId}`,
-    {
-      headers: { Authorization: `Bearer ${token}` }
-    }
-  )
+  const response = await axios.get(`/api/v1/training/${trainingId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
   return response.data
 }
 
@@ -90,17 +74,10 @@ export async function getTrainingProgress(
  * @param token - Auth token
  * @returns Cancelled training session
  */
-export async function cancelTraining(
-  trainingId: string,
-  token: string
-): Promise<TrainingRead> {
-  const response = await axios.post(
-    `/api/v1/training/${trainingId}/cancel`,
-    null,
-    {
-      headers: { Authorization: `Bearer ${token}` }
-    }
-  )
+export async function cancelTraining(trainingId: string, token: string): Promise<TrainingRead> {
+  const response = await axios.post(`/api/v1/training/${trainingId}/cancel`, null, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
   return response.data
 }
 
@@ -110,15 +87,9 @@ export async function cancelTraining(
  * @param token - Auth token
  * @returns List of active training sessions in the room
  */
-export async function getRoomTrainings(
-  roomId: string,
-  token: string
-): Promise<TrainingRead[]> {
-  const response = await axios.get(
-    `/api/v1/training/room/${roomId}`,
-    {
-      headers: { Authorization: `Bearer ${token}` }
-    }
-  )
+export async function getRoomTrainings(roomId: string, token: string): Promise<TrainingRead[]> {
+  const response = await axios.get(`/api/v1/training/room/${roomId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
   return response.data
 }

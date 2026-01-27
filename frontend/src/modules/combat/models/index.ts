@@ -3,7 +3,7 @@ export {
   IncidentStatus,
   type Incident,
   type IncidentListResponse,
-  type IncidentResolveResponse
+  type IncidentResolveResponse,
 } from './incident'
 
 export {
@@ -17,5 +17,5 @@ export {
   type Outfit,
   getRarityColor,
   getDamageRange,
-  getOutfitBonuses
+  getOutfitBonuses,
 } from './equipment'

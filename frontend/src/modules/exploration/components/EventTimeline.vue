@@ -33,7 +33,7 @@ const getEventIcon = (eventType: string): string => {
     encounter: 'mdi:account-alert',
     danger: 'mdi:alert',
     rest: 'mdi:sleep',
-    default: 'mdi:circle-medium'
+    default: 'mdi:circle-medium',
   }
   return iconMap[eventType] ?? iconMap.default!
 }
@@ -47,7 +47,7 @@ const getEventColor = (eventType: string): string => {
     encounter: '#ff9900',
     danger: '#ff0000',
     rest: '#00ced1',
-    default: 'var(--color-theme-primary)'
+    default: 'var(--color-theme-primary)',
   }
   return colorMap[eventType] ?? colorMap.default!
 }
@@ -98,17 +98,10 @@ const getLootDisplay = (event: ExplorationEvent): string => {
 
       <!-- Events List -->
       <div v-else class="events-list">
-        <div
-          v-for="(event, index) in events"
-          :key="index"
-          class="event-entry"
-        >
+        <div v-for="(event, index) in events" :key="index" class="event-entry">
           <!-- Timeline Dot -->
           <div class="timeline-marker">
-            <div
-              class="timeline-dot"
-              :style="{ borderColor: getEventColor(event.type) }"
-            >
+            <div class="timeline-dot" :style="{ borderColor: getEventColor(event.type) }">
               <Icon
                 :icon="getEventIcon(event.type)"
                 :style="{ color: getEventColor(event.type) }"
@@ -120,10 +113,7 @@ const getLootDisplay = (event: ExplorationEvent): string => {
           <!-- Event Content -->
           <div class="event-content">
             <div class="event-header">
-              <span
-                class="event-type"
-                :style="{ color: getEventColor(event.type) }"
-              >
+              <span class="event-type" :style="{ color: getEventColor(event.type) }">
                 {{ event.type.toUpperCase() }}
               </span>
               <span class="event-time">{{ formatTime(event.time_elapsed_hours) }}</span>
@@ -328,7 +318,7 @@ const getLootDisplay = (event: ExplorationEvent): string => {
   border: 1px solid rgba(255, 215, 0, 0.3);
   border-radius: 4px;
   font-size: 0.75rem;
-  color: #FFD700;
+  color: #ffd700;
   margin-bottom: 0.5rem;
 }
 

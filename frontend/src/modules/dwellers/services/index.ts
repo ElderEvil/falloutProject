@@ -2,5 +2,5 @@ export {
   happinessService,
   type HappinessModifier,
   type HappinessModifiers,
-  type DwellerHappinessDistribution
+  type DwellerHappinessDistribution,
 } from './happinessService'

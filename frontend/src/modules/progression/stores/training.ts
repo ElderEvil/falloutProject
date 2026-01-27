@@ -21,15 +21,11 @@ export const useTrainingStore = defineStore('training', () => {
   const allActiveTrainings = computed(() => Array.from(activeTrainings.value.values()))
 
   const getTrainingByDweller = computed(() => (dwellerId: string) => {
-    return Array.from(activeTrainings.value.values()).find(
-      (t) => t.dweller_id === dwellerId
-    )
+    return Array.from(activeTrainings.value.values()).find((t) => t.dweller_id === dwellerId)
   })
 
   const getTrainingsByRoom = computed(() => (roomId: string) => {
-    return Array.from(activeTrainings.value.values()).filter(
-      (t) => t.room_id === roomId
-    )
+    return Array.from(activeTrainings.value.values()).filter((t) => t.room_id === roomId)
   })
 
   const isDwellerTraining = computed(() => (dwellerId: string) => {
@@ -189,6 +185,6 @@ export const useTrainingStore = defineStore('training', () => {
     fetchRoomTrainings,
     updateTrainingProgress,
     refreshAllTrainings,
-    clearTrainings
+    clearTrainings,
   }
 })

@@ -1,24 +1,24 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useAuthStore } from '../stores/auth';
-import { useRouter } from 'vue-router';
+import { ref } from 'vue'
+import { useAuthStore } from '../stores/auth'
+import { useRouter } from 'vue-router'
 
-const authStore = useAuthStore();
-const router = useRouter();
+const authStore = useAuthStore()
+const router = useRouter()
 
-const username = ref('');
-const password = ref('');
-const error = ref('');
+const username = ref('')
+const password = ref('')
+const error = ref('')
 
 const handleSubmit = async () => {
-  error.value = '';
-  const success = await authStore.login(username.value, password.value);
+  error.value = ''
+  const success = await authStore.login(username.value, password.value)
   if (success) {
-    await router.push('/');
+    await router.push('/')
   } else {
-    error.value = 'Invalid username or password';
+    error.value = 'Invalid username or password'
   }
-};
+}
 </script>
 
 <template>
@@ -121,11 +121,7 @@ const handleSubmit = async () => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0) 50%,
-    rgba(0, 255, 0, 0.02) 50%
-  );
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 50%, rgba(0, 255, 0, 0.02) 50%);
   background-size: 100% 4px;
   pointer-events: none;
   z-index: 1000;
@@ -160,8 +156,9 @@ const handleSubmit = async () => {
 .login-box {
   background: rgba(0, 0, 0, 0.85);
   border: 3px solid var(--color-theme-primary, #00ff00);
-  box-shadow: 0 0 20px var(--color-theme-glow, rgba(0, 255, 0, 0.5)),
-  inset 0 0 50px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 0 20px var(--color-theme-glow, rgba(0, 255, 0, 0.5)),
+    inset 0 0 50px rgba(0, 0, 0, 0.5);
   padding: 2rem;
   position: relative;
 }

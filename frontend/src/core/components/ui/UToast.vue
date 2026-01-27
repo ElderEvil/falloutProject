@@ -15,23 +15,23 @@ const variantConfig = {
   success: {
     icon: 'mdi:check-circle',
     bgClass: 'bg-green-900/90 border-green-500',
-    iconClass: 'text-green-400'
+    iconClass: 'text-green-400',
   },
   error: {
     icon: 'mdi:alert-circle',
     bgClass: 'bg-red-900/90 border-red-500',
-    iconClass: 'text-red-400'
+    iconClass: 'text-red-400',
   },
   warning: {
     icon: 'mdi:alert',
     bgClass: 'bg-yellow-900/90 border-yellow-500',
-    iconClass: 'text-yellow-400'
+    iconClass: 'text-yellow-400',
   },
   info: {
     icon: 'mdi:information',
     bgClass: 'bg-blue-900/90 border-blue-500',
-    iconClass: 'text-blue-400'
-  }
+    iconClass: 'text-blue-400',
+  },
 }
 
 const config = variantConfig[props.toast.variant]
@@ -44,7 +44,7 @@ const config = variantConfig[props.toast.variant]
       config.bgClass,
       'border-2 rounded-lg shadow-lg backdrop-blur-sm',
       'flex items-center gap-3 p-4 min-w-[300px] max-w-[500px]',
-      'animate-slide-in'
+      'animate-slide-in',
     ]"
     role="alert"
   >

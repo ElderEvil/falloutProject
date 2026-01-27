@@ -6,7 +6,7 @@ export {
   type DwellerStatus,
   type DwellerWithStatus,
   type DwellerSortBy,
-  type SortDirection
+  type SortDirection,
 } from '@/modules/dwellers/stores/dweller'
 
 // Re-export Dweller types for components that import from @/stores/dweller

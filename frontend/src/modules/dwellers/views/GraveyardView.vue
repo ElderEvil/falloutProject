@@ -23,7 +23,7 @@ const { isCollapsed } = useSidePanel()
 const scanlinesEnabled = inject('scanlines', ref(true))
 
 const vaultId = computed(() => route.params.id as string)
-const currentVault = computed(() => vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null)
+const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
 
 onMounted(async () => {
   if (authStore.isAuthenticated && vaultId.value) {
@@ -83,7 +83,10 @@ const viewDwellerDetails = (dwellerId: string) => {
             crt
           >
             <div class="py-8 px-4">
-              <Icon icon="mdi:emoticon-happy" class="h-16 w-16 text-theme-primary/40 mx-auto mb-4" />
+              <Icon
+                icon="mdi:emoticon-happy"
+                class="h-16 w-16 text-theme-primary/40 mx-auto mb-4"
+              />
               <h3 class="text-xl font-bold text-theme-primary mb-2">No Permanent Casualties</h3>
               <p class="text-theme-primary/60 text-sm">
                 The graveyard is empty. All deceased dwellers are still within the revival window.
@@ -104,7 +107,10 @@ const viewDwellerDetails = (dwellerId: string) => {
           <!-- Summary Footer -->
           <div v-if="dwellerStore.graveyardDwellers.length > 0" class="w-full mt-8 text-center">
             <p class="text-xs text-gray-500 font-mono">
-              {{ dwellerStore.graveyardDwellers.length }} soul{{ dwellerStore.graveyardDwellers.length !== 1 ? 's' : '' }} laid to rest
+              {{ dwellerStore.graveyardDwellers.length }} soul{{
+                dwellerStore.graveyardDwellers.length !== 1 ? 's' : ''
+              }}
+              laid to rest
             </p>
           </div>
         </div>

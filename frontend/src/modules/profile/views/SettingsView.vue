@@ -111,7 +111,11 @@
 
         <h3 class="subsection-title">Loot</h3>
         <UCard class="mb-4">
-          <SettingItem label="Base Caps Reward" :value="settings.combat.caps_reward_base" unit="caps" />
+          <SettingItem
+            label="Base Caps Reward"
+            :value="settings.combat.caps_reward_base"
+            unit="caps"
+          />
           <SettingItem
             label="Caps Per Difficulty"
             :value="settings.combat.caps_reward_per_difficulty"
@@ -136,7 +140,11 @@
 
         <h3 class="subsection-title">Experience</h3>
         <UCard>
-          <SettingItem label="XP Per Difficulty" :value="settings.combat.xp_per_difficulty" unit="XP" />
+          <SettingItem
+            label="XP Per Difficulty"
+            :value="settings.combat.xp_per_difficulty"
+            unit="XP"
+          />
           <SettingItem
             label="Perfect Bonus"
             :value="`${((settings.combat.perfect_bonus_multiplier - 1) * 100).toFixed(0)}%`"
@@ -171,7 +179,11 @@
 
         <UCard class="mb-4">
           <h3 class="text-sm font-semibold mb-2">Gain Rates (per 60s tick)</h3>
-          <SettingItem label="Working Gain" :value="settings.happiness.working_gain" :decimals="2" />
+          <SettingItem
+            label="Working Gain"
+            :value="settings.happiness.working_gain"
+            :decimals="2"
+          />
           <SettingItem
             label="High Health Bonus"
             :value="settings.happiness.high_health_bonus"
@@ -226,7 +238,11 @@
 
         <h3 class="subsection-title">Tier Speed Multipliers</h3>
         <UCard>
-          <SettingItem label="Tier 1 (Normal)" :value="settings.training.tier_1_multiplier" :decimals="2" />
+          <SettingItem
+            label="Tier 1 (Normal)"
+            :value="settings.training.tier_1_multiplier"
+            :decimals="2"
+          />
           <SettingItem
             label="Tier 2"
             :value="`${settings.training.tier_2_multiplier} (${((1 - settings.training.tier_2_multiplier) * 100).toFixed(0)}% faster)`"
@@ -249,9 +265,21 @@
             :decimals="2"
             unit="per SPECIAL/sec"
           />
-          <SettingItem label="Tier 1 Multiplier" :value="settings.resource.tier_1_multiplier" :decimals="2" />
-          <SettingItem label="Tier 2 Multiplier" :value="settings.resource.tier_2_multiplier" :decimals="2" />
-          <SettingItem label="Tier 3 Multiplier" :value="settings.resource.tier_3_multiplier" :decimals="2" />
+          <SettingItem
+            label="Tier 1 Multiplier"
+            :value="settings.resource.tier_1_multiplier"
+            :decimals="2"
+          />
+          <SettingItem
+            label="Tier 2 Multiplier"
+            :value="settings.resource.tier_2_multiplier"
+            :decimals="2"
+          />
+          <SettingItem
+            label="Tier 3 Multiplier"
+            :value="settings.resource.tier_3_multiplier"
+            :decimals="2"
+          />
         </UCard>
 
         <UCard class="mb-4">
@@ -292,9 +320,21 @@
       <div v-show="activeTab === 'leveling'" class="settings-section">
         <h2 class="section-title">Leveling System</h2>
         <UCard class="mb-4">
-          <SettingItem label="Base XP Requirement" :value="settings.leveling.base_xp_requirement" unit="XP" />
-          <SettingItem label="XP Curve Exponent" :value="settings.leveling.xp_curve_exponent" :decimals="2" />
-          <SettingItem label="HP Per Level" :value="settings.leveling.hp_gain_per_level" unit="HP" />
+          <SettingItem
+            label="Base XP Requirement"
+            :value="settings.leveling.base_xp_requirement"
+            unit="XP"
+          />
+          <SettingItem
+            label="XP Curve Exponent"
+            :value="settings.leveling.xp_curve_exponent"
+            :decimals="2"
+          />
+          <SettingItem
+            label="HP Per Level"
+            :value="settings.leveling.hp_gain_per_level"
+            unit="HP"
+          />
           <SettingItem label="Max Level" :value="settings.leveling.max_level" />
         </UCard>
 
@@ -332,7 +372,11 @@
             :value="settings.relationship.affinity_increase_per_tick"
             unit="per tick"
           />
-          <SettingItem label="Romance Threshold" :value="settings.relationship.romance_threshold" unit="affinity" />
+          <SettingItem
+            label="Romance Threshold"
+            :value="settings.relationship.romance_threshold"
+            unit="affinity"
+          />
           <SettingItem
             label="Partner Happiness Bonus"
             :value="settings.relationship.partner_happiness_bonus"
@@ -426,7 +470,7 @@ const tabs = [
   { key: 'resources', label: 'Resources' },
   { key: 'leveling', label: 'Leveling' },
   { key: 'relationships', label: 'Relationships' },
-  { key: 'breeding', label: 'Breeding' }
+  { key: 'breeding', label: 'Breeding' },
 ]
 
 const settings = ref<any>({})

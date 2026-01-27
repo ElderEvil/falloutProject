@@ -20,7 +20,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   variant: 'default',
   size: 'md',
-  dot: false
+  dot: false,
 })
 
 const variantClasses = {
@@ -28,7 +28,7 @@ const variantClasses = {
   warning: 'bg-warning text-black border-warning',
   danger: 'bg-danger text-white border-danger',
   info: 'border-2',
-  default: 'bg-gray-700 border-gray-600'
+  default: 'bg-gray-700 border-gray-600',
 }
 
 const variantStyles = {
@@ -38,22 +38,22 @@ const variantStyles = {
   info: {
     backgroundColor: 'var(--color-theme-primary)',
     color: '#000',
-    borderColor: 'var(--color-theme-primary)'
+    borderColor: 'var(--color-theme-primary)',
   },
-  default: { color: 'var(--color-theme-primary)' }
+  default: { color: 'var(--color-theme-primary)' },
 }
 
 const sizeClasses = {
   sm: 'px-2 py-0.5 text-xs',
   md: 'px-3 py-1 text-sm',
-  lg: 'px-4 py-1.5 text-base'
+  lg: 'px-4 py-1.5 text-base',
 }
 
 const badgeClasses = [
   'inline-flex items-center gap-1.5',
   'font-bold rounded-full border-2',
   variantClasses[props.variant],
-  sizeClasses[props.size]
+  sizeClasses[props.size],
 ].join(' ')
 </script>
 

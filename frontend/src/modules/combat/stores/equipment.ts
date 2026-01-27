@@ -14,11 +14,16 @@ export const useEquipmentStore = defineStore('equipment', () => {
   const error = ref<string | null>(null)
 
   // Actions
-  async function fetchWeapons(token: string): Promise<void> {
+  async function fetchWeapons(token: string, vaultId?: string): Promise<void> {
     isLoading.value = true
     error.value = null
     try {
-      weapons.value = await equipmentService.fetchWeapons(token)
+      weapons.value = await equipmentService.fetchWeapons(token, vaultId)
+      console.log('[Equipment Store] Fetched weapons:', weapons.value.length, 'vault_id:', vaultId)
+      console.log(
+        '[Equipment Store] Available weapons (unequipped):',
+        weapons.value.filter((w) => !w.dweller_id).length
+      )
     } catch (err) {
       console.error('Failed to fetch weapons:', err)
       error.value = 'Failed to load weapons'
@@ -28,11 +33,16 @@ export const useEquipmentStore = defineStore('equipment', () => {
     }
   }
 
-  async function fetchOutfits(token: string): Promise<void> {
+  async function fetchOutfits(token: string, vaultId?: string): Promise<void> {
     isLoading.value = true
     error.value = null
     try {
-      outfits.value = await equipmentService.fetchOutfits(token)
+      outfits.value = await equipmentService.fetchOutfits(token, vaultId)
+      console.log('[Equipment Store] Fetched outfits:', outfits.value.length, 'vault_id:', vaultId)
+      console.log(
+        '[Equipment Store] Available outfits (unequipped):',
+        outfits.value.filter((o) => !o.dweller_id).length
+      )
     } catch (err) {
       console.error('Failed to fetch outfits:', err)
       error.value = 'Failed to load outfits'
@@ -42,12 +52,16 @@ export const useEquipmentStore = defineStore('equipment', () => {
     }
   }
 
-  async function equipWeapon(dwellerId: string, weaponId: string, token: string): Promise<Weapon | null> {
+  async function equipWeapon(
+    dwellerId: string,
+    weaponId: string,
+    token: string
+  ): Promise<Weapon | null> {
     try {
       const weapon = await equipmentService.equipWeapon(dwellerId, weaponId, token)
 
       // Update local state: unequip from previous dweller, equip to new dweller
-      const weaponIndex = weapons.value.findIndex(w => w.id === weaponId)
+      const weaponIndex = weapons.value.findIndex((w) => w.id === weaponId)
       if (weaponIndex !== -1) {
         weapons.value[weaponIndex] = weapon
       }
@@ -61,12 +75,16 @@ export const useEquipmentStore = defineStore('equipment', () => {
     }
   }
 
-  async function unequipWeapon(dwellerId: string, weaponId: string, token: string): Promise<Weapon | null> {
+  async function unequipWeapon(
+    dwellerId: string,
+    weaponId: string,
+    token: string
+  ): Promise<Weapon | null> {
     try {
       const weapon = await equipmentService.unequipWeapon(dwellerId, weaponId, token)
 
       // Update local state
-      const weaponIndex = weapons.value.findIndex(w => w.id === weaponId)
+      const weaponIndex = weapons.value.findIndex((w) => w.id === weaponId)
       if (weaponIndex !== -1) {
         weapons.value[weaponIndex] = weapon
       }
@@ -80,12 +98,16 @@ export const useEquipmentStore = defineStore('equipment', () => {
     }
   }
 
-  async function equipOutfit(dwellerId: string, outfitId: string, token: string): Promise<Outfit | null> {
+  async function equipOutfit(
+    dwellerId: string,
+    outfitId: string,
+    token: string
+  ): Promise<Outfit | null> {
     try {
       const outfit = await equipmentService.equipOutfit(dwellerId, outfitId, token)
 
       // Update local state: unequip from previous dweller, equip to new dweller
-      const outfitIndex = outfits.value.findIndex(o => o.id === outfitId)
+      const outfitIndex = outfits.value.findIndex((o) => o.id === outfitId)
       if (outfitIndex !== -1) {
         outfits.value[outfitIndex] = outfit
       }
@@ -99,12 +121,16 @@ export const useEquipmentStore = defineStore('equipment', () => {
     }
   }
 
-  async function unequipOutfit(dwellerId: string, outfitId: string, token: string): Promise<Outfit | null> {
+  async function unequipOutfit(
+    dwellerId: string,
+    outfitId: string,
+    token: string
+  ): Promise<Outfit | null> {
     try {
       const outfit = await equipmentService.unequipOutfit(dwellerId, outfitId, token)
 
       // Update local state
-      const outfitIndex = outfits.value.findIndex(o => o.id === outfitId)
+      const outfitIndex = outfits.value.findIndex((o) => o.id === outfitId)
       if (outfitIndex !== -1) {
         outfits.value[outfitIndex] = outfit
       }
@@ -120,19 +146,19 @@ export const useEquipmentStore = defineStore('equipment', () => {
 
   // Getters
   function getEquippedWeapon(dwellerId: string): Weapon | null {
-    return weapons.value.find(w => w && w.dweller_id === dwellerId) || null
+    return weapons.value.find((w) => w && w.dweller_id === dwellerId) || null
   }
 
   function getEquippedOutfit(dwellerId: string): Outfit | null {
-    return outfits.value.find(o => o && o.dweller_id === dwellerId) || null
+    return outfits.value.find((o) => o && o.dweller_id === dwellerId) || null
   }
 
   function getAvailableWeapons(): Weapon[] {
-    return weapons.value.filter(w => w && !w.dweller_id)
+    return weapons.value.filter((w) => w && !w.dweller_id)
   }
 
   function getAvailableOutfits(): Outfit[] {
-    return outfits.value.filter(o => o && !o.dweller_id)
+    return outfits.value.filter((o) => o && !o.dweller_id)
   }
 
   return {
@@ -152,6 +178,6 @@ export const useEquipmentStore = defineStore('equipment', () => {
     getEquippedWeapon,
     getEquippedOutfit,
     getAvailableWeapons,
-    getAvailableOutfits
+    getAvailableOutfits,
   }
 })

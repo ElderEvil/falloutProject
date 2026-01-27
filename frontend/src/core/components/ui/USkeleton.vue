@@ -10,7 +10,7 @@ const props = withDefaults(defineProps<Props>(), {
   width: '100%',
   height: '1rem',
   rounded: 'md',
-  animate: true
+  animate: true,
 })
 
 const roundedClasses = {
@@ -18,17 +18,13 @@ const roundedClasses = {
   sm: 'rounded-sm',
   md: 'rounded-md',
   lg: 'rounded-lg',
-  full: 'rounded-full'
+  full: 'rounded-full',
 }
 </script>
 
 <template>
   <div
-    :class="[
-      'skeleton',
-      roundedClasses[rounded],
-      { 'skeleton-pulse': animate }
-    ]"
+    :class="['skeleton', roundedClasses[rounded], { 'skeleton-pulse': animate }]"
     :style="{ width, height }"
   ></div>
 </template>
@@ -49,7 +45,8 @@ const roundedClasses = {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     background-position: 200% 0;
   }
   50% {

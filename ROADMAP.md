@@ -30,30 +30,48 @@ AI-powered dweller interactions.
 - **Admin & Configuration**
   - Fix and confirm admin birth control
   - Config for rooms rendered
+- **Easter Eggs & Hidden Features**
+  - The "Gary" Virus (Vault 108 tribute)
+  - "It Just Works" (Todd Howard tribute)
+  - Version number glitch (fake crash screen)
+  - Konami Code developer mode
+  - Quantum Mouse trail effect
 
-### v2.7.0 - UI Polish & Enhancements (Planned)
+### v2.7.0 - Storage Management & UI Polish (Completed)
 
-**Focus**: UI improvements and notification system polish
+**Focus**: Vault storage system implementation and UI improvements
 
-**Features:**
-- **Layout Improvements**
-  - Fix top gray panel (make sticky/fixed)
-  - Fix left interface panel coordination
-  - Smooth scrolling behavior
-- **Toast Notifications**
-  - Unify toast system with library (vue-toastification)
-  - Group similar toasts
-  - Prevent duplicates
-  - Consistent styling and positioning
-- **Exploration UI**
-  - Handle exploration items overflow
-  - Pagination or scrolling for loot
-  - Update dweller bio after exploration
-  - Store exploration history
+**Completed:**
+- ✅ **Storage Management System**
+  - Storage sidebar navigation entry (hotkey: 9)
+  - Storage space tracking and visualization
+  - Item scrap functionality for weapons/outfits
+  - Junk item grouping by type with count badges
+  - Sell All feature for stacked items
+  - Enhanced item cards with detailed stats
+- ✅ **Keyboard Shortcuts**
+  - Build mode toggle with 'B' key
+  - ESC to exit build mode
+  - Hotkey badges on buttons
+- ✅ **Bug Fixes**
+  - Fixed junk item pricing (now based on rarity)
+  - Fixed equipment filtering by vault
+  - Fixed async greenlet issue in sell method
+  - Added missing fields to weapon/outfit schemas
+- ✅ **UI Enhancements**
+  - Equipment cards match storage card styling
+  - Progress bar uses consistent theme color
+  - Better stat display with icons
+  - Improved button layout and grouping
 
-### v2.6.5 - Notification Foundation (In Progress)
+**Remaining for Future Updates:**
+- Layout Improvements (sticky panels, smooth scrolling)
+- Toast Notifications (unification, grouping, deduplication)
+- Exploration UI (overflow handling, pagination, history)
 
-**Status**: Backend complete, frontend bell implemented
+### v2.6.5 - Notification Foundation (Completed)
+
+**Status**: Notification system implemented
 
 **Completed:**
 - ✅ Notification bell UI component with pop-up
@@ -62,11 +80,211 @@ AI-powered dweller interactions.
 - ✅ Incident spawn notifications
 - ✅ Comprehensive test coverage (4 tests passing)
 
-**Remaining:**
-- Sticky panel fixes
-- Toast notification improvements
-- Exploration UI enhancements
-- Testing & polish
+---
+
+## Easter Eggs & Hidden Features (v2.8.0+)
+
+**Focus**: Lore-accurate and playful hidden interactions to reward player discovery
+
+### 1. The "Gary" Virus (Vault 108 Tribute)
+
+**Lore**: In Fallout 3, Vault 108 was overrun by clones who only said "Gary."
+
+**Trigger**: Player renames a dweller to "Gary"
+
+**Effect**:
+- For 10 seconds, all text in the UI (headers, buttons, logs, tooltips) displays "Gary"
+- Terminal glitch/flicker animation during transformation
+- Audio: Distorted "Gary!" voice clip (optional)
+
+**Implementation Notes**:
+- Vue composable: `useGaryMode()`
+- Global reactive state that temporarily overrides text rendering
+- CSS class `.gary-mode` on `<body>` element
+- Alternative: Override i18n/localization helper temporarily
+- Reset after 10 seconds with smooth transition
+
+---
+
+### 2. "It Just Works" (Todd Howard Tribute)
+
+**Trigger**: Rename a dweller to "Todd"
+
+**Effect**:
+- **Permanent Buff**: +10 Charisma (CHA) stat
+- **Hidden 24h Buff**: 100% Rush Success Rate
+- **Audio**: On successful rush, play Todd Howard's "It just works" voice clip instead of default success sound
+- **Visual**: Special golden glow effect on the dweller card
+
+**Implementation Notes**:
+- Backend: Add hidden buff system for temporary bonuses
+- Track buff expiry with timestamp
+- Frontend: Custom sound effect for Todd dweller rush success
+- Special visual indicator on dweller card (subtle sparkle/glow)
+
+---
+
+### 3. Version Number Glitch (Fake BSOD)
+
+**Trigger**: Rapidly click the version number in footer 7 times
+
+**Effect**:
+1. Screen fades to black
+2. Terminal text types out: `CRITICAL FAILURE. INITIATING PROTOCOL 27...`
+3. Fake "Vault-Tec Terminal Crash" screen with CRT effects
+4. Screen "reboots" with terminal boot sequence animation
+5. Player receives 27 Nuka-Colas (or premium currency)
+6. Toast notification: "Emergency systems restored. Compensation awarded."
+
+**Implementation Notes**:
+- Click counter with timeout (reset after 2s of no clicks)
+- Full-screen modal overlay with CRT/terminal aesthetic
+- Typewriter text animation
+- Backend API call to award premium items
+- Version number extraction from `package.json` (not hardcoded)
+
+**Code Snippet**:
+```vue
+<script setup>
+import { ref } from 'vue'
+const clicks = ref(0)
+let timeout: NodeJS.Timeout | null = null
+
+const handleVersionClick = () => {
+  clicks.value++
+  if (timeout) clearTimeout(timeout)
+
+  if (clicks.value === 7) {
+    triggerFakeCrash()
+    clicks.value = 0
+  } else {
+    timeout = setTimeout(() => { clicks.value = 0 }, 2000)
+  }
+}
+</script>
+<template>
+  <footer @click="handleVersionClick" class="cursor-pointer select-none">
+    v{{ version }}
+  </footer>
+</template>
+```
+
+---
+
+### 4. Konami Code Developer Mode
+
+**Trigger**: Enter Konami Code sequence: ↑ ↑ ↓ ↓ ← → ← → B A
+
+**Effect**:
+- Toast notification: "Cheat Codes Enabled"
+- Unlock hidden "Debug Room" in build menu
+- Debug Room properties:
+  - Cost: 0 caps
+  - Power production: +999
+  - Risk: 50% chance per minute to spawn Deathclaw (super hard enemy)
+  - Visual: Glitchy, unstable aesthetic (flickering, distorted)
+  - Category: "Experimental" (new category)
+
+**Implementation Notes**:
+- Use VueUse `useMagicKeys()` composable for key sequence detection
+- Backend: Add "Debug Room" template (locked by default)
+- Frontend: Toggle room availability in build menu based on cheat code state
+- Persist cheat state in localStorage (session-based)
+- Deathclaw spawn: Celery task with 50% probability
+
+**Code Snippet**:
+```typescript
+import { useMagicKeys } from '@vueuse/core'
+
+const { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, b, a } = useMagicKeys()
+const sequence = ref('')
+
+watch([ArrowUp, ArrowDown, ArrowLeft, ArrowRight, b, a], () => {
+  // Track key sequence and check for Konami Code
+  // ↑ ↑ ↓ ↓ ← → ← → B A
+})
+```
+
+---
+
+### 5. Quantum Mouse (Visual Effect)
+
+**Trigger**: Player reaches exactly 1000 caps (or specific milestone)
+
+**Effect**:
+- Mouse cursor leaves glowing blue particle trail (Nuka Quantum style)
+- Particles fade out over 1-2 seconds
+- Effect persists for entire session
+- Subtle, non-intrusive visual enhancement
+
+**Implementation Notes**:
+- Canvas overlay with `pointer-events: none`
+- Track mouse coordinates with `mousemove` event
+- Render fading circles/bubbles on canvas
+- RequestAnimationFrame for smooth animation
+- Blue glow color: `#00B4FF` (Nuka Quantum)
+- Z-index: 9999 to stay above all UI
+
+**Code Snippet**:
+```vue
+<template>
+  <canvas
+    ref="quantumCanvas"
+    class="fixed inset-0 pointer-events-none z-[9999]"
+  />
+</template>
+
+<script setup>
+import { ref, onMounted, watch } from 'vue'
+
+const quantumCanvas = ref<HTMLCanvasElement | null>(null)
+const particles: Particle[] = []
+
+const handleMouseMove = (e: MouseEvent) => {
+  particles.push(new Particle(e.clientX, e.clientY))
+}
+
+const animate = () => {
+  // Clear canvas, update particles, render
+  requestAnimationFrame(animate)
+}
+
+watch(() => userStore.caps, (caps) => {
+  if (caps === 1000) {
+    window.addEventListener('mousemove', handleMouseMove)
+    animate()
+  }
+})
+</script>
+```
+
+---
+
+### Technical Requirements
+
+**Backend**:
+- Hidden buff system (temporary stat modifiers)
+- Easter egg event tracking (analytics)
+- API endpoints for easter egg rewards
+- Debug room template data
+
+**Frontend**:
+- Global state management for active easter eggs
+- Composables: `useGaryMode()`, `useKonamiCode()`, `useQuantumMouse()`
+- Audio service for custom sound effects
+- Canvas rendering utilities for particle effects
+- VueUse integration for key detection
+
+**Testing**:
+- Unit tests for each easter egg trigger
+- E2E tests for UI effects
+- Backend tests for buff system
+- Audio playback tests
+
+**Documentation**:
+- Easter egg hints in loading screen tips (subtle)
+- Achievement tracking for players who discover them
+- Optional: Hidden achievement badges for each easter egg
 
 ---
 

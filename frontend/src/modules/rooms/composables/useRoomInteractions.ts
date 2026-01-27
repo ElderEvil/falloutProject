@@ -22,6 +22,6 @@ export function useRoomInteractions() {
   return {
     selectedRoomId,
     toggleRoomSelection,
-    destroyRoom
+    destroyRoom,
   }
 }

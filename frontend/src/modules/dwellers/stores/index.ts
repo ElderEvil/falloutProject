@@ -3,5 +3,5 @@ export {
   type DwellerStatus,
   type DwellerWithStatus,
   type DwellerSortBy,
-  type SortDirection
+  type SortDirection,
 } from './dweller'

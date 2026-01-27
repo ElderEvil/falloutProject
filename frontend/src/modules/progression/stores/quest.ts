@@ -17,9 +17,7 @@ export const useQuestStore = defineStore('quest', () => {
     vaultQuests.value.filter((quest) => quest.is_visible && !quest.is_completed)
   )
 
-  const completedQuests = computed(() =>
-    vaultQuests.value.filter((quest) => quest.is_completed)
-  )
+  const completedQuests = computed(() => vaultQuests.value.filter((quest) => quest.is_completed))
 
   const availableQuests = computed(() => {
     const assignedQuestIds = new Set(vaultQuests.value.map((vq) => vq.id))
@@ -69,14 +67,15 @@ export const useQuestStore = defineStore('quest', () => {
   async function assignQuest(vaultId: string, questId: string, isVisible = true): Promise<void> {
     try {
       await axios.post(`/api/v1/quests/${vaultId}/${questId}/assign`, null, {
-        params: { is_visible: isVisible }
+        params: { is_visible: isVisible },
       })
       toast.success('Quest assigned successfully')
       // Refresh vault quests
       await fetchVaultQuests(vaultId)
     } catch (error: unknown) {
-      const errorMessage = (error as { response?: { data?: { detail?: string } } })
-        ?.response?.data?.detail || 'Failed to assign quest'
+      const errorMessage =
+        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        'Failed to assign quest'
       console.error('Failed to assign quest:', error)
       toast.error(errorMessage)
       throw error
@@ -90,8 +89,9 @@ export const useQuestStore = defineStore('quest', () => {
       // Refresh vault quests
       await fetchVaultQuests(vaultId)
     } catch (error: unknown) {
-      const errorMessage = (error as { response?: { data?: { detail?: string } } })
-        ?.response?.data?.detail || 'Failed to complete quest'
+      const errorMessage =
+        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        'Failed to complete quest'
       console.error('Failed to complete quest:', error)
       toast.error(errorMessage)
       throw error
@@ -112,6 +112,6 @@ export const useQuestStore = defineStore('quest', () => {
     fetchVaultQuests,
     getQuest,
     assignQuest,
-    completeQuest
+    completeQuest,
   }
 })

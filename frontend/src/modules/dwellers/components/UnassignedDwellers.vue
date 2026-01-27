@@ -9,7 +9,6 @@ import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
 import DwellerFilterPanel from './DwellerFilterPanel.vue'
 import { normalizeImageUrl } from '@/utils/image'
 
-
 const dwellerStore = useDwellerStore()
 const explorationStore = useExplorationStore()
 const authStore = useAuthStore()
@@ -21,7 +20,7 @@ const authStore = useAuthStore()
 // We manually apply sorting here to respect the sort preference without being affected by the global status filter
 const unassignedDwellers = computed(() => {
   // 1. Filter for unassigned dwellers
-  const filtered = dwellerStore.dwellersWithStatus.filter(dweller => {
+  const filtered = dwellerStore.dwellersWithStatus.filter((dweller) => {
     // Must not have a room assignment
     if (dweller.room_id) return false
 
@@ -67,11 +66,14 @@ const emit = defineEmits<{
 const handleDragStart = (event: DragEvent, dweller: DwellerShort) => {
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move'
-    event.dataTransfer.setData('application/json', JSON.stringify({
-      dwellerId: dweller.id,
-      firstName: dweller.first_name,
-      lastName: dweller.last_name
-    }))
+    event.dataTransfer.setData(
+      'application/json',
+      JSON.stringify({
+        dwellerId: dweller.id,
+        firstName: dweller.first_name,
+        lastName: dweller.last_name,
+      })
+    )
   }
   emit('dragStart', dweller)
 }
@@ -123,7 +125,6 @@ const handleDropZoneDrop = async (event: DragEvent) => {
 const getImageUrl = (imagePath: string | null) => {
   return normalizeImageUrl(imagePath)
 }
-
 </script>
 
 <template>
@@ -162,8 +163,18 @@ const getImageUrl = (imagePath: string | null) => {
       @dragleave="handleDropZoneDragLeave"
       @drop="handleDropZoneDrop"
     >
-      <Icon v-if="!isDraggingOver" icon="mdi:check-circle" class="h-12 w-12" :style="{ color: 'var(--color-theme-primary)' }" />
-      <Icon v-else icon="mdi:arrow-down-bold" class="h-12 w-12 animate-bounce" :style="{ color: 'var(--color-theme-primary)' }" />
+      <Icon
+        v-if="!isDraggingOver"
+        icon="mdi:check-circle"
+        class="h-12 w-12"
+        :style="{ color: 'var(--color-theme-primary)' }"
+      />
+      <Icon
+        v-else
+        icon="mdi:arrow-down-bold"
+        class="h-12 w-12 animate-bounce"
+        :style="{ color: 'var(--color-theme-primary)' }"
+      />
       <p v-if="!isDraggingOver">All dwellers are assigned!</p>
       <p v-else class="drop-message">Drop to unassign</p>
     </div>
@@ -175,10 +186,7 @@ const getImageUrl = (imagePath: string | null) => {
       @dragleave="handleDropZoneDragLeave"
       @drop="handleDropZoneDrop"
     >
-      <div
-        v-if="isDraggingOver"
-        class="drop-overlay"
-      >
+      <div v-if="isDraggingOver" class="drop-overlay">
         <Icon icon="mdi:arrow-down-bold" class="h-12 w-12 animate-bounce" />
         <p>Drop to unassign</p>
       </div>
@@ -192,56 +200,64 @@ const getImageUrl = (imagePath: string | null) => {
           @dragstart="handleDragStart($event, dweller)"
           @dragend="handleDragEnd"
         >
-        <div class="dweller-avatar">
-          <img
-            v-if="getImageUrl(dweller.thumbnail_url)"
-            :src="getImageUrl(dweller.thumbnail_url)!"
-            :alt="`${dweller.first_name} ${dweller.last_name}`"
-            class="avatar-image"
-          />
-          <Icon v-else icon="mdi:account-circle" class="h-12 w-12" :style="{ color: 'var(--color-theme-primary)', opacity: 0.6 }" />
-        </div>
-
-        <div class="dweller-info">
-          <div class="dweller-header">
-            <div>
-              <p class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</p>
-              <p class="dweller-level">Level {{ dweller.level }}</p>
-            </div>
-            <DwellerStatusBadge :status="dwellerStore.getDwellerStatus(dweller.id)" size="small" />
+          <div class="dweller-avatar">
+            <img
+              v-if="getImageUrl(dweller.thumbnail_url)"
+              :src="getImageUrl(dweller.thumbnail_url)!"
+              :alt="`${dweller.first_name} ${dweller.last_name}`"
+              class="avatar-image"
+            />
+            <Icon
+              v-else
+              icon="mdi:account-circle"
+              class="h-12 w-12"
+              :style="{ color: 'var(--color-theme-primary)', opacity: 0.6 }"
+            />
           </div>
 
-          <div class="dweller-stats">
-            <div class="stat-item" title="Strength">
-              <span class="stat-label">S</span>
-              <span class="stat-value">{{ dweller.strength }}</span>
+          <div class="dweller-info">
+            <div class="dweller-header">
+              <div>
+                <p class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</p>
+                <p class="dweller-level">Level {{ dweller.level }}</p>
+              </div>
+              <DwellerStatusBadge
+                :status="dwellerStore.getDwellerStatus(dweller.id)"
+                size="small"
+              />
             </div>
-            <div class="stat-item" title="Perception">
-              <span class="stat-label">P</span>
-              <span class="stat-value">{{ dweller.perception }}</span>
-            </div>
-            <div class="stat-item" title="Endurance">
-              <span class="stat-label">E</span>
-              <span class="stat-value">{{ dweller.endurance }}</span>
-            </div>
-            <div class="stat-item" title="Charisma">
-              <span class="stat-label">C</span>
-              <span class="stat-value">{{ dweller.charisma }}</span>
-            </div>
-            <div class="stat-item" title="Intelligence">
-              <span class="stat-label">I</span>
-              <span class="stat-value">{{ dweller.intelligence }}</span>
-            </div>
-            <div class="stat-item" title="Agility">
-              <span class="stat-label">A</span>
-              <span class="stat-value">{{ dweller.agility }}</span>
-            </div>
-            <div class="stat-item" title="Luck">
-              <span class="stat-label">L</span>
-              <span class="stat-value">{{ dweller.luck }}</span>
+
+            <div class="dweller-stats">
+              <div class="stat-item" title="Strength">
+                <span class="stat-label">S</span>
+                <span class="stat-value">{{ dweller.strength }}</span>
+              </div>
+              <div class="stat-item" title="Perception">
+                <span class="stat-label">P</span>
+                <span class="stat-value">{{ dweller.perception }}</span>
+              </div>
+              <div class="stat-item" title="Endurance">
+                <span class="stat-label">E</span>
+                <span class="stat-value">{{ dweller.endurance }}</span>
+              </div>
+              <div class="stat-item" title="Charisma">
+                <span class="stat-label">C</span>
+                <span class="stat-value">{{ dweller.charisma }}</span>
+              </div>
+              <div class="stat-item" title="Intelligence">
+                <span class="stat-label">I</span>
+                <span class="stat-value">{{ dweller.intelligence }}</span>
+              </div>
+              <div class="stat-item" title="Agility">
+                <span class="stat-label">A</span>
+                <span class="stat-value">{{ dweller.agility }}</span>
+              </div>
+              <div class="stat-item" title="Luck">
+                <span class="stat-label">L</span>
+                <span class="stat-value">{{ dweller.luck }}</span>
+              </div>
             </div>
           </div>
-        </div>
 
           <div class="drag-indicator">
             <Icon icon="mdi:drag" class="h-5 w-5 text-gray-500" />

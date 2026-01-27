@@ -1,56 +1,60 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { Icon } from '@iconify/vue';
-import UTooltip from '@/core/components/ui/UTooltip.vue';
-import type { VisualAttributes } from '../models/dweller';
+import { computed } from 'vue'
+import { Icon } from '@iconify/vue'
+import UTooltip from '@/core/components/ui/UTooltip.vue'
+import type { VisualAttributes } from '../models/dweller'
 
 interface Props {
-  visualAttributes?: VisualAttributes | null;
-  generatingAppearance?: boolean;
-  generatingPortrait?: boolean;
-  isAnyGenerating?: boolean;
+  visualAttributes?: VisualAttributes | null
+  generatingAppearance?: boolean
+  generatingPortrait?: boolean
+  isAnyGenerating?: boolean
 }
 
-const props = defineProps<Props>();
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  (e: 'generate-appearance'): void;
-  (e: 'generate-portrait'): void;
-}>();
+  (e: 'generate-appearance'): void
+  (e: 'generate-portrait'): void
+}>()
 
 // Helper to capitalize first letter
-const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
+const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1)
 
 // Format attributes for display
 const formattedAttributes = computed(() => {
-  if (!props.visualAttributes) return [];
+  if (!props.visualAttributes) return []
 
-  const attrs = props.visualAttributes;
-  const formatted: Array<{ label: string; value: string }> = [];
+  const attrs = props.visualAttributes
+  const formatted: Array<{ label: string; value: string }> = []
 
-  if (attrs.height) formatted.push({ label: 'Height', value: capitalize(attrs.height) });
-  if (attrs.build) formatted.push({ label: 'Build', value: capitalize(attrs.build) });
+  if (attrs.height) formatted.push({ label: 'Height', value: capitalize(attrs.height) })
+  if (attrs.build) formatted.push({ label: 'Build', value: capitalize(attrs.build) })
   if (attrs.hair_style || attrs.hair_color) {
-    const hair = [attrs.hair_style, attrs.hair_color].filter((val): val is string => Boolean(val)).map(capitalize).join(', ');
-    formatted.push({ label: 'Hair', value: hair });
+    const hair = [attrs.hair_style, attrs.hair_color]
+      .filter((val): val is string => Boolean(val))
+      .map(capitalize)
+      .join(', ')
+    formatted.push({ label: 'Hair', value: hair })
   }
-  if (attrs.eye_color) formatted.push({ label: 'Eyes', value: capitalize(attrs.eye_color) });
-  if (attrs.skin_tone) formatted.push({ label: 'Skin Tone', value: capitalize(attrs.skin_tone) });
-  if (attrs.appearance) formatted.push({ label: 'Appearance', value: capitalize(attrs.appearance) });
-  if (attrs.facial_hair) formatted.push({ label: 'Facial Hair', value: capitalize(attrs.facial_hair) });
-  if (attrs.makeup) formatted.push({ label: 'Makeup', value: capitalize(attrs.makeup) });
+  if (attrs.eye_color) formatted.push({ label: 'Eyes', value: capitalize(attrs.eye_color) })
+  if (attrs.skin_tone) formatted.push({ label: 'Skin Tone', value: capitalize(attrs.skin_tone) })
+  if (attrs.appearance) formatted.push({ label: 'Appearance', value: capitalize(attrs.appearance) })
+  if (attrs.facial_hair)
+    formatted.push({ label: 'Facial Hair', value: capitalize(attrs.facial_hair) })
+  if (attrs.makeup) formatted.push({ label: 'Makeup', value: capitalize(attrs.makeup) })
   if (attrs.clothing_style)
-    formatted.push({ label: 'Clothing', value: capitalize(attrs.clothing_style) });
+    formatted.push({ label: 'Clothing', value: capitalize(attrs.clothing_style) })
 
   if (attrs.distinguishing_features && attrs.distinguishing_features.length > 0) {
-    const features = attrs.distinguishing_features.map(capitalize).join(', ');
-    formatted.push({ label: 'Features', value: features });
+    const features = attrs.distinguishing_features.map(capitalize).join(', ')
+    formatted.push({ label: 'Features', value: features })
   }
 
-  return formatted;
-});
+  return formatted
+})
 
-const hasAttributes = computed(() => formattedAttributes.value.length > 0);
+const hasAttributes = computed(() => formattedAttributes.value.length > 0)
 </script>
 
 <template>
@@ -163,7 +167,8 @@ const hasAttributes = computed(() => formattedAttributes.value.length > 0);
 }
 
 @keyframes pulse-glow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 5px var(--color-theme-glow);
   }
   50% {

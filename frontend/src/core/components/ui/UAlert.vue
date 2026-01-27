@@ -20,7 +20,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   variant: 'info',
-  dismissible: false
+  dismissible: false,
 })
 
 const emit = defineEmits<{
@@ -38,13 +38,10 @@ const variantClasses = {
   success: 'bg-success bg-opacity-10 border-success text-success',
   warning: 'bg-warning bg-opacity-10 border-warning text-warning',
   danger: 'bg-danger bg-opacity-10 border-danger text-danger',
-  info: 'bg-info bg-opacity-10 border-info text-info'
+  info: 'bg-info bg-opacity-10 border-info text-info',
 }
 
-const alertClasses = [
-  'rounded-lg border-2 p-4',
-  variantClasses[props.variant]
-].join(' ')
+const alertClasses = ['rounded-lg border-2 p-4', variantClasses[props.variant]].join(' ')
 </script>
 
 <template>
@@ -68,7 +65,12 @@ const alertClasses = [
           aria-label="Dismiss alert"
         >
           <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         </button>
       </div>

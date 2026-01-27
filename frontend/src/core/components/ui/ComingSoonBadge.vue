@@ -14,7 +14,7 @@ const props = withDefaults(defineProps<Props>(), {
   phase: undefined,
   quarter: undefined,
   size: 'md',
-  inline: false
+  inline: false,
 })
 
 const tooltipText = () => {
@@ -31,19 +31,13 @@ const tooltipText = () => {
 const sizeClasses = {
   sm: 'text-xs px-1.5 py-0.5',
   md: 'text-sm px-2 py-1',
-  lg: 'text-base px-3 py-1.5'
+  lg: 'text-base px-3 py-1.5',
 }
 </script>
 
 <template>
   <UTooltip :text="tooltipText()">
-    <div
-      class="coming-soon-badge"
-      :class="[
-        sizeClasses[size],
-        inline ? 'inline-flex' : 'flex'
-      ]"
-    >
+    <div class="coming-soon-badge" :class="[sizeClasses[size], inline ? 'inline-flex' : 'flex']">
       <Icon icon="mdi:lock" class="lock-icon" />
       <span class="badge-text">Coming Soon</span>
       <span v-if="phase" class="phase-badge">{{ phase }}</span>
@@ -95,11 +89,7 @@ const sizeClasses = {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    to bottom,
-    transparent 50%,
-    rgba(0, 255, 0, 0.02) 50%
-  );
+  background: linear-gradient(to bottom, transparent 50%, rgba(0, 255, 0, 0.02) 50%);
   background-size: 100% 4px;
   pointer-events: none;
   opacity: 0.5;

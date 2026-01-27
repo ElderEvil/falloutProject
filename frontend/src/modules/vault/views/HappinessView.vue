@@ -1,45 +1,45 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { useVaultStore } from '../stores/vault';
-import { useDwellerStore } from '@/stores/dweller';
-import { useIncidentStore } from '@/stores/incident';
-import { useAuthStore } from '@/modules/auth/stores/auth';
-import { useSidePanel } from '@/core/composables/useSidePanel';
-import SidePanel from '@/core/components/common/SidePanel.vue';
-import HappinessDashboard from '../components/HappinessDashboard.vue';
-import { happinessService } from '@/services/happinessService';
-import { Icon } from '@iconify/vue';
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useVaultStore } from '../stores/vault'
+import { useDwellerStore } from '@/stores/dweller'
+import { useIncidentStore } from '@/stores/incident'
+import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useSidePanel } from '@/core/composables/useSidePanel'
+import SidePanel from '@/core/components/common/SidePanel.vue'
+import HappinessDashboard from '../components/HappinessDashboard.vue'
+import { happinessService } from '@/services/happinessService'
+import { Icon } from '@iconify/vue'
 
-const { isCollapsed } = useSidePanel();
-const route = useRoute();
-const router = useRouter();
-const vaultStore = useVaultStore();
-const dwellerStore = useDwellerStore();
-const incidentStore = useIncidentStore();
-const authStore = useAuthStore();
+const { isCollapsed } = useSidePanel()
+const route = useRoute()
+const router = useRouter()
+const vaultStore = useVaultStore()
+const dwellerStore = useDwellerStore()
+const incidentStore = useIncidentStore()
+const authStore = useAuthStore()
 
-const vaultId = computed(() => route.params.id as string);
-const currentVault = computed(() => vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null);
-const isLoading = ref(true);
-const errorMessage = ref<string | null>(null);
+const vaultId = computed(() => route.params.id as string)
+const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
+const isLoading = ref(true)
+const errorMessage = ref<string | null>(null)
 
 const happinessDashboardData = computed(() => {
-  if (!currentVault.value) return null;
+  if (!currentVault.value) return null
 
-  const allDwellers = dwellerStore.dwellers;
-  const distribution = happinessService.calculateDistribution(allDwellers);
-  const activeIncidents = incidentStore.activeIncidents;
+  const allDwellers = dwellerStore.dwellers
+  const distribution = happinessService.calculateDistribution(allDwellers)
+  const activeIncidents = incidentStore.activeIncidents
 
   // Count idle dwellers
-  const idleDwellers = allDwellers.filter(d => d.status === 'idle');
+  const idleDwellers = allDwellers.filter((d) => d.status === 'idle')
 
   // Count low resource types
   const lowResourceCount = [
-    (currentVault.value.power / currentVault.value.power_max) < 0.3,
-    (currentVault.value.food / currentVault.value.food_max) < 0.3,
-    (currentVault.value.water / currentVault.value.water_max) < 0.3,
-  ].filter(Boolean).length;
+    currentVault.value.power / currentVault.value.power_max < 0.3,
+    currentVault.value.food / currentVault.value.food_max < 0.3,
+    currentVault.value.water / currentVault.value.water_max < 0.3,
+  ].filter(Boolean).length
 
   return {
     vaultHappiness: currentVault.value.happiness || 0,
@@ -49,51 +49,51 @@ const happinessDashboardData = computed(() => {
     activeIncidentCount: activeIncidents.length,
     lowResourceCount,
     radioHappinessMode: currentVault.value.radio_mode === 'happiness',
-  };
-});
+  }
+})
 
 const loadData = async () => {
   if (!vaultId.value || !authStore.token) {
-    errorMessage.value = 'No vault ID or authentication token';
-    isLoading.value = false;
-    return;
+    errorMessage.value = 'No vault ID or authentication token'
+    isLoading.value = false
+    return
   }
 
   try {
-    isLoading.value = true;
-    errorMessage.value = null;
+    isLoading.value = true
+    errorMessage.value = null
 
     // Load vault data
-    await vaultStore.refreshVault(vaultId.value, authStore.token);
+    await vaultStore.refreshVault(vaultId.value, authStore.token)
 
     // Load dwellers for this specific vault
-    await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token);
+    await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
 
     // Load incidents
-    await incidentStore.fetchIncidents(vaultId.value, authStore.token);
+    await incidentStore.fetchIncidents(vaultId.value, authStore.token)
   } catch (error) {
-    console.error('Failed to load happiness data:', error);
-    errorMessage.value = 'Failed to load vault happiness data';
+    console.error('Failed to load happiness data:', error)
+    errorMessage.value = 'Failed to load vault happiness data'
   } finally {
-    isLoading.value = false;
+    isLoading.value = false
   }
-};
+}
 
 const handleAssignIdle = () => {
-  router.push(`/vault/${vaultId.value}/dwellers?filter=idle`);
-};
+  router.push(`/vault/${vaultId.value}/dwellers?filter=idle`)
+}
 
 const handleActivateRadio = () => {
-  router.push(`/vault/${vaultId.value}/radio`);
-};
+  router.push(`/vault/${vaultId.value}/radio`)
+}
 
 const handleViewLowHappiness = () => {
-  router.push(`/vault/${vaultId.value}/dwellers?sortBy=happiness&order=asc`);
-};
+  router.push(`/vault/${vaultId.value}/dwellers?sortBy=happiness&order=asc`)
+}
 
 onMounted(() => {
-  loadData();
-});
+  loadData()
+})
 </script>
 
 <template>
@@ -105,7 +105,7 @@ onMounted(() => {
     <div class="main-content" :class="{ collapsed: isCollapsed }">
       <div class="container mx-auto px-4 py-6">
         <!-- Header -->
-          <div class="header-section">
+        <div class="header-section">
           <h1 class="page-title" :style="{ color: 'var(--color-theme-primary)' }">
             <Icon icon="mdi:emoticon-happy-outline" class="title-icon" />
             VAULT HAPPINESS
@@ -114,20 +114,20 @@ onMounted(() => {
 
         <!-- Loading State -->
         <div v-if="isLoading" class="loading-state">
-        <Icon icon="mdi:loading" class="loading-icon animate-spin" />
-        <p class="loading-text">Loading happiness data...</p>
-      </div>
+          <Icon icon="mdi:loading" class="loading-icon animate-spin" />
+          <p class="loading-text">Loading happiness data...</p>
+        </div>
 
         <!-- Error State -->
         <div v-else-if="errorMessage" class="error-state">
-        <Icon icon="mdi:alert-circle" class="error-icon" />
-        <h3 class="error-title">Error Loading Data</h3>
-        <p class="error-message">{{ errorMessage }}</p>
-        <button @click="loadData" class="retry-button">
-          <Icon icon="mdi:refresh" class="mr-2" />
-          Retry
-        </button>
-      </div>
+          <Icon icon="mdi:alert-circle" class="error-icon" />
+          <h3 class="error-title">Error Loading Data</h3>
+          <p class="error-message">{{ errorMessage }}</p>
+          <button @click="loadData" class="retry-button">
+            <Icon icon="mdi:refresh" class="mr-2" />
+            Retry
+          </button>
+        </div>
 
         <!-- Dashboard -->
         <div v-else-if="happinessDashboardData" class="dashboard-container">

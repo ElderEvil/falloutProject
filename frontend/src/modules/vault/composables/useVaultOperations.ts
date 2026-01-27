@@ -42,6 +42,6 @@ export function useVaultOperations() {
     deleteVault,
     selectVault,
     loadVault,
-    selectedVaultId
+    selectedVaultId,
   }
 }

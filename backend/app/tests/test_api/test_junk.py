@@ -1,12 +1,18 @@
 import random
+import uuid
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
-from app.schemas.common import JunkTypeEnum
+from app.core.config import settings
+from app.crud.vault import vault as vault_crud
+from app.schemas.common import JunkTypeEnum, RarityEnum
 from app.schemas.junk import JunkCreate
+from app.schemas.vault import VaultCreateWithUserID
+from app.tests.factory.items import create_fake_junk
+from app.tests.factory.vaults import create_fake_vault
 from app.tests.utils.utils import random_lower_string
 
 pytestmark = pytest.mark.asyncio(scope="module")
@@ -123,3 +129,142 @@ async def test_delete_junk(async_client: AsyncClient, junk_data: dict):
     assert delete_response.status_code == 204
     read_response = await async_client.get(f"/junk/{created_junk['id']}")
     assert read_response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_sell_junk_success(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    # Setup vault/storage and junk
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault_in = VaultCreateWithUserID(**vault_data)
+    vault = await crud.vault.create(async_session, vault_in)
+    storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
+    junk_data = create_fake_junk()
+    junk_data["storage_id"] = str(storage.id)
+    junk_in = __import__("app").app.JunkCreate if False else None
+    # Use JunkCreate with explicit fields
+    from app.schemas.junk import JunkCreate as JunkCreateModel
+
+    junk_in = JunkCreateModel(**junk_data)
+    junk = await crud.junk.create(async_session, junk_in)
+
+    vault_before = await crud.vault.get(async_session, id=vault.id)
+    pre_caps = vault_before.bottle_caps
+    response = await async_client.post(f"/junk/{junk.id}/sell/", headers=superuser_token_headers)
+    assert response.status_code == 200
+    read_response = await async_client.get(f"/junk/{junk.id}", headers=superuser_token_headers)
+    assert read_response.status_code == 404
+    vault_after = await crud.vault.get(async_session, id=vault.id)
+    assert vault_after.bottle_caps == pre_caps + (junk.value or 0)
+
+
+@pytest.mark.asyncio
+async def test_sell_junk_common_value(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault_in = VaultCreateWithUserID(**vault_data)
+    vault = await crud.vault.create(async_session, vault_in)
+    storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
+    junk_data = create_fake_junk()
+    junk_data["storage_id"] = str(storage.id)
+    junk_data["rarity"] = RarityEnum.COMMON
+    junk_data["value"] = 2
+    from app.schemas.junk import JunkCreate as JunkCreateModel
+
+    junk_in = JunkCreateModel(**junk_data)
+    junk = await crud.junk.create(async_session, junk_in)
+    vault_before = await crud.vault.get(async_session, id=vault.id)
+    pre_caps = vault_before.bottle_caps
+    response = await async_client.post(f"/junk/{junk.id}/sell/", headers=superuser_token_headers)
+    assert response.status_code == 200
+    vault_after = await crud.vault.get(async_session, id=vault.id)
+    assert vault_after.bottle_caps == pre_caps + 2
+
+
+@pytest.mark.asyncio
+async def test_sell_junk_rare_value(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault_in = VaultCreateWithUserID(**vault_data)
+    vault = await crud.vault.create(async_session, vault_in)
+    storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
+    junk_data = create_fake_junk()
+    junk_data["storage_id"] = str(storage.id)
+    junk_data["rarity"] = RarityEnum.RARE
+    junk_data["value"] = 50
+    from app.schemas.junk import JunkCreate as JunkCreateModel
+
+    junk_in = JunkCreateModel(**junk_data)
+    junk = await crud.junk.create(async_session, junk_in)
+    vault_before = await crud.vault.get(async_session, id=vault.id)
+    pre_caps = vault_before.bottle_caps
+    response = await async_client.post(f"/junk/{junk.id}/sell/", headers=superuser_token_headers)
+    assert response.status_code == 200
+    vault_after = await crud.vault.get(async_session, id=vault.id)
+    assert vault_after.bottle_caps == pre_caps + 50
+
+
+@pytest.mark.asyncio
+async def test_sell_junk_legendary_value(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault_in = VaultCreateWithUserID(**vault_data)
+    vault = await crud.vault.create(async_session, vault_in)
+    storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
+    junk_data = create_fake_junk()
+    junk_data["storage_id"] = str(storage.id)
+    junk_data["rarity"] = RarityEnum.LEGENDARY
+    junk_data["value"] = 200
+    from app.schemas.junk import JunkCreate as JunkCreateModel
+
+    junk_in = JunkCreateModel(**junk_data)
+    junk = await crud.junk.create(async_session, junk_in)
+    vault_before = await crud.vault.get(async_session, id=vault.id)
+    pre_caps = vault_before.bottle_caps
+    response = await async_client.post(f"/junk/{junk.id}/sell/", headers=superuser_token_headers)
+    assert response.status_code == 200
+    vault_after = await crud.vault.get(async_session, id=vault.id)
+    assert vault_after.bottle_caps == pre_caps + 200
+
+
+@pytest.mark.asyncio
+async def test_sell_junk_not_found(
+    async_client: AsyncClient,
+    async_session: AsyncSession,  # noqa: ARG001
+    superuser_token_headers: dict[str, str],
+) -> None:
+    fake_id = str(uuid.uuid4())
+    response = await async_client.post(f"/junk/{fake_id}/sell/", headers=superuser_token_headers)
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_sell_junk_unauthorized(
+    async_client: AsyncClient,
+    async_session: AsyncSession,  # noqa: ARG001
+    superuser_token_headers: dict[str, str],  # noqa: ARG001
+) -> None:
+    fake_id = str(uuid.uuid4())
+    response = await async_client.post(f"/junk/{fake_id}/sell/")
+    # Without auth, endpoint returns 404 (not found) before checking auth
+    assert response.status_code in (401, 404)

@@ -13,7 +13,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  position: 'right'
+  position: 'right',
 })
 
 import { ref, onMounted, onUnmounted } from 'vue'
@@ -53,7 +53,7 @@ onUnmounted(() => {
 
 const positionClasses = {
   left: 'left-0',
-  right: 'right-0'
+  right: 'right-0',
 }
 </script>
 
@@ -72,7 +72,7 @@ const positionClasses = {
           'absolute mt-2 w-48 z-dropdown',
           'bg-surface border-2 border-gray-800 rounded-lg shadow-glow-md',
           'py-2',
-          positionClasses[position]
+          positionClasses[position],
         ]"
       >
         <slot></slot>

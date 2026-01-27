@@ -8,7 +8,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  maxLevel: 50
+  maxLevel: 50,
 })
 
 // XP formula: 100 * (level ^ 1.5)

@@ -20,7 +20,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  dwellers: () => []
+  dwellers: () => [],
 })
 
 const emit = defineEmits<{
@@ -85,11 +85,8 @@ const fetchRoomTrainings = async () => {
 
   loading.value = true
   try {
-    const trainings = await trainingStore.fetchRoomTrainings(
-      props.room.id,
-      authStore.token
-    )
-    activeTrainings.value = trainings.filter(t => t.status === 'active')
+    const trainings = await trainingStore.fetchRoomTrainings(props.room.id, authStore.token)
+    activeTrainings.value = trainings.filter((t) => t.status === 'active')
   } finally {
     loading.value = false
   }
@@ -100,11 +97,7 @@ const handleStartTraining = async (dwellerId: string) => {
 
   loading.value = true
   try {
-    const result = await trainingStore.startTraining(
-      dwellerId,
-      props.room.id,
-      authStore.token
-    )
+    const result = await trainingStore.startTraining(dwellerId, props.room.id, authStore.token)
 
     if (result) {
       await fetchRoomTrainings()
@@ -131,11 +124,15 @@ const handleCancelTraining = async (trainingId: string) => {
 }
 
 // Fetch trainings when modal opens
-watch(() => props.modelValue, (isOpen) => {
-  if (isOpen && props.room) {
-    fetchRoomTrainings()
-  }
-}, { immediate: true })
+watch(
+  () => props.modelValue,
+  (isOpen) => {
+    if (isOpen && props.room) {
+      fetchRoomTrainings()
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
@@ -161,9 +158,7 @@ watch(() => props.modelValue, (isOpen) => {
           <Icon icon="mdi:account-group" class="info-icon" />
           <div class="info-content">
             <span class="info-label">Capacity</span>
-            <span class="info-value">
-              {{ activeTrainings.length }} / {{ room.capacity }}
-            </span>
+            <span class="info-value"> {{ activeTrainings.length }} / {{ room.capacity }} </span>
           </div>
         </div>
 
@@ -220,9 +215,7 @@ watch(() => props.modelValue, (isOpen) => {
             :disabled="loading"
           >
             <div class="dweller-info">
-              <span class="dweller-name">
-                {{ dweller.first_name }} {{ dweller.last_name }}
-              </span>
+              <span class="dweller-name"> {{ dweller.first_name }} {{ dweller.last_name }} </span>
               <span class="dweller-level">Lvl {{ dweller.level }}</span>
             </div>
             <div class="dweller-stat">
@@ -241,9 +234,7 @@ watch(() => props.modelValue, (isOpen) => {
 
       <!-- Close Button -->
       <div class="modal-actions">
-        <UButton variant="secondary" block @click="close">
-          Close
-        </UButton>
+        <UButton variant="secondary" block @click="close"> Close </UButton>
       </div>
     </div>
   </UModal>

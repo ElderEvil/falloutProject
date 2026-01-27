@@ -1,40 +1,39 @@
 <script setup lang="ts">
-import { ref, watchEffect, computed, onMounted, onUnmounted } from 'vue';
-import { useAuthStore } from '@/modules/auth/stores/auth';
-import { Icon } from '@iconify/vue';
-import apiClient from '@/core/plugins/axios';
-import type { ChatMessageDisplay } from '../models/chat';
-import { useAudioRecorder } from '../composables/useAudioRecorder';
-import { useChatWebSocket } from '@/core/composables/useWebSocket';
-import { normalizeImageUrl } from '@/utils/image';
-
+import { ref, watchEffect, computed, onMounted, onUnmounted } from 'vue'
+import { useAuthStore } from '@/modules/auth/stores/auth'
+import { Icon } from '@iconify/vue'
+import apiClient from '@/core/plugins/axios'
+import type { ChatMessageDisplay } from '../models/chat'
+import { useAudioRecorder } from '../composables/useAudioRecorder'
+import { useChatWebSocket } from '@/core/composables/useWebSocket'
+import { normalizeImageUrl } from '@/utils/image'
 
 const props = defineProps<{
   dwellerId: string
   dwellerName: string
   username: string
   dwellerAvatar?: string
-}>();
+}>()
 
-const authStore = useAuthStore();
-const messages = ref<ChatMessageDisplay[]>([]);
-const userMessage = ref('');
-const chatMessages = ref<HTMLElement | null>(null);
-const isTyping = ref(false);
-const isSendingAudio = ref(false);
-const audioMode = ref(false);
-const currentlyPlayingAudio = ref<HTMLAudioElement | null>(null);
-const currentlyPlayingUrl = ref<string | null>(null);
+const authStore = useAuthStore()
+const messages = ref<ChatMessageDisplay[]>([])
+const userMessage = ref('')
+const chatMessages = ref<HTMLElement | null>(null)
+const isTyping = ref(false)
+const isSendingAudio = ref(false)
+const audioMode = ref(false)
+const currentlyPlayingAudio = ref<HTMLAudioElement | null>(null)
+const currentlyPlayingUrl = ref<string | null>(null)
 
 // Stop audio playback
 const stopAudio = () => {
   if (currentlyPlayingAudio.value) {
-    currentlyPlayingAudio.value.pause();
-    currentlyPlayingAudio.value.currentTime = 0;
-    currentlyPlayingAudio.value = null;
+    currentlyPlayingAudio.value.pause()
+    currentlyPlayingAudio.value.currentTime = 0
+    currentlyPlayingAudio.value = null
   }
-  currentlyPlayingUrl.value = null;
-};
+  currentlyPlayingUrl.value = null
+}
 
 // Audio recorder
 const {
@@ -44,28 +43,22 @@ const {
   startRecording,
   stopRecording,
   cancelRecording,
-  formatDuration
-} = useAudioRecorder();
+  formatDuration,
+} = useAudioRecorder()
 
 // WebSocket
-const chatWs = authStore.user?.id
-  ? useChatWebSocket(authStore.user.id, props.dwellerId)
-  : null;
+const chatWs = authStore.user?.id ? useChatWebSocket(authStore.user.id, props.dwellerId) : null
 
-const userAvatar = computed(() => (authStore.user as any)?.image_url || undefined);
-const dwellerAvatarUrl = computed(() => normalizeImageUrl(props.dwellerAvatar));
-
+const userAvatar = computed(() => (authStore.user as any)?.image_url || undefined)
+const dwellerAvatarUrl = computed(() => normalizeImageUrl(props.dwellerAvatar))
 
 const loadChatHistory = async () => {
   try {
-    const response = await apiClient.get(
-      `/api/v1/chat/history/${props.dwellerId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${authStore.token}`
-        }
-      }
-    );
+    const response = await apiClient.get(`/api/v1/chat/history/${props.dwellerId}`, {
+      headers: {
+        Authorization: `Bearer ${authStore.token}`,
+      },
+    })
 
     // Transform backend ChatMessageRead[] to frontend ChatMessageDisplay[]
     const history = response.data.map((msg: any) => ({
@@ -74,14 +67,14 @@ const loadChatHistory = async () => {
       timestamp: new Date(msg.created_at),
       avatar: msg.from_user_id ? userAvatar.value : props.dwellerAvatar,
       audioUrl: msg.audio_url || undefined,
-      transcription: msg.transcription || undefined
-    }));
+      transcription: msg.transcription || undefined,
+    }))
 
-    messages.value = history;
+    messages.value = history
   } catch (error) {
-    console.error('Error loading chat history:', error);
+    console.error('Error loading chat history:', error)
   }
-};
+}
 
 const sendMessage = async () => {
   if (userMessage.value.trim()) {
@@ -89,67 +82,67 @@ const sendMessage = async () => {
       type: 'user',
       content: userMessage.value,
       timestamp: new Date(),
-      avatar: userAvatar.value
-    });
+      avatar: userAvatar.value,
+    })
 
-    const messageToSend = userMessage.value;
-    userMessage.value = '';
-    isTyping.value = true;
+    const messageToSend = userMessage.value
+    userMessage.value = ''
+    isTyping.value = true
 
     try {
       const response = await apiClient.post(
         `/api/v1/chat/${props.dwellerId}`,
         {
-          message: messageToSend
+          message: messageToSend,
         },
         {
           headers: {
-            Authorization: `Bearer ${authStore.token}`
-          }
+            Authorization: `Bearer ${authStore.token}`,
+          },
         }
-      );
+      )
       messages.value.push({
         type: 'dweller',
         content: response.data.response,
         timestamp: new Date(),
-        avatar: props.dwellerAvatar
-      });
+        avatar: props.dwellerAvatar,
+      })
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('Error sending message:', error)
     } finally {
-      isTyping.value = false;
+      isTyping.value = false
     }
   }
-};
+}
 
 const handleKeyDown = (e: KeyboardEvent) => {
   if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
+    e.preventDefault()
+    sendMessage()
   }
   // Shift+Enter allows newline (default behavior)
-};
+}
 
-const canSend = computed(() => userMessage.value.trim().length > 0);
+const canSend = computed(() => userMessage.value.trim().length > 0)
 
 // Audio message handling
 const sendAudioMessage = async () => {
   try {
-    isSendingAudio.value = true;
-    const audioBlob = await stopRecording();
+    isSendingAudio.value = true
+    const audioBlob = await stopRecording()
 
     // Create FormData for file upload
-    const formData = new FormData();
-    formData.append('audio_file', audioBlob, 'recording.webm');
+    const formData = new FormData()
+    formData.append('audio_file', audioBlob, 'recording.webm')
 
     // Add placeholder message
-    const placeholderIndex = messages.value.length;
+    const placeholderIndex = messages.value.length
     messages.value.push({
       type: 'user',
       content: '[Transcribing audio...]',
       timestamp: new Date(),
-      avatar: userAvatar.value
-    });
+      avatar: userAvatar.value,
+    })
 
     // Send to backend
     const response = await apiClient.post(
@@ -158,15 +151,15 @@ const sendAudioMessage = async () => {
       {
         headers: {
           Authorization: `Bearer ${authStore.token}`,
-          'Content-Type': 'multipart/form-data'
-        }
+          'Content-Type': 'multipart/form-data',
+        },
       }
-    );
+    )
 
     // Update user message with transcription
-    const placeholderMessage = messages.value[placeholderIndex];
+    const placeholderMessage = messages.value[placeholderIndex]
     if (placeholderMessage) {
-      placeholderMessage.content = response.data.transcription;
+      placeholderMessage.content = response.data.transcription
     }
 
     // Add dweller response
@@ -175,92 +168,91 @@ const sendAudioMessage = async () => {
       content: response.data.dweller_response,
       timestamp: new Date(),
       avatar: props.dwellerAvatar,
-      audioUrl: response.data.dweller_audio_url
-    });
+      audioUrl: response.data.dweller_audio_url,
+    })
 
     // Auto-play dweller response if audio URL provided
     if (response.data.dweller_audio_url) {
-      playAudio(response.data.dweller_audio_url);
+      playAudio(response.data.dweller_audio_url)
     }
-
   } catch (error: any) {
-    console.error('Error sending audio:', error);
-    alert(`Failed to send audio: ${error.response?.data?.detail || error.message}`);
+    console.error('Error sending audio:', error)
+    alert(`Failed to send audio: ${error.response?.data?.detail || error.message}`)
   } finally {
-    isSendingAudio.value = false;
+    isSendingAudio.value = false
   }
-};
+}
 
 // Audio playback
 const playAudio = (url: string) => {
   // Stop currently playing audio
   if (currentlyPlayingAudio.value) {
-    currentlyPlayingAudio.value.pause();
-    currentlyPlayingAudio.value = null;
+    currentlyPlayingAudio.value.pause()
+    currentlyPlayingAudio.value = null
   }
 
   // URL already includes http:// from backend
-  const audio = new Audio(url);
-  currentlyPlayingAudio.value = audio;
-  currentlyPlayingUrl.value = url;
+  const audio = new Audio(url)
+  currentlyPlayingAudio.value = audio
+  currentlyPlayingUrl.value = url
 
-  audio.play().catch(err => {
-    console.error('Error playing audio:', err);
-    currentlyPlayingUrl.value = null;
-  });
+  audio.play().catch((err) => {
+    console.error('Error playing audio:', err)
+    currentlyPlayingUrl.value = null
+  })
 
   audio.onended = () => {
-    currentlyPlayingAudio.value = null;
-    currentlyPlayingUrl.value = null;
-  };
-};
+    currentlyPlayingAudio.value = null
+    currentlyPlayingUrl.value = null
+  }
+}
 
 // Typing indicator via WebSocket
-let typingTimeout: number | null = null;
+let typingTimeout: number | null = null
 const handleTyping = () => {
   if (chatWs) {
-    chatWs.sendTypingIndicator(true);
+    chatWs.sendTypingIndicator(true)
 
-    if (typingTimeout) clearTimeout(typingTimeout);
+    if (typingTimeout) clearTimeout(typingTimeout)
 
     typingTimeout = window.setTimeout(() => {
-      chatWs.sendTypingIndicator(false);
-    }, 2000);
+      chatWs.sendTypingIndicator(false)
+    }, 2000)
   }
-};
+}
 
 watchEffect(() => {
   if (chatMessages.value) {
-    chatMessages.value.scrollTop = chatMessages.value.scrollHeight;
+    chatMessages.value.scrollTop = chatMessages.value.scrollHeight
   }
-});
+})
 
 onMounted(() => {
-  loadChatHistory();
+  loadChatHistory()
 
   // Connect WebSocket
   if (chatWs) {
-    chatWs.connect();
+    chatWs.connect()
 
     // Handle typing indicators from dweller
     chatWs.on('typing', (msg: any) => {
       if (msg.sender === 'dweller') {
-        isTyping.value = msg.is_typing;
+        isTyping.value = msg.is_typing
       }
-    });
+    })
   }
-});
+})
 
 onUnmounted(() => {
   // Cleanup
   if (chatWs) {
-    chatWs.disconnect();
+    chatWs.disconnect()
   }
-  stopAudio();
+  stopAudio()
   if (typingTimeout) {
-    clearTimeout(typingTimeout);
+    clearTimeout(typingTimeout)
   }
-});
+})
 </script>
 
 <template>
@@ -319,12 +311,21 @@ onUnmounted(() => {
             <!-- Audio play/stop button for messages with audio -->
             <button
               v-if="message.audioUrl"
-              @click="currentlyPlayingUrl === message.audioUrl ? stopAudio() : playAudio(message.audioUrl)"
+              @click="
+                currentlyPlayingUrl === message.audioUrl ? stopAudio() : playAudio(message.audioUrl)
+              "
               class="audio-replay-btn"
               :class="{ 'is-playing': currentlyPlayingUrl === message.audioUrl }"
-              :title="currentlyPlayingUrl === message.audioUrl ? 'Stop audio' : `Play ${message.type === 'user' ? 'your' : 'dweller'} audio`"
+              :title="
+                currentlyPlayingUrl === message.audioUrl
+                  ? 'Stop audio'
+                  : `Play ${message.type === 'user' ? 'your' : 'dweller'} audio`
+              "
             >
-              <Icon :icon="currentlyPlayingUrl === message.audioUrl ? 'mdi:stop' : 'mdi:volume-high'" class="h-4 w-4" />
+              <Icon
+                :icon="currentlyPlayingUrl === message.audioUrl ? 'mdi:stop' : 'mdi:volume-high'"
+                class="h-4 w-4"
+              />
             </button>
           </div>
           <div class="message-content">
@@ -414,18 +415,10 @@ onUnmounted(() => {
 
         <!-- Stop/Cancel buttons when recording -->
         <template v-else>
-          <button
-            @click="cancelRecording"
-            class="cancel-btn"
-            title="Cancel"
-          >
+          <button @click="cancelRecording" class="cancel-btn" title="Cancel">
             <Icon icon="mdi:close" class="h-5 w-5" />
           </button>
-          <button
-            @click="sendAudioMessage"
-            class="send-audio-btn"
-            title="Send"
-          >
+          <button @click="sendAudioMessage" class="send-audio-btn" title="Send">
             <Icon icon="mdi:send" class="h-5 w-5" />
           </button>
         </template>
@@ -634,7 +627,8 @@ onUnmounted(() => {
 }
 
 @keyframes audio-pulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 4px rgba(255, 68, 68, 0.3);
   }
   50% {
@@ -691,10 +685,12 @@ onUnmounted(() => {
 }
 
 @keyframes blink {
-  0%, 49% {
+  0%,
+  49% {
     opacity: 1;
   }
-  50%, 100% {
+  50%,
+  100% {
     opacity: 0;
   }
 }
@@ -735,8 +731,9 @@ onUnmounted(() => {
 .chat-input-field:focus {
   outline: none;
   border-color: var(--color-theme-primary);
-  box-shadow: inset 0 0 10px rgba(var(--color-theme-primary-rgb), 0.2),
-  0 0 15px var(--color-theme-glow);
+  box-shadow:
+    inset 0 0 10px rgba(var(--color-theme-primary-rgb), 0.2),
+    0 0 15px var(--color-theme-glow);
 }
 
 .chat-input-field::placeholder {
@@ -842,7 +839,8 @@ onUnmounted(() => {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }

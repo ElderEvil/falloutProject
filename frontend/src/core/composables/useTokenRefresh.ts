@@ -218,6 +218,6 @@ export function useTokenRefresh() {
     isTokenExpired,
     isRefreshing,
     initialize,
-    cleanup
+    cleanup,
   }
 }

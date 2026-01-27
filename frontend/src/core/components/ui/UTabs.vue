@@ -21,7 +21,7 @@ const emit = defineEmits<Emits>()
 
 const activeTab = computed({
   get: () => props.modelValue,
-  set: (value: string) => emit('update:modelValue', value)
+  set: (value: string) => emit('update:modelValue', value),
 })
 
 const selectTab = (key: string, disabled?: boolean) => {
@@ -39,7 +39,7 @@ const selectTab = (key: string, disabled?: boolean) => {
         @click="selectTab(tab.key, tab.disabled)"
         :class="{
           active: activeTab === tab.key,
-          disabled: tab.disabled
+          disabled: tab.disabled,
         }"
         :disabled="tab.disabled"
         class="utabs-button"

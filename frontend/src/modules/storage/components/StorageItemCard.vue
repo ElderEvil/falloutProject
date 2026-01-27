@@ -147,6 +147,13 @@ const itemStats = computed(() => {
         icon: 'mdi:tag'
       })
     }
+    // Optional extra stats
+    if (props.item.weight !== undefined) {
+      stats.push({ label: 'Weight', value: props.item.weight, icon: 'mdi:scale' })
+    }
+    if (props.item.durability !== undefined) {
+      stats.push({ label: 'Durability', value: props.item.durability, icon: 'mdi:shield-check' })
+    }
   } else if (normalizedItemType.value === 'outfit') {
     // Gender restriction
     if (props.item.gender) {
@@ -155,6 +162,12 @@ const itemStats = computed(() => {
         value: props.item.gender,
         icon: 'mdi:human-male-female'
       })
+    }
+    if (props.item.weight !== undefined) {
+      stats.push({ label: 'Weight', value: props.item.weight, icon: 'mdi:scale' })
+    }
+    if (props.item.durability !== undefined) {
+      stats.push({ label: 'Durability', value: props.item.durability, icon: 'mdi:shield-check' })
     }
   }
 
@@ -178,9 +191,9 @@ const canScrap = computed(() => {
   return normalizedItemType.value === 'weapon' || normalizedItemType.value === 'outfit'
 })
 
-// Show sell all button if count > 1
+// Show sell all button only for junk items and when there are multiple copies
 const showSellAll = computed(() => {
-  return props.count > 1
+  return props.count > 1 && normalizedItemType.value === 'junk'
 })
 </script>
 

@@ -523,11 +523,17 @@ class ExplorationCoordinator:
                     item_created = True
 
             else:
-                # Create junk item
+                # Create junk item with appropriate value based on rarity
+                junk_value_map = {
+                    RarityEnum.COMMON: 2,
+                    RarityEnum.RARE: 50,
+                    RarityEnum.LEGENDARY: 200,
+                }
                 junk = Junk(
                     name=item_name,
                     junk_type=JunkTypeEnum.VALUABLES,
                     rarity=rarity,
+                    value=junk_value_map.get(rarity, 2),
                     description="Found during wasteland exploration",
                     storage_id=storage_id,
                 )

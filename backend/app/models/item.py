@@ -1,4 +1,4 @@
-from pydantic import field_validator
+from pydantic import model_validator
 from sqlmodel import Field, SQLModel
 
 from app.schemas.common import RarityEnum
@@ -16,9 +16,12 @@ class ItemBase(SQLModel):
         RarityEnum.LEGENDARY: 500,
     }
 
+    @model_validator(mode="before")
     @classmethod
-    @field_validator("value", mode="before")
-    def set_default_value(cls, values) -> int:
-        if "value" not in values:
-            values["value"] = cls._value_by_rarity[values["rarity"]]
-        return values
+    def set_default_value(cls, data: dict) -> dict:
+        """Set default value based on rarity if not provided."""
+        if isinstance(data, dict) and data.get("value") is None:
+            rarity = data.get("rarity")
+            if rarity:
+                data["value"] = cls._value_by_rarity.get(rarity, 10)
+        return data

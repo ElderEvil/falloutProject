@@ -2,12 +2,17 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import UUID4
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.deps import CurrentActiveUser, CurrentSuperuser
+from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403
 from app.db.session import get_async_session
+from app.models.dweller import Dweller
+from app.models.room import Room
 from app.models.vault import Vault
+from app.schemas.common import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
+from app.schemas.dweller import DwellerUpdate
 from app.schemas.vault import VaultCreate, VaultNumber, VaultReadWithNumbers, VaultReadWithUser, VaultUpdate
 from app.services.vault_service import vault_service
 
@@ -126,3 +131,129 @@ async def update_vault_resources(
     _: CurrentSuperuser,
 ):
     return await vault_service.update_vault_resources(db_session=db_session, vault_id=vault_id)
+
+
+@router.post("/{vault_id}/dwellers/unassign-all", response_model=dict[str, int])
+async def unassign_all_dwellers(
+    vault: Annotated[Vault, Depends(get_user_vault_or_403)],
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+):
+    """Unassign all dwellers from their rooms in the specified vault."""
+    from app.schemas.dweller import DwellerUpdate
+
+    dwellers = await crud.dweller.get_multi_by_vault(db_session, vault_id=vault.id, limit=10000)
+    unassigned_count = 0
+
+    for dweller in dwellers:
+        if dweller.room_id is not None:
+            await crud.dweller.update(
+                db_session,
+                dweller.id,
+                DwellerUpdate(room_id=None, status=DwellerStatusEnum.IDLE),
+            )
+            unassigned_count += 1
+
+    return {"unassigned_count": unassigned_count}
+
+
+@router.post("/{vault_id}/dwellers/auto-assign-production")
+async def auto_assign_production_rooms(
+    vault: Annotated[Vault, Depends(get_user_vault_or_403)],
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+):
+    """
+    Intelligently assign unassigned dwellers to production rooms based on SPECIAL stats.
+
+    Priority order: Power Plant (Strength) → Diner (Agility) → Water Treatment (Perception)
+    Dwellers are matched to rooms based on their relevant SPECIAL stat (highest stat dwellers assigned first).
+    """
+    # Priority order for assignment
+    priority_abilities = [
+        SPECIALEnum.STRENGTH,  # Power plants
+        SPECIALEnum.AGILITY,  # Diners
+        SPECIALEnum.PERCEPTION,  # Water treatment
+    ]
+
+    # Map abilities to dweller stat attribute names
+    ability_to_stat_map = {
+        SPECIALEnum.STRENGTH: "strength",
+        SPECIALEnum.AGILITY: "agility",
+        SPECIALEnum.PERCEPTION: "perception",
+    }
+
+    # Get all production rooms in vault
+    rooms_query = (
+        select(Room)
+        .where(Room.vault_id == vault.id)
+        .where(Room.category == RoomTypeEnum.PRODUCTION)
+        .where(Room.ability.in_(priority_abilities))
+    )
+    rooms_result = await db_session.execute(rooms_query)
+    all_production_rooms = rooms_result.scalars().all()
+
+    # Get all unassigned dwellers (room_id is None, not deleted, not dead)
+    unassigned_query = (
+        select(Dweller)
+        .where(Dweller.vault_id == vault.id)
+        .where(Dweller.room_id.is_(None))
+        .where(Dweller.is_deleted == False)
+        .where(Dweller.is_dead == False)
+    )
+    unassigned_result = await db_session.execute(unassigned_query)
+    unassigned_dwellers = list(unassigned_result.scalars().all())
+
+    assignments = []
+    assigned_dweller_ids = set()
+
+    for ability in priority_abilities:
+        if not unassigned_dwellers:
+            break
+
+        # Get rooms with this ability
+        ability_rooms = [r for r in all_production_rooms if r.ability == ability]
+
+        for room in ability_rooms:
+            if not unassigned_dwellers:
+                break
+
+            # Get current dweller count in room
+            dweller_count_query = select(Dweller).where(Dweller.room_id == room.id)
+            dweller_count_result = await db_session.execute(dweller_count_query)
+            current_dwellers_in_room = len(dweller_count_result.scalars().all())
+
+            # Calculate room capacity (2 dwellers per 3 size units)
+            room_size = room.size if room.size is not None else room.size_min
+            max_capacity = (room_size // 3) * 2 if room_size else 0
+
+            available_slots = max_capacity - current_dwellers_in_room
+            if available_slots <= 0:
+                continue
+
+            # Sort unassigned dwellers by the matching SPECIAL stat (descending)
+            stat_name = ability_to_stat_map[ability]
+            sorted_dwellers = sorted(
+                [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids],
+                key=lambda d: getattr(d, stat_name),
+                reverse=True,
+            )
+
+            # Assign dwellers to this room
+            for dweller in sorted_dwellers[:available_slots]:
+                await crud.dweller.update(
+                    db_session,
+                    dweller.id,
+                    DwellerUpdate(room_id=room.id, status=DwellerStatusEnum.WORKING),
+                )
+                assignments.append(
+                    {
+                        "dweller_id": str(dweller.id),
+                        "room_id": str(room.id),
+                        "room_name": room.name,
+                    }
+                )
+                assigned_dweller_ids.add(dweller.id)
+
+        # Remove assigned dwellers from the list for next iteration
+        unassigned_dwellers = [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids]
+
+    return {"assigned_count": len(assignments), "assignments": assignments}

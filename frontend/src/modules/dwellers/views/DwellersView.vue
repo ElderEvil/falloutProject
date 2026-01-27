@@ -16,6 +16,7 @@ import DwellerFilterPanel from '../components/DwellerFilterPanel.vue'
 import DwellerGridItem from '../components/grid/DwellerGridItem.vue'
 import DwellerCardSkeleton from '../components/cards/DwellerCardSkeleton.vue'
 import DwellerGridItemSkeleton from '../components/grid/DwellerGridItemSkeleton.vue'
+import DwellerBulkActions from '../components/DwellerBulkActions.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import UButton from '@/core/components/ui/UButton.vue'
@@ -239,6 +240,15 @@ const closeRoomModal = () => {
   showDetailModal.value = false
   selectedRoomForDetail.value = null
 }
+
+const handleQuickUnassign = async (dwellerId: string) => {
+  if (!authStore.token) return
+  try {
+    await dwellerStore.unassignDwellerFromRoom(dwellerId, authStore.token)
+  } catch (error) {
+    console.error('Error unassigning dweller:', error)
+  }
+}
 </script>
 
 <template>
@@ -258,6 +268,7 @@ const closeRoomModal = () => {
 
           <!-- Filter Panel with View Toggle -->
           <div class="w-full mb-6">
+            <DwellerBulkActions :vault-id="vaultId" />
             <DwellerFilterPanel :show-view-toggle="true" />
           </div>
 
@@ -423,18 +434,25 @@ const closeRoomModal = () => {
                   </div>
                 </div>
 
-                <!-- Room Assignment - right side -->
-                <div class="ml-auto flex items-center gap-2">
-                  <template v-if="getRoomForDweller(dweller.room_id)">
-                    <div
-                      class="px-3 py-1.5 rounded text-sm font-medium bg-gray-700/80 text-gray-200 border border-gray-600 cursor-pointer hover:bg-gray-700 transition-all"
-                      @click.stop="openRoomModal(dweller.room_id!)"
-                    >
-                      {{ getRoomForDweller(dweller.room_id)?.name }}
-                    </div>
-                  </template>
+                  <!-- Room Assignment - right side -->
+                  <div class="ml-auto flex items-center gap-2">
+                    <template v-if="getRoomForDweller(dweller.room_id)">
+                      <div
+                        class="px-3 py-1.5 rounded text-sm font-medium bg-gray-700/80 text-gray-200 border border-gray-600 cursor-pointer hover:bg-gray-700 transition-all flex items-center gap-2"
+                        @click.stop="openRoomModal(dweller.room_id!)"
+                      >
+                        {{ getRoomForDweller(dweller.room_id)?.name }}
+                        <button
+                          @click.stop="handleQuickUnassign(dweller.id)"
+                          class="ml-auto p-0.5 hover:bg-red-500/20 rounded transition-colors"
+                          title="Unassign from room"
+                        >
+                          <Icon icon="mdi:close" class="h-4 w-4 text-red-400" />
+                        </button>
+                      </div>
+                    </template>
 
-                  <!-- Chevron -->
+                    <!-- Chevron -->
                   <Icon
                     icon="mdi:chevron-right"
                     class="h-5 w-5 text-terminalGreen/50 flex-shrink-0"

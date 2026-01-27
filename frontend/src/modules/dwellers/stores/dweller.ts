@@ -460,6 +460,72 @@ export const useDwellerStore = defineStore('dweller', () => {
     }
   }
 
+  async function unassignAllDwellers(
+    vaultId: string,
+    token: string
+  ): Promise<{ unassigned_count: number } | null> {
+    try {
+      const response = await axios.post<{ unassigned_count: number }>(
+        `/api/v1/vaults/${vaultId}/dwellers/unassign-all`,
+        null,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      // Refetch dwellers to update UI
+      await fetchDwellersByVault(vaultId, token)
+
+      toast.success(`Unassigned ${response.data.unassigned_count} dwellers`)
+      return response.data
+    } catch (error: unknown) {
+      const errorMessage =
+        (
+          error as {
+            response?: { data?: { detail?: string } }
+          }
+        )?.response?.data?.detail || 'Failed to unassign all dwellers'
+      console.error(`Failed to unassign all dwellers for vault ${vaultId}`, error)
+      toast.error(errorMessage)
+      return null
+    }
+  }
+
+  async function autoAssignProduction(
+    vaultId: string,
+    token: string
+  ): Promise<{ assigned_count: number; assignments: any[] } | null> {
+    try {
+      const response = await axios.post<{ assigned_count: number; assignments: any[] }>(
+        `/api/v1/vaults/${vaultId}/dwellers/auto-assign-production`,
+        null,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      // Refetch dwellers to update UI
+      await fetchDwellersByVault(vaultId, token)
+
+      toast.success(`Assigned ${response.data.assigned_count} dwellers to production rooms!`)
+      return response.data
+    } catch (error: unknown) {
+      const errorMessage =
+        (
+          error as {
+            response?: { data?: { detail?: string } }
+          }
+        )?.response?.data?.detail || 'Failed to auto-assign production'
+      console.error(`Failed to auto-assign production for vault ${vaultId}`, error)
+      toast.error(errorMessage)
+      return null
+    }
+  }
+
   // ================================
   // Death System Actions
   // ================================
@@ -621,6 +687,8 @@ export const useDwellerStore = defineStore('dweller', () => {
     assignDwellerToRoom,
     unassignDwellerFromRoom,
     autoAssignToRoom,
+    unassignAllDwellers,
+    autoAssignProduction,
     useStimpack,
     useRadaway,
     setFilterStatus,

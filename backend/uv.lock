@@ -629,7 +629,7 @@ wheels = [
 ]
 
 [[package]]
-name = "fallout-shelter-fast-api-vue"
+name = "fallout-shelter-fast-api"
 version = "2.7.0"
 source = { editable = "." }
 dependencies = [

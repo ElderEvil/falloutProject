@@ -26,6 +26,7 @@ const emit = defineEmits<{
   (e: 'assign-pet'): void
   (e: 'use-stimpack'): void
   (e: 'use-radaway'): void
+  (e: 'unassign'): void
 }>()
 
 const showHappinessModifiers = ref(false)
@@ -262,6 +263,18 @@ const rarityLabel = computed(() => {
       <UButton variant="secondary" size="md" block @click="emit('assign')" :disabled="loading">
         <Icon icon="mdi:office-building" class="h-5 w-5 mr-2" />
         Assign to Room
+      </UButton>
+
+      <UButton
+        v-if="dweller.room_id !== null"
+        variant="secondary"
+        size="md"
+        block
+        @click="emit('unassign')"
+        :disabled="loading"
+      >
+        <Icon icon="mdi:close-circle" class="h-5 w-5 mr-2" />
+        Unassign from Room
       </UButton>
 
       <UButton

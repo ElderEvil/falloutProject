@@ -208,6 +208,7 @@ const handleRevive = async () => {
 
 const usingStimpack = ref(false)
 const usingRadaway = ref(false)
+const unassigning = ref(false)
 
 const handleUseStimpack = async () => {
   if (!dweller.value || usingStimpack.value) return
@@ -234,6 +235,20 @@ const handleUseRadaway = async () => {
     console.error('Error using radaway:', error)
   } finally {
     usingRadaway.value = false
+  }
+}
+
+const handleUnassign = async () => {
+  if (!dweller.value || unassigning.value) return
+
+  unassigning.value = true
+  try {
+    await dwellerStore.unassignDwellerFromRoom(dwellerId.value, authStore.token as string)
+    await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
+  } catch (error) {
+    console.error('Error unassigning dweller:', error)
+  } finally {
+    unassigning.value = false
   }
 }
 </script>
@@ -287,9 +302,10 @@ const handleUseRadaway = async () => {
                 <DwellerCard
                   :dweller="dweller"
                   :image-url="dweller.image_url"
-                  :loading="generatingAI || usingStimpack || usingRadaway || assigning"
+                  :loading="generatingAI || usingStimpack || usingRadaway || assigning || unassigning"
                   @chat="navigateToChatPage"
                   @assign="handleAssign"
+                  @unassign="handleUnassign"
                   @recall="handleRecall"
                   @use-stimpack="handleUseStimpack"
                   @use-radaway="handleUseRadaway"

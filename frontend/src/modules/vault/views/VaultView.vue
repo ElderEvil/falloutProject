@@ -192,14 +192,40 @@ watch(() => vaultId.value, (newId) => {
   }
 }, { immediate: true })
 
+// Keyboard shortcuts
+const handleKeyPress = (e: KeyboardEvent) => {
+  // Only handle if not typing in an input or textarea
+  if (
+    e.target instanceof HTMLInputElement ||
+    e.target instanceof HTMLTextAreaElement
+  ) {
+    return
+  }
+
+  // Toggle build mode with 'B' key
+  if (e.key.toLowerCase() === 'b') {
+    e.preventDefault()
+    toggleBuildMode()
+  }
+
+  // ESC to exit build mode
+  if (e.key === 'Escape' && buildModeActive.value) {
+    e.preventDefault()
+    showRoomMenu.value = false
+    roomStore.deselectRoom()
+  }
+}
+
 onMounted(async () => {
   // Initial load is handled by the watcher
+  window.addEventListener('keydown', handleKeyPress)
 })
 
 onUnmounted(() => {
   // Clean up polling when component is unmounted
   vaultStore.stopResourcePolling()
   incidentStore.stopPolling()
+  window.removeEventListener('keydown', handleKeyPress)
 })
 
 const toggleBuildMode = async () => {

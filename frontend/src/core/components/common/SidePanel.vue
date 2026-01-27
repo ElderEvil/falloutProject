@@ -83,6 +83,13 @@ const navItems = computed((): NavItem[] => {
             path: `/vault/${vaultId.value}/happiness`,
             hotkey: "8",
         },
+        {
+            id: "storage",
+            label: "Storage",
+            icon: "mdi:package-variant",
+            path: `/vault/${vaultId.value}/storage`,
+            hotkey: "9",
+        },
     ];
 });
 
@@ -249,7 +256,7 @@ onUnmounted(() => {
 .side-panel {
     position: fixed;
     left: 0;
-    top: 64px; /* Below navbar */
+    top: 64px; /* Below fixed navbar (NavBar height is ~64px with padding) */
     bottom: 0;
     width: 240px;
     background: rgba(0, 0, 0, 0.95);

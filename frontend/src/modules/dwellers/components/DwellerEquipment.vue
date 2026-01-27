@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
+import { useRoute } from 'vue-router'
 import { useEquipmentStore } from '@/stores/equipment'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import WeaponCard from '@/modules/combat/components/equipment/WeaponCard.vue'
@@ -16,8 +17,12 @@ const emit = defineEmits<{
   refresh: []
 }>()
 
+const route = useRoute()
 const equipmentStore = useEquipmentStore()
 const authStore = useAuthStore()
+
+// Get vault_id from route params
+const vaultId = computed(() => route.params.id as string | undefined)
 
 const showInventoryModal = ref(false)
 const inventoryMode = ref<'weapon' | 'outfit'>('weapon')
@@ -31,9 +36,16 @@ const availableWeapons = computed(() => equipmentStore.getAvailableWeapons())
 const availableOutfits = computed(() => equipmentStore.getAvailableOutfits())
 
 onMounted(async () => {
-  if (authStore.token) {
-    await equipmentStore.fetchWeapons(authStore.token)
-    await equipmentStore.fetchOutfits(authStore.token)
+  console.log('[DwellerEquipment] Vault ID from route:', vaultId.value)
+  if (authStore.token && vaultId.value) {
+    await equipmentStore.fetchWeapons(authStore.token, vaultId.value)
+    await equipmentStore.fetchOutfits(authStore.token, vaultId.value)
+  } else {
+    console.warn('[DwellerEquipment] No vault_id found in route, fetching all items')
+    if (authStore.token) {
+      await equipmentStore.fetchWeapons(authStore.token)
+      await equipmentStore.fetchOutfits(authStore.token)
+    }
   }
 })
 

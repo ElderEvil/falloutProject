@@ -88,7 +88,7 @@ Reduce PR noise by grouping related updates:
 groups:
   python:
     patterns: ["*"]  # All Python packages
-  
+
   # Or specific groups
   testing:
     patterns: ["pytest*", "coverage"]
@@ -102,7 +102,7 @@ groups:
 ignore:
   - dependency-name: "boto3"
     versions: [">=2.0.0"]  # Ignore v2+
-  
+
   - dependency-name: "numpy"
     update-types: ["version-update:semver-major"]
 ```
@@ -155,7 +155,7 @@ jobs:
     steps:
       - uses: dependabot/fetch-metadata@v2
         id: metadata
-      
+
       - if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
         run: gh pr merge --auto --squash "$PR_URL"
         env:

@@ -86,10 +86,10 @@ repos:
     hooks:
       - id: format
         priority: 0   # Runs first
-        
+
       - id: lint
         priority: 10  # Runs after format
-        
+
       - id: test
         priority: 20  # Runs last
         stages: [pre-push]

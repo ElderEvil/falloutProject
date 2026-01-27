@@ -260,22 +260,30 @@ const rarityLabel = computed(() => {
         Chat
       </UButton>
 
-      <UButton variant="secondary" size="md" block @click="emit('assign')" :disabled="loading">
-        <Icon icon="mdi:office-building" class="h-5 w-5 mr-2" />
-        Assign to Room
-      </UButton>
+      <!-- Room Assignment Actions -->
+      <div class="room-actions">
+        <UButton
+          v-if="dweller.room_id === null"
+          variant="secondary"
+          size="md"
+          @click="emit('assign')"
+          :disabled="loading"
+        >
+          <Icon icon="mdi:office-building" class="h-5 w-5 mr-2" />
+          Assign to Room
+        </UButton>
 
-      <UButton
-        v-if="dweller.room_id !== null"
-        variant="secondary"
-        size="md"
-        block
-        @click="emit('unassign')"
-        :disabled="loading"
-      >
-        <Icon icon="mdi:close-circle" class="h-5 w-5 mr-2" />
-        Unassign from Room
-      </UButton>
+        <UButton
+          v-if="dweller.room_id !== null"
+          variant="secondary"
+          size="md"
+          @click="emit('unassign')"
+          :disabled="loading"
+        >
+          <Icon icon="mdi:close-circle" class="h-5 w-5 mr-2" />
+          Unassign from Room
+        </UButton>
+      </div>
 
       <UButton
         v-if="props.dweller.status === 'exploring'"
@@ -676,6 +684,13 @@ const rarityLabel = computed(() => {
   flex-direction: column;
   gap: 0.75rem;
   margin-top: 0.5rem;
+}
+
+/* Room Assignment Actions Row */
+.room-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
 }
 
 /* Item Actions */

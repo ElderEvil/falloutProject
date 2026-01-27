@@ -37,29 +37,41 @@ AI-powered dweller interactions.
   - Konami Code developer mode
   - Quantum Mouse trail effect
 
-### v2.7.0 - UI Polish & Enhancements (Planned)
+### v2.7.0 - Storage Management & UI Polish (Completed)
 
-**Focus**: UI improvements and notification system polish
+**Focus**: Vault storage system implementation and UI improvements
 
-**Features:**
-- **Layout Improvements**
-  - Fix top gray panel (make sticky/fixed)
-  - Fix left interface panel coordination
-  - Smooth scrolling behavior
-- **Toast Notifications**
-  - Unify toast system with library (vue-toastification)
-  - Group similar toasts
-  - Prevent duplicates
-  - Consistent styling and positioning
-- **Exploration UI**
-  - Handle exploration items overflow
-  - Pagination or scrolling for loot
-  - Update dweller bio after exploration
-  - Store exploration history
+**Completed:**
+- ✅ **Storage Management System**
+  - Storage sidebar navigation entry (hotkey: 9)
+  - Storage space tracking and visualization
+  - Item scrap functionality for weapons/outfits
+  - Junk item grouping by type with count badges
+  - Sell All feature for stacked items
+  - Enhanced item cards with detailed stats
+- ✅ **Keyboard Shortcuts**
+  - Build mode toggle with 'B' key
+  - ESC to exit build mode
+  - Hotkey badges on buttons
+- ✅ **Bug Fixes**
+  - Fixed junk item pricing (now based on rarity)
+  - Fixed equipment filtering by vault
+  - Fixed async greenlet issue in sell method
+  - Added missing fields to weapon/outfit schemas
+- ✅ **UI Enhancements**
+  - Equipment cards match storage card styling
+  - Progress bar uses consistent theme color
+  - Better stat display with icons
+  - Improved button layout and grouping
 
-### v2.6.5 - Notification Foundation (In Progress)
+**Remaining for Future Updates:**
+- Layout Improvements (sticky panels, smooth scrolling)
+- Toast Notifications (unification, grouping, deduplication)
+- Exploration UI (overflow handling, pagination, history)
 
-**Status**: Backend complete, frontend bell implemented
+### v2.6.5 - Notification Foundation (Completed)
+
+**Status**: Notification system implemented
 
 **Completed:**
 - ✅ Notification bell UI component with pop-up
@@ -67,12 +79,6 @@ AI-powered dweller interactions.
 - ✅ Radio recruitment notifications
 - ✅ Incident spawn notifications
 - ✅ Comprehensive test coverage (4 tests passing)
-
-**Remaining:**
-- Sticky panel fixes
-- Toast notification improvements
-- Exploration UI enhancements
-- Testing & polish
 
 ---
 

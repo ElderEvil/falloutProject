@@ -263,22 +263,20 @@ const rarityLabel = computed(() => {
       <!-- Room Assignment Actions -->
       <div class="room-actions">
         <UButton
-          v-if="dweller.room_id === null"
           variant="secondary"
           size="md"
           @click="emit('assign')"
-          :disabled="loading"
+          :disabled="loading || dweller.room_id !== null"
         >
           <Icon icon="mdi:office-building" class="h-5 w-5 mr-2" />
           Assign to Room
         </UButton>
 
         <UButton
-          v-if="dweller.room_id !== null"
           variant="secondary"
           size="md"
           @click="emit('unassign')"
-          :disabled="loading"
+          :disabled="loading || dweller.room_id === null"
         >
           <Icon icon="mdi:close-circle" class="h-5 w-5 mr-2" />
           Unassign from Room

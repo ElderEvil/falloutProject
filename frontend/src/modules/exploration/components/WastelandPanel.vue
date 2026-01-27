@@ -665,15 +665,17 @@ const closeRewardsModal = () => {
 }
 
 .notification-success {
-    background: rgba(0, 128, 0, 0.9);
+    background: rgba(0, 0, 0, 0.95);
     border: 2px solid var(--color-theme-primary);
     color: var(--color-theme-primary);
+    box-shadow: 0 0 20px var(--color-theme-glow);
 }
 
 .notification-error {
-    background: rgba(128, 0, 0, 0.9);
-    border: 2px solid #ff0000;
-    color: #ff0000;
+    background: rgba(0, 0, 0, 0.95);
+    border: 2px solid var(--color-danger);
+    color: var(--color-danger);
+    box-shadow: 0 0 20px rgba(255, 0, 0, 0.3);
 }
 
 .wasteland-dropzone {

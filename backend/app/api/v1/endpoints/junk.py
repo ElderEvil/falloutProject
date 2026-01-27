@@ -41,7 +41,7 @@ async def delete_junk(junk_id: UUID4, db_session: Annotated[AsyncSession, Depend
     return await crud.junk.delete(db_session, junk_id)
 
 
-@router.post("/{junk_id}/sell/", status_code=204)
+@router.post("/{junk_id}/sell/", status_code=200)
 async def sell_junk(junk_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
     return await crud.junk.sell(db_session=db_session, item_id=junk_id)
 

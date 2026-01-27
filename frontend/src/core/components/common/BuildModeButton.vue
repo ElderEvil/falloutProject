@@ -25,20 +25,9 @@ const iconName = computed(() => props.buildModeActive ? 'mdi:close' : 'mdi:hamme
     </template>
     {{ buildModeActive ? 'Cancel Building' : 'Build Mode' }}
     <template #trailing>
-      <span class="hotkey-badge">{{ buildModeActive ? 'ESC' : 'B' }}</span>
+      <span class="text-xs px-1.5 py-0.5 bg-black/30 border border-current rounded-sm font-bold font-mono opacity-80">
+        {{ buildModeActive ? 'ESC' : 'B' }}
+      </span>
     </template>
   </UButton>
 </template>
-
-<style scoped>
-.hotkey-badge {
-  font-size: 0.75rem;
-  padding: 0.125rem 0.375rem;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid currentColor;
-  border-radius: 3px;
-  font-weight: 700;
-  font-family: 'Courier New', monospace;
-  opacity: 0.8;
-}
-</style>

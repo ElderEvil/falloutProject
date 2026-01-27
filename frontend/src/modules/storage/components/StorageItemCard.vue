@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import { UCard, UButton } from '@/core/components/ui'
 
 interface Props {
   item: any
@@ -195,294 +196,115 @@ const canScrap = computed(() => {
 const showSellAll = computed(() => {
   return props.count > 1 && normalizedItemType.value === 'junk'
 })
+
+// Rarity-based Tailwind classes
+const rarityBorderClass = computed(() => {
+  switch (itemRarity.value) {
+    case 'rare':
+      return 'border-[--color-rarity-rare]'
+    case 'legendary':
+      return 'border-[--color-rarity-legendary]'
+    default:
+      return 'border-[--color-rarity-common]'
+  }
+})
+
+const rarityTextClass = computed(() => {
+  switch (itemRarity.value) {
+    case 'rare':
+      return 'text-[--color-rarity-rare]'
+    case 'legendary':
+      return 'text-[--color-rarity-legendary]'
+    default:
+      return 'text-[--color-rarity-common]'
+  }
+})
 </script>
 
 <template>
-  <div class="item-card" :style="{ borderColor: getRarityColor(itemRarity) }">
-    <!-- Header -->
-    <div class="item-header">
-      <div class="item-icon-wrapper">
-        <Icon :icon="itemIcon" class="item-icon" />
-      </div>
-      <div class="item-info">
-        <div class="name-row">
-          <h3 class="item-name" :style="{ color: getRarityColor(itemRarity) }">
-            {{ itemName }}
-          </h3>
-          <span v-if="count > 1" class="count-badge">×{{ count }}</span>
+  <UCard
+    :class="['transition-all duration-200 hover:bg-black/50 hover:-translate-y-0.5 hover:shadow-glow-md font-mono', rarityBorderClass]"
+    padding="sm"
+  >
+    <div class="flex flex-col gap-3">
+      <!-- Header -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 flex items-center justify-center">
+          <Icon :icon="itemIcon" class="w-10 h-10 text-[--color-theme-primary] drop-shadow-[0_0_4px_var(--color-theme-glow)]" />
         </div>
-        <p class="item-type">{{ itemTypeDisplay }}</p>
-      </div>
-    </div>
-
-    <!-- Description -->
-    <p class="item-description">{{ itemDescription }}</p>
-
-    <!-- Stats -->
-    <div v-if="itemStats.length > 0" class="item-stats-section">
-      <div class="stat-item" v-for="stat in itemStats" :key="stat.label">
-        <Icon :icon="stat.icon" class="stat-icon" />
-        <span class="stat-label">{{ stat.label }}:</span>
-        <span class="stat-value">{{ stat.value }}</span>
-      </div>
-    </div>
-
-    <!-- Footer -->
-    <div class="item-footer">
-      <div class="item-value">
-        <Icon icon="mdi:currency-usd" class="caps-icon" />
-        <span>{{ itemValue }} caps</span>
-      </div>
-      <div class="action-buttons">
-        <button v-if="canScrap" class="scrap-btn" @click="handleScrap" title="Scrap for materials">
-          <Icon icon="mdi:hammer-wrench" />
-          <span>Scrap</span>
-        </button>
-        <div class="sell-buttons">
-          <button class="sell-btn" @click="handleSell" :title="count > 1 ? 'Sell one item' : 'Sell this item'">
-            <Icon icon="mdi:cash" />
-            <span>Sell{{ count > 1 ? ' One' : '' }}</span>
-          </button>
-          <button v-if="showSellAll" class="sell-all-btn" @click="handleSellAll" title="Sell all items of this type">
-            <Icon icon="mdi:cash-multiple" />
-            <span>Sell All ({{ count }})</span>
-          </button>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <h3 :class="['text-lg font-bold m-0 drop-shadow-[0_0_4px_currentColor]', rarityTextClass]">
+              {{ itemName }}
+            </h3>
+            <span v-if="count > 1" class="inline-flex items-center justify-center min-w-[2rem] px-2 py-0.5 bg-[--color-theme-primary] text-black rounded-full text-xs font-bold shadow-[0_0_8px_var(--color-theme-glow)]">
+              ×{{ count }}
+            </span>
+          </div>
+          <p class="text-xs text-[--color-theme-primary] opacity-70 capitalize mt-1 m-0">
+            {{ itemTypeDisplay }}
+          </p>
         </div>
       </div>
+
+      <!-- Description -->
+      <p class="text-sm text-[--color-theme-primary] opacity-80 leading-normal m-0">
+        {{ itemDescription }}
+      </p>
+
+      <!-- Stats -->
+      <div v-if="itemStats.length > 0" class="flex flex-col gap-2 p-3 bg-black/30 rounded">
+        <div v-for="stat in itemStats" :key="stat.label" class="flex items-center gap-2 text-sm">
+          <Icon :icon="stat.icon" class="w-4 h-4 text-[--color-theme-primary]" />
+          <span class="text-[--color-theme-primary] opacity-70">{{ stat.label }}:</span>
+          <span class="text-[--color-theme-primary] font-bold ml-auto">{{ stat.value }}</span>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="flex items-center justify-between gap-3 pt-3 border-t border-[--color-theme-glow]">
+        <div class="flex items-center gap-1 text-[--color-theme-primary] font-bold text-base">
+          <Icon icon="mdi:currency-usd" class="w-5 h-5 text-[--color-caps]" />
+          <span>{{ itemValue }} caps</span>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <UButton
+            v-if="canScrap"
+            variant="danger"
+            size="sm"
+            @click="handleScrap"
+            title="Scrap for materials"
+            class="font-mono"
+          >
+            <Icon icon="mdi:hammer-wrench" class="w-4 h-4" />
+            <span>Scrap</span>
+          </UButton>
+          <div class="flex items-center gap-2 ml-auto">
+            <UButton
+              variant="secondary"
+              size="sm"
+              @click="handleSell"
+              :title="count > 1 ? 'Sell one item' : 'Sell this item'"
+              class="font-mono !text-[--color-caps] !border-[--color-caps] hover:!bg-[--color-caps]/20"
+            >
+              <Icon icon="mdi:cash" class="w-4 h-4" />
+              <span>Sell{{ count > 1 ? ' One' : '' }}</span>
+            </UButton>
+            <UButton
+              v-if="showSellAll"
+              variant="primary"
+              size="sm"
+              @click="handleSellAll"
+              title="Sell all items of this type"
+              class="font-mono !bg-[--color-caps]/20 !text-[--color-caps] !border-[--color-caps] hover:!bg-[--color-caps]/30 font-extrabold"
+            >
+              <Icon icon="mdi:cash-multiple" class="w-4 h-4" />
+              <span>Sell All ({{ count }})</span>
+            </UButton>
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
+  </UCard>
+
 </template>
-
-<style scoped>
-.item-card {
-  background: rgba(0, 0, 0, 0.3);
-  border: 2px solid;
-  border-radius: 8px;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  transition: all 0.2s ease;
-  font-family: 'Courier New', monospace;
-}
-
-.item-card:hover {
-  background: rgba(0, 0, 0, 0.5);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px var(--color-theme-glow);
-}
-
-/* Header */
-.item-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.item-icon-wrapper {
-  width: 2.5rem;
-  height: 2.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.item-icon {
-  width: 2.5rem;
-  height: 2.5rem;
-  color: var(--color-theme-primary);
-  filter: drop-shadow(0 0 4px var(--color-theme-glow));
-}
-
-.item-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.name-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.item-name {
-  font-size: 1.125rem;
-  font-weight: 700;
-  margin: 0;
-  text-shadow: 0 0 4px currentColor;
-}
-
-.count-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 2rem;
-  padding: 0.125rem 0.5rem;
-  background: var(--color-theme-primary);
-  color: #000;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  box-shadow: 0 0 8px var(--color-theme-glow);
-}
-
-.item-type {
-  font-size: 0.75rem;
-  color: var(--color-theme-primary);
-  opacity: 0.7;
-  text-transform: capitalize;
-  margin: 0.25rem 0 0 0;
-}
-
-/* Description */
-.item-description {
-  font-size: 0.875rem;
-  color: var(--color-theme-primary);
-  opacity: 0.8;
-  line-height: 1.4;
-  margin: 0;
-}
-
-/* Stats Section (matching WeaponCard style) */
-.item-stats-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 4px;
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-}
-
-.stat-icon {
-  width: 1rem;
-  height: 1rem;
-  color: var(--color-theme-primary);
-}
-
-.stat-label {
-  color: var(--color-theme-primary);
-  opacity: 0.7;
-}
-
-.stat-value {
-  color: var(--color-theme-primary);
-  font-weight: 700;
-  margin-left: auto;
-}
-
-/* Footer */
-.item-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--color-theme-glow);
-}
-
-.item-value {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  color: var(--color-theme-primary);
-  font-weight: 700;
-  font-size: 1rem;
-}
-
-.caps-icon {
-  width: 1.25rem;
-  height: 1.25rem;
-  color: #ffd700;
-}
-
-.action-buttons {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.sell-buttons {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-left: auto;
-}
-
-.scrap-btn,
-.sell-btn,
-.sell-all-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border: 2px solid;
-  border-radius: 4px;
-  font-weight: 700;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-family: 'Courier New', monospace;
-}
-
-.scrap-btn {
-  background: rgba(255, 87, 34, 0.1);
-  border-color: #ff5722;
-  color: #ff5722;
-}
-
-.scrap-btn:hover {
-  background: rgba(255, 87, 34, 0.2);
-  box-shadow: 0 0 15px rgba(255, 87, 34, 0.5);
-  transform: scale(1.05);
-}
-
-.sell-btn {
-  background: rgba(255, 215, 0, 0.1);
-  border-color: #ffd700;
-  color: #ffd700;
-}
-
-.sell-btn:hover {
-  background: rgba(255, 215, 0, 0.2);
-  box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
-  transform: scale(1.05);
-}
-
-.scrap-btn:active,
-.sell-btn:active {
-  transform: scale(0.98);
-}
-
-.sell-all-btn {
-  background: rgba(255, 215, 0, 0.2);
-  border-color: #ffd700;
-  color: #ffd700;
-  font-weight: 800;
-}
-
-.sell-all-btn:hover {
-  background: rgba(255, 215, 0, 0.3);
-  box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
-  transform: scale(1.05);
-}
-
-.sell-all-btn:active {
-  transform: scale(0.98);
-}
-
-.scrap-btn svg,
-.sell-btn svg,
-.sell-all-btn svg {
-  width: 1rem;
-  height: 1rem;
-}
-</style>

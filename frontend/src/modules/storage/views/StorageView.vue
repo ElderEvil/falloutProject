@@ -7,6 +7,7 @@ import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
 import { storageService, type StorageItemsResponse } from '../services/storageService'
 import { Icon } from '@iconify/vue'
+import { UCard, UButton, UTabs } from '@/core/components/ui'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import StorageItemCard from '../components/StorageItemCard.vue'
 
@@ -32,6 +33,13 @@ const storageItems = ref<StorageItemsResponse>({
 })
 
 const activeTab = ref<'weapons' | 'outfits' | 'junk'>('weapons')
+
+const tabs = computed(() => [
+  { key: 'weapons', label: `Weapons (${weapons.value.length})` },
+  { key: 'outfits', label: `Outfits (${outfits.value.length})` },
+  { key: 'junk', label: `Junk (${junk.value.length})` },
+])
+
 
 // Fetch storage data
 const fetchStorageData = async () => {
@@ -185,338 +193,85 @@ const getRarityColor = (rarity?: string) => {
 </script>
 
 <template>
-  <div class="view-container">
+  <div class="flex min-h-screen bg-linear-to-br from-[#0a0a0a] to-[#1a1a1a]">
     <SidePanel />
 
-    <div class="main-content" :class="{ 'collapsed-sidebar': isCollapsed }">
+    <div
+      class="flex-1 transition-[margin] duration-300 p-4 md:p-8"
+      :class="isCollapsed ? 'ml-16' : 'ml-60'"
+    >
       <!-- Header -->
-      <div class="header">
-        <div class="title-section">
-          <Icon icon="mdi:package-variant" class="title-icon" />
-          <h1 class="title">Vault Storage</h1>
+      <div class="mb-8">
+        <div class="flex items-center gap-4 mb-6">
+          <Icon
+            icon="mdi:package-variant"
+            class="w-12 h-12 text-theme-primary drop-shadow-[0_0_8px_var(--color-theme-glow)]"
+          />
+          <h1 class="text-3xl md:text-4xl font-bold text-theme-primary terminal-glow font-mono tracking-wider">
+            Vault Storage
+          </h1>
         </div>
 
         <!-- Storage Space Info -->
-        <div v-if="storageSpace" class="storage-info">
-          <div class="space-stats">
-            <span class="stat-label">Used:</span>
-            <span class="stat-value">{{ storageSpace.used_space }}/{{ storageSpace.max_space }}</span>
+        <UCard v-if="storageSpace" glow crt class="max-w-2xl">
+          <div class="flex items-center gap-2 mb-3 font-mono">
+            <span class="text-theme-accent text-sm font-semibold">Used:</span>
+            <span class="text-theme-primary text-lg font-bold">
+              {{ storageSpace.used_space }}/{{ storageSpace.max_space }}
+            </span>
           </div>
-          <div class="progress-bar">
+
+          <div class="h-6 bg-black/80 border border-theme-primary rounded-sm overflow-hidden mb-2">
             <div
-              class="progress-fill"
-              :style="{ width: `${storageSpace.utilization_pct}%` }"
+              class="h-full bg-theme-primary transition-[width] duration-300 shadow-[0_0_10px_var(--color-theme-glow)]"
+              :style="{ '--progress': `${storageSpace.utilization_pct}%`, width: 'var(--progress)' }"
             ></div>
           </div>
-          <div class="space-text">
+
+          <div class="text-theme-accent text-sm text-center font-mono">
             {{ storageSpace.available_space }} slots available ({{ storageSpace.utilization_pct.toFixed(1) }}% full)
           </div>
-        </div>
+        </UCard>
       </div>
 
       <!-- Tabs -->
-      <div class="tabs">
-        <button
-          class="tab"
-          :class="{ active: activeTab === 'weapons' }"
-          @click="activeTab = 'weapons'"
-        >
-          <Icon icon="mdi:pistol" class="tab-icon" />
-          <span>Weapons</span>
-          <span class="tab-count">{{ weapons.length }}</span>
-        </button>
-        <button
-          class="tab"
-          :class="{ active: activeTab === 'outfits' }"
-          @click="activeTab = 'outfits'"
-        >
-          <Icon icon="mdi:tshirt-crew" class="tab-icon" />
-          <span>Outfits</span>
-          <span class="tab-count">{{ outfits.length }}</span>
-        </button>
-        <button
-          class="tab"
-          :class="{ active: activeTab === 'junk' }"
-          @click="activeTab = 'junk'"
-        >
-          <Icon icon="mdi:wrench" class="tab-icon" />
-          <span>Junk</span>
-          <span class="tab-count">{{ junk.length }}</span>
-        </button>
-      </div>
+      <UTabs v-model="activeTab" :tabs="tabs" class="mb-8">
+        <!-- Loading State -->
+        <div v-if="isLoading" class="flex flex-col items-center justify-center py-16 text-theme-primary font-mono">
+          <Icon icon="mdi:loading" class="w-12 h-12 mb-4 animate-spin" />
+          <p>Loading storage...</p>
+        </div>
 
-      <!-- Loading State -->
-      <div v-if="isLoading" class="loading">
-        <Icon icon="mdi:loading" class="spin" />
-        <p>Loading storage...</p>
-      </div>
+        <!-- Empty State -->
+        <div v-else-if="totalItems === 0" class="flex flex-col items-center justify-center py-16 text-center">
+          <Icon icon="mdi:package-variant-closed" class="w-24 h-24 text-theme-accent opacity-50 mb-6" />
+          <h2 class="text-2xl font-bold text-theme-primary mb-2 font-mono">Storage Empty</h2>
+          <p class="text-theme-accent font-mono">Your vault storage is empty. Send dwellers on explorations to find items!</p>
+        </div>
 
-      <!-- Empty State -->
-      <div v-else-if="totalItems === 0" class="empty-state">
-        <Icon icon="mdi:package-variant-closed" class="empty-icon" />
-        <h2>Storage Empty</h2>
-        <p>Your vault storage is empty. Send dwellers on explorations to find items!</p>
-      </div>
+        <!-- No Items in Category State -->
+        <div v-else-if="activeItems.length === 0" class="flex flex-col items-center justify-center py-16 text-center">
+          <Icon icon="mdi:package-variant-closed" class="w-24 h-24 text-theme-accent opacity-50 mb-6" />
+          <h2 class="text-2xl font-bold text-theme-primary mb-2 font-mono">No {{ activeTab }} Found</h2>
+          <p class="text-theme-accent font-mono">You don't have any {{ activeTab }} in storage.</p>
+        </div>
 
-      <!-- Items Grid -->
-      <div v-else-if="activeItems.length === 0" class="empty-state">
-        <Icon icon="mdi:package-variant-closed" class="empty-icon" />
-        <h2>No {{ activeTab }} Found</h2>
-        <p>You don't have any {{ activeTab }} in storage.</p>
-      </div>
-
-      <div v-else class="items-grid">
-        <StorageItemCard
-          v-for="item in activeItems"
-          :key="activeTab === 'junk' ? item.item.id : item.id"
-          :item="activeTab === 'junk' ? item.item : item"
-          :item-type="activeTab"
-          :count="activeTab === 'junk' ? item.count : 1"
-          :ids="activeTab === 'junk' ? item.ids : [item.id]"
-          :get-rarity-color="getRarityColor"
-          @sell="handleSellItem(activeTab === 'junk' ? item.ids[0] : item.id, activeTab)"
-          @sell-all="handleSellItem(activeTab === 'junk' ? item.ids : [item.id], activeTab)"
-          @scrap="handleScrapItem(item.id, activeTab as 'weapon' | 'outfit')"
-        />
-      </div>
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-8">
+          <StorageItemCard
+            v-for="item in activeItems"
+            :key="activeTab === 'junk' ? item.item.id : item.id"
+            :item="activeTab === 'junk' ? item.item : item"
+            :item-type="activeTab"
+            :count="activeTab === 'junk' ? item.count : 1"
+            :ids="activeTab === 'junk' ? item.ids : [item.id]"
+            :get-rarity-color="getRarityColor"
+            @sell="handleSellItem(activeTab === 'junk' ? item.ids[0] : item.id, activeTab)"
+            @sell-all="handleSellItem(activeTab === 'junk' ? item.ids : [item.id], activeTab)"
+            @scrap="handleScrapItem(item.id, activeTab as 'weapon' | 'outfit')"
+          />
+        </div>
+      </UTabs>
     </div>
   </div>
+
 </template>
-
-<style scoped>
-.view-container {
-  display: flex;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
-}
-
-.main-content {
-  flex: 1;
-  margin-left: 240px;
-  transition: margin-left 0.3s ease;
-  padding: 2rem;
-}
-
-.main-content.collapsed-sidebar {
-  margin-left: 64px;
-}
-
-/* Header */
-.header {
-  margin-bottom: 2rem;
-}
-
-.title-section {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.title-icon {
-  width: 3rem;
-  height: 3rem;
-  color: var(--color-theme-primary);
-  filter: drop-shadow(0 0 8px var(--color-theme-glow));
-}
-
-.title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 10px var(--color-theme-glow);
-  font-family: 'Courier New', monospace;
-  letter-spacing: 0.05em;
-}
-
-/* Storage Info */
-.storage-info {
-  background: rgba(0, 0, 0, 0.6);
-  border: 2px solid var(--color-theme-primary);
-  border-radius: 8px;
-  padding: 1rem 1.5rem;
-  box-shadow: 0 0 20px var(--color-theme-glow);
-}
-
-.space-stats {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-  font-family: 'Courier New', monospace;
-}
-
-.stat-label {
-  color: var(--color-theme-accent);
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-.stat-value {
-  color: var(--color-theme-primary);
-  font-size: 1.125rem;
-  font-weight: 700;
-}
-
-.progress-bar {
-  height: 1.5rem;
-  background: rgba(0, 0, 0, 0.8);
-  border: 1px solid var(--color-theme-primary);
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 0.5rem;
-}
-
-.progress-fill {
-  height: 100%;
-  background: var(--color-theme-primary);
-  transition: width 0.3s ease;
-  box-shadow: 0 0 10px var(--color-theme-glow);
-}
-
-.space-text {
-  color: var(--color-theme-accent);
-  font-size: 0.875rem;
-  text-align: center;
-  font-family: 'Courier New', monospace;
-}
-
-/* Tabs */
-.tabs {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  border-bottom: 2px solid var(--color-theme-glow);
-  padding-bottom: 0;
-}
-
-.tab {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  background: transparent;
-  border: none;
-  border-bottom: 3px solid transparent;
-  color: var(--color-theme-accent);
-  font-size: 1rem;
-  font-weight: 600;
-  font-family: 'Courier New', monospace;
-  cursor: pointer;
-  transition: all 0.2s;
-  position: relative;
-  bottom: -2px;
-}
-
-.tab:hover {
-  color: var(--color-theme-primary);
-  background: var(--color-theme-glow);
-}
-
-.tab.active {
-  color: var(--color-theme-primary);
-  border-bottom-color: var(--color-theme-primary);
-  background: var(--color-theme-glow);
-  box-shadow: 0 0 15px var(--color-theme-glow);
-}
-
-.tab-icon {
-  width: 1.25rem;
-  height: 1.25rem;
-}
-
-.tab-count {
-  padding: 0.125rem 0.5rem;
-  background: var(--color-theme-primary);
-  color: #000;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-/* Loading */
-.loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 2rem;
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-}
-
-.loading .spin {
-  width: 3rem;
-  height: 3rem;
-  margin-bottom: 1rem;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* Empty State */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 2rem;
-  text-align: center;
-}
-
-.empty-icon {
-  width: 6rem;
-  height: 6rem;
-  color: var(--color-theme-accent);
-  opacity: 0.5;
-  margin-bottom: 1.5rem;
-}
-
-.empty-state h2 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--color-theme-primary);
-  margin-bottom: 0.5rem;
-  font-family: 'Courier New', monospace;
-}
-
-.empty-state p {
-  color: var(--color-theme-accent);
-  font-size: 1rem;
-  font-family: 'Courier New', monospace;
-}
-
-/* Items Grid */
-.items-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
-  padding-bottom: 2rem;
-}
-
-@media (max-width: 768px) {
-  .main-content {
-    margin-left: 64px;
-    padding: 1rem;
-  }
-
-  .title {
-    font-size: 1.75rem;
-  }
-
-  .tabs {
-    overflow-x: auto;
-  }
-
-  .items-grid {
-    grid-template-columns: 1fr;
-  }
-}
-</style>

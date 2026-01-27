@@ -23,5 +23,14 @@ class ItemBase(SQLModel):
         if isinstance(data, dict) and data.get("value") is None:
             rarity = data.get("rarity")
             if rarity:
+                # Convert string to RarityEnum if needed
+                if isinstance(rarity, str):
+                    try:
+                        rarity = RarityEnum(rarity)
+                    except (ValueError, KeyError):
+                        # Fall back to default if conversion fails
+                        data["value"] = 10
+                        return data
+                # Lookup using enum key
                 data["value"] = cls._value_by_rarity.get(rarity, 10)
         return data

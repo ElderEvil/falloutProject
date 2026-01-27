@@ -85,12 +85,13 @@ async def unequip_outfit(outfit_id: UUID4, db_session: Annotated[AsyncSession, D
     return await crud.outfit.unequip(db_session=db_session, item_id=outfit_id)
 
 
-@router.post("/{outfit_id}/scrap/", response_model=list[JunkRead] | None)
+@router.post("/{outfit_id}/scrap/", response_model=dict[str, list[JunkRead]] | None)
 async def scrap_outfit(outfit_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
-    return await crud.outfit.scrap(db_session=db_session, item_id=outfit_id)
+    junk_list = await crud.outfit.scrap(db_session=db_session, item_id=outfit_id)
+    return {"junk": junk_list}
 
 
-@router.post("/{outfit_id}/sell/", status_code=204)
+@router.post("/{outfit_id}/sell/", status_code=200)
 async def sell_outfit(outfit_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
     return await crud.outfit.sell(db_session=db_session, item_id=outfit_id)
 

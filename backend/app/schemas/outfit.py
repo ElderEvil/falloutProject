@@ -18,7 +18,8 @@ class SPECIALOutfitCreate(BaseModel):
 
 
 class OutfitCreate(OutfitBase, SPECIALOutfitCreate):
-    pass
+    # Optional fields - can be omitted, but if provided must be valid UUID
+    storage_id: UUID4 | None = None
 
 
 class OutfitRead(OutfitBase):

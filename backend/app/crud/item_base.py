@@ -218,8 +218,7 @@ class CRUDItem(
 
         # Refresh junk items to get IDs
         for junk in junk_list:
-            if junk.id:
-                await db_session.refresh(junk)
+            await db_session.refresh(junk)
 
         return junk_list
 

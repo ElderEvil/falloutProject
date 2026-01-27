@@ -8,13 +8,14 @@ from app.utils.partial import optional
 
 
 class JunkCreate(JunkBase):
-    pass
+    storage_id: UUID4 | None = None
 
 
 class JunkRead(JunkBase):
     id: UUID4
     created_at: datetime
     updated_at: datetime
+    storage_id: UUID4 | None = None
 
 
 @optional()

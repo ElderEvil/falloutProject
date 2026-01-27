@@ -7,7 +7,8 @@ from app.utils.partial import optional
 
 
 class WeaponCreate(WeaponBase):
-    pass
+    # Optional fields - can be omitted, but if provided must be valid UUID
+    storage_id: UUID4 | None = None
 
 
 class WeaponRead(WeaponBase):

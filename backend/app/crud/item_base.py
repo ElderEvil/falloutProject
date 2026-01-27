@@ -1,8 +1,10 @@
+import contextlib
 import random
 from typing import Any
 
 from pydantic import UUID4
 from sqlalchemy import update
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import aliased
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -255,6 +257,12 @@ class CRUDItem(
         if not vault_id:
             raise ResourceNotFoundException(Vault, identifier="Unknown - item has no storage or dweller")
 
-        await self.add_caps_to_vault(db_session, vault_id, item.value)
-        await db_session.delete(item)
-        await db_session.commit()
+        try:
+            await self.add_caps_to_vault(db_session, vault_id, item.value)
+            await db_session.delete(item)
+            await db_session.commit()
+        except SQLAlchemyError:
+            # Ensure we rollback on any error to avoid partial state in async contexts
+            with contextlib.suppress(Exception):
+                await db_session.rollback()
+            raise

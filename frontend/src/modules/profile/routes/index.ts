@@ -9,20 +9,20 @@ export const profileRoutes: RouteRecordRaw[] = [
     path: '/profile',
     name: 'profile',
     component: ProfileView,
-    meta: { requiresAuth: true, hideFromNav: true }
+    meta: { requiresAuth: true, hideFromNav: true },
   },
   {
     path: '/settings',
     name: 'settings',
     component: SettingsView,
-    meta: { requiresAuth: true, hideFromNav: false }
+    meta: { requiresAuth: true, hideFromNav: false },
   },
   {
     path: '/preferences',
     name: 'preferences',
     component: PreferencesView,
-    meta: { requiresAuth: true, hideFromNav: false }
-  }
+    meta: { requiresAuth: true, hideFromNav: false },
+  },
 ]
 
 export default profileRoutes

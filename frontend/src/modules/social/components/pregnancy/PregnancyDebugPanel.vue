@@ -25,14 +25,18 @@ const selectedFather = ref('')
 
 const mothers = computed(() => {
   return dwellers.value
-    .filter(d => d.gender === 'female' && d.age_group === 'adult')
-    .sort((a, b) => (a.first_name + ' ' + a.last_name).localeCompare(b.first_name + ' ' + b.last_name))
+    .filter((d) => d.gender === 'female' && d.age_group === 'adult')
+    .sort((a, b) =>
+      (a.first_name + ' ' + a.last_name).localeCompare(b.first_name + ' ' + b.last_name)
+    )
 })
 
 const fathers = computed(() => {
   return dwellers.value
-    .filter(d => d.gender === 'male' && d.age_group === 'adult')
-    .sort((a, b) => (a.first_name + ' ' + a.last_name).localeCompare(b.first_name + ' ' + b.last_name))
+    .filter((d) => d.gender === 'male' && d.age_group === 'adult')
+    .sort((a, b) =>
+      (a.first_name + ' ' + a.last_name).localeCompare(b.first_name + ' ' + b.last_name)
+    )
 })
 
 const handleForceConception = async () => {
@@ -64,7 +68,9 @@ const handleAccelerate = async (id: string) => {
     <div class="space-y-6">
       <!-- Force Conception -->
       <div class="space-y-3">
-        <h4 class="text-xs font-bold uppercase tracking-widest text-gray-500 border-b border-gray-800 pb-1">
+        <h4
+          class="text-xs font-bold uppercase tracking-widest text-gray-500 border-b border-gray-800 pb-1"
+        >
           Force Conception Protocol
         </h4>
 
@@ -81,8 +87,18 @@ const handleAccelerate = async (id: string) => {
                   {{ m.first_name }} {{ m.last_name }} (Lvl {{ m.level }})
                 </option>
               </select>
-              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
-                <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+              <div
+                class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500"
+              >
+                <svg
+                  class="fill-current h-4 w-4"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"
+                  />
+                </svg>
               </div>
             </div>
           </div>
@@ -99,8 +115,18 @@ const handleAccelerate = async (id: string) => {
                   {{ f.first_name }} {{ f.last_name }} (Lvl {{ f.level }})
                 </option>
               </select>
-              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
-                <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+              <div
+                class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500"
+              >
+                <svg
+                  class="fill-current h-4 w-4"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"
+                  />
+                </svg>
               </div>
             </div>
           </div>
@@ -119,7 +145,9 @@ const handleAccelerate = async (id: string) => {
 
       <!-- Accelerate Pregnancy -->
       <div v-if="activePregnancies.length > 0" class="space-y-3">
-        <h4 class="text-xs font-bold uppercase tracking-widest text-gray-500 border-b border-gray-800 pb-1">
+        <h4
+          class="text-xs font-bold uppercase tracking-widest text-gray-500 border-b border-gray-800 pb-1"
+        >
           Accelerate Gestation
         </h4>
 
@@ -132,8 +160,8 @@ const handleAccelerate = async (id: string) => {
             <div class="text-sm">
               <span class="text-gray-500 font-mono text-xs uppercase block mb-1">Subject</span>
               <span class="font-bold text-terminalGreen">
-                {{ dwellers.find(d => d.id === p.mother_id)?.first_name }}
-                {{ dwellers.find(d => d.id === p.mother_id)?.last_name }}
+                {{ dwellers.find((d) => d.id === p.mother_id)?.first_name }}
+                {{ dwellers.find((d) => d.id === p.mother_id)?.last_name }}
               </span>
             </div>
 

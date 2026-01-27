@@ -48,6 +48,6 @@ export function useHoverPreview() {
     handleHover,
     clearHover,
     previewCells,
-    isValidPlacement
+    isValidPlacement,
   }
 }

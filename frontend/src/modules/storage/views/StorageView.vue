@@ -40,7 +40,6 @@ const tabs = computed(() => [
   { key: 'junk', label: `Junk (${junk.value.length})` },
 ])
 
-
 // Fetch storage data
 const fetchStorageData = async () => {
   if (!vaultId.value || !authStore.token) return
@@ -77,7 +76,7 @@ const totalItems = computed(() => weapons.value.length + outfits.value.length + 
 const groupedJunk = computed(() => {
   const grouped = new Map<string, { item: any; count: number; ids: string[] }>()
 
-  junk.value.forEach(junkItem => {
+  junk.value.forEach((junkItem) => {
     const key = `${junkItem.name}-${junkItem.rarity}`
     if (grouped.has(key)) {
       const group = grouped.get(key)!
@@ -87,7 +86,7 @@ const groupedJunk = computed(() => {
       grouped.set(key, {
         item: junkItem,
         count: 1,
-        ids: [junkItem.id]
+        ids: [junkItem.id],
       })
     }
   })
@@ -110,10 +109,14 @@ const activeItems = computed(() => {
 })
 
 // Sell item handler
-const handleSellItem = async (itemId: string | string[], itemType: 'weapon' | 'outfit' | 'junk' | 'weapons' | 'outfits') => {
+const handleSellItem = async (
+  itemId: string | string[],
+  itemType: 'weapon' | 'outfit' | 'junk' | 'weapons' | 'outfits'
+) => {
   try {
     // Normalize type
-    const normalizedType = itemType === 'weapons' ? 'weapon' : itemType === 'outfits' ? 'outfit' : itemType
+    const normalizedType =
+      itemType === 'weapons' ? 'weapon' : itemType === 'outfits' ? 'outfit' : itemType
 
     const itemIds = Array.isArray(itemId) ? itemId : [itemId]
     console.log('[StorageView] Selling items:', itemIds, 'type:', normalizedType)
@@ -133,7 +136,9 @@ const handleSellItem = async (itemId: string | string[], itemType: 'weapon' | 'o
       }
     }
 
-    toast.success(itemIds.length > 1 ? `Sold ${itemIds.length} items successfully` : 'Item sold successfully')
+    toast.success(
+      itemIds.length > 1 ? `Sold ${itemIds.length} items successfully` : 'Item sold successfully'
+    )
 
     // Force refresh storage and vault data
     console.log('[StorageView] Refreshing storage after sell...')
@@ -149,10 +154,14 @@ const handleSellItem = async (itemId: string | string[], itemType: 'weapon' | 'o
 }
 
 // Scrap item handler
-const handleScrapItem = async (itemId: string, itemType: 'weapon' | 'outfit' | 'weapons' | 'outfits') => {
+const handleScrapItem = async (
+  itemId: string,
+  itemType: 'weapon' | 'outfit' | 'weapons' | 'outfits'
+) => {
   try {
     // Normalize type
-    const normalizedType = itemType === 'weapons' ? 'weapon' : itemType === 'outfits' ? 'outfit' : itemType
+    const normalizedType =
+      itemType === 'weapons' ? 'weapon' : itemType === 'outfits' ? 'outfit' : itemType
 
     console.log('[StorageView] Scrapping item:', itemId, 'type:', normalizedType)
 
@@ -207,7 +216,9 @@ const getRarityColor = (rarity?: string) => {
             icon="mdi:package-variant"
             class="w-12 h-12 text-theme-primary drop-shadow-[0_0_8px_var(--color-theme-glow)]"
           />
-          <h1 class="text-3xl md:text-4xl font-bold text-theme-primary terminal-glow font-mono tracking-wider">
+          <h1
+            class="text-3xl md:text-4xl font-bold text-theme-primary terminal-glow font-mono tracking-wider"
+          >
             Vault Storage
           </h1>
         </div>
@@ -224,12 +235,17 @@ const getRarityColor = (rarity?: string) => {
           <div class="h-6 bg-black/80 border border-theme-primary rounded-sm overflow-hidden mb-2">
             <div
               class="h-full bg-theme-primary transition-[width] duration-300 shadow-[0_0_10px_var(--color-theme-glow)]"
-              :style="{ '--progress': `${storageSpace.utilization_pct}%`, width: 'var(--progress)' }"
+              :style="{
+                '--progress': `${storageSpace.utilization_pct}%`,
+                width: 'var(--progress)',
+              }"
             ></div>
           </div>
 
           <div class="text-theme-accent text-sm text-center font-mono">
-            {{ storageSpace.available_space }} slots available ({{ storageSpace.utilization_pct.toFixed(1) }}% full)
+            {{ storageSpace.available_space }} slots available ({{
+              storageSpace.utilization_pct.toFixed(1)
+            }}% full)
           </div>
         </UCard>
       </div>
@@ -237,22 +253,41 @@ const getRarityColor = (rarity?: string) => {
       <!-- Tabs -->
       <UTabs v-model="activeTab" :tabs="tabs" class="mb-8">
         <!-- Loading State -->
-        <div v-if="isLoading" class="flex flex-col items-center justify-center py-16 text-theme-primary font-mono">
+        <div
+          v-if="isLoading"
+          class="flex flex-col items-center justify-center py-16 text-theme-primary font-mono"
+        >
           <Icon icon="mdi:loading" class="w-12 h-12 mb-4 animate-spin" />
           <p>Loading storage...</p>
         </div>
 
         <!-- Empty State -->
-        <div v-else-if="totalItems === 0" class="flex flex-col items-center justify-center py-16 text-center">
-          <Icon icon="mdi:package-variant-closed" class="w-24 h-24 text-theme-accent opacity-50 mb-6" />
+        <div
+          v-else-if="totalItems === 0"
+          class="flex flex-col items-center justify-center py-16 text-center"
+        >
+          <Icon
+            icon="mdi:package-variant-closed"
+            class="w-24 h-24 text-theme-accent opacity-50 mb-6"
+          />
           <h2 class="text-2xl font-bold text-theme-primary mb-2 font-mono">Storage Empty</h2>
-          <p class="text-theme-accent font-mono">Your vault storage is empty. Send dwellers on explorations to find items!</p>
+          <p class="text-theme-accent font-mono">
+            Your vault storage is empty. Send dwellers on explorations to find items!
+          </p>
         </div>
 
         <!-- No Items in Category State -->
-        <div v-else-if="activeItems.length === 0" class="flex flex-col items-center justify-center py-16 text-center">
-          <Icon icon="mdi:package-variant-closed" class="w-24 h-24 text-theme-accent opacity-50 mb-6" />
-          <h2 class="text-2xl font-bold text-theme-primary mb-2 font-mono">No {{ activeTab }} Found</h2>
+        <div
+          v-else-if="activeItems.length === 0"
+          class="flex flex-col items-center justify-center py-16 text-center"
+        >
+          <Icon
+            icon="mdi:package-variant-closed"
+            class="w-24 h-24 text-theme-accent opacity-50 mb-6"
+          />
+          <h2 class="text-2xl font-bold text-theme-primary mb-2 font-mono">
+            No {{ activeTab }} Found
+          </h2>
           <p class="text-theme-accent font-mono">You don't have any {{ activeTab }} in storage.</p>
         </div>
 
@@ -273,5 +308,4 @@ const getRarityColor = (rarity?: string) => {
       </UTabs>
     </div>
   </div>
-
 </template>

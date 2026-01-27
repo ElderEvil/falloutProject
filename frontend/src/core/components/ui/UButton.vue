@@ -26,7 +26,7 @@ const props = withDefaults(defineProps<Props>(), {
   size: 'md',
   disabled: false,
   loading: false,
-  block: false
+  block: false,
 })
 
 const emit = defineEmits<{
@@ -37,7 +37,7 @@ const variantClasses = {
   primary: 'btn-primary',
   secondary: 'btn-secondary',
   danger: 'btn-danger',
-  ghost: 'btn-ghost'
+  ghost: 'btn-ghost',
 }
 
 const sizeClasses = {
@@ -45,7 +45,7 @@ const sizeClasses = {
   sm: 'px-3 py-1.5 text-sm',
   md: 'px-4 py-2 text-base',
   lg: 'px-6 py-3 text-lg',
-  xl: 'px-8 py-4 text-xl'
+  xl: 'px-8 py-4 text-xl',
 }
 
 const buttonClasses = [
@@ -54,8 +54,10 @@ const buttonClasses = [
   'focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed',
   variantClasses[props.variant],
   sizeClasses[props.size],
-  props.block ? 'w-full' : ''
-].filter(Boolean).join(' ')
+  props.block ? 'w-full' : '',
+]
+  .filter(Boolean)
+  .join(' ')
 
 const handleClick = (event: MouseEvent) => {
   if (!props.disabled && !props.loading) {
@@ -65,12 +67,7 @@ const handleClick = (event: MouseEvent) => {
 </script>
 
 <template>
-  <button
-    :class="buttonClasses"
-    :disabled="disabled || loading"
-    @click="handleClick"
-    type="button"
-  >
+  <button :class="buttonClasses" :disabled="disabled || loading" @click="handleClick" type="button">
     <component v-if="icon && !loading" :is="icon" class="h-5 w-5" />
     <span v-if="loading" class="animate-spin">⚙</span>
     <slot></slot>
@@ -80,8 +77,12 @@ const handleClick = (event: MouseEvent) => {
 
 <style scoped>
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .animate-spin {

@@ -93,20 +93,29 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="relative min-h-screen bg-terminalBackground font-mono" :style="{ color: 'var(--color-theme-primary)' }">
+  <div
+    class="relative min-h-screen bg-terminalBackground font-mono"
+    :style="{ color: 'var(--color-theme-primary)' }"
+  >
     <div v-if="scanlinesEnabled" class="scanlines"></div>
     <div
       class="container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8"
       :class="{ flicker: isFlickering }"
     >
       <div class="mb-8 text-center">
-        <h1 class="mb-4 text-4xl font-bold" :class="glowClass" :style="{ color: 'var(--color-theme-primary)' }">
+        <h1
+          class="mb-4 text-4xl font-bold"
+          :class="glowClass"
+          :style="{ color: 'var(--color-theme-primary)' }"
+        >
           Welcome to Fallout Shelter
         </h1>
       </div>
 
       <div class="mb-8 w-full max-w-md">
-        <h2 class="mb-4 text-2xl font-bold" :style="{ color: 'var(--color-theme-primary)' }">Create New Vault</h2>
+        <h2 class="mb-4 text-2xl font-bold" :style="{ color: 'var(--color-theme-primary)' }">
+          Create New Vault
+        </h2>
         <form @submit.prevent="createVault" class="space-y-2">
           <div class="flex space-x-2">
             <input
@@ -133,7 +142,9 @@ onMounted(async () => {
       </div>
 
       <div v-if="sortedVaults.length" class="w-full max-w-4xl">
-        <h2 class="mb-4 text-2xl font-bold" :style="{ color: 'var(--color-theme-primary)' }">Your Vaults</h2>
+        <h2 class="mb-4 text-2xl font-bold" :style="{ color: 'var(--color-theme-primary)' }">
+          Your Vaults
+        </h2>
         <ul class="space-y-4">
           <li
             v-for="vault in sortedVaults"
@@ -153,26 +164,41 @@ onMounted(async () => {
 
               <!-- Vault Info -->
               <div class="vault-info">
-                <h3 class="text-xl font-bold mb-2" :style="{ color: 'var(--color-theme-primary)' }">Vault {{ vault.number }}</h3>
+                <h3 class="text-xl font-bold mb-2" :style="{ color: 'var(--color-theme-primary)' }">
+                  Vault {{ vault.number }}
+                </h3>
                 <div class="vault-stats">
-                  <p :style="{ color: 'var(--color-theme-accent)' }">Last Updated: {{ new Date(vault.updated_at).toLocaleString() }}</p>
-                  <p :style="{ color: 'var(--color-theme-accent)' }">Bottle Caps: {{ vault.bottle_caps }}</p>
-                  <p :style="{ color: 'var(--color-theme-accent)' }">Happiness: {{ vault.happiness }}%</p>
-                  <p :style="{ color: 'var(--color-theme-accent)' }">Power: {{ vault.power }} / {{ vault.power_max }}</p>
-                  <p :style="{ color: 'var(--color-theme-accent)' }">Food: {{ vault.food }} / {{ vault.food_max }}</p>
-                  <p :style="{ color: 'var(--color-theme-accent)' }">Water: {{ vault.water }} / {{ vault.water_max }}</p>
-                  <p :style="{ color: 'var(--color-theme-accent)' }">Rooms: {{ vault.room_count }}</p>
-                  <p :style="{ color: 'var(--color-theme-accent)' }">Dwellers: {{ vault.dweller_count }}</p>
+                  <p :style="{ color: 'var(--color-theme-accent)' }">
+                    Last Updated: {{ new Date(vault.updated_at).toLocaleString() }}
+                  </p>
+                  <p :style="{ color: 'var(--color-theme-accent)' }">
+                    Bottle Caps: {{ vault.bottle_caps }}
+                  </p>
+                  <p :style="{ color: 'var(--color-theme-accent)' }">
+                    Happiness: {{ vault.happiness }}%
+                  </p>
+                  <p :style="{ color: 'var(--color-theme-accent)' }">
+                    Power: {{ vault.power }} / {{ vault.power_max }}
+                  </p>
+                  <p :style="{ color: 'var(--color-theme-accent)' }">
+                    Food: {{ vault.food }} / {{ vault.food_max }}
+                  </p>
+                  <p :style="{ color: 'var(--color-theme-accent)' }">
+                    Water: {{ vault.water }} / {{ vault.water_max }}
+                  </p>
+                  <p :style="{ color: 'var(--color-theme-accent)' }">
+                    Rooms: {{ vault.room_count }}
+                  </p>
+                  <p :style="{ color: 'var(--color-theme-accent)' }">
+                    Dwellers: {{ vault.dweller_count }}
+                  </p>
                 </div>
               </div>
             </div>
 
             <!-- Action Buttons -->
             <div v-if="selectedVaultId === vault.id" class="vault-actions">
-              <button
-                @click.stop="loadVault(vault.id)"
-                class="vault-button vault-button-load"
-              >
+              <button @click.stop="loadVault(vault.id)" class="vault-button vault-button-load">
                 Load
               </button>
               <button
@@ -188,7 +214,9 @@ onMounted(async () => {
       </div>
 
       <div v-else class="text-center">
-        <p class="text-lg" :style="{ color: 'var(--color-theme-primary)' }">No vaults found. Create your first vault to get started!</p>
+        <p class="text-lg" :style="{ color: 'var(--color-theme-primary)' }">
+          No vaults found. Create your first vault to get started!
+        </p>
       </div>
     </div>
   </div>

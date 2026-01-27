@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { computed, inject, ref } from 'vue';
-import { useRouter } from 'vue-router';
-import { useSidePanel } from '@/core/composables/useSidePanel';
-import { useVisualEffects, type EffectIntensity } from '@/core/composables/useVisualEffects';
-import { useTheme, type ThemeName } from '@/core/composables/useTheme';
-import SidePanel from '@/core/components/common/SidePanel.vue';
-import { UCard, UButton } from '@/core/components/ui';
-import { Icon } from '@iconify/vue';
+import { computed, inject, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useVisualEffects, type EffectIntensity } from '@/core/composables/useVisualEffects'
+import { useTheme, type ThemeName } from '@/core/composables/useTheme'
+import SidePanel from '@/core/components/common/SidePanel.vue'
+import { UCard, UButton } from '@/core/components/ui'
+import { Icon } from '@iconify/vue'
 
-const router = useRouter();
+const router = useRouter()
 
-const { isCollapsed } = useSidePanel();
+const { isCollapsed } = useSidePanel()
 const {
   flickering,
   scanlines,
@@ -21,20 +21,20 @@ const {
   setGlowIntensity,
   enableAllEffects,
   disableAllEffects,
-  resetToDefaults
-} = useVisualEffects();
+  resetToDefaults,
+} = useVisualEffects()
 
-const { currentTheme, availableThemes, setTheme } = useTheme();
+const { currentTheme, availableThemes, setTheme } = useTheme()
 
 // Get injected glow class from App.vue (with fallback)
-const injectedGlowClass = inject('glowClass', glowClass);
+const injectedGlowClass = inject('glowClass', glowClass)
 
 const glowIntensityOptions: { value: EffectIntensity; label: string; description: string }[] = [
   { value: 'off', label: 'Off', description: 'No glow effects' },
   { value: 'subtle', label: 'Subtle', description: 'Minimal glow for readability' },
   { value: 'normal', label: 'Normal', description: 'Standard CRT glow' },
-  { value: 'strong', label: 'Strong', description: 'Maximum retro aesthetics' }
-];
+  { value: 'strong', label: 'Strong', description: 'Maximum retro aesthetics' },
+]
 </script>
 
 <template>
@@ -47,7 +47,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
       <div class="main-content" :class="{ collapsed: isCollapsed, flicker: flickering }">
         <div class="container mx-auto px-4 py-6 lg:px-8">
           <div class="max-w-4xl mx-auto">
-<!-- Back Button -->
+            <!-- Back Button -->
             <UButton variant="ghost" size="sm" class="mb-4" @click="router.push('/profile')">
               <Icon icon="mdi:arrow-left" class="h-5 w-5 mr-1" />
               Back to Profile
@@ -55,7 +55,11 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
 
             <!-- Header -->
             <div class="mb-4">
-              <h1 class="text-3xl font-bold flex items-center gap-2" :class="injectedGlowClass" :style="{ color: 'var(--color-theme-primary)' }">
+              <h1
+                class="text-3xl font-bold flex items-center gap-2"
+                :class="injectedGlowClass"
+                :style="{ color: 'var(--color-theme-primary)' }"
+              >
                 <Icon icon="mdi:cog" class="text-3xl" />
                 Display Preferences
               </h1>
@@ -66,7 +70,10 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
 
             <!-- Theme Selection -->
             <UCard class="mb-4">
-              <h2 class="text-xl font-bold mb-2 flex items-center gap-2" :style="{ color: 'var(--color-theme-primary)' }">
+              <h2
+                class="text-xl font-bold mb-2 flex items-center gap-2"
+                :style="{ color: 'var(--color-theme-primary)' }"
+              >
                 <Icon icon="mdi:palette" class="text-xl" />
                 Color Theme
               </h2>
@@ -83,13 +90,19 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                   :class="{ active: currentTheme.name === theme.name }"
                   :style="{
                     borderColor: theme.colors.primary,
-                    boxShadow: currentTheme.name === theme.name ? `0 0 15px ${theme.colors.glow}` : 'none'
+                    boxShadow:
+                      currentTheme.name === theme.name ? `0 0 15px ${theme.colors.glow}` : 'none',
                   }"
                   :aria-label="`Select ${theme.displayName}`"
                 >
-                  <div class="theme-preview" :style="{ backgroundColor: theme.colors.primary }"></div>
+                  <div
+                    class="theme-preview"
+                    :style="{ backgroundColor: theme.colors.primary }"
+                  ></div>
                   <div class="theme-info">
-                    <h3 class="theme-name" :style="{ color: theme.colors.primary }">{{ theme.displayName }}</h3>
+                    <h3 class="theme-name" :style="{ color: theme.colors.primary }">
+                      {{ theme.displayName }}
+                    </h3>
                     <p class="theme-description">{{ theme.description }}</p>
                   </div>
                   <Icon
@@ -104,22 +117,32 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
 
             <!-- Visual Effects -->
             <UCard class="mb-4">
-              <h2 class="text-xl font-bold mb-2 flex items-center gap-2" :style="{ color: 'var(--color-theme-primary)' }">
+              <h2
+                class="text-xl font-bold mb-2 flex items-center gap-2"
+                :style="{ color: 'var(--color-theme-primary)' }"
+              >
                 <Icon icon="mdi:television-classic" class="text-xl" />
                 CRT Visual Effects
               </h2>
               <p class="text-gray-400 mb-3 text-xs">
-                Configure retro terminal effects. Disable these for better accessibility or performance.
+                Configure retro terminal effects. Disable these for better accessibility or
+                performance.
               </p>
 
               <!-- Flickering Toggle -->
               <div class="setting-row">
                 <div class="setting-info">
                   <div class="flex items-center gap-2">
-                    <Icon icon="mdi:flash" class="text-xl" :style="{ color: 'var(--color-theme-primary)' }" />
+                    <Icon
+                      icon="mdi:flash"
+                      class="text-xl"
+                      :style="{ color: 'var(--color-theme-primary)' }"
+                    />
                     <h3 class="setting-label">Screen Flickering</h3>
                   </div>
-                  <p class="setting-description">Subtle animation that simulates old CRT monitors</p>
+                  <p class="setting-description">
+                    Subtle animation that simulates old CRT monitors
+                  </p>
                 </div>
                 <button
                   @click="toggleFlickering"
@@ -135,10 +158,16 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
               <div class="setting-row">
                 <div class="setting-info">
                   <div class="flex items-center gap-2">
-                    <Icon icon="mdi:view-sequential" class="text-xl" :style="{ color: 'var(--color-theme-primary)' }" />
+                    <Icon
+                      icon="mdi:view-sequential"
+                      class="text-xl"
+                      :style="{ color: 'var(--color-theme-primary)' }"
+                    />
                     <h3 class="setting-label">Scanlines</h3>
                   </div>
-                  <p class="setting-description">Horizontal line overlay for authentic terminal feel</p>
+                  <p class="setting-description">
+                    Horizontal line overlay for authentic terminal feel
+                  </p>
                 </div>
                 <button
                   @click="toggleScanlines"
@@ -154,14 +183,22 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
               <div class="setting-row">
                 <div class="setting-info">
                   <div class="flex items-center gap-2">
-                    <Icon icon="mdi:lightbulb-on" class="text-xl" :style="{ color: 'var(--color-theme-primary)' }" />
+                    <Icon
+                      icon="mdi:lightbulb-on"
+                      class="text-xl"
+                      :style="{ color: 'var(--color-theme-primary)' }"
+                    />
                     <h3 class="setting-label">Text Glow Intensity</h3>
                   </div>
                   <p class="setting-description">Controls the brightness of text glow effects</p>
                   <!-- Live Demo -->
                   <div class="glow-demo mt-3">
                     <span class="demo-label">Preview: </span>
-                    <span :class="injectedGlowClass" :style="{ color: 'var(--color-theme-primary)' }" class="demo-text">
+                    <span
+                      :class="injectedGlowClass"
+                      :style="{ color: 'var(--color-theme-primary)' }"
+                      class="demo-text"
+                    >
                       VAULT-TEC TERMINAL
                     </span>
                   </div>
@@ -189,24 +226,15 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                 Quick Actions
               </h2>
               <div class="flex flex-wrap gap-3">
-                <button
-                  @click="enableAllEffects"
-                  class="action-button"
-                >
+                <button @click="enableAllEffects" class="action-button">
                   <Icon icon="mdi:eye" class="mr-2" />
                   Enable All Effects
                 </button>
-                <button
-                  @click="disableAllEffects"
-                  class="action-button"
-                >
+                <button @click="disableAllEffects" class="action-button">
                   <Icon icon="mdi:eye-off" class="mr-2" />
                   Disable All Effects
                 </button>
-                <button
-                  @click="resetToDefaults"
-                  class="action-button"
-                >
+                <button @click="resetToDefaults" class="action-button">
                   <Icon icon="mdi:restore" class="mr-2" />
                   Reset to Defaults
                 </button>

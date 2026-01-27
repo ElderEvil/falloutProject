@@ -1,37 +1,36 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useRadioStore } from '../stores/radio';
-import UButton from '@/core/components/ui/UButton.vue';
+import { computed } from 'vue'
+import { useRadioStore } from '../stores/radio'
+import UButton from '@/core/components/ui/UButton.vue'
 
 interface Props {
-  vaultId: string;
-  cost: number;
-  currentCaps: number;
+  vaultId: string
+  cost: number
+  currentCaps: number
 }
 
-const props = defineProps<Props>();
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
   recruited: [dwellerId: string]
-}>();
+}>()
 
-const radioStore = useRadioStore();
+const radioStore = useRadioStore()
 
-const isRecruiting = computed(() => radioStore.isRecruiting);
-const canAfford = computed(() => props.currentCaps >= props.cost);
+const isRecruiting = computed(() => radioStore.isRecruiting)
+const canAfford = computed(() => props.currentCaps >= props.cost)
 
 async function handleRecruit() {
   if (!canAfford.value) {
-    return;
+    return
   }
 
-  const result = await radioStore.manualRecruit(props.vaultId);
+  const result = await radioStore.manualRecruit(props.vaultId)
   if (result) {
-    emit('recruited', result.dweller.id);
+    emit('recruited', result.dweller.id)
   }
 }
 </script>
-
 
 <template>
   <div class="manual-recruit-button">

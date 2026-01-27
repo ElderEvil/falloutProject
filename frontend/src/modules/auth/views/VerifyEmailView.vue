@@ -1,38 +1,38 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import axios from '@/core/plugins/axios';
+import { ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import axios from '@/core/plugins/axios'
 
-const route = useRoute();
-const router = useRouter();
+const route = useRoute()
+const router = useRouter()
 
-const token = ref('');
-const error = ref('');
-const success = ref(false);
-const loading = ref(true);
+const token = ref('')
+const error = ref('')
+const success = ref(false)
+const loading = ref(true)
 
 onMounted(async () => {
-  token.value = route.query.token as string || '';
+  token.value = (route.query.token as string) || ''
 
   if (!token.value) {
-    error.value = 'Invalid or missing verification token';
-    loading.value = false;
-    return;
+    error.value = 'Invalid or missing verification token'
+    loading.value = false
+    return
   }
 
   try {
-    const response = await axios.post('/api/v1/auth/verify-email', { token: token.value });
-    success.value = true;
+    const response = await axios.post('/api/v1/auth/verify-email', { token: token.value })
+    success.value = true
     // Redirect to login after 3 seconds
     setTimeout(() => {
-      router.push('/login');
-    }, 3000);
+      router.push('/login')
+    }, 3000)
   } catch (err: any) {
-    error.value = err.response?.data?.detail || 'Failed to verify email';
+    error.value = err.response?.data?.detail || 'Failed to verify email'
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-});
+})
 </script>
 
 <template>
@@ -71,9 +71,7 @@ onMounted(async () => {
           <p class="terminal-text error-text">> ERROR: VERIFICATION FAILED</p>
           <p class="terminal-text error-text">> {{ error }}</p>
           <div class="error-actions">
-            <router-link to="/login" class="terminal-button">
-              RETURN TO LOGIN
-            </router-link>
+            <router-link to="/login" class="terminal-button"> RETURN TO LOGIN </router-link>
           </div>
         </div>
       </div>
@@ -109,8 +107,12 @@ onMounted(async () => {
 }
 
 @keyframes scanline {
-  0% { transform: translateY(0); }
-  100% { transform: translateY(10px); }
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(10px);
+  }
 }
 
 .terminal-window {
@@ -128,10 +130,22 @@ onMounted(async () => {
 }
 
 @keyframes flicker {
-  0%, 100% { opacity: 1; }
-  41.99%, 42.01% { opacity: 0.98; }
-  43%, 43.5% { opacity: 0.96; }
-  45%, 50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  41.99%,
+  42.01% {
+    opacity: 0.98;
+  }
+  43%,
+  43.5% {
+    opacity: 0.96;
+  }
+  45%,
+  50% {
+    opacity: 1;
+  }
 }
 
 .terminal-header {
@@ -198,8 +212,13 @@ onMounted(async () => {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
 }
 
 .success-indicator {

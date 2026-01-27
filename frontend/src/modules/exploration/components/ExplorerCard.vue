@@ -75,11 +75,7 @@ const recentEvents = computed(() => {
 </script>
 
 <template>
-  <div
-    class="explorer-card"
-    :class="{ selected }"
-    @click="openDetailView"
-  >
+  <div class="explorer-card" :class="{ selected }" @click="openDetailView">
     <!-- Header -->
     <div class="card-header">
       <div class="dweller-info">
@@ -89,11 +85,7 @@ const recentEvents = computed(() => {
           <div class="exploration-duration">{{ exploration.duration }}h expedition</div>
         </div>
       </div>
-      <button
-        v-if="selected"
-        class="expand-indicator"
-        title="Event timeline open"
-      >
+      <button v-if="selected" class="expand-indicator" title="Event timeline open">
         <Icon icon="mdi:timeline-text" />
       </button>
     </div>
@@ -105,7 +97,7 @@ const recentEvents = computed(() => {
           class="progress-bar"
           :style="{
             width: `${progressPercentage}%`,
-            background: statusColor
+            background: statusColor,
           }"
         ></div>
       </div>
@@ -186,13 +178,15 @@ const recentEvents = computed(() => {
         Recent Activity
       </div>
       <div class="event-list">
-        <div
-          v-for="(event, idx) in recentEvents"
-          :key="idx"
-          class="event-item"
-        >
+        <div v-for="(event, idx) in recentEvents" :key="idx" class="event-item">
           <Icon
-            :icon="event.type === 'combat' ? 'mdi:sword-cross' : event.type === 'loot' ? 'mdi:treasure-chest' : 'mdi:map-marker'"
+            :icon="
+              event.type === 'combat'
+                ? 'mdi:sword-cross'
+                : event.type === 'loot'
+                  ? 'mdi:treasure-chest'
+                  : 'mdi:map-marker'
+            "
             class="event-icon"
           />
           <span class="event-text">{{ event.description }}</span>
@@ -210,10 +204,7 @@ const recentEvents = computed(() => {
         <Icon icon="mdi:check-circle" />
         Complete
       </button>
-      <button
-        @click.stop="emit('recall', exploration.id)"
-        class="action-btn recall-btn"
-      >
+      <button @click.stop="emit('recall', exploration.id)" class="action-btn recall-btn">
         <Icon icon="mdi:arrow-u-left-top" />
         Recall Early
       </button>
@@ -293,7 +284,8 @@ const recentEvents = computed(() => {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -319,7 +311,9 @@ const recentEvents = computed(() => {
 .progress-bar {
   height: 100%;
   border-radius: 6px;
-  transition: width 0.5s ease, background 0.3s ease;
+  transition:
+    width 0.5s ease,
+    background 0.3s ease;
   box-shadow: 0 0 10px currentColor;
 }
 
@@ -499,8 +493,8 @@ const recentEvents = computed(() => {
 
 .complete-btn {
   background: rgba(255, 215, 0, 0.1);
-  border-color: #FFD700;
-  color: #FFD700;
+  border-color: #ffd700;
+  color: #ffd700;
 }
 
 .complete-btn:hover {

@@ -93,16 +93,13 @@ onMounted(() => {
   localSpeedup.value = currentSpeedup.value
   refreshStats()
 })
-
 </script>
 
 <template>
   <UCard class="radio-stats-panel">
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-xl font-mono" style="color: var(--color-theme-primary);">📻 Radio Room</h2>
-      <UButton @click="refreshStats" :disabled="isLoading" size="sm">
-        Refresh
-      </UButton>
+      <h2 class="text-xl font-mono" style="color: var(--color-theme-primary)">📻 Radio Room</h2>
+      <UButton @click="refreshStats" :disabled="isLoading" size="sm"> Refresh </UButton>
     </div>
 
     <div v-if="isLoading" class="text-center py-4">
@@ -119,15 +116,19 @@ onMounted(() => {
       <!-- Radio Mode Toggle -->
       <div class="radio-mode-panel">
         <div class="flex items-center justify-between mb-2">
-          <span class="text-sm font-semibold" style="color: var(--color-theme-primary);">Radio Mode</span>
+          <span class="text-sm font-semibold" style="color: var(--color-theme-primary)"
+            >Radio Mode</span
+          >
           <UBadge :variant="isRecruitmentMode ? 'info' : 'default'">
             {{ isRecruitmentMode ? 'Recruitment' : 'Happiness' }}
           </UBadge>
         </div>
         <p class="text-xs text-gray-400 mb-3">
-          {{ isRecruitmentMode
-            ? 'Attracts new dwellers to your vault'
-            : 'Boosts happiness for all dwellers' }}
+          {{
+            isRecruitmentMode
+              ? 'Attracts new dwellers to your vault'
+              : 'Boosts happiness for all dwellers'
+          }}
         </p>
         <UButton @click="toggleMode" size="sm" class="w-full mode-switch-button">
           Switch to {{ isRecruitmentMode ? 'Happiness Mode' : 'Recruitment Mode' }}
@@ -137,22 +138,17 @@ onMounted(() => {
       <!-- Speedup Controls -->
       <div class="speedup-panel">
         <div class="flex items-center justify-between mb-2">
-          <span class="text-sm font-semibold" style="color: var(--color-theme-primary);">Speedup Multiplier</span>
+          <span class="text-sm font-semibold" style="color: var(--color-theme-primary)"
+            >Speedup Multiplier</span
+          >
           <UBadge variant="warning">{{ localSpeedup.toFixed(1) }}x</UBadge>
         </div>
 
         <!-- Room selector if multiple radio rooms -->
         <div v-if="stats.speedup_multipliers.length > 1" class="mb-3">
           <label class="text-xs text-gray-400 mb-1 block">Radio Room:</label>
-          <select
-            v-model="selectedRoomIndex"
-            class="room-selector"
-          >
-            <option
-              v-for="(_, index) in stats.speedup_multipliers"
-              :key="index"
-              :value="index"
-            >
+          <select v-model="selectedRoomIndex" class="room-selector">
+            <option v-for="(_, index) in stats.speedup_multipliers" :key="index" :value="index">
               Radio Room {{ index + 1 }}
             </option>
           </select>
@@ -206,9 +202,7 @@ onMounted(() => {
       <div class="space-y-2">
         <div class="flex justify-between items-center">
           <span class="text-gray-400">Manual Recruitment:</span>
-<UBadge variant="warning">
-            {{ stats.manual_cost_caps }} caps
-          </UBadge>
+          <UBadge variant="warning"> {{ stats.manual_cost_caps }} caps </UBadge>
         </div>
 
         <UButton

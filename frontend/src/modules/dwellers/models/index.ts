@@ -10,5 +10,5 @@ export type {
   DeathCause,
   DwellerDead,
   DwellerReviveResponse,
-  RevivalCostResponse
+  RevivalCostResponse,
 } from './dweller'

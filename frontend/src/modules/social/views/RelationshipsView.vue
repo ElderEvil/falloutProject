@@ -1,40 +1,40 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
-import { Icon } from '@iconify/vue';
-import { useSidePanel } from '@/core/composables/useSidePanel';
-import { useRelationshipStore } from '../stores/relationship';
-import { useDwellerStore } from '@/modules/dwellers/stores/dweller';
-import { useAuthStore } from '@/modules/auth/stores/auth';
-import { useToast } from '@/core/composables/useToast';
-import SidePanel from '@/core/components/common/SidePanel.vue';
-import RelationshipList from '../components/relationships/RelationshipList.vue';
-import PregnancyTracker from '../components/pregnancy/PregnancyTracker.vue';
-import PregnancyDebugPanel from '../components/pregnancy/PregnancyDebugPanel.vue';
-import ChildrenList from '../components/relationships/ChildrenList.vue';
-import UButton from '@/core/components/ui/UButton.vue';
+import { computed, ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { Icon } from '@iconify/vue'
+import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useRelationshipStore } from '../stores/relationship'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useToast } from '@/core/composables/useToast'
+import SidePanel from '@/core/components/common/SidePanel.vue'
+import RelationshipList from '../components/relationships/RelationshipList.vue'
+import PregnancyTracker from '../components/pregnancy/PregnancyTracker.vue'
+import PregnancyDebugPanel from '../components/pregnancy/PregnancyDebugPanel.vue'
+import ChildrenList from '../components/relationships/ChildrenList.vue'
+import UButton from '@/core/components/ui/UButton.vue'
 
-const route = useRoute();
-const { isCollapsed } = useSidePanel();
-const relationshipStore = useRelationshipStore();
-const dwellerStore = useDwellerStore();
-const authStore = useAuthStore();
-const toast = useToast();
+const route = useRoute()
+const { isCollapsed } = useSidePanel()
+const relationshipStore = useRelationshipStore()
+const dwellerStore = useDwellerStore()
+const authStore = useAuthStore()
+const toast = useToast()
 
-const vaultId = computed(() => route.params.id as string);
-const isLoading = ref(false);
-const isProcessing = ref(false);
-const activeStage = ref<'forming' | 'partners' | 'pregnancies' | 'children'>('forming');
+const vaultId = computed(() => route.params.id as string)
+const isLoading = ref(false)
+const isProcessing = ref(false)
+const activeStage = ref<'forming' | 'partners' | 'pregnancies' | 'children'>('forming')
 
 // Stats
-const totalRelationships = computed(() => relationshipStore.relationships.length);
-const partnersCount = computed(() =>
-  relationshipStore.relationships.filter(r => r.relationship_type === 'partner').length
-);
-const pregnanciesCount = computed(() => relationshipStore.pregnancies.length);
-const childrenCount = computed(() =>
-  dwellerStore.dwellers.filter(d => d.age_group === 'child').length
-);
+const totalRelationships = computed(() => relationshipStore.relationships.length)
+const partnersCount = computed(
+  () => relationshipStore.relationships.filter((r) => r.relationship_type === 'partner').length
+)
+const pregnanciesCount = computed(() => relationshipStore.pregnancies.length)
+const childrenCount = computed(
+  () => dwellerStore.dwellers.filter((d) => d.age_group === 'child').length
+)
 
 // Stages configuration
 const stages = computed(() => [
@@ -42,76 +42,75 @@ const stages = computed(() => [
     id: 'forming',
     label: 'Forming',
     icon: 'mdi:account-group',
-    count: relationshipStore.relationships.filter(r =>
-      r.relationship_type !== 'partner'
-    ).length
+    count: relationshipStore.relationships.filter((r) => r.relationship_type !== 'partner').length,
   },
   {
     id: 'partners',
     label: 'Partners',
     icon: 'mdi:human-male-female',
-    count: partnersCount.value
+    count: partnersCount.value,
   },
   {
     id: 'pregnancies',
     label: 'Pregnancies',
     icon: 'mdi:baby-carriage',
-    count: pregnanciesCount.value
+    count: pregnanciesCount.value,
   },
   {
     id: 'children',
     label: 'Children',
     icon: 'mdi:human-child',
-    count: childrenCount.value
-  }
-]);
+    count: childrenCount.value,
+  },
+])
 
 async function handleQuickPair() {
-  if (!vaultId.value) return;
+  if (!vaultId.value) return
 
-  isLoading.value = true;
-  const result = await relationshipStore.quickPair(vaultId.value);
-  isLoading.value = false;
+  isLoading.value = true
+  const result = await relationshipStore.quickPair(vaultId.value)
+  isLoading.value = false
 
   if (result) {
     // Refresh relationships list
-    await relationshipStore.fetchVaultRelationships(vaultId.value);
+    await relationshipStore.fetchVaultRelationships(vaultId.value)
   }
 }
 
 async function handleProcessBreeding() {
-  if (!vaultId.value) return;
+  if (!vaultId.value) return
 
-  isProcessing.value = true;
+  isProcessing.value = true
   try {
-    const result = await relationshipStore.processVaultBreeding(vaultId.value);
+    const result = await relationshipStore.processVaultBreeding(vaultId.value)
 
     if (result) {
       // Show results toast
-      const stats = result.stats;
-      const messages = [];
-      if (stats.relationships_updated > 0) messages.push(`${stats.relationships_updated} relationships updated`);
-      if (stats.conceptions > 0) messages.push(`${stats.conceptions} new pregnancy!`);
-      if (stats.births > 0) messages.push(`${stats.births} baby born!`);
-      if (stats.children_aged > 0) messages.push(`${stats.children_aged} children became adults!`);
+      const stats = result.stats
+      const messages = []
+      if (stats.relationships_updated > 0)
+        messages.push(`${stats.relationships_updated} relationships updated`)
+      if (stats.conceptions > 0) messages.push(`${stats.conceptions} new pregnancy!`)
+      if (stats.births > 0) messages.push(`${stats.births} baby born!`)
+      if (stats.children_aged > 0) messages.push(`${stats.children_aged} children became adults!`)
 
       if (messages.length > 0) {
-        toast.success(`Processed: ${messages.join(', ')}`);
+        toast.success(`Processed: ${messages.join(', ')}`)
       } else {
-        toast.info('No changes this cycle');
+        toast.info('No changes this cycle')
       }
 
       // Refresh all data
       await Promise.all([
         relationshipStore.fetchVaultRelationships(vaultId.value),
         relationshipStore.fetchVaultPregnancies(vaultId.value),
-        dwellerStore.fetchDwellersByVault(vaultId.value, relationshipStore.token!)
-      ]);
+        dwellerStore.fetchDwellersByVault(vaultId.value, relationshipStore.token!),
+      ])
     }
   } catch (error) {
-    console.error('Error processing breeding:', error);
+    console.error('Error processing breeding:', error)
   } finally {
-    isProcessing.value = false;
+    isProcessing.value = false
   }
 }
 
@@ -120,10 +119,10 @@ onMounted(async () => {
     await Promise.all([
       relationshipStore.fetchVaultRelationships(vaultId.value),
       relationshipStore.fetchVaultPregnancies(vaultId.value),
-      dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
-    ]);
+      dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token),
+    ])
   }
-});
+})
 </script>
 
 <template>
@@ -142,7 +141,10 @@ onMounted(async () => {
             <!-- Header -->
             <div class="mb-8">
               <div class="flex items-center justify-between mb-2">
-                <h1 class="text-4xl font-bold flex items-center gap-3" :style="{ color: 'var(--color-theme-primary)' }">
+                <h1
+                  class="text-4xl font-bold flex items-center gap-3"
+                  :style="{ color: 'var(--color-theme-primary)' }"
+                >
                   <Icon icon="mdi:heart-multiple" class="text-5xl" />
                   Relationships & Family
                 </h1>
@@ -154,7 +156,11 @@ onMounted(async () => {
                     variant="secondary"
                     size="sm"
                   >
-                    <Icon icon="mdi:refresh" class="mr-2" :class="{ 'animate-spin': isProcessing }" />
+                    <Icon
+                      icon="mdi:refresh"
+                      class="mr-2"
+                      :class="{ 'animate-spin': isProcessing }"
+                    />
                     {{ isProcessing ? 'Processing...' : 'Process Now' }}
                   </UButton>
                   <UButton
@@ -211,7 +217,9 @@ onMounted(async () => {
               <button
                 v-for="stage in stages"
                 :key="stage.id"
-                @click="activeStage = stage.id as 'forming' | 'partners' | 'pregnancies' | 'children'"
+                @click="
+                  activeStage = stage.id as 'forming' | 'partners' | 'pregnancies' | 'children'
+                "
                 :class="['stage-tab', { active: activeStage === stage.id }]"
               >
                 <Icon :icon="stage.icon" class="mr-2" />
@@ -230,7 +238,8 @@ onMounted(async () => {
                     Forming Relationships
                   </h2>
                   <p class="text-gray-400 mt-1">
-                    Dwellers in the same room will gradually increase their affinity. Romance can begin at 70+ affinity.
+                    Dwellers in the same room will gradually increase their affinity. Romance can
+                    begin at 70+ affinity.
                   </p>
                 </div>
                 <RelationshipList v-if="vaultId" :vaultId="vaultId" stageFilter="forming" />
@@ -244,7 +253,8 @@ onMounted(async () => {
                     Partner Couples
                   </h2>
                   <p class="text-gray-400 mt-1">
-                    Committed partners in living quarters have a chance to conceive (configurable via game settings).
+                    Committed partners in living quarters have a chance to conceive (configurable
+                    via game settings).
                   </p>
                 </div>
                 <RelationshipList v-if="vaultId" :vaultId="vaultId" stageFilter="partners" />
@@ -273,7 +283,8 @@ onMounted(async () => {
                     Growing Children
                   </h2>
                   <p class="text-gray-400 mt-1">
-                    Children grow to adults after 3 hours. They consume resources but cannot work until grown.
+                    Children grow to adults after 3 hours. They consume resources but cannot work
+                    until grown.
                   </p>
                 </div>
                 <ChildrenList v-if="vaultId" :vaultId="vaultId" />
@@ -308,11 +319,7 @@ onMounted(async () => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0) 50%,
-    rgba(0, 255, 0, 0.02) 50%
-  );
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 50%, rgba(0, 255, 0, 0.02) 50%);
   background-size: 100% 4px;
   pointer-events: none;
   z-index: 1000;

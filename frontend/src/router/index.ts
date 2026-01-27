@@ -1,17 +1,17 @@
-import { createRouter, createWebHistory } from "vue-router";
-import { useAuthStore } from "@/modules/auth/stores/auth";
+import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 
 // Module routes
-import { authRoutes } from "@/modules/auth/routes";
-import { vaultRoutes } from "@/modules/vault/routes";
-import { radioRoutes } from "@/modules/radio/routes";
-import { profileRoutes } from "@/modules/profile/routes";
-import { chatRoutes } from "@/modules/chat/routes";
-import { explorationRoutes } from "@/modules/exploration/routes";
-import { progressionRoutes } from "@/modules/progression/routes";
-import { socialRoutes } from "@/modules/social/routes";
-import { dwellersRoutes } from "@/modules/dwellers/routes";
-import { storageRoutes } from "@/modules/storage/routes";
+import { authRoutes } from '@/modules/auth/routes'
+import { vaultRoutes } from '@/modules/vault/routes'
+import { radioRoutes } from '@/modules/radio/routes'
+import { profileRoutes } from '@/modules/profile/routes'
+import { chatRoutes } from '@/modules/chat/routes'
+import { explorationRoutes } from '@/modules/exploration/routes'
+import { progressionRoutes } from '@/modules/progression/routes'
+import { socialRoutes } from '@/modules/social/routes'
+import { dwellersRoutes } from '@/modules/dwellers/routes'
+import { storageRoutes } from '@/modules/storage/routes'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -37,21 +37,21 @@ const router = createRouter({
     // Auth module routes
     ...authRoutes,
     {
-      path: "/about",
-      name: "about",
+      path: '/about',
+      name: 'about',
       // Lazy-load the AboutView component
-      component: () => import("@/modules/profile/views/AboutView.vue"),
+      component: () => import('@/modules/profile/views/AboutView.vue'),
     },
   ],
-});
+})
 
 router.beforeEach((to, from, next) => {
-  const authStore = useAuthStore();
+  const authStore = useAuthStore()
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    next("/login");
+    next('/login')
   } else {
-    next();
+    next()
   }
-});
+})
 
-export default router;
+export default router

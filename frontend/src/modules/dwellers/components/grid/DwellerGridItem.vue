@@ -6,7 +6,6 @@ import UTooltip from '@/core/components/ui/UTooltip.vue'
 import type { DwellerShort } from '../../models/dweller'
 import { normalizeImageUrl } from '@/utils/image'
 
-
 interface Props {
   dweller: DwellerShort
   roomName?: string | null
@@ -26,7 +25,6 @@ const getImageUrl = (imagePath: string) => {
   return normalizeImageUrl(imagePath)
 }
 
-
 const healthPercentage = computed(() => {
   if (!props.dweller.max_health) return 0
   return (props.dweller.health / props.dweller.max_health) * 100
@@ -37,13 +35,13 @@ const relevantStat = computed(() => {
   if (!props.roomAbility) return null
 
   const abilityMap: Record<string, { value: number; label: string; icon: string }> = {
-    'strength': { value: props.dweller.strength, label: 'STR', icon: '💪' },
-    'perception': { value: props.dweller.perception, label: 'PER', icon: '👁️' },
-    'endurance': { value: props.dweller.endurance, label: 'END', icon: '❤️' },
-    'charisma': { value: props.dweller.charisma, label: 'CHA', icon: '💬' },
-    'intelligence': { value: props.dweller.intelligence, label: 'INT', icon: '🧠' },
-    'agility': { value: props.dweller.agility, label: 'AGI', icon: '⚡' },
-    'luck': { value: props.dweller.luck, label: 'LCK', icon: '🍀' }
+    strength: { value: props.dweller.strength, label: 'STR', icon: '💪' },
+    perception: { value: props.dweller.perception, label: 'PER', icon: '👁️' },
+    endurance: { value: props.dweller.endurance, label: 'END', icon: '❤️' },
+    charisma: { value: props.dweller.charisma, label: 'CHA', icon: '💬' },
+    intelligence: { value: props.dweller.intelligence, label: 'INT', icon: '🧠' },
+    agility: { value: props.dweller.agility, label: 'AGI', icon: '⚡' },
+    luck: { value: props.dweller.luck, label: 'LCK', icon: '🍀' },
   }
 
   return abilityMap[props.roomAbility.toLowerCase()] || null
@@ -132,10 +130,7 @@ const getStatColorClass = (value: number) => {
       <div class="room-info">
         <template v-if="roomName">
           <UTooltip :text="`Assigned to ${roomName}`" position="top">
-            <button
-              @click.stop="emit('room-click')"
-              class="room-badge"
-            >
+            <button @click.stop="emit('room-click')" class="room-badge">
               <Icon icon="mdi:office-building" class="room-icon" />
               <span class="room-name">{{ roomName }}</span>
             </button>
@@ -231,7 +226,8 @@ const getStatColorClass = (value: number) => {
 }
 
 @keyframes pulse-glow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 5px var(--color-theme-glow);
   }
   50% {

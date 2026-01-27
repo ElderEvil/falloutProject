@@ -4,5 +4,5 @@ export {
   IncidentStatus,
   type Incident,
   type IncidentListResponse,
-  type IncidentResolveResponse
+  type IncidentResolveResponse,
 } from '@/modules/combat/models/incident'

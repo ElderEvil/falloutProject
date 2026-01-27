@@ -17,7 +17,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   position: 'top',
-  delay: 200
+  delay: 200,
 })
 
 const isVisible = ref(false)
@@ -41,24 +41,29 @@ const positionClasses = {
   top: 'bottom-full left-1/2 -translate-x-1/2 mb-2',
   bottom: 'top-full left-1/2 -translate-x-1/2 mt-2',
   left: 'right-full top-1/2 -translate-y-1/2 mr-2',
-  right: 'left-full top-1/2 -translate-y-1/2 ml-2'
+  right: 'left-full top-1/2 -translate-y-1/2 ml-2',
 }
 
 const arrowPositionClasses = {
   top: 'top-full left-1/2 -translate-x-1/2',
   bottom: 'bottom-full left-1/2 -translate-x-1/2',
   left: 'left-full top-1/2 -translate-y-1/2',
-  right: 'right-full top-1/2 -translate-y-1/2'
+  right: 'right-full top-1/2 -translate-y-1/2',
 }
 
 const arrowStyle = computed(() => {
   const borderColor = 'var(--color-theme-primary)'
   switch (props.position) {
-    case 'top': return { borderTopColor: borderColor }
-    case 'bottom': return { borderBottomColor: borderColor }
-    case 'left': return { borderLeftColor: borderColor }
-    case 'right': return { borderRightColor: borderColor }
-    default: return { borderTopColor: borderColor }
+    case 'top':
+      return { borderTopColor: borderColor }
+    case 'bottom':
+      return { borderBottomColor: borderColor }
+    case 'left':
+      return { borderLeftColor: borderColor }
+    case 'right':
+      return { borderRightColor: borderColor }
+    default:
+      return { borderTopColor: borderColor }
   }
 })
 </script>
@@ -66,12 +71,7 @@ const arrowStyle = computed(() => {
 <template>
   <div class="relative inline-block">
     <!-- Trigger Element -->
-    <div
-      @mouseenter="show"
-      @mouseleave="hide"
-      @focus="show"
-      @blur="hide"
-    >
+    <div @mouseenter="show" @mouseleave="hide" @focus="show" @blur="hide">
       <slot></slot>
     </div>
 
@@ -84,7 +84,7 @@ const arrowStyle = computed(() => {
           'bg-black',
           'px-3 py-2 rounded text-sm font-mono',
           'max-w-xs whitespace-pre-line',
-          positionClasses[position]
+          positionClasses[position],
         ]"
         class="tooltip-content"
         role="tooltip"
@@ -96,7 +96,7 @@ const arrowStyle = computed(() => {
           :class="[
             'absolute w-0 h-0',
             'border-4 border-transparent',
-            arrowPositionClasses[position]
+            arrowPositionClasses[position],
           ]"
           :style="arrowStyle"
         ></div>

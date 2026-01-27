@@ -7,11 +7,11 @@ import { z } from 'zod'
 export const vaultNumberSchema = z.object({
   number: z
     .number({
-      message: 'Vault number must be a number'
+      message: 'Vault number must be a number',
     })
     .int('Vault number must be a whole number')
     .min(0, 'Vault number must be at least 0')
-    .max(999, 'Vault number must be 999 or less')
+    .max(999, 'Vault number must be 999 or less'),
 })
 
 export type VaultNumberData = z.infer<typeof vaultNumberSchema>

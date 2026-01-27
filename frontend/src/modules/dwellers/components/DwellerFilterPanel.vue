@@ -10,7 +10,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   showStatusFilter: true,
-  showViewToggle: false
+  showViewToggle: false,
 })
 
 const dwellerStore = useDwellerStore()
@@ -22,7 +22,7 @@ const statusOptions = [
   { value: 'training', label: 'Training', icon: 'mdi:dumbbell' },
   { value: 'exploring', label: 'Exploring', icon: 'mdi:compass-outline' },
   { value: 'resting', label: 'Resting', icon: 'mdi:sleep' },
-  { value: 'dead', label: 'Dead', icon: 'mdi:skull' }
+  { value: 'dead', label: 'Dead', icon: 'mdi:skull' },
 ]
 
 const sortOptions = [
@@ -35,22 +35,22 @@ const sortOptions = [
   { value: 'charisma', label: 'Charisma', icon: 'mdi:account-heart' },
   { value: 'intelligence', label: 'Intelligence', icon: 'mdi:brain' },
   { value: 'agility', label: 'Agility', icon: 'mdi:run' },
-  { value: 'luck', label: 'Luck', icon: 'mdi:clover' }
+  { value: 'luck', label: 'Luck', icon: 'mdi:clover' },
 ]
 
 const currentFilterStatus = computed({
   get: () => dwellerStore.filterStatus,
-  set: (value: DwellerStatus | 'all') => dwellerStore.setFilterStatus(value)
+  set: (value: DwellerStatus | 'all') => dwellerStore.setFilterStatus(value),
 })
 
 const currentSortBy = computed({
   get: () => dwellerStore.sortBy,
-  set: (value: DwellerSortBy) => dwellerStore.setSortBy(value)
+  set: (value: DwellerSortBy) => dwellerStore.setSortBy(value),
 })
 
 const currentSortDirection = computed({
   get: () => dwellerStore.sortDirection,
-  set: (value: 'asc' | 'desc') => dwellerStore.setSortDirection(value)
+  set: (value: 'asc' | 'desc') => dwellerStore.setSortDirection(value),
 })
 
 const toggleSortDirection = () => {

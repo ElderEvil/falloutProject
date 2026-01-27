@@ -2,5 +2,5 @@
 export type {
   Objective,
   ObjectiveCreate,
-  ObjectiveProgressUpdate
+  ObjectiveProgressUpdate,
 } from '@/modules/progression/models/objective'

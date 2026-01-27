@@ -79,7 +79,7 @@ const getStatIcon = (stat: string): string => {
     charisma: 'mdi:account-voice',
     intelligence: 'mdi:brain',
     agility: 'mdi:run-fast',
-    luck: 'mdi:clover'
+    luck: 'mdi:clover',
   }
   return iconMap[stat.toLowerCase()] || 'mdi:star'
 }
@@ -98,14 +98,25 @@ const handleComplete = () => {
 </script>
 
 <template>
-  <div class="training-card" :class="{ 'ready': isReadyToComplete, 'inactive': training.status !== 'active' }">
+  <div
+    class="training-card"
+    :class="{ ready: isReadyToComplete, inactive: training.status !== 'active' }"
+  >
     <div class="training-header">
       <Icon :icon="getStatIcon(training.stat_being_trained)" class="stat-icon" />
       <div class="header-content">
         <span class="stat-name">Training {{ training.stat_being_trained.toUpperCase() }}</span>
         <span v-if="dwellerName" class="dweller-name">{{ dwellerName }}</span>
       </div>
-      <UBadge :variant="training.status === 'active' ? 'info' : training.status === 'completed' ? 'success' : 'default'">
+      <UBadge
+        :variant="
+          training.status === 'active'
+            ? 'info'
+            : training.status === 'completed'
+              ? 'success'
+              : 'default'
+        "
+      >
         {{ training.current_stat_value }} → {{ training.target_stat_value }}
       </UBadge>
     </div>
@@ -127,12 +138,7 @@ const handleComplete = () => {
         </span>
       </div>
       <div class="actions">
-        <UButton
-          v-if="isReadyToComplete"
-          size="sm"
-          variant="primary"
-          @click="handleComplete"
-        >
+        <UButton v-if="isReadyToComplete" size="sm" variant="primary" @click="handleComplete">
           <Icon icon="mdi:check-circle" class="h-4 w-4" />
           Complete
         </UButton>
@@ -156,18 +162,24 @@ const handleComplete = () => {
   border: 1px solid var(--color-theme-primary);
   border-radius: 0.5rem;
   padding: 1rem;
-  box-shadow: 0 0 10px var(--color-theme-primary), inset 0 0 10px rgb(0 0 0 / 0.5);
+  box-shadow:
+    0 0 10px var(--color-theme-primary),
+    inset 0 0 10px rgb(0 0 0 / 0.5);
   transition: all 0.3s ease;
 }
 
 .training-card:hover {
   border-color: var(--color-theme-primary);
-  box-shadow: 0 0 15px var(--color-theme-primary), inset 0 0 10px rgb(0 0 0 / 0.5);
+  box-shadow:
+    0 0 15px var(--color-theme-primary),
+    inset 0 0 10px rgb(0 0 0 / 0.5);
 }
 
 .training-card.ready {
   border-color: var(--color-theme-accent);
-  box-shadow: 0 0 15px var(--color-theme-accent), inset 0 0 10px rgb(0 0 0 / 0.5);
+  box-shadow:
+    0 0 15px var(--color-theme-accent),
+    inset 0 0 10px rgb(0 0 0 / 0.5);
   animation: pulse 2s ease-in-out infinite;
 }
 
@@ -334,10 +346,14 @@ const handleComplete = () => {
 @keyframes pulse {
   0%,
   100% {
-    box-shadow: 0 0 15px var(--color-theme-accent), inset 0 0 10px rgb(0 0 0 / 0.5);
+    box-shadow:
+      0 0 15px var(--color-theme-accent),
+      inset 0 0 10px rgb(0 0 0 / 0.5);
   }
   50% {
-    box-shadow: 0 0 25px var(--color-theme-accent), inset 0 0 10px rgb(0 0 0 / 0.5);
+    box-shadow:
+      0 0 25px var(--color-theme-accent),
+      inset 0 0 10px rgb(0 0 0 / 0.5);
   }
 }
 

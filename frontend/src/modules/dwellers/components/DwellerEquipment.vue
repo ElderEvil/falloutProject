@@ -83,8 +83,12 @@ const openOutfitInventory = () => {
   showInventoryModal.value = true
 }
 
-const modalTitle = computed(() => inventoryMode.value === 'weapon' ? 'Select Weapon' : 'Select Outfit')
-const modalIcon = computed(() => inventoryMode.value === 'weapon' ? 'mdi:pistol' : 'mdi:tshirt-crew')
+const modalTitle = computed(() =>
+  inventoryMode.value === 'weapon' ? 'Select Weapon' : 'Select Outfit'
+)
+const modalIcon = computed(() =>
+  inventoryMode.value === 'weapon' ? 'mdi:pistol' : 'mdi:tshirt-crew'
+)
 </script>
 
 <template>

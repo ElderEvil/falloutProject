@@ -59,12 +59,8 @@ const emit = defineEmits<{
       </template>
       <template v-else>
         <div class="bio-placeholder">
-          <p class="placeholder-text">
-            No biography available for {{ firstName }} yet.
-          </p>
-          <p class="placeholder-hint">
-            Click "Generate" to create a unique backstory!
-          </p>
+          <p class="placeholder-text">No biography available for {{ firstName }} yet.</p>
+          <p class="placeholder-hint">Click "Generate" to create a unique backstory!</p>
         </div>
       </template>
     </div>
@@ -143,7 +139,8 @@ const emit = defineEmits<{
 }
 
 @keyframes pulse-glow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 5px var(--color-theme-glow);
   }
   50% {

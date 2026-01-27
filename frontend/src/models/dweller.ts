@@ -6,5 +6,5 @@ export type {
   DwellerShort,
   DwellerFull,
   VisualAttributes,
-  Special
+  Special,
 } from '@/modules/dwellers/models/dweller'

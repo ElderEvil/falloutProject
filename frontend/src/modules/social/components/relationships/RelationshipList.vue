@@ -1,7 +1,13 @@
 <template>
   <div class="relationship-list">
     <div class="flex items-center justify-between mb-4">
-      <h2 v-if="!stageFilter" class="text-xl font-mono" :style="{ color: 'var(--color-theme-primary)' }">Relationships</h2>
+      <h2
+        v-if="!stageFilter"
+        class="text-xl font-mono"
+        :style="{ color: 'var(--color-theme-primary)' }"
+      >
+        Relationships
+      </h2>
       <UButton @click="refreshRelationships" :disabled="isLoading" size="sm">
         <Icon icon="mdi:refresh" class="mr-1" />
         Refresh
@@ -60,9 +66,9 @@ const filteredRelationships = computed(() => {
 
   // Apply stage filter
   if (props.stageFilter === 'forming') {
-    filtered = filtered.filter(r => r.relationship_type !== 'partner')
+    filtered = filtered.filter((r) => r.relationship_type !== 'partner')
   } else if (props.stageFilter === 'partners') {
-    filtered = filtered.filter(r => r.relationship_type === 'partner')
+    filtered = filtered.filter((r) => r.relationship_type === 'partner')
   }
 
   // Sort by relationship type priority

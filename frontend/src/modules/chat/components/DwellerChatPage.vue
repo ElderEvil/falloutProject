@@ -10,7 +10,6 @@ import DwellerChat from './DwellerChat.vue'
 import type { Dweller } from '@/models/dweller'
 import { normalizeImageUrl } from '@/utils/image'
 
-
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
@@ -46,7 +45,13 @@ onMounted(async () => {
 <template>
   <div class="dweller-chat-page">
     <div class="chat-header">
-      <UButton v-if="dweller?.vault?.id" variant="ghost" size="sm" class="mr-4" @click="router.push(`/vault/${dweller.vault.id}/dwellers/${dwellerId}`)">
+      <UButton
+        v-if="dweller?.vault?.id"
+        variant="ghost"
+        size="sm"
+        class="mr-4"
+        @click="router.push(`/vault/${dweller.vault.id}/dwellers/${dwellerId}`)"
+      >
         <Icon icon="mdi:arrow-left" class="h-5 w-5 mr-1" />
         Back to Dweller
       </UButton>

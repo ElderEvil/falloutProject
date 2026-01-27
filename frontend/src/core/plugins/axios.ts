@@ -58,8 +58,8 @@ const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   headers: {
     Accept: 'application/json',
-    'Content-Type': 'application/json'
-  }
+    'Content-Type': 'application/json',
+  },
 })
 
 apiClient.interceptors.request.use(
@@ -113,8 +113,8 @@ apiClient.interceptors.response.use(
             formData,
             {
               headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-              }
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
             }
           )
 
@@ -197,10 +197,12 @@ apiClient.interceptors.response.use(
             message = detail
           } else if (Array.isArray(detail)) {
             // FastAPI validation errors
-            message = detail.map((err: ValidationError) => {
-              const field = err.loc?.join('.') || 'field'
-              return `${field}: ${err.msg}`
-            }).join(', ')
+            message = detail
+              .map((err: ValidationError) => {
+                const field = err.loc?.join('.') || 'field'
+                return `${field}: ${err.msg}`
+              })
+              .join(', ')
           } else if (typeof detail === 'object' && detail !== null) {
             message = JSON.stringify(detail)
           }

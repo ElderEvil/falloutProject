@@ -3,12 +3,7 @@ export type {
   RelationshipType,
   CompatibilityScore,
   RelationshipCreate,
-  RelationshipUpdate
+  RelationshipUpdate,
 } from './relationship'
 
-export type {
-  Pregnancy,
-  PregnancyStatus,
-  PregnancyProgress,
-  DeliveryResult
-} from './pregnancy'
+export type { Pregnancy, PregnancyStatus, PregnancyProgress, DeliveryResult } from './pregnancy'

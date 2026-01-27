@@ -11,7 +11,7 @@ const emit = defineEmits<{
   (e: 'toggleBuildMode'): void
 }>()
 
-const iconName = computed(() => props.buildModeActive ? 'mdi:close' : 'mdi:hammer')
+const iconName = computed(() => (props.buildModeActive ? 'mdi:close' : 'mdi:hammer'))
 </script>
 
 <template>
@@ -25,7 +25,9 @@ const iconName = computed(() => props.buildModeActive ? 'mdi:close' : 'mdi:hamme
     </template>
     {{ buildModeActive ? 'Cancel Building' : 'Build Mode' }}
     <template #trailing>
-      <span class="text-xs px-1.5 py-0.5 bg-black/30 border border-current rounded-sm font-bold font-mono opacity-80">
+      <span
+        class="text-xs px-1.5 py-0.5 bg-black/30 border border-current rounded-sm font-bold font-mono opacity-80"
+      >
         {{ buildModeActive ? 'ESC' : 'B' }}
       </span>
     </template>

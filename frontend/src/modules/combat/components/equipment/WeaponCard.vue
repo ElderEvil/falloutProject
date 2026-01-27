@@ -12,7 +12,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   showActions: false,
-  equipped: false
+  equipped: false,
 })
 
 const emit = defineEmits<{

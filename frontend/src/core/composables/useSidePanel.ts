@@ -33,6 +33,6 @@ export function useSidePanel() {
     isExpanded,
     toggle,
     collapse,
-    expand
+    expand,
   }
 }

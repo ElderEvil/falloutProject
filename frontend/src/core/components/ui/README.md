@@ -13,6 +13,7 @@ This library provides pre-styled, reusable components that follow the Fallout te
 Terminal-themed button with variants and sizes.
 
 **Props:**
+
 - `variant`: 'primary' | 'secondary' | 'danger' | 'ghost' (default: 'primary')
 - `size`: 'xs' | 'sm' | 'md' | 'lg' | 'xl' (default: 'md')
 - `disabled`: boolean (default: false)
@@ -22,9 +23,11 @@ Terminal-themed button with variants and sizes.
 - `block`: boolean (default: false)
 
 **Events:**
+
 - `@click`: Emitted on button click
 
 **Usage:**
+
 ```vue
 <UButton variant="primary" size="md" @click="handleClick">
   Click Me
@@ -44,6 +47,7 @@ Terminal-themed button with variants and sizes.
 Terminal-themed input field with label and error support.
 
 **Props:**
+
 - `modelValue`: string | number
 - `type`: 'text' | 'email' | 'password' | 'number' | 'tel' | 'url' (default: 'text')
 - `label`: string (optional)
@@ -57,11 +61,13 @@ Terminal-themed input field with label and error support.
 - `size`: 'sm' | 'md' | 'lg' (default: 'md')
 
 **Events:**
+
 - `@update:modelValue`: Emitted on value change
 - `@blur`: Emitted on blur
 - `@focus`: Emitted on focus
 
 **Usage:**
+
 ```vue
 <UInput
   v-model="email"
@@ -72,12 +78,7 @@ Terminal-themed input field with label and error support.
   required
 />
 
-<UInput
-  v-model="password"
-  type="password"
-  label="Password"
-  :error="passwordError"
-/>
+<UInput v-model="password" type="password" label="Password" :error="passwordError" />
 ```
 
 ### UCard
@@ -85,6 +86,7 @@ Terminal-themed input field with label and error support.
 Terminal-themed card container.
 
 **Props:**
+
 - `title`: string (optional)
 - `padding`: 'none' | 'sm' | 'md' | 'lg' | 'xl' (default: 'md')
 - `glow`: boolean (default: false)
@@ -92,11 +94,13 @@ Terminal-themed card container.
 - `bordered`: boolean (default: true)
 
 **Slots:**
+
 - `header`: Custom header content
 - `default`: Main content
 - `footer`: Footer content
 
 **Usage:**
+
 ```vue
 <UCard title="Vault Stats" glow crt>
   <p>Population: 42</p>
@@ -113,6 +117,7 @@ Terminal-themed card container.
 Terminal-themed modal dialog.
 
 **Props:**
+
 - `modelValue`: boolean (required)
 - `title`: string (optional)
 - `size`: 'sm' | 'md' | 'lg' | 'xl' | 'full' (default: 'md')
@@ -120,15 +125,18 @@ Terminal-themed modal dialog.
 - `closeOnClickOutside`: boolean (default: true)
 
 **Events:**
+
 - `@update:modelValue`: Emitted when modal visibility changes
 - `@close`: Emitted when modal closes
 
 **Slots:**
+
 - `header`: Custom header
 - `default`: Main content
 - `footer`: Footer with actions
 
 **Usage:**
+
 ```vue
 <UModal v-model="isOpen" title="Confirm Action" size="md">
   <p>Are you sure you want to delete this vault?</p>
@@ -145,12 +153,14 @@ Terminal-themed modal dialog.
 Terminal-themed badge/tag component.
 
 **Props:**
+
 - `variant`: 'success' | 'warning' | 'danger' | 'info' | 'default' (default: 'default')
 - `size`: 'sm' | 'md' | 'lg' (default: 'md')
 - `icon`: Component (optional)
 - `dot`: boolean (default: false)
 
 **Usage:**
+
 ```vue
 <UBadge variant="success">Active</UBadge>
 <UBadge variant="warning" dot>Pending</UBadge>
@@ -162,15 +172,18 @@ Terminal-themed badge/tag component.
 Terminal-themed alert/notification component.
 
 **Props:**
+
 - `variant`: 'success' | 'warning' | 'danger' | 'info' (default: 'info')
 - `title`: string (optional)
 - `dismissible`: boolean (default: false)
 - `icon`: Component (optional)
 
 **Events:**
+
 - `@close`: Emitted when alert is dismissed
 
 **Usage:**
+
 ```vue
 <UAlert variant="success" title="Success" :icon="CheckIcon" dismissible>
   Vault created successfully!
@@ -186,11 +199,13 @@ Terminal-themed alert/notification component.
 Terminal-themed tooltip.
 
 **Props:**
+
 - `text`: string (required)
 - `position`: 'top' | 'bottom' | 'left' | 'right' (default: 'top')
 - `delay`: number (default: 200ms)
 
 **Usage:**
+
 ```vue
 <UTooltip text="Click to build a new room">
   <UButton>Build</UButton>
@@ -202,13 +217,16 @@ Terminal-themed tooltip.
 Terminal-themed dropdown menu.
 
 **Props:**
+
 - `position`: 'left' | 'right' (default: 'right')
 
 **Slots:**
+
 - `trigger`: Element that triggers the dropdown
 - `default`: Dropdown content
 
 **Usage:**
+
 ```vue
 <UDropdown position="right">
   <template #trigger>
@@ -224,6 +242,7 @@ Terminal-themed dropdown menu.
 ## Importing Components
 
 ### Single Import
+
 ```vue
 <script setup lang="ts">
 import { UButton } from '@/components/ui'
@@ -231,6 +250,7 @@ import { UButton } from '@/components/ui'
 ```
 
 ### Multiple Imports
+
 ```vue
 <script setup lang="ts">
 import { UButton, UInput, UCard } from '@/components/ui'
@@ -248,6 +268,7 @@ All components use Tailwind v4 design tokens from `src/assets/tailwind.css`. To 
 ## Accessibility
 
 All components follow WCAG 2.1 AA standards:
+
 - Keyboard navigation support
 - Proper ARIA labels
 - Focus indicators

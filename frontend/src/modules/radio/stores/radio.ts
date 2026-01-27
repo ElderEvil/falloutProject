@@ -1,7 +1,12 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import axios from '@/core/plugins/axios'
-import type { RadioStats, ManualRecruitRequest, RecruitmentResponse, RadioMode } from '../models/radio'
+import type {
+  RadioStats,
+  ManualRecruitRequest,
+  RecruitmentResponse,
+  RadioMode,
+} from '../models/radio'
 import { useToast } from '@/core/composables/useToast'
 import { getErrorMessage } from '@/core/types/utils'
 
@@ -74,7 +79,7 @@ export const useRadioStore = defineStore('radio', () => {
   async function setRadioMode(vaultId: string, mode: RadioMode): Promise<boolean> {
     try {
       await axios.put(`/api/v1/radio/vault/${vaultId}/mode`, null, {
-        params: { mode }
+        params: { mode },
       })
 
       // Refresh stats after mode change
@@ -97,7 +102,7 @@ export const useRadioStore = defineStore('radio', () => {
   ): Promise<boolean> {
     try {
       await axios.put(`/api/v1/radio/vault/${vaultId}/room/${roomId}/speedup`, null, {
-        params: { speedup }
+        params: { speedup },
       })
 
       // Refresh stats after speedup change

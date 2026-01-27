@@ -11,7 +11,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   size: 'small',
-  showLabel: false
+  showLabel: false,
 })
 
 const statusConfig = computed(() => {
@@ -23,7 +23,7 @@ const statusConfig = computed(() => {
         color: 'text-blue-400',
         bgColor: 'bg-blue-900/30',
         borderColor: 'border-blue-500/50',
-        glowColor: 'shadow-blue-500/30'
+        glowColor: 'shadow-blue-500/30',
       }
     case 'working':
       return {
@@ -32,7 +32,7 @@ const statusConfig = computed(() => {
         color: 'text-green-400',
         bgColor: 'bg-green-900/30',
         borderColor: 'border-green-500/50',
-        glowColor: 'shadow-green-500/30'
+        glowColor: 'shadow-green-500/30',
       }
     case 'training':
       return {
@@ -41,7 +41,7 @@ const statusConfig = computed(() => {
         color: 'text-purple-400',
         bgColor: 'bg-purple-900/30',
         borderColor: 'border-purple-500/50',
-        glowColor: 'shadow-purple-500/30'
+        glowColor: 'shadow-purple-500/30',
       }
     case 'resting':
       return {
@@ -50,7 +50,7 @@ const statusConfig = computed(() => {
         color: 'text-cyan-400',
         bgColor: 'bg-cyan-900/30',
         borderColor: 'border-cyan-500/50',
-        glowColor: 'shadow-cyan-500/30'
+        glowColor: 'shadow-cyan-500/30',
       }
     case 'dead':
       return {
@@ -59,7 +59,7 @@ const statusConfig = computed(() => {
         color: 'text-red-400',
         bgColor: 'bg-red-900/30',
         borderColor: 'border-red-500/50',
-        glowColor: 'shadow-red-500/30'
+        glowColor: 'shadow-red-500/30',
       }
     case 'idle':
       return {
@@ -68,7 +68,7 @@ const statusConfig = computed(() => {
         color: 'text-yellow-400',
         bgColor: 'bg-yellow-900/30',
         borderColor: 'border-yellow-500/50',
-        glowColor: 'shadow-yellow-500/30'
+        glowColor: 'shadow-yellow-500/30',
       }
     default:
       return {
@@ -77,7 +77,7 @@ const statusConfig = computed(() => {
         color: 'text-gray-400',
         bgColor: 'bg-gray-900/30',
         borderColor: 'border-gray-500/50',
-        glowColor: 'shadow-gray-500/30'
+        glowColor: 'shadow-gray-500/30',
       }
   }
 })
@@ -88,25 +88,25 @@ const sizeClasses = computed(() => {
       return {
         container: 'h-5 px-1.5',
         icon: 'h-3 w-3',
-        text: 'text-xs'
+        text: 'text-xs',
       }
     case 'medium':
       return {
         container: 'h-6 px-2',
         icon: 'h-4 w-4',
-        text: 'text-sm'
+        text: 'text-sm',
       }
     case 'large':
       return {
         container: 'h-7 px-2.5',
         icon: 'h-5 w-5',
-        text: 'text-base'
+        text: 'text-base',
       }
     default:
       return {
         container: 'h-5 px-1.5',
         icon: 'h-3 w-3',
-        text: 'text-xs'
+        text: 'text-xs',
       }
   }
 })
@@ -120,7 +120,7 @@ const sizeClasses = computed(() => {
       statusConfig.bgColor,
       statusConfig.borderColor,
       sizeClasses.container,
-      `hover:${statusConfig.glowColor}`
+      `hover:${statusConfig.glowColor}`,
     ]"
     :title="statusConfig.label"
   >
@@ -137,7 +137,8 @@ const sizeClasses = computed(() => {
 }
 
 @keyframes pulse-glow {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {

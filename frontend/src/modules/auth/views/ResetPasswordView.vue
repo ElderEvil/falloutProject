@@ -1,58 +1,58 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import axios from '@/core/plugins/axios';
+import { ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import axios from '@/core/plugins/axios'
 
-const route = useRoute();
-const router = useRouter();
+const route = useRoute()
+const router = useRouter()
 
-const token = ref('');
-const newPassword = ref('');
-const confirmPassword = ref('');
-const error = ref('');
-const success = ref(false);
-const loading = ref(false);
+const token = ref('')
+const newPassword = ref('')
+const confirmPassword = ref('')
+const error = ref('')
+const success = ref(false)
+const loading = ref(false)
 
 onMounted(() => {
-  token.value = route.query.token as string || '';
+  token.value = (route.query.token as string) || ''
   if (!token.value) {
-    error.value = 'Invalid or missing reset token';
+    error.value = 'Invalid or missing reset token'
   }
-});
+})
 
 const handleSubmit = async () => {
-  error.value = '';
+  error.value = ''
 
   if (newPassword.value.length < 8) {
-    error.value = 'Password must be at least 8 characters';
-    return;
+    error.value = 'Password must be at least 8 characters'
+    return
   }
 
   if (newPassword.value !== confirmPassword.value) {
-    error.value = 'Passwords do not match';
-    return;
+    error.value = 'Passwords do not match'
+    return
   }
 
-  loading.value = true;
+  loading.value = true
 
   try {
     await axios.post('/api/v1/auth/reset-password', {
       token: token.value,
-      new_password: newPassword.value
-    });
+      new_password: newPassword.value,
+    })
 
-    success.value = true;
+    success.value = true
 
     // Redirect to login after 3 seconds
     setTimeout(() => {
-      router.push('/login');
-    }, 3000);
+      router.push('/login')
+    }, 3000)
   } catch (err: any) {
-    error.value = err.response?.data?.detail || 'Failed to reset password';
+    error.value = err.response?.data?.detail || 'Failed to reset password'
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 </script>
 
 <template>
@@ -157,10 +157,7 @@ const handleSubmit = async () => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    transparent 50%,
-    rgba(0, 255, 0, 0.03) 50%
-  );
+  background: linear-gradient(transparent 50%, rgba(0, 255, 0, 0.03) 50%);
   background-size: 100% 4px;
   pointer-events: none;
   z-index: 1;
@@ -178,8 +175,13 @@ const handleSubmit = async () => {
 }
 
 @keyframes flicker {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.95; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.95;
+  }
 }
 
 .login-box {

@@ -9,12 +9,7 @@ const { toasts, remove } = useToast()
   <Teleport to="body">
     <div class="toast-container">
       <TransitionGroup name="toast-list">
-        <UToast
-          v-for="toast in toasts"
-          :key="toast.id"
-          :toast="toast"
-          @close="remove"
-        />
+        <UToast v-for="toast in toasts" :key="toast.id" :toast="toast" @close="remove" />
       </TransitionGroup>
     </div>
   </Teleport>

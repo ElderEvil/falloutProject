@@ -10,5 +10,5 @@ export {
   type Outfit,
   getRarityColor,
   getDamageRange,
-  getOutfitBonuses
+  getOutfitBonuses,
 } from '@/modules/combat/models/equipment'

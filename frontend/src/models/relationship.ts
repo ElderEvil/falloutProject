@@ -4,5 +4,5 @@ export type {
   Relationship,
   CompatibilityScore,
   RelationshipCreate,
-  RelationshipUpdate
+  RelationshipUpdate,
 } from '@/modules/social/models/relationship'

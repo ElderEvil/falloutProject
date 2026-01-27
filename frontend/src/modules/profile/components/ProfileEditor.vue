@@ -1,13 +1,16 @@
 <template>
-  <div class="bg-gray-800 rounded-lg p-6 border" :style="{ borderColor: 'rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3)' }">
-    <h2 class="text-2xl font-bold mb-6" :style="{ color: 'var(--color-theme-primary)' }">Edit Profile</h2>
+  <div
+    class="bg-gray-800 rounded-lg p-6 border"
+    :style="{ borderColor: 'rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3)' }"
+  >
+    <h2 class="text-2xl font-bold mb-6" :style="{ color: 'var(--color-theme-primary)' }">
+      Edit Profile
+    </h2>
 
     <form @submit.prevent="handleSubmit" class="space-y-4">
       <!-- Bio -->
       <div>
-        <label for="bio" class="block text-sm font-medium text-gray-300 mb-2">
-          Bio
-        </label>
+        <label for="bio" class="block text-sm font-medium text-gray-300 mb-2"> Bio </label>
         <textarea
           id="bio"
           v-model="formData.bio"
@@ -16,9 +19,7 @@
           class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
           placeholder="Tell us about yourself..."
         />
-        <p class="text-xs text-gray-400 mt-1">
-          {{ formData.bio?.length || 0 }} / 500 characters
-        </p>
+        <p class="text-xs text-gray-400 mt-1">{{ formData.bio?.length || 0 }} / 500 characters</p>
       </div>
 
       <!-- Avatar URL -->
@@ -127,7 +128,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   loading: false,
-  error: null
+  error: null,
 })
 
 const emit = defineEmits<{
@@ -140,13 +141,11 @@ const { availableThemes, themes } = useTheme()
 const formData = ref<ProfileUpdate>({
   bio: props.initialData.bio || '',
   avatar_url: props.initialData.avatar_url || '',
-  preferences: props.initialData.preferences || {}
+  preferences: props.initialData.preferences || {},
 })
 
 // Extract theme from preferences or use default
-const selectedTheme = ref<ThemeName>(
-  (props.initialData.preferences?.theme as ThemeName) || 'fo4'
-)
+const selectedTheme = ref<ThemeName>((props.initialData.preferences?.theme as ThemeName) || 'fo4')
 
 const currentThemeDescription = computed(() => {
   return themes[selectedTheme.value]?.description || ''
@@ -159,7 +158,7 @@ const jsonError = ref<string | null>(null)
 watch(selectedTheme, (newTheme) => {
   formData.value.preferences = {
     ...formData.value.preferences,
-    theme: newTheme
+    theme: newTheme,
   }
   // Update the JSON editor to reflect the theme change
   preferencesJson.value = JSON.stringify(formData.value.preferences, null, 2)
@@ -192,13 +191,13 @@ const handleSubmit = () => {
   // Ensure theme is in preferences
   const updatedPreferences = {
     ...formData.value.preferences,
-    theme: selectedTheme.value
+    theme: selectedTheme.value,
   }
 
   emit('submit', {
     bio: formData.value.bio || null,
     avatar_url: formData.value.avatar_url || null,
-    preferences: updatedPreferences
+    preferences: updatedPreferences,
   })
 }
 </script>

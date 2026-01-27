@@ -1,14 +1,14 @@
 <template>
   <div class="pregnancy-tracker">
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-xl font-mono" :style="{ color: 'var(--color-theme-primary)' }">Pregnancies</h2>
+      <h2 class="text-xl font-mono" :style="{ color: 'var(--color-theme-primary)' }">
+        Pregnancies
+      </h2>
       <div class="flex gap-2">
         <UBadge v-if="dueCount > 0" variant="warning" class="animate-pulse">
           {{ dueCount }} Due!
         </UBadge>
-        <UButton @click="refreshPregnancies" :disabled="isLoading" size="sm">
-          Refresh
-        </UButton>
+        <UButton @click="refreshPregnancies" :disabled="isLoading" size="sm"> Refresh </UButton>
       </div>
     </div>
 

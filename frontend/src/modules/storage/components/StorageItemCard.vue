@@ -13,7 +13,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   count: 1,
-  ids: () => []
+  ids: () => [],
 })
 
 const emit = defineEmits<{
@@ -30,7 +30,12 @@ const normalizedItemType = computed(() => {
 })
 
 // Debug: Log item data on mount
-console.log('[StorageItemCard] Item type:', props.itemType, '→ normalized:', normalizedItemType.value)
+console.log(
+  '[StorageItemCard] Item type:',
+  props.itemType,
+  '→ normalized:',
+  normalizedItemType.value
+)
 console.log('[StorageItemCard] Item fields:', Object.keys(props.item))
 console.log('[StorageItemCard] weapon_subtype:', props.item.weapon_subtype)
 console.log('[StorageItemCard] outfit_type:', props.item.outfit_type)
@@ -129,7 +134,7 @@ const itemStats = computed(() => {
       stats.push({
         label: 'Damage',
         value: `${props.item.damage_min}-${props.item.damage_max}`,
-        icon: 'mdi:sword-cross'
+        icon: 'mdi:sword-cross',
       })
     }
     // SPECIAL stat
@@ -137,7 +142,7 @@ const itemStats = computed(() => {
       stats.push({
         label: 'Uses',
         value: props.item.stat.toUpperCase(),
-        icon: 'mdi:alphabet-latin'
+        icon: 'mdi:alphabet-latin',
       })
     }
     // Weapon type
@@ -145,7 +150,7 @@ const itemStats = computed(() => {
       stats.push({
         label: 'Type',
         value: props.item.weapon_type,
-        icon: 'mdi:tag'
+        icon: 'mdi:tag',
       })
     }
     // Optional extra stats
@@ -161,7 +166,7 @@ const itemStats = computed(() => {
       stats.push({
         label: 'Gender',
         value: props.item.gender,
-        icon: 'mdi:human-male-female'
+        icon: 'mdi:human-male-female',
       })
     }
     if (props.item.weight !== undefined) {
@@ -223,21 +228,32 @@ const rarityTextClass = computed(() => {
 
 <template>
   <UCard
-    :class="['transition-all duration-200 hover:bg-black/50 hover:-translate-y-0.5 hover:shadow-glow-md font-mono', rarityBorderClass]"
+    :class="[
+      'transition-all duration-200 hover:bg-black/50 hover:-translate-y-0.5 hover:shadow-glow-md font-mono',
+      rarityBorderClass,
+    ]"
     padding="sm"
   >
     <div class="flex flex-col gap-3">
       <!-- Header -->
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 flex items-center justify-center">
-          <Icon :icon="itemIcon" class="w-10 h-10 text-[--color-theme-primary] drop-shadow-[0_0_4px_var(--color-theme-glow)]" />
+          <Icon
+            :icon="itemIcon"
+            class="w-10 h-10 text-[--color-theme-primary] drop-shadow-[0_0_4px_var(--color-theme-glow)]"
+          />
         </div>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2">
-            <h3 :class="['text-lg font-bold m-0 drop-shadow-[0_0_4px_currentColor]', rarityTextClass]">
+            <h3
+              :class="['text-lg font-bold m-0 drop-shadow-[0_0_4px_currentColor]', rarityTextClass]"
+            >
               {{ itemName }}
             </h3>
-            <span v-if="count > 1" class="inline-flex items-center justify-center min-w-[2rem] px-2 py-0.5 bg-[--color-theme-primary] text-black rounded-full text-xs font-bold shadow-[0_0_8px_var(--color-theme-glow)]">
+            <span
+              v-if="count > 1"
+              class="inline-flex items-center justify-center min-w-[2rem] px-2 py-0.5 bg-[--color-theme-primary] text-black rounded-full text-xs font-bold shadow-[0_0_8px_var(--color-theme-glow)]"
+            >
               ×{{ count }}
             </span>
           </div>
@@ -262,7 +278,9 @@ const rarityTextClass = computed(() => {
       </div>
 
       <!-- Footer -->
-      <div class="flex items-center justify-between gap-3 pt-3 border-t border-[--color-theme-glow]">
+      <div
+        class="flex items-center justify-between gap-3 pt-3 border-t border-[--color-theme-glow]"
+      >
         <div class="flex items-center gap-1 text-[--color-theme-primary] font-bold text-base">
           <Icon icon="mdi:currency-usd" class="w-5 h-5 text-[--color-caps]" />
           <span>{{ itemValue }} caps</span>
@@ -306,5 +324,4 @@ const rarityTextClass = computed(() => {
       </div>
     </div>
   </UCard>
-
 </template>

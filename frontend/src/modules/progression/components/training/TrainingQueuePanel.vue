@@ -36,10 +36,7 @@ const fetchTrainings = async () => {
 
   loading.value = true
   try {
-    await trainingStore.fetchVaultTrainings(
-      vaultStore.activeVault.id,
-      authStore.token
-    )
+    await trainingStore.fetchVaultTrainings(vaultStore.activeVault.id, authStore.token)
   } finally {
     loading.value = false
   }
@@ -81,11 +78,7 @@ onUnmounted(() => {
         <h3>Training Queue</h3>
       </div>
       <button @click="fetchTrainings" class="refresh-button" :disabled="loading">
-        <Icon
-          icon="mdi:refresh"
-          class="refresh-icon"
-          :class="{ 'animate-spin': loading }"
-        />
+        <Icon icon="mdi:refresh" class="refresh-icon" :class="{ 'animate-spin': loading }" />
       </button>
     </div>
 
@@ -118,9 +111,7 @@ onUnmounted(() => {
       <div v-if="activeTrainings.length > 0" class="active-trainings-section">
         <div class="section-header">
           <Icon icon="mdi:account-clock" class="section-icon" />
-          <h4 class="section-title">
-            Active Training ({{ activeTrainings.length }})
-          </h4>
+          <h4 class="section-title">Active Training ({{ activeTrainings.length }})</h4>
         </div>
         <div class="training-list">
           <TrainingProgressCard
@@ -138,14 +129,15 @@ onUnmounted(() => {
         <div class="summary-row">
           <Icon icon="mdi:account-multiple" class="summary-icon" />
           <span class="summary-text">
-            {{ activeTrainings.length }} dweller{{ activeTrainings.length !== 1 ? 's' : '' }} training
+            {{ activeTrainings.length }} dweller{{
+              activeTrainings.length !== 1 ? 's' : ''
+            }}
+            training
           </span>
         </div>
         <div v-if="completingSoon.length > 0" class="summary-row">
           <Icon icon="mdi:clock-alert" class="summary-icon completing" />
-          <span class="summary-text completing">
-            {{ completingSoon.length }} completing soon
-          </span>
+          <span class="summary-text completing"> {{ completingSoon.length }} completing soon </span>
         </div>
       </div>
     </div>

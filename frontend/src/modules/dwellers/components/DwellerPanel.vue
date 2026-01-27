@@ -30,7 +30,7 @@ const tabs = [
   { key: 'profile', label: 'Profile' },
   { key: 'appearance', label: 'Appearance' },
   { key: 'stats', label: 'Stats' },
-  { key: 'equipment', label: 'Equipment' }
+  { key: 'equipment', label: 'Equipment' },
 ]
 </script>
 
@@ -67,7 +67,11 @@ const tabs = [
             :A="dweller.A"
             :L="dweller.L"
           />
-          <DwellerEquipment v-else-if="currentTab === 'equipment'" :dweller="dweller" @refresh="emit('refresh')" />
+          <DwellerEquipment
+            v-else-if="currentTab === 'equipment'"
+            :dweller="dweller"
+            @refresh="emit('refresh')"
+          />
         </div>
       </template>
     </UTabs>

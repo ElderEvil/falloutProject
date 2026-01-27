@@ -28,100 +28,92 @@ onMounted(async () => {
     <SidePanel />
 
     <div class="training-view" :class="{ collapsed: isCollapsed }">
-    <div class="training-header">
-      <div class="header-content">
-        <Icon icon="mdi:dumbbell" class="header-icon" />
-        <div class="header-text">
-          <h1 class="header-title">Training Center</h1>
-          <p class="header-subtitle">
-            Monitor and manage SPECIAL stat training across your vault
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <div class="training-content">
-      <div class="main-panel">
-        <TrainingQueuePanel />
-      </div>
-
-      <div class="info-panel">
-        <div class="info-card">
-          <Icon icon="mdi:information" class="info-icon" />
-          <h3 class="info-title">About Training</h3>
-          <div class="info-text">
-            <p>
-              Dwellers can train their SPECIAL stats in dedicated training rooms. Each stat has
-              its own training room type:
-            </p>
-            <ul class="stat-list">
-              <li><Icon icon="mdi:arm-flex" /> <strong>Strength</strong> - Weight Room</li>
-              <li><Icon icon="mdi:eye" /> <strong>Perception</strong> - Armory</li>
-              <li><Icon icon="mdi:heart" /> <strong>Endurance</strong> - Fitness Room</li>
-              <li><Icon icon="mdi:account-voice" /> <strong>Charisma</strong> - Lounge</li>
-              <li><Icon icon="mdi:brain" /> <strong>Intelligence</strong> - Classroom</li>
-              <li><Icon icon="mdi:run-fast" /> <strong>Agility</strong> - Athletics Room</li>
-              <li><Icon icon="mdi:clover" /> <strong>Luck</strong> - Game Room</li>
-            </ul>
-          </div>
-        </div>
-
-        <div class="info-card">
-          <Icon icon="mdi:clock-time-four" class="info-icon" />
-          <h3 class="info-title">Training Duration</h3>
-          <div class="info-text">
-            <p>Training takes time based on the current stat level:</p>
-            <ul class="duration-list">
-              <li>
-                <strong>Base Duration:</strong> 2 hours
-              </li>
-              <li>
-                <strong>Scaling:</strong> +30 minutes per current stat level
-              </li>
-              <li>
-                <strong>Tier 2 Rooms:</strong> 25% faster
-              </li>
-              <li>
-                <strong>Tier 3 Rooms:</strong> 40% faster
-              </li>
-            </ul>
-            <p class="example">
-              <Icon icon="mdi:lightbulb" />
-              <em>Example: Training from 5→6 takes 4.5 hours (or 2.7 hours in a Tier 3 room)</em>
+      <div class="training-header">
+        <div class="header-content">
+          <Icon icon="mdi:dumbbell" class="header-icon" />
+          <div class="header-text">
+            <h1 class="header-title">Training Center</h1>
+            <p class="header-subtitle">
+              Monitor and manage SPECIAL stat training across your vault
             </p>
           </div>
         </div>
+      </div>
 
-        <div class="info-card">
-          <Icon icon="mdi:star" class="info-icon" />
-          <h3 class="info-title">Tips & Tricks</h3>
-          <div class="info-text">
-            <ul class="tips-list">
-              <li>
-                <Icon icon="mdi:check-circle" class="tip-icon" />
-                SPECIAL stats cap at 10 - can't train beyond maximum
-              </li>
-              <li>
-                <Icon icon="mdi:check-circle" class="tip-icon" />
-                Dwellers earn XP while training (50 XP per hour)
-              </li>
-              <li>
-                <Icon icon="mdi:check-circle" class="tip-icon" />
-                Higher tier rooms train faster - upgrade when possible
-              </li>
-              <li>
-                <Icon icon="mdi:check-circle" class="tip-icon" />
-                Training rooms have limited capacity - plan accordingly
-              </li>
-              <li>
-                <Icon icon="mdi:check-circle" class="tip-icon" />
-                You can cancel training anytime without penalty
-              </li>
-            </ul>
+      <div class="training-content">
+        <div class="main-panel">
+          <TrainingQueuePanel />
+        </div>
+
+        <div class="info-panel">
+          <div class="info-card">
+            <Icon icon="mdi:information" class="info-icon" />
+            <h3 class="info-title">About Training</h3>
+            <div class="info-text">
+              <p>
+                Dwellers can train their SPECIAL stats in dedicated training rooms. Each stat has
+                its own training room type:
+              </p>
+              <ul class="stat-list">
+                <li><Icon icon="mdi:arm-flex" /> <strong>Strength</strong> - Weight Room</li>
+                <li><Icon icon="mdi:eye" /> <strong>Perception</strong> - Armory</li>
+                <li><Icon icon="mdi:heart" /> <strong>Endurance</strong> - Fitness Room</li>
+                <li><Icon icon="mdi:account-voice" /> <strong>Charisma</strong> - Lounge</li>
+                <li><Icon icon="mdi:brain" /> <strong>Intelligence</strong> - Classroom</li>
+                <li><Icon icon="mdi:run-fast" /> <strong>Agility</strong> - Athletics Room</li>
+                <li><Icon icon="mdi:clover" /> <strong>Luck</strong> - Game Room</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="info-card">
+            <Icon icon="mdi:clock-time-four" class="info-icon" />
+            <h3 class="info-title">Training Duration</h3>
+            <div class="info-text">
+              <p>Training takes time based on the current stat level:</p>
+              <ul class="duration-list">
+                <li><strong>Base Duration:</strong> 2 hours</li>
+                <li><strong>Scaling:</strong> +30 minutes per current stat level</li>
+                <li><strong>Tier 2 Rooms:</strong> 25% faster</li>
+                <li><strong>Tier 3 Rooms:</strong> 40% faster</li>
+              </ul>
+              <p class="example">
+                <Icon icon="mdi:lightbulb" />
+                <em>Example: Training from 5→6 takes 4.5 hours (or 2.7 hours in a Tier 3 room)</em>
+              </p>
+            </div>
+          </div>
+
+          <div class="info-card">
+            <Icon icon="mdi:star" class="info-icon" />
+            <h3 class="info-title">Tips & Tricks</h3>
+            <div class="info-text">
+              <ul class="tips-list">
+                <li>
+                  <Icon icon="mdi:check-circle" class="tip-icon" />
+                  SPECIAL stats cap at 10 - can't train beyond maximum
+                </li>
+                <li>
+                  <Icon icon="mdi:check-circle" class="tip-icon" />
+                  Dwellers earn XP while training (50 XP per hour)
+                </li>
+                <li>
+                  <Icon icon="mdi:check-circle" class="tip-icon" />
+                  Higher tier rooms train faster - upgrade when possible
+                </li>
+                <li>
+                  <Icon icon="mdi:check-circle" class="tip-icon" />
+                  Training rooms have limited capacity - plan accordingly
+                </li>
+                <li>
+                  <Icon icon="mdi:check-circle" class="tip-icon" />
+                  You can cancel training anytime without penalty
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>
-    </div>
     </div>
   </div>
 </template>

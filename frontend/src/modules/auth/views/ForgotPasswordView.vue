@@ -1,34 +1,34 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import axios from '@/core/plugins/axios';
+import { ref } from 'vue'
+import axios from '@/core/plugins/axios'
 
-const email = ref('');
-const error = ref('');
-const success = ref(false);
-const loading = ref(false);
+const email = ref('')
+const error = ref('')
+const success = ref(false)
+const loading = ref(false)
 
 const handleSubmit = async () => {
-  error.value = '';
+  error.value = ''
 
   if (!email.value) {
-    error.value = 'Email is required';
-    return;
+    error.value = 'Email is required'
+    return
   }
 
-  loading.value = true;
+  loading.value = true
 
   try {
     await axios.post('/api/v1/auth/forgot-password', {
-      email: email.value
-    });
+      email: email.value,
+    })
 
-    success.value = true;
+    success.value = true
   } catch (err: any) {
-    error.value = err.response?.data?.detail || 'Failed to send reset email';
+    error.value = err.response?.data?.detail || 'Failed to send reset email'
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 </script>
 
 <template>
@@ -121,10 +121,7 @@ const handleSubmit = async () => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    transparent 50%,
-    rgba(0, 255, 0, 0.03) 50%
-  );
+  background: linear-gradient(transparent 50%, rgba(0, 255, 0, 0.03) 50%);
   background-size: 100% 4px;
   pointer-events: none;
   z-index: 1;
@@ -142,8 +139,13 @@ const handleSubmit = async () => {
 }
 
 @keyframes flicker {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.95; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.95;
+  }
 }
 
 .login-box {

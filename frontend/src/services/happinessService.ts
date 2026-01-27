@@ -4,5 +4,5 @@
 export {
   happinessService,
   type HappinessModifiers,
-  type HappinessModifier as Modifier
+  type HappinessModifier as Modifier,
 } from '@/modules/dwellers/services/happinessService'

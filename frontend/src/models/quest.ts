@@ -3,5 +3,5 @@ export type {
   Quest,
   VaultQuest,
   QuestCreate,
-  QuestUpdate
+  QuestUpdate,
 } from '@/modules/progression/models/quest'

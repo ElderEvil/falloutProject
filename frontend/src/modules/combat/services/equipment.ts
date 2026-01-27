@@ -6,28 +6,36 @@ export async function fetchWeapons(token: string, vaultId?: string): Promise<Wea
   const params = vaultId ? { vault_id: vaultId } : {}
   const response = await axios.get('/api/v1/weapons/', {
     params,
-    headers: { Authorization: `Bearer ${token}` }
+    headers: { Authorization: `Bearer ${token}` },
   })
   return response.data
 }
 
 export async function fetchWeapon(weaponId: string, token: string): Promise<Weapon> {
   const response = await axios.get(`/api/v1/weapons/${weaponId}`, {
-    headers: { Authorization: `Bearer ${token}` }
+    headers: { Authorization: `Bearer ${token}` },
   })
   return response.data
 }
 
-export async function equipWeapon(dwellerId: string, weaponId: string, token: string): Promise<Weapon> {
+export async function equipWeapon(
+  dwellerId: string,
+  weaponId: string,
+  token: string
+): Promise<Weapon> {
   const response = await axios.post(`/api/v1/weapons/${dwellerId}/equip/${weaponId}`, null, {
-    headers: { Authorization: `Bearer ${token}` }
+    headers: { Authorization: `Bearer ${token}` },
   })
   return response.data
 }
 
-export async function unequipWeapon(dwellerId: string, weaponId: string, token: string): Promise<Weapon> {
+export async function unequipWeapon(
+  dwellerId: string,
+  weaponId: string,
+  token: string
+): Promise<Weapon> {
   const response = await axios.post(`/api/v1/weapons/${weaponId}/unequip/`, null, {
-    headers: { Authorization: `Bearer ${token}` }
+    headers: { Authorization: `Bearer ${token}` },
   })
   return response.data
 }
@@ -37,28 +45,36 @@ export async function fetchOutfits(token: string, vaultId?: string): Promise<Out
   const params = vaultId ? { vault_id: vaultId } : {}
   const response = await axios.get('/api/v1/outfits/', {
     params,
-    headers: { Authorization: `Bearer ${token}` }
+    headers: { Authorization: `Bearer ${token}` },
   })
   return response.data
 }
 
 export async function fetchOutfit(outfitId: string, token: string): Promise<Outfit> {
   const response = await axios.get(`/api/v1/outfits/${outfitId}`, {
-    headers: { Authorization: `Bearer ${token}` }
+    headers: { Authorization: `Bearer ${token}` },
   })
   return response.data
 }
 
-export async function equipOutfit(dwellerId: string, outfitId: string, token: string): Promise<Outfit> {
+export async function equipOutfit(
+  dwellerId: string,
+  outfitId: string,
+  token: string
+): Promise<Outfit> {
   const response = await axios.post(`/api/v1/outfits/${dwellerId}/equip/${outfitId}`, null, {
-    headers: { Authorization: `Bearer ${token}` }
+    headers: { Authorization: `Bearer ${token}` },
   })
   return response.data
 }
 
-export async function unequipOutfit(dwellerId: string, outfitId: string, token: string): Promise<Outfit> {
+export async function unequipOutfit(
+  dwellerId: string,
+  outfitId: string,
+  token: string
+): Promise<Outfit> {
   const response = await axios.post(`/api/v1/outfits/${outfitId}/unequip/`, null, {
-    headers: { Authorization: `Bearer ${token}` }
+    headers: { Authorization: `Bearer ${token}` },
   })
   return response.data
 }

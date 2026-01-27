@@ -5,6 +5,6 @@ export function useFlickering() {
 
   return {
     isFlickering,
-    toggleFlickering
+    toggleFlickering,
   }
 }

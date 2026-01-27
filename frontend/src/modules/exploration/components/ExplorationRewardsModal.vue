@@ -12,15 +12,18 @@ interface Props {
 const props = defineProps<Props>()
 
 // Guard against null rewards
-const safeRewards = computed(() => props.rewards || {
-  caps: 0,
-  items: [],
-  overflow_items: [],
-  experience: 0,
-  distance: 0,
-  enemies_defeated: 0,
-  events_encountered: 0
-})
+const safeRewards = computed(
+  () =>
+    props.rewards || {
+      caps: 0,
+      items: [],
+      overflow_items: [],
+      experience: 0,
+      distance: 0,
+      enemies_defeated: 0,
+      events_encountered: 0,
+    }
+)
 const emit = defineEmits<{
   close: []
 }>()
@@ -29,7 +32,7 @@ const getRarityColor = (rarity?: string): string => {
   const colors: Record<string, string> = {
     Common: 'var(--color-rarity-common)',
     Rare: 'var(--color-rarity-rare)',
-    Legendary: 'var(--color-rarity-legendary)'
+    Legendary: 'var(--color-rarity-legendary)',
   }
   if (rarity && colors[rarity]) {
     return colors[rarity]!
@@ -62,7 +65,8 @@ const getRarityColor = (rarity?: string): string => {
           <!-- Recalled Early Banner -->
           <div v-if="safeRewards.recalled_early" class="recalled-banner">
             <Icon icon="mdi:information" class="mr-2" />
-            Recalled early ({{ Math.round(safeRewards.progress_percentage || 0) }}% complete) - Reduced rewards
+            Recalled early ({{ Math.round(safeRewards.progress_percentage || 0) }}% complete) -
+            Reduced rewards
           </div>
 
           <!-- Rewards Grid -->
@@ -158,7 +162,10 @@ const getRarityColor = (rarity?: string): string => {
           </div>
 
           <!-- Overflow Items (Storage Full) -->
-          <div v-if="safeRewards.overflow_items && safeRewards.overflow_items.length > 0" class="items-section overflow-section">
+          <div
+            v-if="safeRewards.overflow_items && safeRewards.overflow_items.length > 0"
+            class="items-section overflow-section"
+          >
             <h3 class="section-title overflow-title">
               <Icon icon="mdi:package-variant-closed-remove" class="mr-2" />
               Storage Full - Items Left Behind
@@ -264,7 +271,7 @@ const getRarityColor = (rarity?: string): string => {
 .header-icon {
   width: 2rem;
   height: 2rem;
-  color: #FFD700;
+  color: #ffd700;
   filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
 }
 
@@ -371,7 +378,7 @@ const getRarityColor = (rarity?: string): string => {
 
 .reward-icon-container.experience {
   background: rgba(255, 215, 0, 0.2);
-  border: 2px solid #FFD700;
+  border: 2px solid #ffd700;
 }
 
 .reward-icon-container.caps {
@@ -381,7 +388,7 @@ const getRarityColor = (rarity?: string): string => {
 
 .reward-icon-container.distance {
   background: rgba(65, 105, 225, 0.2);
-  border: 2px solid #4169E1;
+  border: 2px solid #4169e1;
 }
 
 .reward-icon-container.enemies {
@@ -401,7 +408,7 @@ const getRarityColor = (rarity?: string): string => {
 }
 
 .reward-icon-container.experience .reward-icon {
-  color: #FFD700;
+  color: #ffd700;
 }
 
 .reward-icon-container.caps .reward-icon {
@@ -409,7 +416,7 @@ const getRarityColor = (rarity?: string): string => {
 }
 
 .reward-icon-container.distance .reward-icon {
-  color: #4169E1;
+  color: #4169e1;
 }
 
 .reward-icon-container.enemies .reward-icon {
@@ -440,13 +447,14 @@ const getRarityColor = (rarity?: string): string => {
 }
 
 .experience-value {
-  color: #FFD700;
+  color: #ffd700;
   text-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
   animation: pulse 2s ease-in-out infinite;
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
   }
   50% {

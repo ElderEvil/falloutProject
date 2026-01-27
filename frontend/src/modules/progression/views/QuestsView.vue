@@ -72,7 +72,8 @@ const handleCompleteQuest = async (questId: string) => {
             </div>
             <h1 class="locked-title">OVERSEER'S OFFICE REQUIRED</h1>
             <p class="locked-description">
-              Build an <strong>Overseer's Office</strong> to unlock the quest system and access missions for your vault.
+              Build an <strong>Overseer's Office</strong> to unlock the quest system and access
+              missions for your vault.
             </p>
             <div class="locked-hint">
               <Icon icon="mdi:information" class="inline mr-2" />
@@ -115,7 +116,11 @@ const handleCompleteQuest = async (questId: string) => {
                   ACTIVE QUESTS
                 </h2>
                 <div class="quest-grid">
-                  <div v-for="quest in activeQuests" :key="quest.id" class="quest-card active-quest">
+                  <div
+                    v-for="quest in activeQuests"
+                    :key="quest.id"
+                    class="quest-card active-quest"
+                  >
                     <div class="quest-header">
                       <h3 class="quest-title">{{ quest.title }}</h3>
                       <div class="quest-badge active-badge">ACTIVE!</div>
@@ -142,7 +147,10 @@ const handleCompleteQuest = async (questId: string) => {
                       </div>
                     </div>
 
-                    <button @click="handleCompleteQuest(quest.id)" class="quest-action-btn complete-btn">
+                    <button
+                      @click="handleCompleteQuest(quest.id)"
+                      class="quest-action-btn complete-btn"
+                    >
                       <Icon icon="mdi:check-bold" class="inline mr-2" />
                       COMPLETE QUEST
                     </button>
@@ -157,7 +165,11 @@ const handleCompleteQuest = async (questId: string) => {
                   AVAILABLE QUESTS
                 </h2>
                 <div class="quest-grid">
-                  <div v-for="quest in availableQuests" :key="quest.id" class="quest-card available-quest">
+                  <div
+                    v-for="quest in availableQuests"
+                    :key="quest.id"
+                    class="quest-card available-quest"
+                  >
                     <div class="quest-header">
                       <h3 class="quest-title">{{ quest.title }}</h3>
                       <div class="quest-badge available-badge">NEW</div>
@@ -193,7 +205,10 @@ const handleCompleteQuest = async (questId: string) => {
               </div>
 
               <!-- Empty State -->
-              <div v-if="activeQuests.length === 0 && availableQuests.length === 0" class="empty-state">
+              <div
+                v-if="activeQuests.length === 0 && availableQuests.length === 0"
+                class="empty-state"
+              >
                 <Icon icon="mdi:inbox" class="text-8xl mb-6 opacity-30" />
                 <p>No quests available at the moment</p>
               </div>
@@ -207,7 +222,11 @@ const handleCompleteQuest = async (questId: string) => {
               </div>
 
               <div v-else class="quest-grid">
-                <div v-for="quest in completedQuests" :key="quest.id" class="quest-card completed-quest">
+                <div
+                  v-for="quest in completedQuests"
+                  :key="quest.id"
+                  class="quest-card completed-quest"
+                >
                   <div class="quest-header">
                     <h3 class="quest-title">{{ quest.title }}</h3>
                     <div class="quest-badge completed-badge">
@@ -486,8 +505,13 @@ const handleCompleteQuest = async (questId: string) => {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .available-badge {

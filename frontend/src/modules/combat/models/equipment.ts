@@ -1,9 +1,23 @@
 // Weapon types (matching API)
 export type WeaponType = 'melee' | 'gun' | 'energy' | 'heavy'
-export type WeaponSubtype = 'blunt' | 'edged' | 'pointed' | 'pistol' | 'rifle' | 'shotgun' | 'automatic' | 'explosive' | 'flamer'
+export type WeaponSubtype =
+  | 'blunt'
+  | 'edged'
+  | 'pointed'
+  | 'pistol'
+  | 'rifle'
+  | 'shotgun'
+  | 'automatic'
+  | 'explosive'
+  | 'flamer'
 
 // Outfit types (matching API)
-export type OutfitType = 'common_outfit' | 'rare_outfit' | 'legendary_outfit' | 'power_armor' | 'tiered_outfit'
+export type OutfitType =
+  | 'common_outfit'
+  | 'rare_outfit'
+  | 'legendary_outfit'
+  | 'power_armor'
+  | 'tiered_outfit'
 
 // Gender types (matching API)
 export type Gender = 'male' | 'female'

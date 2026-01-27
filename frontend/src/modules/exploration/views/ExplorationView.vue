@@ -153,73 +153,75 @@ const closeRewardsModal = () => {
     <SidePanel />
 
     <div class="exploration-view" :class="{ collapsed: isCollapsed }">
-    <!-- Header -->
-    <div class="view-header">
-      <div class="header-content">
-        <Icon icon="mdi:compass" class="header-icon" />
-        <div>
-          <h1 class="header-title">Wasteland Exploration</h1>
-          <p class="header-subtitle">Monitor active explorations and manage your explorers</p>
+      <!-- Header -->
+      <div class="view-header">
+        <div class="header-content">
+          <Icon icon="mdi:compass" class="header-icon" />
+          <div>
+            <h1 class="header-title">Wasteland Exploration</h1>
+            <p class="header-subtitle">Monitor active explorations and manage your explorers</p>
+          </div>
+        </div>
+        <div class="header-stats">
+          <div class="stat-badge">
+            <Icon icon="mdi:account-search" class="stat-icon" />
+            <span class="stat-value">{{ activeExplorationsArray.length }}</span>
+            <span class="stat-label">Active</span>
+          </div>
         </div>
       </div>
-      <div class="header-stats">
-        <div class="stat-badge">
-          <Icon icon="mdi:account-search" class="stat-icon" />
-          <span class="stat-value">{{ activeExplorationsArray.length }}</span>
-          <span class="stat-label">Active</span>
-        </div>
-      </div>
-    </div>
 
-    <!-- Main Content -->
-    <div class="exploration-content">
-      <!-- Explorer Cards List -->
-      <div class="explorers-section">
-        <div v-if="activeExplorationsArray.length === 0" class="empty-state">
-          <Icon icon="mdi:compass-off" class="empty-icon" />
-          <h3 class="empty-title">No Active Explorations</h3>
-          <p class="empty-text">Send dwellers to the wasteland from the vault overview to start exploring.</p>
+      <!-- Main Content -->
+      <div class="exploration-content">
+        <!-- Explorer Cards List -->
+        <div class="explorers-section">
+          <div v-if="activeExplorationsArray.length === 0" class="empty-state">
+            <Icon icon="mdi:compass-off" class="empty-icon" />
+            <h3 class="empty-title">No Active Explorations</h3>
+            <p class="empty-text">
+              Send dwellers to the wasteland from the vault overview to start exploring.
+            </p>
+          </div>
+
+          <div v-else class="explorers-grid">
+            <ExplorerCard
+              v-for="exploration in activeExplorationsArray"
+              :key="exploration.id"
+              :exploration="exploration"
+              :dweller="getDwellerById(exploration.dweller_id)"
+              :selected="selectedExplorerId === exploration.id"
+              @select="selectedExplorerId = exploration.id"
+              @complete="handleCompleteExploration"
+              @recall="handleRecallExploration"
+            />
+          </div>
         </div>
 
-        <div v-else class="explorers-grid">
-          <ExplorerCard
-            v-for="exploration in activeExplorationsArray"
-            :key="exploration.id"
-            :exploration="exploration"
-            :dweller="getDwellerById(exploration.dweller_id)"
-            :selected="selectedExplorerId === exploration.id"
-            @select="selectedExplorerId = exploration.id"
-            @complete="handleCompleteExploration"
-            @recall="handleRecallExploration"
+        <!-- Event Timeline Sidebar -->
+        <div v-if="selectedExploration" class="timeline-section">
+          <div class="timeline-header">
+            <div class="timeline-title">
+              <Icon icon="mdi:timeline-text" class="mr-2" />
+              Event Log
+            </div>
+            <button @click="selectedExplorerId = null" class="close-timeline-btn" title="Close">
+              <Icon icon="mdi:close" />
+            </button>
+          </div>
+          <EventTimeline
+            :exploration="selectedExploration"
+            :dweller="getDwellerById(selectedExploration.dweller_id)"
           />
         </div>
       </div>
 
-      <!-- Event Timeline Sidebar -->
-      <div v-if="selectedExploration" class="timeline-section">
-        <div class="timeline-header">
-          <div class="timeline-title">
-            <Icon icon="mdi:timeline-text" class="mr-2" />
-            Event Log
-          </div>
-          <button @click="selectedExplorerId = null" class="close-timeline-btn" title="Close">
-            <Icon icon="mdi:close" />
-          </button>
-        </div>
-        <EventTimeline
-          :exploration="selectedExploration"
-          :dweller="getDwellerById(selectedExploration.dweller_id)"
-        />
-      </div>
-    </div>
-
-    <!-- Rewards Modal -->
-    <ExplorationRewardsModal
-      :show="showRewardsModal"
-      :rewards="completedExplorationRewards"
-      :dweller-name="completedDwellerName"
-      @close="closeRewardsModal"
-    />
+      <!-- Rewards Modal -->
+      <ExplorationRewardsModal
+        :show="showRewardsModal"
+        :rewards="completedExplorationRewards"
+        :dweller-name="completedDwellerName"
+        @close="closeRewardsModal"
+      />
     </div>
   </div>
 </template>

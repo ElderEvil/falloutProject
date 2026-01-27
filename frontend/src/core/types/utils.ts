@@ -38,9 +38,7 @@ export interface PaginatedResponse<T> {
 /**
  * Async operation result wrapper
  */
-export type AsyncResult<T, E = ApiError> =
-  | { success: true; data: T }
-  | { success: false; error: E }
+export type AsyncResult<T, E = ApiError> = { success: true; data: T } | { success: false; error: E }
 
 /**
  * Type guard to check if an error is an ApiError
@@ -57,7 +55,9 @@ export function isApiError(error: unknown): error is ApiError {
 /**
  * Type guard to check if an error has a response property (Axios error)
  */
-export function isAxiosError(error: unknown): error is { response: { data: { detail?: string; message?: string }; status: number } } {
+export function isAxiosError(
+  error: unknown
+): error is { response: { data: { detail?: string; message?: string }; status: number } } {
   return (
     typeof error === 'object' &&
     error !== null &&
@@ -97,15 +97,15 @@ export function toApiError(error: unknown): ApiError {
     return {
       message: error.response.data.detail || error.response.data.message || 'An error occurred',
       status: error.response.status,
-      detail: error.response.data.detail
+      detail: error.response.data.detail,
     }
   }
   if (error instanceof Error) {
     return {
-      message: error.message
+      message: error.message,
     }
   }
   return {
-    message: typeof error === 'string' ? error : 'An unknown error occurred'
+    message: typeof error === 'string' ? error : 'An unknown error occurred',
   }
 }

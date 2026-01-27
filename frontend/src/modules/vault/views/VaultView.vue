@@ -53,7 +53,6 @@ const highlightedRoomId = ref<string | null>(null)
 
 const buildModeActive = computed(() => showRoomMenu.value || roomStore.isPlacingRoom)
 
-
 // Get vault ID from route params
 const vaultId = computed(() => route.params.id as string)
 
@@ -86,25 +85,24 @@ const populationColor = computed(() => {
 const happiness = computed(() => currentVault.value?.happiness ?? 0)
 
 const happinessColor = computed(() => {
-  const h = happiness.value;
-  if (h >= 75) return 'text-terminalGreen';
-  if (h >= 50) return 'text-green-400';
-  if (h >= 25) return 'text-yellow-400';
-  return 'text-red-500';
-});
-
+  const h = happiness.value
+  if (h >= 75) return 'text-terminalGreen'
+  if (h >= 50) return 'text-green-400'
+  if (h >= 25) return 'text-yellow-400'
+  return 'text-red-500'
+})
 
 const energy = computed(() => ({
   current: currentVault.value?.power ?? 0,
-  max: currentVault.value?.power_max ?? 100
+  max: currentVault.value?.power_max ?? 100,
 }))
 const food = computed(() => ({
   current: currentVault.value?.food ?? 0,
-  max: currentVault.value?.food_max ?? 100
+  max: currentVault.value?.food_max ?? 100,
 }))
 const water = computed(() => ({
   current: currentVault.value?.water ?? 0,
-  max: currentVault.value?.water_max ?? 100
+  max: currentVault.value?.water_max ?? 100,
 }))
 
 const activeIncidents = computed(() => incidentStore.activeIncidents)
@@ -173,32 +171,37 @@ const loadVaultData = async (id: string) => {
 }
 
 // Watch for room highlight query parameter
-watch(() => route.query.roomId, (newRoomId) => {
-  if (newRoomId && typeof newRoomId === 'string') {
-    highlightedRoomId.value = newRoomId
-    // Clear highlight after 3 seconds
-    setTimeout(() => {
-      highlightedRoomId.value = null
-    }, 3000)
-  }
-}, { immediate: true })
+watch(
+  () => route.query.roomId,
+  (newRoomId) => {
+    if (newRoomId && typeof newRoomId === 'string') {
+      highlightedRoomId.value = newRoomId
+      // Clear highlight after 3 seconds
+      setTimeout(() => {
+        highlightedRoomId.value = null
+      }, 3000)
+    }
+  },
+  { immediate: true }
+)
 
 // Watch for vault ID changes in the URL
-watch(() => vaultId.value, (newId) => {
-  if (newId) {
-    vaultStore.stopResourcePolling()
-    incidentStore.stopPolling()
-    loadVaultData(newId)
-  }
-}, { immediate: true })
+watch(
+  () => vaultId.value,
+  (newId) => {
+    if (newId) {
+      vaultStore.stopResourcePolling()
+      incidentStore.stopPolling()
+      loadVaultData(newId)
+    }
+  },
+  { immediate: true }
+)
 
 // Keyboard shortcuts
 const handleKeyPress = (e: KeyboardEvent) => {
   // Only handle if not typing in an input or textarea
-  if (
-    e.target instanceof HTMLInputElement ||
-    e.target instanceof HTMLTextAreaElement
-  ) {
+  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
     return
   }
 
@@ -248,7 +251,6 @@ const handleRoomSelected = (room: RoomTemplate) => {
 }
 
 const handleIncidentClicked = (incidentId: string) => {
-
   selectedIncidentId.value = incidentId
   showCombatModal.value = true
 }
@@ -301,91 +303,121 @@ const handleIncidentResolved = async () => {
       <!-- Main Content Area -->
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
         <div class="container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8">
-      <div class="mb-8 flex w-full items-center justify-between space-x-8">
-        <!-- Dwellers Count and Happiness -->
-        <div class="flex items-center space-x-4">
-          <UTooltip :text="`Total dwellers in vault: ${dwellersCount}/${populationMax}\nCapacity: ${populationMax} dwellers`" position="bottom">
-            <div class="flex items-center space-x-2 cursor-help" tabindex="0">
-              <Icon icon="mdi:account-group" class="h-8 w-8 text-terminalGreen" />
-              <p :class="`whitespace-nowrap ${populationColor}`">{{ dwellersCount }} / {{ populationMax }}</p>
-              <!-- Progress Bar -->
-              <div class="h-1.5 w-24 rounded-full bg-gray-800 overflow-hidden border border-gray-700">
-                <div
-                  class="h-full transition-all duration-500 shadow-glow-sm"
-                  :style="{ width: populationWidthPercent }"
-                  :class="{
-                    'bg-red-500': populationUtilization >= 90,
-                    'bg-yellow-400': populationUtilization >= 75 && populationUtilization < 90,
-                    'bg-theme-primary': populationUtilization < 75
-                  }"
-                  :title="`${populationUtilization.toFixed(1)}% capacity`"
-                ></div>
-              </div>
+          <div class="mb-8 flex w-full items-center justify-between space-x-8">
+            <!-- Dwellers Count and Happiness -->
+            <div class="flex items-center space-x-4">
+              <UTooltip
+                :text="`Total dwellers in vault: ${dwellersCount}/${populationMax}\nCapacity: ${populationMax} dwellers`"
+                position="bottom"
+              >
+                <div class="flex items-center space-x-2 cursor-help" tabindex="0">
+                  <Icon icon="mdi:account-group" class="h-8 w-8 text-terminalGreen" />
+                  <p :class="`whitespace-nowrap ${populationColor}`">
+                    {{ dwellersCount }} / {{ populationMax }}
+                  </p>
+                  <!-- Progress Bar -->
+                  <div
+                    class="h-1.5 w-24 rounded-full bg-gray-800 overflow-hidden border border-gray-700"
+                  >
+                    <div
+                      class="h-full transition-all duration-500 shadow-glow-sm"
+                      :style="{ width: populationWidthPercent }"
+                      :class="{
+                        'bg-red-500': populationUtilization >= 90,
+                        'bg-yellow-400': populationUtilization >= 75 && populationUtilization < 90,
+                        'bg-theme-primary': populationUtilization < 75,
+                      }"
+                      :title="`${populationUtilization.toFixed(1)}% capacity`"
+                    ></div>
+                  </div>
+                </div>
+              </UTooltip>
+              <UTooltip
+                :text="`Vault Happiness: ${happiness}%\n${happiness >= 75 ? '😊 Excellent morale!' : happiness >= 50 ? '😐 Acceptable morale' : happiness >= 25 ? '😟 Low morale - needs attention' : '😢 Critical - dwellers are unhappy!'}`"
+                position="bottom"
+              >
+                <div class="flex items-center space-x-2 cursor-help" tabindex="0">
+                  <Icon icon="mdi:emoticon-happy" class="h-6 w-6" :class="happinessColor" />
+                  <p :class="happinessColor">{{ happiness }}%</p>
+                </div>
+              </UTooltip>
             </div>
-          </UTooltip>
-          <UTooltip :text="`Vault Happiness: ${happiness}%\n${happiness >= 75 ? '😊 Excellent morale!' : happiness >= 50 ? '😐 Acceptable morale' : happiness >= 25 ? '😟 Low morale - needs attention' : '😢 Critical - dwellers are unhappy!'}`" position="bottom">
 
-            <div class="flex items-center space-x-2 cursor-help" tabindex="0">
-              <Icon icon="mdi:emoticon-happy" class="h-6 w-6" :class="happinessColor" />
-              <p :class="happinessColor">{{ happiness }}%</p>
+            <!-- Resources in the Middle -->
+            <div class="flex justify-center space-x-8">
+              <ResourceBar
+                :current="energy.current"
+                :max="energy.max"
+                icon="mdi:lightning-bolt"
+                label="Power"
+              />
+              <ResourceBar
+                :current="food.current"
+                :max="food.max"
+                icon="mdi:food-apple"
+                label="Food"
+              />
+              <ResourceBar
+                :current="water.current"
+                :max="water.max"
+                icon="mdi:water"
+                label="Water"
+              />
             </div>
-          </UTooltip>
-        </div>
 
-        <!-- Resources in the Middle -->
-        <div class="flex justify-center space-x-8">
-          <ResourceBar :current="energy.current" :max="energy.max" icon="mdi:lightning-bolt" label="Power" />
-          <ResourceBar :current="food.current" :max="food.max" icon="mdi:food-apple" label="Food" />
-          <ResourceBar :current="water.current" :max="water.max" icon="mdi:water" label="Water" />
-        </div>
-
-        <!-- Bottle Caps and Game Controls -->
-        <div class="flex items-center space-x-4">
-          <UTooltip :text="`Bottle Caps: ${bottleCaps}\nVault currency for construction and upgrades`" position="bottom">
-            <div class="flex items-center space-x-2 cursor-help" tabindex="0">
-              <Icon icon="mdi:currency-usd" class="h-6 w-6 text-terminalGreen" />
-              <p>{{ bottleCaps }}</p>
+            <!-- Bottle Caps and Game Controls -->
+            <div class="flex items-center space-x-4">
+              <UTooltip
+                :text="`Bottle Caps: ${bottleCaps}\nVault currency for construction and upgrades`"
+                position="bottom"
+              >
+                <div class="flex items-center space-x-2 cursor-help" tabindex="0">
+                  <Icon icon="mdi:currency-usd" class="h-6 w-6 text-terminalGreen" />
+                  <p>{{ bottleCaps }}</p>
+                </div>
+              </UTooltip>
+              <GameControlPanel v-if="vaultId" :vaultId="vaultId" />
             </div>
-          </UTooltip>
-          <GameControlPanel v-if="vaultId" :vaultId="vaultId" />
-        </div>
-      </div>
+          </div>
 
-      <!-- Incident Alert Banner -->
-      <div v-if="activeIncidents.length > 0" class="w-full mb-4">
-        <IncidentAlert :incidents="activeIncidents" @click="handleIncidentClicked" />
-      </div>
+          <!-- Incident Alert Banner -->
+          <div v-if="activeIncidents.length > 0" class="w-full mb-4">
+            <IncidentAlert :incidents="activeIncidents" @click="handleIncidentClicked" />
+          </div>
 
-      <!-- Unassigned Dwellers Panel -->
-      <div class="w-full mb-4">
-        <UnassignedDwellers />
-      </div>
+          <!-- Unassigned Dwellers Panel -->
+          <div class="w-full mb-4">
+            <UnassignedDwellers />
+          </div>
 
-      <!-- Wasteland Panel -->
-      <div class="w-full mb-8">
-        <WastelandPanel />
-      </div>
+          <!-- Wasteland Panel -->
+          <div class="w-full mb-8">
+            <WastelandPanel />
+          </div>
 
-      <!-- Room Grid with Floating Build Button -->
-      <div class="relative">
-<RoomGrid
-          :incidents="activeIncidents"
-          :highlightedRoomId="highlightedRoomId"
-          @incidentClicked="handleIncidentClicked"
-        />
+          <!-- Room Grid with Floating Build Button -->
+          <div class="relative">
+            <RoomGrid
+              :incidents="activeIncidents"
+              :highlightedRoomId="highlightedRoomId"
+              @incidentClicked="handleIncidentClicked"
+            />
 
-        <!-- Floating Build Button -->
-        <div class="floating-build-button">
-          <BuildModeButton :buildModeActive="buildModeActive" @toggleBuildMode="toggleBuildMode" />
-        </div>
-      </div>
+            <!-- Floating Build Button -->
+            <div class="floating-build-button">
+              <BuildModeButton
+                :buildModeActive="buildModeActive"
+                @toggleBuildMode="toggleBuildMode"
+              />
+            </div>
+          </div>
 
-      <!-- Build Menu -->
-      <RoomMenu
-        v-if="showRoomMenu"
-        @roomSelected="handleRoomSelected"
-        @close="showRoomMenu = false"
-      />
+          <!-- Build Menu -->
+          <RoomMenu
+            v-if="showRoomMenu"
+            @roomSelected="handleRoomSelected"
+            @close="showRoomMenu = false"
+          />
         </div>
       </div>
     </div>
@@ -444,12 +476,12 @@ const handleIncidentResolved = async () => {
 }
 
 @keyframes subtlePulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.95;
   }
   50% {
     opacity: 1;
   }
 }
-
 </style>

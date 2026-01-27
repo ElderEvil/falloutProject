@@ -1,9 +1,9 @@
 {
   "name": "frontend",
-  "version": "2.6.0",
+  "version": "2.6.5",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.26.2",
+  "packageManager": "pnpm@10.28.2",
   "scripts": {
     "types:generate": "openapi-typescript http://localhost:8000/api/v1/openapi.json -o src/types/api.generated.ts",
     "dev": "pnpm types:generate && vite",

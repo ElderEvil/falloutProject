@@ -29,6 +29,12 @@ const authStore = useAuthStore()
 
 const selectedStat = ref<string | null>(null)
 const loading = ref(false)
+const errorMessage = ref<string>('')
+
+// Clear error when stat selection changes
+watch(selectedStat, () => {
+  errorMessage.value = ''
+})
 
 // Fetch rooms when modal opens
 watch(() => props.modelValue, async (isOpen) => {
@@ -73,16 +79,24 @@ const handleStart = async () => {
   if (!canStart.value || !authStore.token || !selectedRoom.value) return
 
   loading.value = true
+  errorMessage.value = ''
+  
   try {
     const result = await trainingStore.startTraining(
       props.dweller.id,
       selectedRoom.value.id,
       authStore.token
     )
+    
     if (result) {
       emit('started')
       emit('update:modelValue', false)
+    } else {
+      errorMessage.value = 'Failed to start training. Please try again.'
     }
+  } catch (error: any) {
+    errorMessage.value = error?.message || 'An unexpected error occurred while starting training.'
+    console.error('Training start failed:', error)
   } finally {
     loading.value = false
   }
@@ -91,6 +105,7 @@ const handleStart = async () => {
 const close = () => {
   emit('update:modelValue', false)
   selectedStat.value = null
+  errorMessage.value = ''
 }
 </script>
 
@@ -106,6 +121,11 @@ const close = () => {
       <p class="description">
         Select a SPECIAL stat to improve for <span class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</span>.
       </p>
+
+      <UAlert v-if="errorMessage" variant="error" class="error-alert">
+        <Icon icon="mdi:alert-circle" class="h-5 w-5" />
+        {{ errorMessage }}
+      </UAlert>
 
       <div class="stats-grid">
         <button
@@ -293,5 +313,21 @@ const close = () => {
   justify-content: flex-end;
   gap: 1rem;
   margin-top: 0.5rem;
+}
+
+.error-alert {
+  margin: 0;
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

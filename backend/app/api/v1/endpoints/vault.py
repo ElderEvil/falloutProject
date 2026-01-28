@@ -133,11 +133,11 @@ async def update_vault_resources(
     return await vault_service.update_vault_resources(db_session=db_session, vault_id=vault_id)
 
 
-@router.post("/{vault_id}/dwellers/unassign-all", response_model=dict[str, int])
+@router.post("/{vault_id}/dwellers/unassign-all")
 async def unassign_all_dwellers(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> dict[str, int]:
     """Unassign all dwellers from their rooms in the specified vault."""
     dwellers = await crud.dweller.get_multi_by_vault(db_session, vault_id=vault.id, limit=10000)
     unassigned_count = 0
@@ -158,7 +158,7 @@ async def unassign_all_dwellers(
 async def auto_assign_production_rooms(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> dict[str, int | list[dict[str, str]]]:
     """
     Intelligently assign unassigned dwellers to production rooms based on SPECIAL stats.
 
@@ -261,7 +261,7 @@ async def auto_assign_production_rooms(
 async def auto_assign_all_rooms(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> dict[str, int | list[dict[str, str]]]:
     """
     Intelligently assign unassigned dwellers to ALL room types based on SPECIAL stats.
 
@@ -334,7 +334,7 @@ async def auto_assign_all_rooms(
     assignments = []
     assigned_dweller_ids = set()
 
-    async def assign_to_rooms(rooms: list, abilities: list):
+    async def assign_to_rooms(rooms: list[Room], abilities: list[SPECIALEnum]) -> None:
         """Helper function to assign dwellers to rooms based on abilities."""
         nonlocal unassigned_dwellers
 

@@ -295,8 +295,8 @@ async def test_filter_outfits_includes_equipped(
     equipped_dweller: tuple,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    _dweller, _, equipped_outfit = equipped_dweller
-    vault_id = equipped_outfit.storage.vault_id
+    dweller, equipped_outfit, _ = equipped_dweller
+    vault_id = dweller.vault_id
     response = await async_client.get(f"/outfits/?vault_id={vault_id}", headers=superuser_token_headers)
     assert response.status_code == 200
     data = response.json()

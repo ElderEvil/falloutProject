@@ -20,4 +20,4 @@ class JunkRead(JunkBase):
 
 @optional()
 class JunkUpdate(ItemUpdate, JunkBase):
-    pass
+    storage_id: UUID4 | None = None

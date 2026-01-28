@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import DwellerCard from '@/modules/dwellers/components/cards/DwellerCard.vue'
 
 // Mock the happiness service
@@ -10,6 +11,10 @@ vi.mock('@/modules/dwellers/services/happinessService', () => ({
     })
   }
 }))
+
+beforeEach(() => {
+  setActivePinia(createPinia())
+})
 
 describe('DwellerCard', () => {
   const mockDweller = {
@@ -33,7 +38,8 @@ describe('DwellerCard', () => {
     radiation: 0,
     stimpack: 2,
     radaway: 1,
-    status: 'idle'
+    status: 'idle',
+    room: null
   } as any
 
   describe('Portrait Display', () => {

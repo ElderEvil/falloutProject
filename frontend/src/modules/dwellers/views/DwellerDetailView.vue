@@ -9,6 +9,7 @@ import { Icon } from '@iconify/vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import DwellerCard from '../components/cards/DwellerCard.vue'
 import DwellerPanel from '../components/DwellerPanel.vue'
+import TrainingStartModal from '../components/modals/TrainingStartModal.vue'
 import DwellerStatusBadge from '../components/stats/DwellerStatusBadge.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
@@ -32,6 +33,7 @@ const generatingAI = ref(false)
 const generatingBio = ref(false)
 const generatingPortrait = ref(false)
 const generatingAppearance = ref(false)
+const showTrainingModal = ref(false)
 
 // Computed to check if any AI generation is in progress
 const isAnyGenerating = computed(
@@ -208,6 +210,7 @@ const handleRevive = async () => {
 
 const usingStimpack = ref(false)
 const usingRadaway = ref(false)
+const unassigning = ref(false)
 
 const handleUseStimpack = async () => {
   if (!dweller.value || usingStimpack.value) return
@@ -235,6 +238,24 @@ const handleUseRadaway = async () => {
   } finally {
     usingRadaway.value = false
   }
+}
+
+const handleUnassign = async () => {
+  if (!dweller.value || unassigning.value) return
+
+  unassigning.value = true
+  try {
+    await dwellerStore.unassignDwellerFromRoom(dwellerId.value, authStore.token as string)
+    await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
+  } catch (error) {
+    console.error('Error unassigning dweller:', error)
+  } finally {
+    unassigning.value = false
+  }
+}
+
+const handleTrainingStarted = async () => {
+  await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
 }
 </script>
 
@@ -287,12 +308,14 @@ const handleUseRadaway = async () => {
                 <DwellerCard
                   :dweller="dweller"
                   :image-url="dweller.image_url"
-                  :loading="generatingAI || usingStimpack || usingRadaway || assigning"
+                  :loading="generatingAI || usingStimpack || usingRadaway || assigning || unassigning"
                   @chat="navigateToChatPage"
                   @assign="handleAssign"
+                  @unassign="handleUnassign"
                   @recall="handleRecall"
                   @use-stimpack="handleUseStimpack"
                   @use-radaway="handleUseRadaway"
+                  @train="showTrainingModal = true"
                 />
 
                 <!-- Revival Section for Dead Dwellers -->
@@ -335,6 +358,14 @@ const handleUseRadaway = async () => {
               />
             </div>
           </div>
+
+          <!-- Modals -->
+          <TrainingStartModal
+            v-if="dweller"
+            v-model="showTrainingModal"
+            :dweller="dweller"
+            @started="handleTrainingStarted"
+          />
         </div>
       </div>
     </div>

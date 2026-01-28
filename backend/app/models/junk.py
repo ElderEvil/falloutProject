@@ -42,7 +42,7 @@ class JunkBase(ItemBase):
 
 
 class Junk(BaseUUIDModel, JunkBase, TimeStampMixin, table=True):
-    storage_id: UUID4 = Field(default=None, nullable=True, foreign_key="storage.id")
+    storage_id: UUID4 | None = Field(default=None, nullable=True, foreign_key="storage.id")
     storage: "Storage" = Relationship(back_populates="junk_items")
 
     def __str__(self):

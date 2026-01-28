@@ -6,12 +6,21 @@ import { useDwellerStore, type DwellerStatus, type DwellerSortBy } from '../stor
 interface Props {
   showStatusFilter?: boolean
   showViewToggle?: boolean
+  showBulkActions?: boolean
+  vaultId?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showStatusFilter: true,
   showViewToggle: false,
+  showBulkActions: false,
+  vaultId: '',
 })
+
+defineEmits<{
+  unassignAll: []
+  autoAssignAll: []
+}>()
 
 const dwellerStore = useDwellerStore()
 
@@ -98,6 +107,20 @@ const toggleSortDirection = () => {
               height="20"
             />
           </button>
+        </div>
+      </div>
+
+      <!-- Spacer to push bulk actions and view toggle to the right -->
+      <div v-if="showBulkActions" class="flex-grow"></div>
+
+      <!-- Bulk Actions (inline with sort/view) -->
+      <div v-if="showBulkActions" class="filter-section">
+        <div class="section-header">
+          <Icon icon="mdi:account-multiple-check" />
+          <span>Bulk Actions</span>
+        </div>
+        <div class="bulk-action-controls">
+          <slot name="bulk-actions"></slot>
         </div>
       </div>
 
@@ -273,5 +296,14 @@ const toggleSortDirection = () => {
   border-color: var(--color-theme-primary);
   box-shadow: 0 0 12px var(--color-theme-primary);
   font-weight: 600;
+}
+
+.flex-grow {
+  flex-grow: 1;
+}
+
+.bulk-action-controls {
+  display: flex;
+  gap: 0.5rem;
 }
 </style>

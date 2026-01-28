@@ -38,7 +38,8 @@ describe('DwellerCard', () => {
     radiation: 0,
     stimpack: 2,
     radaway: 1,
-    status: 'idle'
+    status: 'idle',
+    room: null
   } as any
 
   describe('Portrait Display', () => {

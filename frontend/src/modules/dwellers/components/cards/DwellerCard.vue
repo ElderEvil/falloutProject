@@ -329,16 +329,18 @@ const isTraining = computed(() => {
 
       <!-- Coming Soon Actions -->
       <div class="coming-soon-section">
-        <UButton
-          variant="secondary"
-          size="md"
-          block
-          @click="emit('train')"
-          :disabled="loading || isTraining"
-        >
-          <Icon icon="mdi:school" class="h-5 w-5 mr-2" />
-          {{ isTraining ? 'Training In Progress' : 'Train Stats' }}
-        </UButton>
+        <UTooltip text="Train SPECIAL stats to improve dweller abilities">
+          <UButton
+            variant="secondary"
+            size="md"
+            block
+            @click="emit('train')"
+            :disabled="loading || isTraining"
+          >
+            <Icon icon="mdi:school" class="h-5 w-5 mr-2" />
+            {{ isTraining ? 'Training In Progress' : 'Train Stats' }}
+          </UButton>
+        </UTooltip>
 
         <UTooltip text="Assign a pet companion - Coming in Phase 3 (Mar-Apr 2026)">
           <button class="locked-action-button" disabled>

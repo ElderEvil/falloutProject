@@ -493,13 +493,13 @@ export const useDwellerStore = defineStore('dweller', () => {
     }
   }
 
-  async function autoAssignProduction(
+  async function autoAssignAllRooms(
     vaultId: string,
     token: string
   ): Promise<{ assigned_count: number; assignments: any[] } | null> {
     try {
       const response = await axios.post<{ assigned_count: number; assignments: any[] }>(
-        `/api/v1/vaults/${vaultId}/dwellers/auto-assign-production`,
+        `/api/v1/vaults/${vaultId}/dwellers/auto-assign-all`,
         null,
         {
           headers: {
@@ -511,7 +511,7 @@ export const useDwellerStore = defineStore('dweller', () => {
       // Refetch dwellers to update UI
       await fetchDwellersByVault(vaultId, token)
 
-      toast.success(`Assigned ${response.data.assigned_count} dwellers to production rooms!`)
+      toast.success(`Assigned ${response.data.assigned_count} dwellers to rooms!`)
       return response.data
     } catch (error: unknown) {
       const errorMessage =
@@ -519,8 +519,8 @@ export const useDwellerStore = defineStore('dweller', () => {
           error as {
             response?: { data?: { detail?: string } }
           }
-        )?.response?.data?.detail || 'Failed to auto-assign production'
-      console.error(`Failed to auto-assign production for vault ${vaultId}`, error)
+        )?.response?.data?.detail || 'Failed to auto-assign dwellers'
+      console.error(`Failed to auto-assign dwellers for vault ${vaultId}`, error)
       toast.error(errorMessage)
       return null
     }
@@ -688,7 +688,7 @@ export const useDwellerStore = defineStore('dweller', () => {
     unassignDwellerFromRoom,
     autoAssignToRoom,
     unassignAllDwellers,
-    autoAssignProduction,
+    autoAssignAllRooms,
     useStimpack,
     useRadaway,
     setFilterStatus,

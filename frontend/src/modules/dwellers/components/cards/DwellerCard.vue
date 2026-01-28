@@ -5,6 +5,7 @@ import UButton from '@/core/components/ui/UButton.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import XPProgressBar from '../stats/XPProgressBar.vue'
 import { happinessService, type HappinessModifiers } from '../../services/happinessService'
+import { useTrainingStore } from '@/stores/training'
 import type { components } from '@/core/types/api.generated'
 import { normalizeImageUrl } from '@/utils/image'
 
@@ -17,6 +18,8 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+
+const trainingStore = useTrainingStore()
 
 const emit = defineEmits<{
   (e: 'chat'): void
@@ -116,6 +119,10 @@ const rarityColor = computed(() => {
 
 const rarityLabel = computed(() => {
   return props.dweller.rarity || 'Common'
+})
+
+const isTraining = computed(() => {
+  return trainingStore.isDwellerTraining(props.dweller.id)
 })
 </script>
 
@@ -266,7 +273,7 @@ const rarityLabel = computed(() => {
           variant="secondary"
           size="md"
           @click="emit('assign')"
-          :disabled="loading || dweller.room_id !== null"
+          :disabled="loading || dweller.room !== null"
         >
           <Icon icon="mdi:office-building" class="h-5 w-5 mr-2" />
           Assign to Room
@@ -276,7 +283,7 @@ const rarityLabel = computed(() => {
           variant="secondary"
           size="md"
           @click="emit('unassign')"
-          :disabled="loading || dweller.room_id === null"
+          :disabled="loading || dweller.room === null"
         >
           <Icon icon="mdi:close-circle" class="h-5 w-5 mr-2" />
           Unassign from Room
@@ -322,15 +329,16 @@ const rarityLabel = computed(() => {
 
       <!-- Coming Soon Actions -->
       <div class="coming-soon-section">
-        <UTooltip
-          text="Train SPECIAL stats in dedicated training rooms - Coming in Phase 2 (Feb-Mar 2026)"
+        <UButton
+          variant="secondary"
+          size="md"
+          block
+          @click="emit('train')"
+          :disabled="loading || isTraining"
         >
-          <button class="locked-action-button" disabled>
-            <Icon icon="mdi:school" class="h-5 w-5" />
-            <span>Train Stats</span>
-            <Icon icon="mdi:lock" class="h-4 w-4 lock-icon" />
-          </button>
-        </UTooltip>
+          <Icon icon="mdi:school" class="h-5 w-5 mr-2" />
+          {{ isTraining ? 'Training In Progress' : 'Train Stats' }}
+        </UButton>
 
         <UTooltip text="Assign a pet companion - Coming in Phase 3 (Mar-Apr 2026)">
           <button class="locked-action-button" disabled>

@@ -268,8 +268,12 @@ const handleQuickUnassign = async (dwellerId: string) => {
 
           <!-- Filter Panel with View Toggle -->
           <div class="w-full mb-6">
+            <DwellerFilterPanel :show-view-toggle="true" :show-bulk-actions="false" :vault-id="vaultId" />
+          </div>
+
+          <!-- Bulk Actions - Separate Section -->
+          <div class="w-full mb-6">
             <DwellerBulkActions :vault-id="vaultId" />
-            <DwellerFilterPanel :show-view-toggle="true" />
           </div>
 
           <!-- Dead Dwellers Section (when dead filter is active) -->

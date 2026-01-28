@@ -257,3 +257,147 @@ async def auto_assign_production_rooms(
         unassigned_dwellers = [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids]
 
     return {"assigned_count": len(assignments), "assignments": assignments}
+
+
+@router.post("/{vault_id}/dwellers/auto-assign-all")
+async def auto_assign_all_rooms(
+    vault: Annotated[Vault, Depends(get_user_vault_or_403)],
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+):
+    """
+    Intelligently assign unassigned dwellers to ALL room types based on SPECIAL stats.
+
+    Priority order:
+    1. Production rooms (Strength: Power, Perception: Water, Agility: Food) - most critical
+    2. Utility rooms (Intelligence: Medbay/Science Lab, Charisma: Radio) - important services
+    3. Training rooms (all 7 SPECIAL stats) - for development
+
+    Dwellers are matched to rooms based on their relevant SPECIAL stat (highest stat dwellers assigned first).
+    """
+    # Complete ability to stat mapping for all 7 SPECIAL stats
+    ability_to_stat_map = {
+        SPECIALEnum.STRENGTH: "strength",
+        SPECIALEnum.PERCEPTION: "perception",
+        SPECIALEnum.ENDURANCE: "endurance",
+        SPECIALEnum.CHARISMA: "charisma",
+        SPECIALEnum.INTELLIGENCE: "intelligence",
+        SPECIALEnum.AGILITY: "agility",
+        SPECIALEnum.LUCK: "luck",
+    }
+
+    # Priority order: production abilities first, then utility, then training
+    # Priority 1: Production rooms (S, P, A)
+    production_abilities = [
+        SPECIALEnum.STRENGTH,  # Power plants
+        SPECIALEnum.PERCEPTION,  # Water treatment
+        SPECIALEnum.AGILITY,  # Diners
+    ]
+    # Priority 2: Utility rooms (I, C)
+    utility_abilities = [
+        SPECIALEnum.INTELLIGENCE,  # Medbay & Science Lab
+        SPECIALEnum.CHARISMA,  # Radio
+    ]
+    # Priority 3: Training rooms (all 7 stats including Luck)
+    training_abilities = [
+        SPECIALEnum.STRENGTH,
+        SPECIALEnum.PERCEPTION,
+        SPECIALEnum.ENDURANCE,
+        SPECIALEnum.CHARISMA,
+        SPECIALEnum.INTELLIGENCE,
+        SPECIALEnum.AGILITY,
+        SPECIALEnum.LUCK,
+    ]
+
+    # Get all rooms grouped by category
+    rooms_query = (
+        select(Room)
+        .where(Room.vault_id == vault.id)
+        .where(Room.category.in_([RoomTypeEnum.PRODUCTION, RoomTypeEnum.MISC, RoomTypeEnum.TRAINING]))
+    )
+    rooms_result = await db_session.execute(rooms_query)
+    all_rooms = rooms_result.scalars().all()
+
+    # Separate rooms by category
+    production_rooms = [r for r in all_rooms if r.category == RoomTypeEnum.PRODUCTION]
+    utility_rooms = [r for r in all_rooms if r.category == RoomTypeEnum.MISC]
+    training_rooms = [r for r in all_rooms if r.category == RoomTypeEnum.TRAINING]
+
+    # Get all unassigned dwellers (room_id is None, not deleted, not dead)
+    unassigned_query = (
+        select(Dweller)
+        .where(Dweller.vault_id == vault.id)
+        .where(Dweller.room_id.is_(None))
+        .where(Dweller.is_deleted == False)
+        .where(Dweller.is_dead == False)
+    )
+    unassigned_result = await db_session.execute(unassigned_query)
+    unassigned_dwellers = list(unassigned_result.scalars().all())
+
+    assignments = []
+    assigned_dweller_ids = set()
+
+    async def assign_to_rooms(rooms: list, abilities: list):
+        """Helper function to assign dwellers to rooms based on abilities."""
+        nonlocal unassigned_dwellers
+
+        for ability in abilities:
+            if not unassigned_dwellers:
+                break
+
+            # Get rooms with this ability
+            ability_rooms = [r for r in rooms if r.ability == ability]
+
+            for room in ability_rooms:
+                if not unassigned_dwellers:
+                    break
+
+                # Get current dweller count in room
+                dweller_count_query = select(Dweller).where(Dweller.room_id == room.id)
+                dweller_count_result = await db_session.execute(dweller_count_query)
+                current_dwellers_in_room = len(dweller_count_result.scalars().all())
+
+                # Calculate room capacity (2 dwellers per 3 size units)
+                room_size = room.size if room.size is not None else room.size_min
+                max_capacity = (room_size // 3) * 2 if room_size else 0
+
+                available_slots = max_capacity - current_dwellers_in_room
+                if available_slots <= 0:
+                    continue
+
+                # Sort unassigned dwellers by the matching SPECIAL stat (descending)
+                stat_name = ability_to_stat_map[ability]
+                sorted_dwellers = sorted(
+                    [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids],
+                    key=lambda d: getattr(d, stat_name),
+                    reverse=True,
+                )
+
+                # Assign dwellers to this room
+                for dweller in sorted_dwellers[:available_slots]:
+                    await crud.dweller.update(
+                        db_session,
+                        dweller.id,
+                        DwellerUpdate(room_id=room.id, status=DwellerStatusEnum.WORKING),
+                    )
+                    assignments.append(
+                        {
+                            "dweller_id": str(dweller.id),
+                            "room_id": str(room.id),
+                            "room_name": room.name,
+                        }
+                    )
+                    assigned_dweller_ids.add(dweller.id)
+
+            # Remove assigned dwellers from the list for next iteration
+            unassigned_dwellers = [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids]
+
+    # Priority 1: Assign to production rooms first
+    await assign_to_rooms(production_rooms, production_abilities)
+
+    # Priority 2: Assign to utility/misc rooms
+    await assign_to_rooms(utility_rooms, utility_abilities)
+
+    # Priority 3: Assign to training rooms
+    await assign_to_rooms(training_rooms, training_abilities)
+
+    return {"assigned_count": len(assignments), "assignments": assignments}

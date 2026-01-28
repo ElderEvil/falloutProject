@@ -42,24 +42,24 @@ const handleAutoAssignAll = async () => {
 </script>
 
 <template>
-  <div class="bulk-actions-toolbar">
+  <div class="bulk-actions-inline">
     <UButton
       variant="danger"
-      size="sm"
+      size="xs"
       @click="showConfirmDialog = true"
       :loading="unassigningAll"
     >
-      <Icon icon="mdi:account-remove" class="h-4 w-4 mr-2" />
-      Unassign All Dwellers
+      <Icon icon="mdi:account-remove" class="h-4 w-4 mr-1" />
+      Unassign All
     </UButton>
 
     <UButton
       variant="primary"
-      size="sm"
+      size="xs"
       @click="handleAutoAssignAll"
       :loading="autoAssigning"
     >
-      <Icon icon="mdi:auto-mode" class="h-4 w-4 mr-2" />
+      <Icon icon="mdi:auto-mode" class="h-4 w-4 mr-1" />
       Auto-Assign All Rooms
     </UButton>
 
@@ -82,14 +82,10 @@ const handleAutoAssignAll = async () => {
 </template>
 
 <style scoped>
-.bulk-actions-toolbar {
+.bulk-actions-inline {
   display: flex;
-  gap: 0.75rem;
-  padding: 1rem;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 0.5rem;
-  margin-bottom: 1.5rem;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .confirmation-overlay {

@@ -9,6 +9,7 @@ import { Icon } from '@iconify/vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import DwellerCard from '../components/cards/DwellerCard.vue'
 import DwellerPanel from '../components/DwellerPanel.vue'
+import TrainingStartModal from '../components/modals/TrainingStartModal.vue'
 import DwellerStatusBadge from '../components/stats/DwellerStatusBadge.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
@@ -32,6 +33,7 @@ const generatingAI = ref(false)
 const generatingBio = ref(false)
 const generatingPortrait = ref(false)
 const generatingAppearance = ref(false)
+const showTrainingModal = ref(false)
 
 // Computed to check if any AI generation is in progress
 const isAnyGenerating = computed(
@@ -251,6 +253,10 @@ const handleUnassign = async () => {
     unassigning.value = false
   }
 }
+
+const handleTrainingStarted = async () => {
+  await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
+}
 </script>
 
 <template>
@@ -309,6 +315,7 @@ const handleUnassign = async () => {
                   @recall="handleRecall"
                   @use-stimpack="handleUseStimpack"
                   @use-radaway="handleUseRadaway"
+                  @train="showTrainingModal = true"
                 />
 
                 <!-- Revival Section for Dead Dwellers -->
@@ -351,6 +358,14 @@ const handleUnassign = async () => {
               />
             </div>
           </div>
+
+          <!-- Modals -->
+          <TrainingStartModal
+            v-if="dweller"
+            v-model="showTrainingModal"
+            :dweller="dweller"
+            @started="handleTrainingStarted"
+          />
         </div>
       </div>
     </div>

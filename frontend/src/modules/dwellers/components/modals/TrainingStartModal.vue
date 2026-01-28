@@ -55,32 +55,13 @@ const selectedRoom = computed(() => {
   if (!selectedStat.value) return null
   const statKey = selectedStat.value.toLowerCase()
 
-  console.log('🔍 Searching for room:', {
-    statKey,
-    totalRooms: roomStore.rooms.length
-  })
-
   const found = roomStore.rooms.find((room) => {
     const isTraining = room.category === 'training'
     const abilityMatch = room.ability?.toLowerCase() === statKey
 
-    if (room.category === 'training') {
-      console.log('  Training room:', {
-        name: room.name,
-        category: room.category,
-        ability: room.ability,
-        'ability?.toLowerCase()': room.ability?.toLowerCase(),
-        statKey,
-        isTraining,
-        abilityMatch,
-        MATCH: isTraining && abilityMatch
-      })
-    }
-
     return isTraining && abilityMatch
   })
 
-  console.log('  ✅ Found room:', found?.name || 'NONE')
   return found
 })
 

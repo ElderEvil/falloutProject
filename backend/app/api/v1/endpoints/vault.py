@@ -139,8 +139,6 @@ async def unassign_all_dwellers(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """Unassign all dwellers from their rooms in the specified vault."""
-    from app.schemas.dweller import DwellerUpdate
-
     dwellers = await crud.dweller.get_multi_by_vault(db_session, vault_id=vault.id, limit=10000)
     unassigned_count = 0
 

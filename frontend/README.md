@@ -127,7 +127,7 @@ Our design system is built with TailwindCSS v4's `@theme` feature. All design to
 
 **Key Features:**
 
-- **Terminal Green/Amber/Tile Palette** - 5 variations (#00ff00 primary)
+- **Terminal Green/Amber/Teal Palette** - Dynamic theme colors controlled via CSS variables (`--theme-primary`, `--theme-secondary`, `--theme-accent`, `--theme-glow`). Terminal Green (#00ff00), Amber (#ffb000), and Teal (#00d9ff) variants are available. Switch themes by updating these CSS variables or toggling a theme class. See [`STYLEGUIDE.md`](./STYLEGUIDE.md) for complete palette documentation and theme switching examples.
 - **Semantic Colors** - Success, warning, danger, info
 - **Resource Colors** - Power, food, water, caps
 - **Typography Scale** - 8 sizes from 12px to 36px

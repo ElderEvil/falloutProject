@@ -80,14 +80,14 @@ const handleStart = async () => {
 
   loading.value = true
   errorMessage.value = ''
-  
+
   try {
     const result = await trainingStore.startTraining(
       props.dweller.id,
       selectedRoom.value.id,
       authStore.token
     )
-    
+
     if (result) {
       emit('started')
       emit('update:modelValue', false)

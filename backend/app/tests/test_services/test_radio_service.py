@@ -205,7 +205,7 @@ async def test_recruit_dweller(
 async def test_manual_recruit_success(
     async_session: AsyncSession,
     vault: Vault,
-    radio_room: Room,
+    radio_room: Room,  # noqa: ARG001
     radio_dweller: Dweller,  # noqa: ARG001
 ):
     """Test manual recruitment with sufficient caps."""
@@ -226,7 +226,7 @@ async def test_manual_recruit_success(
 async def test_manual_recruit_insufficient_caps(
     async_session: AsyncSession,
     vault: Vault,
-    radio_room: Room,
+    radio_room: Room,  # noqa: ARG001
     radio_dweller: Dweller,  # noqa: ARG001
 ):
     """Test manual recruitment with insufficient caps."""
@@ -253,7 +253,7 @@ async def test_manual_recruit_no_radio(
 async def test_manual_recruit_custom_cost(
     async_session: AsyncSession,
     vault: Vault,
-    radio_room: Room,
+    radio_room: Room,  # noqa: ARG001
     radio_dweller: Dweller,  # noqa: ARG001
 ):
     """Test manual recruitment with custom cost."""

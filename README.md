@@ -25,7 +25,7 @@ See [ROADMAP.md](./ROADMAP.md) for recent updates and upcoming features.
 - [Docker Compose](https://docs.docker.com/compose/install/) (v2 - use `docker compose`, not `docker-compose`)
 
 **Installation:**
-- **uv** (Python package manager): 
+- **uv** (Python package manager):
   - macOS/Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`
   - Windows: `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`
 - **pnpm** (via Corepack): `corepack enable && corepack use pnpm@latest`

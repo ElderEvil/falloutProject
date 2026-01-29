@@ -2,7 +2,7 @@
 
 > **Terminal-themed Vue 3 application with modern tooling - v2.1.1**
 
-A retro-futuristic frontend for the Fallout Shelter management game, featuring terminal green aesthetics, CRT effects,
+A retro-futuristic frontend for the Fallout Shelter management game, featuring terminal aesthetics, CRT effects,
 and cutting-edge JavaScript tooling.
 
 ## ✨ Tech Stack
@@ -34,7 +34,7 @@ and cutting-edge JavaScript tooling.
 ### Design System
 
 - **100+ Design Tokens** - Colors, typography, spacing, shadows
-- **Terminal Green Theme** - Fallout-inspired monochrome aesthetic
+- **Terminal Green/Amber/Tile Themes** - Fallout-inspired monochrome aesthetic
 - **CRT Effects** - Scanlines, flicker, phosphor glow
 - **Accessibility** - WCAG 2.1 AA compliant
 
@@ -127,7 +127,7 @@ Our design system is built with TailwindCSS v4's `@theme` feature. All design to
 
 **Key Features:**
 
-- **Terminal Green Palette** - 5 variations (#00ff00 primary)
+- **Terminal Green/Amber/Teal Palette** - Dynamic theme colors controlled via CSS variables (`--theme-primary`, `--theme-secondary`, `--theme-accent`, `--theme-glow`). Terminal Green (#00ff00), Amber (#ffb000), and Teal (#00d9ff) variants are available. Switch themes by updating these CSS variables or toggling a theme class. See [`STYLEGUIDE.md`](./STYLEGUIDE.md) for complete palette documentation and theme switching examples.
 - **Semantic Colors** - Success, warning, danger, info
 - **Resource Colors** - Power, food, water, caps
 - **Typography Scale** - 8 sizes from 12px to 36px
@@ -381,4 +381,4 @@ pnpm run dev -- --port 3000
 
 ---
 
-**Built with ❤️ using Vue 3 and terminal green aesthetics** 🟢
+**Built with ❤️ using Vue 3 and terminal aesthetics** 🟢

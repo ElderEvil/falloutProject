@@ -21,7 +21,7 @@ class OutfitBase(ItemBase):
 
 
 class Outfit(BaseUUIDModel, OutfitBase, TimeStampMixin, table=True):
-    dweller_id: UUID4 = Field(default=None, nullable=True, foreign_key="dweller.id")
+    dweller_id: UUID4 | None = Field(default=None, nullable=True, foreign_key="dweller.id")
     dweller: Optional["Dweller"] = Relationship(back_populates="outfit")
-    storage_id: UUID4 = Field(default=None, nullable=True, foreign_key="storage.id")
+    storage_id: UUID4 | None = Field(default=None, nullable=True, foreign_key="storage.id")
     storage: "Storage" = Relationship(back_populates="outfits")

@@ -629,8 +629,8 @@ wheels = [
 ]
 
 [[package]]
-name = "fallout-shelter-fast-api-vue"
-version = "2.7.0"
+name = "fallout-shelter-fast-api"
+version = "2.7.5"
 source = { editable = "." }
 dependencies = [
     { name = "aiosmtplib" },

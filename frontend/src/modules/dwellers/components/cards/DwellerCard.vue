@@ -5,6 +5,7 @@ import UButton from '@/core/components/ui/UButton.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import XPProgressBar from '../stats/XPProgressBar.vue'
 import { happinessService, type HappinessModifiers } from '../../services/happinessService'
+import { useTrainingStore } from '@/stores/training'
 import type { components } from '@/core/types/api.generated'
 import { normalizeImageUrl } from '@/utils/image'
 
@@ -18,6 +19,8 @@ interface Props {
 
 const props = defineProps<Props>()
 
+const trainingStore = useTrainingStore()
+
 const emit = defineEmits<{
   (e: 'chat'): void
   (e: 'assign'): void
@@ -26,6 +29,7 @@ const emit = defineEmits<{
   (e: 'assign-pet'): void
   (e: 'use-stimpack'): void
   (e: 'use-radaway'): void
+  (e: 'unassign'): void
 }>()
 
 const showHappinessModifiers = ref(false)
@@ -115,6 +119,10 @@ const rarityColor = computed(() => {
 
 const rarityLabel = computed(() => {
   return props.dweller.rarity || 'Common'
+})
+
+const isTraining = computed(() => {
+  return trainingStore.isDwellerTraining(props.dweller.id)
 })
 </script>
 
@@ -259,10 +267,28 @@ const rarityLabel = computed(() => {
         Chat
       </UButton>
 
-      <UButton variant="secondary" size="md" block @click="emit('assign')" :disabled="loading">
-        <Icon icon="mdi:office-building" class="h-5 w-5 mr-2" />
-        Assign to Room
-      </UButton>
+      <!-- Room Assignment Actions -->
+      <div class="room-actions">
+        <UButton
+          variant="secondary"
+          size="md"
+          @click="emit('assign')"
+          :disabled="loading || dweller.room !== null"
+        >
+          <Icon icon="mdi:office-building" class="h-5 w-5 mr-2" />
+          Assign to Room
+        </UButton>
+
+        <UButton
+          variant="secondary"
+          size="md"
+          @click="emit('unassign')"
+          :disabled="loading || dweller.room === null"
+        >
+          <Icon icon="mdi:close-circle" class="h-5 w-5 mr-2" />
+          Unassign from Room
+        </UButton>
+      </div>
 
       <UButton
         v-if="props.dweller.status === 'exploring'"
@@ -303,14 +329,17 @@ const rarityLabel = computed(() => {
 
       <!-- Coming Soon Actions -->
       <div class="coming-soon-section">
-        <UTooltip
-          text="Train SPECIAL stats in dedicated training rooms - Coming in Phase 2 (Feb-Mar 2026)"
-        >
-          <button class="locked-action-button" disabled>
-            <Icon icon="mdi:school" class="h-5 w-5" />
-            <span>Train Stats</span>
-            <Icon icon="mdi:lock" class="h-4 w-4 lock-icon" />
-          </button>
+        <UTooltip text="Train SPECIAL stats to improve dweller abilities">
+          <UButton
+            variant="secondary"
+            size="md"
+            block
+            @click="emit('train')"
+            :disabled="loading || isTraining"
+          >
+            <Icon icon="mdi:school" class="h-5 w-5 mr-2" />
+            {{ isTraining ? 'Training In Progress' : 'Train Stats' }}
+          </UButton>
         </UTooltip>
 
         <UTooltip text="Assign a pet companion - Coming in Phase 3 (Mar-Apr 2026)">
@@ -663,6 +692,13 @@ const rarityLabel = computed(() => {
   flex-direction: column;
   gap: 0.75rem;
   margin-top: 0.5rem;
+}
+
+/* Room Assignment Actions Row */
+.room-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
 }
 
 /* Item Actions */

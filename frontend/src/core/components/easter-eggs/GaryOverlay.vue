@@ -31,7 +31,7 @@ defineProps<Props>()
               </div>
             </div>
           </div>
-          
+
           <div class="absolute bottom-8 left-0 right-0 text-center">
             <p class="text-[--color-terminal-green-200] text-xl font-mono terminal-glow">
               VAULT 108 PROTOCOL ACTIVATED

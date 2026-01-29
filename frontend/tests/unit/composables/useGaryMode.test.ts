@@ -56,7 +56,7 @@ describe('useGaryMode', () => {
 
     resetGaryUnlocked()
     expect(garyUnlocked.value).toBe(false)
-    
+
     triggerGaryMode()
     expect(garyUnlocked.value).toBe(true)
     expect(localStorage.getItem('fallout_gary_unlocked')).toBe('true')

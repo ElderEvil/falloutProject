@@ -18,7 +18,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ### Fixed
 - **Changelog Modal** - Redesigned with proper terminal aesthetic
   - Removed UModal wrapper, render UCard directly with custom backdrop
-  - Replaced emoji icon with `mdi:history` for terminal consistency  
+  - Replaced emoji icon with `mdi:history` for terminal consistency
   - Added missing helper functions (`groupChangesByCategory`, `getCategoryInfo`)
   - Removed debug console.log statements
   - Added TypeScript generic types for API safety

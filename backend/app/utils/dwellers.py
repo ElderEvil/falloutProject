@@ -26,21 +26,21 @@ def create_random_common_dweller(gender: GenderEnum | None = None) -> dict[str, 
     rarity = RarityEnum.COMMON
     gender = gender or random.choice(list(GenderEnum))
     stats = get_stats_by_rarity(rarity)
-    max_health = random.randint(50, 1_000)
-    health = random.randint(50, max_health)
+    max_health = 50
+    health = 50
     return {
         "first_name": get_gender_based_name(gender),
         "last_name": fake.last_name(),
         "is_adult": random.choice([True, False]),
         "gender": gender,
         "rarity": rarity,
-        "level": random.randint(1, 50),
-        "experience": random.randint(0, 1_000),
+        "level": 1,
+        "experience": 0,
         "max_health": max_health,
         "health": health,
-        "radiation": random.randint(0, 1_000),
-        "happiness": random.randint(10, 100),
-        "stimpack": random.randint(0, 15),
-        "radaway": random.randint(0, 15),
+        "radiation": 0,
+        "happiness": 50,
+        "stimpack": 0,
+        "radaway": 0,
         **stats,
     }

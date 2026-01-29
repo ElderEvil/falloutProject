@@ -18,7 +18,8 @@ services:
   fastapi:
     container_name: fastapi
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
     restart: always
     env_file: ".env"
     depends_on:
@@ -51,7 +52,8 @@ services:
   celery_worker:
     container_name: celery_worker
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
     restart: always
     env_file: ".env"
     depends_on:
@@ -65,7 +67,8 @@ services:
   celery_beat:
     container_name: celery_beat
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
     restart: always
     env_file: ".env"
     depends_on:

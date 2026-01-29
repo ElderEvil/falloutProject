@@ -23,14 +23,17 @@ WORKDIR /app
 ENV VIRTUAL_ENV=/app/.venv \
     PATH="/app/.venv/bin:$PATH"
 
-# Copy uv files for dependency installation
-COPY pyproject.toml uv.lock /app/
+# Copy dependency files for installation
+COPY backend/pyproject.toml backend/uv.lock /app/
 
 # Create virtual environment and install dependencies using uv sync
 RUN uv sync --frozen --no-dev --no-install-project --no-cache
 
-# Copy application code
-COPY . .
+# Copy changelog (needed by /api/v1/system/changelog)
+COPY CHANGELOG.md /app/CHANGELOG.md
+
+# Copy backend application code
+COPY backend/ /app/
 
 # Command to run the application
 CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

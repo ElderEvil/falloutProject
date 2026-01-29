@@ -9,32 +9,50 @@ AI-powered dweller interactions.
 
 ## Upcoming Releases
 
-### v2.8.0 - AI Integration & Advanced Features (Planned)
+### v2.8.0 - Easter Eggs & UI Fixes (January 29, 2026)
 
-**Focus**: AI/LLM integration and agent improvements
+**Focus**: Hidden features, terminal aesthetic polish, and UX bug fixes
 
-**Features:**
-- **Conversation Happiness System**
-  - Dwellers react emotionally to conversations
-  - Happiness changes based on conversation quality
-- **Token Management**
-  - Limit token usage per user
-  - Usage tracking and quotas
-- **Provider Rotation**
-  - URL configuration for Ollama
-  - Automatic fallback to alternative providers
-  - Health checking and provider switching
-- **Agent Improvements**
-  - Move to room tool for Pydantic agent
-  - Enhanced dweller AI capabilities
-- **Admin & Configuration**
-  - Fix and confirm admin birth control
-  - Config for rooms rendered
-- **Easter Eggs & Hidden Features**
-  - The "Gary" Virus (Vault 108 tribute)
-  - "It Just Works" (Todd Howard tribute)
-  - Version number glitch (fake crash screen)
-  - Konami Code developer mode
+**Completed:**
+- ✅ **Changelog System**
+  - Terminal-themed modal with version update notifications
+  - Auto-show on login after update
+  - Manual `/changelog` route for browsing history
+  - Backend API parsing CHANGELOG.md
+  - Version detection with localStorage tracking
+- ✅ **Easter Eggs**
+  - Gary Virus (Vault 108 tribute): click dweller named "Gary" for 10s glitch overlay
+  - Version Glitch Crash: click version 7 times for fake BSOD + terminal reboot
+  - Frontend-only implementation with localStorage persistence
+  - Automated tests (9/12 passing)
+- ✅ **Build Mode Hotkey** - Russian keyboard layout support
+  - Layout-independent via `KeyboardEvent.code === 'KeyB'`
+  - Ctrl/Cmd+B conflict resolution with SidePanel
+  - Guards for contenteditable/input/textarea contexts
+- ✅ **Happiness Page UX** - Quick Actions footer
+  - Moved to UCard footer (clear bottom placement)
+  - Shows "optimal" hint when no actions needed
+- ✅ **Radio Recruitment** - Staffing enforcement and cost accuracy
+  - Backend validates: requires ≥1 dweller in radio room
+  - Frontend UAlert warning when no dwellers assigned
+  - Cost fetched from API (was hardcoded to 100)
+- ✅ **Room Destroy Refund** - 50% including upgrades
+  - New formula: `floor(0.5 * (base + incremental + tier_upgrades))`
+  - Frontend refreshes vault caps after destroy
+- ✅ **Tooltip Z-Index** - Fixed rendering above navbar
+  - UTooltip uses Teleport to body (escapes stacking context)
+  - Fixed positioning with `getBoundingClientRect()`
+  - Resource tooltips now visible
+
+**Remaining for v2.9.0+:**
+- Conversation Happiness System
+- Token Management & Usage Tracking
+- Provider Rotation (Ollama URL config + health checking)
+- Agent Improvements (move to room tool, enhanced AI)
+- Admin & Configuration (birth control, room render config)
+- Additional Easter Eggs:
+  - "It Just Works" (Todd Howard tribute with buffs)
+  - Konami Code developer mode (unlock Debug Room)
   - Quantum Mouse trail effect
 
 ### v2.7.0 - Storage Management & UI Polish (Completed)

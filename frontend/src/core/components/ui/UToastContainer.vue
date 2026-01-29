@@ -18,9 +18,9 @@ const { toasts, remove } = useToast()
 <style scoped>
 .toast-container {
   position: fixed;
-  top: 1rem;
+  top: calc(var(--navbar-height) + 1rem);
   right: 1rem;
-  z-index: 9999;
+  z-index: var(--z-index-toast);
   display: flex;
   flex-direction: column;
   gap: 0.75rem;

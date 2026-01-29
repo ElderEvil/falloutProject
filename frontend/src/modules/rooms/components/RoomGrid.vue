@@ -8,6 +8,7 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useRoomInteractions } from '../composables/useRoomInteractions'
 import { useHoverPreview } from '../composables/useHoverPreview'
+import { useToast } from '@/core/composables/useToast'
 import RoomDwellers from '@/modules/dwellers/components/RoomDwellers.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import { Icon } from '@iconify/vue'
@@ -43,6 +44,7 @@ const authStore = useAuthStore()
 const vaultStore = useVaultStore()
 const dwellerStore = useDwellerStore()
 const trainingStore = useTrainingStore()
+const toast = useToast()
 const rooms = computed(() => (Array.isArray(roomStore.rooms) ? roomStore.rooms : []))
 
 // Helper to get room image URL with detailed logging
@@ -115,10 +117,7 @@ const placeRoom = async (x: number, y: number) => {
   const vaultId = route.params.id as string
   if (!vaultId) {
     console.error('No vault ID available')
-    assignmentError.value = 'No vault ID available'
-    setTimeout(() => {
-      assignmentError.value = null
-    }, 3000)
+    toast.error('No vault ID available')
     return
   }
 
@@ -149,16 +148,9 @@ const placeRoom = async (x: number, y: number) => {
       vaultId
     )
     roomStore.deselectRoom()
-    assignmentSuccess.value = `${selectedRoom.name} built successfully!`
-    setTimeout(() => {
-      assignmentSuccess.value = null
-    }, 3000)
+    toast.success(`${selectedRoom.name} built successfully!`)
   } catch (error) {
-    console.error('Failed to build room:', error)
-    assignmentError.value = error instanceof Error ? error.message : 'Failed to build room'
-    setTimeout(() => {
-      assignmentError.value = null
-    }, 3000)
+    toast.error(error instanceof Error ? error.message : 'Failed to build room')
   }
 }
 
@@ -194,8 +186,7 @@ const gridCells = computed(() => {
 
 // Drag and drop for dweller assignment
 const draggingOverRoomId = ref<string | null>(null)
-const assignmentError = ref<string | null>(null)
-const assignmentSuccess = ref<string | null>(null)
+
 
 const handleDragOver = (event: DragEvent, roomId: string) => {
   event.preventDefault()
@@ -210,8 +201,7 @@ const handleDragLeave = () => {
 const handleDrop = async (event: DragEvent, roomId: string) => {
   event.preventDefault()
   draggingOverRoomId.value = null
-  assignmentError.value = null
-  assignmentSuccess.value = null
+
 
   try {
     const data = JSON.parse(event.dataTransfer!.getData('application/json'))
@@ -234,12 +224,9 @@ const handleDrop = async (event: DragEvent, roomId: string) => {
 
       // Prevent assignment if room is full (unless moving from same room)
       if (currentDwellers >= capacity && currentRoomId !== roomId) {
-        assignmentError.value = `${targetRoom.name} is full (${currentDwellers}/${capacity})`
-        setTimeout(() => {
-          assignmentError.value = null
-        }, 3000)
-        return
-      }
+    toast.warning(`${targetRoom.name} is full (${currentDwellers}/${capacity})`)
+    return
+  }
     }
 
     // Assign dweller to room
@@ -251,16 +238,9 @@ const handleDrop = async (event: DragEvent, roomId: string) => {
     }
 
     const action = currentRoomId ? 'moved' : 'assigned'
-    assignmentSuccess.value = `${firstName} ${lastName} ${action} successfully!`
-    setTimeout(() => {
-      assignmentSuccess.value = null
-    }, 3000)
+    toast.success(`${firstName} ${lastName} ${action} successfully!`)
   } catch (error) {
-    console.error('Failed to assign dweller:', error)
-    assignmentError.value = 'Failed to assign dweller to room'
-    setTimeout(() => {
-      assignmentError.value = null
-    }, 3000)
+    toast.error('Failed to assign dweller to room')
   }
 }
 
@@ -323,25 +303,15 @@ const handleUpgradeRoom = async (roomId: string, event: MouseEvent) => {
 
   const vaultId = route.params.id as string
   if (!vaultId) {
-    assignmentError.value = 'No vault ID available'
-    setTimeout(() => {
-      assignmentError.value = null
-    }, 3000)
+    toast.error('No vault ID available')
     return
   }
 
   try {
     await roomStore.upgradeRoom(roomId, authStore.token as string, vaultId)
-    assignmentSuccess.value = 'Room upgraded successfully!'
-    setTimeout(() => {
-      assignmentSuccess.value = null
-    }, 3000)
+    toast.success('Room upgraded successfully!')
   } catch (error) {
-    console.error('Failed to upgrade room:', error)
-    assignmentError.value = error instanceof Error ? error.message : 'Failed to upgrade room'
-    setTimeout(() => {
-      assignmentError.value = null
-    }, 3000)
+    toast.error(error instanceof Error ? error.message : 'Failed to upgrade room')
   }
 }
 
@@ -379,16 +349,6 @@ const closeDetailModal = () => {
 
 <template>
   <div class="room-grid-container">
-    <!-- Success/Error notifications -->
-    <div v-if="assignmentSuccess" class="notification notification-success">
-      <Icon icon="mdi:check-circle" class="h-5 w-5" />
-      {{ assignmentSuccess }}
-    </div>
-    <div v-if="assignmentError" class="notification notification-error">
-      <Icon icon="mdi:alert-circle" class="h-5 w-5" />
-      {{ assignmentError }}
-    </div>
-
     <!-- Room Detail Modal -->
     <RoomDetailModal
       :room="selectedRoomForDetail"
@@ -527,19 +487,7 @@ const closeDetailModal = () => {
   position: relative;
 }
 
-.notification {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  padding: 1rem;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-family: 'Courier New', monospace;
-  z-index: 1000;
-  animation: slideIn 0.3s ease-out;
-}
+
 
 @keyframes slideIn {
   from {

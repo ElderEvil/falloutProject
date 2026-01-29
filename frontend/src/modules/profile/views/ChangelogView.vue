@@ -3,6 +3,7 @@
  * ChangelogView - Full changelog page
  */
 import { ref, onMounted, computed } from 'vue'
+import { Icon } from '@iconify/vue'
 import { UCard, UButton, UBadge, USkeleton } from '@/core/components/ui'
 import { changelogService, type ChangelogEntry, type ChangeEntry } from '@/modules/profile/services/changelogService'
 import FormattedChangeDescription from '@/modules/profile/components/FormattedChangeDescription.vue'
@@ -106,8 +107,9 @@ onMounted(() => {
   <div class="container mx-auto px-4 py-8">
     <!-- Header -->
     <div class="mb-8 text-center">
-      <h1 class="text-4xl font-bold text-[var(--color-theme-primary)] mb-4 terminal-glow">
-        📜 Changelog
+      <h1 class="text-4xl font-bold text-[var(--color-theme-primary)] mb-4 terminal-glow flex items-center justify-center gap-3">
+        <Icon icon="mdi:console-line" class="w-10 h-10" />
+        Changelog
       </h1>
       <p class="text-gray-400 text-lg">
         Complete version history and release notes for Fallout Shelter Game

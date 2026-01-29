@@ -5,6 +5,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/stores/dweller'
 import { useExplorationStore } from '@/stores/exploration'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useToast } from '@/core/composables/useToast'
 import { Icon } from '@iconify/vue'
 import ExplorationRewardsModal from '@/modules/exploration/components/ExplorationRewardsModal.vue'
 import type { RewardsSummary } from '@/stores/exploration'
@@ -14,12 +15,11 @@ const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
 const explorationStore = useExplorationStore()
 const vaultStore = useVaultStore()
+const toast = useToast()
 
 const vaultId = computed(() => route.params.id as string)
 
 const isDraggingOver = ref(false)
-const sendError = ref<string | null>(null)
-const sendSuccess = ref<string | null>(null)
 const showDurationModal = ref(false)
 const pendingDweller = ref<{
   dwellerId: string
@@ -104,8 +104,6 @@ const handleDragLeave = () => {
 const handleDrop = async (event: DragEvent) => {
   event.preventDefault()
   isDraggingOver.value = false
-  sendError.value = null
-  sendSuccess.value = null
 
   try {
     const data = JSON.parse(event.dataTransfer!.getData('application/json'))
@@ -132,10 +130,7 @@ const handleDrop = async (event: DragEvent) => {
     showDurationModal.value = true
   } catch (error) {
     console.error('Failed to parse dweller data:', error)
-    sendError.value = 'Failed to send dweller to wasteland'
-    setTimeout(() => {
-      sendError.value = null
-    }, 3000)
+    toast.error('Failed to send dweller to wasteland')
   }
 }
 
@@ -161,11 +156,7 @@ const confirmSendToWasteland = async () => {
       selectedRadaways.value
     )
 
-    sendSuccess.value = `${firstName} ${lastName} sent to the wasteland for ${selectedDuration.value} hour(s)!`
-
-    setTimeout(() => {
-      sendSuccess.value = null
-    }, 4000)
+    toast.success(`${firstName} ${lastName} sent to the wasteland for ${selectedDuration.value} hour(s)!`)
 
     // Close modal and reset
     showDurationModal.value = false
@@ -175,10 +166,7 @@ const confirmSendToWasteland = async () => {
     selectedRadaways.value = 0
   } catch (error) {
     console.error('Failed to send dweller to wasteland:', error)
-    sendError.value = 'Failed to send dweller to wasteland'
-    setTimeout(() => {
-      sendError.value = null
-    }, 3000)
+    toast.error('Failed to send dweller to wasteland')
   }
 }
 
@@ -311,15 +299,7 @@ const closeRewardsModal = () => {
 
 <template>
   <div class="wasteland-panel">
-    <!-- Success/Error notifications -->
-    <div v-if="sendSuccess" class="notification notification-success">
-      <Icon icon="mdi:check-circle" class="h-5 w-5" />
-      {{ sendSuccess }}
-    </div>
-    <div v-if="sendError" class="notification notification-error">
-      <Icon icon="mdi:alert-circle" class="h-5 w-5" />
-      {{ sendError }}
-    </div>
+
 
     <div
       class="wasteland-dropzone"
@@ -523,44 +503,7 @@ const closeRewardsModal = () => {
   margin-bottom: 1rem;
 }
 
-.notification {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  padding: 1rem;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-family: 'Courier New', monospace;
-  z-index: 1000;
-  animation: slideIn 0.3s ease-out;
-}
 
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-.notification-success {
-  background: rgba(0, 0, 0, 0.95);
-  border: 2px solid var(--color-theme-primary);
-  color: var(--color-theme-primary);
-  box-shadow: 0 0 20px var(--color-theme-glow);
-}
-
-.notification-error {
-  background: rgba(0, 0, 0, 0.95);
-  border: 2px solid var(--color-danger);
-  color: var(--color-danger);
-  box-shadow: 0 0 20px rgba(255, 0, 0, 0.3);
-}
 
 .wasteland-dropzone {
   background: rgba(139, 69, 19, 0.2);

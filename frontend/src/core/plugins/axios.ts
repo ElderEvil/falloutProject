@@ -213,7 +213,7 @@ apiClient.interceptors.response.use(
           }
         }
 
-        // Add technical details
+        // Log technical details (not shown in toast)
         const url = originalRequest.url || 'unknown'
         const method = originalRequest.method?.toUpperCase() || 'GET'
         details = `${method} ${url} - Status ${status}`
@@ -225,7 +225,13 @@ apiClient.interceptors.response.use(
         details = error.message
       }
 
-      showError(`${title}: ${message}${details ? ` (${details})` : ''}`)
+      // Log technical details to console
+      if (details) {
+        console.error(`API Error: ${details}`, error)
+      }
+
+      // Show user-friendly toast (no technical suffix)
+      showError(`${title}: ${message}`)
     }
 
     return Promise.reject(error)

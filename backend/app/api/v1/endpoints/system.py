@@ -10,7 +10,7 @@ import re
 from datetime import UTC, datetime
 from typing import Any, Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.core.config import settings
@@ -88,13 +88,20 @@ class InfoResponse(BaseModel):
     build_date: str
 
 
+class ChangeEntry(BaseModel):
+    """Individual change entry within a changelog version."""
+
+    category: str
+    description: str
+
+
 class ChangelogEntry(BaseModel):
     """Changelog entry response schema."""
 
     version: str
     date: str
     date_display: str
-    changes: list[dict[str, Any]]
+    changes: list[ChangeEntry]
 
 
 @router.get("/info", status_code=200)
@@ -158,8 +165,8 @@ async def get_changelog(limit: Optional[int] = 10, since: Optional[str] = None):
     return versions
 
 
-@router.get("/changelog/latest")
-async def get_latest_changelog() -> dict[str, Any]:
+@router.get("/changelog/latest", response_model=ChangelogEntry)
+async def get_latest_changelog():
     """Get the latest changelog entry.
 
     Public endpoint (no authentication required).
@@ -167,7 +174,7 @@ async def get_latest_changelog() -> dict[str, Any]:
     versions = parse_changelog()
 
     if not versions:
-        return {}
+        raise HTTPException(status_code=404, detail="No changelog entries available")
 
     # Sort by version (newest first) and return latest
     def version_tuple(version_str):

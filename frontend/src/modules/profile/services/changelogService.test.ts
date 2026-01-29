@@ -69,5 +69,18 @@ describe('ChangelogService', () => {
 
       expect(result).toBeNull()
     })
+
+    it('should return null on 404 error without logging', async () => {
+      const error404 = new Error('Not Found')
+      ;(error404 as any).response = { status: 404 }
+
+      vi.spyOn(api, 'apiGet').mockRejectedValue(error404)
+      const consoleSpy = vi.spyOn(console, 'error')
+
+      const result = await changelogService.getLatestChangelog()
+
+      expect(result).toBeNull()
+      expect(consoleSpy).not.toHaveBeenCalled()
+    })
   })
 })

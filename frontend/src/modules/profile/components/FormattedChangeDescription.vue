@@ -63,10 +63,18 @@ const segments = computed<Segment[]>(() => {
       continue
     }
 
-    // Regular text - consume until next special character
-    const nextSpecial = remaining.search(/[`*h]/)
+    // Regular text - consume until next special character (backtick, **, or http(s)://)
+    const backtickIdx = remaining.indexOf('`')
+    const boldIdx = remaining.indexOf('**')
+    const httpIdx = remaining.indexOf('http://')
+    const httpsIdx = remaining.indexOf('https://')
+
+    // Find the minimum index (first occurrence of any special token)
+    const indices = [backtickIdx, boldIdx, httpIdx, httpsIdx].filter(idx => idx !== -1)
+    const nextSpecial = indices.length > 0 ? Math.min(...indices) : -1
+
     if (nextSpecial === -1) {
-      // No more special characters
+      // No more special characters - consume rest as plain text
       if (remaining.length > 0) {
         result.push({
           type: 'text',

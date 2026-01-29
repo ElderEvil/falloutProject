@@ -2,7 +2,7 @@
 /**
  * ChangelogModal - Displays version updates and changelog information
  */
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { UCard, UButton, UBadge } from '@/core/components/ui'
 import { Icon } from '@iconify/vue'
 import {
@@ -124,12 +124,7 @@ const getCategoryInfo = (category: string) => {
 
 
 
-// Fetch changelog on mount
-onMounted(() => {
-  fetchChangelog()
-})
-
-// Refetch when modal opens
+// Fetch changelog when modal opens (with immediate:true for initial show=true)
 watch(
   () => props.show,
   (newShow) => {
@@ -141,8 +136,15 @@ watch(
       document.removeEventListener('keydown', handleEscape)
       document.body.style.overflow = ''
     }
-  }
+  },
+  { immediate: true }
 )
+
+// Cleanup on unmount: remove keydown listener and reset overflow
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleEscape)
+  document.body.style.overflow = ''
+})
 </script>
 
 <template>

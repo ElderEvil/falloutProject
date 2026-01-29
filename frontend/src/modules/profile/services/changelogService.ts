@@ -47,7 +47,12 @@ class ChangelogService {
   async getLatestChangelog(): Promise<ChangelogEntry | null> {
     try {
       return await apiGet<ChangelogEntry>(`${this.baseUrl}/latest`)
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.response?.status === 404) {
+        // 404 is expected when no changelog exists
+        return null
+      }
+      // Log other errors
       if (error instanceof Error) {
         console.error('Failed to fetch latest changelog:', error.message)
       } else {

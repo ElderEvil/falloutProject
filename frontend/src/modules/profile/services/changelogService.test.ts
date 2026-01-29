@@ -9,14 +9,14 @@ describe('ChangelogService', () => {
   describe('getChangelog', () => {
     it('should fetch changelog data from API', async () => {
       console.log('Test: calling getChangelog()')
-      
+
       const result = await changelogService.getChangelog({ limit: 5 })
-      
+
       console.log('Test: getChangelog result:', result)
-      
+
       expect(Array.isArray(result)).toBe(true)
       expect(result.length).toBeGreaterThan(0)
-      
+
       // Check structure of first entry
       if (result.length > 0) {
         const firstEntry = result[0]
@@ -42,11 +42,11 @@ describe('ChangelogService', () => {
   describe('getLatestChangelog', () => {
     it('should return latest changelog entry', async () => {
       console.log('Test: calling getLatestChangelog()')
-      
+
       const result = await changelogService.getLatestChangelog()
-      
+
       console.log('Test: getLatestChangelog result:', result)
-      
+
       if (result) {
         expect(result).toHaveProperty('version')
         expect(result).toHaveProperty('date_display')

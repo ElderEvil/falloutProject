@@ -7,7 +7,7 @@ The changelog frontend service is receiving an empty array `[]` from the backend
 - **Backend API** (`curl http://localhost:8000/api/v1/system/changelog`) ✅ Works correctly
   - Returns JSON array with version 2.7.5 entries
 - Proper structure with `version`, `date`, `date_display`, `changes` fields
-  
+
 - **Frontend Service** (`apiGet('/api/v1/system/changelog')`) ❌ Returns empty array `[]`
   - `axios.get()` call completes without throwing errors
 - `console.log()` shows correct URL being called

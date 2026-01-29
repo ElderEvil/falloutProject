@@ -31,7 +31,7 @@ class ChangelogService {
 
     const url = `${this.baseUrl}?${params.toString()}`
     console.log('Fetching changelog from:', url)
-    
+
     try {
       console.log('Making axios GET request...')
       const result = await apiGet(url)
@@ -41,7 +41,7 @@ class ChangelogService {
       console.error('Changelog API error:', error)
       console.error('Error details:', error.message, error.status, error.response?.data)
       console.error('Full error object:', error)
-      
+
       // Fallback to empty array to prevent UI from breaking
       return []
     }

@@ -48,7 +48,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   - Terminal-themed modal with backdrop, escape key, and click-outside-to-close
   - Version detection composable for automatic new version notifications
 
-### Fixed  
+### Fixed
 - **API Architecture** - Moved changelog endpoints from `/changelog/` to `/system/changelog/`
   - Added `/system/changelog/latest` endpoint for latest version lookup
   - Fixed module import paths for UI components and API utilities

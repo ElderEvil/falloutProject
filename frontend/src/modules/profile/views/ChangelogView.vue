@@ -3,7 +3,7 @@
  * ChangelogView - Full changelog page
  */
 import { ref, onMounted, computed } from 'vue'
-import { UCard, UButton, UBadge, USkeleton } from '@/components/ui'
+import { UCard, UButton, UBadge, USkeleton } from '@/core/components/ui'
 import { changelogService, type ChangelogEntry, type ChangeEntry } from '@/modules/profile/services/changelogService'
 
 const changelog = ref<ChangelogEntry[]>([])

@@ -2,103 +2,73 @@
 /**
  * ChangelogModal - Displays version updates and changelog information
  */
-import { ref, computed, onMounted, watch } from "vue";
-import { UCard, UButton, UModal, UBadge } from "@/core/components/ui";
+import { ref, computed, onMounted, watch } from 'vue'
+import { UCard, UButton, UBadge } from '@/core/components/ui'
+import { Icon } from '@iconify/vue'
 import {
-    changelogService,
-    type ChangelogEntry,
-    type ChangeEntry,
-} from "@/modules/profile/services/changelogService";
+  changelogService,
+  type ChangelogEntry,
+  type ChangeEntry
+} from '@/modules/profile/services/changelogService'
 
 interface Props {
-    show: boolean;
-    currentVersion?: string;
-    lastSeenVersion?: string;
+  show: boolean
+  currentVersion?: string
+  lastSeenVersion?: string
 }
 
 interface Emits {
-    close: [];
-    markAsSeen: [version: string];
+  close: []
+  markAsSeen: [version: string]
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    currentVersion: "2.7.5",
-    lastSeenVersion: undefined,
-});
+  currentVersion: '2.7.5',
+  lastSeenVersion: undefined
+})
 
-const emit = defineEmits<Emits>();
+const emit = defineEmits<Emits>()
 
-const changelog = ref<ChangelogEntry[]>([]);
-const loading = ref(false);
-const error = ref("");
-
-// Computed property for v-model binding
-const modalShow = computed({
-    get: () => props.show,
-    set: (value: boolean) => {
-        if (!value) {
-            emit("close");
-        }
-    },
-});
+const changelog = ref<ChangelogEntry[]>([])
+const loading = ref(false)
+const error = ref('')
 
 // Compute entries to show (either all or just new versions)
 const entriesToShow = computed(() => {
-    if (!props.lastSeenVersion) {
-        // First time user, show only latest
-        return changelog.value.slice(0, 1);
-    }
+  if (!props.lastSeenVersion) {
+    return changelog.value.slice(0, 1)
+  }
 
-    // Show versions since last seen
-    return changelog.value.filter((entry) => {
-        const lastSeen = props.lastSeenVersion!;
-        const current = entry.version;
+  return changelog.value.filter((entry) => {
+    const lastSeen = props.lastSeenVersion!
+    const current = entry.version
 
-        // Simple version comparison
-        const [lastMajor, lastMinor, lastPatch] = lastSeen
-            .split(".")
-            .map(Number);
-        const [currMajor, currMinor, currPatch] = current
-            .split(".")
-            .map(Number);
+    const [lastMajor, lastMinor, lastPatch] = lastSeen.split('.').map(Number)
+    const [currMajor, currMinor, currPatch] = current.split('.').map(Number)
 
-        if (currMajor > lastMajor) return true;
-        if (currMajor === lastMajor && currMinor > lastMinor) return true;
-        if (
-            currMajor === lastMajor &&
-            currMinor === lastMinor &&
-            currPatch > lastPatch
-        )
-            return true;
+    if (currMajor > lastMajor) return true
+    if (currMajor === lastMajor && currMinor > lastMinor) return true
+    if (currMajor === lastMajor && currMinor === lastMinor && currPatch > lastPatch) return true
 
-        return false;
-    });
-});
+    return false
+  })
+})
 
-const hasNewVersions = computed(() => entriesToShow.value.length > 0);
-
-// Debug: log computed values
-watch([changelog, entriesToShow, hasNewVersions], () => {
-  console.log('changelog length:', changelog.value.length)
-  console.log('entriesToShow:', entriesToShow.value)
-  console.log('hasNewVersions:', hasNewVersions.value)
-}, { immediate: true })
+const hasNewVersions = computed(() => entriesToShow.value.length > 0)
 
 const handleMarkAsSeen = () => {
-    if (props.currentVersion) {
-        emit("markAsSeen", props.currentVersion);
-    }
-    emit("close");
-};
+  if (props.currentVersion) {
+    emit('markAsSeen', props.currentVersion)
+  }
+  emit('close')
+}
 
 const fetchChangelog = async () => {
   loading.value = true
   error.value = ''
 
   try {
-    console.log('Fetching changelog...')
     changelog.value = await changelogService.getChangelog({ limit: 10 })
-    console.log('Fetched changelog:', changelog.value)
   } catch (err) {
     error.value = 'Failed to load changelog'
     console.error('Changelog fetch error:', err)
@@ -108,214 +78,249 @@ const fetchChangelog = async () => {
 }
 
 const handleViewAllChangelog = () => {
-    // Could navigate to a full changelog page
-    window.open(
-        "https://github.com/ElderEvil/falloutProject/blob/master/CHANGELOG.md",
-        "_blank",
-    );
-};
+  window.open(
+    'https://github.com/ElderEvil/falloutProject/blob/master/CHANGELOG.md',
+    '_blank'
+  )
+}
+
+const handleBackdropClick = () => {
+  emit('close')
+}
+
+const handleEscape = (event: KeyboardEvent) => {
+  if (event.key === 'Escape' && props.show) {
+    emit('close')
+  }
+}
+
+// Group changes by category
+const groupChangesByCategory = (changes: ChangeEntry[]) => {
+  const grouped = new Map<string, ChangeEntry[]>()
+
+  changes.forEach((change) => {
+    if (!grouped.has(change.category)) {
+      grouped.set(change.category, [])
+    }
+    grouped.get(change.category)!.push(change)
+  })
+
+  return Array.from(grouped.entries())
+}
+
+// Category colors and icons
+const getCategoryInfo = (category: string) => {
+  const categoryMap: Record<string, { color: string; icon: string }> = {
+    Added: { color: 'text-[--color-terminal-green-400]', icon: 'mdi:plus-circle' },
+    Fixed: { color: 'text-red-400', icon: 'mdi:wrench' },
+    Changed: { color: 'text-yellow-400', icon: 'mdi:swap-horizontal' },
+    Removed: { color: 'text-red-400', icon: 'mdi:minus-circle' },
+    Documentation: { color: 'text-blue-400', icon: 'mdi:file-document' },
+    Testing: { color: 'text-purple-400', icon: 'mdi:test-tube' }
+  }
+  return categoryMap[category] || { color: 'text-gray-400', icon: 'mdi:circle' }
+}
+
+// Format markdown-style descriptions
+const formatChangeDescription = (description: string): string => {
+  description = description.replace(
+    /`([^`]+)`/g,
+    '<code class="bg-gray-800 px-1 rounded text-[--color-terminal-green-300]">$1</code>'
+  )
+
+  description = description.replace(/\*\*([^*]+)\*\*/g, '<strong class="text-white">$1</strong>')
+
+  description = description.replace(
+    /(https?:\/\/[^\s]+)/g,
+    '<a href="$1" target="_blank" class="text-[--color-terminal-green-400] hover:text-[--color-terminal-green-300] underline">$1</a>'
+  )
+
+  return description
+}
+
+// Fetch changelog on mount
+onMounted(() => {
+  fetchChangelog()
+})
+
+// Refetch when modal opens
+watch(
+  () => props.show,
+  (newShow) => {
+    if (newShow) {
+      fetchChangelog()
+      document.addEventListener('keydown', handleEscape)
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.removeEventListener('keydown', handleEscape)
+      document.body.style.overflow = ''
+    }
+  }
+)
 </script>
 
 <template>
-    <UModal v-model="modalShow" @close="$emit('close')" size="lg">
+  <Teleport to="body">
+    <Transition name="modal">
+      <div
+        v-if="show"
+        class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
+        @click="handleBackdropClick"
+      >
         <UCard
-            title="📜 What's New"
-            glow
-            crt
-            class="w-full max-w-4xl max-h-[80vh] overflow-hidden"
+          glow
+          crt
+          class="w-full max-w-4xl max-h-[85vh] overflow-hidden"
+          @click.stop
         >
-            <!-- Loading state -->
-            <div v-if="loading" class="flex items-center justify-center py-12">
-                <div class="terminal-glow text-green-400">
-                    Loading changelog...
+          <template #header>
+            <div class="flex items-center justify-between w-full">
+              <div class="flex items-center gap-3">
+                <Icon icon="mdi:history" class="h-7 w-7 text-[--color-terminal-green-400]" />
+                <h2 class="text-2xl font-bold text-[--color-terminal-green-400]">What's New</h2>
+              </div>
+              <button
+                @click="$emit('close')"
+                class="text-gray-400 hover:text-[--color-terminal-green-400] transition-colors p-1"
+                aria-label="Close modal"
+              >
+                <Icon icon="mdi:close" class="h-6 w-6" />
+              </button>
+            </div>
+          </template>
+
+          <!-- Loading state -->
+          <div v-if="loading" class="flex items-center justify-center py-12">
+            <div class="terminal-glow text-[--color-terminal-green-400]">Loading changelog...</div>
+          </div>
+
+          <!-- Error state -->
+          <div v-else-if="error" class="flex flex-col items-center justify-center py-12">
+            <div class="text-red-400 mb-4">{{ error }}</div>
+            <UButton variant="primary" @click="fetchChangelog">Retry</UButton>
+          </div>
+
+          <!-- No new versions -->
+          <div
+            v-else-if="!hasNewVersions"
+            class="flex flex-col items-center justify-center py-12"
+          >
+            <Icon
+              icon="mdi:check-circle"
+              class="h-16 w-16 text-[--color-terminal-green-400] mb-4"
+            />
+            <div class="text-[--color-terminal-green-400] text-xl mb-2">All caught up!</div>
+            <div class="text-gray-400">You're running the latest version</div>
+          </div>
+
+          <!-- Changelog content -->
+          <div
+            v-if="!loading && !error && changelog.length > 0"
+            class="overflow-y-auto max-h-[50vh] pr-2 space-y-6"
+          >
+            <div v-for="entry in entriesToShow" :key="entry.version" class="mb-8 last:mb-0">
+              <!-- Version header -->
+              <div
+                class="flex items-center justify-between mb-4 pb-2 border-b border-[--color-terminal-green-500]/30"
+              >
+                <div class="flex items-center gap-3">
+                  <UBadge variant="success" class="text-lg"> v{{ entry.version }} </UBadge>
+                  <span class="text-gray-400 text-sm font-mono">{{ entry.date_display }}</span>
                 </div>
-            </div>
+              </div>
 
-            <!-- Error state -->
-            <div
-                v-else-if="error"
-                class="flex flex-col items-center justify-center py-12"
-            >
-                <div class="text-red-400 mb-4">{{ error }}</div>
-                <UButton variant="primary" @click="fetchChangelog"
-                    >Retry</UButton
-                >
-            </div>
-
-            <!-- No new versions -->
-            <div
-                v-else-if="!hasNewVersions"
-                class="flex flex-col items-center justify-center py-12"
-            >
-                <div class="text-green-400 text-xl mb-2">✅ All caught up!</div>
-                <div class="text-gray-400">
-                    You're running the latest version
-                </div>
-            </div>
-
-            <!-- Changelog content -->
-            <div
-                v-if="!loading && !error && changelog.length > 0"
-                class="overflow-y-auto max-h-[60vh] pr-2"
-            >
+              <!-- Changes grouped by category -->
+              <div class="space-y-4">
                 <div
-                    v-for="entry in entriesToShow"
-                    :key="entry.version"
-                    class="mb-8 last:mb-0"
+                  v-for="[category, changes] in groupChangesByCategory(entry.changes)"
+                  :key="category"
+                  class="mb-4"
                 >
-                    <!-- Version header -->
-                    <div
-                        class="flex items-center justify-between mb-4 pb-2 border-b border-green-500/30"
+                  <!-- Category header -->
+                  <div class="flex items-center gap-2 mb-3">
+                    <Icon :icon="getCategoryInfo(category).icon" :class="getCategoryInfo(category).color" class="h-5 w-5" />
+                    <h3 :class="getCategoryInfo(category).color" class="font-semibold font-mono">
+                      {{ category }}
+                    </h3>
+                  </div>
+
+                  <!-- Change items -->
+                  <ul class="space-y-2 ml-6">
+                    <li
+                      v-for="(change, idx) in changes"
+                      :key="idx"
+                      class="text-gray-300 text-sm leading-relaxed font-mono"
                     >
-                        <div class="flex items-center gap-3">
-                            <UBadge variant="primary" class="text-lg">
-                                v{{ entry.version }}
-                            </UBadge>
-                            <span class="text-gray-400 text-sm">{{
-                                entry.date_display
-                            }}</span>
-                        </div>
-                    </div>
-
-                    <!-- Changes grouped by category -->
-                    <div class="space-y-4">
-                        <div
-                            v-for="[
-                                category,
-                                changes,
-                            ] in groupChangesByCategory(entry.changes)"
-                            :key="category"
-                            class="mb-4"
-                        >
-                            <!-- Category header -->
-                            <div class="flex items-center gap-2 mb-3">
-                                <span :class="getCategoryInfo(category).color">
-                                    {{ getCategoryInfo(category).icon }}
-                                </span>
-                                <h3
-                                    :class="getCategoryInfo(category).color"
-                                    class="font-semibold"
-                                >
-                                    {{ category }}
-                                </h3>
-                            </div>
-
-                            <!-- Change items -->
-                            <ul class="space-y-2 ml-6">
-                                <li
-                                    v-for="change in changes"
-                                    :key="change.description"
-                                    class="text-gray-300 text-sm leading-relaxed"
-                                >
-                                    <!-- Parse markdown-style links and formatting -->
-                                    <span
-                                        v-html="
-                                            formatChangeDescription(
-                                                change.description,
-                                            )
-                                        "
-                                    ></span>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
+                      <span v-html="formatChangeDescription(change.description)"></span>
+                    </li>
+                  </ul>
                 </div>
+              </div>
             </div>
+          </div>
 
-            <!-- Actions -->
-            <template #footer>
-                <div class="flex justify-between items-center">
-                    <div class="flex gap-3">
-                        <UButton
-                            variant="secondary"
-                            @click="handleViewAllChangelog"
-                        >
-                            View Full Changelog
-                        </UButton>
-                    </div>
+          <!-- Actions -->
+          <template #footer>
+            <div class="flex justify-between items-center">
+              <div class="flex gap-3">
+                <UButton variant="secondary" @click="handleViewAllChangelog">
+                  View Full Changelog
+                </UButton>
+              </div>
 
-                    <div class="flex gap-3">
-                        <UButton variant="secondary" @click="$emit('close')">
-                            Close
-                        </UButton>
-                        <UButton
-                            v-if="hasNewVersions"
-                            variant="primary"
-                            @click="handleMarkAsSeen"
-                        >
-                            Got it!
-                        </UButton>
-                    </div>
-                </div>
-            </template>
+              <div class="flex gap-3">
+                <UButton variant="secondary" @click="$emit('close')"> Close </UButton>
+                <UButton v-if="hasNewVersions" variant="primary" @click="handleMarkAsSeen">
+                  Got it!
+                </UButton>
+              </div>
+            </div>
+          </template>
         </UCard>
-    </UModal>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
-<script lang="ts">
-// Helper function to format markdown-style descriptions
-function formatChangeDescription(description: string): string {
-    // Handle code blocks and inline code
-    description = description.replace(
-        /`([^`]+)`/g,
-        '<code class="bg-gray-800 px-1 rounded text-green-300">$1</code>',
-    );
-
-    // Handle bold text
-    description = description.replace(
-        /\*\*([^*]+)\*\*/g,
-        '<strong class="text-white">$1</strong>',
-    );
-
-    // Handle URLs (basic)
-    description = description.replace(
-        /(https?:\/\/[^\s]+)/g,
-        '<a href="$1" target="_blank" class="text-green-400 hover:text-green-300 underline">$1</a>',
-    );
-
-    return description;
-}
-</script>
-
 <style scoped>
-/* Target UCard header within modal context */
-:deep(.card-header) {
-    background: linear-gradient(
-        90deg,
-        var(--color-theme-primary) 0%,
-        transparent 100%
-    );
-    border-bottom: 2px solid var(--color-theme-primary);
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
 }
 
 /* Custom scrollbar for changelog content */
 :deep(.overflow-y-auto) {
-    scrollbar-width: thin;
-    scrollbar-color: var(--color-theme-primary) transparent;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-terminal-green) transparent;
 }
 
 :deep(.overflow-y-auto)::-webkit-scrollbar {
-    width: 6px;
+  width: 6px;
 }
 
 :deep(.overflow-y-auto)::-webkit-scrollbar-track {
-    background: transparent;
+  background: transparent;
 }
 
 :deep(.overflow-y-auto)::-webkit-scrollbar-thumb {
-    background-color: var(--color-theme-primary);
-    border-radius: 3px;
+  background-color: var(--color-terminal-green);
+  border-radius: 3px;
 }
 
 :deep(.overflow-y-auto)::-webkit-scrollbar-thumb:hover {
-    background-color: var(--color-theme-glow);
+  background-color: var(--color-terminal-green-glow);
 }
 
 /* Terminal-style bullets */
-:deep(.space-y-2 > li::before) {
-    content: "▸";
-    color: var(--color-theme-primary);
-    margin-right: 8px;
-    font-weight: bold;
+:deep(ul li::before) {
+  content: '▸';
+  color: var(--color-terminal-green);
+  margin-right: 8px;
+  font-weight: bold;
 }
 </style>

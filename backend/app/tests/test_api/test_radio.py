@@ -119,8 +119,8 @@ async def test_manual_recruit_insufficient_caps(
     superuser_token_headers: dict[str, str],
 ):
     """Test manual recruitment fails with insufficient caps."""
+    from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
     from app.schemas.dweller import DwellerCreate
-    from app.schemas.common import GenderEnum, AgeGroupEnum, RarityEnum, SPECIALEnum
 
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault = await crud.vault.create_with_user_id(
@@ -192,8 +192,8 @@ async def test_manual_recruit_success(
     superuser_token_headers: dict[str, str],
 ):
     """Test successful manual recruitment."""
+    from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
     from app.schemas.dweller import DwellerCreate
-    from app.schemas.common import GenderEnum, AgeGroupEnum, RarityEnum
 
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault = await crud.vault.create_with_user_id(

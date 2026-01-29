@@ -202,7 +202,6 @@ async def dweller_fixture(async_session: AsyncSession, vault: "Vault", dweller_d
 @pytest_asyncio.fixture(name="radio_room")
 async def radio_room_fixture(async_session: AsyncSession, vault: "Vault") -> "Room":  # noqa: F821
     """Create a radio room for testing."""
-    from app.models.room import Room
     from app.schemas.common import RoomTypeEnum, SPECIALEnum
     from app.schemas.room import RoomCreate
 
@@ -232,7 +231,6 @@ async def radio_room_fixture(async_session: AsyncSession, vault: "Vault") -> "Ro
 @pytest_asyncio.fixture(name="radio_dweller")
 async def radio_dweller_fixture(async_session: AsyncSession, vault: "Vault", radio_room: "Room") -> "Dweller":  # noqa: F821
     """Create a dweller with high charisma for radio room."""
-    from app.models.dweller import Dweller
     from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
     from app.schemas.dweller import DwellerCreate
 

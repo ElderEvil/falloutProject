@@ -130,8 +130,8 @@ const getNotificationIcon = (type: string): string => {
 const getPriorityColor = (priority: string): string => {
   const colorMap: Record<string, string> = {
     urgent: 'text-red-500',
-    high: 'text-yellow-500',
-    normal: 'text-blue-400',
+    high: 'text-[--color-theme-accent]',
+    normal: 'text-[--color-theme-primary]',
     info: 'text-gray-400',
   }
   return colorMap[priority] || 'text-gray-400'
@@ -177,7 +177,7 @@ onBeforeUnmount(() => {
       <Icon
         icon="mdi:bell"
         class="h-5 w-5"
-        :class="hasUnread ? 'text-yellow-500' : 'text-gray-400'"
+        :class="hasUnread ? 'text-[--color-theme-primary]' : 'text-gray-400'"
       />
 
       <!-- Unread Badge -->

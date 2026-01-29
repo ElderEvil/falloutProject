@@ -9,32 +9,86 @@ AI-powered dweller interactions.
 
 ## Upcoming Releases
 
-### v2.8.0 - AI Integration & Advanced Features (Planned)
+### v2.8.5 - Code Quality & Refactoring (February 2026)
 
-**Focus**: AI/LLM integration and agent improvements
+**Focus**: Technical debt reduction, code deduplication, and maintainability improvements
 
-**Features:**
-- **Conversation Happiness System**
-  - Dwellers react emotionally to conversations
-  - Happiness changes based on conversation quality
-- **Token Management**
-  - Limit token usage per user
-  - Usage tracking and quotas
-- **Provider Rotation**
-  - URL configuration for Ollama
-  - Automatic fallback to alternative providers
-  - Health checking and provider switching
-- **Agent Improvements**
-  - Move to room tool for Pydantic agent
-  - Enhanced dweller AI capabilities
-- **Admin & Configuration**
-  - Fix and confirm admin birth control
-  - Config for rooms rendered
-- **Easter Eggs & Hidden Features**
-  - The "Gary" Virus (Vault 108 tribute)
-  - "It Just Works" (Todd Howard tribute)
-  - Version number glitch (fake crash screen)
-  - Konami Code developer mode
+**Planned:**
+- 🔄 **Code Deduplication**
+  - Remove empty CRUD classes (weapon, outfit, junk) - use CRUDItem directly
+  - Extract vault filtering logic into shared utility (25-line duplication in weapon/outfit endpoints)
+  - Create generic `seed_from_json()` function (quest/objective seeders are identical)
+  - Add query builder methods to CRUDBase for soft-delete and vault-scoped queries
+- 🔄 **Error Handling Improvements**
+  - Replace 11 bare `except Exception` handlers with specific exceptions
+  - Create `get_or_404()` helper to reduce ResourceNotFoundException boilerplate (28 locations)
+  - Add notification error handling decorator/utility (pattern repeated in 5+ services)
+- 🔄 **Configuration Cleanup**
+  - Move hardcoded magic numbers to game_config.py (rarity priorities, probabilities, value maps)
+  - Extract difficulty weights, junk values, and loot probabilities to config
+- 🔄 **Refactoring**
+  - Split game_loop.py (767 lines) into smaller domain services
+  - Refactor `_transfer_loot_to_storage()` (171 lines, too complex)
+  - Simplify functions with noqa suppressions (6 functions with C901/PLR0912/PLR0915)
+- 🐛 **Bug Fixes**
+  - Implement TODO stub in `celery_task.py:26` (generate function)
+  - Fix session isolation issues in 2 test files
+  - Address N+1 query patterns in game loop
+- 📊 **Estimated Impact**
+  - Reduce codebase by 200-300 lines of duplicate code
+  - Improve maintainability score
+  - Easier onboarding for new contributors
+
+**Priority Classification:**
+- 🔴 Critical: Empty CRUD classes, TODO stubs, test isolation fixes
+- 🟡 High: Vault filtering duplication, bare exception handlers, magic numbers
+- 🟢 Medium: Seeding functions, query patterns, game_loop refactoring
+- 🔵 Low: Notification patterns, endpoint factories
+
+### v2.8.0 - Easter Eggs & UI Fixes (January 29, 2026)
+
+**Focus**: Hidden features, terminal aesthetic polish, and UX bug fixes
+
+**Completed:**
+- ✅ **Changelog System**
+  - Terminal-themed modal with version update notifications
+  - Auto-show on login after update
+  - Manual `/changelog` route for browsing history
+  - Backend API parsing CHANGELOG.md
+  - Version detection with localStorage tracking
+- ✅ **Easter Eggs**
+  - Gary Virus (Vault 108 tribute): click dweller named "Gary" for 10s glitch overlay
+  - Version Glitch Crash: click version 7 times for fake BSOD + terminal reboot
+  - Frontend-only implementation with localStorage persistence
+  - Automated tests (9/12 passing)
+- ✅ **Build Mode Hotkey** - Russian keyboard layout support
+  - Layout-independent via `KeyboardEvent.code === 'KeyB'`
+  - Ctrl/Cmd+B conflict resolution with SidePanel
+  - Guards for contenteditable/input/textarea contexts
+- ✅ **Happiness Page UX** - Quick Actions footer
+  - Moved to UCard footer (clear bottom placement)
+  - Shows "optimal" hint when no actions needed
+- ✅ **Radio Recruitment** - Staffing enforcement and cost accuracy
+  - Backend validates: requires ≥1 dweller in radio room
+  - Frontend UAlert warning when no dwellers assigned
+  - Cost fetched from API (was hardcoded to 100)
+- ✅ **Room Destroy Refund** - 50% including upgrades
+  - New formula: `floor(0.5 * (base + incremental + tier_upgrades))`
+  - Frontend refreshes vault caps after destroy
+- ✅ **Tooltip Z-Index** - Fixed rendering above navbar
+  - UTooltip uses Teleport to body (escapes stacking context)
+  - Fixed positioning with `getBoundingClientRect()`
+  - Resource tooltips now visible
+
+**Remaining for v2.9.0+:**
+- Conversation Happiness System
+- Token Management & Usage Tracking
+- Provider Rotation (Ollama URL config + health checking)
+- Agent Improvements (move to room tool, enhanced AI)
+- Admin & Configuration (birth control, room render config)
+- Additional Easter Eggs:
+  - "It Just Works" (Todd Howard tribute with buffs)
+  - Konami Code developer mode (unlock Debug Room)
   - Quantum Mouse trail effect
 
 ### v2.7.0 - Storage Management & UI Polish (Completed)
@@ -585,4 +639,46 @@ watch(() => userStore.caps, (caps) => {
 
 ---
 
-*Last updated: January 24, 2026*
+## Code Quality Audit Results (January 29, 2026)
+
+### Duplicates Identified
+
+| Category | Files Affected | Lines | Priority |
+|----------|----------------|-------|----------|
+| Empty CRUD classes | weapon.py, outfit.py, junk.py | ~30 | 🔴 Critical |
+| Vault filtering logic | weapon.py, outfit.py endpoints | 25 each | 🔴 Critical |
+| Seeding functions | seed_quests.py, seed_objectives.py | ~65 each | 🟡 High |
+| Query patterns | 10+ CRUD files | ~200 total | 🟢 Medium |
+| Exception handling | 28 endpoint files | ~56 total | 🟢 Medium |
+
+### Issues by Severity
+
+**🔴 Critical (3 issues)**
+- Unimplemented TODO stub (`celery_task.py:26`)
+- Broken test isolation (2 test files)
+- `game_loop.py` too large (767 lines)
+
+**🟡 High Priority (11 issues)**
+- 11 bare `except Exception` handlers with silent failures
+- 6 functions with complexity suppressions (noqa: C901, PLR0912, PLR0915)
+- Hardcoded magic numbers in 5+ files
+- N+1 query patterns in game loop
+- Large transaction in vault initialization
+
+**🟢 Medium Priority (9 issues)**
+- Debug print statement in migration
+- Repeated notification error handling (5+ services)
+- Datetime handling duplication (10+ locations)
+- Performance concerns in exploration coordinator
+- Inconsistent service instantiation patterns
+
+### Metrics
+- **Total Lines of Duplicate Code**: 200-300 lines
+- **Files with Issues**: 35+ files
+- **TODO Comments**: 7 locations
+- **Complexity Violations**: 6 functions
+- **Test Coverage**: 68% (target: 80%)
+
+---
+
+*Last updated: January 29, 2026*

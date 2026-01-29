@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useDwellerStore } from '../stores/dweller'
 import { useExplorationStore } from '@/stores/exploration'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useToast } from '@/core/composables/useToast'
 import { Icon } from '@iconify/vue'
 import type { DwellerShort } from '../models/dweller'
 import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
@@ -12,6 +13,7 @@ import { normalizeImageUrl } from '@/utils/image'
 const dwellerStore = useDwellerStore()
 const explorationStore = useExplorationStore()
 const authStore = useAuthStore()
+const toast = useToast()
 
 // Filter preferences are now automatically loaded via useLocalStorage in the store
 
@@ -55,8 +57,7 @@ const unassignedDwellers = computed(() => {
 })
 
 const isDraggingOver = ref(false)
-const unassignError = ref<string | null>(null)
-const unassignSuccess = ref<string | null>(null)
+
 
 const emit = defineEmits<{
   dragStart: [dweller: DwellerShort]
@@ -95,8 +96,6 @@ const handleDropZoneDragLeave = () => {
 const handleDropZoneDrop = async (event: DragEvent) => {
   event.preventDefault()
   isDraggingOver.value = false
-  unassignError.value = null
-  unassignSuccess.value = null
 
   try {
     const data = JSON.parse(event.dataTransfer!.getData('application/json'))
@@ -109,16 +108,10 @@ const handleDropZoneDrop = async (event: DragEvent) => {
 
     await dwellerStore.unassignDwellerFromRoom(dwellerId, authStore.token as string)
 
-    unassignSuccess.value = `${firstName} ${lastName} unassigned from room`
-    setTimeout(() => {
-      unassignSuccess.value = null
-    }, 3000)
+    toast.success(`${firstName} ${lastName} unassigned from room`)
   } catch (error) {
     console.error('Failed to unassign dweller:', error)
-    unassignError.value = 'Failed to unassign dweller'
-    setTimeout(() => {
-      unassignError.value = null
-    }, 3000)
+    toast.error('Failed to unassign dweller')
   }
 }
 
@@ -129,15 +122,7 @@ const getImageUrl = (imagePath: string | null) => {
 
 <template>
   <div class="unassigned-dwellers-panel">
-    <!-- Success/Error notifications -->
-    <div v-if="unassignSuccess" class="notification notification-success">
-      <Icon icon="mdi:check-circle" class="h-5 w-5" />
-      {{ unassignSuccess }}
-    </div>
-    <div v-if="unassignError" class="notification notification-error">
-      <Icon icon="mdi:alert-circle" class="h-5 w-5" />
-      {{ unassignError }}
-    </div>
+
 
     <div class="panel-header">
       <div class="header-row">
@@ -269,19 +254,7 @@ const getImageUrl = (imagePath: string | null) => {
 </template>
 
 <style scoped>
-.notification {
-  position: fixed;
-  top: 80px;
-  right: 20px;
-  padding: 1rem;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-family: 'Courier New', monospace;
-  z-index: 1000;
-  animation: slideIn 0.3s ease-out;
-}
+
 
 @keyframes slideIn {
   from {

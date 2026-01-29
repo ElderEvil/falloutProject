@@ -64,7 +64,7 @@ export const useRoomStore = defineStore('room', () => {
     }
   }
 
-  async function destroyRoom(roomId: string, token: string): Promise<void> {
+  async function destroyRoom(roomId: string, token: string, vaultId: string): Promise<void> {
     try {
       await axios.delete(`/api/v1/rooms/destroy/${roomId}`, {
         headers: {
@@ -72,6 +72,10 @@ export const useRoomStore = defineStore('room', () => {
         },
       })
       rooms.value = rooms.value.filter((room) => room.id !== roomId)
+
+      // Refresh vault to update caps after refund
+      const vaultStore = useVaultStore()
+      await vaultStore.refreshVault(vaultId, token)
     } catch (error) {
       console.error('Failed to destroy room', error)
       if (error instanceof AxiosError && error.response?.data?.detail) {

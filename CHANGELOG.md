@@ -5,6 +5,24 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.8.0] - 2026-01-29
+
+### What's New
+- **Dweller Renaming** - Rename your dwellers! Click the pencil icon next to their name on the detail page
+- **Easter Eggs** - Discover hidden vault secrets! Try naming a dweller "Gary" or rapidly clicking the version number in About page
+- **Toast Notifications** - All feedback messages now match your chosen theme color and automatically group duplicates
+- **Better Room Refunds** - Get 50% of your caps back when destroying upgraded rooms (up from 20%)
+
+### Improvements
+- **Changelog** - Cleaner modal design, works properly, and won't freeze your game anymore
+- **Keyboard Shortcuts** - Build mode hotkey (B) now works with all keyboard layouts
+- **Happiness Dashboard** - Quick actions are now easier to find and use
+- **Radio Room** - Clear warnings when you need to assign dwellers before recruiting
+- **Tooltips & Alerts** - Everything displays correctly above the navbar in your chosen theme color
+- **Error Messages** - Cleaner, friendlier messages (technical details hidden in console)
+
+---
+
 ## [2.4.1] - 2026-01-25
 
 ### Fixed
@@ -34,6 +52,194 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ### Notes
 - This is a temporary fix ensuring all datetime objects remain naive to match database schema (`TIMESTAMP WITHOUT TIME ZONE`)
 - Future work: Full migration to timezone-aware system (see `TIMEZONE_NAIVE_ANALYSIS.md`)
+
+---
+
+## [2.7.5] - 2026-01-29
+
+### Added
+- **Changelog System** - Version update notifications and changelog display
+  - ChangelogModal component with terminal-themed design and smooth animations
+  - Version comparison logic to show new entries since last seen version
+  - Full changelog integration with backend API endpoint
+  - Added changelog route and navigation integration
+  - Terminal-themed modal with backdrop, escape key, and click-outside-to-close
+  - Version detection composable for automatic new version notifications
+
+### Fixed
+- **API Architecture** - Moved changelog endpoints from `/changelog/` to `/system/changelog/`
+  - Added `/system/changelog/latest` endpoint for latest version lookup
+  - Fixed module import paths for UI components and API utilities
+  - Resolved Vue component props and computed property warnings
+  - Fixed modal v-model binding and lifecycle management
+
+### Changed
+- **API Organization** - Changelog endpoints now under `/api/v1/system/` as public endpoints
+- **Frontend Structure** - Added profile module with changelog routes and services
+- **Modal Design** - Clean terminal-themed modal with proper UCard integration
+- **Documentation** - Updated CHANGELOG.md structure for better readability and impact tracking
+
+---
+
+## [2.7.0] - 2026-01-28
+
+### Added
+- **Storage Management System**
+  - Storage sidebar navigation entry (hotkey: 9)
+  - Storage space tracking and visualization
+  - Item scrap functionality for weapons/outfits
+  - Junk item grouping by type with count badges
+  - Sell All feature for stacked items
+  - Enhanced item cards with detailed stats
+- **Keyboard Shortcuts**
+  - Build mode toggle with 'B' key
+  - ESC to exit build mode
+  - Hotkey badges on buttons
+- **Modern Python Tooling**
+  - Added modern-python skill with comprehensive references
+  - uv, ruff, ty, prek documentation
+  - Security tools and migration guides
+- **Oxfmt Formatter**
+  - 30x faster than Prettier, 2x faster than Biome
+  - Prettier-compatible configuration
+  - Replaced Prettier with oxfmt across frontend
+
+### Fixed
+- **Junk Item Pricing** - Now based on rarity (Common=2, Rare=50, Legendary=200)
+- **Equipment Filtering** - Weapons and outfits now properly filter by vault
+- **Storage Schema** - Added missing storage_id fields to weapon/outfit/junk schemas
+- **Async Issues** - Fixed greenlet-related issues in sell method with transactional rollback
+- **Notification Styles** - Use theme variables instead of hardcoded colors
+- **UI Consistency** - Migrated components to UCard, UButton, UTails components
+
+### Changed
+- Version bumped from 2.6.6 to 2.7.0 (backend and frontend)
+- Replaced Prettier with oxfmt for 30x faster formatting
+- Updated frontend to use Tailwind utilities instead of scoped CSS
+- Enhanced storage item cards with Weight and Durability stats
+
+### Changed
+- Version bumped from 2.6.6 to 2.7.0 (backend and frontend)
+- Replaced Prettier with oxfmt for 30x faster formatting
+- Updated frontend to use Tailwind utilities instead of scoped CSS
+- Enhanced storage item cards with Weight and Durability stats
+
+### Documentation
+- Easter eggs documentation added to ROADMAP.md
+- Development scripts cleanup
+- Moved documentation to proper docs/ directory
+
+### Testing
+- Added comprehensive tests for weapon scrap/sell/vault filtering (9 tests)
+- Added comprehensive tests for outfit scrap/sell/vault filtering (9 tests)
+- Added junk sell tests with pricing verification (6 tests)
+- Added storage items endpoint tests
+
+---
+
+## [2.6.6] - 2026-01-27
+
+### Changed
+- **Backend Dependencies Updated**
+  - alembic: 1.18.0 → 1.18.1
+  - faker: 40.1.0 → 40.1.2
+  - greenlet: 3.3.0 → 3.3.1
+  - aiosmtplib: 5.0.0 → 5.1.0
+  - coverage: 7.13.1 → 7.13.2
+  - prek: 0.2.27 → 0.3.0
+  - ruff: 0.14.11 → 0.14.14
+  - ty: 0.0.11 → 0.0.13
+
+### Fixed
+- **UI Theme Consistency** - Replaced hardcoded colors in notification components with CSS theme variables
+- **Documentation Organization** - Moved REFACTORING_PROGRESS.md to docs directory
+
+### Removed
+- Obsolete development scripts (check_rooms.py, test_config.py)
+
+---
+
+## [2.6.5] - 2026-01-27
+
+### Added
+- **Notification Bell UI Component**
+  - Notification bell in NavBar with unread count badge
+  - Pop-up UI showing recent notifications
+  - Type-specific icons for different notification types
+  - Mark individual or all notifications as read
+  - Auto-refresh unread count every 30 seconds
+- **Backend Notification Integration**
+  - Exploration completion notifications with metadata (caps, XP, items)
+  - Radio recruitment notifications with dweller info
+  - Incident spawn notifications with incident details
+  - Comprehensive notification integration tests (4 tests)
+
+### Fixed
+- **Notification Error Handling** - Wrapped notification calls in try/except to prevent failures from breaking core flows
+- **Memory Leak** - Clear notification polling interval on component unmount
+- **Incident Types** - Added missing incident type mappings (MOLE_RAT_ATTACK, FERAL_GHOUL_ATTACK)
+- **Duplicate Notifications** - Removed duplicate notifications for dweller arrivals and baby births
+
+### Changed
+- Improved incident names with emoji icons for better UX
+- Simplified notification bell display condition
+- Enhanced notification error logging with full context
+
+### Testing
+- Added comprehensive notification integration tests
+- Moved test fixtures to conftest.py following established pattern
+- All 4 notification tests passing
+
+---
+
+## [2.6.0] - 2026-01-26
+
+### Added
+- **Wasteland Exploration Enhancements**
+  - Distributed WebSocket system for exploration events
+  - Enhanced exploration UI with real-time updates
+- **Soft Delete System**
+  - Soft delete implementation for critical entities
+  - Preservation of data integrity while maintaining clean UI
+- **UX Improvements**
+  - Enhanced UI polish and user experience improvements
+
+### Changed
+- Improved WebSocket infrastructure for better real-time performance
+- Enhanced exploration coordination and event handling
+
+---
+
+## [2.5.0] - 2026-01-26
+
+### Added
+- **Room Visual Assets**
+  - 220+ room sprite images for all room types, tiers, and sizes
+  - Room images render in vault overview grid as backgrounds
+  - Images display in room detail modal preview section
+  - Intelligent fallback system for missing tier/segment combinations
+  - Automatic image URL generation based on room name, tier, and size
+- **Room Capacity Enforcement**
+  - Strict dweller assignment limits (2 dwellers per cell)
+  - Capacity calculation: 2-cell room = 2, 6-cell = 4, 9-cell = 6
+  - Prevention of over-assignment with user-friendly error messages
+  - Allow reordering dwellers within same room
+  - Real-time capacity validation on drag-and-drop
+
+### Changed
+- **UI Improvements**
+  - Compact room info overlay for better visibility
+  - Reduced font sizes and padding for room name, category, tier
+  - Room info positioned at top with semi-transparent background
+  - Dwellers positioned at bottom with proper z-index layering
+- **Backend**
+  - Database migration to populate image_url for existing rooms
+  - Automatic URL generation during room build and upgrade
+  - Static file serving through `/static` endpoint
+- **Frontend**
+  - Vite proxy configuration for image serving
+  - Image loading with error handlers and console debugging
+  - Test page for verifying image loading functionality
 
 ---
 

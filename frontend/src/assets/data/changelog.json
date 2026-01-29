@@ -1,0 +1,139 @@
+{
+  "versions": [
+    {
+      "version": "2.7.5",
+      "date": "2026-01-26",
+      "type": "minor",
+      "changes": [
+        {
+          "category": "feat",
+          "description": "Advanced dweller interactions and comprehensive room assignment"
+        },
+        {
+          "category": "feat",
+          "description": "Added training stats tracking and storage management"
+        }
+      ]
+    },
+    {
+      "version": "2.7.0",
+      "date": "2026-01-24",
+      "type": "minor",
+      "changes": [
+        {
+          "category": "feat",
+          "description": "Implemented progression system with objectives and quests"
+        }
+      ]
+    },
+    {
+      "version": "2.6.6",
+      "date": "2026-01-24",
+      "type": "patch",
+      "changes": [
+        {
+          "category": "chore",
+          "description": "Library updates and dependency fixes"
+        }
+      ]
+    },
+    {
+      "version": "2.6.5",
+      "date": "2026-01-24",
+      "type": "patch",
+      "changes": [
+        {
+          "category": "feat",
+          "description": "Notifications system and critical bug fixes"
+        }
+      ]
+    },
+    {
+      "version": "2.4.1",
+      "date": "2026-01-25",
+      "type": "patch",
+      "changes": [
+        {
+          "category": "fix",
+          "description": "Critical: Resolved Celery worker crashes caused by timezone-naive datetime issues"
+        },
+        {
+          "category": "fix",
+          "description": "Fixed death service and breeding service datetime operations"
+        },
+        {
+          "category": "fix",
+          "description": "Fixed system info endpoint build_date format"
+        }
+      ]
+    },
+    {
+      "version": "2.4.0",
+      "date": "2026-01-25",
+      "type": "minor",
+      "changes": [
+        {
+          "category": "feat",
+          "description": "Complete dweller death and revival mechanics with bottle cap cost"
+        },
+        {
+          "category": "feat",
+          "description": "Incident service for room-based incident management"
+        },
+        {
+          "category": "feat",
+          "description": "System endpoint with application metadata"
+        }
+      ]
+    },
+    {
+      "version": "2.3.0",
+      "date": "2026-01-24",
+      "type": "minor",
+      "changes": [
+        {
+          "category": "feat",
+          "description": "Pregnancy debug panel for testing pregnancy system (superuser only)"
+        },
+        {
+          "category": "fix",
+          "description": "Exploration item tracking now updates in real-time"
+        },
+        {
+          "category": "fix",
+          "description": "Storage duplicate items - removed unique constraint"
+        },
+        {
+          "category": "fix",
+          "description": "Outfit type enum KeyError crash fixed"
+        }
+      ]
+    },
+    {
+      "version": "2.1.1",
+      "date": "2026-01-22",
+      "type": "patch",
+      "changes": [
+        {
+          "category": "feat",
+          "description": "Floating tooltips for improved UX"
+        },
+        {
+          "category": "fix",
+          "description": "AI generation button logic and theme color consistency"
+        }
+      ]
+    },
+    {
+      "version": "2.1.0",
+      "date": "2026-01-22",
+      "type": "minor",
+      "changes": [
+        {
+          "category": "feat",
+          "description": "Major frontend improvements and feature additions"
+        }
+      ]
+    }
+  ]
+}

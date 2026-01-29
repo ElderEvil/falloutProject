@@ -21,6 +21,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const isVisible = ref(false)
+const triggerRef = ref<HTMLElement | null>(null)
 let timeoutId: number | null = null
 
 const show = () => {
@@ -37,12 +38,41 @@ const hide = () => {
   isVisible.value = false
 }
 
-const positionClasses = {
-  top: 'bottom-full left-1/2 -translate-x-1/2 mb-2',
-  bottom: 'top-full left-1/2 -translate-x-1/2 mt-2',
-  left: 'right-full top-1/2 -translate-y-1/2 mr-2',
-  right: 'left-full top-1/2 -translate-y-1/2 ml-2',
-}
+const tooltipPositionStyle = computed(() => {
+  if (!triggerRef.value) return { top: '0px', left: '0px', zIndex: '200' }
+
+  const rect = triggerRef.value.getBoundingClientRect()
+  let top = 0
+  let left = 0
+
+  switch (props.position) {
+    case 'top':
+      top = rect.top - 8
+      left = rect.left + rect.width / 2
+      break
+    case 'bottom':
+      top = rect.bottom + 8
+      left = rect.left + rect.width / 2
+      break
+    case 'left':
+      top = rect.top + rect.height / 2
+      left = rect.left - 8
+      break
+    case 'right':
+      top = rect.top + rect.height / 2
+      left = rect.right + 8
+      break
+  }
+
+  return {
+    top: `${top}px`,
+    left: `${left}px`,
+    zIndex: '200',
+    transform: props.position === 'top' || props.position === 'bottom'
+      ? 'translateX(-50%) translateY(' + (props.position === 'top' ? '-100%' : '0') + ')'
+      : 'translateY(-50%) translateX(' + (props.position === 'left' ? '-100%' : '0') + ')'
+  }
+})
 
 const arrowPositionClasses = {
   top: 'top-full left-1/2 -translate-x-1/2',
@@ -69,39 +99,41 @@ const arrowStyle = computed(() => {
 </script>
 
 <template>
-  <div class="relative inline-block">
+  <div class="relative inline-block" ref="triggerRef">
     <!-- Trigger Element -->
     <div @mouseenter="show" @mouseleave="hide" @focus="show" @blur="hide">
       <slot></slot>
     </div>
 
-    <!-- Tooltip -->
-    <Transition name="tooltip">
-      <div
-        v-if="isVisible"
-        :class="[
-          'absolute z-tooltip',
-          'bg-black',
-          'px-3 py-2 rounded text-sm font-mono',
-          'max-w-xs whitespace-pre-line',
-          positionClasses[position],
-        ]"
-        class="tooltip-content"
-        role="tooltip"
-      >
-        {{ text }}
-
-        <!-- Arrow -->
+    <!-- Tooltip (teleported to body to escape stacking context) -->
+    <Teleport to="body">
+      <Transition name="tooltip">
         <div
+          v-if="isVisible"
           :class="[
-            'absolute w-0 h-0',
-            'border-4 border-transparent',
-            arrowPositionClasses[position],
+            'fixed',
+            'bg-black',
+            'px-3 py-2 rounded text-sm font-mono',
+            'max-w-xs whitespace-pre-line',
           ]"
-          :style="arrowStyle"
-        ></div>
-      </div>
-    </Transition>
+          :style="tooltipPositionStyle"
+          class="tooltip-content"
+          role="tooltip"
+        >
+          {{ text }}
+
+          <!-- Arrow -->
+          <div
+            :class="[
+              'absolute w-0 h-0',
+              'border-4 border-transparent',
+              arrowPositionClasses[position],
+            ]"
+            :style="arrowStyle"
+          ></div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 

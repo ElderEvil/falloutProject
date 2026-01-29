@@ -303,9 +303,12 @@ const distributionPercentage = (count: number) => {
         </div>
       </div>
 
-      <!-- Quick Actions -->
-      <div v-if="hasNegativeModifiers" class="actions-section">
-        <h4 class="section-title">QUICK ACTIONS</h4>
+    </div>
+
+    <!-- Quick Actions Footer -->
+    <template #footer>
+      <div v-if="hasNegativeModifiers" class="actions-footer">
+        <h4 class="footer-title">QUICK ACTIONS</h4>
         <div class="actions-grid">
           <UButton
             v-if="idleDwellerCount > 0"
@@ -341,7 +344,11 @@ const distributionPercentage = (count: number) => {
           </UButton>
         </div>
       </div>
-    </div>
+      <div v-else class="footer-hint">
+        <Icon icon="mdi:check-circle" class="hint-icon" />
+        <span>All vault metrics are optimal</span>
+      </div>
+    </template>
   </UCard>
 </template>
 
@@ -494,7 +501,35 @@ const distributionPercentage = (count: number) => {
   color: #e5e7eb;
 }
 
-/* Actions Section */
+/* Footer Actions Section */
+.actions-footer {
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.2);
+}
+
+.footer-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-theme-primary);
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.footer-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  color: var(--color-theme-primary);
+  font-size: 0.875rem;
+}
+
+.hint-icon {
+  font-size: 1.25rem;
+}
+
 .actions-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));

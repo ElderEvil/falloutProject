@@ -5,11 +5,13 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRouter, useRoute } from 'vue-router'
 import NotificationBell from './NotificationBell.vue'
+import { useVersionDetection } from '@/core/composables/useVersionDetection'
 
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
 const router = useRouter()
 const route = useRoute()
+const { versionBadgeVisible, showChangelog } = useVersionDetection()
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const user = computed(() => authStore.user)
 const currentVaultId = computed(() => {
@@ -84,6 +86,21 @@ onUnmounted(() => {
         </router-link>
       </div>
       <div class="flex items-center space-x-4">
+        <!-- Version Update Badge (only when authenticated and there's an update) -->
+        <button
+          v-if="isAuthenticated && versionBadgeVisible"
+          @click="showChangelog()"
+          :class="[
+            'relative text-[var(--color-theme-primary)] hover:text-[var(--color-theme-glow)]',
+            'focus:outline-none focus:ring-2 focus:ring-[var(--color-theme-primary)]',
+            'focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1 transition-colors'
+          ]"
+          aria-label="View changelog for new version"
+        >
+          <Icon icon="mdi:newspaper" class="h-5 w-5" />
+          <span class="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full animate-pulse"></span>
+        </button>
+
         <!-- Notification Bell (only when authenticated) -->
         <NotificationBell v-if="isAuthenticated" />
 
@@ -205,6 +222,23 @@ onUnmounted(() => {
             >
               <Icon icon="mdi:information" class="inline h-4 w-4 mr-2" />
               About
+            </router-link>
+            <router-link
+              v-motion
+              :initial="{ opacity: 0, x: -10 }"
+              :enter="{
+                opacity: 1,
+                x: 0,
+                transition: { delay: 200 },
+              }"
+              to="/changelog"
+              class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-gray-900 focus:outline-none focus:bg-gray-900 transition-colors"
+              role="menuitem"
+              aria-label="View changelog"
+              @click="isDropdownOpen = false"
+            >
+              <Icon icon="mdi:newspaper" class="inline h-4 w-4 mr-2" />
+              Changelog
             </router-link>
             <hr class="border-gray-700 my-1" />
             <button

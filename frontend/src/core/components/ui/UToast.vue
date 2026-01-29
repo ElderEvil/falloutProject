@@ -14,8 +14,8 @@ const emit = defineEmits<{
 const variantConfig = {
   success: {
     icon: 'mdi:check-circle',
-    bgClass: 'bg-green-900/90 border-green-500',
-    iconClass: 'text-green-400',
+    bgClass: 'bg-gray-900/90 border-[--color-theme-primary]',
+    iconClass: 'text-[--color-theme-primary]',
   },
   error: {
     icon: 'mdi:alert-circle',
@@ -24,13 +24,13 @@ const variantConfig = {
   },
   warning: {
     icon: 'mdi:alert',
-    bgClass: 'bg-yellow-900/90 border-yellow-500',
-    iconClass: 'text-yellow-400',
+    bgClass: 'bg-gray-900/90 border-[--color-theme-accent]',
+    iconClass: 'text-[--color-theme-accent]',
   },
   info: {
     icon: 'mdi:information',
-    bgClass: 'bg-blue-900/90 border-blue-500',
-    iconClass: 'text-blue-400',
+    bgClass: 'bg-gray-900/90 border-[--color-theme-primary]',
+    iconClass: 'text-[--color-theme-primary]',
   },
 }
 
@@ -50,6 +50,12 @@ const config = variantConfig[props.toast.variant]
   >
     <Icon :icon="config.icon" :class="['text-2xl', config.iconClass]" />
     <p class="flex-1 text-sm text-white font-medium">{{ toast.message }}</p>
+    <span
+      v-if="toast.count && toast.count > 1"
+      class="px-2 py-0.5 text-xs font-bold rounded-full bg-[--color-theme-primary] text-black"
+    >
+      ×{{ toast.count }}
+    </span>
     <button
       @click="emit('close', toast.id)"
       class="text-white/70 hover:text-white transition-colors"

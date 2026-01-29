@@ -126,8 +126,18 @@ const navigate = (path: string | undefined) => {
 
 // Keyboard shortcuts
 const handleKeyPress = (e: KeyboardEvent) => {
-  // Toggle panel with Ctrl/Cmd + B
-  if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+  // Toggle panel with Ctrl/Cmd + B (layout-independent via code)
+  if ((e.ctrlKey || e.metaKey) && e.code === 'KeyB') {
+    // Don't hijack text editing shortcuts
+    const target = e.target as HTMLElement
+    if (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target.isContentEditable
+    ) {
+      return
+    }
+
     e.preventDefault()
     toggle()
     return

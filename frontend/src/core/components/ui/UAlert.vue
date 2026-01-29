@@ -35,10 +35,10 @@ const close = () => {
 }
 
 const variantClasses = {
-  success: 'bg-success bg-opacity-10 border-success text-success',
-  warning: 'bg-warning bg-opacity-10 border-warning text-warning',
-  danger: 'bg-danger bg-opacity-10 border-danger text-danger',
-  info: 'bg-info bg-opacity-10 border-info text-info',
+  success: 'bg-[color:var(--color-theme-primary)]/10 border-[color:var(--color-theme-primary)] text-[color:var(--color-theme-primary)]',
+  warning: 'bg-[color:var(--color-warning)]/10 border-[color:var(--color-warning)] text-[color:var(--color-warning)]',
+  danger: 'bg-[color:var(--color-danger)]/10 border-[color:var(--color-danger)] text-[color:var(--color-danger)]',
+  info: 'bg-[color:var(--color-info)]/10 border-[color:var(--color-info)] text-[color:var(--color-info)]',
 }
 
 const alertClasses = ['rounded-lg border-2 p-4', variantClasses[props.variant]].join(' ')

@@ -9,6 +9,7 @@ import { UCard, USkeleton, UButton } from '@/core/components/ui'
 import { Icon } from '@iconify/vue'
 import { systemService } from '../services/systemService'
 import type { InfoResponse } from '../types/system'
+import { useFakeCrash } from '@/core/composables/useFakeCrash'
 
 const router = useRouter()
 
@@ -17,6 +18,7 @@ const frontendVersion = __APP_VERSION__
 const backendInfo = ref<InfoResponse | null>(null)
 const isLoading = ref(true)
 const error = ref<string | null>(null)
+const { handleVersionClick } = useFakeCrash()
 
 onMounted(async () => {
   try {
@@ -57,7 +59,12 @@ onMounted(async () => {
           <h3 class="text-lg font-bold text-[--color-terminal-green-400]">Frontend</h3>
           <div class="grid grid-cols-2 gap-2 text-sm">
             <span class="text-[--color-terminal-green-200]">Version:</span>
-            <span class="text-[--color-terminal-green-100]">{{ frontendVersion }}</span>
+            <span
+              class="text-[--color-terminal-green-100] cursor-pointer select-none hover:text-[--color-terminal-green-300] transition-colors"
+              @click="handleVersionClick"
+            >
+              {{ frontendVersion }}
+            </span>
 
             <span class="text-[--color-terminal-green-200]">Framework:</span>
             <span class="text-[--color-terminal-green-100]">Vue 3.5</span>

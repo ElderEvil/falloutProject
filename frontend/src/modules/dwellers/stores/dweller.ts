@@ -460,6 +460,51 @@ export const useDwellerStore = defineStore('dweller', () => {
     }
   }
 
+  async function renameDweller(
+    dwellerId: string,
+    firstName: string,
+    token: string
+  ): Promise<Dweller | null> {
+    try {
+      const response = await axios.patch(
+        `/api/v1/dwellers/${dwellerId}/rename`,
+        { first_name: firstName },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      // Update detailed dweller if cached
+      if (detailedDwellers.value[dwellerId]) {
+        detailedDwellers.value[dwellerId] = response.data
+      }
+
+      // Update in list if present
+      const dwellerIndex = dwellers.value.findIndex((d) => d.id === dwellerId)
+      if (dwellerIndex !== -1 && dwellers.value[dwellerIndex]) {
+        dwellers.value[dwellerIndex] = {
+          ...dwellers.value[dwellerIndex]!,
+          first_name: response.data.first_name,
+        }
+      }
+
+      toast.success('Dweller renamed successfully!')
+      return response.data
+    } catch (error: unknown) {
+      const errorMessage =
+        (
+          error as {
+            response?: { data?: { detail?: string } }
+          }
+        )?.response?.data?.detail || 'Failed to rename dweller'
+      console.error(`Failed to rename dweller ${dwellerId}`, error)
+      toast.error(errorMessage)
+      return null
+    }
+  }
+
   async function unassignAllDwellers(
     vaultId: string,
     token: string
@@ -660,8 +705,8 @@ export const useDwellerStore = defineStore('dweller', () => {
   }
 
   return {
-    // State
     dwellers,
+    dwellersWithStatus,
     detailedDwellers,
     deadDwellers,
     graveyardDwellers,
@@ -671,12 +716,9 @@ export const useDwellerStore = defineStore('dweller', () => {
     sortBy,
     sortDirection,
     viewMode,
-    // Computed
     getDwellerStatus,
-    dwellersWithStatus,
     getDwellersByStatus,
     filteredAndSortedDwellers,
-    // Actions
     fetchDwellers,
     fetchDwellersByVault,
     fetchDwellerDetails,
@@ -686,18 +728,18 @@ export const useDwellerStore = defineStore('dweller', () => {
     generateDwellerAppearance,
     assignDwellerToRoom,
     unassignDwellerFromRoom,
-    autoAssignToRoom,
-    unassignAllDwellers,
-    autoAssignAllRooms,
-    useStimpack,
-    useRadaway,
+    renameDweller,
     setFilterStatus,
     setSortBy,
     setSortDirection,
     setViewMode,
-    // Death system
+    useStimpack,
+    useRadaway,
+    autoAssignToRoom,
+    unassignAllDwellers,
+    autoAssignAllDwellers: autoAssignAllRooms,
     fetchDeadDwellers,
-    fetchGraveyard,
+    fetchGraveyardDwellers: fetchGraveyard,
     getRevivalCost,
     reviveDweller,
   }

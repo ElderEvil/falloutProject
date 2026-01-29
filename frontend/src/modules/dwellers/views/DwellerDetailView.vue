@@ -213,6 +213,9 @@ const handleRevive = async () => {
 const usingStimpack = ref(false)
 const usingRadaway = ref(false)
 const unassigning = ref(false)
+const isEditingName = ref(false)
+const editedName = ref('')
+const renamingInProgress = ref(false)
 
 const handleUseStimpack = async () => {
   if (!dweller.value || usingStimpack.value) return
@@ -259,6 +262,36 @@ const handleUnassign = async () => {
 const handleTrainingStarted = async () => {
   await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
 }
+
+const startEditingName = () => {
+  if (!dweller.value) return
+  editedName.value = dweller.value.first_name
+  isEditingName.value = true
+}
+
+const cancelEditingName = () => {
+  isEditingName.value = false
+  editedName.value = ''
+}
+
+const saveNewName = async () => {
+  if (!editedName.value.trim() || renamingInProgress.value) return
+
+  renamingInProgress.value = true
+  try {
+    const result = await dwellerStore.renameDweller(
+      dwellerId.value,
+      editedName.value.trim(),
+      authStore.token as string
+    )
+    if (result) {
+      isEditingName.value = false
+      editedName.value = ''
+    }
+  } finally {
+    renamingInProgress.value = false
+  }
+}
 </script>
 
 <template>
@@ -298,12 +331,47 @@ const handleTrainingStarted = async () => {
               </UButton>
 
               <div class="header-info">
-                <h1
-                  class="dweller-name cursor-pointer select-none"
-                  @click="dweller.first_name?.toLowerCase() === 'gary' && triggerGaryMode()"
-                >
-                  {{ dweller.first_name }} {{ dweller.last_name }}
-                </h1>
+                <div class="name-section">
+                  <h1
+                    v-if="!isEditingName"
+                    class="dweller-name cursor-pointer select-none"
+                    @click="dweller.first_name?.toLowerCase() === 'gary' && triggerGaryMode()"
+                  >
+                    {{ dweller.first_name }} {{ dweller.last_name }}
+                  </h1>
+                  <div v-else class="name-edit-section">
+                    <input
+                      v-model="editedName"
+                      type="text"
+                      class="name-input"
+                      placeholder="First name"
+                      maxlength="20"
+                      @keyup.enter="saveNewName"
+                      @keyup.esc="cancelEditingName"
+                      autofocus
+                    />
+                    <UButton
+                      @click="saveNewName"
+                      :disabled="!editedName.trim() || renamingInProgress"
+                      variant="primary"
+                      size="sm"
+                    >
+                      <Icon icon="mdi:check" class="h-4 w-4" />
+                    </UButton>
+                    <UButton @click="cancelEditingName" variant="ghost" size="sm">
+                      <Icon icon="mdi:close" class="h-4 w-4" />
+                    </UButton>
+                  </div>
+                  <UButton
+                    v-if="!isEditingName && !isDead"
+                    @click="startEditingName"
+                    variant="ghost"
+                    size="sm"
+                    class="rename-btn"
+                  >
+                    <Icon icon="mdi:pencil" class="h-4 w-4" />
+                  </UButton>
+                </div>
                 <DwellerStatusBadge :status="dweller.status" :show-label="true" size="large" />
               </div>
             </div>
@@ -460,11 +528,53 @@ const handleTrainingStarted = async () => {
   flex-wrap: wrap;
 }
 
+.name-section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .dweller-name {
-  font-size: 2rem;
+  font-size: 2.5rem;
   font-weight: 700;
   color: var(--color-theme-primary);
   text-shadow: 0 0 10px var(--color-theme-glow);
+  margin-bottom: 1rem;
+  letter-spacing: -0.5px;
+}
+
+.name-edit-section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.name-input {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-theme-primary);
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid var(--color-theme-primary);
+  border-radius: 0.25rem;
+  padding: 0.5rem 1rem;
+  font-family: 'Courier New', monospace;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.name-input:focus {
+  box-shadow: 0 0 15px var(--color-theme-glow);
+  border-color: var(--color-theme-accent);
+}
+
+.rename-btn {
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.rename-btn:hover {
+  opacity: 1;
 }
 
 .detail-layout {

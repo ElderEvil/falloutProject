@@ -19,6 +19,7 @@ from app.schemas.dweller import (
     DwellerReadLess,
     DwellerReadWithRoomID,
     DwellerReviveResponse,
+    DwellerRename,
     DwellerUpdate,
     DwellerVisualAttributesInput,
     RevivalCostResponse,
@@ -85,6 +86,20 @@ async def update_dweller(
             else:
                 dweller_data.status = DwellerStatusEnum.WORKING
 
+    return await crud.dweller.update(db_session, dweller_id, dweller_data)
+
+
+@router.patch("/{dweller_id}/rename", response_model=DwellerRead)
+async def rename_dweller(
+    dweller_id: UUID4,
+    rename: DwellerRename,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+):
+    """Rename a dweller (first name only)."""
+
+    await verify_dweller_access(dweller_id, user, db_session)
+    dweller_data = DwellerUpdate(first_name=rename.first_name)
     return await crud.dweller.update(db_session, dweller_id, dweller_data)
 
 

@@ -40,78 +40,65 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [2.7.5] - 2026-01-29
 
 ### Added
-- **Changelog Modal** - Version update notifications system
-  - ChangelogModal component with terminal-themed design
-  - Version comparison logic to show new entries since last seen
-  - Full changelog integration with backend API
-  - Click-outside-to-close and escape key support
+- **Changelog System** - Version update notifications and changelog display
+  - ChangelogModal component with terminal-themed design and smooth animations
+  - Version comparison logic to show new entries since last seen version
+  - Full changelog integration with backend API endpoint
+  - Added changelog route and navigation integration
+  - Terminal-themed modal with backdrop, escape key, and click-outside-to-close
+  - Version detection composable for automatic new version notifications
 
-### Fixed
-- **Import Paths** - Fixed module import paths for UI components and API utilities
-  - Updated ChangelogModal imports to use `@/core/components/ui`
-  - Fixed changelog service to use `@/core/utils/api`
-  - Resolved module resolution errors in frontend build
-
-### Changed
-- **Modal Styling** - Simplified modal design for cleaner appearance
-  - Removed redundant UModal wrapper around UCard
-  - Implemented lightweight modal with backdrop and direct card rendering
-  - Reduced visual complexity while maintaining terminal aesthetics
-
----
-
-## [2.7.4] - 2026-01-29
-
-### Fixed
-- **Code Quality** - Resolved Pylint warnings in changelog endpoint
-  - Fixed PLW2901 warning about overwritten for-loop variable
-  - Renamed loop variable to avoid shadowing
+### Fixed  
+- **API Architecture** - Moved changelog endpoints from `/changelog/` to `/system/changelog/`
+  - Added `/system/changelog/latest` endpoint for latest version lookup
+  - Fixed module import paths for UI components and API utilities
+  - Resolved Vue component props and computed property warnings
+  - Fixed modal v-model binding and lifecycle management
 
 ### Changed
-- **Modal Architecture** - Improved modal component structure
-  - Enhanced v-model binding with computed properties
-  - Better error handling for non-props attributes
-
----
-
-## [2.7.3] - 2026-01-29
-
-### Fixed
-- **Vue Warnings** - Resolved extraneous non-props attributes warnings
-  - Removed class attribute from UModal component
-  - Updated scoped styles to work without custom classes
-  - Maintained modal styling through :deep() selectors
-
-### Changed
-- **Modal Styling** - Refined modal appearance
-  - Reduced border thickness for cleaner look
-  - Added subtle box-shadow for depth
-  - Improved backdrop opacity for better contrast
-
----
-
-## [2.7.2] - 2026-01-29
-
-### Fixed
-- **Modal Functionality** - Fixed modal display and interaction issues
-  - Resolved black screen on modal open
-  - Fixed v-model binding errors with props
-  - Restored modal backdrop and escape key handling
-  - Maintained all UModal functionality while simplifying design
-
----
-
-## [2.7.1] - 2026-01-29
-
-### Fixed
-- **Component Structure** - Reverted UModal removal to maintain functionality
-  - Fixed missing backdrop and window management
-  - Restored proper modal lifecycle management
-  - Maintained escape key and click-outside behaviors
+- **API Organization** - Changelog endpoints now under `/api/v1/system/` as public endpoints
+- **Frontend Structure** - Added profile module with changelog routes and services
+- **Modal Design** - Clean terminal-themed modal with proper UCard integration
+- **Documentation** - Updated CHANGELOG.md structure for better readability and impact tracking
 
 ---
 
 ## [2.7.0] - 2026-01-28
+
+### Added
+- **Storage Management System**
+  - Storage sidebar navigation entry (hotkey: 9)
+  - Storage space tracking and visualization
+  - Item scrap functionality for weapons/outfits
+  - Junk item grouping by type with count badges
+  - Sell All feature for stacked items
+  - Enhanced item cards with detailed stats
+- **Keyboard Shortcuts**
+  - Build mode toggle with 'B' key
+  - ESC to exit build mode
+  - Hotkey badges on buttons
+- **Modern Python Tooling**
+  - Added modern-python skill with comprehensive references
+  - uv, ruff, ty, prek documentation
+  - Security tools and migration guides
+- **Oxfmt Formatter**
+  - 30x faster than Prettier, 2x faster than Biome
+  - Prettier-compatible configuration
+  - Replaced Prettier with oxfmt across frontend
+
+### Fixed
+- **Junk Item Pricing** - Now based on rarity (Common=2, Rare=50, Legendary=200)
+- **Equipment Filtering** - Weapons and outfits now properly filter by vault
+- **Storage Schema** - Added missing storage_id fields to weapon/outfit/junk schemas
+- **Async Issues** - Fixed greenlet-related issues in sell method with transactional rollback
+- **Notification Styles** - Use theme variables instead of hardcoded colors
+- **UI Consistency** - Migrated components to UCard, UButton, UTails components
+
+### Changed
+- Version bumped from 2.6.6 to 2.7.0 (backend and frontend)
+- Replaced Prettier with oxfmt for 30x faster formatting
+- Updated frontend to use Tailwind utilities instead of scoped CSS
+- Enhanced storage item cards with Weight and Durability stats
 
 ### Added
 - **Storage Management System**

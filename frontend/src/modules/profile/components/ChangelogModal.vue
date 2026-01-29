@@ -78,10 +78,10 @@ const entriesToShow = computed(() => {
 const hasNewVersions = computed(() => entriesToShow.value.length > 0);
 
 // Debug: log computed values
-watch([entriesToShow, hasNewVersions], () => {
+watch([changelog, entriesToShow, hasNewVersions], () => {
+  console.log('changelog length:', changelog.value.length)
   console.log('entriesToShow:', entriesToShow.value)
   console.log('hasNewVersions:', hasNewVersions.value)
-  console.log('changelog:', changelog.value)
 }, { immediate: true })
 
 const handleMarkAsSeen = () => {
@@ -94,7 +94,7 @@ const handleMarkAsSeen = () => {
 const fetchChangelog = async () => {
   loading.value = true
   error.value = ''
-  
+
   try {
     console.log('Fetching changelog...')
     changelog.value = await changelogService.getChangelog({ limit: 10 })

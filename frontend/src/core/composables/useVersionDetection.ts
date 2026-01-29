@@ -12,7 +12,7 @@ const STORAGE_KEY = 'fallout_changelog_last_seen'
 
 export function useVersionDetection() {
   const authStore = useAuthStore()
-  
+
   // Get current version from package.json (injected at build time)
   const currentVersion = ref(__APP_VERSION__ || '2.7.0')
   const lastSeenVersion = ref<string | null>(localStorage.getItem(STORAGE_KEY))
@@ -30,15 +30,15 @@ export function useVersionDetection() {
 
   const hasVersionUpdate = computed(() => {
     if (!lastSeenVersion.value) return true
-    
+
     // Simple version comparison
     const [lastMajor, lastMinor, lastPatch] = lastSeenVersion.value.split('.').map(Number)
     const [currMajor, currMinor, currPatch] = currentVersion.value.split('.').map(Number)
-    
+
     if (currMajor > lastMajor) return true
     if (currMajor === lastMajor && currMinor > lastMinor) return true
     if (currMajor === lastMajor && currMinor === lastMinor && currPatch > lastPatch) return true
-    
+
     return false
   })
 
@@ -89,12 +89,12 @@ export function useVersionDetection() {
     showChangelogModal: readonly(showChangelogModal),
     isLoading: readonly(isLoading),
     error: readonly(error),
-    
+
     // Computed
     versionInfo: readonly(versionInfo),
     hasVersionUpdate: readonly(hasVersionUpdate),
     versionBadgeVisible: readonly(versionBadgeVisible),
-    
+
     // Actions
     markVersionAsSeen,
     showChangelog,

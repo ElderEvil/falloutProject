@@ -20,16 +20,31 @@ class ChangelogService {
     since?: string
   }): Promise<ChangelogEntry[]> {
     const params = new URLSearchParams()
-    
+
     if (options?.limit) {
       params.append('limit', options.limit.toString())
     }
-    
+
     if (options?.since) {
       params.append('since', options.since)
     }
 
-    return await apiGet(`${this.baseUrl}?${params.toString()}`)
+    const url = `${this.baseUrl}?${params.toString()}`
+    console.log('Fetching changelog from:', url)
+    
+    try {
+      console.log('Making axios GET request...')
+      const result = await apiGet(url)
+      console.log('Changelog API result:', result)
+      return result
+    } catch (error) {
+      console.error('Changelog API error:', error)
+      console.error('Error details:', error.message, error.status, error.response?.data)
+      console.error('Full error object:', error)
+      
+      // Fallback to empty array to prevent UI from breaking
+      return []
+    }
   }
 
   async getLatestChangelog(): Promise<ChangelogEntry | null> {

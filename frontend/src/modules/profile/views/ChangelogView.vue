@@ -38,7 +38,7 @@ const filteredChangelog = computed(() => {
     const query = searchQuery.value.toLowerCase()
     filtered = filtered.map(entry => ({
       ...entry,
-      changes: entry.changes.filter(change => 
+      changes: entry.changes.filter(change =>
         change.description.toLowerCase().includes(query)
       )
     })).filter(entry => entry.changes.length > 0)
@@ -50,14 +50,14 @@ const filteredChangelog = computed(() => {
 // Group changes by category
 const groupChangesByCategory = (changes: ChangeEntry[]) => {
   const grouped = new Map<string, ChangeEntry[]>()
-  
+
   changes.forEach(change => {
     if (!grouped.has(change.category)) {
       grouped.set(change.category, [])
     }
     grouped.get(change.category)!.push(change)
   })
-  
+
   return grouped
 }
 
@@ -74,14 +74,14 @@ const getCategoryInfo = (category: string) => {
     'Security': { color: 'text-orange-400', icon: '🔒' },
     'Performance': { color: 'text-pink-400', icon: '⚡' }
   }
-  
+
   return categoryMap[category] || { color: 'text-gray-300', icon: '📝' }
 }
 
 const fetchChangelog = async () => {
   loading.value = true
   error.value = ''
-  
+
   try {
     changelog.value = await changelogService.getChangelog({ limit: 50 })
   } catch (err) {
@@ -141,8 +141,8 @@ onMounted(() => {
         </div>
 
         <!-- Clear Filters -->
-        <UButton 
-          variant="secondary" 
+        <UButton
+          variant="secondary"
           @click="searchQuery = ''; selectedCategory = 'all'"
           :disabled="!searchQuery && selectedCategory === 'all'"
         >
@@ -170,9 +170,9 @@ onMounted(() => {
 
     <!-- Changelog content -->
     <div v-else class="space-y-8">
-      <div 
-        v-for="entry in filteredChangelog" 
-        :key="entry.version" 
+      <div
+        v-for="entry in filteredChangelog"
+        :key="entry.version"
         class="mb-8"
       >
         <!-- Version header -->
@@ -184,8 +184,8 @@ onMounted(() => {
               </UBadge>
               <span class="text-gray-400">{{ entry.date_display }}</span>
             </div>
-            <UButton 
-              variant="secondary" 
+            <UButton
+              variant="secondary"
               size="sm"
               @click="scrollToTop()"
             >
@@ -196,8 +196,8 @@ onMounted(() => {
 
         <!-- Changes grouped by category -->
         <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <div 
-            v-for="[category, changes] in groupChangesByCategory(entry.changes)" 
+          <div
+            v-for="[category, changes] in groupChangesByCategory(entry.changes)"
             :key="category"
             class="bg-gray-900 rounded-lg p-4 border border-gray-800"
           >
@@ -216,8 +216,8 @@ onMounted(() => {
 
             <!-- Change items -->
             <ul class="space-y-2">
-              <li 
-                v-for="change in changes" 
+              <li
+                v-for="change in changes"
                 :key="change.description"
                 class="text-gray-300 text-sm leading-relaxed"
               >
@@ -231,8 +231,8 @@ onMounted(() => {
 
     <!-- Back to top button -->
     <div v-if="!loading && !error && filteredChangelog.length > 0" class="fixed bottom-8 right-8">
-      <UButton 
-        variant="primary" 
+      <UButton
+        variant="primary"
         size="lg"
         @click="scrollToTop()"
         class="shadow-lg shadow-[var(--color-theme-primary)]/50"
@@ -248,16 +248,16 @@ onMounted(() => {
 function formatChangeDescription(description: string): string {
   // Handle code blocks and inline code
   description = description.replace(/`([^`]+)`/g, '<code class="bg-gray-800 px-1 rounded text-green-300">$1</code>')
-  
+
   // Handle bold text
   description = description.replace(/\*\*([^*]+)\*\*/g, '<strong class="text-white">$1</strong>')
-  
+
   // Handle URLs (basic)
   description = description.replace(
-    /(https?:\/\/[^\s]+)/g, 
+    /(https?:\/\/[^\s]+)/g,
     '<a href="$1" target="_blank" class="text-green-400 hover:text-green-300 underline">$1</a>'
   )
-  
+
   return description
 }
 </script>

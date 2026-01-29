@@ -25,6 +25,7 @@ from app.api.v1.endpoints import (
 )
 
 api_router = APIRouter()
+
 api_router.include_router(system.router, prefix="/system", tags=["System"])
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(chat.router, prefix="/chat", tags=["Chat"])

@@ -37,6 +37,236 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.7.5] - 2026-01-29
+
+### Added
+- **Changelog Modal** - Version update notifications system
+  - ChangelogModal component with terminal-themed design
+  - Version comparison logic to show new entries since last seen
+  - Full changelog integration with backend API
+  - Click-outside-to-close and escape key support
+
+### Fixed
+- **Import Paths** - Fixed module import paths for UI components and API utilities
+  - Updated ChangelogModal imports to use `@/core/components/ui`
+  - Fixed changelog service to use `@/core/utils/api`
+  - Resolved module resolution errors in frontend build
+
+### Changed
+- **Modal Styling** - Simplified modal design for cleaner appearance
+  - Removed redundant UModal wrapper around UCard
+  - Implemented lightweight modal with backdrop and direct card rendering
+  - Reduced visual complexity while maintaining terminal aesthetics
+
+---
+
+## [2.7.4] - 2026-01-29
+
+### Fixed
+- **Code Quality** - Resolved Pylint warnings in changelog endpoint
+  - Fixed PLW2901 warning about overwritten for-loop variable
+  - Renamed loop variable to avoid shadowing
+
+### Changed
+- **Modal Architecture** - Improved modal component structure
+  - Enhanced v-model binding with computed properties
+  - Better error handling for non-props attributes
+
+---
+
+## [2.7.3] - 2026-01-29
+
+### Fixed
+- **Vue Warnings** - Resolved extraneous non-props attributes warnings
+  - Removed class attribute from UModal component
+  - Updated scoped styles to work without custom classes
+  - Maintained modal styling through :deep() selectors
+
+### Changed
+- **Modal Styling** - Refined modal appearance
+  - Reduced border thickness for cleaner look
+  - Added subtle box-shadow for depth
+  - Improved backdrop opacity for better contrast
+
+---
+
+## [2.7.2] - 2026-01-29
+
+### Fixed
+- **Modal Functionality** - Fixed modal display and interaction issues
+  - Resolved black screen on modal open
+  - Fixed v-model binding errors with props
+  - Restored modal backdrop and escape key handling
+  - Maintained all UModal functionality while simplifying design
+
+---
+
+## [2.7.1] - 2026-01-29
+
+### Fixed
+- **Component Structure** - Reverted UModal removal to maintain functionality
+  - Fixed missing backdrop and window management
+  - Restored proper modal lifecycle management
+  - Maintained escape key and click-outside behaviors
+
+---
+
+## [2.7.0] - 2026-01-28
+
+### Added
+- **Storage Management System**
+  - Storage sidebar navigation entry (hotkey: 9)
+  - Storage space tracking and visualization
+  - Item scrap functionality for weapons/outfits
+  - Junk item grouping by type with count badges
+  - Sell All feature for stacked items
+  - Enhanced item cards with detailed stats
+- **Keyboard Shortcuts**
+  - Build mode toggle with 'B' key
+  - ESC to exit build mode
+  - Hotkey badges on buttons
+- **Modern Python Tooling**
+  - Added modern-python skill with comprehensive references
+  - uv, ruff, ty, prek documentation
+  - Security tools and migration guides
+- **Oxfmt Formatter**
+  - 30x faster than Prettier, 2x faster than Biome
+  - Prettier-compatible configuration
+  - Replaced Prettier with oxfmt across frontend
+
+### Fixed
+- **Junk Item Pricing** - Now based on rarity (Common=2, Rare=50, Legendary=200)
+- **Equipment Filtering** - Weapons and outfits now properly filter by vault
+- **Storage Schema** - Added missing storage_id fields to weapon/outfit/junk schemas
+- **Async Issues** - Fixed greenlet-related issues in sell method with transactional rollback
+- **Notification Styles** - Use theme variables instead of hardcoded colors
+- **UI Consistency** - Migrated components to UCard, UButton, UTails components
+
+### Changed
+- Version bumped from 2.6.6 to 2.7.0 (backend and frontend)
+- Replaced Prettier with oxfmt for 30x faster formatting
+- Updated frontend to use Tailwind utilities instead of scoped CSS
+- Enhanced storage item cards with Weight and Durability stats
+
+### Documentation
+- Easter eggs documentation added to ROADMAP.md
+- Development scripts cleanup
+- Moved documentation to proper docs/ directory
+
+### Testing
+- Added comprehensive tests for weapon scrap/sell/vault filtering (9 tests)
+- Added comprehensive tests for outfit scrap/sell/vault filtering (9 tests)
+- Added junk sell tests with pricing verification (6 tests)
+- Added storage items endpoint tests
+
+---
+
+## [2.6.6] - 2026-01-27
+
+### Changed
+- **Backend Dependencies Updated**
+  - alembic: 1.18.0 → 1.18.1
+  - faker: 40.1.0 → 40.1.2
+  - greenlet: 3.3.0 → 3.3.1
+  - aiosmtplib: 5.0.0 → 5.1.0
+  - coverage: 7.13.1 → 7.13.2
+  - prek: 0.2.27 → 0.3.0
+  - ruff: 0.14.11 → 0.14.14
+  - ty: 0.0.11 → 0.0.13
+
+### Fixed
+- **UI Theme Consistency** - Replaced hardcoded colors in notification components with CSS theme variables
+- **Documentation Organization** - Moved REFACTORING_PROGRESS.md to docs directory
+
+### Removed
+- Obsolete development scripts (check_rooms.py, test_config.py)
+
+---
+
+## [2.6.5] - 2026-01-27
+
+### Added
+- **Notification Bell UI Component**
+  - Notification bell in NavBar with unread count badge
+  - Pop-up UI showing recent notifications
+  - Type-specific icons for different notification types
+  - Mark individual or all notifications as read
+  - Auto-refresh unread count every 30 seconds
+- **Backend Notification Integration**
+  - Exploration completion notifications with metadata (caps, XP, items)
+  - Radio recruitment notifications with dweller info
+  - Incident spawn notifications with incident details
+  - Comprehensive notification integration tests (4 tests)
+
+### Fixed
+- **Notification Error Handling** - Wrapped notification calls in try/except to prevent failures from breaking core flows
+- **Memory Leak** - Clear notification polling interval on component unmount
+- **Incident Types** - Added missing incident type mappings (MOLE_RAT_ATTACK, FERAL_GHOUL_ATTACK)
+- **Duplicate Notifications** - Removed duplicate notifications for dweller arrivals and baby births
+
+### Changed
+- Improved incident names with emoji icons for better UX
+- Simplified notification bell display condition
+- Enhanced notification error logging with full context
+
+### Testing
+- Added comprehensive notification integration tests
+- Moved test fixtures to conftest.py following established pattern
+- All 4 notification tests passing
+
+---
+
+## [2.6.0] - 2026-01-26
+
+### Added
+- **Wasteland Exploration Enhancements**
+  - Distributed WebSocket system for exploration events
+  - Enhanced exploration UI with real-time updates
+- **Soft Delete System**
+  - Soft delete implementation for critical entities
+  - Preservation of data integrity while maintaining clean UI
+- **UX Improvements**
+  - Enhanced UI polish and user experience improvements
+
+### Changed
+- Improved WebSocket infrastructure for better real-time performance
+- Enhanced exploration coordination and event handling
+
+---
+
+## [2.5.0] - 2026-01-26
+
+### Added
+- **Room Visual Assets**
+  - 220+ room sprite images for all room types, tiers, and sizes
+  - Room images render in vault overview grid as backgrounds
+  - Images display in room detail modal preview section
+  - Intelligent fallback system for missing tier/segment combinations
+  - Automatic image URL generation based on room name, tier, and size
+- **Room Capacity Enforcement**
+  - Strict dweller assignment limits (2 dwellers per cell)
+  - Capacity calculation: 2-cell room = 2, 6-cell = 4, 9-cell = 6
+  - Prevention of over-assignment with user-friendly error messages
+  - Allow reordering dwellers within same room
+  - Real-time capacity validation on drag-and-drop
+
+### Changed
+- **UI Improvements**
+  - Compact room info overlay for better visibility
+  - Reduced font sizes and padding for room name, category, tier
+  - Room info positioned at top with semi-transparent background
+  - Dwellers positioned at bottom with proper z-index layering
+- **Backend**
+  - Database migration to populate image_url for existing rooms
+  - Automatic URL generation during room build and upgrade
+  - Static file serving through `/static` endpoint
+- **Frontend**
+  - Vite proxy configuration for image serving
+  - Image loading with error handlers and console debugging
+  - Test page for verifying image loading functionality
+
+---
+
 ## [2.4.0] - 2026-01-25
 
 ### Added

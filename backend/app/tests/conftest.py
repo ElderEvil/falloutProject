@@ -199,6 +199,68 @@ async def dweller_fixture(async_session: AsyncSession, vault: "Vault", dweller_d
     return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
 
 
+@pytest_asyncio.fixture(name="radio_room")
+async def radio_room_fixture(async_session: AsyncSession, vault: "Vault") -> "Room":  # noqa: F821
+    """Create a radio room for testing."""
+    from app.models.room import Room
+    from app.schemas.common import RoomTypeEnum, SPECIALEnum
+    from app.schemas.room import RoomCreate
+
+    room_data = {
+        "name": "Radio Studio",
+        "category": RoomTypeEnum.MISC,
+        "ability": SPECIALEnum.CHARISMA,
+        "population_required": None,
+        "base_cost": 100,
+        "incremental_cost": 50,
+        "t2_upgrade_cost": 500,
+        "t3_upgrade_cost": 1500,
+        "capacity": 2,
+        "output": None,
+        "size_min": 1,
+        "size_max": 3,
+        "size": 2,
+        "tier": 1,
+        "coordinate_x": 0,
+        "coordinate_y": 0,
+        "image_url": None,
+    }
+    room_in = RoomCreate(**room_data, vault_id=vault.id)
+    return await crud.room.create(db_session=async_session, obj_in=room_in)
+
+
+@pytest_asyncio.fixture(name="radio_dweller")
+async def radio_dweller_fixture(async_session: AsyncSession, vault: "Vault", radio_room: "Room") -> "Dweller":  # noqa: F821
+    """Create a dweller with high charisma for radio room."""
+    from app.models.dweller import Dweller
+    from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
+    from app.schemas.dweller import DwellerCreate
+
+    dweller_data = {
+        "first_name": "DJ",
+        "last_name": "Radio",
+        "gender": GenderEnum.MALE,
+        "rarity": RarityEnum.COMMON,
+        "age_group": AgeGroupEnum.ADULT,
+        "level": 5,
+        "experience": 100,
+        "max_health": 100,
+        "health": 100,
+        "radiation": 0,
+        "happiness": 80,
+        "room_id": radio_room.id,
+        "strength": 3,
+        "perception": 4,
+        "endurance": 4,
+        "charisma": 10,
+        "intelligence": 5,
+        "agility": 4,
+        "luck": 5,
+    }
+    dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
+    return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+
+
 # Notification test fixtures
 @pytest_asyncio.fixture
 async def user_with_vault(async_session: AsyncSession) -> tuple["User", "Vault"]:  # noqa: F821

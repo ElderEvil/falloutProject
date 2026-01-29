@@ -3,6 +3,7 @@ import type { RouteRecordRaw } from 'vue-router'
 const ProfileView = () => import('../views/ProfileView.vue')
 const SettingsView = () => import('../views/SettingsView.vue')
 const PreferencesView = () => import('../views/PreferencesView.vue')
+const ChangelogView = () => import('../views/ChangelogView.vue')
 
 export const profileRoutes: RouteRecordRaw[] = [
   {
@@ -21,6 +22,12 @@ export const profileRoutes: RouteRecordRaw[] = [
     path: '/preferences',
     name: 'preferences',
     component: PreferencesView,
+    meta: { requiresAuth: true, hideFromNav: false },
+  },
+  {
+    path: '/changelog',
+    name: 'Changelog',
+    component: ChangelogView,
     meta: { requiresAuth: true, hideFromNav: false },
   },
 ]

@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import EmailStr, PostgresDsn, field_validator
@@ -106,6 +107,12 @@ class Settings(BaseSettings):
     @property
     def redis_url(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"
+
+    @property
+    def project_root(self) -> Path:
+        """Get the project root directory (where CHANGELOG.md is located)."""
+        # Go up from backend/app/core/config.py to project root
+        return Path(__file__).parent.parent.parent.parent
 
     @field_validator("ASYNC_DATABASE_URI", mode="after")
     def assemble_db_connection(cls, v: str | None, info: FieldValidationInfo) -> Any:

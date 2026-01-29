@@ -1,22 +1,13 @@
-"""
-System endpoints for application metadata and status.
+"""System endpoint for changelog information."""
 
-Public endpoints (no authentication required) that provide version,
-environment information, and health status for monitoring and UI display.
-"""
-
-import logging
 import re
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any, Optional
 
 from fastapi import APIRouter
-from pydantic import BaseModel
 
 from app.core.config import settings
-from app.utils.version import get_app_version, get_python_version
 
-logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -78,46 +69,7 @@ def parse_changelog() -> list[dict[str, Any]]:
     return versions
 
 
-class InfoResponse(BaseModel):
-    """Application information response schema."""
-
-    app_version: str
-    api_version: str
-    environment: str
-    python_version: str
-    build_date: str
-
-
-class ChangelogEntry(BaseModel):
-    """Changelog entry response schema."""
-
-    version: str
-    date: str
-    date_display: str
-    changes: list[dict[str, Any]]
-
-
-@router.get("/info", status_code=200)
-async def get_info() -> InfoResponse:
-    """
-    Get application version and environment information.
-
-    Public endpoint (no authentication required).
-    Useful for monitoring, debugging, and displaying in UI.
-
-    :returns: Application info including versions and environment
-    :rtype: InfoResponse
-    """
-    return InfoResponse(
-        app_version=get_app_version(),
-        api_version=settings.API_VERSION,
-        environment=settings.ENVIRONMENT,
-        python_version=get_python_version(),
-        build_date=datetime.now(UTC).isoformat(),
-    )
-
-
-@router.get("/changelog", response_model=list[ChangelogEntry])
+@router.get("/", response_model=list[dict[str, Any]])
 async def get_changelog(limit: Optional[int] = 10, since: Optional[str] = None):
     """
     Get changelog entries.
@@ -125,8 +77,6 @@ async def get_changelog(limit: Optional[int] = 10, since: Optional[str] = None):
     Args:
         limit: Maximum number of versions to return (default: 10)
         since: Return versions since this version (e.g., "2.6.0")
-
-    Public endpoint (no authentication required).
     """
     versions = parse_changelog()
 
@@ -158,24 +108,14 @@ async def get_changelog(limit: Optional[int] = 10, since: Optional[str] = None):
     return versions
 
 
-@router.get("/changelog/latest")
-async def get_latest_changelog() -> dict[str, Any]:
-    """Get the latest changelog entry.
-
-    Public endpoint (no authentication required).
-    """
+@router.get("/latest", response_model=dict[str, Any])
+async def get_latest_changelog():
+    """Get the latest changelog entry."""
     versions = parse_changelog()
 
     if not versions:
         return {}
 
-    # Sort by version (newest first) and return latest
-    def version_tuple(version_str):
-        parts = version_str.split(".")
-        # Ensure we always have 3 parts (pad with zeros if needed)
-        while len(parts) < 3:
-            parts.append("0")
-        return tuple(map(int, parts[:3]))
-
-    versions.sort(key=lambda x: version_tuple(x["version"]), reverse=True)
+    # Sort and return the latest version
+    versions.sort(key=lambda x: tuple(map(int, x["version"].split("."))), reverse=True)
     return versions[0]

@@ -13,6 +13,7 @@ import axios from '@/core/plugins/axios'
 import UModal from '@/core/components/ui/UModal.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
+import UAlert from '@/core/components/ui/UAlert.vue'
 
 interface Props {
   room: Room | null
@@ -247,8 +248,16 @@ const handleDestroy = async () => {
   isDestroying.value = true
   actionError.value = null
 
+  const vaultId = route.params.id as string
+  if (!vaultId) {
+    actionError.value = 'No vault ID available'
+    isDestroying.value = false
+    return
+  }
+
   try {
-    await roomStore.destroyRoom(props.room.id, authStore.token as string)
+    await roomStore.destroyRoom(props.room.id, authStore.token as string, vaultId)
+    toast.success(`${props.room.name} destroyed. Caps refunded (50%).`)
     emit('roomUpdated')
     emit('close')
   } catch (error) {
@@ -330,8 +339,28 @@ const vaultId = computed(() => {
   return route.params.id as string
 })
 
-const manualRecruitCost = computed(() => {
-  return 100 // TODO: Get from game config
+const manualRecruitCost = ref<number>(100)
+
+// Fetch radio stats to get actual recruitment cost
+const loadRadioStats = async () => {
+  if (!vaultId.value || !isRadioRoom.value) return
+
+  try {
+    const response = await axios.get(`/api/v1/radio/vault/${vaultId.value}/stats`, {
+      headers: { Authorization: `Bearer ${authStore.token}` }
+    })
+    if (response.data?.manual_cost_caps) {
+      manualRecruitCost.value = response.data.manual_cost_caps
+    }
+  } catch (error) {
+    console.error('Failed to load radio stats:', error)
+  }
+}
+
+watch(() => props.modelValue, (newValue) => {
+  if (newValue && isRadioRoom.value) {
+    loadRadioStats()
+  }
 })
 
 // Radio Studio handlers
@@ -702,6 +731,12 @@ watch(
                 Happiness
               </button>
             </div>
+
+            <!-- Staffing Warning -->
+            <UAlert v-if="assignedDwellers.length === 0" variant="warning" class="mb-3">
+              <Icon icon="mdi:alert" class="h-4 w-4" />
+              Assign at least one dweller to operate the radio room before recruiting.
+            </UAlert>
 
             <!-- Recruit Dweller Button -->
             <UButton

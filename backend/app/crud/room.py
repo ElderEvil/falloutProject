@@ -15,7 +15,7 @@ from app.utils.room_assets import get_room_image_url
 
 logger = logging.getLogger(__name__)
 
-DESTROY_ROOM_REWARD = 0.2
+DESTROY_ROOM_REFUND_RATE = 0.5
 
 
 class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
@@ -257,9 +257,19 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
 
         db_obj = await super().delete(db_session, id=id)
         vault = await vault_crud.get(db_session, id=db_obj.vault_id)
-        await vault_crud.deposit_caps(
-            db_session=db_session, vault_obj=vault, amount=db_obj.base_cost * DESTROY_ROOM_REWARD
-        )
+
+        # Calculate refund: 50% of (base + incremental + applied upgrades)
+        refundable_total = db_obj.base_cost + (db_obj.incremental_cost or 0)
+
+        # Add upgrade costs based on tier
+        if db_obj.tier >= 2 and db_obj.t2_upgrade_cost:
+            refundable_total += db_obj.t2_upgrade_cost
+        if db_obj.tier >= 3 and db_obj.t3_upgrade_cost:
+            refundable_total += db_obj.t3_upgrade_cost
+
+        refund = int(refundable_total * DESTROY_ROOM_REFUND_RATE)
+
+        await vault_crud.deposit_caps(db_session=db_session, vault_obj=vault, amount=refund)
 
         if self.requires_recalculation(db_obj):
             await vault_crud.recalculate_vault_attributes(

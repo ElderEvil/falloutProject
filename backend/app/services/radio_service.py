@@ -221,6 +221,15 @@ class RadioService:
             msg = "No radio room available"
             raise ValueError(msg)
 
+        # Check if any radio room has assigned dwellers
+        radio_room_ids = [room.id for room in radio_rooms]
+        dwellers_query = select(Dweller).where(Dweller.room_id.in_(radio_room_ids))
+        assigned_dwellers = (await db_session.execute(dwellers_query)).scalars().all()
+
+        if not assigned_dwellers:
+            msg = "No residents assigned to radio room"
+            raise ValueError(msg)
+
         # Check if vault has enough caps
         if vault.bottle_caps < caps_cost:
             msg = f"Insufficient caps ({vault.bottle_caps}/{caps_cost})"

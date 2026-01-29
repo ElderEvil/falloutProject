@@ -200,13 +200,24 @@ watch(
 
 // Keyboard shortcuts
 const handleKeyPress = (e: KeyboardEvent) => {
-  // Only handle if not typing in an input or textarea
-  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+  // Ignore if event already handled
+  if (e.defaultPrevented) return
+
+  // Ignore if modifier keys are pressed (Ctrl/Cmd+B is for SidePanel)
+  if (e.ctrlKey || e.metaKey || e.altKey) return
+
+  // Only handle if not typing in an input, textarea, or contenteditable
+  const target = e.target as HTMLElement
+  if (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target.isContentEditable
+  ) {
     return
   }
 
-  // Toggle build mode with 'B' key
-  if (e.key.toLowerCase() === 'b') {
+  // Toggle build mode with 'B' key (layout-independent via code)
+  if (e.code === 'KeyB') {
     e.preventDefault()
     toggleBuildMode()
   }

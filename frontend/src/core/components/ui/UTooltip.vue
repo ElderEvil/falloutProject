@@ -80,12 +80,13 @@ const arrowStyle = computed(() => {
       <div
         v-if="isVisible"
         :class="[
-          'absolute z-tooltip',
+          'absolute',
           'bg-black',
           'px-3 py-2 rounded text-sm font-mono',
           'max-w-xs whitespace-pre-line',
           positionClasses[position],
         ]"
+        style="z-index: 200"
         class="tooltip-content"
         role="tooltip"
       >

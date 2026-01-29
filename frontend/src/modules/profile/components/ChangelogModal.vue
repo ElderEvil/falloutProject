@@ -10,6 +10,7 @@ import {
   type ChangelogEntry,
   type ChangeEntry
 } from '@/modules/profile/services/changelogService'
+import FormattedChangeDescription from '@/modules/profile/components/FormattedChangeDescription.vue'
 
 interface Props {
   show: boolean
@@ -121,22 +122,7 @@ const getCategoryInfo = (category: string) => {
   return categoryMap[category] || { color: 'text-gray-400', icon: 'mdi:circle' }
 }
 
-// Format markdown-style descriptions
-const formatChangeDescription = (description: string): string => {
-  description = description.replace(
-    /`([^`]+)`/g,
-    '<code class="bg-gray-800 px-1 rounded text-[--color-terminal-green-300]">$1</code>'
-  )
 
-  description = description.replace(/\*\*([^*]+)\*\*/g, '<strong class="text-white">$1</strong>')
-
-  description = description.replace(
-    /(https?:\/\/[^\s]+)/g,
-    '<a href="$1" target="_blank" class="text-[--color-terminal-green-400] hover:text-[--color-terminal-green-300] underline">$1</a>'
-  )
-
-  return description
-}
 
 // Fetch changelog on mount
 onMounted(() => {
@@ -229,13 +215,13 @@ watch(
                 </div>
               </div>
 
-              <!-- Changes grouped by category -->
-              <div class="space-y-4">
-                <div
-                  v-for="[category, changes] in groupChangesByCategory(entry.changes)"
-                  :key="category"
-                  class="mb-4"
-                >
+               <!-- Changes grouped by category -->
+               <div class="space-y-4">
+                 <div
+                   v-for="[category, changes] in groupChangesByCategory(entry.changes)"
+                   :key="`${entry.version}-${category}`"
+                   class="mb-4"
+                 >
                   <!-- Category header -->
                   <div class="flex items-center gap-2 mb-3">
                     <Icon :icon="getCategoryInfo(category).icon" :class="getCategoryInfo(category).color" class="h-5 w-5" />
@@ -248,10 +234,10 @@ watch(
                   <ul class="space-y-2 ml-6">
                     <li
                       v-for="(change, idx) in changes"
-                      :key="idx"
+                      :key="`${entry.version}-${idx}`"
                       class="text-gray-300 text-sm leading-relaxed font-mono"
                     >
-                      <span v-html="formatChangeDescription(change.description)"></span>
+                      <FormattedChangeDescription :description="change.description" />
                     </li>
                   </ul>
                 </div>

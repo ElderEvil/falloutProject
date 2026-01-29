@@ -90,7 +90,11 @@ onUnmounted(() => {
         <button
           v-if="isAuthenticated && versionBadgeVisible"
           @click="showChangelog()"
-          class="relative text-[var(--color-theme-primary)] hover:text-[var(--color-theme-glow)] focus:outline-none focus:ring-2 focus:ring-[var(--color-theme-primary)] focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1 transition-colors"
+          :class="[
+            'relative text-[var(--color-theme-primary)] hover:text-[var(--color-theme-glow)]',
+            'focus:outline-none focus:ring-2 focus:ring-[var(--color-theme-primary)]',
+            'focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1 transition-colors'
+          ]"
           aria-label="View changelog for new version"
         >
           <Icon icon="mdi:newspaper" class="h-5 w-5" />

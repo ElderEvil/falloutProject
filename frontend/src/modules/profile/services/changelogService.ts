@@ -35,7 +35,11 @@ class ChangelogService {
       const result = await apiGet<ChangelogEntry[]>(url)
       return result
     } catch (error) {
-      console.error('Changelog API error:', error)
+      if (error instanceof Error) {
+        console.error('Changelog API error:', error.message)
+      } else {
+        console.error('Changelog API error:', error)
+      }
       return []
     }
   }
@@ -44,7 +48,11 @@ class ChangelogService {
     try {
       return await apiGet<ChangelogEntry>(`${this.baseUrl}/latest`)
     } catch (error) {
-      console.error('Failed to fetch latest changelog:', error)
+      if (error instanceof Error) {
+        console.error('Failed to fetch latest changelog:', error.message)
+      } else {
+        console.error('Failed to fetch latest changelog:', error)
+      }
       return null
     }
   }

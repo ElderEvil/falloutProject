@@ -1,57 +1,73 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { changelogService } from '@/modules/profile/services/changelogService'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { changelogService, type ChangelogEntry } from '@/modules/profile/services/changelogService'
+import * as api from '@/core/utils/api'
 
 describe('ChangelogService', () => {
   beforeEach(() => {
-    // Reset any mocked data if needed
+    vi.clearAllMocks()
   })
 
   describe('getChangelog', () => {
     it('should fetch changelog data from API', async () => {
-      console.log('Test: calling getChangelog()')
+      const mockData: ChangelogEntry[] = [
+        {
+          version: '2.8.0',
+          date: '2026-01-29T00:00:00',
+          date_display: '2026-01-29',
+          changes: [
+            { category: 'Added', description: 'New feature' },
+            { category: 'Fixed', description: 'Bug fix' }
+          ]
+        }
+      ]
+
+      vi.spyOn(api, 'apiGet').mockResolvedValue(mockData)
 
       const result = await changelogService.getChangelog({ limit: 5 })
 
-      console.log('Test: getChangelog result:', result)
-
       expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
-
-      // Check structure of first entry
-      if (result.length > 0) {
-        const firstEntry = result[0]
-        expect(firstEntry).toHaveProperty('version')
-        expect(firstEntry).toHaveProperty('date_display')
-        expect(firstEntry).toHaveProperty('changes')
-        expect(Array.isArray(firstEntry.changes)).toBe(true)
-      }
+      expect(result.length).toBe(1)
+      expect(result[0]).toHaveProperty('version')
+      expect(result[0]).toHaveProperty('date_display')
+      expect(result[0]).toHaveProperty('changes')
+      expect(Array.isArray(result[0].changes)).toBe(true)
     })
 
     it('should handle API errors gracefully', async () => {
-      // This test would need mocking for error scenarios
-      // For now, just verify it doesn't crash
-      try {
-        await changelogService.getChangelog({ limit: 1 })
-        expect(true).toBe(true) // Should not throw
-      } catch (error) {
-        expect(error).toBeDefined()
-      }
+      vi.spyOn(api, 'apiGet').mockRejectedValue(new Error('API error'))
+
+      const result = await changelogService.getChangelog({ limit: 1 })
+
+      expect(Array.isArray(result)).toBe(true)
+      expect(result.length).toBe(0)
     })
   })
 
   describe('getLatestChangelog', () => {
     it('should return latest changelog entry', async () => {
-      console.log('Test: calling getLatestChangelog()')
+      const mockData: ChangelogEntry = {
+        version: '2.8.0',
+        date: '2026-01-29T00:00:00',
+        date_display: '2026-01-29',
+        changes: [{ category: 'Added', description: 'New feature' }]
+      }
+
+      vi.spyOn(api, 'apiGet').mockResolvedValue(mockData)
 
       const result = await changelogService.getLatestChangelog()
 
-      console.log('Test: getLatestChangelog result:', result)
+      expect(result).not.toBeNull()
+      expect(result).toHaveProperty('version')
+      expect(result).toHaveProperty('date_display')
+      expect(result).toHaveProperty('changes')
+    })
 
-      if (result) {
-        expect(result).toHaveProperty('version')
-        expect(result).toHaveProperty('date_display')
-        expect(result).toHaveProperty('changes')
-      }
+    it('should return null on API error', async () => {
+      vi.spyOn(api, 'apiGet').mockRejectedValue(new Error('API error'))
+
+      const result = await changelogService.getLatestChangelog()
+
+      expect(result).toBeNull()
     })
   })
 })

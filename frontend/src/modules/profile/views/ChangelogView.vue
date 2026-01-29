@@ -5,6 +5,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { UCard, UButton, UBadge, USkeleton } from '@/core/components/ui'
 import { changelogService, type ChangelogEntry, type ChangeEntry } from '@/modules/profile/services/changelogService'
+import FormattedChangeDescription from '@/modules/profile/components/FormattedChangeDescription.vue'
 
 const changelog = ref<ChangelogEntry[]>([])
 const loading = ref(false)
@@ -194,13 +195,13 @@ onMounted(() => {
           </div>
         </UCard>
 
-        <!-- Changes grouped by category -->
-        <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <div
-            v-for="[category, changes] in groupChangesByCategory(entry.changes)"
-            :key="category"
-            class="bg-gray-900 rounded-lg p-4 border border-gray-800"
-          >
+         <!-- Changes grouped by category -->
+         <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+           <div
+             v-for="[category, changes] in groupChangesByCategory(entry.changes)"
+             :key="`${entry.version}-${category}`"
+             class="bg-gray-900 rounded-lg p-4 border border-gray-800"
+           >
             <!-- Category header -->
             <div class="flex items-center gap-2 mb-3 pb-2 border-b border-gray-700">
               <span :class="getCategoryInfo(category).color" class="text-lg">
@@ -214,16 +215,16 @@ onMounted(() => {
               </UBadge>
             </div>
 
-            <!-- Change items -->
-            <ul class="space-y-2">
-              <li
-                v-for="change in changes"
-                :key="change.description"
-                class="text-gray-300 text-sm leading-relaxed"
-              >
-                <span v-html="formatChangeDescription(change.description)"></span>
-              </li>
-            </ul>
+             <!-- Change items -->
+             <ul class="space-y-2">
+               <li
+                 v-for="(change, index) in changes"
+                 :key="`${entry.version}-${category}-${index}`"
+                 class="text-gray-300 text-sm leading-relaxed"
+               >
+                 <FormattedChangeDescription :description="change.description" />
+               </li>
+             </ul>
           </div>
         </div>
       </div>
@@ -243,24 +244,7 @@ onMounted(() => {
   </div>
 </template>
 
-<script lang="ts">
-// Helper function to format markdown-style descriptions
-function formatChangeDescription(description: string): string {
-  // Handle code blocks and inline code
-  description = description.replace(/`([^`]+)`/g, '<code class="bg-gray-800 px-1 rounded text-green-300">$1</code>')
 
-  // Handle bold text
-  description = description.replace(/\*\*([^*]+)\*\*/g, '<strong class="text-white">$1</strong>')
-
-  // Handle URLs (basic)
-  description = description.replace(
-    /(https?:\/\/[^\s]+)/g,
-    '<a href="$1" target="_blank" class="text-green-400 hover:text-green-300 underline">$1</a>'
-  )
-
-  return description
-}
-</script>
 
 <style scoped>
 /* Terminal-style bullets */

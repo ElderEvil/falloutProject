@@ -15,6 +15,7 @@ import UButton from '@/core/components/ui/UButton.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { RevivalSection } from '../components/death'
 import type { RevivalCostResponse } from '../models/dweller'
+import { useGaryMode } from '@/core/composables/useGaryMode'
 
 const route = useRoute()
 const router = useRouter()
@@ -23,6 +24,7 @@ const dwellerStore = useDwellerStore()
 const vaultStore = useVaultStore()
 const explorationStore = useExplorationStore()
 const { isCollapsed } = useSidePanel()
+const { triggerGaryMode } = useGaryMode()
 
 const dwellerId = computed(() => route.params.dwellerId as string)
 const vaultId = computed(() => route.params.id as string)
@@ -296,7 +298,12 @@ const handleTrainingStarted = async () => {
               </UButton>
 
               <div class="header-info">
-                <h1 class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</h1>
+                <h1
+                  class="dweller-name cursor-pointer select-none"
+                  @click="dweller.first_name?.toLowerCase() === 'gary' && triggerGaryMode()"
+                >
+                  {{ dweller.first_name }} {{ dweller.last_name }}
+                </h1>
                 <DwellerStatusBadge :status="dweller.status" :show-label="true" size="large" />
               </div>
             </div>

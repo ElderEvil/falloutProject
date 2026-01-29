@@ -5,6 +5,61 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.8.0] - 2026-01-29
+
+### Added
+- **Easter Eggs** - Hidden features and vault tributes
+  - Gary Virus (Vault 108 tribute): click dweller named "Gary" to trigger 10-second fullscreen glitch overlay
+  - Version Glitch Crash: click version number in About page 7 times rapidly to trigger fake BSOD with terminal boot sequence
+  - Composables: `useGaryMode` and `useFakeCrash` with localStorage persistence
+  - Terminal-themed overlay components with CRT effects
+  - Automated tests for easter egg triggers (9/12 passing)
+
+### Fixed
+- **Changelog Modal** - Redesigned with proper terminal aesthetic
+  - Removed UModal wrapper, render UCard directly with custom backdrop
+  - Replaced emoji icon with `mdi:history` for terminal consistency  
+  - Added missing helper functions (`groupChangesByCategory`, `getCategoryInfo`)
+  - Removed debug console.log statements
+  - Added TypeScript generic types for API safety
+  - Keyboard ESC support and click-outside-to-close
+- **Build Mode Hotkey** - Now works with Russian keyboard layout
+  - Changed from `e.key === 'b'` to `e.code === 'KeyB'` (layout-independent)
+  - Added guards for Ctrl/Cmd/Alt modifiers to avoid SidePanel conflicts
+  - Guards against contenteditable/input/textarea targets
+  - SidePanel Ctrl/Cmd+B also uses `e.code` with editable field guards
+- **Happiness Page UX** - Quick Actions now visible and clear
+  - Moved Quick Actions to UCard footer (clear bottom placement)
+  - Shows "All vault metrics optimal" hint when no actions needed
+  - Footer always visible for consistent layout
+- **Radio Recruitment** - Consistent staffing requirement and cost display
+  - Backend now enforces: requires ≥1 dweller assigned to radio room
+  - Frontend shows UAlert warning when no dwellers assigned
+  - Recruitment cost fetched from `/api/v1/radio/.../stats` (was hardcoded to 100)
+  - Cost displayed consistently across all UI surfaces
+- **Room Destroy Refund** - Improved from 20% to 50% with upgrades
+  - New formula: `floor(0.5 * (base_cost + incremental_cost + applied_upgrades_by_tier))`
+  - Includes tier 2/3 upgrade costs when applicable
+  - Rounds down to integer caps
+  - Frontend refreshes vault caps immediately after destroy
+- **Tooltip Z-Index** - Tooltips now visible above navbar
+  - UTooltip uses Teleport to body (escapes parent stacking context)
+  - Changed from absolute to fixed positioning with computed coordinates
+  - Resource tooltips (Power/Food/Water) now render above navbar
+  - Z-index hierarchy: navbar(50) < tooltip(200) < toast(9999)
+
+### Changed
+- ChangelogView import path corrected (`@/components/ui` → `@/core/components/ui`)
+- App.vue formatting: consistent single quotes and no semicolons
+- Destroy room confirmation message updated to reflect 50% refund
+
+### Tests
+- Backend: 25 passed, 3 skipped
+- Frontend: builds pass (1.45s)
+- Easter egg tests: 9/12 passing (localStorage isolation issues in 3 tests)
+
+---
+
 ## [2.4.1] - 2026-01-25
 
 ### Fixed

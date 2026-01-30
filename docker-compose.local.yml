@@ -30,6 +30,9 @@ services:
       dockerfile: backend/Dockerfile
     restart: always
     env_file: ".env.local"
+    environment:
+      - POSTGRES_SERVER=db
+      - REDIS_HOST=redis
     depends_on:
       db:
         condition: service_healthy
@@ -47,13 +50,16 @@ services:
       dockerfile: backend/Dockerfile
     restart: always
     env_file: ".env.local"
+    environment:
+      - POSTGRES_SERVER=db
+      - REDIS_HOST=redis
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_started
     working_dir: /app
-    command: [ "uv", "run", "celery", "-A", "app.core.celery", "beat", "-l", "info", "--scheduler", "sqlalchemy_celery_beat.schedulers:DatabaseScheduler" ]
+    command: [ "uv", "run", "celery", "-A", "app.core.celery", "beat", "-l", "info" ]
     volumes:
       - ./backend/app:/app/app
 
@@ -116,10 +122,16 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     restart: always
+    environment:
+      - POSTGRES_SERVER=db
+      - REDIS_HOST=redis
+      - MINIO_HOSTNAME=minio
     env_file: ".env.local"
     depends_on:
       db:
         condition: service_healthy
+      minio:
+        condition: service_started
     ports:
       - "8000:8000"
     working_dir: /app

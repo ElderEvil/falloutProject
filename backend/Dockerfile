@@ -29,11 +29,12 @@ COPY backend/pyproject.toml backend/uv.lock /app/
 # Create virtual environment and install dependencies using uv sync
 RUN uv sync --frozen --no-dev --no-install-project --no-cache
 
-# Copy changelog (needed by /api/v1/system/changelog)
-COPY CHANGELOG.md /app/CHANGELOG.md
-
 # Copy backend application code
 COPY backend/ /app/
+
+# Copy changelog to project root (needed by /api/v1/system/changelog)
+# project_root resolves to / from /app/app/core/config.py
+COPY CHANGELOG.md /CHANGELOG.md
 
 # Command to run the application
 CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

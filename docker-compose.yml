@@ -21,10 +21,20 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     restart: always
+    environment:
+      - POSTGRES_SERVER=db
+      - REDIS_HOST=redis
+      - MINIO_HOSTNAME=minio
+      - SMTP_HOST=mailpit
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - OLLAMA_BASE_URL=http://ollama:11434/v1
     env_file: ".env"
     depends_on:
       db:
         condition: service_healthy
+      minio:
+        condition: service_started
     ports:
       - "8000:8000"
     working_dir: /app
@@ -55,6 +65,14 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     restart: always
+    environment:
+      - POSTGRES_SERVER=db
+      - REDIS_HOST=redis
+      - MINIO_HOSTNAME=minio
+      - SMTP_HOST=mailpit
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - OLLAMA_BASE_URL=http://ollama:11434/v1
     env_file: ".env"
     depends_on:
       db:
@@ -70,6 +88,14 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     restart: always
+    environment:
+      - POSTGRES_SERVER=db
+      - REDIS_HOST=redis
+      - MINIO_HOSTNAME=minio
+      - SMTP_HOST=mailpit
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - OLLAMA_BASE_URL=http://ollama:11434/v1
     env_file: ".env"
     depends_on:
       db:

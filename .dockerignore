@@ -1,0 +1,76 @@
+# Root .dockerignore for monorepo builds with context: .
+# Backend Dockerfile builds at repo root and copies:
+#   - backend/ → /app/
+#   - CHANGELOG.md → /app/CHANGELOG.md
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Frontend (not needed in backend image)
+frontend/node_modules/
+frontend/.pnpm-store/
+frontend/dist/
+frontend/coverage/
+frontend/*.tsbuildinfo
+frontend/.vscode/
+frontend/.idea/
+frontend/.DS_Store
+frontend/*.log
+
+# Backend exclusions
+backend/__pycache__/
+backend/**/*.py[cod]
+backend/**/*$py.class
+backend/app.egg-info/
+backend/.mypy_cache/
+backend/.pytest_cache/
+backend/.coverage
+backend/htmlcov/
+backend/.venv/
+backend/venv/
+backend/env/
+backend/build/
+backend/dist/
+backend/*.egg-info/
+backend/tests/
+backend/test_*
+backend/*_test.py
+backend/conftest.py
+backend/*.db
+backend/*.sqlite3
+backend/*.tmp
+backend/*.temp
+backend/*.log
+
+# Documentation (except CHANGELOG.md which we explicitly COPY)
+*.md
+!CHANGELOG.md
+docs/
+
+# Development tools
+.vscode/
+.idea/
+.DS_Store
+*.log
+
+# Environment files
+.env
+.env.*
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Docker
+docker-compose*.yml
+Dockerfile*
+!backend/Dockerfile
+!frontend/Dockerfile
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*~

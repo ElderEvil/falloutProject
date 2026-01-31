@@ -1,0 +1,57 @@
+# Infrastructure services for hybrid development
+# Use this when running backend + frontend locally but need supporting services
+# Run: docker compose -f docker-compose.infra.yml up -d
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: always
+    env_file: ".env"
+    volumes:
+      - postgres-data-infra:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    environment:
+      - POSTGRES_INITDB_ARGS=--locale=C --encoding=UTF8
+
+  redis:
+    image: redis:alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data-infra:/data
+
+  minio:
+    image: minio/minio
+    container_name: minio
+    env_file:
+      - .env
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data_infra:/data
+    command: server /data --console-address ":9001"
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mailpit
+    restart: always
+    ports:
+      - "1025:1025"  # SMTP server
+      - "8025:8025"  # Web UI
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
+volumes:
+  postgres-data-infra:
+  redis-data-infra:
+  minio_data_infra:

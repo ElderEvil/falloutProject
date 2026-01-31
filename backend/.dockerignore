@@ -22,6 +22,7 @@ conftest.py
 
 # Documentation
 *.md
+!CHANGELOG.md
 docs/
 
 # Development tools

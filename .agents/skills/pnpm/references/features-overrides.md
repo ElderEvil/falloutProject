@@ -20,13 +20,13 @@ packages:
 overrides:
   # Override all versions of a package
   lodash: ^4.17.21
-  
+
   # Override specific version range
   "foo@^1.0.0": ^1.2.3
-  
+
   # Override nested dependency
   "express>cookie": ^0.6.0
-  
+
   # Override to different package
   "underscore": "npm:lodash@^4.17.21"
 ```
@@ -74,10 +74,10 @@ Override cookie only when it's a dependency of express.
 overrides:
   # Replace underscore with lodash
   "underscore": "npm:lodash@^4.17.21"
-  
+
   # Use local file
   "some-pkg": "file:./local-pkg"
-  
+
   # Use git
   "some-pkg": "github:user/repo#commit"
 ```
@@ -137,7 +137,7 @@ function readPackage(pkg, context) {
   if (pkg.dependencies?.lodash) {
     pkg.dependencies.lodash = '^4.17.21'
   }
-  
+
   // Add missing peer dependency
   if (pkg.name === 'some-package') {
     pkg.peerDependencies = {
@@ -145,7 +145,7 @@ function readPackage(pkg, context) {
       react: '*'
     }
   }
-  
+
   return pkg
 }
 
@@ -177,7 +177,7 @@ pnpm why lodash
 pnpm list lodash --depth=Infinity
 ```
 
-<!-- 
+<!--
 Source references:
 - https://pnpm.io/package_json#pnpmoverrides
 - https://pnpm.io/pnpmfile

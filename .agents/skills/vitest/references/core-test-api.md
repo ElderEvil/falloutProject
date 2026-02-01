@@ -227,7 +227,7 @@ test('database test', { tags: ['db', 'slow'] }, async () => {})
 - Use context's `expect` for concurrent tests and snapshots
 - Function name is used as test name if passed as first arg
 
-<!-- 
+<!--
 Source references:
 - https://vitest.dev/api/test.html
 -->

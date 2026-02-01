@@ -46,7 +46,7 @@ export const test = base.extend<Fixtures>({
     await use(db)           // Provide to test
     await db.close()        // Cleanup
   },
-  
+
   // Fixture depending on another fixture
   user: async ({ db }, use) => {
     const user = await db.createUser({ name: 'Test' })
@@ -168,7 +168,7 @@ const test = base.extend({
 
 describe('production tests', () => {
   test.scoped({ environment: 'production' })
-  
+
   test('uses production', ({ environment }) => {
     expect(environment).toBe('production')
   })
@@ -232,7 +232,7 @@ export const test = dbTest.extend<{ admin: User }>({
 - Use `{ scope: 'file' }` for expensive shared resources
 - Fixtures compose - extend from extended tests
 
-<!-- 
+<!--
 Source references:
 - https://vitest.dev/guide/test-context.html
 -->

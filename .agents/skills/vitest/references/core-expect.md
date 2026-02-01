@@ -164,7 +164,7 @@ await expect.poll(
 ```ts
 test('async assertions', async () => {
   expect.assertions(2) // Exactly 2 assertions must run
-  
+
   await doAsync((data) => {
     expect(data).toBeDefined()
     expect(data.id).toBe(1)
@@ -184,7 +184,7 @@ expect.extend({
     const pass = received >= floor && received <= ceiling
     return {
       pass,
-      message: () => 
+      message: () =>
         `expected ${received} to be within range ${floor} - ${ceiling}`,
     }
   },
@@ -213,7 +213,7 @@ expect(() => throw new Error('fail')).toThrowErrorMatchingSnapshot()
 - Use context's `expect` in concurrent tests for correct tracking
 - `toThrow` requires wrapping sync code in a function
 
-<!-- 
+<!--
 Source references:
 - https://vitest.dev/api/expect.html
 -->

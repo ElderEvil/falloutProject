@@ -160,7 +160,7 @@ In watch mode, press:
 - Both camelCase (`--testTimeout`) and kebab-case (`--test-timeout`) work
 - Boolean options can be negated with `--no-` prefix
 
-<!-- 
+<!--
 Source references:
 - https://vitest.dev/guide/cli.html
 -->

@@ -93,6 +93,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     LOG_JSON_FORMAT: bool = False  # True for production (JSON), False for development (human-readable)
     LOG_FILE_PATH: str | None = None  # Optional: "/var/log/fallout_shelter/app.log"
+    LOG_FILE_RETENTION_DAYS: int = 14  # Number of days to retain log files
 
     # Security & Rate Limiting Configuration (fastapi-guard)
     ENABLE_RATE_LIMITING: bool = True  # Enable/disable rate limiting

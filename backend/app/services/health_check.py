@@ -6,6 +6,7 @@ from enum import Enum
 
 import aiosmtplib
 import httpx
+from botocore.exceptions import ClientError
 from minio import Minio
 from minio.error import S3Error
 from redis.asyncio import Redis
@@ -211,6 +212,66 @@ class HealthCheckService:
             )
 
     @staticmethod
+    def check_rustfs() -> HealthCheckResult:
+        """Check RustFS connectivity and bucket access.
+
+        Returns:
+            HealthCheckResult with connection status
+        """
+        # Check if RustFS is configured
+        if not getattr(settings, "RUSTFS_ACCESS_KEY", None) or not getattr(settings, "RUSTFS_SECRET_KEY", None):
+            return HealthCheckResult(
+                service="rustfs",
+                status=ServiceStatus.DEGRADED,
+                message="RustFS not configured (optional service)",
+                details={"configured": False, "note": "Image/audio upload features disabled"},
+            )
+
+        try:
+            import boto3
+            from botocore.config import Config
+
+            endpoint_url = getattr(settings, "RUSTFS_PUBLIC_URL", "https://s3.evillab.dev")
+            client = boto3.client(
+                "s3",
+                endpoint_url=endpoint_url,
+                aws_access_key_id=settings.RUSTFS_ACCESS_KEY,
+                aws_secret_access_key=settings.RUSTFS_SECRET_KEY,
+                region_name="us-east-1",
+                config=Config(signature_version="s3v4"),
+            )
+
+            # Test connection by listing buckets
+            response = client.list_buckets()
+            bucket_names = [bucket["Name"] for bucket in response.get("Buckets", [])]
+
+            return HealthCheckResult(
+                service="rustfs",
+                status=ServiceStatus.HEALTHY,
+                message="RustFS connection successful",
+                details={
+                    "endpoint": endpoint_url,
+                    "buckets": bucket_names,
+                },
+            )
+        except ClientError as e:
+            logger.warning("RustFS health check failed (non-critical): %s", e)
+            return HealthCheckResult(
+                service="rustfs",
+                status=ServiceStatus.DEGRADED,
+                message=f"RustFS connection failed (optional service): {e!s}",
+                details={"endpoint": getattr(settings, "RUSTFS_PUBLIC_URL", "unknown"), "error": str(e)},
+            )
+        except Exception as e:
+            logger.warning("RustFS health check failed (non-critical): %s", e)
+            return HealthCheckResult(
+                service="rustfs",
+                status=ServiceStatus.DEGRADED,
+                message=f"RustFS connection failed (optional service): {e!s}",
+                details={"endpoint": getattr(settings, "RUSTFS_PUBLIC_URL", "unknown"), "error": str(e)},
+            )
+
+    @staticmethod
     async def check_ollama() -> HealthCheckResult:
         """
         Check Ollama service connectivity when using ollama provider.
@@ -398,6 +459,10 @@ class HealthCheckService:
         # Check MinIO
         minio_result = self.check_minio()
         results["minio"] = minio_result
+
+        # Check RustFS
+        rustfs_result = self.check_rustfs()
+        results["rustfs"] = rustfs_result
 
         # Check Ollama (if using ollama provider)
         if include_ollama:

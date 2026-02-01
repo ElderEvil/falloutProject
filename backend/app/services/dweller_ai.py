@@ -13,8 +13,8 @@ from app.models.base import SPECIALModel
 from app.schemas.common import GenderEnum
 from app.schemas.dweller import DwellerReadFull, DwellerUpdate, DwellerVisualAttributesInput
 from app.schemas.llm_interaction import LLMInteractionCreate
-from app.services.minio import get_minio_client
 from app.services.open_ai import get_ai_service
+from app.services.storage import get_storage_client
 from app.utils.exceptions import ContentNoChangeException
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ BIO_MAX_LENGTH = 1_000
 
 class DwellerAIService:
     def __init__(self):
-        self.minio_service = get_minio_client()
+        self.storage_service = get_storage_client()
         self.open_ai_service = get_ai_service()
 
     async def generate_backstory(
@@ -170,7 +170,7 @@ class DwellerAIService:
         if dweller_obj.image_url:
             raise ContentNoChangeException(detail="Dweller already has a photo")
 
-        if not self.minio_service.enabled:
+        if not self.storage_service.enabled:
             logger.warning("MinIO is disabled, cannot generate photo for dweller %s", dweller_obj.id)
             raise HTTPException(
                 status_code=503,
@@ -186,10 +186,10 @@ class DwellerAIService:
             f"Dweller visual attributes: {dweller_obj.visual_attributes}"
         )
         image_bytes = await self.open_ai_service.generate_image(prompt=prompt, return_bytes=True)
-        image_url = self.minio_service.upload_file(
+        image_url = self.storage_service.upload_file(
             file_data=image_bytes, file_name=f"{dweller_obj.id}.png", bucket_name="dweller-images"
         )
-        thumbnail_url = self.minio_service.upload_thumbnail(
+        thumbnail_url = self.storage_service.upload_thumbnail(
             file_data=image_bytes, file_name=f"{dweller_obj.id}_thumbnail.png", bucket_name="dweller-thumbnails"
         )
 
@@ -227,7 +227,7 @@ class DwellerAIService:
         if dweller_obj.visual_attributes and dweller_obj.visual_attributes.get("voice_line_url"):
             raise ContentNoChangeException(detail="Dweller already has an audio line. Overwrite not implemented yet.")
 
-        if not self.minio_service.enabled:
+        if not self.storage_service.enabled:
             logger.warning("MinIO is disabled, cannot generate audio for dweller %s", dweller_obj.id)
             raise HTTPException(
                 status_code=503,
@@ -241,7 +241,7 @@ class DwellerAIService:
         except (ValueError, RuntimeError) as e:
             raise HTTPException(status_code=500, detail=f"Failed to generate audio via OpenAI: {e}") from e
 
-        audio_url = self.minio_service.upload_file(
+        audio_url = self.storage_service.upload_file(
             file_data=audio_bytes,
             file_name=f"{dweller_obj.id}_voice.mp3",
             file_type="audio/mpeg",

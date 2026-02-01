@@ -52,6 +52,20 @@ class Settings(BaseSettings):
         "room-images",
     ]
 
+    # Storage Provider Selection (minio or rustfs)
+    STORAGE_PROVIDER: Literal["minio", "rustfs"] = "minio"
+
+    # RustFS Configuration (S3-compatible)
+    RUSTFS_HOSTNAME: str | None = "s3.evillab.dev"
+    RUSTFS_PORT: str | None = None
+    RUSTFS_ACCESS_KEY: str | None = None
+    RUSTFS_SECRET_KEY: str | None = None
+    RUSTFS_DEFAULT_BUCKET: str = "fallout-shelter"
+    RUSTFS_PUBLIC_URL: str | None = "https://s3.evillab.dev"
+    RUSTFS_PUBLIC_BUCKET_WHITELIST: list[str] = [
+        "fallout-shelter",
+    ]
+
     @property
     def minio_enabled(self) -> bool:
         """Check if MinIO is configured and should be used."""

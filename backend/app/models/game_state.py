@@ -12,6 +12,7 @@ class GameStateBase(SQLModel):
     """Base model for game state tracking."""
 
     last_tick_time: datetime = Field(default_factory=datetime.utcnow)
+    last_activity_time: datetime = Field(default_factory=datetime.utcnow, description="Last user activity timestamp")
     is_active: bool = Field(default=True, description="Whether the vault game loop is active")
     is_paused: bool = Field(default=False, description="Whether the vault is manually paused by player")
     total_game_time: int = Field(default=0, ge=0, description="Total seconds the vault has been active")
@@ -42,3 +43,11 @@ class GameState(BaseUUIDModel, GameStateBase, TimeStampMixin, table=True):
         """Update the game state after a tick."""
         self.last_tick_time = datetime.utcnow()
         self.total_game_time += seconds_passed
+
+    def update_activity(self) -> None:
+        """Update the last activity timestamp to now."""
+        self.last_activity_time = datetime.utcnow()
+
+    def is_user_online(self, timeout_seconds: int = 600) -> bool:
+        """Check if user has been active within the timeout window (default 10 minutes)."""
+        return (datetime.utcnow() - self.last_activity_time).total_seconds() <= timeout_seconds

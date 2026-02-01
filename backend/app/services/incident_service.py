@@ -24,7 +24,9 @@ class IncidentService:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
-    async def should_spawn_incident(self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int) -> bool:
+    async def should_spawn_incident(
+        self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int, game_state=None
+    ) -> bool:
         """
         Determine if an incident should spawn based on vault state and time.
 
@@ -32,10 +34,16 @@ class IncidentService:
             db_session: Database session
             vault_id: The vault ID to check
             seconds_passed: Seconds since last tick
+            game_state: Optional game state for online/offline check
 
         Returns:
             bool: True if incident should spawn
         """
+        # Check if user is online (has recent activity) - suppress incidents when offline
+        if game_state and not game_state.is_user_online(timeout_seconds=600):
+            self.logger.debug(f"Vault {vault_id} is offline, suppressing incident spawn")
+            return False
+
         # Need minimum population
         from app.models.dweller import Dweller
 
@@ -62,8 +70,9 @@ class IncidentService:
             if seconds_since_last < game_config.incident.spawn_cooldown_seconds:
                 return False
 
-        # Calculate spawn chance based on time passed
-        hours_passed = seconds_passed / 3600
+        # Time-based cap: limit spawn chance growth to prevent bursts
+        # Cap hours_passed to prevent excessive spawn chance after long offline periods
+        hours_passed = min(seconds_passed / 3600, 2.0)  # Cap at 2 hours worth of chance
         spawn_chance = game_config.incident.spawn_chance_per_hour * hours_passed
 
         # Random roll

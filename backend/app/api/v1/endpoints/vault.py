@@ -267,9 +267,11 @@ async def auto_assign_all_rooms(
 
     Priority order:
     1. Production rooms (Strength: Power, Perception: Water, Agility: Food) - most critical
-    2. Utility rooms (Intelligence: Medbay/Science Lab, Charisma: Radio) - important services
-    3. Training rooms (all 7 SPECIAL stats) - for development
+    2. Med/Science rooms (Intelligence) - medical and research services
+    3. Radio rooms (Charisma) - recruitment and happiness
+    4. Training rooms (all 7 SPECIAL stats) - for development
 
+    Within each tier, dwellers are distributed proportionally to room capacities.
     Dwellers are matched to rooms based on their relevant SPECIAL stat (highest stat dwellers assigned first).
     """
     # Complete ability to stat mapping for all 7 SPECIAL stats
@@ -283,19 +285,22 @@ async def auto_assign_all_rooms(
         SPECIALEnum.LUCK: "luck",
     }
 
-    # Priority order: production abilities first, then utility, then training
-    # Priority 1: Production rooms (S, P, A)
+    # Priority order: production first, then med/science, then radio, then training
+    # Priority 1: Production rooms (S, P, A) - most critical for vault survival
     production_abilities = [
         SPECIALEnum.STRENGTH,  # Power plants
         SPECIALEnum.PERCEPTION,  # Water treatment
         SPECIALEnum.AGILITY,  # Diners
     ]
-    # Priority 2: Utility rooms (I, C)
-    utility_abilities = [
+    # Priority 2: Med/Science rooms (Intelligence only)
+    medsci_abilities = [
         SPECIALEnum.INTELLIGENCE,  # Medbay & Science Lab
+    ]
+    # Priority 3: Radio rooms (Charisma only)
+    radio_abilities = [
         SPECIALEnum.CHARISMA,  # Radio
     ]
-    # Priority 3: Training rooms (all 7 stats including Luck)
+    # Priority 4: Training rooms (all 7 stats including Luck)
     training_abilities = [
         SPECIALEnum.STRENGTH,
         SPECIALEnum.PERCEPTION,
@@ -315,9 +320,11 @@ async def auto_assign_all_rooms(
     rooms_result = await db_session.execute(rooms_query)
     all_rooms = rooms_result.scalars().all()
 
-    # Separate rooms by category
+    # Separate rooms by category and ability
     production_rooms = [r for r in all_rooms if r.category == RoomTypeEnum.PRODUCTION]
-    utility_rooms = [r for r in all_rooms if r.category == RoomTypeEnum.MISC]
+    # Split MISC into Med/Science (Intelligence) and Radio (Charisma)
+    medsci_rooms = [r for r in all_rooms if r.category == RoomTypeEnum.MISC and r.ability == SPECIALEnum.INTELLIGENCE]
+    radio_rooms = [r for r in all_rooms if r.category == RoomTypeEnum.MISC and r.ability == SPECIALEnum.CHARISMA]
     training_rooms = [r for r in all_rooms if r.category == RoomTypeEnum.TRAINING]
 
     # Get all unassigned dwellers (room_id is None, not deleted, not dead)
@@ -334,44 +341,96 @@ async def auto_assign_all_rooms(
     assignments = []
     assigned_dweller_ids = set()
 
-    async def assign_to_rooms(rooms: list[Room], abilities: list[SPECIALEnum]) -> None:
-        """Helper function to assign dwellers to rooms based on abilities."""
+    async def calculate_room_capacity(room: Room) -> int:
+        """Calculate room capacity (2 dwellers per 3 size units)."""
+        room_size = room.size if room.size is not None else room.size_min
+        return (room_size // 3) * 2 if room_size else 0
+
+    async def get_available_slots(room: Room) -> int:
+        """Get available slots in a room."""
+        dweller_count_query = select(Dweller).where(Dweller.room_id == room.id)
+        dweller_count_result = await db_session.execute(dweller_count_query)
+        current_dwellers = len(dweller_count_result.scalars().all())
+        max_capacity = await calculate_room_capacity(room)
+        return max(0, max_capacity - current_dwellers)
+
+    async def assign_to_rooms_proportional(rooms: list[Room], abilities: list[SPECIALEnum]) -> None:
+        """Assign dwellers to rooms with proportional fill within the tier."""
         nonlocal unassigned_dwellers
 
+        if not unassigned_dwellers or not rooms:
+            return
+
+        # Filter rooms by abilities
+        ability_rooms = []
+        for ability in abilities:
+            ability_rooms.extend([r for r in rooms if r.ability == ability])
+
+        if not ability_rooms:
+            return
+
+        # Calculate total available slots across all rooms in this tier
+        room_slots = []
+        total_slots = 0
+        for room in ability_rooms:
+            slots = await get_available_slots(room)
+            if slots > 0:
+                room_slots.append((room, slots))
+                total_slots += slots
+
+        if total_slots == 0:
+            return
+
+        # Calculate how many dwellers to assign to this tier
+        # (proportional to available slots, but limited by unassigned dwellers)
+        dwellers_for_tier = min(len(unassigned_dwellers), total_slots)
+
+        # Sort rooms by ability priority, then distribute dwellers proportionally
         for ability in abilities:
             if not unassigned_dwellers:
                 break
 
-            # Get rooms with this ability
-            ability_rooms = [r for r in rooms if r.ability == ability]
+            ability_specific_rooms = [r for r in ability_rooms if r.ability == ability]
+            if not ability_specific_rooms:
+                continue
 
-            for room in ability_rooms:
-                if not unassigned_dwellers:
+            # Get available slots for this ability
+            ability_slots = []
+            ability_total = 0
+            for room in ability_specific_rooms:
+                slots = await get_available_slots(room)
+                if slots > 0:
+                    ability_slots.append((room, slots))
+                    ability_total += slots
+
+            if ability_total == 0:
+                continue
+
+            # Sort unassigned dwellers by the matching SPECIAL stat (descending)
+            stat_name = ability_to_stat_map[ability]
+            sorted_dwellers = sorted(
+                [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids],
+                key=lambda d: getattr(d, stat_name),
+                reverse=True,
+            )
+
+            # Distribute dwellers proportionally across rooms of this ability
+            dwellers_assigned_to_ability = 0
+            for room, slots in ability_slots:
+                if not sorted_dwellers:
                     break
 
-                # Get current dweller count in room
-                dweller_count_query = select(Dweller).where(Dweller.room_id == room.id)
-                dweller_count_result = await db_session.execute(dweller_count_query)
-                current_dwellers_in_room = len(dweller_count_result.scalars().all())
+                # Calculate proportional allocation
+                proportion = slots / ability_total
+                target_for_room = max(1, int(dwellers_for_tier * proportion))
+                actual_for_room = min(target_for_room, slots, len(sorted_dwellers))
 
-                # Calculate room capacity (2 dwellers per 3 size units)
-                room_size = room.size if room.size is not None else room.size_min
-                max_capacity = (room_size // 3) * 2 if room_size else 0
+                # Assign best-matching dwellers to this room
+                for i in range(actual_for_room):
+                    if i >= len(sorted_dwellers):
+                        break
+                    dweller = sorted_dwellers[i]
 
-                available_slots = max_capacity - current_dwellers_in_room
-                if available_slots <= 0:
-                    continue
-
-                # Sort unassigned dwellers by the matching SPECIAL stat (descending)
-                stat_name = ability_to_stat_map[ability]
-                sorted_dwellers = sorted(
-                    [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids],
-                    key=lambda d: getattr(d, stat_name),
-                    reverse=True,
-                )
-
-                # Assign dwellers to this room
-                for dweller in sorted_dwellers[:available_slots]:
                     await crud.dweller.update(
                         db_session,
                         dweller.id,
@@ -385,17 +444,21 @@ async def auto_assign_all_rooms(
                         }
                     )
                     assigned_dweller_ids.add(dweller.id)
+                    dwellers_assigned_to_ability += 1
 
-            # Remove assigned dwellers from the list for next iteration
+            # Remove assigned dwellers from the list
             unassigned_dwellers = [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids]
 
     # Priority 1: Assign to production rooms first
-    await assign_to_rooms(production_rooms, production_abilities)
+    await assign_to_rooms_proportional(production_rooms, production_abilities)
 
-    # Priority 2: Assign to utility/misc rooms
-    await assign_to_rooms(utility_rooms, utility_abilities)
+    # Priority 2: Assign to Med/Science rooms
+    await assign_to_rooms_proportional(medsci_rooms, medsci_abilities)
 
-    # Priority 3: Assign to training rooms
-    await assign_to_rooms(training_rooms, training_abilities)
+    # Priority 3: Assign to Radio rooms
+    await assign_to_rooms_proportional(radio_rooms, radio_abilities)
+
+    # Priority 4: Assign to training rooms
+    await assign_to_rooms_proportional(training_rooms, training_abilities)
 
     return {"assigned_count": len(assignments), "assignments": assignments}

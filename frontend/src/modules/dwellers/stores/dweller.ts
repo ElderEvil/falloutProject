@@ -10,6 +10,7 @@ import type {
   RevivalCostResponse,
 } from '../models/dweller'
 import { useToast } from '@/core/composables/useToast'
+import { useGaryMode } from '@/core/composables/useGaryMode'
 
 export type DwellerStatus = 'idle' | 'working' | 'exploring' | 'training' | 'resting' | 'dead'
 
@@ -491,6 +492,14 @@ export const useDwellerStore = defineStore('dweller', () => {
       }
 
       toast.success('Dweller renamed successfully!')
+
+      // Trigger Gary easter egg if renamed to "Gary" (case-insensitive)
+      if (firstName.toLowerCase() === 'gary') {
+        const { triggerGaryMode } = useGaryMode()
+        triggerGaryMode()
+        toast.info('VAULT 108 PROTOCOL ACTIVATED', { duration: 5000 })
+      }
+
       return response.data
     } catch (error: unknown) {
       const errorMessage =

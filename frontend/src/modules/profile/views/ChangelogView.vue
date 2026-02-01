@@ -180,20 +180,11 @@ onMounted(() => {
       >
         <!-- Version header -->
         <UCard class="mb-4" glow>
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <UBadge variant="primary" class="text-xl font-bold">
-                v{{ entry.version }}
-              </UBadge>
-              <span class="text-gray-400">{{ entry.date_display }}</span>
-            </div>
-            <UButton
-              variant="secondary"
-              size="sm"
-              @click="scrollToTop()"
-            >
-              ↑ Top
-            </UButton>
+          <div class="flex items-center gap-3">
+            <UBadge variant="primary" class="text-xl font-bold">
+              v{{ entry.version }}
+            </UBadge>
+            <span class="text-gray-400">{{ entry.date_display }}</span>
           </div>
         </UCard>
 

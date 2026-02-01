@@ -304,7 +304,7 @@ class IncidentService:
 
         if incident.enemies_defeated >= expected_raider_count:
             # Victory! Generate loot and resolve
-            incident.loot = self._generate_loot(incident.difficulty)
+            incident.loot = self._generate_loot(incident.difficulty, incident.incident_type)
             incident.resolve(success=True)
 
             # Track caps for batch vault update (done at game loop level)
@@ -355,7 +355,7 @@ class IncidentService:
         loot = {}
         caps_earned = 0
         if success:
-            loot = self._generate_loot(incident.difficulty)
+            loot = self._generate_loot(incident.difficulty, incident.incident_type)
             caps_earned = loot.get("caps", 0)
 
             # Award caps to vault
@@ -528,15 +528,27 @@ class IncidentService:
             # Check for level-up
             await leveling_service.check_level_up(db_session, dweller)
 
-    def _generate_loot(self, difficulty: int) -> dict:
-        """Generate loot rewards based on difficulty."""
+    def _generate_loot(self, difficulty: int, incident_type: IncidentType) -> dict:
+        """Generate loot rewards based on difficulty and incident type."""
         caps = random.randint(
             game_config.combat.loot_caps_min + (difficulty - 1) * game_config.combat.loot_caps_max_per_difficulty // 2,
             game_config.combat.loot_caps_min + difficulty * game_config.combat.loot_caps_max_per_difficulty,
         )
 
+        # Internal threats (fire, radroach, mole rat) give caps only
+        # External threats (raider, deathclaw, feral ghoul) give caps + items
+        internal_threats = {
+            IncidentType.FIRE,
+            IncidentType.RADROACH_INFESTATION,
+            IncidentType.MOLE_RAT_ATTACK,
+        }
+
+        if incident_type in internal_threats:
+            # Internal threats: caps only, no items
+            return {"caps": caps, "items": []}
+
+        # External threats: caps + weapons/junk based on difficulty
         items = []
-        # Higher difficulty = better loot
         if difficulty >= 7:
             items.append({"type": "weapon", "rarity": "rare", "name": "Heavy Raider Rifle"})
         elif difficulty >= 4:

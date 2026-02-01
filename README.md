@@ -169,6 +169,58 @@ Pre-built images (automated by CI/CD):
 
 See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) for complete deployment guide.
 
+## 💾 Database Backup & Restore
+
+### Automated Backup
+
+A backup script is provided at `scripts/backup-db.sh`:
+
+```bash
+# Set environment variables (or use .env file)
+export POSTGRES_DB=fallout_db
+export POSTGRES_USER=postgres
+export POSTGRES_PASSWORD=your_password
+export POSTGRES_SERVER=localhost
+
+# Run backup
+./scripts/backup-db.sh
+
+# Backups are stored in: /mnt/dead-pool/backups/fallout/
+# - Timestamped filenames (fallout_YYYYMMDD_HHMMSS.sql.gz)
+# - Automatic compression
+# - 14-day retention (old backups auto-deleted)
+```
+
+### Manual Backup
+
+```bash
+# Using pg_dump directly
+docker exec -t fallout-postgres pg_dump -U postgres fallout_db > backup.sql
+
+# Or with compression
+docker exec -t fallout-postgres pg_dump -U postgres fallout_db | gzip > backup.sql.gz
+```
+
+### Restore from Backup
+
+**⚠️ WARNING:** Restore will overwrite current data. Consider backing up first.
+
+```bash
+# Stop the application
+docker compose stop fastapi
+
+# Restore from backup (uncompressed)
+gunzip backup.sql.gz  # if compressed
+docker exec -i fallout-postgres psql -U postgres -d fallout_db < backup.sql
+
+# Or restore to a fresh database
+docker exec -i fallout-postgres psql -U postgres -c "DROP DATABASE fallout_db; CREATE DATABASE fallout_db;"
+docker exec -i fallout-postgres psql -U postgres -d fallout_db < backup.sql
+
+# Restart application
+docker compose start fastapi
+```
+
 ## 🔑 Environment Variables
 
 **Environment files:**

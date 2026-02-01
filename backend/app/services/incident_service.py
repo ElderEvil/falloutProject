@@ -11,6 +11,7 @@ from app.core.game_config import game_config
 from app.crud.incident import incident_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
+from app.models.game_state import GameState
 from app.models.incident import Incident, IncidentStatus, IncidentType
 from app.models.room import Room
 from app.services.notification_service import notification_service
@@ -25,7 +26,7 @@ class IncidentService:
         self.logger = logging.getLogger(__name__)
 
     async def should_spawn_incident(
-        self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int, game_state=None
+        self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int, game_state: GameState | None = None
     ) -> bool:
         """
         Determine if an incident should spawn based on vault state and time.

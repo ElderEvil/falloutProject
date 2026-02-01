@@ -23,7 +23,12 @@ echo "Starting backup of $DB_NAME..."
 echo "Backup file: $BACKUP_FILE"
 
 # Perform backup
-if PGPASSWORD="$POSTGRES_PASSWORD" pg_dump \
+# Only use PGPASSWORD if POSTGRES_PASSWORD is set, otherwise rely on .pgpass or peer auth
+if [ -n "$POSTGRES_PASSWORD" ]; then
+    export PGPASSWORD="$POSTGRES_PASSWORD"
+fi
+
+if pg_dump \
     -h "$DB_HOST" \
     -p "$DB_PORT" \
     -U "$DB_USER" \

@@ -34,8 +34,8 @@ const formattedValue = computed(() => {
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--color-border);
-  font-family: var(--font-mono);
+  border-bottom: 1px solid var(--color-theme-accent);
+  font-family: var(--font-family-mono);
 }
 
 .setting-item:last-child {
@@ -43,18 +43,18 @@ const formattedValue = computed(() => {
 }
 
 .setting-label {
-  color: var(--color-text-secondary);
+  color: var(--color-gray-400);
   font-size: 0.875rem;
 }
 
 .setting-value {
-  color: var(--color-primary);
+  color: var(--color-theme-primary);
   font-weight: 600;
   font-size: 0.875rem;
 }
 
 .setting-unit {
-  color: var(--color-text-muted);
+  color: var(--color-gray-500);
   font-weight: 400;
   margin-left: 0.25rem;
 }

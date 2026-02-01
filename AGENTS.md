@@ -1,228 +1,151 @@
 # Fallout Shelter - Agent Development Guide
 
-> **Version:** 2.7.0 | **Architecture:** FastAPI + Vue 3 + PostgreSQL + Redis
+> **Repo:** `D:\Projects\falloutProject` | **Stack:** FastAPI + Vue 3 + PostgreSQL + Redis
 
-## Project Overview
+This file is written for agentic coding agents working in this repository.
 
-Fallout Shelter management game with terminal green CRT aesthetic.
+## Repo Structure
 
-**Tech Stack:**
-- **Backend:** FastAPI, SQLModel, PostgreSQL 18, Celery, Redis
-- **Frontend:** Vue 3.5, TypeScript, Pinia, TailwindCSS v4
-- **AI:** OpenAI/Anthropic/Ollama for dweller interactions
-
-**Structure:**
 ```
-falloutProject/
-├── backend/app/         # FastAPI (api/v1/endpoints, core, crud, models, services)
-└── frontend/src/        # Vue 3 (components, stores, services, views)
+backend/app/      # FastAPI (api, core, crud, models, services, utils)
+frontend/src/     # Vue 3 (modules, core, components, stores, services)
 ```
 
-## Quick Start
+## Rules Files (Cursor/Copilot)
 
-**Backend:**
+- No `.cursorrules`, `.cursor/rules/**`, or `.github/copilot-instructions.md` found in this repo (as of 2026-02-01).
+
+## Backend (Python/FastAPI)
+
+### Setup & Dev
+
 ```bash
 cd backend
-uv sync --all-extras --dev        # Setup
-uv run fastapi dev main.py        # Dev server (localhost:8000)
-uv run alembic upgrade head       # Migrations
-uv run pytest app/tests/          # Tests
-uv run ruff check . && ruff format .  # Lint & format
+uv sync --all-extras --dev
+uv run fastapi dev main.py              # http://localhost:8000
+uv run alembic upgrade head
 ```
 
-**Frontend:**
+### Lint / Format
+
+Authoritative config: `backend/pyproject.toml` (`[tool.ruff]`, line-length=120, target=py313).
+
+```bash
+cd backend
+uv run ruff check .
+uv run ruff check . --fix
+uv run ruff format .
+uv run prek run                          # CI uses this (see .github/workflows/backend-ci.yml)
+```
+
+### Tests (pytest)
+
+Authoritative config: `backend/pyproject.toml` (`[tool.pytest.ini_options]`, coverage defaults).
+
+```bash
+cd backend
+uv run pytest app/tests                  # all backend tests
+uv run pytest app/tests -v --tb=short    # CI style
+
+# Single test (recommended patterns)
+uv run pytest app/tests/test_file.py
+uv run pytest app/tests/test_file.py::TestClass::test_method
+uv run pytest -k "name_substring"
+```
+
+### Backend Code Style
+
+- **Formatting**: 120 char line length (ruff).
+- **Quotes**: use double quotes in Python.
+- **Typing**: add type hints for new functions; prefer `UUID4`/Pydantic types where applicable.
+- **Import order** (see `backend/app/api/deps.py`): stdlib → third-party → local `app.*`.
+- **Architecture**: controller/endpoint → service → crud → DB.
+
+### Backend Error Handling
+
+- Prefer the custom HTTP exceptions in `backend/app/utils/exceptions.py` (e.g., `ResourceNotFoundException`,
+  `AccessDeniedException`) over ad-hoc `HTTPException`.
+- Log with `logging.getLogger(__name__)` inside services; use `logger.exception(...)` for unexpected errors.
+
+## Frontend (Vue 3 / TypeScript)
+
+### Setup & Dev
+
 ```bash
 cd frontend
-pnpm install                      # Setup
-pnpm run dev                      # Dev server (localhost:5173)
-pnpm run types:generate           # Generate API types
-pnpm test                         # Tests
-pnpm run lint                     # Lint (Oxlint)
+pnpm install
+pnpm run dev                              # http://localhost:5173 (runs types:generate first)
+pnpm run types:generate                   # requires backend running at :8000
 ```
 
-## Code Style
+### Lint / Format / Types
 
-### Python (Backend)
-- **120 chars**, double quotes, type hints required
-- Imports: stdlib → third-party → local
-- Naming: `snake_case` (vars), `PascalCase` (classes), `UPPER_SNAKE_CASE` (constants)
+Authoritative config:
+- `frontend/oxlint.json` (format: 100 cols, single quotes, no semicolons, 2 spaces)
+- `frontend/tsconfig.app.json` (strict: true, strictTemplates: true)
 
-```python
-# API Endpoint Pattern
-@router.post("/vaults", response_model=VaultResponse)
-async def create_vault(
-    vault_data: VaultCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-) -> VaultResponse:
-    """Create vault with current user ownership."""
-    return await vault_service.create(db, obj_in=vault_data, user_id=current_user.id)
-```
-
-### TypeScript (Frontend)
-- **100 chars**, single quotes, no semicolons
-- Imports: `@/` alias for absolute paths
-- Naming: `PascalCase` (components, types), `camelCase` (vars, functions)
-
-```vue
-<script setup lang="ts">
-import { computed, ref } from 'vue'
-import { UCard, UButton } from '@/components/ui'
-
-interface Props {
-  userId: string
-  title?: string
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  title: 'Default Title'
-})
-
-const emit = defineEmits<{
-  update: [user: User]
-}>()
-</script>
-
-<template>
-  <UCard :title="title" glow>
-    <UButton @click="emit('update', user)">Update</UButton>
-  </UCard>
-</template>
-```
-
-## Architecture Patterns
-
-### Backend: Controller → Service → CRUD → DB
-```python
-# Service Layer
-async def create(db: AsyncSession, obj_in: VaultCreate, user_id: UUID4) -> Vault:
-    vault_data = obj_in.model_dump()
-    vault_data["user_id"] = user_id
-    return await crud.vault.create(db, obj_in=vault_data)
-```
-
-### Frontend: Store → Service → API
-```typescript
-export const useVaultStore = defineStore('vault', () => {
-  const vaults = ref<Vault[]>([])
-
-  const fetchVaults = async () => {
-    try {
-      vaults.value = await vaultService.getVaults()
-    } catch (error) {
-      handleError(error)
-    }
-  }
-
-  return { vaults, fetchVaults }
-})
-```
-
-## Testing
-
-**Backend:**
-```python
-class TestAuthEndpoints:
-    async def test_register_success(self, client: AsyncClient, user_factory):
-        user_data = user_factory()
-        response = await client.post("/api/v1/auth/register", json=user_data.model_dump())
-        assert response.status_code == 201
-        assert "access_token" in response.json()
-```
-
-**Frontend:**
-```typescript
-describe('LoginForm', () => {
-  it('emits submit event', async () => {
-    const wrapper = mount(LoginForm)
-    await wrapper.find('input[type="email"]').setValue('test@example.com')
-    await wrapper.find('form').trigger('submit.prevent')
-    expect(wrapper.emitted()).toHaveProperty('submit')
-  })
-})
-```
-
-## UI Guidelines
-
-**Terminal Theme:**
-- Primary: `#00ff00` (terminal green)
-- Always use custom UI components: `UButton`, `UCard`, `UInput`, `UModal`
-- TailwindCSS utilities only, no inline styles
-- Effects: `.flicker`, `.terminal-glow`, `.crt-screen`
-
-```vue
-<UCard title="Vault Management" glow crt>
-  <UInput v-model="name" label="Vault Name" />
-  <UButton variant="primary">Create</UButton>
-</UCard>
-```
-
-## Key APIs (v2.3.0)
-
-**Storage Space:** `GET /storage/vault/{vault_id}/space`
-- Returns: `used_space`, `max_space`, `available_space`, `utilization_pct`
-
-**Pregnancy Debug (superuser):**
-- `POST /pregnancies/debug/force-conception?mother_id=&father_id=`
-- `POST /pregnancies/{id}/debug/accelerate`
-
-**Exploration Loot:**
-- Items sorted by rarity (legendary → common)
-- Overflow tracked in `RewardsSchema.overflow_items`
-
-## Environment Setup
-
-**Backend** (`backend/.env`):
 ```bash
-SECRET_KEY=your-secret-key
-POSTGRES_SERVER=localhost
-POSTGRES_DB=fallout_db
-AI_PROVIDER=ollama
-REDIS_HOST=localhost
+cd frontend
+pnpm run lint
+pnpm run lint:fix
+pnpm run format
+pnpm run format:check
+pnpm run typecheck
 ```
 
-**Frontend** (`frontend/.env.local`):
+### Tests (Vitest)
+
+Authoritative config: `frontend/vitest.config.ts` (jsdom; includes `tests/**/*.test.ts`).
+
 ```bash
-VITE_API_BASE_URL=http://localhost:8000
-VITE_WS_URL=ws://localhost:8000
+cd frontend
+pnpm run test                             # watch
+pnpm run test:run                          # once (CI equivalent)
+
+# Single test
+pnpm run test -- tests/unit/stores/auth.test.ts
+pnpm run test -- -t "test name substring"
+pnpm run test -- --coverage
 ```
 
-## Important Rules
+### Frontend Code Style
 
-1. **NEVER push to git without explicit user approval**
-2. Run tests before committing: `pytest` (backend), `pnpm test` (frontend)
-3. Coverage: >80% backend, >70% frontend
-4. Follow existing patterns - don't introduce new architectures
-5. Generate types after backend changes: `pnpm run types:generate`
-6. Use semantic commits: `feat:`, `fix:`, `chore:`
-7. Branches: `feat/`, `fix/`, `chore/` prefixes
-8. **Never merge to master without approval**
+- **Formatting**: 100 char line width; single quotes; no semicolons; 2-space indent (`frontend/oxlint.json`).
+- **Imports**: prefer `@/` aliases (`frontend/tsconfig.app.json` paths); order roughly: Vue/core → third-party → `@/` → relative.
+- **Naming**:
+  - Components/types: `PascalCase`
+  - Composables: `useXxx`
+  - Stores: `useXxxStore` (Pinia composition-style)
+- **Architecture**: Store → Service → API.
 
-## Deployment
+### Frontend Error Handling
 
-**CI/CD:** Auto-build on push to `master` → Docker Hub
-- Images: `elerevil/fo-shelter-be:latest`, `elerevil/fo-shelter-fe:latest`
+- Use helpers in `frontend/src/core/utils/errorHandler.ts` (e.g., `getErrorMessage`, `handleStoreError`).
+- Avoid swallowing errors silently; log context in stores/services.
 
-**TrueNAS Staging:**
-- Frontend: https://fallout.evillab.dev
-- Backend: https://fallout-api.evillab.dev
-- Update: `docker compose pull && docker compose up -d`
+## UI Guidelines (Terminal CRT Theme)
 
-## Asset Management
+- Primary color: `#00ff00`.
+- Prefer the repo UI components (see `frontend/src/components/ui/`): `UButton`, `UCard`, `UInput`, `UModal`, etc.
+- Tailwind utilities only; avoid inline styles.
+- Use CRT effects classes where appropriate: `.flicker`, `.terminal-glow`, `.crt-screen`.
+- Design token source of truth: `frontend/src/assets/tailwind.css` and `frontend/STYLEGUIDE.md`.
 
-### External Image Assets
-Room images and other game assets are often fetched from external wikis.
+## Bug Fix Workflow (MANDATORY)
 
-**Download Script:** `scripts/download_room_images.py`
-- Fetches high-resolution images from the Fallout Wiki.
-- Handles pagination and lazy loading.
-- Usage: `uv run scripts/download_room_images.py`
+When a bug is reported:
 
-**Storage Policy:**
-- For local development: Served via FastAPI static mounting (`/static/room_images/`).
-- Future production: Assets will be stored and served via MinIO/RustFS.
-- Always use `app.utils.room_assets.get_room_image(name)` to resolve URLs.
+1. **Write a failing test first** that reproduces the bug.
+2. **Delegate the fix to subagents** (provide the failing test file + repro steps).
+3. **Prove the fix** by running the test and ensuring it passes (and run the relevant suite).
+
+## Repo Guardrails
+
+1. Never push to git without explicit approval.
+2. After backend API changes: regenerate frontend API types: `cd frontend && pnpm run types:generate`.
+3. Prefer small, test-backed changes; follow existing patterns (don’t introduce new architectures).
+4. Commit messages: `feat:`, `fix:`, `chore:`; branch prefixes: `feat/`, `fix/`, `chore/`.
 
 ---
 
-*Agent guide for Fallout Shelter project | Last updated: 2026-01-26*
+*Last updated: 2026-02-01*

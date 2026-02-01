@@ -258,7 +258,7 @@ docker compose ps fastapi  # Should show 0.0.0.0:8000->8000/tcp
 - [frontend/STYLEGUIDE.md](./frontend/STYLEGUIDE.md) - Design system
 
 ## 📄 License
-
+ 
 MIT License - See LICENSE file for details.
 
 ---

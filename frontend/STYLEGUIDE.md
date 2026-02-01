@@ -31,21 +31,61 @@ The Fallout Shelter UI embodies a **retro-futuristic terminal aesthetic** inspir
 
 ## Color System
 
-### Terminal Green Palette
+### Theme System
 
-Our primary color palette uses various shades of terminal green:
+The UI supports **3 dynamic themes** that can be switched at runtime. Themes are controlled via CSS custom properties set on the document root.
 
-| Variable | Value | Usage |
-|----------|-------|-------|
-| `--color-terminal-green` | `#00ff00` | Primary text, active elements |
-| `--color-terminal-green-light` | `#39ff14` | Hover states, highlights |
-| `--color-terminal-green-dark` | `#00cc00` | Pressed states, shadows |
-| `--color-terminal-green-dim` | `#00aa00` | Disabled states, low-priority text |
-| `--color-terminal-green-glow` | `rgba(0, 255, 0, 0.3)` | Glow effects, overlays |
+#### Available Themes
+
+| ID | Name | Primary | Secondary | Accent | Glow |
+|----|------|---------|-----------|--------|------|
+| `fo4` | Fallout 4 — Modern Green | `#00ff00` | `#003300` | `#00cc00` | `rgba(0, 255, 0, 0.3)` |
+| `fo3` | Fallout 3 — Classic Teal | `#00ff9f` | `#003322` | `#00cc88` | `rgba(0, 255, 159, 0.3)` |
+| `fnv` | New Vegas — Amber | `#ffb700` | `#332200` | `#ff9900` | `rgba(255, 183, 0, 0.3)` |
+
+**Default theme:** `fo4` (green). Theme preference is stored in `localStorage` under key `theme`.
+
+#### Core Theme Variables
+
+These variables are set dynamically based on the active theme:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `--theme-primary` | Primary text color | `#00ff00` |
+| `--theme-secondary` | Secondary/dark backgrounds | `#003300` |
+| `--theme-accent` | Accent/hover states | `#00cc00` |
+| `--theme-glow` | Glow effects | `rgba(0, 255, 0, 0.3)` |
+
+#### Design Token Mappings
+
+Use these tokens in your CSS/components (mapped in `tailwind.css`):
+
+| Token | Maps To | Usage |
+|-------|---------|-------|
+| `--color-theme-primary` | `var(--theme-primary)` | Primary text, active elements |
+| `--color-theme-secondary` | `var(--theme-secondary)` | Secondary backgrounds |
+| `--color-theme-accent` | `var(--theme-accent)` | Hover states, accents |
+| `--color-theme-glow` | `var(--theme-glow)` | Glow effects |
+
+**Legacy aliases** (for backward compatibility):
+- `--color-terminal-green` → `--color-theme-primary`
+- `--color-terminal-green-light` → `--color-theme-primary`
+- `--color-terminal-green-dark` → `--color-theme-accent`
+- `--color-terminal-green-glow` → `--color-theme-glow`
 
 **Usage Example:**
 ```vue
-<button class="text-terminalGreen hover:text-terminalGreenLight">
+<!-- Using theme variables in scoped CSS -->
+<style scoped>
+.my-component {
+  color: var(--color-theme-primary);
+  border: 1px solid var(--color-theme-accent);
+  box-shadow: 0 0 10px var(--color-theme-glow);
+}
+</style>
+
+<!-- Or use Tailwind classes that reference the tokens -->
+<button class="text-theme-primary hover:text-theme-accent">
   Click Me
 </button>
 ```

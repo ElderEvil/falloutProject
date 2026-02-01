@@ -538,7 +538,7 @@ export const useDwellerStore = defineStore('dweller', () => {
     }
   }
 
-  async function autoAssignAllRooms(
+  async function autoAssignAllDwellers(
     vaultId: string,
     token: string
   ): Promise<{ assigned_count: number; assignments: any[] } | null> {
@@ -737,7 +737,7 @@ export const useDwellerStore = defineStore('dweller', () => {
     useRadaway,
     autoAssignToRoom,
     unassignAllDwellers,
-    autoAssignAllDwellers: autoAssignAllRooms,
+    autoAssignAllDwellers,
     fetchDeadDwellers,
     fetchGraveyardDwellers: fetchGraveyard,
     getRevivalCost,

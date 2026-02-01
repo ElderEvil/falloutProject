@@ -34,7 +34,7 @@ const handleAutoAssignAll = async () => {
 
   autoAssigning.value = true
   try {
-    await dwellerStore.autoAssignAllRooms(props.vaultId, authStore.token)
+    await dwellerStore.autoAssignAllDwellers(props.vaultId, authStore.token)
   } finally {
     autoAssigning.value = false
   }

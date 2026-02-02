@@ -36,3 +36,6 @@ coverage
 auto-imports.d.ts
 components.d.ts
 src/types/api.generated.ts
+
+# Coverage
+coverage.json

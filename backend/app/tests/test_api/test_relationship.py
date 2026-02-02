@@ -123,6 +123,25 @@ async def test_get_relationship(
 
 
 @pytest.mark.asyncio
+async def test_get_relationship_not_found(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+):
+    """Test getting a non-existent relationship returns 404."""
+    from uuid import uuid4
+
+    non_existent_id = uuid4()
+
+    response = await async_client.get(
+        f"/relationships/{non_existent_id}",
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 404
+    data = response.json()
+    assert "detail" in data
+
+
+@pytest.mark.asyncio
 async def test_initiate_romance(
     async_client: AsyncClient,
     async_session: AsyncSession,

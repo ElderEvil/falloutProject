@@ -372,6 +372,74 @@ async def test_force_conception_wrong_gender(
 
 
 @pytest.mark.asyncio
+async def test_force_conception_missing_mother(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+):
+    """Test force-conception returns 404 when mother not found."""
+    from uuid import uuid4
+
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault = await crud.vault.create_with_user_id(
+        db_session=async_session,
+        obj_in={"number": 703},
+        user_id=user.id,
+    )
+
+    father = await crud.dweller.create_random(
+        async_session,
+        vault.id,
+        obj_in=DwellerCreateCommonOverride(gender="male"),
+    )
+
+    fake_mother_id = uuid4()
+
+    response = await async_client.post(
+        "/pregnancies/debug/force-conception",
+        headers=superuser_token_headers,
+        params={"mother_id": str(fake_mother_id), "father_id": str(father.id)},
+    )
+
+    assert response.status_code == 404
+    assert "Dweller" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_force_conception_missing_father(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+):
+    """Test force-conception returns 404 when father not found."""
+    from uuid import uuid4
+
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault = await crud.vault.create_with_user_id(
+        db_session=async_session,
+        obj_in={"number": 705},
+        user_id=user.id,
+    )
+
+    mother = await crud.dweller.create_random(
+        async_session,
+        vault.id,
+        obj_in=DwellerCreateCommonOverride(gender="female"),
+    )
+
+    fake_father_id = uuid4()
+
+    response = await async_client.post(
+        "/pregnancies/debug/force-conception",
+        headers=superuser_token_headers,
+        params={"mother_id": str(mother.id), "father_id": str(fake_father_id)},
+    )
+
+    assert response.status_code == 404
+    assert "Dweller" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
 async def test_accelerate_pregnancy_success(
     async_client: AsyncClient,
     async_session: AsyncSession,

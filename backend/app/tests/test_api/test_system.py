@@ -22,12 +22,11 @@ class TestChangelogEndpoint:
         """Test successful latest changelog retrieval."""
         response = await async_client.get("/system/changelog/latest")
 
-        # If changelog exists, should return 200
-        if response.status_code == 200:
-            data = response.json()
-            assert "version" in data
-            assert "date" in data
-            assert "changes" in data
+        assert response.status_code == 200
+        data = response.json()
+        assert "version" in data
+        assert "date" in data
+        assert "changes" in data
 
     async def test_get_latest_changelog_empty(self, async_client: AsyncClient, monkeypatch) -> None:
         """Test latest changelog returns 404 when no entries available."""

@@ -139,10 +139,10 @@ class DwellerAssignmentService:
             target_for_room = max(1, int(dwellers_for_tier * proportion))
             actual_for_room = min(target_for_room, slots, len(sorted_dwellers))
 
-            for i in range(actual_for_room):
-                if i >= len(sorted_dwellers):
+            for _ in range(actual_for_room):
+                if not sorted_dwellers:
                     break
-                dweller = sorted_dwellers[i]
+                dweller = sorted_dwellers.pop(0)
                 await self._assign_dweller_to_room(dweller, room, db_session, assignments, assigned_dweller_ids)
 
         return [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids]

@@ -317,5 +317,28 @@ class RadioService:
             "speedup_multipliers": speedup_multipliers,
         }
 
+    @staticmethod
+    async def set_room_speedup(
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        room_id: UUID4,
+        speedup: float,
+    ) -> Room:
+        room_query = select(Room).where(Room.id == room_id).where(Room.vault_id == vault_id)
+        room = (await db_session.execute(room_query)).scalars().first()
+
+        if not room:
+            msg = "Radio room not found"
+            raise ValueError(msg)
+
+        if "radio" not in room.name.lower():
+            msg = "Room is not a radio room"
+            raise ValueError(msg)
+
+        room.speedup_multiplier = speedup
+        await db_session.commit()
+
+        return room
+
 
 radio_service = RadioService()

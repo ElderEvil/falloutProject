@@ -163,3 +163,24 @@ async def get_storage_info(db_session: AsyncSession, storage_id: UUID4) -> dict:
         "available_space": available,
         "utilization_pct": round(utilization, 2),
     }
+
+
+async def get_all_items(
+    db_session: AsyncSession, storage_id: UUID4
+) -> dict[str, list[Weapon] | list[Outfit] | list[Junk]]:
+    """
+    Get all items in storage (weapons, outfits, junk).
+
+    :param db_session: Database session
+    :param storage_id: Storage ID
+    :returns: Dict with weapons, outfits, and junk lists
+    """
+    weapons_result = await db_session.execute(select(Weapon).where(Weapon.storage_id == storage_id))
+    outfits_result = await db_session.execute(select(Outfit).where(Outfit.storage_id == storage_id))
+    junk_result = await db_session.execute(select(Junk).where(Junk.storage_id == storage_id))
+
+    return {
+        "weapons": list(weapons_result.scalars().all()),
+        "outfits": list(outfits_result.scalars().all()),
+        "junk": list(junk_result.scalars().all()),
+    }

@@ -22,6 +22,46 @@ SAME_RARITY_JUNK_PROBABILITY = 0.4
 DIFFERENT_RARITY_JUNK_PROBABILITY = 0.6
 
 
+async def get_items_by_vault(
+    db_session: AsyncSession,
+    model: type[Weapon] | type[Outfit],
+    vault_id: UUID4,
+    skip: int = 0,
+    limit: int = 100,
+) -> list[Weapon | Outfit]:
+    """
+    Get items filtered by vault - items in vault's storage OR equipped by vault's dwellers.
+
+    :param db_session: Database session
+    :param model: Item model class (Weapon or Outfit)
+    :param vault_id: Vault ID to filter by
+    :param skip: Number of items to skip
+    :param limit: Maximum items to return
+    :returns: List of items belonging to the vault
+    """
+    from sqlmodel import or_, select
+
+    from app.models.dweller import Dweller
+    from app.models.storage import Storage
+
+    storage_subquery = select(Storage.id).where(Storage.vault_id == vault_id).scalar_subquery()
+    dweller_subquery = select(Dweller.id).where(Dweller.vault_id == vault_id).scalar_subquery()
+
+    query = (
+        select(model)
+        .where(
+            or_(
+                model.storage_id.in_(storage_subquery),
+                model.dweller_id.in_(dweller_subquery),
+            )
+        )
+        .offset(skip)
+        .limit(limit)
+    )
+    result = await db_session.execute(query)
+    return list(result.scalars().all())
+
+
 class CRUDItem(
     CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType],
     # SellItemMixin[ModelType]

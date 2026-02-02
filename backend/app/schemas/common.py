@@ -183,4 +183,13 @@ class AIModelType(CaseInsensitiveEnum):
     OTHER = "Other"
 
 
+class ObjectiveKindEnum(StrEnum):
+    ANY = "Any"
+    ASSIGN = "assign"
+    COLLECT = "collect"
+    CRAFT = "craft"
+    EQUIP = "equip"
+    KILL = "kill"
+
+
 STATE_OF_BEING_TYPE = GhoulFeralnessEnum | SuperMutantMutationEnum | SynthTypeEnum

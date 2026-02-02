@@ -456,5 +456,77 @@ class BreedingService:
 
         return (await db_session.execute(query)).scalars().all()
 
+    @staticmethod
+    async def force_conception(
+        db_session: AsyncSession,
+        mother_id: UUID4,
+        father_id: UUID4,
+    ) -> Pregnancy:
+        mother_query = select(Dweller).where(Dweller.id == mother_id)
+        mother = (await db_session.execute(mother_query)).scalars().first()
+
+        if not mother:
+            msg = "Mother not found"
+            raise ValueError(msg)
+
+        if mother.gender != GenderEnum.FEMALE:
+            msg = "Mother must be female"
+            raise ValueError(msg)
+
+        if mother.age_group != AgeGroupEnum.ADULT:
+            msg = "Mother must be adult"
+            raise ValueError(msg)
+
+        father_query = select(Dweller).where(Dweller.id == father_id)
+        father = (await db_session.execute(father_query)).scalars().first()
+
+        if not father:
+            msg = "Father not found"
+            raise ValueError(msg)
+
+        if father.gender != GenderEnum.MALE:
+            msg = "Father must be male"
+            raise ValueError(msg)
+
+        if father.age_group != AgeGroupEnum.ADULT:
+            msg = "Father must be adult"
+            raise ValueError(msg)
+
+        existing_query = select(Pregnancy).where(
+            Pregnancy.mother_id == mother_id,
+            Pregnancy.status == PregnancyStatusEnum.PREGNANT,
+        )
+        existing = (await db_session.execute(existing_query)).scalars().first()
+
+        if existing:
+            msg = "Mother is already pregnant"
+            raise ValueError(msg)
+
+        return await BreedingService.create_pregnancy(db_session, mother_id, father_id)
+
+    @staticmethod
+    async def accelerate_pregnancy(
+        db_session: AsyncSession,
+        pregnancy_id: UUID4,
+    ) -> Pregnancy:
+        query = select(Pregnancy).where(Pregnancy.id == pregnancy_id)
+        pregnancy = (await db_session.execute(query)).scalars().first()
+
+        if not pregnancy:
+            msg = "Pregnancy not found"
+            raise ValueError(msg)
+
+        if pregnancy.status != PregnancyStatusEnum.PREGNANT:
+            msg = "Pregnancy is not active"
+            raise ValueError(msg)
+
+        pregnancy.due_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(seconds=1)
+        pregnancy.updated_at = datetime.now(UTC).replace(tzinfo=None)
+
+        await db_session.commit()
+        await db_session.refresh(pregnancy)
+
+        return pregnancy
+
 
 breeding_service = BreedingService()

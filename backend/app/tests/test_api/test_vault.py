@@ -162,3 +162,130 @@ async def test_superuser_vault_initiate_creates_training_sessions(
         for session in training_sessions:
             assert session["status"] in ["active", "in_progress", "completed"]
             assert session["vault_id"] == vault_id
+
+
+@pytest.mark.asyncio
+async def test_auto_assign_all_rooms_basic(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+):
+    """Test that auto-assign endpoint works and assigns unassigned dwellers."""
+    from app.models.room import RoomTypeEnum, SPECIALEnum
+    from app.schemas.dweller import DwellerCreate
+    from app.schemas.room import RoomCreate
+
+    # Get superuser and create vault
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault = await crud.vault.create(async_session, VaultCreateWithUserID(**vault_data))
+
+    # Create a production room
+    room_data = {
+        "name": "Power Generator",
+        "vault_id": str(vault.id),
+        "category": RoomTypeEnum.PRODUCTION,
+        "ability": SPECIALEnum.STRENGTH,
+        "population_required": 12,
+        "base_cost": 100,
+        "tier": 1,
+        "size": 3,
+        "size_min": 3,
+        "size_max": 9,
+    }
+    room = await crud.room.create(async_session, RoomCreate(**room_data))
+    assert room is not None
+
+    # Create unassigned dwellers
+    for i in range(3):
+        dweller_data = {
+            "first_name": f"TestDweller{i}",
+            "last_name": "Test",
+            "vault_id": str(vault.id),
+            "gender": "male",
+            "rarity": "common",
+            "strength": 5,
+            "perception": 3,
+            "endurance": 3,
+            "charisma": 3,
+            "intelligence": 3,
+            "agility": 3,
+            "luck": 3,
+        }
+        await crud.dweller.create(async_session, DwellerCreate(**dweller_data))
+
+    # Call auto-assign endpoint
+    response = await async_client.post(
+        f"/vaults/{vault.id}/dwellers/auto-assign-all",
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 200
+    result = response.json()
+    assert result["assigned_count"] > 0
+    assert len(result["assignments"]) == result["assigned_count"]
+
+
+@pytest.mark.asyncio
+async def test_auto_assign_respects_room_capacity(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+):
+    """Test that auto-assign doesn't exceed room capacity."""
+    from app.models.room import RoomTypeEnum, SPECIALEnum
+    from app.schemas.dweller import DwellerCreate
+    from app.schemas.room import RoomCreate
+
+    # Get superuser and create vault
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault = await crud.vault.create(async_session, VaultCreateWithUserID(**vault_data))
+
+    # Create a small production room (size 3 = capacity 2)
+    room_data = {
+        "name": "Power Generator",
+        "vault_id": str(vault.id),
+        "category": RoomTypeEnum.PRODUCTION,
+        "ability": SPECIALEnum.STRENGTH,
+        "population_required": 12,
+        "base_cost": 100,
+        "tier": 1,
+        "size": 3,
+        "size_min": 3,
+        "size_max": 9,
+    }
+    room = await crud.room.create(async_session, RoomCreate(**room_data))
+
+    # Create many dwellers
+    for i in range(10):
+        dweller_data = {
+            "first_name": f"TestDweller{i}",
+            "last_name": "Test",
+            "vault_id": str(vault.id),
+            "gender": "male",
+            "rarity": "common",
+            "strength": 5,
+            "perception": 3,
+            "endurance": 3,
+            "charisma": 3,
+            "intelligence": 3,
+            "agility": 3,
+            "luck": 3,
+        }
+        await crud.dweller.create(async_session, DwellerCreate(**dweller_data))
+
+    # Call auto-assign
+    response = await async_client.post(
+        f"/vaults/{vault.id}/dwellers/auto-assign-all",
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 200
+    result = response.json()
+
+    # Count assignments to our room
+    room_assignments = [a for a in result["assignments"] if a["room_id"] == str(room.id)]
+
+    # Room capacity is 2, so should not exceed that
+    assert len(room_assignments) <= 2, f"Room capacity exceeded: {len(room_assignments)} > 2"

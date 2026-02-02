@@ -1,32 +1,35 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { useFakeCrash } from '@/core/composables/useFakeCrash'
+import { ref, watch } from 'vue'
 
-const localStorageMock = (() => {
-  let store: Record<string, string> = {}
+vi.mock('@vueuse/core', () => {
   return {
-    getItem: (key: string) => store[key] || null,
-    setItem: (key: string, value: string) => {
-      store[key] = value.toString()
-    },
-    removeItem: (key: string) => {
-      delete store[key]
-    },
-    clear: () => {
-      store = {}
-    }
-  }
-})()
+    useLocalStorage: (key: string, defaultValue: any) => {
+      const storedValue = localStorage.getItem(key)
+      const value = ref(storedValue ? JSON.parse(storedValue) : defaultValue)
 
-Object.defineProperty(global, 'localStorage', {
-  value: localStorageMock,
-  configurable: true,
-  writable: true
+      watch(value, (newVal) => {
+        localStorage.setItem(key, JSON.stringify(newVal))
+      })
+
+      return value
+    },
+    useIntervalFn: vi.fn(() => ({
+      pause: vi.fn(),
+      resume: vi.fn(),
+      isActive: ref(false)
+    }))
+  }
 })
+
+import { useFakeCrash } from '@/core/composables/useFakeCrash'
 
 describe('useFakeCrash', () => {
   beforeEach(() => {
     localStorage.clear()
     vi.useFakeTimers()
+    const { resetCrash, resetCrashUnlocked } = useFakeCrash()
+    resetCrash()
+    resetCrashUnlocked()
   })
 
   afterEach(() => {

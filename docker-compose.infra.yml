@@ -27,6 +27,62 @@ services:
     volumes:
       - redis-data-infra:/data
 
+  celery_worker:
+    container_name: celery_worker_infra
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: always
+    environment:
+      - POSTGRES_SERVER=db
+      - REDIS_HOST=redis
+      - MINIO_HOSTNAME=minio
+      - SMTP_HOST=mailpit
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    env_file: ".env"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    working_dir: /app
+    command: [ "uv", "run", "celery", "-A", "app.core.celery", "worker", "-l", "info" ]
+
+  celery_beat:
+    container_name: celery_beat_infra
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: always
+    environment:
+      - POSTGRES_SERVER=db
+      - REDIS_HOST=redis
+      - MINIO_HOSTNAME=minio
+      - SMTP_HOST=mailpit
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    env_file: ".env"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    working_dir: /app
+    command: [ "uv", "run", "celery", "-A", "app.core.celery", "beat", "-l", "info", "--scheduler", "sqlalchemy_celery_beat.schedulers:DatabaseScheduler" ]
+
+  flower:
+    image: mher/flower:latest
+    container_name: flower_infra
+    restart: always
+    env_file: ".env"
+    environment:
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
+    ports:
+      - "5555:5555"
+    depends_on:
+      - celery_worker
+
   minio:
     image: minio/minio
     container_name: minio
@@ -44,8 +100,8 @@ services:
     container_name: mailpit
     restart: always
     ports:
-      - "1025:1025"  # SMTP server
-      - "8025:8025"  # Web UI
+      - "1025:1025"
+      - "8025:8025"
     environment:
       MP_MAX_MESSAGES: 5000
       MP_SMTP_AUTH_ACCEPT_ANY: 1

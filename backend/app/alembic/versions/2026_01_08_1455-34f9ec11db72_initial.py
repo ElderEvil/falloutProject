@@ -636,7 +636,7 @@ def upgrade() -> None:
     op.create_index(op.f("ix_weapon_id"), "weapon", ["id"], unique=False)
     op.create_index(op.f("ix_weapon_name"), "weapon", ["name"], unique=True)
 
-    # Seed initial data
+    # Seed initial data (idempotent)
     from app.core.security import get_password_hash
     from datetime import datetime, timezone
     import uuid
@@ -650,41 +650,65 @@ def upgrade() -> None:
     admin_email = os.getenv("FIRST_SUPERUSER_EMAIL", "admin@example.com")
     test_email = os.getenv("EMAIL_TEST_USER", "test@example.com")
 
-    admin_id = str(uuid.uuid4())
     admin_hashed = get_password_hash(admin_password)
-    test_id = str(uuid.uuid4())
     test_hashed = get_password_hash("testpassword")
-    now = datetime.now()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
-    # Insert admin user
-    conn.execute(
-        sa.text("""
-            INSERT INTO "user" (id, username, email, hashed_password, is_superuser, is_active, email_verified, created_at, updated_at)
-            VALUES (:id, :username, :email, :password, true, true, true, :now, :now)
-        """),
-        {"id": admin_id, "username": admin_username, "email": admin_email, "password": admin_hashed, "now": now},
-    )
+    # Check if admin user exists
+    admin_check = conn.execute(
+        sa.text("""SELECT id FROM "user" WHERE email = :email"""), {"email": admin_email}
+    ).fetchone()
 
-    # Insert test user
-    conn.execute(
-        sa.text("""
-            INSERT INTO "user" (id, username, email, hashed_password, is_superuser, is_active, email_verified, created_at, updated_at)
-            VALUES (:id, 'TestUser', :email, :password, false, true, true, :now, :now)
-        """),
-        {"id": test_id, "email": test_email, "password": test_hashed, "now": now},
-    )
+    if not admin_check:
+        admin_id = str(uuid.uuid4())
+        conn.execute(
+            sa.text("""
+                INSERT INTO "user" (id, username, email, hashed_password, is_superuser, is_active, email_verified, created_at, updated_at)
+                VALUES (:id, :username, :email, :password, true, true, true, :now, :now)
+            """),
+            {"id": admin_id, "username": admin_username, "email": admin_email, "password": admin_hashed, "now": now},
+        )
+        print(f"Admin user created: {admin_email}")
+    else:
+        admin_id = str(admin_check[0])
+        print(f"Admin user already exists: {admin_email}")
 
-    # Create test vault
-    vault_id = str(uuid.uuid4())
-    conn.execute(
-        sa.text("""
-            INSERT INTO vault (id, number, bottle_caps, happiness, power, power_max, food, food_max, water, water_max, population_max, radio_mode, user_id, created_at, updated_at)
-            VALUES (:id, 101, 1000, 50, 50, 100, 100, 200, 100, 200, 200, 'recruitment', :user_id, :now, :now)
-        """),
-        {"id": vault_id, "user_id": test_id, "now": now},
-    )
+    # Check if test user exists
+    test_check = conn.execute(
+        sa.text("""SELECT id FROM "user" WHERE email = :email"""), {"email": test_email}
+    ).fetchone()
 
-    print("Initial users and vault created")
+    if not test_check:
+        test_id = str(uuid.uuid4())
+        conn.execute(
+            sa.text("""
+                INSERT INTO "user" (id, username, email, hashed_password, is_superuser, is_active, email_verified, created_at, updated_at)
+                VALUES (:id, 'TestUser', :email, :password, false, true, true, :now, :now)
+            """),
+            {"id": test_id, "email": test_email, "password": test_hashed, "now": now},
+        )
+        print(f"Test user created: {test_email}")
+    else:
+        test_id = str(test_check[0])
+        print(f"Test user already exists: {test_email}")
+
+    # Check if test vault exists
+    vault_check = conn.execute(
+        sa.text("""SELECT id FROM vault WHERE user_id = :user_id"""), {"user_id": test_id}
+    ).fetchone()
+
+    if not vault_check:
+        vault_id = str(uuid.uuid4())
+        conn.execute(
+            sa.text("""
+                INSERT INTO vault (id, number, bottle_caps, happiness, power, power_max, food, food_max, water, water_max, population_max, radio_mode, user_id, created_at, updated_at)
+                VALUES (:id, 101, 1000, 50, 50, 100, 100, 200, 100, 200, 200, 'recruitment', :user_id, :now, :now)
+            """),
+            {"id": vault_id, "user_id": test_id, "now": now},
+        )
+        print(f"Test vault created for user: {test_email}")
+    else:
+        print(f"Test vault already exists for user: {test_email}")
     # ### end Alembic commands ###
 
 

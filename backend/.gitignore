@@ -57,3 +57,4 @@ celerybeat.pid
 *.egg-info/
 dist/
 build/
+minio_archive/

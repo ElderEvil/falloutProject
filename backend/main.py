@@ -53,6 +53,7 @@ setup_logging(
     log_level=settings.LOG_LEVEL,
     json_format=settings.LOG_JSON_FORMAT,
     log_file=settings.LOG_FILE_PATH,
+    retention_days=settings.LOG_FILE_RETENTION_DAYS,
 )
 
 logger = logging.getLogger(__name__)

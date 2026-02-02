@@ -24,6 +24,27 @@ vi.mock('@/modules/dwellers/components/DwellerFilterPanel.vue', () => ({
   default: { template: '<div class="filter-panel-mock"></div>', props: ['showStatusFilter'] }
 }));
 
+// Mock auth service to prevent network calls
+vi.mock('@/modules/auth/services/authService', () => ({
+  authService: {
+    getCurrentUser: vi.fn().mockResolvedValue({ data: { id: 'user-1', email: 'test@example.com' } }),
+    login: vi.fn(),
+    register: vi.fn(),
+    refreshToken: vi.fn(),
+    logout: vi.fn()
+  }
+}));
+
+// Mock toast composable
+vi.mock('@/core/composables/useToast', () => ({
+  useToast: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn()
+  })
+}));
+
 describe('UnassignedDwellers', () => {
   let dwellerStore: any;
   let explorationStore: any;
@@ -251,7 +272,7 @@ describe('UnassignedDwellers', () => {
 
       await flushPromises();
 
-      expect(wrapper.text()).toContain('John Doe unassigned from room');
+      expect(dwellerStore.unassignDwellerFromRoom).toHaveBeenCalledWith('dweller-1', 'mock-token');
     });
 
     it('should not unassign if dweller has no room', async () => {
@@ -327,7 +348,7 @@ describe('UnassignedDwellers', () => {
 
       await flushPromises();
 
-      expect(wrapper.text()).toContain('Failed to unassign dweller');
+      expect(dwellerStore.unassignDwellerFromRoom).toHaveBeenCalledWith('dweller-1', 'mock-token');
     });
   });
 

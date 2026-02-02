@@ -1,6 +1,5 @@
 import json
 import logging
-from enum import StrEnum
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -15,21 +14,13 @@ from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.db.session import get_async_session
 from app.models.chat_message import ChatMessageCreate, ChatMessageRead
 from app.models.objective import ObjectiveBase
+from app.schemas.common import ObjectiveKindEnum
 from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.conversation_service import conversation_service
 from app.services.open_ai import get_ai_service
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-
-class ObjectiveKindEnum(StrEnum):
-    ANY = "Any"
-    ASSIGN = "assign"
-    COLLECT = "collect"
-    CRAFT = "craft"
-    EQUIP = "equip"
-    KILL = "kill"
 
 
 @router.get("/generate_objectives", response_model=list[ObjectiveBase])

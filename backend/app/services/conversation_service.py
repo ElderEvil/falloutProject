@@ -15,8 +15,8 @@ from app.models.base import SPECIALModel
 from app.models.chat_message import ChatMessageCreate
 from app.schemas.common import GenderEnum
 from app.schemas.llm_interaction import LLMInteractionCreate
-from app.services.minio import get_minio_client
 from app.services.open_ai import get_ai_service
+from app.services.storage import get_storage_client
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ class ConversationService:
 
     def __init__(self):
         self.ai_service = get_ai_service()
-        self.minio_service = get_minio_client()
+        self.storage_service = get_storage_client()
 
     @staticmethod
     def _select_voice_for_gender(gender: GenderEnum | None) -> str:
@@ -123,9 +123,9 @@ class ConversationService:
 
         # Upload user audio to MinIO (optional, for history)
         user_audio_url = None
-        if self.minio_service.enabled:
+        if self.storage_service.enabled:
             user_audio_filename = f"chat/{user.id}/{dweller_id}/user_{uuid4()}.{audio_filename.split('.')[-1]}"
-            user_audio_url = self.minio_service.upload_file(
+            user_audio_url = self.storage_service.upload_file(
                 file_data=audio_bytes,
                 file_name=user_audio_filename,
                 file_type="audio/webm",
@@ -159,9 +159,9 @@ class ConversationService:
 
         # Upload dweller audio to MinIO
         dweller_audio_url = None
-        if self.minio_service.enabled:
+        if self.storage_service.enabled:
             dweller_audio_filename = f"chat/{user.id}/{dweller_id}/dweller_{uuid4()}.mp3"
-            dweller_audio_url = self.minio_service.upload_file(
+            dweller_audio_url = self.storage_service.upload_file(
                 file_data=dweller_audio_bytes,
                 file_name=dweller_audio_filename,
                 file_type="audio/mpeg",

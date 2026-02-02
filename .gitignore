@@ -149,6 +149,7 @@ cover/
 # JavaScript/Node.js coverage
 coverage/
 .nyc_output/
+coverage.json
 
 # Translations
 *.mo

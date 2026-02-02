@@ -1,18 +1,15 @@
-"""API endpoints for radio recruitment system."""
-
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import UUID4
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403
 from app.db.session import get_async_session
-from app.models.room import Room
 from app.schemas.common import RadioModeEnum
 from app.schemas.radio import ManualRecruitRequest, RadioStatsRead, RecruitmentResponse
 from app.services.radio_service import radio_service
+from app.utils.exceptions import ValidationException
 
 router = APIRouter()
 
@@ -57,7 +54,7 @@ async def manual_recruit_dweller(
             caps_spent=game_config.radio.manual_recruitment_cost,
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise ValidationException(detail=str(e)) from e
 
 
 @router.put("/vault/{vault_id}/mode")
@@ -85,29 +82,18 @@ async def set_radio_speedup(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
-    """Set speedup multiplier for a specific radio room."""
     await get_user_vault_or_403(vault_id, user, db_session)
 
-    # Validate speedup range
     if not 1.0 <= speedup <= 10.0:
-        raise HTTPException(status_code=400, detail="Speedup must be between 1.0 and 10.0")
+        raise ValidationException(detail="Speedup must be between 1.0 and 10.0")
 
-    # Get the room
-    room_query = select(Room).where(Room.id == room_id).where(Room.vault_id == vault_id)
-    room = (await db_session.execute(room_query)).scalars().first()
-
-    if not room:
-        raise HTTPException(status_code=404, detail="Radio room not found")
-
-    # Check if it's a radio room
-    if "radio" not in room.name.lower():
-        raise HTTPException(status_code=400, detail="Room is not a radio room")
-
-    room.speedup_multiplier = speedup
-    await db_session.commit()
+    try:
+        room = await radio_service.set_room_speedup(db_session, vault_id, room_id, speedup)
+    except ValueError as e:
+        raise ValidationException(detail=str(e)) from e
 
     return {
         "message": f"Radio room speedup set to {speedup}x",
-        "room_id": str(room_id),
-        "speedup": speedup,
+        "room_id": str(room.id),
+        "speedup": room.speedup_multiplier,
     }

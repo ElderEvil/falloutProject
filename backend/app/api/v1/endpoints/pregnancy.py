@@ -1,27 +1,17 @@
-"""API endpoints for pregnancy management."""
-
 import logging
-from datetime import datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import UUID4
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403
 from app.db.session import get_async_session
 from app.models.dweller import Dweller
-from app.models.pregnancy import Pregnancy
-from app.schemas.common import AgeGroupEnum, GenderEnum, PregnancyStatusEnum
 from app.schemas.pregnancy import DeliveryResult, PregnancyRead
 from app.services.breeding_service import breeding_service
-from app.utils.exceptions import (
-    ResourceConflictException,
-    ResourceNotFoundException,
-    ValidationException,
-)
+from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -122,48 +112,6 @@ async def force_conception(
     user: CurrentSuperuser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
-    """
-    Force conception between two dwellers (debug only).
-
-    Requires superuser access.
-    """
-    # Verify mother exists and is female adult
-    mother_query = select(Dweller).where(Dweller.id == mother_id)
-    mother = (await db_session.execute(mother_query)).scalars().first()
-
-    if not mother:
-        raise ResourceNotFoundException(Dweller, identifier=mother_id)
-
-    if mother.gender != GenderEnum.FEMALE:
-        raise ValidationException(detail="Mother must be female")
-
-    if mother.age_group != AgeGroupEnum.ADULT:
-        raise ValidationException(detail="Mother must be adult")
-
-    # Verify father exists and is male adult
-    father_query = select(Dweller).where(Dweller.id == father_id)
-    father = (await db_session.execute(father_query)).scalars().first()
-
-    if not father:
-        raise ResourceNotFoundException(Dweller, identifier=father_id)
-
-    if father.gender != GenderEnum.MALE:
-        raise ValidationException(detail="Father must be male")
-
-    if father.age_group != AgeGroupEnum.ADULT:
-        raise ValidationException(detail="Father must be adult")
-
-    # Check mother isn't already pregnant
-    existing_query = select(Pregnancy).where(
-        Pregnancy.mother_id == mother_id,
-        Pregnancy.status == PregnancyStatusEnum.PREGNANT,
-    )
-    existing = (await db_session.execute(existing_query)).scalars().first()
-
-    if existing:
-        raise ResourceConflictException(detail="Mother is already pregnant")
-
-    # Create pregnancy
     logger.info(
         "DEBUG force-conception triggered",
         extra={
@@ -173,7 +121,15 @@ async def force_conception(
         },
     )
 
-    pregnancy = await breeding_service.create_pregnancy(db_session, mother_id, father_id)
+    try:
+        pregnancy = await breeding_service.force_conception(db_session, mother_id, father_id)
+    except ValueError as e:
+        error_msg = str(e).lower()
+        if "not found" in error_msg:
+            # Determine which parent is missing
+            identifier = mother_id if "mother" in error_msg else father_id
+            raise ResourceNotFoundException(model=Dweller, identifier=identifier) from e
+        raise ValidationException(detail=str(e)) from e
 
     return PregnancyRead(
         id=pregnancy.id,
@@ -194,29 +150,16 @@ async def accelerate_pregnancy(
     user: CurrentSuperuser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
-    """Accelerate pregnancy to be due immediately (superuser only)."""
-    query = select(Pregnancy).where(Pregnancy.id == pregnancy_id)
-    pregnancy = (await db_session.execute(query)).scalars().first()
-
-    if not pregnancy:
-        raise ResourceNotFoundException(Pregnancy, identifier=pregnancy_id)
-
-    if pregnancy.status != PregnancyStatusEnum.PREGNANT:
-        raise ValidationException(detail="Pregnancy is not active")
-
-    # Set due_at to now (actually 1 second ago to ensure is_due returns True)
-    old_due_at = pregnancy.due_at
-    pregnancy.due_at = datetime.utcnow() - timedelta(seconds=1)
-    pregnancy.updated_at = datetime.utcnow()
-
-    await db_session.commit()
-    await db_session.refresh(pregnancy)
+    try:
+        pregnancy = await breeding_service.accelerate_pregnancy(db_session, pregnancy_id)
+    except ValueError as e:
+        status_code = 404 if "not found" in str(e).lower() else 400
+        raise HTTPException(status_code=status_code, detail=str(e)) from e
 
     logger.info(
         "DEBUG pregnancy accelerated",
         extra={
             "pregnancy_id": str(pregnancy_id),
-            "old_due_at": old_due_at.isoformat() if old_due_at else None,
             "new_due_at": pregnancy.due_at.isoformat(),
             "triggered_by": user.username,
         },

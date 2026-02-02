@@ -5,6 +5,32 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [Unreleased]
+
+---
+
+## [2.8.3] - 2026-02-02
+
+### What's New
+- **Smarter Dweller Assignments** - Dwellers assigned to training rooms now correctly show "Training" status instead of "Working"
+  - No more confusion about what your dwellers are actually doing
+  - Training progress and status now match up perfectly
+
+### Improvements
+- **Better Error Messages** - When things go wrong, you'll get clearer, more helpful error messages
+  - Missing dwellers or resources? The game now tells you exactly what couldn't be found
+  - Validation errors (like trying to recruit with the wrong gender) are more descriptive
+  - All error messages now follow a consistent format for easier reading
+
+### Behind the Scenes
+- **More Reliable Timestamps** - Database seed data now uses consistent UTC timestamps
+- **Stronger Code Quality** - Added comprehensive tests for error handling and edge cases
+- **Cleaner Architecture** - Standardized how the backend handles different types of errors
+
+---
+
+## [2.8.0] - 2026-01-29
+
 ## [2.8.0] - 2026-01-29
 
 ### What's New

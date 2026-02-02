@@ -47,35 +47,41 @@ const trainingStore = useTrainingStore()
 const toast = useToast()
 const rooms = computed(() => (Array.isArray(roomStore.rooms) ? roomStore.rooms : []))
 
-// Helper to get room image URL with detailed logging
+// Helper to get room image URL with detailed logging (dev only)
 const getRoomImageUrl = (room: Room): string | null => {
-  console.group(`🖼️ Room Image: ${room.name}`)
-  console.log('Room ID:', room.id)
-  console.log('Room tier:', room.tier)
-  console.log('Room size:', room.size)
-  console.log('Image URL from backend:', room.image_url)
+  if (import.meta.env.DEV) {
+    console.group(`🖼️ Room Image: ${room.name}`)
+    console.log('Room ID:', room.id)
+    console.log('Room tier:', room.tier)
+    console.log('Room size:', room.size)
+    console.log('Image URL from backend:', room.image_url)
 
-  if (!room.image_url) {
-    console.error('❌ NO IMAGE URL')
+    if (!room.image_url) {
+      console.error('❌ NO IMAGE URL')
+      console.groupEnd()
+      return null
+    }
+
+    console.log('✅ Final URL:', room.image_url)
     console.groupEnd()
+  } else if (!room.image_url) {
     return null
   }
-
-  console.log('✅ Final URL:', room.image_url)
-  console.groupEnd()
   return room.image_url
 }
 
-// Watch rooms to log when they change
+// Watch rooms to log when they change (dev only)
 watch(
   rooms,
   (newRooms) => {
-    console.log('🏠 Rooms updated, count:', newRooms.length)
-    if (newRooms.length > 0) {
-      console.log('First room sample:', {
-        name: newRooms[0].name,
-        image_url: newRooms[0].image_url,
-      })
+    if (import.meta.env.DEV) {
+      console.log('🏠 Rooms updated, count:', newRooms.length)
+      if (newRooms.length > 0) {
+        console.log('First room sample:', {
+          name: newRooms[0].name,
+          image_url: newRooms[0].image_url,
+        })
+      }
     }
   },
   { immediate: true }
@@ -196,6 +202,13 @@ const handleDragOver = (event: DragEvent, roomId: string) => {
 
 const handleDragLeave = () => {
   draggingOverRoomId.value = null
+}
+
+// Handle room image load error (dev-only logging)
+const handleRoomImageError = (roomName: string, imageUrl: string | null) => {
+  if (import.meta.env.DEV) {
+    console.error('Failed to load room image:', roomName, imageUrl)
+  }
 }
 
 const handleDrop = async (event: DragEvent, roomId: string) => {
@@ -386,7 +399,7 @@ const closeDetailModal = () => {
             :src="getRoomImageUrl(room)"
             :alt="room.name"
             class="room-background-image"
-            @error="console.error('Failed to load room image:', room.name, getRoomImageUrl(room))"
+            @error="handleRoomImageError(room.name, getRoomImageUrl(room))"
           />
           <div class="room-info-overlay">
             <h3 class="room-name">{{ room.name }}</h3>

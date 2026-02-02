@@ -1,5 +1,3 @@
-"""API endpoints for dweller relationship management."""
-
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -7,6 +5,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403, verify_dweller_access
+from app.crud.relationship import relationship_crud
 from app.db.session import get_async_session
 from app.schemas.relationship import (
     CompatibilityScore,
@@ -24,12 +23,7 @@ async def get_vault_relationships(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
-    """Get all relationships in a vault."""
     await get_user_vault_or_403(vault_id, user, db_session)
-
-    # Use CRUD for data access
-    from app.crud.relationship import relationship_crud
-
     return await relationship_crud.get_by_vault(db_session, vault_id)
 
 
@@ -39,18 +33,9 @@ async def get_relationship(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
-    """Get a specific relationship."""
-    from app.crud.relationship import relationship_crud
-    from app.utils.exceptions import ResourceNotFoundException
+    relationship = await relationship_crud.get(db_session, relationship_id)
 
-    try:
-        relationship = await relationship_crud.get(db_session, relationship_id)
-    except ResourceNotFoundException:
-        raise HTTPException(status_code=404, detail="Relationship not found") from None
-
-    # Verify user has access to at least one dweller in the relationship
     await verify_dweller_access(relationship.dweller_1_id, user, db_session)
-
     return relationship
 
 
@@ -77,23 +62,10 @@ async def initiate_romance(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
-    """Upgrade a relationship to romantic."""
-    from sqlmodel import select
+    relationship = await relationship_crud.get(db_session, relationship_id)
 
-    from app.models.relationship import Relationship
-
-    # Get relationship
-    query = select(Relationship).where(Relationship.id == relationship_id)
-    result = await db_session.execute(query)
-    relationship = result.scalars().first()
-
-    if not relationship:
-        raise HTTPException(status_code=404, detail="Relationship not found")
-
-    # Verify access
     await verify_dweller_access(relationship.dweller_1_id, user, db_session)
 
-    # Initiate romance
     try:
         return await relationship_service.initiate_romance(
             db_session,
@@ -110,23 +82,10 @@ async def make_partners(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
-    """Make two dwellers partners (committed relationship)."""
-    from sqlmodel import select
+    relationship = await relationship_crud.get(db_session, relationship_id)
 
-    from app.models.relationship import Relationship
-
-    # Get relationship
-    query = select(Relationship).where(Relationship.id == relationship_id)
-    result = await db_session.execute(query)
-    relationship = result.scalars().first()
-
-    if not relationship:
-        raise HTTPException(status_code=404, detail="Relationship not found")
-
-    # Verify access
     await verify_dweller_access(relationship.dweller_1_id, user, db_session)
 
-    # Make partners
     try:
         return await relationship_service.make_partners(
             db_session,
@@ -143,29 +102,15 @@ async def break_up_relationship(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
-    """Break up a relationship."""
-    from sqlmodel import select
+    relationship = await relationship_crud.get(db_session, relationship_id)
 
-    from app.models.relationship import Relationship
-
-    # Get relationship
-    query = select(Relationship).where(Relationship.id == relationship_id)
-    result = await db_session.execute(query)
-    relationship = result.scalars().first()
-
-    if not relationship:
-        raise HTTPException(status_code=404, detail="Relationship not found")
-
-    # Verify access
     await verify_dweller_access(relationship.dweller_1_id, user, db_session)
 
-    # Break up
     try:
         await relationship_service.break_up(db_session, relationship_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-    else:
-        return {"message": "Relationship ended"}
+    return {"message": "Relationship ended"}
 
 
 @router.post("/vault/{vault_id}/quick-pair", response_model=RelationshipRead)
@@ -219,19 +164,10 @@ async def process_vault_breeding(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
-    """
-    Manually trigger breeding and relationship processing for a vault.
-    This includes:
-    - Updating relationship affinity for dwellers in the same room
-    - Checking for conception in living quarters
-    - Processing due pregnancies and delivering babies
-    - Aging children to adults
-    """
     await get_user_vault_or_403(vault_id, user, db_session)
 
     from app.services.game_loop import game_loop_service
 
-    # Call the breeding processing method
     result = await game_loop_service._process_breeding(db_session, vault_id)
 
     return {

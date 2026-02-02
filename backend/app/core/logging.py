@@ -51,6 +51,7 @@ def setup_logging(
     log_level: str = "INFO",
     json_format: bool = False,
     log_file: str | None = None,
+    retention_days: int = 14,
 ) -> None:
     """
     Configure application-wide logging.
@@ -90,7 +91,15 @@ def setup_logging(
 
     # Add file handler if specified
     if log_file:
-        file_handler = logging.FileHandler(log_file)
+        from logging.handlers import TimedRotatingFileHandler
+        from pathlib import Path
+
+        # Ensure log directory exists
+        log_path = Path(log_file)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Use rotating file handler with daily rotation and retention
+        file_handler = TimedRotatingFileHandler(log_file, when="midnight", backupCount=retention_days, encoding="utf-8")
         file_handler.setLevel(getattr(logging, log_level.upper()))
         file_handler.addFilter(request_id_filter)
         file_handler.setFormatter(formatter)

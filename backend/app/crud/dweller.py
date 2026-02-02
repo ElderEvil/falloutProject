@@ -25,6 +25,21 @@ from app.utils.exceptions import ContentNoChangeException, InvalidVaultTransferE
 BOOSTED_STAT_VALUE = 5
 
 
+def determine_status_for_room(room_category: RoomTypeEnum | None) -> DwellerStatusEnum:
+    """
+    Determine the appropriate dweller status based on room category.
+
+    :param room_category: The category of the room, or None if unassigning
+    :returns: The appropriate DwellerStatusEnum
+    """
+    if room_category is None:
+        return DwellerStatusEnum.IDLE
+    if room_category == RoomTypeEnum.TRAINING:
+        return DwellerStatusEnum.TRAINING
+    # Default to WORKING for PRODUCTION, CAPACITY, CRAFTING, MISC, QUESTS, THEME
+    return DwellerStatusEnum.WORKING
+
+
 class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     async def get(self, db_session: AsyncSession, id: UUID4, include_deleted: bool = False) -> Dweller:
         """Override to eager load weapon and outfit relationships."""
@@ -209,19 +224,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         ):
             raise ContentNoChangeException(detail="Not enough space in the vault to move dweller")
 
-        # Determine status based on room type
-        if room_id:
-            # Assign status based on room category
-            if room_obj.category == RoomTypeEnum.TRAINING:
-                new_status = DwellerStatusEnum.TRAINING
-            elif room_obj.category == RoomTypeEnum.PRODUCTION:
-                new_status = DwellerStatusEnum.WORKING
-            else:
-                # Default to WORKING for other room types (CAPACITY, CRAFTING, MISC, QUESTS, THEME)
-                new_status = DwellerStatusEnum.WORKING
-        else:
-            # No room assigned - dweller is IDLE
-            new_status = DwellerStatusEnum.IDLE
+        new_status = determine_status_for_room(room_obj.category if room_id else None)
 
         dweller_obj = await self.update(db_session, dweller_id, DwellerUpdate(room_id=room_id, status=new_status))
 

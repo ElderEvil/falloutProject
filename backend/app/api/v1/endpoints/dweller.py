@@ -7,6 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403, verify_dweller_access
 from app.api.game_data_deps import get_static_game_data
+from app.crud.dweller import determine_status_for_room
 from app.db.session import get_async_session
 from app.schemas.common import DwellerStatusEnum
 from app.schemas.dweller import (
@@ -24,7 +25,10 @@ from app.schemas.dweller import (
     DwellerVisualAttributesInput,
     RevivalCostResponse,
 )
+from app.services.death_service import death_service
 from app.services.dweller_ai import dweller_ai
+from app.services.happiness_service import happiness_service
+from app.utils.exceptions import ContentNoChangeException
 
 router = APIRouter()
 
@@ -71,20 +75,11 @@ async def update_dweller(
     if dweller_data.room_id is not None or (
         hasattr(dweller_data, "model_fields_set") and "room_id" in dweller_data.model_fields_set
     ):
-        from app.schemas.common import DwellerStatusEnum, RoomTypeEnum
-
         if dweller_data.room_id is None:
-            # Unassigning from room - set to IDLE
-            dweller_data.status = DwellerStatusEnum.IDLE
+            dweller_data.status = determine_status_for_room(None)
         else:
-            # Assigning to room - set status based on room type
             room_obj = await crud.room.get(db_session, dweller_data.room_id)
-            if room_obj.category == RoomTypeEnum.TRAINING:
-                dweller_data.status = DwellerStatusEnum.TRAINING
-            elif room_obj.category == RoomTypeEnum.PRODUCTION:
-                dweller_data.status = DwellerStatusEnum.WORKING
-            else:
-                dweller_data.status = DwellerStatusEnum.WORKING
+            dweller_data.status = determine_status_for_room(room_obj.category)
 
     return await crud.dweller.update(db_session, dweller_id, dweller_data)
 
@@ -268,8 +263,6 @@ async def get_happiness_modifiers(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """Get detailed breakdown of happiness modifiers for a dweller."""
-    from app.services.happiness_service import happiness_service
-
     await verify_dweller_access(dweller_id, user, db_session)
     return await happiness_service.get_happiness_modifiers(db_session, dweller_id)
 
@@ -299,8 +292,6 @@ async def get_dead_dwellers(
     limit: int = 100,
 ):
     """Get all dead dwellers (revivable) for a vault."""
-    from app.services.death_service import death_service
-
     await get_user_vault_or_403(vault_id, user, db_session)
     dwellers = await crud.dweller.get_dead_dwellers(
         db_session, vault_id, include_permanent=False, skip=skip, limit=limit
@@ -337,14 +328,10 @@ async def get_revival_cost(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """Get the revival cost for a dead dweller."""
-    from app.services.death_service import death_service
-
     await verify_dweller_access(dweller_id, user, db_session)
     dweller = await crud.dweller.get(db_session, dweller_id)
 
     if not dweller.is_dead:
-        from app.utils.exceptions import ContentNoChangeException
-
         raise ContentNoChangeException(detail="Dweller is not dead")
 
     vault = await crud.vault.get(db_session, dweller.vault_id)
@@ -368,8 +355,6 @@ async def revive_dweller(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """Revive a dead dweller by paying the revival cost in caps."""
-    from app.services.death_service import death_service
-
     await verify_dweller_access(dweller_id, user, db_session)
 
     # Get dweller to calculate cost before revival

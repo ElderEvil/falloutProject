@@ -6,7 +6,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.api.game_data_deps import get_static_game_data
+from app.crud.item_base import get_items_by_vault
 from app.db.session import get_async_session
+from app.models.outfit import Outfit
 from app.schemas.junk import JunkRead
 from app.schemas.outfit import OutfitCreate, OutfitRead, OutfitUpdate
 
@@ -25,32 +27,8 @@ async def read_outfit_list(
     limit: int = 100,
     vault_id: UUID4 | None = None,
 ):
-    """Get outfits, optionally filtered by vault."""
     if vault_id:
-        # Filter by vault: items in vault's storage OR equipped by vault's dwellers
-        from sqlmodel import or_, select
-
-        from app.models.dweller import Dweller
-        from app.models.storage import Storage
-
-        # Subqueries for vault's storage and dwellers
-        storage_subquery = select(Storage.id).where(Storage.vault_id == vault_id).scalar_subquery()
-        dweller_subquery = select(Dweller.id).where(Dweller.vault_id == vault_id).scalar_subquery()
-
-        query = (
-            select(crud.outfit.model)
-            .where(
-                or_(
-                    crud.outfit.model.storage_id.in_(storage_subquery),
-                    crud.outfit.model.dweller_id.in_(dweller_subquery),
-                )
-            )
-            .offset(skip)
-            .limit(limit)
-        )
-        result = await db_session.execute(query)
-        return result.scalars().all()
-
+        return await get_items_by_vault(db_session, Outfit, vault_id, skip, limit)
     return await crud.outfit.get_multi(db_session, skip=skip, limit=limit)
 
 

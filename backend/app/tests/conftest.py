@@ -21,10 +21,11 @@ from app.core.config import settings
 # Disable rate limiting for tests before importing main
 settings.ENABLE_RATE_LIMITING = False
 
-# Mock MinIO before importing main
-with patch("app.services.minio.MinioService") as mock_minio:
+# Mock storage service before importing main
+with patch("app.services.storage.factory.create_storage_service") as mock_storage:
     mock_instance = MagicMock()
-    mock_minio.return_value = mock_instance
+    mock_instance.enabled = False  # Disable storage for tests by default
+    mock_storage.return_value = mock_instance
     from main import app
 
 from app import crud  # noqa: E402

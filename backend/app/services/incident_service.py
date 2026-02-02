@@ -11,6 +11,7 @@ from app.core.game_config import game_config
 from app.crud.incident import incident_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
+from app.models.game_state import GameState
 from app.models.incident import Incident, IncidentStatus, IncidentType
 from app.models.room import Room
 from app.services.notification_service import notification_service
@@ -24,7 +25,9 @@ class IncidentService:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
-    async def should_spawn_incident(self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int) -> bool:
+    async def should_spawn_incident(
+        self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int, game_state: GameState | None = None
+    ) -> bool:
         """
         Determine if an incident should spawn based on vault state and time.
 
@@ -32,10 +35,16 @@ class IncidentService:
             db_session: Database session
             vault_id: The vault ID to check
             seconds_passed: Seconds since last tick
+            game_state: Optional game state for online/offline check
 
         Returns:
             bool: True if incident should spawn
         """
+        # Check if user is online (has recent activity) - suppress incidents when offline
+        if game_state and not game_state.is_user_online(timeout_seconds=600):
+            self.logger.debug(f"Vault {vault_id} is offline, suppressing incident spawn")
+            return False
+
         # Need minimum population
         from app.models.dweller import Dweller
 
@@ -62,8 +71,9 @@ class IncidentService:
             if seconds_since_last < game_config.incident.spawn_cooldown_seconds:
                 return False
 
-        # Calculate spawn chance based on time passed
-        hours_passed = seconds_passed / 3600
+        # Time-based cap: limit spawn chance growth to prevent bursts
+        # Cap hours_passed to prevent excessive spawn chance after long offline periods
+        hours_passed = min(seconds_passed / 3600, 2.0)  # Cap at 2 hours worth of chance
         spawn_chance = game_config.incident.spawn_chance_per_hour * hours_passed
 
         # Random roll
@@ -304,7 +314,7 @@ class IncidentService:
 
         if incident.enemies_defeated >= expected_raider_count:
             # Victory! Generate loot and resolve
-            incident.loot = self._generate_loot(incident.difficulty)
+            incident.loot = self._generate_loot(incident.difficulty, incident.type)
             incident.resolve(success=True)
 
             # Track caps for batch vault update (done at game loop level)
@@ -355,7 +365,7 @@ class IncidentService:
         loot = {}
         caps_earned = 0
         if success:
-            loot = self._generate_loot(incident.difficulty)
+            loot = self._generate_loot(incident.difficulty, incident.type)
             caps_earned = loot.get("caps", 0)
 
             # Award caps to vault
@@ -528,15 +538,27 @@ class IncidentService:
             # Check for level-up
             await leveling_service.check_level_up(db_session, dweller)
 
-    def _generate_loot(self, difficulty: int) -> dict:
-        """Generate loot rewards based on difficulty."""
+    def _generate_loot(self, difficulty: int, incident_type: IncidentType) -> dict:
+        """Generate loot rewards based on difficulty and incident type."""
         caps = random.randint(
             game_config.combat.loot_caps_min + (difficulty - 1) * game_config.combat.loot_caps_max_per_difficulty // 2,
             game_config.combat.loot_caps_min + difficulty * game_config.combat.loot_caps_max_per_difficulty,
         )
 
+        # Internal threats (fire, radroach, mole rat) give caps only
+        # External threats (raider, deathclaw, feral ghoul) give caps + items
+        internal_threats = {
+            IncidentType.FIRE,
+            IncidentType.RADROACH_INFESTATION,
+            IncidentType.MOLE_RAT_ATTACK,
+        }
+
+        if incident_type in internal_threats:
+            # Internal threats: caps only, no items
+            return {"caps": caps, "items": []}
+
+        # External threats: caps + weapons/junk based on difficulty
         items = []
-        # Higher difficulty = better loot
         if difficulty >= 7:
             items.append({"type": "weapon", "rarity": "rare", "name": "Heavy Raider Rifle"})
         elif difficulty >= 4:

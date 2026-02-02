@@ -2,10 +2,11 @@ import logging
 from datetime import UTC, datetime
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.core.config import settings
+from app.utils.exceptions import NotFoundException
 from app.utils.version import get_app_version, get_python_version, parse_changelog, version_tuple
 
 logger = logging.getLogger(__name__)
@@ -84,7 +85,7 @@ async def get_latest_changelog():
     versions = parse_changelog(changelog_path)
 
     if not versions:
-        raise HTTPException(status_code=404, detail="No changelog entries available")
+        raise NotFoundException(detail="No changelog entries available")
 
     versions.sort(key=lambda x: version_tuple(x["version"]), reverse=True)
     return versions[0]

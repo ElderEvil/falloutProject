@@ -34,10 +34,7 @@ async def get_relationship(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
-    try:
-        relationship = await relationship_crud.get(db_session, relationship_id)
-    except ResourceNotFoundException:
-        raise HTTPException(status_code=404, detail="Relationship not found") from None
+    relationship = await relationship_crud.get(db_session, relationship_id)
 
     await verify_dweller_access(relationship.dweller_1_id, user, db_session)
     return relationship
@@ -66,10 +63,7 @@ async def initiate_romance(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
-    try:
-        relationship = await relationship_crud.get(db_session, relationship_id)
-    except ResourceNotFoundException:
-        raise HTTPException(status_code=404, detail="Relationship not found") from None
+    relationship = await relationship_crud.get(db_session, relationship_id)
 
     await verify_dweller_access(relationship.dweller_1_id, user, db_session)
 
@@ -89,10 +83,7 @@ async def make_partners(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
-    try:
-        relationship = await relationship_crud.get(db_session, relationship_id)
-    except ResourceNotFoundException:
-        raise HTTPException(status_code=404, detail="Relationship not found") from None
+    relationship = await relationship_crud.get(db_session, relationship_id)
 
     await verify_dweller_access(relationship.dweller_1_id, user, db_session)
 
@@ -112,10 +103,7 @@ async def break_up_relationship(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
-    try:
-        relationship = await relationship_crud.get(db_session, relationship_id)
-    except ResourceNotFoundException:
-        raise HTTPException(status_code=404, detail="Relationship not found") from None
+    relationship = await relationship_crud.get(db_session, relationship_id)
 
     await verify_dweller_access(relationship.dweller_1_id, user, db_session)
 

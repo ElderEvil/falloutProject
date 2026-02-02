@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -9,6 +9,7 @@ from app.db.session import get_async_session
 from app.schemas.common import RadioModeEnum
 from app.schemas.radio import ManualRecruitRequest, RadioStatsRead, RecruitmentResponse
 from app.services.radio_service import radio_service
+from app.utils.exceptions import ValidationException
 
 router = APIRouter()
 
@@ -53,7 +54,7 @@ async def manual_recruit_dweller(
             caps_spent=game_config.radio.manual_recruitment_cost,
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise ValidationException(detail=str(e)) from e
 
 
 @router.put("/vault/{vault_id}/mode")
@@ -84,12 +85,12 @@ async def set_radio_speedup(
     await get_user_vault_or_403(vault_id, user, db_session)
 
     if not 1.0 <= speedup <= 10.0:
-        raise HTTPException(status_code=400, detail="Speedup must be between 1.0 and 10.0")
+        raise ValidationException(detail="Speedup must be between 1.0 and 10.0")
 
     try:
         room = await radio_service.set_room_speedup(db_session, vault_id, room_id, speedup)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise ValidationException(detail=str(e)) from e
 
     return {
         "message": f"Radio room speedup set to {speedup}x",

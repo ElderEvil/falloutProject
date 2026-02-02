@@ -98,7 +98,7 @@ def archive_minio(
             print(f"  ✗ Failed to list objects: {e}\n")
 
     total_size_mb = total_size / (1024 * 1024)
-    print(f"\n✅ Archive complete:")
+    print("\n✅ Archive complete:")
     print(f"   Files: {total_files}")
     print(f"   Size: {total_size_mb:.2f} MB")
     print(f"   Location: {archive_path.absolute()}")

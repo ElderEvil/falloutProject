@@ -120,7 +120,12 @@ def migrate_bucket(
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {
             executor.submit(
-                migrate_object, minio_client, rustfs_client, bucket, obj.object_name, dry_run
+                migrate_object,
+                minio_client,
+                rustfs_client,
+                bucket,
+                obj.object_name,
+                dry_run,
             ): obj.object_name
             for obj in objects
         }
@@ -166,7 +171,7 @@ Example:
   export MINIO_ROOT_PASSWORD=password
   export RUSTFS_ACCESS_KEY=your-key
   export RUSTFS_SECRET_KEY=your-secret
-  
+
   uv run scripts/migrate_minio_to_rustfs.py --dry-run
   uv run scripts/migrate_minio_to_rustfs.py --bucket my-bucket
         """,
@@ -190,7 +195,12 @@ Example:
     args = parser.parse_args()
 
     # Check environment variables
-    required_minio = ["MINIO_HOSTNAME", "MINIO_PORT", "MINIO_ROOT_USER", "MINIO_ROOT_PASSWORD"]
+    required_minio = [
+        "MINIO_HOSTNAME",
+        "MINIO_PORT",
+        "MINIO_ROOT_USER",
+        "MINIO_ROOT_PASSWORD",
+    ]
     required_rustfs = ["RUSTFS_ACCESS_KEY", "RUSTFS_SECRET_KEY"]
 
     missing = [var for var in required_minio + required_rustfs if not os.getenv(var)]
@@ -226,14 +236,20 @@ Example:
         total_stats = {"total": 0, "success": 0, "failed": 0}
 
         for bucket in buckets:
-            stats = migrate_bucket(minio_client, rustfs_client, bucket, args.dry_run, args.workers)
+            stats = migrate_bucket(
+                minio_client, rustfs_client, bucket, args.dry_run, args.workers
+            )
             total_stats["total"] += stats["total"]
             total_stats["success"] += stats["success"]
             total_stats["failed"] += stats["failed"]
 
-            logger.info(f"Bucket {bucket}: {stats['success']}/{stats['total']} objects migrated successfully")
+            logger.info(
+                f"Bucket {bucket}: {stats['success']}/{stats['total']} objects migrated successfully"
+            )
             if stats["errors"]:
-                logger.warning(f"Errors in {bucket}: {len(stats['errors'])} objects failed")
+                logger.warning(
+                    f"Errors in {bucket}: {len(stats['errors'])} objects failed"
+                )
 
         # Summary
         logger.info("=" * 50)

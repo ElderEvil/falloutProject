@@ -530,8 +530,6 @@ watch(
               :src="props.room.image_url"
               :alt="props.room?.name || 'Room'"
               class="room-image"
-              @load="import.meta.env.DEV && console.log('✅ Room image loaded:', props.room?.image_url)"
-              @error="import.meta.env.DEV && console.error('❌ Room image failed to load:', props.room?.image_url)"
             />
             <div class="room-image-placeholder" :class="{ 'has-image': props.room?.image_url }">
               <template v-if="!props.room?.image_url">

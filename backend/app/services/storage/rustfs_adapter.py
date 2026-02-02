@@ -32,7 +32,7 @@ class RustFSAdapter:
                 )
                 self._ensure_bucket_exists(self.default_bucket_name)
                 logger.info("RustFS adapter initialized successfully")
-            except Exception as e:
+            except (ClientError, OSError, ValueError, ImportError) as e:
                 logger.warning(f"Failed to initialize RustFS adapter: {e}. RustFS features will be disabled.")
                 self._enabled = False
                 self.client = None
@@ -98,13 +98,13 @@ class RustFSAdapter:
         bucket_name = bucket_name or self.default_bucket_name
         self._ensure_bucket_exists(bucket_name)
 
-        try:
-            file_size = len(file_data)
-            if file_size == 0:
-                err_msg = f"Attempted to upload 0-byte file: {file_name} to bucket {bucket_name}"
-                logger.warning(err_msg)
-                return ""
+        file_size = len(file_data)
+        if file_size == 0:
+            err_msg = f"Attempted to upload 0-byte file: {file_name} to bucket {bucket_name}"
+            logger.warning(err_msg)
+            return ""
 
+        try:
             file_stream = io.BytesIO(file_data)
             self.client.put_object(
                 Bucket=bucket_name,
@@ -113,13 +113,13 @@ class RustFSAdapter:
                 ContentType=file_type,
             )
             logger.info(f"Successfully uploaded {file_name} to {bucket_name}")
-
-            if self._is_public_bucket(bucket_name):
-                return self.public_url(file_name=file_name, bucket_name=bucket_name)
-            return file_name
         except ClientError as e:
             error_msg = f"Error uploading file to RustFS: {e}"
             raise FileUploadError(error_msg) from e
+        else:
+            if self._is_public_bucket(bucket_name):
+                return self.public_url(file_name=file_name, bucket_name=bucket_name)
+            return file_name
 
     def upload_thumbnail(
         self,
@@ -183,10 +183,11 @@ class RustFSAdapter:
         try:
             self.client.delete_object(Bucket=bucket_name, Key=file_name)
             logger.info(f"Successfully deleted {file_name} from {bucket_name}")
-            return True
-        except ClientError as e:
-            logger.error(f"Error deleting file from RustFS: {e}")
+        except ClientError:
+            logger.exception("Error deleting file from RustFS")
             return False
+        else:
+            return True
 
     def file_exists(
         self,
@@ -200,9 +201,10 @@ class RustFSAdapter:
         bucket_name = bucket_name or self.default_bucket_name
         try:
             self.client.head_object(Bucket=bucket_name, Key=file_name)
-            return True
         except ClientError:
             return False
+        else:
+            return True
 
     def list_files(
         self,
@@ -221,6 +223,6 @@ class RustFSAdapter:
             )
             contents = response.get("Contents", [])
             return [obj["Key"] for obj in contents if obj.get("Key")]
-        except ClientError as e:
-            logger.error(f"Error listing files from RustFS: {e}")
+        except ClientError:
+            logger.exception("Error listing files from RustFS")
             return []

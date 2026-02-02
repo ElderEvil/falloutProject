@@ -1,27 +1,23 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { useFakeCrash } from '@/core/composables/useFakeCrash'
+import { ref } from 'vue'
 
-const localStorageMock = (() => {
-  let store: Record<string, string> = {}
-  return {
-    getItem: (key: string) => store[key] || null,
-    setItem: (key: string, value: string) => {
-      store[key] = value.toString()
-    },
-    removeItem: (key: string) => {
-      delete store[key]
-    },
-    clear: () => {
-      store = {}
+// Mock @vueuse/core before importing the composable
+const storageMap = new Map<string, any>()
+const refMap = new Map<string, any>()
+
+vi.mock('@vueuse/core', () => ({
+  useLocalStorage: (key: string, defaultValue: any) => {
+    // Access the maps from the outer scope
+    const maps = { storageMap, refMap }
+    if (!maps.refMap.has(key)) {
+      const value = ref(maps.storageMap.get(key) ?? defaultValue)
+      maps.refMap.set(key, value)
     }
+    return maps.refMap.get(key)!
   }
-})()
+}))
 
-Object.defineProperty(global, 'localStorage', {
-  value: localStorageMock,
-  configurable: true,
-  writable: true
-})
+import { useFakeCrash } from '@/core/composables/useFakeCrash'
 
 describe('useFakeCrash', () => {
   beforeEach(() => {

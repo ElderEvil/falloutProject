@@ -262,7 +262,7 @@ class HealthCheckService:
                 message=f"RustFS connection failed (optional service): {e!s}",
                 details={"endpoint": getattr(settings, "RUSTFS_PUBLIC_URL", "unknown"), "error": str(e)},
             )
-        except Exception as e:
+        except (OSError, ValueError, ImportError) as e:
             logger.warning("RustFS health check failed (non-critical): %s", e)
             return HealthCheckResult(
                 service="rustfs",

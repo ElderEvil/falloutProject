@@ -180,17 +180,18 @@ describe('Room Store', () => {
     })
   })
 
-  describe('destroyRoom', () => {
-    it('should destroy a room', async () => {
-      const store = useRoomStore()
-      store.rooms = [
-        { id: 'room-1', name: 'Power Gen' } as any,
-        { id: 'room-2', name: 'Diner' } as any
-      ]
+   describe('destroyRoom', () => {
+     it('should destroy a room', async () => {
+       const store = useRoomStore()
+       store.rooms = [
+         { id: 'room-1', name: 'Power Gen' } as any,
+         { id: 'room-2', name: 'Diner' } as any
+       ]
 
-      vi.mocked(axios.delete).mockResolvedValueOnce({ data: {} })
+       vi.mocked(axios.delete).mockResolvedValueOnce({ data: {} })
+       vi.mocked(axios.get).mockResolvedValueOnce({ data: { id: 'vault-1', bottle_caps: 900 } })
 
-      await store.destroyRoom('room-1', 'test-token')
+       await store.destroyRoom('room-1', 'test-token', 'vault-1')
 
       expect(axios.delete).toHaveBeenCalledWith(
         '/api/v1/rooms/destroy/room-1',
@@ -202,15 +203,15 @@ describe('Room Store', () => {
       expect(store.rooms[0].id).toBe('room-2')
     })
 
-    it('should handle errors', async () => {
-      vi.mocked(axios.delete).mockRejectedValueOnce(new Error('Failed'))
+     it('should handle errors', async () => {
+       vi.mocked(axios.delete).mockRejectedValueOnce(new Error('Failed'))
 
-      const store = useRoomStore()
-      store.rooms = [{ id: 'room-1' } as any]
+       const store = useRoomStore()
+       store.rooms = [{ id: 'room-1' } as any]
 
-      await expect(
-        store.destroyRoom('room-1', 'test-token')
-      ).rejects.toThrow('Failed')
+       await expect(
+         store.destroyRoom('room-1', 'test-token', 'vault-1')
+       ).rejects.toThrow('Failed')
 
       expect(console.error).toHaveBeenCalledWith('Failed to destroy room', expect.any(Error))
       expect(store.rooms).toHaveLength(1) // Room not removed on error

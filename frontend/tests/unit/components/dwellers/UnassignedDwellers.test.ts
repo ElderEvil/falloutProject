@@ -24,6 +24,17 @@ vi.mock('@/modules/dwellers/components/DwellerFilterPanel.vue', () => ({
   default: { template: '<div class="filter-panel-mock"></div>', props: ['showStatusFilter'] }
 }));
 
+// Mock auth service to prevent network calls
+vi.mock('@/modules/auth/services/authService', () => ({
+  authService: {
+    getCurrentUser: vi.fn().mockResolvedValue({ data: { id: 'user-1', email: 'test@example.com' } }),
+    login: vi.fn(),
+    register: vi.fn(),
+    refreshToken: vi.fn(),
+    logout: vi.fn()
+  }
+}));
+
 describe('UnassignedDwellers', () => {
   let dwellerStore: any;
   let explorationStore: any;

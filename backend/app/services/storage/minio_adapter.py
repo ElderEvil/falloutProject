@@ -200,10 +200,11 @@ class MinIOAdapter:
         try:
             self.client.remove_object(bucket_name, file_name)
             logger.info(f"Successfully deleted {file_name} from {bucket_name}")
-            return True
-        except S3Error as e:
-            logger.error(f"Error deleting file from MinIO: {e}")
+        except S3Error:
+            logger.exception("Error deleting file from MinIO")
             return False
+        else:
+            return True
 
     def file_exists(
         self,
@@ -217,9 +218,10 @@ class MinIOAdapter:
         bucket_name = bucket_name or self.default_bucket_name
         try:
             self.client.stat_object(bucket_name, file_name)
-            return True
         except S3Error:
             return False
+        else:
+            return True
 
     def list_files(
         self,
@@ -234,6 +236,6 @@ class MinIOAdapter:
         try:
             objects = self.client.list_objects(bucket_name, prefix=prefix, recursive=True)
             return [obj.object_name for obj in objects if obj.object_name]
-        except S3Error as e:
-            logger.error(f"Error listing files from MinIO: {e}")
+        except S3Error:
+            logger.exception("Error listing files from MinIO")
             return []

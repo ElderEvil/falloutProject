@@ -80,7 +80,7 @@ def migrate_object(
         )
 
         return obj_name, True, f"Migrated {len(data)} bytes"
-    except Exception as e:
+    except (OSError, ValueError, ImportError) as e:
         return obj_name, False, str(e)
 
 
@@ -108,7 +108,7 @@ def migrate_bucket(
     if not dry_run:
         try:
             rustfs_client.head_bucket(Bucket=bucket)
-        except:
+        except (OSError, ValueError, ImportError):
             logger.info(f"Creating bucket {bucket} in RustFS")
             rustfs_client.create_bucket(Bucket=bucket)
 
@@ -141,10 +141,10 @@ def migrate_bucket(
                         failed_count += 1
                         errors.append(f"{obj_name}: {message}")
                         logger.error(f"Failed to migrate {obj_name}: {message}")
-                except Exception as e:
+                except (OSError, ValueError, ImportError) as e:
                     failed_count += 1
                     errors.append(f"{obj_name}: {e}")
-                    logger.error(f"Exception migrating {obj_name}: {e}")
+                    logger.exception(f"Exception migrating {obj_name}")
                 pbar.update(1)
 
     return {
@@ -222,10 +222,11 @@ Example:
         logger.info("RustFS connection OK")
 
         # Get buckets to migrate
-        if args.bucket:
-            buckets = [args.bucket]
-        else:
-            buckets = [b.name for b in minio_client.list_buckets()]
+        buckets = (
+            [args.bucket]
+            if args.bucket
+            else [b.name for b in minio_client.list_buckets()]
+        )
 
         logger.info(f"Buckets to migrate: {buckets}")
 
@@ -265,8 +266,8 @@ Example:
 
         sys.exit(0 if total_stats["failed"] == 0 else 1)
 
-    except Exception as e:
-        logger.error(f"Migration failed: {e}")
+    except (OSError, ValueError, ImportError):
+        logger.exception("Migration failed")
         sys.exit(1)
 
 

@@ -178,7 +178,7 @@ describe('Dweller Store', () => {
       vi.mocked(axios.get).mockResolvedValue({ data: mockGraveyardDwellers })
 
       const store = useDwellerStore()
-      const result = await store.fetchGraveyard('vault-123', 'test-token')
+       const result = await store.fetchGraveyardDwellers('vault-123', 'test-token')
 
       expect(axios.get).toHaveBeenCalledWith(
         '/api/v1/dwellers/vault/vault-123/graveyard',

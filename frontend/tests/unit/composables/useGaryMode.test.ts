@@ -1,5 +1,49 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { ref } from 'vue'
+
+// Create a factory that returns a new map each time
+function createStorageMapMock() {
+  const storageMap = new Map<string, any>()
+  return {
+    useLocalStorage: (key: string, defaultValue: any) => {
+      const value = ref(storageMap.get(key) ?? defaultValue)
+      return {
+        get value() {
+          return value.value
+        },
+        set value(v) {
+          value.value = v
+          storageMap.set(key, v)
+          // Also write to global localStorage for compatibility
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem(key, String(v))
+          }
+        }
+      }
+    },
+    clear: () => storageMap.clear()
+  }
+}
+
+var mockInstance: any = null
+
+vi.mock('@vueuse/core', () => {
+  if (!mockInstance) {
+    mockInstance = createStorageMapMock()
+  }
+  return {
+    useLocalStorage: (key: string, defaultValue: any) => {
+      return mockInstance.useLocalStorage(key, defaultValue)
+    }
+  }
+})
+
 import { useGaryMode } from '@/core/composables/useGaryMode'
+
+// Initialize mockInstance after import (it's created in the mock)
+if (!mockInstance) {
+  mockInstance = createStorageMapMock()
+}
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {}
@@ -25,8 +69,14 @@ Object.defineProperty(global, 'localStorage', {
 
 describe('useGaryMode', () => {
   beforeEach(() => {
-    localStorage.clear()
     vi.useFakeTimers()
+    mockInstance.clear()
+    localStorage.clear()
+    // Reset composable state
+    const { isGaryMode, resetGaryUnlocked } = useGaryMode()
+    isGaryMode.value = false
+    resetGaryUnlocked()
+    vi.clearAllTimers()
   })
 
   afterEach(() => {

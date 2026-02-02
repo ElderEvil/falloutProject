@@ -3,6 +3,7 @@
 # Backs up PostgreSQL database to /mnt/dead-pool/backups/fallout
 
 set -e
+umask 077
 
 # Configuration
 BACKUP_DIR="/mnt/dead-pool/backups/fallout"

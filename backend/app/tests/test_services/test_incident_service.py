@@ -154,14 +154,14 @@ async def test_calculate_dweller_combat_power(
 @pytest.mark.asyncio
 async def test_generate_loot(async_session: AsyncSession, vault: Vault):  # noqa: ARG001
     """Test loot generation for different difficulties."""
-    # Test low difficulty
-    loot_low = incident_service._generate_loot(difficulty=1)
+    # Test low difficulty (internal threat - caps only)
+    loot_low = incident_service._generate_loot(difficulty=1, incident_type=IncidentType.FIRE)
     assert "caps" in loot_low
     assert loot_low["caps"] >= 50
     assert loot_low["caps"] <= 150
 
-    # Test high difficulty
-    loot_high = incident_service._generate_loot(difficulty=10)
+    # Test high difficulty (external threat - caps + items)
+    loot_high = incident_service._generate_loot(difficulty=10, incident_type=IncidentType.RAIDER_ATTACK)
     assert loot_high["caps"] >= 500
     assert loot_high["caps"] <= 1050
 

@@ -314,7 +314,7 @@ class IncidentService:
 
         if incident.enemies_defeated >= expected_raider_count:
             # Victory! Generate loot and resolve
-            incident.loot = self._generate_loot(incident.difficulty, incident.incident_type)
+            incident.loot = self._generate_loot(incident.difficulty, incident.type)
             incident.resolve(success=True)
 
             # Track caps for batch vault update (done at game loop level)
@@ -365,7 +365,7 @@ class IncidentService:
         loot = {}
         caps_earned = 0
         if success:
-            loot = self._generate_loot(incident.difficulty, incident.incident_type)
+            loot = self._generate_loot(incident.difficulty, incident.type)
             caps_earned = loot.get("caps", 0)
 
             # Award caps to vault

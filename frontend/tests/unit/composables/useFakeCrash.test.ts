@@ -1,21 +1,25 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
-// Mock @vueuse/core before importing the composable
-const storageMap = new Map<string, any>()
-const refMap = new Map<string, any>()
+vi.mock('@vueuse/core', () => {
+  return {
+    useLocalStorage: (key: string, defaultValue: any) => {
+      const storedValue = localStorage.getItem(key)
+      const value = ref(storedValue ? JSON.parse(storedValue) : defaultValue)
 
-vi.mock('@vueuse/core', () => ({
-  useLocalStorage: (key: string, defaultValue: any) => {
-    // Access the maps from the outer scope
-    const maps = { storageMap, refMap }
-    if (!maps.refMap.has(key)) {
-      const value = ref(maps.storageMap.get(key) ?? defaultValue)
-      maps.refMap.set(key, value)
-    }
-    return maps.refMap.get(key)!
+      watch(value, (newVal) => {
+        localStorage.setItem(key, JSON.stringify(newVal))
+      })
+
+      return value
+    },
+    useIntervalFn: vi.fn(() => ({
+      pause: vi.fn(),
+      resume: vi.fn(),
+      isActive: ref(false)
+    }))
   }
-}))
+})
 
 import { useFakeCrash } from '@/core/composables/useFakeCrash'
 
@@ -23,6 +27,9 @@ describe('useFakeCrash', () => {
   beforeEach(() => {
     localStorage.clear()
     vi.useFakeTimers()
+    const { resetCrash, resetCrashUnlocked } = useFakeCrash()
+    resetCrash()
+    resetCrashUnlocked()
   })
 
   afterEach(() => {

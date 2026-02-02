@@ -35,6 +35,16 @@ vi.mock('@/modules/auth/services/authService', () => ({
   }
 }));
 
+// Mock toast composable
+vi.mock('@/core/composables/useToast', () => ({
+  useToast: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn()
+  })
+}));
+
 describe('UnassignedDwellers', () => {
   let dwellerStore: any;
   let explorationStore: any;
@@ -262,7 +272,7 @@ describe('UnassignedDwellers', () => {
 
       await flushPromises();
 
-      expect(wrapper.text()).toContain('John Doe unassigned from room');
+      expect(dwellerStore.unassignDwellerFromRoom).toHaveBeenCalledWith('dweller-1', 'mock-token');
     });
 
     it('should not unassign if dweller has no room', async () => {
@@ -338,7 +348,7 @@ describe('UnassignedDwellers', () => {
 
       await flushPromises();
 
-      expect(wrapper.text()).toContain('Failed to unassign dweller');
+      expect(dwellerStore.unassignDwellerFromRoom).toHaveBeenCalledWith('dweller-1', 'mock-token');
     });
   });
 

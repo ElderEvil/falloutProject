@@ -7,6 +7,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.crud.dweller import determine_status_for_room
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.schemas.common import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
@@ -64,7 +65,7 @@ class DwellerAssignmentService:
         await crud.dweller.update(
             db_session,
             dweller.id,
-            DwellerUpdate(room_id=room.id, status=DwellerStatusEnum.WORKING),
+            DwellerUpdate(room_id=room.id, status=determine_status_for_room(room.category)),
         )
         assignments.append(
             {
@@ -268,7 +269,7 @@ class DwellerAssignmentService:
                     await crud.dweller.update(
                         db_session,
                         dweller.id,
-                        DwellerUpdate(room_id=room.id, status=DwellerStatusEnum.WORKING),
+                        DwellerUpdate(room_id=room.id, status=determine_status_for_room(room.category)),
                     )
                     assignments.append(
                         {

@@ -105,6 +105,22 @@ class ValidationException(HTTPException):
         super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail=detail, headers=headers)
 
 
+class NotFoundException(HTTPException):
+    """
+    Exception raised when a requested resource is not found.
+
+    :param detail: Detailed message explaining what was not found.
+    :param headers: Optional HTTP headers to be sent in the response.
+    """
+
+    def __init__(
+        self,
+        detail: str = "Not found.",
+        headers: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail=detail, headers=headers)
+
+
 class InvalidItemAssignmentException(HTTPException, Generic[ModelType]):
     """
     Exception raised when attempting to assign an item to both a storage and a dweller.

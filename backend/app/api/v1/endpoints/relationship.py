@@ -13,7 +13,6 @@ from app.schemas.relationship import (
     RelationshipRead,
 )
 from app.services.relationship_service import relationship_service
-from app.utils.exceptions import ResourceNotFoundException
 
 router = APIRouter()
 

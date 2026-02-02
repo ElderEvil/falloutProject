@@ -5,6 +5,38 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [Unreleased] - 2026-02-02
+
+### Fixed
+- **Frontend Testing** - Fixed 86 failing Vitest tests caused by missing localStorage mock
+  - Added `frontend/vitest.setup.ts` with proper Storage API implementation
+  - Fixed `@vueuse/core` mock in useFakeCrash test
+  - Fixed UnassignedDwellers test assertions
+  - All 756 tests now passing
+
+### Changed
+- **Backend Architecture** - Refactored all endpoint modules to separate concerns
+  - Moved all helper functions and business logic out of endpoint files into services/crud/utils layers
+  - Created new `DwellerAssignmentService` for vault auto-assignment logic
+  - Endpoints now contain only route handlers + dependency injection wiring
+  - `vault.py` reduced from 546 to 173 lines (68% reduction)
+  - Tests remain green (424 passing, 3 pre-existing failures)
+  - API contracts unchanged (verified)
+- **Database Migrations** - Made initial_data seed idempotent
+  - Migration checks for existing users/vaults before inserting
+  - Can safely re-run migrations without duplicate data
+  - Provides informative messages about create vs skip actions
+- **Infrastructure** - Enhanced docker-compose.infra.yml for complete hybrid development
+  - Added Celery worker service for background task processing
+  - Added Celery beat service for scheduled tasks (game ticks)
+  - Added Flower service for Celery monitoring (port 5555)
+  - All services now available in infra-only compose file
+- **Development** - Added coverage.json and generated types to .gitignore
+  - Prevents committing auto-generated test coverage reports
+  - Keeps git status clean during development
+
+---
+
 ## [2.8.0] - 2026-01-29
 
 ### What's New

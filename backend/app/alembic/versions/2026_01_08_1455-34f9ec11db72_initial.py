@@ -652,7 +652,7 @@ def upgrade() -> None:
 
     admin_hashed = get_password_hash(admin_password)
     test_hashed = get_password_hash("testpassword")
-    now = datetime.now()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     # Check if admin user exists
     admin_check = conn.execute(

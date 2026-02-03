@@ -70,15 +70,30 @@ async def seed_from_json(
         existing_values_result = await db_session.execute(select(getattr(model_class, unique_field)))
         existing_values = set(existing_values_result.scalars().all())
 
+        # Track values seen in current batch to prevent in-batch duplicates
+        seen_values = set(existing_values)
+
         # Seed records that don't exist yet
         seeded_count = 0
         for data_item in all_data:
             unique_value = getattr(data_item, unique_field)
-            if unique_value not in existing_values:
-                model_instance = transform_fn(data_item)
-                db_session.add(model_instance)
-                seeded_count += 1
-                logger.debug("Seeding record with %s=%s", unique_field, unique_value)
+
+            # Skip if already in database
+            if unique_value in existing_values:
+                logger.debug("Skipping duplicate (exists in DB): %s=%s", unique_field, unique_value)
+                continue
+
+            # Skip if already seen in this batch
+            if unique_value in seen_values:
+                logger.warning("Skipping duplicate (within batch): %s=%s", unique_field, unique_value)
+                continue
+
+            # Mark as seen and seed
+            seen_values.add(unique_value)
+            model_instance = transform_fn(data_item)
+            db_session.add(model_instance)
+            seeded_count += 1
+            logger.debug("Seeding record with %s=%s", unique_field, unique_value)
 
         if seeded_count > 0:
             await db_session.commit()

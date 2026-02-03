@@ -438,6 +438,14 @@ class ExplorationCoordinator:
                 storage_id=storage_id,
             )
         except (KeyError, ValueError):
+            logger.exception(
+                "Failed to create weapon from loot data",
+                extra={
+                    "weapon_data": weapon_data,
+                    "rarity": rarity.value if rarity else None,
+                    "storage_id": str(storage_id),
+                },
+            )
             return None
 
     def _create_outfit_from_loot(self, outfit_data: dict, rarity: RarityEnum, storage_id: UUID4) -> Outfit | None:
@@ -461,6 +469,14 @@ class ExplorationCoordinator:
                 storage_id=storage_id,
             )
         except (KeyError, ValueError):
+            logger.exception(
+                "Failed to create outfit from loot data",
+                extra={
+                    "outfit_data": outfit_data,
+                    "rarity": rarity.value if rarity else None,
+                    "storage_id": str(storage_id),
+                },
+            )
             return None
 
     def _create_junk_from_loot(self, item_name: str, rarity: RarityEnum, storage_id: UUID4) -> Junk:
@@ -497,7 +513,15 @@ class ExplorationCoordinator:
             return {"transferred": [], "overflow": []}
 
         # Get vault and storage (query storage explicitly to avoid lazy load)
+        # Check vault exists first (raises ResourceNotFoundException if missing)
         vault = await crud_vault.get(db_session, exploration.vault_id)
+        if not vault:
+            logger.error(
+                "Vault not found for exploration",
+                extra={"vault_id": str(exploration.vault_id), "exploration_id": str(exploration.id)},
+            )
+            return {"transferred": [], "overflow": exploration.loot_collected}
+
         storage = await crud_storage.get_storage_by_vault(db_session, vault.id)
         if not storage:
             logger.error("Storage not found for vault", extra={"vault_id": str(vault.id)})
@@ -518,9 +542,12 @@ class ExplorationCoordinator:
         )
 
         # Sort loot by rarity (higher priority items first)
+        # Normalize rarity to enum first to ensure consistent priority calculation
         sorted_loot = sorted(
             exploration.loot_collected,
-            key=lambda x: game_config.exploration.get_rarity_priority(x.get("rarity", "common")),
+            key=lambda x: game_config.exploration.get_rarity_priority(
+                self._parse_rarity_to_enum(x.get("rarity", "common")).value
+            ),
             reverse=True,
         )
 

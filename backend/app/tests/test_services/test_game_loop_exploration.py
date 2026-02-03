@@ -197,7 +197,7 @@ async def test_process_explorations_error_handling(
         nonlocal call_count
         call_count += 1
         if call_count == 1:
-            raise Exception("Test error")  # noqa: TRY002
+            raise RuntimeError("Test error")  # noqa: TRY002
         return {
             "type": "encounter",
             "description": "Safe event",

@@ -9,6 +9,34 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.8.5] - 2026-02-04
+
+### Changed
+- **Code Quality & Refactoring** - Major backend cleanup and simplification
+  - Removed empty CRUD wrappers for weapon/outfit/junk items (use CRUDItem directly)
+  - Deduplicated vault_id item list filtering in weapon/outfit endpoints
+  - Created generic seeding helper and refactored objective seeder
+  - Replaced 11 broad `except Exception` handlers with specific exceptions for better error handling
+  - Moved exploration/item constants (rarity priorities, junk values, scrap probabilities) to game_config for easier tuning
+  - Simplified exploration loot transfer logic (reduced from 171 to ~110 lines, removed complexity suppressions)
+
+### Added
+- **Storage Provider** - RustFS support added alongside MinIO for S3-compatible object storage
+  - Add STORAGE_PROVIDER config option (minio/rustfs)
+  - RustFS services in docker-compose.yml and docker-compose.infra.yml
+- **Room Tiles UX** - Better visual identification of room abilities
+  - Room tiles now show SPECIAL ability letter after room name (e.g., "Power Generator (S)")
+  - Room tiles now display ability icon for instant visual recognition
+- **Testing** - Added 5 new tests for exploration loot transfer (weapon/outfit creation, missing data, invalid rarity)
+
+### Fixed
+- **Room Images** - Room images now load correctly in dockerized HTTPS staging environments
+  - Frontend prepends API base URL to image paths
+  - Fixes "failed to load room image" errors on staging
+- **Training Rooms** - Added test coverage for dweller status assignment to training rooms
+
+---
+
 ## [2.8.3] - 2026-02-02
 
 ### What's New

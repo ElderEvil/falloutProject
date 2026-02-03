@@ -98,6 +98,13 @@ const resourceName = computed(() => {
 // Room status (static for now, will be dynamic later)
 const roomStatus = computed(() => 'Operational')
 
+// Room image URL with API base URL prepended
+const roomImageUrl = computed(() => {
+  if (!props.room?.image_url) return null
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+  return `${baseUrl}${props.room.image_url}`
+})
+
 // Calculate production rate based on dwellers and room stats
 const productionInfo = computed(() => {
   if (!props.room || !props.room.ability || props.room.category?.toLowerCase() !== 'production') {
@@ -527,7 +534,7 @@ watch(
           <div class="room-image-container">
             <img
               v-if="props.room?.image_url"
-              :src="props.room.image_url"
+              :src="roomImageUrl"
               :alt="props.room?.name || 'Room'"
               class="room-image"
             />

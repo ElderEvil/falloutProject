@@ -62,12 +62,16 @@ const getRoomImageUrl = (room: Room): string | null => {
       return null
     }
 
-    console.log('✅ Final URL:', room.image_url)
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+    const finalUrl = `${baseUrl}${room.image_url}`
+    console.log('✅ Final URL:', finalUrl)
     console.groupEnd()
+    return finalUrl
   } else if (!room.image_url) {
     return null
   }
-  return room.image_url
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+  return `${baseUrl}${room.image_url}`
 }
 
 // Watch rooms to log when they change (dev only)

@@ -69,7 +69,7 @@ class CRUDUserProfile(CRUDBase[UserProfile, UserProfileBase, ProfileUpdate]):
 
         return await self.update(db_session, id=profile.id, obj_in=ProfileUpdateStatistics(**update_data))
 
-    async def update_statistics(
+    async def update_statistics(  # FIXME Why only statistics? It uses kwargs, so you can pass anything here
         self,
         db_session: AsyncSession,
         user_id: UUID4,

@@ -408,9 +408,135 @@ class ExplorationCoordinator:
             radaways=exploration.radaways,
         )
 
-    async def _transfer_loot_to_storage(  # noqa: PLR0912, PLR0915
-        self, db_session: AsyncSession, exploration: Exploration
-    ) -> dict[str, list]:
+    async def _get_vault_storage(self, db_session: AsyncSession, vault_id: UUID4) -> tuple | None:
+        """
+        Get vault and storage with validation.
+
+        :param db_session: Database session
+        :param vault_id: UUID of the vault
+        :returns: Tuple of (vault, storage, storage_id, available_space) or None if storage not found
+        """
+        vault = await crud_vault.get(db_session, vault_id)
+        storage = await crud_storage.get_storage_by_vault(db_session, vault.id)
+        if not storage:
+            logger.error("Storage not found for vault", extra={"vault_id": str(vault.id)})
+            return None
+        storage_id = storage.id
+        available_space = await crud_storage.get_available_space(db_session, storage_id)
+        return vault, storage, storage_id, available_space
+
+    def _sort_loot_by_rarity(self, loot_collected: list[dict]) -> list[dict]:
+        """
+        Sort loot items by rarity priority (legendary > rare > common).
+
+        :param loot_collected: List of loot item dictionaries
+        :returns: Sorted list with highest rarity items first
+        """
+        return sorted(
+            loot_collected,
+            key=lambda x: RARITY_PRIORITY.get(x.get("rarity", "common").lower(), 0),
+            reverse=True,
+        )
+
+    def _create_weapon_item(self, weapon_data: dict, rarity: RarityEnum, storage_id: UUID4) -> Weapon:
+        """
+        Create a Weapon item from loot data.
+
+        :param weapon_data: Weapon data from data_loader
+        :param rarity: Rarity enum for the weapon
+        :param storage_id: UUID of the storage to add weapon to
+        :returns: Weapon model instance
+        """
+        return Weapon(
+            name=weapon_data["name"],
+            rarity=rarity,
+            value=weapon_data.get("value"),
+            weapon_type=WeaponTypeEnum[weapon_data["weapon_type"].upper()],
+            weapon_subtype=WeaponSubtypeEnum[weapon_data["weapon_subtype"].upper()],
+            stat=weapon_data["stat"],
+            damage_min=weapon_data["damage_min"],
+            damage_max=weapon_data["damage_max"],
+            storage_id=storage_id,
+        )
+
+    def _create_outfit_item(self, outfit_data: dict, rarity: RarityEnum, storage_id: UUID4) -> Outfit:
+        """
+        Create an Outfit item from loot data.
+
+        :param outfit_data: Outfit data from data_loader
+        :param rarity: Rarity enum for the outfit
+        :param storage_id: UUID of the storage to add outfit to
+        :returns: Outfit model instance
+        """
+        return Outfit(
+            name=outfit_data["name"],
+            rarity=rarity,
+            value=outfit_data.get("value"),
+            outfit_type=OutfitTypeEnum[self._normalize_outfit_type(outfit_data["outfit_type"])],
+            gender=GenderEnum[outfit_data["gender"].upper()] if outfit_data.get("gender") else None,
+            storage_id=storage_id,
+        )
+
+    def _create_junk_item(self, item_name: str, rarity: RarityEnum, storage_id: UUID4) -> Junk:
+        """
+        Create a Junk item from loot data.
+
+        :param item_name: Name of the junk item
+        :param rarity: Rarity enum for the junk
+        :param storage_id: UUID of the storage to add junk to
+        :returns: Junk model instance
+        """
+        junk_value_map = {
+            RarityEnum.COMMON: 2,
+            RarityEnum.RARE: 50,
+            RarityEnum.LEGENDARY: 200,
+        }
+        return Junk(
+            name=item_name,
+            junk_type=JunkTypeEnum.VALUABLES,
+            rarity=rarity,
+            value=junk_value_map.get(rarity, 2),
+            description="Found during wasteland exploration",
+            storage_id=storage_id,
+        )
+
+    def _log_transfer_summary(
+        self,
+        vault_id: UUID4,
+        exploration_id: UUID4,
+        transferred: list[dict],
+        overflow: list[dict],
+    ) -> None:
+        """
+        Log transfer completion or overflow summary.
+
+        :param vault_id: UUID of the vault
+        :param exploration_id: UUID of the exploration
+        :param transferred: List of successfully transferred items
+        :param overflow: List of items that couldn't fit in storage
+        """
+        if overflow:
+            logger.warning(
+                "Storage overflow occurred during transfer",
+                extra={
+                    "vault_id": str(vault_id),
+                    "exploration_id": str(exploration_id),
+                    "transferred_count": len(transferred),
+                    "overflow_count": len(overflow),
+                    "overflow_items": [i.get("item_name") for i in overflow],
+                },
+            )
+        else:
+            logger.info(
+                "Storage transfer completed successfully",
+                extra={
+                    "vault_id": str(vault_id),
+                    "exploration_id": str(exploration_id),
+                    "transferred_count": len(transferred),
+                },
+            )
+
+    async def _transfer_loot_to_storage(self, db_session: AsyncSession, exploration: Exploration) -> dict[str, list]:
         """
         Transfer loot items from exploration to vault storage with space validation.
 
@@ -425,16 +551,10 @@ class ExplorationCoordinator:
         if not exploration.loot_collected:
             return {"transferred": [], "overflow": []}
 
-        # Get vault and storage (query storage explicitly to avoid lazy load)
-        vault = await crud_vault.get(db_session, exploration.vault_id)
-        storage = await crud_storage.get_storage_by_vault(db_session, vault.id)
-        if not storage:
-            logger.error("Storage not found for vault", extra={"vault_id": str(vault.id)})
+        storage_result = await self._get_vault_storage(db_session, exploration.vault_id)
+        if not storage_result:
             return {"transferred": [], "overflow": exploration.loot_collected}
-        storage_id = storage.id
-
-        # Check available space
-        available_space = await crud_storage.get_available_space(db_session, storage_id)
+        vault, storage, storage_id, available_space = storage_result
 
         logger.info(
             "Storage transfer starting",
@@ -446,18 +566,12 @@ class ExplorationCoordinator:
             },
         )
 
-        # Sort loot by rarity (higher priority items first)
-        sorted_loot = sorted(
-            exploration.loot_collected,
-            key=lambda x: RARITY_PRIORITY.get(x.get("rarity", "common").lower(), 0),
-            reverse=True,
-        )
+        sorted_loot = self._sort_loot_by_rarity(exploration.loot_collected)
 
         transferred: list[dict] = []
         overflow: list[dict] = []
         items_added = 0
 
-        # Load item data for lookups
         weapons_data = data_loader.load_weapons()
         outfits_data = data_loader.load_outfits()
 
@@ -466,7 +580,6 @@ class ExplorationCoordinator:
             item_type = loot_item.get("item_type", "junk")
             rarity_str = loot_item.get("rarity", "Common")
 
-            # Check if space available
             if items_added >= available_space:
                 overflow.append(loot_item)
                 logger.warning(
@@ -482,61 +595,29 @@ class ExplorationCoordinator:
                 )
                 continue
 
-            # Convert rarity string to enum
             try:
                 rarity = RarityEnum[rarity_str.upper()]
             except (KeyError, AttributeError):
                 rarity = RarityEnum.COMMON
 
-            # Create and add item to storage
             item_created = False
 
             if item_type == "weapon":
                 weapon_data = next((w for w in weapons_data if w["name"] == item_name), None)
                 if weapon_data:
-                    weapon = Weapon(
-                        name=weapon_data["name"],
-                        rarity=rarity,
-                        value=weapon_data.get("value"),
-                        weapon_type=WeaponTypeEnum[weapon_data["weapon_type"].upper()],
-                        weapon_subtype=WeaponSubtypeEnum[weapon_data["weapon_subtype"].upper()],
-                        stat=weapon_data["stat"],
-                        damage_min=weapon_data["damage_min"],
-                        damage_max=weapon_data["damage_max"],
-                        storage_id=storage_id,
-                    )
+                    weapon = self._create_weapon_item(weapon_data, rarity, storage_id)
                     db_session.add(weapon)
                     item_created = True
 
             elif item_type == "outfit":
                 outfit_data = next((o for o in outfits_data if o["name"] == item_name), None)
                 if outfit_data:
-                    outfit = Outfit(
-                        name=outfit_data["name"],
-                        rarity=rarity,
-                        value=outfit_data.get("value"),
-                        outfit_type=OutfitTypeEnum[self._normalize_outfit_type(outfit_data["outfit_type"])],
-                        gender=GenderEnum[outfit_data["gender"].upper()] if outfit_data.get("gender") else None,
-                        storage_id=storage_id,
-                    )
+                    outfit = self._create_outfit_item(outfit_data, rarity, storage_id)
                     db_session.add(outfit)
                     item_created = True
 
             else:
-                # Create junk item with appropriate value based on rarity
-                junk_value_map = {
-                    RarityEnum.COMMON: 2,
-                    RarityEnum.RARE: 50,
-                    RarityEnum.LEGENDARY: 200,
-                }
-                junk = Junk(
-                    name=item_name,
-                    junk_type=JunkTypeEnum.VALUABLES,
-                    rarity=rarity,
-                    value=junk_value_map.get(rarity, 2),
-                    description="Found during wasteland exploration",
-                    storage_id=storage_id,
-                )
+                junk = self._create_junk_item(item_name, rarity, storage_id)
                 db_session.add(junk)
                 item_created = True
 
@@ -553,30 +634,9 @@ class ExplorationCoordinator:
                     },
                 )
 
-        # Update storage used_space counter
         await crud_storage.update_used_space(db_session, storage_id)
 
-        # Log summary
-        if overflow:
-            logger.warning(
-                "Storage overflow occurred during transfer",
-                extra={
-                    "vault_id": str(vault.id),
-                    "exploration_id": str(exploration.id),
-                    "transferred_count": len(transferred),
-                    "overflow_count": len(overflow),
-                    "overflow_items": [i.get("item_name") for i in overflow],
-                },
-            )
-        else:
-            logger.info(
-                "Storage transfer completed successfully",
-                extra={
-                    "vault_id": str(vault.id),
-                    "exploration_id": str(exploration.id),
-                    "transferred_count": len(transferred),
-                },
-            )
+        self._log_transfer_summary(vault.id, exploration.id, transferred, overflow)
 
         return {"transferred": transferred, "overflow": overflow}
 

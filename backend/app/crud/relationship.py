@@ -27,13 +27,10 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         """
         Get relationship between two dwellers (order doesn't matter).
 
-        Args:
-            db: Database session
-            dweller_1_id: First dweller ID
-            dweller_2_id: Second dweller ID
-
-        Returns:
-            Relationship if exists, None otherwise
+        :param db: Database session
+        :param dweller_1_id: First dweller ID
+        :param dweller_2_id: Second dweller ID
+        :returns: Relationship if exists, None otherwise
         """
         query = select(Relationship).where(
             ((Relationship.dweller_1_id == dweller_1_id) & (Relationship.dweller_2_id == dweller_2_id))

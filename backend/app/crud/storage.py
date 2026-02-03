@@ -13,6 +13,8 @@ from app.models.weapon import Weapon
 
 logger = logging.getLogger(__name__)
 
+# TODO Make a crud class and update usage
+
 
 async def count_storage_items(db_session: AsyncSession, storage_id: UUID4) -> int:
     """

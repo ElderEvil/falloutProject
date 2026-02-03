@@ -45,16 +45,11 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         """
         Update the storage max space for a vault.
 
-        Args:
-            db_session: Database session
-            vault_id: Vault ID
-            new_space_max: New maximum storage space
-
-        Returns:
-            Updated storage object
-
-        Raises:
-            ResourceNotFoundException: If storage not found for vault
+        :param db_session: Database session
+        :param vault_id: Vault ID
+        :param new_space_max: New maximum storage space
+        :returns: Updated storage object
+        :raises ResourceNotFoundException: If storage not found for vault
         """
         response = await db_session.execute(select(Storage).where(Storage.vault_id == vault_id))
         storage_obj = response.scalar_one_or_none()

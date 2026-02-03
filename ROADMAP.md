@@ -7,6 +7,24 @@ AI-powered dweller interactions.
 
 ---
 
+## Latest Release
+
+### v2.8.4 - Test Infrastructure Fixes (February 3, 2026)
+
+**Focus**: Frontend test suite stability and Vitest hoisting compliance
+
+**Completed:**
+- ✅ **Test Fixes** - Resolved vi.hoisted import order violations
+  - Fixed UnassignedDwellers.test.ts - moved imports inside vi.hoisted()
+  - Fixed useFakeCrash.test.ts - proper mock definition order
+  - Fixed useGaryMode.test.ts - hoisting compliance
+  - Fixed room.test.ts store mocks - ensured mocks defined before code execution
+- ✅ **Test Suite** - All 102 frontend tests passing, 466 backend tests passing
+- ✅ **Version Updates** - Frontend 2.8.3 → 2.8.4, Backend 2.8.3 → 2.8.4
+- ✅ **Lock Files** - Updated pnpm-lock.yaml and uv.lock
+
+---
+
 ## Upcoming Releases
 
 ### v2.8.5 - Code Quality & Refactoring (February 2026)
@@ -343,6 +361,25 @@ watch(() => userStore.caps, (caps) => {
 ---
 
 ## Recent Completions
+
+### v2.8.3 - Maintenance Release (February 2026)
+
+**Focus**: Backend refactoring and service improvements
+
+**Completed:**
+- ✅ **Backend Refactoring**
+  - Split game loop relationship update logic into helper functions
+  - Extracted exploration loot transfer into separate coordinator functions
+  - Improved code organization and maintainability
+- ✅ **Coverage Improvements** - Updated backend test coverage reporting
+
+### v2.8.2 - Backend Improvements (February 2026)
+
+**Focus**: Code quality and service layer enhancements
+
+**Completed:**
+- ✅ **Service Refactoring** - Improved game loop service structure
+- ✅ **Code Organization** - Better separation of concerns in backend services
 
 ### v2.5.0 Room Visual Assets (January 26, 2026)
 

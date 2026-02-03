@@ -63,16 +63,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Get Changelog
-         * @description Get changelog entries.
-         *
-         *     Args:
-         *         limit: Maximum number of versions to return (default: 10)
-         *         since: Return versions since this version (e.g., "2.6.0")
-         *
-         *     Public endpoint (no authentication required).
-         */
+        /** Get Changelog */
         get: operations["get_changelog_api_v1_system_changelog_get"];
         put?: never;
         post?: never;
@@ -89,12 +80,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Get Latest Changelog
-         * @description Get the latest changelog entry.
-         *
-         *     Public endpoint (no authentication required).
-         */
+        /** Get Latest Changelog */
         get: operations["get_latest_changelog_api_v1_system_changelog_latest_get"];
         put?: never;
         post?: never;
@@ -1409,10 +1395,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Read Outfit List
-         * @description Get outfits, optionally filtered by vault.
-         */
+        /** Read Outfit List */
         get: operations["read_outfit_list_api_v1_outfits__get"];
         put?: never;
         /** Create Outfit */
@@ -1596,12 +1579,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Force Conception
-         * @description Force conception between two dwellers (debug only).
-         *
-         *     Requires superuser access.
-         */
+        /** Force Conception */
         post: operations["force_conception_api_v1_pregnancies_debug_force_conception_post"];
         delete?: never;
         options?: never;
@@ -1618,10 +1596,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Accelerate Pregnancy
-         * @description Accelerate pregnancy to be due immediately (superuser only).
-         */
+        /** Accelerate Pregnancy */
         post: operations["accelerate_pregnancy_api_v1_pregnancies__pregnancy_id__debug_accelerate_post"];
         delete?: never;
         options?: never;
@@ -1797,10 +1772,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /**
-         * Set Radio Speedup
-         * @description Set speedup multiplier for a specific radio room.
-         */
+        /** Set Radio Speedup */
         put: operations["set_radio_speedup_api_v1_radio_vault__vault_id__room__room_id__speedup_put"];
         post?: never;
         delete?: never;
@@ -1816,10 +1788,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Get Vault Relationships
-         * @description Get all relationships in a vault.
-         */
+        /** Get Vault Relationships */
         get: operations["get_vault_relationships_api_v1_relationships_vault__vault_id__get"];
         put?: never;
         post?: never;
@@ -1836,17 +1805,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Get Relationship
-         * @description Get a specific relationship.
-         */
+        /** Get Relationship */
         get: operations["get_relationship_api_v1_relationships__relationship_id__get"];
         put?: never;
         post?: never;
-        /**
-         * Break Up Relationship
-         * @description Break up a relationship.
-         */
+        /** Break Up Relationship */
         delete: operations["break_up_relationship_api_v1_relationships__relationship_id__delete"];
         options?: never;
         head?: never;
@@ -1881,10 +1844,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /**
-         * Initiate Romance
-         * @description Upgrade a relationship to romantic.
-         */
+        /** Initiate Romance */
         put: operations["initiate_romance_api_v1_relationships__relationship_id__romance_put"];
         post?: never;
         delete?: never;
@@ -1901,10 +1861,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /**
-         * Make Partners
-         * @description Make two dwellers partners (committed relationship).
-         */
+        /** Make Partners */
         put: operations["make_partners_api_v1_relationships__relationship_id__partner_put"];
         post?: never;
         delete?: never;
@@ -1969,15 +1926,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Process Vault Breeding
-         * @description Manually trigger breeding and relationship processing for a vault.
-         *     This includes:
-         *     - Updating relationship affinity for dwellers in the same room
-         *     - Checking for conception in living quarters
-         *     - Processing due pregnancies and delivering babies
-         *     - Aging children to adults
-         */
+        /** Process Vault Breeding */
         post: operations["process_vault_breeding_api_v1_relationships_vault__vault_id__process_post"];
         delete?: never;
         options?: never;
@@ -2161,13 +2110,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Get Storage Items
-         * @description Get all items stored in vault storage.
-         *
-         *     Returns weapons, outfits, and junk items.
-         *     Requires ownership of the vault.
-         */
+        /** Get Storage Items */
         get: operations["get_storage_items_api_v1_storage_vault__vault_id__items_get"];
         put?: never;
         post?: never;
@@ -2695,9 +2638,11 @@ export interface paths {
          *
          *     Priority order:
          *     1. Production rooms (Strength: Power, Perception: Water, Agility: Food) - most critical
-         *     2. Utility rooms (Intelligence: Medbay/Science Lab, Charisma: Radio) - important services
-         *     3. Training rooms (all 7 SPECIAL stats) - for development
+         *     2. Med/Science rooms (Intelligence) - medical and research services
+         *     3. Radio rooms (Charisma) - recruitment and happiness
+         *     4. Training rooms (all 7 SPECIAL stats) - for development
          *
+         *     Within each tier, dwellers are distributed proportionally to room capacities.
          *     Dwellers are matched to rooms based on their relevant SPECIAL stat (highest stat dwellers assigned first).
          */
         post: operations["auto_assign_all_rooms_api_v1_vaults__vault_id__dwellers_auto_assign_all_post"];
@@ -2714,10 +2659,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Read Weapon List
-         * @description Get weapons, optionally filtered by vault.
-         */
+        /** Read Weapon List */
         get: operations["read_weapon_list_api_v1_weapons__get"];
         put?: never;
         /** Create Weapon */

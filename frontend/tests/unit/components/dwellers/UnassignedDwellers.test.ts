@@ -36,13 +36,15 @@ vi.mock('@/modules/auth/services/authService', () => ({
 }));
 
 // Mock toast composable
+const mockToast = {
+  success: vi.fn(),
+  error: vi.fn(),
+  info: vi.fn(),
+  warning: vi.fn()
+}
+
 vi.mock('@/core/composables/useToast', () => ({
-  useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-    warning: vi.fn()
-  })
+  useToast: () => mockToast
 }));
 
 describe('UnassignedDwellers', () => {
@@ -78,6 +80,7 @@ describe('UnassignedDwellers', () => {
     // Mock the unassignDwellerFromRoom action
     dwellerStore.unassignDwellerFromRoom = vi.fn().mockResolvedValue(undefined);
     authStore.token = 'mock-token';
+    vi.clearAllMocks();
   });
 
   describe('Rendering', () => {
@@ -253,27 +256,28 @@ describe('UnassignedDwellers', () => {
       expect(dwellerStore.unassignDwellerFromRoom).toHaveBeenCalledWith('dweller-1', 'mock-token');
     });
 
-    it('should show success message after unassigning', async () => {
-      dwellerStore.dwellers = [];
+     it('should show success message after unassigning', async () => {
+       dwellerStore.dwellers = [];
 
-      const wrapper = mount(UnassignedDwellers);
+       const wrapper = mount(UnassignedDwellers);
 
-      const dropZone = wrapper.find('.empty-state');
-      await dropZone.trigger('drop', {
-        dataTransfer: {
-          getData: () => JSON.stringify({
-            dwellerId: 'dweller-1',
-            firstName: 'John',
-            lastName: 'Doe',
-            currentRoomId: 'room-1'
-          })
-        }
-      });
+       const dropZone = wrapper.find('.empty-state');
+       await dropZone.trigger('drop', {
+         dataTransfer: {
+           getData: () => JSON.stringify({
+             dwellerId: 'dweller-1',
+             firstName: 'John',
+             lastName: 'Doe',
+             currentRoomId: 'room-1'
+           })
+         }
+       });
 
-      await flushPromises();
+       await flushPromises();
 
-      expect(dwellerStore.unassignDwellerFromRoom).toHaveBeenCalledWith('dweller-1', 'mock-token');
-    });
+       expect(dwellerStore.unassignDwellerFromRoom).toHaveBeenCalledWith('dweller-1', 'mock-token');
+       expect(mockToast.success).toHaveBeenCalledWith('John Doe unassigned from room');
+     });
 
     it('should not unassign if dweller has no room', async () => {
       dwellerStore.dwellers = [];
@@ -327,30 +331,31 @@ describe('UnassignedDwellers', () => {
     });
   });
 
-  describe('Error Handling', () => {
-    it('should show error message on unassign failure', async () => {
-      dwellerStore.unassignDwellerFromRoom = vi.fn().mockRejectedValue(new Error('Unassign failed'));
-      dwellerStore.dwellers = [];
+   describe('Error Handling', () => {
+     it('should show error message on unassign failure', async () => {
+       dwellerStore.unassignDwellerFromRoom = vi.fn().mockRejectedValue(new Error('Unassign failed'));
+       dwellerStore.dwellers = [];
 
-      const wrapper = mount(UnassignedDwellers);
+       const wrapper = mount(UnassignedDwellers);
 
-      const dropZone = wrapper.find('.empty-state');
-      await dropZone.trigger('drop', {
-        dataTransfer: {
-          getData: () => JSON.stringify({
-            dwellerId: 'dweller-1',
-            firstName: 'John',
-            lastName: 'Doe',
-            currentRoomId: 'room-1'
-          })
-        }
-      });
+       const dropZone = wrapper.find('.empty-state');
+       await dropZone.trigger('drop', {
+         dataTransfer: {
+           getData: () => JSON.stringify({
+             dwellerId: 'dweller-1',
+             firstName: 'John',
+             lastName: 'Doe',
+             currentRoomId: 'room-1'
+           })
+         }
+       });
 
-      await flushPromises();
+       await flushPromises();
 
-      expect(dwellerStore.unassignDwellerFromRoom).toHaveBeenCalledWith('dweller-1', 'mock-token');
-    });
-  });
+       expect(dwellerStore.unassignDwellerFromRoom).toHaveBeenCalledWith('dweller-1', 'mock-token');
+       expect(mockToast.error).toHaveBeenCalledWith('Failed to unassign dweller');
+     });
+   });
 
   describe('Multiple Dwellers', () => {
     it('should render multiple dweller cards', () => {

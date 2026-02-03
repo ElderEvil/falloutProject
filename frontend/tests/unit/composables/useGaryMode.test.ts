@@ -1,25 +1,23 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { ref } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 
 // Create a factory that returns a new map each time
 function createStorageMapMock() {
   const storageMap = new Map<string, any>()
   return {
     useLocalStorage: (key: string, defaultValue: any) => {
-      const value = ref(storageMap.get(key) ?? defaultValue)
-      return {
-        get value() {
-          return value.value
-        },
-        set value(v) {
-          value.value = v
-          storageMap.set(key, v)
-          // Also write to global localStorage for compatibility
-          if (typeof localStorage !== 'undefined') {
-            localStorage.setItem(key, String(v))
-          }
+      const storedValue = storageMap.get(key)
+      const value = ref(storedValue !== undefined ? storedValue : defaultValue)
+      
+      // Watch for changes and sync to both storageMap and localStorage
+      watch(value, (newVal) => {
+        storageMap.set(key, newVal)
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(key, newVal === true ? 'true' : newVal === false ? 'false' : String(newVal))
         }
-      }
+      })
+      
+      return value
     },
     clear: () => storageMap.clear()
   }
@@ -101,16 +99,18 @@ describe('useGaryMode', () => {
     expect(isGaryMode.value).toBe(false)
   })
 
-  it('persists garyUnlocked to localStorage', () => {
-    const { garyUnlocked, triggerGaryMode, resetGaryUnlocked } = useGaryMode()
+   it('persists garyUnlocked to localStorage', async () => {
+     const { garyUnlocked, triggerGaryMode, resetGaryUnlocked } = useGaryMode()
 
-    resetGaryUnlocked()
-    expect(garyUnlocked.value).toBe(false)
+     resetGaryUnlocked()
+     await nextTick()
+     expect(garyUnlocked.value).toBe(false)
 
-    triggerGaryMode()
-    expect(garyUnlocked.value).toBe(true)
-    expect(localStorage.getItem('fallout_gary_unlocked')).toBe('true')
-  })
+     triggerGaryMode()
+     await nextTick()
+     expect(garyUnlocked.value).toBe(true)
+     expect(localStorage.getItem('fallout_gary_unlocked')).toBe('true')
+   })
 
   it('does not re-trigger if already active', () => {
     const { isGaryMode, triggerGaryMode } = useGaryMode()
@@ -121,7 +121,7 @@ describe('useGaryMode', () => {
     triggerGaryMode()
     expect(isGaryMode.value).toBe(true)
 
-    vi.advanceTimersByTime(10000)
+    vi.advanceTimersByTime(10001)
     expect(isGaryMode.value).toBe(false)
   })
 

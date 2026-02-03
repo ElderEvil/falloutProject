@@ -14,7 +14,7 @@ ModelType = TypeVar("ModelType", bound=SQLModel)
 class VaultActionsMixin[ModelType]:
     model: type[ModelType]
 
-    async def get_for_vault(
+    async def get_for_vault(  # TODO: Check if it is used anywhere and if it makes sense
         self, db_session: AsyncSession, vault_id: UUID4, id: UUID4, *, user: User | None = None
     ) -> ModelType:
         query = select(self.model).where(and_(self.model.id == id, self.model.vault_id == vault_id))
@@ -26,7 +26,7 @@ class VaultActionsMixin[ModelType]:
             raise ResourceNotFoundException(self.model, identifier=id)
         return db_obj
 
-    async def get_multi_for_vault(
+    async def get_multi_for_vault(  # TODO: Check if it is used anywhere and if it makes sense
         self, db_session: AsyncSession, vault_id: UUID4, *, skip: int = 0, limit: int = 100, user: User | None = None
     ) -> Sequence[ModelType]:
         query = select(self.model).where(self.model.vault_id == vault_id).offset(skip).limit(limit)

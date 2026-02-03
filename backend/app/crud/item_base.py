@@ -18,6 +18,7 @@ from app.models.junk import Junk
 from app.schemas.common import ItemTypeEnum, JunkTypeEnum, RarityEnum
 from app.utils.exceptions import ContentNoChangeException, InvalidItemAssignmentException, ResourceNotFoundException
 
+# FIXME Move to settings
 SAME_RARITY_JUNK_PROBABILITY = 0.4
 DIFFERENT_RARITY_JUNK_PROBABILITY = 0.6
 

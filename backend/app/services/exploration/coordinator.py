@@ -401,9 +401,87 @@ class ExplorationCoordinator:
             radaways=exploration.radaways,
         )
 
-    async def _transfer_loot_to_storage(  # noqa: PLR0912, PLR0915
-        self, db_session: AsyncSession, exploration: Exploration
-    ) -> dict[str, list]:
+    @staticmethod
+    def _parse_rarity_to_enum(rarity_str: str) -> RarityEnum:
+        """
+        Convert rarity string to RarityEnum with fallback to COMMON.
+
+        :param rarity_str: Rarity string (e.g., "Legendary", "COMMON")
+        :returns: RarityEnum value, defaults to COMMON if invalid
+        """
+        try:
+            return RarityEnum[rarity_str.upper()]
+        except (KeyError, AttributeError):
+            return RarityEnum.COMMON
+
+    def _create_weapon_from_loot(self, weapon_data: dict, rarity: RarityEnum, storage_id: UUID4) -> Weapon | None:
+        """
+        Create a Weapon model from loot data.
+
+        :param weapon_data: Weapon data dict from data_loader
+        :param rarity: RarityEnum value
+        :param storage_id: Storage ID to assign weapon to
+        :returns: Weapon instance or None if data is invalid
+        """
+        if not weapon_data:
+            return None
+        try:
+            return Weapon(
+                name=weapon_data["name"],
+                rarity=rarity,
+                value=weapon_data.get("value"),
+                weapon_type=WeaponTypeEnum[weapon_data["weapon_type"].upper()],
+                weapon_subtype=WeaponSubtypeEnum[weapon_data["weapon_subtype"].upper()],
+                stat=weapon_data["stat"],
+                damage_min=weapon_data["damage_min"],
+                damage_max=weapon_data["damage_max"],
+                storage_id=storage_id,
+            )
+        except (KeyError, ValueError):
+            return None
+
+    def _create_outfit_from_loot(self, outfit_data: dict, rarity: RarityEnum, storage_id: UUID4) -> Outfit | None:
+        """
+        Create an Outfit model from loot data.
+
+        :param outfit_data: Outfit data dict from data_loader
+        :param rarity: RarityEnum value
+        :param storage_id: Storage ID to assign outfit to
+        :returns: Outfit instance or None if data is invalid
+        """
+        if not outfit_data:
+            return None
+        try:
+            return Outfit(
+                name=outfit_data["name"],
+                rarity=rarity,
+                value=outfit_data.get("value"),
+                outfit_type=OutfitTypeEnum[self._normalize_outfit_type(outfit_data["outfit_type"])],
+                gender=GenderEnum[outfit_data["gender"].upper()] if outfit_data.get("gender") else None,
+                storage_id=storage_id,
+            )
+        except (KeyError, ValueError):
+            return None
+
+    def _create_junk_from_loot(self, item_name: str, rarity: RarityEnum, storage_id: UUID4) -> Junk:
+        """
+        Create a Junk model from loot data.
+
+        :param item_name: Name of the junk item
+        :param rarity: RarityEnum value
+        :param storage_id: Storage ID to assign junk to
+        :returns: Junk instance
+        """
+        return Junk(
+            name=item_name,
+            junk_type=JunkTypeEnum.VALUABLES,
+            rarity=rarity,
+            value=game_config.exploration.get_junk_value(rarity.value),
+            description="Found during wasteland exploration",
+            storage_id=storage_id,
+        )
+
+    async def _transfer_loot_to_storage(self, db_session: AsyncSession, exploration: Exploration) -> dict[str, list]:
         """
         Transfer loot items from exploration to vault storage with space validation.
 
@@ -476,55 +554,27 @@ class ExplorationCoordinator:
                 continue
 
             # Convert rarity string to enum
-            try:
-                rarity = RarityEnum[rarity_str.upper()]
-            except (KeyError, AttributeError):
-                rarity = RarityEnum.COMMON
+            rarity = self._parse_rarity_to_enum(rarity_str)
 
             # Create and add item to storage
             item_created = False
 
             if item_type == "weapon":
                 weapon_data = next((w for w in weapons_data if w["name"] == item_name), None)
-                if weapon_data:
-                    weapon = Weapon(
-                        name=weapon_data["name"],
-                        rarity=rarity,
-                        value=weapon_data.get("value"),
-                        weapon_type=WeaponTypeEnum[weapon_data["weapon_type"].upper()],
-                        weapon_subtype=WeaponSubtypeEnum[weapon_data["weapon_subtype"].upper()],
-                        stat=weapon_data["stat"],
-                        damage_min=weapon_data["damage_min"],
-                        damage_max=weapon_data["damage_max"],
-                        storage_id=storage_id,
-                    )
+                weapon = self._create_weapon_from_loot(weapon_data, rarity, storage_id)
+                if weapon:
                     db_session.add(weapon)
                     item_created = True
 
             elif item_type == "outfit":
                 outfit_data = next((o for o in outfits_data if o["name"] == item_name), None)
-                if outfit_data:
-                    outfit = Outfit(
-                        name=outfit_data["name"],
-                        rarity=rarity,
-                        value=outfit_data.get("value"),
-                        outfit_type=OutfitTypeEnum[self._normalize_outfit_type(outfit_data["outfit_type"])],
-                        gender=GenderEnum[outfit_data["gender"].upper()] if outfit_data.get("gender") else None,
-                        storage_id=storage_id,
-                    )
+                outfit = self._create_outfit_from_loot(outfit_data, rarity, storage_id)
+                if outfit:
                     db_session.add(outfit)
                     item_created = True
 
             else:
-                # Create junk item with appropriate value based on rarity
-                junk = Junk(
-                    name=item_name,
-                    junk_type=JunkTypeEnum.VALUABLES,
-                    rarity=rarity,
-                    value=game_config.exploration.get_junk_value(rarity.value),
-                    description="Found during wasteland exploration",
-                    storage_id=storage_id,
-                )
+                junk = self._create_junk_from_loot(item_name, rarity, storage_id)
                 db_session.add(junk)
                 item_created = True
 

@@ -27,41 +27,41 @@ AI-powered dweller interactions.
 
 ## Upcoming Releases
 
-### v2.8.5 - Code Quality & Refactoring (February 2026)
+### v2.8.5 - Code Quality & Refactoring (Completed - February 2026)
 
 **Focus**: Technical debt reduction, code deduplication, and maintainability improvements
 
-**Planned:**
-- 🔄 **Code Deduplication**
-  - Remove empty CRUD classes (weapon, outfit, junk) - use CRUDItem directly
-  - Extract vault filtering logic into shared utility (25-line duplication in weapon/outfit endpoints)
-  - Create generic `seed_from_json()` function (quest/objective seeders are identical)
-  - Add query builder methods to CRUDBase for soft-delete and vault-scoped queries
-- 🔄 **Error Handling Improvements**
-  - Replace 11 bare `except Exception` handlers with specific exceptions
-  - Create `get_or_404()` helper to reduce ResourceNotFoundException boilerplate (28 locations)
-  - Add notification error handling decorator/utility (pattern repeated in 5+ services)
-- 🔄 **Configuration Cleanup**
-  - Move hardcoded magic numbers to game_config.py (rarity priorities, probabilities, value maps)
-  - Extract difficulty weights, junk values, and loot probabilities to config
-- 🔄 **Refactoring**
-  - Split game_loop.py (767 lines) into smaller domain services
-  - Refactor `_transfer_loot_to_storage()` (171 lines, too complex)
-  - Simplify functions with noqa suppressions (6 functions with C901/PLR0912/PLR0915)
-- 🐛 **Bug Fixes**
-  - Implement TODO stub in `celery_task.py:26` (generate function)
-  - Fix session isolation issues in 2 test files
-  - Address N+1 query patterns in game loop
-- 📊 **Estimated Impact**
-  - Reduce codebase by 200-300 lines of duplicate code
-  - Improve maintainability score
-  - Easier onboarding for new contributors
+**Completed:**
+- ✅ **Code Deduplication**
+  - Removed empty CRUD classes (weapon, outfit, junk) - now use CRUDItem directly
+  - Extracted vault filtering logic into shared `get_items_list()` utility
+  - Created generic `seed_from_json()` helper and refactored objective seeder
+- ✅ **Error Handling Improvements**
+  - Replaced 11 bare `except Exception` handlers with specific exceptions (SMTPException, SQLAlchemyError, RedisError, etc.)
+- ✅ **Configuration Cleanup**
+  - Moved exploration/item constants to game_config.py (rarity priorities, junk values, scrap probabilities)
+- ✅ **Refactoring**
+  - Refactored `_transfer_loot_to_storage()` - reduced from 171 to ~110 lines
+  - Extracted 4 helper methods (_parse_rarity_to_enum, _create_weapon_from_loot, _create_outfit_from_loot, _create_junk_from_loot)
+  - Removed complexity suppressions (PLR0912, PLR0915)
+- ✅ **Storage & Infrastructure**
+  - Added RustFS storage provider support (alongside MinIO)
+  - Fixed room images loading in dockerized HTTPS staging environments
+- ✅ **UX Improvements**
+  - Room tiles now show SPECIAL ability letter (e.g., "Power Generator (S)")
+  - Room tiles display ability icon for visual identification
+- ✅ **Testing**
+  - Added 5 tests for weapon/outfit loot transfer branches
+  - Added training room status assignment test
 
-**Priority Classification:**
-- 🔴 Critical: Empty CRUD classes, TODO stubs, test isolation fixes
-- 🟡 High: Vault filtering duplication, bare exception handlers, magic numbers
-- 🟢 Medium: Seeding functions, query patterns, game_loop refactoring
-- 🔵 Low: Notification patterns, endpoint factories
+**Deferred to Future Releases:**
+- Add query builder methods to CRUDBase for soft-delete and vault-scoped queries
+- Create `get_or_404()` helper to reduce ResourceNotFoundException boilerplate (28 locations)
+- Add notification error handling decorator/utility
+- Split game_loop.py (767 lines) into smaller domain services
+- Implement TODO stub in `celery_task.py:26`
+- Fix session isolation issues in 2 test files
+- Address N+1 query patterns in game loop
 
 ### v2.8.0 - Easter Eggs & UI Fixes (January 29, 2026)
 

@@ -486,6 +486,48 @@ class ExplorationConfig(BaseSettings):
     rest_health_min: int = Field(default=3, ge=0)
     rest_health_max: int = Field(default=8, ge=0)
 
+    # Rarity priority for storage overflow handling (higher = more valuable)
+    rarity_priority_legendary: int = Field(default=3, description="Priority for legendary items", ge=0)
+    rarity_priority_rare: int = Field(default=2, description="Priority for rare items", ge=0)
+    rarity_priority_common: int = Field(default=1, description="Priority for common items", ge=0)
+
+    # Junk values by rarity
+    junk_value_common: int = Field(default=2, description="Value of common junk", ge=0)
+    junk_value_rare: int = Field(default=50, description="Value of rare junk", ge=0)
+    junk_value_legendary: int = Field(default=200, description="Value of legendary junk", ge=0)
+
+    # Scrap probabilities
+    same_rarity_junk_probability: float = Field(
+        default=0.4,
+        description="Probability of getting same rarity junk when scrapping",
+        ge=0.0,
+        le=1.0,
+    )
+    different_rarity_junk_probability: float = Field(
+        default=0.6,
+        description="Probability of getting different rarity junk when scrapping",
+        ge=0.0,
+        le=1.0,
+    )
+
+    def get_rarity_priority(self, rarity_str: str) -> int:
+        """Get priority value for a rarity level."""
+        priority_map = {
+            "legendary": self.rarity_priority_legendary,
+            "rare": self.rarity_priority_rare,
+            "common": self.rarity_priority_common,
+        }
+        return priority_map.get(rarity_str.lower(), 0)
+
+    def get_junk_value(self, rarity_str: str) -> int:
+        """Get junk value for a rarity level."""
+        value_map = {
+            "legendary": self.junk_value_legendary,
+            "rare": self.junk_value_rare,
+            "common": self.junk_value_common,
+        }
+        return value_map.get(rarity_str.lower(), self.junk_value_common)
+
 
 class GameConfig(BaseSettings):
     """Master game configuration."""

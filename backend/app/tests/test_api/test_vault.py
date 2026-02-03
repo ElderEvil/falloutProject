@@ -293,3 +293,77 @@ async def test_auto_assign_respects_room_capacity(
 
     # Room capacity is 2, so should not exceed that
     assert len(room_assignments) <= 2, f"Room capacity exceeded: {len(room_assignments)} > 2"
+
+
+@pytest.mark.asyncio
+async def test_auto_assign_training_room_sets_training_status(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+):
+    """Test that assigning dwellers to training rooms sets status to 'training'."""
+    from app.models.room import RoomTypeEnum, SPECIALEnum
+    from app.schemas.common import DwellerStatusEnum
+    from app.schemas.dweller import DwellerCreate
+    from app.schemas.room import RoomCreate
+
+    # Get superuser and create vault
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault = await crud.vault.create(async_session, VaultCreateWithUserID(**vault_data))
+
+    # Create a training room
+    training_room_data = {
+        "name": "Strength Training",
+        "vault_id": str(vault.id),
+        "category": RoomTypeEnum.TRAINING,
+        "ability": SPECIALEnum.STRENGTH,
+        "population_required": 12,
+        "base_cost": 100,
+        "t2_upgrade_cost": 500,
+        "t3_upgrade_cost": 1500,
+        "tier": 1,
+        "size": 3,
+        "size_min": 3,
+        "size_max": 9,
+    }
+    training_room = await crud.room.create(async_session, RoomCreate(**training_room_data))
+
+    # Create unassigned dwellers
+    dweller_ids = []
+    for i in range(2):
+        dweller_data = {
+            "first_name": f"TrainingDweller{i}",
+            "last_name": "Test",
+            "vault_id": str(vault.id),
+            "gender": "male",
+            "rarity": "common",
+            "strength": 5,
+            "perception": 3,
+            "endurance": 3,
+            "charisma": 3,
+            "intelligence": 3,
+            "agility": 3,
+            "luck": 3,
+        }
+        dweller = await crud.dweller.create(async_session, DwellerCreate(**dweller_data))
+        dweller_ids.append(dweller.id)
+
+    # Call auto-assign endpoint
+    response = await async_client.post(
+        f"/vaults/{vault.id}/dwellers/auto-assign-all",
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 200
+    result = response.json()
+    assert result["assigned_count"] > 0
+
+    # Verify dwellers assigned to training room have status "training"
+    for dweller_id in dweller_ids:
+        dweller = await crud.dweller.get(async_session, dweller_id)
+        if dweller.room_id == training_room.id:
+            assert dweller.status == DwellerStatusEnum.TRAINING, (
+                f"Dweller {dweller_id} assigned to training room but has status {dweller.status}, "
+                f"expected {DwellerStatusEnum.TRAINING}"
+            )

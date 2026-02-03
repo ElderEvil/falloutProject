@@ -95,6 +95,17 @@ services:
       - minio_data_infra:/data
     command: server /data --console-address ":9001"
 
+  rustfs:
+    image: rustfs/rustfs:latest
+    container_name: rustfs_infra
+    env_file:
+      - .env
+    ports:
+      - "9002:9000"
+      - "9003:9001"
+    volumes:
+      - rustfs_data_infra:/data
+
   mailpit:
     image: axllent/mailpit:latest
     container_name: mailpit
@@ -111,3 +122,4 @@ volumes:
   postgres-data-infra:
   redis-data-infra:
   minio_data_infra:
+  rustfs_data_infra:

@@ -4,6 +4,7 @@ import logging
 from datetime import datetime
 
 from pydantic import UUID4
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -16,6 +17,7 @@ from app.models.vault import Vault
 from app.services.exploration_service import exploration_service
 from app.services.happiness_service import happiness_service
 from app.services.resource_manager import ResourceManager
+from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +54,7 @@ class GameLoopService:
             try:
                 await self.process_vault_tick(db_session, vault.id)
                 stats["vaults_processed"] += 1
-            except Exception as e:
+            except (SQLAlchemyError, ResourceNotFoundException, VaultOperationException, ValueError, RuntimeError) as e:
                 self.logger.error(f"Error processing vault {vault.id}: {e}", exc_info=True)  # noqa: G201
                 stats["errors"] += 1
 
@@ -272,7 +274,7 @@ class GameLoopService:
                         await exploration_service.process_event(db_session, exploration)
                         stats["events_generated"] += 1
 
-                except Exception as e:
+                except (SQLAlchemyError, ValueError, RuntimeError) as e:
                     # Keep broad exception for individual exploration processing
                     self.logger.error(f"Error processing exploration {exploration.id}: {e}", exc_info=True)  # noqa: G201
 
@@ -393,7 +395,7 @@ class GameLoopService:
                             stats["xp_awarded"] += dweller_stats["xp_awarded"]
                             stats["leveled_up"] += dweller_stats["leveled_up"]
 
-                except Exception as e:
+                except (SQLAlchemyError, ValueError, RuntimeError) as e:
                     # Keep broad exception for individual dweller processing to prevent one failure from stopping all
                     self.logger.error(f"Error processing dweller {dweller.id}: {e}", exc_info=True)  # noqa: G201
 
@@ -450,7 +452,7 @@ class GameLoopService:
                             f"(now {updated_training.target_stat_value})"
                         )
 
-                except Exception as e:
+                except (SQLAlchemyError, ValueError, RuntimeError) as e:
                     # Keep broad exception for individual training processing
                     self.logger.error(f"Error processing training {training.id}: {e}", exc_info=True)  # noqa: G201
 
@@ -530,7 +532,7 @@ class GameLoopService:
                         stats["resolved"] += 1
                         self.logger.info(f"Incident {incident.id} auto-resolved with status {incident.status}")
 
-                except Exception as e:
+                except (SQLAlchemyError, ValueError, RuntimeError) as e:
                     # Keep broad exception for individual incident processing
                     self.logger.error(f"Error processing incident {incident.id}: {e}", exc_info=True)  # noqa: G201
 

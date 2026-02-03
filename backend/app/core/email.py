@@ -10,6 +10,9 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+# SMTP exception types
+SMTPExceptionTypes = (aiosmtplib.SMTPException, ConnectionError, TimeoutError, OSError)
+
 # Setup Jinja2 for email templates
 template_dir = Path(__file__).parent.parent / "templates" / "email"
 jinja_env = Environment(
@@ -54,7 +57,7 @@ async def send_email(
 
         await aiosmtplib.send(message, **smtp_options)
         logger.info(f"Email sent successfully to {email_to}")
-    except Exception:
+    except SMTPExceptionTypes:
         logger.exception(f"Failed to send email to {email_to}")
         raise
 

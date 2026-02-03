@@ -62,12 +62,16 @@ const getRoomImageUrl = (room: Room): string | null => {
       return null
     }
 
-    console.log('✅ Final URL:', room.image_url)
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+    const finalUrl = `${baseUrl}${room.image_url}`
+    console.log('✅ Final URL:', finalUrl)
     console.groupEnd()
+    return finalUrl
   } else if (!room.image_url) {
     return null
   }
-  return room.image_url
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+  return `${baseUrl}${room.image_url}`
 }
 
 // Watch rooms to log when they change (dev only)
@@ -96,6 +100,36 @@ const isRoomAffectedByOutage = (room: Room) => {
   if (!isPowerOutage.value) return false
   // Power generators (STRENGTH) continue working
   return room.ability?.toLowerCase() !== 'strength'
+}
+
+// Get SPECIAL letter for room ability
+const getAbilityLetter = (ability: string | null | undefined): string => {
+  if (!ability) return ''
+  const abilityMap: Record<string, string> = {
+    strength: 'S',
+    perception: 'P',
+    endurance: 'E',
+    charisma: 'C',
+    intelligence: 'I',
+    agility: 'A',
+    luck: 'L',
+  }
+  return abilityMap[ability.toLowerCase()] || ''
+}
+
+// Get ability icon based on room ability
+const getAbilityIcon = (ability: string | null | undefined): string => {
+  if (!ability) return 'mdi:home'
+  const iconMap: Record<string, string> = {
+    strength: 'mdi:lightning-bolt',
+    perception: 'mdi:water',
+    agility: 'mdi:food-drumstick',
+    endurance: 'mdi:flash',
+    charisma: 'mdi:account-voice',
+    intelligence: 'mdi:brain',
+    luck: 'mdi:clover',
+  }
+  return iconMap[ability.toLowerCase()] || 'mdi:home'
 }
 
 const { selectedRoomId, toggleRoomSelection, destroyRoom } = useRoomInteractions()
@@ -402,7 +436,17 @@ const closeDetailModal = () => {
             @error="handleRoomImageError(room.name, getRoomImageUrl(room))"
           />
           <div class="room-info-overlay">
-            <h3 class="room-name">{{ room.name }}</h3>
+            <div class="room-header">
+              <h3 class="room-name">
+                {{ room.name }}
+                <span v-if="room.ability" class="ability-letter">({{ getAbilityLetter(room.ability) }})</span>
+              </h3>
+              <Icon
+                v-if="room.ability"
+                :icon="getAbilityIcon(room.ability)"
+                class="ability-icon"
+              />
+            </div>
             <p class="room-category">{{ room.category }}</p>
             <div v-if="room.tier" class="room-tier">Tier {{ room.tier }}</div>
           </div>
@@ -677,6 +721,26 @@ const closeDetailModal = () => {
   margin-top: 1px;
   font-weight: 600;
   text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.room-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.ability-letter {
+  color: var(--color-theme-primary);
+  font-weight: 700;
+  margin-left: 2px;
+}
+
+.ability-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--color-theme-primary);
+  flex-shrink: 0;
 }
 
 .built-room {

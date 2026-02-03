@@ -9,6 +9,7 @@ from sqlalchemy.orm import aliased
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.game_config import game_config
 from app.crud.base import CreateSchemaType, CRUDBase, ModelType, UpdateSchemaType
 
 # from app.crud.mixins import SellItemMixin
@@ -17,10 +18,6 @@ from app.models.dweller import Dweller
 from app.models.junk import Junk
 from app.schemas.common import ItemTypeEnum, JunkTypeEnum, RarityEnum
 from app.utils.exceptions import ContentNoChangeException, InvalidItemAssignmentException, ResourceNotFoundException
-
-# FIXME Move to settings
-SAME_RARITY_JUNK_PROBABILITY = 0.4
-DIFFERENT_RARITY_JUNK_PROBABILITY = 0.6
 
 
 async def get_items_by_vault(
@@ -61,6 +58,33 @@ async def get_items_by_vault(
     )
     result = await db_session.execute(query)
     return list(result.scalars().all())
+
+
+async def get_items_list(
+    crud_instance: "CRUDItem",
+    db_session: AsyncSession,
+    model: type[Weapon] | type[Outfit],
+    vault_id: UUID4 | None = None,
+    skip: int = 0,
+    limit: int = 100,
+) -> list[Weapon | Outfit]:
+    """
+    Get items with optional vault filtering.
+
+    If vault_id is provided, returns items in vault's storage or equipped by vault's dwellers.
+    Otherwise, returns all items with pagination.
+
+    :param crud_instance: CRUD instance for the item type
+    :param db_session: Database session
+    :param model: Item model class (Weapon or Outfit)
+    :param vault_id: Optional vault ID to filter by
+    :param skip: Number of items to skip
+    :param limit: Maximum items to return
+    :returns: List of items
+    """
+    if vault_id:
+        return await get_items_by_vault(db_session, model, vault_id, skip, limit)
+    return await crud_instance.get_multi(db_session, skip=skip, limit=limit)
 
 
 class CRUDItem(
@@ -201,29 +225,24 @@ class CRUDItem(
         match item.rarity:
             case RarityEnum.LEGENDARY:
                 junk_options = {
-                    legendary_junk: (RarityEnum.LEGENDARY, SAME_RARITY_JUNK_PROBABILITY),
-                    rare_junk: (RarityEnum.RARE, DIFFERENT_RARITY_JUNK_PROBABILITY),
+                    legendary_junk: (RarityEnum.LEGENDARY, game_config.exploration.same_rarity_junk_probability),
+                    rare_junk: (RarityEnum.RARE, game_config.exploration.different_rarity_junk_probability),
                 }
             case RarityEnum.RARE:
                 junk_options = {
-                    rare_junk: (RarityEnum.RARE, SAME_RARITY_JUNK_PROBABILITY),
-                    common_junk: (RarityEnum.COMMON, DIFFERENT_RARITY_JUNK_PROBABILITY),
+                    rare_junk: (RarityEnum.RARE, game_config.exploration.same_rarity_junk_probability),
+                    common_junk: (RarityEnum.COMMON, game_config.exploration.different_rarity_junk_probability),
                 }
             case RarityEnum.COMMON:
-                junk_options = {common_junk: (RarityEnum.COMMON, DIFFERENT_RARITY_JUNK_PROBABILITY)}
+                junk_options = {
+                    common_junk: (RarityEnum.COMMON, game_config.exploration.different_rarity_junk_probability)
+                }
             case _:
                 error_message = f"Item rarity {item.rarity} is not supported for scrapping."
                 raise ValueError(error_message)
 
         # Generate junk based on the defined probabilities
         junk_results = []
-
-        # Junk value by rarity
-        junk_value_map = {
-            RarityEnum.COMMON: 2,
-            RarityEnum.RARE: 50,
-            RarityEnum.LEGENDARY: 200,
-        }
 
         # Always create at least one junk of the same rarity as the item
         same_rarity_junk_type = {
@@ -238,7 +257,7 @@ class CRUDItem(
                     name=same_rarity_junk_type.value,
                     junk_type=same_rarity_junk_type,
                     rarity=item.rarity,
-                    value=junk_value_map.get(item.rarity, 2),
+                    value=game_config.exploration.get_junk_value(item.rarity.value),
                     description=f"Derived from {item.name}",
                 )
             )
@@ -251,7 +270,7 @@ class CRUDItem(
                         name=junk_type.value,
                         junk_type=junk_type,
                         rarity=rarity,
-                        value=junk_value_map.get(rarity, 2),
+                        value=game_config.exploration.get_junk_value(rarity.value),
                         description=f"Derived from {item.name}",
                     )
                 )

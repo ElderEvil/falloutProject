@@ -10,8 +10,10 @@ from app import crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.junk import Junk
+from app.models.outfit import Outfit
 from app.models.storage import Storage
 from app.models.vault import Vault
+from app.models.weapon import Weapon
 from app.schemas.common import JunkTypeEnum, RarityEnum
 from app.services.exploration.coordinator import exploration_coordinator
 
@@ -313,3 +315,240 @@ async def test_complete_exploration_includes_overflow_items(
     assert rewards.items[0]["item_name"] == "Kept Item"
     assert len(rewards.overflow_items) == 1
     assert rewards.overflow_items[0]["item_name"] == "Dropped Item"
+
+
+@pytest.mark.asyncio
+async def test_transfer_weapon_loot_creates_weapon_record(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """Test that weapon loot transfer creates Weapon records in storage."""
+    # Ensure storage exists
+    storage = await _ensure_vault_storage(async_session, vault.id)
+    storage.max_space = 10
+    storage.used_space = 0
+    async_session.add(storage)
+    await async_session.flush()
+
+    # Create exploration
+    exploration = await crud.exploration.create_with_dweller_stats(
+        async_session,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        duration=4,
+    )
+
+    # Add weapon loot (using a real weapon name from the data)
+    exploration.add_loot(
+        item_name="Baseball bat",
+        quantity=1,
+        rarity="Rare",
+        item_type="weapon",
+    )
+    async_session.add(exploration)
+    await async_session.flush()
+    await async_session.refresh(exploration)
+
+    # Transfer loot
+    result = await exploration_coordinator._transfer_loot_to_storage(async_session, exploration)
+
+    # Verify weapon was transferred
+    assert len(result["transferred"]) == 1
+    assert result["transferred"][0]["item_type"] == "weapon"
+    assert result["transferred"][0]["item_name"] == "Baseball bat"
+
+    # Verify Weapon record was created in storage
+    weapons = await async_session.execute(select(Weapon).where(Weapon.storage_id == storage.id))
+    weapon_records = weapons.scalars().all()
+    assert len(weapon_records) == 1
+    assert weapon_records[0].name == "Baseball bat"
+    assert weapon_records[0].rarity == RarityEnum.RARE
+
+
+@pytest.mark.asyncio
+async def test_transfer_outfit_loot_creates_outfit_record(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """Test that outfit loot transfer creates Outfit records in storage."""
+    # Ensure storage exists
+    storage = await _ensure_vault_storage(async_session, vault.id)
+    storage.max_space = 10
+    storage.used_space = 0
+    async_session.add(storage)
+    await async_session.flush()
+
+    # Create exploration
+    exploration = await crud.exploration.create_with_dweller_stats(
+        async_session,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        duration=4,
+    )
+
+    # Add outfit loot (using a real outfit name from the data)
+    exploration.add_loot(
+        item_name="Mechanic jumpsuit",
+        quantity=1,
+        rarity="Common",
+        item_type="outfit",
+    )
+    async_session.add(exploration)
+    await async_session.flush()
+    await async_session.refresh(exploration)
+
+    # Transfer loot
+    result = await exploration_coordinator._transfer_loot_to_storage(async_session, exploration)
+
+    # Verify outfit was transferred
+    assert len(result["transferred"]) == 1
+    assert result["transferred"][0]["item_type"] == "outfit"
+    assert result["transferred"][0]["item_name"] == "Mechanic jumpsuit"
+
+    # Verify Outfit record was created in storage
+    outfits = await async_session.execute(select(Outfit).where(Outfit.storage_id == storage.id))
+    outfit_records = outfits.scalars().all()
+    assert len(outfit_records) == 1
+    assert outfit_records[0].name == "Mechanic jumpsuit"
+    assert outfit_records[0].rarity == RarityEnum.COMMON
+
+
+@pytest.mark.asyncio
+async def test_transfer_missing_weapon_data_skips_item(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """Test that weapon loot with missing data is skipped gracefully."""
+    # Ensure storage exists
+    storage = await _ensure_vault_storage(async_session, vault.id)
+    storage.max_space = 10
+    storage.used_space = 0
+    async_session.add(storage)
+    await async_session.flush()
+
+    # Create exploration
+    exploration = await crud.exploration.create_with_dweller_stats(
+        async_session,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        duration=4,
+    )
+
+    # Add weapon loot with non-existent weapon name
+    exploration.add_loot(
+        item_name="NonExistentWeapon12345",
+        quantity=1,
+        rarity="Legendary",
+        item_type="weapon",
+    )
+    async_session.add(exploration)
+    await async_session.flush()
+    await async_session.refresh(exploration)
+
+    # Transfer loot
+    result = await exploration_coordinator._transfer_loot_to_storage(async_session, exploration)
+
+    # Verify item was not transferred (missing data)
+    assert len(result["transferred"]) == 0
+    assert len(result["overflow"]) == 0  # Not in overflow, just skipped
+
+    # Verify no Weapon record was created
+    weapons = await async_session.execute(select(Weapon).where(Weapon.storage_id == storage.id))
+    weapon_records = weapons.scalars().all()
+    assert len(weapon_records) == 0
+
+
+@pytest.mark.asyncio
+async def test_transfer_missing_outfit_data_skips_item(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """Test that outfit loot with missing data is skipped gracefully."""
+    # Ensure storage exists
+    storage = await _ensure_vault_storage(async_session, vault.id)
+    storage.max_space = 10
+    storage.used_space = 0
+    async_session.add(storage)
+    await async_session.flush()
+
+    # Create exploration
+    exploration = await crud.exploration.create_with_dweller_stats(
+        async_session,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        duration=4,
+    )
+
+    # Add outfit loot with non-existent outfit name
+    exploration.add_loot(
+        item_name="NonExistentOutfit12345",
+        quantity=1,
+        rarity="Legendary",
+        item_type="outfit",
+    )
+    async_session.add(exploration)
+    await async_session.flush()
+    await async_session.refresh(exploration)
+
+    # Transfer loot
+    result = await exploration_coordinator._transfer_loot_to_storage(async_session, exploration)
+
+    # Verify item was not transferred (missing data)
+    assert len(result["transferred"]) == 0
+    assert len(result["overflow"]) == 0  # Not in overflow, just skipped
+
+    # Verify no Outfit record was created
+    outfits = await async_session.execute(select(Outfit).where(Outfit.storage_id == storage.id))
+    outfit_records = outfits.scalars().all()
+    assert len(outfit_records) == 0
+
+
+@pytest.mark.asyncio
+async def test_transfer_invalid_rarity_defaults_to_common(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """Test that invalid rarity strings default to COMMON."""
+    # Ensure storage exists
+    storage = await _ensure_vault_storage(async_session, vault.id)
+    storage.max_space = 10
+    storage.used_space = 0
+    async_session.add(storage)
+    await async_session.flush()
+
+    # Create exploration
+    exploration = await crud.exploration.create_with_dweller_stats(
+        async_session,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        duration=4,
+    )
+
+    # Add junk loot with invalid rarity
+    exploration.add_loot(
+        item_name="Test Item",
+        quantity=1,
+        rarity="InvalidRarity",
+        item_type="junk",
+    )
+    async_session.add(exploration)
+    await async_session.flush()
+    await async_session.refresh(exploration)
+
+    # Transfer loot
+    result = await exploration_coordinator._transfer_loot_to_storage(async_session, exploration)
+
+    # Verify item was transferred
+    assert len(result["transferred"]) == 1
+    assert result["transferred"][0]["item_name"] == "Test Item"
+
+    # Verify Junk record was created with COMMON rarity
+    junks = await async_session.execute(select(Junk).where(Junk.storage_id == storage.id))
+    junk_records = junks.scalars().all()
+    assert len(junk_records) == 1
+    assert junk_records[0].rarity == RarityEnum.COMMON

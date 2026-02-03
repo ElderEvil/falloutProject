@@ -8,7 +8,7 @@ function createStorageMapMock() {
     useLocalStorage: (key: string, defaultValue: any) => {
       const storedValue = storageMap.get(key)
       const value = ref(storedValue !== undefined ? storedValue : defaultValue)
-      
+
       // Watch for changes and sync to both storageMap and localStorage
       watch(value, (newVal) => {
         storageMap.set(key, newVal)
@@ -16,7 +16,7 @@ function createStorageMapMock() {
           localStorage.setItem(key, newVal === true ? 'true' : newVal === false ? 'false' : String(newVal))
         }
       })
-      
+
       return value
     },
     clear: () => storageMap.clear()

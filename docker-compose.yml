@@ -134,16 +134,18 @@ services:
     restart: always
     env_file:
       - .env
+    profiles:
+      - rustfs
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9002:9000"
+      - "9003:9001"
     volumes:
       - rustfs_data:/data
     environment:
       - RUSTFS_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
       - RUSTFS_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:9000/health" ]
+      test: [ "CMD", "sh", "-c", "wget -qO- http://localhost:9000/health || exit 1" ]
       interval: 30s
       timeout: 10s
       retries: 3

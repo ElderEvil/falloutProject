@@ -62,6 +62,33 @@ async def get_items_by_vault(
     return list(result.scalars().all())
 
 
+async def get_items_list(
+    crud_instance: "CRUDItem",
+    db_session: AsyncSession,
+    model: type[Weapon] | type[Outfit],
+    vault_id: UUID4 | None = None,
+    skip: int = 0,
+    limit: int = 100,
+) -> list[Weapon | Outfit]:
+    """
+    Get items with optional vault filtering.
+
+    If vault_id is provided, returns items in vault's storage or equipped by vault's dwellers.
+    Otherwise, returns all items with pagination.
+
+    :param crud_instance: CRUD instance for the item type
+    :param db_session: Database session
+    :param model: Item model class (Weapon or Outfit)
+    :param vault_id: Optional vault ID to filter by
+    :param skip: Number of items to skip
+    :param limit: Maximum items to return
+    :returns: List of items
+    """
+    if vault_id:
+        return await get_items_by_vault(db_session, model, vault_id, skip, limit)
+    return await crud_instance.get_multi(db_session, skip=skip, limit=limit)
+
+
 class CRUDItem(
     CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType],
     # SellItemMixin[ModelType]

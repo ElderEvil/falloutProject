@@ -6,7 +6,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.api.game_data_deps import get_static_game_data
-from app.crud.item_base import get_items_by_vault
+from app.crud.item_base import get_items_list
 from app.db.session import get_async_session
 from app.models.weapon import Weapon
 from app.schemas.junk import JunkRead
@@ -27,9 +27,7 @@ async def read_weapon_list(
     limit: int = 100,
     vault_id: UUID4 | None = None,
 ):
-    if vault_id:
-        return await get_items_by_vault(db_session, Weapon, vault_id, skip, limit)
-    return await crud.weapon.get_multi(db_session, skip=skip, limit=limit)
+    return await get_items_list(crud.weapon, db_session, Weapon, vault_id, skip, limit)
 
 
 @router.get("/{weapon_id}", response_model=WeaponRead)

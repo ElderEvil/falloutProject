@@ -10,7 +10,9 @@ from botocore.exceptions import ClientError
 from minio import Minio
 from minio.error import S3Error
 from redis.asyncio import Redis
+from redis.exceptions import RedisError
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.config import settings
@@ -64,7 +66,7 @@ class HealthCheckService:
                     message="Database connection successful",
                     details={"host": settings.POSTGRES_SERVER, "database": settings.POSTGRES_DB},
                 )
-        except Exception as e:
+        except (SQLAlchemyError, ConnectionError, TimeoutError) as e:
             logger.exception("PostgreSQL health check failed")
             return HealthCheckResult(
                 service="postgresql",
@@ -83,7 +85,7 @@ class HealthCheckService:
         """
         redis_client = None
         try:
-            redis_client = Redis.from_url(settings.redis_url, decode_responses=True)
+            redis_client = Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, decode_responses=True)
             await redis_client.ping()
             return HealthCheckResult(
                 service="redis",
@@ -91,7 +93,7 @@ class HealthCheckService:
                 message="Redis connection successful",
                 details={"host": settings.REDIS_HOST, "port": settings.REDIS_PORT},
             )
-        except Exception as e:
+        except (RedisError, ConnectionError, TimeoutError) as e:
             logger.exception("Redis health check failed")
             return HealthCheckResult(
                 service="redis",
@@ -146,7 +148,7 @@ class HealthCheckService:
                     "worker_names": list(stats.keys()),
                 },
             )
-        except Exception as e:
+        except (RedisError, ConnectionError, TimeoutError, RuntimeError) as e:
             logger.exception("Celery health check failed")
             return HealthCheckResult(
                 service="celery",
@@ -417,7 +419,7 @@ class HealthCheckService:
                     "error": "Connection timeout after 5 seconds",
                 },
             )
-        except Exception as e:
+        except (ConnectionError, OSError) as e:
             logger.exception("SMTP health check failed")
             return HealthCheckResult(
                 service="smtp",

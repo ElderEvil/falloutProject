@@ -1,6 +1,7 @@
 import logging
 from typing import Annotated
 
+import aiosmtplib
 from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
 from pydantic import UUID4
@@ -126,11 +127,9 @@ async def create_user_open(
             username=user.username,
             token=verification_token,
         )
-    except Exception as e:
+    except (aiosmtplib.SMTPException, ConnectionError, TimeoutError) as e:
         # Log error but don't fail registration
-        import logging
-
-        logging.exception(f"Failed to send verification email: {e}")  # noqa: LOG015, TRY401
+        logger.exception(f"Failed to send verification email: {e}")  # noqa: TRY401
 
     access_token = security.create_access_token(user.id)
     refresh_token = await security.create_refresh_token(user.id, redis_client)

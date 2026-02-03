@@ -9,6 +9,7 @@ from sqlalchemy.orm import aliased
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.game_config import game_config
 from app.crud.base import CreateSchemaType, CRUDBase, ModelType, UpdateSchemaType
 
 # from app.crud.mixins import SellItemMixin
@@ -17,9 +18,6 @@ from app.models.dweller import Dweller
 from app.models.junk import Junk
 from app.schemas.common import ItemTypeEnum, JunkTypeEnum, RarityEnum
 from app.utils.exceptions import ContentNoChangeException, InvalidItemAssignmentException, ResourceNotFoundException
-
-SAME_RARITY_JUNK_PROBABILITY = 0.4
-DIFFERENT_RARITY_JUNK_PROBABILITY = 0.6
 
 
 async def get_items_by_vault(
@@ -227,29 +225,24 @@ class CRUDItem(
         match item.rarity:
             case RarityEnum.LEGENDARY:
                 junk_options = {
-                    legendary_junk: (RarityEnum.LEGENDARY, SAME_RARITY_JUNK_PROBABILITY),
-                    rare_junk: (RarityEnum.RARE, DIFFERENT_RARITY_JUNK_PROBABILITY),
+                    legendary_junk: (RarityEnum.LEGENDARY, game_config.exploration.same_rarity_junk_probability),
+                    rare_junk: (RarityEnum.RARE, game_config.exploration.different_rarity_junk_probability),
                 }
             case RarityEnum.RARE:
                 junk_options = {
-                    rare_junk: (RarityEnum.RARE, SAME_RARITY_JUNK_PROBABILITY),
-                    common_junk: (RarityEnum.COMMON, DIFFERENT_RARITY_JUNK_PROBABILITY),
+                    rare_junk: (RarityEnum.RARE, game_config.exploration.same_rarity_junk_probability),
+                    common_junk: (RarityEnum.COMMON, game_config.exploration.different_rarity_junk_probability),
                 }
             case RarityEnum.COMMON:
-                junk_options = {common_junk: (RarityEnum.COMMON, DIFFERENT_RARITY_JUNK_PROBABILITY)}
+                junk_options = {
+                    common_junk: (RarityEnum.COMMON, game_config.exploration.different_rarity_junk_probability)
+                }
             case _:
                 error_message = f"Item rarity {item.rarity} is not supported for scrapping."
                 raise ValueError(error_message)
 
         # Generate junk based on the defined probabilities
         junk_results = []
-
-        # Junk value by rarity
-        junk_value_map = {
-            RarityEnum.COMMON: 2,
-            RarityEnum.RARE: 50,
-            RarityEnum.LEGENDARY: 200,
-        }
 
         # Always create at least one junk of the same rarity as the item
         same_rarity_junk_type = {
@@ -264,7 +257,7 @@ class CRUDItem(
                     name=same_rarity_junk_type.value,
                     junk_type=same_rarity_junk_type,
                     rarity=item.rarity,
-                    value=junk_value_map.get(item.rarity, 2),
+                    value=game_config.exploration.get_junk_value(item.rarity.value),
                     description=f"Derived from {item.name}",
                 )
             )
@@ -277,7 +270,7 @@ class CRUDItem(
                         name=junk_type.value,
                         junk_type=junk_type,
                         rarity=rarity,
-                        value=junk_value_map.get(rarity, 2),
+                        value=game_config.exploration.get_junk_value(rarity.value),
                         description=f"Derived from {item.name}",
                     )
                 )

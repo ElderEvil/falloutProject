@@ -6,6 +6,7 @@ import random
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.game_config import game_config
 from app.crud import exploration as crud_exploration
 from app.crud import storage as crud_storage
 from app.crud import vault as crud_vault
@@ -24,14 +25,6 @@ logger = logging.getLogger(__name__)
 
 # Error messages as constants to satisfy ruff
 ERROR_NOT_ACTIVE = "Exploration is not active"
-
-# Rarity priority for storage overflow handling (higher = more valuable)
-# Using RarityEnum.value to ensure consistent casing with the enum
-RARITY_PRIORITY = {
-    RarityEnum.LEGENDARY.value: 3,
-    RarityEnum.RARE.value: 2,
-    RarityEnum.COMMON.value: 1,
-}
 
 
 class ExplorationCoordinator:
@@ -449,7 +442,7 @@ class ExplorationCoordinator:
         # Sort loot by rarity (higher priority items first)
         sorted_loot = sorted(
             exploration.loot_collected,
-            key=lambda x: RARITY_PRIORITY.get(x.get("rarity", "common").lower(), 0),
+            key=lambda x: game_config.exploration.get_rarity_priority(x.get("rarity", "common")),
             reverse=True,
         )
 
@@ -524,16 +517,11 @@ class ExplorationCoordinator:
 
             else:
                 # Create junk item with appropriate value based on rarity
-                junk_value_map = {
-                    RarityEnum.COMMON: 2,
-                    RarityEnum.RARE: 50,
-                    RarityEnum.LEGENDARY: 200,
-                }
                 junk = Junk(
                     name=item_name,
                     junk_type=JunkTypeEnum.VALUABLES,
                     rarity=rarity,
-                    value=junk_value_map.get(rarity, 2),
+                    value=game_config.exploration.get_junk_value(rarity.value),
                     description="Found during wasteland exploration",
                     storage_id=storage_id,
                 )

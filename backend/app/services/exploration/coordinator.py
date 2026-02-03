@@ -497,7 +497,7 @@ class ExplorationCoordinator:
             storage_id=storage_id,
         )
 
-    async def _transfer_loot_to_storage(self, db_session: AsyncSession, exploration: Exploration) -> dict[str, list]:
+    async def _transfer_loot_to_storage(self, db_session: AsyncSession, exploration: Exploration) -> dict[str, list]:  # noqa: PLR0912, PLR0915
         """
         Transfer loot items from exploration to vault storage with space validation.
 

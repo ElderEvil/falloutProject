@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 
 vi.mock('@vueuse/core', () => {
   return {
@@ -9,7 +9,7 @@ vi.mock('@vueuse/core', () => {
 
       watch(value, (newVal) => {
         localStorage.setItem(key, JSON.stringify(newVal))
-      })
+      }, { immediate: false, flush: 'sync' })
 
       return value
     },
@@ -82,16 +82,18 @@ describe('useFakeCrash', () => {
     expect(clickCount.value).toBe(0)
   })
 
-  it('persists crashUnlocked to localStorage', () => {
+  it('persists crashUnlocked to localStorage', async () => {
     const { crashUnlocked, handleVersionClick, resetCrashUnlocked } = useFakeCrash()
 
     resetCrashUnlocked()
+    await nextTick()
     expect(crashUnlocked.value).toBe(false)
 
     for (let i = 0; i < 7; i++) {
       handleVersionClick()
     }
 
+    await nextTick()
     expect(crashUnlocked.value).toBe(true)
   })
 

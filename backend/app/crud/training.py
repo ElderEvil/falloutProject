@@ -55,13 +55,10 @@ class CRUDTraining(CRUDBase[Training, TrainingCreate, TrainingUpdate]):
         """
         Get training sessions in a vault, optionally filtered by status.
 
-        Args:
-            db_session: Database session
-            vault_id: Vault ID
-            status: Optional status filter
-
-        Returns:
-            List of training sessions
+        :param db_session: Database session
+        :param vault_id: Vault ID
+        :param status: Optional status filter
+        :returns: List of training sessions
         """
         query = select(Training).where(Training.vault_id == vault_id)
 
@@ -79,12 +76,9 @@ class CRUDTraining(CRUDBase[Training, TrainingCreate, TrainingUpdate]):
         """
         Batch-fetch dwellers for multiple training sessions.
 
-        Args:
-            db_session: Database session
-            training_sessions: List of training sessions
-
-        Returns:
-            Dictionary mapping dweller_id to Dweller object
+        :param db_session: Database session
+        :param training_sessions: List of training sessions
+        :returns: Dictionary mapping dweller_id to Dweller object
         """
         if not training_sessions:
             return {}

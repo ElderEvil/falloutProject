@@ -78,7 +78,7 @@ class CRUDIncident:
         return set(result.scalars().all())
 
     @staticmethod
-    async def resolve(db_session: AsyncSession, incident_id: UUID4, success: bool = True) -> Incident:
+    async def resolve(db_session: AsyncSession, incident_id: UUID4, success: bool = True) -> Incident | None:
         """Resolve an incident."""
         incident = await CRUDIncident.get(db_session, incident_id)
         if incident:
@@ -89,7 +89,7 @@ class CRUDIncident:
         return incident
 
     @staticmethod
-    async def spread_to_room(db_session: AsyncSession, incident_id: UUID4, new_room_id: UUID4) -> Incident:
+    async def spread_to_room(db_session: AsyncSession, incident_id: UUID4, new_room_id: UUID4) -> Incident | None:
         """Mark incident as spreading to a new room."""
         incident = await CRUDIncident.get(db_session, incident_id)
         if incident:
@@ -100,7 +100,7 @@ class CRUDIncident:
         return incident
 
     @staticmethod
-    async def get_spreading_incidents(db_session: AsyncSession) -> list[Incident]:
+    async def get_spreading_incidents(db_session: AsyncSession) -> list[Incident]:  # FIXME Not used
         """Get all incidents that should spread."""
         query = select(Incident).where(Incident.status.in_([IncidentStatus.ACTIVE, IncidentStatus.SPREADING]))
         result = await db_session.execute(query)
@@ -120,7 +120,7 @@ class CRUDIncident:
         return False
 
     @staticmethod
-    async def remove_all_by_vault(db_session: AsyncSession, vault_id: UUID4) -> int:
+    async def remove_all_by_vault(db_session: AsyncSession, vault_id: UUID4) -> int:  # FIXME Must check for admin
         """Delete all incidents for a vault."""
         query = select(Incident).where(Incident.vault_id == vault_id)
         result = await db_session.execute(query)

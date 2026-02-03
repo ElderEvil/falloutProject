@@ -552,60 +552,190 @@ class GameLoopService:
 
         return stats
 
-    async def _update_room_relationships(self, db_session: AsyncSession, vault_id: UUID4) -> dict:  # noqa: C901, PLR0912
+    async def _get_dwellers_in_rooms(self, db_session: AsyncSession, vault_id: UUID4) -> list:
         """
-        Update relationship affinity for dwellers in the same room.
+        Get all dwellers in a vault that are assigned to rooms.
 
-        Args:
-            db_session: Database session
-            vault_id: Vault ID to process
-
-        Returns:
-            dict: Statistics with 'relationships_updated' count
+        :param db_session: Database session
+        :type db_session: AsyncSession
+        :param vault_id: Vault ID to query
+        :type vault_id: UUID4
+        :returns: List of dwellers with room assignments
+        :rtype: list
         """
-        from sqlalchemy.exc import SQLAlchemyError
-
-        from app.core.game_config import game_config
         from app.models.dweller import Dweller
+
+        dwellers_query = select(Dweller).where(Dweller.vault_id == vault_id, Dweller.room_id.is_not(None))
+        dwellers_result = await db_session.execute(dwellers_query)
+        return dwellers_result.scalars().all()
+
+    def _group_dwellers_by_room(self, dwellers: list) -> dict:
+        """
+        Group dwellers by their room_id.
+
+        :param dwellers: List of dwellers to group
+        :type dwellers: list
+        :returns: Dictionary mapping room_id to list of dwellers
+        :rtype: dict
+        """
+        room_dwellers = {}
+        for dweller in dwellers:
+            if dweller.room_id not in room_dwellers:
+                room_dwellers[dweller.room_id] = []
+            room_dwellers[dweller.room_id].append(dweller)
+        return room_dwellers
+
+    async def _fetch_existing_relationships(self, db_session: AsyncSession, dweller_ids: set) -> list:
+        """
+        Batch fetch all relationships for a set of dweller IDs.
+
+        :param db_session: Database session
+        :type db_session: AsyncSession
+        :param dweller_ids: Set of dweller IDs to fetch relationships for
+        :type dweller_ids: set
+        :returns: List of existing relationships
+        :rtype: list
+        """
+        from app.models.relationship import Relationship
+
+        relationships_query = select(Relationship).where(
+            (Relationship.dweller_1_id.in_(dweller_ids)) | (Relationship.dweller_2_id.in_(dweller_ids))
+        )
+        relationships_result = await db_session.execute(relationships_query)
+        return relationships_result.scalars().all()
+
+    def _build_relationships_map(self, relationships: list) -> dict:
+        """
+        Build a bidirectional lookup map for relationships.
+
+        :param relationships: List of relationships to map
+        :type relationships: list
+        :returns: Dictionary mapping (dweller_id, dweller_id) tuples to relationships
+        :rtype: dict
+        """
+        relationships_map = {}
+        for rel in relationships:
+            key1 = (rel.dweller_1_id, rel.dweller_2_id)
+            key2 = (rel.dweller_2_id, rel.dweller_1_id)
+            relationships_map[key1] = rel
+            relationships_map[key2] = rel
+        return relationships_map
+
+    async def _update_pair_affinity(
+        self,
+        db_session: AsyncSession,
+        dweller1,
+        dweller2,
+        relationships_map: dict,
+        new_relationships: list,
+    ) -> int:
+        """
+        Update affinity for a pair of dwellers, creating relationship if needed.
+
+        :param db_session: Database session
+        :type db_session: AsyncSession
+        :param dweller1: First dweller in the pair
+        :param dweller2: Second dweller in the pair
+        :param relationships_map: Lookup map for existing relationships
+        :type relationships_map: dict
+        :param new_relationships: List to append new relationships to
+        :type new_relationships: list
+        :returns: Count of relationships updated (0 or 1)
+        :rtype: int
+        """
+        from app.core.game_config import game_config
         from app.models.relationship import Relationship
         from app.schemas.common import RelationshipTypeEnum
         from app.services.relationship_service import relationship_service
+
+        key = (dweller1.id, dweller2.id)
+        relationship = relationships_map.get(key)
+
+        if not relationship:
+            # Create new relationship
+            relationship = Relationship(
+                dweller_1_id=dweller1.id,
+                dweller_2_id=dweller2.id,
+                relationship_type=RelationshipTypeEnum.ACQUAINTANCE,
+                affinity=0,
+            )
+            new_relationships.append(relationship)
+            relationships_map[key] = relationship
+            relationships_map[(dweller2.id, dweller1.id)] = relationship
+            return 0  # New relationships updated later after commit
+
+        # Only update affinity for existing (persistent) relationships
+        if relationship not in new_relationships:
+            await relationship_service.increase_affinity(
+                db_session,
+                relationship.dweller_1_id,
+                relationship.dweller_2_id,
+                game_config.relationship.affinity_increase_per_tick,
+            )
+            return 1
+        return 0
+
+    async def _create_new_relationships(self, db_session: AsyncSession, new_relationships: list) -> int:
+        """
+        Bulk create new relationships and update their affinity.
+
+        :param db_session: Database session
+        :type db_session: AsyncSession
+        :param new_relationships: List of new relationships to persist
+        :type new_relationships: list
+        :returns: Count of relationships created and updated
+        :rtype: int
+        """
+        from app.core.game_config import game_config
+        from app.services.relationship_service import relationship_service
+
+        if not new_relationships:
+            return 0
+
+        db_session.add_all(new_relationships)
+        await db_session.commit()
+
+        # Update affinity for newly created relationships
+        count = 0
+        for relationship in new_relationships:
+            await relationship_service.increase_affinity(
+                db_session,
+                relationship.dweller_1_id,
+                relationship.dweller_2_id,
+                game_config.relationship.affinity_increase_per_tick,
+            )
+            count += 1
+        return count
+
+    async def _update_room_relationships(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
+        """
+        Update relationship affinity for dwellers in the same room.
+
+        :param db_session: Database session
+        :type db_session: AsyncSession
+        :param vault_id: Vault ID to process
+        :type vault_id: UUID4
+        :returns: Statistics with 'relationships_updated' count
+        :rtype: dict
+        """
+        from sqlalchemy.exc import SQLAlchemyError
 
         stats = {"relationships_updated": 0}
 
         try:
             # Get all dwellers in this vault that are in rooms
-            dwellers_query = select(Dweller).where(Dweller.vault_id == vault_id, Dweller.room_id.is_not(None))
-            dwellers_result = await db_session.execute(dwellers_query)
-            dwellers = dwellers_result.scalars().all()
-
+            dwellers = await self._get_dwellers_in_rooms(db_session, vault_id)
             if not dwellers:
                 return stats
 
             # Group dwellers by room
-            room_dwellers = {}
-            for dweller in dwellers:
-                if dweller.room_id not in room_dwellers:
-                    room_dwellers[dweller.room_id] = []
-                room_dwellers[dweller.room_id].append(dweller)
-
-            # Collect all dweller IDs that need relationship checks
-            all_dweller_ids = {d.id for d in dwellers}
+            room_dwellers = self._group_dwellers_by_room(dwellers)
 
             # Batch fetch all existing relationships for these dwellers
-            relationships_query = select(Relationship).where(
-                (Relationship.dweller_1_id.in_(all_dweller_ids)) | (Relationship.dweller_2_id.in_(all_dweller_ids))
-            )
-            relationships_result = await db_session.execute(relationships_query)
-            existing_relationships = relationships_result.scalars().all()
+            all_dweller_ids = {d.id for d in dwellers}
+            existing_relationships = await self._fetch_existing_relationships(db_session, all_dweller_ids)
 
-            # Build relationship lookup map (both directions)
-            relationships_map = {}
-            for rel in existing_relationships:
-                key1 = (rel.dweller_1_id, rel.dweller_2_id)
-                key2 = (rel.dweller_2_id, rel.dweller_1_id)
-                relationships_map[key1] = rel
-                relationships_map[key2] = rel
+            relationships_map = self._build_relationships_map(existing_relationships)
 
             # Update affinity for dwellers in the same room
             new_relationships = []
@@ -616,46 +746,13 @@ class GameLoopService:
                 # For each pair in the room, increase affinity
                 for i, dweller1 in enumerate(room_dweller_list):
                     for dweller2 in room_dweller_list[i + 1 :]:
-                        # Check if relationship exists in map
-                        key = (dweller1.id, dweller2.id)
-                        relationship = relationships_map.get(key)
-
-                        if not relationship:
-                            # Create new relationship
-                            relationship = Relationship(
-                                dweller_1_id=dweller1.id,
-                                dweller_2_id=dweller2.id,
-                                relationship_type=RelationshipTypeEnum.ACQUAINTANCE,
-                                affinity=0,
-                            )
-                            new_relationships.append(relationship)
-                            relationships_map[key] = relationship
-                            relationships_map[(dweller2.id, dweller1.id)] = relationship
-
-                        # Only update affinity for existing (persistent) relationships
-                        # New relationships will be added and committed below
-                        if relationship not in new_relationships:
-                            await relationship_service.increase_affinity(
-                                db_session,
-                                relationship.dweller_1_id,
-                                relationship.dweller_2_id,
-                                game_config.relationship.affinity_increase_per_tick,
-                            )
-                            stats["relationships_updated"] += 1
+                        updated = await self._update_pair_affinity(
+                            db_session, dweller1, dweller2, relationships_map, new_relationships
+                        )
+                        stats["relationships_updated"] += updated
 
             # Bulk add new relationships and commit
-            if new_relationships:
-                db_session.add_all(new_relationships)
-                await db_session.commit()
-                # Now update affinity for newly created relationships
-                for relationship in new_relationships:
-                    await relationship_service.increase_affinity(
-                        db_session,
-                        relationship.dweller_1_id,
-                        relationship.dweller_2_id,
-                        game_config.relationship.affinity_increase_per_tick,
-                    )
-                    stats["relationships_updated"] += 1
+            stats["relationships_updated"] += await self._create_new_relationships(db_session, new_relationships)
 
         except SQLAlchemyError as e:
             self.logger.error(f"Database error updating relationships for vault {vault_id}: {e}", exc_info=True)  # noqa: G201

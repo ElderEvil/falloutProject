@@ -29,118 +29,204 @@ class BreedingService:
     """Service for managing breeding, pregnancy, and child growth."""
 
     @staticmethod
-    async def check_for_conception(  # noqa: PLR0912
+    async def _get_living_quarters(
         db_session: AsyncSession,
         vault_id: UUID4,
-    ) -> list[Pregnancy]:
+    ) -> list[Room]:
         """
-        Check all partner pairs in living quarters and roll for conception.
+        Find all living quarters rooms for a vault.
 
-        Args:
-            db_session: Database session
-            vault_id: Vault ID to check
-
-        Returns:
-            List of newly created pregnancies
+        :param db_session: Database session
+        :type db_session: AsyncSession
+        :param vault_id: Vault ID to search
+        :type vault_id: UUID4
+        :returns: List of living quarters rooms
+        :rtype: list[Room]
         """
-        # Find all dwellers in living quarters
-        living_quarters_query = (
-            select(Room).where(Room.vault_id == vault_id).where(Room.category == RoomTypeEnum.CAPACITY)
-        )
-        living_quarters = (await db_session.execute(living_quarters_query)).scalars().all()
+        query = select(Room).where(Room.vault_id == vault_id).where(Room.category == RoomTypeEnum.CAPACITY)
+        return list((await db_session.execute(query)).scalars().all())
 
-        if not living_quarters:
-            return []
+    @staticmethod
+    async def _get_eligible_dwellers(
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        living_quarters_ids: list[UUID4],
+    ) -> list[Dweller]:
+        """
+        Find all adult dwellers with partners in living quarters.
 
-        living_quarters_ids = [room.id for room in living_quarters]
-
-        # Find all dwellers with partners in living quarters
-        dwellers_query = (
+        :param db_session: Database session
+        :type db_session: AsyncSession
+        :param vault_id: Vault ID to search
+        :type vault_id: UUID4
+        :param living_quarters_ids: List of living quarters room IDs
+        :type living_quarters_ids: list[UUID4]
+        :returns: List of eligible dwellers
+        :rtype: list[Dweller]
+        """
+        query = (
             select(Dweller)
             .where(Dweller.vault_id == vault_id)
             .where(Dweller.partner_id.is_not(None))
             .where(Dweller.room_id.in_(living_quarters_ids))
             .where(Dweller.age_group == AgeGroupEnum.ADULT)
         )
-        dwellers = (await db_session.execute(dwellers_query)).scalars().all()
+        return list((await db_session.execute(query)).scalars().all())
 
-        # Check existing pregnancies to avoid duplicates
-        existing_pregnancies_query = select(Pregnancy.mother_id).where(Pregnancy.status == PregnancyStatusEnum.PREGNANT)
-        pregnant_mother_ids = set((await db_session.execute(existing_pregnancies_query)).scalars().all())
+    @staticmethod
+    async def _get_pregnant_mother_ids(db_session: AsyncSession) -> set[UUID4]:
+        """
+        Get set of currently pregnant mother IDs.
 
-        new_pregnancies = []
-        checked_pairs = set()
+        :param db_session: Database session
+        :type db_session: AsyncSession
+        :returns: Set of mother IDs with active pregnancies
+        :rtype: set[UUID4]
+        """
+        query = select(Pregnancy.mother_id).where(Pregnancy.status == PregnancyStatusEnum.PREGNANT)
+        return set((await db_session.execute(query)).scalars().all())
+
+    @staticmethod
+    def _is_pair_eligible(
+        dweller: Dweller,
+        pregnant_mother_ids: set[UUID4],
+        checked_pairs: set[tuple[str, str]],
+    ) -> bool:
+        """
+        Check if a dweller-partner pair is eligible for conception check.
+
+        :param dweller: Dweller to check
+        :type dweller: Dweller
+        :param pregnant_mother_ids: Set of currently pregnant mother IDs
+        :type pregnant_mother_ids: set[UUID4]
+        :param checked_pairs: Set of already checked pair keys
+        :type checked_pairs: set[tuple[str, str]]
+        :returns: True if pair is eligible for conception check
+        :rtype: bool
+        """
+        # Skip if dweller is female and already pregnant
+        if dweller.gender == GenderEnum.FEMALE and dweller.id in pregnant_mother_ids:
+            return False
+
+        # Skip if partner is already pregnant
+        if dweller.partner_id in pregnant_mother_ids:
+            return False
+
+        # Avoid checking same pair twice
+        pair_key = tuple(sorted([str(dweller.id), str(dweller.partner_id)]))
+        return pair_key not in checked_pairs
+
+    @staticmethod
+    async def _get_relationship_affinity(
+        db_session: AsyncSession,
+        dweller: Dweller,
+        partner: Dweller,
+    ) -> float:
+        """
+        Get relationship affinity and calculate conception chance.
+
+        :param db_session: Database session
+        :type db_session: AsyncSession
+        :param dweller: First dweller in the pair
+        :type dweller: Dweller
+        :param partner: Partner dweller
+        :type partner: Dweller
+        :returns: Conception chance as decimal (0.0 to 1.0)
+        :rtype: float
+        """
+        from app.models.relationship import Relationship
+
+        query = select(Relationship).where(
+            ((Relationship.dweller_1_id == dweller.id) & (Relationship.dweller_2_id == partner.id))
+            | ((Relationship.dweller_1_id == partner.id) & (Relationship.dweller_2_id == dweller.id))
+        )
+        relationship = (await db_session.execute(query)).scalars().first()
+
+        # Calculate conception chance based on affinity (1% per affinity point)
+        # If no relationship found, use base chance
+        if relationship:
+            return relationship.affinity / 100.0  # 90 affinity = 90% chance
+        return game_config.breeding.conception_chance_per_tick  # Fallback to base 2%
+
+    @staticmethod
+    async def _roll_for_conception(
+        db_session: AsyncSession,
+        dweller: Dweller,
+        partner: Dweller,
+        conception_chance: float,
+    ) -> Pregnancy | None:
+        """
+        Roll random chance and create pregnancy if successful.
+
+        :param db_session: Database session
+        :type db_session: AsyncSession
+        :param dweller: First dweller in the pair
+        :type dweller: Dweller
+        :param partner: Partner dweller
+        :type partner: Dweller
+        :param conception_chance: Probability of conception (0.0 to 1.0)
+        :type conception_chance: float
+        :returns: Created pregnancy if successful, None otherwise
+        :rtype: Pregnancy | None
+        """
+        roll = random.random()
+        if roll >= conception_chance:
+            return None
+
+        # Determine mother and father
+        if dweller.gender == GenderEnum.FEMALE:
+            mother_id = dweller.id
+            father_id = partner.id
+        else:
+            mother_id = partner.id
+            father_id = dweller.id
+
+        # Create pregnancy
+        pregnancy = await BreedingService.create_pregnancy(db_session, mother_id, father_id)
+        logger.info(f"Conception with {conception_chance * 100:.0f}% chance: Mother={mother_id}, Father={father_id}")
+        return pregnancy
+
+    @staticmethod
+    async def check_for_conception(
+        db_session: AsyncSession,
+        vault_id: UUID4,
+    ) -> list[Pregnancy]:
+        """
+        Check all partner pairs in living quarters and roll for conception.
+
+        :param db_session: Database session
+        :param vault_id: Vault ID to check
+        :returns: List of newly created pregnancies
+        """
+        living_quarters = await BreedingService._get_living_quarters(db_session, vault_id)
+        if not living_quarters:
+            return []
+
+        living_quarters_ids = [room.id for room in living_quarters]
+        dwellers = await BreedingService._get_eligible_dwellers(db_session, vault_id, living_quarters_ids)
+        pregnant_mother_ids = await BreedingService._get_pregnant_mother_ids(db_session)
+
+        new_pregnancies: list[Pregnancy] = []
+        checked_pairs: set[tuple[str, str]] = set()
 
         for dweller in dwellers:
-            # Skip if already pregnant
-            if dweller.gender == GenderEnum.FEMALE and dweller.id in pregnant_mother_ids:
+            if not BreedingService._is_pair_eligible(dweller, pregnant_mother_ids, checked_pairs):
                 continue
 
-            # Skip if partner is already pregnant
-            if dweller.partner_id in pregnant_mother_ids:
-                continue
-
-            # Avoid checking same pair twice
             pair_key = tuple(sorted([str(dweller.id), str(dweller.partner_id)]))
-            if pair_key in checked_pairs:
-                continue
             checked_pairs.add(pair_key)
 
-            # Get partner
             partner_query = select(Dweller).where(Dweller.id == dweller.partner_id)
             partner = (await db_session.execute(partner_query)).scalars().first()
 
-            if not partner:
+            if not partner or partner.room_id not in living_quarters_ids or partner.age_group != AgeGroupEnum.ADULT:
                 continue
 
-            # Check if partner is also in living quarters
-            if partner.room_id not in living_quarters_ids:
-                continue
+            conception_chance = await BreedingService._get_relationship_affinity(db_session, dweller, partner)
+            pregnancy = await BreedingService._roll_for_conception(db_session, dweller, partner, conception_chance)
 
-            # Check if partner is adult
-            if partner.age_group != AgeGroupEnum.ADULT:
-                continue
-
-            # Get relationship to check affinity
-            from app.models.relationship import Relationship
-
-            relationship_query = select(Relationship).where(
-                ((Relationship.dweller_1_id == dweller.id) & (Relationship.dweller_2_id == partner.id))
-                | ((Relationship.dweller_1_id == partner.id) & (Relationship.dweller_2_id == dweller.id))
-            )
-            relationship_result = await db_session.execute(relationship_query)
-            relationship = relationship_result.scalars().first()
-
-            # Calculate conception chance based on affinity (1% per affinity point)
-            # If no relationship found, use base chance
-            if relationship:
-                conception_chance = relationship.affinity / 100.0  # 90 affinity = 90% chance
-            else:
-                conception_chance = game_config.breeding.conception_chance_per_tick  # Fallback to base 2%
-
-            # Roll for conception
-            roll = random.random()
-            conception_success = roll < conception_chance
-
-            if conception_success:
-                # Determine mother and father
-                if dweller.gender == GenderEnum.FEMALE:
-                    mother_id = dweller.id
-                    father_id = partner.id
-                else:
-                    mother_id = partner.id
-                    father_id = dweller.id
-
-                # Create pregnancy
-                pregnancy = await BreedingService.create_pregnancy(
-                    db_session,
-                    mother_id,
-                    father_id,
-                )
+            if pregnancy:
                 new_pregnancies.append(pregnancy)
-                logger.info(
-                    f"Conception with {conception_chance * 100:.0f}% chance: Mother={mother_id}, Father={father_id}"
-                )
 
         return new_pregnancies
 

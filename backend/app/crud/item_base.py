@@ -192,6 +192,7 @@ class CRUDItem(
         """
         Converts an item into junk based on its rarity.
         Junk is generated with probabilities depending on the item's rarity.
+        Always creates at least one junk of the same rarity as the item.
         """
         legendary_junk, rare_junk, common_junk = (random.choice(list(JunkTypeEnum)) for _ in range(3))
 
@@ -223,8 +224,27 @@ class CRUDItem(
             RarityEnum.LEGENDARY: 200,
         }
 
+        # Always create at least one junk of the same rarity as the item
+        same_rarity_junk_type = {
+            RarityEnum.LEGENDARY: legendary_junk,
+            RarityEnum.RARE: rare_junk,
+            RarityEnum.COMMON: common_junk,
+        }.get(item.rarity)
+
+        if same_rarity_junk_type:
+            junk_results.append(
+                Junk(
+                    name=same_rarity_junk_type.value,
+                    junk_type=same_rarity_junk_type,
+                    rarity=item.rarity,
+                    value=junk_value_map.get(item.rarity, 2),
+                    description=f"Derived from {item.name}",
+                )
+            )
+
+        # Generate additional junk based on probabilities
         for junk_type, (rarity, probability) in junk_options.items():
-            if random.random() < probability:
+            if junk_type != same_rarity_junk_type and random.random() < probability:
                 junk_results.append(
                     Junk(
                         name=junk_type.value,

@@ -338,10 +338,10 @@ async def voice_chat_with_dweller(
                 dweller_id=dweller_id,
             )
 
-        return response
-
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.exception("Error processing voice chat")
         raise HTTPException(status_code=500, detail=f"Error processing audio: {e!s}") from e
+    else:
+        return response

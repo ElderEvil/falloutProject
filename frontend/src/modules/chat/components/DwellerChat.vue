@@ -8,6 +8,7 @@ import { useAudioRecorder } from '../composables/useAudioRecorder'
 import { useChatWebSocket } from '@/core/composables/useWebSocket'
 import { normalizeImageUrl } from '@/utils/image'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import { startTraining } from '@/modules/progression/services/trainingService'
 import { useToast } from '@/core/composables/useToast'
 
@@ -20,6 +21,7 @@ const props = defineProps<{
 
 const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
+const vaultStore = useVaultStore()
 const toast = useToast()
 
 const messages = ref<ChatMessageDisplay[]>([])
@@ -253,16 +255,58 @@ const handleAssignToRoom = async (roomId: string, roomName: string) => {
 const handleStartTraining = async (stat: string) => {
   if (!authStore.token) return
 
-  // Get dweller's current room (must be training room)
-  const dweller = dwellerStore.dwellers.find((d) => d.id === props.dwellerId)
-  if (!dweller?.room_id) {
-    toast.error('Dweller must be in a training room to start training')
-    return
-  }
-
   isPerformingAction.value = true
   try {
-    await startTraining(props.dwellerId, dweller.room_id, authStore.token)
+    // Get dweller's current room
+    const dweller = dwellerStore.dwellers.find((d) => d.id === props.dwellerId)
+    if (!dweller) {
+      toast.error('Dweller not found')
+      return
+    }
+
+    // Get vault data
+    const vault = vaultStore.activeVault
+    if (!vault?.rooms) {
+      toast.error('Unable to access vault data')
+      return
+    }
+
+    // Check if dweller is already in a training room
+    let trainingRoomId = dweller.room_id
+    const currentRoom = vault.rooms.find((r) => r.id === dweller.room_id)
+
+    if (!currentRoom || currentRoom.category !== 'training') {
+      // Need to assign to a training room first
+      const trainingRooms = vault.rooms.filter((r) => r.category === 'training')
+
+      if (trainingRooms.length === 0) {
+        toast.error('No training rooms available')
+        return
+      }
+
+      // Find first available training room (with capacity)
+      const availableTrainingRoom = trainingRooms.find((r) => {
+        const occupancy = vault.dwellers?.filter((d) => d.room_id === r.id).length || 0
+        return !r.max_capacity || occupancy < r.max_capacity
+      })
+
+      if (!availableTrainingRoom) {
+        toast.error('No available training rooms (all at capacity)')
+        return
+      }
+
+      // Assign dweller to training room
+      toast.info(`Moving ${props.dwellerName} to training room...`)
+      await dwellerStore.assignDwellerToRoom(
+        props.dwellerId,
+        availableTrainingRoom.id,
+        authStore.token
+      )
+      trainingRoomId = availableTrainingRoom.id
+    }
+
+    // Now start training in the training room
+    await startTraining(props.dwellerId, trainingRoomId, authStore.token)
     toast.success(`${props.dwellerName} started ${stat} training`)
   } catch (error) {
     console.error('Failed to start training:', error)
@@ -329,10 +373,15 @@ onMounted(() => {
     // Handle happiness updates via WebSocket
     chatWs.on('happiness_update', (msg: any) => {
       if (msg.happiness_impact) {
-        // Update the last dweller message with happiness impact
-        const lastDwellerMsg = [...messages.value].reverse().find((m) => m.type === 'dweller')
-        if (lastDwellerMsg) {
-          lastDwellerMsg.happinessImpact = msg.happiness_impact
+        // Find the index of the last dweller message
+        const reversedIndex = [...messages.value].reverse().findIndex((m) => m.type === 'dweller')
+        if (reversedIndex !== -1) {
+          const lastIndex = messages.value.length - 1 - reversedIndex
+          // Update using array assignment to trigger Vue reactivity
+          messages.value[lastIndex] = {
+            ...messages.value[lastIndex],
+            happinessImpact: msg.happiness_impact,
+          }
         }
       }
     })
@@ -340,10 +389,15 @@ onMounted(() => {
     // Handle action suggestions via WebSocket
     chatWs.on('action_suggestion', (msg: any) => {
       if (msg.action_suggestion) {
-        // Update the last dweller message with action suggestion
-        const lastDwellerMsg = [...messages.value].reverse().find((m) => m.type === 'dweller')
-        if (lastDwellerMsg) {
-          lastDwellerMsg.actionSuggestion = msg.action_suggestion
+        // Find the index of the last dweller message
+        const reversedIndex = [...messages.value].reverse().findIndex((m) => m.type === 'dweller')
+        if (reversedIndex !== -1) {
+          const lastIndex = messages.value.length - 1 - reversedIndex
+          // Update using array assignment to trigger Vue reactivity
+          messages.value[lastIndex] = {
+            ...messages.value[lastIndex],
+            actionSuggestion: msg.action_suggestion,
+          }
         }
       }
     })

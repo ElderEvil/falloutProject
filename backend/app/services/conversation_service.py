@@ -188,7 +188,7 @@ class ConversationService:
             )
 
             # Parse action suggestion from agent output
-            action_suggestion = parse_action_suggestion(output)
+            action_suggestion = await parse_action_suggestion(output, db_session, dweller)
 
         except Exception:
             # Fallback: neutral happiness + no_action on agent failure

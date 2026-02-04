@@ -12,7 +12,13 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.models.base import SPECIALModel
 from app.models.dweller import Dweller
 from app.models.room import Room
-from app.schemas.chat import AssignToRoomAction, NoAction, StartTrainingAction
+from app.schemas.chat import (
+    AssignToRoomAction,
+    NoAction,
+    RecallExplorationAction,
+    StartExplorationAction,
+    StartTrainingAction,
+)
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerReadFull
 from app.services.open_ai import AIService
@@ -44,9 +50,11 @@ class DwellerChatOutput(BaseModel):
         max_length=200,
         description="Brief explanation of why the sentiment score was chosen",
     )
-    action_type: Literal["assign_to_room", "start_training", "no_action"] = Field(
-        ...,
-        description="Type of action suggestion based on conversation context",
+    action_type: Literal["assign_to_room", "start_training", "start_exploration", "recall_exploration", "no_action"] = (
+        Field(
+            ...,
+            description="Type of action suggestion based on conversation context",
+        )
     )
     action_room_id: UUID4 | None = Field(
         None,
@@ -64,6 +72,28 @@ class DwellerChatOutput(BaseModel):
         None,
         max_length=200,
         description="Reason for the action suggestion",
+    )
+    action_duration_hours: int | None = Field(
+        None,
+        ge=1,
+        le=24,
+        description="Exploration duration in hours if action_type is start_exploration",
+    )
+    action_stimpaks: int | None = Field(
+        None,
+        ge=0,
+        le=25,
+        description="Number of stimpaks if action_type is start_exploration",
+    )
+    action_radaways: int | None = Field(
+        None,
+        ge=0,
+        le=25,
+        description="Number of radaways if action_type is start_exploration",
+    )
+    action_exploration_id: UUID4 | None = Field(
+        None,
+        description="Exploration ID if action_type is recall_exploration (enriched by server)",
     )
 
 
@@ -103,9 +133,10 @@ dweller_chat_agent = Agent(
         "You are a Vault-Tec Dweller in a post-apocalyptic world. "
         "Respond in character, staying true to the Fallout universe. "
         "Analyze the conversation sentiment and suggest helpful actions when appropriate. "
-        "Actions include assigning to production rooms (based on SPECIAL stats) or starting training. "
+        "Actions include: assigning to production rooms (based on SPECIAL stats), starting training, "
+        "sending dweller on wasteland exploration, or recalling dweller from exploration. "
         "Only suggest actions when the conversation naturally leads to them (e.g., dweller mentions being bored, "
-        "wanting to work, needing to improve stats, etc.)."
+        "wanting to work, needing to improve stats, wanting adventure, or wanting to come home)."
     ),
 )
 
@@ -144,6 +175,8 @@ After responding, analyze:
 2. Actions: Use tools to check available rooms if the dweller expresses interest in work or training.
    - If they want productive work: suggest a room matching their highest SPECIAL stat
    - If they want to improve: suggest training for a stat they mention or one that's low
+   - If they want adventure or to explore the wasteland: suggest start_exploration
+   - If they want to come home or you sense danger during exploration: suggest recall_exploration
    - Otherwise: no_action
 """
 
@@ -247,7 +280,7 @@ def get_best_room_recommendation(ctx: RunContext[DwellerChatDeps]) -> str:
     }
 
     # Find highest stat
-    best_stat = max(special_stats, key=special_stats.get)
+    best_stat = max(special_stats, key=lambda s: special_stats[s])
     best_value = special_stats[best_stat]
 
     # Map stats to room types
@@ -271,10 +304,12 @@ def get_best_room_recommendation(ctx: RunContext[DwellerChatDeps]) -> str:
 # --- Helper Functions ---
 
 
-def parse_action_suggestion(
+async def parse_action_suggestion(
     output: DwellerChatOutput,
-) -> AssignToRoomAction | StartTrainingAction | NoAction:
-    """Convert agent output to action suggestion schema."""
+    db_session: AsyncSession,
+    dweller: DwellerReadFull,
+) -> AssignToRoomAction | StartTrainingAction | StartExplorationAction | RecallExplorationAction | NoAction:
+    """Convert agent output to action suggestion schema with deterministic enrichment."""
     if output.action_type == "assign_to_room" and output.action_room_id and output.action_room_name:
         return AssignToRoomAction(
             room_id=output.action_room_id,
@@ -286,6 +321,28 @@ def parse_action_suggestion(
             stat=output.action_stat,
             reason=output.action_reason or "Based on conversation context",
         )
+    if output.action_type == "start_exploration":
+        # Deterministic enrichment: cap supplies from dweller inventory
+        stimpaks = min(dweller.stimpack, 2)
+        radaways = min(dweller.radaway, 1)
+        return StartExplorationAction(
+            duration_hours=4,
+            stimpaks=stimpaks,
+            radaways=radaways,
+            reason=output.action_reason or "Ready for wasteland exploration",
+        )
+    if output.action_type == "recall_exploration":
+        # Deterministic enrichment: query active exploration from DB
+        from app.crud.exploration import exploration as exploration_crud
+
+        active_exploration = await exploration_crud.get_by_dweller(db_session, dweller_id=dweller.id)
+        if active_exploration:
+            return RecallExplorationAction(
+                exploration_id=active_exploration.id,
+                reason=output.action_reason or "Recall dweller from wasteland",
+            )
+        # No active exploration found - return NoAction
+        return NoAction(reason="Dweller is not currently exploring the wasteland")
     return NoAction(reason=output.action_reason)
 
 

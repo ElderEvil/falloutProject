@@ -27,6 +27,24 @@ class StartTrainingAction(BaseModel):
     reason: str = Field(..., max_length=200, description="Why this training is suggested")
 
 
+class StartExplorationAction(BaseModel):
+    """Suggestion to send dweller on wasteland exploration."""
+
+    action_type: Literal["start_exploration"] = "start_exploration"
+    duration_hours: int = Field(..., ge=1, le=24, description="Exploration duration in hours")
+    stimpaks: int = Field(..., ge=0, le=25, description="Number of stimpaks to take")
+    radaways: int = Field(..., ge=0, le=25, description="Number of radaways to take")
+    reason: str = Field(..., max_length=200, description="Why exploration is suggested")
+
+
+class RecallExplorationAction(BaseModel):
+    """Suggestion to recall dweller from wasteland exploration."""
+
+    action_type: Literal["recall_exploration"] = "recall_exploration"
+    exploration_id: UUID4 = Field(..., description="ID of the active exploration to recall from")
+    reason: str = Field(..., max_length=200, description="Why recall is suggested")
+
+
 class NoAction(BaseModel):
     """Indicates no action is suggested."""
 
@@ -35,7 +53,7 @@ class NoAction(BaseModel):
 
 
 ActionSuggestion = Annotated[
-    AssignToRoomAction | StartTrainingAction | NoAction,
+    AssignToRoomAction | StartTrainingAction | StartExplorationAction | RecallExplorationAction | NoAction,
     Field(discriminator="action_type"),
 ]
 

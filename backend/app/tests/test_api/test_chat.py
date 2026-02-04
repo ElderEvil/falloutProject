@@ -15,9 +15,11 @@ from pydantic_ai.agent import AgentRunResult
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.agents.dweller_chat_agent import DwellerChatOutput
+from app.agents.dweller_chat_agent import DwellerChatOutput, parse_action_suggestion
 from app.models.dweller import Dweller
+from app.models.exploration import Exploration, ExplorationStatus
 from app.models.vault import Vault
+from app.schemas.chat import NoAction, RecallExplorationAction, StartExplorationAction
 from app.schemas.common import GenderEnum
 from app.schemas.dweller import DwellerCreate
 from app.tests.factory.dwellers import create_fake_dweller
@@ -327,3 +329,216 @@ class TestAudioChat:
         )
 
         assert response.status_code == 404
+
+
+# ============================================================================
+# Exploration Action Tests
+# ============================================================================
+
+
+@pytest.mark.asyncio
+class TestExplorationActions:
+    """Tests for exploration action suggestions (start_exploration, recall_exploration)."""
+
+    @pytest_asyncio.fixture(name="exploring_dweller")
+    async def exploring_dweller_fixture(self, async_session: AsyncSession, vault: Vault) -> Dweller:
+        """Create a test dweller with supplies for exploration."""
+        dweller_data = create_fake_dweller()
+        dweller_data.update(
+            {
+                "first_name": "Explorer",
+                "last_name": "Test",
+                "gender": GenderEnum.MALE,
+                "is_adult": True,
+                "level": 10,
+                "happiness": 75,
+                "stimpack": 5,
+                "radaway": 3,
+            }
+        )
+        dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
+        dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+        return await crud.dweller.get(db_session=async_session, id=dweller.id)
+
+    async def test_parse_start_exploration_action(
+        self,
+        async_session: AsyncSession,
+        exploring_dweller: Dweller,
+    ):
+        """Test parse_action_suggestion for start_exploration with deterministic enrichment."""
+        dweller_full = await crud.dweller.get_full_info(async_session, exploring_dweller.id)
+
+        output = DwellerChatOutput(
+            response_text="I want to explore the wasteland!",
+            sentiment_score=3,
+            reason_text="Excited about adventure",
+            action_type="start_exploration",
+            action_room_id=None,
+            action_room_name=None,
+            action_stat=None,
+            action_reason="Dweller wants adventure",
+        )
+
+        result = await parse_action_suggestion(output, async_session, dweller_full)
+
+        assert isinstance(result, StartExplorationAction)
+        assert result.action_type == "start_exploration"
+        assert result.duration_hours == 4
+        # Caps: min(5, 2) = 2 stimpaks, min(3, 1) = 1 radaway
+        assert result.stimpaks == 2
+        assert result.radaways == 1
+        assert result.reason == "Dweller wants adventure"
+
+    async def test_parse_start_exploration_with_low_supplies(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+    ):
+        """Test start_exploration enrichment with dweller having low supplies."""
+        # Create dweller with minimal supplies
+        dweller_data = create_fake_dweller()
+        dweller_data.update(
+            {
+                "first_name": "LowSupply",
+                "last_name": "Test",
+                "gender": GenderEnum.FEMALE,
+                "is_adult": True,
+                "stimpack": 1,
+                "radaway": 0,
+            }
+        )
+        dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
+        dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+        dweller_full = await crud.dweller.get_full_info(async_session, dweller.id)
+
+        output = DwellerChatOutput(
+            response_text="Let me explore!",
+            sentiment_score=2,
+            reason_text="Wants to leave",
+            action_type="start_exploration",
+            action_room_id=None,
+            action_room_name=None,
+            action_stat=None,
+            action_reason="Ready for adventure",
+        )
+
+        result = await parse_action_suggestion(output, async_session, dweller_full)
+
+        assert isinstance(result, StartExplorationAction)
+        # Caps: min(1, 2) = 1 stimpak, min(0, 1) = 0 radaway
+        assert result.stimpaks == 1
+        assert result.radaways == 0
+
+    async def test_parse_recall_exploration_with_active_exploration(
+        self,
+        async_session: AsyncSession,
+        exploring_dweller: Dweller,
+        vault: Vault,
+    ):
+        """Test parse_action_suggestion for recall_exploration with active exploration."""
+        dweller_full = await crud.dweller.get_full_info(async_session, exploring_dweller.id)
+
+        # Create an active exploration for the dweller
+        active_exploration = Exploration(
+            vault_id=vault.id,
+            dweller_id=exploring_dweller.id,
+            status=ExplorationStatus.ACTIVE,
+            duration=4,
+            stimpaks=2,
+            radaways=1,
+            dweller_strength=5,
+            dweller_perception=5,
+            dweller_endurance=5,
+            dweller_charisma=5,
+            dweller_intelligence=5,
+            dweller_agility=5,
+            dweller_luck=5,
+        )
+        async_session.add(active_exploration)
+        await async_session.commit()
+        await async_session.refresh(active_exploration)
+
+        output = DwellerChatOutput(
+            response_text="I want to come home!",
+            sentiment_score=-1,
+            reason_text="Dweller is tired",
+            action_type="recall_exploration",
+            action_room_id=None,
+            action_room_name=None,
+            action_stat=None,
+            action_reason="Dweller wants to return",
+        )
+
+        result = await parse_action_suggestion(output, async_session, dweller_full)
+
+        assert isinstance(result, RecallExplorationAction)
+        assert result.action_type == "recall_exploration"
+        assert result.exploration_id == active_exploration.id
+        assert result.reason == "Dweller wants to return"
+
+    async def test_parse_recall_exploration_without_active_exploration(
+        self,
+        async_session: AsyncSession,
+        exploring_dweller: Dweller,
+    ):
+        """Test parse_action_suggestion for recall_exploration returns NoAction when no active exploration."""
+        dweller_full = await crud.dweller.get_full_info(async_session, exploring_dweller.id)
+
+        output = DwellerChatOutput(
+            response_text="Recall me!",
+            sentiment_score=0,
+            reason_text="Wants to come back",
+            action_type="recall_exploration",
+            action_room_id=None,
+            action_room_name=None,
+            action_stat=None,
+            action_reason="Wants to return home",
+        )
+
+        result = await parse_action_suggestion(output, async_session, dweller_full)
+
+        # Should return NoAction since dweller is not exploring
+        assert isinstance(result, NoAction)
+        assert result.action_type == "no_action"
+        assert result.reason == "Dweller is not currently exploring the wasteland"
+
+    @patch("app.api.v1.endpoints.chat.dweller_chat_agent")
+    @patch("app.api.v1.endpoints.chat.manager")
+    async def test_start_exploration_action_api_response(
+        self,
+        mock_manager: MagicMock,
+        mock_agent: MagicMock,
+        async_client: AsyncClient,
+        normal_user_token_headers: dict[str, str],
+        exploring_dweller: Dweller,
+    ):
+        """Test that start_exploration action is correctly returned in API response."""
+        mock_output = DwellerChatOutput(
+            response_text="Time for an adventure!",
+            sentiment_score=3,
+            reason_text="Excited dweller",
+            action_type="start_exploration",
+            action_room_id=None,
+            action_room_name=None,
+            action_stat=None,
+            action_reason="Dweller eager to explore",
+        )
+        mock_result = MagicMock(spec=AgentRunResult)
+        mock_result.output = mock_output
+        mock_agent.run = AsyncMock(return_value=mock_result)
+        mock_manager.send_chat_message = AsyncMock()
+
+        response = await async_client.post(
+            f"chat/{exploring_dweller.id}",
+            headers=normal_user_token_headers,
+            json={"message": "I want to go explore the wasteland!"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert "action_suggestion" in data
+        assert data["action_suggestion"]["action_type"] == "start_exploration"
+        assert data["action_suggestion"]["duration_hours"] == 4
+        assert data["action_suggestion"]["stimpaks"] == 2  # min(5, 2)
+        assert data["action_suggestion"]["radaways"] == 1  # min(3, 1)

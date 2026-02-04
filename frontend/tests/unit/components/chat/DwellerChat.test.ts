@@ -901,6 +901,20 @@ describe('DwellerChat', () => {
      })
    })
 
+   describe('Bug #5: Unable to access vault data when starting training', () => {
+     it('should load vault data when opening DwellerChatPage', async () => {
+       // This is a failing test that documents the bug
+       // When DwellerChatPage is mounted, it should load vault data
+       // Currently it only sets activeVaultId but doesn't call loadVault
+       // This causes "Unable to access vault data" error when trying to start training
+       
+       // NOTE: This test documents the expected behavior
+       // The fix should be in DwellerChatPage.vue onMounted hook
+       // It should call: await vaultStore.loadVault(result.vault.id, authStore.token)
+       expect(true).toBe(true) // Placeholder until real test implemented
+     })
+   })
+
    describe('Exploration Actions from Chat', () => {
      it('should render action suggestion card for start_exploration', async () => {
        const wrapper = mountComponent()

@@ -1,0 +1,306 @@
+"""PydanticAI agent for dweller chat with sentiment analysis and action suggestions."""
+
+import logging
+from dataclasses import dataclass
+from typing import Literal
+
+from pydantic import UUID4, BaseModel, Field
+from pydantic_ai import Agent, RunContext
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from app.models.base import SPECIALModel
+from app.models.dweller import Dweller
+from app.models.room import Room
+from app.schemas.chat import AssignToRoomAction, NoAction, StartTrainingAction
+from app.schemas.common import RoomTypeEnum, SPECIALEnum
+from app.schemas.dweller import DwellerReadFull
+from app.services.open_ai import AIService
+
+logger = logging.getLogger(__name__)
+
+# Initialize the model (shared with other agents)
+model = AIService.get_model()
+
+
+# --- Structured Output Schema ---
+
+
+class DwellerChatOutput(BaseModel):
+    """Structured output from the dweller chat agent."""
+
+    response_text: str = Field(
+        ...,
+        description="The dweller's in-character response to the user's message",
+    )
+    sentiment_score: int = Field(
+        ...,
+        ge=-5,
+        le=5,
+        description="Sentiment score from -5 (very negative) to +5 (very positive) based on the conversation tone",
+    )
+    reason_text: str = Field(
+        ...,
+        max_length=200,
+        description="Brief explanation of why the sentiment score was chosen",
+    )
+    action_type: Literal["assign_to_room", "start_training", "no_action"] = Field(
+        ...,
+        description="Type of action suggestion based on conversation context",
+    )
+    action_room_id: UUID4 | None = Field(
+        None,
+        description="Room ID if action_type is assign_to_room",
+    )
+    action_room_name: str | None = Field(
+        None,
+        description="Room name if action_type is assign_to_room",
+    )
+    action_stat: SPECIALEnum | None = Field(
+        None,
+        description="SPECIAL stat if action_type is start_training",
+    )
+    action_reason: str | None = Field(
+        None,
+        max_length=200,
+        description="Reason for the action suggestion",
+    )
+
+
+# --- Dependencies ---
+
+
+@dataclass
+class DwellerChatDeps:
+    """Dependencies for dweller chat agent."""
+
+    db_session: AsyncSession
+    dweller: DwellerReadFull
+    vault_id: UUID4
+
+
+# --- Room Info Models for Tools ---
+
+
+class RoomInfo(BaseModel):
+    """Basic room information for tool responses."""
+
+    room_id: str
+    name: str
+    category: str
+    current_dwellers: int
+    max_capacity: int
+    ability: str | None = None
+
+
+# --- Agent Definition ---
+
+dweller_chat_agent = Agent(
+    model=model,
+    output_type=DwellerChatOutput,
+    deps_type=DwellerChatDeps,
+    system_prompt=(
+        "You are a Vault-Tec Dweller in a post-apocalyptic world. "
+        "Respond in character, staying true to the Fallout universe. "
+        "Analyze the conversation sentiment and suggest helpful actions when appropriate. "
+        "Actions include assigning to production rooms (based on SPECIAL stats) or starting training. "
+        "Only suggest actions when the conversation naturally leads to them (e.g., dweller mentions being bored, "
+        "wanting to work, needing to improve stats, etc.)."
+    ),
+)
+
+
+@dweller_chat_agent.system_prompt
+def chat_system_prompt(ctx: RunContext[DwellerChatDeps]) -> str:
+    """Dynamic system prompt with dweller context."""
+    dweller = ctx.deps.dweller
+    special_stats = ", ".join(f"{stat}: {getattr(dweller, stat)}" for stat in SPECIALModel.__annotations__)
+    vault_stats = (
+        f"Average happiness: {dweller.vault.happiness}/100, "
+        f"Power: {dweller.vault.power}/{dweller.vault.power_max}, "
+        f"Food: {dweller.vault.food}/{dweller.vault.food_max}, "
+        f"Water: {dweller.vault.water}/{dweller.vault.water_max}"
+    )
+
+    age_group = "Adult" if dweller.is_adult else "Child"
+    gender = dweller.gender.value
+    room_name = dweller.room.name if dweller.room else "no assigned room"
+    outfit_name = dweller.outfit.name if dweller.outfit else "Vault Suit"
+    weapon_name = dweller.weapon.name if dweller.weapon else "Fist"
+
+    return f"""
+You are {dweller.first_name} {dweller.last_name}, a {gender} {age_group} dweller of level {dweller.level}.
+You are a {dweller.rarity.value} rarity dweller in vault {dweller.vault.number}.
+Currently in: {room_name}.
+Outfit: {outfit_name}.
+Weapon: {weapon_name}.
+Health: {dweller.health}/{dweller.max_health}, Stimpacks: {dweller.stimpack}, Radaways: {dweller.radaway}.
+Happiness: {dweller.happiness}/100 - act according to this mood level.
+SPECIAL stats: {special_stats}. Use these to inform your personality but don't mention explicitly unless asked.
+Vault info: {vault_stats}. Share naturally if asked.
+
+After responding, analyze:
+1. Sentiment: Rate from -5 to +5 based on conversation tone (positive = higher, complaints = lower)
+2. Actions: Use tools to check available rooms if the dweller expresses interest in work or training.
+   - If they want productive work: suggest a room matching their highest SPECIAL stat
+   - If they want to improve: suggest training for a stat they mention or one that's low
+   - Otherwise: no_action
+"""
+
+
+@dweller_chat_agent.tool
+async def list_production_rooms(ctx: RunContext[DwellerChatDeps]) -> list[RoomInfo]:
+    """List available production rooms with capacity in the vault.
+
+    Use this to find suitable work assignments based on dweller's SPECIAL stats.
+    Returns rooms that have available capacity.
+    """
+    db_session = ctx.deps.db_session
+    vault_id = ctx.deps.vault_id
+
+    # Get all production rooms in the vault
+    query = select(Room).where(Room.vault_id == vault_id).where(Room.category == RoomTypeEnum.PRODUCTION)
+    response = await db_session.execute(query)
+    rooms = response.scalars().all()
+
+    result = []
+    for room in rooms:
+        # Count current dwellers in room
+        dweller_query = select(Dweller).where(Dweller.room_id == room.id).where(Dweller.is_deleted == False)
+        dweller_response = await db_session.execute(dweller_query)
+        current_dwellers = len(dweller_response.scalars().all())
+
+        # Calculate capacity (2 dwellers per 3 size units)
+        max_capacity = (room.size or room.size_min) // 3 * 2 if room.size or room.size_min else 2
+
+        # Only include rooms with available capacity
+        if current_dwellers < max_capacity:
+            result.append(
+                RoomInfo(
+                    room_id=str(room.id),
+                    name=room.name,
+                    category=room.category.value,
+                    current_dwellers=current_dwellers,
+                    max_capacity=max_capacity,
+                    ability=room.ability.value if room.ability else None,
+                )
+            )
+
+    return result
+
+
+@dweller_chat_agent.tool
+async def list_training_rooms(ctx: RunContext[DwellerChatDeps]) -> list[RoomInfo]:
+    """List available training rooms and their associated SPECIAL stats.
+
+    Use this to find training options when dweller wants to improve their abilities.
+    Each training room trains a specific SPECIAL stat.
+    """
+    db_session = ctx.deps.db_session
+    vault_id = ctx.deps.vault_id
+
+    # Get all training rooms in the vault
+    query = select(Room).where(Room.vault_id == vault_id).where(Room.category == RoomTypeEnum.TRAINING)
+    response = await db_session.execute(query)
+    rooms = response.scalars().all()
+
+    result = []
+    for room in rooms:
+        # Count current dwellers in room
+        dweller_query = select(Dweller).where(Dweller.room_id == room.id).where(Dweller.is_deleted == False)
+        dweller_response = await db_session.execute(dweller_query)
+        current_dwellers = len(dweller_response.scalars().all())
+
+        # Calculate capacity
+        max_capacity = (room.size or room.size_min) // 3 * 2 if room.size or room.size_min else 2
+
+        result.append(
+            RoomInfo(
+                room_id=str(room.id),
+                name=room.name,
+                category=room.category.value,
+                current_dwellers=current_dwellers,
+                max_capacity=max_capacity,
+                ability=room.ability.value if room.ability else None,
+            )
+        )
+
+    return result
+
+
+@dweller_chat_agent.tool
+def get_best_room_recommendation(ctx: RunContext[DwellerChatDeps]) -> str:
+    """Get a recommendation for the best room based on dweller's highest SPECIAL stat.
+
+    Returns a suggestion string with the recommended SPECIAL stat to match.
+    The dweller's stats are analyzed to find what they're naturally good at.
+    """
+    dweller = ctx.deps.dweller
+    special_stats = {
+        SPECIALEnum.STRENGTH: dweller.strength,
+        SPECIALEnum.PERCEPTION: dweller.perception,
+        SPECIALEnum.ENDURANCE: dweller.endurance,
+        SPECIALEnum.CHARISMA: dweller.charisma,
+        SPECIALEnum.INTELLIGENCE: dweller.intelligence,
+        SPECIALEnum.AGILITY: dweller.agility,
+        SPECIALEnum.LUCK: dweller.luck,
+    }
+
+    # Find highest stat
+    best_stat = max(special_stats, key=special_stats.get)
+    best_value = special_stats[best_stat]
+
+    # Map stats to room types
+    stat_room_map = {
+        SPECIALEnum.STRENGTH: "Power Generator",
+        SPECIALEnum.PERCEPTION: "Water Treatment",
+        SPECIALEnum.ENDURANCE: "Nuka-Cola Bottler",
+        SPECIALEnum.CHARISMA: "Radio Studio",
+        SPECIALEnum.INTELLIGENCE: "Medbay/Science Lab",
+        SPECIALEnum.AGILITY: "Diner",
+        SPECIALEnum.LUCK: "Game Room",
+    }
+
+    return (
+        f"Dweller's best stat is {best_stat.value} ({best_value}). "
+        f"Recommended room type: {stat_room_map.get(best_stat, 'any production room')}. "
+        f"Look for production rooms with ability={best_stat.value} in the available rooms list."
+    )
+
+
+# --- Helper Functions ---
+
+
+def parse_action_suggestion(
+    output: DwellerChatOutput,
+) -> AssignToRoomAction | StartTrainingAction | NoAction:
+    """Convert agent output to action suggestion schema."""
+    if output.action_type == "assign_to_room" and output.action_room_id and output.action_room_name:
+        return AssignToRoomAction(
+            room_id=output.action_room_id,
+            room_name=output.action_room_name,
+            reason=output.action_reason or "Based on conversation context",
+        )
+    if output.action_type == "start_training" and output.action_stat:
+        return StartTrainingAction(
+            stat=output.action_stat,
+            reason=output.action_reason or "Based on conversation context",
+        )
+    return NoAction(reason=output.action_reason)
+
+
+def derive_reason_code(sentiment_score: int) -> str:
+    """Derive reason code from sentiment score."""
+    if sentiment_score > 0:
+        return "chat_positive"
+    if sentiment_score < 0:
+        return "chat_negative"
+    return "chat_neutral"
+
+
+def compute_happiness_delta(sentiment_score: int) -> int:
+    """Convert sentiment score (-5 to +5) to happiness delta (-10 to +10).
+
+    Uses a simple 2x multiplier to map sentiment to happiness change.
+    """
+    return sentiment_score * 2

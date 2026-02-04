@@ -7,6 +7,14 @@ from fastapi.responses import Response
 from pydantic import UUID4, BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.agents.dweller_chat_agent import (
+    DwellerChatDeps,
+    DwellerChatOutput,
+    compute_happiness_delta,
+    derive_reason_code,
+    dweller_chat_agent,
+    parse_action_suggestion,
+)
 from app.api.deps import CurrentActiveUser
 from app.crud.chat_message import chat_message as chat_message_crud
 from app.crud.dweller import dweller as dweller_crud
@@ -14,8 +22,11 @@ from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.db.session import get_async_session
 from app.models.chat_message import ChatMessageCreate, ChatMessageRead
 from app.models.objective import ObjectiveBase
+from app.schemas.chat import DwellerChatResponse, DwellerVoiceChatResponse, NoAction
 from app.schemas.common import ObjectiveKindEnum
+from app.schemas.happiness import HappinessImpact, HappinessReasonCode
 from app.schemas.llm_interaction import LLMInteractionCreate
+from app.services.chat_happiness_service import apply_chat_happiness
 from app.services.conversation_service import conversation_service
 from app.services.open_ai import get_ai_service
 
@@ -83,7 +94,7 @@ class ChatMessage(BaseModel):
     message: str
 
 
-@router.post("/{dweller_id}")
+@router.post("/{dweller_id}", response_model=DwellerChatResponse)
 async def chat_with_dweller(
     dweller_id: UUID4,
     user: CurrentActiveUser,
@@ -94,17 +105,70 @@ async def chat_with_dweller(
     if not dweller:
         raise HTTPException(status_code=404, detail="Dweller not found")
 
-    # Build dweller prompt using shared method
-    dweller_prompt = conversation_service._build_dweller_prompt(dweller, for_audio=False)
-
-    # Use multi-provider chat completion
-    ai_service = get_ai_service()
-    response_message = await ai_service.chat_completion(
-        [
-            {"role": "system", "content": dweller_prompt.strip()},
-            {"role": "user", "content": message.message},
-        ]
+    # Prepare agent dependencies
+    deps = DwellerChatDeps(
+        db_session=db_session,
+        dweller=dweller,
+        vault_id=dweller.vault.id,
     )
+
+    # Run PydanticAI agent with structured output
+    response_message: str
+    happiness_impact: HappinessImpact | None = None
+    action_suggestion = None
+
+    try:
+        result = await dweller_chat_agent.run(message.message, deps=deps)
+        output: DwellerChatOutput = result.output
+
+        response_message = output.response_text
+
+        # Compute happiness delta from sentiment score
+        delta = compute_happiness_delta(output.sentiment_score)
+
+        # Apply happiness change to dweller and vault
+        new_dweller_happiness, _ = await apply_chat_happiness(
+            db_session=db_session,
+            dweller_id=dweller_id,
+            delta=delta,
+        )
+
+        # Build happiness impact response
+        reason_code_str = derive_reason_code(output.sentiment_score)
+        happiness_impact = HappinessImpact(
+            score=output.sentiment_score * 20,  # Scale -5..+5 to -100..+100
+            delta=delta,
+            reason_code=HappinessReasonCode(reason_code_str),
+            reason_text=output.reason_text,
+            happiness_after=new_dweller_happiness,
+        )
+
+        # Parse action suggestion from agent output
+        action_suggestion = parse_action_suggestion(output)
+
+    except Exception:
+        # Fallback: neutral happiness + no_action on agent failure
+        logger.exception("Dweller chat agent failed, using fallback")
+
+        # Fall back to basic chat completion
+        ai_service = get_ai_service()
+        dweller_prompt = conversation_service._build_dweller_prompt(dweller, for_audio=False)
+        response_message = await ai_service.chat_completion(
+            [
+                {"role": "system", "content": dweller_prompt.strip()},
+                {"role": "user", "content": message.message},
+            ]
+        )
+
+        # Neutral fallback - no happiness change
+        happiness_impact = HappinessImpact(
+            score=0,
+            delta=0,
+            reason_code=HappinessReasonCode.CHAT_NEUTRAL,
+            reason_text="Chat processed without sentiment analysis",
+            happiness_after=dweller.happiness,
+        )
+        action_suggestion = NoAction(reason="Unable to analyze conversation for suggestions")
 
     # Save LLM interaction statistics
     llm_int_create = LLMInteractionCreate(
@@ -141,7 +205,11 @@ async def chat_with_dweller(
         ),
     )
 
-    return {"response": response_message}
+    return DwellerChatResponse(
+        response=response_message,
+        happiness_impact=happiness_impact,
+        action_suggestion=action_suggestion,
+    )
 
 
 @router.get("/history/{dweller_id}", response_model=list[ChatMessageRead])
@@ -166,7 +234,7 @@ async def get_chat_history(
     )
 
 
-@router.post("/{dweller_id}/voice")
+@router.post("/{dweller_id}/voice", response_model=DwellerVoiceChatResponse)
 async def voice_chat_with_dweller(
     dweller_id: UUID4,
     user: CurrentActiveUser,

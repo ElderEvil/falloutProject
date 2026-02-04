@@ -9,9 +9,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
+from pydantic_ai.agent import AgentRunResult
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.agents.dweller_chat_agent import DwellerChatOutput
 from app.models.dweller import Dweller
 from app.models.vault import Vault
 from app.schemas.common import GenderEnum
@@ -51,23 +53,42 @@ async def chat_dweller_fixture(async_session: AsyncSession, vault: Vault) -> Dwe
 # ============================================================================
 
 
+def create_mock_agent_output(
+    response_text: str = "Hello! How can I help you today?",
+    sentiment_score: int = 2,
+    reason_text: str = "Friendly greeting",
+) -> DwellerChatOutput:
+    """Create a mock DwellerChatOutput for testing."""
+    return DwellerChatOutput(
+        response_text=response_text,
+        sentiment_score=sentiment_score,
+        reason_text=reason_text,
+        action_type="no_action",
+        action_room_id=None,
+        action_room_name=None,
+        action_stat=None,
+        action_reason="No action needed",
+    )
+
+
 @pytest.mark.asyncio
 class TestTextChat:
     """Tests for text-based chat endpoint."""
 
-    @patch("app.api.v1.endpoints.chat.get_ai_service")
+    @patch("app.api.v1.endpoints.chat.dweller_chat_agent")
     async def test_send_text_message_success(
         self,
-        mock_ai_service_func: MagicMock,
+        mock_agent: MagicMock,
         async_client: AsyncClient,
         normal_user_token_headers: dict[str, str],
         chat_dweller: Dweller,
     ):
         """Test sending a text message to a dweller."""
-        # Mock AI service
-        mock_ai = AsyncMock()
-        mock_ai.chat_completion.return_value = "Hello! How can I help you today?"
-        mock_ai_service_func.return_value = mock_ai
+        # Mock agent output
+        mock_output = create_mock_agent_output()
+        mock_result = MagicMock(spec=AgentRunResult)
+        mock_result.output = mock_output
+        mock_agent.run = AsyncMock(return_value=mock_result)
 
         response = await async_client.post(
             f"chat/{chat_dweller.id}",
@@ -80,12 +101,16 @@ class TestTextChat:
         assert "response" in data
         assert data["response"] == "Hello! How can I help you today?"
 
-        # Verify AI service was called
-        mock_ai.chat_completion.assert_called_once()
-        call_args = mock_ai.chat_completion.call_args[0][0]
-        assert isinstance(call_args, list)
-        assert any("system" in msg.get("role", "") for msg in call_args)
-        assert any("Hi there!" in msg.get("content", "") for msg in call_args)
+        # Verify happiness impact is populated
+        assert "happiness_impact" in data
+        assert data["happiness_impact"] is not None
+        assert data["happiness_impact"]["delta"] == 4  # 2 * 2 (sentiment_score * 2)
+        assert data["happiness_impact"]["reason_code"] == "chat_positive"
+
+        # Verify action suggestion is populated
+        assert "action_suggestion" in data
+        assert data["action_suggestion"] is not None
+        assert data["action_suggestion"]["action_type"] == "no_action"
 
     async def test_text_chat_requires_authentication(
         self,
@@ -100,33 +125,76 @@ class TestTextChat:
 
         assert response.status_code == 401
 
-    @patch("app.api.v1.endpoints.chat.get_ai_service")
-    async def test_chat_uses_dweller_context(
+    @patch("app.api.v1.endpoints.chat.dweller_chat_agent")
+    async def test_chat_returns_structured_response(
         self,
-        mock_ai_service_func: MagicMock,
+        mock_agent: MagicMock,
         async_client: AsyncClient,
         normal_user_token_headers: dict[str, str],
         chat_dweller: Dweller,
     ):
-        """Test that chat includes dweller context in prompts."""
-        mock_ai = AsyncMock()
-        mock_ai.chat_completion.return_value = "Response"
-        mock_ai_service_func.return_value = mock_ai
+        """Test that chat returns properly structured response with happiness and suggestions."""
+        # Mock agent with negative sentiment
+        mock_output = create_mock_agent_output(
+            response_text="I'm not feeling great today.",
+            sentiment_score=-2,
+            reason_text="Dweller expressed discomfort",
+        )
+        mock_result = MagicMock(spec=AgentRunResult)
+        mock_result.output = mock_output
+        mock_agent.run = AsyncMock(return_value=mock_result)
 
-        await async_client.post(
+        response = await async_client.post(
             f"chat/{chat_dweller.id}",
             headers=normal_user_token_headers,
-            json={"message": "What's your name?"},
+            json={"message": "How are you feeling?"},
         )
 
-        # Verify AI was called with dweller context
-        mock_ai.chat_completion.assert_called_once()
-        call_args = mock_ai.chat_completion.call_args[0][0]
-        system_message = next((m for m in call_args if m["role"] == "system"), None)
-        assert system_message is not None
-        # Should include dweller name
-        assert chat_dweller.first_name in system_message["content"]
-        assert chat_dweller.last_name in system_message["content"]
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify negative sentiment handling
+        assert data["happiness_impact"]["delta"] == -4  # -2 * 2
+        assert data["happiness_impact"]["reason_code"] == "chat_negative"
+        assert data["happiness_impact"]["reason_text"] == "Dweller expressed discomfort"
+
+    @patch("app.api.v1.endpoints.chat.dweller_chat_agent")
+    @patch("app.api.v1.endpoints.chat.get_ai_service")
+    async def test_chat_fallback_on_agent_failure(
+        self,
+        mock_ai_service_func: MagicMock,
+        mock_agent: MagicMock,
+        async_client: AsyncClient,
+        normal_user_token_headers: dict[str, str],
+        chat_dweller: Dweller,
+    ):
+        """Test that chat falls back to basic AI service when agent fails."""
+        # Mock agent to raise an exception
+        mock_agent.run = AsyncMock(side_effect=Exception("Agent failed"))
+
+        # Mock fallback AI service
+        mock_ai = AsyncMock()
+        mock_ai.chat_completion.return_value = "Fallback response"
+        mock_ai_service_func.return_value = mock_ai
+
+        response = await async_client.post(
+            f"chat/{chat_dweller.id}",
+            headers=normal_user_token_headers,
+            json={"message": "Hi there!"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify fallback response
+        assert data["response"] == "Fallback response"
+
+        # Verify neutral happiness impact on fallback
+        assert data["happiness_impact"]["delta"] == 0
+        assert data["happiness_impact"]["reason_code"] == "chat_neutral"
+
+        # Verify no_action suggestion on fallback
+        assert data["action_suggestion"]["action_type"] == "no_action"
 
 
 # ============================================================================

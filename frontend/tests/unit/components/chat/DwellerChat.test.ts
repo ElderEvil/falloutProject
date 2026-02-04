@@ -907,7 +907,7 @@ describe('DwellerChat', () => {
        // When DwellerChatPage is mounted, it should load vault data
        // Currently it only sets activeVaultId but doesn't call loadVault
        // This causes "Unable to access vault data" error when trying to start training
-       
+
        // NOTE: This test documents the expected behavior
        // The fix should be in DwellerChatPage.vue onMounted hook
        // It should call: await vaultStore.loadVault(result.vault.id, authStore.token)

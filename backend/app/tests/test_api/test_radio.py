@@ -478,6 +478,7 @@ async def test_manual_recruit_does_not_break_subsequent_api_calls(
     response = await async_client.get(
         "/users/me",
         headers=superuser_token_headers,
+        follow_redirects=False,
     )
     assert response.status_code == 200, (
         f"BUG REPRODUCED: Post-recruitment user profile access failed with {response.status_code}. "

@@ -29,6 +29,7 @@ from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.chat_happiness_service import apply_chat_happiness
 from app.services.conversation_service import conversation_service
 from app.services.open_ai import get_ai_service
+from app.services.websocket_manager import manager
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -205,11 +206,29 @@ async def chat_with_dweller(
         ),
     )
 
-    return DwellerChatResponse(
+    # Build response
+    response = DwellerChatResponse(
         response=response_message,
         happiness_impact=happiness_impact,
         action_suggestion=action_suggestion,
     )
+
+    # Emit WebSocket notifications after REST response is ready
+    if happiness_impact:
+        await manager.send_chat_message(
+            {"type": "happiness_update", "happiness_impact": happiness_impact.model_dump()},
+            user_id=user.id,
+            dweller_id=dweller_id,
+        )
+
+    if action_suggestion and action_suggestion.action_type != "no_action":
+        await manager.send_chat_message(
+            {"type": "action_suggestion", "action_suggestion": action_suggestion.model_dump()},
+            user_id=user.id,
+            dweller_id=dweller_id,
+        )
+
+    return response
 
 
 @router.get("/history/{dweller_id}", response_model=list[ChatMessageRead])
@@ -294,8 +313,8 @@ async def voice_chat_with_dweller(
                 },
             )
 
-        # Or return JSON with all details including happiness and action suggestion
-        return DwellerVoiceChatResponse(
+        # Build JSON response with all details including happiness and action suggestion
+        response = DwellerVoiceChatResponse(
             transcription=result["transcription"],
             user_audio_url=result["user_audio_url"],
             dweller_response=result["dweller_response"],
@@ -303,6 +322,23 @@ async def voice_chat_with_dweller(
             happiness_impact=result["happiness_impact"],
             action_suggestion=result["action_suggestion"],
         )
+
+        # Emit WebSocket notifications after REST response is ready
+        if result["happiness_impact"]:
+            await manager.send_chat_message(
+                {"type": "happiness_update", "happiness_impact": result["happiness_impact"].model_dump()},
+                user_id=user.id,
+                dweller_id=dweller_id,
+            )
+
+        if result["action_suggestion"] and result["action_suggestion"].action_type != "no_action":
+            await manager.send_chat_message(
+                {"type": "action_suggestion", "action_suggestion": result["action_suggestion"].model_dump()},
+                user_id=user.id,
+                dweller_id=dweller_id,
+            )
+
+        return response
 
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e

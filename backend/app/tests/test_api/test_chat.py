@@ -79,7 +79,7 @@ def create_mock_agent_output(
 class TestTextChat:
     """Tests for text-based chat endpoint."""
 
-    @patch("app.api.v1.endpoints.chat.dweller_chat_agent")
+    @patch("app.services.chat_service.dweller_chat_agent")
     async def test_send_text_message_success(
         self,
         mock_agent: MagicMock,
@@ -129,7 +129,7 @@ class TestTextChat:
 
         assert response.status_code == 401
 
-    @patch("app.api.v1.endpoints.chat.dweller_chat_agent")
+    @patch("app.services.chat_service.dweller_chat_agent")
     async def test_chat_returns_structured_response(
         self,
         mock_agent: MagicMock,
@@ -162,8 +162,8 @@ class TestTextChat:
         assert data["happiness_impact"]["reason_code"] == "chat_negative"
         assert data["happiness_impact"]["reason_text"] == "Dweller expressed discomfort"
 
-    @patch("app.api.v1.endpoints.chat.dweller_chat_agent")
-    @patch("app.api.v1.endpoints.chat.get_ai_service")
+    @patch("app.services.chat_service.dweller_chat_agent")
+    @patch("app.services.chat_service.get_ai_service")
     async def test_chat_fallback_on_agent_failure(
         self,
         mock_ai_service_func: MagicMock,
@@ -200,7 +200,7 @@ class TestTextChat:
         # Verify no_action suggestion on fallback
         assert data["action_suggestion"]["action_type"] == "no_action"
 
-    @patch("app.api.v1.endpoints.chat.dweller_chat_agent")
+    @patch("app.services.chat_service.dweller_chat_agent")
     @patch("app.api.v1.endpoints.chat.manager")
     async def test_chat_action_suggestion_websocket_serialization(
         self,
@@ -502,7 +502,7 @@ class TestExplorationActions:
         assert result.action_type == "no_action"
         assert result.reason == "Dweller is not currently exploring the wasteland"
 
-    @patch("app.api.v1.endpoints.chat.dweller_chat_agent")
+    @patch("app.services.chat_service.dweller_chat_agent")
     @patch("app.api.v1.endpoints.chat.manager")
     async def test_start_exploration_action_api_response(
         self,
@@ -558,7 +558,7 @@ class TestMessageIdCorrelation:
     2. WS action_suggestion payloads include message_id matching the HTTP response
     """
 
-    @patch("app.api.v1.endpoints.chat.dweller_chat_agent")
+    @patch("app.services.chat_service.dweller_chat_agent")
     @patch("app.api.v1.endpoints.chat.manager")
     async def test_text_chat_response_includes_dweller_message_id(
         self,
@@ -597,7 +597,7 @@ class TestMessageIdCorrelation:
         except ValueError:
             pytest.fail(f"dweller_message_id '{dweller_message_id}' is not a valid UUID")
 
-    @patch("app.api.v1.endpoints.chat.dweller_chat_agent")
+    @patch("app.services.chat_service.dweller_chat_agent")
     @patch("app.api.v1.endpoints.chat.manager")
     async def test_ws_action_suggestion_includes_message_id(
         self,
@@ -659,7 +659,7 @@ class TestMessageIdCorrelation:
             f"WS message_id '{action_msg['message_id']}' should match HTTP dweller_message_id '{dweller_message_id}'"
         )
 
-    @patch("app.api.v1.endpoints.chat.dweller_chat_agent")
+    @patch("app.services.chat_service.dweller_chat_agent")
     @patch("app.api.v1.endpoints.chat.manager")
     async def test_ws_message_id_is_valid_uuid(
         self,

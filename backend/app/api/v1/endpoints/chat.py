@@ -294,13 +294,15 @@ async def voice_chat_with_dweller(
                 },
             )
 
-        # Or return JSON with all details
-        return {
-            "transcription": result["transcription"],
-            "user_audio_url": result["user_audio_url"],
-            "dweller_response": result["dweller_response"],
-            "dweller_audio_url": result["dweller_audio_url"],
-        }
+        # Or return JSON with all details including happiness and action suggestion
+        return DwellerVoiceChatResponse(
+            transcription=result["transcription"],
+            user_audio_url=result["user_audio_url"],
+            dweller_response=result["dweller_response"],
+            dweller_audio_url=result["dweller_audio_url"],
+            happiness_impact=result["happiness_impact"],
+            action_suggestion=result["action_suggestion"],
+        )
 
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e

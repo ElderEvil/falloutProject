@@ -9,14 +9,47 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
-## [2.9.0] - 2026-02-04
+## [2.9.0] - 2026-02-05
+
+### What's New
+- **Enhanced Admin Panel** - Now shows all the important details at a glance
+  - Chat messages now display happiness changes and audio info
+  - Vault stats include resource maximums and population limits
+  - Dweller details show radiation, stimpacks, radaways, and death status
+  - Room coordinates, costs, and speedup multipliers are now visible
 
 ### Fixed
+- **Chat Training Actions** - No more "Unable to access vault data" errors
+  - Training actions from chat now work smoothly
+  - Vault data properly loads when you open chat with a dweller
+- **Cleaner Chat Messages** - Removed duplicate action text
+  - Dwellers now express desires naturally without repeating what the action button says
+  - Example: "I'm feeling energetic!" instead of "I'd love to work in the Power Generator! + [Button: Assign to Power Generator]"
+- **More Reliable Chat** - Chat keeps working even if real-time notifications fail
+  - WebSocket errors won't break your conversation anymore
+  - You'll always get the dweller's response
+- **Smoother Exploration Recall** - No more crashes when checking exploration progress
+  - Safely handles cases where progress data isn't available yet
+- **Better WebSocket Connections** - Fixed connection issues with different URL formats
+  - Handles URLs with or without http://, with or without trailing slashes
+  - More robust connection handling
+- **Happiness Accuracy** - Vault happiness now includes the dweller you just chatted with
+  - Fixed a timing issue where vault happiness was calculated before saving the dweller's new mood
+
+### Improvements
+- **Better Error Messages** - Chat endpoints now use proper validation errors
+  - Empty audio files get a clear validation error instead of generic server error
+- **Code Quality** - Cleaner, more maintainable codebase
+  - Moved chat business logic from API endpoints to service layer
+  - Objectives generation moved to the correct endpoint location
+  - Better code organization following clean architecture
+
+### Technical
 - **Auth Token Refresh** - Fixed 422 validation error when refreshing access tokens
   - Backend now accepts `refresh_token` in request body (JSON) instead of query parameter
   - More RESTful and secure (tokens no longer exposed in URLs/logs)
-  - Updated frontend auth service and axios interceptor to send JSON body
-  - Updated all tests to match new API contract
+- **Message Tracking** - Chat responses now include message IDs for better debugging and tracking
+- **CSS to Tailwind** - Room components now use Tailwind utilities for better performance
 
 ---
 

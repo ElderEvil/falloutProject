@@ -417,9 +417,8 @@ const handleRecruitDweller = async () => {
 
     toast.success(response.data.message || 'Dweller recruited successfully!')
 
-    // Refresh vault and dwellers
     await vaultStore.refreshVault(vaultId.value, authStore.token!)
-    await dwellerStore.fetchDwellers(vaultId.value, authStore.token!)
+    await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token!)
   } catch (error: any) {
     console.error('Failed to recruit dweller:', error)
     const message = error.response?.data?.detail || 'Failed to recruit dweller'

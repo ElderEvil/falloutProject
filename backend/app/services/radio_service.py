@@ -204,9 +204,9 @@ class RadioService:
         Raises:
             ValueError: If insufficient caps or no radio room
         """
-        # Get vault
-        vault_query = select(Vault).where(Vault.id == vault_id)
-        vault = (await db_session.execute(vault_query)).scalars().first()
+        from app.crud import vault as crud_vault
+
+        vault = await crud_vault.get(db_session, vault_id)
 
         if not vault:
             msg = "Vault not found"
@@ -215,13 +215,11 @@ class RadioService:
         if caps_cost is None:
             caps_cost = game_config.radio.manual_recruitment_cost
 
-        # Check if vault has radio room
         radio_rooms = await RadioService.get_radio_rooms(db_session, vault_id)
         if not radio_rooms:
             msg = "No radio room available"
             raise ValueError(msg)
 
-        # Check if any radio room has assigned dwellers
         radio_room_ids = [room.id for room in radio_rooms]
         dwellers_query = select(Dweller).where(
             Dweller.room_id.in_(radio_room_ids), Dweller.vault_id == vault_id, Dweller.is_deleted == False
@@ -232,16 +230,12 @@ class RadioService:
             msg = "No residents assigned to radio room"
             raise ValueError(msg)
 
-        # Check if vault has enough caps
         if vault.bottle_caps < caps_cost:
             msg = f"Insufficient caps ({vault.bottle_caps}/{caps_cost})"
             raise ValueError(msg)
 
-        # Deduct caps
-        vault.bottle_caps -= caps_cost
-        await db_session.commit()
+        await crud_vault.withdraw_caps(db_session=db_session, vault_obj=vault, amount=caps_cost)
 
-        # Recruit dweller
         dweller = await RadioService.recruit_dweller(db_session, vault_id, override)
 
         logger.info(

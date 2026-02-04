@@ -60,6 +60,9 @@ async def apply_chat_happiness(
     new_happiness = max(DWELLER_HAPPINESS_MIN, min(DWELLER_HAPPINESS_MAX, old_happiness + delta))
     dweller.happiness = new_happiness
 
+    # Flush to ensure updated happiness is visible in next query
+    await db_session.flush()
+
     # Get all dwellers in vault to recalculate average
     dwellers = await dweller_crud.get_multi_by_vault(db_session, vault.id)
 

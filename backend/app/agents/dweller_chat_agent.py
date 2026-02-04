@@ -31,6 +31,8 @@ model = AIService.get_model()
 
 # --- Structured Output Schema ---
 
+ACTION_TYPES = Literal["assign_to_room", "start_training", "start_exploration", "recall_exploration", "no_action"]
+
 
 class DwellerChatOutput(BaseModel):
     """Structured output from the dweller chat agent."""
@@ -50,11 +52,9 @@ class DwellerChatOutput(BaseModel):
         max_length=200,
         description="Brief explanation of why the sentiment score was chosen",
     )
-    action_type: Literal["assign_to_room", "start_training", "start_exploration", "recall_exploration", "no_action"] = (
-        Field(
-            ...,
-            description="Type of action suggestion based on conversation context",
-        )
+    action_type: ACTION_TYPES = Field(
+        ...,
+        description="Type of action suggestion based on conversation context",
     )
     action_room_id: UUID4 | None = Field(
         None,
@@ -305,9 +305,12 @@ def get_best_room_recommendation(ctx: RunContext[DwellerChatDeps]) -> str:
         SPECIALEnum.LUCK: "Game Room",
     }
 
+    default_room = "any production room"
+    recommended_room = stat_room_map.get(best_stat, default_room)
+
     return (
         f"Dweller's best stat is {best_stat.value} ({best_value}). "
-        f"Recommended room type: {stat_room_map.get(best_stat, 'any production room')}. "
+        f"Recommended room type: {recommended_room}. "
         f"Look for production rooms with ability={best_stat.value} in the available rooms list."
     )
 

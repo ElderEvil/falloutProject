@@ -187,7 +187,15 @@ export function useWebSocket(initialUrl?: string) {
 // Specific composable for chat WebSocket
 export function useChatWebSocket(userId: string, dwellerId: string) {
   // Get WebSocket base URL from environment (same as axios API base URL)
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+  let apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+
+  // Normalize: add default scheme if missing
+  if (!apiBaseUrl.match(/^https?:\/\//)) {
+    apiBaseUrl = `http://${apiBaseUrl}`
+  }
+
+  // Remove trailing slashes
+  apiBaseUrl = apiBaseUrl.replace(/\/+$/, '')
 
   // Convert HTTP/HTTPS to WS/WSS protocol
   const wsBaseUrl = apiBaseUrl.replace(/^https?/, (match) => (match === 'https' ? 'wss' : 'ws'))

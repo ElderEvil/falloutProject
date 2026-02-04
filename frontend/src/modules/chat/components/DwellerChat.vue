@@ -393,7 +393,7 @@ const handleRecallExploration = async (action: RecallExplorationAction) => {
   try {
     const progress = await explorationStore.fetchExplorationProgress(action.exploration_id, authStore.token)
 
-    if (progress.progress_percentage >= 100) {
+    if (progress && typeof progress.progress_percentage === 'number' && progress.progress_percentage >= 100) {
       toast.info(`Completing ${props.dwellerName}'s exploration...`)
       await explorationStore.completeExploration(action.exploration_id, authStore.token)
       toast.success(`${props.dwellerName}'s exploration completed!`)

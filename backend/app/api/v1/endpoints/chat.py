@@ -15,6 +15,7 @@ from app.schemas.chat import DwellerChatResponse, DwellerVoiceChatResponse
 from app.services.chat_service import chat_service
 from app.services.conversation_service import conversation_service
 from app.services.websocket_manager import manager
+from app.utils.exceptions import ValidationException
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -40,20 +41,26 @@ async def chat_with_dweller(
             message_text=message.message,
         )
 
-        # Emit WebSocket notifications after REST response is ready
-        if response.happiness_impact:
-            await manager.send_chat_message(
-                {"type": "happiness_update", "happiness_impact": response.happiness_impact.model_dump(mode="json")},
-                user_id=user.id,
-                dweller_id=dweller_id,
-            )
+        # Emit WebSocket notifications after REST response is ready (non-fatal)
+        try:
+            if response.happiness_impact:
+                await manager.send_chat_message(
+                    {"type": "happiness_update", "happiness_impact": response.happiness_impact.model_dump(mode="json")},
+                    user_id=user.id,
+                    dweller_id=dweller_id,
+                )
 
-        if response.action_suggestion and response.action_suggestion.action_type != "no_action":
-            await manager.send_chat_message(
-                {"type": "action_suggestion", "action_suggestion": response.action_suggestion.model_dump(mode="json")},
-                user_id=user.id,
-                dweller_id=dweller_id,
-            )
+            if response.action_suggestion and response.action_suggestion.action_type != "no_action":
+                await manager.send_chat_message(
+                    {
+                        "type": "action_suggestion",
+                        "action_suggestion": response.action_suggestion.model_dump(mode="json"),
+                    },
+                    user_id=user.id,
+                    dweller_id=dweller_id,
+                )
+        except Exception:
+            logger.exception("Failed to send WebSocket notification, continuing with REST response")
 
         return response
 
@@ -116,8 +123,7 @@ async def voice_chat_with_dweller(
         audio_bytes = await audio_file.read()
 
         if len(audio_bytes) == 0:
-            msg = "Empty audio file"
-            raise HTTPException(status_code=400, detail=msg)
+            raise ValidationException(detail="Empty audio file")
 
         # Get filename for format detection
         filename = audio_file.filename or "audio.webm"
@@ -153,20 +159,29 @@ async def voice_chat_with_dweller(
             action_suggestion=result["action_suggestion"],
         )
 
-        # Emit WebSocket notifications after REST response is ready
-        if result["happiness_impact"]:
-            await manager.send_chat_message(
-                {"type": "happiness_update", "happiness_impact": result["happiness_impact"].model_dump(mode="json")},
-                user_id=user.id,
-                dweller_id=dweller_id,
-            )
+        # Emit WebSocket notifications after REST response is ready (non-fatal)
+        try:
+            if result["happiness_impact"]:
+                await manager.send_chat_message(
+                    {
+                        "type": "happiness_update",
+                        "happiness_impact": result["happiness_impact"].model_dump(mode="json"),
+                    },
+                    user_id=user.id,
+                    dweller_id=dweller_id,
+                )
 
-        if result["action_suggestion"] and result["action_suggestion"].action_type != "no_action":
-            await manager.send_chat_message(
-                {"type": "action_suggestion", "action_suggestion": result["action_suggestion"].model_dump(mode="json")},
-                user_id=user.id,
-                dweller_id=dweller_id,
-            )
+            if result["action_suggestion"] and result["action_suggestion"].action_type != "no_action":
+                await manager.send_chat_message(
+                    {
+                        "type": "action_suggestion",
+                        "action_suggestion": result["action_suggestion"].model_dump(mode="json"),
+                    },
+                    user_id=user.id,
+                    dweller_id=dweller_id,
+                )
+        except Exception:
+            logger.exception("Failed to send WebSocket notification, continuing with REST response")
 
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e

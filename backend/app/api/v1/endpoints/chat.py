@@ -45,7 +45,11 @@ async def chat_with_dweller(
         try:
             if response.happiness_impact:
                 await manager.send_chat_message(
-                    {"type": "happiness_update", "happiness_impact": response.happiness_impact.model_dump(mode="json")},
+                    {
+                        "type": "happiness_update",
+                        "happiness_impact": response.happiness_impact.model_dump(mode="json"),
+                        "message_id": str(response.dweller_message_id),
+                    },
                     user_id=user.id,
                     dweller_id=dweller_id,
                 )
@@ -55,6 +59,7 @@ async def chat_with_dweller(
                     {
                         "type": "action_suggestion",
                         "action_suggestion": response.action_suggestion.model_dump(mode="json"),
+                        "message_id": str(response.dweller_message_id),
                     },
                     user_id=user.id,
                     dweller_id=dweller_id,
@@ -137,35 +142,14 @@ async def voice_chat_with_dweller(
             audio_filename=filename,
         )
 
-        # Return audio bytes directly for immediate playback
-        if return_audio:
-            return Response(
-                content=result["dweller_audio_bytes"],
-                media_type="audio/mpeg",
-                headers={
-                    "Content-Disposition": 'inline; filename="dweller_response.mp3"',
-                    "X-Transcription": result["transcription"],
-                    "X-Response-Text": result["dweller_response"],
-                },
-            )
-
-        # Build JSON response with all details including happiness and action suggestion
-        response = DwellerVoiceChatResponse(
-            transcription=result["transcription"],
-            user_audio_url=result["user_audio_url"],
-            dweller_response=result["dweller_response"],
-            dweller_audio_url=result["dweller_audio_url"],
-            happiness_impact=result["happiness_impact"],
-            action_suggestion=result["action_suggestion"],
-        )
-
-        # Emit WebSocket notifications after REST response is ready (non-fatal)
+        # Emit WebSocket notifications (non-fatal)
         try:
             if result["happiness_impact"]:
                 await manager.send_chat_message(
                     {
                         "type": "happiness_update",
                         "happiness_impact": result["happiness_impact"].model_dump(mode="json"),
+                        "message_id": str(result["dweller_message_id"]),
                     },
                     user_id=user.id,
                     dweller_id=dweller_id,
@@ -176,12 +160,37 @@ async def voice_chat_with_dweller(
                     {
                         "type": "action_suggestion",
                         "action_suggestion": result["action_suggestion"].model_dump(mode="json"),
+                        "message_id": str(result["dweller_message_id"]),
                     },
                     user_id=user.id,
                     dweller_id=dweller_id,
                 )
         except Exception:
             logger.exception("Failed to send WebSocket notification, continuing with REST response")
+
+        # Return audio bytes directly for immediate playback
+        if return_audio:
+            return Response(
+                content=result["dweller_audio_bytes"],
+                media_type="audio/mpeg",
+                headers={
+                    "Content-Disposition": 'inline; filename="dweller_response.mp3"',
+                    "X-Transcription": result["transcription"],
+                    "X-Response-Text": result["dweller_response"],
+                    "X-Message-Id": str(result["dweller_message_id"]),
+                },
+            )
+
+        # Build JSON response with all details including happiness and action suggestion
+        response = DwellerVoiceChatResponse(
+            transcription=result["transcription"],
+            user_audio_url=result["user_audio_url"],
+            dweller_response=result["dweller_response"],
+            dweller_audio_url=result["dweller_audio_url"],
+            dweller_message_id=result["dweller_message_id"],
+            happiness_impact=result["happiness_impact"],
+            action_suggestion=result["action_suggestion"],
+        )
 
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e

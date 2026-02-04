@@ -734,6 +734,7 @@ class TestMessageIdCorrelation:
         from app.schemas.happiness import HappinessImpact, HappinessReasonCode
 
         # Mock conversation_service.process_audio_message result
+        mock_message_id = uuid4()
         mock_conversation_service.process_audio_message = AsyncMock(
             return_value={
                 "transcription": "Hello there!",
@@ -741,6 +742,7 @@ class TestMessageIdCorrelation:
                 "dweller_response": "Hi! How can I help?",
                 "dweller_audio_url": "https://example.com/dweller.mp3",
                 "dweller_audio_bytes": b"fake audio bytes",
+                "dweller_message_id": mock_message_id,
                 "happiness_impact": HappinessImpact(
                     score=40,
                     delta=4,
@@ -796,6 +798,7 @@ class TestMessageIdCorrelation:
         from app.schemas.happiness import HappinessImpact, HappinessReasonCode
 
         room_id = uuid4()
+        mock_message_id = uuid4()
 
         # Mock conversation_service with an actionable suggestion
         mock_conversation_service.process_audio_message = AsyncMock(
@@ -805,6 +808,7 @@ class TestMessageIdCorrelation:
                 "dweller_response": "You should work in the power plant!",
                 "dweller_audio_url": "https://example.com/dweller.mp3",
                 "dweller_audio_bytes": b"fake audio bytes",
+                "dweller_message_id": mock_message_id,
                 "happiness_impact": HappinessImpact(
                     score=20,
                     delta=2,

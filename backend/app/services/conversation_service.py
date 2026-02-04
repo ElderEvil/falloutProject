@@ -271,7 +271,7 @@ class ConversationService:
             chat_create_data.happiness_delta = happiness_impact.delta
             chat_create_data.happiness_reason = happiness_impact.reason_text
 
-        await chat_message_crud.create_message(
+        dweller_message = await chat_message_crud.create_message(
             db_session,
             obj_in=chat_create_data,
         )
@@ -282,6 +282,7 @@ class ConversationService:
             "dweller_response": dweller_response_text,
             "dweller_audio_url": dweller_audio_url,
             "dweller_audio_bytes": dweller_audio_bytes,  # For immediate playback
+            "dweller_message_id": dweller_message.id,
             "happiness_impact": happiness_impact,
             "action_suggestion": action_suggestion,
         }

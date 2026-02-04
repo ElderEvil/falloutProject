@@ -167,7 +167,7 @@ class ChatService:
             chat_create_data.happiness_delta = happiness_impact.delta
             chat_create_data.happiness_reason = happiness_impact.reason_text
 
-        await chat_message_crud.create_message(
+        dweller_message = await chat_message_crud.create_message(
             db_session,
             obj_in=chat_create_data,
         )
@@ -175,6 +175,7 @@ class ChatService:
         # Build and return response
         return DwellerChatResponse(
             response=response_message,
+            dweller_message_id=dweller_message.id,
             happiness_impact=happiness_impact,
             action_suggestion=action_suggestion,
         )

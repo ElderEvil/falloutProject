@@ -69,6 +69,7 @@ class DwellerChatResponse(BaseModel):
     """
 
     response: str = Field(..., description="The dweller's chat response text")
+    dweller_message_id: UUID4 = Field(..., description="ID of the dweller's chat message in database")
     happiness_impact: HappinessImpact | None = Field(
         None,
         description="Happiness impact from this interaction (None if not analyzed)",
@@ -86,6 +87,7 @@ class DwellerVoiceChatResponse(BaseModel):
     user_audio_url: str | None = Field(None, description="URL to stored user audio")
     dweller_response: str = Field(..., description="The dweller's text response")
     dweller_audio_url: str | None = Field(None, description="URL to dweller's audio response")
+    dweller_message_id: UUID4 = Field(..., description="ID of the dweller's chat message in database")
     happiness_impact: HappinessImpact | None = Field(
         None,
         description="Happiness impact from this interaction",

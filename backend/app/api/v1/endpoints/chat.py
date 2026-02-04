@@ -295,7 +295,7 @@ async def voice_chat_with_dweller(
 
         if len(audio_bytes) == 0:
             msg = "Empty audio file"
-            raise HTTPException(status_code=400, detail=msg)  # noqa: TRY301
+            raise HTTPException(status_code=400, detail=msg)
 
         # Get filename for format detection
         filename = audio_file.filename or "audio.webm"

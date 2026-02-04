@@ -658,7 +658,7 @@ wheels = [
 
 [[package]]
 name = "fallout-shelter-fast-api"
-version = "2.8.5"
+version = "2.9.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiosmtplib" },

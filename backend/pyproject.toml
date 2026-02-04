@@ -128,6 +128,7 @@ lint.ignore = [
     "UP037",
     "UP045",
     "UP046",
+    "TRY301",
     "G004",
     "FBT001",  # Boolean-typed positional argument
     "FBT002",  # Boolean default positional argument

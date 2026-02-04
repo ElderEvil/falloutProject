@@ -1,15 +1,32 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.db.session import get_async_session
-from app.models.objective import Objective
+from app.models.objective import Objective, ObjectiveBase
+from app.schemas.common import ObjectiveKindEnum
 from app.schemas.objective import ObjectiveCreate, ObjectiveRead
+from app.services.chat_service import chat_service
 
 router = APIRouter()
+
+
+@router.get("/generate", response_model=list[ObjectiveBase])
+async def generate_objectives(
+    objective_kind: ObjectiveKindEnum,
+    objective_count: int = 3,
+):
+    """Generate game objectives using AI."""
+    try:
+        return await chat_service.generate_objectives(
+            objective_kind=objective_kind,
+            objective_count=objective_count,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail="Failed to generate objectives") from e
 
 
 @router.post("/{vault_id}/", response_model=Objective)

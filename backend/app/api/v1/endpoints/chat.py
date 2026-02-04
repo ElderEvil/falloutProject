@@ -11,30 +11,13 @@ from app.crud.chat_message import chat_message as chat_message_crud
 from app.crud.dweller import dweller as dweller_crud
 from app.db.session import get_async_session
 from app.models.chat_message import ChatMessageRead
-from app.models.objective import ObjectiveBase
 from app.schemas.chat import DwellerChatResponse, DwellerVoiceChatResponse
-from app.schemas.common import ObjectiveKindEnum
 from app.services.chat_service import chat_service
 from app.services.conversation_service import conversation_service
 from app.services.websocket_manager import manager
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-
-@router.get("/generate_objectives", response_model=list[ObjectiveBase])
-async def generate_objectives(
-    objective_kind: ObjectiveKindEnum,
-    objective_count: int = 3,
-):
-    """Generate game objectives using AI."""
-    try:
-        return await chat_service.generate_objectives(
-            objective_kind=objective_kind,
-            objective_count=objective_count,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail="Failed to generate objectives") from e
 
 
 class ChatMessage(BaseModel):

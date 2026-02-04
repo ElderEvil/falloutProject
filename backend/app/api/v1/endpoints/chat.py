@@ -216,14 +216,14 @@ async def chat_with_dweller(
     # Emit WebSocket notifications after REST response is ready
     if happiness_impact:
         await manager.send_chat_message(
-            {"type": "happiness_update", "happiness_impact": happiness_impact.model_dump()},
+            {"type": "happiness_update", "happiness_impact": happiness_impact.model_dump(mode="json")},
             user_id=user.id,
             dweller_id=dweller_id,
         )
 
     if action_suggestion and action_suggestion.action_type != "no_action":
         await manager.send_chat_message(
-            {"type": "action_suggestion", "action_suggestion": action_suggestion.model_dump()},
+            {"type": "action_suggestion", "action_suggestion": action_suggestion.model_dump(mode="json")},
             user_id=user.id,
             dweller_id=dweller_id,
         )
@@ -326,14 +326,14 @@ async def voice_chat_with_dweller(
         # Emit WebSocket notifications after REST response is ready
         if result["happiness_impact"]:
             await manager.send_chat_message(
-                {"type": "happiness_update", "happiness_impact": result["happiness_impact"].model_dump()},
+                {"type": "happiness_update", "happiness_impact": result["happiness_impact"].model_dump(mode="json")},
                 user_id=user.id,
                 dweller_id=dweller_id,
             )
 
         if result["action_suggestion"] and result["action_suggestion"].action_type != "no_action":
             await manager.send_chat_message(
-                {"type": "action_suggestion", "action_suggestion": result["action_suggestion"].model_dump()},
+                {"type": "action_suggestion", "action_suggestion": result["action_suggestion"].model_dump(mode="json")},
                 user_id=user.id,
                 dweller_id=dweller_id,
             )

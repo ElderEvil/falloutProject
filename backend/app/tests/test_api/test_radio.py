@@ -457,7 +457,8 @@ async def test_manual_recruit_does_not_break_subsequent_api_calls(
     )
     assert response.status_code == 200, (
         f"BUG REPRODUCED: Post-recruitment vault access failed with {response.status_code}. "
-        f"User appears logged out after recruitment. Response: {response.json() if response.status_code != 200 else 'OK'}"
+        f"User appears logged out after recruitment. Response: "
+        f"{response.json() if response.status_code != 200 else 'OK'}"
     )
     vault_after = response.json()
     assert vault_after["bottle_caps"] == initial_caps - 500, "Caps should be deducted"
@@ -489,8 +490,6 @@ async def test_manual_recruit_does_not_break_subsequent_api_calls(
 async def test_manual_recruit_with_assigned_dweller(
     async_session: AsyncSession,
     vault: "Vault",  # noqa: F821
-    radio_room: "Room",  # noqa: F821
-    radio_dweller: "Dweller",  # noqa: F821
 ):
     """
     Test that manual recruitment correctly handles vault state without corruption.

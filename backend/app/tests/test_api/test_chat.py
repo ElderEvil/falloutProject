@@ -4,7 +4,9 @@ Note: These are simplified tests focusing on API contract validation and basic f
 Integration tests with external services (OpenAI API, MinIO) are omitted due to complexity.
 """
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -195,6 +197,73 @@ class TestTextChat:
 
         # Verify no_action suggestion on fallback
         assert data["action_suggestion"]["action_type"] == "no_action"
+
+    @patch("app.api.v1.endpoints.chat.dweller_chat_agent")
+    @patch("app.api.v1.endpoints.chat.manager")
+    async def test_chat_action_suggestion_websocket_serialization(
+        self,
+        mock_manager: MagicMock,
+        mock_agent: MagicMock,
+        async_client: AsyncClient,
+        normal_user_token_headers: dict[str, str],
+        chat_dweller: Dweller,
+    ):
+        """Test that action suggestions with UUIDs serialize correctly for WebSocket.
+
+        Regression test for Bug #4: UUID JSON serialization error.
+        Verifies that room_id (UUID) is converted to string in WebSocket message.
+        """
+        room_id = uuid4()
+
+        mock_output = DwellerChatOutput(
+            response_text="You should work in the power plant!",
+            sentiment_score=1,
+            reason_text="Dweller has high strength",
+            action_type="assign_to_room",
+            action_room_id=room_id,
+            action_room_name="Power Plant",
+            action_stat=None,
+            action_reason="High strength stat makes this ideal",
+        )
+        mock_result = MagicMock(spec=AgentRunResult)
+        mock_result.output = mock_output
+        mock_agent.run = AsyncMock(return_value=mock_result)
+
+        captured_messages = []
+
+        async def capture_message(message, **_kwargs):
+            json.dumps(message)
+            captured_messages.append(message)
+
+        mock_manager.send_chat_message = AsyncMock(side_effect=capture_message)
+
+        response = await async_client.post(
+            f"chat/{chat_dweller.id}",
+            headers=normal_user_token_headers,
+            json={"message": "What should I do?"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert "action_suggestion" in data
+        assert data["action_suggestion"]["action_type"] == "assign_to_room"
+        assert data["action_suggestion"]["room_id"] == str(room_id)
+        assert data["action_suggestion"]["room_name"] == "Power Plant"
+
+        assert len(captured_messages) > 0
+
+        action_msg = next(
+            (msg for msg in captured_messages if msg.get("type") == "action_suggestion"),
+            None,
+        )
+        assert action_msg is not None
+
+        action_suggestion = action_msg["action_suggestion"]
+        assert isinstance(action_suggestion["room_id"], str)
+        assert action_suggestion["room_id"] == str(room_id)
+        assert action_suggestion["room_name"] == "Power Plant"
+        assert action_suggestion["action_type"] == "assign_to_room"
 
 
 # ============================================================================

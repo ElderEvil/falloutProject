@@ -19,7 +19,7 @@ from app.agents.dweller_chat_agent import DwellerChatOutput, parse_action_sugges
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration, ExplorationStatus
 from app.models.vault import Vault
-from app.schemas.chat import NoAction, RecallExplorationAction, StartExplorationAction
+from app.schemas.chat import AssignToRoomAction, NoAction, RecallExplorationAction, StartExplorationAction
 from app.schemas.common import GenderEnum
 from app.schemas.dweller import DwellerCreate
 from app.tests.factory.dwellers import create_fake_dweller
@@ -542,3 +542,319 @@ class TestExplorationActions:
         assert data["action_suggestion"]["duration_hours"] == 4
         assert data["action_suggestion"]["stimpaks"] == 2  # min(5, 2)
         assert data["action_suggestion"]["radaways"] == 1  # min(3, 1)
+
+
+# ============================================================================
+# Message ID Tests (for WS action_suggestion correlation)
+# ============================================================================
+
+
+@pytest.mark.asyncio
+class TestMessageIdCorrelation:
+    """Tests for dweller_message_id in HTTP responses and message_id in WS payloads.
+
+    These tests verify that:
+    1. HTTP responses include dweller_message_id (UUID) for correlation
+    2. WS action_suggestion payloads include message_id matching the HTTP response
+    """
+
+    @patch("app.api.v1.endpoints.chat.dweller_chat_agent")
+    @patch("app.api.v1.endpoints.chat.manager")
+    async def test_text_chat_response_includes_dweller_message_id(
+        self,
+        mock_manager: MagicMock,
+        mock_agent: MagicMock,
+        async_client: AsyncClient,
+        normal_user_token_headers: dict[str, str],
+        chat_dweller: Dweller,
+    ):
+        """Test that POST /chat/{dweller_id} response includes dweller_message_id (UUID)."""
+        mock_output = create_mock_agent_output()
+        mock_result = MagicMock(spec=AgentRunResult)
+        mock_result.output = mock_output
+        mock_agent.run = AsyncMock(return_value=mock_result)
+        mock_manager.send_chat_message = AsyncMock()
+
+        response = await async_client.post(
+            f"chat/{chat_dweller.id}",
+            headers=normal_user_token_headers,
+            json={"message": "Hello!"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify dweller_message_id is present and is a valid UUID
+        assert "dweller_message_id" in data, "Response should include dweller_message_id"
+        dweller_message_id = data["dweller_message_id"]
+        assert dweller_message_id is not None, "dweller_message_id should not be None"
+
+        # Verify it's a valid UUID string
+        import uuid
+
+        try:
+            uuid.UUID(dweller_message_id)
+        except ValueError:
+            pytest.fail(f"dweller_message_id '{dweller_message_id}' is not a valid UUID")
+
+    @patch("app.api.v1.endpoints.chat.dweller_chat_agent")
+    @patch("app.api.v1.endpoints.chat.manager")
+    async def test_ws_action_suggestion_includes_message_id(
+        self,
+        mock_manager: MagicMock,
+        mock_agent: MagicMock,
+        async_client: AsyncClient,
+        normal_user_token_headers: dict[str, str],
+        chat_dweller: Dweller,
+    ):
+        """Test that WS action_suggestion payload includes message_id matching dweller_message_id."""
+        room_id = uuid4()
+
+        # Create agent output with an actionable suggestion
+        mock_output = DwellerChatOutput(
+            response_text="You should work in the power plant!",
+            sentiment_score=2,
+            reason_text="Dweller has high strength",
+            action_type="assign_to_room",
+            action_room_id=room_id,
+            action_room_name="Power Plant",
+            action_stat=None,
+            action_reason="High strength stat makes this ideal",
+        )
+        mock_result = MagicMock(spec=AgentRunResult)
+        mock_result.output = mock_output
+        mock_agent.run = AsyncMock(return_value=mock_result)
+
+        # Capture WS messages
+        captured_messages = []
+
+        async def capture_message(message, **_kwargs):
+            captured_messages.append(message)
+
+        mock_manager.send_chat_message = AsyncMock(side_effect=capture_message)
+
+        response = await async_client.post(
+            f"chat/{chat_dweller.id}",
+            headers=normal_user_token_headers,
+            json={"message": "What should I do?"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Get the dweller_message_id from HTTP response
+        assert "dweller_message_id" in data, "Response should include dweller_message_id"
+        dweller_message_id = data["dweller_message_id"]
+
+        # Find the action_suggestion WS message
+        action_msg = next(
+            (msg for msg in captured_messages if msg.get("type") == "action_suggestion"),
+            None,
+        )
+        assert action_msg is not None, "WS action_suggestion message should be sent"
+
+        # Verify message_id in WS payload matches dweller_message_id
+        assert "message_id" in action_msg, "WS action_suggestion should include message_id"
+        assert action_msg["message_id"] == dweller_message_id, (
+            f"WS message_id '{action_msg['message_id']}' should match HTTP dweller_message_id '{dweller_message_id}'"
+        )
+
+    @patch("app.api.v1.endpoints.chat.dweller_chat_agent")
+    @patch("app.api.v1.endpoints.chat.manager")
+    async def test_ws_message_id_is_valid_uuid(
+        self,
+        mock_manager: MagicMock,
+        mock_agent: MagicMock,
+        async_client: AsyncClient,
+        normal_user_token_headers: dict[str, str],
+        chat_dweller: Dweller,
+    ):
+        """Test that WS action_suggestion message_id is a valid UUID string."""
+        room_id = uuid4()
+
+        mock_output = DwellerChatOutput(
+            response_text="Let me help you!",
+            sentiment_score=1,
+            reason_text="Helpful dweller",
+            action_type="assign_to_room",
+            action_room_id=room_id,
+            action_room_name="Science Lab",
+            action_stat=None,
+            action_reason="Good intelligence stat",
+        )
+        mock_result = MagicMock(spec=AgentRunResult)
+        mock_result.output = mock_output
+        mock_agent.run = AsyncMock(return_value=mock_result)
+
+        captured_messages = []
+
+        async def capture_message(message, **_kwargs):
+            captured_messages.append(message)
+
+        mock_manager.send_chat_message = AsyncMock(side_effect=capture_message)
+
+        response = await async_client.post(
+            f"chat/{chat_dweller.id}",
+            headers=normal_user_token_headers,
+            json={"message": "Where should I work?"},
+        )
+
+        assert response.status_code == 200
+
+        action_msg = next(
+            (msg for msg in captured_messages if msg.get("type") == "action_suggestion"),
+            None,
+        )
+        assert action_msg is not None
+
+        # Verify message_id is a valid UUID
+        import uuid
+
+        message_id = action_msg.get("message_id")
+        assert message_id is not None, "message_id should not be None"
+
+        try:
+            uuid.UUID(message_id)
+        except ValueError:
+            pytest.fail(f"message_id '{message_id}' is not a valid UUID")
+
+    @patch("app.api.v1.endpoints.chat.conversation_service")
+    @patch("app.api.v1.endpoints.chat.manager")
+    async def test_voice_chat_response_includes_dweller_message_id(
+        self,
+        mock_manager: MagicMock,
+        mock_conversation_service: MagicMock,
+        async_client: AsyncClient,
+        normal_user_token_headers: dict[str, str],
+        chat_dweller: Dweller,
+    ):
+        """Test that POST /chat/{dweller_id}/voice response includes dweller_message_id (UUID)."""
+        import io
+
+        from app.schemas.happiness import HappinessImpact, HappinessReasonCode
+
+        # Mock conversation_service.process_audio_message result
+        mock_conversation_service.process_audio_message = AsyncMock(
+            return_value={
+                "transcription": "Hello there!",
+                "user_audio_url": "https://example.com/user.webm",
+                "dweller_response": "Hi! How can I help?",
+                "dweller_audio_url": "https://example.com/dweller.mp3",
+                "dweller_audio_bytes": b"fake audio bytes",
+                "happiness_impact": HappinessImpact(
+                    score=40,
+                    delta=4,
+                    reason_code=HappinessReasonCode.CHAT_POSITIVE,
+                    reason_text="Friendly greeting",
+                    happiness_after=84,
+                ),
+                "action_suggestion": NoAction(reason="No action needed"),
+            }
+        )
+        mock_manager.send_chat_message = AsyncMock()
+
+        # Create fake audio file
+        audio_data = b"RIFF" + b"\x00" * 100
+        files = {"audio_file": ("test.webm", io.BytesIO(audio_data), "audio/webm")}
+
+        response = await async_client.post(
+            f"chat/{chat_dweller.id}/voice",
+            headers=normal_user_token_headers,
+            files=files,
+            params={"return_audio": False},  # Request JSON response
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify dweller_message_id is present and is a valid UUID
+        assert "dweller_message_id" in data, "Voice chat response should include dweller_message_id"
+        dweller_message_id = data["dweller_message_id"]
+        assert dweller_message_id is not None, "dweller_message_id should not be None"
+
+        # Verify it's a valid UUID string
+        import uuid
+
+        try:
+            uuid.UUID(dweller_message_id)
+        except ValueError:
+            pytest.fail(f"dweller_message_id '{dweller_message_id}' is not a valid UUID")
+
+    @patch("app.api.v1.endpoints.chat.conversation_service")
+    @patch("app.api.v1.endpoints.chat.manager")
+    async def test_voice_chat_ws_action_suggestion_includes_message_id(
+        self,
+        mock_manager: MagicMock,
+        mock_conversation_service: MagicMock,
+        async_client: AsyncClient,
+        normal_user_token_headers: dict[str, str],
+        chat_dweller: Dweller,
+    ):
+        """Test that voice chat WS action_suggestion includes message_id matching dweller_message_id."""
+        import io
+
+        from app.schemas.happiness import HappinessImpact, HappinessReasonCode
+
+        room_id = uuid4()
+
+        # Mock conversation_service with an actionable suggestion
+        mock_conversation_service.process_audio_message = AsyncMock(
+            return_value={
+                "transcription": "Where should I work?",
+                "user_audio_url": "https://example.com/user.webm",
+                "dweller_response": "You should work in the power plant!",
+                "dweller_audio_url": "https://example.com/dweller.mp3",
+                "dweller_audio_bytes": b"fake audio bytes",
+                "happiness_impact": HappinessImpact(
+                    score=20,
+                    delta=2,
+                    reason_code=HappinessReasonCode.CHAT_POSITIVE,
+                    reason_text="Helpful suggestion",
+                    happiness_after=82,
+                ),
+                "action_suggestion": AssignToRoomAction(
+                    room_id=room_id,
+                    room_name="Power Plant",
+                    reason="High strength stat",
+                ),
+            }
+        )
+
+        # Capture WS messages
+        captured_messages = []
+
+        async def capture_message(message, **_kwargs):
+            captured_messages.append(message)
+
+        mock_manager.send_chat_message = AsyncMock(side_effect=capture_message)
+
+        # Create fake audio file
+        audio_data = b"RIFF" + b"\x00" * 100
+        files = {"audio_file": ("test.webm", io.BytesIO(audio_data), "audio/webm")}
+
+        response = await async_client.post(
+            f"chat/{chat_dweller.id}/voice",
+            headers=normal_user_token_headers,
+            files=files,
+            params={"return_audio": False},  # Request JSON response
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Get the dweller_message_id from HTTP response
+        assert "dweller_message_id" in data, "Voice chat response should include dweller_message_id"
+        dweller_message_id = data["dweller_message_id"]
+
+        # Find the action_suggestion WS message
+        action_msg = next(
+            (msg for msg in captured_messages if msg.get("type") == "action_suggestion"),
+            None,
+        )
+        assert action_msg is not None, "WS action_suggestion message should be sent for voice chat"
+
+        # Verify message_id in WS payload matches dweller_message_id
+        assert "message_id" in action_msg, "WS action_suggestion should include message_id"
+        assert action_msg["message_id"] == dweller_message_id, (
+            f"WS message_id '{action_msg['message_id']}' should match HTTP dweller_message_id '{dweller_message_id}'"
+        )

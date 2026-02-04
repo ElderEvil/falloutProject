@@ -2861,6 +2861,11 @@ export interface components {
              */
             client_secret?: string | null;
         };
+        /** Body_refresh_access_token_api_v1_auth_refresh_post */
+        Body_refresh_access_token_api_v1_auth_refresh_post: {
+            /** Refresh Token */
+            refresh_token: string;
+        };
         /** Body_reset_password_api_v1_auth_reset_password_post */
         Body_reset_password_api_v1_auth_reset_password_post: {
             /** Token */
@@ -6147,14 +6152,16 @@ export interface operations {
     };
     refresh_access_token_api_v1_auth_refresh_post: {
         parameters: {
-            query: {
-                refresh_token: string;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Body_refresh_access_token_api_v1_auth_refresh_post"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

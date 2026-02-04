@@ -9,6 +9,17 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.9.0] - 2026-02-04
+
+### Fixed
+- **Auth Token Refresh** - Fixed 422 validation error when refreshing access tokens
+  - Backend now accepts `refresh_token` in request body (JSON) instead of query parameter
+  - More RESTful and secure (tokens no longer exposed in URLs/logs)
+  - Updated frontend auth service and axios interceptor to send JSON body
+  - Updated all tests to match new API contract
+
+---
+
 ## [2.8.5] - 2026-02-04
 
 ### Changed

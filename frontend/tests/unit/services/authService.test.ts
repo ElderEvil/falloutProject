@@ -155,13 +155,8 @@ describe('authService', () => {
       expect(result.data).toEqual(mockResponse.data)
       expect(apiClient.post).toHaveBeenCalledWith(
         '/api/v1/auth/refresh',
-        expect.any(URLSearchParams),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+        { refresh_token: 'old-refresh-token' }
       )
-
-      const callArgs = vi.mocked(apiClient.post).mock.calls[0]
-      const formData = callArgs[1] as URLSearchParams
-      expect(formData.get('refresh_token')).toBe('old-refresh-token')
     })
 
     it('should throw AuthError on refresh failure', async () => {

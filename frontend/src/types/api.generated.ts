@@ -2783,6 +2783,33 @@ export interface components {
          * @enum {string}
          */
         AgeGroupEnum: "child" | "teen" | "adult";
+        /**
+         * AssignToRoomAction
+         * @description Suggestion to assign dweller to a specific room.
+         */
+        AssignToRoomAction: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            action_type: "assign_to_room";
+            /**
+             * Room Id
+             * Format: uuid4
+             * @description ID of the room to assign the dweller to
+             */
+            room_id: string;
+            /**
+             * Room Name
+             * @description Name of the room for display
+             */
+            room_name: string;
+            /**
+             * Reason
+             * @description Why this room is suggested
+             */
+            reason: string;
+        };
         /** Body_change_password_api_v1_auth_change_password_put */
         Body_change_password_api_v1_auth_change_password_put: {
             /** Current Password */
@@ -2988,6 +3015,27 @@ export interface components {
             child_id: string;
             /** Message */
             message: string;
+        };
+        /**
+         * DwellerChatResponse
+         * @description Response schema for dweller chat interactions.
+         *
+         *     Includes the AI-generated response, happiness impact analysis,
+         *     and optional action suggestions.
+         */
+        DwellerChatResponse: {
+            /**
+             * Response
+             * @description The dweller's chat response text
+             */
+            response: string;
+            /** @description Happiness impact from this interaction (None if not analyzed) */
+            happiness_impact?: components["schemas"]["HappinessImpact"] | null;
+            /**
+             * Action Suggestion
+             * @description Optional action suggestion based on conversation context
+             */
+            action_suggestion?: (components["schemas"]["AssignToRoomAction"] | components["schemas"]["StartTrainingAction"] | components["schemas"]["NoAction"]) | null;
         };
         /** DwellerCreate */
         DwellerCreate: {
@@ -3877,6 +3925,39 @@ export interface components {
             voice_line_text?: string | null;
         };
         /**
+         * DwellerVoiceChatResponse
+         * @description Response schema for voice chat interactions (JSON mode).
+         */
+        DwellerVoiceChatResponse: {
+            /**
+             * Transcription
+             * @description Transcribed user audio input
+             */
+            transcription: string;
+            /**
+             * User Audio Url
+             * @description URL to stored user audio
+             */
+            user_audio_url?: string | null;
+            /**
+             * Dweller Response
+             * @description The dweller's text response
+             */
+            dweller_response: string;
+            /**
+             * Dweller Audio Url
+             * @description URL to dweller's audio response
+             */
+            dweller_audio_url?: string | null;
+            /** @description Happiness impact from this interaction */
+            happiness_impact?: components["schemas"]["HappinessImpact"] | null;
+            /**
+             * Action Suggestion
+             * @description Optional action suggestion
+             */
+            action_suggestion?: (components["schemas"]["AssignToRoomAction"] | components["schemas"]["StartTrainingAction"] | components["schemas"]["NoAction"]) | null;
+        };
+        /**
          * ExplorationCompleteResponse
          * @description Schema for completed exploration response.
          */
@@ -4089,6 +4170,43 @@ export interface components {
             detail?: components["schemas"]["ValidationError"][];
         };
         /**
+         * HappinessImpact
+         * @description Schema describing the happiness impact of a chat interaction.
+         *
+         *     Provides both numerical impact (delta, score) and human-readable context
+         *     for understanding why happiness changed.
+         */
+        HappinessImpact: {
+            /**
+             * Score
+             * @description Absolute sentiment score from -100 (very negative) to 100 (very positive)
+             */
+            score: number;
+            /**
+             * Delta
+             * @description Happiness change applied to dweller (-10 to +10)
+             */
+            delta: number;
+            /** @description Machine-readable reason code for the happiness change */
+            reason_code: components["schemas"]["HappinessReasonCode"];
+            /**
+             * Reason Text
+             * @description Human-readable explanation of why happiness changed
+             */
+            reason_text: string;
+            /**
+             * Happiness After
+             * @description Dweller's happiness value after applying the delta (clamped 0-100)
+             */
+            happiness_after: number;
+        };
+        /**
+         * HappinessReasonCode
+         * @description Reason codes for happiness changes from chat interactions.
+         * @enum {string}
+         */
+        HappinessReasonCode: "chat_positive" | "chat_neutral" | "chat_negative";
+        /**
          * InfoResponse
          * @description Application information response schema.
          */
@@ -4176,6 +4294,22 @@ export interface components {
         ManualRecruitRequest: {
             /** @description Optional overrides for the recruited dweller attributes */
             override?: components["schemas"]["DwellerCreateCommonOverride"] | null;
+        };
+        /**
+         * NoAction
+         * @description Indicates no action is suggested.
+         */
+        NoAction: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            action_type: "no_action";
+            /**
+             * Reason
+             * @description Optional explanation
+             */
+            reason?: string | null;
         };
         /** NotificationCreate */
         NotificationCreate: {
@@ -4954,6 +5088,24 @@ export interface components {
             room_id: string;
             /** Speedup */
             speedup: number;
+        };
+        /**
+         * StartTrainingAction
+         * @description Suggestion to start training a SPECIAL stat.
+         */
+        StartTrainingAction: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            action_type: "start_training";
+            /** @description SPECIAL stat to train */
+            stat: components["schemas"]["SPECIALEnum"];
+            /**
+             * Reason
+             * @description Why this training is suggested
+             */
+            reason: string;
         };
         /**
          * StorageItemsResponse
@@ -6196,7 +6348,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["DwellerChatResponse"];
                 };
             };
             /** @description Validation Error */
@@ -6267,7 +6419,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["DwellerVoiceChatResponse"];
                 };
             };
             /** @description Validation Error */

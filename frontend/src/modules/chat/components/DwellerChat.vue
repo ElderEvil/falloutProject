@@ -3,10 +3,13 @@ import { ref, watchEffect, computed, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { Icon } from '@iconify/vue'
 import apiClient from '@/core/plugins/axios'
-import type { ChatMessageDisplay } from '../models/chat'
+import type { ChatMessageDisplay, ActionSuggestion, HappinessImpact } from '../models/chat'
 import { useAudioRecorder } from '../composables/useAudioRecorder'
 import { useChatWebSocket } from '@/core/composables/useWebSocket'
 import { normalizeImageUrl } from '@/utils/image'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { startTraining } from '@/modules/progression/services/trainingService'
+import { useToast } from '@/core/composables/useToast'
 
 const props = defineProps<{
   dwellerId: string
@@ -16,6 +19,9 @@ const props = defineProps<{
 }>()
 
 const authStore = useAuthStore()
+const dwellerStore = useDwellerStore()
+const toast = useToast()
+
 const messages = ref<ChatMessageDisplay[]>([])
 const userMessage = ref('')
 const chatMessages = ref<HTMLElement | null>(null)
@@ -24,6 +30,9 @@ const isSendingAudio = ref(false)
 const audioMode = ref(false)
 const currentlyPlayingAudio = ref<HTMLAudioElement | null>(null)
 const currentlyPlayingUrl = ref<string | null>(null)
+const isPerformingAction = ref(false)
+const showStatSelector = ref(false)
+const pendingTrainingAction = ref<{ stat: string; reason: string } | null>(null)
 
 // Stop audio playback
 const stopAudio = () => {
@@ -106,6 +115,8 @@ const sendMessage = async () => {
         content: response.data.response,
         timestamp: new Date(),
         avatar: props.dwellerAvatar,
+        happinessImpact: response.data.happiness_impact || null,
+        actionSuggestion: response.data.action_suggestion || null,
       })
     } catch (error) {
       console.error('Error sending message:', error)
@@ -169,6 +180,8 @@ const sendAudioMessage = async () => {
       timestamp: new Date(),
       avatar: props.dwellerAvatar,
       audioUrl: response.data.dweller_audio_url,
+      happinessImpact: response.data.happiness_impact || null,
+      actionSuggestion: response.data.action_suggestion || null,
     })
 
     // Auto-play dweller response if audio URL provided
@@ -221,6 +234,78 @@ const handleTyping = () => {
   }
 }
 
+// Action handlers for suggestions
+const handleAssignToRoom = async (roomId: string, roomName: string) => {
+  if (!authStore.token) return
+
+  isPerformingAction.value = true
+  try {
+    await dwellerStore.assignDwellerToRoom(props.dwellerId, roomId, authStore.token)
+    toast.success(`${props.dwellerName} assigned to ${roomName}`)
+  } catch (error) {
+    console.error('Failed to assign dweller to room:', error)
+    toast.error('Failed to assign dweller to room')
+  } finally {
+    isPerformingAction.value = false
+  }
+}
+
+const handleStartTraining = async (stat: string) => {
+  if (!authStore.token) return
+
+  // Get dweller's current room (must be training room)
+  const dweller = dwellerStore.dwellers.find((d) => d.id === props.dwellerId)
+  if (!dweller?.room_id) {
+    toast.error('Dweller must be in a training room to start training')
+    return
+  }
+
+  isPerformingAction.value = true
+  try {
+    await startTraining(props.dwellerId, dweller.room_id, authStore.token)
+    toast.success(`${props.dwellerName} started ${stat} training`)
+  } catch (error) {
+    console.error('Failed to start training:', error)
+    toast.error('Failed to start training')
+  } finally {
+    isPerformingAction.value = false
+    showStatSelector.value = false
+    pendingTrainingAction.value = null
+  }
+}
+
+const handleActionConfirm = (action: ActionSuggestion) => {
+  if (!action) return
+
+  if (action.action_type === 'assign_to_room') {
+    handleAssignToRoom(action.room_id, action.room_name)
+  } else if (action.action_type === 'start_training') {
+    pendingTrainingAction.value = { stat: action.stat, reason: action.reason }
+    handleStartTraining(action.stat)
+  }
+}
+
+const dismissAction = (messageIndex: number) => {
+  const msg = messages.value[messageIndex]
+  if (msg) {
+    msg.actionSuggestion = null
+  }
+}
+
+// Get happiness impact color based on delta
+const getHappinessColor = (delta: number): string => {
+  if (delta > 0) return 'text-green-400'
+  if (delta < 0) return 'text-red-400'
+  return 'text-gray-400'
+}
+
+// Get happiness icon based on delta
+const getHappinessIcon = (delta: number): string => {
+  if (delta > 0) return 'mdi:emoticon-happy'
+  if (delta < 0) return 'mdi:emoticon-sad'
+  return 'mdi:emoticon-neutral'
+}
+
 watchEffect(() => {
   if (chatMessages.value) {
     chatMessages.value.scrollTop = chatMessages.value.scrollHeight
@@ -238,6 +323,28 @@ onMounted(() => {
     chatWs.on('typing', (msg: any) => {
       if (msg.sender === 'dweller') {
         isTyping.value = msg.is_typing
+      }
+    })
+
+    // Handle happiness updates via WebSocket
+    chatWs.on('happiness_update', (msg: any) => {
+      if (msg.happiness_impact) {
+        // Update the last dweller message with happiness impact
+        const lastDwellerMsg = [...messages.value].reverse().find((m) => m.type === 'dweller')
+        if (lastDwellerMsg) {
+          lastDwellerMsg.happinessImpact = msg.happiness_impact
+        }
+      }
+    })
+
+    // Handle action suggestions via WebSocket
+    chatWs.on('action_suggestion', (msg: any) => {
+      if (msg.action_suggestion) {
+        // Update the last dweller message with action suggestion
+        const lastDwellerMsg = [...messages.value].reverse().find((m) => m.type === 'dweller')
+        if (lastDwellerMsg) {
+          lastDwellerMsg.actionSuggestion = msg.action_suggestion
+        }
       }
     })
   }
@@ -308,28 +415,91 @@ onUnmounted(() => {
               <span class="terminal-prefix">{{ message.type === 'user' ? '>' : '<' }}</span>
               {{ message.type === 'user' ? username : dwellerName }}
             </span>
-            <!-- Audio play/stop button for messages with audio -->
-            <button
-              v-if="message.audioUrl"
-              @click="
-                currentlyPlayingUrl === message.audioUrl ? stopAudio() : playAudio(message.audioUrl)
-              "
-              class="audio-replay-btn"
-              :class="{ 'is-playing': currentlyPlayingUrl === message.audioUrl }"
-              :title="
-                currentlyPlayingUrl === message.audioUrl
-                  ? 'Stop audio'
-                  : `Play ${message.type === 'user' ? 'your' : 'dweller'} audio`
-              "
-            >
-              <Icon
-                :icon="currentlyPlayingUrl === message.audioUrl ? 'mdi:stop' : 'mdi:volume-high'"
-                class="h-4 w-4"
-              />
-            </button>
+            <div class="flex items-center gap-2">
+              <!-- Happiness impact indicator -->
+              <span
+                v-if="message.type === 'dweller' && message.happinessImpact"
+                class="happiness-indicator"
+                :class="getHappinessColor(message.happinessImpact.delta)"
+                :title="message.happinessImpact.reason_text"
+              >
+                <Icon :icon="getHappinessIcon(message.happinessImpact.delta)" class="h-4 w-4" />
+                <span class="text-xs">
+                  {{ message.happinessImpact.delta > 0 ? '+' : ''
+                  }}{{ message.happinessImpact.delta }}
+                </span>
+              </span>
+              <!-- Audio play/stop button for messages with audio -->
+              <button
+                v-if="message.audioUrl"
+                @click="
+                  currentlyPlayingUrl === message.audioUrl
+                    ? stopAudio()
+                    : playAudio(message.audioUrl)
+                "
+                class="audio-replay-btn"
+                :class="{ 'is-playing': currentlyPlayingUrl === message.audioUrl }"
+                :title="
+                  currentlyPlayingUrl === message.audioUrl
+                    ? 'Stop audio'
+                    : `Play ${message.type === 'user' ? 'your' : 'dweller'} audio`
+                "
+              >
+                <Icon
+                  :icon="currentlyPlayingUrl === message.audioUrl ? 'mdi:stop' : 'mdi:volume-high'"
+                  class="h-4 w-4"
+                />
+              </button>
+            </div>
           </div>
           <div class="message-content">
             {{ message.content }}
+          </div>
+
+          <!-- Action suggestion card -->
+          <div
+            v-if="
+              message.type === 'dweller' &&
+              message.actionSuggestion &&
+              message.actionSuggestion.action_type !== 'no_action'
+            "
+            class="action-suggestion-card"
+          >
+            <div class="action-suggestion-header">
+              <Icon
+                :icon="
+                  message.actionSuggestion.action_type === 'assign_to_room'
+                    ? 'mdi:door-open'
+                    : 'mdi:dumbbell'
+                "
+                class="h-4 w-4"
+              />
+              <span class="text-xs font-bold uppercase tracking-wider">Suggested Action</span>
+            </div>
+            <div class="action-suggestion-body">
+              <p class="action-suggestion-text">
+                {{
+                  message.actionSuggestion.action_type === 'assign_to_room'
+                    ? `Assign to ${message.actionSuggestion.room_name}`
+                    : `Train ${message.actionSuggestion.stat}`
+                }}
+              </p>
+              <p class="action-suggestion-reason">{{ message.actionSuggestion.reason }}</p>
+            </div>
+            <div class="action-suggestion-actions">
+              <button
+                @click="handleActionConfirm(message.actionSuggestion!)"
+                :disabled="isPerformingAction"
+                class="action-confirm-btn"
+              >
+                <Icon v-if="isPerformingAction" icon="mdi:loading" class="h-4 w-4 spinning" />
+                <Icon v-else icon="mdi:check" class="h-4 w-4" />
+                <span>{{ isPerformingAction ? 'Processing...' : 'Confirm' }}</span>
+              </button>
+              <button @click="dismissAction(index)" class="action-dismiss-btn">
+                <Icon icon="mdi:close" class="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -910,5 +1080,125 @@ onUnmounted(() => {
   background-color: rgba(var(--color-theme-primary-rgb), 0.1);
   color: var(--color-theme-primary);
   box-shadow: none;
+}
+
+/* Happiness indicator */
+.happiness-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.3);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.happiness-indicator.text-green-400 {
+  color: #4ade80;
+  background-color: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.happiness-indicator.text-red-400 {
+  color: #f87171;
+  background-color: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
+.happiness-indicator.text-gray-400 {
+  color: #9ca3af;
+  background-color: rgba(156, 163, 175, 0.1);
+  border: 1px solid rgba(156, 163, 175, 0.3);
+}
+
+/* Action suggestion card */
+.action-suggestion-card {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-theme-glow);
+  border-radius: 8px;
+  background-color: rgba(var(--color-theme-primary-rgb), 0.05);
+  box-shadow: 0 0 8px rgba(var(--color-theme-primary-rgb), 0.15);
+}
+
+.action-suggestion-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-theme-primary);
+  margin-bottom: 0.5rem;
+  opacity: 0.8;
+}
+
+.action-suggestion-body {
+  margin-bottom: 0.75rem;
+}
+
+.action-suggestion-text {
+  color: var(--color-theme-primary);
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+  text-shadow: 0 0 4px var(--color-theme-glow);
+}
+
+.action-suggestion-reason {
+  color: var(--color-theme-primary);
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.action-suggestion-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.action-confirm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 4px;
+  border: 1px solid var(--color-theme-primary);
+  background-color: rgba(var(--color-theme-primary-rgb), 0.15);
+  color: var(--color-theme-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-confirm-btn:hover:not(:disabled) {
+  background-color: var(--color-theme-primary);
+  color: #000;
+  box-shadow: 0 0 10px var(--color-theme-glow);
+}
+
+.action-confirm-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.action-dismiss-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.375rem;
+  border-radius: 4px;
+  border: 1px solid rgba(var(--color-theme-primary-rgb), 0.3);
+  background-color: transparent;
+  color: var(--color-theme-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+  opacity: 0.6;
+}
+
+.action-dismiss-btn:hover {
+  opacity: 1;
+  background-color: rgba(255, 68, 68, 0.1);
+  border-color: rgba(255, 68, 68, 0.5);
+  color: #ff4444;
 }
 </style>

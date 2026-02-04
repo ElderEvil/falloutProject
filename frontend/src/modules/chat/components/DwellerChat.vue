@@ -3,12 +3,19 @@ import { ref, watchEffect, computed, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { Icon } from '@iconify/vue'
 import apiClient from '@/core/plugins/axios'
-import type { ChatMessageDisplay, ActionSuggestion, HappinessImpact } from '../models/chat'
+import type {
+  ChatMessageDisplay,
+  ActionSuggestion,
+  HappinessImpact,
+  StartExplorationAction,
+  RecallExplorationAction,
+} from '../models/chat'
 import { useAudioRecorder } from '../composables/useAudioRecorder'
 import { useChatWebSocket } from '@/core/composables/useWebSocket'
 import { normalizeImageUrl } from '@/utils/image'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { startTraining } from '@/modules/progression/services/trainingService'
 import { useToast } from '@/core/composables/useToast'
 
@@ -22,6 +29,7 @@ const props = defineProps<{
 const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
 const vaultStore = useVaultStore()
+const explorationStore = useExplorationStore()
 const toast = useToast()
 
 const messages = ref<ChatMessageDisplay[]>([])
@@ -318,6 +326,73 @@ const handleStartTraining = async (stat: string) => {
   }
 }
 
+const handleStartExploration = async (action: StartExplorationAction) => {
+  if (!authStore.token) return
+
+  const vaultId = vaultStore.activeVaultId
+  if (!vaultId) {
+    toast.error('No vault selected')
+    return
+  }
+
+  isPerformingAction.value = true
+  try {
+    const dweller = dwellerStore.dwellers.find((d) => d.id === props.dwellerId)
+    if (!dweller) {
+      toast.error('Dweller not found')
+      return
+    }
+
+    if (dweller.room_id) {
+      await dwellerStore.unassignDwellerFromRoom(props.dwellerId, authStore.token)
+    }
+
+    toast.info(`Sending ${props.dwellerName} to wasteland...`)
+    await explorationStore.sendDwellerToWasteland(
+      vaultId,
+      props.dwellerId,
+      action.duration_hours,
+      authStore.token,
+      action.stimpaks,
+      action.radaways
+    )
+    toast.success(`${props.dwellerName} sent to the wasteland!`)
+
+    await dwellerStore.fetchDwellerDetails(props.dwellerId, authStore.token, true)
+  } catch (error) {
+    console.error('Failed to start exploration:', error)
+    toast.error('Failed to send dweller to wasteland')
+  } finally {
+    isPerformingAction.value = false
+  }
+}
+
+const handleRecallExploration = async (action: RecallExplorationAction) => {
+  if (!authStore.token) return
+
+  isPerformingAction.value = true
+  try {
+    const progress = await explorationStore.fetchExplorationProgress(action.exploration_id, authStore.token)
+
+    if (progress.progress_percentage >= 100) {
+      toast.info(`Completing ${props.dwellerName}'s exploration...`)
+      await explorationStore.completeExploration(action.exploration_id, authStore.token)
+      toast.success(`${props.dwellerName}'s exploration completed!`)
+    } else {
+      toast.info(`Recalling ${props.dwellerName} from wasteland...`)
+      await explorationStore.recallDweller(action.exploration_id, authStore.token)
+      toast.success(`${props.dwellerName} recalled from wasteland!`)
+    }
+
+    await dwellerStore.fetchDwellerDetails(props.dwellerId, authStore.token, true)
+  } catch (error) {
+    console.error('Failed to recall exploration:', error)
+    toast.error('Failed to recall dweller from wasteland')
+  } finally {
+    isPerformingAction.value = false
+  }
+}
+
 const handleActionConfirm = (action: ActionSuggestion) => {
   if (!action) return
 
@@ -326,6 +401,10 @@ const handleActionConfirm = (action: ActionSuggestion) => {
   } else if (action.action_type === 'start_training') {
     pendingTrainingAction.value = { stat: action.stat, reason: action.reason }
     handleStartTraining(action.stat)
+  } else if (action.action_type === 'start_exploration') {
+    handleStartExploration(action)
+  } else if (action.action_type === 'recall_exploration') {
+    handleRecallExploration(action)
   }
 }
 
@@ -524,7 +603,11 @@ onUnmounted(() => {
                 :icon="
                   message.actionSuggestion.action_type === 'assign_to_room'
                     ? 'mdi:door-open'
-                    : 'mdi:dumbbell'
+                    : message.actionSuggestion.action_type === 'start_training'
+                      ? 'mdi:dumbbell'
+                      : message.actionSuggestion.action_type === 'start_exploration'
+                        ? 'mdi:map-marker-radius'
+                        : 'mdi:arrow-u-left-top'
                 "
                 class="h-4 w-4"
               />
@@ -535,7 +618,11 @@ onUnmounted(() => {
                 {{
                   message.actionSuggestion.action_type === 'assign_to_room'
                     ? `Assign to ${message.actionSuggestion.room_name}`
-                    : `Train ${message.actionSuggestion.stat}`
+                    : message.actionSuggestion.action_type === 'start_training'
+                      ? `Train ${message.actionSuggestion.stat}`
+                      : message.actionSuggestion.action_type === 'start_exploration'
+                        ? `Explore wasteland for ${message.actionSuggestion.duration_hours}h`
+                        : 'Recall from wasteland'
                 }}
               </p>
               <p class="action-suggestion-reason">{{ message.actionSuggestion.reason }}</p>

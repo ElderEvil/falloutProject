@@ -79,6 +79,21 @@ vi.mock('@/modules/vault/stores/vault', () => ({
       ],
       dwellers: [],
     },
+    activeVaultId: 'vault-123',
+  }),
+}))
+
+const mockSendDwellerToWasteland = vi.fn()
+const mockRecallDweller = vi.fn()
+const mockCompleteExploration = vi.fn()
+const mockFetchExplorationProgress = vi.fn()
+
+vi.mock('@/modules/exploration/stores/exploration', () => ({
+  useExplorationStore: () => ({
+    sendDwellerToWasteland: mockSendDwellerToWasteland,
+    recallDweller: mockRecallDweller,
+    completeExploration: mockCompleteExploration,
+    fetchExplorationProgress: mockFetchExplorationProgress,
   }),
 }))
 
@@ -94,14 +109,17 @@ describe('DwellerChat', () => {
     vi.clearAllMocks()
     setActivePinia(createPinia())
 
-    // Setup auth store with user
+    mockSendDwellerToWasteland.mockReset()
+    mockRecallDweller.mockReset()
+    mockCompleteExploration.mockReset()
+    mockFetchExplorationProgress.mockReset()
+
     const authStore = useAuthStore()
     authStore.$patch({
       token: 'test-token',
       user: { id: 'user-123', username: 'TestUser' },
     })
 
-    // Mock empty chat history
     ;(apiClient.get as Mock).mockResolvedValue({ data: [] })
   })
 
@@ -880,6 +898,254 @@ describe('DwellerChat', () => {
        const confirmBtn = wrapper.find('.action-confirm-btn')
        await confirmBtn.trigger('click')
        await flushPromises()
+     })
+   })
+
+   describe('Exploration Actions from Chat', () => {
+     it('should render action suggestion card for start_exploration', async () => {
+       const wrapper = mountComponent()
+       await flushPromises()
+
+       ;(apiClient.post as Mock).mockResolvedValueOnce({
+         data: {
+           response: 'I want to explore the wasteland!',
+           happiness_impact: { delta: 2, reason_text: 'Adventurous' },
+           action_suggestion: {
+             action_type: 'start_exploration',
+             duration_hours: 4,
+             stimpaks: 2,
+             radaways: 1,
+             reason: 'High endurance makes them ideal for exploration',
+           },
+         },
+       })
+
+       const input = wrapper.find('.chat-input-field')
+       await input.setValue('Go explore')
+       await wrapper.find('.chat-send-btn').trigger('click')
+       await flushPromises()
+
+       const actionCard = wrapper.find('.action-suggestion-card')
+       expect(actionCard.exists()).toBe(true)
+       expect(actionCard.text()).toContain('Suggested Action')
+       expect(actionCard.text()).toContain('Explore wasteland for 4h')
+       expect(actionCard.text()).toContain('High endurance makes them ideal for exploration')
+     })
+
+     it('should call sendDwellerToWasteland when confirm clicked for start_exploration', async () => {
+       const dwellerStore = useDwellerStore()
+       vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue({} as any)
+       mockSendDwellerToWasteland.mockResolvedValue({})
+
+       dwellerStore.$patch({
+         dwellers: [
+           {
+             id: 'dweller-123',
+             first_name: 'Test',
+             last_name: 'Dweller',
+             room_id: null,
+             level: 1,
+             happiness: 50,
+             strength: 5,
+             perception: 5,
+             endurance: 5,
+             charisma: 5,
+             intelligence: 5,
+             agility: 5,
+             luck: 5,
+             status: 'idle',
+           },
+         ],
+       })
+
+       const wrapper = mountComponent()
+       await flushPromises()
+
+       ;(apiClient.post as Mock).mockResolvedValueOnce({
+         data: {
+           response: 'Ready to explore!',
+           happiness_impact: { delta: 3, reason_text: 'Excited' },
+           action_suggestion: {
+             action_type: 'start_exploration',
+             duration_hours: 8,
+             stimpaks: 5,
+             radaways: 3,
+             reason: 'Good stats for exploration',
+           },
+         },
+       })
+
+       const input = wrapper.find('.chat-input-field')
+       await input.setValue('Explore')
+       await wrapper.find('.chat-send-btn').trigger('click')
+       await flushPromises()
+
+       const confirmBtn = wrapper.find('.action-confirm-btn')
+       await confirmBtn.trigger('click')
+       await flushPromises()
+
+       expect(mockSendDwellerToWasteland).toHaveBeenCalledWith(
+         'vault-123',
+         'dweller-123',
+         8,
+         'test-token',
+         5,
+         3
+       )
+     })
+
+     it('should unassign dweller from room before starting exploration', async () => {
+       const dwellerStore = useDwellerStore()
+       const unassignSpy = vi.spyOn(dwellerStore, 'unassignDwellerFromRoom').mockResolvedValue({} as any)
+       vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue({} as any)
+       mockSendDwellerToWasteland.mockResolvedValue({})
+
+       dwellerStore.$patch({
+         dwellers: [
+           {
+             id: 'dweller-123',
+             first_name: 'Test',
+             last_name: 'Dweller',
+             room_id: 'room-456',
+             level: 1,
+             happiness: 50,
+             strength: 5,
+             perception: 5,
+             endurance: 5,
+             charisma: 5,
+             intelligence: 5,
+             agility: 5,
+             luck: 5,
+             status: 'working',
+           },
+         ],
+       })
+
+       const wrapper = mountComponent()
+       await flushPromises()
+
+       ;(apiClient.post as Mock).mockResolvedValueOnce({
+         data: {
+           response: 'Leave my post? Sure!',
+           happiness_impact: { delta: 1, reason_text: 'Curious' },
+           action_suggestion: {
+             action_type: 'start_exploration',
+             duration_hours: 4,
+             stimpaks: 2,
+             radaways: 1,
+             reason: 'Wants adventure',
+           },
+         },
+       })
+
+       const input = wrapper.find('.chat-input-field')
+       await input.setValue('Go explore')
+       await wrapper.find('.chat-send-btn').trigger('click')
+       await flushPromises()
+
+       const confirmBtn = wrapper.find('.action-confirm-btn')
+       await confirmBtn.trigger('click')
+       await flushPromises()
+
+       expect(unassignSpy).toHaveBeenCalledWith('dweller-123', 'test-token')
+       expect(mockSendDwellerToWasteland).toHaveBeenCalled()
+     })
+
+     it('should render action suggestion card for recall_exploration', async () => {
+       const wrapper = mountComponent()
+       await flushPromises()
+
+       ;(apiClient.post as Mock).mockResolvedValueOnce({
+         data: {
+           response: 'I miss home...',
+           happiness_impact: { delta: -1, reason_text: 'Homesick' },
+           action_suggestion: {
+             action_type: 'recall_exploration',
+             exploration_id: 'exploration-999',
+             reason: 'Dweller wants to return',
+           },
+         },
+       })
+
+       const input = wrapper.find('.chat-input-field')
+       await input.setValue('How are you doing out there?')
+       await wrapper.find('.chat-send-btn').trigger('click')
+       await flushPromises()
+
+       const actionCard = wrapper.find('.action-suggestion-card')
+       expect(actionCard.exists()).toBe(true)
+       expect(actionCard.text()).toContain('Recall from wasteland')
+       expect(actionCard.text()).toContain('Dweller wants to return')
+     })
+
+     it('should call recallDweller when confirm clicked for recall with progress < 100', async () => {
+       const dwellerStore = useDwellerStore()
+       vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue({} as any)
+       mockFetchExplorationProgress.mockResolvedValue({ progress_percentage: 50 })
+       mockRecallDweller.mockResolvedValue({})
+
+       const wrapper = mountComponent()
+       await flushPromises()
+
+       ;(apiClient.post as Mock).mockResolvedValueOnce({
+         data: {
+           response: 'Please bring me back!',
+           happiness_impact: { delta: -2, reason_text: 'Tired' },
+           action_suggestion: {
+             action_type: 'recall_exploration',
+             exploration_id: 'exploration-999',
+             reason: 'Low health',
+           },
+         },
+       })
+
+       const input = wrapper.find('.chat-input-field')
+       await input.setValue('Come back')
+       await wrapper.find('.chat-send-btn').trigger('click')
+       await flushPromises()
+
+       const confirmBtn = wrapper.find('.action-confirm-btn')
+       await confirmBtn.trigger('click')
+       await flushPromises()
+
+       expect(mockFetchExplorationProgress).toHaveBeenCalledWith('exploration-999', 'test-token')
+       expect(mockRecallDweller).toHaveBeenCalledWith('exploration-999', 'test-token')
+       expect(mockCompleteExploration).not.toHaveBeenCalled()
+     })
+
+     it('should call completeExploration when confirm clicked for recall with progress >= 100', async () => {
+       const dwellerStore = useDwellerStore()
+       vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue({} as any)
+       mockFetchExplorationProgress.mockResolvedValue({ progress_percentage: 100 })
+       mockCompleteExploration.mockResolvedValue({})
+
+       const wrapper = mountComponent()
+       await flushPromises()
+
+       ;(apiClient.post as Mock).mockResolvedValueOnce({
+         data: {
+           response: 'I found great loot!',
+           happiness_impact: { delta: 5, reason_text: 'Successful' },
+           action_suggestion: {
+             action_type: 'recall_exploration',
+             exploration_id: 'exploration-999',
+             reason: 'Exploration complete',
+           },
+         },
+       })
+
+       const input = wrapper.find('.chat-input-field')
+       await input.setValue('How was exploring?')
+       await wrapper.find('.chat-send-btn').trigger('click')
+       await flushPromises()
+
+       const confirmBtn = wrapper.find('.action-confirm-btn')
+       await confirmBtn.trigger('click')
+       await flushPromises()
+
+       expect(mockFetchExplorationProgress).toHaveBeenCalledWith('exploration-999', 'test-token')
+       expect(mockCompleteExploration).toHaveBeenCalledWith('exploration-999', 'test-token')
+       expect(mockRecallDweller).not.toHaveBeenCalled()
      })
    })
  })

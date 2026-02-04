@@ -3035,7 +3035,7 @@ export interface components {
              * Action Suggestion
              * @description Optional action suggestion based on conversation context
              */
-            action_suggestion?: (components["schemas"]["AssignToRoomAction"] | components["schemas"]["StartTrainingAction"] | components["schemas"]["NoAction"]) | null;
+            action_suggestion?: (components["schemas"]["AssignToRoomAction"] | components["schemas"]["StartTrainingAction"] | components["schemas"]["StartExplorationAction"] | components["schemas"]["RecallExplorationAction"] | components["schemas"]["NoAction"]) | null;
         };
         /** DwellerCreate */
         DwellerCreate: {
@@ -3955,7 +3955,7 @@ export interface components {
              * Action Suggestion
              * @description Optional action suggestion
              */
-            action_suggestion?: (components["schemas"]["AssignToRoomAction"] | components["schemas"]["StartTrainingAction"] | components["schemas"]["NoAction"]) | null;
+            action_suggestion?: (components["schemas"]["AssignToRoomAction"] | components["schemas"]["StartTrainingAction"] | components["schemas"]["StartExplorationAction"] | components["schemas"]["RecallExplorationAction"] | components["schemas"]["NoAction"]) | null;
         };
         /**
          * ExplorationCompleteResponse
@@ -4790,6 +4790,28 @@ export interface components {
          */
         RarityEnum: "common" | "rare" | "legendary";
         /**
+         * RecallExplorationAction
+         * @description Suggestion to recall dweller from wasteland exploration.
+         */
+        RecallExplorationAction: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            action_type: "recall_exploration";
+            /**
+             * Exploration Id
+             * Format: uuid4
+             * @description ID of the active exploration to recall from
+             */
+            exploration_id: string;
+            /**
+             * Reason
+             * @description Why recall is suggested
+             */
+            reason: string;
+        };
+        /**
          * RecruitmentResponse
          * @description Response after recruiting a dweller.
          */
@@ -5088,6 +5110,37 @@ export interface components {
             room_id: string;
             /** Speedup */
             speedup: number;
+        };
+        /**
+         * StartExplorationAction
+         * @description Suggestion to send dweller on wasteland exploration.
+         */
+        StartExplorationAction: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            action_type: "start_exploration";
+            /**
+             * Duration Hours
+             * @description Exploration duration in hours
+             */
+            duration_hours: number;
+            /**
+             * Stimpaks
+             * @description Number of stimpaks to take
+             */
+            stimpaks: number;
+            /**
+             * Radaways
+             * @description Number of radaways to take
+             */
+            radaways: number;
+            /**
+             * Reason
+             * @description Why exploration is suggested
+             */
+            reason: string;
         };
         /**
          * StartTrainingAction

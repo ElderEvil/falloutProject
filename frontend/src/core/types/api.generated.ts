@@ -250,23 +250,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chat/generate_objectives": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Generate Objectives */
-        get: operations["generate_objectives_api_v1_chat_generate_objectives_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/chat/{dweller_id}": {
         parameters: {
             query?: never;
@@ -276,7 +259,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Chat With Dweller */
+        /**
+         * Chat With Dweller
+         * @description Send a text message to a dweller and get a response.
+         */
         post: operations["chat_with_dweller_api_v1_chat__dweller_id__post"];
         delete?: never;
         options?: never;
@@ -1308,6 +1294,26 @@ export interface paths {
          * @description Dismiss (soft delete) a notification
          */
         delete: operations["dismiss_notification_api_v1_notifications__notification_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/objectives/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Generate Objectives
+         * @description Generate game objectives using AI.
+         */
+        get: operations["generate_objectives_api_v1_objectives_generate_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -6365,38 +6371,6 @@ export interface operations {
             };
         };
     };
-    generate_objectives_api_v1_chat_generate_objectives_get: {
-        parameters: {
-            query: {
-                objective_kind: components["schemas"]["ObjectiveKindEnum"];
-                objective_count?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ObjectiveBase"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     chat_with_dweller_api_v1_chat__dweller_id__post: {
         parameters: {
             query?: never;
@@ -8305,6 +8279,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotificationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_objectives_api_v1_objectives_generate_get: {
+        parameters: {
+            query: {
+                objective_kind: components["schemas"]["ObjectiveKindEnum"];
+                objective_count?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectiveBase"][];
                 };
             };
             /** @description Validation Error */

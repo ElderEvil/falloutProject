@@ -72,9 +72,16 @@ class VaultAdmin(ModelView, model=Vault):
         Vault.bottle_caps,
         Vault.happiness,
         Vault.power,
+        Vault.power_max,
         Vault.food,
+        Vault.food_max,
         Vault.water,
+        Vault.water_max,
+        Vault.population_max,
+        Vault.radio_mode,
         Vault.user,
+        Vault.created_at,
+        Vault.updated_at,
     ]
 
     icon = "fa-solid fa-house-lock"
@@ -104,9 +111,16 @@ class DwellerAdmin(ModelView, model=Dweller):
         Dweller.experience,
         Dweller.max_health,
         Dweller.health,
+        Dweller.radiation,
         Dweller.happiness,
+        Dweller.stimpack,
+        Dweller.radaway,
+        Dweller.is_dead,
+        Dweller.death_cause,
         Dweller.vault,
         Dweller.room,
+        Dweller.created_at,
+        Dweller.updated_at,
     ]
 
     column_formatters = {
@@ -187,7 +201,13 @@ class RoomAdmin(ModelView, model=Room):
         Room.ability,
         Room.tier,
         Room.size,
+        Room.coordinate_x,
+        Room.coordinate_y,
+        Room.base_cost,
+        Room.speedup_multiplier,
         Room.vault,
+        Room.created_at,
+        Room.updated_at,
     ]
 
     icon = "fa-solid fa-door-open"
@@ -358,11 +378,15 @@ class ChatMessageAdmin(ModelView, model=ChatMessage):
         ChatMessage.to_user_id,
         ChatMessage.to_dweller_id,
         ChatMessage.message_text,
+        ChatMessage.happiness_delta,
+        ChatMessage.happiness_reason,
+        ChatMessage.audio_url,
+        ChatMessage.audio_duration,
         ChatMessage.llm_interaction_id,
         ChatMessage.created_at,
     ]
-    column_searchable_list = [ChatMessage.message_text]
-    column_sortable_list = [ChatMessage.created_at]
+    column_searchable_list = [ChatMessage.message_text, ChatMessage.happiness_reason]
+    column_sortable_list = [ChatMessage.created_at, ChatMessage.happiness_delta]
     column_default_sort = [(ChatMessage.created_at, True)]
 
     column_formatters = {
@@ -370,6 +394,11 @@ class ChatMessageAdmin(ModelView, model=ChatMessage):
             m.message_text[:TRUNCATE_LENGTH] + "..."
             if m.message_text and len(m.message_text) > TRUNCATE_LENGTH
             else m.message_text
+        ),
+        ChatMessage.happiness_reason: lambda m, a: (  # noqa: ARG005
+            m.happiness_reason[:TRUNCATE_LENGTH] + "..."
+            if m.happiness_reason and len(m.happiness_reason) > TRUNCATE_LENGTH
+            else m.happiness_reason
         ),
     }
 

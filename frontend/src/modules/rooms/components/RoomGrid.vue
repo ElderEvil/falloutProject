@@ -421,6 +421,7 @@ const closeDetailModal = () => {
           highlighted: highlightedRoomId === room.id,
           'power-outage': isRoomAffectedByOutage(room),
         }"
+        draggable="false"
         @click="handleRoomClick(room, $event)"
         @dragover="handleDragOver($event, room.id)"
         @dragleave="handleDragLeave"
@@ -433,6 +434,7 @@ const closeDetailModal = () => {
             :src="getRoomImageUrl(room)"
             :alt="room.name"
             class="room-background-image"
+            draggable="false"
             @error="handleRoomImageError(room.name, getRoomImageUrl(room))"
           />
           <div class="room-info-overlay">
@@ -632,6 +634,8 @@ const closeDetailModal = () => {
   height: 100%;
   display: flex;
   flex-direction: column;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .room.selected {
@@ -683,6 +687,8 @@ const closeDetailModal = () => {
   height: 100%;
   object-fit: cover;
   z-index: 0;
+  pointer-events: none;
+  -webkit-user-drag: none;
 }
 
 .room-info-overlay {

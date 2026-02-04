@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@10.28.2",
   "scripts": {
-    "types:generate": "openapi-typescript http://localhost:8000/api/v1/openapi.json -o src/types/api.generated.ts",
+    "types:generate": "openapi-typescript http://localhost:8000/api/v1/openapi.json -o src/core/types/api.generated.ts",
     "dev": "pnpm types:generate && vite",
     "build": "vite build",
     "build:with-types": "pnpm types:generate && vue-tsc -b && vite build",

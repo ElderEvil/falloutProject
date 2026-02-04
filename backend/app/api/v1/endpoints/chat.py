@@ -83,6 +83,8 @@ async def generate_objectives(
             ],
         )
         generated_objectives = response.choices[0].message.content
+        if not generated_objectives:
+            raise ValueError("Empty response from AI")
         generated_objectives_json = json.loads(generated_objectives)
 
         # Parse the JSON into the ObjectiveResponseModelList
@@ -195,15 +197,21 @@ async def chat_with_dweller(
     )
 
     # Save dweller response to chat history
+    chat_create_data = ChatMessageCreate(
+        vault_id=dweller.vault.id,
+        from_dweller_id=dweller.id,
+        to_user_id=user.id,
+        message_text=response_message,
+        llm_interaction_id=llm_interaction.id,  # Link to AI stats
+    )
+
+    if happiness_impact:
+        chat_create_data.happiness_delta = happiness_impact.delta
+        chat_create_data.happiness_reason = happiness_impact.reason_text
+
     await chat_message_crud.create_message(
         db_session,
-        obj_in=ChatMessageCreate(
-            vault_id=dweller.vault.id,
-            from_dweller_id=dweller.id,
-            to_user_id=user.id,
-            message_text=response_message,
-            llm_interaction_id=llm_interaction.id,  # Link to AI stats
-        ),
+        obj_in=chat_create_data,
     )
 
     # Build response

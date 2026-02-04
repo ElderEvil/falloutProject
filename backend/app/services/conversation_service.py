@@ -56,7 +56,7 @@ class ConversationService:
         Returns:
             Voice name for OpenAI TTS API
         """
-        if gender in VOICE_MAP:
+        if gender is not None and gender in VOICE_MAP:
             return random.choice(VOICE_MAP[gender])
         # Default to alloy if gender is None or unrecognized
         return "alloy"
@@ -258,16 +258,22 @@ class ConversationService:
         )
 
         # Save dweller response
+        chat_create_data = ChatMessageCreate(
+            vault_id=dweller.vault.id,
+            from_dweller_id=dweller.id,
+            to_user_id=user.id,
+            message_text=dweller_response_text,
+            audio_url=dweller_audio_url,
+            llm_interaction_id=llm_interaction.id,
+        )
+
+        if happiness_impact:
+            chat_create_data.happiness_delta = happiness_impact.delta
+            chat_create_data.happiness_reason = happiness_impact.reason_text
+
         await chat_message_crud.create_message(
             db_session,
-            obj_in=ChatMessageCreate(
-                vault_id=dweller.vault.id,
-                from_dweller_id=dweller.id,
-                to_user_id=user.id,
-                message_text=dweller_response_text,
-                audio_url=dweller_audio_url,
-                llm_interaction_id=llm_interaction.id,
-            ),
+            obj_in=chat_create_data,
         )
 
         return {

@@ -87,6 +87,17 @@ const loadChatHistory = async () => {
       avatar: msg.from_user_id ? userAvatar.value : props.dwellerAvatar,
       audioUrl: msg.audio_url || undefined,
       transcription: msg.transcription || undefined,
+      // Map stored happiness data
+      happinessImpact:
+        msg.happiness_delta !== null && msg.happiness_delta !== undefined
+          ? {
+              delta: msg.happiness_delta,
+              reason_text: msg.happiness_reason || '',
+              score: 0, // Placeholder
+              reason_code: 'history' as any, // Placeholder
+              happiness_after: 0, // Placeholder
+            }
+          : undefined,
     }))
 
     messages.value = history
@@ -234,12 +245,20 @@ const playAudio = (url: string) => {
 let typingTimeout: number | null = null
 const handleTyping = () => {
   if (chatWs) {
-    chatWs.sendTypingIndicator(true)
+    try {
+      chatWs.sendTypingIndicator(true)
+    } catch (error) {
+      console.error('Error sending typing indicator:', error)
+    }
 
     if (typingTimeout) clearTimeout(typingTimeout)
 
     typingTimeout = window.setTimeout(() => {
-      chatWs.sendTypingIndicator(false)
+      try {
+        chatWs.sendTypingIndicator(false)
+      } catch (error) {
+        console.error('Error clearing typing indicator:', error)
+      }
     }, 2000)
   }
 }

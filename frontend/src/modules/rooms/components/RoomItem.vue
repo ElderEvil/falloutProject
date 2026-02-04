@@ -44,6 +44,7 @@ const handleDestroyClick = (event: MouseEvent) => {
     }"
     class="room"
     :class="{ selected: isSelected, 'has-image': roomImageUrl }"
+    draggable="false"
     @click="handleRoomClick"
   >
     <div class="room-overlay"></div>
@@ -67,6 +68,8 @@ const handleDestroyClick = (event: MouseEvent) => {
 .room {
   position: relative;
   overflow: hidden;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .room.has-image {

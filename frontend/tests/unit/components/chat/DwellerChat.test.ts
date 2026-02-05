@@ -322,6 +322,9 @@ describe('DwellerChat', () => {
 
       // Verify store action was called
       expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'room-456', 'test-token')
+
+      // Verify action card is removed
+      expect(wrapper.find('.action-suggestion-card').exists()).toBe(false)
     })
 
     it('should render action suggestion card with confirm button for start_training', async () => {
@@ -415,6 +418,9 @@ describe('DwellerChat', () => {
         'training-room-789',
         'test-token'
       )
+
+      // Verify action card is removed
+      expect(wrapper.find('.action-suggestion-card').exists()).toBe(false)
     })
 
     it('should not render action suggestion for no_action type', async () => {
@@ -998,17 +1004,20 @@ describe('DwellerChat', () => {
        await confirmBtn.trigger('click')
        await flushPromises()
 
-       expect(mockSendDwellerToWasteland).toHaveBeenCalledWith(
-         'vault-123',
-         'dweller-123',
-         8,
-         'test-token',
-         5,
-         3
-       )
-     })
+        expect(mockSendDwellerToWasteland).toHaveBeenCalledWith(
+          'vault-123',
+          'dweller-123',
+          8,
+          'test-token',
+          5,
+          3
+        )
 
-     it('should unassign dweller from room before starting exploration', async () => {
+        // Verify action card is removed
+        expect(wrapper.find('.action-suggestion-card').exists()).toBe(false)
+      })
+
+      it('should unassign dweller from room before starting exploration', async () => {
        const dwellerStore = useDwellerStore()
        const unassignSpy = vi.spyOn(dwellerStore, 'unassignDwellerFromRoom').mockResolvedValue({} as any)
        vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue({} as any)
@@ -1122,12 +1131,15 @@ describe('DwellerChat', () => {
        await confirmBtn.trigger('click')
        await flushPromises()
 
-       expect(mockFetchExplorationProgress).toHaveBeenCalledWith('exploration-999', 'test-token')
-       expect(mockRecallDweller).toHaveBeenCalledWith('exploration-999', 'test-token')
-       expect(mockCompleteExploration).not.toHaveBeenCalled()
-     })
+        expect(mockFetchExplorationProgress).toHaveBeenCalledWith('exploration-999', 'test-token')
+        expect(mockRecallDweller).toHaveBeenCalledWith('exploration-999', 'test-token')
+        expect(mockCompleteExploration).not.toHaveBeenCalled()
 
-     it('should call completeExploration when confirm clicked for recall with progress >= 100', async () => {
+        // Verify action card is removed
+        expect(wrapper.find('.action-suggestion-card').exists()).toBe(false)
+      })
+
+      it('should call completeExploration when confirm clicked for recall with progress >= 100', async () => {
        const dwellerStore = useDwellerStore()
        vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue({} as any)
        mockFetchExplorationProgress.mockResolvedValue({ progress_percentage: 100 })
@@ -1157,9 +1169,13 @@ describe('DwellerChat', () => {
        await confirmBtn.trigger('click')
        await flushPromises()
 
-       expect(mockFetchExplorationProgress).toHaveBeenCalledWith('exploration-999', 'test-token')
-       expect(mockCompleteExploration).toHaveBeenCalledWith('exploration-999', 'test-token')
-       expect(mockRecallDweller).not.toHaveBeenCalled()
-     })
-   })
- })
+        expect(mockFetchExplorationProgress).toHaveBeenCalledWith('exploration-999', 'test-token')
+        expect(mockCompleteExploration).toHaveBeenCalledWith('exploration-999', 'test-token')
+        expect(mockRecallDweller).not.toHaveBeenCalled()
+
+        // Verify action card is removed
+        expect(wrapper.find('.action-suggestion-card').exists()).toBe(false)
+      })
+    })
+  })
+

@@ -264,23 +264,25 @@ const handleTyping = () => {
 }
 
 // Action handlers for suggestions
-const handleAssignToRoom = async (roomId: string, roomName: string) => {
-  if (!authStore.token) return
+const handleAssignToRoom = async (roomId: string, roomName: string): Promise<boolean> => {
+  if (!authStore.token) return false
 
   isPerformingAction.value = true
   try {
     await dwellerStore.assignDwellerToRoom(props.dwellerId, roomId, authStore.token)
     toast.success(`${props.dwellerName} assigned to ${roomName}`)
+    return true
   } catch (error) {
     console.error('Failed to assign dweller to room:', error)
     toast.error('Failed to assign dweller to room')
+    return false
   } finally {
     isPerformingAction.value = false
   }
 }
 
-const handleStartTraining = async (stat: string) => {
-  if (!authStore.token) return
+const handleStartTraining = async (stat: string): Promise<boolean> => {
+  if (!authStore.token) return false
 
   isPerformingAction.value = true
   try {
@@ -288,14 +290,14 @@ const handleStartTraining = async (stat: string) => {
     const dweller = dwellerStore.dwellers.find((d) => d.id === props.dwellerId)
     if (!dweller) {
       toast.error('Dweller not found')
-      return
+      return false
     }
 
     // Get vault data
     const vault = vaultStore.activeVault
     if (!vault?.rooms) {
       toast.error('Unable to access vault data')
-      return
+      return false
     }
 
     // Check if dweller is already in a training room
@@ -308,7 +310,7 @@ const handleStartTraining = async (stat: string) => {
 
       if (trainingRooms.length === 0) {
         toast.error('No training rooms available')
-        return
+        return false
       }
 
       // Find first available training room (with capacity)
@@ -319,7 +321,7 @@ const handleStartTraining = async (stat: string) => {
 
       if (!availableTrainingRoom) {
         toast.error('No available training rooms (all at capacity)')
-        return
+        return false
       }
 
       // Assign dweller to training room
@@ -335,9 +337,11 @@ const handleStartTraining = async (stat: string) => {
     // Now start training in the training room
     await startTraining(props.dwellerId, trainingRoomId, authStore.token)
     toast.success(`${props.dwellerName} started ${stat} training`)
+    return true
   } catch (error) {
     console.error('Failed to start training:', error)
     toast.error('Failed to start training')
+    return false
   } finally {
     isPerformingAction.value = false
     showStatSelector.value = false
@@ -345,13 +349,13 @@ const handleStartTraining = async (stat: string) => {
   }
 }
 
-const handleStartExploration = async (action: StartExplorationAction) => {
-  if (!authStore.token) return
+const handleStartExploration = async (action: StartExplorationAction): Promise<boolean> => {
+  if (!authStore.token) return false
 
   const vaultId = vaultStore.activeVaultId
   if (!vaultId) {
     toast.error('No vault selected')
-    return
+    return false
   }
 
   isPerformingAction.value = true
@@ -359,7 +363,7 @@ const handleStartExploration = async (action: StartExplorationAction) => {
     const dweller = dwellerStore.dwellers.find((d) => d.id === props.dwellerId)
     if (!dweller) {
       toast.error('Dweller not found')
-      return
+      return false
     }
 
     if (dweller.room_id) {
@@ -378,16 +382,18 @@ const handleStartExploration = async (action: StartExplorationAction) => {
     toast.success(`${props.dwellerName} sent to the wasteland!`)
 
     await dwellerStore.fetchDwellerDetails(props.dwellerId, authStore.token, true)
+    return true
   } catch (error) {
     console.error('Failed to start exploration:', error)
     toast.error('Failed to send dweller to wasteland')
+    return false
   } finally {
     isPerformingAction.value = false
   }
 }
 
-const handleRecallExploration = async (action: RecallExplorationAction) => {
-  if (!authStore.token) return
+const handleRecallExploration = async (action: RecallExplorationAction): Promise<boolean> => {
+  if (!authStore.token) return false
 
   isPerformingAction.value = true
   try {
@@ -404,26 +410,35 @@ const handleRecallExploration = async (action: RecallExplorationAction) => {
     }
 
     await dwellerStore.fetchDwellerDetails(props.dwellerId, authStore.token, true)
+    return true
   } catch (error) {
     console.error('Failed to recall exploration:', error)
     toast.error('Failed to recall dweller from wasteland')
+    return false
   } finally {
     isPerformingAction.value = false
   }
 }
 
-const handleActionConfirm = (action: ActionSuggestion) => {
+const handleActionConfirm = async (action: ActionSuggestion, messageIndex: number) => {
   if (!action) return
 
+  let success = false
+
   if (action.action_type === 'assign_to_room') {
-    handleAssignToRoom(action.room_id, action.room_name)
+    success = await handleAssignToRoom(action.room_id, action.room_name)
   } else if (action.action_type === 'start_training') {
     pendingTrainingAction.value = { stat: action.stat, reason: action.reason }
-    handleStartTraining(action.stat)
+    success = await handleStartTraining(action.stat)
   } else if (action.action_type === 'start_exploration') {
-    handleStartExploration(action)
+    success = await handleStartExploration(action)
   } else if (action.action_type === 'recall_exploration') {
-    handleRecallExploration(action)
+    success = await handleRecallExploration(action)
+  }
+
+  // If action was successful, clear the suggestion from the message
+  if (success && messages.value[messageIndex]) {
+    messages.value[messageIndex].actionSuggestion = null
   }
 }
 
@@ -648,7 +663,7 @@ onUnmounted(() => {
             </div>
             <div class="action-suggestion-actions">
               <button
-                @click="handleActionConfirm(message.actionSuggestion!)"
+                @click="handleActionConfirm(message.actionSuggestion!, index)"
                 :disabled="isPerformingAction"
                 class="action-confirm-btn"
               >

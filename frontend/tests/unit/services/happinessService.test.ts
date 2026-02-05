@@ -33,7 +33,7 @@ describe('happinessService', () => {
 
       const result = await happinessService.getDwellerModifiers('dweller-123');
 
-      expect(apiClient.get).toHaveBeenCalledWith('api/v1/dwellers/dweller-123/happiness_modifiers');
+      expect(apiClient.get).toHaveBeenCalledWith('/api/v1/dwellers/dweller-123/happiness_modifiers');
       expect(result.data.current_happiness).toBe(75);
       expect(result.data.positive).toHaveLength(2);
       expect(result.data.negative).toHaveLength(1);

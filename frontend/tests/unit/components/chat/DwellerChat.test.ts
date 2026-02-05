@@ -1178,4 +1178,3 @@ describe('DwellerChat', () => {
       })
     })
   })
-

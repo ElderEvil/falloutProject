@@ -121,6 +121,32 @@ const rarityLabel = computed(() => {
   return props.dweller.rarity || 'Common'
 })
 
+const ageGroupColor = computed(() => {
+  const group = props.dweller.age_group
+  switch (group) {
+    case 'child':
+      return '#38bdf8' // sky-400
+    case 'teen':
+      return '#818cf8' // violet-400
+    case 'adult':
+    default:
+      return '#4ade80' // green-400
+  }
+})
+
+const ageGroupIcon = computed(() => {
+  const group = props.dweller.age_group
+  switch (group) {
+    case 'child':
+      return 'mdi:baby-face-outline'
+    case 'teen':
+      return 'mdi:account-school'
+    case 'adult':
+    default:
+      return 'mdi:account'
+  }
+})
+
 const isTraining = computed(() => {
   return trainingStore.isDwellerTraining(props.dweller.id)
 })
@@ -154,6 +180,14 @@ const isTraining = computed(() => {
       <div class="info-badge rarity-badge" :style="{ borderColor: rarityColor }">
         <Icon icon="mdi:star" class="badge-icon" :style="{ color: rarityColor }" />
         <span class="badge-text" :style="{ color: rarityColor }">{{ rarityLabel }}</span>
+      </div>
+      <div
+        v-if="dweller.age_group !== 'adult'"
+        class="info-badge age-badge"
+        :style="{ borderColor: ageGroupColor }"
+      >
+        <Icon :icon="ageGroupIcon" class="badge-icon" :style="{ color: ageGroupColor }" />
+        <span class="badge-text" :style="{ color: ageGroupColor }">{{ dweller.age_group }}</span>
       </div>
     </div>
 

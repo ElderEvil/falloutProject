@@ -9,6 +9,7 @@ from pydantic_ai import Agent, RunContext
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.game_config import game_config
 from app.models.base import SPECIALModel
 from app.models.dweller import Dweller
 from app.models.room import Room
@@ -133,10 +134,10 @@ dweller_chat_agent = Agent(
         "You are a Vault-Tec Dweller in a post-apocalyptic world. "
         "Respond in character, staying true to the Fallout universe. "
         "Analyze the conversation sentiment and suggest helpful actions when appropriate. "
-        "Actions include: assigning to production rooms (based on SPECIAL stats), starting training, "
+        "Actions include: assigning to production rooms (based on SPECIAL stats), "
         "sending dweller on wasteland exploration, or recalling dweller from exploration. "
         "Only suggest actions when the conversation naturally leads to them (e.g., dweller mentions being bored, "
-        "wanting to work, needing to improve stats, wanting adventure, or wanting to come home)."
+        "wanting to work, wanting adventure, or wanting to come home)."
     ),
 )
 
@@ -171,21 +172,18 @@ SPECIAL stats: {special_stats}. Use these to inform your personality but don't m
 Vault info: {vault_stats}. Share naturally if asked.
 
 IMPORTANT: Keep your response natural and conversational. When you suggest an action
-(assign_to_room, start_training, etc.), do NOT explicitly state the action details in your
+(assign_to_room, etc.), do NOT explicitly state the action details in your
 response_text. The action details will be shown separately in an action card.
 Instead, express your feeling or desire naturally without being too specific about room/stat.
 
 Examples:
 - BAD: "I'd love to work in the Power Generator!" (too specific, duplicates action card)
 - GOOD: "I'm feeling energetic and ready to help out!" (expresses desire, action card shows specifics)
-- BAD: "Let me train my Strength stat!" (duplicates action card)
-- GOOD: "I've been thinking about getting stronger lately." (natural desire, action card shows specifics)
 
 After responding, analyze:
 1. Sentiment: Rate from -5 to +5 based on conversation tone (positive = higher, complaints = lower)
-2. Actions: Use tools to check available rooms if the dweller expresses interest in work or training.
+2. Actions: Use tools to check available rooms if the dweller expresses interest in work.
    - If they want productive work: suggest a room matching their highest SPECIAL stat
-   - If they want to improve: suggest training for a stat they mention or one that's low
    - If they want adventure or to explore the wasteland: suggest start_exploration
    - If they want to come home or you sense danger during exploration: suggest recall_exploration
    - Otherwise: no_action
@@ -323,7 +321,12 @@ async def parse_action_suggestion(
     db_session: AsyncSession,
     dweller: DwellerReadFull,
 ) -> AssignToRoomAction | StartTrainingAction | StartExplorationAction | RecallExplorationAction | NoAction:
-    """Convert agent output to action suggestion schema with deterministic enrichment."""
+    """Convert agent output to action suggestion schema with deterministic enrichment.
+
+    Policy enforcement:
+    - Training actions are only suggested for non-neutral sentiment (sentiment_score != 0)
+    - Neutral messages should not suggest training, even if agent suggests it
+    """
     if output.action_type == "assign_to_room" and output.action_room_id and output.action_room_name:
         return AssignToRoomAction(
             room_id=output.action_room_id,
@@ -331,6 +334,9 @@ async def parse_action_suggestion(
             reason=output.action_reason or "Based on conversation context",
         )
     if output.action_type == "start_training" and output.action_stat:
+        # Policy: Filter out training actions for neutral sentiment
+        if output.sentiment_score == 0:
+            return NoAction(reason="Training not suggested for neutral messages")
         return StartTrainingAction(
             stat=output.action_stat,
             reason=output.action_reason or "Based on conversation context",
@@ -372,6 +378,6 @@ def derive_reason_code(sentiment_score: int) -> str:
 def compute_happiness_delta(sentiment_score: int) -> int:
     """Convert sentiment score (-5 to +5) to happiness delta (-10 to +10).
 
-    Uses a simple 2x multiplier to map sentiment to happiness change.
+    Uses the sentiment_delta_mapping from HappinessConfig to look up the delta value.
     """
-    return sentiment_score * 2
+    return game_config.happiness.get_happiness_delta(sentiment_score)

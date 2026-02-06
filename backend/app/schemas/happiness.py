@@ -16,16 +16,10 @@ class HappinessReasonCode(StrEnum):
 class HappinessImpact(BaseModel):
     """Schema describing the happiness impact of a chat interaction.
 
-    Provides both numerical impact (delta, score) and human-readable context
+    Provides both numerical impact (delta) and human-readable context
     for understanding why happiness changed.
     """
 
-    score: int = Field(
-        ...,
-        ge=-100,
-        le=100,
-        description="Absolute sentiment score from -100 (very negative) to 100 (very positive)",
-    )
     delta: int = Field(
         ...,
         ge=-10,

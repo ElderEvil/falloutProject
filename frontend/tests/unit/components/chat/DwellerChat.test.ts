@@ -921,6 +921,357 @@ describe('DwellerChat', () => {
      })
    })
 
+   describe('Latest-Only Action Suggestion Rendering', () => {
+     beforeEach(() => {
+       mockWebSocketHandlers['happiness_update'] = []
+       mockWebSocketHandlers['action_suggestion'] = []
+     })
+
+     it('should render only ONE action-suggestion-card even if multiple messages have suggestions', async () => {
+       // This test verifies that only the LATEST actionable suggestion is displayed
+       // Even when multiple messages in history have action_suggestion data
+       const wrapper = mountComponent()
+       await flushPromises()
+
+       // First message with action suggestion
+       ;(apiClient.post as Mock).mockResolvedValueOnce({
+         data: {
+           dweller_message_id: 'msg-1',
+           response: 'I want to work in the diner!',
+           happiness_impact: null,
+           action_suggestion: {
+             action_type: 'assign_to_room',
+             room_id: 'room-111',
+             room_name: 'Diner',
+             reason: 'Good fit for diner',
+           },
+         },
+       })
+       const input = wrapper.find('.chat-input-field')
+       await input.setValue('Where do you want to work?')
+       await wrapper.find('.chat-send-btn').trigger('click')
+       await flushPromises()
+
+       // Second message with different action suggestion
+       ;(apiClient.post as Mock).mockResolvedValueOnce({
+         data: {
+           dweller_message_id: 'msg-2',
+           response: 'Actually, I prefer the power plant!',
+           happiness_impact: null,
+           action_suggestion: {
+             action_type: 'assign_to_room',
+             room_id: 'room-222',
+             room_name: 'Power Plant',
+             reason: 'High strength',
+           },
+         },
+       })
+       await input.setValue('Changed your mind?')
+       await wrapper.find('.chat-send-btn').trigger('click')
+       await flushPromises()
+
+       // Should have exactly ONE action card visible (the latest one)
+       const actionCards = wrapper.findAll('.action-suggestion-card')
+       expect(actionCards.length).toBe(1)
+       // And it should be the LATEST suggestion
+       expect(actionCards[0].text()).toContain('Power Plant')
+       expect(actionCards[0].text()).not.toContain('Diner')
+     })
+
+     it('should keep previous actionable suggestion visible when new message has null action_suggestion', async () => {
+       // This test verifies sticky behavior: if a new dweller response has no action,
+       // the previously displayed actionable suggestion remains visible
+       const wrapper = mountComponent()
+       await flushPromises()
+
+       // First message WITH action suggestion
+       ;(apiClient.post as Mock).mockResolvedValueOnce({
+         data: {
+           dweller_message_id: 'msg-1',
+           response: 'I should train strength!',
+           happiness_impact: { delta: 2, reason_text: 'Motivated' },
+           action_suggestion: {
+             action_type: 'start_training',
+             stat: 'strength',
+             reason: 'Low strength needs work',
+           },
+         },
+       })
+       const input = wrapper.find('.chat-input-field')
+       await input.setValue('What should you do?')
+       await wrapper.find('.chat-send-btn').trigger('click')
+       await flushPromises()
+
+       // Verify action card exists
+       expect(wrapper.find('.action-suggestion-card').exists()).toBe(true)
+       expect(wrapper.find('.action-suggestion-card').text()).toContain('Train strength')
+
+       // Second message with NO action suggestion (null)
+       ;(apiClient.post as Mock).mockResolvedValueOnce({
+         data: {
+           dweller_message_id: 'msg-2',
+           response: 'Just chatting now.',
+           happiness_impact: { delta: 1, reason_text: 'Nice chat' },
+           action_suggestion: null,
+         },
+       })
+       await input.setValue('How are you feeling?')
+       await wrapper.find('.chat-send-btn').trigger('click')
+       await flushPromises()
+
+       // Previous action suggestion should STILL be visible (sticky behavior)
+       const actionCard = wrapper.find('.action-suggestion-card')
+       expect(actionCard.exists()).toBe(true)
+       expect(actionCard.text()).toContain('Train strength')
+     })
+
+     it('should keep previous actionable suggestion visible when new message has no_action type', async () => {
+       // Similar to above but with explicit no_action type instead of null
+       const wrapper = mountComponent()
+       await flushPromises()
+
+       // First message WITH action suggestion
+       ;(apiClient.post as Mock).mockResolvedValueOnce({
+         data: {
+           dweller_message_id: 'msg-1',
+           response: 'Send me to explore!',
+           happiness_impact: { delta: 3, reason_text: 'Adventurous' },
+           action_suggestion: {
+             action_type: 'start_exploration',
+             duration_hours: 8,
+             stimpaks: 3,
+             radaways: 2,
+             reason: 'Ready for adventure',
+           },
+         },
+       })
+       const input = wrapper.find('.chat-input-field')
+       await input.setValue('What do you want?')
+       await wrapper.find('.chat-send-btn').trigger('click')
+       await flushPromises()
+
+       // Verify action card exists
+       expect(wrapper.find('.action-suggestion-card').exists()).toBe(true)
+       expect(wrapper.find('.action-suggestion-card').text()).toContain('Explore wasteland')
+
+       // Second message with no_action type
+       ;(apiClient.post as Mock).mockResolvedValueOnce({
+         data: {
+           dweller_message_id: 'msg-2',
+           response: 'Nothing else to say.',
+           happiness_impact: null,
+           action_suggestion: {
+             action_type: 'no_action',
+             reason: 'Just conversing',
+           },
+         },
+       })
+       await input.setValue('Anything else?')
+       await wrapper.find('.chat-send-btn').trigger('click')
+       await flushPromises()
+
+       // Previous action suggestion should STILL be visible
+       const actionCard = wrapper.find('.action-suggestion-card')
+       expect(actionCard.exists()).toBe(true)
+       expect(actionCard.text()).toContain('Explore wasteland')
+     })
+   })
+
+   describe('WebSocket Message ID Correlation', () => {
+     beforeEach(() => {
+       mockWebSocketHandlers['happiness_update'] = []
+       mockWebSocketHandlers['action_suggestion'] = []
+     })
+
+     it('should update ONLY the message with matching ID when WS emits action_suggestion with message_id', async () => {
+       // This test verifies ID-based correlation: WS events with message_id
+       // should only update that specific message, not the latest
+       const wrapper = mountComponent()
+       await flushPromises()
+
+       // Send first message (msg-A)
+       ;(apiClient.post as Mock).mockResolvedValueOnce({
+         data: {
+           dweller_message_id: 'msg-A',
+           response: 'First response without action',
+           happiness_impact: null,
+           action_suggestion: null,
+         },
+       })
+       const input = wrapper.find('.chat-input-field')
+       await input.setValue('First question')
+       await wrapper.find('.chat-send-btn').trigger('click')
+       await flushPromises()
+
+       // Send second message (msg-B)
+       ;(apiClient.post as Mock).mockResolvedValueOnce({
+         data: {
+           dweller_message_id: 'msg-B',
+           response: 'Second response without action',
+           happiness_impact: null,
+           action_suggestion: null,
+         },
+       })
+       await input.setValue('Second question')
+       await wrapper.find('.chat-send-btn').trigger('click')
+       await flushPromises()
+
+       // Verify we have 4 messages (2 user + 2 dweller)
+       const messages = wrapper.findAll('.message-wrapper')
+       expect(messages.length).toBe(4)
+
+       // No action cards yet
+       expect(wrapper.findAll('.action-suggestion-card').length).toBe(0)
+
+       // Now WS emits action_suggestion specifically for msg-A (the FIRST dweller message)
+       const actionHandlers = mockWebSocketHandlers['action_suggestion']
+       expect(actionHandlers.length).toBeGreaterThan(0)
+       actionHandlers[0]({
+         type: 'action_suggestion',
+         message_id: 'msg-A',
+         action_suggestion: {
+           action_type: 'assign_to_room',
+           room_id: 'room-target',
+           room_name: 'Target Room',
+           reason: 'Targeted update for msg-A only',
+         },
+       })
+       await wrapper.vm.$nextTick()
+
+       // Should have exactly one action card
+       const actionCards = wrapper.findAll('.action-suggestion-card')
+       expect(actionCards.length).toBe(1)
+
+       // The action card should be associated with msg-A (first dweller message, index 1)
+       // NOT the latest message (msg-B at index 3)
+       const dwellerMessages = messages.filter((m) => m.classes().includes('dweller'))
+       expect(dwellerMessages.length).toBe(2)
+
+       // First dweller message SHOULD have the action card
+       expect(dwellerMessages[0].find('.action-suggestion-card').exists()).toBe(true)
+       expect(dwellerMessages[0].text()).toContain('Target Room')
+
+       // Second dweller message should NOT have an action card
+       expect(dwellerMessages[1].find('.action-suggestion-card').exists()).toBe(false)
+     })
+
+     it('should handle out-of-order WS events - emit for message A after message B exists', async () => {
+       // This test verifies that late-arriving WS events still target the correct message
+       // Simulates network delay where suggestion for msg-A arrives after msg-B is rendered
+       const wrapper = mountComponent()
+       await flushPromises()
+
+       // Send message A
+       ;(apiClient.post as Mock).mockResolvedValueOnce({
+         data: {
+           dweller_message_id: 'msg-A',
+           response: 'Response A - will get delayed WS update',
+           happiness_impact: null,
+           action_suggestion: null,
+         },
+       })
+       const input = wrapper.find('.chat-input-field')
+       await input.setValue('Message A')
+       await wrapper.find('.chat-send-btn').trigger('click')
+       await flushPromises()
+
+       // Send message B (before WS event for A arrives)
+       ;(apiClient.post as Mock).mockResolvedValueOnce({
+         data: {
+           dweller_message_id: 'msg-B',
+           response: 'Response B - no action',
+           happiness_impact: null,
+           action_suggestion: null,
+         },
+       })
+       await input.setValue('Message B')
+       await wrapper.find('.chat-send-btn').trigger('click')
+       await flushPromises()
+
+       // Send message C
+       ;(apiClient.post as Mock).mockResolvedValueOnce({
+         data: {
+           dweller_message_id: 'msg-C',
+           response: 'Response C - also no action',
+           happiness_impact: null,
+           action_suggestion: null,
+         },
+       })
+       await input.setValue('Message C')
+       await wrapper.find('.chat-send-btn').trigger('click')
+       await flushPromises()
+
+       // Now we have 6 messages (3 user + 3 dweller)
+       expect(wrapper.findAll('.message-wrapper').length).toBe(6)
+
+       // Delayed WS event arrives for msg-A (which is now 2 messages behind)
+       const actionHandlers = mockWebSocketHandlers['action_suggestion']
+       actionHandlers[0]({
+         type: 'action_suggestion',
+         message_id: 'msg-A',
+         action_suggestion: {
+           action_type: 'start_training',
+           stat: 'perception',
+           reason: 'Delayed suggestion for message A',
+         },
+       })
+       await wrapper.vm.$nextTick()
+
+       // Should have exactly one action card
+       const actionCards = wrapper.findAll('.action-suggestion-card')
+       expect(actionCards.length).toBe(1)
+
+       // Action card should be on the FIRST dweller message (msg-A), not the latest
+       const dwellerMessages = wrapper.findAll('.message-wrapper.dweller')
+       expect(dwellerMessages.length).toBe(3)
+
+       // msg-A (index 0) should have the action card
+       expect(dwellerMessages[0].find('.action-suggestion-card').exists()).toBe(true)
+       expect(dwellerMessages[0].text()).toContain('Train perception')
+
+       // msg-B and msg-C should NOT have action cards
+       expect(dwellerMessages[1].find('.action-suggestion-card').exists()).toBe(false)
+       expect(dwellerMessages[2].find('.action-suggestion-card').exists()).toBe(false)
+     })
+
+     it('should ignore WS action_suggestion with unknown message_id', async () => {
+       // Edge case: WS emits for a message_id that does not exist in current chat
+       const wrapper = mountComponent()
+       await flushPromises()
+
+       // Send a message
+       ;(apiClient.post as Mock).mockResolvedValueOnce({
+         data: {
+           dweller_message_id: 'msg-real',
+           response: 'Real response',
+           happiness_impact: null,
+           action_suggestion: null,
+         },
+       })
+       const input = wrapper.find('.chat-input-field')
+       await input.setValue('Test message')
+       await wrapper.find('.chat-send-btn').trigger('click')
+       await flushPromises()
+
+       // WS emits for unknown message_id
+       const actionHandlers = mockWebSocketHandlers['action_suggestion']
+       actionHandlers[0]({
+         type: 'action_suggestion',
+         message_id: 'msg-nonexistent',
+         action_suggestion: {
+           action_type: 'assign_to_room',
+           room_id: 'room-123',
+           room_name: 'Unknown Room',
+           reason: 'Should be ignored',
+         },
+       })
+       await wrapper.vm.$nextTick()
+
+       // No action cards should appear
+       expect(wrapper.findAll('.action-suggestion-card').length).toBe(0)
+     })
+   })
+
    describe('Exploration Actions from Chat', () => {
      it('should render action suggestion card for start_exploration', async () => {
        const wrapper = mountComponent()

@@ -543,6 +543,131 @@ class TestExplorationActions:
         assert data["action_suggestion"]["stimpaks"] == 2  # min(5, 2)
         assert data["action_suggestion"]["radaways"] == 1  # min(3, 1)
 
+    # ============================================================================
+    # Action Suggestion Policy Tests
+    # ============================================================================
+
+    @patch("app.services.chat_service.dweller_chat_agent")
+    async def test_neutral_message_does_not_suggest_training(
+        self,
+        mock_agent: MagicMock,
+        async_client: AsyncClient,
+        normal_user_token_headers: dict[str, str],
+        chat_dweller: Dweller,
+    ):
+        """Test that neutral messages do not suggest training actions even if agent suggests it."""
+        # Mock agent output with neutral sentiment but agent tries to suggest training
+        # (This should be filtered out by the policy)
+        mock_output = DwellerChatOutput(
+            response_text="Hello! How can I help you today?",
+            sentiment_score=0,
+            reason_text="Neutral greeting",
+            action_type="start_training",
+            action_room_id=None,
+            action_room_name=None,
+            action_stat="strength",
+            action_reason="Neutral message should not suggest training",
+        )
+        mock_result = MagicMock(spec=AgentRunResult)
+        mock_result.output = mock_output
+        mock_agent.run = AsyncMock(return_value=mock_result)
+
+        response = await async_client.post(
+            f"chat/{chat_dweller.id}",
+            headers=normal_user_token_headers,
+            json={"message": "Hi there!"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify action suggestion is not training (policy enforces this)
+        assert "action_suggestion" in data
+        assert data["action_suggestion"]["action_type"] != "start_training", (
+            "Neutral messages should not suggest training"
+        )
+
+    @patch("app.services.chat_service.dweller_chat_agent")
+    async def test_explicit_training_request_suggests_training(
+        self,
+        mock_agent: MagicMock,
+        async_client: AsyncClient,
+        normal_user_token_headers: dict[str, str],
+        chat_dweller: Dweller,
+    ):
+        """Test that explicit training requests suggest start_training action."""
+        # Mock agent output with user explicitly asking about training
+        mock_output = DwellerChatOutput(
+            response_text="You should train your strength! It's currently low.",
+            sentiment_score=1,
+            reason_text="User asked about training",
+            action_type="start_training",
+            action_room_id=None,
+            action_room_name=None,
+            action_stat="strength",
+            action_reason="Strength is low and needs improvement",
+        )
+        mock_result = MagicMock(spec=AgentRunResult)
+        mock_result.output = mock_output
+        mock_agent.run = AsyncMock(return_value=mock_result)
+
+        response = await async_client.post(
+            f"chat/{chat_dweller.id}",
+            headers=normal_user_token_headers,
+            json={"message": "Should I train my strength?"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify action suggestion is training
+        assert "action_suggestion" in data
+        assert data["action_suggestion"]["action_type"] == "start_training", (
+            "Explicit training requests should suggest training"
+        )
+
+    @patch("app.services.chat_service.dweller_chat_agent")
+    async def test_assign_to_room_can_target_any_room(
+        self,
+        mock_agent: MagicMock,
+        async_client: AsyncClient,
+        normal_user_token_headers: dict[str, str],
+        chat_dweller: Dweller,
+    ):
+        """Test that assign_to_room suggestions can target any room type."""
+        # Mock agent output suggesting assignment to a non-production room
+        room_id = uuid4()
+        mock_output = DwellerChatOutput(
+            response_text="You should work in the Science Lab!",
+            sentiment_score=2,
+            reason_text="Good intelligence stat",
+            action_type="assign_to_room",
+            action_room_id=room_id,
+            action_room_name="Science Lab",
+            action_stat=None,
+            action_reason="Intelligence makes this ideal",
+        )
+        mock_result = MagicMock(spec=AgentRunResult)
+        mock_result.output = mock_output
+        mock_agent.run = AsyncMock(return_value=mock_result)
+
+        response = await async_client.post(
+            f"chat/{chat_dweller.id}",
+            headers=normal_user_token_headers,
+            json={"message": "Where should I work?"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify action suggestion is assignment to any room
+        assert "action_suggestion" in data
+        assert data["action_suggestion"]["action_type"] == "assign_to_room", (
+            "Assignment suggestions should be allowed for any room"
+        )
+        assert data["action_suggestion"]["room_id"] == str(room_id)
+        assert data["action_suggestion"]["room_name"] == "Science Lab"
+
 
 # ============================================================================
 # Message ID Tests (for WS action_suggestion correlation)
@@ -744,7 +869,6 @@ class TestMessageIdCorrelation:
                 "dweller_audio_bytes": b"fake audio bytes",
                 "dweller_message_id": mock_message_id,
                 "happiness_impact": HappinessImpact(
-                    score=40,
                     delta=4,
                     reason_code=HappinessReasonCode.CHAT_POSITIVE,
                     reason_text="Friendly greeting",
@@ -810,7 +934,6 @@ class TestMessageIdCorrelation:
                 "dweller_audio_bytes": b"fake audio bytes",
                 "dweller_message_id": mock_message_id,
                 "happiness_impact": HappinessImpact(
-                    score=20,
                     delta=2,
                     reason_code=HappinessReasonCode.CHAT_POSITIVE,
                     reason_text="Helpful suggestion",

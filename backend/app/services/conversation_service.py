@@ -180,7 +180,6 @@ class ConversationService:
             # Build happiness impact response
             reason_code_str = derive_reason_code(output.sentiment_score)
             happiness_impact = HappinessImpact(
-                score=output.sentiment_score * 20,  # Scale -5..+5 to -100..+100
                 delta=delta,
                 reason_code=HappinessReasonCode(reason_code_str),
                 reason_text=output.reason_text,
@@ -205,7 +204,6 @@ class ConversationService:
 
             # Neutral fallback - no happiness change
             happiness_impact = HappinessImpact(
-                score=0,
                 delta=0,
                 reason_code=HappinessReasonCode.CHAT_NEUTRAL,
                 reason_text="Voice chat processed without sentiment analysis",

@@ -3050,6 +3050,12 @@ export interface components {
              * @description The dweller's chat response text
              */
             response: string;
+            /**
+             * Dweller Message Id
+             * Format: uuid4
+             * @description ID of the dweller's chat message in database
+             */
+            dweller_message_id: string;
             /** @description Happiness impact from this interaction (None if not analyzed) */
             happiness_impact?: components["schemas"]["HappinessImpact"] | null;
             /**
@@ -3970,6 +3976,12 @@ export interface components {
              * @description URL to dweller's audio response
              */
             dweller_audio_url?: string | null;
+            /**
+             * Dweller Message Id
+             * Format: uuid4
+             * @description ID of the dweller's chat message in database
+             */
+            dweller_message_id: string;
             /** @description Happiness impact from this interaction */
             happiness_impact?: components["schemas"]["HappinessImpact"] | null;
             /**
@@ -4194,15 +4206,10 @@ export interface components {
          * HappinessImpact
          * @description Schema describing the happiness impact of a chat interaction.
          *
-         *     Provides both numerical impact (delta, score) and human-readable context
+         *     Provides both numerical impact (delta) and human-readable context
          *     for understanding why happiness changed.
          */
         HappinessImpact: {
-            /**
-             * Score
-             * @description Absolute sentiment score from -100 (very negative) to 100 (very positive)
-             */
-            score: number;
             /**
              * Delta
              * @description Happiness change applied to dweller (-10 to +10)

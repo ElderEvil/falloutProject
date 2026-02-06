@@ -421,7 +421,7 @@ async def test_manual_recruit_does_not_break_subsequent_api_calls(
         vault_id=vault.id,
         room_id=room.id,
     )
-    await crud.dweller.create(async_session, dweller_data)
+    dweller = await crud.dweller.create(async_session, dweller_data)
     await async_session.commit()
 
     response = await async_client.get(
@@ -433,7 +433,7 @@ async def test_manual_recruit_does_not_break_subsequent_api_calls(
     initial_caps = vault_before["bottle_caps"]
 
     response = await async_client.get(
-        f"/dwellers/vault/{vault.id}",
+        f"/dwellers/vault/{vault.id}/",
         headers=superuser_token_headers,
     )
     assert response.status_code == 200, "Pre-recruitment: Should fetch dwellers"
@@ -464,7 +464,7 @@ async def test_manual_recruit_does_not_break_subsequent_api_calls(
     assert vault_after["bottle_caps"] == initial_caps - 500, "Caps should be deducted"
 
     response = await async_client.get(
-        f"/dwellers/vault/{vault.id}",
+        f"/dwellers/vault/{vault.id}/",
         headers=superuser_token_headers,
     )
     assert response.status_code == 200, (

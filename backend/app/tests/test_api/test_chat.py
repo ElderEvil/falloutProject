@@ -108,7 +108,8 @@ class TestTextChat:
         # Verify happiness impact is populated
         assert "happiness_impact" in data
         assert data["happiness_impact"] is not None
-        assert data["happiness_impact"]["delta"] == 4  # 2 * 2 (sentiment_score * 2)
+        # Delta comes from game_config.happiness.sentiment_delta_mapping (sentiment 2 -> delta 4)
+        assert data["happiness_impact"]["delta"] == 4
         assert data["happiness_impact"]["reason_code"] == "chat_positive"
 
         # Verify action suggestion is populated

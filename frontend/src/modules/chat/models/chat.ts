@@ -21,6 +21,7 @@ export type NoAction = components['schemas']['NoAction']
 export interface ChatMessageDisplay {
   type: 'user' | 'dweller'
   content: string
+  messageId?: string // Backend dweller_message_id for correlation with WebSocket events
   timestamp?: Date
   avatar?: string
   audioUrl?: string

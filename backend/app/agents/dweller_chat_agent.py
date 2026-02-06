@@ -146,6 +146,7 @@ dweller_chat_agent = Agent(
 def chat_system_prompt(ctx: RunContext[DwellerChatDeps]) -> str:
     """Dynamic system prompt with dweller context."""
     dweller = ctx.deps.dweller
+    # Build SPECIAL stats string with proper formatting
     special_stats = ", ".join(f"{stat}: {getattr(dweller, stat)}" for stat in SPECIALModel.__annotations__)
     vault_stats = (
         f"Average happiness: {dweller.vault.happiness}/100, "
@@ -253,19 +254,21 @@ async def list_training_rooms(ctx: RunContext[DwellerChatDeps]) -> list[RoomInfo
         dweller_response = await db_session.execute(dweller_query)
         current_dwellers = len(dweller_response.scalars().all())
 
-        # Calculate capacity
+        # Calculate capacity (2 dwellers per 3 size units)
         max_capacity = (room.size or room.size_min) // 3 * 2 if room.size or room.size_min else 2
 
-        result.append(
-            RoomInfo(
-                room_id=str(room.id),
-                name=room.name,
-                category=room.category.value,
-                current_dwellers=current_dwellers,
-                max_capacity=max_capacity,
-                ability=room.ability.value if room.ability else None,
+        # Only include rooms with available capacity
+        if current_dwellers < max_capacity:
+            result.append(
+                RoomInfo(
+                    room_id=str(room.id),
+                    name=room.name,
+                    category=room.category.value,
+                    current_dwellers=current_dwellers,
+                    max_capacity=max_capacity,
+                    ability=room.ability.value if room.ability else None,
+                )
             )
-        )
 
     return result
 

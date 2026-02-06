@@ -134,6 +134,7 @@ const sendMessage = async () => {
       messages.value.push({
         type: 'dweller',
         content: response.data.response,
+        messageId: response.data.dweller_message_id,
         timestamp: new Date(),
         avatar: props.dwellerAvatar,
         happinessImpact: response.data.happiness_impact || null,
@@ -198,6 +199,7 @@ const sendAudioMessage = async () => {
     messages.value.push({
       type: 'dweller',
       content: response.data.dweller_response,
+      messageId: response.data.dweller_message_id,
       timestamp: new Date(),
       avatar: props.dwellerAvatar,
       audioUrl: response.data.dweller_audio_url,
@@ -463,6 +465,21 @@ const getHappinessIcon = (delta: number): string => {
   return 'mdi:emoticon-neutral'
 }
 
+// Find the latest actionable suggestion (most recent dweller message with a valid action)
+const latestActionSuggestionIndex = computed(() => {
+  for (let i = messages.value.length - 1; i >= 0; i--) {
+    const msg = messages.value[i]
+    if (
+      msg.type === 'dweller' &&
+      msg.actionSuggestion &&
+      msg.actionSuggestion.action_type !== 'no_action'
+    ) {
+      return i
+    }
+  }
+  return -1
+})
+
 watchEffect(() => {
   if (chatMessages.value) {
     chatMessages.value.scrollTop = chatMessages.value.scrollHeight
@@ -499,16 +516,15 @@ onMounted(() => {
       }
     })
 
-    // Handle action suggestions via WebSocket
+    // Handle action suggestions via WebSocket (correlated by message_id)
     chatWs.on('action_suggestion', (msg: any) => {
-      if (msg.action_suggestion) {
-        // Find the index of the last dweller message
-        const reversedIndex = [...messages.value].reverse().findIndex((m) => m.type === 'dweller')
-        if (reversedIndex !== -1) {
-          const lastIndex = messages.value.length - 1 - reversedIndex
+      if (msg.message_id && msg.action_suggestion) {
+        // Find the message by its ID
+        const messageIndex = messages.value.findIndex((m) => m.messageId === msg.message_id)
+        if (messageIndex !== -1) {
           // Update using array assignment to trigger Vue reactivity
-          messages.value[lastIndex] = {
-            ...messages.value[lastIndex],
+          messages.value[messageIndex] = {
+            ...messages.value[messageIndex],
             actionSuggestion: msg.action_suggestion,
           }
         }
@@ -623,12 +639,13 @@ onUnmounted(() => {
             {{ message.content }}
           </div>
 
-          <!-- Action suggestion card -->
+          <!-- Action suggestion card (only show for latest actionable suggestion) -->
           <div
             v-if="
               message.type === 'dweller' &&
               message.actionSuggestion &&
-              message.actionSuggestion.action_type !== 'no_action'
+              message.actionSuggestion.action_type !== 'no_action' &&
+              index === latestActionSuggestionIndex
             "
             class="action-suggestion-card"
           >

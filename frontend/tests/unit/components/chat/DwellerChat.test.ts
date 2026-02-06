@@ -812,7 +812,7 @@ describe('DwellerChat', () => {
      })
 
      it.todo('should show error when no training rooms available')
-     
+
      it.todo('should show error when all training rooms at capacity')
    })
 

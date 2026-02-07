@@ -367,3 +367,99 @@ async def test_auto_assign_training_room_sets_training_status(
                 f"Dweller {dweller_id} assigned to training room but has status {dweller.status}, "
                 f"expected {DwellerStatusEnum.TRAINING}"
             )
+
+
+@pytest.mark.asyncio
+async def test_vault_initiate_normal_creates_6_dwellers(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    normal_user_token_headers: dict[str, str],
+):
+    """Test that normal vault initialization creates 6 dwellers."""
+    from uuid import UUID
+
+    vault_number = {"number": 100}
+    response = await async_client.post("/vaults/initiate", headers=normal_user_token_headers, json=vault_number)
+    assert response.status_code == 201
+    vault_id = UUID(response.json()["id"])
+
+    vault_with_counts = await crud.vault.get_vault_with_room_and_dweller_count(
+        db_session=async_session, vault_id=vault_id
+    )
+    assert vault_with_counts.dweller_count == 6, f"Expected 6 dwellers, got {vault_with_counts.dweller_count}"
+
+
+@pytest.mark.asyncio
+async def test_vault_initiate_boosted_creates_13_dwellers(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    normal_user_token_headers: dict[str, str],
+):
+    """Test that boosted vault initialization creates 13 dwellers."""
+    from uuid import UUID
+
+    vault_number = {"number": 101, "boosted": True}
+    response = await async_client.post("/vaults/initiate", headers=normal_user_token_headers, json=vault_number)
+    assert response.status_code == 201
+    vault_id = UUID(response.json()["id"])
+
+    vault_with_counts = await crud.vault.get_vault_with_room_and_dweller_count(
+        db_session=async_session, vault_id=vault_id
+    )
+    assert vault_with_counts.dweller_count == 13, f"Expected 13 dwellers, got {vault_with_counts.dweller_count}"
+
+
+@pytest.mark.asyncio
+async def test_vault_initiate_superuser_creates_13_dwellers(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+):
+    """Test that superuser vault initialization creates 13 dwellers (parity with boosted)."""
+    from uuid import UUID
+
+    vault_number = {"number": 202}
+    response = await async_client.post("/vaults/initiate", headers=superuser_token_headers, json=vault_number)
+    assert response.status_code == 201
+    vault_id = UUID(response.json()["id"])
+
+    vault_with_counts = await crud.vault.get_vault_with_room_and_dweller_count(
+        db_session=async_session, vault_id=vault_id
+    )
+    assert vault_with_counts.dweller_count == 13, (
+        f"Expected 13 dwellers for superuser, got {vault_with_counts.dweller_count}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_vault_initiate_boosted_and_superuser_parity(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    normal_user_token_headers: dict[str, str],
+    superuser_token_headers: dict[str, str],
+):
+    """Test that boosted non-superuser vault matches superuser vault initialization."""
+    from uuid import UUID
+
+    boosted_vault_number = {"number": 203, "boosted": True}
+    boosted_response = await async_client.post(
+        "/vaults/initiate", headers=normal_user_token_headers, json=boosted_vault_number
+    )
+    assert boosted_response.status_code == 201
+    boosted_vault_id = UUID(boosted_response.json()["id"])
+
+    superuser_vault_number = {"number": 204}
+    superuser_response = await async_client.post(
+        "/vaults/initiate", headers=superuser_token_headers, json=superuser_vault_number
+    )
+    assert superuser_response.status_code == 201
+    superuser_vault_id = UUID(superuser_response.json()["id"])
+
+    boosted_vault = await crud.vault.get_vault_with_room_and_dweller_count(
+        db_session=async_session, vault_id=boosted_vault_id
+    )
+    superuser_vault = await crud.vault.get_vault_with_room_and_dweller_count(
+        db_session=async_session, vault_id=superuser_vault_id
+    )
+    assert boosted_vault.dweller_count == 13, f"Expected 13 dwellers, got {boosted_vault.dweller_count}"
+    assert superuser_vault.dweller_count == 13, f"Expected 13 dwellers, got {superuser_vault.dweller_count}"

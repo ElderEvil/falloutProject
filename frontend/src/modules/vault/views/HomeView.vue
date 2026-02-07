@@ -18,6 +18,7 @@ const isFlickering = inject('isFlickering', ref(true))
 const glowClass = inject('glowClass', ref('terminal-glow'))
 
 const newVaultNumber = ref('')
+const boostedStart = ref(false)
 const selectedVaultId = ref<string | null>(null)
 const creatingVault = ref(false)
 const deletingVault = ref<string | null>(null)
@@ -37,7 +38,7 @@ const validateVaultNumber = () => {
 
   try {
     const parsed = parseInt(newVaultNumber.value, 10)
-    vaultNumberSchema.parse({ number: parsed })
+    vaultNumberSchema.parse({ number: parsed, boosted: boostedStart.value })
     return true
   } catch (error: any) {
     vaultNumberError.value = error.errors?.[0]?.message || 'Invalid vault number'
@@ -53,8 +54,9 @@ const createVault = async () => {
   creatingVault.value = true
   try {
     const number = parseInt(newVaultNumber.value, 10)
-    await vaultStore.createVault(number, authStore.token as string)
+    await vaultStore.createVault(number, boostedStart.value, authStore.token as string)
     newVaultNumber.value = ''
+    boostedStart.value = false
     vaultNumberError.value = null
     await vaultStore.fetchVaults(authStore.token as string)
   } finally {
@@ -121,8 +123,8 @@ onMounted(async () => {
             <input
               v-model="newVaultNumber"
               type="number"
-              placeholder="Vault Number (0-999)"
-              min="0"
+              placeholder="Vault Number (1-999)"
+              min="1"
               max="999"
               @input="validateVaultNumber"
               class="vault-input flex-grow rounded p-2 focus:outline-none focus:ring-2"
@@ -138,6 +140,22 @@ onMounted(async () => {
             </button>
           </div>
           <p v-if="vaultNumberError" class="text-sm text-red-500">{{ vaultNumberError }}</p>
+
+          <!-- Boosted Start Option -->
+          <div class="mt-3 flex items-start space-x-2">
+            <input
+              id="boosted-start"
+              v-model="boostedStart"
+              type="checkbox"
+              class="mt-1 h-4 w-4 cursor-pointer"
+            />
+            <label for="boosted-start" class="cursor-pointer select-none text-sm">
+              <span class="font-semibold">Boosted Start</span>
+              <p class="mt-1 text-xs text-gray-400">
+                Start with extra rooms/dwellers and auto-training. Does not grant admin powers.
+              </p>
+            </label>
+          </div>
         </form>
 
         <!-- Experimental Warning -->

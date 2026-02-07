@@ -18,6 +18,7 @@ class VaultCreateWithUserID(VaultBase):
 
 class VaultNumber(SQLModel):
     number: int = Field(gt=0, lt=1_000)
+    boosted: bool = False
 
 
 class VaultRead(VaultBase):

@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 /**
  * Vault number validation schema
- * Following Fallout lore: Vaults are numbered 0-999
+ * Following Fallout lore: Vaults are numbered 1-999
  */
 export const vaultNumberSchema = z.object({
   number: z
@@ -10,8 +10,9 @@ export const vaultNumberSchema = z.object({
       message: 'Vault number must be a number',
     })
     .int('Vault number must be a whole number')
-    .min(0, 'Vault number must be at least 0')
+    .min(1, 'Vault number must be at least 1')
     .max(999, 'Vault number must be 999 or less'),
+  boosted: z.boolean().default(false),
 })
 
 export type VaultNumberData = z.infer<typeof vaultNumberSchema>

@@ -74,11 +74,11 @@ export const useVaultStore = defineStore('vault', () => {
     }
   }
 
-  async function createVault(number: number, token: string) {
+  async function createVault(number: number, boosted: boolean, token: string) {
     try {
       await axios.post(
         '/api/v1/vaults/initiate',
-        { number },
+        { number, boosted },
         {
           headers: {
             Authorization: `Bearer ${token}`,

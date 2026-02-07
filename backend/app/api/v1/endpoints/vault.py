@@ -114,8 +114,9 @@ async def start_vault(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ):
+    is_boosted = vault_data.boosted or user.is_superuser
     return await vault_service.initiate_vault(
-        db_session=db_session, obj_in=vault_data, user_id=user.id, is_superuser=user.is_superuser
+        db_session=db_session, obj_in=vault_data, user_id=user.id, is_boosted=is_boosted
     )
 
 

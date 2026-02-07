@@ -192,7 +192,7 @@ describe('HomeView', () => {
       // This documents current behavior - decimals are truncated
       expect(axios.post).toHaveBeenCalledWith(
         '/api/v1/vaults/initiate',
-        { number: 100 },  // Not 100.5
+        { number: 100, boosted: false },  // Not 100.5
         expect.anything()
       )
     })
@@ -235,7 +235,7 @@ describe('HomeView', () => {
 
       expect(axios.post).toHaveBeenCalledWith(
         '/api/v1/vaults/initiate',
-        { number: 123 },
+        { number: 123, boosted: false },
         expect.objectContaining({
           headers: expect.objectContaining({
             Authorization: 'Bearer test-token'

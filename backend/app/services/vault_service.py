@@ -62,7 +62,7 @@ class VaultService:
         self,
         rooms: list[RoomCreate],
         vault_id: UUID4,
-        is_superuser: bool,
+        is_boosted: bool,
     ) -> tuple[list[RoomCreate], list[RoomCreate], list[RoomCreate], list[RoomCreate], list[RoomCreate]]:
         """Prepare all room data for vault initialization."""
         # Infrastructure rooms
@@ -75,8 +75,8 @@ class VaultService:
         storage_room_data = self._prepare_room_data(rooms, "storage room", vault_id, 2, 2)
         capacity_rooms = [RoomCreate(**living_room_data), RoomCreate(**storage_room_data)]
 
-        # Add extra living rooms for superuser
-        if is_superuser:
+        # Add extra living rooms for boosted
+        if is_boosted:
             extra_capacity_rooms_data = [
                 self._prepare_room_data(rooms, "living room", vault_id, 4, 3),
                 self._prepare_room_data(rooms, "living room", vault_id, 5, 3),
@@ -97,14 +97,14 @@ class VaultService:
         radio_studio_data = self._prepare_room_data(rooms, "radio studio", vault_id, 2, 3)
         misc_rooms = [RoomCreate(**radio_studio_data)]
 
-        # Add Overseer's Office for superuser
-        if is_superuser:
+        # Add Overseer's Office for boosted
+        if is_boosted:
             overseer_office_data = self._prepare_room_data(rooms, "overseer's office", vault_id, 6, 2)
             misc_rooms.append(RoomCreate(**overseer_office_data))
 
-        # Training rooms (superuser only)
+        # Training rooms (boosted only)
         training_rooms = []
-        if is_superuser:
+        if is_boosted:
             training_room_configs = [
                 ("weight room", 3, 1),  # Strength
                 ("armory", 3, 2),  # Perception
@@ -201,7 +201,7 @@ class VaultService:
         vault_id: UUID4,
         created_production_rooms: list[Room],
         created_training_rooms: list[Room],
-        is_superuser: bool,
+        is_boosted: bool,
     ) -> None:
         """Create and assign initial dwellers to production and training rooms."""
 
@@ -228,8 +228,8 @@ class VaultService:
                 )
                 self.logger.info(f"Dweller {dweller_obj.id} assigned to room {room.id}")
 
-            # Training dwellers (superuser only)
-            if is_superuser:
+            # Training dwellers (boosted only)
+            if is_boosted:
                 training_stats = [
                     SPECIALEnum.STRENGTH,
                     SPECIALEnum.PERCEPTION,
@@ -264,10 +264,10 @@ class VaultService:
         db_session: AsyncSession,
         vault_id: UUID4,
         created_training_rooms: list[Room],
-        is_superuser: bool,
+        is_boosted: bool,
     ) -> None:
-        """Start training sessions for dwellers in training rooms (superuser only)."""
-        if not is_superuser or not created_training_rooms:
+        """Start training sessions for dwellers in training rooms (boosted only)."""
+        if not is_boosted or not created_training_rooms:
             return
 
         try:
@@ -339,7 +339,7 @@ class VaultService:
         db_session: AsyncSession,
         obj_in: VaultNumber,
         user_id: UUID4,
-        is_superuser: bool = False,
+        is_boosted: bool = False,
     ) -> Vault:
         """
         Create a new vault for a user and initialize it with essential rooms and dwellers.
@@ -352,7 +352,7 @@ class VaultService:
         - Weight room (training room for testing leveling system)
         - 6 dwellers with boosted SPECIAL stats assigned to production rooms
 
-        Superuser vault additionally includes:
+        Boosted vault additionally includes:
         - All 7 training rooms (one for each SPECIAL stat)
         - 2 additional living rooms (3 total for 13+ dwellers)
         - 7 additional dwellers assigned to training rooms (13 total)
@@ -366,7 +366,7 @@ class VaultService:
         game_data_store = get_static_game_data()
         rooms = game_data_store.rooms
         infrastructure_rooms, capacity_rooms, production_rooms, misc_rooms, training_rooms = (
-            self._prepare_initial_rooms(rooms, vault_db_obj.id, is_superuser)
+            self._prepare_initial_rooms(rooms, vault_db_obj.id, is_boosted)
         )
 
         # Create rooms and get created production/training rooms
@@ -386,14 +386,14 @@ class VaultService:
 
         # Create and assign dwellers
         await self._create_initial_dwellers(
-            db_session, vault_db_obj.id, created_production_rooms, created_training_rooms, is_superuser
+            db_session, vault_db_obj.id, created_production_rooms, created_training_rooms, is_boosted
         )
 
         # Commit to ensure all dwellers and rooms are persisted before starting training
         await db_session.commit()
 
-        # Start training sessions for superuser vaults
-        await self._start_training_sessions(db_session, vault_db_obj.id, created_training_rooms, is_superuser)
+        # Start training sessions for boosted vaults
+        await self._start_training_sessions(db_session, vault_db_obj.id, created_training_rooms, is_boosted)
 
         # Assign initial objectives to the vault
         await self._assign_initial_objectives(db_session, vault_db_obj.id)

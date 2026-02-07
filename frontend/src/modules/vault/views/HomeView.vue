@@ -139,9 +139,27 @@ onMounted(async () => {
           </div>
           <p v-if="vaultNumberError" class="text-sm text-red-500">{{ vaultNumberError }}</p>
         </form>
+
+        <!-- Experimental Warning -->
+        <div
+          class="mt-4 rounded border border-yellow-600 bg-yellow-900/30 p-3 text-sm"
+          :style="{ color: 'var(--color-theme-accent)' }"
+        >
+          <span class="font-bold text-yellow-500">⚠️ Experimental:</span>
+          Vaults are experimental. Vault data might be deleted soon in a future update.
+        </div>
       </div>
 
       <div v-if="sortedVaults.length" class="w-full max-w-4xl">
+        <!-- Experimental Warning -->
+        <div
+          class="mb-4 rounded border border-yellow-600 bg-yellow-900/30 p-3 text-sm"
+          :style="{ color: 'var(--color-theme-accent)' }"
+        >
+          <span class="font-bold text-yellow-500">⚠️ Experimental:</span>
+          Vaults are experimental. Vault data might be deleted soon in a future update.
+        </div>
+
         <h2 class="mb-4 text-2xl font-bold" :style="{ color: 'var(--color-theme-primary)' }">
           Your Vaults
         </h2>

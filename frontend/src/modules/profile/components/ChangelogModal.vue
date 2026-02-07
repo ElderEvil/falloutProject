@@ -247,23 +247,22 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- Actions -->
-          <template #footer>
-            <div class="flex justify-between items-center">
-              <div class="flex gap-3">
-                <UButton variant="secondary" @click="handleViewAllChangelog">
-                  View Full Changelog
-                </UButton>
-              </div>
+           <!-- Actions -->
+           <template #footer>
+             <div class="flex justify-between items-center">
+               <div class="flex gap-3">
+                 <UButton variant="secondary" @click="handleViewAllChangelog">
+                   View Full Changelog
+                 </UButton>
+               </div>
 
-              <div class="flex gap-3">
-                <UButton variant="secondary" @click="$emit('close')"> Close </UButton>
-                <UButton v-if="hasNewVersions" variant="primary" @click="handleMarkAsSeen">
-                  Got it!
-                </UButton>
-              </div>
-            </div>
-          </template>
+               <div class="flex gap-3">
+                 <UButton v-if="hasNewVersions" variant="primary" @click="handleMarkAsSeen">
+                   Got it!
+                 </UButton>
+               </div>
+             </div>
+           </template>
         </UCard>
       </div>
     </Transition>

@@ -43,14 +43,8 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   - More robust connection handling
 - **Happiness Accuracy** - Vault happiness now includes the dweller you just chatted with
   - Fixed a timing issue where vault happiness was calculated before saving the dweller's new mood
-
-### Improvements
 - **Better Error Messages** - Chat endpoints now use proper validation errors
   - Empty audio files get a clear validation error instead of generic server error
-- **Code Quality** - Cleaner, more maintainable codebase
-  - Moved chat business logic from API endpoints to service layer
-  - Objectives generation moved to the correct endpoint location
-  - Better code organization following clean architecture
 
 ### Technical
 - **Auth Token Refresh** - Fixed 422 validation error when refreshing access tokens
@@ -64,6 +58,10 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **Message Tracking** - Chat responses now include message IDs for better debugging and tracking
 - **CSS to Tailwind** - Room components now use Tailwind utilities for better performance
 - **Agent Tools** - New `list_all_rooms()` tool with 12 tests for room assignment across all types
+- **Code Quality** - Cleaner, more maintainable codebase
+  - Moved chat business logic from API endpoints to service layer
+  - Objectives generation moved to the correct endpoint location
+  - Better code organization following clean architecture
 
 ---
 

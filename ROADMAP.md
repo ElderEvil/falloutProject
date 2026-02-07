@@ -721,4 +721,54 @@ watch(() => userStore.caps, (caps) => {
 
 ---
 
+## Upcoming Releases
+
+### v2.9.1 - UX Papercuts & Docs (In Progress)
+
+**Focus**: Quick UX fixes and documentation updates
+
+**Planned:**
+- ChangelogModal single footer CTA (Got it only)
+- Vault experimental warning banner (create + list)
+- ROADMAP.md update with 2.9.1-2.9.5 sections
+- CHANGELOG.md 2.9.0 rewrite (main feature + Fixed + Technical)
+
+### v2.9.2 - Boosted Start (Planned)
+
+**Focus**: Opt-in boosted vault creation
+
+**Planned:**
+- Opt-in "Boosted Start" vault creation option
+- Matches current superuser initialization (extra rooms, dwellers, training)
+- Creation-time only, no persistent vault flag
+
+### v2.9.3 - Backend Quick Wins (Planned)
+
+**Focus**: Time-boxed backend improvements
+
+**Planned:**
+- Audit backend for <2h improvements
+- Implement top 3 quick wins
+- Focus on DX, maintainability, test coverage
+
+### v2.9.4 - Frontend Quick Wins (Planned)
+
+**Focus**: Time-boxed frontend improvements
+
+**Planned:**
+- UI polish (a11y, loading states)
+- DX improvements (type safety, remove debug logs)
+- Add missing store tests
+
+### v2.9.5 - Stabilization (Planned)
+
+**Focus**: Regression fixes and final polish
+
+**Planned:**
+- Regression fixes from 2.9.1-2.9.4
+- Final polish
+- Version bump preparation
+
+---
+
 *Last updated: February 7, 2026*

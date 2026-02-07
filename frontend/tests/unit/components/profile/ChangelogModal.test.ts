@@ -119,7 +119,7 @@ describe('ChangelogModal', () => {
       })
 
       await wrapper.vm.$nextTick()
-      await wrapper.vm.$emit('close')
+      await wrapper.find('[aria-label="Close modal"]').trigger('click')
       expect(wrapper.emitted('close')).toBeTruthy()
     })
 
@@ -132,11 +132,11 @@ describe('ChangelogModal', () => {
         }
       })
 
-      await wrapper.vm.$nextTick()
-      await wrapper.vm.$emit('close')
+       await wrapper.vm.$nextTick()
+       await wrapper.find('.fixed.inset-0').trigger('click')
 
-      expect(wrapper.emitted('close')).toBeTruthy()
-      expect(wrapper.emitted('markAsSeen')).toBeFalsy()
+       expect(wrapper.emitted('close')).toBeTruthy()
+       expect(wrapper.emitted('markAsSeen')).toBeFalsy()
     })
   })
 

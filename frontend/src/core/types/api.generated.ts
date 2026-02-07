@@ -5672,6 +5672,11 @@ export interface components {
         VaultNumber: {
             /** Number */
             number: number;
+            /**
+             * Boosted
+             * @default false
+             */
+            boosted: boolean;
         };
         /** VaultRead */
         VaultRead: {

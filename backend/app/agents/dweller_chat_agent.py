@@ -319,7 +319,7 @@ def get_best_room_recommendation(ctx: RunContext[DwellerChatDeps]) -> str:
 # --- Helper Functions ---
 
 
-async def parse_action_suggestion(
+async def parse_action_suggestion(  # noqa: PLR0911
     output: DwellerChatOutput,
     db_session: AsyncSession,
     dweller: DwellerReadFull,

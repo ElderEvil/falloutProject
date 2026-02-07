@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ChangelogModal from '@/modules/profile/components/ChangelogModal.vue'
 
@@ -83,10 +83,14 @@ describe('ChangelogModal', () => {
           show: true,
           currentVersion: '2.9.5',
           lastSeenVersion: '2.9.4'
+        },
+        global: {
+          stubs: { Teleport: true }
         }
       })
 
-      await wrapper.vm.$nextTick()
+      await flushPromises()
+      expect(wrapper.text()).toContain('New feature')
       const buttons = wrapper.findAll('.mock-button')
       const closeButton = buttons.find(btn => btn.text().includes('Close'))
       expect(closeButton).toBeUndefined()
@@ -96,12 +100,16 @@ describe('ChangelogModal', () => {
       const wrapper = mount(ChangelogModal, {
         props: {
           show: true,
-          currentVersion: '2.9.4',
-          lastSeenVersion: '2.9.4'
+          currentVersion: '2.9.5',
+          lastSeenVersion: '2.9.5'
+        },
+        global: {
+          stubs: { Teleport: true }
         }
       })
 
-      await wrapper.vm.$nextTick()
+      await flushPromises()
+      expect(wrapper.text()).toContain('All caught up')
       const buttons = wrapper.findAll('.mock-button')
       const gotItButton = buttons.find(btn => btn.text().includes('Got it!'))
       expect(gotItButton).toBeUndefined()
@@ -153,6 +161,9 @@ describe('ChangelogModal', () => {
           show: false,
           currentVersion: '2.9.5',
           lastSeenVersion: '2.9.4'
+        },
+        global: {
+          stubs: { Teleport: true }
         }
       })
 

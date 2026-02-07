@@ -333,13 +333,52 @@ class TestListAllRoomsRoomInfoStructure:
 
 @pytest.mark.asyncio
 class TestListAllRoomsToolRegistration:
-    def test_tool_is_registered(self):
-        tool_names = list(dweller_chat_agent._function_toolset.tools.keys())
+    async def test_tool_is_registered(self):
+        toolsets = dweller_chat_agent.toolsets
+
+        from pydantic_ai import RunContext
+        from pydantic_ai.models.test import TestModel
+        from pydantic_ai.usage import RunUsage
+
+        ctx = RunContext(
+            deps=MagicMock(spec=DwellerChatDeps),
+            model=TestModel(),
+            usage=RunUsage(),
+            prompt="",
+            messages=[],
+            run_step=0,
+        )
+
+        all_tools = {}
+        for toolset in toolsets:
+            tools = await toolset.get_tools(ctx)
+            all_tools.update(tools)
+
+        tool_names = list(all_tools.keys())
         assert "list_all_rooms" in tool_names, f"list_all_rooms not found in agent tools. Registered: {tool_names}"
 
-    def test_tool_count_is_at_least_four(self):
-        tool_count = len(dweller_chat_agent._function_toolset.tools)
-        assert tool_count >= 4, f"Expected at least 4 tools, found {tool_count}"
+    async def test_tool_count_is_at_least_four(self):
+        toolsets = dweller_chat_agent.toolsets
+
+        from pydantic_ai import RunContext
+        from pydantic_ai.models.test import TestModel
+        from pydantic_ai.usage import RunUsage
+
+        ctx = RunContext(
+            deps=MagicMock(spec=DwellerChatDeps),
+            model=TestModel(),
+            usage=RunUsage(),
+            prompt="",
+            messages=[],
+            run_step=0,
+        )
+
+        all_tools = {}
+        for toolset in toolsets:
+            tools = await toolset.get_tools(ctx)
+            all_tools.update(tools)
+
+        assert len(all_tools) >= 4, f"Expected at least 4 tools, found {len(all_tools)}"
 
 
 @pytest.mark.asyncio

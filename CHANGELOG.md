@@ -56,6 +56,11 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **Auth Token Refresh** - Fixed 422 validation error when refreshing access tokens
   - Backend now accepts `refresh_token` in request body (JSON) instead of query parameter
   - More RESTful and secure (tokens no longer exposed in URLs/logs)
+  - **⚠️ Breaking Change / Migration**
+    - Old clients sending `refresh_token` as query parameter (`?refresh_token=...`) will receive 400 errors
+    - **Before:** `POST /api/v1/auth/refresh?refresh_token=abc123`
+    - **After:** `POST /api/v1/auth/refresh` with JSON body `{"refresh_token": "abc123"}`
+    - Migration timeline: Update client code immediately; query parameter support will be removed after 2026-03-01
 - **Message Tracking** - Chat responses now include message IDs for better debugging and tracking
 - **CSS to Tailwind** - Room components now use Tailwind utilities for better performance
 - **Agent Tools** - New `list_all_rooms()` tool with 12 tests for room assignment across all types

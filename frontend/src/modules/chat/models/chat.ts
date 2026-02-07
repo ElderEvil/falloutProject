@@ -17,6 +17,12 @@ export type StartExplorationAction = components['schemas']['StartExplorationActi
 export type RecallExplorationAction = components['schemas']['RecallExplorationAction']
 export type NoAction = components['schemas']['NoAction']
 
+// Lightweight happiness data from chat history (only delta + reason stored)
+export interface HappinessImpactDisplay {
+  delta: number
+  reason_text: string
+}
+
 // Extended message type for frontend display
 export interface ChatMessageDisplay {
   type: 'user' | 'dweller'
@@ -27,6 +33,6 @@ export interface ChatMessageDisplay {
   audioUrl?: string
   transcription?: string
   isPlaying?: boolean
-  happinessImpact?: HappinessImpact | null
+  happinessImpact?: HappinessImpact | HappinessImpactDisplay | null
   actionSuggestion?: ActionSuggestion | null
 }

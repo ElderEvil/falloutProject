@@ -26,6 +26,11 @@ AI-powered dweller interactions.
   - Root cause: vault API doesn't return rooms array, now uses room store
 - ✅ **WebSocket Stability** - UUID serialization, URL handling, typing race conditions
 - ✅ **Chat UX** - Latest-only action suggestion rendering, message ID correlation
+- ✅ **Conversation Happiness System (shipped)** - Core happiness tracking
+  - Chat happiness impact display (delta + reason text)
+  - WebSocket happiness_update events with message correlation
+  - Real-time happiness indicators in chat UI
+  - Remaining for future: happiness analytics/trends, decay mechanics
 - ✅ **Tests** - 799 frontend tests, 33+ new backend tests (chat + agent tools)
 
 ### v2.8.5 - Code Quality & Refactoring (Completed - February 2026)
@@ -100,7 +105,6 @@ AI-powered dweller interactions.
   - Resource tooltips now visible
 
 **Remaining for v2.10.0+:**
-- Conversation Happiness System
 - Token Management & Usage Tracking
 - Provider Rotation (Ollama URL config + health checking)
 - Admin & Configuration (birth control, room render config)

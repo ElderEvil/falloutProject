@@ -81,23 +81,19 @@ const loadChatHistory = async () => {
       },
     })
 
-    // Transform backend ChatMessageRead[] to frontend ChatMessageDisplay[]
     const history = response.data.map((msg: any) => ({
       type: msg.from_user_id ? 'user' : 'dweller',
       content: msg.message_text,
+      messageId: msg.id || undefined,
       timestamp: new Date(msg.created_at),
       avatar: msg.from_user_id ? userAvatar.value : props.dwellerAvatar,
       audioUrl: msg.audio_url || undefined,
       transcription: msg.transcription || undefined,
-      // Map stored happiness data
       happinessImpact:
         msg.happiness_delta !== null && msg.happiness_delta !== undefined
           ? {
               delta: msg.happiness_delta,
               reason_text: msg.happiness_reason || '',
-              score: 0, // Placeholder
-              reason_code: 'history' as any, // Placeholder
-              happiness_after: 0, // Placeholder
             }
           : undefined,
     }))
@@ -322,11 +318,19 @@ const handleStartTraining = async (stat: string): Promise<boolean> => {
         return false
       }
 
-      // Find first available training room (with capacity)
-      const availableTrainingRoom = trainingRooms.find((r) => {
+      const matchingStatRooms = trainingRooms.filter(
+        (r) => r.ability?.toLowerCase() === stat.toLowerCase()
+      )
+      let availableTrainingRoom = matchingStatRooms.find((r) => {
         const occupancy = dwellerStore.dwellers.filter((d) => d.room_id === r.id).length
         return !r.max_capacity || occupancy < r.max_capacity
       })
+      if (!availableTrainingRoom) {
+        availableTrainingRoom = trainingRooms.find((r) => {
+          const occupancy = dwellerStore.dwellers.filter((d) => d.room_id === r.id).length
+          return !r.max_capacity || occupancy < r.max_capacity
+        })
+      }
 
       if (!availableTrainingRoom) {
         toast.error('No available training rooms (all at capacity)')
@@ -507,16 +511,12 @@ onMounted(() => {
       }
     })
 
-    // Handle happiness updates via WebSocket
     chatWs.on('happiness_update', (msg: any) => {
-      if (msg.happiness_impact) {
-        // Find the index of the last dweller message
-        const reversedIndex = [...messages.value].reverse().findIndex((m) => m.type === 'dweller')
-        if (reversedIndex !== -1) {
-          const lastIndex = messages.value.length - 1 - reversedIndex
-          // Update using array assignment to trigger Vue reactivity
-          messages.value[lastIndex] = {
-            ...messages.value[lastIndex],
+      if (msg.happiness_impact && msg.message_id) {
+        const messageIndex = messages.value.findIndex((m) => m.messageId === msg.message_id)
+        if (messageIndex !== -1) {
+          messages.value[messageIndex] = {
+            ...messages.value[messageIndex],
             happinessImpact: msg.happiness_impact,
           }
         }

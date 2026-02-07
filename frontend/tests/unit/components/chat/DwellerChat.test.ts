@@ -74,12 +74,14 @@ const mockRooms = ref([
     id: 'training-room-789',
     name: 'Strength Training',
     category: 'training',
+    ability: 'STRENGTH',
     max_capacity: 5,
   },
   {
     id: 'room-456',
     name: 'Power Plant',
     category: 'production',
+    ability: null,
     max_capacity: 3,
   },
 ])
@@ -131,12 +133,14 @@ describe('DwellerChat', () => {
         id: 'training-room-789',
         name: 'Strength Training',
         category: 'training',
+        ability: 'STRENGTH',
         max_capacity: 5,
       },
       {
         id: 'room-456',
         name: 'Power Plant',
         category: 'production',
+        ability: null,
         max_capacity: 3,
       },
     ]
@@ -660,13 +664,14 @@ describe('DwellerChat', () => {
        mockWebSocketHandlers['action_suggestion'] = []
      })
 
-     it('should only update the latest dweller message with happiness impact via WebSocket', async () => {
+     it('should update the correct dweller message by message_id via WebSocket happiness_update', async () => {
        const wrapper = mountComponent()
        await flushPromises()
 
        // Send first user message
        ;(apiClient.post as Mock).mockResolvedValueOnce({
          data: {
+           dweller_message_id: 'msg-first',
            response: 'First response',
            happiness_impact: null,
            action_suggestion: null,
@@ -680,6 +685,7 @@ describe('DwellerChat', () => {
        // Send second user message
        ;(apiClient.post as Mock).mockResolvedValueOnce({
          data: {
+           dweller_message_id: 'msg-second',
            response: 'Second response',
            happiness_impact: null,
            action_suggestion: null,
@@ -693,10 +699,11 @@ describe('DwellerChat', () => {
        let messages = wrapper.findAll('.message-wrapper')
        expect(messages.length).toBe(4)
 
-       // Trigger WebSocket happiness_update event
+       // Trigger WebSocket happiness_update targeting the SECOND dweller message
        const happinessHandlers = mockWebSocketHandlers['happiness_update']
        expect(happinessHandlers.length).toBeGreaterThan(0)
        happinessHandlers[0]({
+         message_id: 'msg-second',
          happiness_impact: {
            delta: 5,
            reason_text: 'Good conversation',
@@ -704,7 +711,7 @@ describe('DwellerChat', () => {
        })
        await wrapper.vm.$nextTick()
 
-       // Verify only the LAST dweller message (index 3) has happiness impact
+       // Verify only the targeted dweller message has happiness impact
        messages = wrapper.findAll('.message-wrapper')
        const dwellerMessages = messages.filter((m) => m.classes().includes('dweller'))
        expect(dwellerMessages.length).toBe(2)
@@ -717,6 +724,32 @@ describe('DwellerChat', () => {
        const secondDwellerHappiness = dwellerMessages[1].find('.happiness-indicator')
        expect(secondDwellerHappiness.exists()).toBe(true)
        expect(secondDwellerHappiness.text()).toContain('+5')
+     })
+
+     it('should ignore happiness_update without message_id', async () => {
+       const wrapper = mountComponent()
+       await flushPromises()
+
+       ;(apiClient.post as Mock).mockResolvedValueOnce({
+         data: {
+           dweller_message_id: 'msg-1',
+           response: 'A response',
+           happiness_impact: null,
+           action_suggestion: null,
+         },
+       })
+       const input = wrapper.find('.chat-input-field')
+       await input.setValue('Test')
+       await wrapper.find('.chat-send-btn').trigger('click')
+       await flushPromises()
+
+       const happinessHandlers = mockWebSocketHandlers['happiness_update']
+       happinessHandlers[0]({
+         happiness_impact: { delta: 3, reason_text: 'No message_id' },
+       })
+       await wrapper.vm.$nextTick()
+
+       expect(wrapper.find('.happiness-indicator').exists()).toBe(false)
      })
 
       it('should only update the latest dweller message with action suggestion via WebSocket', async () => {
@@ -838,24 +871,173 @@ describe('DwellerChat', () => {
        )
      })
 
-     it.todo('should show error when no training rooms available')
+      it('should prefer matching-stat training room over generic training room', async () => {
+        mockRooms.value = [
+          {
+            id: 'generic-training',
+            name: 'Generic Training',
+            category: 'training',
+            ability: 'ENDURANCE',
+            max_capacity: 5,
+          },
+          {
+            id: 'strength-training',
+            name: 'Strength Training',
+            category: 'training',
+            ability: 'STRENGTH',
+            max_capacity: 5,
+          },
+          {
+            id: 'room-456',
+            name: 'Power Plant',
+            category: 'production',
+            ability: null,
+            max_capacity: 3,
+          },
+        ]
 
-     it.todo('should show error when all training rooms at capacity')
+        const dwellerStore = useDwellerStore()
+        const assignSpy = vi.spyOn(dwellerStore, 'assignDwellerToRoom').mockResolvedValue({} as any)
+
+        dwellerStore.$patch({
+          dwellers: [
+            {
+              id: 'dweller-123',
+              first_name: 'Test',
+              last_name: 'Dweller',
+              room_id: 'room-456',
+              level: 1,
+              happiness: 50,
+              strength: 5,
+              perception: 5,
+              endurance: 5,
+              charisma: 5,
+              intelligence: 5,
+              agility: 5,
+              luck: 5,
+              status: 'idle',
+            },
+          ],
+        })
+
+        const wrapper = mountComponent()
+        await flushPromises()
+
+        ;(apiClient.post as Mock).mockResolvedValueOnce({
+          data: {
+            response: 'I want to get stronger!',
+            happiness_impact: { delta: 3, reason_text: 'Motivated' },
+            action_suggestion: {
+              action_type: 'start_training',
+              stat: 'strength',
+              reason: 'Low strength, needs improvement',
+            },
+          },
+        })
+
+        const input = wrapper.find('.chat-input-field')
+        await input.setValue('Train strength')
+        await wrapper.find('.chat-send-btn').trigger('click')
+        await flushPromises()
+
+        const confirmBtn = wrapper.find('.action-confirm-btn')
+        await confirmBtn.trigger('click')
+        await flushPromises()
+
+        expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'strength-training', 'test-token')
+        expect(trainingService.startTraining).toHaveBeenCalledWith(
+          'dweller-123',
+          'strength-training',
+          'test-token'
+        )
+      })
+
+      it('should fallback to any training room when no stat-matching room available', async () => {
+        mockRooms.value = [
+          {
+            id: 'endurance-training',
+            name: 'Endurance Training',
+            category: 'training',
+            ability: 'ENDURANCE',
+            max_capacity: 5,
+          },
+        ]
+
+        const dwellerStore = useDwellerStore()
+        const assignSpy = vi.spyOn(dwellerStore, 'assignDwellerToRoom').mockResolvedValue({} as any)
+
+        dwellerStore.$patch({
+          dwellers: [
+            {
+              id: 'dweller-123',
+              first_name: 'Test',
+              last_name: 'Dweller',
+              room_id: null,
+              level: 1,
+              happiness: 50,
+              strength: 5,
+              perception: 5,
+              endurance: 5,
+              charisma: 5,
+              intelligence: 5,
+              agility: 5,
+              luck: 5,
+              status: 'idle',
+            },
+          ],
+        })
+
+        const wrapper = mountComponent()
+        await flushPromises()
+
+        ;(apiClient.post as Mock).mockResolvedValueOnce({
+          data: {
+            response: 'I want to train perception!',
+            happiness_impact: { delta: 2, reason_text: 'Eager' },
+            action_suggestion: {
+              action_type: 'start_training',
+              stat: 'perception',
+              reason: 'Improve perception',
+            },
+          },
+        })
+
+        const input = wrapper.find('.chat-input-field')
+        await input.setValue('Train perception')
+        await wrapper.find('.chat-send-btn').trigger('click')
+        await flushPromises()
+
+        const confirmBtn = wrapper.find('.action-confirm-btn')
+        await confirmBtn.trigger('click')
+        await flushPromises()
+
+        expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'endurance-training', 'test-token')
+        expect(trainingService.startTraining).toHaveBeenCalledWith(
+          'dweller-123',
+          'endurance-training',
+          'test-token'
+        )
+      })
+
+      it.todo('should show error when no training rooms available')
+
+      it.todo('should show error when all training rooms at capacity')
    })
 
    describe('Bug #5: Training works via roomStore when activeVault has no rooms', () => {
      it('should fetch rooms from roomStore and start training when vault has no rooms array', async () => {
        mockRooms.value = []
-       mockFetchRooms.mockImplementation(() => {
-         mockRooms.value = [
-           {
-             id: 'training-room-789',
-             name: 'Strength Training',
-             category: 'training',
-             max_capacity: 5,
-           },
-         ]
-       })
+        mockFetchRooms.mockImplementation(() => {
+          mockRooms.value = [
+            {
+              id: 'training-room-789',
+              name: 'Strength Training',
+              category: 'training',
+              ability: 'STRENGTH',
+              max_capacity: 5,
+            },
+          ]
+        })
 
        const dwellerStore = useDwellerStore()
        const assignSpy = vi.spyOn(dwellerStore, 'assignDwellerToRoom').mockResolvedValue({} as any)

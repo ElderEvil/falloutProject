@@ -463,4 +463,3 @@ async def test_vault_initiate_boosted_and_superuser_parity(
     )
     assert boosted_vault.dweller_count == 13, f"Expected 13 dwellers, got {boosted_vault.dweller_count}"
     assert superuser_vault.dweller_count == 13, f"Expected 13 dwellers, got {superuser_vault.dweller_count}"
-

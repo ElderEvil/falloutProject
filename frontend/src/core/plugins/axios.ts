@@ -105,16 +105,10 @@ apiClient.interceptors.response.use(
       if (refreshToken) {
         try {
           // Call refresh endpoint directly to avoid circular dependency
-          const formData = new URLSearchParams()
-          formData.append('refresh_token', refreshToken)
-
           const response = await axios.post(
             `${import.meta.env.VITE_API_BASE_URL}/api/v1/auth/refresh`,
-            formData,
             {
-              headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-              },
+              refresh_token: refreshToken,
             }
           )
 

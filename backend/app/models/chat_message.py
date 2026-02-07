@@ -34,6 +34,10 @@ class ChatMessageBase(SQLModel):
     transcription: str | None = Field(default=None, max_length=2000, description="STT transcription of audio")
     audio_duration: float | None = Field(default=None, description="Duration of audio in seconds")
 
+    # Sentiment/Happiness fields
+    happiness_delta: float | None = Field(default=None, description="Happiness change caused by this message")
+    happiness_reason: str | None = Field(default=None, max_length=255, description="Reason for happiness change")
+
 
 class ChatMessage(BaseUUIDModel, ChatMessageBase, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow, index=True)

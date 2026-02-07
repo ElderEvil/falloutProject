@@ -49,7 +49,7 @@ async def test_refresh_token(async_client: AsyncClient) -> None:
     assert token_type == "bearer", f"Unexpected token type: {token_type}"
 
     # Step 2: Use the refresh token to obtain a new access token
-    refresh_response = await async_client.post(f"/auth/refresh?refresh_token={refresh_token}")
+    refresh_response = await async_client.post("/auth/refresh", json={"refresh_token": refresh_token})
     assert refresh_response.status_code == 200, "Refresh token request failed"
 
     refreshed_tokens = refresh_response.json()

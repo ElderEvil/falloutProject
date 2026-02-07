@@ -3,10 +3,22 @@ import { ref, watchEffect, computed, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { Icon } from '@iconify/vue'
 import apiClient from '@/core/plugins/axios'
-import type { ChatMessageDisplay } from '../models/chat'
+import type {
+  ChatMessageDisplay,
+  ActionSuggestion,
+  HappinessImpact,
+  StartExplorationAction,
+  RecallExplorationAction,
+} from '../models/chat'
 import { useAudioRecorder } from '../composables/useAudioRecorder'
 import { useChatWebSocket } from '@/core/composables/useWebSocket'
 import { normalizeImageUrl } from '@/utils/image'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useRoomStore } from '@/modules/rooms/stores/room'
+import { useExplorationStore } from '@/modules/exploration/stores/exploration'
+import { startTraining } from '@/modules/progression/services/trainingService'
+import { useToast } from '@/core/composables/useToast'
 
 const props = defineProps<{
   dwellerId: string
@@ -16,6 +28,12 @@ const props = defineProps<{
 }>()
 
 const authStore = useAuthStore()
+const dwellerStore = useDwellerStore()
+const vaultStore = useVaultStore()
+const roomStore = useRoomStore()
+const explorationStore = useExplorationStore()
+const toast = useToast()
+
 const messages = ref<ChatMessageDisplay[]>([])
 const userMessage = ref('')
 const chatMessages = ref<HTMLElement | null>(null)
@@ -24,6 +42,9 @@ const isSendingAudio = ref(false)
 const audioMode = ref(false)
 const currentlyPlayingAudio = ref<HTMLAudioElement | null>(null)
 const currentlyPlayingUrl = ref<string | null>(null)
+const isPerformingAction = ref(false)
+const showStatSelector = ref(false)
+const pendingTrainingAction = ref<{ stat: string; reason: string } | null>(null)
 
 // Stop audio playback
 const stopAudio = () => {
@@ -60,14 +81,21 @@ const loadChatHistory = async () => {
       },
     })
 
-    // Transform backend ChatMessageRead[] to frontend ChatMessageDisplay[]
     const history = response.data.map((msg: any) => ({
       type: msg.from_user_id ? 'user' : 'dweller',
       content: msg.message_text,
+      messageId: msg.id || undefined,
       timestamp: new Date(msg.created_at),
       avatar: msg.from_user_id ? userAvatar.value : props.dwellerAvatar,
       audioUrl: msg.audio_url || undefined,
       transcription: msg.transcription || undefined,
+      happinessImpact:
+        msg.happiness_delta !== null && msg.happiness_delta !== undefined
+          ? {
+              delta: msg.happiness_delta,
+              reason_text: msg.happiness_reason || '',
+            }
+          : undefined,
     }))
 
     messages.value = history
@@ -104,8 +132,11 @@ const sendMessage = async () => {
       messages.value.push({
         type: 'dweller',
         content: response.data.response,
+        messageId: response.data.dweller_message_id,
         timestamp: new Date(),
         avatar: props.dwellerAvatar,
+        happinessImpact: response.data.happiness_impact || null,
+        actionSuggestion: response.data.action_suggestion || null,
       })
     } catch (error) {
       console.error('Error sending message:', error)
@@ -166,9 +197,12 @@ const sendAudioMessage = async () => {
     messages.value.push({
       type: 'dweller',
       content: response.data.dweller_response,
+      messageId: response.data.dweller_message_id,
       timestamp: new Date(),
       avatar: props.dwellerAvatar,
       audioUrl: response.data.dweller_audio_url,
+      happinessImpact: response.data.happiness_impact || null,
+      actionSuggestion: response.data.action_suggestion || null,
     })
 
     // Auto-play dweller response if audio URL provided
@@ -211,15 +245,251 @@ const playAudio = (url: string) => {
 let typingTimeout: number | null = null
 const handleTyping = () => {
   if (chatWs) {
-    chatWs.sendTypingIndicator(true)
+    try {
+      chatWs.sendTypingIndicator(true)
+    } catch (error) {
+      console.error('Error sending typing indicator:', error)
+    }
 
     if (typingTimeout) clearTimeout(typingTimeout)
 
     typingTimeout = window.setTimeout(() => {
-      chatWs.sendTypingIndicator(false)
+      try {
+        chatWs.sendTypingIndicator(false)
+      } catch (error) {
+        console.error('Error clearing typing indicator:', error)
+      }
     }, 2000)
   }
 }
+
+// Action handlers for suggestions
+const handleAssignToRoom = async (roomId: string, roomName: string): Promise<boolean> => {
+  if (!authStore.token) return false
+
+  isPerformingAction.value = true
+  try {
+    await dwellerStore.assignDwellerToRoom(props.dwellerId, roomId, authStore.token)
+    toast.success(`${props.dwellerName} assigned to ${roomName}`)
+    return true
+  } catch (error) {
+    console.error('Failed to assign dweller to room:', error)
+    toast.error('Failed to assign dweller to room')
+    return false
+  } finally {
+    isPerformingAction.value = false
+  }
+}
+
+const handleStartTraining = async (stat: string): Promise<boolean> => {
+  if (!authStore.token) return false
+
+  isPerformingAction.value = true
+  try {
+    // Get dweller's current room
+    const dweller = dwellerStore.dwellers.find((d) => d.id === props.dwellerId)
+    if (!dweller) {
+      toast.error('Dweller not found')
+      return false
+    }
+
+    // Get vault ID
+    const vaultId = vaultStore.activeVaultId
+    if (!vaultId) {
+      toast.error('Unable to access vault data')
+      return false
+    }
+
+    // Ensure rooms are loaded from the room store
+    if (roomStore.rooms.length === 0) {
+      await roomStore.fetchRooms(vaultId, authStore.token)
+    }
+
+    // Check if dweller is already in a training room
+    let trainingRoomId = dweller.room_id
+    const currentRoom = roomStore.rooms.find((r) => r.id === dweller.room_id)
+
+    if (!currentRoom || currentRoom.category !== 'training') {
+      // Need to assign to a training room first
+      const trainingRooms = roomStore.rooms.filter((r) => r.category === 'training')
+
+      if (trainingRooms.length === 0) {
+        toast.error('No training rooms available')
+        return false
+      }
+
+      const matchingStatRooms = trainingRooms.filter(
+        (r) => r.ability?.toLowerCase() === stat.toLowerCase()
+      )
+      let availableTrainingRoom = matchingStatRooms.find((r) => {
+        const occupancy = dwellerStore.dwellers.filter((d) => d.room_id === r.id).length
+        return !r.max_capacity || occupancy < r.max_capacity
+      })
+      if (!availableTrainingRoom) {
+        availableTrainingRoom = trainingRooms.find((r) => {
+          const occupancy = dwellerStore.dwellers.filter((d) => d.room_id === r.id).length
+          return !r.max_capacity || occupancy < r.max_capacity
+        })
+      }
+
+      if (!availableTrainingRoom) {
+        toast.error('No available training rooms (all at capacity)')
+        return false
+      }
+
+      // Assign dweller to training room
+      toast.info(`Moving ${props.dwellerName} to training room...`)
+      await dwellerStore.assignDwellerToRoom(
+        props.dwellerId,
+        availableTrainingRoom.id,
+        authStore.token
+      )
+      trainingRoomId = availableTrainingRoom.id
+    }
+
+    // Now start training in the training room
+    await startTraining(props.dwellerId, trainingRoomId, authStore.token)
+    toast.success(`${props.dwellerName} started ${stat} training`)
+    return true
+  } catch (error) {
+    console.error('Failed to start training:', error)
+    toast.error('Failed to start training')
+    return false
+  } finally {
+    isPerformingAction.value = false
+    showStatSelector.value = false
+    pendingTrainingAction.value = null
+  }
+}
+
+const handleStartExploration = async (action: StartExplorationAction): Promise<boolean> => {
+  if (!authStore.token) return false
+
+  const vaultId = vaultStore.activeVaultId
+  if (!vaultId) {
+    toast.error('No vault selected')
+    return false
+  }
+
+  isPerformingAction.value = true
+  try {
+    const dweller = dwellerStore.dwellers.find((d) => d.id === props.dwellerId)
+    if (!dweller) {
+      toast.error('Dweller not found')
+      return false
+    }
+
+    if (dweller.room_id) {
+      await dwellerStore.unassignDwellerFromRoom(props.dwellerId, authStore.token)
+    }
+
+    toast.info(`Sending ${props.dwellerName} to wasteland...`)
+    await explorationStore.sendDwellerToWasteland(
+      vaultId,
+      props.dwellerId,
+      action.duration_hours,
+      authStore.token,
+      action.stimpaks,
+      action.radaways
+    )
+    toast.success(`${props.dwellerName} sent to the wasteland!`)
+
+    await dwellerStore.fetchDwellerDetails(props.dwellerId, authStore.token, true)
+    return true
+  } catch (error) {
+    console.error('Failed to start exploration:', error)
+    toast.error('Failed to send dweller to wasteland')
+    return false
+  } finally {
+    isPerformingAction.value = false
+  }
+}
+
+const handleRecallExploration = async (action: RecallExplorationAction): Promise<boolean> => {
+  if (!authStore.token) return false
+
+  isPerformingAction.value = true
+  try {
+    const progress = await explorationStore.fetchExplorationProgress(action.exploration_id, authStore.token)
+
+    if (progress && typeof progress.progress_percentage === 'number' && progress.progress_percentage >= 100) {
+      toast.info(`Completing ${props.dwellerName}'s exploration...`)
+      await explorationStore.completeExploration(action.exploration_id, authStore.token)
+      toast.success(`${props.dwellerName}'s exploration completed!`)
+    } else {
+      toast.info(`Recalling ${props.dwellerName} from wasteland...`)
+      await explorationStore.recallDweller(action.exploration_id, authStore.token)
+      toast.success(`${props.dwellerName} recalled from wasteland!`)
+    }
+
+    await dwellerStore.fetchDwellerDetails(props.dwellerId, authStore.token, true)
+    return true
+  } catch (error) {
+    console.error('Failed to recall exploration:', error)
+    toast.error('Failed to recall dweller from wasteland')
+    return false
+  } finally {
+    isPerformingAction.value = false
+  }
+}
+
+const handleActionConfirm = async (action: ActionSuggestion, messageIndex: number) => {
+  if (!action) return
+
+  let success = false
+
+  if (action.action_type === 'assign_to_room') {
+    success = await handleAssignToRoom(action.room_id, action.room_name)
+  } else if (action.action_type === 'start_training') {
+    pendingTrainingAction.value = { stat: action.stat, reason: action.reason }
+    success = await handleStartTraining(action.stat)
+  } else if (action.action_type === 'start_exploration') {
+    success = await handleStartExploration(action)
+  } else if (action.action_type === 'recall_exploration') {
+    success = await handleRecallExploration(action)
+  }
+
+  // If action was successful, clear the suggestion from the message
+  if (success && messages.value[messageIndex]) {
+    messages.value[messageIndex].actionSuggestion = null
+  }
+}
+
+const dismissAction = (messageIndex: number) => {
+  const msg = messages.value[messageIndex]
+  if (msg) {
+    msg.actionSuggestion = null
+  }
+}
+
+// Get happiness impact color based on delta
+const getHappinessColor = (delta: number): string => {
+  if (delta > 0) return 'text-green-400'
+  if (delta < 0) return 'text-red-400'
+  return 'text-gray-400'
+}
+
+// Get happiness icon based on delta
+const getHappinessIcon = (delta: number): string => {
+  if (delta > 0) return 'mdi:emoticon-happy'
+  if (delta < 0) return 'mdi:emoticon-sad'
+  return 'mdi:emoticon-neutral'
+}
+
+// Find the latest actionable suggestion (most recent dweller message with a valid action)
+const latestActionSuggestionIndex = computed(() => {
+  for (let i = messages.value.length - 1; i >= 0; i--) {
+    const msg = messages.value[i]
+    if (
+      msg.type === 'dweller' &&
+      msg.actionSuggestion &&
+      msg.actionSuggestion.action_type !== 'no_action'
+    ) {
+      return i
+    }
+  }
+  return -1
+})
 
 watchEffect(() => {
   if (chatMessages.value) {
@@ -238,6 +508,33 @@ onMounted(() => {
     chatWs.on('typing', (msg: any) => {
       if (msg.sender === 'dweller') {
         isTyping.value = msg.is_typing
+      }
+    })
+
+    chatWs.on('happiness_update', (msg: any) => {
+      if (msg.happiness_impact && msg.message_id) {
+        const messageIndex = messages.value.findIndex((m) => m.messageId === msg.message_id)
+        if (messageIndex !== -1) {
+          messages.value[messageIndex] = {
+            ...messages.value[messageIndex],
+            happinessImpact: msg.happiness_impact,
+          }
+        }
+      }
+    })
+
+    // Handle action suggestions via WebSocket (correlated by message_id)
+    chatWs.on('action_suggestion', (msg: any) => {
+      if (msg.message_id && msg.action_suggestion) {
+        // Find the message by its ID
+        const messageIndex = messages.value.findIndex((m) => m.messageId === msg.message_id)
+        if (messageIndex !== -1) {
+          // Update using array assignment to trigger Vue reactivity
+          messages.value[messageIndex] = {
+            ...messages.value[messageIndex],
+            actionSuggestion: msg.action_suggestion,
+          }
+        }
       }
     })
   }
@@ -308,28 +605,100 @@ onUnmounted(() => {
               <span class="terminal-prefix">{{ message.type === 'user' ? '>' : '<' }}</span>
               {{ message.type === 'user' ? username : dwellerName }}
             </span>
-            <!-- Audio play/stop button for messages with audio -->
-            <button
-              v-if="message.audioUrl"
-              @click="
-                currentlyPlayingUrl === message.audioUrl ? stopAudio() : playAudio(message.audioUrl)
-              "
-              class="audio-replay-btn"
-              :class="{ 'is-playing': currentlyPlayingUrl === message.audioUrl }"
-              :title="
-                currentlyPlayingUrl === message.audioUrl
-                  ? 'Stop audio'
-                  : `Play ${message.type === 'user' ? 'your' : 'dweller'} audio`
-              "
-            >
-              <Icon
-                :icon="currentlyPlayingUrl === message.audioUrl ? 'mdi:stop' : 'mdi:volume-high'"
-                class="h-4 w-4"
-              />
-            </button>
+            <div class="flex items-center gap-2">
+              <!-- Happiness impact indicator -->
+              <span
+                v-if="message.type === 'dweller' && message.happinessImpact"
+                class="happiness-indicator"
+                :class="getHappinessColor(message.happinessImpact.delta)"
+                :title="message.happinessImpact.reason_text"
+              >
+                <Icon :icon="getHappinessIcon(message.happinessImpact.delta)" class="h-4 w-4" />
+                <span class="text-xs">
+                  {{ message.happinessImpact.delta > 0 ? '+' : ''
+                  }}{{ message.happinessImpact.delta }}
+                </span>
+              </span>
+              <!-- Audio play/stop button for messages with audio -->
+              <button
+                v-if="message.audioUrl"
+                @click="
+                  currentlyPlayingUrl === message.audioUrl
+                    ? stopAudio()
+                    : playAudio(message.audioUrl)
+                "
+                class="audio-replay-btn"
+                :class="{ 'is-playing': currentlyPlayingUrl === message.audioUrl }"
+                :title="
+                  currentlyPlayingUrl === message.audioUrl
+                    ? 'Stop audio'
+                    : `Play ${message.type === 'user' ? 'your' : 'dweller'} audio`
+                "
+              >
+                <Icon
+                  :icon="currentlyPlayingUrl === message.audioUrl ? 'mdi:stop' : 'mdi:volume-high'"
+                  class="h-4 w-4"
+                />
+              </button>
+            </div>
           </div>
           <div class="message-content">
             {{ message.content }}
+          </div>
+
+          <!-- Action suggestion card (only show for latest actionable suggestion) -->
+          <div
+            v-if="
+              message.type === 'dweller' &&
+              message.actionSuggestion &&
+              message.actionSuggestion.action_type !== 'no_action' &&
+              index === latestActionSuggestionIndex
+            "
+            class="action-suggestion-card"
+          >
+            <div class="action-suggestion-header">
+              <Icon
+                :icon="
+                  message.actionSuggestion.action_type === 'assign_to_room'
+                    ? 'mdi:door-open'
+                    : message.actionSuggestion.action_type === 'start_training'
+                      ? 'mdi:dumbbell'
+                      : message.actionSuggestion.action_type === 'start_exploration'
+                        ? 'mdi:map-marker-radius'
+                        : 'mdi:arrow-u-left-top'
+                "
+                class="h-4 w-4"
+              />
+              <span class="text-xs font-bold uppercase tracking-wider">Suggested Action</span>
+            </div>
+            <div class="action-suggestion-body">
+              <p class="action-suggestion-text">
+                {{
+                  message.actionSuggestion.action_type === 'assign_to_room'
+                    ? `Assign to ${message.actionSuggestion.room_name}`
+                    : message.actionSuggestion.action_type === 'start_training'
+                      ? `Train ${message.actionSuggestion.stat}`
+                      : message.actionSuggestion.action_type === 'start_exploration'
+                        ? `Explore wasteland for ${message.actionSuggestion.duration_hours}h`
+                        : 'Recall from wasteland'
+                }}
+              </p>
+              <p class="action-suggestion-reason">{{ message.actionSuggestion.reason }}</p>
+            </div>
+            <div class="action-suggestion-actions">
+              <button
+                @click="handleActionConfirm(message.actionSuggestion!, index)"
+                :disabled="isPerformingAction"
+                class="action-confirm-btn"
+              >
+                <Icon v-if="isPerformingAction" icon="mdi:loading" class="h-4 w-4 spinning" />
+                <Icon v-else icon="mdi:check" class="h-4 w-4" />
+                <span>{{ isPerformingAction ? 'Processing...' : 'Confirm' }}</span>
+              </button>
+              <button @click="dismissAction(index)" class="action-dismiss-btn">
+                <Icon icon="mdi:close" class="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -910,5 +1279,125 @@ onUnmounted(() => {
   background-color: rgba(var(--color-theme-primary-rgb), 0.1);
   color: var(--color-theme-primary);
   box-shadow: none;
+}
+
+/* Happiness indicator */
+.happiness-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.3);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.happiness-indicator.text-green-400 {
+  color: #4ade80;
+  background-color: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.happiness-indicator.text-red-400 {
+  color: #f87171;
+  background-color: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
+.happiness-indicator.text-gray-400 {
+  color: #9ca3af;
+  background-color: rgba(156, 163, 175, 0.1);
+  border: 1px solid rgba(156, 163, 175, 0.3);
+}
+
+/* Action suggestion card */
+.action-suggestion-card {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-theme-glow);
+  border-radius: 8px;
+  background-color: rgba(var(--color-theme-primary-rgb), 0.05);
+  box-shadow: 0 0 8px rgba(var(--color-theme-primary-rgb), 0.15);
+}
+
+.action-suggestion-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-theme-primary);
+  margin-bottom: 0.5rem;
+  opacity: 0.8;
+}
+
+.action-suggestion-body {
+  margin-bottom: 0.75rem;
+}
+
+.action-suggestion-text {
+  color: var(--color-theme-primary);
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+  text-shadow: 0 0 4px var(--color-theme-glow);
+}
+
+.action-suggestion-reason {
+  color: var(--color-theme-primary);
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.action-suggestion-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.action-confirm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 4px;
+  border: 1px solid var(--color-theme-primary);
+  background-color: rgba(var(--color-theme-primary-rgb), 0.15);
+  color: var(--color-theme-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-confirm-btn:hover:not(:disabled) {
+  background-color: var(--color-theme-primary);
+  color: #000;
+  box-shadow: 0 0 10px var(--color-theme-glow);
+}
+
+.action-confirm-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.action-dismiss-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.375rem;
+  border-radius: 4px;
+  border: 1px solid rgba(var(--color-theme-primary-rgb), 0.3);
+  background-color: transparent;
+  color: var(--color-theme-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+  opacity: 0.6;
+}
+
+.action-dismiss-btn:hover {
+  opacity: 1;
+  background-color: rgba(255, 68, 68, 0.1);
+  border-color: rgba(255, 68, 68, 0.5);
+  color: #ff4444;
 }
 </style>

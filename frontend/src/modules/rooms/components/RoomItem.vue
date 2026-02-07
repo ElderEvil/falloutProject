@@ -42,8 +42,9 @@ const handleDestroyClick = (event: MouseEvent) => {
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat',
     }"
-    class="room"
+    class="relative overflow-hidden select-none [-webkit-user-drag:none]"
     :class="{ selected: isSelected, 'has-image': roomImageUrl }"
+    draggable="false"
     @click="handleRoomClick"
   >
     <div class="room-overlay"></div>
@@ -64,11 +65,6 @@ const handleDestroyClick = (event: MouseEvent) => {
 </template>
 
 <style scoped>
-.room {
-  position: relative;
-  overflow: hidden;
-}
-
 .room.has-image {
   /* Enhance contrast for rooms with background images */
   color: #00ff00;

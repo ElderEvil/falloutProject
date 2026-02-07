@@ -100,7 +100,7 @@ async def seed_from_json(
             logger.info("Seeded %d new records into database", seeded_count)
         else:
             logger.info("No new records to seed, all records already exist in database")
-        return seeded_count  # noqa: TRY300
+        return seeded_count
     except Exception:
         logger.exception("Failed to seed records from JSON files")
         await db_session.rollback()

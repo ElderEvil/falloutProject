@@ -7,14 +7,25 @@ from uuid import uuid4
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.agents.dweller_chat_agent import (
+    DwellerChatDeps,
+    DwellerChatOutput,
+    compute_happiness_delta,
+    derive_reason_code,
+    dweller_chat_agent,
+    parse_action_suggestion,
+)
 from app.crud.chat_message import chat_message as chat_message_crud
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.models import User
 from app.models.base import SPECIALModel
 from app.models.chat_message import ChatMessageCreate
+from app.schemas.chat import NoAction
 from app.schemas.common import GenderEnum
+from app.schemas.happiness import HappinessImpact, HappinessReasonCode
 from app.schemas.llm_interaction import LLMInteractionCreate
+from app.services.chat_happiness_service import apply_chat_happiness
 from app.services.open_ai import get_ai_service
 from app.services.storage import get_storage_client
 
@@ -45,7 +56,7 @@ class ConversationService:
         Returns:
             Voice name for OpenAI TTS API
         """
-        if gender in VOICE_MAP:
+        if gender is not None and gender in VOICE_MAP:
             return random.choice(VOICE_MAP[gender])
         # Default to alloy if gender is None or unrecognized
         return "alloy"
@@ -103,12 +114,13 @@ class ConversationService:
 
         Steps:
         1. Transcribe audio (STT)
-        2. Generate text response from dweller (LLM)
-        3. Generate audio response (TTS)
-        4. Save everything to database and MinIO
+        2. Generate text response from dweller (LLM with structured output)
+        3. Apply happiness delta from sentiment analysis
+        4. Generate audio response (TTS)
+        5. Save everything to database and MinIO
 
         Returns:
-            dict with user_message, dweller_response, and dweller_audio_url
+            dict with user_message, dweller_response, happiness_impact, action_suggestion, and dweller_audio_url
         """
         # Get dweller info
         dweller = await dweller_crud.get_full_info(db_session, dweller_id)
@@ -136,17 +148,68 @@ class ConversationService:
         # This is a placeholder - ideally use a library like pydub to get accurate duration
         audio_duration = len(audio_bytes) / 16000.0  # Rough estimate for WebM/Opus
 
-        # Step 2: Generate dweller response using LLM
-        dweller_prompt = self._build_dweller_prompt(dweller, for_audio=True)
+        # Step 2: Generate dweller response using PydanticAI agent with structured output
+        dweller_response_text: str
+        happiness_impact: HappinessImpact | None = None
+        action_suggestion = None
 
-        # Use the AI service with configured provider
-        logger.info("Generating dweller response using configured AI provider")
-        dweller_response_text = await self.ai_service.chat_completion(
-            [
-                {"role": "system", "content": dweller_prompt.strip()},
-                {"role": "user", "content": transcribed_text},
-            ]
+        # Prepare agent dependencies
+        deps = DwellerChatDeps(
+            db_session=db_session,
+            dweller=dweller,
+            vault_id=dweller.vault.id,
         )
+
+        try:
+            logger.info("Generating dweller response using PydanticAI agent")
+            result = await dweller_chat_agent.run(transcribed_text, deps=deps)
+            output: DwellerChatOutput = result.output
+
+            dweller_response_text = output.response_text
+
+            # Compute happiness delta from sentiment score
+            delta = compute_happiness_delta(output.sentiment_score)
+
+            # Apply happiness change to dweller and vault
+            new_dweller_happiness, _ = await apply_chat_happiness(
+                db_session=db_session,
+                dweller_id=dweller_id,
+                delta=delta,
+            )
+
+            # Build happiness impact response
+            reason_code_str = derive_reason_code(output.sentiment_score)
+            happiness_impact = HappinessImpact(
+                delta=delta,
+                reason_code=HappinessReasonCode(reason_code_str),
+                reason_text=output.reason_text,
+                happiness_after=new_dweller_happiness,
+            )
+
+            # Parse action suggestion from agent output
+            action_suggestion = await parse_action_suggestion(output, db_session, dweller)
+
+        except Exception:
+            # Fallback: neutral happiness + no_action on agent failure
+            logger.exception("Dweller chat agent failed, using fallback for voice chat")
+
+            # Fall back to basic chat completion
+            dweller_prompt = self._build_dweller_prompt(dweller, for_audio=True)
+            dweller_response_text = await self.ai_service.chat_completion(
+                [
+                    {"role": "system", "content": dweller_prompt.strip()},
+                    {"role": "user", "content": transcribed_text},
+                ]
+            )
+
+            # Neutral fallback - no happiness change
+            happiness_impact = HappinessImpact(
+                delta=0,
+                reason_code=HappinessReasonCode.CHAT_NEUTRAL,
+                reason_text="Voice chat processed without sentiment analysis",
+                happiness_after=dweller.happiness,
+            )
+            action_suggestion = NoAction(reason="Unable to analyze conversation for suggestions")
 
         # Step 3: Generate audio response (TTS)
         voice = self._select_voice_for_gender(dweller.gender)
@@ -193,16 +256,22 @@ class ConversationService:
         )
 
         # Save dweller response
-        await chat_message_crud.create_message(
+        chat_create_data = ChatMessageCreate(
+            vault_id=dweller.vault.id,
+            from_dweller_id=dweller.id,
+            to_user_id=user.id,
+            message_text=dweller_response_text,
+            audio_url=dweller_audio_url,
+            llm_interaction_id=llm_interaction.id,
+        )
+
+        if happiness_impact:
+            chat_create_data.happiness_delta = happiness_impact.delta
+            chat_create_data.happiness_reason = happiness_impact.reason_text
+
+        dweller_message = await chat_message_crud.create_message(
             db_session,
-            obj_in=ChatMessageCreate(
-                vault_id=dweller.vault.id,
-                from_dweller_id=dweller.id,
-                to_user_id=user.id,
-                message_text=dweller_response_text,
-                audio_url=dweller_audio_url,
-                llm_interaction_id=llm_interaction.id,
-            ),
+            obj_in=chat_create_data,
         )
 
         return {
@@ -211,6 +280,9 @@ class ConversationService:
             "dweller_response": dweller_response_text,
             "dweller_audio_url": dweller_audio_url,
             "dweller_audio_bytes": dweller_audio_bytes,  # For immediate playback
+            "dweller_message_id": dweller_message.id,
+            "happiness_impact": happiness_impact,
+            "action_suggestion": action_suggestion,
         }
 
 

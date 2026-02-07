@@ -57,7 +57,7 @@ async def login_access_token(
 
 @router.post("/refresh", response_model=Token)
 async def refresh_access_token(
-    refresh_token: str,
+    refresh_token: Annotated[str, Body(embed=True)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     redis_client: Annotated[Redis, Depends(get_redis_client)],
 ) -> Any:

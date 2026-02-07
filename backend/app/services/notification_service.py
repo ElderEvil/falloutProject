@@ -12,6 +12,19 @@ class NotificationService:
     """Service for creating and sending notifications"""
 
     @staticmethod
+    async def _get_vault_prefix(db: AsyncSession, vault_id: UUID | None) -> str:
+        """Get vault number prefix for notification messages"""
+        if not vault_id:
+            return ""
+
+        from app.crud import vault as crud_vault
+
+        vault = await crud_vault.get(db, vault_id)
+        if vault and vault.number:
+            return f"[Vault {vault.number}] "
+        return ""
+
+    @staticmethod
     async def create_and_send(
         db: AsyncSession,
         user_id: UUID,
@@ -25,7 +38,9 @@ class NotificationService:
         meta_data: dict[str, Any] | None = None,
     ):
         """Create a notification and send it via WebSocket"""
-        # Create notification in database
+        vault_prefix = await NotificationService._get_vault_prefix(db, vault_id)
+        prefixed_message = f"{vault_prefix}{message}"
+
         notification = await notification_crud.create(
             db,
             obj_in=NotificationCreate(
@@ -35,12 +50,11 @@ class NotificationService:
                 notification_type=notification_type,
                 priority=priority,
                 title=title,
-                message=message,
+                message=prefixed_message,
                 meta_data=meta_data,
             ),
         )
 
-        # Send via WebSocket
         await manager.send_personal_message(
             {
                 "type": "notification",

@@ -29,12 +29,8 @@ export const authService = {
   },
   async refreshToken(refreshToken: string): Promise<AxiosResponse<Token>> {
     try {
-      const formData = new URLSearchParams()
-      formData.append('refresh_token', refreshToken)
-      return await apiClient.post('/api/v1/auth/refresh', formData, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+      return await apiClient.post('/api/v1/auth/refresh', {
+        refresh_token: refreshToken,
       })
     } catch {
       throw new AuthError('Token refresh failed')

@@ -62,7 +62,7 @@ async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None
             logger.info("Seeded %d new quests into database", seeded_count)
         else:
             logger.info("No new quests to seed, all quests already exist in database")
-        return seeded_count  # noqa: TRY300
+        return seeded_count
     except Exception:
         logger.exception("Failed to seed quests from JSON files")
         await db_session.rollback()

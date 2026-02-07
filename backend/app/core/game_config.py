@@ -201,6 +201,45 @@ class HappinessConfig(BaseSettings):
     high_health_threshold: float = Field(default=0.8, ge=0.0, le=1.0)
     critical_resource_threshold: float = Field(default=0.05, ge=0.0, le=1.0)
 
+    # Sentiment to happiness delta mapping (sentiment -5..+5 → delta -10..+10)
+    sentiment_delta_mapping: dict[int, int] = Field(
+        default_factory=lambda: {
+            -5: -10,
+            -4: -8,
+            -3: -6,
+            -2: -4,
+            -1: -2,
+            0: 0,
+            1: 2,
+            2: 4,
+            3: 6,
+            4: 8,
+            5: 10,
+        },
+        description="Lookup table mapping sentiment score (-5..+5) to happiness delta (-10..+10)",
+    )
+
+    @field_validator("sentiment_delta_mapping")
+    @classmethod
+    def validate_sentiment_delta_mapping(cls, v: dict[int, int]) -> dict[int, int]:
+        """Validate sentiment delta mapping keys and values."""
+        for key, value in v.items():
+            if not -5 <= key <= 5:
+                raise ValueError(f"Sentiment delta mapping key must be in range -5..+5, got {key}")
+            if not -10 <= value <= 10:
+                raise ValueError(f"Sentiment delta mapping value must be in range -10..+10, got {value}")
+        return v
+
+    def get_happiness_delta(self, sentiment: int) -> int:
+        """Get happiness delta for a given sentiment score.
+
+        Returns the mapped delta value, or 0 if sentiment not found in mapping.
+
+        :param sentiment: Sentiment score (-5 to +5)
+        :return: Happiness delta (-10 to +10), or 0 if not found
+        """
+        return self.sentiment_delta_mapping.get(sentiment, 0)
+
 
 class TrainingConfig(BaseSettings):
     """Training system configuration."""

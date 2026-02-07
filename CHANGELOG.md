@@ -9,6 +9,64 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.9.0] - 2026-02-07
+
+### What's New
+- **Dwellers Can Move to Any Room** - Chat room assignments now work for all room types
+  - Ask your dweller to move to any room — capacity, crafting, misc, production, quests, theme, or training
+  - Dwellers follow your orders strictly when you name a specific room
+  - No more bias toward training/production rooms only
+- **Exploration from Chat** - Start and recall explorations right from the chat window
+  - Tell a dweller to go explore the wasteland — they'll pack supplies automatically
+  - Call them back home when you're worried (or collect rewards if they're done)
+  - Smart supply packing: up to 2 stimpaks and 1 radaway based on what they have
+- **Enhanced Admin Panel** - Now shows all the important details at a glance
+  - Chat messages now display happiness changes and audio info
+  - Vault stats include resource maximums and population limits
+  - Dweller details show radiation, stimpacks, radaways, and death status
+  - Room coordinates, costs, and speedup multipliers are now visible
+
+### Fixed
+- **Chat Training Actions** - No more "Unable to access vault data" errors
+  - Fixed: training room lookup was reading from vault data (which doesn't include rooms) instead of the room store
+  - Training actions from chat now work reliably
+- **Cleaner Chat Messages** - Removed duplicate action text
+  - Dwellers now express desires naturally without repeating what the action button says
+  - Example: "I'm feeling energetic!" instead of "I'd love to work in the Power Generator! + [Button: Assign to Power Generator]"
+- **More Reliable Chat** - Chat keeps working even if real-time notifications fail
+  - WebSocket errors won't break your conversation anymore
+  - You'll always get the dweller's response
+- **Smoother Exploration Recall** - No more crashes when checking exploration progress
+  - Safely handles cases where progress data isn't available yet
+- **Better WebSocket Connections** - Fixed connection issues with different URL formats
+  - Handles URLs with or without http://, with or without trailing slashes
+  - More robust connection handling
+- **Happiness Accuracy** - Vault happiness now includes the dweller you just chatted with
+  - Fixed a timing issue where vault happiness was calculated before saving the dweller's new mood
+
+### Improvements
+- **Better Error Messages** - Chat endpoints now use proper validation errors
+  - Empty audio files get a clear validation error instead of generic server error
+- **Code Quality** - Cleaner, more maintainable codebase
+  - Moved chat business logic from API endpoints to service layer
+  - Objectives generation moved to the correct endpoint location
+  - Better code organization following clean architecture
+
+### Technical
+- **Auth Token Refresh** - Fixed 422 validation error when refreshing access tokens
+  - Backend now accepts `refresh_token` in request body (JSON) instead of query parameter
+  - More RESTful and secure (tokens no longer exposed in URLs/logs)
+  - **⚠️ Breaking Change / Migration**
+    - Old clients sending `refresh_token` as query parameter (`?refresh_token=...`) will receive 400 errors
+    - **Before:** `POST /api/v1/auth/refresh?refresh_token=abc123`
+    - **After:** `POST /api/v1/auth/refresh` with JSON body `{"refresh_token": "abc123"}`
+    - Migration timeline: Update client code immediately; query parameter support will be removed after 2026-03-01
+- **Message Tracking** - Chat responses now include message IDs for better debugging and tracking
+- **CSS to Tailwind** - Room components now use Tailwind utilities for better performance
+- **Agent Tools** - New `list_all_rooms()` tool with 12 tests for room assignment across all types
+
+---
+
 ## [2.8.5] - 2026-02-04
 
 ### Changed

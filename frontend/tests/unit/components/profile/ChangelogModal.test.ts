@@ -134,7 +134,7 @@ describe('ChangelogModal', () => {
 
       await wrapper.vm.$nextTick()
       await wrapper.vm.$emit('close')
-      
+
       expect(wrapper.emitted('close')).toBeTruthy()
       expect(wrapper.emitted('markAsSeen')).toBeFalsy()
     })

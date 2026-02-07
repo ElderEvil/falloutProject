@@ -5,9 +5,9 @@ import { ZodError } from 'zod'
 describe('Vault Number Validation', () => {
   describe('vaultNumberSchema', () => {
     describe('Happy Path', () => {
-      it('should accept valid vault number 0', () => {
-        const result = vaultNumberSchema.parse({ number: 0 })
-        expect(result.number).toBe(0)
+      it('should accept valid vault number 1', () => {
+        const result = vaultNumberSchema.parse({ number: 1 })
+        expect(result.number).toBe(1)
       })
 
       it('should accept valid vault number 999', () => {
@@ -32,9 +32,11 @@ describe('Vault Number Validation', () => {
     })
 
     describe('Edge Cases - Invalid Values', () => {
-      it('should reject negative numbers', () => {
+      it('should reject numbers below 1', () => {
         expect(() => vaultNumberSchema.parse({ number: -1 })).toThrow(ZodError)
-        expect(() => vaultNumberSchema.parse({ number: -1 })).toThrow('Vault number must be at least 0')
+        expect(() => vaultNumberSchema.parse({ number: -1 })).toThrow('Vault number must be at least 1')
+        expect(() => vaultNumberSchema.parse({ number: 0 })).toThrow(ZodError)
+        expect(() => vaultNumberSchema.parse({ number: 0 })).toThrow('Vault number must be at least 1')
       })
 
       it('should reject numbers above 999', () => {
@@ -65,9 +67,9 @@ describe('Vault Number Validation', () => {
     })
 
     describe('Boundary Values', () => {
-      it('should accept minimum boundary (0)', () => {
-        const result = vaultNumberSchema.parse({ number: 0 })
-        expect(result.number).toBe(0)
+      it('should accept minimum boundary (1)', () => {
+        const result = vaultNumberSchema.parse({ number: 1 })
+        expect(result.number).toBe(1)
       })
 
       it('should accept maximum boundary (999)', () => {
@@ -75,8 +77,8 @@ describe('Vault Number Validation', () => {
         expect(result.number).toBe(999)
       })
 
-      it('should reject just below minimum (-1)', () => {
-        expect(() => vaultNumberSchema.parse({ number: -1 })).toThrow(ZodError)
+      it('should reject just below minimum (0)', () => {
+        expect(() => vaultNumberSchema.parse({ number: 0 })).toThrow(ZodError)
       })
 
       it('should reject just above maximum (1000)', () => {
@@ -97,9 +99,9 @@ describe('Vault Number Validation', () => {
         expect(result).toBe(200)
       })
 
-      it('should parse string "0"', () => {
-        const result = parseVaultNumber('0')
-        expect(result).toBe(0)
+      it('should parse string "1"', () => {
+        const result = parseVaultNumber('1')
+        expect(result).toBe(1)
       })
 
       it('should parse string "999"', () => {

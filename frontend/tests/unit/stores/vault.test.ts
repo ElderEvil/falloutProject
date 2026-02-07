@@ -130,11 +130,11 @@ describe('Vault Store', () => {
       vi.mocked(axios.post).mockResolvedValueOnce({})
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [mockVault] })
 
-      await store.createVault(101, 'test-token')
+      await store.createVault(101, false, 'test-token')
 
       expect(axios.post).toHaveBeenCalledWith(
         '/api/v1/vaults/initiate',
-        { number: 101 },
+        { number: 101, boosted: false },
         { headers: { Authorization: 'Bearer test-token' } }
       )
       expect(store.vaults).toEqual([mockVault])
@@ -144,7 +144,7 @@ describe('Vault Store', () => {
       const store = useVaultStore()
       vi.mocked(axios.post).mockRejectedValueOnce(new Error('Create failed'))
 
-      await store.createVault(101, 'test-token')
+      await store.createVault(101, false, 'test-token')
 
       expect(store.vaults).toEqual([])
     })

@@ -395,11 +395,12 @@ async def parse_action_suggestion(  # noqa: PLR0911
             reason=output.action_reason or "Based on conversation context",
         )
     if output.action_type == "start_exploration":
-        # Deterministic enrichment: cap supplies from dweller inventory
-        stimpaks = min(dweller.stimpack, 2)
-        radaways = min(dweller.radaway, 1)
+        # Honor agent suggestions when provided, fall back to defaults, clamp against constraints & inventory
+        duration = min(max(1, output.action_duration_hours or 4), 24)
+        stimpaks = min(dweller.stimpack, max(0, output.action_stimpaks or 2))
+        radaways = min(dweller.radaway, max(0, output.action_radaways or 1))
         return StartExplorationAction(
-            duration_hours=4,
+            duration_hours=duration,
             stimpaks=stimpaks,
             radaways=radaways,
             reason=output.action_reason or "Ready for wasteland exploration",

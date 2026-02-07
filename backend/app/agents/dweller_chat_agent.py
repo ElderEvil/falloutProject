@@ -134,10 +134,12 @@ dweller_chat_agent = Agent(
         "You are a Vault-Tec Dweller in a post-apocalyptic world. "
         "Respond in character, staying true to the Fallout universe. "
         "Analyze the conversation sentiment and suggest helpful actions when appropriate. "
-        "Actions include: assigning to production rooms (based on SPECIAL stats), "
+        "Actions include: assigning to any room type in the vault "
+        "(production, training, crafting, capacity, misc, quests, or theme rooms), "
         "sending dweller on wasteland exploration, or recalling dweller from exploration. "
         "Only suggest actions when the conversation naturally leads to them (e.g., dweller mentions being bored, "
-        "wanting to work, wanting adventure, or wanting to come home)."
+        "wanting to work, wanting adventure, or wanting to come home). "
+        "When the user requests assignment to a specific room, follow their order strictly."
     ),
 )
 
@@ -183,8 +185,14 @@ Examples:
 
 After responding, analyze:
 1. Sentiment: Rate from -5 to +5 based on conversation tone (positive = higher, complaints = lower)
-2. Actions: Use tools to check available rooms if the dweller expresses interest in work.
-   - If they want productive work: suggest a room matching their highest SPECIAL stat
+2. Actions: Use tools to check available rooms if the dweller expresses interest in work or moving.
+   - Dwellers can be assigned to ANY room type: production, training, crafting, capacity, misc, quests, or theme.
+    - If the user asks to move to a specific room by name, follow their order strictly
+      and use `list_all_rooms()` to find it.
+    - If they want productive work (and no specific room is mentioned):
+      use `list_production_rooms()` to find a room matching their highest SPECIAL stat.
+   - If they want to train or improve stats: use `list_training_rooms()` to find appropriate training rooms.
+   - For any other room request or general "move me somewhere" queries: use `list_all_rooms()` for a complete overview.
    - If they want adventure or to explore the wasteland: suggest start_exploration
    - If they want to come home or you sense danger during exploration: suggest recall_exploration
    - Otherwise: no_action
@@ -244,6 +252,48 @@ async def list_training_rooms(ctx: RunContext[DwellerChatDeps]) -> list[RoomInfo
 
     # Get all training rooms in the vault
     query = select(Room).where(Room.vault_id == vault_id).where(Room.category == RoomTypeEnum.TRAINING)
+    response = await db_session.execute(query)
+    rooms = response.scalars().all()
+
+    result = []
+    for room in rooms:
+        # Count current dwellers in room
+        dweller_query = select(Dweller).where(Dweller.room_id == room.id).where(Dweller.is_deleted == False)
+        dweller_response = await db_session.execute(dweller_query)
+        current_dwellers = len(dweller_response.scalars().all())
+
+        # Calculate capacity (2 dwellers per 3 size units)
+        max_capacity = (room.size or room.size_min) // 3 * 2 if room.size or room.size_min else 2
+
+        # Only include rooms with available capacity
+        if current_dwellers < max_capacity:
+            result.append(
+                RoomInfo(
+                    room_id=str(room.id),
+                    name=room.name,
+                    category=room.category.value,
+                    current_dwellers=current_dwellers,
+                    max_capacity=max_capacity,
+                    ability=room.ability.value if room.ability else None,
+                )
+            )
+
+    return result
+
+
+@dweller_chat_agent.tool
+async def list_all_rooms(ctx: RunContext[DwellerChatDeps]) -> list[RoomInfo]:
+    """List all available rooms of any type with capacity in the vault.
+
+    Use this when a dweller wants to move to a room that may not be a production or training room,
+    or when you need a complete overview of all rooms with available capacity.
+    Includes all categories: capacity, crafting, misc, production, quests, theme, and training.
+    """
+    db_session = ctx.deps.db_session
+    vault_id = ctx.deps.vault_id
+
+    # Get all rooms in the vault (no category filter)
+    query = select(Room).where(Room.vault_id == vault_id)
     response = await db_session.execute(query)
     rooms = response.scalars().all()
 

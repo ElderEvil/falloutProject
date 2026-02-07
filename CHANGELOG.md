@@ -9,9 +9,17 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
-## [2.9.0] - 2026-02-05
+## [2.9.0] - 2026-02-07
 
 ### What's New
+- **Dwellers Can Move to Any Room** - Chat room assignments now work for all room types
+  - Ask your dweller to move to any room — capacity, crafting, misc, production, quests, theme, or training
+  - Dwellers follow your orders strictly when you name a specific room
+  - No more bias toward training/production rooms only
+- **Exploration from Chat** - Start and recall explorations right from the chat window
+  - Tell a dweller to go explore the wasteland — they'll pack supplies automatically
+  - Call them back home when you're worried (or collect rewards if they're done)
+  - Smart supply packing: up to 2 stimpaks and 1 radaway based on what they have
 - **Enhanced Admin Panel** - Now shows all the important details at a glance
   - Chat messages now display happiness changes and audio info
   - Vault stats include resource maximums and population limits
@@ -20,8 +28,8 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ### Fixed
 - **Chat Training Actions** - No more "Unable to access vault data" errors
-  - Training actions from chat now work smoothly
-  - Vault data properly loads when you open chat with a dweller
+  - Fixed: training room lookup was reading from vault data (which doesn't include rooms) instead of the room store
+  - Training actions from chat now work reliably
 - **Cleaner Chat Messages** - Removed duplicate action text
   - Dwellers now express desires naturally without repeating what the action button says
   - Example: "I'm feeling energetic!" instead of "I'd love to work in the Power Generator! + [Button: Assign to Power Generator]"
@@ -50,6 +58,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   - More RESTful and secure (tokens no longer exposed in URLs/logs)
 - **Message Tracking** - Chat responses now include message IDs for better debugging and tracking
 - **CSS to Tailwind** - Room components now use Tailwind utilities for better performance
+- **Agent Tools** - New `list_all_rooms()` tool with 12 tests for room assignment across all types
 
 ---
 

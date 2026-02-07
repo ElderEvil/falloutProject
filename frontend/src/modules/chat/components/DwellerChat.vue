@@ -15,6 +15,7 @@ import { useChatWebSocket } from '@/core/composables/useWebSocket'
 import { normalizeImageUrl } from '@/utils/image'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { startTraining } from '@/modules/progression/services/trainingService'
 import { useToast } from '@/core/composables/useToast'
@@ -29,6 +30,7 @@ const props = defineProps<{
 const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
 const vaultStore = useVaultStore()
+const roomStore = useRoomStore()
 const explorationStore = useExplorationStore()
 const toast = useToast()
 
@@ -295,20 +297,25 @@ const handleStartTraining = async (stat: string): Promise<boolean> => {
       return false
     }
 
-    // Get vault data
-    const vault = vaultStore.activeVault
-    if (!vault?.rooms) {
+    // Get vault ID
+    const vaultId = vaultStore.activeVaultId
+    if (!vaultId) {
       toast.error('Unable to access vault data')
       return false
     }
 
+    // Ensure rooms are loaded from the room store
+    if (roomStore.rooms.length === 0) {
+      await roomStore.fetchRooms(vaultId, authStore.token)
+    }
+
     // Check if dweller is already in a training room
     let trainingRoomId = dweller.room_id
-    const currentRoom = vault.rooms.find((r) => r.id === dweller.room_id)
+    const currentRoom = roomStore.rooms.find((r) => r.id === dweller.room_id)
 
     if (!currentRoom || currentRoom.category !== 'training') {
       // Need to assign to a training room first
-      const trainingRooms = vault.rooms.filter((r) => r.category === 'training')
+      const trainingRooms = roomStore.rooms.filter((r) => r.category === 'training')
 
       if (trainingRooms.length === 0) {
         toast.error('No training rooms available')
@@ -317,7 +324,7 @@ const handleStartTraining = async (stat: string): Promise<boolean> => {
 
       // Find first available training room (with capacity)
       const availableTrainingRoom = trainingRooms.find((r) => {
-        const occupancy = vault.dwellers?.filter((d) => d.room_id === r.id).length || 0
+        const occupancy = dwellerStore.dwellers.filter((d) => d.room_id === r.id).length
         return !r.max_capacity || occupancy < r.max_capacity
       })
 

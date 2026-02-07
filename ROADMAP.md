@@ -9,23 +9,24 @@ AI-powered dweller interactions.
 
 ## Latest Release
 
-### v2.8.4 - Test Infrastructure Fixes (February 3, 2026)
+### v2.9.0 - Chat Actions & Agent Intelligence (February 7, 2026)
 
-**Focus**: Frontend test suite stability and Vitest hoisting compliance
+**Focus**: Chat action suggestions, exploration integration, and smarter room assignment
 
 **Completed:**
-- ✅ **Test Fixes** - Resolved vi.hoisted import order violations
-  - Fixed UnassignedDwellers.test.ts - moved imports inside vi.hoisted()
-  - Fixed useFakeCrash.test.ts - proper mock definition order
-  - Fixed useGaryMode.test.ts - hoisting compliance
-  - Fixed room.test.ts store mocks - ensured mocks defined before code execution
-- ✅ **Test Suite** - All 102 frontend tests passing, 466 backend tests passing
-- ✅ **Version Updates** - Frontend 2.8.3 → 2.8.4, Backend 2.8.3 → 2.8.4
-- ✅ **Lock Files** - Updated pnpm-lock.yaml and uv.lock
-
----
-
-## Upcoming Releases
+- ✅ **Exploration from Chat** - Start and recall explorations directly from dweller chat
+  - `start_exploration` action with automatic supply packing (2 stimpaks / 1 radaway caps)
+  - `recall_exploration` action with completion detection (collect rewards if done)
+  - Deterministic enrichment — backend computes all IDs/counts, never trusts LLM
+- ✅ **Universal Room Assignment** - Dwellers can be assigned to ANY room type from chat
+  - New `list_all_rooms()` agent tool covers all 7 categories
+  - Dwellers follow orders strictly when a specific room is named
+  - Kept specialized `list_production_rooms()` / `list_training_rooms()` for stat-based queries
+- ✅ **Training Action Fix** - Fixed "Unable to access vault data" when confirming training
+  - Root cause: vault API doesn't return rooms array, now uses room store
+- ✅ **WebSocket Stability** - UUID serialization, URL handling, typing race conditions
+- ✅ **Chat UX** - Latest-only action suggestion rendering, message ID correlation
+- ✅ **Tests** - 799 frontend tests, 33+ new backend tests (chat + agent tools)
 
 ### v2.8.5 - Code Quality & Refactoring (Completed - February 2026)
 
@@ -98,11 +99,10 @@ AI-powered dweller interactions.
   - Fixed positioning with `getBoundingClientRect()`
   - Resource tooltips now visible
 
-**Remaining for v2.9.0+:**
+**Remaining for v2.10.0+:**
 - Conversation Happiness System
 - Token Management & Usage Tracking
 - Provider Rotation (Ollama URL config + health checking)
-- Agent Improvements (move to room tool, enhanced AI)
 - Admin & Configuration (birth control, room render config)
 - Additional Easter Eggs:
   - "It Just Works" (Todd Howard tribute with buffs)
@@ -654,15 +654,14 @@ watch(() => userStore.caps, (caps) => {
 
 | Version | Release      | Highlights                             |
 |---------|--------------|----------------------------------------|
+| v2.9.0  | Feb 07, 2026 | Chat exploration actions, room agent   |
+| v2.8.5  | Feb 04, 2026 | Code quality, refactoring              |
+| v2.8.4  | Feb 03, 2026 | Test infrastructure fixes              |
 | v2.3.0  | Jan 24, 2026 | Storage validation, pregnancy debug    |
 | v2.2.0  | Jan 23, 2026 | Death system complete                  |
-| v2.1.3  | Jan 22, 2026 | Router consolidation                   |
-| v2.1.2  | Jan 22, 2026 | Quick wins complete                    |
-| v2.1.1  | Jan 22, 2026 | UI polish, planning                    |
 | v2.1.0  | Jan 22, 2026 | Modular frontend architecture          |
 | v2.0.0  | Jan 22, 2026 | Major release, deployment ready        |
 | v1.4.2  | Jan 21, 2026 | Final v1.x release                     |
-| v2.4.0  | Feb 2026     | Motion Vue, animations (planned)       |
 
 ---
 
@@ -718,4 +717,4 @@ watch(() => userStore.caps, (caps) => {
 
 ---
 
-*Last updated: January 29, 2026*
+*Last updated: February 7, 2026*

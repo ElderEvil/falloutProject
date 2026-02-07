@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest'
+import { ref } from 'vue'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import DwellerChat from '@/modules/chat/components/DwellerChat.vue'
@@ -62,24 +63,34 @@ vi.mock('@/modules/progression/services/trainingService', () => ({
 // Mock useVaultStore
 vi.mock('@/modules/vault/stores/vault', () => ({
   useVaultStore: () => ({
-    activeVault: {
-      rooms: [
-        {
-          id: 'training-room-789',
-          name: 'Strength Training',
-          category: 'training',
-          max_capacity: 5,
-        },
-        {
-          id: 'room-456',
-          name: 'Power Plant',
-          category: 'production',
-          max_capacity: 3,
-        },
-      ],
-      dwellers: [],
-    },
+    activeVault: {},
     activeVaultId: 'vault-123',
+  }),
+}))
+
+// Mock useRoomStore
+const mockRooms = ref([
+  {
+    id: 'training-room-789',
+    name: 'Strength Training',
+    category: 'training',
+    max_capacity: 5,
+  },
+  {
+    id: 'room-456',
+    name: 'Power Plant',
+    category: 'production',
+    max_capacity: 3,
+  },
+])
+const mockFetchRooms = vi.fn()
+
+vi.mock('@/modules/rooms/stores/room', () => ({
+  useRoomStore: () => ({
+    get rooms() {
+      return mockRooms.value
+    },
+    fetchRooms: mockFetchRooms,
   }),
 }))
 
@@ -113,6 +124,22 @@ describe('DwellerChat', () => {
     mockRecallDweller.mockReset()
     mockCompleteExploration.mockReset()
     mockFetchExplorationProgress.mockReset()
+    mockFetchRooms.mockReset()
+
+    mockRooms.value = [
+      {
+        id: 'training-room-789',
+        name: 'Strength Training',
+        category: 'training',
+        max_capacity: 5,
+      },
+      {
+        id: 'room-456',
+        name: 'Power Plant',
+        category: 'production',
+        max_capacity: 3,
+      },
+    ]
 
     const authStore = useAuthStore()
     authStore.$patch({
@@ -816,17 +843,75 @@ describe('DwellerChat', () => {
      it.todo('should show error when all training rooms at capacity')
    })
 
-   describe('Bug #5: Unable to access vault data when starting training', () => {
-     it('should load vault data when opening DwellerChatPage', async () => {
-       // This is a failing test that documents the bug
-       // When DwellerChatPage is mounted, it should load vault data
-       // Currently it only sets activeVaultId but doesn't call loadVault
-       // This causes "Unable to access vault data" error when trying to start training
+   describe('Bug #5: Training works via roomStore when activeVault has no rooms', () => {
+     it('should fetch rooms from roomStore and start training when vault has no rooms array', async () => {
+       mockRooms.value = []
+       mockFetchRooms.mockImplementation(() => {
+         mockRooms.value = [
+           {
+             id: 'training-room-789',
+             name: 'Strength Training',
+             category: 'training',
+             max_capacity: 5,
+           },
+         ]
+       })
 
-       // NOTE: This test documents the expected behavior
-       // The fix should be in DwellerChatPage.vue onMounted hook
-       // It should call: await vaultStore.loadVault(result.vault.id, authStore.token)
-       expect(true).toBe(true) // Placeholder until real test implemented
+       const dwellerStore = useDwellerStore()
+       const assignSpy = vi.spyOn(dwellerStore, 'assignDwellerToRoom').mockResolvedValue({} as any)
+
+       dwellerStore.$patch({
+         dwellers: [
+           {
+             id: 'dweller-123',
+             first_name: 'Test',
+             last_name: 'Dweller',
+             room_id: 'room-456',
+             level: 1,
+             happiness: 50,
+             strength: 5,
+             perception: 5,
+             endurance: 5,
+             charisma: 5,
+             intelligence: 5,
+             agility: 5,
+             luck: 5,
+             status: 'idle',
+           },
+         ],
+       })
+
+       const wrapper = mountComponent()
+       await flushPromises()
+
+       ;(apiClient.post as Mock).mockResolvedValueOnce({
+         data: {
+           response: 'Train me!',
+           happiness_impact: { delta: 2, reason_text: 'Eager' },
+           action_suggestion: {
+             action_type: 'start_training',
+             stat: 'strength',
+             reason: 'Needs training',
+           },
+         },
+       })
+
+       const input = wrapper.find('.chat-input-field')
+       await input.setValue('Train')
+       await wrapper.find('.chat-send-btn').trigger('click')
+       await flushPromises()
+
+       const confirmBtn = wrapper.find('.action-confirm-btn')
+       await confirmBtn.trigger('click')
+       await flushPromises()
+
+       expect(mockFetchRooms).toHaveBeenCalledWith('vault-123', 'test-token')
+       expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'training-room-789', 'test-token')
+       expect(trainingService.startTraining).toHaveBeenCalledWith(
+         'dweller-123',
+         'training-room-789',
+         'test-token'
+       )
      })
    })
 

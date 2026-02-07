@@ -25,6 +25,10 @@ describe('QuestsView', () => {
     vaultStore = useVaultStore()
 
     vi.clearAllMocks()
+
+    // Prevent unhandled rejections from real HTTP calls during onMounted
+    vi.spyOn(questStore, 'fetchAllQuests').mockResolvedValue()
+    vi.spyOn(questStore, 'fetchVaultQuests').mockResolvedValue()
   })
 
   describe('Overseer Office Check', () => {

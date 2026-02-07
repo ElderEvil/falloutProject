@@ -115,6 +115,9 @@ describe('ChangelogModal', () => {
           show: true,
           currentVersion: '2.9.5',
           lastSeenVersion: '2.9.4'
+        },
+        global: {
+          stubs: { Teleport: true }
         }
       })
 
@@ -129,14 +132,17 @@ describe('ChangelogModal', () => {
           show: true,
           currentVersion: '2.9.5',
           lastSeenVersion: '2.9.4'
+        },
+        global: {
+          stubs: { Teleport: true }
         }
       })
 
-       await wrapper.vm.$nextTick()
-       await wrapper.find('.fixed.inset-0').trigger('click')
+      await wrapper.vm.$nextTick()
+      await wrapper.find('.fixed.inset-0').trigger('click')
 
-       expect(wrapper.emitted('close')).toBeTruthy()
-       expect(wrapper.emitted('markAsSeen')).toBeFalsy()
+      expect(wrapper.emitted('close')).toBeTruthy()
+      expect(wrapper.emitted('markAsSeen')).toBeFalsy()
     })
   })
 

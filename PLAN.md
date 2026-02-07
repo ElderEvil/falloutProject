@@ -303,7 +303,7 @@ Critical Path: 1 → 2 → 3 → 4 → 5
     - WS `action_suggestion` updates only the message matching `message_id`.
 
   **Agent-Executed QA Scenarios (Playwright)**:
-  
+
   Scenario: Only latest actionable suggestion is visible
     Tool: Playwright (playwright skill)
     Preconditions:

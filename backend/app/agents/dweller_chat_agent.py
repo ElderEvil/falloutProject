@@ -199,32 +199,25 @@ After responding, analyze:
 """
 
 
-@dweller_chat_agent.tool
-async def list_production_rooms(ctx: RunContext[DwellerChatDeps]) -> list[RoomInfo]:
-    """List available production rooms with capacity in the vault.
-
-    Use this to find suitable work assignments based on dweller's SPECIAL stats.
-    Returns rooms that have available capacity.
-    """
-    db_session = ctx.deps.db_session
-    vault_id = ctx.deps.vault_id
-
-    # Get all production rooms in the vault
-    query = select(Room).where(Room.vault_id == vault_id).where(Room.category == RoomTypeEnum.PRODUCTION)
+async def _get_available_rooms(
+    db_session: AsyncSession,
+    vault_id: UUID4,
+    category: RoomTypeEnum | None = None,
+) -> list[RoomInfo]:
+    query = select(Room).where(Room.vault_id == vault_id)
+    if category is not None:
+        query = query.where(Room.category == category)
     response = await db_session.execute(query)
     rooms = response.scalars().all()
 
     result = []
     for room in rooms:
-        # Count current dwellers in room
         dweller_query = select(Dweller).where(Dweller.room_id == room.id).where(Dweller.is_deleted == False)
         dweller_response = await db_session.execute(dweller_query)
         current_dwellers = len(dweller_response.scalars().all())
 
-        # Calculate capacity (2 dwellers per 3 size units)
         max_capacity = (room.size or room.size_min) // 3 * 2 if room.size or room.size_min else 2
 
-        # Only include rooms with available capacity
         if current_dwellers < max_capacity:
             result.append(
                 RoomInfo(
@@ -238,6 +231,16 @@ async def list_production_rooms(ctx: RunContext[DwellerChatDeps]) -> list[RoomIn
             )
 
     return result
+
+
+@dweller_chat_agent.tool
+async def list_production_rooms(ctx: RunContext[DwellerChatDeps]) -> list[RoomInfo]:
+    """List available production rooms with capacity in the vault.
+
+    Use this to find suitable work assignments based on dweller's SPECIAL stats.
+    Returns rooms that have available capacity.
+    """
+    return await _get_available_rooms(ctx.deps.db_session, ctx.deps.vault_id, RoomTypeEnum.PRODUCTION)
 
 
 @dweller_chat_agent.tool
@@ -247,38 +250,7 @@ async def list_training_rooms(ctx: RunContext[DwellerChatDeps]) -> list[RoomInfo
     Use this to find training options when dweller wants to improve their abilities.
     Each training room trains a specific SPECIAL stat.
     """
-    db_session = ctx.deps.db_session
-    vault_id = ctx.deps.vault_id
-
-    # Get all training rooms in the vault
-    query = select(Room).where(Room.vault_id == vault_id).where(Room.category == RoomTypeEnum.TRAINING)
-    response = await db_session.execute(query)
-    rooms = response.scalars().all()
-
-    result = []
-    for room in rooms:
-        # Count current dwellers in room
-        dweller_query = select(Dweller).where(Dweller.room_id == room.id).where(Dweller.is_deleted == False)
-        dweller_response = await db_session.execute(dweller_query)
-        current_dwellers = len(dweller_response.scalars().all())
-
-        # Calculate capacity (2 dwellers per 3 size units)
-        max_capacity = (room.size or room.size_min) // 3 * 2 if room.size or room.size_min else 2
-
-        # Only include rooms with available capacity
-        if current_dwellers < max_capacity:
-            result.append(
-                RoomInfo(
-                    room_id=str(room.id),
-                    name=room.name,
-                    category=room.category.value,
-                    current_dwellers=current_dwellers,
-                    max_capacity=max_capacity,
-                    ability=room.ability.value if room.ability else None,
-                )
-            )
-
-    return result
+    return await _get_available_rooms(ctx.deps.db_session, ctx.deps.vault_id, RoomTypeEnum.TRAINING)
 
 
 @dweller_chat_agent.tool
@@ -289,38 +261,7 @@ async def list_all_rooms(ctx: RunContext[DwellerChatDeps]) -> list[RoomInfo]:
     or when you need a complete overview of all rooms with available capacity.
     Includes all categories: capacity, crafting, misc, production, quests, theme, and training.
     """
-    db_session = ctx.deps.db_session
-    vault_id = ctx.deps.vault_id
-
-    # Get all rooms in the vault (no category filter)
-    query = select(Room).where(Room.vault_id == vault_id)
-    response = await db_session.execute(query)
-    rooms = response.scalars().all()
-
-    result = []
-    for room in rooms:
-        # Count current dwellers in room
-        dweller_query = select(Dweller).where(Dweller.room_id == room.id).where(Dweller.is_deleted == False)
-        dweller_response = await db_session.execute(dweller_query)
-        current_dwellers = len(dweller_response.scalars().all())
-
-        # Calculate capacity (2 dwellers per 3 size units)
-        max_capacity = (room.size or room.size_min) // 3 * 2 if room.size or room.size_min else 2
-
-        # Only include rooms with available capacity
-        if current_dwellers < max_capacity:
-            result.append(
-                RoomInfo(
-                    room_id=str(room.id),
-                    name=room.name,
-                    category=room.category.value,
-                    current_dwellers=current_dwellers,
-                    max_capacity=max_capacity,
-                    ability=room.ability.value if room.ability else None,
-                )
-            )
-
-    return result
+    return await _get_available_rooms(ctx.deps.db_session, ctx.deps.vault_id)
 
 
 @dweller_chat_agent.tool

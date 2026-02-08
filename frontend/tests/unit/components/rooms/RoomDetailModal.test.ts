@@ -44,13 +44,52 @@ vi.mock('@/core/components/ui/UButton.vue', () => ({
   }
 }))
 
-// Mock vue-router
+vi.mock('@/core/components/ui/UTooltip.vue', () => ({
+  default: {
+    name: 'UTooltip',
+    props: ['text'],
+    template: '<div class="mock-tooltip" :data-tooltip="text"><slot /></div>'
+  }
+}))
+
+vi.mock('@/core/components/ui/UAlert.vue', () => ({
+  default: {
+    name: 'UAlert',
+    props: ['variant'],
+    template: '<div class="mock-alert" :data-variant="variant"><slot /></div>'
+  }
+}))
+
+// Mock useToast
+vi.mock('@/core/composables/useToast', () => ({
+  useToast: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    show: vi.fn(),
+    toasts: { value: [] },
+    remove: vi.fn()
+  })
+}))
+
+// Mock axios
+vi.mock('@/core/plugins/axios', () => ({
+  default: {
+    get: vi.fn().mockResolvedValue({ data: {} }),
+    post: vi.fn().mockResolvedValue({ data: {} }),
+    put: vi.fn().mockResolvedValue({ data: {} }),
+  }
+}))
+
+// Mock vue-router with shared mocks so we can spy on router.push
+const mockRouterPush = vi.fn()
 vi.mock('vue-router', () => ({
   useRoute: () => ({
     params: { id: 'vault-123' }
   }),
   useRouter: () => ({
-    push: vi.fn()
+    push: mockRouterPush
   })
 }))
 
@@ -577,6 +616,315 @@ describe('RoomDetailModal', () => {
 
       // Production: 10 * 17 * 0.1 * 2.0 = 34 per second, 2040 per minute
       expect(wrapper.text()).toContain('2040.00')
+    })
+  })
+
+  describe('Radio Room UI and Mode Switching', () => {
+    const mockRadioRoom = {
+      ...mockRoom,
+      name: 'Radio Studio',
+      category: 'SPECIAL',
+      ability: 'CHARISMA',
+    }
+
+    it('should show radio controls for radio rooms', () => {
+      const dwellerStore = useDwellerStore()
+      dwellerStore.dwellers = mockDwellers.map((d) => ({
+        ...d,
+        room_id: mockRadioRoom.id,
+      }))
+
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRadioRoom, modelValue: true },
+      })
+
+      expect(wrapper.text()).toContain('Radio Studio')
+      expect(wrapper.find('.radio-controls').exists()).toBe(true)
+    })
+
+    it('should not show radio controls for non-radio rooms', () => {
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRoom, modelValue: true },
+      })
+
+      expect(wrapper.find('.radio-controls').exists()).toBe(false)
+    })
+
+    it('should render recruitment and happiness mode buttons', () => {
+      const dwellerStore = useDwellerStore()
+      dwellerStore.dwellers = mockDwellers.map((d) => ({
+        ...d,
+        room_id: mockRadioRoom.id,
+      }))
+
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRadioRoom, modelValue: true },
+      })
+
+      const modeButtons = wrapper.findAll('.mode-btn')
+      expect(modeButtons.length).toBe(2)
+      expect(modeButtons[0].text()).toContain('Recruitment')
+      expect(modeButtons[1].text()).toContain('Happiness')
+    })
+
+    it('should show active state on recruitment mode by default', () => {
+      const dwellerStore = useDwellerStore()
+      dwellerStore.dwellers = mockDwellers.map((d) => ({
+        ...d,
+        room_id: mockRadioRoom.id,
+      }))
+
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRadioRoom, modelValue: true },
+      })
+
+      const modeButtons = wrapper.findAll('.mode-btn')
+      expect(modeButtons[0].classes()).toContain('active')
+      expect(modeButtons[1].classes()).not.toContain('active')
+    })
+
+    it('should display radio status text', () => {
+      const dwellerStore = useDwellerStore()
+      dwellerStore.dwellers = mockDwellers.map((d) => ({
+        ...d,
+        room_id: mockRadioRoom.id,
+      }))
+
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRadioRoom, modelValue: true },
+      })
+
+      expect(wrapper.text()).toContain('Recruiting')
+    })
+
+    it('should show staffing warning when no dwellers assigned to radio room', () => {
+      const dwellerStore = useDwellerStore()
+      dwellerStore.dwellers = []
+
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRadioRoom, modelValue: true },
+      })
+
+      expect(wrapper.find('.mock-alert').exists()).toBe(true)
+      expect(wrapper.text()).toContain('Assign at least one dweller')
+    })
+  })
+
+  describe('Recruitment Button Enable/Disable States', () => {
+    const mockRadioRoom = {
+      ...mockRoom,
+      name: 'Radio Studio',
+      category: 'SPECIAL',
+      ability: 'CHARISMA',
+    }
+
+    it('should disable recruit button when no dwellers assigned', () => {
+      const dwellerStore = useDwellerStore()
+      dwellerStore.dwellers = []
+
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRadioRoom, modelValue: true },
+      })
+
+      const recruitBtn = wrapper.find('.recruit-btn')
+      expect(recruitBtn.exists()).toBe(true)
+      expect(recruitBtn.attributes('disabled')).toBeDefined()
+    })
+
+    it('should enable recruit button when dwellers assigned and in recruitment mode', () => {
+      const dwellerStore = useDwellerStore()
+      dwellerStore.dwellers = mockDwellers.map((d) => ({
+        ...d,
+        room_id: mockRadioRoom.id,
+      }))
+
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRadioRoom, modelValue: true },
+      })
+
+      const recruitBtn = wrapper.find('.recruit-btn')
+      expect(recruitBtn.exists()).toBe(true)
+      expect(recruitBtn.attributes('disabled')).toBeUndefined()
+    })
+
+    it('should show recruit cost in button text', () => {
+      const dwellerStore = useDwellerStore()
+      dwellerStore.dwellers = mockDwellers.map((d) => ({
+        ...d,
+        room_id: mockRadioRoom.id,
+      }))
+
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRadioRoom, modelValue: true },
+      })
+
+      expect(wrapper.text()).toContain('Recruit Dweller')
+      expect(wrapper.text()).toContain('100 caps')
+    })
+  })
+
+  describe('Dweller Click Navigation', () => {
+    it('should call router.push when dweller card is clicked', async () => {
+      const dwellerStore = useDwellerStore()
+      dwellerStore.dwellers = mockDwellers
+
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRoom, modelValue: true },
+      })
+
+      const dwellerCards = wrapper.findAll('.dweller-card')
+      expect(dwellerCards.length).toBe(2)
+
+      await dwellerCards[0].trigger('click')
+
+      expect(mockRouterPush).toHaveBeenCalledWith({
+        name: 'dwellerDetail',
+        params: { id: 'vault-123', dwellerId: 'dweller-1' },
+      })
+    })
+
+    it('should navigate to correct dweller when second dweller is clicked', async () => {
+      const dwellerStore = useDwellerStore()
+      dwellerStore.dwellers = mockDwellers
+
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRoom, modelValue: true },
+      })
+
+      const dwellerCards = wrapper.findAll('.dweller-card')
+      await dwellerCards[1].trigger('click')
+
+      expect(mockRouterPush).toHaveBeenCalledWith({
+        name: 'dwellerDetail',
+        params: { id: 'vault-123', dwellerId: 'dweller-2' },
+      })
+    })
+
+    it('should have clickable class on dweller cards', () => {
+      const dwellerStore = useDwellerStore()
+      dwellerStore.dwellers = mockDwellers
+
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRoom, modelValue: true },
+      })
+
+      const dwellerCards = wrapper.findAll('.dweller-card')
+      dwellerCards.forEach((card) => {
+        expect(card.classes()).toContain('clickable')
+      })
+    })
+  })
+
+  describe('Error Clearing on Modal Close', () => {
+    it('should clear error when modal closes', async () => {
+      const roomStore = useRoomStore()
+      const authStore = useAuthStore()
+      authStore.token = 'test-token'
+
+      vi.spyOn(roomStore, 'upgradeRoom').mockRejectedValue(new Error('Some error'))
+
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRoom, modelValue: true },
+      })
+
+      const upgradeButton = wrapper.findAll('.mock-button')[0]
+      await upgradeButton.trigger('click')
+      await wrapper.vm.$nextTick()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      expect(wrapper.text()).toContain('Some error')
+
+      await wrapper.setProps({ modelValue: false })
+      await wrapper.vm.$nextTick()
+
+      await wrapper.setProps({ modelValue: true })
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.text()).not.toContain('Some error')
+    })
+
+    it('should not display error banner when no error exists', () => {
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRoom, modelValue: true },
+      })
+
+      expect(wrapper.find('.error-banner').exists()).toBe(false)
+    })
+  })
+
+  describe('Vault Door Edge Cases', () => {
+    const mockVaultDoor = {
+      ...mockRoom,
+      name: 'Vault Door',
+      category: 'SPECIAL',
+      ability: null,
+    }
+
+    it('should show disabled destroy button for vault door', () => {
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockVaultDoor, modelValue: true },
+      })
+
+      expect(wrapper.text()).toContain('Destroy Room')
+
+      const tooltip = wrapper.find('.mock-tooltip')
+      expect(tooltip.exists()).toBe(true)
+      expect(tooltip.attributes('data-tooltip')).toBe(
+        'The Vault Door is vital and cannot be destroyed.'
+      )
+    })
+
+    it('should wrap vault door destroy button in tooltip', () => {
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockVaultDoor, modelValue: true },
+      })
+
+      const tooltip = wrapper.find('.mock-tooltip')
+      expect(tooltip.exists()).toBe(true)
+
+      const destroyBtn = tooltip.find('.mock-button')
+      expect(destroyBtn.exists()).toBe(true)
+      expect(destroyBtn.attributes('disabled')).toBeDefined()
+    })
+
+    it('should enable destroy button for non-vault-door rooms', () => {
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRoom, modelValue: true },
+      })
+
+      expect(wrapper.find('.mock-tooltip').exists()).toBe(false)
+
+      const destroyButtons = wrapper.findAll('.mock-button').filter((btn) => {
+        return btn.text().includes('Destroy Room')
+      })
+      expect(destroyButtons.length).toBe(1)
+      expect(destroyButtons[0].attributes('disabled')).toBeUndefined()
+    })
+
+    it('should not show production stats for vault door', () => {
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockVaultDoor, modelValue: true },
+      })
+
+      expect(wrapper.text()).not.toContain('Production Statistics')
+    })
+
+    it('should not show required stat when ability is null', () => {
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockVaultDoor, modelValue: true },
+      })
+
+      expect(wrapper.text()).not.toContain('Required Stat')
+    })
+  })
+
+  describe('Null Room Handling', () => {
+    it('should not render modal content when room is null', () => {
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: null, modelValue: true },
+      })
+
+      expect(wrapper.find('.modal-content').exists()).toBe(false)
     })
   })
 })

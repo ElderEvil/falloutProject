@@ -1,7 +1,7 @@
 import { ref, computed, watch, nextTick, type Ref } from 'vue'
 import apiClient from '@/core/plugins/axios'
 import { normalizeImageUrl } from '@/utils/image'
-import type { ChatMessageDisplay } from '../models/chat'
+import type { ChatMessageDisplay } from '@/modules/chat/models/chat'
 
 export interface UseChatMessagesOptions {
   dwellerId: string

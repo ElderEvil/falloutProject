@@ -746,7 +746,7 @@ watch(() => userStore.caps, (caps) => {
 **Completed:**
 - ✅ ChangelogModal single footer CTA (Got it only)
 - ✅ Vault experimental warning banner (create + list)
-- ✅ DwellerChat message-id based keys for WebSocket correlation
+- ✅ DwellerChat message-id-based keys for WebSocket correlation
 
 ### v2.9.2 - Boosted Start (Completed - February 8, 2026)
 

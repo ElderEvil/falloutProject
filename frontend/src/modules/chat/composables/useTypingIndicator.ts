@@ -28,6 +28,11 @@ export function useTypingIndicator(chatWs: ChatWebSocket | null) {
 
   const cleanup = () => {
     if (typingTimeout) {
+      try {
+        chatWs?.sendTypingIndicator(false)
+      } catch (error) {
+        console.error('Error clearing typing indicator:', error)
+      }
       clearTimeout(typingTimeout)
       typingTimeout = null
     }

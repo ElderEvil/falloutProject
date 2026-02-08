@@ -37,7 +37,6 @@ const {
   assignedDwellers,
   dwellerCapacity,
   getAbilityLabel,
-  getDwellerStatValue,
   handleUnassignAll,
   openDwellerDetails,
 } = useRoomDwellers(roomRef, actionError, () => emit('roomUpdated'))
@@ -68,9 +67,6 @@ const {
   handleSwitchRadioMode,
   handleRecruitDweller,
 } = useRadioRoom(roomRef, modelValueRef, assignedDwellers)
-
-// Room status (static for now, will be dynamic later)
-const roomStatus = computed(() => 'Operational')
 
 // Clear error when modal closes
 watch(

@@ -1,4 +1,4 @@
-import { ref, computed, watchEffect, type Ref } from 'vue'
+import { ref, computed, watch, nextTick, type Ref } from 'vue'
 import apiClient from '@/core/plugins/axios'
 import { normalizeImageUrl } from '@/utils/image'
 import type { ChatMessageDisplay } from '../models/chat'
@@ -144,7 +144,8 @@ export function useChatMessages(options: UseChatMessagesOptions) {
   }
 
   // Auto-scroll to bottom
-  watchEffect(() => {
+  watch(messages, async () => {
+    await nextTick()
     if (chatMessages.value) {
       chatMessages.value.scrollTop = chatMessages.value.scrollHeight
     }

@@ -821,26 +821,32 @@ describe('RoomDetailModal', () => {
       const authStore = useAuthStore()
       authStore.token = 'test-token'
 
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
       vi.spyOn(roomStore, 'upgradeRoom').mockRejectedValue(new Error('Some error'))
 
-      const wrapper = mount(RoomDetailModal, {
-        props: { room: mockRoom, modelValue: true },
-      })
+      try {
+        const wrapper = mount(RoomDetailModal, {
+          props: { room: mockRoom, modelValue: true },
+        })
 
-      const upgradeButton = wrapper.findAll('.mock-button')[0]
-      await upgradeButton.trigger('click')
-      await wrapper.vm.$nextTick()
-      await new Promise((resolve) => setTimeout(resolve, 0))
+        const upgradeButton = wrapper.findAll('.mock-button')[0]
+        await upgradeButton.trigger('click')
+        await wrapper.vm.$nextTick()
+        await new Promise((resolve) => setTimeout(resolve, 0))
 
-      expect(wrapper.text()).toContain('Some error')
+        expect(wrapper.text()).toContain('Some error')
 
-      await wrapper.setProps({ modelValue: false })
-      await wrapper.vm.$nextTick()
+        await wrapper.setProps({ modelValue: false })
+        await wrapper.vm.$nextTick()
 
-      await wrapper.setProps({ modelValue: true })
-      await wrapper.vm.$nextTick()
+        await wrapper.setProps({ modelValue: true })
+        await wrapper.vm.$nextTick()
 
-      expect(wrapper.text()).not.toContain('Some error')
+        expect(wrapper.text()).not.toContain('Some error')
+      } finally {
+        consoleSpy.mockRestore()
+      }
     })
 
     it('should not display error banner when no error exists', () => {

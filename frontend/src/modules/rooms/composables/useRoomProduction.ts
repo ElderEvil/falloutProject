@@ -11,6 +11,22 @@ type SpecialKey =
   | 'agility'
   | 'luck'
 
+const getResourceName = (ability?: string | null) => {
+  if (!ability) return 'Resources'
+  switch (ability.toUpperCase()) {
+    case 'STRENGTH':
+      return 'Power'
+    case 'PERCEPTION':
+      return 'Water'
+    case 'AGILITY':
+      return 'Food'
+    case 'ENDURANCE':
+      return 'All Resources'
+    default:
+      return 'Resources'
+  }
+}
+
 export function useRoomProduction(
   room: Ref<Room | null>,
   assignedDwellers: Ref<DwellerShort[]>,
@@ -34,26 +50,17 @@ export function useRoomProduction(
   })
 
   const resourceName = computed(() => {
-    if (!room.value?.ability) return 'Resources'
-    const ability = room.value.ability.toUpperCase()
-    switch (ability) {
-      case 'STRENGTH':
-        return 'Power'
-      case 'PERCEPTION':
-        return 'Water'
-      case 'AGILITY':
-        return 'Food'
-      case 'ENDURANCE':
-        return 'All Resources'
-      default:
-        return 'Resources'
-    }
+    return getResourceName(room.value?.ability)
   })
 
   const roomImageUrl = computed(() => {
     if (!room.value?.image_url) return null
     const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
-    return `${baseUrl}${room.value.image_url}`
+    const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
+    const imagePath = room.value.image_url.startsWith('/')
+      ? room.value.image_url.slice(1)
+      : room.value.image_url
+    return `${normalizedBase}/${imagePath}`
   })
 
   const productionInfo = computed(() => {
@@ -80,22 +87,7 @@ export function useRoomProduction(
     const productionPerSecond = (r.output || 0) * abilitySum * BASE_PRODUCTION_RATE * tierMult
     const productionPerMinute = productionPerSecond * 60
 
-    let resourceType = 'Unknown'
-    const abilityUpper = r.ability!.toUpperCase()
-    switch (abilityUpper) {
-      case 'STRENGTH':
-        resourceType = 'Power'
-        break
-      case 'AGILITY':
-        resourceType = 'Food'
-        break
-      case 'PERCEPTION':
-        resourceType = 'Water'
-        break
-      case 'ENDURANCE':
-        resourceType = 'All Resources'
-        break
-    }
+    const resourceType = getResourceName(r.ability)
 
     const capacity = dwellerCapacity.value || 1
     const efficiency = Math.round((dwellers.length / capacity) * 100)

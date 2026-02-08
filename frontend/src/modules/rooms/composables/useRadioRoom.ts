@@ -63,6 +63,7 @@ export function useRadioRoom(
         loadRadioStats()
       }
     },
+    { immediate: true },
   )
 
   const handleSwitchRadioMode = async (mode: 'recruitment' | 'happiness') => {

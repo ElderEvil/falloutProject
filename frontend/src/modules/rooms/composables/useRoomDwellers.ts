@@ -32,7 +32,7 @@ export function useRoomDwellers(
   const dwellerCapacity = computed(() => {
     if (!room.value) return 0
     const r = room.value
-    const roomSize = r.size || r.size_min || 3
+    const roomSize = r.size ?? r.size_min ?? 3
     const cellsOccupied = Math.ceil(roomSize / 3)
     return cellsOccupied * 2
   })
@@ -63,16 +63,32 @@ export function useRoomDwellers(
       return
     }
 
+    const token = authStore.token
+    if (!token || typeof token !== 'string') {
+      actionError.value = 'No auth token available'
+      return
+    }
+
     actionError.value = null
+    const dwellersToUnassign = [...assignedDwellers.value]
 
     try {
-      for (const dweller of assignedDwellers.value) {
-        await dwellerStore.unassignDwellerFromRoom(dweller.id, authStore.token as string)
+      const results = await Promise.allSettled(
+        dwellersToUnassign.map((dweller) =>
+          dwellerStore.unassignDwellerFromRoom(dweller.id, token),
+        ),
+      )
+
+      const rejected = results.filter((result) => result.status === 'rejected')
+      if (rejected.length > 0) {
+        console.error('Failed to unassign dwellers:', rejected)
+        actionError.value = 'Failed to unassign some dwellers'
       }
-      emitRoomUpdated()
     } catch (error) {
       console.error('Failed to unassign dwellers:', error)
       actionError.value = error instanceof Error ? error.message : 'Failed to unassign dwellers'
+    } finally {
+      emitRoomUpdated()
     }
   }
 

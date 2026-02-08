@@ -81,7 +81,7 @@ class NotificationService:
             )
         except Exception:
             logger.exception(f"Failed to send notification {notification.id} to user {user_id}")
-            raise
+            # Best-effort delivery: persistence should succeed even if WS send fails.
 
         return notification
 

@@ -43,7 +43,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [2.9.1] - 2026-02-08
 
 ### Fixed
-- **Chat Message Display** - Messages now use proper message-id based keys for WebSocket updates
+- **Chat Message Display** - Messages now use proper message-id-based keys for WebSocket updates
 - **DwellerChat PLAN.md Compliance** - All PLAN.md requirements verified and working
   - Latest-only action suggestion rendering
   - Message-id based WS stickiness for action suggestions

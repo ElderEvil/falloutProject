@@ -25,6 +25,7 @@ export function useChatAudio() {
 
     audio.play().catch((err) => {
       console.error('Error playing audio:', err)
+      currentlyPlayingAudio.value = null
       currentlyPlayingUrl.value = null
     })
 

@@ -50,9 +50,15 @@ export function useRoomUpgrade(
   const handleUpgrade = async () => {
     if (!room.value) return
 
-    const vaultId = route.params.id as string
-    if (!vaultId) {
+    const vaultId = route.params.id
+    if (!vaultId || typeof vaultId !== 'string') {
       actionError.value = 'No vault ID available'
+      return
+    }
+
+    const token = authStore.token
+    if (!token || typeof token !== 'string') {
+      actionError.value = 'No auth token available'
       return
     }
 
@@ -65,7 +71,7 @@ export function useRoomUpgrade(
     actionError.value = null
 
     try {
-      await roomStore.upgradeRoom(room.value.id, authStore.token as string, vaultId)
+      await roomStore.upgradeRoom(room.value.id, token, vaultId)
 
       toast.success(`${roomName} upgraded to Tier ${nextTier}! (Cost: ${upgradeCost} caps)`, 5000)
 

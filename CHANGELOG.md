@@ -9,6 +9,47 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.9.3] - 2026-02-08
+
+### What's New
+- **Component Refactoring** - Major frontend architecture improvements
+  - Deep split: `RoomDetailModal.vue` broken into 7 focused components + 4 composables
+    - Components: RoomDetailHeader, RoomPreviewSection, RoomInfoGrid, ProductionStats, DwellerList, RoomActions, RadioControls
+    - Composables: useRoomProduction, useRoomUpgrade, useRoomDwellers, useRadioRoom
+    - Reduced from 1045 lines to ~200 lines (~80% reduction)
+    - All 49 existing tests pass, no behavioral changes
+  - Light split: `DwellerChat.vue` logic extracted into composables
+    - useChatMessages, useChatActions, useChatAudio, useTypingIndicator
+    - UI remains intact, complexity reduced
+- **Backend Quick Wins** - Code quality improvements
+  - Added service logging to leveling_service.py and notification_service.py
+  - Removed unused `get_spreading_incidents()` function from incident CRUD
+
+### Fixed
+- **DwellerChat Message Keys** - Uses messageId-based keys for better WebSocket correlation
+- **RoomDetailModal Edge Cases** - Better null handling and radio room conditional rendering
+
+---
+
+## [2.9.2] - 2026-02-08
+
+### What's New
+- **Boosted Start** - New vault creation option for faster progression
+  - Creates vault with 6 dwellers (3F/3M), 1000 caps, and starter resources
+  - Reduced initial build costs for faster early game
+
+---
+
+## [2.9.1] - 2026-02-08
+
+### Fixed
+- **Chat Message Display** - Messages now use proper message-id based keys for WebSocket updates
+- **DwellerChat PLAN.md Compliance** - All PLAN.md requirements verified and working
+  - Latest-only action suggestion rendering
+  - Message-id based WS stickiness for action suggestions
+
+---
+
 ## [2.9.0] - 2026-02-07
 
 ### What's New

@@ -1,10 +1,14 @@
 """Leveling service for handling dweller experience and level-ups."""
 
+import logging
+
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.schemas.dweller import DwellerUpdate
+
+logger = logging.getLogger(__name__)
 
 
 class LevelingService:
@@ -64,6 +68,7 @@ class LevelingService:
             Tuple of (leveled_up: bool, levels_gained: int)
         """
         if dweller.level >= game_config.leveling.max_level:
+            logger.debug(f"Dweller {dweller.id} already at max level {dweller.level}")
             return False, 0
 
         levels_gained = 0
@@ -79,6 +84,10 @@ class LevelingService:
                 break
 
         if levels_gained > 0:
+            logger.info(
+                f"Dweller {dweller.id} eligible for {levels_gained} level-up(s) "
+                f"(current: {dweller.level}, target: {current_level})"
+            )
             await self.level_up_dweller(db_session, dweller, levels_gained)
             return True, levels_gained
 
@@ -102,6 +111,7 @@ class LevelingService:
             Updated dweller
         """
         if dweller.level >= game_config.leveling.max_level:
+            logger.debug(f"Dweller {dweller.id} already at max level, skipping level-up")
             return dweller
 
         # Calculate new level (cap at max_level)
@@ -117,6 +127,11 @@ class LevelingService:
 
         # Update dweller
         from app.crud.dweller import dweller as dweller_crud
+
+        logger.info(
+            f"Leveling up dweller {dweller.id}: {dweller.level} → {new_level}, "
+            f"health: {dweller.max_health} → {new_max_health}"
+        )
 
         await dweller_crud.update(
             db_session,

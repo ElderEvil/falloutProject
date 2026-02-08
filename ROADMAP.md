@@ -9,6 +9,22 @@ AI-powered dweller interactions.
 
 ## Latest Release
 
+### v2.9.3 - Component Refactoring & Backend Quick Wins (February 8, 2026)
+
+**Focus**: Major frontend component refactoring and backend code quality improvements
+
+**Completed:**
+- ✅ **RoomDetailModal Deep Split** - Reduced from 1045 lines to ~200 lines (~80% reduction)
+  - Extracted 7 focused components: RoomDetailHeader, RoomPreviewSection, RoomInfoGrid, ProductionStats, DwellerList, RoomActions, RadioControls
+  - Extracted 4 composables: useRoomProduction, useRoomUpgrade, useRoomDwellers, useRadioRoom
+  - All 49 existing tests pass, no behavioral changes
+- ✅ **DwellerChat Light Split** - Logic extracted into composables
+  - useChatMessages, useChatActions, useChatAudio, useTypingIndicator
+  - UI remains intact, complexity reduced
+- ✅ **Backend Service Logging** - Added to leveling_service.py and notification_service.py
+- ✅ **Dead Code Removal** - Removed unused get_spreading_incidents() from incident CRUD
+- ✅ **Version Alignment** - Backend and frontend both at v2.9.3
+
 ### v2.9.0 - Chat Actions & Agent Intelligence (February 7, 2026)
 
 **Focus**: Chat action suggestions, exploration integration, and smarter room assignment
@@ -723,33 +739,34 @@ watch(() => userStore.caps, (caps) => {
 
 ## Upcoming Releases
 
-### v2.9.1 - UX Papercuts & Docs (In Progress)
+### v2.9.1 - UX Papercuts & Docs (Completed - February 8, 2026)
 
 **Focus**: Quick UX fixes and documentation updates
 
-**Planned:**
-- ChangelogModal single footer CTA (Got it only)
-- Vault experimental warning banner (create + list)
-- ROADMAP.md update with 2.9.1-2.9.5 sections
-- CHANGELOG.md 2.9.0 rewrite (main feature + Fixed + Technical)
+**Completed:**
+- ✅ ChangelogModal single footer CTA (Got it only)
+- ✅ Vault experimental warning banner (create + list)
+- ✅ DwellerChat message-id-based keys for WebSocket correlation
 
-### v2.9.2 - Boosted Start (Planned)
+### v2.9.2 - Boosted Start (Completed - February 8, 2026)
 
 **Focus**: Opt-in boosted vault creation
 
-**Planned:**
-- Opt-in "Boosted Start" vault creation option
-- Matches current superuser initialization (extra rooms, dwellers, training)
-- Creation-time only, no persistent vault flag
+**Completed:**
+- ✅ Opt-in "Boosted Start" vault creation option
+- ✅ Creates vault with 6 dwellers (3F/3M), 1000 caps, and starter resources
+- ✅ Reduced initial build costs for faster early game
 
-### v2.9.3 - Backend Quick Wins (Planned)
+### v2.9.3 - Component Refactoring & Quick Wins (Completed - February 8, 2026)
 
-**Focus**: Time-boxed backend improvements
+**Focus**: Component splitting and backend code quality
 
-**Planned:**
-- Audit backend for <2h improvements
-- Implement top 3 quick wins
-- Focus on DX, maintainability, test coverage
+**Completed:**
+- ✅ RoomDetailModal deep split into 7 components + 4 composables
+- ✅ DwellerChat light split (logic extraction)
+- ✅ Backend service logging added
+- ✅ Dead code removal (get_spreading_incidents)
+- ✅ Version bump to 2.9.3 (BE + FE)
 
 ### v2.9.4 - Frontend Quick Wins (Planned)
 
@@ -771,4 +788,4 @@ watch(() => userStore.caps, (caps) => {
 
 ---
 
-*Last updated: February 7, 2026*
+*Last updated: February 8, 2026*

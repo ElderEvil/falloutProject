@@ -1,24 +1,16 @@
 <script setup lang="ts">
-import { ref, watchEffect, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { Icon } from '@iconify/vue'
 import apiClient from '@/core/plugins/axios'
-import type {
-  ChatMessageDisplay,
-  ActionSuggestion,
-  HappinessImpact,
-  StartExplorationAction,
-  RecallExplorationAction,
-} from '../models/chat'
+import type { ActionSuggestion } from '../models/chat'
 import { useAudioRecorder } from '../composables/useAudioRecorder'
+import { useChatMessages } from '../composables/useChatMessages'
+import { useChatAudio } from '../composables/useChatAudio'
+import { useTypingIndicator } from '../composables/useTypingIndicator'
+import { useChatActions } from '../composables/useChatActions'
 import { useChatWebSocket } from '@/core/composables/useWebSocket'
 import { normalizeImageUrl } from '@/utils/image'
-import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
-import { useVaultStore } from '@/modules/vault/stores/vault'
-import { useRoomStore } from '@/modules/rooms/stores/room'
-import { useExplorationStore } from '@/modules/exploration/stores/exploration'
-import { startTraining } from '@/modules/progression/services/trainingService'
-import { useToast } from '@/core/composables/useToast'
 
 const props = defineProps<{
   dwellerId: string
@@ -28,35 +20,10 @@ const props = defineProps<{
 }>()
 
 const authStore = useAuthStore()
-const dwellerStore = useDwellerStore()
-const vaultStore = useVaultStore()
-const roomStore = useRoomStore()
-const explorationStore = useExplorationStore()
-const toast = useToast()
 
-const messages = ref<ChatMessageDisplay[]>([])
-const userMessage = ref('')
-const chatMessages = ref<HTMLElement | null>(null)
-const isTyping = ref(false)
 const isSendingAudio = ref(false)
 const audioMode = ref(false)
-const currentlyPlayingAudio = ref<HTMLAudioElement | null>(null)
-const currentlyPlayingUrl = ref<string | null>(null)
-const isPerformingAction = ref(false)
-const showStatSelector = ref(false)
-const pendingTrainingAction = ref<{ stat: string; reason: string } | null>(null)
 
-// Stop audio playback
-const stopAudio = () => {
-  if (currentlyPlayingAudio.value) {
-    currentlyPlayingAudio.value.pause()
-    currentlyPlayingAudio.value.currentTime = 0
-    currentlyPlayingAudio.value = null
-  }
-  currentlyPlayingUrl.value = null
-}
-
-// Audio recorder
 const {
   recordingState,
   recordingDuration,
@@ -67,106 +34,48 @@ const {
   formatDuration,
 } = useAudioRecorder()
 
-// WebSocket
 const chatWs = authStore.user?.id ? useChatWebSocket(authStore.user.id, props.dwellerId) : null
 
-const userAvatar = computed(() => (authStore.user as any)?.image_url || undefined)
-const dwellerAvatarUrl = computed(() => normalizeImageUrl(props.dwellerAvatar))
+const {
+  messages,
+  userMessage,
+  chatMessages,
+  isTyping,
+  userAvatar,
+  dwellerAvatarUrl,
+  canSend,
+  latestActionSuggestionIndex,
+  loadChatHistory,
+  sendMessage,
+  handleKeyDown,
+  dismissAction,
+  getHappinessColor,
+  getHappinessIcon,
+} = useChatMessages({
+  dwellerId: props.dwellerId,
+  dwellerAvatar: props.dwellerAvatar,
+  token: authStore.token,
+  userImageUrl: (authStore.user as any)?.image_url,
+})
 
-const loadChatHistory = async () => {
-  try {
-    const response = await apiClient.get(`/api/v1/chat/history/${props.dwellerId}`, {
-      headers: {
-        Authorization: `Bearer ${authStore.token}`,
-      },
-    })
+const { currentlyPlayingUrl, stopAudio, playAudio } = useChatAudio()
 
-    const history = response.data.map((msg: any) => ({
-      type: msg.from_user_id ? 'user' : 'dweller',
-      content: msg.message_text,
-      messageId: msg.id || undefined,
-      timestamp: new Date(msg.created_at),
-      avatar: msg.from_user_id ? userAvatar.value : props.dwellerAvatar,
-      audioUrl: msg.audio_url || undefined,
-      transcription: msg.transcription || undefined,
-      happinessImpact:
-        msg.happiness_delta !== null && msg.happiness_delta !== undefined
-          ? {
-              delta: msg.happiness_delta,
-              reason_text: msg.happiness_reason || '',
-            }
-          : undefined,
-    }))
+const { handleTyping } = useTypingIndicator(chatWs)
 
-    messages.value = history
-  } catch (error) {
-    console.error('Error loading chat history:', error)
-  }
-}
+const { isPerformingAction, handleActionConfirm } = useChatActions({
+  dwellerId: props.dwellerId,
+  dwellerName: props.dwellerName,
+  messages,
+})
 
-const sendMessage = async () => {
-  if (userMessage.value.trim()) {
-    messages.value.push({
-      type: 'user',
-      content: userMessage.value,
-      timestamp: new Date(),
-      avatar: userAvatar.value,
-    })
-
-    const messageToSend = userMessage.value
-    userMessage.value = ''
-    isTyping.value = true
-
-    try {
-      const response = await apiClient.post(
-        `/api/v1/chat/${props.dwellerId}`,
-        {
-          message: messageToSend,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${authStore.token}`,
-          },
-        }
-      )
-      messages.value.push({
-        type: 'dweller',
-        content: response.data.response,
-        messageId: response.data.dweller_message_id,
-        timestamp: new Date(),
-        avatar: props.dwellerAvatar,
-        happinessImpact: response.data.happiness_impact || null,
-        actionSuggestion: response.data.action_suggestion || null,
-      })
-    } catch (error) {
-      console.error('Error sending message:', error)
-    } finally {
-      isTyping.value = false
-    }
-  }
-}
-
-const handleKeyDown = (e: KeyboardEvent) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault()
-    sendMessage()
-  }
-  // Shift+Enter allows newline (default behavior)
-}
-
-const canSend = computed(() => userMessage.value.trim().length > 0)
-
-// Audio message handling
 const sendAudioMessage = async () => {
   try {
     isSendingAudio.value = true
     const audioBlob = await stopRecording()
 
-    // Create FormData for file upload
     const formData = new FormData()
     formData.append('audio_file', audioBlob, 'recording.webm')
 
-    // Add placeholder message
     const placeholderIndex = messages.value.length
     messages.value.push({
       type: 'user',
@@ -175,7 +84,6 @@ const sendAudioMessage = async () => {
       avatar: userAvatar.value,
     })
 
-    // Send to backend
     const response = await apiClient.post(
       `/api/v1/chat/${props.dwellerId}/voice?return_audio=false`,
       formData,
@@ -184,16 +92,14 @@ const sendAudioMessage = async () => {
           Authorization: `Bearer ${authStore.token}`,
           'Content-Type': 'multipart/form-data',
         },
-      }
+      },
     )
 
-    // Update user message with transcription
     const placeholderMessage = messages.value[placeholderIndex]
     if (placeholderMessage) {
       placeholderMessage.content = response.data.transcription
     }
 
-    // Add dweller response
     messages.value.push({
       type: 'dweller',
       content: response.data.dweller_response,
@@ -205,7 +111,6 @@ const sendAudioMessage = async () => {
       actionSuggestion: response.data.action_suggestion || null,
     })
 
-    // Auto-play dweller response if audio URL provided
     if (response.data.dweller_audio_url) {
       playAudio(response.data.dweller_audio_url)
     }
@@ -217,294 +122,12 @@ const sendAudioMessage = async () => {
   }
 }
 
-// Audio playback
-const playAudio = (url: string) => {
-  // Stop currently playing audio
-  if (currentlyPlayingAudio.value) {
-    currentlyPlayingAudio.value.pause()
-    currentlyPlayingAudio.value = null
-  }
-
-  // URL already includes http:// from backend
-  const audio = new Audio(url)
-  currentlyPlayingAudio.value = audio
-  currentlyPlayingUrl.value = url
-
-  audio.play().catch((err) => {
-    console.error('Error playing audio:', err)
-    currentlyPlayingUrl.value = null
-  })
-
-  audio.onended = () => {
-    currentlyPlayingAudio.value = null
-    currentlyPlayingUrl.value = null
-  }
-}
-
-// Typing indicator via WebSocket
-let typingTimeout: number | null = null
-const handleTyping = () => {
-  if (chatWs) {
-    try {
-      chatWs.sendTypingIndicator(true)
-    } catch (error) {
-      console.error('Error sending typing indicator:', error)
-    }
-
-    if (typingTimeout) clearTimeout(typingTimeout)
-
-    typingTimeout = window.setTimeout(() => {
-      try {
-        chatWs.sendTypingIndicator(false)
-      } catch (error) {
-        console.error('Error clearing typing indicator:', error)
-      }
-    }, 2000)
-  }
-}
-
-// Action handlers for suggestions
-const handleAssignToRoom = async (roomId: string, roomName: string): Promise<boolean> => {
-  if (!authStore.token) return false
-
-  isPerformingAction.value = true
-  try {
-    await dwellerStore.assignDwellerToRoom(props.dwellerId, roomId, authStore.token)
-    toast.success(`${props.dwellerName} assigned to ${roomName}`)
-    return true
-  } catch (error) {
-    console.error('Failed to assign dweller to room:', error)
-    toast.error('Failed to assign dweller to room')
-    return false
-  } finally {
-    isPerformingAction.value = false
-  }
-}
-
-const handleStartTraining = async (stat: string): Promise<boolean> => {
-  if (!authStore.token) return false
-
-  isPerformingAction.value = true
-  try {
-    // Get dweller's current room
-    const dweller = dwellerStore.dwellers.find((d) => d.id === props.dwellerId)
-    if (!dweller) {
-      toast.error('Dweller not found')
-      return false
-    }
-
-    // Get vault ID
-    const vaultId = vaultStore.activeVaultId
-    if (!vaultId) {
-      toast.error('Unable to access vault data')
-      return false
-    }
-
-    // Ensure rooms are loaded from the room store
-    if (roomStore.rooms.length === 0) {
-      await roomStore.fetchRooms(vaultId, authStore.token)
-    }
-
-    // Check if dweller is already in a training room
-    let trainingRoomId = dweller.room_id
-    const currentRoom = roomStore.rooms.find((r) => r.id === dweller.room_id)
-
-    if (!currentRoom || currentRoom.category !== 'training') {
-      // Need to assign to a training room first
-      const trainingRooms = roomStore.rooms.filter((r) => r.category === 'training')
-
-      if (trainingRooms.length === 0) {
-        toast.error('No training rooms available')
-        return false
-      }
-
-      const matchingStatRooms = trainingRooms.filter(
-        (r) => r.ability?.toLowerCase() === stat.toLowerCase()
-      )
-      let availableTrainingRoom = matchingStatRooms.find((r) => {
-        const occupancy = dwellerStore.dwellers.filter((d) => d.room_id === r.id).length
-        return !r.max_capacity || occupancy < r.max_capacity
-      })
-      if (!availableTrainingRoom) {
-        availableTrainingRoom = trainingRooms.find((r) => {
-          const occupancy = dwellerStore.dwellers.filter((d) => d.room_id === r.id).length
-          return !r.max_capacity || occupancy < r.max_capacity
-        })
-      }
-
-      if (!availableTrainingRoom) {
-        toast.error('No available training rooms (all at capacity)')
-        return false
-      }
-
-      // Assign dweller to training room
-      toast.info(`Moving ${props.dwellerName} to training room...`)
-      await dwellerStore.assignDwellerToRoom(
-        props.dwellerId,
-        availableTrainingRoom.id,
-        authStore.token
-      )
-      trainingRoomId = availableTrainingRoom.id
-    }
-
-    // Now start training in the training room
-    await startTraining(props.dwellerId, trainingRoomId, authStore.token)
-    toast.success(`${props.dwellerName} started ${stat} training`)
-    return true
-  } catch (error) {
-    console.error('Failed to start training:', error)
-    toast.error('Failed to start training')
-    return false
-  } finally {
-    isPerformingAction.value = false
-    showStatSelector.value = false
-    pendingTrainingAction.value = null
-  }
-}
-
-const handleStartExploration = async (action: StartExplorationAction): Promise<boolean> => {
-  if (!authStore.token) return false
-
-  const vaultId = vaultStore.activeVaultId
-  if (!vaultId) {
-    toast.error('No vault selected')
-    return false
-  }
-
-  isPerformingAction.value = true
-  try {
-    const dweller = dwellerStore.dwellers.find((d) => d.id === props.dwellerId)
-    if (!dweller) {
-      toast.error('Dweller not found')
-      return false
-    }
-
-    if (dweller.room_id) {
-      await dwellerStore.unassignDwellerFromRoom(props.dwellerId, authStore.token)
-    }
-
-    toast.info(`Sending ${props.dwellerName} to wasteland...`)
-    await explorationStore.sendDwellerToWasteland(
-      vaultId,
-      props.dwellerId,
-      action.duration_hours,
-      authStore.token,
-      action.stimpaks,
-      action.radaways
-    )
-    toast.success(`${props.dwellerName} sent to the wasteland!`)
-
-    await dwellerStore.fetchDwellerDetails(props.dwellerId, authStore.token, true)
-    return true
-  } catch (error) {
-    console.error('Failed to start exploration:', error)
-    toast.error('Failed to send dweller to wasteland')
-    return false
-  } finally {
-    isPerformingAction.value = false
-  }
-}
-
-const handleRecallExploration = async (action: RecallExplorationAction): Promise<boolean> => {
-  if (!authStore.token) return false
-
-  isPerformingAction.value = true
-  try {
-    const progress = await explorationStore.fetchExplorationProgress(action.exploration_id, authStore.token)
-
-    if (progress && typeof progress.progress_percentage === 'number' && progress.progress_percentage >= 100) {
-      toast.info(`Completing ${props.dwellerName}'s exploration...`)
-      await explorationStore.completeExploration(action.exploration_id, authStore.token)
-      toast.success(`${props.dwellerName}'s exploration completed!`)
-    } else {
-      toast.info(`Recalling ${props.dwellerName} from wasteland...`)
-      await explorationStore.recallDweller(action.exploration_id, authStore.token)
-      toast.success(`${props.dwellerName} recalled from wasteland!`)
-    }
-
-    await dwellerStore.fetchDwellerDetails(props.dwellerId, authStore.token, true)
-    return true
-  } catch (error) {
-    console.error('Failed to recall exploration:', error)
-    toast.error('Failed to recall dweller from wasteland')
-    return false
-  } finally {
-    isPerformingAction.value = false
-  }
-}
-
-const handleActionConfirm = async (action: ActionSuggestion, messageIndex: number) => {
-  if (!action) return
-
-  let success = false
-
-  if (action.action_type === 'assign_to_room') {
-    success = await handleAssignToRoom(action.room_id, action.room_name)
-  } else if (action.action_type === 'start_training') {
-    pendingTrainingAction.value = { stat: action.stat, reason: action.reason }
-    success = await handleStartTraining(action.stat)
-  } else if (action.action_type === 'start_exploration') {
-    success = await handleStartExploration(action)
-  } else if (action.action_type === 'recall_exploration') {
-    success = await handleRecallExploration(action)
-  }
-
-  // If action was successful, clear the suggestion from the message
-  if (success && messages.value[messageIndex]) {
-    messages.value[messageIndex].actionSuggestion = null
-  }
-}
-
-const dismissAction = (messageIndex: number) => {
-  const msg = messages.value[messageIndex]
-  if (msg) {
-    msg.actionSuggestion = null
-  }
-}
-
-// Get happiness impact color based on delta
-const getHappinessColor = (delta: number): string => {
-  if (delta > 0) return 'text-green-400'
-  if (delta < 0) return 'text-red-400'
-  return 'text-gray-400'
-}
-
-// Get happiness icon based on delta
-const getHappinessIcon = (delta: number): string => {
-  if (delta > 0) return 'mdi:emoticon-happy'
-  if (delta < 0) return 'mdi:emoticon-sad'
-  return 'mdi:emoticon-neutral'
-}
-
-// Find the latest actionable suggestion (most recent dweller message with a valid action)
-const latestActionSuggestionIndex = computed(() => {
-  for (let i = messages.value.length - 1; i >= 0; i--) {
-    const msg = messages.value[i]
-    if (
-      msg.type === 'dweller' &&
-      msg.actionSuggestion &&
-      msg.actionSuggestion.action_type !== 'no_action'
-    ) {
-      return i
-    }
-  }
-  return -1
-})
-
-watchEffect(() => {
-  if (chatMessages.value) {
-    chatMessages.value.scrollTop = chatMessages.value.scrollHeight
-  }
-})
-
 onMounted(() => {
   loadChatHistory()
 
-  // Connect WebSocket
   if (chatWs) {
     chatWs.connect()
 
-    // Handle typing indicators from dweller
     chatWs.on('typing', (msg: any) => {
       if (msg.sender === 'dweller') {
         isTyping.value = msg.is_typing
@@ -523,13 +146,10 @@ onMounted(() => {
       }
     })
 
-    // Handle action suggestions via WebSocket (correlated by message_id)
     chatWs.on('action_suggestion', (msg: any) => {
       if (msg.message_id && msg.action_suggestion) {
-        // Find the message by its ID
         const messageIndex = messages.value.findIndex((m) => m.messageId === msg.message_id)
         if (messageIndex !== -1) {
-          // Update using array assignment to trigger Vue reactivity
           messages.value[messageIndex] = {
             ...messages.value[messageIndex],
             actionSuggestion: msg.action_suggestion,
@@ -541,14 +161,10 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  // Cleanup
   if (chatWs) {
     chatWs.disconnect()
   }
   stopAudio()
-  if (typingTimeout) {
-    clearTimeout(typingTimeout)
-  }
 })
 </script>
 
@@ -577,7 +193,7 @@ onUnmounted(() => {
     <div class="chat-messages" ref="chatMessages">
       <div
         v-for="(message, index) in messages"
-        :key="index"
+        :key="message.messageId ?? index"
         class="message-wrapper"
         :class="message.type"
       >

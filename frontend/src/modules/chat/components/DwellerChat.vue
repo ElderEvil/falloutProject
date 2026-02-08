@@ -577,7 +577,7 @@ onUnmounted(() => {
     <div class="chat-messages" ref="chatMessages">
       <div
         v-for="(message, index) in messages"
-        :key="index"
+        :key="message.messageId ?? index"
         class="message-wrapper"
         :class="message.type"
       >

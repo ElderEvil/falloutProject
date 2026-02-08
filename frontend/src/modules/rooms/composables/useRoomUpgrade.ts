@@ -27,6 +27,7 @@ export function useRoomUpgrade(
     const r = room.value
     const maxTier = r.t2_upgrade_cost && r.t3_upgrade_cost ? 3 : r.t2_upgrade_cost ? 2 : 1
     const canUpgrade = r.tier < maxTier
+    const nextTier = Math.min(r.tier + 1, maxTier)
 
     let upgradeCost = 0
     if (r.tier === 1 && r.t2_upgrade_cost) {
@@ -38,7 +39,7 @@ export function useRoomUpgrade(
     return {
       canUpgrade,
       upgradeCost,
-      nextTier: r.tier + 1,
+      nextTier,
       maxTier,
     }
   })
@@ -106,6 +107,7 @@ export function useRoomUpgrade(
 
     isDestroying.value = true
     actionError.value = null
+    const roomName = room.value.name
 
     const vaultId = route.params.id
     if (!vaultId || typeof vaultId !== 'string') {
@@ -123,7 +125,7 @@ export function useRoomUpgrade(
 
     try {
       await roomStore.destroyRoom(room.value.id, token, vaultId)
-      toast.success(`${room.value.name} destroyed. Caps refunded (50%).`)
+      toast.success(`${roomName} destroyed. Caps refunded (50%).`)
       emitRoomUpdated()
       emitClose()
     } catch (error) {

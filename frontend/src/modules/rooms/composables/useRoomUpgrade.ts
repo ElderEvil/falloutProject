@@ -63,10 +63,16 @@ export function useRoomUpgrade(
       return
     }
 
+    const info = upgradeInfo.value
+    if (!info?.canUpgrade) {
+      actionError.value = 'Room is already at max tier'
+      toast.error('Room is already at max tier', 5000)
+      return
+    }
+
     const roomName = room.value.name
-    const currentTier = room.value.tier
-    const nextTier = currentTier + 1
-    const upgradeCost = upgradeInfo.value?.upgradeCost || 0
+    const nextTier = info.nextTier
+    const upgradeCost = info.upgradeCost
 
     isUpgrading.value = true
     actionError.value = null
@@ -140,9 +146,11 @@ export function useRoomUpgrade(
   const handleRushProduction = async () => {
     if (!room.value) return
 
+    isRushing.value = true
     actionError.value = 'Rush Production feature coming soon!'
     setTimeout(() => {
       actionError.value = null
+      isRushing.value = false
     }, 3000)
   }
 

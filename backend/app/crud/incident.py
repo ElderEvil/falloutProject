@@ -100,16 +100,6 @@ class CRUDIncident:
         return incident
 
     @staticmethod
-    async def get_spreading_incidents(db_session: AsyncSession) -> list[Incident]:  # FIXME Not used
-        """Get all incidents that should spread."""
-        query = select(Incident).where(Incident.status.in_([IncidentStatus.ACTIVE, IncidentStatus.SPREADING]))
-        result = await db_session.execute(query)
-        incidents = list(result.scalars().all())
-
-        # Filter for incidents that should spread
-        return [inc for inc in incidents if inc.should_spread()]
-
-    @staticmethod
     async def remove(db_session: AsyncSession, incident_id: UUID4) -> bool:
         """Delete an incident."""
         incident = await CRUDIncident.get(db_session, incident_id)

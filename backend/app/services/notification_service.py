@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 from uuid import UUID
 
@@ -6,6 +7,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.crud.notification import notification as notification_crud
 from app.models.notification import NotificationCreate, NotificationPriority, NotificationType
 from app.services.websocket_manager import manager
+
+logger = logging.getLogger(__name__)
 
 
 class NotificationService:
@@ -55,21 +58,30 @@ class NotificationService:
             ),
         )
 
-        await manager.send_personal_message(
-            {
-                "type": "notification",
-                "notification": {
-                    "id": str(notification.id),
-                    "notification_type": notification.notification_type,
-                    "priority": notification.priority,
-                    "title": notification.title,
-                    "message": notification.message,
-                    "meta_data": notification.meta_data,
-                    "created_at": notification.created_at.isoformat(),
-                },
-            },
-            user_id=user_id,
+        logger.info(
+            f"Created notification {notification.id}: type={notification_type}, "
+            f"priority={priority}, user={user_id}, vault={vault_id}"
         )
+
+        try:
+            await manager.send_personal_message(
+                {
+                    "type": "notification",
+                    "notification": {
+                        "id": str(notification.id),
+                        "notification_type": notification.notification_type,
+                        "priority": notification.priority,
+                        "title": notification.title,
+                        "message": notification.message,
+                        "meta_data": notification.meta_data,
+                        "created_at": notification.created_at.isoformat(),
+                    },
+                },
+                user_id=user_id,
+            )
+        except Exception:
+            logger.exception(f"Failed to send notification {notification.id} to user {user_id}")
+            raise
 
         return notification
 

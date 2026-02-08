@@ -107,15 +107,22 @@ export function useRoomUpgrade(
     isDestroying.value = true
     actionError.value = null
 
-    const vaultId = route.params.id as string
-    if (!vaultId) {
+    const vaultId = route.params.id
+    if (!vaultId || typeof vaultId !== 'string') {
       actionError.value = 'No vault ID available'
       isDestroying.value = false
       return
     }
 
+    const token = authStore.token
+    if (!token || typeof token !== 'string') {
+      actionError.value = 'No auth token available'
+      isDestroying.value = false
+      return
+    }
+
     try {
-      await roomStore.destroyRoom(room.value.id, authStore.token as string, vaultId)
+      await roomStore.destroyRoom(room.value.id, token, vaultId)
       toast.success(`${room.value.name} destroyed. Caps refunded (50%).`)
       emitRoomUpdated()
       emitClose()

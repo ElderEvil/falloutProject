@@ -1,57 +1,77 @@
-# Development Plans
+# Current Development Plan
 
-## Current Branch: feat/2.9.0
+## Active: v2.10.0 - Quests & Objectives Phase 1
 
-This document contains the active development plans for the current branch.
-
----
-
-# Plan: Fix Chat Action Suggestions — Frontend Latest-only + ID-based WS Stickiness
-
-## Status: In Progress (Backend done ✅, Frontend remaining)
-
-Backend contract is complete (`dweller_message_id` in HTTP responses, `message_id` in WS payloads). Frontend work remains.
+**Status**: Planning Complete | **Estimated**: 3-4 weeks
 
 ---
 
-## Remaining TODOs
-
-### 1) Add failing frontend tests for latest-only + ID-based WS stickiness
-
-- In `frontend/tests/unit/components/chat/DwellerChat.test.ts`, add tests to assert:
-  1) **Latest-only rendering**: only ONE `.action-suggestion-card` exists even if multiple messages have suggestions.
-  2) **Keep previous actionable**: if a new dweller message arrives with `actionSuggestion: null` (or `no_action`), the last actionable suggestion remains visible.
-  3) **WS correlation by id**: when WS emits `{ type: 'action_suggestion', message_id: <id>, action_suggestion: {...} }`, only the message with that id receives the suggestion.
-  4) **Out-of-order WS event**: emit suggestion for message A after message B exists; ensure only message A updates.
-
-### 2) Implement frontend fixes: ID-based attach + latest-only display
-
-- Update `frontend/src/modules/chat/models/chat.ts`:
-  - Add `id?: string` to `ChatMessageDisplay`.
-- Update `frontend/src/modules/chat/components/DwellerChat.vue`:
-  1) Set `id = response.data.dweller_message_id` on new dweller messages.
-  2) WS `action_suggestion` handler: require `message_id`, find message by id, update only that message.
-  3) Compute `latestActionableSuggestionMessageId` — only render suggestion card for that message.
-  4) Change `:key="index"` to `:key="message.id ?? index"`.
-
-### Guardrails
-- Don't move suggestions to composer.
-- Don't add Pinia refactor.
-- No DB migration for suggestion persistence.
+## Mission
+Transform the existing basic quests and objectives into a fully functional, automated system with structured data, reward distribution, and prerequisite chains.
 
 ---
 
-## Verification Commands
+## Quick Overview
 
-```bash
-cd frontend && pnpm run test -- tests/unit/components/chat/DwellerChat.test.ts
-cd frontend && pnpm run typecheck
-```
+| Phase | Focus | Key Deliverables |
+|-------|-------|------------------|
+| **P1** | Core Infrastructure | Structured requirements/rewards, RewardService, quest types |
+| **P2** | Prerequisites & Chains | Quest prerequisites, quest chains, unlock progression |
+| **P3** | Progress Automation | Event system, objective evaluators, real-time updates |
+| **P4** | UI/UX Enhancements | Quest detail view, progress bars, notifications |
+| **P5** | Data Migration | Convert string-based quests to structured format |
+| **P6** | Testing | 80%+ coverage, integration tests |
 
-## Checklist
+---
 
-- [x] Backend returns `dweller_message_id` on chat + voice chat endpoints
-- [x] WebSocket `action_suggestion` includes `message_id`
-- [ ] Frontend stores message id and updates suggestions by id
-- [ ] Only the latest actionable suggestion is visible
-- [ ] All tests pass
+## What's In Scope
+
+✅ **Quest Prerequisites** - Lock quests until requirements met (level, items, previous quests)  
+✅ **Quest Chains** - Multi-quest sequences with automatic progression  
+✅ **Reward Distribution** - Automatic granting of caps, items, dwellers, resources  
+✅ **Quest Types** - Main, side, daily, repeatable with visual distinction  
+✅ **Progress Automation** - Objectives auto-update when you collect/build/train  
+✅ **Real-time Updates** - WebSocket notifications for progress/completion  
+✅ **Better UI** - Quest detail view, progress bars, reward previews  
+
+---
+
+## What's Deferred to Phase 2 (v2.12+)
+
+❌ **Combat System** - Battle mechanics, enemies, combat resolution  
+❌ **Quest Parties** - Sending dwellers on quests (UI only in Phase 1)  
+❌ **Time-Limited Events** - Complex event scheduling  
+❌ **Advanced Rewards** - Buffs, temporary bonuses, cosmetics  
+
+---
+
+## Key Files
+
+- **Full Plan**: `.sisyphus/plans/v2.10.0-quests-objectives-phase1.md`
+- **Roadmap**: `ROADMAP.md`
+- **Backend Models**: `backend/app/models/quest.py`, `backend/app/models/objective.py`
+- **Frontend Stores**: `frontend/src/modules/progression/stores/quest.ts`, `frontend/src/modules/progression/stores/objectives.ts`
+
+---
+
+## Success Criteria
+
+1. Player can view quests with clear prerequisites and rewards
+2. Player can start quests only when prerequisites are met
+3. Player sees objective progress update automatically
+4. Player receives rewards automatically on completion
+5. Player can complete multi-quest chains
+6. Developer can add new quests easily via JSON with full structure
+
+---
+
+## Next Steps
+
+1. Review full plan in `.sisyphus/plans/v2.10.0-quests-objectives-phase1.md`
+2. Start with P1: Core Infrastructure (database schema changes)
+3. Create feature branch: `feat/v2.10.0-quests-objectives`
+
+---
+
+*Last updated: February 8, 2026*  
+*See ROADMAP.md for broader release timeline*

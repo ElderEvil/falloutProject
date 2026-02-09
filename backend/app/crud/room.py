@@ -12,6 +12,7 @@ from app.schemas.common import RoomActionEnum, RoomTypeEnum
 from app.schemas.room import RoomCreate, RoomUpdate
 from app.utils.exceptions import InsufficientResourcesException, NoSpaceAvailableException, UniqueRoomViolationException
 from app.utils.room_assets import get_room_image_url
+from app.services.event_bus import event_bus, GameEvent
 
 logger = logging.getLogger(__name__)
 
@@ -195,6 +196,13 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
                 db_session=db_session, vault_obj=vault, room_obj=obj_in_db, action=RoomActionEnum.BUILD
             )
 
+        # Emit room built event for objective tracking
+        await event_bus.emit(
+            GameEvent.ROOM_BUILT,
+            vault.id,
+            {"room_type": obj_in_db.name, "tier": obj_in_db.tier, "room_id": str(obj_in_db.id)},
+        )
+
         return obj_in_db
 
     async def check_elevator_dependencies(self, db_session: AsyncSession, elevator_room: Room) -> None:
@@ -345,6 +353,13 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             await vault_crud.recalculate_vault_attributes(
                 db_session=db_session, vault_obj=vault, room_obj=room, action=RoomActionEnum.UPGRADE
             )
+
+        # Emit room upgraded event for objective tracking
+        await event_bus.emit(
+            GameEvent.ROOM_UPGRADED,
+            vault.id,
+            {"room_type": room.name, "from_tier": old_tier, "to_tier": room.tier, "room_id": str(room.id)},
+        )
 
         await db_session.refresh(room)
         return room

@@ -11,8 +11,41 @@ export interface Quest {
   long_description: string
   requirements: string
   rewards: string
+  quest_type: QuestType
+  quest_category: string | null
+  chain_id: string | null
+  chain_order: number
+  previous_quest_id: string | null
+  next_quest_id: string | null
   created_at: string
   updated_at: string
+}
+
+/**
+ * Quest type enum
+ */
+export type QuestType = 'main' | 'side' | 'daily' | 'event' | 'repeatable'
+
+/**
+ * Quest requirement interface
+ */
+export interface QuestRequirement {
+  id: string
+  quest_id: string
+  requirement_type: 'level' | 'item' | 'room' | 'dweller_count' | 'quest_completed'
+  requirement_data: Record<string, unknown>
+  is_mandatory: boolean
+}
+
+/**
+ * Quest reward interface
+ */
+export interface QuestReward {
+  id: string
+  quest_id: string
+  reward_type: 'caps' | 'item' | 'dweller' | 'resource' | 'experience'
+  reward_data: Record<string, unknown>
+  reward_chance: number
 }
 
 /**
@@ -21,6 +54,8 @@ export interface Quest {
 export interface VaultQuest extends Quest {
   is_visible: boolean
   is_completed: boolean
+  quest_requirements?: QuestRequirement[]
+  quest_rewards?: QuestReward[]
 }
 
 /**

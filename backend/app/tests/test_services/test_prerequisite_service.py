@@ -3,20 +3,10 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.crud.dweller import dweller as dweller_crud
-from app.crud.objective import objective as objective_crud
-from app.crud.quest import quest as quest_crud
-from app.crud.room import room as room_crud
-from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.quest_requirement import QuestRequirement, RequirementType
-from app.models.vault_objective import VaultObjectiveProgressLink
 from app.models.vault_quest import VaultQuestCompletionLink
-from app.schemas.dweller import DwellerCreate
-from app.schemas.objective import ObjectiveCreate
-from app.schemas.quest import QuestCreate
-from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.prerequisite_service import prerequisite_service

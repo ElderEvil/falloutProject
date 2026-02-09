@@ -5,12 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.dweller import Dweller
 from app.models.objective import Objective
-from app.models.room import Room
 from app.models.vault_objective import VaultObjectiveProgressLink
-from app.schemas.common import RoomTypeEnum
-from app.schemas.dweller import DwellerCreate
-from app.schemas.objective import ObjectiveCreate
-from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.event_bus import GameEvent, event_bus
@@ -63,7 +58,7 @@ async def test_collect_evaluator_resource_collected(async_session: AsyncSession,
     await async_session.commit()
 
     # Create evaluator
-    evaluator = CollectEvaluator(fresh_event_bus)
+    CollectEvaluator(fresh_event_bus)
 
     # Emit resource collected event
     await fresh_event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "caps", "amount": 50})
@@ -103,7 +98,7 @@ async def test_collect_evaluator_wrong_resource(async_session: AsyncSession, fre
     await async_session.commit()
 
     # Create evaluator
-    evaluator = CollectEvaluator(fresh_event_bus)
+    CollectEvaluator(fresh_event_bus)
 
     # Emit wrong resource type event
     await fresh_event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "food", "amount": 50})
@@ -143,7 +138,7 @@ async def test_build_evaluator_room_built(async_session: AsyncSession, fresh_eve
     await async_session.commit()
 
     # Create evaluator
-    evaluator = BuildEvaluator(fresh_event_bus)
+    BuildEvaluator(fresh_event_bus)
 
     # Emit room built event
     await fresh_event_bus.emit(
@@ -181,7 +176,7 @@ async def test_train_evaluator_dweller_trained(async_session: AsyncSession, fres
     await async_session.commit()
 
     # Create evaluator
-    evaluator = TrainEvaluator(fresh_event_bus)
+    TrainEvaluator(fresh_event_bus)
 
     # Create dweller
     dweller = Dweller(first_name="Test", gender="male", rarity="common", level=1, vault_id=vault.id)
@@ -225,7 +220,7 @@ async def test_assign_evaluator_dweller_assigned(async_session: AsyncSession, fr
     await async_session.commit()
 
     # Create evaluator
-    evaluator = AssignEvaluator(fresh_event_bus)
+    AssignEvaluator(fresh_event_bus)
 
     # Create dweller
     dweller = Dweller(first_name="Test", gender="male", rarity="common", level=1, vault_id=vault.id)
@@ -273,7 +268,7 @@ async def test_reach_evaluator_population_reached(async_session: AsyncSession, f
     await async_session.commit()
 
     # Create evaluator
-    evaluator = ReachEvaluator(fresh_event_bus)
+    ReachEvaluator(fresh_event_bus)
 
     # Create 10 dwellers
     for i in range(10):
@@ -319,7 +314,7 @@ async def test_evaluator_already_completed(async_session: AsyncSession, fresh_ev
     await async_session.commit()
 
     # Create evaluator
-    evaluator = CollectEvaluator(fresh_event_bus)
+    CollectEvaluator(fresh_event_bus)
 
     # Emit event
     await fresh_event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "caps", "amount": 50})

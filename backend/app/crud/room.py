@@ -10,9 +10,9 @@ from app.crud.vault import vault as vault_crud
 from app.models.room import Room
 from app.schemas.common import RoomActionEnum, RoomTypeEnum
 from app.schemas.room import RoomCreate, RoomUpdate
+from app.services.event_bus import GameEvent, event_bus
 from app.utils.exceptions import InsufficientResourcesException, NoSpaceAvailableException, UniqueRoomViolationException
 from app.utils.room_assets import get_room_image_url
-from app.services.event_bus import event_bus, GameEvent
 
 logger = logging.getLogger(__name__)
 

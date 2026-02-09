@@ -1,0 +1,23 @@
+[
+  {
+    "challenge": "Weekly: Collect 5000 Caps",
+    "reward": "2500 Caps",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "caps"},
+    "target_amount": 5000
+  },
+  {
+    "challenge": "Weekly: Build 10 Rooms",
+    "reward": "2000 Caps",
+    "objective_type": "build",
+    "target_entity": {"entity_type": "room"},
+    "target_amount": 10
+  },
+  {
+    "challenge": "Weekly: Reach 30 Dwellers",
+    "reward": "3000 Caps",
+    "objective_type": "reach",
+    "target_entity": {"entity_type": "dweller", "count": 30},
+    "target_amount": 30
+  }
+]

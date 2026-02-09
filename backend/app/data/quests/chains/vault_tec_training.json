@@ -1,0 +1,144 @@
+{
+  "chain_id": "vault_tec_training",
+  "chain_name": "Vault-Tec Training Program",
+  "chain_description": "Complete your training to become a certified Vault Overseer",
+  "quests": [
+    {
+      "quest_name": "Getting Started",
+      "short_description": "Begin your training by eliminating a threat.",
+      "long_description": "For your training mission, Vault-Tec asks you to prove yourself as a worthy Overseer and kill a Glowing Radroach. This is the first step in your journey to become a certified Overseer.",
+      "requirements": "Level 1 dwellers",
+      "quest_type": "main",
+      "quest_category": "training",
+      "chain_order": 1,
+      "quest_requirements": [
+        {
+          "requirement_type": "LEVEL",
+          "requirement_data": {"level": 1, "target": "dwellers"},
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 15},
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Lunchbox", "quantity": 1},
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Pool cue", "quantity": 1},
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 200},
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Room to Grow",
+      "short_description": "Expand your vault by building living quarters.",
+      "long_description": "Your vault needs space for new dwellers. Build a Living Quarter to accommodate 8 more dwellers and prove you can manage basic construction.",
+      "requirements": "Complete 'Getting Started' quest",
+      "quest_type": "main",
+      "quest_category": "building",
+      "chain_order": 2,
+      "quest_requirements": [
+        {
+          "requirement_type": "QUEST_COMPLETED",
+          "requirement_data": {"quest_name": "Getting Started"},
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 500},
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Stimpak", "quantity": 5},
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Power to the People",
+      "short_description": "Ensure your vault has adequate power supply.",
+      "long_description": "A vault without power is just a dark hole in the ground. Build a Power Generator and staff it to keep the lights on and the water flowing.",
+      "requirements": "Complete 'Room to Grow' quest, Build 1 Power Generator",
+      "quest_type": "main",
+      "quest_category": "building",
+      "chain_order": 3,
+      "quest_requirements": [
+        {
+          "requirement_type": "QUEST_COMPLETED",
+          "requirement_data": {"quest_name": "Room to Grow"},
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "ROOM",
+          "requirement_data": {"room_type": "power_generator", "count": 1},
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 750},
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Power Armor", "quantity": 1},
+          "reward_chance": 0.5
+        }
+      ]
+    },
+    {
+      "quest_name": "Certified Overseer",
+      "short_description": "Reach 20 dwellers to complete your certification.",
+      "long_description": "You have proven yourself capable of managing a vault. Reach a population of 20 dwellers to receive your official Vault-Tec Overseer Certification and special rewards.",
+      "requirements": "Complete 'Power to the People' quest, 20 Dwellers",
+      "quest_type": "main",
+      "quest_category": "training",
+      "chain_order": 4,
+      "quest_requirements": [
+        {
+          "requirement_type": "QUEST_COMPLETED",
+          "requirement_data": {"quest_name": "Power to the People"},
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "DWELLER_COUNT",
+          "requirement_data": {"count": 20},
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 2000},
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Lunchbox", "quantity": 5},
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Legendary Dweller", "quantity": 1},
+          "reward_chance": 1.0
+        }
+      ]
+    }
+  ]
+}

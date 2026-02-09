@@ -6,12 +6,13 @@ import { useVaultStore } from '@/modules/vault/stores/vault'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { Icon } from '@iconify/vue'
+import { ObjectiveCard } from '../components'
 
 const route = useRoute()
 const objectivesStore = useObjectivesStore()
 const vaultStore = useVaultStore()
 const { isCollapsed } = useSidePanel()
-const activeTab = ref('notCompleted')
+const activeTab = ref('daily')
 
 const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
@@ -28,6 +29,30 @@ const filterObjectives = (status: boolean) => {
 
 const activeObjectives = computed(() => filterObjectives(false))
 const completedObjectives = computed(() => filterObjectives(true))
+
+// Categorize objectives
+const dailyObjectives = computed(() =>
+  objectivesStore.objectives.filter((obj) =>
+    obj.challenge.toLowerCase().includes('daily') && !obj.is_completed
+  )
+)
+
+const weeklyObjectives = computed(() =>
+  objectivesStore.objectives.filter((obj) =>
+    (obj.challenge.toLowerCase().includes('week') || obj.total >= 50) &&
+    !obj.is_completed &&
+    !obj.challenge.toLowerCase().includes('daily')
+  )
+)
+
+const achievementObjectives = computed(() =>
+  objectivesStore.objectives.filter((obj) =>
+    !obj.is_completed &&
+    !obj.challenge.toLowerCase().includes('daily') &&
+    !obj.challenge.toLowerCase().includes('week') &&
+    obj.total < 50
+  )
+)
 </script>
 
 <template>
@@ -47,12 +72,28 @@ const completedObjectives = computed(() => filterObjectives(true))
             </h1>
             <div class="tabs">
               <button
-                @click="activeTab = 'notCompleted'"
-                :class="{ active: activeTab === 'notCompleted' }"
+                @click="activeTab = 'daily'"
+                :class="{ active: activeTab === 'daily' }"
                 class="tab-button"
               >
-                <Icon icon="mdi:target" class="inline mr-2" />
-                Active
+                <Icon icon="mdi:calendar-today" class="inline mr-2" />
+                Daily
+              </button>
+              <button
+                @click="activeTab = 'weekly'"
+                :class="{ active: activeTab === 'weekly' }"
+                class="tab-button"
+              >
+                <Icon icon="mdi:calendar-week" class="inline mr-2" />
+                Weekly
+              </button>
+              <button
+                @click="activeTab = 'achievement'"
+                :class="{ active: activeTab === 'achievement' }"
+                class="tab-button"
+              >
+                <Icon icon="mdi:trophy" class="inline mr-2" />
+                Achievement
               </button>
               <button
                 @click="activeTab = 'completed'"
@@ -64,47 +105,56 @@ const completedObjectives = computed(() => filterObjectives(true))
               </button>
             </div>
 
-            <div v-if="activeTab === 'notCompleted'" class="tab-content">
-              <div v-if="activeObjectives.length === 0" class="empty-state">
-                <p>No active objectives</p>
+            <div v-if="activeTab === 'daily'" class="tab-content">
+              <div v-if="dailyObjectives.length === 0" class="empty-state">
+                <p>No daily objectives available</p>
               </div>
-              <ul v-else class="objective-list">
-                <li
-                  v-for="objective in activeObjectives"
+              <div v-else class="objective-grid">
+                <ObjectiveCard
+                  v-for="objective in dailyObjectives"
                   :key="objective.id"
-                  class="objective-item"
-                >
-                  <div class="objective-details">
-                    <h3 class="objective-title">{{ objective.challenge }}</h3>
-                    <p class="objective-progress">
-                      Progress: {{ objective.progress }} / {{ objective.total }}
-                    </p>
-                    <p class="objective-reward">Reward: {{ objective.reward }}</p>
-                  </div>
-                </li>
-              </ul>
+                  :objective="objective"
+                />
+              </div>
+            </div>
+
+            <div v-if="activeTab === 'weekly'" class="tab-content">
+              <div v-if="weeklyObjectives.length === 0" class="empty-state">
+                <p>No weekly objectives available</p>
+              </div>
+              <div v-else class="objective-grid">
+                <ObjectiveCard
+                  v-for="objective in weeklyObjectives"
+                  :key="objective.id"
+                  :objective="objective"
+                />
+              </div>
+            </div>
+
+            <div v-if="activeTab === 'achievement'" class="tab-content">
+              <div v-if="achievementObjectives.length === 0" class="empty-state">
+                <p>No achievement objectives available</p>
+              </div>
+              <div v-else class="objective-grid">
+                <ObjectiveCard
+                  v-for="objective in achievementObjectives"
+                  :key="objective.id"
+                  :objective="objective"
+                />
+              </div>
             </div>
 
             <div v-if="activeTab === 'completed'" class="tab-content">
               <div v-if="completedObjectives.length === 0" class="empty-state">
                 <p>No completed objectives yet</p>
               </div>
-              <ul v-else class="objective-list">
-                <li
+              <div v-else class="objective-grid">
+                <ObjectiveCard
                   v-for="objective in completedObjectives"
                   :key="objective.id"
-                  class="objective-item completed-objective"
-                >
-                  <div class="objective-details">
-                    <h3 class="objective-title">{{ objective.challenge }}</h3>
-                    <p class="objective-reward">Reward: {{ objective.reward }}</p>
-                    <p class="objective-progress">
-                      Progress: {{ objective.progress }} / {{ objective.total }}
-                    </p>
-                    <p class="objective-status">Status: Completed</p>
-                  </div>
-                </li>
-              </ul>
+                  :objective="objective"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -201,6 +251,12 @@ const completedObjectives = computed(() => filterObjectives(true))
 .tab-button:hover:not(.active) {
   opacity: 0.8;
   background-color: rgba(0, 0, 0, 0.2);
+}
+
+.objective-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 16px;
 }
 
 .objective-list {

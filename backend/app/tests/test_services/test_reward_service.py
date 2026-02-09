@@ -1,17 +1,13 @@
 """Tests for RewardService."""
 
-from unittest.mock import MagicMock, patch
-
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.dweller import Dweller
+from app import crud
 from app.models.quest import Quest
 from app.models.quest_reward import QuestReward, RewardType
 from app.models.vault_objective import VaultObjectiveProgressLink
-from app.schemas.dweller import DwellerCreate
 from app.schemas.objective import ObjectiveCreate
-from app.schemas.quest import QuestCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.reward_service import reward_service
@@ -24,7 +20,7 @@ async def test_grant_caps_success(async_session: AsyncSession) -> None:
     """Test granting caps to vault."""
     # Create user and vault
     user_data = create_fake_user()
-    user = await async_session.get_user_service().create(async_session, UserCreate(**user_data))
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
 
     vault_data = create_fake_vault()
     vault = await async_session.get_vault_service().create(

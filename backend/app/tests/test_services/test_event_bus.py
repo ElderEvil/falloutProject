@@ -1,11 +1,11 @@
 """Tests for EventBus."""
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
-from app.services.event_bus import EventBus, GameEvent, event_bus
+from app.services.event_bus import EventBus, GameEvent
 
 
 @pytest.fixture

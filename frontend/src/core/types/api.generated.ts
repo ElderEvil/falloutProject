@@ -4435,6 +4435,24 @@ export interface components {
             /** Reward */
             reward: string;
             /**
+             * Objective Type
+             * @description Type of objective: collect, build, train, kill, assign, reach
+             */
+            objective_type?: string | null;
+            /**
+             * Target Entity
+             * @description What to track, e.g. {'resource_type': 'caps'} or {'room_type': 'power_plant'}
+             */
+            target_entity?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Target Amount
+             * @description How many/much needed to complete the objective
+             * @default 1
+             */
+            target_amount: number;
+            /**
              * Id
              * Format: uuid4
              */
@@ -4446,6 +4464,24 @@ export interface components {
             challenge: string;
             /** Reward */
             reward: string;
+            /**
+             * Objective Type
+             * @description Type of objective: collect, build, train, kill, assign, reach
+             */
+            objective_type?: string | null;
+            /**
+             * Target Entity
+             * @description What to track, e.g. {'resource_type': 'caps'} or {'room_type': 'power_plant'}
+             */
+            target_entity?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Target Amount
+             * @description How many/much needed to complete the objective
+             * @default 1
+             */
+            target_amount: number;
         };
         /** ObjectiveCreate */
         ObjectiveCreate: {
@@ -4453,6 +4489,24 @@ export interface components {
             challenge: string;
             /** Reward */
             reward: string;
+            /**
+             * Objective Type
+             * @description Type of objective: collect, build, train, kill, assign, reach
+             */
+            objective_type?: string | null;
+            /**
+             * Target Entity
+             * @description What to track, e.g. {'resource_type': 'caps'} or {'room_type': 'power_plant'}
+             */
+            target_entity?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Target Amount
+             * @description How many/much needed to complete the objective
+             * @default 1
+             */
+            target_amount: number;
         };
         /**
          * ObjectiveKindEnum
@@ -4465,6 +4519,24 @@ export interface components {
             challenge: string;
             /** Reward */
             reward: string;
+            /**
+             * Objective Type
+             * @description Type of objective: collect, build, train, kill, assign, reach
+             */
+            objective_type?: string | null;
+            /**
+             * Target Entity
+             * @description What to track, e.g. {'resource_type': 'caps'} or {'room_type': 'power_plant'}
+             */
+            target_entity?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Target Amount
+             * @description How many/much needed to complete the objective
+             * @default 1
+             */
+            target_amount: number;
             /**
              * Id
              * Format: uuid4
@@ -4738,6 +4810,17 @@ export interface components {
             requirements: string;
             /** Rewards */
             rewards: string;
+            /** @default side */
+            quest_type: components["schemas"]["QuestType"];
+            /** Quest Category */
+            quest_category?: string | null;
+            /** Chain Id */
+            chain_id?: string | null;
+            /**
+             * Chain Order
+             * @default 0
+             */
+            chain_order: number;
         };
         /** QuestRead */
         QuestRead: {
@@ -4751,6 +4834,17 @@ export interface components {
             requirements: string;
             /** Rewards */
             rewards: string;
+            /** @default side */
+            quest_type: components["schemas"]["QuestType"];
+            /** Quest Category */
+            quest_category?: string | null;
+            /** Chain Id */
+            chain_id?: string | null;
+            /**
+             * Chain Order
+             * @default 0
+             */
+            chain_order: number;
             /**
              * Id
              * Format: uuid4
@@ -4767,6 +4861,11 @@ export interface components {
              */
             is_completed: boolean;
         };
+        /**
+         * QuestType
+         * @enum {string}
+         */
+        QuestType: "main" | "side" | "daily" | "event" | "repeatable";
         /** QuestUpdate */
         QuestUpdate: {
             /** Title */
@@ -4779,6 +4878,13 @@ export interface components {
             requirements?: string | null;
             /** Rewards */
             rewards?: string | null;
+            quest_type?: components["schemas"]["QuestType"] | null;
+            /** Quest Category */
+            quest_category?: string | null;
+            /** Chain Id */
+            chain_id?: string | null;
+            /** Chain Order */
+            chain_order?: number | null;
         };
         /**
          * RaceEnum

@@ -289,6 +289,71 @@ class NotificationService:
             meta_data=meta_data,
         )
 
+    @staticmethod
+    async def notify_quest_completed(
+        db: AsyncSession,
+        user_id: UUID,
+        vault_id: UUID,
+        quest_title: str,
+        rewards: str,
+        meta_data: dict[str, Any] | None = None,
+    ):
+        """Notify user that a quest has been completed"""
+        return await NotificationService.create_and_send(
+            db,
+            user_id=user_id,
+            vault_id=vault_id,
+            notification_type=NotificationType.QUEST_COMPLETE,
+            priority=NotificationPriority.HIGH,
+            title="Quest Completed!",
+            message=f"'{quest_title}' completed! Rewards: {rewards}",
+            meta_data=meta_data,
+        )
+
+    @staticmethod
+    async def notify_objective_completed(
+        db: AsyncSession,
+        user_id: UUID,
+        vault_id: UUID,
+        objective_challenge: str,
+        reward: str,
+        meta_data: dict[str, Any] | None = None,
+    ):
+        """Notify user that an objective has been completed"""
+        return await NotificationService.create_and_send(
+            db,
+            user_id=user_id,
+            vault_id=vault_id,
+            notification_type=NotificationType.ACHIEVEMENT_UNLOCKED,
+            priority=NotificationPriority.NORMAL,
+            title="Objective Complete!",
+            message=f"'{objective_challenge}' completed! Reward: {reward}",
+            meta_data=meta_data,
+        )
+
+    @staticmethod
+    async def notify_objective_progress(
+        db: AsyncSession,
+        user_id: UUID,
+        vault_id: UUID,
+        objective_challenge: str,
+        progress: int,
+        total: int,
+        meta_data: dict[str, Any] | None = None,
+    ):
+        """Notify user about objective progress milestone (50% or 90%)"""
+        percent = int((progress / total) * 100)
+        return await NotificationService.create_and_send(
+            db,
+            user_id=user_id,
+            vault_id=vault_id,
+            notification_type=NotificationType.ACHIEVEMENT_UNLOCKED,
+            priority=NotificationPriority.INFO,
+            title=f"Objective {percent}% Complete",
+            message=f"'{objective_challenge}': {progress}/{total} ({percent}%)",
+            meta_data=meta_data,
+        )
+
 
 # Global service instance
 notification_service = NotificationService()

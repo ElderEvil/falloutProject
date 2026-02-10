@@ -52,7 +52,8 @@ async def seed_from_json(
         async for json_file in anyio_path.glob(file_pattern):
             try:
                 async with await json_file.open("r", encoding="utf-8") as f:
-                    data = json.load(f)
+                    content = await f.read()
+                    data = json.loads(content)
                     if isinstance(data, list):
                         validated = [schema_class.model_validate(item) for item in data]
                         all_data.extend(validated)

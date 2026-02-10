@@ -63,9 +63,9 @@ async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None
                 seeded_count += 1
                 logger.debug("Seeding quest: %s", quest_json.quest_name)
 
-        # Commit to get quest IDs
+        # Flush to get quest IDs within the current transaction
         if seeded_count > 0:
-            await db_session.commit()
+            await db_session.flush()
 
             # Build name->id map for requirement resolution
             for quest, quest_json in quests_to_commit:
@@ -81,10 +81,27 @@ async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None
                     # For QUEST_COMPLETED type, resolve quest_name to quest_id
                     if req_json.requirement_type.upper() == "QUEST_COMPLETED":
                         quest_name = requirement_data.get("quest_name")
-                        if quest_name and quest_name in quest_name_to_id:
-                            requirement_data["quest_id"] = quest_name_to_id[quest_name]
-                            # Remove quest_name to keep only quest_id
-                            del requirement_data["quest_name"]
+                        if quest_name:
+                            # Check in-memory map first
+                            if quest_name in quest_name_to_id:
+                                requirement_data["quest_id"] = quest_name_to_id[quest_name]
+                                del requirement_data["quest_name"]
+                            else:
+                                # Query database for existing quests by name
+                                from app.models.quest import Quest
+
+                                result = await db_session.execute(select(Quest).where(Quest.title == quest_name))
+                                existing_quest = result.scalars().first()
+                                if existing_quest:
+                                    requirement_data["quest_id"] = str(existing_quest.id)
+                                    quest_name_to_id[quest_name] = str(existing_quest.id)
+                                    del requirement_data["quest_name"]
+                                else:
+                                    # Emit warning if quest_name cannot be resolved
+                                    logger.warning(
+                                        f"Could not resolve quest_name '{quest_name}' "
+                                        f"for QUEST_COMPLETED requirement in quest '{quest.title}'"
+                                    )
 
                     try:
                         requirement = QuestRequirement(

@@ -101,9 +101,12 @@ def parse_rewards(rewards_str: str) -> list[dict]:
             continue
 
         # Pattern: "Item Name xN" or "N x Item Name"
-        quantity_match = re.match(r"(.*?)(?:\\s*x\\s*(\\d+))?$", part, re.IGNORECASE)
+        quantity_match = re.match(r"(.*?)(?:\s*x\s*(\d+))?$", part, re.IGNORECASE)
         if quantity_match:
             item_name = quantity_match.group(1).strip()
+            # Skip rewards with empty item names
+            if not item_name:
+                continue
             quantity = int(quantity_match.group(2)) if quantity_match.group(2) else 1
 
             rewards.append({"type": "item", "item_name": item_name, "quantity": quantity})
@@ -111,8 +114,11 @@ def parse_rewards(rewards_str: str) -> list[dict]:
     return rewards
 
 
-def determine_quest_type(quest_title: str, description: str) -> QuestType:
+def determine_quest_type(quest_title: str | None, description: str | None) -> QuestType:
     """Determine quest type based on title and description."""
+    # Normalize inputs to empty string to avoid TypeError during concatenation
+    quest_title = quest_title or ""
+    description = description or ""
     text = (quest_title + " " + description).lower()
 
     if "daily" in text:
@@ -124,8 +130,11 @@ def determine_quest_type(quest_title: str, description: str) -> QuestType:
     return QuestType.SIDE
 
 
-def determine_category(quest_title: str, description: str) -> str:
+def determine_category(quest_title: str | None, description: str | None) -> str:
     """Determine quest category based on content."""
+    # Normalize inputs to empty string to avoid TypeError during concatenation
+    quest_title = quest_title or ""
+    description = description or ""
     text = (quest_title + " " + description).lower()
 
     if any(word in text for word in ["combat", "kill", "defeat", "enemy"]):
@@ -158,43 +167,52 @@ async def migrate_quest_data(db: AsyncSession) -> dict:
     for quest in quests:
         logger.info(f"Processing quest: {quest.title}")
 
-        # Update quest with type and category
-        quest.quest_type = determine_quest_type(quest.title, quest.long_description)
-        quest.quest_category = determine_category(quest.title, quest.long_description)
+        try:
+            # Update quest with type and category
+            quest.quest_type = determine_quest_type(quest.title, quest.long_description)
+            quest.quest_category = determine_category(quest.title, quest.long_description)
 
-        # Parse and create requirements
-        requirements_data = parse_requirements(quest.requirements)
-        for req_data in requirements_data:
-            try:
-                requirement = QuestRequirement(
-                    quest_id=quest.id,
-                    requirement_type=req_data.get("type", "generic").lower(),
-                    requirement_data=req_data,
-                    is_mandatory=True,
-                )
-                db.add(requirement)
-                stats["requirements_created"] += 1
-                logger.debug(f"  Created requirement: {req_data}")
-            except (ValueError, TypeError) as e:
-                logger.warning(f"  Failed to create requirement: {e}")
+            # Parse and create requirements
+            requirements_data = parse_requirements(quest.requirements)
+            for req_data in requirements_data:
+                try:
+                    requirement = QuestRequirement(
+                        quest_id=quest.id,
+                        requirement_type=req_data.get("type", "generic").lower(),
+                        requirement_data=req_data,
+                        is_mandatory=True,
+                    )
+                    db.add(requirement)
+                    stats["requirements_created"] += 1
+                    logger.debug(f"  Created requirement: {req_data}")
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"  Failed to create requirement: {e}")
 
-        # Parse and create rewards
-        rewards_data = parse_rewards(quest.rewards)
-        for reward_data in rewards_data:
-            try:
-                reward = QuestReward(
-                    quest_id=quest.id,
-                    reward_type=reward_data.get("type", "item").lower(),
-                    reward_data=reward_data,
-                    reward_chance=1.0,
-                )
-                db.add(reward)
-                stats["rewards_created"] += 1
-                logger.debug(f"  Created reward: {reward_data}")
-            except (ValueError, TypeError) as e:
-                logger.warning(f"  Failed to create reward: {e}")
+            # Parse and create rewards
+            rewards_data = parse_rewards(quest.rewards)
+            for reward_data in rewards_data:
+                try:
+                    reward = QuestReward(
+                        quest_id=quest.id,
+                        reward_type=reward_data.get("type", "item").lower(),
+                        reward_data=reward_data,
+                        reward_chance=1.0,
+                    )
+                    db.add(reward)
+                    stats["rewards_created"] += 1
+                    logger.debug(f"  Created reward: {reward_data}")
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"  Failed to create reward: {e}")
 
-        stats["quests_updated"] += 1
+            # Flush per quest to persist changes and get IDs
+            await db.flush()
+
+            stats["quests_updated"] += 1
+
+        except Exception:
+            logger.exception(f"Failed to process quest '{quest.title}':")
+            await db.rollback()
+            continue
 
     await db.commit()
     logger.info(f"Migration complete: {stats}")

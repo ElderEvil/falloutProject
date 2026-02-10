@@ -130,6 +130,7 @@ async def test_process_quest_rewards_single(async_session: AsyncSession) -> None
 
     # Refresh quest to load rewards
     await async_session.refresh(quest)
+    await async_session.refresh(quest, ["quest_rewards"])
 
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
@@ -167,6 +168,7 @@ async def test_process_quest_rewards_with_chance_failure(async_session: AsyncSes
     async_session.add(reward)
     await async_session.commit()
     await async_session.refresh(quest)
+    await async_session.refresh(quest, ["quest_rewards"])
 
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))

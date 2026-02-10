@@ -114,7 +114,7 @@ async def test_validate_quest_completed_requirement_met(async_session: AsyncSess
     await async_session.commit()
 
     result = await prerequisite_service.validate_quest_completed_requirement(
-        async_session, vault.id, {"quest_id": str(prereq_quest.id)}
+        async_session, vault.id, {"quest_id": prereq_quest.id}
     )
     assert result is True
 
@@ -143,7 +143,7 @@ async def test_validate_quest_completed_requirement_not_met(async_session: Async
     # Not marking as completed
 
     result = await prerequisite_service.validate_quest_completed_requirement(
-        async_session, vault.id, {"quest_id": str(prereq_quest.id)}
+        async_session, vault.id, {"quest_id": prereq_quest.id}
     )
     assert result is False
 
@@ -179,6 +179,7 @@ async def test_can_start_quest_all_requirements_met(async_session: AsyncSession)
     async_session.add(req)
     await async_session.commit()
     await async_session.refresh(quest)
+    await async_session.refresh(quest, ["quest_requirements"])
 
     # Create dweller meeting requirement
     dweller = Dweller(first_name="Test", gender="male", rarity="common", level=5, vault_id=vault.id)
@@ -222,6 +223,7 @@ async def test_can_start_quest_missing_requirements(async_session: AsyncSession)
     async_session.add(req)
     await async_session.commit()
     await async_session.refresh(quest)
+    await async_session.refresh(quest, ["quest_requirements"])
 
     # Create low-level dweller
     dweller = Dweller(first_name="Test", gender="male", rarity="common", level=1, vault_id=vault.id)
@@ -265,6 +267,7 @@ async def test_get_missing_requirements(async_session: AsyncSession) -> None:
     async_session.add(req)
     await async_session.commit()
     await async_session.refresh(quest)
+    await async_session.refresh(quest, ["quest_requirements"])
 
     missing = await prerequisite_service.get_missing_requirements(async_session, vault.id, quest)
 

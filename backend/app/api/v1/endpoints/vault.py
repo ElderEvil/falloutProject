@@ -94,6 +94,12 @@ async def delete_vault(
         raise HTTPException(status_code=404, detail="Vault not found")
     if vault.user_id != user.id and not user.is_superuser:
         raise HTTPException(status_code=403, detail="User does not have permission to delete the vault")
+
+    # Delete notifications for this vault first (foreign key constraint)
+    from app.crud.notification import notification as notification_crud
+
+    await notification_crud.delete_by_vault(db_session, vault_id)
+
     return await crud.vault.delete(db_session, vault_id, soft=not hard_delete)
 
 

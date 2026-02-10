@@ -168,7 +168,7 @@ async def migrate_quest_data(db: AsyncSession) -> dict:
             try:
                 requirement = QuestRequirement(
                     quest_id=quest.id,
-                    requirement_type=req_data.get("type", "generic").upper(),
+                    requirement_type=req_data.get("type", "generic").lower(),
                     requirement_data=req_data,
                     is_mandatory=True,
                 )
@@ -184,7 +184,7 @@ async def migrate_quest_data(db: AsyncSession) -> dict:
             try:
                 reward = QuestReward(
                     quest_id=quest.id,
-                    reward_type=reward_data.get("type", "item").upper(),
+                    reward_type=reward_data.get("type", "item").lower(),
                     reward_data=reward_data,
                     reward_chance=1.0,
                 )

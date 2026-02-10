@@ -88,8 +88,6 @@ async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None
                                 del requirement_data["quest_name"]
                             else:
                                 # Query database for existing quests by name
-                                from app.models.quest import Quest
-
                                 result = await db_session.execute(select(Quest).where(Quest.title == quest_name))
                                 existing_quest = result.scalars().first()
                                 if existing_quest:

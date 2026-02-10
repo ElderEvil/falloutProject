@@ -3,6 +3,7 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import crud
 from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.quest_requirement import QuestRequirement, RequirementType
@@ -18,11 +19,9 @@ from app.tests.factory.vaults import create_fake_vault
 async def test_validate_level_requirement_met(async_session: AsyncSession) -> None:
     """Test level requirement when dweller meets level."""
     user_data = create_fake_user()
-    user = await async_session.get_user_service().create(async_session, UserCreate(**user_data))
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await async_session.get_vault_service().create(
-        async_session, VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     # Create dweller at level 10
     dweller = Dweller(first_name="Test", gender="male", rarity="common", level=10, vault_id=vault.id)
@@ -37,11 +36,9 @@ async def test_validate_level_requirement_met(async_session: AsyncSession) -> No
 async def test_validate_level_requirement_not_met(async_session: AsyncSession) -> None:
     """Test level requirement when dweller below required level."""
     user_data = create_fake_user()
-    user = await async_session.get_user_service().create(async_session, UserCreate(**user_data))
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await async_session.get_vault_service().create(
-        async_session, VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     # Create dweller at level 5
     dweller = Dweller(first_name="Test", gender="male", rarity="common", level=5, vault_id=vault.id)
@@ -56,11 +53,9 @@ async def test_validate_level_requirement_not_met(async_session: AsyncSession) -
 async def test_validate_dweller_count_requirement_met(async_session: AsyncSession) -> None:
     """Test dweller count requirement with enough dwellers."""
     user_data = create_fake_user()
-    user = await async_session.get_user_service().create(async_session, UserCreate(**user_data))
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await async_session.get_vault_service().create(
-        async_session, VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     # Create 5 dwellers
     for i in range(5):
@@ -76,11 +71,9 @@ async def test_validate_dweller_count_requirement_met(async_session: AsyncSessio
 async def test_validate_dweller_count_requirement_not_met(async_session: AsyncSession) -> None:
     """Test dweller count requirement with not enough dwellers."""
     user_data = create_fake_user()
-    user = await async_session.get_user_service().create(async_session, UserCreate(**user_data))
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await async_session.get_vault_service().create(
-        async_session, VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     # Create 2 dwellers
     for i in range(2):
@@ -96,11 +89,9 @@ async def test_validate_dweller_count_requirement_not_met(async_session: AsyncSe
 async def test_validate_quest_completed_requirement_met(async_session: AsyncSession) -> None:
     """Test quest completed requirement when quest is done."""
     user_data = create_fake_user()
-    user = await async_session.get_user_service().create(async_session, UserCreate(**user_data))
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await async_session.get_vault_service().create(
-        async_session, VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     # Create prerequisite quest
     prereq_quest = Quest(
@@ -132,11 +123,9 @@ async def test_validate_quest_completed_requirement_met(async_session: AsyncSess
 async def test_validate_quest_completed_requirement_not_met(async_session: AsyncSession) -> None:
     """Test quest completed requirement when quest not done."""
     user_data = create_fake_user()
-    user = await async_session.get_user_service().create(async_session, UserCreate(**user_data))
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await async_session.get_vault_service().create(
-        async_session, VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     # Create prerequisite quest
     prereq_quest = Quest(
@@ -163,11 +152,9 @@ async def test_validate_quest_completed_requirement_not_met(async_session: Async
 async def test_can_start_quest_all_requirements_met(async_session: AsyncSession) -> None:
     """Test can_start_quest when all requirements are met."""
     user_data = create_fake_user()
-    user = await async_session.get_user_service().create(async_session, UserCreate(**user_data))
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await async_session.get_vault_service().create(
-        async_session, VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     # Create quest with level requirement
     quest = Quest(
@@ -208,11 +195,9 @@ async def test_can_start_quest_all_requirements_met(async_session: AsyncSession)
 async def test_can_start_quest_missing_requirements(async_session: AsyncSession) -> None:
     """Test can_start_quest when requirements are missing."""
     user_data = create_fake_user()
-    user = await async_session.get_user_service().create(async_session, UserCreate(**user_data))
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await async_session.get_vault_service().create(
-        async_session, VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     # Create quest with level requirement
     quest = Quest(
@@ -253,11 +238,9 @@ async def test_can_start_quest_missing_requirements(async_session: AsyncSession)
 async def test_get_missing_requirements(async_session: AsyncSession) -> None:
     """Test get_missing_requirements returns human-readable descriptions."""
     user_data = create_fake_user()
-    user = await async_session.get_user_service().create(async_session, UserCreate(**user_data))
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await async_session.get_vault_service().create(
-        async_session, VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     # Create quest
     quest = Quest(

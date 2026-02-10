@@ -3,6 +3,7 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import crud
 from app.models.dweller import Dweller
 from app.models.objective import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
@@ -32,10 +33,10 @@ def fresh_event_bus():
 async def test_collect_evaluator_resource_collected(async_session: AsyncSession, fresh_event_bus) -> None:
     """Test CollectEvaluator updates progress on resource event."""
     user_data = create_fake_user()
-    user = await async_session.get_user_service().create(async_session, UserCreate(**user_data))
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await async_session.get_vault_service().create(
-        async_session, VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(
+        async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id)
     )
 
     # Create objective
@@ -72,10 +73,10 @@ async def test_collect_evaluator_resource_collected(async_session: AsyncSession,
 async def test_collect_evaluator_wrong_resource(async_session: AsyncSession, fresh_event_bus) -> None:
     """Test CollectEvaluator ignores wrong resource type."""
     user_data = create_fake_user()
-    user = await async_session.get_user_service().create(async_session, UserCreate(**user_data))
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await async_session.get_vault_service().create(
-        async_session, VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(
+        async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id)
     )
 
     # Create objective for caps
@@ -112,10 +113,10 @@ async def test_collect_evaluator_wrong_resource(async_session: AsyncSession, fre
 async def test_build_evaluator_room_built(async_session: AsyncSession, fresh_event_bus) -> None:
     """Test BuildEvaluator updates progress on room built."""
     user_data = create_fake_user()
-    user = await async_session.get_user_service().create(async_session, UserCreate(**user_data))
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await async_session.get_vault_service().create(
-        async_session, VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(
+        async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id)
     )
 
     # Create objective
@@ -123,7 +124,7 @@ async def test_build_evaluator_room_built(async_session: AsyncSession, fresh_eve
         challenge="Build 3 rooms",
         reward="100 caps",
         objective_type="build",
-        target_entity={"room_type": "any"},
+        target_entity={"room_type": "*"},
         target_amount=3,
     )
     async_session.add(objective)
@@ -154,10 +155,10 @@ async def test_build_evaluator_room_built(async_session: AsyncSession, fresh_eve
 async def test_train_evaluator_dweller_trained(async_session: AsyncSession, fresh_event_bus) -> None:
     """Test TrainEvaluator updates progress on training complete."""
     user_data = create_fake_user()
-    user = await async_session.get_user_service().create(async_session, UserCreate(**user_data))
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await async_session.get_vault_service().create(
-        async_session, VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(
+        async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id)
     )
 
     # Create objective
@@ -198,10 +199,10 @@ async def test_train_evaluator_dweller_trained(async_session: AsyncSession, fres
 async def test_assign_evaluator_dweller_assigned(async_session: AsyncSession, fresh_event_bus) -> None:
     """Test AssignEvaluator updates progress on dweller assignment."""
     user_data = create_fake_user()
-    user = await async_session.get_user_service().create(async_session, UserCreate(**user_data))
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await async_session.get_vault_service().create(
-        async_session, VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(
+        async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id)
     )
 
     # Create objective
@@ -242,10 +243,10 @@ async def test_assign_evaluator_dweller_assigned(async_session: AsyncSession, fr
 async def test_reach_evaluator_population_reached(async_session: AsyncSession, fresh_event_bus) -> None:
     """Test ReachEvaluator completes when population target met."""
     user_data = create_fake_user()
-    user = await async_session.get_user_service().create(async_session, UserCreate(**user_data))
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await async_session.get_vault_service().create(
-        async_session, VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(
+        async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id)
     )
 
     # Create objective
@@ -253,7 +254,7 @@ async def test_reach_evaluator_population_reached(async_session: AsyncSession, f
         challenge="Reach 10 dwellers",
         reward="500 caps",
         objective_type="reach",
-        target_entity={"reach_type": "population", "target": 10},
+        target_entity={"reach_type": "dweller_count", "target": 10},
         target_amount=10,
     )
     async_session.add(objective)
@@ -288,10 +289,10 @@ async def test_reach_evaluator_population_reached(async_session: AsyncSession, f
 async def test_evaluator_already_completed(async_session: AsyncSession, fresh_event_bus) -> None:
     """Test evaluator does not update already completed objectives."""
     user_data = create_fake_user()
-    user = await async_session.get_user_service().create(async_session, UserCreate(**user_data))
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await async_session.get_vault_service().create(
-        async_session, VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(
+        async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id)
     )
 
     # Create objective

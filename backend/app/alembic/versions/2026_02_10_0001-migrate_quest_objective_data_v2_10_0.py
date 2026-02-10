@@ -6,6 +6,8 @@ Create Date: 2026-02-10 00:00:00.000000
 
 """
 
+import json
+import re
 from typing import Sequence, Union
 
 from alembic import op
@@ -80,8 +82,6 @@ def upgrade() -> None:
         # Parse and create requirements
         if requirements_str and requirements_str.strip() and requirements_str.lower() not in ["none", "n/a", ""]:
             # Split by comma or 'and'
-            import re
-
             parts = re.split(r",|\band\b", requirements_str, flags=re.IGNORECASE)
 
             for raw_part in parts:
@@ -206,8 +206,6 @@ def upgrade() -> None:
         target_entity = {}
         target_amount = 1
 
-        import re
-
         challenge_lower = challenge_str.lower()
 
         # Pattern: "Collect X [Resource]"
@@ -303,28 +301,39 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Remove all migrated data."""
+    """Remove migrated data (scoped to rows modified by this migration)."""
     conn = op.get_bind()
 
-    # Delete all quest requirements and rewards
-    conn.execute(text("DELETE FROM questreward"))
-    conn.execute(text("DELETE FROM questrequirement"))
+    # Find quest IDs that were modified by this migration (have quest_type set)
+    result = conn.execute(text("SELECT id FROM quest WHERE quest_type IS NOT NULL"))
+    modified_quest_ids = [row[0] for row in result.fetchall()]
 
-    # Reset quest columns
-    conn.execute(
-        text("""
-        UPDATE quest
-        SET quest_type = NULL, quest_category = NULL, previous_quest_id = NULL, next_quest_id = NULL
-    """)
-    )
+    if modified_quest_ids:
+        # Delete quest rewards and requirements only for modified quests
+        conn.execute(
+            text("DELETE FROM questreward WHERE quest_id IN :quest_ids"),
+            {"quest_ids": tuple(modified_quest_ids)},
+        )
+        conn.execute(
+            text("DELETE FROM questrequirement WHERE quest_id IN :quest_ids"),
+            {"quest_ids": tuple(modified_quest_ids)},
+        )
 
-    # Reset objective columns
+        # Reset quest columns only for modified quests
+        conn.execute(
+            text("""
+            UPDATE quest
+            SET quest_type = NULL, quest_category = NULL, previous_quest_id = NULL, next_quest_id = NULL
+            WHERE id IN :quest_ids
+        """),
+            {"quest_ids": tuple(modified_quest_ids)},
+        )
+
+    # Reset objective columns only for rows that were modified (have objective_type set)
     conn.execute(
         text("""
         UPDATE objective
         SET objective_type = NULL, target_entity = NULL, target_amount = 1
+        WHERE objective_type IS NOT NULL
     """)
     )
-
-
-import json

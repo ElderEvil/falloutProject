@@ -130,3 +130,58 @@ async def debug_objectives(vault_id: UUID4):
                 for obj in incomplete
             ],
         }
+
+
+@router.post("/objectives/{vault_id}/test-collect")
+async def test_collect_objective(vault_id: UUID4, resource_type: str = "caps", amount: int = 10):
+    """Test RESOURCE_COLLECTED event and check if objective progress updates."""
+    from sqlalchemy import text
+
+    # Get objectives BEFORE
+    async for session in get_async_session():
+        before_result = await session.execute(
+            select(Objective, VaultObjectiveProgressLink)
+            .join(VaultObjectiveProgressLink)
+            .where(VaultObjectiveProgressLink.vault_id == vault_id)
+            .where(Objective.objective_type == "collect")
+        )
+        before = [
+            {"challenge": obj.challenge, "progress": link.progress, "total": link.total}
+            for obj, link in before_result.all()
+        ]
+
+    # Emit the event
+    await event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault_id, {"resource_type": resource_type, "amount": amount})
+
+    # Get objectives AFTER
+    async for session in get_async_session():
+        after_result = await session.execute(
+            select(Objective, VaultObjectiveProgressLink)
+            .join(VaultObjectiveProgressLink)
+            .where(VaultObjectiveProgressLink.vault_id == vault_id)
+            .where(Objective.objective_type == "collect")
+        )
+        after = [
+            {"challenge": obj.challenge, "progress": link.progress, "total": link.total}
+            for obj, link in after_result.all()
+        ]
+
+    return {
+        "vault_id": str(vault_id),
+        "event": {"type": "RESOURCE_COLLECTED", "resource_type": resource_type, "amount": amount},
+        "before": before,
+        "after": after,
+    }
+
+
+@router.get("/evaluators")
+async def debug_evaluators():
+    """Check which evaluators are subscribed to which events."""
+    from app.services.objective_evaluators import evaluator_manager
+
+    return {
+        "manager_initialized": evaluator_manager._initialized,
+        "subscriptions": {
+            event_type: [h.__name__ for h in handlers] for event_type, handlers in event_bus._handlers.items()
+        },
+    }

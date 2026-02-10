@@ -4,9 +4,10 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from alembic import command
 from alembic.config import Config
 from typer import Typer
+
+from alembic import command
 
 logger = logging.getLogger(__name__)
 migrations = Typer(name="migrations", help="Commands to interact with Alembic migrations")

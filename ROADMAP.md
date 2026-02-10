@@ -9,6 +9,23 @@ AI-powered dweller interactions.
 
 ## Latest Release
 
+### v2.10.0 - Quest & Objective System (February 10, 2026)
+
+**Focus**: Working quest system with proper reward distribution and objective progress tracking
+
+**Completed:**
+- ✅ **Quest JSON Loading** - Fixed `QuestJSON` schema to accept both space-separated ("Quest name") and snake_case ("quest_name") field names
+- ✅ **Quest Seeding** - All 19 quests across 7 chains now load correctly from JSON files
+- ✅ **Quest Rewards** - Implemented `reward_service.process_quest_rewards()` with caps, items, dwellers, stimpaks, radaways, and lunchboxes
+- ✅ **Objective Progress** - Fixed `create_for_vault()` to set `total` from `target_amount` (was defaulting to 1)
+- ✅ **Quest Completion Events** - Emits `QUEST_COMPLETED` events and notifications when quests finish
+- ✅ **Power Struggle Quest Chain** - Fixed loading of 8-quest chain from `power_struggle.json`
+- ✅ **Level-Up Tracking** - Added `DWELLER_LEVEL_UP` event emission in `game_loop.py` and `crud/dweller.py` for objective tracking
+- ✅ **Event Data Format** - Fixed event data to use `level` field (what `ReachEvaluator._extract_amount` expects)
+- ✅ **Quest Rewards Validation** - Fixed 11 quests with empty/short rewards by adding `generate_rewards_string()` function that parses structured `quest_rewards` into human-readable strings
+- ✅ **QuestJSON Schema** - Added "Rewards" and "Requirements" to field mapping for proper parsing of space-separated keys
+- ✅ **Tests** - 24 tests passing (11 leveling + 13 reward services)
+
 ### v2.9.3 - Component Refactoring & Backend Quick Wins (February 8, 2026)
 
 **Focus**: Major frontend component refactoring and backend code quality improvements

@@ -19,6 +19,7 @@ from app.schemas.dweller import (
     DwellerReadWithRoomID,
     DwellerUpdate,
 )
+from app.services.event_bus import GameEvent, event_bus
 from app.utils.dwellers import create_random_common_dweller
 from app.utils.exceptions import ContentNoChangeException, InvalidVaultTransferException, ResourceConflictException
 
@@ -180,8 +181,19 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             db_session, dweller_obj.id, DwellerUpdate(level=dweller_obj.level, experience=dweller_obj.experience)
         )
 
-        # Send level-up notification
+        # Emit DWELLER_LEVEL_UP event for objective tracking
         if leveled_up and updated_dweller.vault_id:
+            await event_bus.emit(
+                GameEvent.DWELLER_LEVEL_UP,
+                updated_dweller.vault_id,
+                {
+                    "dweller_id": str(updated_dweller.id),
+                    "level": updated_dweller.level,
+                    "old_level": old_level,
+                    "amount": 1,
+                },
+            )
+
             # Get vault to find the owner
             vault = await vault_crud.get(db_session, updated_dweller.vault_id)
             if vault and vault.user_id:

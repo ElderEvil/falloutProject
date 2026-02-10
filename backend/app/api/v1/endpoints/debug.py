@@ -6,9 +6,8 @@ Do not expose in production environments.
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import UUID4
-from sqlalchemy import text
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -74,97 +73,95 @@ async def debug_health():
 
 
 @router.get("/objectives/{vault_id}")
-async def debug_objectives(vault_id: UUID4):
+async def debug_objectives(vault_id: UUID4, session: AsyncSession = Depends(get_async_session)):  # noqa: FAST002
     """Debug endpoint to inspect objectives and their progress for a vault."""
-    async for session in get_async_session():
-        # Get all seeded objectives
-        objectives_result = await session.execute(select(Objective))
-        all_objectives = objectives_result.scalars().all()
+    objectives_result = await session.execute(select(Objective))
+    all_objectives = objectives_result.scalars().all()
 
-        # Get vault-specific objectives with progress
-        vault_objectives_result = await session.execute(
-            select(Objective, VaultObjectiveProgressLink)
-            .join(VaultObjectiveProgressLink)
-            .where(VaultObjectiveProgressLink.vault_id == vault_id)
-        )
-        vault_objectives = [{"objective": obj, "link": link} for obj, link in vault_objectives_result.all()]
+    # Get vault-specific objectives with progress
+    vault_objectives_result = await session.execute(
+        select(Objective, VaultObjectiveProgressLink)
+        .join(VaultObjectiveProgressLink)
+        .where(VaultObjectiveProgressLink.vault_id == vault_id)
+    )
+    vault_objectives = [{"objective": obj, "link": link} for obj, link in vault_objectives_result.all()]
 
-        # Check for incomplete objectives (missing required fields)
-        incomplete = [
-            obj
+    # Check for incomplete objectives (missing required fields)
+    incomplete = [
+        obj
+        for obj in all_objectives
+        if obj.objective_type is None or obj.target_entity is None or obj.target_amount == 1
+    ]
+
+    return {
+        "vault_id": str(vault_id),
+        "all_seeded_objectives": [
+            {
+                "id": str(obj.id),
+                "challenge": obj.challenge,
+                "objective_type": obj.objective_type,
+                "target_entity": obj.target_entity,
+                "target_amount": obj.target_amount,
+                "is_complete": (
+                    obj.objective_type is not None and obj.target_entity is not None and obj.target_amount > 1
+                ),
+            }
             for obj in all_objectives
-            if obj.objective_type is None or obj.target_entity is None or obj.target_amount == 1
-        ]
-
-        return {
-            "vault_id": str(vault_id),
-            "all_seeded_objectives": [
-                {
-                    "id": str(obj.id),
-                    "challenge": obj.challenge,
-                    "objective_type": obj.objective_type,
-                    "target_entity": obj.target_entity,
-                    "target_amount": obj.target_amount,
-                    "is_complete": (
-                        obj.objective_type is not None and obj.target_entity is not None and obj.target_amount > 1
-                    ),
-                }
-                for obj in all_objectives
-            ],
-            "vault_objectives_with_progress": [
-                {
-                    "id": str(obj.id),
-                    "challenge": obj.challenge,
-                    "objective_type": obj.objective_type,
-                    "target_entity": obj.target_entity,
-                    "target_amount": obj.target_amount,
-                    "progress": link.progress,
-                    "total": link.total,
-                    "is_completed": link.is_completed,
-                }
-                for obj, link in vault_objectives
-            ],
-            "incomplete_objectives_count": len(incomplete),
-            "incomplete_objectives": [
-                {"id": str(obj.id), "challenge": obj.challenge, "target_amount": obj.target_amount}
-                for obj in incomplete
-            ],
-        }
+        ],
+        "vault_objectives_with_progress": [
+            {
+                "id": str(obj.id),
+                "challenge": obj.challenge,
+                "objective_type": obj.objective_type,
+                "target_entity": obj.target_entity,
+                "target_amount": obj.target_amount,
+                "progress": link.progress,
+                "total": link.total,
+                "is_completed": link.is_completed,
+            }
+            for obj, link in vault_objectives
+        ],
+        "incomplete_objectives_count": len(incomplete),
+        "incomplete_objectives": [
+            {"id": str(obj.id), "challenge": obj.challenge, "target_amount": obj.target_amount} for obj in incomplete
+        ],
+    }
 
 
 @router.post("/objectives/{vault_id}/test-collect")
-async def test_collect_objective(vault_id: UUID4, resource_type: str = "caps", amount: int = 10):
+async def test_collect_objective(
+    vault_id: UUID4,
+    resource_type: str,
+    amount: int,
+    session: AsyncSession = Depends(get_async_session),  # noqa: FAST002, PT028
+):
     """Test RESOURCE_COLLECTED event and check if objective progress updates."""
-    from sqlalchemy import text
 
     # Get objectives BEFORE
-    async for session in get_async_session():
-        before_result = await session.execute(
-            select(Objective, VaultObjectiveProgressLink)
-            .join(VaultObjectiveProgressLink)
-            .where(VaultObjectiveProgressLink.vault_id == vault_id)
-            .where(Objective.objective_type == "collect")
-        )
-        before = [
-            {"challenge": obj.challenge, "progress": link.progress, "total": link.total}
-            for obj, link in before_result.all()
-        ]
+    before_result = await session.execute(
+        select(Objective, VaultObjectiveProgressLink)
+        .join(VaultObjectiveProgressLink)
+        .where(VaultObjectiveProgressLink.vault_id == vault_id)
+        .where(Objective.objective_type == "collect")
+    )
+    before = [
+        {"challenge": obj.challenge, "progress": link.progress, "total": link.total}
+        for obj, link in before_result.all()
+    ]
 
     # Emit the event
     await event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault_id, {"resource_type": resource_type, "amount": amount})
 
     # Get objectives AFTER
-    async for session in get_async_session():
-        after_result = await session.execute(
-            select(Objective, VaultObjectiveProgressLink)
-            .join(VaultObjectiveProgressLink)
-            .where(VaultObjectiveProgressLink.vault_id == vault_id)
-            .where(Objective.objective_type == "collect")
-        )
-        after = [
-            {"challenge": obj.challenge, "progress": link.progress, "total": link.total}
-            for obj, link in after_result.all()
-        ]
+    after_result = await session.execute(
+        select(Objective, VaultObjectiveProgressLink)
+        .join(VaultObjectiveProgressLink)
+        .where(VaultObjectiveProgressLink.vault_id == vault_id)
+        .where(Objective.objective_type == "collect")
+    )
+    after = [
+        {"challenge": obj.challenge, "progress": link.progress, "total": link.total} for obj, link in after_result.all()
+    ]
 
     return {
         "vault_id": str(vault_id),

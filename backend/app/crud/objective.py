@@ -23,7 +23,11 @@ class CRUDObjective(
         db_obj = self.model(**obj_in.model_dump())
         db_session.add(db_obj)
 
-        link_obj = self.link_model(vault_id=vault_id, objective_id=db_obj.id)
+        link_obj = self.link_model(
+            vault_id=vault_id,
+            objective_id=db_obj.id,
+            total=obj_in.target_amount or 1,
+        )
         db_session.add(link_obj)
 
         await db_session.commit()

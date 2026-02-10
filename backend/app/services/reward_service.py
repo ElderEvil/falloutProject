@@ -245,12 +245,12 @@ class RewardService:
         """
         import random
 
-        from app.crud.dweller import dweller as dweller_crud
+        from sqlmodel import select
+
         from app.models.outfit import Outfit
         from app.models.storage import Storage
         from app.models.weapon import Weapon
         from app.schemas.common import GenderEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
-        from sqlmodel import select
 
         # Generate 3 random items
         item_configs = [
@@ -387,7 +387,7 @@ class RewardService:
             logger.exception(f"Failed to process objective reward '{reward_str}' for vault {vault_id}")
             return None
 
-    async def _process_single_reward(
+    async def _process_single_reward(  # noqa: PLR0911
         self,
         db_session: AsyncSession,
         vault_id: UUID4,

@@ -336,6 +336,18 @@ class GameLoopService:
         if leveled_up:
             stats["leveled_up"] = levels_gained
             self.logger.info(f"Dweller {dweller.name} gained {levels_gained} level(s)! Now level {dweller.level}")
+            # Emit DWELLER_LEVEL_UP event for objective tracking
+            if dweller.vault_id:
+                await event_bus.emit(
+                    GameEvent.DWELLER_LEVEL_UP,
+                    dweller.vault_id,
+                    {
+                        "dweller_id": str(dweller.id),
+                        "level": dweller.level,
+                        "old_level": dweller.level - levels_gained,
+                        "amount": levels_gained,
+                    },
+                )
 
         return stats
 

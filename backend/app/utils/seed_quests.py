@@ -9,10 +9,48 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.models.quest import Quest
 from app.models.quest_requirement import QuestRequirement, RequirementType
 from app.models.quest_reward import QuestReward, RewardType
-from app.schemas.quest import QuestJSON
+from app.schemas.quest import QuestJSON, QuestRewardJSON
 from app.utils.load_quests import load_all_quest_chain_files
 
 logger = logging.getLogger(__name__)
+
+
+def generate_rewards_string(quest_json: QuestJSON) -> str:
+    """Generate a human-readable rewards string from structured quest_rewards.
+
+    Prefers the text "Rewards" field if available and valid (>= 3 chars),
+    otherwise generates from structured quest_rewards.
+    """
+    # Prefer the text Rewards field if it exists and is valid
+    if quest_json.rewards and len(quest_json.rewards) >= 3:
+        return quest_json.rewards
+
+    if not quest_json.quest_rewards:
+        return quest_json.rewards or ""
+
+    def format_reward(reward: QuestRewardJSON) -> str:  # noqa: PLR0911
+        rtype, data = reward.reward_type.upper(), reward.reward_data
+        qty = data.get("quantity", data.get("amount", 1))
+
+        if rtype in ("CAPS", "CAP"):
+            return f"{data.get('amount', 0)} caps"
+        if rtype == "ITEM":
+            item = data.get("item_name", "Unknown")
+            return f"{qty}x {item}" if qty > 1 else item
+        if rtype in ("STIMPAK", "STIMPACK"):
+            return f"{qty} stimpak{'s' if qty > 1 else ''}"
+        if rtype == "RADAWAY":
+            return f"{qty} radaway{'s' if qty > 1 else ''}"
+        if rtype == "LUNCHBOX":
+            return f"{qty} lunchbox{'es' if qty > 1 else ''}"
+        if rtype == "DWELLER":
+            return "New dweller"
+
+        # Generic fallback
+        item = data.get("item_name", "")
+        return f"{qty}x {item}" if item and qty > 1 else (item or rtype.lower().replace("_", " "))
+
+    return ", ".join(format_reward(r) for r in quest_json.quest_rewards)
 
 
 async def seed_quests_from_json(  # noqa: C901, PLR0912, PLR0915
@@ -49,16 +87,27 @@ async def seed_quests_from_json(  # noqa: C901, PLR0912, PLR0915
         # Seed quests that don't exist yet
         seeded_count = 0
         for quest_json in all_quest_jsons:
+            # Handle requirements - can be string, list of strings, or list of QuestJSON (from chain format)
+            reqs = quest_json.requirements
+            if reqs is None:
+                req_str = ""
+            elif isinstance(reqs, str):
+                req_str = reqs
+            elif isinstance(reqs, list):
+                # Check if it's a list of strings or list of QuestJSON
+                req_str = ", ".join(reqs) if all(isinstance(r, str) for r in reqs) else str(reqs[0]) if reqs else ""
+
             # Use quest_name from JSON as the title
             if quest_json.quest_name not in existing_titles:
+                # Generate rewards string from structured quest_rewards if available
+                rewards_str = generate_rewards_string(quest_json)
+
                 quest = Quest(
                     title=quest_json.quest_name,
                     short_description=quest_json.short_description,
                     long_description=quest_json.long_description,
-                    requirements=quest_json.requirements
-                    if isinstance(quest_json.requirements, str)
-                    else ", ".join(quest_json.requirements),
-                    rewards=quest_json.rewards,
+                    requirements=req_str,
+                    rewards=rewards_str,
                 )
                 db_session.add(quest)
                 quests_to_commit.append((quest, quest_json))

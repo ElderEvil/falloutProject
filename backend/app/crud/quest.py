@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Sequence
 
 from pydantic import UUID4
@@ -14,6 +15,8 @@ from app.schemas.quest import QuestCreate, QuestRead, QuestUpdate
 from app.services.notification_service import notification_service
 from app.services.reward_service import reward_service
 from app.utils.exceptions import ResourceNotFoundException
+
+logger = logging.getLogger(__name__)
 
 
 class CRUDQuest(

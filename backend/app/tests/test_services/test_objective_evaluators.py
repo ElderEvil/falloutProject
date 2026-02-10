@@ -35,9 +35,7 @@ async def test_collect_evaluator_resource_collected(async_session: AsyncSession,
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await crud.vault.create(
-        async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     # Create objective
     objective = Objective(
@@ -75,9 +73,7 @@ async def test_collect_evaluator_wrong_resource(async_session: AsyncSession, fre
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await crud.vault.create(
-        async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     # Create objective for caps
     objective = Objective(
@@ -115,9 +111,7 @@ async def test_build_evaluator_room_built(async_session: AsyncSession, fresh_eve
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await crud.vault.create(
-        async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     # Create objective
     objective = Objective(
@@ -157,9 +151,7 @@ async def test_train_evaluator_dweller_trained(async_session: AsyncSession, fres
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await crud.vault.create(
-        async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     # Create objective
     objective = Objective(
@@ -201,9 +193,7 @@ async def test_assign_evaluator_dweller_assigned(async_session: AsyncSession, fr
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await crud.vault.create(
-        async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     # Create objective
     objective = Objective(
@@ -245,9 +235,7 @@ async def test_reach_evaluator_population_reached(async_session: AsyncSession, f
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await crud.vault.create(
-        async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     # Create objective
     objective = Objective(
@@ -291,9 +279,7 @@ async def test_evaluator_already_completed(async_session: AsyncSession, fresh_ev
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await crud.vault.create(
-        async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     # Create objective
     objective = Objective(

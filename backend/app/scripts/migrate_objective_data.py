@@ -130,9 +130,7 @@ async def migrate_objective_data(db: AsyncSession) -> dict:
         objective.total = max(objective.total, parsed["amount"])
 
         stats["objectives_updated"] += 1
-        logger.debug(
-            f"  Set type={parsed['type']}, amount={parsed['amount']}, target={parsed['target']}"
-        )
+        logger.debug(f"  Set type={parsed['type']}, amount={parsed['amount']}, target={parsed['target']}")
 
     await db.commit()
     logger.info(f"Migration complete: {stats}")

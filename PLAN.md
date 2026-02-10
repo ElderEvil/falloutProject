@@ -26,22 +26,22 @@ Transform the existing basic quests and objectives into a fully functional, auto
 
 ## What's In Scope
 
-✅ **Quest Prerequisites** - Lock quests until requirements met (level, items, previous quests)  
-✅ **Quest Chains** - Multi-quest sequences with automatic progression  
-✅ **Reward Distribution** - Automatic granting of caps, items, dwellers, resources  
-✅ **Quest Types** - Main, side, daily, repeatable with visual distinction  
-✅ **Progress Automation** - Objectives auto-update when you collect/build/train  
-✅ **Real-time Updates** - WebSocket notifications for progress/completion  
-✅ **Better UI** - Quest detail view, progress bars, reward previews  
+✅ **Quest Prerequisites** - Lock quests until requirements met (level, items, previous quests)
+✅ **Quest Chains** - Multi-quest sequences with automatic progression
+✅ **Reward Distribution** - Automatic granting of caps, items, dwellers, resources
+✅ **Quest Types** - Main, side, daily, repeatable with visual distinction
+✅ **Progress Automation** - Objectives auto-update when you collect/build/train
+✅ **Real-time Updates** - WebSocket notifications for progress/completion
+✅ **Better UI** - Quest detail view, progress bars, reward previews
 
 ---
 
 ## What's Deferred to Phase 2 (v2.12+)
 
-❌ **Combat System** - Battle mechanics, enemies, combat resolution  
-❌ **Quest Parties** - Sending dwellers on quests (UI only in Phase 1)  
-❌ **Time-Limited Events** - Complex event scheduling  
-❌ **Advanced Rewards** - Buffs, temporary bonuses, cosmetics  
+❌ **Combat System** - Battle mechanics, enemies, combat resolution
+❌ **Quest Parties** - Sending dwellers on quests (UI only in Phase 1)
+❌ **Time-Limited Events** - Complex event scheduling
+❌ **Advanced Rewards** - Buffs, temporary bonuses, cosmetics
 
 ---
 
@@ -73,5 +73,5 @@ Transform the existing basic quests and objectives into a fully functional, auto
 
 ---
 
-*Last updated: February 8, 2026*  
+*Last updated: February 8, 2026*
 *See ROADMAP.md for broader release timeline*

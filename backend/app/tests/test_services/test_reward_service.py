@@ -23,9 +23,7 @@ async def test_grant_caps_success(async_session: AsyncSession) -> None:
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
 
     vault_data = create_fake_vault()
-    vault = await crud.vault.create(
-        async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     initial_caps = vault.bottle_caps
     result = await reward_service.grant_caps(async_session, vault.id, 100)
@@ -44,9 +42,7 @@ async def test_grant_caps_zero_amount(async_session: AsyncSession) -> None:
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await crud.vault.create(
-        async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     initial_caps = vault.bottle_caps
     result = await reward_service.grant_caps(async_session, vault.id, 0)
@@ -62,9 +58,7 @@ async def test_process_objective_reward_caps(async_session: AsyncSession) -> Non
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await crud.vault.create(
-        async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     # Create objective with caps reward
     from app.crud.objective import objective_crud
@@ -95,9 +89,7 @@ async def test_process_objective_reward_invalid(async_session: AsyncSession) -> 
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await crud.vault.create(
-        async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     from app.crud.objective import objective_crud
 
@@ -142,9 +134,7 @@ async def test_process_quest_rewards_single(async_session: AsyncSession) -> None
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await crud.vault.create(
-        async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     initial_caps = vault.bottle_caps
     results = await reward_service.process_quest_rewards(async_session, vault.id, quest)
@@ -181,9 +171,7 @@ async def test_process_quest_rewards_with_chance_failure(async_session: AsyncSes
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await crud.vault.create(
-        async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     initial_caps = vault.bottle_caps
     results = await reward_service.process_quest_rewards(async_session, vault.id, quest)
@@ -199,9 +187,7 @@ async def test_grant_resource_food(async_session: AsyncSession) -> None:
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await crud.vault.create(
-        async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     vault.food_max = 1000
     await async_session.commit()
@@ -223,9 +209,7 @@ async def test_grant_resource_invalid_type(async_session: AsyncSession) -> None:
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
-    vault = await crud.vault.create(
-        async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     with pytest.raises(ValueError, match="Invalid resource_type"):
         await reward_service.grant_resource(async_session, vault.id, "invalid", 100)

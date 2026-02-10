@@ -14,6 +14,7 @@ from app.crud.incident import incident_crud
 from app.crud.vault import vault as vault_crud
 from app.models.game_state import GameState
 from app.models.vault import Vault
+from app.services.event_bus import GameEvent, event_bus
 from app.services.exploration_service import exploration_service
 from app.services.happiness_service import happiness_service
 from app.services.resource_manager import ResourceManager
@@ -117,6 +118,16 @@ class GameLoopService:
 
             # Apply resource updates
             await vault_crud.update(db_session, vault_id, resource_update)
+
+            # Emit RESOURCE_COLLECTED events for production (for objective tracking)
+            production = resource_events.get("production", {})
+            for resource_type, amount in production.items():
+                if amount > 0:
+                    await event_bus.emit(
+                        GameEvent.RESOURCE_COLLECTED,
+                        vault_id,
+                        {"resource_type": resource_type, "amount": int(amount)},
+                    )
 
             results["updates"]["resources"] = {
                 "power": resource_update.power,

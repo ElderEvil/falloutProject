@@ -3,7 +3,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
-from sqlalchemy import JSON, Column
+from sqlalchemy import JSON, Column, ForeignKey
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel
@@ -58,7 +58,7 @@ class NotificationBase(SQLModel):
         default=None,
         foreign_key="vault.id",
         index=True,
-        sa_args={"ondelete": "CASCADE"},  # Cascade delete when vault is deleted
+        ondelete="CASCADE",  # Cascade delete when vault is deleted
     )
 
     # Source of notification (null for system notifications)

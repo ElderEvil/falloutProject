@@ -1,7 +1,6 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import delete
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -20,12 +19,14 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
         offset: int = 0,
     ) -> list[Notification]:
         """Get notifications for a user"""
+        from sqlalchemy import desc
+
         query = select(Notification).where(Notification.user_id == user_id).where(Notification.is_dismissed == False)
 
         if unread_only:
             query = query.where(Notification.is_read == False)
 
-        query = query.order_by(Notification.created_at.desc()).offset(offset).limit(limit)
+        query = query.order_by(desc(Notification.created_at)).offset(offset).limit(limit)
         result = await db.execute(query)
         return list(result.scalars().all())
 
@@ -39,13 +40,6 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
         )
         result = await db.execute(query)
         return len(list(result.scalars().all()))
-
-    async def delete_by_vault(self, db: AsyncSession, vault_id: UUID) -> int:
-        """Delete all notifications for a vault (hard delete)"""
-        query = delete(Notification).where(Notification.vault_id == vault_id)
-        result = await db.execute(query)
-        await db.commit()
-        return result.rowcount
 
     async def mark_as_read(self, db: AsyncSession, notification_id: UUID, user_id: UUID) -> Notification | None:
         """Mark notification as read"""

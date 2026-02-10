@@ -168,50 +168,51 @@ async def migrate_quest_data(db: AsyncSession) -> dict:
         logger.info(f"Processing quest: {quest.title}")
 
         try:
-            # Update quest with type and category
-            quest.quest_type = determine_quest_type(quest.title, quest.long_description)
-            quest.quest_category = determine_category(quest.title, quest.long_description)
+            # Use nested transaction (savepoint) for per-quest isolation
+            async with db.begin_nested():
+                # Update quest with type and category
+                quest.quest_type = determine_quest_type(quest.title, quest.long_description)
+                quest.quest_category = determine_category(quest.title, quest.long_description)
 
-            # Parse and create requirements
-            requirements_data = parse_requirements(quest.requirements)
-            for req_data in requirements_data:
-                try:
-                    requirement = QuestRequirement(
-                        quest_id=quest.id,
-                        requirement_type=req_data.get("type", "generic").lower(),
-                        requirement_data=req_data,
-                        is_mandatory=True,
-                    )
-                    db.add(requirement)
-                    stats["requirements_created"] += 1
-                    logger.debug(f"  Created requirement: {req_data}")
-                except (ValueError, TypeError) as e:
-                    logger.warning(f"  Failed to create requirement: {e}")
+                # Parse and create requirements
+                requirements_data = parse_requirements(quest.requirements)
+                for req_data in requirements_data:
+                    try:
+                        requirement = QuestRequirement(
+                            quest_id=quest.id,
+                            requirement_type=req_data.get("type", "generic").lower(),
+                            requirement_data=req_data,
+                            is_mandatory=True,
+                        )
+                        db.add(requirement)
+                        stats["requirements_created"] += 1
+                        logger.debug(f"  Created requirement: {req_data}")
+                    except (ValueError, TypeError) as e:
+                        logger.warning(f"  Failed to create requirement: {e}")
 
-            # Parse and create rewards
-            rewards_data = parse_rewards(quest.rewards)
-            for reward_data in rewards_data:
-                try:
-                    reward = QuestReward(
-                        quest_id=quest.id,
-                        reward_type=reward_data.get("type", "item").lower(),
-                        reward_data=reward_data,
-                        reward_chance=1.0,
-                    )
-                    db.add(reward)
-                    stats["rewards_created"] += 1
-                    logger.debug(f"  Created reward: {reward_data}")
-                except (ValueError, TypeError) as e:
-                    logger.warning(f"  Failed to create reward: {e}")
+                # Parse and create rewards
+                rewards_data = parse_rewards(quest.rewards)
+                for reward_data in rewards_data:
+                    try:
+                        reward = QuestReward(
+                            quest_id=quest.id,
+                            reward_type=reward_data.get("type", "item").lower(),
+                            reward_data=reward_data,
+                            reward_chance=1.0,
+                        )
+                        db.add(reward)
+                        stats["rewards_created"] += 1
+                        logger.debug(f"  Created reward: {reward_data}")
+                    except (ValueError, TypeError) as e:
+                        logger.warning(f"  Failed to create reward: {e}")
 
-            # Flush per quest to persist changes and get IDs
-            await db.flush()
+                # Flush per quest to persist changes and get IDs
+                await db.flush()
 
-            stats["quests_updated"] += 1
+                stats["quests_updated"] += 1
 
         except Exception:
             logger.exception(f"Failed to process quest '{quest.title}':")
-            await db.rollback()
             continue
 
     await db.commit()

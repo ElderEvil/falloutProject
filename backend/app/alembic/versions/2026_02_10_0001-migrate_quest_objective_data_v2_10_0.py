@@ -11,7 +11,7 @@ import re
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 
 from alembic import op
 
@@ -312,22 +312,28 @@ def downgrade() -> None:
     if modified_quest_ids:
         # Delete quest rewards and requirements only for modified quests
         conn.execute(
-            text("DELETE FROM questreward WHERE quest_id IN :quest_ids"),
-            {"quest_ids": sa.bindparam("quest_ids", expanding=True)},
+            text("DELETE FROM questreward WHERE quest_id IN :quest_ids").bindparams(
+                bindparam("quest_ids", expanding=True)
+            ),
+            {"quest_ids": modified_quest_ids},
         )
         conn.execute(
-            text("DELETE FROM questrequirement WHERE quest_id IN :quest_ids"),
-            {"quest_ids": sa.bindparam("quest_ids", expanding=True)},
+            text("DELETE FROM questrequirement WHERE quest_id IN :quest_ids").bindparams(
+                bindparam("quest_ids", expanding=True)
+            ),
+            {"quest_ids": modified_quest_ids},
         )
 
         # Reset quest columns only for modified quests
         conn.execute(
-            text("""
+            text(
+                """
             UPDATE quest
             SET quest_type = NULL, quest_category = NULL, previous_quest_id = NULL, next_quest_id = NULL
             WHERE id IN :quest_ids
-        """),
-            {"quest_ids": sa.bindparam("quest_ids", expanding=True)},
+            """
+            ).bindparams(bindparam("quest_ids", expanding=True)),
+            {"quest_ids": modified_quest_ids},
         )
 
     # Reset objective columns only for rows that were modified (have objective_type set)

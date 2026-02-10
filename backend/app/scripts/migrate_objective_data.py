@@ -17,6 +17,7 @@ from app.core.db import async_session_maker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud import objective as objective_crud
+from app.models.vault_objective import VaultObjectiveProgressLink
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -126,8 +127,17 @@ async def migrate_objective_data(db: AsyncSession) -> dict:
         objective.target_entity = parsed["target"]
         objective.target_amount = parsed["amount"]
 
-        # Ensure total matches target_amount if not already set
-        objective.total = max(objective.total, parsed["amount"])
+        # Update total on VaultObjectiveProgressLink for each vault that has this objective
+        # (total is stored on the junction table, not on the Objective itself)
+        from sqlmodel import select
+
+        link_result = await db.execute(
+            select(VaultObjectiveProgressLink).where(VaultObjectiveProgressLink.objective_id == objective.id)
+        )
+        links = link_result.scalars().all()
+
+        for link in links:
+            link.total = max(link.total, parsed["amount"])
 
         stats["objectives_updated"] += 1
         logger.debug(f"  Set type={parsed['type']}, amount={parsed['amount']}, target={parsed['target']}")

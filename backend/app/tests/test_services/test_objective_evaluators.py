@@ -1,5 +1,7 @@
 """Tests for ObjectiveEvaluators."""
 
+from unittest.mock import patch
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,8 +31,25 @@ def fresh_event_bus():
     event_bus.clear()
 
 
+@pytest.fixture
+def patched_session_maker(async_session):
+    """Patch async_session_maker to use test session."""
+
+    class MockSessionMaker:
+        async def __aenter__(self):
+            return async_session
+
+        async def __aexit__(self, *args):
+            pass
+
+    with patch("app.services.objective_evaluators.async_session_maker", MockSessionMaker):
+        yield
+
+
 @pytest.mark.asyncio
-async def test_collect_evaluator_resource_collected(async_session: AsyncSession, fresh_event_bus) -> None:
+async def test_collect_evaluator_resource_collected(
+    async_session: AsyncSession, fresh_event_bus, patched_session_maker
+) -> None:
     """Test CollectEvaluator updates progress on resource event."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
@@ -106,7 +125,7 @@ async def test_collect_evaluator_wrong_resource(async_session: AsyncSession, fre
 
 
 @pytest.mark.asyncio
-async def test_build_evaluator_room_built(async_session: AsyncSession, fresh_event_bus) -> None:
+async def test_build_evaluator_room_built(async_session: AsyncSession, fresh_event_bus, patched_session_maker) -> None:
     """Test BuildEvaluator updates progress on room built."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
@@ -146,7 +165,9 @@ async def test_build_evaluator_room_built(async_session: AsyncSession, fresh_eve
 
 
 @pytest.mark.asyncio
-async def test_train_evaluator_dweller_trained(async_session: AsyncSession, fresh_event_bus) -> None:
+async def test_train_evaluator_dweller_trained(
+    async_session: AsyncSession, fresh_event_bus, patched_session_maker
+) -> None:
     """Test TrainEvaluator updates progress on training complete."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
@@ -188,7 +209,9 @@ async def test_train_evaluator_dweller_trained(async_session: AsyncSession, fres
 
 
 @pytest.mark.asyncio
-async def test_assign_evaluator_dweller_assigned(async_session: AsyncSession, fresh_event_bus) -> None:
+async def test_assign_evaluator_dweller_assigned(
+    async_session: AsyncSession, fresh_event_bus, patched_session_maker
+) -> None:
     """Test AssignEvaluator updates progress on dweller assignment."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
@@ -230,7 +253,9 @@ async def test_assign_evaluator_dweller_assigned(async_session: AsyncSession, fr
 
 
 @pytest.mark.asyncio
-async def test_reach_evaluator_population_reached(async_session: AsyncSession, fresh_event_bus) -> None:
+async def test_reach_evaluator_population_reached(
+    async_session: AsyncSession, fresh_event_bus, patched_session_maker
+) -> None:
     """Test ReachEvaluator completes when population target met."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))

@@ -8,17 +8,18 @@ Create Date: 2026-02-10 00:00:00.000000
 
 import json
 import re
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy import text
 
+from alembic import op
+
 # revision identifiers, used by Alembic.
 revision: str = "3c8d45e9f1a2"
-down_revision: Union[str, None] = "2675b30246ad"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "2675b30246ad"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -136,8 +137,8 @@ def upgrade() -> None:
 
         # Parse and create rewards
         if rewards_str and rewards_str.strip() and rewards_str.lower() not in ["none", "n/a", ""]:
-            # Split by comma
-            parts = [p.strip() for p in rewards_str.split(",")]
+            # Split by comma or 'and' (same as requirements)
+            parts = re.split(r",|\band\b", rewards_str, flags=re.IGNORECASE)
 
             for part in parts:
                 if not part:
@@ -312,11 +313,11 @@ def downgrade() -> None:
         # Delete quest rewards and requirements only for modified quests
         conn.execute(
             text("DELETE FROM questreward WHERE quest_id IN :quest_ids"),
-            {"quest_ids": tuple(modified_quest_ids)},
+            {"quest_ids": sa.bindparam("quest_ids", expanding=True)},
         )
         conn.execute(
             text("DELETE FROM questrequirement WHERE quest_id IN :quest_ids"),
-            {"quest_ids": tuple(modified_quest_ids)},
+            {"quest_ids": sa.bindparam("quest_ids", expanding=True)},
         )
 
         # Reset quest columns only for modified quests
@@ -326,7 +327,7 @@ def downgrade() -> None:
             SET quest_type = NULL, quest_category = NULL, previous_quest_id = NULL, next_quest_id = NULL
             WHERE id IN :quest_ids
         """),
-            {"quest_ids": tuple(modified_quest_ids)},
+            {"quest_ids": sa.bindparam("quest_ids", expanding=True)},
         )
 
     # Reset objective columns only for rows that were modified (have objective_type set)

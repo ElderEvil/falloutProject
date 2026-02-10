@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import UUID4, Field
 from sqlmodel import SQLModel
 
@@ -32,6 +34,22 @@ class QuestObjectiveJSON(SQLModel):
     title: str
 
 
+class QuestRequirementJSON(SQLModel):
+    """Schema for quest requirements in JSON files."""
+
+    requirement_type: str
+    requirement_data: dict[str, Any]
+    is_mandatory: bool = True
+
+
+class QuestRewardJSON(SQLModel):
+    """Schema for quest rewards in JSON files."""
+
+    reward_type: str
+    reward_data: dict[str, Any]
+    reward_chance: float = 1.0
+
+
 class QuestJSON(SQLModel):
     """Schema for individual quests in JSON files with field aliases for JSON compatibility."""
 
@@ -42,6 +60,13 @@ class QuestJSON(SQLModel):
     rewards: str = Field(alias="Rewards")
     # Quest objective can be a string or list of objects in the JSON
     quest_objective: str | list[QuestObjectiveJSON] | None = Field(default=None, alias="Quest objective")
+    # Structured requirements and rewards
+    quest_requirements: list[QuestRequirementJSON] = Field(default_factory=list)
+    quest_rewards: list[QuestRewardJSON] = Field(default_factory=list)
+    # Quest chain metadata
+    quest_type: str | None = Field(default=None)
+    quest_category: str | None = Field(default=None)
+    chain_order: int = Field(default=0)
 
 
 class QuestChainJSON(SQLModel):

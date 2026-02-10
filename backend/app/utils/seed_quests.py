@@ -7,6 +7,8 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.quest import Quest
+from app.models.quest_requirement import QuestRequirement, RequirementType
+from app.models.quest_reward import QuestReward, RewardType
 from app.schemas.quest import QuestJSON
 from app.utils.load_quests import load_all_quest_chain_files
 
@@ -14,8 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None = None) -> int:
-    """
-    Seed quests from JSON files into database if they don't already exist.
+    """Seed quests from JSON files into database if they don't already exist.
 
     Args:
         db_session: Database session
@@ -39,6 +40,10 @@ async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None
         existing_titles_result = await db_session.execute(select(Quest.title))
         existing_titles = set(existing_titles_result.scalars().all())
 
+        # Track seeded quests for requirement resolution
+        quest_name_to_id: dict[str, str] = {}
+        quests_to_commit: list[tuple[Quest, QuestJSON]] = []
+
         # Seed quests that don't exist yet
         seeded_count = 0
         for quest_json in all_quest_jsons:
@@ -54,12 +59,59 @@ async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None
                     rewards=quest_json.rewards,
                 )
                 db_session.add(quest)
+                quests_to_commit.append((quest, quest_json))
                 seeded_count += 1
                 logger.debug("Seeding quest: %s", quest_json.quest_name)
 
+        # Commit to get quest IDs
         if seeded_count > 0:
             await db_session.commit()
-            logger.info("Seeded %d new quests into database", seeded_count)
+
+            # Build name->id map for requirement resolution
+            for quest, quest_json in quests_to_commit:
+                await db_session.refresh(quest)
+                quest_name_to_id[quest_json.quest_name] = str(quest.id)
+
+            # Create requirements and rewards for each quest
+            for quest, quest_json in quests_to_commit:
+                # Create quest requirements
+                for req_json in quest_json.quest_requirements:
+                    requirement_data = dict(req_json.requirement_data)
+
+                    # For QUEST_COMPLETED type, resolve quest_name to quest_id
+                    if req_json.requirement_type.upper() == "QUEST_COMPLETED":
+                        quest_name = requirement_data.get("quest_name")
+                        if quest_name and quest_name in quest_name_to_id:
+                            requirement_data["quest_id"] = quest_name_to_id[quest_name]
+                            # Remove quest_name to keep only quest_id
+                            del requirement_data["quest_name"]
+
+                    try:
+                        requirement = QuestRequirement(
+                            quest_id=quest.id,
+                            requirement_type=RequirementType(req_json.requirement_type.lower()),
+                            requirement_data=requirement_data,
+                            is_mandatory=req_json.is_mandatory,
+                        )
+                        db_session.add(requirement)
+                    except ValueError as e:
+                        logger.warning(f"Failed to create requirement for quest '{quest.title}': {e}")
+
+                # Create quest rewards
+                for reward_json in quest_json.quest_rewards:
+                    try:
+                        reward = QuestReward(
+                            quest_id=quest.id,
+                            reward_type=RewardType(reward_json.reward_type.lower()),
+                            reward_data=reward_json.reward_data,
+                            reward_chance=reward_json.reward_chance,
+                        )
+                        db_session.add(reward)
+                    except ValueError as e:
+                        logger.warning(f"Failed to create reward for quest '{quest.title}': {e}")
+
+            await db_session.commit()
+            logger.info("Seeded %d new quests with requirements and rewards", seeded_count)
         else:
             logger.info("No new quests to seed, all quests already exist in database")
         return seeded_count

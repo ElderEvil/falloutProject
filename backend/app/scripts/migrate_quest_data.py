@@ -87,8 +87,8 @@ def parse_rewards(rewards_str: str) -> list[dict]:
     if not rewards_str:
         return rewards
 
-    # Split by comma
-    parts = [p.strip() for p in rewards_str.split(",")]
+    # Split by comma or 'and'
+    parts = re.split(r",|\band\b", rewards_str, flags=re.IGNORECASE)
 
     for part in parts:
         if not part:

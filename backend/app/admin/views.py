@@ -124,9 +124,11 @@ class DwellerAdmin(ModelView, model=Dweller):
     ]
 
     column_formatters = {
-        Dweller.bio: lambda m, a: (m.bio[:TRUNCATE_LENGTH] + "...")  # noqa: ARG005
-        if m.bio and len(m.bio) > TRUNCATE_LENGTH
-        else m.bio,
+        Dweller.bio: lambda m, a: (
+            (m.bio[:TRUNCATE_LENGTH] + "...")  # noqa: ARG005
+            if m.bio and len(m.bio) > TRUNCATE_LENGTH
+            else m.bio
+        ),
     }
 
     icon = "fa-solid fa-person"

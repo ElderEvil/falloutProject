@@ -136,7 +136,8 @@ class ConversationService:
         # Upload user audio to MinIO (optional, for history)
         user_audio_url = None
         if self.storage_service.enabled:
-            user_audio_filename = f"chat/{user.id}/{dweller_id}/user_{uuid4()}.{audio_filename.split('.')[-1]}"
+            ext = audio_filename.rsplit(".", maxsplit=1)[-1]
+            user_audio_filename = f"chat/{user.id}/{dweller_id}/user_{uuid4()}.{ext}"
             user_audio_url = self.storage_service.upload_file(
                 file_data=audio_bytes,
                 file_name=user_audio_filename,

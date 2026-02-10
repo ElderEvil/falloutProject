@@ -2,7 +2,7 @@
 
 import logging
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 import aiosmtplib
 import httpx
@@ -25,7 +25,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-class ServiceStatus(str, Enum):
+class ServiceStatus(StrEnum):
     """Health check status enum."""
 
     HEALTHY = "healthy"

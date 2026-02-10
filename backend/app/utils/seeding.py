@@ -6,6 +6,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TypeVar
 
+import anyio
 from pydantic import BaseModel, ValidationError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -41,15 +42,16 @@ async def seed_from_json(
         Number of records seeded
     """
     try:
-        if not directory.exists():
+        anyio_path = anyio.Path(directory)
+        if not await anyio_path.exists():
             logger.warning("Directory not found: %s", directory)
             return 0
 
         # Load all data from JSON files
         all_data: list[T] = []
-        for json_file in directory.glob(file_pattern):
+        async for json_file in anyio_path.glob(file_pattern):
             try:
-                with json_file.open("r", encoding="utf-8") as f:
+                async with await json_file.open("r", encoding="utf-8") as f:
                     data = json.load(f)
                     if isinstance(data, list):
                         validated = [schema_class.model_validate(item) for item in data]

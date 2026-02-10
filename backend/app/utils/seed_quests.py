@@ -15,7 +15,9 @@ from app.utils.load_quests import load_all_quest_chain_files
 logger = logging.getLogger(__name__)
 
 
-async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None = None) -> int:
+async def seed_quests_from_json(  # noqa: C901, PLR0912, PLR0915
+    db_session: AsyncSession, quest_dir: Path | None = None
+) -> int:
     """Seed quests from JSON files into database if they don't already exist.
 
     Args:

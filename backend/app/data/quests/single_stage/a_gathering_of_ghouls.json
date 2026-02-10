@@ -4,5 +4,12 @@
   "Quest objective": "Eliminate the Glowing One.",
   "Short description": "Confront a Glowing One and its Ghoul minions.",
   "Requirements": "Level 27 dwellers, 12+ DAM weapons",
-  "Rewards": "Combat shotgun, Rare outfit, 550 caps"
+  "Rewards": "Combat shotgun, Rare outfit, 550 caps",
+  "quest_requirements": [
+    {"requirement_type": "dweller_level", "requirement_data": {"min_level": 27}, "is_mandatory": true},
+    {"requirement_type": "weapon_damage", "requirement_data": {"min_damage": 12}, "is_mandatory": true}
+  ],
+  "quest_rewards": [
+    {"reward_type": "caps", "reward_data": {"amount": 550}, "reward_chance": 1.0}
+  ]
 }

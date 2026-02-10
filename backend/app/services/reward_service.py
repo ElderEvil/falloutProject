@@ -194,6 +194,156 @@ class RewardService:
             "leveled_up": leveled_up,
         }
 
+    async def grant_stimpak(self, db_session: AsyncSession, vault_id: UUID4, amount: int) -> dict[str, Any]:
+        """Grant stimpaks to random dweller in vault."""
+        from app.crud.dweller import dweller as dweller_crud
+
+        # Get dwellers in vault
+        dwellers = await dweller_crud.get_multi(db_session, skip=0, limit=100, vault_id=vault_id)
+        dwellers = [d for d in dwellers if not d.is_deleted]
+
+        if not dwellers:
+            logger.warning(f"No dwellers found in vault {vault_id} to grant stimpaks")
+            return {"reward_type": RewardType.STIMPAK, "amount": 0, "message": "No dwellers found"}
+
+        # Grant to random dweller
+        dweller = dwellers[0]
+        dweller.stimpack = (dweller.stimpack or 0) + amount
+        db_session.add(dweller)
+        await db_session.commit()
+
+        logger.info(f"Granted {amount} stimpaks to dweller {dweller.first_name} in vault {vault_id}")
+        return {"reward_type": RewardType.STIMPAK, "amount": amount, "dweller_id": str(dweller.id)}
+
+    async def grant_radaway(self, db_session: AsyncSession, vault_id: UUID4, amount: int) -> dict[str, Any]:
+        """Grant radaways to random dweller in vault."""
+        from app.crud.dweller import dweller as dweller_crud
+
+        # Get dwellers in vault
+        dwellers = await dweller_crud.get_multi(db_session, skip=0, limit=100, vault_id=vault_id)
+        dwellers = [d for d in dwellers if not d.is_deleted]
+
+        if not dwellers:
+            logger.warning(f"No dwellers found in vault {vault_id} to grant radaways")
+            return {"reward_type": RewardType.RADAWAY, "amount": 0, "message": "No dwellers found"}
+
+        # Grant to random dweller
+        dweller = dwellers[0]
+        dweller.radaway = (dweller.radaway or 0) + amount
+        db_session.add(dweller)
+        await db_session.commit()
+
+        logger.info(f"Granted {amount} radaways to dweller {dweller.first_name} in vault {vault_id}")
+        return {"reward_type": RewardType.RADAWAY, "amount": amount, "dweller_id": str(dweller.id)}
+
+    async def grant_lunchbox(self, db_session: AsyncSession, vault_id: UUID4) -> dict[str, Any]:
+        """Grant a lunchbox (gives random rare dwellers/items).
+
+        Lunchbox rewards give:
+        - 3 random items (weapons or outfits)
+        - 1 random dweller
+        """
+        import random
+
+        from app.crud.dweller import dweller as dweller_crud
+        from app.models.outfit import Outfit
+        from app.models.storage import Storage
+        from app.models.weapon import Weapon
+        from app.schemas.common import GenderEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
+        from sqlmodel import select
+
+        # Generate 3 random items
+        item_configs = [
+            ("Laser Pistol", WeaponTypeEnum.ENERGY, WeaponSubtypeEnum.PISTOL, "luck"),
+            ("Plasma Pistol", WeaponTypeEnum.ENERGY, WeaponSubtypeEnum.PISTOL, "luck"),
+            ("Assault Rifle", WeaponTypeEnum.GUN, WeaponSubtypeEnum.RIFLE, "agility"),
+            ("Vault Suit", OutfitTypeEnum.SUIT, None, "endurance"),
+            ("Combat Armor", OutfitTypeEnum.ARMOR, None, "endurance"),
+        ]
+        granted_items = []
+        for _ in range(3):
+            name, wtype, subtype, stat = random.choice(item_configs)
+
+            rarity = random.choices(
+                [RarityEnum.COMMON, RarityEnum.UNCOMMON, RarityEnum.RARE],
+                weights=[0.6, 0.3, 0.1],
+            )[0]
+
+            if wtype in (WeaponTypeEnum.MELEE, WeaponTypeEnum.GUN, WeaponTypeEnum.ENERGY, WeaponTypeEnum.HEAVY):
+                item = Weapon(
+                    name=name,
+                    rarity=rarity.value,
+                    weapon_type=wtype,
+                    weapon_subtype=subtype,
+                    stat=stat,
+                    damage_min=random.randint(2, 5),
+                    damage_max=random.randint(5, 10),
+                    value=random.randint(50, 200),
+                )
+            else:
+                gender = random.choice([GenderEnum.MALE, GenderEnum.FEMALE])
+                item = Outfit(
+                    name=name,
+                    rarity=rarity.value,
+                    outfit_type=wtype,
+                    gender=gender,
+                    value=random.randint(30, 100),
+                )
+
+            # Get storage
+            result = await db_session.execute(select(Storage).where(Storage.vault_id == vault_id))
+            storage = result.scalar_one_or_none()
+            if storage:
+                item.storage_id = storage.id
+                db_session.add(item)
+                granted_items.append(
+                    {"name": name, "type": "weapon" if isinstance(item, Weapon) else "outfit", "rarity": rarity.value}
+                )
+
+        # Generate random dweller
+        dweller_data = {
+            "first_name": random.choice(
+                [
+                    "Albert",
+                    "Brian",
+                    "Charles",
+                    "David",
+                    "Edward",
+                    "Frank",
+                    "Amy",
+                    "Betty",
+                    "Carol",
+                    "Donna",
+                    "Emily",
+                    "Fiona",
+                ]
+            ),
+            "last_name": random.choice(["Smith", "Johnson", "Williams", "Brown", "Jones", "Miller"]),
+            "rarity": random.choice([RarityEnum.COMMON, RarityEnum.UNCOMMON, RarityEnum.RARE, RarityEnum.LEGENDARY]),
+            "level": random.randint(1, 5),
+            "gender": random.choice([GenderEnum.MALE, GenderEnum.FEMALE]),
+        }
+        granted_dweller = await self.grant_dweller(db_session, vault_id, dweller_data)
+
+        await db_session.commit()
+
+        logger.info(f"Granted lunchbox to vault {vault_id}: {len(granted_items)} items, 1 dweller")
+        return {
+            "reward_type": RewardType.LUNCHBOX,
+            "items": granted_items,
+            "dweller": granted_dweller,
+        }
+        granted_dweller = await self.grant_dweller(db_session, vault_id, dweller_data)
+
+        await db_session.commit()
+
+        logger.info(f"Granted lunchbox to vault {vault_id}: {len(granted_items)} items, 1 dweller")
+        return {
+            "reward_type": RewardType.LUNCHBOX,
+            "items": granted_items,
+            "dweller": granted_dweller,
+        }
+
     async def process_quest_rewards(
         self, db_session: AsyncSession, vault_id: UUID4, quest: Quest
     ) -> list[dict[str, Any]]:
@@ -261,6 +411,12 @@ class RewardService:
                 return await self.grant_experience(
                     db_session, reward_data.get("dweller_ids", []), reward_data.get("amount", 0)
                 )
+            case RewardType.STIMPAK:
+                return await self.grant_stimpak(db_session, vault_id, reward_data.get("amount", 1))
+            case RewardType.RADAWAY:
+                return await self.grant_radaway(db_session, vault_id, reward_data.get("amount", 1))
+            case RewardType.LUNCHBOX:
+                return await self.grant_lunchbox(db_session, vault_id)
             case _:
                 msg = f"Unknown reward type: {reward_type_str}"
                 raise ValueError(msg)

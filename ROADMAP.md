@@ -84,6 +84,7 @@ AI-powered dweller interactions.
 - Implement TODO stub in `celery_task.py:26`
 - Fix session isolation issues in 2 test files
 - Address N+1 query patterns in game loop
+- **Parse objective text to structured data** - Auto-extract `objective_type`, `target_entity`, and `target_amount` from challenge text (e.g., "Collect 100 Caps" → collect, {resource_type: caps}, 100) instead of hardcoded mappings
 
 ### v2.8.0 - Easter Eggs & UI Fixes (January 29, 2026)
 

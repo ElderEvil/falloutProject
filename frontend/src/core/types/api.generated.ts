@@ -406,6 +406,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/debug/objectives/{vault_id}/test-collect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Collect Objective
+         * @description Test RESOURCE_COLLECTED event and check if objective progress updates.
+         */
+        post: operations["test_collect_objective_api_v1_debug_objectives__vault_id__test_collect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/debug/evaluators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Debug Evaluators
+         * @description Check which evaluators are subscribed to which events.
+         */
+        get: operations["debug_evaluators_api_v1_debug_evaluators_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dwellers/": {
         parameters: {
             query?: never;
@@ -6806,6 +6846,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_collect_objective_api_v1_debug_objectives__vault_id__test_collect_post: {
+        parameters: {
+            query?: {
+                resource_type?: string;
+                amount?: number;
+            };
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    debug_evaluators_api_v1_debug_evaluators_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

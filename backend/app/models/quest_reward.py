@@ -17,6 +17,9 @@ class RewardType(StrEnum):
     DWELLER = "dweller"
     RESOURCE = "resource"
     EXPERIENCE = "experience"
+    STIMPAK = "stimpak"
+    RADAWAY = "radaway"
+    LUNCHBOX = "lunchbox"
 
 
 class QuestRewardBase(SQLModel):

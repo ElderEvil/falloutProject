@@ -48,6 +48,9 @@ class QuestRewardJSON(SQLModel):
     reward_type: str
     reward_data: dict[str, Any]
     reward_chance: float = 1.0
+    # Optional item definition for ITEM type rewards
+    # When reward_type is "item", this defines the item to be created
+    item_data: dict[str, Any] | None = Field(default=None, validation_alias="item_data")
 
 
 class QuestJSON(SQLModel):

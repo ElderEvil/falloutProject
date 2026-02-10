@@ -9,6 +9,8 @@
     {"requirement_type": "dweller_level", "requirement_data": {"min_level": 46}, "is_mandatory": true}
   ],
   "quest_rewards": [
-    {"reward_type": "caps", "reward_data": {"amount": 200}, "reward_chance": 1.0}
+    {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary Junk", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Legendary Junk", "rarity": "legendary", "value": 50}},
+    {"reward_type": "ITEM", "reward_data": {"item_name": "Rare Weapon", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Rare Weapon", "rarity": "rare", "value": 100}},
+    {"reward_type": "CAPS", "reward_data": {"amount": 200}, "reward_chance": 1.0}
   ]
 }

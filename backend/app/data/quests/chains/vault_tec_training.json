@@ -22,17 +22,20 @@
         {
           "reward_type": "ITEM",
           "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 15},
-          "reward_chance": 1.0
+          "reward_chance": 1.0,
+          "item_data": {"name": "Nuka-Cola Quantum", "rarity": "rare", "value": 30}
         },
         {
           "reward_type": "ITEM",
           "reward_data": {"item_name": "Lunchbox", "quantity": 1},
-          "reward_chance": 1.0
+          "reward_chance": 1.0,
+          "item_data": {"name": "Lunchbox", "rarity": "legendary", "value": 100}
         },
         {
           "reward_type": "ITEM",
           "reward_data": {"item_name": "Pool cue", "quantity": 1},
-          "reward_chance": 1.0
+          "reward_chance": 1.0,
+          "item_data": {"name": "Pool cue", "rarity": "rare", "value": 100}
         },
         {
           "reward_type": "CAPS",
@@ -65,7 +68,8 @@
         {
           "reward_type": "ITEM",
           "reward_data": {"item_name": "Stimpak", "quantity": 5},
-          "reward_chance": 1.0
+          "reward_chance": 1.0,
+          "item_data": {"name": "Stimpak", "rarity": "common", "value": 25}
         }
       ]
     },
@@ -98,7 +102,8 @@
         {
           "reward_type": "ITEM",
           "reward_data": {"item_name": "Power Armor", "quantity": 1},
-          "reward_chance": 0.5
+          "reward_chance": 0.5,
+          "item_data": {"name": "Power Armor", "rarity": "legendary", "value": 500}
         }
       ]
     },
@@ -131,12 +136,14 @@
         {
           "reward_type": "ITEM",
           "reward_data": {"item_name": "Lunchbox", "quantity": 5},
-          "reward_chance": 1.0
+          "reward_chance": 1.0,
+          "item_data": {"name": "Lunchbox", "rarity": "legendary", "value": 100}
         },
         {
           "reward_type": "ITEM",
           "reward_data": {"item_name": "Legendary Dweller", "quantity": 1},
-          "reward_chance": 1.0
+          "reward_chance": 1.0,
+          "item_data": {"name": "Legendary Dweller", "rarity": "legendary", "value": 500}
         }
       ]
     }

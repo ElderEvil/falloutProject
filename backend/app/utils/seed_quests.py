@@ -6,6 +6,7 @@ from pathlib import Path
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.models import Item
 from app.models.quest import Quest
 from app.models.quest_requirement import QuestRequirement, RequirementType
 from app.models.quest_reward import QuestReward, RewardType
@@ -89,9 +90,8 @@ async def seed_quests_from_json(  # noqa: C901, PLR0912, PLR0915
         for quest_json in all_quest_jsons:
             # Handle requirements - can be string, list of strings, or list of QuestJSON (from chain format)
             reqs = quest_json.requirements
-            if reqs is None:
-                req_str = ""
-            elif isinstance(reqs, str):
+            req_str = ""
+            if isinstance(reqs, str):
                 req_str = reqs
             elif isinstance(reqs, list):
                 # Check if it's a list of strings or list of QuestJSON
@@ -173,6 +173,25 @@ async def seed_quests_from_json(  # noqa: C901, PLR0912, PLR0915
                             reward_chance=reward_json.reward_chance,
                         )
                         db_session.add(reward)
+
+                        # Create item from item_data if reward_type is ITEM and item_data is provided
+                        if reward_json.reward_type.upper() == "ITEM" and reward_json.item_data:
+                            item_name = reward_json.item_data.get("name")
+                            if item_name:
+                                # Check if item already exists
+                                existing_item = await db_session.execute(select(Item).where(Item.name == item_name))
+                                existing = existing_item.scalars().first()
+                                if not existing:
+                                    # Create the item
+                                    item = Item(
+                                        name=item_name,
+                                        rarity=reward_json.item_data.get("rarity", "common"),
+                                        value=reward_json.item_data.get("value"),
+                                        image_url=reward_json.item_data.get("image_url"),
+                                    )
+                                    db_session.add(item)
+                                    logger.debug(f"Created item '{item_name}' from quest reward")
+
                     except ValueError as e:
                         logger.warning(f"Failed to create reward for quest '{quest.title}': {e}")
 

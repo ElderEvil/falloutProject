@@ -3,6 +3,7 @@ from .dweller import Dweller
 from .exploration import Exploration
 from .game_state import GameState
 from .incident import Incident, IncidentStatus, IncidentType
+from .item import Item
 from .junk import Junk
 from .llm_interaction import LLMInteraction
 from .notification import Notification, NotificationCreate, NotificationRead

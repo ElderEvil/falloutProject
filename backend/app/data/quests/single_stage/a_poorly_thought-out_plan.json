@@ -9,7 +9,9 @@
     {"requirement_type": "dweller_level", "requirement_data": {"min_level": 44}, "is_mandatory": true}
   ],
   "quest_rewards": [
-    {"reward_type": "lunchbox", "reward_data": {}, "reward_chance": 1.0},
-    {"reward_type": "caps", "reward_data": {"amount": 500}, "reward_chance": 1.0}
+    {"reward_type": "LUNCHBOX", "reward_data": {"quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Lunchbox", "rarity": "legendary", "value": 100}},
+    {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary Junk", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Legendary Junk", "rarity": "legendary", "value": 50}},
+    {"reward_type": "ITEM", "reward_data": {"item_name": "Plasma Rifle", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Plasma Rifle", "rarity": "rare", "value": 100}},
+    {"reward_type": "CAPS", "reward_data": {"amount": 500}, "reward_chance": 1.0}
   ]
 }

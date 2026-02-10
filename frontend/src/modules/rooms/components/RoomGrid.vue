@@ -47,49 +47,14 @@ const trainingStore = useTrainingStore()
 const toast = useToast()
 const rooms = computed(() => (Array.isArray(roomStore.rooms) ? roomStore.rooms : []))
 
-// Helper to get room image URL with detailed logging (dev only)
+// Helper to get room image URL
 const getRoomImageUrl = (room: Room): string | null => {
-  if (import.meta.env.DEV) {
-    console.group(`🖼️ Room Image: ${room.name}`)
-    console.log('Room ID:', room.id)
-    console.log('Room tier:', room.tier)
-    console.log('Room size:', room.size)
-    console.log('Image URL from backend:', room.image_url)
-
-    if (!room.image_url) {
-      console.error('❌ NO IMAGE URL')
-      console.groupEnd()
-      return null
-    }
-
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
-    const finalUrl = `${baseUrl}${room.image_url}`
-    console.log('✅ Final URL:', finalUrl)
-    console.groupEnd()
-    return finalUrl
-  } else if (!room.image_url) {
+  if (!room.image_url) {
     return null
   }
   const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
   return `${baseUrl}${room.image_url}`
 }
-
-// Watch rooms to log when they change (dev only)
-watch(
-  rooms,
-  (newRooms) => {
-    if (import.meta.env.DEV) {
-      console.log('🏠 Rooms updated, count:', newRooms.length)
-      if (newRooms.length > 0) {
-        console.log('First room sample:', {
-          name: newRooms[0].name,
-          image_url: newRooms[0].image_url,
-        })
-      }
-    }
-  },
-  { immediate: true }
-)
 
 // Power outage logic
 const isPowerOutage = computed(() => {
@@ -156,7 +121,6 @@ const placeRoom = async (x: number, y: number) => {
   // Get vault ID from route
   const vaultId = route.params.id as string
   if (!vaultId) {
-    console.error('No vault ID available')
     toast.error('No vault ID available')
     return
   }
@@ -236,13 +200,6 @@ const handleDragOver = (event: DragEvent, roomId: string) => {
 
 const handleDragLeave = () => {
   draggingOverRoomId.value = null
-}
-
-// Handle room image load error (dev-only logging)
-const handleRoomImageError = (roomName: string, imageUrl: string | null) => {
-  if (import.meta.env.DEV) {
-    console.error('Failed to load room image:', roomName, imageUrl)
-  }
 }
 
 const handleDrop = async (event: DragEvent, roomId: string) => {
@@ -435,7 +392,6 @@ const closeDetailModal = () => {
             :alt="room.name"
             class="room-background-image"
             draggable="false"
-            @error="handleRoomImageError(room.name, getRoomImageUrl(room))"
           />
           <div class="room-info-overlay">
             <div class="room-header">

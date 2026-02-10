@@ -326,6 +326,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/debug/emit/{vault_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Emit Test Event
+         * @description Emit a test event to the EventBus for debugging objectives.
+         */
+        post: operations["emit_test_event_api_v1_debug_emit__vault_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/debug/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Subscribed Events
+         * @description List all currently subscribed events and their handlers.
+         */
+        get: operations["list_subscribed_events_api_v1_debug_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/debug/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Debug Health
+         * @description Debug health check endpoint.
+         */
+        get: operations["debug_health_api_v1_debug_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dwellers/": {
         parameters: {
             query?: never;
@@ -1388,6 +1448,26 @@ export interface paths {
          * @description Update the progress of an objective for a vault.
          */
         post: operations["update_objective_progress_api_v1_objectives__vault_id___objective_id__progress_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/objectives/{vault_id}/assign-random": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Assign Random Objectives
+         * @description Assign random available objectives to a vault (for testing/debugging).
+         */
+        post: operations["assign_random_objectives_api_v1_objectives__vault_id__assign_random_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4188,6 +4268,11 @@ export interface components {
          */
         FactionEnum: "none" | "vault_dweller" | "brotherhood_of_steel" | "enclave" | "minutemen" | "raiders" | "super_mutant_tribe" | "children_of_atom" | "the_institute" | "railroad" | "ncr" | "caesars_legion";
         /**
+         * GameEvent
+         * @enum {string}
+         */
+        GameEvent: "resource_collected" | "room_built" | "room_upgraded" | "dweller_trained" | "dweller_assigned" | "dweller_level_up" | "item_collected" | "quest_completed" | "objective_completed";
+        /**
          * GenderEnum
          * @enum {string}
          */
@@ -6595,6 +6680,85 @@ export interface operations {
             };
         };
     };
+    emit_test_event_api_v1_debug_emit__vault_id__post: {
+        parameters: {
+            query: {
+                event_type: components["schemas"]["GameEvent"];
+            };
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                } | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_subscribed_events_api_v1_debug_events_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    debug_health_api_v1_debug_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
     read_dweller_list_api_v1_dwellers__get: {
         parameters: {
             query?: {
@@ -8583,6 +8747,39 @@ export interface operations {
             path: {
                 vault_id: string;
                 objective_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assign_random_objectives_api_v1_objectives__vault_id__assign_random_post: {
+        parameters: {
+            query?: {
+                count?: number;
+            };
+            header?: never;
+            path: {
+                vault_id: string;
             };
             cookie?: never;
         };

@@ -53,9 +53,11 @@ class EventBus:
     async def emit(self, event_type: GameEvent, vault_id: UUID4, data: dict[str, Any]) -> None:
         handlers = self._handlers.get(event_type, [])
         if not handlers:
+            logger.debug(f"[EVENT] No handlers for {event_type}, skipping (vault: {vault_id})")
             return
 
-        logger.debug(f"Emitting {event_type} for vault {vault_id} to {len(handlers)} handler(s)")
+        logger.info(f"[EVENT] Emitting {event_type} for vault {vault_id} to {len(handlers)} handler(s): {data}")
+        logger.debug(f"[EVENT] Handlers: {[h.__name__ for h in handlers]}")
 
         results = await asyncio.gather(
             *[self._safe_call(handler, event_type, vault_id, data) for handler in handlers],

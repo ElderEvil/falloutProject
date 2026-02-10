@@ -10,14 +10,14 @@
     "challenge": "Daily: Build 2 Rooms",
     "reward": "500 Caps",
     "objective_type": "build",
-    "target_entity": {"entity_type": "room"},
+    "target_entity": {"room_type": "*"},
     "target_amount": 2
   },
   {
     "challenge": "Daily: Assign 3 Dwellers",
     "reward": "300 Caps",
     "objective_type": "assign",
-    "target_entity": {"entity_type": "dweller", "action": "assign"},
+    "target_entity": {},
     "target_amount": 3
   },
   {
@@ -31,7 +31,7 @@
     "challenge": "Daily: Train 2 Dwellers",
     "reward": "450 Caps",
     "objective_type": "train",
-    "target_entity": {"entity_type": "dweller", "action": "train"},
+    "target_entity": {},
     "target_amount": 2
   }
 ]

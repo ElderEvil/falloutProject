@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     auth,
     chat,
+    debug,
     dweller,
     exploration,
     game_control,
@@ -29,6 +30,7 @@ api_router = APIRouter()
 api_router.include_router(system.router, prefix="/system", tags=["System"])
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(chat.router, prefix="/chat", tags=["Chat"])
+api_router.include_router(debug.router, prefix="/debug", tags=["Debug"])
 api_router.include_router(dweller.router, prefix="/dwellers", tags=["Dweller"])
 api_router.include_router(exploration.router, prefix="/explorations", tags=["Exploration"])
 api_router.include_router(game_control.router, prefix="/game", tags=["Game"])

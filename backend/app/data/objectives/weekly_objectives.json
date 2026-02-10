@@ -10,14 +10,14 @@
     "challenge": "Weekly: Build 10 Rooms",
     "reward": "2000 Caps",
     "objective_type": "build",
-    "target_entity": {"entity_type": "room"},
+    "target_entity": {"room_type": "*"},
     "target_amount": 10
   },
   {
     "challenge": "Weekly: Reach 30 Dwellers",
     "reward": "3000 Caps",
     "objective_type": "reach",
-    "target_entity": {"entity_type": "dweller", "count": 30},
+    "target_entity": {"reach_type": "dweller_count"},
     "target_amount": 30
   }
 ]

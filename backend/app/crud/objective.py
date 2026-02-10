@@ -119,8 +119,15 @@ class CRUDObjective(
         link = result.scalar_one_or_none()
 
         if not link:
-            # Create new link if it doesn't exist
-            link = self.link_model(vault_id=vault_id, objective_id=objective_id, progress=progress, total=1)
+            # Get the objective to fetch target_amount
+            objective = await self.get(db_session, objective_id)
+            target_amount = objective.target_amount if objective else 1
+            link = self.link_model(
+                vault_id=vault_id,
+                objective_id=objective_id,
+                progress=progress,
+                total=target_amount,
+            )
             db_session.add(link)
         else:
             # Update progress
@@ -132,6 +139,22 @@ class CRUDObjective(
         await db_session.commit()
         await db_session.refresh(link)
         return link
+
+    async def get_multi_complete(
+        self, db_session: AsyncSession, skip: int = 0, limit: int = 100
+    ) -> Sequence[Objective]:
+        from sqlalchemy import text
+
+        query = (
+            select(self.model)
+            .where(self.model.objective_type.is_not(None))
+            .where(text("target_entity IS NOT NULL"))
+            .where(self.model.target_amount > 1)
+            .offset(skip)
+            .limit(limit)
+        )
+        response = await db_session.execute(query)
+        return response.scalars().all()
 
 
 objective_crud = CRUDObjective(Objective, VaultObjectiveProgressLink)

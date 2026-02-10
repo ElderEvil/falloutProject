@@ -536,13 +536,11 @@ class GameLoopService:
                     # Keep broad exception for individual incident processing
                     self.logger.error(f"Error processing incident {incident.id}: {e}", exc_info=True)  # noqa: G201
 
-            # Batch update vault caps (single query instead of N queries)
+            # Batch update vault caps and emit event for objectives
             if total_caps_earned > 0:
                 vault = await vault_crud.get(db_session, vault_id)
                 if vault:
-                    await vault_crud.update(
-                        db_session, vault_id, {"bottle_caps": vault.bottle_caps + total_caps_earned}
-                    )
+                    await vault_crud.deposit_caps(db_session=db_session, vault_obj=vault, amount=total_caps_earned)
                     stats["caps_earned"] = total_caps_earned
                     self.logger.info(f"Awarded {total_caps_earned} caps to vault {vault_id} from incidents")
 

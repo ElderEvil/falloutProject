@@ -49,13 +49,17 @@ class ObjectiveEvaluator(abc.ABC):
             self._event_bus.unsubscribe(event_type, self._handle_event)
 
     async def _handle_event(self, event_type: str, vault_id: UUID4, data: dict[str, Any]) -> None:
+        logger.debug(f"[DEBUG] {self.__class__.__name__} received {event_type} for vault {vault_id} with data: {data}")
         async with async_session_maker() as db_session:
             try:
                 objectives = await self._get_active_objectives(db_session, vault_id)
                 for objective, link in objectives:
                     if self._matches(objective, event_type, data):
+                        logger.debug(f"[DEBUG] MATCH: Objective '{objective.challenge}' matches {event_type}")
                         amount = self._extract_amount(data)
                         await self._update_progress(db_session, vault_id, objective, link, amount)
+                    else:
+                        logger.debug(f"[DEBUG] NO MATCH: Objective '{objective.challenge}' does not match {event_type}")
             except Exception:
                 logger.exception(f"{self.__class__.__name__} failed handling {event_type} for vault {vault_id}")
 
@@ -72,7 +76,9 @@ class ObjectiveEvaluator(abc.ABC):
             )
         )
         result = await db_session.execute(query)
-        return list(result.all())
+        objectives = list(result.all())
+        logger.debug(f"Found {len(objectives)} active '{self.objective_type}' objectives for vault {vault_id}")
+        return objectives
 
     @abc.abstractmethod
     def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:
@@ -323,7 +329,8 @@ class ObjectiveEvaluatorManager:
         for cls in evaluator_classes:
             evaluator = cls(self._event_bus)
             self._evaluators.append(evaluator)
-            logger.info(f"Registered {cls.__name__} for '{cls.objective_type}' objectives")
+            logger.info(f"[INIT] Registered {cls.__name__} for '{cls.objective_type}' objectives")
+            logger.debug(f"[INIT] Subscribed to events: {cls.subscribed_events}")
 
         self._initialized = True
         logger.info(f"ObjectiveEvaluatorManager initialized with {len(self._evaluators)} evaluator(s)")

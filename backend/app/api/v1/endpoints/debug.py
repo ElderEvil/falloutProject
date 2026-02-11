@@ -84,7 +84,7 @@ async def debug_objectives(vault_id: UUID4, session: AsyncSession = Depends(get_
         .join(VaultObjectiveProgressLink)
         .where(VaultObjectiveProgressLink.vault_id == vault_id)
     )
-    vault_objectives = [{"objective": obj, "link": link} for obj, link in vault_objectives_result.all()]
+    vault_objectives = [(obj, link) for obj, link in vault_objectives_result.all()]
 
     # Check for incomplete objectives (missing required fields)
     incomplete = [

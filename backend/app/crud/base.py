@@ -147,6 +147,8 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         db_session: AsyncSession,
         id: int | UUID4,
         obj_in: UpdateSchemaType | dict[str, Any],
+        *,
+        commit: bool = True,
     ) -> ModelType:
         """
         Updates an existing item of the specified model type in the database.
@@ -154,6 +156,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         :param db_session: A database session.
         :param id: The ID of the object to update.
         :param obj_in: A new version of an object to update to, either as a SQLModel instance or a dictionary.
+        :param commit: Whether to commit the transaction (default: True).
         :returns: The updated item, with any changes persisted to the database.
         """
         db_obj = await self.get(db_session=db_session, id=id)
@@ -163,7 +166,8 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             setattr(db_obj, field, value)
 
         db_session.add(db_obj)
-        await db_session.commit()
+        if commit:
+            await db_session.commit()
         await db_session.refresh(db_obj)
         return db_obj
 

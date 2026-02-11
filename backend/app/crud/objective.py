@@ -147,12 +147,17 @@ class CRUDObjective(
     async def get_multi_complete(
         self, db_session: AsyncSession, skip: int = 0, limit: int = 100
     ) -> Sequence[Objective]:
-        from sqlalchemy import text
+        """Get objectives with all required fields for completion tracking.
 
+        Complete objectives have:
+        - objective_type is not None
+        - target_entity is not None (can be None for some types like assign)
+        - target_amount > 1
+        """
         query = (
             select(self.model)
             .where(self.model.objective_type.is_not(None))
-            .where(text("target_entity IS NOT NULL"))
+            .where(self.model.target_entity.is_not(None))
             .where(self.model.target_amount > 1)
             .offset(skip)
             .limit(limit)

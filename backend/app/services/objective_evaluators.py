@@ -51,17 +51,20 @@ class ObjectiveEvaluator(abc.ABC):
     async def _handle_event(self, event_type: str, vault_id: UUID4, data: dict[str, Any]) -> None:
         logger.debug(f"[DEBUG] {self.__class__.__name__} received {event_type} for vault {vault_id} with data: {data}")
         async with async_session_maker() as db_session:
-            try:
-                objectives = await self._get_active_objectives(db_session, vault_id)
-                for objective, link in objectives:
+            objectives = await self._get_active_objectives(db_session, vault_id)
+            for objective, link in objectives:
+                try:
                     if self._matches(objective, event_type, data):
                         logger.debug(f"[DEBUG] MATCH: Objective '{objective.challenge}' matches {event_type}")
                         amount = self._extract_amount(data)
                         await self._update_progress(db_session, vault_id, objective, link, amount)
                     else:
                         logger.debug(f"[DEBUG] NO MATCH: Objective '{objective.challenge}' does not match {event_type}")
-            except Exception:
-                logger.exception(f"{self.__class__.__name__} failed handling {event_type} for vault {vault_id}")
+                except Exception:
+                    logger.exception(
+                        f"{self.__class__.__name__} failed handling objective '{objective.challenge}' "
+                        f"(id={objective.id}) for vault {vault_id} on event {event_type}"
+                    )
 
     async def _get_active_objectives(
         self, db_session: AsyncSession, vault_id: UUID4
@@ -116,24 +119,28 @@ class ObjectiveEvaluator(abc.ABC):
         objective: Objective,
         link: VaultObjectiveProgressLink,
     ) -> None:
+        """Auto-complete objective and grant reward in single transaction."""
         from app.services.reward_service import reward_service
 
+        # Set completion flags
         link.is_completed = True
         link.progress = objective.target_amount
-        await db_session.commit()
 
-        logger.info(f"Objective '{objective.challenge}' auto-completed for vault {vault_id}")
-
+        # Emit event
         await self._event_bus.emit(
             GameEvent.OBJECTIVE_COMPLETED,
             vault_id,
             {"objective_id": str(objective.id), "challenge": objective.challenge},
         )
 
+        # Grant reward - wrapped in try/except so completion isn't lost on reward failure
         try:
             await reward_service.process_objective_reward(db_session, vault_id, link)
+            logger.info(f"Objective '{objective.challenge}' auto-completed and reward granted for vault {vault_id}")
         except Exception:
             logger.exception(f"Failed to grant reward for objective '{objective.challenge}' in vault {vault_id}")
+
+        await db_session.commit()
 
 
 class CollectEvaluator(ObjectiveEvaluator):
@@ -294,11 +301,14 @@ class ReachEvaluator(ObjectiveEvaluator):
 
     @staticmethod
     async def _get_dweller_count(db_session: AsyncSession, vault_id: UUID4) -> int:
+        """Get count of dwellers in vault using COUNT query (no materialization)."""
+        from sqlalchemy import func, select
+
         from app.models.dweller import Dweller
 
-        query = select(Dweller).where(Dweller.vault_id == vault_id)
+        query = select(func.count()).select_from(Dweller).where(Dweller.vault_id == vault_id)
         result = await db_session.execute(query)
-        return len(result.all())
+        return result.scalar_one_or_none() or 0
 
 
 class ObjectiveEvaluatorManager:

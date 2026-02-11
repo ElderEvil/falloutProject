@@ -79,8 +79,9 @@ class CRUDQuest(
 
     async def _handle_completion_cascade(self, db_session: AsyncSession, db_obj: Quest, vault_id: UUID4) -> None:
         """Grant rewards when a quest is completed."""
-        from app.models.vault import Vault
         from app.services.event_bus import GameEvent, event_bus
+
+        granted_rewards: list[dict[str, Any]] = []
 
         # Grant rewards
         try:
@@ -93,7 +94,7 @@ class CRUDQuest(
         except Exception:
             logger.exception(f"Failed to grant rewards for quest '{db_obj.title}'")
 
-        # Emit quest completed event
+        # Emit quest completed event (even if reward processing failed)
         await event_bus.emit(
             GameEvent.QUEST_COMPLETED,
             vault_id,

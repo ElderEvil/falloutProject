@@ -8,6 +8,7 @@ from typing import Any
 
 from pydantic import UUID4
 from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.db.session import async_session_maker
 from app.models.objective import Objective
@@ -18,14 +19,14 @@ from app.services.notification_service import notification_service
 logger = logging.getLogger(__name__)
 
 
-async def _get_vault_owner(db_session, vault_id: UUID4) -> UUID4 | None:
+async def _get_vault_owner(db_session: AsyncSession, vault_id: UUID4) -> UUID4 | None:
     """Get the owner user_id for a vault."""
     result = await db_session.execute(select(Vault).where(Vault.id == vault_id))
     vault = result.scalar_one_or_none()
     return vault.user_id if vault else None
 
 
-async def _get_objective(db_session, objective_id: UUID4) -> Objective | None:
+async def _get_objective(db_session: AsyncSession, objective_id: UUID4) -> Objective | None:
     """Get objective by ID."""
     result = await db_session.execute(select(Objective).where(Objective.id == objective_id))
     return result.scalar_one_or_none()

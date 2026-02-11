@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { onUnmounted, ref, watch } from 'vue'
 import { useObjectivesStore } from '../stores/objectives'
 
 const store = useObjectivesStore()
@@ -8,7 +8,7 @@ const eventLog = ref<Array<{ timestamp: string; type: string; data: unknown }>>(
 
 // Listen for console.log from the store's debug mode
 const originalLog = console.log
-console.log = (...args: unknown[]) => {
+const patchedLog = (...args: unknown[]) => {
   originalLog.apply(console, args)
   if (typeof args[0] === 'string' && args[0].includes('[Objectives DEBUG]')) {
     eventLog.value.unshift({
@@ -20,6 +20,17 @@ console.log = (...args: unknown[]) => {
       eventLog.value.pop()
     }
   }
+}
+
+// Restore console.log on unmount
+const restoreConsole = () => {
+  console.log = originalLog
+}
+onUnmounted(restoreConsole)
+
+// Only patch if not already patched
+if (console.log !== patchedLog) {
+  console.log = patchedLog
 }
 
 watch(

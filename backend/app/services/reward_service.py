@@ -333,16 +333,6 @@ class RewardService:
             "items": granted_items,
             "dweller": granted_dweller,
         }
-        granted_dweller = await self.grant_dweller(db_session, vault_id, dweller_data)
-
-        await db_session.commit()
-
-        logger.info(f"Granted lunchbox to vault {vault_id}: {len(granted_items)} items, 1 dweller")
-        return {
-            "reward_type": RewardType.LUNCHBOX,
-            "items": granted_items,
-            "dweller": granted_dweller,
-        }
 
     async def process_quest_rewards(
         self, db_session: AsyncSession, vault_id: UUID4, quest: Quest

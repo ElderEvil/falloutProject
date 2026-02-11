@@ -8,6 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.db.session import get_async_session
 from app.models.objective import Objective, ObjectiveBase
+from app.models.vault import Vault
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.schemas.common import ObjectiveKindEnum
 from app.schemas.objective import ObjectiveCreate, ObjectiveRead
@@ -81,16 +82,24 @@ async def assign_random_objectives(
     count: int = 5,
 ):
     """Assign random available objectives to a vault (for testing/debugging)."""
+    import random
+
+    # Validate vault exists first to avoid orphan links
+    vault = await db_session.get(Vault, vault_id)
+    if not vault:
+        raise HTTPException(status_code=404, detail=f"Vault {vault_id} not found")
+
     # Get objectives not already assigned to this vault
     query = select(Objective.id).join(VaultObjectiveProgressLink).where(VaultObjectiveProgressLink.vault_id == vault_id)
     assigned = await db_session.execute(query)
     assigned_ids = set(assigned.scalars().all())
 
-    # Get unassigned objectives
-    all_objectives = await crud.objective_crud.get_multi(db_session, skip=0, limit=100)
+    # Get all unassigned objectives (no hardcoded limit)
+    all_objectives = await crud.objective_crud.get_multi(db_session, skip=0, limit=999999)
     unassigned = [o for o in all_objectives if o.id not in assigned_ids]
 
-    # Assign up to 'count' objectives
+    # Shuffle and assign up to 'count' objectives
+    random.shuffle(unassigned)
     assigned_count = 0
     for objective in unassigned[:count]:
         link = VaultObjectiveProgressLink(

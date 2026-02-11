@@ -9,6 +9,44 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.10.0] - 2026-02-11
+
+### What's New
+
+- **Quests System** - Complete quest framework with chain progression
+  - Quest chains guide your vault through the Vault-Tec Training Program
+  - Four main quests: Getting Started → Room to Grow → Power to the People → Certified Overseer
+  - Each quest has clear requirements and structured rewards
+  - Quest requirements include dweller levels, room construction, and completing previous quests
+  - Progress through the chain to unlock increasingly valuable rewards
+
+- **Objectives System** - Track ongoing vault management goals
+  - Build objectives: Construct specific room types
+  - Train objectives: Level up dweller stats
+  - Assign objectives: Staff rooms with dwellers
+  - Collect objectives: Gather resources
+  - Reach objectives: Population milestones
+  - Progress tracks automatically as you complete related actions
+
+- **Auto-Created Items** - Quests and objectives can create items automatically
+  - Items defined in quest reward data are created when quests are seeded
+  - Includes rare items like Nuka-Cola Quantum, Lunchboxes, and Power Armor
+  - Eliminates manual item creation for quest rewards
+
+- **Debug Tools** - Development overlay for testing objectives
+  - Toggle the objectives debug panel from the vault view (vault owner only)
+  - See all active objectives and their progress
+  - Complete objectives manually for testing
+
+### Known Limitations
+
+- **Quest Rewards** - Reward granting is not yet fully functional
+  - Quest completion does not automatically distribute rewards
+  - Rewards are recorded but not yet given to the vault
+  - This will be addressed in a future update
+
+---
+
 ## [2.9.3] - 2026-02-08
 
 ### What's New

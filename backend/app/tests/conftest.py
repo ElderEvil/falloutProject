@@ -218,6 +218,7 @@ async def vault_fixture(async_session: AsyncSession) -> "Vault":  # noqa: F821
         "power": random.randint(0, 100),
         "food": random.randint(0, 100),
         "water": random.randint(0, 100),
+        "population_max": 50,  # Set population max to allow dwellers
     }
     vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
     return await crud.vault.create(db_session=async_session, obj_in=vault_in)
@@ -410,22 +411,24 @@ async def vault_with_rooms_fixture(
 @pytest_asyncio.fixture(name="room_with_dwellers")
 async def room_with_dwellers_fixture(
     async_session: AsyncSession,
-) -> tuple["Room", list["Dweller"]]:  # noqa: F821
+) -> dict:
     """
     Room with 2 dwellers assigned (creates its own vault).
 
     Returns:
-        Tuple of (room, [dweller1, dweller2])
+        Dict with 'room', 'dwellers', and 'vault' keys
 
     Usage:
         async def test_room_capacity(room_with_dwellers):
-            room, dwellers = room_with_dwellers
+            room = room_with_dwellers["room"]
+            dwellers = room_with_dwellers["dwellers"]
             assert len(dwellers) == 2
     """
     import random
 
     from faker import Faker
 
+    from app.schemas.common import RoomTypeEnum
     from app.schemas.dweller import DwellerCreate
     from app.schemas.room import RoomCreate
     from app.schemas.vault import VaultCreateWithUserID
@@ -436,20 +439,46 @@ async def room_with_dwellers_fixture(
     user_in = UserCreate(username=fake.user_name(), email=fake.email(), password=fake.password())
     user = await crud.user.create(db_session=async_session, obj_in=user_in)
 
-    vault_in = VaultCreateWithUserID(number=random.randint(1, 999), bottle_caps=1000, user_id=user.id)
+    vault_in = VaultCreateWithUserID(
+        number=random.randint(1, 999),
+        bottle_caps=1000,
+        population_max=50,  # Set population max to allow dwellers
+        user_id=user.id,
+    )
     vault = await crud.vault.create(db_session=async_session, obj_in=vault_in)
 
-    room_in = RoomCreate(name="Power Generator", level=1, tier=1, vault_id=vault.id)
+    room_in = RoomCreate(
+        name="Power Generator",
+        category=RoomTypeEnum.PRODUCTION,
+        ability=None,
+        population_required=None,
+        base_cost=100,
+        incremental_cost=None,
+        t2_upgrade_cost=None,
+        t3_upgrade_cost=None,
+        size_min=1,
+        size_max=3,
+        tier=1,
+        vault_id=vault.id,
+    )
     room = await crud.room.create(db_session=async_session, obj_in=room_in)
 
     dwellers = []
     for _ in range(2):
         dweller_data = create_random_common_dweller()
-        dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id, room_id=room.id)
+        dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
         dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+        # Assign dweller to room using move_to_room (room_id not supported in DwellerCreate)
+        await crud.dweller.move_to_room(async_session, dweller.id, room.id)
+        # Get the actual Dweller model with weapon relationship loaded
+        dweller = await crud.dweller.get(async_session, dweller.id)
         dwellers.append(dweller)
 
-    return room, dwellers
+    # Commit to ensure dwellers are visible to subsequent queries
+    await async_session.commit()
+    await async_session.refresh(room)
+
+    return {"room": room, "dwellers": dwellers, "vault": vault}
 
 
 @pytest_asyncio.fixture(name="equipped_dweller")
@@ -510,7 +539,12 @@ async def populated_vault_fixture(
     user_in = UserCreate(username=fake.user_name(), email=fake.email(), password=fake.password())
     user = await crud.user.create(db_session=async_session, obj_in=user_in)
 
-    vault_in = VaultCreateWithUserID(number=random.randint(1, 999), bottle_caps=1000, user_id=user.id)
+    vault_in = VaultCreateWithUserID(
+        number=random.randint(1, 999),
+        bottle_caps=1000,
+        population_max=50,  # Set population max to allow dwellers
+        user_id=user.id,
+    )
     vault = await crud.vault.create(db_session=async_session, obj_in=vault_in)
 
     room_configs = [

@@ -270,7 +270,7 @@ describe('QuestsView', () => {
       await completedTab.trigger('click')
 
       expect(wrapper.text()).toContain('Completed Quest')
-      expect(wrapper.text()).toContain('COMPLETED')
+      expect(wrapper.text()).toContain('View Details')
     })
 
     it('should show empty state when no active quests', async () => {
@@ -346,7 +346,7 @@ describe('QuestsView', () => {
 
       await wrapper.vm.$nextTick()
 
-      const startButton = wrapper.find('.start-btn')
+      const startButton = wrapper.findComponent({ name: 'UButton' })
       await startButton.trigger('click')
 
       expect(assignSpy).toHaveBeenCalledWith('vault-123', 'quest-1', true)
@@ -381,7 +381,7 @@ describe('QuestsView', () => {
 
       await wrapper.vm.$nextTick()
 
-      const completeButton = wrapper.find('.complete-btn')
+      const completeButton = wrapper.findComponent({ name: 'UButton' })
       await completeButton.trigger('click')
 
       expect(completeSpy).toHaveBeenCalledWith('vault-123', 'quest-1')

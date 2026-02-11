@@ -14,6 +14,7 @@ from app.crud.incident import incident_crud
 from app.crud.vault import vault as vault_crud
 from app.models.game_state import GameState
 from app.models.vault import Vault
+from app.services.event_bus import GameEvent, event_bus
 from app.services.exploration_service import exploration_service
 from app.services.happiness_service import happiness_service
 from app.services.resource_manager import ResourceManager
@@ -117,6 +118,16 @@ class GameLoopService:
 
             # Apply resource updates
             await vault_crud.update(db_session, vault_id, resource_update)
+
+            # Emit RESOURCE_COLLECTED events for production (for objective tracking)
+            production = resource_events.get("production", {})
+            for resource_type, amount in production.items():
+                if amount > 0:
+                    await event_bus.emit(
+                        GameEvent.RESOURCE_COLLECTED,
+                        vault_id,
+                        {"resource_type": resource_type, "amount": int(amount)},
+                    )
 
             results["updates"]["resources"] = {
                 "power": resource_update.power,
@@ -325,6 +336,18 @@ class GameLoopService:
         if leveled_up:
             stats["leveled_up"] = levels_gained
             self.logger.info(f"Dweller {dweller.name} gained {levels_gained} level(s)! Now level {dweller.level}")
+            # Emit DWELLER_LEVEL_UP event for objective tracking
+            if dweller.vault_id:
+                await event_bus.emit(
+                    GameEvent.DWELLER_LEVEL_UP,
+                    dweller.vault_id,
+                    {
+                        "dweller_id": str(dweller.id),
+                        "level": dweller.level,
+                        "old_level": dweller.level - levels_gained,
+                        "amount": levels_gained,
+                    },
+                )
 
         return stats
 
@@ -536,13 +559,11 @@ class GameLoopService:
                     # Keep broad exception for individual incident processing
                     self.logger.error(f"Error processing incident {incident.id}: {e}", exc_info=True)  # noqa: G201
 
-            # Batch update vault caps (single query instead of N queries)
+            # Batch update vault caps and emit event for objectives
             if total_caps_earned > 0:
                 vault = await vault_crud.get(db_session, vault_id)
                 if vault:
-                    await vault_crud.update(
-                        db_session, vault_id, {"bottle_caps": vault.bottle_caps + total_caps_earned}
-                    )
+                    await vault_crud.deposit_caps(db_session=db_session, vault_obj=vault, amount=total_caps_earned)
                     stats["caps_earned"] = total_caps_earned
                     self.logger.info(f"Awarded {total_caps_earned} caps to vault {vault_id} from incidents")
 

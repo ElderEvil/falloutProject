@@ -1,0 +1,37 @@
+[
+  {
+    "challenge": "Daily: Collect 500 Caps",
+    "reward": "250 Caps",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "caps"},
+    "target_amount": 500
+  },
+  {
+    "challenge": "Daily: Build 2 Rooms",
+    "reward": "500 Caps",
+    "objective_type": "build",
+    "target_entity": {"room_type": "*"},
+    "target_amount": 2
+  },
+  {
+    "challenge": "Daily: Assign 3 Dwellers",
+    "reward": "300 Caps",
+    "objective_type": "assign",
+    "target_entity": {},
+    "target_amount": 3
+  },
+  {
+    "challenge": "Daily: Collect 300 Power",
+    "reward": "400 Caps",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "power"},
+    "target_amount": 300
+  },
+  {
+    "challenge": "Daily: Train 2 Dwellers",
+    "reward": "450 Caps",
+    "objective_type": "train",
+    "target_entity": {},
+    "target_amount": 2
+  }
+]

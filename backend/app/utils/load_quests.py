@@ -11,15 +11,35 @@ def load_quest_chain_from_json(file_path: str) -> QuestChainJSON:
     """
     Load a quest chain from a JSON file.
 
+    Handles two formats:
+    1. Single quest format: {"Quest name": "...", "Short description": "...", ...}
+    2. Chain format: {"chain_id": "...", "quests": [{"quest_name": "...", ...}, ...]}
+
     Args:
         file_path: Path to the JSON file containing quest data
 
     Returns:
         QuestChainJSON with parsed quests
     """
+    from pathlib import Path
+
     path = Path(file_path)
     with path.open("r", encoding="utf-8") as file:
         data = json.load(file)
+
+        # Check if this is a chain format (has "quests" key)
+        if isinstance(data, dict) and "quests" in data:
+            # Chain format
+            chain_data = data
+            quests = [QuestJSON.model_validate(q) for q in chain_data["quests"]]
+            return QuestChainJSON(
+                title=chain_data.get("chain_name", path.stem.replace("_", " ").title()),
+                chain_id=chain_data.get("chain_id"),
+                chain_description=chain_data.get("chain_description"),
+                quests=quests,
+            )
+
+        # Single quest format - wrap in list
         if not isinstance(data, list):
             data = [data]
 

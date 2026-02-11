@@ -326,6 +326,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/debug/emit/{vault_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Emit Test Event
+         * @description Emit a test event to the EventBus for debugging objectives.
+         */
+        post: operations["emit_test_event_api_v1_debug_emit__vault_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/debug/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Subscribed Events
+         * @description List all currently subscribed events and their handlers.
+         */
+        get: operations["list_subscribed_events_api_v1_debug_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/debug/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Debug Health
+         * @description Debug health check endpoint.
+         */
+        get: operations["debug_health_api_v1_debug_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/debug/objectives/{vault_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Debug Objectives
+         * @description Debug endpoint to inspect objectives and their progress for a vault.
+         */
+        get: operations["debug_objectives_api_v1_debug_objectives__vault_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/debug/objectives/{vault_id}/test-collect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Collect Objective
+         * @description Test RESOURCE_COLLECTED event and check if objective progress updates.
+         */
+        post: operations["test_collect_objective_api_v1_debug_objectives__vault_id__test_collect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/debug/evaluators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Debug Evaluators
+         * @description Check which evaluators are subscribed to which events.
+         */
+        get: operations["debug_evaluators_api_v1_debug_evaluators_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dwellers/": {
         parameters: {
             query?: never;
@@ -1388,6 +1508,26 @@ export interface paths {
          * @description Update the progress of an objective for a vault.
          */
         post: operations["update_objective_progress_api_v1_objectives__vault_id___objective_id__progress_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/objectives/{vault_id}/assign-random": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Assign Random Objectives
+         * @description Assign random available objectives to a vault (for testing/debugging).
+         */
+        post: operations["assign_random_objectives_api_v1_objectives__vault_id__assign_random_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4188,6 +4328,11 @@ export interface components {
          */
         FactionEnum: "none" | "vault_dweller" | "brotherhood_of_steel" | "enclave" | "minutemen" | "raiders" | "super_mutant_tribe" | "children_of_atom" | "the_institute" | "railroad" | "ncr" | "caesars_legion";
         /**
+         * GameEvent
+         * @enum {string}
+         */
+        GameEvent: "resource_collected" | "room_built" | "room_upgraded" | "dweller_trained" | "dweller_assigned" | "dweller_level_up" | "item_collected" | "quest_completed" | "objective_completed";
+        /**
          * GenderEnum
          * @enum {string}
          */
@@ -4435,6 +4580,24 @@ export interface components {
             /** Reward */
             reward: string;
             /**
+             * Objective Type
+             * @description Type of objective: collect, build, train, kill, assign, reach
+             */
+            objective_type?: string | null;
+            /**
+             * Target Entity
+             * @description What to track, e.g. {'resource_type': 'caps'} or {'room_type': 'power_plant'}
+             */
+            target_entity?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Target Amount
+             * @description How many/much needed to complete the objective
+             * @default 1
+             */
+            target_amount: number;
+            /**
              * Id
              * Format: uuid4
              */
@@ -4446,6 +4609,24 @@ export interface components {
             challenge: string;
             /** Reward */
             reward: string;
+            /**
+             * Objective Type
+             * @description Type of objective: collect, build, train, kill, assign, reach
+             */
+            objective_type?: string | null;
+            /**
+             * Target Entity
+             * @description What to track, e.g. {'resource_type': 'caps'} or {'room_type': 'power_plant'}
+             */
+            target_entity?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Target Amount
+             * @description How many/much needed to complete the objective
+             * @default 1
+             */
+            target_amount: number;
         };
         /** ObjectiveCreate */
         ObjectiveCreate: {
@@ -4453,6 +4634,24 @@ export interface components {
             challenge: string;
             /** Reward */
             reward: string;
+            /**
+             * Objective Type
+             * @description Type of objective: collect, build, train, kill, assign, reach
+             */
+            objective_type?: string | null;
+            /**
+             * Target Entity
+             * @description What to track, e.g. {'resource_type': 'caps'} or {'room_type': 'power_plant'}
+             */
+            target_entity?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Target Amount
+             * @description How many/much needed to complete the objective
+             * @default 1
+             */
+            target_amount: number;
         };
         /**
          * ObjectiveKindEnum
@@ -4465,6 +4664,24 @@ export interface components {
             challenge: string;
             /** Reward */
             reward: string;
+            /**
+             * Objective Type
+             * @description Type of objective: collect, build, train, kill, assign, reach
+             */
+            objective_type?: string | null;
+            /**
+             * Target Entity
+             * @description What to track, e.g. {'resource_type': 'caps'} or {'room_type': 'power_plant'}
+             */
+            target_entity?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Target Amount
+             * @description How many/much needed to complete the objective
+             * @default 1
+             */
+            target_amount: number;
             /**
              * Id
              * Format: uuid4
@@ -4738,6 +4955,17 @@ export interface components {
             requirements: string;
             /** Rewards */
             rewards: string;
+            /** @default side */
+            quest_type: components["schemas"]["QuestType"];
+            /** Quest Category */
+            quest_category?: string | null;
+            /** Chain Id */
+            chain_id?: string | null;
+            /**
+             * Chain Order
+             * @default 0
+             */
+            chain_order: number;
         };
         /** QuestRead */
         QuestRead: {
@@ -4751,6 +4979,17 @@ export interface components {
             requirements: string;
             /** Rewards */
             rewards: string;
+            /** @default side */
+            quest_type: components["schemas"]["QuestType"];
+            /** Quest Category */
+            quest_category?: string | null;
+            /** Chain Id */
+            chain_id?: string | null;
+            /**
+             * Chain Order
+             * @default 0
+             */
+            chain_order: number;
             /**
              * Id
              * Format: uuid4
@@ -4767,6 +5006,11 @@ export interface components {
              */
             is_completed: boolean;
         };
+        /**
+         * QuestType
+         * @enum {string}
+         */
+        QuestType: "main" | "side" | "daily" | "event" | "repeatable";
         /** QuestUpdate */
         QuestUpdate: {
             /** Title */
@@ -4779,6 +5023,13 @@ export interface components {
             requirements?: string | null;
             /** Rewards */
             rewards?: string | null;
+            quest_type?: components["schemas"]["QuestType"] | null;
+            /** Quest Category */
+            quest_category?: string | null;
+            /** Chain Id */
+            chain_id?: string | null;
+            /** Chain Order */
+            chain_order?: number | null;
         };
         /**
          * RaceEnum
@@ -6485,6 +6736,170 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    emit_test_event_api_v1_debug_emit__vault_id__post: {
+        parameters: {
+            query: {
+                event_type: components["schemas"]["GameEvent"];
+            };
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                } | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_subscribed_events_api_v1_debug_events_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    debug_health_api_v1_debug_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    debug_objectives_api_v1_debug_objectives__vault_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_collect_objective_api_v1_debug_objectives__vault_id__test_collect_post: {
+        parameters: {
+            query?: {
+                resource_type?: string;
+                amount?: number;
+            };
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    debug_evaluators_api_v1_debug_evaluators_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };
@@ -8477,6 +8892,39 @@ export interface operations {
             path: {
                 vault_id: string;
                 objective_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assign_random_objectives_api_v1_objectives__vault_id__assign_random_post: {
+        parameters: {
+            query?: {
+                count?: number;
+            };
+            header?: never;
+            path: {
+                vault_id: string;
             };
             cookie?: never;
         };

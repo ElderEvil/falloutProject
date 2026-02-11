@@ -4,5 +4,14 @@
   "Quest objective": "1. Eliminate the Raider Leader. 2. Destroy the Deathclaw.",
   "Short description": "Kill the Raiders and their Deathclaw.",
   "Requirements": "Level 44 dwellers, Junk Jet, 6+ Strength",
-  "Rewards": "Lunchbox, Legendary junk, Plasma rifle"
+  "Rewards": "Lunchbox, Legendary junk, Plasma rifle",
+  "quest_requirements": [
+    {"requirement_type": "dweller_level", "requirement_data": {"min_level": 44}, "is_mandatory": true}
+  ],
+  "quest_rewards": [
+    {"reward_type": "LUNCHBOX", "reward_data": {"quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Lunchbox", "rarity": "legendary", "value": 100}},
+    {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary Junk", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Legendary Junk", "rarity": "legendary", "value": 50}},
+    {"reward_type": "ITEM", "reward_data": {"item_name": "Plasma Rifle", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Plasma Rifle", "rarity": "rare", "value": 100}},
+    {"reward_type": "CAPS", "reward_data": {"amount": 500}, "reward_chance": 1.0}
+  ]
 }

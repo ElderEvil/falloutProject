@@ -1,4 +1,6 @@
+import logging
 from collections.abc import Sequence
+from typing import Any
 
 from pydantic import UUID4
 from sqlmodel import and_, select
@@ -11,7 +13,11 @@ from app.models import Vault
 from app.models.quest import Quest
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.quest import QuestCreate, QuestRead, QuestUpdate
+from app.services.notification_service import notification_service
+from app.services.reward_service import reward_service
 from app.utils.exceptions import ResourceNotFoundException
+
+logger = logging.getLogger(__name__)
 
 
 class CRUDQuest(
@@ -73,8 +79,38 @@ class CRUDQuest(
         return quest
 
     async def _handle_completion_cascade(self, db_session: AsyncSession, db_obj: Quest, vault_id: UUID4) -> None:
-        # Implement any cascading logic here if needed
-        pass
+        """Grant rewards when a quest is completed."""
+        from app.services.event_bus import GameEvent, event_bus
+
+        granted_rewards: list[dict[str, Any]] = []
+
+        # Grant rewards
+        try:
+            granted_rewards = await reward_service.process_quest_rewards(db_session, vault_id, db_obj)
+            if granted_rewards:
+                reward_summary = ", ".join(
+                    f"{r.get('amount', r.get('name', r.get('dweller_id', '?')))}" for r in granted_rewards
+                )
+                logger.info(f"Granted rewards for quest '{db_obj.title}': {reward_summary}")
+        except Exception:
+            logger.exception(f"Failed to grant rewards for quest '{db_obj.title}'")
+
+        # Emit quest completed event (even if reward processing failed)
+        await event_bus.emit(
+            GameEvent.QUEST_COMPLETED,
+            vault_id,
+            {"quest_id": str(db_obj.id), "quest_title": db_obj.title},
+        )
+
+        # Send notification
+        try:
+            vault = await db_session.get(Vault, vault_id)
+            if vault and vault.user_id:
+                await notification_service.notify_quest_completed(
+                    db_session, vault.user_id, vault_id, db_obj.title, granted_rewards
+                )
+        except Exception:
+            logger.exception(f"Failed to send quest completion notification for '{db_obj.title}'")
 
     async def assign_to_vault(
         self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4, *, is_visible: bool = True

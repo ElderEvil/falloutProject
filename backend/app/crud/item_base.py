@@ -11,6 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
 from app.crud.base import CreateSchemaType, CRUDBase, ModelType, UpdateSchemaType
+from app.crud.vault import vault as vault_crud
 
 # from app.crud.mixins import SellItemMixin
 from app.models import Outfit, Storage, Vault, Weapon
@@ -304,13 +305,12 @@ class CRUDItem(
 
     @staticmethod
     async def add_caps_to_vault(db_session: AsyncSession, vault_id: UUID4, value: int, *, commit: bool = True) -> None:
-        """Add value to the vault's resources."""
+        """Add value to the vault's resources and emit event for objective tracking."""
         vault = await db_session.get(Vault, vault_id)
         if not vault:
             raise ResourceNotFoundException(Vault, identifier=vault_id)
 
-        vault.bottle_caps += value
-        db_session.add(vault)
+        await vault_crud.deposit_caps(db_session=db_session, vault_obj=vault, amount=value)
         if commit:
             await db_session.commit()
 

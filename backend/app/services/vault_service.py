@@ -317,15 +317,25 @@ class VaultService:
             raise
 
     async def _assign_initial_objectives(self, db_session: AsyncSession, vault_id: UUID4) -> None:
-        """Assign a few initial objectives to a new vault."""
-        try:
-            # Get all available objectives via CRUD
-            objectives = await objective_crud.get_multi(db_session, skip=0, limit=5)
+        """Assign a few initial objectives to a new vault.
 
-            # Assign the first few objectives to the vault
+        Uses only complete objectives (with all automation fields set) to ensure
+        proper progress tracking.
+        """
+        try:
+            objectives = await objective_crud.get_multi_complete(db_session, skip=0, limit=5)
+
+            if not objectives:
+                self.logger.warning("No complete objectives found for vault %s", vault_id)
+                return
+
             for objective in objectives:
                 link = VaultObjectiveProgressLink(
-                    vault_id=vault_id, objective_id=objective.id, progress=0, total=1, is_completed=False
+                    vault_id=vault_id,
+                    objective_id=objective.id,
+                    progress=0,
+                    total=objective.target_amount or 1,
+                    is_completed=False,
                 )
                 db_session.add(link)
 

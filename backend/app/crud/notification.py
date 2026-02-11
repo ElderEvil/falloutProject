@@ -19,12 +19,14 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
         offset: int = 0,
     ) -> list[Notification]:
         """Get notifications for a user"""
+        from sqlalchemy import desc
+
         query = select(Notification).where(Notification.user_id == user_id).where(Notification.is_dismissed == False)
 
         if unread_only:
             query = query.where(Notification.is_read == False)
 
-        query = query.order_by(Notification.created_at.desc()).offset(offset).limit(limit)
+        query = query.order_by(desc(Notification.created_at)).offset(offset).limit(limit)
         result = await db.execute(query)
         return list(result.scalars().all())
 

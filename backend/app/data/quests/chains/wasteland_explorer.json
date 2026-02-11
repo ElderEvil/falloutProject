@@ -1,0 +1,100 @@
+{
+  "chain_id": "wasteland_explorer",
+  "chain_name": "Wasteland Explorer",
+  "chain_description": "Explore the wasteland and discover its secrets",
+  "quests": [
+    {
+      "quest_name": "First Steps",
+      "short_description": "Send a dweller to explore the wasteland for 1 hour.",
+      "long_description": "The wasteland is dangerous but full of resources. Send one of your dwellers out to explore and bring back valuable supplies. Even a short trip can yield useful items.",
+      "requirements": "Level 5 dweller",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 1,
+      "quest_requirements": [
+        {
+          "requirement_type": "LEVEL",
+          "requirement_data": {"level": 5, "target": "dweller"},
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 300},
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Stimpak", "quantity": 3},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Stimpak", "rarity": "common", "value": 25}
+        }
+      ]
+    },
+    {
+      "quest_name": "Scavenger Hunt",
+      "short_description": "Collect 10 items from the wasteland.",
+      "long_description": "The wasteland is full of useful items left behind from before the war. Send dwellers to explore and collect 10 items total from the wasteland.",
+      "requirements": "Complete 'First Steps' quest",
+      "quest_type": "side",
+      "quest_category": "collection",
+      "chain_order": 2,
+      "quest_requirements": [
+        {
+          "requirement_type": "QUEST_COMPLETED",
+          "requirement_data": {"quest_name": "First Steps"},
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 500},
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Junk", "quantity": 20},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Junk", "rarity": "common", "value": 5}
+        }
+      ]
+    },
+    {
+      "quest_name": "Explorer's Award",
+      "short_description": "Have a dweller explore for 24 hours total.",
+      "long_description": "True explorers spend days in the wasteland. Accumulate 24 hours of exploration time across all your dwellers to prove your vault's capability to survive outside.",
+      "requirements": "Complete 'Scavenger Hunt' quest",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 3,
+      "quest_requirements": [
+        {
+          "requirement_type": "QUEST_COMPLETED",
+          "requirement_data": {"quest_name": "Scavenger Hunt"},
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 1000},
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Rare Weapon", "quantity": 1},
+          "reward_chance": 0.8,
+          "item_data": {"name": "Rare Weapon", "rarity": "rare", "value": 100}
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Rare Outfit", "quantity": 1},
+          "reward_chance": 0.8,
+          "item_data": {"name": "Rare Outfit", "rarity": "rare", "value": 100}
+        }
+      ]
+    }
+  ]
+}

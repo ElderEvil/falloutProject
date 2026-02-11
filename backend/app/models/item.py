@@ -1,6 +1,7 @@
 from pydantic import model_validator
 from sqlmodel import Field, SQLModel
 
+from app.models.base import BaseUUIDModel
 from app.schemas.common import RarityEnum
 
 
@@ -34,3 +35,7 @@ class ItemBase(SQLModel):
                 # Lookup using enum key
                 data["value"] = cls._value_by_rarity.get(rarity, 10)
         return data
+
+
+class Item(BaseUUIDModel, ItemBase, table=True):
+    """Generic item model for quest rewards and other miscellaneous items."""

@@ -14,6 +14,12 @@ export const progressionRoutes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/vault/:id/quests/:questId',
+    name: 'quest-detail',
+    component: () => import('../views/QuestDetailView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/vault/:id/objectives',
     name: 'objectives',
     component: () => import('../views/ObjectivesView.vue'),

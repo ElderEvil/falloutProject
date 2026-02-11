@@ -54,7 +54,12 @@ class NotificationPriority(StrEnum):
 
 class NotificationBase(SQLModel):
     user_id: UUID = Field(foreign_key="user.id", index=True)
-    vault_id: UUID | None = Field(default=None, foreign_key="vault.id", index=True)
+    vault_id: UUID | None = Field(
+        default=None,
+        foreign_key="vault.id",
+        index=True,
+        ondelete="CASCADE",  # Cascade delete when vault is deleted
+    )
 
     # Source of notification (null for system notifications)
     from_dweller_id: UUID | None = Field(default=None, foreign_key="dweller.id", index=True)

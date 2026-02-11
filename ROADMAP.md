@@ -9,6 +9,23 @@ AI-powered dweller interactions.
 
 ## Latest Release
 
+### v2.10.0 - Quest & Objective System (February 10, 2026)
+
+**Focus**: Working quest system with proper reward distribution and objective progress tracking
+
+**Completed:**
+- ✅ **Quest JSON Loading** - Fixed `QuestJSON` schema to accept both space-separated ("Quest name") and snake_case ("quest_name") field names
+- ✅ **Quest Seeding** - All 19 quests across 7 chains now load correctly from JSON files
+- ✅ **Quest Rewards** - Implemented `reward_service.process_quest_rewards()` with caps, items, dwellers, stimpaks, radaways, and lunchboxes
+- ✅ **Objective Progress** - Fixed `create_for_vault()` to set `total` from `target_amount` (was defaulting to 1)
+- ✅ **Quest Completion Events** - Emits `QUEST_COMPLETED` events and notifications when quests finish
+- ✅ **Power Struggle Quest Chain** - Fixed loading of 8-quest chain from `power_struggle.json`
+- ✅ **Level-Up Tracking** - Added `DWELLER_LEVEL_UP` event emission in `game_loop.py` and `crud/dweller.py` for objective tracking
+- ✅ **Event Data Format** - Fixed event data to use `level` field (what `ReachEvaluator._extract_amount` expects)
+- ✅ **Quest Rewards Validation** - Fixed 11 quests with empty/short rewards by adding `generate_rewards_string()` function that parses structured `quest_rewards` into human-readable strings
+- ✅ **QuestJSON Schema** - Added "Rewards" and "Requirements" to field mapping for proper parsing of space-separated keys
+- ✅ **Tests** - 24 tests passing (11 leveling + 13 reward services)
+
 ### v2.9.3 - Component Refactoring & Backend Quick Wins (February 8, 2026)
 
 **Focus**: Major frontend component refactoring and backend code quality improvements
@@ -84,6 +101,7 @@ AI-powered dweller interactions.
 - Implement TODO stub in `celery_task.py:26`
 - Fix session isolation issues in 2 test files
 - Address N+1 query patterns in game loop
+- **Parse objective text to structured data** - Auto-extract `objective_type`, `target_entity`, and `target_amount` from challenge text (e.g., "Collect 100 Caps" → collect, {resource_type: caps}, 100) instead of hardcoded mappings
 
 ### v2.8.0 - Easter Eggs & UI Fixes (January 29, 2026)
 
@@ -768,7 +786,32 @@ watch(() => userStore.caps, (caps) => {
 - ✅ Dead code removal (get_spreading_incidents)
 - ✅ Version bump to 2.9.3 (BE + FE)
 
-### v2.9.4 - Frontend Quick Wins (Planned)
+### v2.10.0 - Quests & Objectives Phase 1 (Planned)
+
+**Focus**: Transform basic quests/objectives into fully functional automated system
+
+**Planned:**
+- **Structured Data**: Requirements and rewards as structured schema (not just text)
+- **Reward Distribution**: Automatic reward granting (caps, items, dwellers, resources)
+- **Quest Types**: Main, side, daily, repeatable categories with visual distinction
+- **Prerequisites**: Quest prerequisites enforced (previous quest, level, items, rooms)
+- **Quest Chains**: Multi-quest sequences with automatic progression
+- **Progress Automation**: Objectives auto-update based on game events (collect, build, train)
+- **Real-time Updates**: WebSocket progress notifications for objectives
+- **UI Improvements**: Quest detail view, progress bars, reward previews, type badges
+- **Notifications**: Quest/objective completion notifications
+
+**See**: `.sisyphus/plans/v2.10.0-quests-objectives-phase1.md` for full plan
+
+**Deferred to Phase 2 (v2.12+):**
+- Combat system for quests
+- Quest party assignment and dweller sending
+- Time-limited events
+- Advanced reward types (buffs, cosmetics)
+
+---
+
+### v2.11.0 - Frontend Quick Wins (Planned - was v2.9.4)
 
 **Focus**: Time-boxed frontend improvements
 
@@ -777,12 +820,12 @@ watch(() => userStore.caps, (caps) => {
 - DX improvements (type safety, remove debug logs)
 - Add missing store tests
 
-### v2.9.5 - Stabilization (Planned)
+### v2.12.0 - Stabilization (Planned - was v2.9.5)
 
 **Focus**: Regression fixes and final polish
 
 **Planned:**
-- Regression fixes from 2.9.1-2.9.4
+- Regression fixes from 2.9.1-2.11.0
 - Final polish
 - Version bump preparation
 

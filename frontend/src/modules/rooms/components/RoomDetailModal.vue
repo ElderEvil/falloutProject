@@ -77,23 +77,6 @@ watch(
     }
   },
 )
-
-// Debug logging for room images (dev only)
-watch(
-  () => props.room,
-  (newRoom) => {
-    if (import.meta.env.DEV && newRoom) {
-      console.log('🖼️ Room Detail Modal - Room loaded:', {
-        name: newRoom.name,
-        tier: newRoom.tier,
-        size: newRoom.size,
-        image_url: newRoom.image_url,
-        has_image: !!newRoom.image_url,
-      })
-    }
-  },
-  { immediate: true },
-)
 </script>
 
 <template>

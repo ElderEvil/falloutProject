@@ -8,6 +8,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { Icon } from '@iconify/vue'
+import { QuestCard } from '../components'
 
 const route = useRoute()
 const questStore = useQuestStore()
@@ -116,45 +117,14 @@ const handleCompleteQuest = async (questId: string) => {
                   ACTIVE QUESTS
                 </h2>
                 <div class="quest-grid">
-                  <div
+                  <QuestCard
                     v-for="quest in activeQuests"
                     :key="quest.id"
-                    class="quest-card active-quest"
-                  >
-                    <div class="quest-header">
-                      <h3 class="quest-title">{{ quest.title }}</h3>
-                      <div class="quest-badge active-badge">ACTIVE!</div>
-                    </div>
-
-                    <p class="quest-description">{{ quest.short_description }}</p>
-
-                    <div class="quest-section-divider"></div>
-
-                    <div class="quest-details">
-                      <div class="detail-item">
-                        <div class="detail-label">
-                          <Icon icon="mdi:clipboard-check" class="inline mr-1" />
-                          REQUIREMENTS
-                        </div>
-                        <div class="detail-value">{{ quest.requirements }}</div>
-                      </div>
-                      <div class="detail-item">
-                        <div class="detail-label">
-                          <Icon icon="mdi:treasure-chest" class="inline mr-1" />
-                          REWARDS
-                        </div>
-                        <div class="detail-value reward-text">{{ quest.rewards }}</div>
-                      </div>
-                    </div>
-
-                    <button
-                      @click="handleCompleteQuest(quest.id)"
-                      class="quest-action-btn complete-btn"
-                    >
-                      <Icon icon="mdi:check-bold" class="inline mr-2" />
-                      COMPLETE QUEST
-                    </button>
-                  </div>
+                    :quest="quest"
+                    :vault-id="vaultId"
+                    status="active"
+                    @complete="handleCompleteQuest"
+                  />
                 </div>
               </div>
 
@@ -165,42 +135,14 @@ const handleCompleteQuest = async (questId: string) => {
                   AVAILABLE QUESTS
                 </h2>
                 <div class="quest-grid">
-                  <div
+                  <QuestCard
                     v-for="quest in availableQuests"
                     :key="quest.id"
-                    class="quest-card available-quest"
-                  >
-                    <div class="quest-header">
-                      <h3 class="quest-title">{{ quest.title }}</h3>
-                      <div class="quest-badge available-badge">NEW</div>
-                    </div>
-
-                    <p class="quest-description">{{ quest.short_description }}</p>
-
-                    <div class="quest-section-divider"></div>
-
-                    <div class="quest-details">
-                      <div class="detail-item">
-                        <div class="detail-label">
-                          <Icon icon="mdi:clipboard-check" class="inline mr-1" />
-                          REQUIREMENTS
-                        </div>
-                        <div class="detail-value">{{ quest.requirements }}</div>
-                      </div>
-                      <div class="detail-item">
-                        <div class="detail-label">
-                          <Icon icon="mdi:treasure-chest" class="inline mr-1" />
-                          REWARDS
-                        </div>
-                        <div class="detail-value reward-text">{{ quest.rewards }}</div>
-                      </div>
-                    </div>
-
-                    <button @click="handleStartQuest(quest.id)" class="quest-action-btn start-btn">
-                      <Icon icon="mdi:play" class="inline mr-2" />
-                      START QUEST
-                    </button>
-                  </div>
+                    :quest="quest"
+                    :vault-id="vaultId"
+                    status="available"
+                    @start="handleStartQuest"
+                  />
                 </div>
               </div>
 
@@ -222,38 +164,13 @@ const handleCompleteQuest = async (questId: string) => {
               </div>
 
               <div v-else class="quest-grid">
-                <div
+                <QuestCard
                   v-for="quest in completedQuests"
                   :key="quest.id"
-                  class="quest-card completed-quest"
-                >
-                  <div class="quest-header">
-                    <h3 class="quest-title">{{ quest.title }}</h3>
-                    <div class="quest-badge completed-badge">
-                      <Icon icon="mdi:check" class="inline mr-1" />
-                      DONE
-                    </div>
-                  </div>
-
-                  <p class="quest-description">{{ quest.short_description }}</p>
-
-                  <div class="quest-section-divider"></div>
-
-                  <div class="quest-details">
-                    <div class="detail-item">
-                      <div class="detail-label">
-                        <Icon icon="mdi:treasure-chest" class="inline mr-1" />
-                        REWARDS CLAIMED
-                      </div>
-                      <div class="detail-value reward-text">{{ quest.rewards }}</div>
-                    </div>
-                  </div>
-
-                  <div class="completion-stamp">
-                    <Icon icon="mdi:seal" class="inline mr-2" />
-                    COMPLETED
-                  </div>
-                </div>
+                  :quest="quest"
+                  :vault-id="vaultId"
+                  status="completed"
+                />
               </div>
             </div>
           </div>

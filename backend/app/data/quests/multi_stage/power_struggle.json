@@ -1,11 +1,16 @@
 [
     {
         "Quest name": "A Pier into the Future",
-        "Long description": "Woah! What's that? This festive waterfront has suffered a ruinous fate in some kind of ill-founded fracas! Get in there and dig around, who knows what you'll find!?",
+        "Long description": "Woah! What's that? This festive waterfront has suffered a ruinous fate in some kind of ill-founded忿! Get in there and dig around, who knows what you'll find!?",
         "Quest objective": "Investigate the old pier.",
         "Short description": "Investigate the old pier.",
         "Requirements": "Level 20 dwellers",
-        "Rewards": "Lucy MacLean"
+        "Rewards": "Lucy MacLean",
+        "quest_type": "side",
+        "quest_category": "exploration",
+        "quest_rewards": [
+            {"reward_type": "DWELLER", "reward_data": {"name": "Lucy MacLean"}, "reward_chance": 1.0}
+        ]
     },
     {
         "Quest name": "Ghoul in Black",
@@ -16,7 +21,16 @@
             "Level 20 dwellers",
             "Lucy's vault suit"
         ],
-        "Rewards": "The Ghoul"
+        "Rewards": "The Ghoul",
+        "quest_type": "side",
+        "quest_category": "exploration",
+        "quest_requirements": [
+            {"requirement_type": "DWELLER_LEVEL", "requirement_data": {"level": 20}, "is_mandatory": true},
+            {"requirement_type": "ITEM", "requirement_data": {"item_name": "Lucy's vault suit"}, "is_mandatory": true}
+        ],
+        "quest_rewards": [
+            {"reward_type": "DWELLER", "reward_data": {"name": "The Ghoul"}, "reward_chance": 1.0}
+        ]
     },
     {
         "Quest name": "My Brothers' Keeper",
@@ -28,7 +42,12 @@
             "Lucy's vault suit",
             "The Ghoul's coat"
         ],
-        "Rewards": "Maximus"
+        "Rewards": "Maximus",
+        "quest_type": "side",
+        "quest_category": "exploration",
+        "quest_rewards": [
+            {"reward_type": "DWELLER", "reward_data": {"name": "Maximus"}, "reward_chance": 1.0}
+        ]
     },
     {
         "Quest name": "All Killy No Filly",
@@ -40,7 +59,12 @@
             "Lucy's vault suit",
             "BOS casual"
         ],
-        "Rewards": "Ma June"
+        "Rewards": "Ma June",
+        "quest_type": "side",
+        "quest_category": "exploration",
+        "quest_rewards": [
+            {"reward_type": "DWELLER", "reward_data": {"name": "Ma June"}, "reward_chance": 1.0}
+        ]
     },
     {
         "Quest name": "Snipping Coupons",
@@ -52,7 +76,12 @@
             "The Ghoul's coat",
             "BOS casual"
         ],
-        "Rewards": "Snip Snip"
+        "Rewards": "Snip Snip",
+        "quest_type": "side",
+        "quest_category": "exploration",
+        "quest_rewards": [
+            {"reward_type": "DWELLER", "reward_data": {"name": "Snip Snip"}, "reward_chance": 1.0}
+        ]
     },
     {
         "Quest name": "Hooked On Tonics",
@@ -64,7 +93,12 @@
             "Lucy's vault suit",
             "The Ghoul's coat"
         ],
-        "Rewards": "Snake oil salesman"
+        "Rewards": "Snake oil salesman",
+        "quest_type": "side",
+        "quest_category": "exploration",
+        "quest_rewards": [
+            {"reward_type": "DWELLER", "reward_data": {"name": "Snake oil salesman"}, "reward_chance": 1.0}
+        ]
     },
     {
         "Quest name": "Codename: DOG",
@@ -76,7 +110,12 @@
             "Lucy's vault suit",
             "The Ghoul's coat"
         ],
-        "Rewards": "CX404"
+        "Rewards": "CX404",
+        "quest_type": "side",
+        "quest_category": "exploration",
+        "quest_rewards": [
+            {"reward_type": "DWELLER", "reward_data": {"name": "CX404"}, "reward_chance": 1.0}
+        ]
     },
     {
         "Quest name": "Astronomical Aggression",
@@ -88,6 +127,11 @@
             "BOS casual",
             "Lucy's vault suit"
         ],
-        "Rewards": "Scarred power armor"
+        "Rewards": "Scarred power armor",
+        "quest_type": "side",
+        "quest_category": "combat",
+        "quest_rewards": [
+            {"reward_type": "ITEM", "reward_data": {"item_name": "Scarred power armor", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Scarred power armor", "rarity": "legendary", "value": 500}}
+        ]
     }
 ]

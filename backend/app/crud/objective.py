@@ -23,7 +23,11 @@ class CRUDObjective(
         db_obj = self.model(**obj_in.model_dump())
         db_session.add(db_obj)
 
-        link_obj = self.link_model(vault_id=vault_id, objective_id=db_obj.id)
+        link_obj = self.link_model(
+            vault_id=vault_id,
+            objective_id=db_obj.id,
+            total=obj_in.target_amount or 1,
+        )
         db_session.add(link_obj)
 
         await db_session.commit()
@@ -119,8 +123,15 @@ class CRUDObjective(
         link = result.scalar_one_or_none()
 
         if not link:
-            # Create new link if it doesn't exist
-            link = self.link_model(vault_id=vault_id, objective_id=objective_id, progress=progress, total=1)
+            # Get the objective to fetch target_amount
+            objective = await self.get(db_session, objective_id)
+            target_amount = objective.target_amount if objective else 1
+            link = self.link_model(
+                vault_id=vault_id,
+                objective_id=objective_id,
+                progress=progress,
+                total=target_amount,
+            )
             db_session.add(link)
         else:
             # Update progress
@@ -132,6 +143,27 @@ class CRUDObjective(
         await db_session.commit()
         await db_session.refresh(link)
         return link
+
+    async def get_multi_complete(
+        self, db_session: AsyncSession, skip: int = 0, limit: int = 100
+    ) -> Sequence[Objective]:
+        """Get objectives with all required fields for completion tracking.
+
+        Complete objectives have:
+        - objective_type is not None
+        - target_entity is not None (can be None for some types like assign)
+        - target_amount > 1
+        """
+        query = (
+            select(self.model)
+            .where(self.model.objective_type.is_not(None))
+            .where(self.model.target_entity.is_not(None))
+            .where(self.model.target_amount > 1)
+            .offset(skip)
+            .limit(limit)
+        )
+        response = await db_session.execute(query)
+        return response.scalars().all()
 
 
 objective_crud = CRUDObjective(Objective, VaultObjectiveProgressLink)

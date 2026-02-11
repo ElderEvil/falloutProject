@@ -18,6 +18,9 @@ def _transform_objective_create_to_model(objective_data: ObjectiveCreate) -> Obj
     return Objective(
         challenge=objective_data.challenge,
         reward=objective_data.reward,
+        objective_type=objective_data.objective_type,
+        target_entity=objective_data.target_entity,
+        target_amount=objective_data.target_amount,
     )
 
 

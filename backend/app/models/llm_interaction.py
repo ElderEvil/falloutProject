@@ -22,7 +22,7 @@ class LLMInteractionBase(SQLModel):
 
 
 class LLMInteraction(BaseUUIDModel, LLMInteractionBase, table=True):
-    created_at: datetime | None = Field(default_factory=lambda: datetime.utcnow())
+    created_at: datetime | None = Field(default_factory=lambda: datetime.utcnow())  # noqa: PLW0108
 
     prompt: "Prompt" = Relationship(back_populates="llm_interactions")
     user: "User" = Relationship(back_populates="llm_interactions")

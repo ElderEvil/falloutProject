@@ -368,9 +368,10 @@ class IncidentService:
             loot = self._generate_loot(incident.difficulty, incident.type)
             caps_earned = loot.get("caps", 0)
 
-            # Award caps to vault
+            # Award caps to vault using deposit_caps (emits RESOURCE_COLLECTED event for objectives)
             vault = await vault_crud.get(db_session, incident.vault_id)
-            await vault_crud.update(db_session, incident.vault_id, {"bottle_caps": vault.bottle_caps + caps_earned})
+            if vault and caps_earned > 0:
+                await vault_crud.deposit_caps(db_session=db_session, vault_obj=vault, amount=caps_earned)
 
             # Award XP to dwellers in the room
             if incident.room_id:

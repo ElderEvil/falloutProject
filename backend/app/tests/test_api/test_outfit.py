@@ -191,7 +191,7 @@ async def test_scrap_outfit_creates_correct_value(
 @pytest.mark.asyncio
 async def test_scrap_outfit_not_found(
     async_client: AsyncClient,
-    async_session: AsyncSession,  # noqa: ARG001
+    async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ) -> None:
     import uuid
@@ -249,7 +249,7 @@ async def test_sell_outfit_adds_correct_caps(
 @pytest.mark.asyncio
 async def test_sell_outfit_not_found(
     async_client: AsyncClient,
-    async_session: AsyncSession,  # noqa: ARG001
+    async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ) -> None:
     import uuid
@@ -291,7 +291,7 @@ async def test_filter_outfits_by_vault(
 @pytest.mark.asyncio
 async def test_filter_outfits_includes_equipped(
     async_client: AsyncClient,
-    async_session: AsyncSession,  # noqa: ARG001
+    async_session: AsyncSession,
     equipped_dweller: tuple,
     superuser_token_headers: dict[str, str],
 ) -> None:

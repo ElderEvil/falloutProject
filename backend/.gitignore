@@ -22,6 +22,7 @@ htmlcov/
 .tox/
 coverage.xml
 *.cover
+coverage.json
 
 # Type checking
 .mypy_cache/

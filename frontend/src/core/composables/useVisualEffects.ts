@@ -1,4 +1,4 @@
-import { computed } from 'vue'
+import { computed, ref, watch, onScopeDispose } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
 
 export type EffectIntensity = 'off' | 'subtle' | 'normal' | 'strong'
@@ -33,8 +33,8 @@ export interface VisualEffectsConfig {
  * ```
  */
 export function useVisualEffects() {
-  // Persist settings in localStorage with sensible defaults
-  const flickering = useLocalStorage('visual-effects:flickering', true)
+  // Persist settings in localStorage - flickering OFF by default (was too distracting)
+  const flickering = useLocalStorage('visual-effects:flickering', false)
   const scanlines = useLocalStorage('visual-effects:scanlines', true)
   const glowIntensity = useLocalStorage<EffectIntensity>('visual-effects:glow', 'normal')
 
@@ -97,7 +97,7 @@ export function useVisualEffects() {
    * Reset to default settings
    */
   function resetToDefaults() {
-    flickering.value = true
+    flickering.value = false
     scanlines.value = true
     glowIntensity.value = 'normal'
   }
@@ -121,6 +121,52 @@ export function useVisualEffects() {
     return 'terminal-glow'
   })
 
+  /**
+    * Random flicker effect using JavaScript for more unpredictability
+    * This creates truly random opacity changes that CSS animations can't achieve
+    */
+  const flickerOpacity = ref(1)
+  // Local flicker interval handler (moved from module scope)
+  let flickerInterval: ReturnType<typeof setInterval> | null = null
+
+  function startRandomFlicker() {
+    if (flickerInterval) clearInterval(flickerInterval)
+
+    flickerInterval = setInterval(() => {
+      const random = Math.random()
+      // Check most restrictive threshold first (random > 0.97)
+      if (random > 0.97) {
+        flickerOpacity.value = 0.93 + Math.random() * 0.04
+      } else if (random > 0.92) {
+        flickerOpacity.value = 0.90 + Math.random() * 0.05
+      } else {
+        flickerOpacity.value = 0.97 + Math.random() * 0.03
+      }
+    }, 1500 + Math.random() * 2000)
+  }
+
+  function stopRandomFlicker() {
+    if (flickerInterval) {
+      clearInterval(flickerInterval)
+      flickerInterval = null
+    }
+    flickerOpacity.value = 1
+  }
+
+  // Watch flickering state and start/stop accordingly
+  watch(flickering, (enabled) => {
+    if (enabled) {
+      startRandomFlicker()
+    } else {
+      stopRandomFlicker()
+    }
+  }, { immediate: true })
+
+  // Cleanup on scope dispose
+  onScopeDispose(() => {
+    stopRandomFlicker()
+  })
+
   return {
     // State
     flickering: isFlickeringEnabled,
@@ -129,6 +175,7 @@ export function useVisualEffects() {
     isGlowEnabled,
     currentConfig,
     glowClass,
+    flickerOpacity,
 
     // Actions
     toggleFlickering,

@@ -250,7 +250,7 @@ async def test_sell_junk_legendary_value(
 @pytest.mark.asyncio
 async def test_sell_junk_not_found(
     async_client: AsyncClient,
-    async_session: AsyncSession,  # noqa: ARG001
+    async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ) -> None:
     fake_id = str(uuid.uuid4())
@@ -261,8 +261,8 @@ async def test_sell_junk_not_found(
 @pytest.mark.asyncio
 async def test_sell_junk_unauthorized(
     async_client: AsyncClient,
-    async_session: AsyncSession,  # noqa: ARG001
-    superuser_token_headers: dict[str, str],  # noqa: ARG001
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
 ) -> None:
     fake_id = str(uuid.uuid4())
     response = await async_client.post(f"/junk/{fake_id}/sell/")

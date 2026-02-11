@@ -1,5 +1,7 @@
 import asyncio
-from collections.abc import Generator
+from collections.abc import AsyncGenerator, Generator
+from contextlib import suppress
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -16,7 +18,10 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
 
-from app.core.config import settings
+# Global engine reference for database cleanup across fixtures
+_test_async_engine = None
+
+from app.core.config import settings  # noqa: E402
 
 # Disable rate limiting for tests before importing main
 settings.ENABLE_RATE_LIMITING = False
@@ -44,60 +49,87 @@ def event_loop() -> Generator:
 
 @pytest_asyncio.fixture(scope="session")
 async def db_connection() -> AsyncConnection:
-    async_engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False, future=True, poolclass=StaticPool)
+    global _test_async_engine  # noqa: PLW0603
+    _test_async_engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:", echo=False, future=True, poolclass=StaticPool
+    )
 
     @event.listens_for(SQLModel.metadata, "before_create")
-    def _replace_jsonb_with_json(target, connection, **kw):  # noqa: ARG001
+    def _replace_jsonb_with_json(target, connection, **kw):
         for table in target.tables.values():
             for column in table.columns:
                 if isinstance(column.type, JSONB):
                     column.type = JSON()
 
-    async with async_engine.connect() as conn:
+    async with _test_async_engine.connect() as conn:
         await conn.run_sync(SQLModel.metadata.drop_all)
         await conn.run_sync(SQLModel.metadata.create_all)
         await conn.commit()
         yield conn
+        # Clean up after all tests in session
         await conn.run_sync(SQLModel.metadata.drop_all)
         await conn.commit()
 
-    await async_engine.dispose()
+    await _test_async_engine.dispose()
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(scope="function")
 async def async_session(db_connection: AsyncConnection) -> AsyncSession:
     session = sessionmaker(
         bind=db_connection,
         class_=AsyncSession,
         expire_on_commit=False,
+        autoflush=False,
     )
 
     async with session() as s:
-        s.commit = s.flush
         yield s
-        await s.rollback()
+        # Rollback any uncommitted changes
+        with suppress(Exception):
+            await s.rollback()
+        # Close the session to release connections
+        with suppress(Exception):
+            await s.close()
+
+    # Clean up the database after each test function
+    async with _test_async_engine.connect() as conn:
+        await conn.run_sync(SQLModel.metadata.drop_all)
+        await conn.run_sync(SQLModel.metadata.create_all)
+        await conn.commit()
 
 
 @pytest_asyncio.fixture(name="superuser", scope="function")
 async def _superuser(async_session: AsyncSession):
+    # Check if superuser already exists to avoid integrity errors on repeated fixture usage
+    existing_user = await crud.user.get_by_email(
+        email=settings.FIRST_SUPERUSER_EMAIL,
+        db_session=async_session,
+    )
+    if existing_user is not None:
+        return existing_user
+
     user_in = UserCreate(
         username=settings.FIRST_SUPERUSER_EMAIL,
         email=settings.FIRST_SUPERUSER_EMAIL,
         password=settings.FIRST_SUPERUSER_PASSWORD,
         is_superuser=True,
     )
-    await crud.user.create(db_session=async_session, obj_in=user_in)
+    return await crud.user.create(db_session=async_session, obj_in=user_in)
 
 
 @pytest_asyncio.fixture(scope="function")
-async def async_client(async_session: AsyncSession, superuser: None) -> Generator[AsyncClient]:  # noqa: ARG001
+async def async_client(async_session: AsyncSession, superuser: Any) -> AsyncGenerator[AsyncClient]:
     app.dependency_overrides[get_async_session] = lambda: async_session
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url=f"https://{settings.API_V1_STR}",
-    ) as client:
-        yield client
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url=f"https://{settings.API_V1_STR}",
+        ) as client:
+            yield client
+    finally:
+        # Clean up dependency overrides to avoid affecting other tests
+        app.dependency_overrides.pop(get_async_session, None)
 
 
 @pytest_asyncio.fixture
@@ -187,6 +219,7 @@ async def vault_fixture(async_session: AsyncSession) -> "Vault":  # noqa: F821
         "power": random.randint(0, 100),
         "food": random.randint(0, 100),
         "water": random.randint(0, 100),
+        "population_max": 50,  # Set population max to allow dwellers
     }
     vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
     return await crud.vault.create(db_session=async_session, obj_in=vault_in)
@@ -379,22 +412,24 @@ async def vault_with_rooms_fixture(
 @pytest_asyncio.fixture(name="room_with_dwellers")
 async def room_with_dwellers_fixture(
     async_session: AsyncSession,
-) -> tuple["Room", list["Dweller"]]:  # noqa: F821
+) -> dict:
     """
     Room with 2 dwellers assigned (creates its own vault).
 
     Returns:
-        Tuple of (room, [dweller1, dweller2])
+        Dict with 'room', 'dwellers', and 'vault' keys
 
     Usage:
         async def test_room_capacity(room_with_dwellers):
-            room, dwellers = room_with_dwellers
+            room = room_with_dwellers["room"]
+            dwellers = room_with_dwellers["dwellers"]
             assert len(dwellers) == 2
     """
     import random
 
     from faker import Faker
 
+    from app.schemas.common import RoomTypeEnum
     from app.schemas.dweller import DwellerCreate
     from app.schemas.room import RoomCreate
     from app.schemas.vault import VaultCreateWithUserID
@@ -405,20 +440,46 @@ async def room_with_dwellers_fixture(
     user_in = UserCreate(username=fake.user_name(), email=fake.email(), password=fake.password())
     user = await crud.user.create(db_session=async_session, obj_in=user_in)
 
-    vault_in = VaultCreateWithUserID(number=random.randint(1, 999), bottle_caps=1000, user_id=user.id)
+    vault_in = VaultCreateWithUserID(
+        number=random.randint(1, 999),
+        bottle_caps=1000,
+        population_max=50,  # Set population max to allow dwellers
+        user_id=user.id,
+    )
     vault = await crud.vault.create(db_session=async_session, obj_in=vault_in)
 
-    room_in = RoomCreate(name="Power Generator", level=1, tier=1, vault_id=vault.id)
+    room_in = RoomCreate(
+        name="Power Generator",
+        category=RoomTypeEnum.PRODUCTION,
+        ability=None,
+        population_required=None,
+        base_cost=100,
+        incremental_cost=None,
+        t2_upgrade_cost=None,
+        t3_upgrade_cost=None,
+        size_min=1,
+        size_max=3,
+        tier=1,
+        vault_id=vault.id,
+    )
     room = await crud.room.create(db_session=async_session, obj_in=room_in)
 
     dwellers = []
     for _ in range(2):
         dweller_data = create_random_common_dweller()
-        dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id, room_id=room.id)
+        dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
         dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+        # Assign dweller to room using move_to_room (room_id not supported in DwellerCreate)
+        await crud.dweller.move_to_room(async_session, dweller.id, room.id)
+        # Get the actual Dweller model with weapon relationship loaded
+        dweller = await crud.dweller.get(async_session, dweller.id)
         dwellers.append(dweller)
 
-    return room, dwellers
+    # Commit to ensure dwellers are visible to subsequent queries
+    await async_session.commit()
+    await async_session.refresh(room)
+
+    return {"room": room, "dwellers": dwellers, "vault": vault}
 
 
 @pytest_asyncio.fixture(name="equipped_dweller")
@@ -479,7 +540,12 @@ async def populated_vault_fixture(
     user_in = UserCreate(username=fake.user_name(), email=fake.email(), password=fake.password())
     user = await crud.user.create(db_session=async_session, obj_in=user_in)
 
-    vault_in = VaultCreateWithUserID(number=random.randint(1, 999), bottle_caps=1000, user_id=user.id)
+    vault_in = VaultCreateWithUserID(
+        number=random.randint(1, 999),
+        bottle_caps=1000,
+        population_max=50,  # Set population max to allow dwellers
+        user_id=user.id,
+    )
     vault = await crud.vault.create(db_session=async_session, obj_in=vault_in)
 
     room_configs = [
@@ -498,9 +564,17 @@ async def populated_vault_fixture(
 
         for _ in range(2):
             dweller_data = create_random_common_dweller()
-            dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id, room_id=room.id)
+            dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
             dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+            # Assign dweller to room using move_to_room (room_id not supported in DwellerCreate)
+            await crud.dweller.move_to_room(async_session, dweller.id, room.id)
+            # Get the actual Dweller model with weapon relationship loaded
+            dweller = await crud.dweller.get(async_session, dweller.id)
             dwellers.append(dweller)
+
+        # Commit to ensure dwellers are visible and room relationships are updated
+        await async_session.commit()
+        await async_session.refresh(room)
 
     return vault, rooms, dwellers
 

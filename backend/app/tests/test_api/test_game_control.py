@@ -175,7 +175,7 @@ async def test_get_incidents(
 @pytest.mark.asyncio
 async def test_vault_initialization_creates_game_state(
     async_client: AsyncClient,
-    async_session: AsyncSession,  # noqa: ARG001
+    async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ):
     """Test that initializing a vault creates proper game state."""

@@ -132,7 +132,7 @@ async def test_create_pregnancy(
 async def test_check_for_conception_no_partners(
     async_session: AsyncSession,
     vault: Vault,
-    living_quarters: Room,  # noqa: ARG001
+    living_quarters: Room,
 ):
     """Test that no conception occurs when dwellers are not partners."""
     pregnancies = await BreedingService.check_for_conception(
@@ -652,7 +652,7 @@ async def test_get_active_pregnancies_excludes_delivered(
 
 @pytest.mark.asyncio
 async def test_calculate_inherited_stats_variance(
-    async_session: AsyncSession,  # noqa: ARG001
+    async_session: AsyncSession,
     male_dweller: Dweller,
     female_dweller: Dweller,
 ):
@@ -672,7 +672,7 @@ async def test_calculate_inherited_stats_variance(
 
 @pytest.mark.asyncio
 async def test_calculate_inherited_rarity_upgrade_chance(
-    async_session: AsyncSession,  # noqa: ARG001
+    async_session: AsyncSession,
     male_dweller: Dweller,
     female_dweller: Dweller,
 ):

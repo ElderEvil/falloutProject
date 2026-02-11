@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import '@nuxt/ui';
 
 @theme {
   /* ============================================
@@ -169,51 +170,84 @@ body {
   z-index: var(--z-index-scanlines);
 }
 
-/* Flicker Animation - Subtle and random */
+/* stylelint-disable rule-empty-line-before */
 @keyframes flicker {
-  0% {
+  0%, 100% {
     opacity: 1;
   }
-  10% {
-    opacity: 0.98;
-  }
-  20% {
-    opacity: 1;
-  }
-  30% {
-    opacity: 0.99;
-  }
-  40% {
-    opacity: 1;
-  }
-  50% {
+  5% {
     opacity: 0.97;
   }
-  60% {
+  10% {
+    opacity: 0.99;
+  }
+  15% {
+    opacity: 0.95;
+  }
+  20% {
+    opacity: 0.98;
+  }
+  25% {
+    opacity: 0.96;
+  }
+  30% {
     opacity: 1;
   }
+  35% {
+    opacity: 0.97;
+  }
+  40% {
+    opacity: 0.99;
+  }
+  45% {
+    opacity: 0.94;
+  }
+  50% {
+    opacity: 0.98;
+  }
+  55% {
+    opacity: 0.96;
+  }
+  60% {
+    opacity: 0.99;
+  }
+  65% {
+    opacity: 0.95;
+  }
   70% {
+    opacity: 0.97;
+  }
+  75% {
     opacity: 0.98;
   }
   80% {
-    opacity: 1;
+    opacity: 0.96;
   }
   85% {
     opacity: 0.99;
   }
   90% {
-    opacity: 1;
+    opacity: 0.97;
   }
   95% {
     opacity: 0.98;
   }
-  100% {
-    opacity: 1;
-  }
 }
+/* stylelint-enable rule-empty-line-before */
 
 .flicker {
-  animation: flicker 4s ease-in-out infinite;
+  animation: flicker 2s steps(1) infinite;
+  animation-delay: calc(var(--flicker-delay, 0) * 1s);
+}
+
+/* Random flicker variation using different animation durations */
+.flicker-random {
+  animation: flicker 1.8s steps(1) infinite;
+  animation-delay: calc(var(--flicker-delay, 0) * 1s);
+}
+
+.flicker-slow {
+  animation: flicker 2.5s steps(1) infinite;
   animation-delay: calc(var(--flicker-delay, 0) * 1s);
 }
 

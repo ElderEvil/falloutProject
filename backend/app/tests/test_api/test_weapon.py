@@ -208,7 +208,7 @@ async def test_scrap_weapon_creates_correct_value(
 @pytest.mark.asyncio
 async def test_scrap_weapon_not_found(
     async_client: AsyncClient,
-    async_session: AsyncSession,  # noqa: ARG001
+    async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ) -> None:
     fake_id = str(uuid.uuid4())
@@ -264,7 +264,7 @@ async def test_sell_weapon_adds_correct_caps(
 @pytest.mark.asyncio
 async def test_sell_weapon_not_found(
     async_client: AsyncClient,
-    async_session: AsyncSession,  # noqa: ARG001
+    async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ) -> None:
     fake_id = str(uuid.uuid4())
@@ -304,7 +304,7 @@ async def test_filter_weapons_by_vault(
 @pytest.mark.asyncio
 async def test_filter_weapons_includes_equipped(
     async_client: AsyncClient,
-    async_session: AsyncSession,  # noqa: ARG001
+    async_session: AsyncSession,
     equipped_dweller: tuple,
     superuser_token_headers: dict[str, str],
 ) -> None:

@@ -159,7 +159,7 @@ async def test_check_for_recruitment_no_radio(
 async def test_check_for_recruitment_success(
     async_session: AsyncSession,
     vault: Vault,
-    radio_room: Room,  # noqa: ARG001
+    radio_room: Room,
 ):
     """Test successful recruitment via radio."""
     # Mock random to always succeed
@@ -175,7 +175,7 @@ async def test_check_for_recruitment_success(
 async def test_check_for_recruitment_failure(
     async_session: AsyncSession,
     vault: Vault,
-    radio_room: Room,  # noqa: ARG001
+    radio_room: Room,
 ):
     """Test failed recruitment via radio."""
     # Mock random to always fail
@@ -205,8 +205,8 @@ async def test_recruit_dweller(
 async def test_manual_recruit_success(
     async_session: AsyncSession,
     vault: Vault,
-    radio_room: Room,  # noqa: ARG001
-    radio_dweller: Dweller,  # noqa: ARG001
+    radio_room: Room,
+    radio_dweller: Dweller,
 ):
     """Test manual recruitment with sufficient caps."""
     initial_caps = vault.bottle_caps
@@ -226,8 +226,8 @@ async def test_manual_recruit_success(
 async def test_manual_recruit_insufficient_caps(
     async_session: AsyncSession,
     vault: Vault,
-    radio_room: Room,  # noqa: ARG001
-    radio_dweller: Dweller,  # noqa: ARG001
+    radio_room: Room,
+    radio_dweller: Dweller,
 ):
     """Test manual recruitment with insufficient caps."""
     # Set caps below cost
@@ -253,8 +253,8 @@ async def test_manual_recruit_no_radio(
 async def test_manual_recruit_custom_cost(
     async_session: AsyncSession,
     vault: Vault,
-    radio_room: Room,  # noqa: ARG001
-    radio_dweller: Dweller,  # noqa: ARG001
+    radio_room: Room,
+    radio_dweller: Dweller,
 ):
     """Test manual recruitment with custom cost."""
     initial_caps = vault.bottle_caps
@@ -286,7 +286,7 @@ async def test_get_recruitment_stats_no_radio(
 async def test_get_recruitment_stats_with_radio(
     async_session: AsyncSession,
     vault: Vault,
-    radio_room: Room,  # noqa: ARG001
+    radio_room: Room,
 ):
     """Test recruitment stats with radio room."""
     stats = await RadioService.get_recruitment_stats(async_session, vault.id)
@@ -303,7 +303,7 @@ async def test_get_recruitment_stats_with_radio(
 async def test_get_recruitment_stats_higher_rate_with_charisma(
     async_session: AsyncSession,
     vault: Vault,
-    radio_room: Room,  # noqa: ARG001
+    radio_room: Room,
 ):
     """Test that recruitment stats return valid data."""
     stats = await RadioService.get_recruitment_stats(async_session, vault.id)

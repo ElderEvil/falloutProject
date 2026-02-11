@@ -42,6 +42,11 @@ const router = createRouter({
       // Lazy-load the AboutView component
       component: () => import('@/modules/profile/views/AboutView.vue'),
     },
+    {
+      path: '/nuxt-ui-poc',
+      name: 'nuxt-ui-poc',
+      component: () => import('@/views/NuxtUiPocView.vue'),
+    },
   ],
 })
 

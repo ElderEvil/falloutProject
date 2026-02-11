@@ -8,6 +8,7 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useRoomInteractions } from '../composables/useRoomInteractions'
 import { useHoverPreview } from '../composables/useHoverPreview'
+import { useRoomRendering } from '../composables/useRoomRendering'
 import { useToast } from '@/core/composables/useToast'
 import RoomDwellers from '@/modules/dwellers/components/RoomDwellers.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
@@ -99,6 +100,7 @@ const getAbilityIcon = (ability: string | null | undefined): string => {
 
 const { selectedRoomId, toggleRoomSelection, destroyRoom } = useRoomInteractions()
 const { hoverPosition, handleHover, clearHover, previewCells, isValidPlacement } = useHoverPreview()
+const { showRoomImages } = useRoomRendering()
 
 // Room detail modal state
 const showDetailModal = ref(false)
@@ -385,9 +387,9 @@ const closeDetailModal = () => {
         @drop="handleDrop($event, room.id)"
       >
         <div class="room-content">
-          <!-- Room Image -->
+          <!-- Room Image (toggleable) -->
           <img
-            v-if="getRoomImageUrl(room)"
+            v-if="showRoomImages && getRoomImageUrl(room)"
             :src="getRoomImageUrl(room)"
             :alt="room.name"
             class="room-background-image"

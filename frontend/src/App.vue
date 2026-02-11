@@ -15,7 +15,7 @@ import { useFakeCrash } from '@/core/composables/useFakeCrash'
 
 // Visual effects (replaces old useFlickering)
 const visualEffects = useVisualEffects()
-const { flickering, scanlines, glowClass } = visualEffects
+const { flickering, scanlines, glowClass, flickerOpacity } = visualEffects
 
 // Theme system
 const { currentTheme, setTheme, availableThemes } = useTheme()
@@ -50,8 +50,9 @@ provide('availableThemes', availableThemes)
 </script>
 
 <template>
-    <DefaultLayout :isFlickering="flickering">
-        <router-view></router-view>
+  <UApp>
+    <DefaultLayout :isFlickering="flickering" :flicker-opacity="flickerOpacity">
+      <router-view></router-view>
     </DefaultLayout>
     <UToastContainer />
 
@@ -67,4 +68,5 @@ provide('availableThemes', availableThemes)
     <!-- Easter Egg Overlays -->
     <GaryOverlay :show="isGaryMode" />
     <FakeCrashOverlay :show="isCrashing" @complete="resetCrash" />
+  </UApp>
 </template>

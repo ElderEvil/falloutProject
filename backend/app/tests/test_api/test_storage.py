@@ -108,7 +108,7 @@ async def test_get_storage_space_with_items(
 async def test_get_storage_space_unauthorized(
     async_client: AsyncClient,
     async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],  # noqa: ARG001
+    superuser_token_headers: dict[str, str],
 ):
     """Test storage endpoint requires authentication."""
     # Create vault
@@ -150,7 +150,7 @@ async def test_get_storage_space_not_found(
 async def test_get_storage_space_different_user(
     async_client: AsyncClient,
     async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],  # noqa: ARG001
+    superuser_token_headers: dict[str, str],
     normal_user_token_headers: dict[str, str],
 ):
     """Test user cannot access another user's vault storage."""
@@ -303,7 +303,7 @@ async def test_get_storage_items_filters_by_vault(
 async def test_get_storage_items_unauthorized(
     async_client: AsyncClient,
     async_session: AsyncSession,
-    normal_user_token_headers: dict[str, str],  # noqa: ARG001
+    normal_user_token_headers: dict[str, str],
 ) -> None:
     """Test GET /storage/vault/{vault_id}/items requires authentication."""
     # Create vault/storage for test subject (no need to own it with this test)
@@ -324,7 +324,7 @@ async def test_get_storage_items_unauthorized(
 async def test_get_storage_items_forbidden(
     async_client: AsyncClient,
     async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],  # noqa: ARG001
+    superuser_token_headers: dict[str, str],
     normal_user_token_headers: dict[str, str],
 ) -> None:
     """Test that a non-owner cannot access another user's vault items."""

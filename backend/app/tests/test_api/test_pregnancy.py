@@ -280,7 +280,7 @@ async def test_pregnancy_progress_calculation(
 @pytest.mark.asyncio
 async def test_pregnancy_not_found(
     async_client: AsyncClient,
-    async_session: AsyncSession,  # noqa: ARG001
+    async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ):
     """Test 404 when pregnancy doesn't exist."""
@@ -484,7 +484,7 @@ async def test_accelerate_pregnancy_success(
 @pytest.mark.asyncio
 async def test_accelerate_pregnancy_not_found(
     async_client: AsyncClient,
-    async_session: AsyncSession,  # noqa: ARG001
+    async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ):
     """Test accelerate-pregnancy returns 404 for non-existent pregnancy."""

@@ -19,11 +19,6 @@ export const useEquipmentStore = defineStore('equipment', () => {
     error.value = null
     try {
       weapons.value = await equipmentService.fetchWeapons(token, vaultId)
-      console.log('[Equipment Store] Fetched weapons:', weapons.value.length, 'vault_id:', vaultId)
-      console.log(
-        '[Equipment Store] Available weapons (unequipped):',
-        weapons.value.filter((w) => !w.dweller_id).length
-      )
     } catch (err) {
       console.error('Failed to fetch weapons:', err)
       error.value = 'Failed to load weapons'
@@ -38,11 +33,6 @@ export const useEquipmentStore = defineStore('equipment', () => {
     error.value = null
     try {
       outfits.value = await equipmentService.fetchOutfits(token, vaultId)
-      console.log('[Equipment Store] Fetched outfits:', outfits.value.length, 'vault_id:', vaultId)
-      console.log(
-        '[Equipment Store] Available outfits (unequipped):',
-        outfits.value.filter((o) => !o.dweller_id).length
-      )
     } catch (err) {
       console.error('Failed to fetch outfits:', err)
       error.value = 'Failed to load outfits'

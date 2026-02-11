@@ -47,8 +47,6 @@ export function useAudioRecorder() {
       recordingTimer.value = window.setInterval(() => {
         recordingDuration.value += 1
       }, 1000)
-
-      console.log('Recording started')
     } catch (error) {
       console.error('Error starting recording:', error)
       throw new Error('Failed to access microphone. Please grant permission.')
@@ -80,7 +78,6 @@ export function useAudioRecorder() {
         recordingState.value = 'idle'
         audioChunks.value = []
 
-        console.log('Recording stopped, blob size:', audioBlob.size)
         resolve(audioBlob)
       }
 

@@ -8,7 +8,7 @@ description: "Expert guidance for Zod v4 schema validation in TypeScript. Use wh
 ## Quick Start
 
 ```bash
-pnpm add zod@^4.3.5
+pnpm add zod@^4.3.6
 ```
 
 ```typescript
@@ -67,7 +67,7 @@ z.string().email()
 ### Object Variants
 
 ```typescript
-z.object({})        // Allows unknown keys (default)
+z.object({})        // Strips unknown keys (default)
 z.strictObject({})  // Rejects unknown keys
 z.looseObject({})   // Explicitly allows unknown keys
 ```

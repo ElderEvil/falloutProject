@@ -1015,7 +1015,7 @@ interface Theme {
   - Accessibility failures (WCAG 2.1 AA violations)
 
 - **Rollback Process:**
-  1. Revert via Git tag: `git checkout v2.10.1 && git push --force origin/chore/2.10.1`
+  1. Revert via Git tag: `git checkout v2.13.0 && git switch -c chore/rollback-migration`
   2. Restore custom components from backup branch `backup/custom-ui-components`
   3. Update imports with automated script: `scripts/migrate-imports.sh`
   4. Deploy rollback within 2 hours of detection

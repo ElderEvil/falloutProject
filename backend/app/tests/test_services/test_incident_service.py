@@ -169,7 +169,7 @@ async def test_generate_loot(async_session: AsyncSession, vault: Vault):
 @pytest.mark.asyncio
 async def test_resolve_incident_manually_success(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):
     """Test manual incident resolution with success."""
-    incident = await incident_service.spawn_incident(async_session, vault.id)
+    incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
     initial_caps = vault.bottle_caps
 
     result = await incident_service.resolve_incident_manually(async_session, incident.id, success=True)
@@ -190,7 +190,7 @@ async def test_resolve_incident_manually_success(async_session: AsyncSession, va
 @pytest.mark.asyncio
 async def test_resolve_incident_manually_failure(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):
     """Test manual incident resolution with failure."""
-    incident = await incident_service.spawn_incident(async_session, vault.id)
+    incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
 
     result = await incident_service.resolve_incident_manually(async_session, incident.id, success=False)
 
@@ -213,7 +213,7 @@ async def test_incident_spreading_mechanics(async_session: AsyncSession, vault: 
     room2 = await crud.room.create(db_session=async_session, obj_in=room2_in)
 
     # Create incident
-    incident = await incident_service.spawn_incident(async_session, vault.id)
+    incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
 
     # Manually trigger spread time
     incident.last_spread_time = datetime.utcnow() - timedelta(seconds=61)
@@ -244,8 +244,8 @@ async def test_incident_spreading_mechanics(async_session: AsyncSession, vault: 
 async def test_get_active_incidents(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):
     """Test retrieving all active incidents."""
     # Spawn multiple incidents
-    incident1 = await incident_service.spawn_incident(async_session, vault.id)
-    incident2 = await incident_service.spawn_incident(async_session, vault.id)
+    incident1 = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
+    incident2 = await incident_service.spawn_incident(async_session, vault.id, IncidentType.RADROACH_INFESTATION)
 
     # Get active incidents
     incidents = await crud.incident_crud.get_active_by_vault(async_session, vault.id)
@@ -259,7 +259,7 @@ async def test_get_active_incidents(async_session: AsyncSession, vault: Vault, r
 @pytest.mark.asyncio
 async def test_incident_elapsed_time(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):
     """Test incident elapsed time calculation."""
-    incident = await incident_service.spawn_incident(async_session, vault.id)
+    incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
 
     # Immediately check elapsed time (should be near 0)
     elapsed = incident.elapsed_time()

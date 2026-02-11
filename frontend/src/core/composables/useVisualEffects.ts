@@ -1,4 +1,4 @@
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onScopeDispose } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
 
 export type EffectIntensity = 'off' | 'subtle' | 'normal' | 'strong'

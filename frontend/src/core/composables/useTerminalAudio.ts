@@ -87,9 +87,9 @@ export function useTerminalAudio() {
   }
 
   /**
-   * Mechanical keyboard click sound
-   * Short noise burst filtered to sound like a keycap
-   */
+    * Mechanical keyboard click sound
+    * Short noise burst filtered to sound like a keycap
+    */
   function playKeyClick(time: number, destination: AudioNode) {
     if (!audioContext) return
 
@@ -113,12 +113,18 @@ export function useTerminalAudio() {
 
     osc.start(time)
     osc.stop(time + 0.02)
+
+    // Cleanup nodes after sound finishes
+    osc.onended = () => {
+      filter.disconnect()
+      gain.disconnect()
+    }
   }
 
   /**
-   * Soft hover sound
-   * Very subtle high-frequency sine wave
-   */
+    * Soft hover sound
+    * Very subtle high-frequency sine wave
+    */
   function playButtonHover(time: number, destination: AudioNode) {
     if (!audioContext) return
 
@@ -137,12 +143,17 @@ export function useTerminalAudio() {
 
     osc.start(time)
     osc.stop(time + 0.08)
+
+    // Cleanup nodes after sound finishes
+    osc.onended = () => {
+      gain.disconnect()
+    }
   }
 
   /**
-   * Terminal button confirmation beep
-   * Classic 1kHz tone with slight decay
-   */
+    * Terminal button confirmation beep
+    * Classic 1kHz tone with slight decay
+    */
   function playButtonClick(time: number, destination: AudioNode) {
     if (!audioContext) return
 
@@ -161,12 +172,17 @@ export function useTerminalAudio() {
 
     osc.start(time)
     osc.stop(time + 0.1)
+
+    // Cleanup nodes after sound finishes
+    osc.onended = () => {
+      gain.disconnect()
+    }
   }
 
   /**
-   * Menu open slide sound
-   * Frequency slide from low to high
-   */
+    * Menu open slide sound
+    * Frequency slide from low to high
+    */
   function playMenuOpen(time: number, destination: AudioNode) {
     if (!audioContext) return
 
@@ -186,12 +202,17 @@ export function useTerminalAudio() {
 
     osc.start(time)
     osc.stop(time + 0.15)
+
+    // Cleanup nodes after sound finishes
+    osc.onended = () => {
+      gain.disconnect()
+    }
   }
 
   /**
-   * Success chime
-   * Two-tone positive confirmation
-   */
+    * Success chime
+    * Two-tone positive confirmation
+    */
   function playSuccess(time: number, destination: AudioNode) {
     if (!audioContext) return
 
@@ -219,12 +240,20 @@ export function useTerminalAudio() {
     gain2.connect(destination)
     osc2.start(time + 0.05)
     osc2.stop(time + 0.2)
+
+    // Cleanup nodes after sound finishes
+    osc1.onended = () => {
+      gain1.disconnect()
+    }
+    osc2.onended = () => {
+      gain2.disconnect()
+    }
   }
 
   /**
-   * Error buzz
-   * Low frequency warning tone
-   */
+    * Error buzz
+    * Low frequency warning tone
+    */
   function playError(time: number, destination: AudioNode) {
     if (!audioContext) return
 
@@ -243,6 +272,11 @@ export function useTerminalAudio() {
 
     osc.start(time)
     osc.stop(time + 0.2)
+
+    // Cleanup nodes after sound finishes
+    osc.onended = () => {
+      gain.disconnect()
+    }
   }
 
   /**

@@ -1,5 +1,6 @@
 import asyncio
 from collections.abc import Generator
+from contextlib import suppress
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -19,7 +20,7 @@ from sqlmodel import SQLModel
 # Global engine reference for database cleanup across fixtures
 _test_async_engine = None
 
-from app.core.config import settings
+from app.core.config import settings  # noqa: E402
 
 # Disable rate limiting for tests before importing main
 settings.ENABLE_RATE_LIMITING = False
@@ -47,7 +48,7 @@ def event_loop() -> Generator:
 
 @pytest_asyncio.fixture(scope="session")
 async def db_connection() -> AsyncConnection:
-    global _test_async_engine
+    global _test_async_engine  # noqa: PLW0603
     _test_async_engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:", echo=False, future=True, poolclass=StaticPool
     )
@@ -83,15 +84,11 @@ async def async_session(db_connection: AsyncConnection) -> AsyncSession:
     async with session() as s:
         yield s
         # Rollback any uncommitted changes
-        try:
+        with suppress(Exception):
             await s.rollback()
-        except Exception:
-            pass  # Ignore errors during cleanup
         # Close the session to release connections
-        try:
+        with suppress(Exception):
             await s.close()
-        except Exception:
-            pass  # Ignore errors during cleanup
 
     # Clean up the database after each test function
     async with _test_async_engine.connect() as conn:

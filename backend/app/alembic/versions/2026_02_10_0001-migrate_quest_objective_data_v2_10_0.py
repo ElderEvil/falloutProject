@@ -324,6 +324,10 @@ def downgrade() -> None:
             {"quest_ids": modified_quest_ids},
         )
 
+        # Drop NOT NULL constraints before setting to NULL
+        op.alter_column("quest", "quest_type", nullable=True)
+        op.alter_column("quest", "chain_order", nullable=True)
+
         # Reset quest columns only for modified quests
         conn.execute(
             text(

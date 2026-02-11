@@ -138,7 +138,7 @@ const getPriorityColor = (priority: string): string => {
 }
 
 const formatTime = (timestamp: string): string => {
-  const date = new Date(timestamp)
+  const date = new Date(timestamp + 'Z')
   const now = new Date()
   const diff = now.getTime() - date.getTime()
   const minutes = Math.floor(diff / 60000)

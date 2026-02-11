@@ -73,7 +73,6 @@ async def async_session(db_connection: AsyncConnection) -> AsyncSession:
     )
 
     async with session() as s:
-        s.commit = s.flush
         yield s
         await s.rollback()
 

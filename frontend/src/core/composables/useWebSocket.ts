@@ -46,12 +46,10 @@ export function useWebSocket(initialUrl?: string) {
       socket.value?.readyState === WebSocket.CONNECTING ||
       socket.value?.readyState === WebSocket.OPEN
     ) {
-      console.log('WebSocket already connecting or connected')
       return
     }
 
     state.value = 'connecting'
-    console.log('Connecting to WebSocket:', currentUrl.value)
 
     try {
       socket.value = new WebSocket(currentUrl.value)
@@ -60,13 +58,11 @@ export function useWebSocket(initialUrl?: string) {
         state.value = 'connected'
         reconnectAttempts.value = 0
         lastError.value = null
-        console.log('WebSocket connected')
       }
 
       socket.value.onmessage = (event) => {
         try {
           const message: WebSocketMessage = JSON.parse(event.data)
-          console.log('WebSocket message received:', message)
 
           // Call registered handlers for this message type
           const handlers = messageHandlers.get(message.type)
@@ -91,16 +87,12 @@ export function useWebSocket(initialUrl?: string) {
       }
 
       socket.value.onclose = () => {
-        console.log('WebSocket disconnected')
         state.value = 'disconnected'
         socket.value = null
 
         // Attempt to reconnect
         if (reconnectAttempts.value < maxReconnectAttempts) {
           reconnectAttempts.value++
-          console.log(
-            `Reconnecting in ${reconnectDelay}ms... (attempt ${reconnectAttempts.value}/${maxReconnectAttempts})`
-          )
           reconnectTimer = setTimeout(() => {
             connect()
           }, reconnectDelay)
@@ -134,7 +126,6 @@ export function useWebSocket(initialUrl?: string) {
   const send = (message: WebSocketMessage) => {
     if (socket.value?.readyState === WebSocket.OPEN) {
       socket.value.send(JSON.stringify(message))
-      console.log('WebSocket message sent:', message)
     } else {
       console.error('WebSocket not connected, cannot send message')
       throw new Error('WebSocket not connected')

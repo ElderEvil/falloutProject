@@ -1,10 +1,5 @@
 """Tests for incident service logic."""
 
-# TODO: Fix session isolation issues in incident tests
-# The room_with_dwellers fixture creates dwellers and commits them, but the
-# spawn_incident service query cannot see them due to SQLAlchemy session isolation.
-# Need to investigate proper transaction/session handling in async tests.
-
 from datetime import datetime, timedelta
 
 import pytest
@@ -17,6 +12,7 @@ from app.models.room import Room
 from app.models.vault import Vault
 from app.services.incident_service import incident_service
 from app.tests.factory.rooms import create_fake_room
+from app.utils.room_assets import ROOM_NAME_TO_ASSET_KEY
 
 
 @pytest_asyncio.fixture(name="room")
@@ -29,14 +25,23 @@ async def room_fixture(async_session: AsyncSession, vault: Vault) -> Room:
     return await crud.room.create(db_session=async_session, obj_in=room_in)
 
 
+def create_test_room() -> dict:
+    """Create a test room that is NOT an elevator (ensures incident can spawn)."""
+    room_data = create_fake_room()
+    # Ensure room is not named "Elevator" to allow incident spawning
+    while room_data["name"] == "Elevator":
+        room_data = create_fake_room()
+    return room_data
+
+
 @pytest_asyncio.fixture(name="room_with_dwellers")
 async def room_with_dwellers_fixture(async_session: AsyncSession, vault: Vault, dweller_data: dict) -> Room:
     """Create a room with assigned dwellers - all in one fixture to avoid session issues."""
     from app.schemas.dweller import DwellerCreate
     from app.schemas.room import RoomCreate
 
-    # Create room
-    room_data = create_fake_room()
+    # Create room (not an elevator)
+    room_data = create_test_room()
     room_in = RoomCreate(**room_data, vault_id=vault.id)
     room = await crud.room.create(db_session=async_session, obj_in=room_in)
 
@@ -58,11 +63,11 @@ async def test_spawn_incident_no_rooms(async_session: AsyncSession, vault: Vault
     assert incident is None
 
 
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 @pytest.mark.asyncio
-async def test_spawn_incident_success(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):  # noqa: ARG001
+async def test_spawn_incident_success(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):
     """Test successful incident spawning."""
-    incident = await incident_service.spawn_incident(async_session, vault.id)
+    # Use FIRE type which spawns in occupied rooms (not at vault door)
+    incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
 
     assert incident is not None
     assert incident.vault_id == vault.id
@@ -73,7 +78,6 @@ async def test_spawn_incident_success(async_session: AsyncSession, vault: Vault,
     assert incident.enemies_defeated == 0
 
 
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 @pytest.mark.asyncio
 async def test_spawn_incident_specific_type(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):  # noqa: ARG001
     """Test spawning a specific incident type."""
@@ -83,7 +87,6 @@ async def test_spawn_incident_specific_type(async_session: AsyncSession, vault: 
     assert incident.type == IncidentType.FIRE
 
 
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 @pytest.mark.asyncio
 async def test_process_incident_combat(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):  # noqa: ARG001
     """Test incident combat processing."""
@@ -103,7 +106,6 @@ async def test_process_incident_combat(async_session: AsyncSession, vault: Vault
     assert incident.damage_dealt > 0 or incident.enemies_defeated >= 0
 
 
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 @pytest.mark.asyncio
 async def test_process_incident_auto_resolve(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):
     """Test that incident auto-resolves when enough enemies defeated."""
@@ -130,7 +132,6 @@ async def test_process_incident_auto_resolve(async_session: AsyncSession, vault:
     assert incident.status == IncidentStatus.RESOLVED or result["enemies_defeated"] >= 2
 
 
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 @pytest.mark.asyncio
 async def test_calculate_dweller_combat_power(
     async_session: AsyncSession,
@@ -166,7 +167,6 @@ async def test_generate_loot(async_session: AsyncSession, vault: Vault):  # noqa
     assert loot_high["caps"] <= 1050
 
 
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 @pytest.mark.asyncio
 async def test_resolve_incident_manually_success(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):  # noqa: ARG001
     """Test manual incident resolution with success."""
@@ -188,7 +188,6 @@ async def test_resolve_incident_manually_success(async_session: AsyncSession, va
     assert vault.bottle_caps > initial_caps
 
 
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 @pytest.mark.asyncio
 async def test_resolve_incident_manually_failure(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):  # noqa: ARG001
     """Test manual incident resolution with failure."""
@@ -204,7 +203,6 @@ async def test_resolve_incident_manually_failure(async_session: AsyncSession, va
     assert incident.status == IncidentStatus.FAILED
 
 
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 @pytest.mark.asyncio
 async def test_incident_spreading_mechanics(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):  # noqa: ARG001
     """Test incident spreading to adjacent rooms."""
@@ -243,7 +241,6 @@ async def test_incident_spreading_mechanics(async_session: AsyncSession, vault: 
             assert str(room2.id) in incident.rooms_affected
 
 
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 @pytest.mark.asyncio
 async def test_get_active_incidents(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):  # noqa: ARG001
     """Test retrieving all active incidents."""
@@ -260,7 +257,6 @@ async def test_get_active_incidents(async_session: AsyncSession, vault: Vault, r
     assert str(incident2.id) in incident_ids
 
 
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 @pytest.mark.asyncio
 async def test_incident_elapsed_time(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):  # noqa: ARG001
     """Test incident elapsed time calculation."""
@@ -282,7 +278,6 @@ async def test_incident_elapsed_time(async_session: AsyncSession, vault: Vault, 
     assert elapsed <= 65
 
 
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 @pytest.mark.asyncio
 async def test_only_one_incident_type_per_vault(async_session: AsyncSession, vault: Vault, dweller_data: dict):
     """Test that only one incident type can be active in a vault at once."""
@@ -324,7 +319,6 @@ async def test_only_one_incident_type_per_vault(async_session: AsyncSession, vau
     assert fire_incident2.type == IncidentType.FIRE
 
 
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 @pytest.mark.asyncio
 async def test_no_spawn_in_elevator(async_session: AsyncSession, vault: Vault, dweller_data: dict):
     """Test that incidents never spawn in elevator rooms."""
@@ -376,7 +370,6 @@ async def test_no_spawn_in_elevator(async_session: AsyncSession, vault: Vault, d
         assert incident.room_id == normal_room.id
 
 
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 @pytest.mark.asyncio
 async def test_one_incident_per_room(async_session: AsyncSession, vault: Vault, dweller_data: dict):
     """Test that only one incident can be active in a room at once."""
@@ -405,7 +398,6 @@ async def test_one_incident_per_room(async_session: AsyncSession, vault: Vault, 
     assert incident2 is None  # No available rooms
 
 
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 @pytest.mark.asyncio
 async def test_spread_skips_elevator(async_session: AsyncSession, vault: Vault, dweller_data: dict):
     """Test that incidents don't spread to elevator rooms."""

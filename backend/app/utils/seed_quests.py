@@ -84,6 +84,8 @@ async def seed_quests_from_json(  # noqa: C901, PLR0912, PLR0915
         # Track seeded quests for requirement resolution
         quest_name_to_id: dict[str, str] = {}
         quests_to_commit: list[tuple[Quest, QuestJSON]] = []
+        # Track items created in this seeding run to avoid duplicate SELECTs and inserts
+        created_item_names: set[str] = set()
 
         # Seed quests that don't exist yet
         seeded_count = 0
@@ -177,8 +179,8 @@ async def seed_quests_from_json(  # noqa: C901, PLR0912, PLR0915
                         # Create item from item_data if reward_type is ITEM and item_data is provided
                         if reward_json.reward_type.upper() == "ITEM" and reward_json.item_data:
                             item_name = reward_json.item_data.get("name")
-                            if item_name:
-                                # Check if item already exists
+                            if item_name and item_name not in created_item_names:
+                                # Check if item already exists in database
                                 existing_item = await db_session.execute(select(Item).where(Item.name == item_name))
                                 existing = existing_item.scalars().first()
                                 if not existing:
@@ -190,6 +192,7 @@ async def seed_quests_from_json(  # noqa: C901, PLR0912, PLR0915
                                         image_url=reward_json.item_data.get("image_url"),
                                     )
                                     db_session.add(item)
+                                    created_item_names.add(item_name)
                                     logger.debug(f"Created item '{item_name}' from quest reward")
 
                     except ValueError as e:

@@ -7,6 +7,8 @@ export type AudioType = 'key-click' | 'button-hover' | 'button-click' | 'menu-op
 let audioContext: AudioContext | null = null
 // Persistent master gain node for reuse
 let masterGain: GainNode | null = null
+// Shared initialization state (all callers share the same state)
+const isInitialized = ref(false)
 
 /**
  * Composable for Fallout-style terminal audio effects
@@ -27,9 +29,6 @@ export function useTerminalAudio() {
   const enabled = useLocalStorage('terminal-audio:enabled', false)
   const volume = useLocalStorage('terminal-audio:volume', 0.3)
   const ambientEnabled = useLocalStorage('terminal-audio:ambient', false)
-
-  // Track if audio context is initialized (needed for browser autoplay policies)
-  const isInitialized = ref(false)
 
   /**
    * Initialize audio context on first user interaction

@@ -572,6 +572,10 @@ async def populated_vault_fixture(
             dweller = await crud.dweller.get(async_session, dweller.id)
             dwellers.append(dweller)
 
+        # Commit to ensure dwellers are visible and room relationships are updated
+        await async_session.commit()
+        await async_session.refresh(room)
+
     return vault, rooms, dwellers
 
 

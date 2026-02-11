@@ -75,6 +75,25 @@ async def seed_quests_from_json(  # noqa: C901, PLR0912, PLR0915
         for chain in quest_chains:
             all_quest_jsons.extend(chain.quests)
 
+        # Detect duplicate quest_names within loaded JSON files (rglob discovery)
+        seen_quest_names: dict[str, list[str]] = {}
+        for quest_json in all_quest_jsons:
+            if quest_json.quest_name:
+                source_file = getattr(quest_json, "_source_file", "unknown")
+                if quest_json.quest_name not in seen_quest_names:
+                    seen_quest_names[quest_json.quest_name] = []
+                seen_quest_names[quest_json.quest_name].append(source_file)
+
+        # Log warnings for duplicates found
+        for quest_name, files in seen_quest_names.items():
+            if len(files) > 1:
+                unique_files = list(dict.fromkeys(files))
+                logger.warning(
+                    f"Duplicate quest_name '{quest_name}' found in %d files: {unique_files}. "
+                    "This may cause non-deterministic seeding behavior.",
+                    len(unique_files),
+                )
+
         logger.info("Loaded %d quests from %d quest chains", len(all_quest_jsons), len(quest_chains))
 
         # Check which quests already exist in database

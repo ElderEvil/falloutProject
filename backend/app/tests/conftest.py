@@ -16,6 +16,9 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
 
+# Global engine reference for database cleanup across fixtures
+_test_async_engine = None
+
 from app.core.config import settings
 
 # Disable rate limiting for tests before importing main
@@ -44,7 +47,10 @@ def event_loop() -> Generator:
 
 @pytest_asyncio.fixture(scope="session")
 async def db_connection() -> AsyncConnection:
-    async_engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False, future=True, poolclass=StaticPool)
+    global _test_async_engine
+    _test_async_engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:", echo=False, future=True, poolclass=StaticPool
+    )
 
     @event.listens_for(SQLModel.metadata, "before_create")
     def _replace_jsonb_with_json(target, connection, **kw):
@@ -53,50 +59,79 @@ async def db_connection() -> AsyncConnection:
                 if isinstance(column.type, JSONB):
                     column.type = JSON()
 
-    async with async_engine.connect() as conn:
+    async with _test_async_engine.connect() as conn:
         await conn.run_sync(SQLModel.metadata.drop_all)
         await conn.run_sync(SQLModel.metadata.create_all)
         await conn.commit()
         yield conn
+        # Clean up after all tests in session
         await conn.run_sync(SQLModel.metadata.drop_all)
         await conn.commit()
 
-    await async_engine.dispose()
+    await _test_async_engine.dispose()
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(scope="function")
 async def async_session(db_connection: AsyncConnection) -> AsyncSession:
     session = sessionmaker(
         bind=db_connection,
         class_=AsyncSession,
         expire_on_commit=False,
+        autoflush=False,
     )
 
     async with session() as s:
         yield s
-        await s.rollback()
+        # Rollback any uncommitted changes
+        try:
+            await s.rollback()
+        except Exception:
+            pass  # Ignore errors during cleanup
+        # Close the session to release connections
+        try:
+            await s.close()
+        except Exception:
+            pass  # Ignore errors during cleanup
+
+    # Clean up the database after each test function
+    async with _test_async_engine.connect() as conn:
+        await conn.run_sync(SQLModel.metadata.drop_all)
+        await conn.run_sync(SQLModel.metadata.create_all)
+        await conn.commit()
 
 
 @pytest_asyncio.fixture(name="superuser", scope="function")
 async def _superuser(async_session: AsyncSession):
+    # Check if superuser already exists to avoid integrity errors on repeated fixture usage
+    existing_user = await crud.user.get_by_email(
+        email=settings.FIRST_SUPERUSER_EMAIL,
+        db_session=async_session,
+    )
+    if existing_user is not None:
+        return existing_user
+
     user_in = UserCreate(
         username=settings.FIRST_SUPERUSER_EMAIL,
         email=settings.FIRST_SUPERUSER_EMAIL,
         password=settings.FIRST_SUPERUSER_PASSWORD,
         is_superuser=True,
     )
-    await crud.user.create(db_session=async_session, obj_in=user_in)
+    return await crud.user.create(db_session=async_session, obj_in=user_in)
 
 
 @pytest_asyncio.fixture(scope="function")
 async def async_client(async_session: AsyncSession, superuser: None) -> Generator[AsyncClient]:
     app.dependency_overrides[get_async_session] = lambda: async_session
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url=f"https://{settings.API_V1_STR}",
-    ) as client:
-        yield client
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url=f"https://{settings.API_V1_STR}",
+        ) as client:
+            yield client
+    finally:
+        # Clean up dependency overrides to avoid affecting other tests
+        app.dependency_overrides.pop(get_async_session, None)
 
 
 @pytest_asyncio.fixture

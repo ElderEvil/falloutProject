@@ -50,8 +50,9 @@ provide('availableThemes', availableThemes)
 </script>
 
 <template>
+  <UApp>
     <DefaultLayout :isFlickering="flickering">
-        <router-view></router-view>
+      <router-view></router-view>
     </DefaultLayout>
     <UToastContainer />
 
@@ -67,4 +68,5 @@ provide('availableThemes', availableThemes)
     <!-- Easter Egg Overlays -->
     <GaryOverlay :show="isGaryMode" />
     <FakeCrashOverlay :show="isCrashing" @complete="resetCrash" />
+  </UApp>
 </template>

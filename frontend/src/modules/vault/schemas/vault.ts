@@ -26,7 +26,7 @@ export function parseVaultNumber(value: string | number): number {
   const result = vaultNumberSchema.safeParse({ number: parsed })
   if (!result.success) {
     const error = result.error
-    const firstError = error.errors[0]
+    const firstError = error.issues[0]
     throw new Error(firstError?.message ?? 'Invalid vault number')
   }
   return parsed

@@ -13,8 +13,8 @@ defineProps<{
     <main
       id="main-content"
       class="flex-grow pt-16"
-      :class="{ flicker: isFlickering }"
-      :style="isFlickering && flickerOpacity !== undefined ? { opacity: flickerOpacity } : {}"
+      :class="{ flicker: isFlickering && flickerOpacity === undefined }"
+      :style="flickerOpacity !== undefined ? { opacity: flickerOpacity } : {}"
       role="main"
     >
       <slot></slot>

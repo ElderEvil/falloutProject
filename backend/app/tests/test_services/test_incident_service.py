@@ -12,7 +12,6 @@ from app.models.room import Room
 from app.models.vault import Vault
 from app.services.incident_service import incident_service
 from app.tests.factory.rooms import create_fake_room
-from app.utils.room_assets import ROOM_NAME_TO_ASSET_KEY
 
 
 @pytest_asyncio.fixture(name="room")

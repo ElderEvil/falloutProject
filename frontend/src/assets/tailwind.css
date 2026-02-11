@@ -170,7 +170,7 @@ body {
   z-index: var(--z-index-scanlines);
 }
 
-/* Flicker Animation - Subtle CRT screen flickering */
+/* stylelint-disable rule-empty-line-before */
 @keyframes flicker {
   0%, 100% {
     opacity: 1;
@@ -233,6 +233,7 @@ body {
     opacity: 0.98;
   }
 }
+/* stylelint-enable rule-empty-line-before */
 
 .flicker {
   animation: flicker 2s steps(1) infinite;

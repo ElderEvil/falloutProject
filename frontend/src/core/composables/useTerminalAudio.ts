@@ -11,6 +11,8 @@ interface AudioConfig {
 
 // Web Audio API context
 let audioContext: AudioContext | null = null
+// Persistent master gain node for reuse
+let masterGain: GainNode | null = null
 
 /**
  * Composable for Fallout-style terminal audio effects
@@ -39,13 +41,17 @@ export function useTerminalAudio() {
    * Initialize audio context on first user interaction
    * Browsers require user gesture before playing audio
    */
-  function initAudioContext() {
+  async function initAudioContext() {
     if (!audioContext && typeof window !== 'undefined') {
       audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
       isInitialized.value = true
+      // Create persistent master gain node
+      masterGain = audioContext.createGain()
+      masterGain.connect(audioContext.destination)
+      masterGain.gain.value = volume.value
     }
     if (audioContext?.state === 'suspended') {
-      audioContext.resume()
+      await audioContext.resume()
     }
   }
 
@@ -53,31 +59,29 @@ export function useTerminalAudio() {
    * Play a synthesized terminal sound
    */
   function play(type: AudioType) {
-    if (!enabled.value || !audioContext) return
+    if (!enabled.value || !audioContext || !masterGain) return
 
-    const now = audioContext.currentTime
-    const masterGain = audioContext.createGain()
-    masterGain.connect(audioContext.destination)
+    // Update master gain volume
     masterGain.gain.value = volume.value
 
     switch (type) {
       case 'key-click':
-        playKeyClick(now, masterGain)
+        playKeyClick(audioContext.currentTime, masterGain)
         break
       case 'button-hover':
-        playButtonHover(now, masterGain)
+        playButtonHover(audioContext.currentTime, masterGain)
         break
       case 'button-click':
-        playButtonClick(now, masterGain)
+        playButtonClick(audioContext.currentTime, masterGain)
         break
       case 'menu-open':
-        playMenuOpen(now, masterGain)
+        playMenuOpen(audioContext.currentTime, masterGain)
         break
       case 'success':
-        playSuccess(now, masterGain)
+        playSuccess(audioContext.currentTime, masterGain)
         break
       case 'error':
-        playError(now, masterGain)
+        playError(audioContext.currentTime, masterGain)
         break
     }
   }
@@ -260,9 +264,13 @@ export function useTerminalAudio() {
 
   /**
    * Toggle ambient hum
+   * TODO: Implement ambient start/stop routines (startAmbientHum/stopAmbientHum)
+   * when ambientEnabled.value is true, create/play a looped low-volume hum
+   * when false, stop and cleanup the audio node
    */
   function toggleAmbient() {
     ambientEnabled.value = !ambientEnabled.value
+    // TODO: Call startAmbientHum() or stopAmbientHum() based on new state
   }
 
   return {

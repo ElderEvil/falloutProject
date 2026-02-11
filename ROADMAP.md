@@ -1007,6 +1007,26 @@ interface Theme {
 - ⚠️ Style overrides needed for terminal aesthetic (planned in theme system)
 - ⚠️ Testing required for all migrated components
 
+**Rollback Strategy:**
+- **Trigger Conditions:**
+  - Bundle size increase >30KB
+  - Performance regression >200ms first paint
+  - >3 critical visual regressions detected
+  - Accessibility failures (WCAG 2.1 AA violations)
+
+- **Rollback Process:**
+  1. Revert via Git tag: `git checkout v2.10.1 && git push --force origin/chore/2.10.1`
+  2. Restore custom components from backup branch `backup/custom-ui-components`
+  3. Update imports with automated script: `scripts/migrate-imports.sh`
+  4. Deploy rollback within 2 hours of detection
+
+- **Prevention Measures:**
+  - 2-week staging period before production deployment
+  - Feature flag gradual rollout: 10% → 50% → 100%
+  - Automated visual regression testing in CI ( Percy or similar)
+  - Bundle size monitoring in CI pipeline
+  - Lighthouse performance budgets enforced
+
 #### Success Criteria
 
 - [ ] All custom UI components removed

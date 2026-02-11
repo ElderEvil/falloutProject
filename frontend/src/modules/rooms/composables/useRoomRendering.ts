@@ -1,15 +1,15 @@
 import { computed } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
 
+// Module-scoped room images preference (shared across all consumers)
+const showRoomImages = useLocalStorage('room-rendering:show-images', true)
+
 /**
  * Composable for room rendering preferences
  *
  * Allows users to toggle room image display for performance or aesthetic preferences
  */
 export function useRoomRendering() {
-  // Show/hide room background images
-  const showRoomImages = useLocalStorage('room-rendering:show-images', true)
-
   /**
    * Toggle room images on/off
    */

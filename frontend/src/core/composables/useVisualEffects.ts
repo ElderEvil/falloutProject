@@ -9,9 +9,6 @@ export interface VisualEffectsConfig {
   glow: EffectIntensity
 }
 
-// Random flicker interval handler
-let flickerInterval: ReturnType<typeof setInterval> | null = null
-
 /**
  * Composable for managing visual effects (CRT/terminal aesthetics)
  *
@@ -100,7 +97,7 @@ export function useVisualEffects() {
    * Reset to default settings
    */
   function resetToDefaults() {
-    flickering.value = true
+    flickering.value = false
     scanlines.value = true
     glowIntensity.value = 'normal'
   }
@@ -125,20 +122,23 @@ export function useVisualEffects() {
   })
 
   /**
-   * Random flicker effect using JavaScript for more unpredictability
-   * This creates truly random opacity changes that CSS animations can't achieve
-   */
+    * Random flicker effect using JavaScript for more unpredictability
+    * This creates truly random opacity changes that CSS animations can't achieve
+    */
   const flickerOpacity = ref(1)
+  // Local flicker interval handler (moved from module scope)
+  let flickerInterval: ReturnType<typeof setInterval> | null = null
 
   function startRandomFlicker() {
     if (flickerInterval) clearInterval(flickerInterval)
 
     flickerInterval = setInterval(() => {
       const random = Math.random()
-      if (random > 0.92) {
-        flickerOpacity.value = 0.90 + Math.random() * 0.05
-      } else if (random > 0.97) {
+      // Check most restrictive threshold first (random > 0.97)
+      if (random > 0.97) {
         flickerOpacity.value = 0.93 + Math.random() * 0.04
+      } else if (random > 0.92) {
+        flickerOpacity.value = 0.90 + Math.random() * 0.05
       } else {
         flickerOpacity.value = 0.97 + Math.random() * 0.03
       }
@@ -161,6 +161,11 @@ export function useVisualEffects() {
       stopRandomFlicker()
     }
   }, { immediate: true })
+
+  // Cleanup on scope dispose
+  onScopeDispose(() => {
+    stopRandomFlicker()
+  })
 
   return {
     // State

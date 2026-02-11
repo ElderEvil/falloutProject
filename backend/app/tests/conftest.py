@@ -1,6 +1,7 @@
 import asyncio
-from collections.abc import Generator
+from collections.abc import AsyncGenerator, Generator
 from contextlib import suppress
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -117,7 +118,7 @@ async def _superuser(async_session: AsyncSession):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def async_client(async_session: AsyncSession, superuser: None) -> Generator[AsyncClient]:
+async def async_client(async_session: AsyncSession, superuser: Any) -> AsyncGenerator[AsyncClient]:
     app.dependency_overrides[get_async_session] = lambda: async_session
 
     try:
@@ -563,8 +564,12 @@ async def populated_vault_fixture(
 
         for _ in range(2):
             dweller_data = create_random_common_dweller()
-            dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id, room_id=room.id)
+            dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
             dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+            # Assign dweller to room using move_to_room (room_id not supported in DwellerCreate)
+            await crud.dweller.move_to_room(async_session, dweller.id, room.id)
+            # Get the actual Dweller model with weapon relationship loaded
+            dweller = await crud.dweller.get(async_session, dweller.id)
             dwellers.append(dweller)
 
     return vault, rooms, dwellers

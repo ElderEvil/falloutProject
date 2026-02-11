@@ -3,12 +3,6 @@ import { useLocalStorage } from '@vueuse/core'
 
 export type AudioType = 'key-click' | 'button-hover' | 'button-click' | 'menu-open' | 'success' | 'error'
 
-interface AudioConfig {
-  enabled: boolean
-  volume: number
-  ambientEnabled: boolean
-}
-
 // Web Audio API context
 let audioContext: AudioContext | null = null
 // Persistent master gain node for reuse
@@ -60,6 +54,9 @@ export function useTerminalAudio() {
    */
   function play(type: AudioType) {
     if (!enabled.value || !audioContext || !masterGain) return
+
+    // Resume audio context if suspended (fire-and-forget)
+    audioContext?.resume().catch(() => {})
 
     // Update master gain volume
     masterGain.gain.value = volume.value

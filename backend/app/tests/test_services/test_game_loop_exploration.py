@@ -193,7 +193,7 @@ async def test_process_explorations_error_handling(
     # Mock to cause error on first, success on second
     call_count = 0
 
-    def side_effect_generator(exp):  # noqa: ARG001
+    def side_effect_generator(exp):
         nonlocal call_count
         call_count += 1
         if call_count == 1:

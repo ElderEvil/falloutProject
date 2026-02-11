@@ -50,7 +50,7 @@ def patched_session_maker(async_session):
 async def test_collect_evaluator_resource_collected(
     async_session: AsyncSession,
     fresh_event_bus,
-    patched_session_maker,  # noqa: ARG001
+    patched_session_maker,
 ) -> None:
     """Test CollectEvaluator updates progress on resource event."""
     user_data = create_fake_user()
@@ -92,7 +92,7 @@ async def test_collect_evaluator_resource_collected(
 async def test_collect_evaluator_wrong_resource(
     async_session: AsyncSession,
     fresh_event_bus,
-    patched_session_maker,  # noqa: ARG001
+    patched_session_maker,
 ) -> None:
     """Test CollectEvaluator ignores wrong resource type."""
     user_data = create_fake_user()
@@ -134,7 +134,7 @@ async def test_collect_evaluator_wrong_resource(
 async def test_build_evaluator_room_built(
     async_session: AsyncSession,
     fresh_event_bus,
-    patched_session_maker,  # noqa: ARG001
+    patched_session_maker,
 ) -> None:
     """Test BuildEvaluator updates progress on room built."""
     user_data = create_fake_user()
@@ -178,7 +178,7 @@ async def test_build_evaluator_room_built(
 async def test_train_evaluator_dweller_trained(
     async_session: AsyncSession,
     fresh_event_bus,
-    patched_session_maker,  # noqa: ARG001
+    patched_session_maker,
 ) -> None:
     """Test TrainEvaluator updates progress on training complete."""
     user_data = create_fake_user()
@@ -224,7 +224,7 @@ async def test_train_evaluator_dweller_trained(
 async def test_assign_evaluator_dweller_assigned(
     async_session: AsyncSession,
     fresh_event_bus,
-    patched_session_maker,  # noqa: ARG001
+    patched_session_maker,
 ) -> None:
     """Test AssignEvaluator updates progress on dweller assignment."""
     user_data = create_fake_user()
@@ -270,7 +270,7 @@ async def test_assign_evaluator_dweller_assigned(
 async def test_reach_evaluator_population_reached(
     async_session: AsyncSession,
     fresh_event_bus,
-    patched_session_maker,  # noqa: ARG001
+    patched_session_maker,
 ) -> None:
     """Test ReachEvaluator completes when population target met."""
     user_data = create_fake_user()
@@ -318,7 +318,7 @@ async def test_reach_evaluator_population_reached(
 async def test_evaluator_already_completed(
     async_session: AsyncSession,
     fresh_event_bus,
-    patched_session_maker,  # noqa: ARG001
+    patched_session_maker,
 ) -> None:
     """Test evaluator does not update already completed objectives."""
     user_data = create_fake_user()

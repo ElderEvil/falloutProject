@@ -70,7 +70,7 @@ app = ["py.typed"]
 [tool.ruff]
 line-length = 120
 target-version = "py313"
-exclude = [".git", "__pycache__", ".pytest_cache", "alembic"]
+exclude = [".git", "__pycache__", ".pytest_cache", "alembic", "app/cli"]
 lint.select = [
     "FAST",
     "F",
@@ -144,6 +144,7 @@ builtins-ignorelist = ["id"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
+"app/tests/**" = ["ARG001", "F401"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

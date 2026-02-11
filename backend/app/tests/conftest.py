@@ -47,7 +47,7 @@ async def db_connection() -> AsyncConnection:
     async_engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False, future=True, poolclass=StaticPool)
 
     @event.listens_for(SQLModel.metadata, "before_create")
-    def _replace_jsonb_with_json(target, connection, **kw):  # noqa: ARG001
+    def _replace_jsonb_with_json(target, connection, **kw):
         for table in target.tables.values():
             for column in table.columns:
                 if isinstance(column.type, JSONB):
@@ -89,7 +89,7 @@ async def _superuser(async_session: AsyncSession):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def async_client(async_session: AsyncSession, superuser: None) -> Generator[AsyncClient]:  # noqa: ARG001
+async def async_client(async_session: AsyncSession, superuser: None) -> Generator[AsyncClient]:
     app.dependency_overrides[get_async_session] = lambda: async_session
 
     async with AsyncClient(

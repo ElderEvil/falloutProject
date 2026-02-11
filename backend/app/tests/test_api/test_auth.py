@@ -155,7 +155,7 @@ async def test_verify_email_with_expired_token(async_client: AsyncClient):
 async def test_verify_email_token_mismatch(
     async_client: AsyncClient,
     unverified_user,
-    async_session: AsyncSession,  # noqa: ARG001
+    async_session: AsyncSession,
 ):
     """Test verification fails when token doesn't match stored token."""
     import time
@@ -352,7 +352,7 @@ async def test_forgot_password_nonexistent_email(
 async def test_reset_password_with_valid_token(
     async_client: AsyncClient,
     verified_user,
-    mock_email_send,  # noqa: ARG001
+    mock_email_send,
     mock_redis_client,
     async_session: AsyncSession,
 ):
@@ -456,7 +456,7 @@ async def test_reset_password_with_expired_token(
 async def test_reset_password_token_mismatch(
     async_client: AsyncClient,
     verified_user,
-    mock_email_send,  # noqa: ARG001
+    mock_email_send,
     mock_redis_client,
     async_session: AsyncSession,
 ):
@@ -542,7 +542,7 @@ async def test_reset_password_min_length_validation(
 async def test_change_password_success(
     async_client: AsyncClient,
     verified_user,
-    mock_email_send,  # noqa: ARG001
+    mock_email_send,
     mock_redis_client,
     async_session: AsyncSession,
 ):
@@ -676,7 +676,7 @@ async def test_change_password_requires_authentication(async_client: AsyncClient
 @pytest.mark.asyncio
 async def test_full_registration_verification_flow(
     async_client: AsyncClient,
-    mock_email_send,  # noqa: ARG001
+    mock_email_send,
     mock_redis_client,
     async_session: AsyncSession,
 ):
@@ -736,7 +736,7 @@ async def test_full_registration_verification_flow(
 async def test_full_password_reset_flow(
     async_client: AsyncClient,
     verified_user,
-    mock_email_send,  # noqa: ARG001
+    mock_email_send,
     mock_redis_client,
     async_session: AsyncSession,
 ):
@@ -797,9 +797,9 @@ async def test_full_password_reset_flow(
 async def test_full_change_password_flow(
     async_client: AsyncClient,
     verified_user,
-    mock_email_send,  # noqa: ARG001
+    mock_email_send,
     mock_redis_client,
-    async_session: AsyncSession,  # noqa: ARG001
+    async_session: AsyncSession,
 ):
     """Test complete flow: login → change password → login with new password."""
     from app.api.deps import get_redis_client

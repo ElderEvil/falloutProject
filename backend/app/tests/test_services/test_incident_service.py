@@ -79,7 +79,7 @@ async def test_spawn_incident_success(async_session: AsyncSession, vault: Vault,
 
 
 @pytest.mark.asyncio
-async def test_spawn_incident_specific_type(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):  # noqa: ARG001
+async def test_spawn_incident_specific_type(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):
     """Test spawning a specific incident type."""
     incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
 
@@ -88,7 +88,7 @@ async def test_spawn_incident_specific_type(async_session: AsyncSession, vault: 
 
 
 @pytest.mark.asyncio
-async def test_process_incident_combat(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):  # noqa: ARG001
+async def test_process_incident_combat(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):
     """Test incident combat processing."""
     # Create incident
     incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.RAIDER_ATTACK)
@@ -135,9 +135,9 @@ async def test_process_incident_auto_resolve(async_session: AsyncSession, vault:
 @pytest.mark.asyncio
 async def test_calculate_dweller_combat_power(
     async_session: AsyncSession,
-    vault: Vault,  # noqa: ARG001
+    vault: Vault,
     room_with_dwellers: Room,
-    dweller_data: dict,  # noqa: ARG001
+    dweller_data: dict,
 ):
     """Test dweller combat power calculation."""
     # Get a dweller
@@ -153,7 +153,7 @@ async def test_calculate_dweller_combat_power(
 
 
 @pytest.mark.asyncio
-async def test_generate_loot(async_session: AsyncSession, vault: Vault):  # noqa: ARG001
+async def test_generate_loot(async_session: AsyncSession, vault: Vault):
     """Test loot generation for different difficulties."""
     # Test low difficulty (internal threat - caps only)
     loot_low = incident_service._generate_loot(difficulty=1, incident_type=IncidentType.FIRE)
@@ -168,7 +168,7 @@ async def test_generate_loot(async_session: AsyncSession, vault: Vault):  # noqa
 
 
 @pytest.mark.asyncio
-async def test_resolve_incident_manually_success(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):  # noqa: ARG001
+async def test_resolve_incident_manually_success(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):
     """Test manual incident resolution with success."""
     incident = await incident_service.spawn_incident(async_session, vault.id)
     initial_caps = vault.bottle_caps
@@ -189,7 +189,7 @@ async def test_resolve_incident_manually_success(async_session: AsyncSession, va
 
 
 @pytest.mark.asyncio
-async def test_resolve_incident_manually_failure(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):  # noqa: ARG001
+async def test_resolve_incident_manually_failure(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):
     """Test manual incident resolution with failure."""
     incident = await incident_service.spawn_incident(async_session, vault.id)
 
@@ -204,7 +204,7 @@ async def test_resolve_incident_manually_failure(async_session: AsyncSession, va
 
 
 @pytest.mark.asyncio
-async def test_incident_spreading_mechanics(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):  # noqa: ARG001
+async def test_incident_spreading_mechanics(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):
     """Test incident spreading to adjacent rooms."""
     # Create another room adjacent to first room
     from app.schemas.room import RoomCreate
@@ -242,7 +242,7 @@ async def test_incident_spreading_mechanics(async_session: AsyncSession, vault: 
 
 
 @pytest.mark.asyncio
-async def test_get_active_incidents(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):  # noqa: ARG001
+async def test_get_active_incidents(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):
     """Test retrieving all active incidents."""
     # Spawn multiple incidents
     incident1 = await incident_service.spawn_incident(async_session, vault.id)
@@ -258,7 +258,7 @@ async def test_get_active_incidents(async_session: AsyncSession, vault: Vault, r
 
 
 @pytest.mark.asyncio
-async def test_incident_elapsed_time(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):  # noqa: ARG001
+async def test_incident_elapsed_time(async_session: AsyncSession, vault: Vault, room_with_dwellers: Room):
     """Test incident elapsed time calculation."""
     incident = await incident_service.spawn_incident(async_session, vault.id)
 

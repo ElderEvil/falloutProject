@@ -10,10 +10,10 @@ defineProps<{
 <template>
   <div class="flex min-h-screen flex-col">
     <NavBar />
-    <main 
-      id="main-content" 
-      class="flex-grow pt-16" 
-      :class="{ flicker: isFlickering }" 
+    <main
+      id="main-content"
+      class="flex-grow pt-16"
+      :class="{ flicker: isFlickering }"
       :style="isFlickering && flickerOpacity !== undefined ? { opacity: flickerOpacity } : {}"
       role="main"
     >

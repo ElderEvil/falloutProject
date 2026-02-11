@@ -14,10 +14,10 @@ let audioContext: AudioContext | null = null
 
 /**
  * Composable for Fallout-style terminal audio effects
- * 
+ *
  * Uses Web Audio API to synthesize authentic CRT/terminal sounds
  * No external audio files needed - everything generated programmatically
- * 
+ *
  * Sound palette:
  * - key-click: Mechanical keyboard tap
  * - button-hover: Soft electronic hum

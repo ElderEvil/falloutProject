@@ -3,7 +3,7 @@ import { useLocalStorage } from '@vueuse/core'
 
 /**
  * Composable for room rendering preferences
- * 
+ *
  * Allows users to toggle room image display for performance or aesthetic preferences
  */
 export function useRoomRendering() {
@@ -27,7 +27,7 @@ export function useRoomRendering() {
   return {
     // State
     showRoomImages: computed(() => showRoomImages.value),
-    
+
     // Actions
     toggleRoomImages,
     setRoomImagesVisible,

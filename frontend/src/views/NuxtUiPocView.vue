@@ -24,7 +24,7 @@ function triggerLoading() {
     <div class="max-w-6xl mx-auto">
       <!-- Header -->
       <div class="mb-8">
-        <h1 
+        <h1
           class="text-3xl font-bold mb-2"
           :style="{ color: 'var(--color-theme-primary)' }"
         >
@@ -46,9 +46,9 @@ function triggerLoading() {
             :key="theme.name"
             @click="setTheme(theme.name)"
             class="px-4 py-2 border-2 rounded transition-all"
-            :class="{ 
+            :class="{
               'opacity-100': currentTheme.name === theme.name,
-              'opacity-60': currentTheme.name !== theme.name 
+              'opacity-60': currentTheme.name !== theme.name
             }"
             :style="{
               borderColor: theme.colors.primary,
@@ -71,11 +71,11 @@ function triggerLoading() {
           :key="tab"
           @click="activeTab = tab"
           class="px-4 py-2 transition-colors"
-          :class="{ 
+          :class="{
             'border-b-2': activeTab === tab,
-            'text-gray-400': activeTab !== tab 
+            'text-gray-400': activeTab !== tab
           }"
-          :style="{ 
+          :style="{
             color: activeTab === tab ? 'var(--color-theme-primary)' : undefined,
             borderColor: activeTab === tab ? 'var(--color-theme-primary)' : undefined
           }"
@@ -91,7 +91,7 @@ function triggerLoading() {
           <p class="text-xs text-gray-500 mb-4">
             These use Nuxt UI components directly (UButton, UBadge, UAlert)
           </p>
-          
+
           <div class="space-y-4">
             <div class="flex gap-2 flex-wrap">
               <UButton>Default</UButton>
@@ -135,7 +135,7 @@ function triggerLoading() {
           <p class="text-xs text-gray-500 mb-4">
             These use your current custom UI components
           </p>
-          
+
           <div class="space-y-4">
             <div class="flex gap-2 flex-wrap">
               <CustomButton>Default</CustomButton>
@@ -151,7 +151,7 @@ function triggerLoading() {
               <CustomBadge variant="danger">Danger</CustomBadge>
             </div>
 
-            <div 
+            <div
               class="p-4 rounded border"
               :style="{ borderColor: 'var(--color-theme-primary)', color: 'var(--color-theme-primary)' }"
             >

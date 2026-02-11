@@ -892,10 +892,10 @@ watch(() => userStore.caps, (caps) => {
 - [ ] **UModal Migration** (4 usages)
   - Higher complexity - different API
   - Focus on accessibility improvements
-  
+
 - [ ] **UAlert Migration** (4 usages)
   - Notification system integration
-  
+
 - [ ] **UTabs Migration** (3 usages)
   - Different structure than custom
 

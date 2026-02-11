@@ -129,10 +129,10 @@ export function useVisualEffects() {
    * This creates truly random opacity changes that CSS animations can't achieve
    */
   const flickerOpacity = ref(1)
-  
+
   function startRandomFlicker() {
     if (flickerInterval) clearInterval(flickerInterval)
-    
+
     flickerInterval = setInterval(() => {
       const random = Math.random()
       if (random > 0.92) {
@@ -144,7 +144,7 @@ export function useVisualEffects() {
       }
     }, 1500 + Math.random() * 2000)
   }
-  
+
   function stopRandomFlicker() {
     if (flickerInterval) {
       clearInterval(flickerInterval)
@@ -152,7 +152,7 @@ export function useVisualEffects() {
     }
     flickerOpacity.value = 1
   }
-  
+
   // Watch flickering state and start/stop accordingly
   watch(flickering, (enabled) => {
     if (enabled) {

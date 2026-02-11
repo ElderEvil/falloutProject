@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useVisualEffects, type EffectIntensity } from '@/core/composables/useVisualEffects'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
+import { useRoomRendering } from '@/modules/rooms/composables/useRoomRendering'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { UCard, UButton } from '@/core/components/ui'
 import { Icon } from '@iconify/vue'
@@ -25,6 +26,7 @@ const {
 } = useVisualEffects()
 
 const { currentTheme, availableThemes, setTheme } = useTheme()
+const { showRoomImages, toggleRoomImages } = useRoomRendering()
 
 // Get injected glow class from App.vue (with fallback)
 const injectedGlowClass = inject('glowClass', glowClass)
@@ -216,6 +218,36 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                       {{ option.label }}
                     </button>
                   </div>
+                </div>
+              </div>
+            </UCard>
+
+            <!-- Room Rendering -->
+            <UCard class="mb-4">
+              <h2 class="text-xl font-bold mb-2" :style="{ color: 'var(--color-theme-primary)' }">
+                <Icon icon="mdi:image" class="inline mr-2" />
+                Room Rendering
+              </h2>
+              <p class="text-gray-400 mb-4 text-xs">
+                Control how room graphics are displayed. Disabling images can improve performance on slower devices.
+              </p>
+
+              <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h3 class="font-bold text-sm">Room Images</h3>
+                    <p class="text-xs text-gray-500">
+                      Show detailed room artwork in the vault view
+                    </p>
+                  </div>
+                  <button
+                    @click="toggleRoomImages"
+                    class="toggle-button"
+                    :class="{ active: showRoomImages }"
+                    :aria-label="showRoomImages ? 'Hide room images' : 'Show room images'"
+                  >
+                    <span class="toggle-slider" :class="{ active: showRoomImages }"></span>
+                  </button>
                 </div>
               </div>
             </UCard>

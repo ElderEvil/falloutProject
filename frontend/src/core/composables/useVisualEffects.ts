@@ -1,4 +1,4 @@
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
 
 export type EffectIntensity = 'off' | 'subtle' | 'normal' | 'strong'
@@ -8,6 +8,9 @@ export interface VisualEffectsConfig {
   scanlines: boolean
   glow: EffectIntensity
 }
+
+// Random flicker interval handler
+let flickerInterval: ReturnType<typeof setInterval> | null = null
 
 /**
  * Composable for managing visual effects (CRT/terminal aesthetics)
@@ -33,8 +36,8 @@ export interface VisualEffectsConfig {
  * ```
  */
 export function useVisualEffects() {
-  // Persist settings in localStorage with sensible defaults
-  const flickering = useLocalStorage('visual-effects:flickering', true)
+  // Persist settings in localStorage - flickering OFF by default (was too distracting)
+  const flickering = useLocalStorage('visual-effects:flickering', false)
   const scanlines = useLocalStorage('visual-effects:scanlines', true)
   const glowIntensity = useLocalStorage<EffectIntensity>('visual-effects:glow', 'normal')
 
@@ -121,6 +124,44 @@ export function useVisualEffects() {
     return 'terminal-glow'
   })
 
+  /**
+   * Random flicker effect using JavaScript for more unpredictability
+   * This creates truly random opacity changes that CSS animations can't achieve
+   */
+  const flickerOpacity = ref(1)
+  
+  function startRandomFlicker() {
+    if (flickerInterval) clearInterval(flickerInterval)
+    
+    flickerInterval = setInterval(() => {
+      const random = Math.random()
+      if (random > 0.92) {
+        flickerOpacity.value = 0.90 + Math.random() * 0.05
+      } else if (random > 0.97) {
+        flickerOpacity.value = 0.93 + Math.random() * 0.04
+      } else {
+        flickerOpacity.value = 0.97 + Math.random() * 0.03
+      }
+    }, 1500 + Math.random() * 2000)
+  }
+  
+  function stopRandomFlicker() {
+    if (flickerInterval) {
+      clearInterval(flickerInterval)
+      flickerInterval = null
+    }
+    flickerOpacity.value = 1
+  }
+  
+  // Watch flickering state and start/stop accordingly
+  watch(flickering, (enabled) => {
+    if (enabled) {
+      startRandomFlicker()
+    } else {
+      stopRandomFlicker()
+    }
+  }, { immediate: true })
+
   return {
     // State
     flickering: isFlickeringEnabled,
@@ -129,6 +170,7 @@ export function useVisualEffects() {
     isGlowEnabled,
     currentConfig,
     glowClass,
+    flickerOpacity,
 
     // Actions
     toggleFlickering,

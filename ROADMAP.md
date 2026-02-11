@@ -829,6 +829,195 @@ watch(() => userStore.caps, (caps) => {
 - Final polish
 - Version bump preparation
 
+### v2.13.0 - Nuxt UI Migration & Theme System (Planned)
+
+**Focus**: Migrate from custom UI components to pure Nuxt UI with multi-theme support
+
+**Vision**: Unified component library with user-customizable themes (Terminal Green, Amber, Teal + custom)
+
+#### Phase 1: Foundation & Proof of Concept (Week 1)
+
+**Goal**: Validate Nuxt UI integration with terminal theme
+
+- [ ] **Nuxt UI Component Audit**
+  - Map custom components to Nuxt UI equivalents
+  - Identify API differences and migration effort
+  - Document style override requirements
+
+- [ ] **Theme Architecture Design**
+  - Design theme system supporting multiple color palettes
+  - Plan for user-created custom themes
+  - CSS variable strategy for runtime theme switching
+  - Theme persistence (localStorage + user preferences API)
+
+- [ ] **Proof of Concept**
+  - Migrate 1 simple component (UBadge or UAlert)
+  - Apply terminal green theme via Nuxt UI config
+  - Verify bundle impact (+5-15KB expected)
+  - Test in 3-5 locations
+
+**Deliverables:**
+- Migrated UBadge component using pure Nuxt UI
+- Theme switcher UI (dev-only)
+- Bundle comparison report
+- Migration guide documentation
+
+#### Phase 2: Core Components Migration (Week 2-3)
+
+**Goal**: Migrate high-usage components with minimal bundle impact
+
+**Priority Order (by usage count):**
+1. **UButton** (78 usages) - Most used, biggest impact
+2. **UCard** (48 usages) - Layout foundation
+3. **USkeleton** (25 usages) - Loading states
+4. **UBadge** (18 usages) - Status indicators
+5. **UTooltip** (16 usages) - UX enhancement
+
+**For each component:**
+- [ ] Replace custom implementation with Nuxt UI equivalent
+- [ ] Apply terminal theme styling via config/overrides
+- [ ] Update all usages (find & replace)
+- [ ] Delete custom component file
+- [ ] Verify no visual regressions
+
+**Deliverables:**
+- 5 core components migrated
+- ~200KB custom component code removed
+- Unified styling across app
+
+#### Phase 3: Complex Components & Theme System (Week 4)
+
+**Goal**: Migrate complex components and implement theme switcher
+
+- [ ] **UModal Migration** (4 usages)
+  - Higher complexity - different API
+  - Focus on accessibility improvements
+  
+- [ ] **UAlert Migration** (4 usages)
+  - Notification system integration
+  
+- [ ] **UTabs Migration** (3 usages)
+  - Different structure than custom
+
+- [ ] **Theme System Implementation**
+  - Theme configuration: Terminal Green, Amber, Teal presets
+  - Custom theme builder UI (color picker + preview)
+  - Theme preview in real-time
+  - Save/load custom themes
+  - Apply theme on app load
+
+**Deliverables:**
+- All components migrated to Nuxt UI
+- 3 built-in themes + custom theme creator
+- Theme persistence
+- ~15KB net bundle change (removed custom code offsets Nuxt UI usage)
+
+#### Phase 4: Cleanup & Polish (Week 5)
+
+**Goal**: Remove legacy code and optimize
+
+- [ ] **Delete Legacy Components**
+  - Remove `/src/core/components/ui/` folder
+  - Update all imports
+  - Verify no broken references
+
+- [ ] **Documentation**
+  - Update STYLEGUIDE.md with Nuxt UI patterns
+  - Theme customization guide
+  - Component usage examples
+
+- [ ] **Testing**
+  - Visual regression tests
+  - Theme switching tests
+  - Accessibility audit (Nuxt UI has better a11y)
+
+- [ ] **Performance Validation**
+  - Final bundle size check
+  - Load time comparison
+  - Memory usage check
+
+**Deliverables:**
+- Clean codebase with no custom UI components
+- Complete documentation
+- Test coverage maintained
+- Performance metrics improved or neutral
+
+#### Multi-Theme Support Architecture
+
+**Theme Structure:**
+```typescript
+interface Theme {
+  id: string
+  name: string
+  colors: {
+    primary: string      // Main accent (Terminal Green #00ff00)
+    secondary: string    // Secondary accent
+    background: string   // App background
+    surface: string      // Card/modal backgrounds
+    text: string         // Primary text
+    textMuted: string    // Secondary text
+    success: string
+    warning: string
+    error: string
+    info: string
+  }
+  fonts: {
+    mono: string         // Terminal font
+    sans: string         // UI font
+  }
+  effects: {
+    glow: boolean        // Terminal glow effect
+    scanlines: boolean   // CRT scanlines
+    flicker: boolean     // CRT flicker
+  }
+}
+```
+
+**Built-in Themes:**
+1. **Terminal Green** (default) - Classic Fallout terminal
+2. **Amber** - Vintage amber monitor
+3. **Teal** - Cyan/blue terminal
+4. **Custom** - User-defined colors
+
+**Technical Implementation:**
+- Nuxt UI theme config integration
+- CSS custom properties for runtime switching
+- localStorage for guest users
+- User preferences API for logged-in users
+- Theme preview component
+
+#### Expected Impact
+
+**Bundle Size:**
+- Current: 186KB (nuxt-ui plugin) + ~15KB custom components
+- After: 186KB (nuxt-ui) + ~5KB theme system
+- **Net change: ~-10KB** (removed custom code)
+
+**Benefits:**
+- ✅ Delete ~2000 lines of custom component code
+- ✅ Consistent API across all UI components
+- ✅ Built-in accessibility (ARIA, keyboard nav)
+- ✅ Better animations and transitions
+- ✅ User-customizable themes
+- ✅ Easier maintenance (community-supported library)
+- ✅ Professional UI component patterns
+
+**Risks:**
+- ⚠️ Breaking changes in component APIs (mitigated by phased migration)
+- ⚠️ Style overrides needed for terminal aesthetic (planned in theme system)
+- ⚠️ Testing required for all migrated components
+
+#### Success Criteria
+
+- [ ] All custom UI components removed
+- [ ] Zero visual regressions in terminal theme
+- [ ] Bundle size neutral or improved
+- [ ] 3 built-in themes working
+- [ ] Custom theme creator functional
+- [ ] Theme persists across sessions
+- [ ] All existing tests pass
+- [ ] New theme tests added
+
 ---
 
-*Last updated: February 8, 2026*
+*Last updated: February 11, 2026*

@@ -1,4 +1,4 @@
-import { ref, onUnmounted } from 'vue'
+import { ref, onUnmounted, getCurrentInstance } from 'vue'
 
 export type WebSocketState = 'connecting' | 'connected' | 'disconnected' | 'error'
 
@@ -149,16 +149,18 @@ export function useWebSocket(initialUrl?: string) {
     }
   }
 
-  // Cleanup on unmount
-  onUnmounted(() => {
-    // Clear reconnect timer before disconnecting
-    if (reconnectTimer) {
-      clearTimeout(reconnectTimer)
-      reconnectTimer = null
-    }
-    disconnect()
-    messageHandlers.clear()
-  })
+  // Cleanup on unmount (only if inside a Vue component)
+  if (getCurrentInstance()) {
+    onUnmounted(() => {
+      // Clear reconnect timer before disconnecting
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer)
+        reconnectTimer = null
+      }
+      disconnect()
+      messageHandlers.clear()
+    })
+  }
 
   return {
     // State

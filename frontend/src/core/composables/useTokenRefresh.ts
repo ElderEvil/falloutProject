@@ -1,4 +1,4 @@
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch, getCurrentInstance } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { jwtDecode } from 'jwt-decode'
 
@@ -189,28 +189,30 @@ export function useTokenRefresh() {
     }
   }
 
-  // Lifecycle hooks for Vue components
-  onMounted(() => {
-    initialize()
+  // Lifecycle hooks for Vue components (only if inside a Vue component)
+  if (getCurrentInstance()) {
+    onMounted(() => {
+      initialize()
 
-    // Watch auth state and start/stop refresh based on authentication
-    authWatcherStop = watch(
-      () => authStore.isAuthenticated,
-      (isAuthenticated) => {
-        if (isAuthenticated) {
-          console.debug('User authenticated, starting token refresh')
-          startTokenRefreshTimer()
-        } else {
-          console.debug('User logged out, stopping token refresh')
-          stopTokenRefreshTimer()
+      // Watch auth state and start/stop refresh based on authentication
+      authWatcherStop = watch(
+        () => authStore.isAuthenticated,
+        (isAuthenticated) => {
+          if (isAuthenticated) {
+            console.debug('User authenticated, starting token refresh')
+            startTokenRefreshTimer()
+          } else {
+            console.debug('User logged out, stopping token refresh')
+            stopTokenRefreshTimer()
+          }
         }
-      }
-    )
-  })
+      )
+    })
 
-  onUnmounted(() => {
-    cleanup()
-  })
+    onUnmounted(() => {
+      cleanup()
+    })
+  }
 
   return {
     refreshToken,

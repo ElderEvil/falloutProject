@@ -86,11 +86,33 @@ class Settings(BaseSettings):
         # Fallback to internal hostname:port for local development
         return f"http://{self.MINIO_HOSTNAME}:{self.MINIO_PORT}"
 
+    # AI Configuration - Pydantic AI Gateway (recommended)
+    PYDANTIC_AI_GATEWAY_API_KEY: str | None = None
+
+    # Legacy direct provider API keys (deprecated, use Gateway instead)
     AI_PROVIDER: Literal["openai", "anthropic", "ollama"] = "openai"
     AI_MODEL: str = "gpt-4o"
     OPENAI_API_KEY: str | None = None
     ANTHROPIC_API_KEY: str | None = None
     OLLAMA_BASE_URL: str = "http://localhost:11434/v1"
+
+    @property
+    def ai_provider_mode(self) -> Literal["gateway", "direct", "ollama", "disabled"]:
+        """Determine which AI provider mode to use.
+
+        Priority:
+        1. Pydantic AI Gateway (recommended)
+        2. Direct provider API keys (deprecated)
+        3. Ollama local
+        4. Disabled
+        """
+        if self.PYDANTIC_AI_GATEWAY_API_KEY:
+            return "gateway"
+        if self.OPENAI_API_KEY or self.ANTHROPIC_API_KEY:
+            return "direct"
+        if self.AI_PROVIDER == "ollama" and self.OLLAMA_BASE_URL:
+            return "ollama"
+        return "disabled"
 
     # Email Configuration
     SMTP_HOST: str = "localhost"

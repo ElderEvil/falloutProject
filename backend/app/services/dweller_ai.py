@@ -170,8 +170,7 @@ class DwellerAIService:
         if dweller_obj.image_url:
             raise ContentNoChangeException(detail="Dweller already has a photo")
 
-        if not self.storage_service.enabled:
-            logger.warning("MinIO is disabled, cannot generate photo for dweller %s", dweller_obj.id)
+        if self.storage_service is None:
             raise HTTPException(
                 status_code=503,
                 detail="Image upload service (MinIO) is not available. Cannot generate photo.",

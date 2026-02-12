@@ -14,6 +14,7 @@ from redis.exceptions import RedisError
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine
+from urllib3.exceptions import MaxRetryError
 
 from app.core.config import settings
 
@@ -204,7 +205,7 @@ class HealthCheckService:
                 message=f"MinIO connection failed (optional service): {e!s}",
                 details={"host": settings.MINIO_HOSTNAME, "error": str(e)},
             )
-        except (OSError, ValueError) as e:
+        except (OSError, ValueError, MaxRetryError) as e:
             logger.warning("MinIO health check failed (non-critical): %s", e)
             return HealthCheckResult(
                 service="minio",

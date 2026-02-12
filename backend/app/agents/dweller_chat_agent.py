@@ -22,12 +22,22 @@ from app.schemas.chat import (
 )
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerReadFull
-from app.services.open_ai import AIService
+from app.services.open_ai import get_model
 
 logger = logging.getLogger(__name__)
 
-# Initialize the model (shared with other agents)
-model = AIService.get_model()
+
+class ModelCache:
+    """Singleton-like cache for the AI model to avoid re-initialization."""
+
+    _instance = None
+
+    @classmethod
+    def get_model(cls):
+        """Get or lazily initialize the AI model."""
+        if cls._instance is None:
+            cls._instance = get_model()
+        return cls._instance
 
 
 # --- Structured Output Schema ---
@@ -127,7 +137,7 @@ class RoomInfo(BaseModel):
 # --- Agent Definition ---
 
 dweller_chat_agent = Agent(
-    model=model,
+    model=ModelCache.get_model(),
     output_type=DwellerChatOutput,
     deps_type=DwellerChatDeps,
     system_prompt=(

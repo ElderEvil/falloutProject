@@ -1,11 +1,22 @@
+"""AI service module that handles AI provider configuration lazily.
+
+This module can be imported without API keys set - AI features will simply
+not be available until a provider is configured.
+
+Migration Guide:
+    - New projects: Use PYDANTIC_AI_GATEWAY_API_KEY (recommended)
+    - Existing projects: Direct provider keys still work but emit deprecation warnings
+    - Set AI_PROVIDER to choose the upstream provider when using Gateway
+"""
+
+import asyncio
 import logging
-from functools import lru_cache
+import warnings
+from typing import Any, Optional, Self
 
 import openai
 from pydantic_ai.models.openai import OpenAIChatModel
-from pydantic_ai.providers.anthropic import AnthropicProvider
-from pydantic_ai.providers.ollama import OllamaProvider
-from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.providers.gateway import gateway_provider
 
 from app.core.config import settings
 from app.utils.image_processing import image_url_to_bytes
@@ -14,49 +25,168 @@ logger = logging.getLogger(__name__)
 
 
 class AIService:
-    def __init__(self):
-        self.model = self.get_model()
-        # Keep the OpenAI client for image and audio generation (DALL-E and TTS are OpenAI-specific)
-        self.client = openai.Client(api_key=settings.OPENAI_API_KEY)
+    """Service for AI operations. Lazily initialized with provider config.
 
-    @staticmethod
-    def get_model():
-        """Return a PydanticAI-compatible model based on provider settings."""
+    Supports Pydantic AI Gateway (recommended) and legacy direct provider access.
+    All methods check if AI is available and raise RuntimeError if not.
+    """
+
+    _instance: Optional["AIService"] = None
+
+    def __new__(cls) -> Self:
+        """Singleton pattern to ensure single model/client instance."""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
+    def __init__(self) -> None:
+        """Initialize if not already done."""
+        if getattr(self, "_initialized", False):
+            return
+
+        self._model: Optional[Any] = None
+        self._client: Optional[openai.Client] = None
+        self._using_gateway: bool = False
+
+        self._initialize_provider()
+        self._initialized = True
+
+    def _initialize_provider(self) -> None:
+        """Initialize AI provider based on configuration priority.
+
+        Priority: 1. Gateway (recommended), 2. Direct (deprecated), 3. Ollama, 4. Disabled
+        """
+        mode = settings.ai_provider_mode
+
+        match mode:
+            case "gateway":
+                self._initialize_gateway()
+            case "direct":
+                self._initialize_direct_provider()
+            case "ollama":
+                self._initialize_ollama()
+            case "disabled":
+                logger.warning("No AI provider configured. AI features disabled.")
+
+    def _initialize_gateway(self) -> None:
+        """Initialize using Pydantic AI Gateway (recommended approach)."""
+        if not settings.PYDANTIC_AI_GATEWAY_API_KEY:
+            return
+        try:
+            provider = gateway_provider(
+                settings.AI_PROVIDER,
+                api_key=settings.PYDANTIC_AI_GATEWAY_API_KEY,
+            )
+            self._model = OpenAIChatModel(
+                model_name=settings.AI_MODEL,
+                provider=provider,
+            )
+            self._using_gateway = True
+            logger.info(f"AI initialized via Gateway ({settings.AI_PROVIDER}/{settings.AI_MODEL})")
+            # For OpenAI-specific features, still need direct client
+            if settings.OPENAI_API_KEY:
+                self._client = openai.Client(api_key=settings.OPENAI_API_KEY)
+        except Exception:
+            logger.exception("Failed to initialize Gateway")
+            self._model = None
+            self._using_gateway = False
+
+    def _initialize_direct_provider(self) -> None:
+        """Initialize using direct provider API keys (deprecated)."""
+        warnings.warn(
+            "Direct provider API keys are deprecated. Use PYDANTIC_AI_GATEWAY_API_KEY.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
         match settings.AI_PROVIDER:
             case "openai":
-                provider = OpenAIProvider(api_key=settings.OPENAI_API_KEY)
+                if settings.OPENAI_API_KEY:
+                    self._client = openai.Client(api_key=settings.OPENAI_API_KEY)
+                    from pydantic_ai.providers.openai import OpenAIProvider
+
+                    provider = OpenAIProvider(api_key=settings.OPENAI_API_KEY)
+                    self._model = OpenAIChatModel(model_name=settings.AI_MODEL, provider=provider)
+                    logger.warning("AI initialized with direct OpenAI API (deprecated)")
             case "anthropic":
-                provider = AnthropicProvider(api_key=settings.ANTHROPIC_API_KEY)
-            case "ollama":
-                provider = OllamaProvider(base_url=settings.OLLAMA_BASE_URL)
+                if settings.ANTHROPIC_API_KEY:
+                    # Anthropic direct access - use Gateway instead for better compatibility
+                    raise RuntimeError(
+                        f"Direct Anthropic API access is not supported. "
+                        f"AI_PROVIDER={settings.AI_PROVIDER} requires Pydantic AI Gateway. "
+                        f"Set PYDANTIC_AI_GATEWAY_API_KEY to use Anthropic models, "
+                        f"or switch to a supported provider (AI_PROVIDER=openai, ollama)."
+                    )
+                logger.warning(
+                    "Direct provider mode does not support: %s. AI features will be disabled.",
+                    settings.AI_PROVIDER,
+                )
             case _:
-                msg = f"Unsupported provider: {settings.AI_PROVIDER}"
-                raise ValueError(msg)
+                logger.warning(
+                    "Direct provider mode does not support: %s. AI features will be disabled.",
+                    settings.AI_PROVIDER,
+                )
 
-        return OpenAIChatModel(model_name=settings.AI_MODEL, provider=provider)
+    def _initialize_ollama(self) -> None:
+        """Initialize using local Ollama instance."""
+        if settings.OLLAMA_BASE_URL:
+            self._model = OpenAIChatModel(model_name=settings.AI_MODEL, provider="ollama")
+            logger.info(f"AI initialized with Ollama ({settings.AI_MODEL})")
 
-    def get_chatgpt_client(self):
-        return self.client
+    @property
+    def model(self) -> Optional[Any]:
+        """Get the AI model, or None if not configured."""
+        return self._model
 
-    async def generate_image(self, *, prompt: str, return_bytes: bool = False):
-        response = self.client.images.generate(
-            model="dall-e-3",
-            prompt=prompt,
-            size="1024x1024",
-            quality="standard",
-            n=1,
+    @classmethod
+    def get_model(cls) -> Optional[Any]:
+        """Get the AI model class method (for backward compatibility)."""
+        return cls().model
+
+    @property
+    def client(self) -> Optional[openai.Client]:
+        """Get the OpenAI client, or None if not configured."""
+        return self._client
+
+    @property
+    def using_gateway(self) -> bool:
+        """Check if using Pydantic AI Gateway."""
+        return self._using_gateway
+
+    def is_available(self) -> bool:
+        """Check if AI features are available."""
+        return self._model is not None
+
+    def _ensure_model_available(self) -> None:
+        """Raise if model is not available."""
+        if self._model is None:
+            raise RuntimeError("AI model not configured. Set AI_PROVIDER and required API keys.")
+
+    def _ensure_client_available(self) -> None:
+        """Raise if client is not available (required for image/audio operations)."""
+        if self._client is None:
+            raise RuntimeError("OpenAI client not available. Use AI_PROVIDER=openai for image/audio features.")
+
+    async def generate_image(self, *, prompt: str, return_bytes: bool = False) -> str | bytes:
+        """Generate an image using DALL-E."""
+        self._ensure_client_available()
+        if self._client is None:
+            raise RuntimeError("OpenAI client not available")
+        response = await asyncio.to_thread(
+            self._client.images.generate, model="dall-e-3", prompt=prompt, size="1024x1024", quality="standard", n=1
         )
         url = response.data[0].url
-
+        if url is None:
+            raise RuntimeError("Failed to generate image: no URL returned")
         return await image_url_to_bytes(url) if return_bytes else url
 
     async def generate_audio(self, text: str, voice: str = "alloy", model: str = "tts-1") -> bytes:
-        """
-        Generates audio from text using OpenAI's TTS API.
-        Returns the audio content as bytes.
-        """
+        """Generate audio from text using OpenAI's TTS API."""
+        self._ensure_client_available()
+        if self._client is None:
+            raise RuntimeError("OpenAI client not available")
         try:
-            with self.client.audio.speech.with_streaming_response.create(
+            with self._client.audio.speech.with_streaming_response.create(
                 model=model,
                 voice=voice,
                 input=text,
@@ -67,15 +197,28 @@ class AIService:
             logger.exception(err_msg)
             raise
 
-    async def generate_completion(self, messages: list[dict[str, str]]):
-        response = self.client.chat.completions.create(
+    async def generate_completion(self, messages: list[dict[str, str]]) -> str:
+        """Generate a chat completion."""
+        self._ensure_client_available()
+        if self._client is None:
+            raise RuntimeError("OpenAI client not available")
+        response = await asyncio.to_thread(
+            self._client.chat.completions.create,
             model="gpt-3.5-turbo",
             messages=messages,
         )
-        return response.choices[0].message.content
+        content = response.choices[0].message.content
+        if content is None:
+            raise RuntimeError("Failed to generate completion: no content returned")
+        return content
 
-    async def generate_completion_json(self, prompt: str):
-        response = self.client.chat.completions.create(
+    async def generate_completion_json(self, prompt: str) -> str:
+        """Generate a JSON-formatted completion."""
+        self._ensure_client_available()
+        if self._client is None:
+            raise RuntimeError("OpenAI client not available")
+        response = await asyncio.to_thread(
+            self._client.chat.completions.create,
             model="gpt-3.5-turbo",
             messages=[
                 {
@@ -88,10 +231,18 @@ class AIService:
                 {"role": "user", "content": prompt},
             ],
         )
-        return response.choices[0].message.content
+        content = response.choices[0].message.content
+        if content is None:
+            raise RuntimeError("Failed to generate JSON completion: no content returned")
+        return content
 
-    async def generate_speech_from_text(self, text_input: str, speech_file_path: str):
-        response = self.client.audio.speech.create(
+    async def generate_speech_from_text(self, text_input: str, speech_file_path: str) -> str:
+        """Generate speech from text and save to file."""
+        self._ensure_client_available()
+        if self._client is None:
+            raise RuntimeError("OpenAI client not available")
+        response = await asyncio.to_thread(
+            self._client.audio.speech.create,
             model="tts-1",
             voice="echo",
             input=text_input,
@@ -100,28 +251,22 @@ class AIService:
         return speech_file_path
 
     async def transcribe_audio(self, audio_bytes: bytes, filename: str = "audio.webm") -> str:
-        """
-        Transcribe audio to text using OpenAI's Whisper API.
-
-        Args:
-            audio_bytes: The audio file content as bytes
-            filename: The filename (used to determine format, e.g., audio.webm, audio.mp3)
-
-        Returns:
-            Transcribed text as a string
-        """
+        """Transcribe audio to text using Whisper."""
+        self._ensure_client_available()
+        if self._client is None:
+            raise RuntimeError("OpenAI client not available")
         try:
-            # Create a file-like object from bytes
             from io import BytesIO
 
             audio_file = BytesIO(audio_bytes)
             audio_file.name = filename
 
-            # Call Whisper API
-            response = self.client.audio.transcriptions.create(
-                model="whisper-1", file=audio_file, response_format="text"
+            response = await asyncio.to_thread(
+                self._client.audio.transcriptions.create,
+                model="whisper-1",
+                file=audio_file,
+                response_format="text",
             )
-
             return response.strip() if isinstance(response, str) else response.text.strip()
         except Exception as e:
             err_msg = f"Error transcribing audio: {e}"
@@ -129,19 +274,12 @@ class AIService:
             raise
 
     async def chat_completion(self, messages: list[dict[str, str]]) -> str:
-        """
-        Generate chat completion using the configured AI provider and model.
-
-        Args:
-            messages: List of message dicts with 'role' and 'content' keys
-
-        Returns:
-            The response text from the AI model
-        """
-        # Use the PydanticAI model for provider-agnostic completion
+        """Generate chat completion using the configured AI provider and model."""
+        self._ensure_model_available()
+        if self._model is None:
+            raise RuntimeError("AI model not configured")
         from pydantic_ai import Agent
 
-        # Extract system prompt and user messages
         system_prompt = None
         user_messages = []
         for msg in messages:
@@ -150,18 +288,28 @@ class AIService:
             elif msg["role"] == "user":
                 user_messages.append(msg["content"])
 
-        # Combine user messages
         user_input = "\n".join(user_messages) if user_messages else ""
 
-        # Create agent with system prompt if provided
-        agent = Agent(model=self.model, system_prompt=system_prompt) if system_prompt else Agent(model=self.model)
-
-        # Run the agent
+        agent = Agent(model=self._model, system_prompt=system_prompt) if system_prompt else Agent(model=self._model)
         result = await agent.run(user_input)
-
         return result.output
 
 
-@lru_cache
 def get_ai_service() -> AIService:
+    """Get the AI service singleton instance."""
     return AIService()
+
+
+def is_ai_available() -> bool:
+    """Check if AI features are available."""
+    return AIService().is_available()
+
+
+def get_model() -> Any | None:
+    """Get the AI model, or None if not configured."""
+    return AIService().model
+
+
+def is_using_gateway() -> bool:
+    """Check if Pydantic AI Gateway is being used."""
+    return AIService().using_gateway

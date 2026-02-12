@@ -222,7 +222,7 @@ class GameLoopService:
 
         # Then get the corresponding vaults
         vault_ids = [gs.vault_id for gs in active_game_states]
-        vault_query = select(Vault).where(Vault.id.in_(vault_ids))
+        vault_query = select(Vault).where(Vault.id.in_(vault_ids)).where(Vault.deleted_at.is_(None))
         vault_result = await db_session.execute(vault_query)
         return list(vault_result.scalars().all())
 

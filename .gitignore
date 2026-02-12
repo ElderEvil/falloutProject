@@ -276,3 +276,9 @@ node_modules/
 
 # Opencode/Sisyphus planning artifacts
 .sisyphus/
+
+# Playwright
+frontend/playwright-report/
+frontend/test-results/
+locust/*.csv
+locust/*.html

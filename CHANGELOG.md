@@ -9,6 +9,35 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.10.2] - 2026-02-12
+
+### What's New
+
+- **Pydantic AI Gateway Support** - Migrated AI service to use Pydantic AI Gateway
+  - New `PYDANTIC_AI_GATEWAY_API_KEY` configuration for unified AI provider access
+  - Single API key for multiple providers (OpenAI, Anthropic, Google Vertex, etc.)
+  - Cost tracking and spending limits built-in
+  - Backward compatible - existing `OPENAI_API_KEY` still works (with deprecation warning)
+  - Ollama local support unchanged
+
+### Fixed
+
+- **Backend Lint Warnings** - Cleaned up code quality issues
+  - Removed unused `TYPE_CHECKING` import (F401)
+  - Replaced global statement with `ModelCache` class (PLW0603)
+
+- **Frontend Test Warnings** - Eliminated Vue warnings in tests
+  - Guarded `onUnmounted` hooks with `getCurrentInstance()` check
+  - Fixed composables: `useWebSocket`, `useTokenRefresh`, `useTypingIndicator`
+  - Tests now run clean without lifecycle injection warnings
+
+### Internal
+
+- Updated test configuration to suppress non-actionable deprecation warnings
+- Version bump to 2.10.2 across backend and frontend
+
+---
+
 ## [2.10.0] - 2026-02-11
 
 ### What's New

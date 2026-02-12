@@ -2,7 +2,7 @@
 """Migrate data from MinIO to RustFS.
 
 Usage:
-    uv run scripts/migrate_minio_to_rustfs.py [--dry-run] [--bucket BUCKET]
+    cd backend && uv run scripts/migrate_minio_to_rustfs.py [--dry-run] [--bucket BUCKET]
 
 Environment variables required:
     MINIO_HOSTNAME, MINIO_PORT, MINIO_ROOT_USER, MINIO_ROOT_PASSWORD
@@ -18,7 +18,9 @@ from typing import Any
 
 import boto3
 from botocore.config import Config
+from botocore.exceptions import ClientError
 from minio import Minio
+from minio.error import S3Error
 from tqdm import tqdm
 
 logging.basicConfig(
@@ -80,7 +82,7 @@ def migrate_object(
         )
 
         return obj_name, True, f"Migrated {len(data)} bytes"
-    except (OSError, ValueError, ImportError) as e:
+    except (OSError, ClientError) as e:
         return obj_name, False, str(e)
 
 
@@ -108,7 +110,7 @@ def migrate_bucket(
     if not dry_run:
         try:
             rustfs_client.head_bucket(Bucket=bucket)
-        except (OSError, ValueError, ImportError):
+        except (OSError, ClientError, S3Error):
             logger.info(f"Creating bucket {bucket} in RustFS")
             rustfs_client.create_bucket(Bucket=bucket)
 
@@ -141,7 +143,7 @@ def migrate_bucket(
                         failed_count += 1
                         errors.append(f"{obj_name}: {message}")
                         logger.error(f"Failed to migrate {obj_name}: {message}")
-                except (OSError, ValueError, ImportError) as e:
+                except (OSError, ClientError) as e:
                     failed_count += 1
                     errors.append(f"{obj_name}: {e}")
                     logger.exception(f"Exception migrating {obj_name}")
@@ -172,8 +174,8 @@ Example:
   export RUSTFS_ACCESS_KEY=your-key
   export RUSTFS_SECRET_KEY=your-secret
 
-  uv run scripts/migrate_minio_to_rustfs.py --dry-run
-  uv run scripts/migrate_minio_to_rustfs.py --bucket my-bucket
+  cd backend && uv run scripts/migrate_minio_to_rustfs.py --dry-run
+  cd backend && uv run scripts/migrate_minio_to_rustfs.py --bucket my-bucket
         """,
     )
     parser.add_argument(
@@ -222,11 +224,7 @@ Example:
         logger.info("RustFS connection OK")
 
         # Get buckets to migrate
-        buckets = (
-            [args.bucket]
-            if args.bucket
-            else [b.name for b in minio_client.list_buckets()]
-        )
+        buckets = [args.bucket] if args.bucket else [b.name for b in minio_client.list_buckets()]
 
         logger.info(f"Buckets to migrate: {buckets}")
 
@@ -237,20 +235,14 @@ Example:
         total_stats = {"total": 0, "success": 0, "failed": 0}
 
         for bucket in buckets:
-            stats = migrate_bucket(
-                minio_client, rustfs_client, bucket, args.dry_run, args.workers
-            )
+            stats = migrate_bucket(minio_client, rustfs_client, bucket, args.dry_run, args.workers)
             total_stats["total"] += stats["total"]
             total_stats["success"] += stats["success"]
             total_stats["failed"] += stats["failed"]
 
-            logger.info(
-                f"Bucket {bucket}: {stats['success']}/{stats['total']} objects migrated successfully"
-            )
+            logger.info(f"Bucket {bucket}: {stats['success']}/{stats['total']} objects migrated successfully")
             if stats["errors"]:
-                logger.warning(
-                    f"Errors in {bucket}: {len(stats['errors'])} objects failed"
-                )
+                logger.warning(f"Errors in {bucket}: {len(stats['errors'])} objects failed")
 
         # Summary
         logger.info("=" * 50)
@@ -266,7 +258,7 @@ Example:
 
         sys.exit(0 if total_stats["failed"] == 0 else 1)
 
-    except (OSError, ValueError, ImportError):
+    except (OSError, ClientError, S3Error):
         logger.exception("Migration failed")
         sys.exit(1)
 

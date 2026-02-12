@@ -109,7 +109,7 @@ jobs:
           export ACCESS_TOKEN_EXPIRE_MINUTES=30
           export ALGORITHM=HS256
           export BACKEND_CORS_ORIGINS='["*"]'
-          
+
           nohup uv run uvicorn main:app --host 0.0.0.0 --port 8000 > /tmp/api.log 2>&1 &
           API_PID=$!
           echo "API_PID=$API_PID" >> $GITHUB_ENV

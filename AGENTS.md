@@ -106,7 +106,35 @@ pnpm run test:run                          # once (CI equivalent)
 pnpm run test -- tests/unit/stores/auth.test.ts
 pnpm run test -- -t "test name substring"
 pnpm run test -- --coverage
+
+# E2E Tests (Playwright)
+pnpm run test:e2e                         # run all E2E tests
+pnpm run test:e2e:ui                      # interactive UI mode
+pnpm run test:e2e:setup                   # setup auth state
 ```
+
+### E2E Testing (Playwright)
+
+E2E tests are located in `frontend/tests/e2e/` and run in CI on every PR affecting frontend files.
+
+```bash
+# Prerequisites
+# - Backend running at http://localhost:8000
+# - Frontend running at http://localhost:5173
+
+# Run E2E tests
+pnpm run test:e2e
+
+# Interactive mode (record new tests)
+pnpm run test:e2e:ui
+
+# Setup authentication state
+pnpm run test:e2e:setup
+```
+
+**CI Secrets Required:**
+- `E2E_USER_EMAIL` - Test account email
+- `E2E_USER_PASSWORD` - Test account password
 
 ### Frontend Code Style
 

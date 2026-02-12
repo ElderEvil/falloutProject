@@ -10,6 +10,7 @@ from botocore.exceptions import ClientError
 from minio import Minio
 from minio.error import S3Error
 from redis.asyncio import Redis
+from urllib3.exceptions import MaxRetryError
 from redis.exceptions import RedisError
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -204,7 +205,7 @@ class HealthCheckService:
                 message=f"MinIO connection failed (optional service): {e!s}",
                 details={"host": settings.MINIO_HOSTNAME, "error": str(e)},
             )
-        except (OSError, ValueError) as e:
+        except (OSError, ValueError, MaxRetryError) as e:
             logger.warning("MinIO health check failed (non-critical): %s", e)
             return HealthCheckResult(
                 service="minio",

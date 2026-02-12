@@ -309,7 +309,7 @@ async def test_only_one_incident_type_per_vault(async_session: AsyncSession, vau
     await async_session.refresh(room2)
     await async_session.refresh(room3)
 
-    # Spawn FIRE incident (vault door incident, spawns at 0,0)
+    # Spawn FIRE incident (spawns in a random occupied room, not at vault door)
     fire_incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
     assert fire_incident is not None
     assert fire_incident.type == IncidentType.FIRE

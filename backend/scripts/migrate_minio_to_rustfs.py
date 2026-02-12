@@ -20,6 +20,7 @@ import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
 from minio import Minio
+from minio.error import S3Error
 from tqdm import tqdm
 
 logging.basicConfig(
@@ -109,7 +110,7 @@ def migrate_bucket(
     if not dry_run:
         try:
             rustfs_client.head_bucket(Bucket=bucket)
-        except (OSError, ClientError):
+        except (OSError, ClientError, S3Error):
             logger.info(f"Creating bucket {bucket} in RustFS")
             rustfs_client.create_bucket(Bucket=bucket)
 
@@ -257,7 +258,7 @@ Example:
 
         sys.exit(0 if total_stats["failed"] == 0 else 1)
 
-    except (OSError, ClientError):
+    except (OSError, ClientError, S3Error):
         logger.exception("Migration failed")
         sys.exit(1)
 

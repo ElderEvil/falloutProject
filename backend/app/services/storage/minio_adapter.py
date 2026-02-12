@@ -61,6 +61,7 @@ class MinIOAdapter:
 
     @property
     def enabled(self) -> bool:
+        _ = self.client
         return self._client is not None and self._enabled
 
     @staticmethod

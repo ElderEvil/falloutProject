@@ -47,7 +47,7 @@ class RustFSAdapter:
 
     @property
     def enabled(self) -> bool:
-        return self._client is not None and self._enabled
+        return self._enabled
 
     def _get_endpoint_url(self) -> str:
         public_url = getattr(settings, "RUSTFS_PUBLIC_URL", "")

@@ -157,7 +157,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-traces
-          path: frontend/test-results/traces/
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
           retention-days: 7
 
       - name: Upload backend logs

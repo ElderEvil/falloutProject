@@ -1,5 +1,6 @@
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, URL } from 'node:url'
 import { mergeConfig, defineConfig as defineVitestConfig, configDefaults } from 'vitest/config'
+import vue from '@vitejs/plugin-vue'
 import viteConfig from './vite.config'
 
 export default mergeConfig(

@@ -2,7 +2,7 @@
 
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
 from pydantic import UUID4, BaseModel, Field
 from pydantic_ai import Agent, RunContext

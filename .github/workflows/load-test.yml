@@ -85,6 +85,31 @@ jobs:
       - name: Run Locust in background
         run: |
           cd backend
+          # Export env vars for the API process
+          export POSTGRES_SERVER=localhost
+          export POSTGRES_USER=postgres
+          export POSTGRES_PASSWORD=postgres
+          export POSTGRES_DB=fallout_db
+          export REDIS_HOST=localhost
+          export REDIS_PORT=6379
+          export SECRET_KEY=test-secret-key-for-load-testing
+          export FIRST_SUPERUSER_USERNAME=admin
+          export FIRST_SUPERUSER_EMAIL=admin@example.com
+          export FIRST_SUPERUSER_PASSWORD=changeme
+          export EMAIL_TEST_USER=test@example.com
+          export USERS_OPEN_REGISTRATION=false
+          export MINIO_HOSTNAME=localhost
+          export MINIO_PORT=9000
+          export MINIO_ROOT_USER=minioadmin
+          export MINIO_ROOT_PASSWORD=minioadmin
+          export MINIO_DEFAULT_BUCKET=fallout-shelter
+          export MINIO_PUBLIC_URL=http://localhost:9000
+          export SMTP_HOST=localhost
+          export SMTP_PORT=1025
+          export ACCESS_TOKEN_EXPIRE_MINUTES=30
+          export ALGORITHM=HS256
+          export BACKEND_CORS_ORIGINS='["*"]'
+          
           nohup uv run uvicorn main:app --host 0.0.0.0 --port 8000 > /tmp/api.log 2>&1 &
           API_PID=$!
           echo "API_PID=$API_PID" >> $GITHUB_ENV

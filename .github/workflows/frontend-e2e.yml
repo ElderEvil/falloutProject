@@ -5,11 +5,13 @@ on:
     branches: [ master ]
     paths:
       - 'frontend/**'
+      - 'backend/**'
       - '.github/workflows/frontend-e2e.yml'
   pull_request:
     branches: [ master ]
     paths:
       - 'frontend/**'
+      - 'backend/**'
       - '.github/workflows/frontend-e2e.yml'
 
 jobs:
@@ -18,19 +20,85 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
-      fastapi:
-        image: elerevil/fo-shelter-be:latest
-        options: >-
-          --health-cmd "curl -sf http://localhost:8000/healthcheck"
-          --health-interval 30s
-          --health-timeout 10s
-          --health-retries 3
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: fallout_db
         ports:
-          - 8000:8000
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d fallout_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync --all-extras
+
+      - name: Create .env for backend
+        run: |
+          cat > backend/.env << EOF
+          POSTGRES_SERVER=localhost
+          POSTGRES_USER=postgres
+          POSTGRES_PASSWORD=postgres
+          POSTGRES_DB=fallout_db
+          REDIS_HOST=localhost
+          REDIS_PORT=6379
+          SECRET_KEY=test-secret-key-for-ci
+          FIRST_SUPERUSER_USERNAME=admin
+          FIRST_SUPERUSER_EMAIL=admin@example.com
+          FIRST_SUPERUSER_PASSWORD=changeme
+          EMAIL_TEST_USER=test@example.com
+          USERS_OPEN_REGISTRATION=false
+          MINIO_HOSTNAME=localhost
+          MINIO_PORT=9000
+          MINIO_ROOT_USER=minioadmin
+          MINIO_ROOT_PASSWORD=minioadmin
+          MINIO_DEFAULT_BUCKET=fallout-shelter
+          MINIO_PUBLIC_URL=http://localhost:9000
+          SMTP_HOST=localhost
+          SMTP_PORT=1025
+          ACCESS_TOKEN_EXPIRE_MINUTES=30
+          ALGORITHM=HS256
+          BACKEND_CORS_ORIGINS='["*"]'
+          EOF
+
+      - name: Run database migrations
+        working-directory: backend
+        run: uv run alembic upgrade head
+
+      - name: Start backend in background
+        working-directory: backend
+        run: |
+          nohup uv run uvicorn main:app --host 0.0.0.0 --port 8000 > /tmp/backend.log 2>&1 &
+          echo "BACKEND_PID=$!" >> $GITHUB_ENV
+
+      - name: Wait for backend to be ready
+        run: |
+          timeout 60 bash -c 'until curl -sf http://localhost:8000/healthcheck; do sleep 2; done'
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -44,7 +112,7 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: frontend/pnpm-lock.yaml
 
-      - name: Install dependencies
+      - name: Install frontend dependencies
         working-directory: frontend
         run: pnpm install --frozen-lockfile
 
@@ -52,23 +120,19 @@ jobs:
         working-directory: frontend
         run: npx playwright install --with-deps chromium
 
-      - name: Wait for backend
-        run: |
-          timeout 120 bash -c 'until curl -sf http://localhost:8000/healthcheck; do sleep 5; done'
-
       - name: Generate API types
         working-directory: frontend
         run: pnpm run types:generate
         env:
-          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
-          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL || 'admin@example.com' }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD || 'changeme' }}
 
       - name: Run E2E tests
         working-directory: frontend
         run: npx playwright test --reporter=line
         env:
-          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
-          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL || 'admin@example.com' }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD || 'changeme' }}
 
       - name: Upload Playwright report
         if: always()
@@ -85,3 +149,18 @@ jobs:
           name: playwright-traces
           path: frontend/test-results/
           retention-days: 7
+
+      - name: Upload backend logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-logs
+          path: /tmp/backend.log
+          retention-days: 7
+
+      - name: Cleanup backend
+        if: always()
+        run: |
+          if [ -n "${{ env.BACKEND_PID }}" ]; then
+            kill ${{ env.BACKEND_PID }} 2>/dev/null || true
+          fi

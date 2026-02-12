@@ -1,0 +1,135 @@
+name: Weekly Load Test
+
+on:
+  schedule:
+    - cron: "0 0 * * 0"  # Weekly Sunday at midnight UTC
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  load-test:
+    name: Run Locust Load Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: fallout_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d fallout_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --all-extras --dev
+
+      - name: Create .env for tests
+        run: |
+          cat > backend/.env << EOF
+          POSTGRES_SERVER=localhost
+          POSTGRES_USER=postgres
+          POSTGRES_PASSWORD=postgres
+          POSTGRES_DB=fallout_db
+          REDIS_HOST=localhost
+          REDIS_PORT=6379
+          SECRET_KEY=test-secret-key-for-load-testing
+          FIRST_SUPERUSER_USERNAME=admin
+          FIRST_SUPERUSER_EMAIL=admin@example.com
+          FIRST_SUPERUSER_PASSWORD=changeme
+          EMAIL_TEST_USER=test@example.com
+          USERS_OPEN_REGISTRATION=false
+          MINIO_HOSTNAME=localhost
+          MINIO_PORT=9000
+          MINIO_ROOT_USER=minioadmin
+          MINIO_ROOT_PASSWORD=minioadmin
+          MINIO_DEFAULT_BUCKET=fallout-shelter
+          MINIO_PUBLIC_URL=http://localhost:9000
+          SMTP_HOST=localhost
+          SMTP_PORT=1025
+          EOF
+
+      - name: Wait for PostgreSQL
+        run: |
+          timeout 60 bash -c 'until pg_isready -U postgres -d fallout_db; do sleep 2; done'
+
+      - name: Run database migrations
+        working-directory: backend
+        run: uv run alembic upgrade head
+
+      - name: Run Locust in background
+        run: |
+          cd backend
+          nohup uv run uvicorn main:app --host 0.0.0.0 --port 8000 > /tmp/api.log 2>&1 &
+          API_PID=$!
+          echo "API_PID=$API_PID" >> $GITHUB_ENV
+
+      - name: Wait for API to be ready
+        run: |
+          timeout 60 bash -c 'until curl -sf http://localhost:8000/healthcheck; do sleep 2; done'
+
+      - name: Run Load Test
+        working-directory: backend
+        run: |
+          uv run locust -f locust/locustfile.py \
+            --host http://localhost:8000 \
+            --users 50 \
+            --spawn-rate 5 \
+            --run-time 15m \
+            --headless \
+            --html report.html \
+            --csv locust_results
+
+      - name: Upload Locust Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: locust-report
+          path: backend/report.html
+          retention-days: 30
+
+      - name: Upload Locust CSV Data
+        uses: actions/upload-artifact@v4
+        with:
+          name: locust-csv
+          path: backend/locust_results*
+          retention-days: 30
+
+      - name: Upload API Logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-logs
+          path: /tmp/api.log
+          retention-days: 7
+
+      - name: Cleanup API process
+        if: always()
+        run: |
+          if [ -n "${{ env.API_PID }}" ]; then
+            kill ${{ env.API_PID }} 2>/dev/null || true
+          fi

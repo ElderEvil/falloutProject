@@ -22,33 +22,43 @@ export default defineConfig({
   projects: [
     {
       name: 'setup',
+      testDir: __dirname,
       testMatch: /support\/e2e\.setup\.ts/,
-      use: {
-        storageState: join(__dirname, '.auth/user.json'),
-      },
     },
     ...(process.env.CI
       ? [
           {
             name: 'chromium',
-            use: { ...devices['Desktop Chrome'] },
+            use: {
+              ...devices['Desktop Chrome'],
+              storageState: join(__dirname, '.auth/user.json'),
+            },
             dependencies: ['setup'],
           },
         ]
       : [
           {
             name: 'chromium',
-            use: { ...devices['Desktop Chrome'] },
+            use: {
+              ...devices['Desktop Chrome'],
+              storageState: join(__dirname, '.auth/user.json'),
+            },
             dependencies: ['setup'],
           },
           {
             name: 'firefox',
-            use: { ...devices['Desktop Firefox'] },
+            use: {
+              ...devices['Desktop Firefox'],
+              storageState: join(__dirname, '.auth/user.json'),
+            },
             dependencies: ['setup'],
           },
           {
             name: 'webkit',
-            use: { ...devices['Desktop Safari'] },
+            use: {
+              ...devices['Desktop Safari'],
+              storageState: join(__dirname, '.auth/user.json'),
+            },
             dependencies: ['setup'],
           },
         ]),

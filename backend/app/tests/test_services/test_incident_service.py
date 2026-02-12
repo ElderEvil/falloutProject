@@ -273,18 +273,23 @@ async def test_only_one_incident_type_per_vault(async_session: AsyncSession, vau
     from app.schemas.dweller import DwellerCreate
     from app.schemas.room import RoomCreate
 
-    # Create two separate rooms with dwellers
+    # Create three separate rooms with dwellers (need 3+ rooms for multiple incidents)
     room1_data = create_fake_room()
-    room1_data["category"] = "Production"  # Ensure it's a production room
+    room1_data["category"] = "Production"
     room1_in = RoomCreate(**room1_data, vault_id=vault.id, coordinate_x=1, coordinate_y=1)
     room1 = await crud.room.create(db_session=async_session, obj_in=room1_in)
 
     room2_data = create_fake_room()
-    room2_data["category"] = "Production"  # Ensure it's a production room
+    room2_data["category"] = "Production"
     room2_in = RoomCreate(**room2_data, vault_id=vault.id, coordinate_x=2, coordinate_y=1)
     room2 = await crud.room.create(db_session=async_session, obj_in=room2_in)
 
-    # Add dwellers to both rooms - create dweller first, then assign to room
+    room3_data = create_fake_room()
+    room3_data["category"] = "Production"
+    room3_in = RoomCreate(**room3_data, vault_id=vault.id, coordinate_x=3, coordinate_y=1)
+    room3 = await crud.room.create(db_session=async_session, obj_in=room3_in)
+
+    # Add dwellers to all rooms
     dweller1_in = DwellerCreate(**dweller_data, vault_id=vault.id)
     dweller1 = await crud.dweller.create(db_session=async_session, obj_in=dweller1_in)
     await crud.dweller.move_to_room(async_session, dweller1.id, room1.id)
@@ -293,13 +298,18 @@ async def test_only_one_incident_type_per_vault(async_session: AsyncSession, vau
     dweller2 = await crud.dweller.create(db_session=async_session, obj_in=dweller2_in)
     await crud.dweller.move_to_room(async_session, dweller2.id, room2.id)
 
+    dweller3_in = DwellerCreate(**dweller_data, vault_id=vault.id)
+    dweller3 = await crud.dweller.create(db_session=async_session, obj_in=dweller3_in)
+    await crud.dweller.move_to_room(async_session, dweller3.id, room3.id)
+
     await async_session.commit()
 
     # Refresh rooms to get updated dwellers
     await async_session.refresh(room1)
     await async_session.refresh(room2)
+    await async_session.refresh(room3)
 
-    # Spawn FIRE incident in room1
+    # Spawn FIRE incident (vault door incident, spawns at 0,0)
     fire_incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
     assert fire_incident is not None
     assert fire_incident.type == IncidentType.FIRE
@@ -308,10 +318,11 @@ async def test_only_one_incident_type_per_vault(async_session: AsyncSession, vau
     raider_incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.RAIDER_ATTACK)
     assert raider_incident is None  # Should not spawn different type
 
-    # Try to spawn another FIRE (should succeed - same type)
+    # Try to spawn another FIRE (should succeed - same type, different room)
     fire_incident2 = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
     assert fire_incident2 is not None
     assert fire_incident2.type == IncidentType.FIRE
+    assert fire_incident2.id != fire_incident.id  # Different incident
 
 
 @pytest.mark.asyncio

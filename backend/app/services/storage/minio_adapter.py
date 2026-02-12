@@ -4,6 +4,7 @@ import logging
 
 from minio import Minio
 from minio.error import S3Error
+from urllib3.exceptions import MaxRetryError
 
 from app.core.config import settings
 from app.utils.exceptions import BucketNotFoundError, FileDownloadError, FileUploadError
@@ -54,7 +55,7 @@ class MinIOAdapter:
                 )
                 self._ensure_bucket_exists(self.default_bucket_name)
                 logger.info("MinIO adapter initialized successfully")
-            except (S3Error, OSError, ValueError, BucketNotFoundError) as e:
+            except (S3Error, OSError, ValueError, BucketNotFoundError, MaxRetryError) as e:
                 logger.warning(f"Failed to initialize MinIO adapter: {e}. MinIO features will be disabled.")
                 self._enabled = False
                 self.client = None

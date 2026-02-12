@@ -37,7 +37,7 @@ pnpm run test:e2e:setup
 
 ## 📁 Structure
 
-```
+```text
 tests/e2e/
 ├── specs/                  # Test specifications
 │   ├── auth.e2e.spec.ts
@@ -52,10 +52,13 @@ tests/e2e/
 
 ## 🔐 Environment Variables
 
+> **Note**: Credentials must be provided via environment variables.
+> The values below are local-only examples - do not use in staging/production.
+
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `E2E_USER_EMAIL` | Test user email for authentication | `admin@vault.shelter` |
-| `E2E_USER_PASSWORD` | Test user password | `admin123` |
+| `E2E_USER_EMAIL` | Test user email for authentication | (required) |
+| `E2E_USER_PASSWORD` | Test user password | (required) |
 
 ## ⚙️ Configuration
 

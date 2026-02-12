@@ -20,11 +20,9 @@ test.describe('Navigation', () => {
   test('should navigate to vault dashboard', async ({ page }) => {
     const vaultLink = page.getByRole('link', { name: /vault|dashboard|home/i })
 
-    if (await vaultLink.count() > 0) {
-      await vaultLink.click()
-      await page.waitForURL(/\/vault|\//i)
-      await expect(page.getByRole('heading', { name: /vault|dashboard/i })).toBeVisible()
-    }
+    await vaultLink.click()
+    await page.waitForURL(/\/vault|\//i)
+    await expect(page.getByRole('heading', { name: /vault|dashboard/i })).toBeVisible()
   })
 
   test('should navigate between pages', async ({ page }) => {
@@ -56,11 +54,13 @@ test.describe('Navigation', () => {
   test('should be responsive on mobile', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 })
 
-    await expect(page.getByRole('navigation')).toBeVisible()
-
     const hamburgerMenu = page.getByRole('button', { name: /menu|hamburger/i })
+
     if (await hamburgerMenu.count() > 0) {
+      await expect(page.getByRole('navigation')).not.toBeVisible()
       await hamburgerMenu.click()
+      await expect(page.getByRole('navigation')).toBeVisible()
+    } else {
       await expect(page.getByRole('navigation')).toBeVisible()
     }
   })

@@ -26,16 +26,18 @@ from app.services.open_ai import get_model
 
 logger = logging.getLogger(__name__)
 
-# Initialize the model lazily (None if AI not configured)
-_model = None
 
+class ModelCache:
+    """Singleton-like cache for the AI model to avoid re-initialization."""
 
-def _get_model():
-    """Get or lazily initialize the AI model."""
-    global _model
-    if _model is None:
-        _model = get_model()
-    return _model
+    _instance = None
+
+    @classmethod
+    def get_model(cls):
+        """Get or lazily initialize the AI model."""
+        if cls._instance is None:
+            cls._instance = get_model()
+        return cls._instance
 
 
 # --- Structured Output Schema ---
@@ -135,7 +137,7 @@ class RoomInfo(BaseModel):
 # --- Agent Definition ---
 
 dweller_chat_agent = Agent(
-    model=_get_model(),
+    model=ModelCache.get_model(),
     output_type=DwellerChatOutput,
     deps_type=DwellerChatDeps,
     system_prompt=(

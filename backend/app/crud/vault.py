@@ -154,6 +154,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             .join(Room, Room.vault_id == self.model.id, isouter=True)
             .join(Dweller, Dweller.vault_id == self.model.id, isouter=True)
             .where(Vault.user_id == user_id)
+            .where(Vault.deleted_at.is_(None))
             .group_by(Vault.id)
         )
 

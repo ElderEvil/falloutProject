@@ -4,7 +4,6 @@ import logging
 
 from minio import Minio
 from minio.error import S3Error
-from urllib3.exceptions import MaxRetryError
 
 from app.core.config import settings
 from app.utils.exceptions import BucketNotFoundError, FileDownloadError, FileUploadError
@@ -41,30 +40,28 @@ class MinIOAdapter:
     """MinIO storage adapter implementing the StorageService interface."""
 
     def __init__(self):
-        self.client = None
+        self._client = None
         self.default_bucket_name = "fastapi-minio"
         self._enabled = settings.minio_enabled
 
-        if self._enabled:
-            try:
-                self.client = Minio(
-                    f"{settings.MINIO_HOSTNAME}:{settings.MINIO_PORT}",
-                    access_key=settings.MINIO_ROOT_USER,
-                    secret_key=settings.MINIO_ROOT_PASSWORD,
-                    secure=False,
-                )
-                self._ensure_bucket_exists(self.default_bucket_name)
-                logger.info("MinIO adapter initialized successfully")
-            except (S3Error, OSError, ValueError, BucketNotFoundError, MaxRetryError) as e:
-                logger.warning(f"Failed to initialize MinIO adapter: {e}. MinIO features will be disabled.")
-                self._enabled = False
-                self.client = None
-        else:
+        if not self._enabled:
             logger.info("MinIO not configured. Storage features will be disabled.")
 
     @property
+    def client(self):
+        """Lazily initialize and return the MinIO client."""
+        if self._client is None and self._enabled:
+            self._client = Minio(
+                f"{settings.MINIO_HOSTNAME}:{settings.MINIO_PORT}",
+                access_key=settings.MINIO_ROOT_USER,
+                secret_key=settings.MINIO_ROOT_PASSWORD,
+                secure=False,
+            )
+        return self._client
+
+    @property
     def enabled(self) -> bool:
-        return self._enabled
+        return self._client is not None and self._enabled
 
     @staticmethod
     def _get_public_policy(bucket_name: str) -> str:
@@ -74,11 +71,13 @@ class MinIOAdapter:
         return json.dumps(policy)
 
     def _ensure_bucket_exists(self, bucket_name: str) -> None:
-        if not self.enabled or not self.client:
+        if not self.enabled:
             return
+        client = self._client
+        assert client is not None
         try:
-            if not self.client.bucket_exists(bucket_name):
-                self.client.make_bucket(bucket_name)
+            if not client.bucket_exists(bucket_name):
+                client.make_bucket(bucket_name)
         except S3Error as e:
             error_msg = f"Error creating bucket {bucket_name}: {e}"
             raise BucketNotFoundError(error_msg) from e

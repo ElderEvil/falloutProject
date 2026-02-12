@@ -18,11 +18,11 @@ class NoOpStorageAdapter(Protocol):
 
     def upload_file(
         self,
-        file_data: bytes,
+        _file_data: bytes,
         file_name: str,
         *,
-        file_type: str = "image/png",
-        bucket_name: str | None = None,
+        _file_type: str = "image/png",
+        _bucket_name: str | None = None,
     ) -> str:
         """No-op upload - logs warning and returns empty string."""
         logger.warning("Storage disabled, skipping upload for %s", file_name)
@@ -31,9 +31,9 @@ class NoOpStorageAdapter(Protocol):
     def upload_thumbnail(
         self,
         *,
-        file_data: bytes,
+        _file_data: bytes,
         file_name: str,
-        bucket_name: str | None = None,
+        _bucket_name: str | None = None,
     ) -> str:
         """No-op thumbnail upload - logs warning and returns empty string."""
         logger.warning("Storage disabled, skipping thumbnail upload for %s", file_name)
@@ -43,7 +43,7 @@ class NoOpStorageAdapter(Protocol):
         self,
         *,
         file_name: str,
-        bucket_name: str | None = None,
+        _bucket_name: str | None = None,
     ) -> bytes:
         """No-op download - logs warning and raises error."""
         logger.warning("Storage disabled, cannot download %s", file_name)
@@ -54,7 +54,7 @@ class NoOpStorageAdapter(Protocol):
         self,
         *,
         file_name: str,
-        bucket_name: str | None = None,
+        _bucket_name: str | None = None,
     ) -> str:
         """No-op URL generation - logs warning and returns empty string."""
         logger.warning("Storage disabled, cannot generate public URL for %s", file_name)
@@ -64,7 +64,7 @@ class NoOpStorageAdapter(Protocol):
         self,
         *,
         file_name: str,
-        bucket_name: str | None = None,
+        _bucket_name: str | None = None,
     ) -> bool:
         """No-op delete - logs warning and returns False."""
         logger.warning("Storage disabled, cannot delete %s", file_name)
@@ -73,8 +73,8 @@ class NoOpStorageAdapter(Protocol):
     def file_exists(
         self,
         *,
-        file_name: str,
-        bucket_name: str | None = None,
+        _file_name: str,
+        _bucket_name: str | None = None,
     ) -> bool:
         """No-op check - always returns False."""
         return False
@@ -82,8 +82,8 @@ class NoOpStorageAdapter(Protocol):
     def list_files(
         self,
         *,
-        prefix: str = "",
-        bucket_name: str | None = None,
+        _prefix: str = "",
+        _bucket_name: str | None = None,
     ) -> list[str]:
         """No-op list - always returns empty list."""
         return []

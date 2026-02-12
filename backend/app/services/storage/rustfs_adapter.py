@@ -16,27 +16,11 @@ class RustFSAdapter:
     """RustFS storage adapter implementing the StorageService interface using boto3."""
 
     def __init__(self):
-        self.client = None
+        self._client = None
         self.default_bucket_name = getattr(settings, "RUSTFS_DEFAULT_BUCKET", "fallout-shelter")
         self._enabled = self._check_enabled()
 
-        if self._enabled:
-            try:
-                self.client = boto3.client(
-                    "s3",
-                    endpoint_url=self._get_endpoint_url(),
-                    aws_access_key_id=getattr(settings, "RUSTFS_ACCESS_KEY", ""),
-                    aws_secret_access_key=getattr(settings, "RUSTFS_SECRET_KEY", ""),
-                    region_name="us-east-1",
-                    config=Config(signature_version="s3v4"),
-                )
-                self._ensure_bucket_exists(self.default_bucket_name)
-                logger.info("RustFS adapter initialized successfully")
-            except (ClientError, OSError, ValueError, ImportError) as e:
-                logger.warning(f"Failed to initialize RustFS adapter: {e}. RustFS features will be disabled.")
-                self._enabled = False
-                self.client = None
-        else:
+        if not self._enabled:
             logger.info("RustFS not configured. Storage features will be disabled.")
 
     def _check_enabled(self) -> bool:
@@ -46,6 +30,24 @@ class RustFSAdapter:
                 getattr(settings, "RUSTFS_SECRET_KEY", None),
             ]
         )
+
+    @property
+    def client(self):
+        """Lazily initialize and return the RustFS client."""
+        if self._client is None and self._enabled:
+            self._client = boto3.client(
+                "s3",
+                endpoint_url=self._get_endpoint_url(),
+                aws_access_key_id=getattr(settings, "RUSTFS_ACCESS_KEY", ""),
+                aws_secret_access_key=getattr(settings, "RUSTFS_SECRET_KEY", ""),
+                region_name="us-east-1",
+                config=Config(signature_version="s3v4"),
+            )
+        return self._client
+
+    @property
+    def enabled(self) -> bool:
+        return self._client is not None and self._enabled
 
     def _get_endpoint_url(self) -> str:
         public_url = getattr(settings, "RUSTFS_PUBLIC_URL", "")
@@ -57,20 +59,18 @@ class RustFSAdapter:
             return f"https://{hostname}:{port}"
         return f"https://{hostname}"
 
-    @property
-    def enabled(self) -> bool:
-        return self._enabled
-
     def _ensure_bucket_exists(self, bucket_name: str) -> None:
-        if not self.enabled or not self.client:
+        if not self.enabled:
             return
+        client = self._client
+        assert client is not None
         try:
-            self.client.head_bucket(Bucket=bucket_name)
+            client.head_bucket(Bucket=bucket_name)
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "Unknown")
             if error_code == "404":
                 try:
-                    self.client.create_bucket(Bucket=bucket_name)
+                    client.create_bucket(Bucket=bucket_name)
                     logger.info(f"Created bucket: {bucket_name}")
                 except ClientError as create_error:
                     error_msg = f"Error creating bucket {bucket_name}: {create_error}"

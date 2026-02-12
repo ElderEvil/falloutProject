@@ -2,7 +2,7 @@
 
 import logging
 from dataclasses import dataclass
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import UUID4, BaseModel, Field
 from pydantic_ai import Agent, RunContext
@@ -22,12 +22,20 @@ from app.schemas.chat import (
 )
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerReadFull
-from app.services.open_ai import AIService
+from app.services.open_ai import get_model
 
 logger = logging.getLogger(__name__)
 
-# Initialize the model (shared with other agents)
-model = AIService.get_model()
+# Initialize the model lazily (None if AI not configured)
+_model = None
+
+
+def _get_model():
+    """Get or lazily initialize the AI model."""
+    global _model
+    if _model is None:
+        _model = get_model()
+    return _model
 
 
 # --- Structured Output Schema ---
@@ -127,7 +135,7 @@ class RoomInfo(BaseModel):
 # --- Agent Definition ---
 
 dweller_chat_agent = Agent(
-    model=model,
+    model=_get_model(),
     output_type=DwellerChatOutput,
     deps_type=DwellerChatDeps,
     system_prompt=(

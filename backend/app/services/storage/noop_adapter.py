@@ -3,7 +3,7 @@
 import logging
 from typing import Protocol
 
-from app.utils.exceptions import FileDownloadError, FileUploadError
+from app.utils.exceptions import FileDownloadError
 
 logger = logging.getLogger(__name__)
 

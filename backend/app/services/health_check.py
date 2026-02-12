@@ -10,11 +10,11 @@ from botocore.exceptions import ClientError
 from minio import Minio
 from minio.error import S3Error
 from redis.asyncio import Redis
-from urllib3.exceptions import MaxRetryError
 from redis.exceptions import RedisError
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine
+from urllib3.exceptions import MaxRetryError
 
 from app.core.config import settings
 

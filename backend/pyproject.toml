@@ -156,6 +156,11 @@ addopts = [
     "--cov-report=html",
     "--cov-report=json",
 ]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::pydantic.warnings.PydanticDeprecatedSince20",
+    "ignore::UserWarning",
+]
 
 [tool.coverage.run]
 source = ["app"]

@@ -111,12 +111,21 @@ class AIService:
             case "anthropic":
                 if settings.ANTHROPIC_API_KEY:
                     # Anthropic direct access - use Gateway instead for better compatibility
-                    logger.error(
-                        "Direct Anthropic API access requires Pydantic AI Gateway. "
-                        "Set PYDANTIC_AI_GATEWAY_API_KEY to use Anthropic models."
+                    raise RuntimeError(
+                        f"Direct Anthropic API access is not supported. "
+                        f"AI_PROVIDER={settings.AI_PROVIDER} requires Pydantic AI Gateway. "
+                        f"Set PYDANTIC_AI_GATEWAY_API_KEY to use Anthropic models, "
+                        f"or switch to a supported provider (AI_PROVIDER=openai, ollama)."
                     )
+                logger.warning(
+                    "Direct provider mode does not support: %s. AI features will be disabled.",
+                    settings.AI_PROVIDER,
+                )
             case _:
-                logger.warning(f"Direct provider mode does not support: {settings.AI_PROVIDER}")
+                logger.warning(
+                    "Direct provider mode does not support: %s. AI features will be disabled.",
+                    settings.AI_PROVIDER,
+                )
 
     def _initialize_ollama(self) -> None:
         """Initialize using local Ollama instance."""

@@ -30,12 +30,14 @@ class CRUDQuest(
         self.link_model = link_model
 
     async def get_multi(
-        self, db_session: AsyncSession, skip: int = 0, limit: int = 100, _include_deleted: bool = False
+        self, db_session: AsyncSession, skip: int = 0, limit: int = 100, include_deleted: bool = False
     ) -> Sequence[QuestRead]:
         """Get all quests without vault-specific data."""
         query = select(Quest).offset(skip).limit(limit).order_by(Quest.id)
         response = await db_session.execute(query)
         quests = response.scalars().all()
+
+        _ = include_deleted
 
         result_items = []
         for quest in quests:
@@ -98,18 +100,17 @@ class CRUDQuest(
     async def get_multi_for_vault(
         self, *, db_session: AsyncSession, skip: int, limit: int, vault_id: UUID4
     ) -> Sequence[QuestRead]:
-        all_quests_query = select(Quest)
-        all_quests_result = await db_session.execute(all_quests_query)
-        all_quests = all_quests_result.scalars().all()
-
         existing_link_query = select(self.link_model.quest_id).where(self.link_model.vault_id == vault_id)
-        existing_result = await db_session.execute(existing_link_query)
-        existing_quest_ids = {str(row) for row in existing_result.scalars().all()}
 
-        for quest in all_quests:
-            if str(quest.id) not in existing_quest_ids:
-                db_session.add(self.link_model(quest_id=quest.id, vault_id=vault_id, is_visible=True))
-        if any(str(quest.id) not in existing_quest_ids for quest in all_quests):
+        missing_quests_query = select(Quest).where(~Quest.id.in_(existing_link_query))
+        missing_result = await db_session.execute(missing_quests_query)
+        missing_quests = missing_result.scalars().all()
+
+        dirty = False
+        for quest in missing_quests:
+            db_session.add(self.link_model(quest_id=quest.id, vault_id=vault_id, is_visible=True))
+            dirty = True
+        if dirty:
             await db_session.commit()
 
         query = select(Quest).join(self.link_model).where(self.link_model.vault_id == vault_id)

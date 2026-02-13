@@ -30,7 +30,7 @@ class CRUDQuest(
         self.link_model = link_model
 
     async def get_multi(
-        self, db_session: AsyncSession, skip: int = 0, limit: int = 100, include_deleted: bool = False
+        self, db_session: AsyncSession, skip: int = 0, limit: int = 100, _include_deleted: bool = False
     ) -> Sequence[QuestRead]:
         """Get all quests without vault-specific data."""
         query = select(Quest).offset(skip).limit(limit).order_by(Quest.id)

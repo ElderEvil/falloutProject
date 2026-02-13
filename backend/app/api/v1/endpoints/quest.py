@@ -129,7 +129,7 @@ async def assign_party_to_quest(
     vault_id: UUID4,
     quest_id: UUID4,
     party_data: QuestPartyAssign,
-    user: CurrentActiveUser,
+    _user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """
@@ -147,7 +147,7 @@ async def assign_party_to_quest(
 async def get_quest_party(
     vault_id: UUID4,
     quest_id: UUID4,
-    user: CurrentActiveUser,
+    _user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """Get party members assigned to a quest."""
@@ -173,7 +173,7 @@ async def get_quest_party(
 async def start_quest(
     vault_id: UUID4,
     quest_id: UUID4,
-    user: CurrentActiveUser,
+    _user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     duration_minutes: int | None = None,
 ):

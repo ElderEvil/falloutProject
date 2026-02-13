@@ -3,7 +3,6 @@ from collections.abc import Sequence
 from typing import Any
 
 from pydantic import UUID4
-from sqlalchemy.orm import selectinload
 from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -34,20 +33,19 @@ class CRUDQuest(
         self, db_session: AsyncSession, skip: int = 0, limit: int = 100, _include_deleted: bool = False
     ) -> Sequence[QuestRead]:
         """Get all quests without vault-specific data."""
-        query = (
-            select(Quest)
-            .options(selectinload(Quest.requirements), selectinload(Quest.rewards))
-            .offset(skip)
-            .limit(limit)
-            .order_by(Quest.id)
-        )
+        query = select(Quest).offset(skip).limit(limit).order_by(Quest.id)
         response = await db_session.execute(query)
-        quests = response.scalars().unique().all()
+        quests = response.scalars().all()
 
         result_items = []
         for quest in quests:
-            reqs = quest.requirements or []
-            rewards = quest.rewards or []
+            req_query = select(QuestRequirement).where(QuestRequirement.quest_id == quest.id)
+            req_result = await db_session.execute(req_query)
+            reqs = req_result.scalars().all()
+
+            reward_query = select(QuestReward).where(QuestReward.quest_id == quest.id)
+            reward_result = await db_session.execute(reward_query)
+            rewards = reward_result.scalars().all()
 
             result_items.append(
                 QuestRead(

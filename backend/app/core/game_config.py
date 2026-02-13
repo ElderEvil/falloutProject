@@ -288,6 +288,14 @@ class ResourceConfig(BaseSettings):
     low_threshold: float = Field(default=0.2, description="20% of max", ge=0.0, le=1.0)
     critical_threshold: float = Field(default=0.05, description="5% of max", ge=0.0, le=1.0)
 
+    # Room destruction refund
+    destroy_room_refund_rate: float = Field(
+        default=0.5,
+        description="Percentage of room cost refunded when destroyed",
+        ge=0.0,
+        le=1.0,
+    )
+
     def get_tier_multiplier(self, tier: int) -> float:
         """Get production multiplier for room tier."""
         multipliers = {
@@ -306,6 +314,26 @@ class RelationshipConfig(BaseSettings):
     affinity_increase_per_tick: int = Field(default=2, description="Affinity gain when in same room", ge=0)
     romance_threshold: int = Field(default=70, description="Affinity required for romance", ge=0, le=100)
     partner_happiness_bonus: int = Field(default=10, description="Happiness bonus from having partner", ge=0)
+
+    # Quick pair affinity setting (for admin quick-pair feature)
+    quick_pair_affinity: int = Field(
+        default=90,
+        description="Affinity percentage for quick-paired dwellers",
+        ge=0,
+        le=100,
+    )
+
+    # Compatibility calculation settings
+    max_special_diff: int = Field(
+        default=70,
+        description="Maximum SPECIAL stat difference for compatibility (7 stats * 10)",
+        ge=1,
+    )
+    max_level_diff: int = Field(
+        default=50,
+        description="Maximum level difference for compatibility",
+        ge=1,
+    )
 
     # Compatibility weights (must sum to 1.0)
     compatibility_special_weight: float = Field(default=0.3, ge=0.0, le=1.0)
@@ -476,6 +504,20 @@ class DeathConfig(BaseSettings):
         return min(cost, self.revival_cost_max)
 
 
+class DwellerConfig(BaseSettings):
+    """Dweller creation and attribute configuration."""
+
+    model_config = SettingsConfigDict(env_prefix="DWELLER_")
+
+    # Starting stats for boosted dwellers (lunchbox legendary)
+    boosted_stat_value: int = Field(
+        default=5,
+        description="Starting SPECIAL stat value for boosted dwellers",
+        ge=1,
+        le=10,
+    )
+
+
 class ExplorationConfig(BaseSettings):
     """Wasteland exploration configuration."""
 
@@ -585,8 +627,9 @@ class GameConfig(BaseSettings):
     breeding: BreedingConfig = Field(default_factory=BreedingConfig)
     leveling: LevelingConfig = Field(default_factory=LevelingConfig)
     radio: RadioConfig = Field(default_factory=RadioConfig)
-    exploration: ExplorationConfig = Field(default_factory=ExplorationConfig)
     death: DeathConfig = Field(default_factory=DeathConfig)
+    dweller: DwellerConfig = Field(default_factory=DwellerConfig)
+    exploration: ExplorationConfig = Field(default_factory=ExplorationConfig)
 
 
 # Singleton instance

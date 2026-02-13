@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
-from app.crud.dweller import BOOSTED_STAT_VALUE
+from app.core.game_config import game_config
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride
 from app.schemas.room import RoomCreate
@@ -79,7 +79,7 @@ async def test_create_random_common_dweller(async_session: AsyncSession):
     dweller_boosted = await crud.dweller.create_random(db_session=async_session, obj_in=override, vault_id=vault.id)
     assert dweller_boosted.id
     assert dweller_boosted.vault_id == vault.id  # Check vault association
-    assert getattr(dweller_boosted, special_stat.value.lower()) == BOOSTED_STAT_VALUE
+    assert getattr(dweller_boosted, special_stat.value.lower()) == game_config.dweller.boosted_stat_value
 
 
 @pytest.mark.asyncio

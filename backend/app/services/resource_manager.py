@@ -8,24 +8,12 @@ from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.game_config import game_config
 from app.models import Dweller, Room, Vault
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.vault import VaultUpdate
 
 logger = logging.getLogger(__name__)
-
-# Resource rates per second
-POWER_CONSUMPTION_RATE = 0.5 / 60  # Per room size per tier per second
-FOOD_CONSUMPTION_PER_DWELLER = 0.36 / 60  # Per dweller per second
-WATER_CONSUMPTION_PER_DWELLER = 0.36 / 60  # Per dweller per second
-
-# Production rates
-BASE_PRODUCTION_RATE = 0.1  # Base production per SPECIAL point per second
-TIER_MULTIPLIER = {1: 1.0, 2: 1.5, 3: 2.0}  # Production multiplier by room tier
-
-# Thresholds
-LOW_RESOURCE_THRESHOLD = 0.2  # 20% of max
-CRITICAL_RESOURCE_THRESHOLD = 0.05  # 5% of max
 
 
 class ResourceManager:
@@ -100,10 +88,12 @@ class ResourceManager:
     ) -> dict[str, float]:
         """Calculate resource consumption for power, food, and water."""
         power_consumption = sum(
-            POWER_CONSUMPTION_RATE * room.size * room.tier * seconds_passed for room in rooms if room.size
+            game_config.resource.power_consumption_rate * room.size * room.tier * seconds_passed
+            for room in rooms
+            if room.size
         )
-        food_consumption = dweller_count * FOOD_CONSUMPTION_PER_DWELLER * seconds_passed
-        water_consumption = dweller_count * WATER_CONSUMPTION_PER_DWELLER * seconds_passed
+        food_consumption = dweller_count * game_config.resource.food_consumption_per_dweller * seconds_passed
+        water_consumption = dweller_count * game_config.resource.water_consumption_per_dweller * seconds_passed
 
         return {
             "power": round(power_consumption, 2),
@@ -136,8 +126,8 @@ class ResourceManager:
     def _calculate_room_production(self, room: Room, dwellers: list[Dweller], seconds_passed: int) -> float:
         """Calculate production for a single room based on dweller stats and room tier."""
         ability_sum = sum(getattr(dweller, room.ability.lower(), 0) for dweller in dwellers)
-        tier_mult = TIER_MULTIPLIER.get(room.tier, 1.0)
-        production = room.output * ability_sum * BASE_PRODUCTION_RATE * tier_mult * seconds_passed
+        tier_mult = game_config.resource.get_tier_multiplier(room.tier)
+        production = room.output * ability_sum * game_config.resource.base_production_rate * tier_mult * seconds_passed
 
         self.logger.info(
             f"Room {room.name} producing: output={room.output}, ability_sum={ability_sum}, "
@@ -183,9 +173,9 @@ class ResourceManager:
         ]
 
         for resource, max_value, label in resource_checks:
-            if new_resources[resource] < max_value * CRITICAL_RESOURCE_THRESHOLD:
+            if new_resources[resource] < max_value * game_config.resource.critical_threshold:
                 warnings.append({"type": f"critical_{resource}", "message": f"{label} critically low!"})
-            elif new_resources[resource] < max_value * LOW_RESOURCE_THRESHOLD:
+            elif new_resources[resource] < max_value * game_config.resource.low_threshold:
                 warnings.append({"type": f"low_{resource}", "message": f"{label} running low"})
 
         return warnings
@@ -249,8 +239,8 @@ class ResourceManager:
             "food": vault.food > 0,
             "water": vault.water > 0,
             "any_critical": (
-                vault.power < vault.power_max * CRITICAL_RESOURCE_THRESHOLD
-                or vault.food < vault.food_max * CRITICAL_RESOURCE_THRESHOLD
-                or vault.water < vault.water_max * CRITICAL_RESOURCE_THRESHOLD
+                vault.power < vault.power_max * game_config.resource.critical_threshold
+                or vault.food < vault.food_max * game_config.resource.critical_threshold
+                or vault.water < vault.water_max * game_config.resource.critical_threshold
             ),
         }

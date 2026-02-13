@@ -76,10 +76,27 @@ const happinessLabel = computed(() => {
   }
 })
 
-// TODO (v1.14): Calculate trend from historical data
-const happinessTrend = computed(() => {
-  // For now, show stable
-  return 'stable' // 'increasing' | 'decreasing' | 'stable'
+// Threshold for idle dwellers to trigger decreasing happiness trend
+const IDLE_DWELLER_TREND_THRESHOLD = 3
+
+// Calculate trend based on current modifiers and conditions
+const happinessTrend = computed((): 'increasing' | 'decreasing' | 'stable' => {
+  // Radio happiness mode takes priority when active and no critical issues
+  if (props.radioHappinessMode && props.activeIncidentCount === 0 && props.lowResourceCount === 0) {
+    return 'increasing'
+  }
+
+  // Critical issues always cause decreasing trend (idle dwellers checked separately)
+  if (
+    props.activeIncidentCount > 0
+    || props.lowResourceCount > 0
+    || props.idleDwellerCount >= IDLE_DWELLER_TREND_THRESHOLD
+  ) {
+    return 'decreasing'
+  }
+
+  // Otherwise stable
+  return 'stable'
 })
 
 const trendIcon = computed(() => {
@@ -126,7 +143,7 @@ const activeModifiers = computed(() => {
     })
   }
 
-  if (props.idleDwellerCount > 0) {
+  if (props.idleDwellerCount >= IDLE_DWELLER_TREND_THRESHOLD) {
     modifiers.push({
       name: `Idle Dwellers (${props.idleDwellerCount})`,
       icon: 'mdi:sleep',

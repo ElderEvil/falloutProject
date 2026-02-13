@@ -110,7 +110,7 @@ class CRUDIncident:
         return False
 
     @staticmethod
-    async def remove_all_by_vault(db_session: AsyncSession, vault_id: UUID4) -> int:  # FIXME Must check for admin
+    async def remove_all_by_vault(db_session: AsyncSession, vault_id: UUID4) -> int:
         """Delete all incidents for a vault."""
         query = select(Incident).where(Incident.vault_id == vault_id)
         result = await db_session.execute(query)

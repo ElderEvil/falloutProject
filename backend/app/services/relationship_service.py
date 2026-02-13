@@ -282,7 +282,7 @@ class RelationshipService:
         - Ready to breed immediately with 90% conception chance per tick
         """
         # Pre-validate affinity meets romance threshold before creating any records
-        quick_pair_affinity = 90
+        quick_pair_affinity = game_config.relationship.quick_pair_affinity
         if quick_pair_affinity < game_config.relationship.romance_threshold:
             msg = (
                 f"Quick pair affinity ({quick_pair_affinity}) is below romance threshold "
@@ -365,7 +365,7 @@ class RelationshipService:
         # SPECIAL similarity score
         special_attrs = ["strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"]
         special_diff = sum(abs(getattr(dweller_1, attr, 0) - getattr(dweller_2, attr, 0)) for attr in special_attrs)
-        max_special_diff = 7 * 10
+        max_special_diff = game_config.relationship.max_special_diff
         special_score = 1.0 - (special_diff / max_special_diff)
 
         # Happiness similarity
@@ -374,7 +374,7 @@ class RelationshipService:
 
         # Level similarity
         level_diff = abs(dweller_1.level - dweller_2.level)
-        max_level_diff = 50
+        max_level_diff = game_config.relationship.max_level_diff
         level_score = 1.0 - (level_diff / max_level_diff)
 
         # Proximity (same room bonus)

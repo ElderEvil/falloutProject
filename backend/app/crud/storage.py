@@ -87,7 +87,7 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
         try:
             storage = await self.get(db_session, id=storage_id)
         except ResourceNotFoundException as e:
-            logger.error("Storage not found for update", extra={"storage_id": str(storage_id)})
+            logger.exception("Storage not found for update")
             raise ValueError(f"Storage not found: {storage_id}") from e
 
         used = await self.count_items(db_session, storage_id)

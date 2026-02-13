@@ -288,6 +288,14 @@ class ResourceConfig(BaseSettings):
     low_threshold: float = Field(default=0.2, description="20% of max", ge=0.0, le=1.0)
     critical_threshold: float = Field(default=0.05, description="5% of max", ge=0.0, le=1.0)
 
+    # Room destruction refund
+    destroy_room_refund_rate: float = Field(
+        default=0.5,
+        description="Percentage of room cost refunded when destroyed",
+        ge=0.0,
+        le=1.0,
+    )
+
     def get_tier_multiplier(self, tier: int) -> float:
         """Get production multiplier for room tier."""
         multipliers = {
@@ -496,6 +504,20 @@ class DeathConfig(BaseSettings):
         return min(cost, self.revival_cost_max)
 
 
+class DwellerConfig(BaseSettings):
+    """Dweller creation and attribute configuration."""
+
+    model_config = SettingsConfigDict(env_prefix="DWELLER_")
+
+    # Starting stats for boosted dwellers (lunchbox legendary)
+    boosted_stat_value: int = Field(
+        default=5,
+        description="Starting SPECIAL stat value for boosted dwellers",
+        ge=1,
+        le=10,
+    )
+
+
 class ExplorationConfig(BaseSettings):
     """Wasteland exploration configuration."""
 
@@ -605,8 +627,9 @@ class GameConfig(BaseSettings):
     breeding: BreedingConfig = Field(default_factory=BreedingConfig)
     leveling: LevelingConfig = Field(default_factory=LevelingConfig)
     radio: RadioConfig = Field(default_factory=RadioConfig)
-    exploration: ExplorationConfig = Field(default_factory=ExplorationConfig)
     death: DeathConfig = Field(default_factory=DeathConfig)
+    dweller: DwellerConfig = Field(default_factory=DwellerConfig)
+    exploration: ExplorationConfig = Field(default_factory=ExplorationConfig)
 
 
 # Singleton instance

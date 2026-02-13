@@ -11,6 +11,7 @@ from app.models.junk import Junk
 from app.models.outfit import Outfit
 from app.models.storage import Storage, StorageBase
 from app.models.weapon import Weapon
+from app.utils.exceptions import ResourceNotFoundException
 
 logger = logging.getLogger(__name__)
 
@@ -60,8 +61,10 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
 
     async def get_available_space(self, db_session: AsyncSession, storage_id: UUID4) -> int:
         """Get available storage space."""
-        storage = await self.get(db_session, id=storage_id)
-        if not storage:
+        try:
+            storage = await self.get(db_session, id=storage_id)
+        except ResourceNotFoundException:
+            logger.debug("Storage not found", extra={"storage_id": str(storage_id)})
             return 0
 
         used = await self.count_items(db_session, storage_id)
@@ -81,14 +84,17 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
 
     async def update_used_space(self, db_session: AsyncSession, storage_id: UUID4) -> Storage:
         """Update used_space field based on actual item count."""
-        storage = await self.get(db_session, id=storage_id)
-        if not storage:
-            msg = f"Storage not found: {storage_id}"
-            raise ValueError(msg)
+        try:
+            storage = await self.get(db_session, id=storage_id)
+        except ResourceNotFoundException as e:
+            logger.error("Storage not found for update", extra={"storage_id": str(storage_id)})
+            raise ValueError(f"Storage not found: {storage_id}") from e
 
         used = await self.count_items(db_session, storage_id)
         storage.used_space = used
         db_session.add(storage)
+        await db_session.commit()
+        await db_session.refresh(storage)
 
         logger.info(
             "Updated storage used_space",
@@ -103,8 +109,10 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
 
     async def get_info(self, db_session: AsyncSession, storage_id: UUID4) -> dict:
         """Get comprehensive storage information."""
-        storage = await self.get(db_session, id=storage_id)
-        if not storage:
+        try:
+            storage = await self.get(db_session, id=storage_id)
+        except ResourceNotFoundException:
+            logger.debug("Storage not found", extra={"storage_id": str(storage_id)})
             return {
                 "used_space": 0,
                 "max_space": 0,

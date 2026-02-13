@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.game_config import game_config
 from app.crud.base import CRUDBase
 from app.crud.room import room as room_crud
 from app.crud.vault import vault as vault_crud
@@ -22,8 +23,6 @@ from app.schemas.dweller import (
 from app.services.event_bus import GameEvent, event_bus
 from app.utils.dwellers import create_random_common_dweller
 from app.utils.exceptions import ContentNoChangeException, InvalidVaultTransferException, ResourceConflictException
-
-BOOSTED_STAT_VALUE = 5
 
 
 def determine_status_for_room(room_category: RoomTypeEnum | None) -> DwellerStatusEnum:
@@ -144,7 +143,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         if obj_in:
             new_dweller_data = obj_in.model_dump(exclude_unset=True)
             if stat := new_dweller_data.get("special_boost"):
-                dweller_data[stat.value.lower()] = BOOSTED_STAT_VALUE
+                dweller_data[stat.value.lower()] = game_config.dweller.boosted_stat_value
                 new_dweller_data.pop("special_boost")
             dweller_data.update(new_dweller_data)
 

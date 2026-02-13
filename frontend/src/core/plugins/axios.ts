@@ -17,7 +17,6 @@ function getStoredToken(): string | null {
   try {
     const tokenData = localStorage.getItem('token')
     if (!tokenData) return null
-    // VueUse wraps values in quotes
     return tokenData.replace(/^"|"$/g, '')
   } catch {
     return null

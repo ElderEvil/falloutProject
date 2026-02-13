@@ -11,8 +11,10 @@ from app.crud.mixins import CompletionMixin
 from app.crud.vault_mixin import VaultActionsMixin
 from app.models import Vault
 from app.models.quest import Quest
+from app.models.quest_requirement import QuestRequirement
+from app.models.quest_reward import QuestReward
 from app.models.vault_quest import VaultQuestCompletionLink
-from app.schemas.quest import QuestCreate, QuestRead, QuestUpdate
+from app.schemas.quest import QuestCreate, QuestRead, QuestRequirementRead, QuestRewardRead, QuestUpdate
 from app.services.notification_service import notification_service
 from app.services.reward_service import reward_service
 from app.utils.exceptions import ResourceNotFoundException
@@ -27,41 +29,146 @@ class CRUDQuest(
         super().__init__(model)
         self.link_model = link_model
 
+    async def get_multi(
+        self, db_session: AsyncSession, skip: int = 0, limit: int = 100, include_deleted: bool = False
+    ) -> Sequence[QuestRead]:
+        """Get all quests without vault-specific data."""
+        query = select(Quest).offset(skip).limit(limit).order_by(Quest.id)
+        response = await db_session.execute(query)
+        quests = response.scalars().all()
+
+        result_items = []
+        for quest in quests:
+            req_query = select(QuestRequirement).where(QuestRequirement.quest_id == quest.id)
+            req_result = await db_session.execute(req_query)
+            reqs = req_result.scalars().all()
+
+            reward_query = select(QuestReward).where(QuestReward.quest_id == quest.id)
+            reward_result = await db_session.execute(reward_query)
+            rewards = reward_result.scalars().all()
+
+            result_items.append(
+                QuestRead(
+                    id=quest.id,
+                    title=quest.title,
+                    short_description=quest.short_description,
+                    long_description=quest.long_description,
+                    requirements=quest.requirements,
+                    rewards=quest.rewards,
+                    quest_type=quest.quest_type,
+                    quest_category=quest.quest_category,
+                    chain_id=quest.chain_id,
+                    chain_order=quest.chain_order,
+                    duration_minutes=quest.duration_minutes,
+                    previous_quest_id=quest.previous_quest_id,
+                    next_quest_id=quest.next_quest_id,
+                    created_at=quest.created_at,
+                    updated_at=quest.updated_at,
+                    is_visible=True,
+                    is_completed=False,
+                    started_at=None,
+                    quest_requirements=[
+                        QuestRequirementRead(
+                            id=req.id,
+                            requirement_type=req.requirement_type,
+                            requirement_data=req.requirement_data,
+                            is_mandatory=req.is_mandatory,
+                        )
+                        for req in reqs
+                    ]
+                    if reqs
+                    else None,
+                    quest_rewards=[
+                        QuestRewardRead(
+                            id=rew.id,
+                            reward_type=rew.reward_type,
+                            reward_data=rew.reward_data,
+                            reward_chance=rew.reward_chance,
+                            item_data=rew.item_data,
+                        )
+                        for rew in rewards
+                    ]
+                    if rewards
+                    else None,
+                )
+            )
+
+        return result_items
+
     async def get_multi_for_vault(
         self, *, db_session: AsyncSession, skip: int, limit: int, vault_id: UUID4
     ) -> Sequence[QuestRead]:
-        """
-        Get all quests assigned to a vault with their completion status.
-        """
-        query = (
-            select(
-                Quest,
-                self.link_model.is_visible,
-                self.link_model.is_completed,
-            )
-            .join(self.link_model)
-            .where(self.link_model.vault_id == vault_id)
-            .offset(skip)
-            .limit(limit)
-        )
-        response = await db_session.execute(query)
-        results = response.all()
+        existing_link_query = select(self.link_model).where(self.link_model.vault_id == vault_id)
+        existing_result = await db_session.execute(existing_link_query)
 
-        return [
-            QuestRead(
-                id=quest.id,
-                title=quest.title,
-                short_description=quest.short_description,
-                long_description=quest.long_description,
-                requirements=quest.requirements,
-                rewards=quest.rewards,
-                created_at=quest.created_at,
-                updated_at=quest.updated_at,
-                is_visible=is_visible,
-                is_completed=is_completed,
+        if not existing_result.scalars().first():
+            all_quests = await db_session.execute(select(Quest))
+            for quest in all_quests.scalars():
+                db_session.add(self.link_model(quest_id=quest.id, vault_id=vault_id, is_visible=True))
+            await db_session.commit()
+
+        query = select(Quest).join(self.link_model).where(self.link_model.vault_id == vault_id)
+        query = query.offset(skip).limit(limit)
+        response = await db_session.execute(query)
+        quests = response.scalars().all()
+
+        result_items = []
+        for quest in quests:
+            link_query = select(self.link_model).where(
+                self.link_model.quest_id == quest.id, self.link_model.vault_id == vault_id
             )
-            for quest, is_visible, is_completed in results
-        ]
+            link_result = await db_session.execute(link_query)
+            link = link_result.scalar_one_or_none()
+
+            req_query = select(QuestRequirement).where(QuestRequirement.quest_id == quest.id)
+            req_result = await db_session.execute(req_query)
+            reqs = req_result.scalars().all()
+
+            reward_query = select(QuestReward).where(QuestReward.quest_id == quest.id)
+            reward_result = await db_session.execute(reward_query)
+            rewards = reward_result.scalars().all()
+
+            result_items.append(
+                QuestRead(
+                    id=quest.id,
+                    title=quest.title,
+                    short_description=quest.short_description,
+                    long_description=quest.long_description,
+                    requirements=quest.requirements,
+                    rewards=quest.rewards,
+                    quest_type=quest.quest_type,
+                    quest_category=quest.quest_category,
+                    chain_id=quest.chain_id,
+                    chain_order=quest.chain_order,
+                    created_at=quest.created_at,
+                    updated_at=quest.updated_at,
+                    is_visible=link.is_visible if link else False,
+                    is_completed=link.is_completed if link else False,
+                    started_at=link.started_at if link else None,
+                    duration_minutes=link.duration_minutes if link else quest.duration_minutes,
+                    quest_requirements=[
+                        QuestRequirementRead(
+                            id=req.id,
+                            requirement_type=req.requirement_type,
+                            requirement_data=req.requirement_data,
+                            is_mandatory=req.is_mandatory,
+                        )
+                        for req in reqs
+                    ],
+                    quest_rewards=[
+                        QuestRewardRead(
+                            id=rew.id,
+                            reward_type=rew.reward_type,
+                            reward_data=rew.reward_data,
+                            reward_chance=rew.reward_chance,
+                            item_data=rew.item_data,
+                        )
+                        for rew in rewards
+                    ],
+                )
+            )
+
+        return result_items
 
     @staticmethod
     async def create_quest(db_session: AsyncSession, quest_data: QuestCreate) -> Quest:
@@ -78,7 +185,9 @@ class CRUDQuest(
         await db_session.refresh(quest)
         return quest
 
-    async def _handle_completion_cascade(self, db_session: AsyncSession, db_obj: Quest, vault_id: UUID4) -> None:
+    async def _handle_completion_cascade(
+        self, db_session: AsyncSession, db_obj: Quest, vault_id: UUID4
+    ) -> list[dict[str, Any]]:
         """Grant rewards when a quest is completed."""
         from app.services.event_bus import GameEvent, event_bus
 
@@ -106,11 +215,17 @@ class CRUDQuest(
         try:
             vault = await db_session.get(Vault, vault_id)
             if vault and vault.user_id:
+                rewards_str = (
+                    ", ".join(f"{r.get('amount', r.get('name', r.get('type', '?')))}" for r in granted_rewards)
+                    or "no rewards"
+                )
                 await notification_service.notify_quest_completed(
-                    db_session, vault.user_id, vault_id, db_obj.title, granted_rewards
+                    db_session, vault.user_id, vault_id, db_obj.title, rewards_str
                 )
         except Exception:
             logger.exception(f"Failed to send quest completion notification for '{db_obj.title}'")
+
+        return granted_rewards
 
     async def assign_to_vault(
         self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4, *, is_visible: bool = True

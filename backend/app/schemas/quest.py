@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any
 
 from pydantic import UUID4, Field, model_validator
@@ -11,16 +12,48 @@ class QuestCreate(QuestBase):
     pass
 
 
+class QuestRequirementRead(SQLModel):
+    id: UUID4
+    requirement_type: str
+    requirement_data: dict[str, Any]
+    is_mandatory: bool
+
+
+class QuestRewardRead(SQLModel):
+    id: UUID4
+    reward_type: str
+    reward_data: dict[str, Any]
+    reward_chance: float
+    item_data: dict[str, Any] | None = None
+
+
 class QuestRead(QuestBase):
     id: UUID4
     is_visible: bool = True
     is_completed: bool = False
+    started_at: datetime | None = None
+    duration_minutes: int | None = None
+    quest_requirements: list[QuestRequirementRead] | None = None
+    quest_rewards: list[QuestRewardRead] | None = None
+
+
+class QuestCompleteResponse(SQLModel):
+    """Response schema for quest completion with granted rewards."""
+
+    quest_id: UUID4
+    quest_title: str
+    is_completed: bool = True
+    granted_rewards: list[dict[str, Any]] = []
 
 
 class QuestReadShort(SQLModel):
     id: UUID4
     title: str
     short_description: str
+
+
+class QuestPartyAssign(SQLModel):
+    dweller_ids: list[UUID4]
 
 
 @optional()

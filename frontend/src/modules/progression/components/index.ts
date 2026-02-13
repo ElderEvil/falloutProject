@@ -5,4 +5,5 @@ export { default as TrainingRoomModal } from './training/TrainingRoomModal.vue'
 
 // Quest & Objective components
 export { default as QuestCard } from './QuestCard.vue'
+export { default as PartySelectionModal } from './PartySelectionModal.vue'
 export { default as ObjectiveCard } from './ObjectiveCard.vue'

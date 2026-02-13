@@ -8,7 +8,9 @@ from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser
 from app.db.session import get_async_session
 from app.schemas.quest import (
+    QuestCompleteResponse,
     QuestCreate,
+    QuestPartyAssign,
     QuestRead,
     QuestUpdate,
 )
@@ -89,7 +91,7 @@ async def assign_quest_to_vault(
     )
 
 
-@router.post("/{vault_id}/{quest_id}/complete", status_code=200)
+@router.post("/{vault_id}/{quest_id}/complete", response_model=QuestCompleteResponse, status_code=200)
 async def complete_quest(
     vault_id: UUID4,
     quest_id: UUID4,
@@ -99,4 +101,71 @@ async def complete_quest(
     """
     Mark a quest as completed for a vault.
     """
-    return await crud.quest_crud.complete(db_session=db_session, quest_entity_id=quest_id, vault_id=vault_id)
+    quest, granted_rewards = await crud.quest_crud.complete(
+        db_session=db_session, quest_entity_id=quest_id, vault_id=vault_id
+    )
+    return QuestCompleteResponse(
+        quest_id=quest.id,
+        quest_title=quest.title,
+        is_completed=True,
+        granted_rewards=granted_rewards,
+    )
+
+
+@router.post("/{vault_id}/{quest_id}/assign-party", status_code=201)
+async def assign_party_to_quest(
+    vault_id: UUID4,
+    quest_id: UUID4,
+    party_data: QuestPartyAssign,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+):
+    """
+    Assign dwellers to a quest party (1-3 dwellers).
+    """
+    from app.crud.quest_party import quest_party_crud
+
+    if len(party_data.dweller_ids) > 3:
+        raise ValueError("Maximum 3 dwellers per quest")
+
+    return await quest_party_crud.assign_party(db_session, quest_id, vault_id, party_data.dweller_ids)
+
+
+@router.get("/{vault_id}/{quest_id}/party", response_model=list[dict])
+async def get_quest_party(
+    vault_id: UUID4,
+    quest_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+):
+    """Get party members assigned to a quest."""
+    from app.crud.quest_party import quest_party_crud
+
+    party = await quest_party_crud.get_party_for_quest(db_session, quest_id, vault_id)
+    return [
+        {
+            "id": str(p.id),
+            "quest_id": str(p.quest_id),
+            "vault_id": str(p.vault_id),
+            "dweller_id": str(p.dweller_id),
+            "slot_number": p.slot_number,
+            "status": p.status,
+            "created_at": p.created_at.isoformat() if p.created_at else None,
+            "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+        }
+        for p in party
+    ]
+
+
+@router.post("/{vault_id}/{quest_id}/start", status_code=200)
+async def start_quest(
+    vault_id: UUID4,
+    quest_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    duration_minutes: int | None = None,
+):
+    """Start a quest (starts the timer)."""
+    from app.services.quest_service import quest_service
+
+    return await quest_service.start_quest(db_session, quest_id, vault_id, duration_minutes)

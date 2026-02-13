@@ -1,5 +1,7 @@
 """Tests for quest CRUD operations."""
 
+from datetime import UTC
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -363,6 +365,7 @@ async def test_start_quest(async_session: AsyncSession) -> None:
 async def test_check_and_complete_quests(async_session: AsyncSession) -> None:
     """Test automatic quest completion after duration."""
     from datetime import datetime, timedelta, timezone
+
     from app.models.vault_quest import VaultQuestCompletionLink
     from app.services.quest_service import quest_service
 
@@ -391,7 +394,7 @@ async def test_check_and_complete_quests(async_session: AsyncSession) -> None:
     async_session.add(link)
     await async_session.commit()
 
-    past_time = datetime.now(timezone.utc) - timedelta(minutes=120)
+    past_time = datetime.now(UTC) - timedelta(minutes=120)
     link.started_at = past_time
     link.duration_minutes = 60
     await async_session.commit()
@@ -424,7 +427,7 @@ async def test_get_multi_for_vault_auto_assigns_quests(async_session: AsyncSessi
         requirements="Level 1",
         rewards="10 caps",
     )
-    quest1 = await crud.quest_crud.create(async_session, obj_in=quest1_data)
+    await crud.quest_crud.create(async_session, obj_in=quest1_data)
 
     quest2_data = QuestCreate(
         title="Auto Quest 2",
@@ -433,7 +436,7 @@ async def test_get_multi_for_vault_auto_assigns_quests(async_session: AsyncSessi
         requirements="Level 2",
         rewards="20 caps",
     )
-    quest2 = await crud.quest_crud.create(async_session, obj_in=quest2_data)
+    await crud.quest_crud.create(async_session, obj_in=quest2_data)
 
     quests = await crud.quest_crud.get_multi_for_vault(db_session=async_session, skip=0, limit=100, vault_id=vault.id)
 

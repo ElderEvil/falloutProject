@@ -101,9 +101,9 @@ async def complete_quest(
     """
     Mark a quest as completed for a vault.
     """
+
     from app.crud.quest_party import quest_party_crud
     from app.models.dweller import Dweller
-    from sqlmodel import select
 
     quest, granted_rewards = await crud.quest_crud.complete(
         db_session=db_session, quest_entity_id=quest_id, vault_id=vault_id

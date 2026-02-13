@@ -12,6 +12,7 @@ from app.schemas.common import AgeGroupEnum, DeathCauseEnum, DwellerStatusEnum, 
 if TYPE_CHECKING:
     from app.models.notification import Notification
     from app.models.outfit import Outfit
+    from app.models.quest_party import QuestParty
     from app.models.room import Room
     from app.models.training import Training
     from app.models.vault import Vault
@@ -127,8 +128,11 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
     # Training
     trainings: list["Training"] = Relationship(back_populates="dweller", cascade_delete=True)
 
-    # Notifications sent by this dweller
     sent_notifications: list["Notification"] = Relationship(
         back_populates="from_dweller",
         sa_relationship_kwargs={"foreign_keys": "[Notification.from_dweller_id]"},
+    )
+    quest_assignments: list["QuestParty"] = Relationship(
+        back_populates="dweller",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )

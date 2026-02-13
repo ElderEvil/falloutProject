@@ -19,6 +19,7 @@ describe('DwellerFilterPanel', () => {
       expect(wrapper.text()).toContain('Working')
       expect(wrapper.text()).toContain('Training')
       expect(wrapper.text()).toContain('Exploring')
+      expect(wrapper.text()).toContain('Questing')
       expect(wrapper.text()).toContain('Resting')
       expect(wrapper.text()).toContain('Dead')
     })

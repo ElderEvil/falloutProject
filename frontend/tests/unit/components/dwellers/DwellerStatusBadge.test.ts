@@ -9,6 +9,7 @@ describe('DwellerStatusBadge', () => {
         { status: 'idle', label: 'Idle' },
         { status: 'working', label: 'Working' },
         { status: 'exploring', label: 'Exploring' },
+        { status: 'questing', label: 'Questing' },
         { status: 'training', label: 'Training' },
         { status: 'resting', label: 'Resting' },
         { status: 'dead', label: 'Dead' }

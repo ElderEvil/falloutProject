@@ -86,6 +86,7 @@ const close = () => {
 }
 
 const handleAssign = () => {
+  console.log('[PartySelectionModal] handleAssign, emitting assign with:', selectedDwellerIds.value)
   emit('assign', selectedDwellerIds.value)
 }
 

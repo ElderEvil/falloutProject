@@ -26,6 +26,7 @@ class QuestRewardBase(SQLModel):
     reward_type: RewardType = Field(index=True)
     reward_data: dict[str, Any] = Field(default_factory=dict, sa_column=sa.Column(JSONB, nullable=False))
     reward_chance: float = Field(default=1.0, ge=0.0, le=1.0)
+    item_data: dict[str, Any] | None = Field(default=None, sa_column=sa.Column(JSONB, nullable=True))
 
 
 class QuestReward(QuestRewardBase, table=True):

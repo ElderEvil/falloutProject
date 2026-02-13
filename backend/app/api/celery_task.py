@@ -140,3 +140,40 @@ def check_permanent_deaths_task(self):
     else:
         logger.info(f"Permanent death check completed: {count} dwellers marked as permanently dead")
         return {"marked_permanently_dead": count}
+
+
+@celery_app.task(name="check_quest_completion", bind=True)
+def check_quest_completion_task(self):
+    """Check for quests that have exceeded their duration and auto-complete them."""
+    try:
+        logger.info("Starting quest completion check")
+
+        async def run_check():
+            from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+            from app.core.config import settings
+            from app.services.quest_service import quest_service
+
+            engine = create_async_engine(
+                str(settings.ASYNC_DATABASE_URI),
+                echo=False,
+                future=True,
+                pool_pre_ping=True,
+            )
+            session_maker = async_sessionmaker(engine, expire_on_commit=False)
+
+            try:
+                async with session_maker() as session:
+                    count = await quest_service.check_and_complete_quests(session)
+                    await session.commit()
+                    return count
+            finally:
+                await engine.dispose()
+
+        count = asyncio.run(run_check())
+    except Exception as e:
+        logger.exception("Quest completion check failed")
+        raise self.retry(exc=e, countdown=300) from e  # Retry in 5 minutes
+    else:
+        logger.info(f"Quest completion check completed: {count} quests auto-completed")
+        return {"quests_completed": count}

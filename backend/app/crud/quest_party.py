@@ -1,5 +1,4 @@
 import logging
-from uuid import UUID
 
 from pydantic import UUID4
 from sqlmodel import select
@@ -46,6 +45,7 @@ class CRUDQuestParty(CRUDBase[QuestParty, None, None]):
                 raise ValueError(f"Dweller {dweller_id} does not belong to vault {vault_id}")
 
             dweller.status = "questing"
+            db_session.add(dweller)
 
             party = QuestParty(
                 quest_id=quest_id,

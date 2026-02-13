@@ -71,7 +71,10 @@ onUnmounted(() => {
   }
 })
 
-const hasParty = computed(() => props.partyMembers.length > 0)
+const hasParty = computed(() => {
+  console.log('[QuestCard] partyMembers:', props.partyMembers, 'length:', props.partyMembers?.length)
+  return props.partyMembers && props.partyMembers.length > 0
+})
 const isQuestReady = computed(() => hasParty.value)
 
 // Type badge colors
@@ -137,21 +140,25 @@ const cardBorderColor = computed(() => {
 })
 
 const isButtonDisabled = computed(() => {
-  if (props.status === 'available' && !hasParty.value) {
-    return false // Allow clicking to open party modal
-  }
-  if (props.status === 'available' && !prerequisitesMet.value) {
-    return true
-  }
+  console.log('[QuestCard] isButtonDisabled check:', {
+    status: props.status,
+    hasParty: hasParty.value,
+    partyMembersLength: props.partyMembers?.length,
+    prerequisitesMet: prerequisitesMet.value
+  })
+  // Always allow clicking - backend will validate requirements
   return false
 })
 
 const handleAction = () => {
+  console.log('[QuestCard] handleAction:', { status: props.status, hasParty: hasParty.value, questId: props.quest.id })
   switch (props.status) {
     case 'available':
       if (hasParty.value) {
+        console.log('[QuestCard] emitting start event')
         emit('start', props.quest.id)
       } else {
+        console.log('[QuestCard] emitting assignParty event')
         emit('assignParty', props.quest.id)
       }
       break

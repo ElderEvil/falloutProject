@@ -1,137 +1,203 @@
 [
-    {
-        "Quest name": "A Pier into the Future",
-        "Long description": "Woah! What's that? This festive waterfront has suffered a ruinous fate in some kind of ill-founded忿! Get in there and dig around, who knows what you'll find!?",
-        "Quest objective": "Investigate the old pier.",
-        "Short description": "Investigate the old pier.",
-        "Requirements": "Level 20 dwellers",
-        "Rewards": "Lucy MacLean",
-        "quest_type": "side",
-        "quest_category": "exploration",
-        "quest_rewards": [
-            {"reward_type": "DWELLER", "reward_data": {"name": "Lucy MacLean"}, "reward_chance": 1.0}
-        ]
-    },
-    {
-        "Quest name": "Ghoul in Black",
-        "Long description": "There's a ruckus in the nearby graveyard. Maybe someone needs your help, or there is something useful for you to scrounge up. Scoot on over there and check it out.",
-        "Quest objective": "See what's causing a ruckus in the graveyard.",
-        "Short description": "See what's causing a ruckus in the graveyard.",
-        "Requirements": [
-            "Level 20 dwellers",
-            "Lucy's vault suit"
-        ],
-        "Rewards": "The Ghoul",
-        "quest_type": "side",
-        "quest_category": "exploration",
-        "quest_requirements": [
-            {"requirement_type": "DWELLER_LEVEL", "requirement_data": {"level": 20}, "is_mandatory": true},
-            {"requirement_type": "ITEM", "requirement_data": {"item_name": "Lucy's vault suit"}, "is_mandatory": true}
-        ],
-        "quest_rewards": [
-            {"reward_type": "DWELLER", "reward_data": {"name": "The Ghoul"}, "reward_chance": 1.0}
-        ]
-    },
-    {
-        "Quest name": "My Brothers' Keeper",
-        "Long description": "The Brotherhood has a pretty large base set up nearby. As quasi-religious orders of militants go, they're generally not awful. Maybe we should stop in and say hello.",
-        "Quest objective": "Learn what you can about the Brotherhood of Steel.",
-        "Short description": "Explore the Brotherhood Base.",
-        "Requirements": [
-            "Level 20 dwellers",
-            "Lucy's vault suit",
-            "The Ghoul's coat"
-        ],
-        "Rewards": "Maximus",
-        "quest_type": "side",
-        "quest_category": "exploration",
-        "quest_rewards": [
-            {"reward_type": "DWELLER", "reward_data": {"name": "Maximus"}, "reward_chance": 1.0}
-        ]
-    },
-    {
-        "Quest name": "All Killy No Filly",
-        "Long description": "You've stumbled across a slipshod settlement called Filly, offering welcome to other wastelanders. Unfortunately, it seems to be occupied by a gang of raiders who have other ideas.",
-        "Quest objective": "Clear out the Raiders for Ma June.",
-        "Short description": "Liberate the people of Filly.",
-        "Requirements": [
-            "Level 20 dwellers",
-            "Lucy's vault suit",
-            "BOS casual"
-        ],
-        "Rewards": "Ma June",
-        "quest_type": "side",
-        "quest_category": "exploration",
-        "quest_rewards": [
-            {"reward_type": "DWELLER", "reward_data": {"name": "Ma June"}, "reward_chance": 1.0}
-        ]
-    },
-    {
-        "Quest name": "Snipping Coupons",
-        "Long description": "Ma June has asked you to head to the nearby Super Duper Mart for supplies. Keep an eye open. You never know who or what you might run into there.",
-        "Quest objective": "Search the Super Duper Mart.",
-        "Short description": "Search the Super Duper Mart.",
-        "Requirements": [
-            "Level 20 dwellers",
-            "The Ghoul's coat",
-            "BOS casual"
-        ],
-        "Rewards": "Snip Snip",
-        "quest_type": "side",
-        "quest_category": "exploration",
-        "quest_rewards": [
-            {"reward_type": "DWELLER", "reward_data": {"name": "Snip Snip"}, "reward_chance": 1.0}
-        ]
-    },
-    {
-        "Quest name": "Hooked On Tonics",
-        "Long description": "The people of Filly are in dire need of medicine. There are rumours of a traveling chem-merchant wandering nearby. You should have no trouble tracking them down.",
-        "Quest objective": "Find the Snake-Oil Salesman.",
-        "Short description": "Find the Snake-Oil Salesman.",
-        "Requirements": [
-            "Level 20 dwellers",
-            "Lucy's vault suit",
-            "The Ghoul's coat"
-        ],
-        "Rewards": "Snake oil salesman",
-        "quest_type": "side",
-        "quest_category": "exploration",
-        "quest_rewards": [
-            {"reward_type": "DWELLER", "reward_data": {"name": "Snake oil salesman"}, "reward_chance": 1.0}
-        ]
-    },
-    {
-        "Quest name": "Codename: DOG",
-        "Long description": "You passed by a run down refueling station on your way back to Filly and you heard odd noises coming from inside. What could it be? You won't know until you find out!",
-        "Quest objective": "Find a new friend...",
-        "Short description": "Investigate strange sounds at the Red Rocket.",
-        "Requirements": [
-            "Level 20 dwellers",
-            "Lucy's vault suit",
-            "The Ghoul's coat"
-        ],
-        "Rewards": "CX404",
-        "quest_type": "side",
-        "quest_category": "exploration",
-        "quest_rewards": [
-            {"reward_type": "DWELLER", "reward_data": {"name": "CX404"}, "reward_chance": 1.0}
-        ]
-    },
-    {
-        "Quest name": "Astronomical Aggression",
-        "Long description": "The Brotherhood is attacking the Griffith Observatory to recover a deadly weapon from the NCR. We don't know what it is, but it could be disastrous in anybody's hands. Go, take care of it for everyone's sake.",
-        "Quest objective": "Stop the NCR leader.",
-        "Short description": "Stop the NCR leader from using the weapon.",
-        "Requirements": [
-            "Level 20 dwellers",
-            "BOS casual",
-            "Lucy's vault suit"
-        ],
-        "Rewards": "Scarred power armor",
-        "quest_type": "side",
-        "quest_category": "combat",
-        "quest_rewards": [
-            {"reward_type": "ITEM", "reward_data": {"item_name": "Scarred power armor", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Scarred power armor", "rarity": "legendary", "value": 500}}
-        ]
-    }
+  {
+    "Quest name": "A Pier into the Future",
+    "Long description": "Woah! What's that? This festive waterfront has suffered a ruinous fate in some kind of ill-founded\u5fff! Get in there and dig around, who knows what you'll find!?",
+    "Quest objective": "Investigate the old pier.",
+    "Short description": "Investigate the old pier.",
+    "Requirements": "Level 20 dwellers",
+    "Rewards": "Lucy MacLean",
+    "quest_type": "side",
+    "quest_category": "exploration",
+    "quest_rewards": [
+      {
+        "reward_type": "DWELLER",
+        "reward_data": {
+          "name": "Lucy MacLean"
+        },
+        "reward_chance": 1.0
+      }
+    ]
+  },
+  {
+    "Quest name": "Ghoul in Black",
+    "Long description": "There's a ruckus in the nearby graveyard. Maybe someone needs your help, or there is something useful for you to scrounge up. Scoot on over there and check it out.",
+    "Quest objective": "See what's causing a ruckus in the graveyard.",
+    "Short description": "See what's causing a ruckus in the graveyard.",
+    "Requirements": [
+      "Level 20 dwellers",
+      "Lucy's vault suit"
+    ],
+    "Rewards": "The Ghoul",
+    "quest_type": "side",
+    "quest_category": "exploration",
+    "quest_requirements": [
+      {
+        "requirement_type": "level",
+        "requirement_data": {
+          "level": 20
+        },
+        "is_mandatory": true
+      },
+      {
+        "requirement_type": "ITEM",
+        "requirement_data": {
+          "item_name": "Lucy's vault suit"
+        },
+        "is_mandatory": true
+      }
+    ],
+    "quest_rewards": [
+      {
+        "reward_type": "DWELLER",
+        "reward_data": {
+          "name": "The Ghoul"
+        },
+        "reward_chance": 1.0
+      }
+    ]
+  },
+  {
+    "Quest name": "My Brothers' Keeper",
+    "Long description": "The Brotherhood has a pretty large base set up nearby. As quasi-religious orders of militants go, they're generally not awful. Maybe we should stop in and say hello.",
+    "Quest objective": "Learn what you can about the Brotherhood of Steel.",
+    "Short description": "Explore the Brotherhood Base.",
+    "Requirements": [
+      "Level 20 dwellers",
+      "Lucy's vault suit",
+      "The Ghoul's coat"
+    ],
+    "Rewards": "Maximus",
+    "quest_type": "side",
+    "quest_category": "exploration",
+    "quest_rewards": [
+      {
+        "reward_type": "DWELLER",
+        "reward_data": {
+          "name": "Maximus"
+        },
+        "reward_chance": 1.0
+      }
+    ]
+  },
+  {
+    "Quest name": "All Killy No Filly",
+    "Long description": "You've stumbled across a slipshod settlement called Filly, offering welcome to other wastelanders. Unfortunately, it seems to be occupied by a gang of raiders who have other ideas.",
+    "Quest objective": "Clear out the Raiders for Ma June.",
+    "Short description": "Liberate the people of Filly.",
+    "Requirements": [
+      "Level 20 dwellers",
+      "Lucy's vault suit",
+      "BOS casual"
+    ],
+    "Rewards": "Ma June",
+    "quest_type": "side",
+    "quest_category": "exploration",
+    "quest_rewards": [
+      {
+        "reward_type": "DWELLER",
+        "reward_data": {
+          "name": "Ma June"
+        },
+        "reward_chance": 1.0
+      }
+    ]
+  },
+  {
+    "Quest name": "Snipping Coupons",
+    "Long description": "Ma June has asked you to head to the nearby Super Duper Mart for supplies. Keep an eye open. You never know who or what you might run into there.",
+    "Quest objective": "Search the Super Duper Mart.",
+    "Short description": "Search the Super Duper Mart.",
+    "Requirements": [
+      "Level 20 dwellers",
+      "The Ghoul's coat",
+      "BOS casual"
+    ],
+    "Rewards": "Snip Snip",
+    "quest_type": "side",
+    "quest_category": "exploration",
+    "quest_rewards": [
+      {
+        "reward_type": "DWELLER",
+        "reward_data": {
+          "name": "Snip Snip"
+        },
+        "reward_chance": 1.0
+      }
+    ]
+  },
+  {
+    "Quest name": "Hooked On Tonics",
+    "Long description": "The people of Filly are in dire need of medicine. There are rumours of a traveling chem-merchant wandering nearby. You should have no trouble tracking them down.",
+    "Quest objective": "Find the Snake-Oil Salesman.",
+    "Short description": "Find the Snake-Oil Salesman.",
+    "Requirements": [
+      "Level 20 dwellers",
+      "Lucy's vault suit",
+      "The Ghoul's coat"
+    ],
+    "Rewards": "Snake oil salesman",
+    "quest_type": "side",
+    "quest_category": "exploration",
+    "quest_rewards": [
+      {
+        "reward_type": "DWELLER",
+        "reward_data": {
+          "name": "Snake oil salesman"
+        },
+        "reward_chance": 1.0
+      }
+    ]
+  },
+  {
+    "Quest name": "Codename: DOG",
+    "Long description": "You passed by a run down refueling station on your way back to Filly and you heard odd noises coming from inside. What could it be? You won't know until you find out!",
+    "Quest objective": "Find a new friend...",
+    "Short description": "Investigate strange sounds at the Red Rocket.",
+    "Requirements": [
+      "Level 20 dwellers",
+      "Lucy's vault suit",
+      "The Ghoul's coat"
+    ],
+    "Rewards": "CX404",
+    "quest_type": "side",
+    "quest_category": "exploration",
+    "quest_rewards": [
+      {
+        "reward_type": "DWELLER",
+        "reward_data": {
+          "name": "CX404"
+        },
+        "reward_chance": 1.0
+      }
+    ]
+  },
+  {
+    "Quest name": "Astronomical Aggression",
+    "Long description": "The Brotherhood is attacking the Griffith Observatory to recover a deadly weapon from the NCR. We don't know what it is, but it could be disastrous in anybody's hands. Go, take care of it for everyone's sake.",
+    "Quest objective": "Stop the NCR leader.",
+    "Short description": "Stop the NCR leader from using the weapon.",
+    "Requirements": [
+      "Level 20 dwellers",
+      "BOS casual",
+      "Lucy's vault suit"
+    ],
+    "Rewards": "Scarred power armor",
+    "quest_type": "side",
+    "quest_category": "combat",
+    "quest_rewards": [
+      {
+        "reward_type": "ITEM",
+        "reward_data": {
+          "item_name": "Scarred power armor",
+          "quantity": 1
+        },
+        "reward_chance": 1.0,
+        "item_data": {
+          "name": "Scarred power armor",
+          "rarity": "legendary",
+          "value": 500
+        }
+      }
+    ]
+  }
 ]

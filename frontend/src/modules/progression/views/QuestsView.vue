@@ -70,15 +70,30 @@ const handleAssignParty = async (questId: string) => {
 
 // Handle party assignment
 const handlePartyAssigned = async (dwellerIds: string[]) => {
-  if (!vaultId.value || !selectedQuest.value) return
+  if (!vaultId.value || !selectedQuest.value) {
+    console.log('[QuestsView] handlePartyAssigned: missing vaultId or selectedQuest')
+    return
+  }
+
+  console.log('[QuestsView] handlePartyAssigned called with:', { dwellerIds, questId: selectedQuest.value.id })
 
   await questStore.assignParty(vaultId.value, selectedQuest.value.id, dwellerIds)
 
-  // Refresh party members
-  questPartyMembers.value = await getPartyMembersForQuest(selectedQuest.value)
+  console.log('[QuestsView] assignParty completed, fetching quests...')
 
-  // Also update the map
-  questPartyMembersMap.value[selectedQuest.value.id] = questPartyMembers.value
+  // Refresh quests to get updated state
+  await questStore.fetchVaultQuests(vaultId.value)
+
+  console.log('[QuestsView] vaultQuests after fetch:', questStore.vaultQuests)
+
+  // Fetch party for this specific quest and update map
+  const party = await questStore.getParty(vaultId.value, selectedQuest.value.id)
+  console.log('[QuestsView] party fetched:', party)
+
+  questPartyMembersMap.value[selectedQuest.value.id] = party
+
+  // Refresh party members for modal
+  questPartyMembers.value = party
 }
 
 // Handle starting the quest after party assignment
@@ -94,7 +109,12 @@ const handleStartQuestAfterAssign = async () => {
 
 // Original handlers (for backwards compatibility)
 const handleStartQuest = async (questId: string) => {
-  if (!vaultId.value) return
+  console.log('[QuestsView] handleStartQuest called:', questId)
+  if (!vaultId.value) {
+    console.log('[QuestsView] No vaultId!')
+    return
+  }
+  console.log('[QuestsView] Calling questStore.startQuest')
   await questStore.startQuest(vaultId.value, questId)
 }
 

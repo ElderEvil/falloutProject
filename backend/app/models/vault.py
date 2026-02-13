@@ -67,5 +67,5 @@ class Vault(BaseUUIDModel, VaultBase, TimeStampMixin, SoftDeleteMixin, table=Tru
     )
     quest_parties: list["QuestParty"] = Relationship(
         back_populates="vault",
-        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+        sa_relationship_kwargs={"cascade": "all"},
     )

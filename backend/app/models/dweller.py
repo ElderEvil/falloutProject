@@ -134,5 +134,5 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
     )
     quest_assignments: list["QuestParty"] = Relationship(
         back_populates="dweller",
-        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+        sa_relationship_kwargs={"cascade": "all"},
     )

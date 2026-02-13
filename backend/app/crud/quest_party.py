@@ -18,6 +18,9 @@ class CRUDQuestParty(CRUDBase[QuestParty, None, None]):
         self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4, dweller_ids: list[UUID4]
     ) -> list[QuestParty]:
         """Assign dwellers to a quest."""
+        if len(dweller_ids) > 3 or len(dweller_ids) < 1:
+            raise ValueError("Party size must be 1-3")
+
         quest = await db_session.get(Quest, quest_id)
         if not quest:
             raise ValueError(f"Quest {quest_id} not found")
@@ -32,7 +35,12 @@ class CRUDQuestParty(CRUDBase[QuestParty, None, None]):
         )
         existing_result = await db_session.execute(existing_query)
         existing_party = existing_result.scalars().all()
+
         for member in existing_party:
+            dweller = await db_session.get(Dweller, member.dweller_id)
+            if dweller:
+                dweller.status = "idle"
+                db_session.add(dweller)
             await db_session.delete(member)
         await db_session.flush()
 
@@ -43,6 +51,8 @@ class CRUDQuestParty(CRUDBase[QuestParty, None, None]):
                 raise ValueError(f"Dweller {dweller_id} not found")
             if dweller.vault_id != vault_id:
                 raise ValueError(f"Dweller {dweller_id} does not belong to vault {vault_id}")
+            if dweller.status == "questing":
+                raise ValueError(f"Dweller {dweller_id} is already on a quest")
 
             dweller.status = "questing"
             db_session.add(dweller)
@@ -78,6 +88,7 @@ class CRUDQuestParty(CRUDBase[QuestParty, None, None]):
         query = (
             select(Dweller)
             .where(Dweller.vault_id == vault_id)
+            .where(Dweller.status != "questing")
             .where(
                 Dweller.id.notin_(
                     select(QuestParty.dweller_id).where(

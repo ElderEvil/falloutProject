@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import type { VaultQuest } from '@/modules/progression/models/quest'
@@ -21,6 +21,22 @@ const emit = defineEmits<{
 
 const route = useRoute()
 
+const now = ref(Date.now())
+let timerInterval: ReturnType<typeof setInterval> | null = null
+
+onMounted(() => {
+  timerInterval = setInterval(() => {
+    now.value = Date.now()
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (timerInterval) {
+    clearInterval(timerInterval)
+    timerInterval = null
+  }
+})
+
 const vaultId = computed(() => route.params.id as string)
 
 const partyNames = computed(() => {
@@ -30,13 +46,12 @@ const partyNames = computed(() => {
 const progressPercentage = computed(() => {
   if (!props.quest.started_at || !props.quest.duration_minutes) return 0
 
-  const now = Date.now()
   const startStr = props.quest.started_at.endsWith('Z')
     ? props.quest.started_at
     : props.quest.started_at.replace(' ', 'T') + 'Z'
   const start = new Date(startStr).getTime()
   const duration = props.quest.duration_minutes * 60 * 1000
-  const elapsed = now - start
+  const elapsed = now.value - start
 
   return Math.min(100, (elapsed / duration) * 100)
 })

@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import UModal from '@/core/components/ui/UModal.vue'
 import UButton from '@/core/components/ui/UButton.vue'
+import UBadge from '@/core/components/ui/UBadge.vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { VaultQuest } from '../models/quest'
 
@@ -86,7 +87,6 @@ const close = () => {
 }
 
 const handleAssign = () => {
-  console.log('[PartySelectionModal] handleAssign, emitting assign with:', selectedDwellerIds.value)
   emit('assign', selectedDwellerIds.value)
 }
 

@@ -3,6 +3,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from pydantic import UUID4
+from sqlalchemy import selectinload
 from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -33,19 +34,20 @@ class CRUDQuest(
         self, db_session: AsyncSession, skip: int = 0, limit: int = 100, _include_deleted: bool = False
     ) -> Sequence[QuestRead]:
         """Get all quests without vault-specific data."""
-        query = select(Quest).offset(skip).limit(limit).order_by(Quest.id)
+        query = (
+            select(Quest)
+            .options(selectinload(Quest.requirements), selectinload(Quest.rewards))
+            .offset(skip)
+            .limit(limit)
+            .order_by(Quest.id)
+        )
         response = await db_session.execute(query)
-        quests = response.scalars().all()
+        quests = response.scalars().unique().all()
 
         result_items = []
         for quest in quests:
-            req_query = select(QuestRequirement).where(QuestRequirement.quest_id == quest.id)
-            req_result = await db_session.execute(req_query)
-            reqs = req_result.scalars().all()
-
-            reward_query = select(QuestReward).where(QuestReward.quest_id == quest.id)
-            reward_result = await db_session.execute(reward_query)
-            rewards = reward_result.scalars().all()
+            reqs = quest.requirements or []
+            rewards = quest.rewards or []
 
             result_items.append(
                 QuestRead(
@@ -98,13 +100,18 @@ class CRUDQuest(
     async def get_multi_for_vault(
         self, *, db_session: AsyncSession, skip: int, limit: int, vault_id: UUID4
     ) -> Sequence[QuestRead]:
-        existing_link_query = select(self.link_model).where(self.link_model.vault_id == vault_id)
-        existing_result = await db_session.execute(existing_link_query)
+        all_quests_query = select(Quest)
+        all_quests_result = await db_session.execute(all_quests_query)
+        all_quests = all_quests_result.scalars().all()
 
-        if not existing_result.scalars().first():
-            all_quests = await db_session.execute(select(Quest))
-            for quest in all_quests.scalars():
+        existing_link_query = select(self.link_model.quest_id).where(self.link_model.vault_id == vault_id)
+        existing_result = await db_session.execute(existing_link_query)
+        existing_quest_ids = {str(row) for row in existing_result.scalars().all()}
+
+        for quest in all_quests:
+            if str(quest.id) not in existing_quest_ids:
                 db_session.add(self.link_model(quest_id=quest.id, vault_id=vault_id, is_visible=True))
+        if any(str(quest.id) not in existing_quest_ids for quest in all_quests):
             await db_session.commit()
 
         query = select(Quest).join(self.link_model).where(self.link_model.vault_id == vault_id)

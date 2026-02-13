@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { VaultQuest, QuestPartyMember } from '../models/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
@@ -23,11 +23,9 @@ const emit = defineEmits<{
   assignParty: [questId: string]
 }>()
 
-// Timer state
 const timeRemaining = ref<string | null>(null)
 let timerInterval: ReturnType<typeof setInterval> | null = null
 
-// Compute time remaining for active quests
 const updateTimer = () => {
   if (!props.quest.started_at || !props.quest.duration_minutes) {
     timeRemaining.value = null
@@ -58,21 +56,44 @@ const updateTimer = () => {
     .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 }
 
-onMounted(() => {
+const startTimer = () => {
+  if (timerInterval) {
+    clearInterval(timerInterval)
+  }
   if (props.status === 'active' && props.quest.started_at && props.quest.duration_minutes) {
     updateTimer()
     timerInterval = setInterval(updateTimer, 1000)
   }
+}
+
+const stopTimer = () => {
+  if (timerInterval) {
+    clearInterval(timerInterval)
+    timerInterval = null
+  }
+}
+
+watch(
+  () => [props.status, props.quest.started_at],
+  () => {
+    if (props.status === 'active' && props.quest.started_at && props.quest.duration_minutes) {
+      startTimer()
+    } else {
+      stopTimer()
+    }
+  },
+  { immediate: true }
+)
+
+onMounted(() => {
+  startTimer()
 })
 
 onUnmounted(() => {
-  if (timerInterval) {
-    clearInterval(timerInterval)
-  }
+  stopTimer()
 })
 
 const hasParty = computed(() => {
-  console.log('[QuestCard] partyMembers:', props.partyMembers, 'length:', props.partyMembers?.length)
   return props.partyMembers && props.partyMembers.length > 0
 })
 const isQuestReady = computed(() => hasParty.value)
@@ -140,25 +161,15 @@ const cardBorderColor = computed(() => {
 })
 
 const isButtonDisabled = computed(() => {
-  console.log('[QuestCard] isButtonDisabled check:', {
-    status: props.status,
-    hasParty: hasParty.value,
-    partyMembersLength: props.partyMembers?.length,
-    prerequisitesMet: prerequisitesMet.value
-  })
-  // Always allow clicking - backend will validate requirements
   return false
 })
 
 const handleAction = () => {
-  console.log('[QuestCard] handleAction:', { status: props.status, hasParty: hasParty.value, questId: props.quest.id })
   switch (props.status) {
     case 'available':
       if (hasParty.value) {
-        console.log('[QuestCard] emitting start event')
         emit('start', props.quest.id)
       } else {
-        console.log('[QuestCard] emitting assignParty event')
         emit('assignParty', props.quest.id)
       }
       break

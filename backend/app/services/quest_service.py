@@ -35,12 +35,17 @@ class QuestService:
                 completed_count += 1
                 logger.info(f"Auto-completed quest {link.quest_id} for vault {link.vault_id}")
 
+        if completed_count > 0:
+            await db_session.commit()
+
         return completed_count
 
     async def start_quest(
         self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4, duration_minutes: int | None = None
     ) -> VaultQuestCompletionLink:
         """Start a quest with a timer."""
+        from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException
+
         query = select(VaultQuestCompletionLink).where(
             and_(
                 VaultQuestCompletionLink.quest_id == quest_id,
@@ -51,13 +56,16 @@ class QuestService:
         link = result.scalar_one_or_none()
 
         if not link:
-            raise ValueError(f"Quest {quest_id} not assigned to vault {vault_id}")
+            raise ResourceNotFoundException(
+                VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}"
+            )
 
         if link.is_completed:
-            raise ValueError(f"Quest {quest_id} already completed")
+            raise AccessDeniedException("Quest already completed")
 
         link.started_at = datetime.now()
-        link.duration_minutes = duration_minutes
+        if duration_minutes is not None:
+            link.duration_minutes = duration_minutes
 
         await db_session.commit()
         await db_session.refresh(link)

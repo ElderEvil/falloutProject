@@ -136,9 +136,12 @@ async def assign_party_to_quest(
     Assign dwellers to a quest party (1-3 dwellers).
     """
     from app.crud.quest_party import quest_party_crud
+    from app.utils.exceptions import ValidationException
 
     if len(party_data.dweller_ids) > 3:
-        raise ValueError("Maximum 3 dwellers per quest")
+        raise ValidationException("Maximum 3 dwellers per quest")
+    if len(party_data.dweller_ids) < 1:
+        raise ValidationException("Minimum 1 dweller per quest")
 
     return await quest_party_crud.assign_party(db_session, quest_id, vault_id, party_data.dweller_ids)
 
@@ -169,7 +172,7 @@ async def get_quest_party(
     ]
 
 
-@router.post("/{vault_id}/{quest_id}/start", status_code=200)
+@router.post("/{vault_id}/{quest_id}/start", response_model=QuestRead, status_code=200)
 async def start_quest(
     vault_id: UUID4,
     quest_id: UUID4,
@@ -180,4 +183,12 @@ async def start_quest(
     """Start a quest (starts the timer)."""
     from app.services.quest_service import quest_service
 
-    return await quest_service.start_quest(db_session, quest_id, vault_id, duration_minutes)
+    try:
+        await quest_service.start_quest(db_session, quest_id, vault_id, duration_minutes)
+        from app.crud.quest import quest_crud
+
+        return await quest_crud.get_for_vault(db_session, quest_id, vault_id, _user)
+    except ValueError as e:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=400, detail=str(e)) from e

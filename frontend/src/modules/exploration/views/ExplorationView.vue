@@ -79,6 +79,14 @@ const getDwellerById = (dwellerId: string) => {
   return dwellerStore.dwellers.find((d) => d.id === dwellerId)
 }
 
+const getPartyMembersForQuest = (questId: string) => {
+  const party = questStore.questPartyMap[questId]
+  if (!party) return []
+  return party
+    .map((p) => dwellerStore.dwellers.find((d) => d.id === p.dweller_id))
+    .filter((d): d is NonNullable<typeof d> => d !== undefined)
+}
+
 const activeQuestsWithParty = computed(() => {
   return questStore.activeQuests.filter((q) => {
     const party = questStore.questPartyMap[q.id]
@@ -231,7 +239,7 @@ const closeRewardsModal = () => {
               v-for="quest in activeQuestsWithParty"
               :key="quest.id"
               :quest="quest"
-              :party-members="questStore.questPartyMap[quest.id] || []"
+              :party-members="getPartyMembersForQuest(quest.id)"
               :selected="selectedQuestPartyId === quest.id"
               @select="selectedQuestPartyId = quest.id"
               @complete="handleCompleteQuest"

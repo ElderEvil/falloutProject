@@ -182,12 +182,15 @@ async def start_quest(
 ):
     """Start a quest (starts the timer)."""
     from app.services.quest_service import quest_service
+    from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException
 
     try:
         await quest_service.start_quest(db_session, quest_id, vault_id, duration_minutes)
         from app.crud.quest import quest_crud
 
         return await quest_crud.get_for_vault(db_session, quest_id, vault_id, _user)
+    except (ResourceNotFoundException, AccessDeniedException):
+        raise
     except ValueError as e:
         from fastapi import HTTPException
 

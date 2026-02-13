@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from pydantic import UUID4
-from sqlalchemy import selectinload
+from sqlalchemy.orm import selectinload
 from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 

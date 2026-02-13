@@ -69,13 +69,13 @@ class CRUDUserProfile(CRUDBase[UserProfile, UserProfileBase, ProfileUpdate]):
 
         return await self.update(db_session, id=profile.id, obj_in=ProfileUpdateStatistics(**update_data))
 
-    async def update_fields(  # FIXME Why only statistics? It uses kwargs, so you can pass anything here
+    async def update_fields(
         self,
         db_session: AsyncSession,
         user_id: UUID4,
         **kwargs,
     ) -> UserProfile | None:
-        """Update multiple statistics at once."""
+        """Update multiple profile fields at once."""
         profile = await self.get_by_user_id(db_session, user_id)
         if not profile:
             return None

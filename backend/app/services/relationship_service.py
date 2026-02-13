@@ -7,6 +7,7 @@ from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.constants import AFFINITY_QUICK_PAIR, COMPATIBILITY_MAX_LEVEL_DIFF, COMPATIBILITY_MAX_SPECIAL_DIFF
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
 from app.crud.relationship import relationship_crud
@@ -282,7 +283,7 @@ class RelationshipService:
         - Ready to breed immediately with 90% conception chance per tick
         """
         # Pre-validate affinity meets romance threshold before creating any records
-        quick_pair_affinity = 90
+        quick_pair_affinity = AFFINITY_QUICK_PAIR
         if quick_pair_affinity < game_config.relationship.romance_threshold:
             msg = (
                 f"Quick pair affinity ({quick_pair_affinity}) is below romance threshold "
@@ -365,7 +366,7 @@ class RelationshipService:
         # SPECIAL similarity score
         special_attrs = ["strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"]
         special_diff = sum(abs(getattr(dweller_1, attr, 0) - getattr(dweller_2, attr, 0)) for attr in special_attrs)
-        max_special_diff = 7 * 10
+        max_special_diff = COMPATIBILITY_MAX_SPECIAL_DIFF
         special_score = 1.0 - (special_diff / max_special_diff)
 
         # Happiness similarity
@@ -374,7 +375,7 @@ class RelationshipService:
 
         # Level similarity
         level_diff = abs(dweller_1.level - dweller_2.level)
-        max_level_diff = 50
+        max_level_diff = COMPATIBILITY_MAX_LEVEL_DIFF
         level_score = 1.0 - (level_diff / max_level_diff)
 
         # Proximity (same room bonus)

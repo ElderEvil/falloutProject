@@ -76,10 +76,20 @@ const happinessLabel = computed(() => {
   }
 })
 
-// TODO (v1.14): Calculate trend from historical data
-const happinessTrend = computed(() => {
-  // For now, show stable
-  return 'stable' // 'increasing' | 'decreasing' | 'stable'
+// Calculate trend based on current modifiers and conditions
+const happinessTrend = computed((): 'increasing' | 'decreasing' | 'stable' => {
+  // If radio happiness mode is active and no negative modifiers → increasing
+  if (props.radioHappinessMode && props.activeIncidentCount === 0 && props.lowResourceCount === 0) {
+    return 'increasing'
+  }
+
+  // If there are active negative modifiers → decreasing
+  if (props.activeIncidentCount > 0 || props.lowResourceCount > 0 || props.idleDwellerCount > 3) {
+    return 'decreasing'
+  }
+
+  // Otherwise stable
+  return 'stable'
 })
 
 const trendIcon = computed(() => {

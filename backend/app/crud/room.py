@@ -11,6 +11,7 @@ from app.models.room import Room
 from app.schemas.common import RoomActionEnum, RoomTypeEnum
 from app.schemas.room import RoomCreate, RoomUpdate
 from app.services.event_bus import GameEvent, event_bus
+from app.constants import GRID_X_MAX, GRID_X_MIN, GRID_Y_MAX, GRID_Y_MIN
 from app.utils.exceptions import InsufficientResourcesException, NoSpaceAvailableException, UniqueRoomViolationException
 from app.utils.room_assets import get_room_image_url
 
@@ -132,18 +133,18 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             msg = "Room coordinates must be specified."
             raise ValueError(msg)
 
-        if obj_in.coordinate_x < 0 or obj_in.coordinate_x > 8:
-            msg = f"Invalid X coordinate: {obj_in.coordinate_x}. Must be between 0 and 8."
+        if obj_in.coordinate_x < GRID_X_MIN or obj_in.coordinate_x > GRID_X_MAX:
+            msg = f"Invalid X coordinate: {obj_in.coordinate_x}. Must be between {GRID_X_MIN} and {GRID_X_MAX}."
             raise ValueError(msg)
 
         # Validate room footprint doesn't exceed grid width
         max_x = obj_in.coordinate_x + obj_in.size_min - 1
-        if max_x > 8:
-            msg = f"Room exceeds grid width: max X {max_x} > 8"
+        if max_x > GRID_X_MAX:
+            msg = f"Room exceeds grid width: max X {max_x} > {GRID_X_MAX}"
             raise ValueError(msg)
 
-        if obj_in.coordinate_y < 0 or obj_in.coordinate_y > 25:
-            msg = f"Invalid Y coordinate: {obj_in.coordinate_y}. Must be between 0 and 25."
+        if obj_in.coordinate_y < GRID_Y_MIN or obj_in.coordinate_y > GRID_Y_MAX:
+            msg = f"Invalid Y coordinate: {obj_in.coordinate_y}. Must be between {GRID_Y_MIN} and {GRID_Y_MAX}."
             raise ValueError(msg)
 
         # Prevent building multiple vault doors (case-insensitive check)

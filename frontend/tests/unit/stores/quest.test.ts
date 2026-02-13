@@ -42,7 +42,9 @@ describe('Quest Store', () => {
           created_at: '2025-01-01',
           updated_at: '2025-01-01',
           is_visible: true,
-          is_completed: false
+          is_completed: false,
+          started_at: '2025-01-02T00:00:00Z',
+          duration_minutes: 60
         },
         {
           id: '2',
@@ -54,7 +56,9 @@ describe('Quest Store', () => {
           created_at: '2025-01-01',
           updated_at: '2025-01-01',
           is_visible: true,
-          is_completed: true
+          is_completed: true,
+          started_at: '2025-01-02T00:00:00Z',
+          duration_minutes: 60
         }
       ]
 
@@ -75,7 +79,9 @@ describe('Quest Store', () => {
           created_at: '2025-01-01',
           updated_at: '2025-01-01',
           is_visible: true,
-          is_completed: false
+          is_completed: false,
+          started_at: '2025-01-02T00:00:00Z',
+          duration_minutes: 60
         },
         {
           id: '2',
@@ -87,7 +93,9 @@ describe('Quest Store', () => {
           created_at: '2025-01-01',
           updated_at: '2025-01-01',
           is_visible: true,
-          is_completed: true
+          is_completed: true,
+          started_at: '2025-01-02T00:00:00Z',
+          duration_minutes: 60
         }
       ]
 
@@ -95,34 +103,13 @@ describe('Quest Store', () => {
       expect(store.completedQuests[0].id).toBe('2')
     })
 
-    it('should filter available quests (not assigned)', () => {
+    it('should filter available quests (not started)', () => {
       const store = useQuestStore()
-      store.quests = [
-        {
-          id: '1',
-          title: 'Quest 1',
-          short_description: 'Test',
-          long_description: 'Test',
-          requirements: 'Test',
-          rewards: 'Test',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01'
-        },
-        {
-          id: '2',
-          title: 'Quest 2',
-          short_description: 'Test',
-          long_description: 'Test',
-          requirements: 'Test',
-          rewards: 'Test',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01'
-        }
-      ]
+      // availableQuests now filters from vaultQuests (not quests)
       store.vaultQuests = [
         {
           id: '1',
-          title: 'Quest 1',
+          title: 'Started Quest',
           short_description: 'Test',
           long_description: 'Test',
           requirements: 'Test',
@@ -130,7 +117,23 @@ describe('Quest Store', () => {
           created_at: '2025-01-01',
           updated_at: '2025-01-01',
           is_visible: true,
-          is_completed: false
+          is_completed: false,
+          started_at: '2025-01-02T00:00:00Z',
+          duration_minutes: 60
+        },
+        {
+          id: '2',
+          title: 'Available Quest',
+          short_description: 'Test',
+          long_description: 'Test',
+          requirements: 'Test',
+          rewards: 'Test',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_completed: false,
+          started_at: null,
+          duration_minutes: null
         }
       ]
 
@@ -159,7 +162,7 @@ describe('Quest Store', () => {
       const store = useQuestStore()
       await store.fetchAllQuests()
 
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/')
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/', expect.objectContaining({ headers: expect.any(Object) }))
       expect(store.quests).toEqual(mockQuests)
       expect(store.isLoading).toBe(false)
     })
@@ -195,7 +198,7 @@ describe('Quest Store', () => {
       const store = useQuestStore()
       await store.fetchVaultQuests('vault-123')
 
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/vault-123/')
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/vault-123/', expect.objectContaining({ headers: expect.any(Object) }))
       expect(store.vaultQuests).toEqual(mockVaultQuests)
     })
 
@@ -232,7 +235,7 @@ describe('Quest Store', () => {
       expect(axios.post).toHaveBeenCalledWith('/api/v1/quests/vault-123/quest-1/assign', null, {
         params: { is_visible: true }
       })
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/vault-123/')
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/vault-123/', expect.objectContaining({ headers: expect.any(Object) }))
     })
 
     it('should handle assign error', async () => {
@@ -265,7 +268,7 @@ describe('Quest Store', () => {
       await store.completeQuest('vault-123', 'quest-1')
 
       expect(axios.post).toHaveBeenCalledWith('/api/v1/quests/vault-123/quest-1/complete')
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/vault-123/')
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/vault-123/', expect.objectContaining({ headers: expect.any(Object) }))
     })
 
     it('should handle complete error', async () => {

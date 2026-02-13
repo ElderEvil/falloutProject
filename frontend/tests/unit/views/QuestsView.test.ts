@@ -190,7 +190,9 @@ describe('QuestsView', () => {
           created_at: '2025-01-01',
           updated_at: '2025-01-01',
           is_visible: true,
-          is_completed: false
+          is_completed: false,
+          started_at: '2025-01-02T00:00:00Z',
+          duration_minutes: 60
         }
       ]
 
@@ -210,7 +212,7 @@ describe('QuestsView', () => {
     })
 
     it('should display available quests in second section', async () => {
-      questStore.quests = [
+      questStore.vaultQuests = [
         {
           id: 'quest-1',
           title: 'Available Quest',
@@ -219,10 +221,13 @@ describe('QuestsView', () => {
           requirements: 'Level 5',
           rewards: '50 caps',
           created_at: '2025-01-01',
-          updated_at: '2025-01-01'
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_completed: false,
+          started_at: null,
+          duration_minutes: null
         }
       ]
-      questStore.vaultQuests = []
 
       wrapper = mount(QuestsView, {
         global: {
@@ -320,7 +325,7 @@ describe('QuestsView', () => {
     })
 
     it('should call assignQuest when start button clicked', async () => {
-      questStore.quests = [
+      questStore.vaultQuests = [
         {
           id: 'quest-1',
           title: 'Available Quest',
@@ -329,27 +334,37 @@ describe('QuestsView', () => {
           requirements: 'Level 5',
           rewards: '50 caps',
           created_at: '2025-01-01',
-          updated_at: '2025-01-01'
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_completed: false,
+          started_at: null,
+          duration_minutes: 60
         }
       ]
 
-      const assignSpy = vi.spyOn(questStore, 'assignQuest').mockResolvedValue()
+      const startSpy = vi.spyOn(questStore, 'startQuest').mockResolvedValue()
 
       wrapper = mount(QuestsView, {
         global: {
           stubs: {
             SidePanel: true,
-            Icon: true
+            Icon: true,
+            QuestCard: {
+              template: '<div><button class="start-btn" @click="$emit(\'start\', quest.id)">Start Quest</button></div>',
+              props: ['quest', 'vaultId', 'status', 'partyMembers'],
+              emits: ['start', 'complete', 'assign-party']
+            }
           }
         }
       })
 
       await wrapper.vm.$nextTick()
 
-      const startButton = wrapper.findComponent({ name: 'UButton' })
+      // Find the button inside QuestCard and click it
+      const startButton = wrapper.find('.start-btn')
       await startButton.trigger('click')
 
-      expect(assignSpy).toHaveBeenCalledWith('vault-123', 'quest-1', true)
+      expect(startSpy).toHaveBeenCalledWith('vault-123', 'quest-1')
     })
 
     it('should call completeQuest when complete button clicked', async () => {
@@ -364,7 +379,9 @@ describe('QuestsView', () => {
           created_at: '2025-01-01',
           updated_at: '2025-01-01',
           is_visible: true,
-          is_completed: false
+          is_completed: false,
+          started_at: '2025-01-02T00:00:00Z',
+          duration_minutes: 60
         }
       ]
 
@@ -374,14 +391,19 @@ describe('QuestsView', () => {
         global: {
           stubs: {
             SidePanel: true,
-            Icon: true
+            Icon: true,
+            QuestCard: {
+              template: '<div><button class="complete-btn" @click="$emit(\'complete\', quest.id)">Complete Quest</button></div>',
+              props: ['quest', 'vaultId', 'status', 'partyMembers'],
+              emits: ['start', 'complete', 'assign-party']
+            }
           }
         }
       })
 
       await wrapper.vm.$nextTick()
 
-      const completeButton = wrapper.findComponent({ name: 'UButton' })
+      const completeButton = wrapper.find('.complete-btn')
       await completeButton.trigger('click')
 
       expect(completeSpy).toHaveBeenCalledWith('vault-123', 'quest-1')

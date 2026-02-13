@@ -43,9 +43,24 @@ export interface QuestRequirement {
 export interface QuestReward {
   id: string
   quest_id: string
-  reward_type: 'caps' | 'item' | 'dweller' | 'resource' | 'experience'
+  reward_type: 'caps' | 'item' | 'dweller' | 'resource' | 'experience' | 'stimpak' | 'radaway' | 'lunchbox'
   reward_data: Record<string, unknown>
   reward_chance: number
+  item_data?: Record<string, unknown>
+}
+
+/**
+ * Quest party member interface
+ */
+export interface QuestPartyMember {
+  id: string
+  quest_id: string
+  vault_id: string
+  dweller_id: string
+  slot_number: number
+  status: 'assigned' | 'in_progress' | 'completed' | 'failed'
+  created_at: string
+  updated_at: string
 }
 
 /**
@@ -54,6 +69,8 @@ export interface QuestReward {
 export interface VaultQuest extends Quest {
   is_visible: boolean
   is_completed: boolean
+  started_at: string | null
+  duration_minutes: number | null
   quest_requirements?: QuestRequirement[]
   quest_rewards?: QuestReward[]
 }

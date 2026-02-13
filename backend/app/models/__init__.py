@@ -12,6 +12,7 @@ from .outfit import Outfit
 from .pregnancy import Pregnancy
 from .prompt import Prompt
 from .quest import Quest, QuestType
+from .quest_party import QuestParty
 from .quest_requirement import QuestRequirement, RequirementType
 from .quest_reward import QuestReward, RewardType
 from .relationship import Relationship

@@ -9,6 +9,28 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.10.4] - 2026-02-13
+
+### What's New
+
+- **Quest Parties** - Assign dweller parties to quests before starting them
+  - Select up to 3 dwellers to form a quest party
+  - Dwellers assigned to quests now show "Questing" status
+  - Quest parties visible in the Exploration tab with progress tracking
+- **Quest Timer** - Quests now have a 1-hour duration with real-time progress
+  - Progress bar and countdown timer on active quest cards
+  - Auto-completion when quest duration expires (via Celery task)
+- **Questing Filter** - Filter dwellers by "Questing" status in the dweller list
+- **Quest Rewards** - Completing quests now grants rewards to your vault
+
+### Fixed
+
+- **Quest Seeding** - Fixed invalid requirement types in quest JSON files
+- **Frontend Build** - Fixed Vue TypeScript build errors
+- **Backend Lint** - Cleaned up unused imports and variables
+
+---
+
 ## [2.10.2] - 2026-02-12
 
 ### What's New

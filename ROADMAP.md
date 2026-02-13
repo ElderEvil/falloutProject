@@ -9,6 +9,35 @@ AI-powered dweller interactions.
 
 ## Latest Release
 
+### v2.10.4 - Quest System Fix (February 13, 2026)
+
+**Focus**: Fixed quest seeding bugs and verified quest system works
+
+**Completed:**
+- ✅ **Quest JSON Fixes** - Fixed invalid requirement types in quest files
+  - Changed `dweller_level` → `level` in 4 quest files
+  - Removed invalid `weapon_damage` requirement type
+  - All 18 quests now seed correctly
+- ✅ **Quest Seeding Tests** - 8 tests passing
+- ✅ **Reward Service Tests** - 13 tests passing
+- ✅ **Quest UI Verified** - Full UI already implemented and working
+  - QuestsView with tabs (active/available/completed)
+  - QuestDetailView with requirements and rewards
+  - Quest store with API integration
+  - Route: `/vault/:id/quests`
+
+**Note:** Quest UI was already implemented - just fixed the seeding bugs that prevented it from working.
+
+### v2.10.3 - Frontend Cleanup (February 13, 2026)
+
+**Focus**: Fixed type errors and lint warnings
+
+**Completed:**
+- ✅ Fixed Vue TypeScript build errors (undefined array access, void elements)
+- ✅ Fixed backend lint warnings
+
+---
+
 ### v2.10.0 - Quest & Objective System (February 10, 2026)
 
 **Focus**: Working quest system with proper reward distribution and objective progress tracking
@@ -692,14 +721,12 @@ watch(() => userStore.caps, (caps) => {
 
 | Version | Release      | Highlights                             |
 |---------|--------------|----------------------------------------|
-| v2.9.0  | Feb 07, 2026 | Chat exploration actions, room agent   |
+| v2.10.4 | Feb 13, 2026 | Quest seeding fixes, UI verified       |
+| v2.10.3 | Feb 13, 2026 | Frontend typecheck fixes               |
+| v2.10.0 | Feb 10, 2026 | Quest & Objective system launch         |
+| v2.9.3  | Feb 08, 2026 | Component refactoring                  |
+| v2.9.0  | Feb 07, 2026 | Chat exploration actions                |
 | v2.8.5  | Feb 04, 2026 | Code quality, refactoring              |
-| v2.8.4  | Feb 03, 2026 | Test infrastructure fixes              |
-| v2.3.0  | Jan 24, 2026 | Storage validation, pregnancy debug    |
-| v2.2.0  | Jan 23, 2026 | Death system complete                  |
-| v2.1.0  | Jan 22, 2026 | Modular frontend architecture          |
-| v2.0.0  | Jan 22, 2026 | Major release, deployment ready        |
-| v1.4.2  | Jan 21, 2026 | Final v1.x release                     |
 
 ---
 
@@ -1040,4 +1067,4 @@ interface Theme {
 
 ---
 
-*Last updated: February 11, 2026*
+*Last updated: February 13, 2026*

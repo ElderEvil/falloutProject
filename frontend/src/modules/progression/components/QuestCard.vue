@@ -1,22 +1,102 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import type { VaultQuest } from '../models/quest'
+import type { VaultQuest, QuestPartyMember } from '../models/quest'
+import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { UCard, UBadge, UButton } from '@/core/components/ui'
 
 interface Props {
   quest: VaultQuest
   vaultId: string
   status: 'available' | 'active' | 'completed'
+  partyMembers?: DwellerShort[]
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  partyMembers: () => [],
+})
 
 const emit = defineEmits<{
   start: [questId: string]
   complete: [questId: string]
   view: [questId: string]
+  assignParty: [questId: string]
 }>()
+
+const timeRemaining = ref<string | null>(null)
+let timerInterval: ReturnType<typeof setInterval> | null = null
+
+const updateTimer = () => {
+  if (!props.quest.started_at || !props.quest.duration_minutes) {
+    timeRemaining.value = null
+    return
+  }
+
+  const startTime = new Date(props.quest.started_at).getTime()
+  const durationMs = props.quest.duration_minutes * 60 * 1000
+  const endTime = startTime + durationMs
+  const now = Date.now()
+  const remaining = endTime - now
+
+  if (remaining <= 0) {
+    timeRemaining.value = '00:00:00'
+    if (timerInterval) {
+      clearInterval(timerInterval)
+      timerInterval = null
+    }
+    return
+  }
+
+  const hours = Math.floor(remaining / (1000 * 60 * 60))
+  const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60))
+  const seconds = Math.floor((remaining % (1000 * 60)) / 1000)
+
+  timeRemaining.value = `${hours.toString().padStart(2, '0')}:${minutes
+    .toString()
+    .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+}
+
+const startTimer = () => {
+  if (timerInterval) {
+    clearInterval(timerInterval)
+  }
+  if (props.status === 'active' && props.quest.started_at && props.quest.duration_minutes) {
+    updateTimer()
+    timerInterval = setInterval(updateTimer, 1000)
+  }
+}
+
+const stopTimer = () => {
+  if (timerInterval) {
+    clearInterval(timerInterval)
+    timerInterval = null
+  }
+}
+
+watch(
+  () => [props.status, props.quest.started_at],
+  () => {
+    if (props.status === 'active' && props.quest.started_at && props.quest.duration_minutes) {
+      startTimer()
+    } else {
+      stopTimer()
+    }
+  },
+  { immediate: true }
+)
+
+onMounted(() => {
+  startTimer()
+})
+
+onUnmounted(() => {
+  stopTimer()
+})
+
+const hasParty = computed(() => {
+  return props.partyMembers && props.partyMembers.length > 0
+})
+const isQuestReady = computed(() => hasParty.value)
 
 // Type badge colors
 const typeColors: Record<string, { bg: string; text: string; border: string }> = {
@@ -59,9 +139,9 @@ const prerequisitesMet = computed(() => {
 const actionButtonText = computed(() => {
   switch (props.status) {
     case 'available':
-      return 'Start Quest'
+      return hasParty.value ? 'Start Quest' : 'Assign Party'
     case 'active':
-      return 'Complete Quest'
+      return timeRemaining.value ? 'In Progress' : 'Complete Quest'
     case 'completed':
       return 'View Details'
     default:
@@ -80,10 +160,18 @@ const cardBorderColor = computed(() => {
   }
 })
 
+const isButtonDisabled = computed(() => {
+  return false
+})
+
 const handleAction = () => {
   switch (props.status) {
     case 'available':
-      emit('start', props.quest.id)
+      if (hasParty.value) {
+        emit('start', props.quest.id)
+      } else {
+        emit('assignParty', props.quest.id)
+      }
       break
     case 'active':
       emit('complete', props.quest.id)
@@ -174,15 +262,44 @@ const handleAction = () => {
       </div>
     </div>
 
+    <!-- Party Members (for active/available quests) -->
+    <div v-if="status !== 'completed' && partyMembers.length > 0" class="quest-section">
+      <div class="section-label">
+        <Icon icon="mdi:account-group" class="inline-icon" />
+        PARTY
+      </div>
+      <div class="party-members">
+        <div v-for="member in partyMembers" :key="member.id" class="party-member">
+          <Icon icon="mdi:account" class="member-icon" />
+          <span class="member-name">{{ member.first_name }} {{ member.last_name }}</span>
+          <span class="member-level">Lv.{{ member.level || 1 }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timer (for active quests) -->
+    <div v-if="status === 'active' && timeRemaining" class="quest-timer">
+      <Icon icon="mdi:clock-outline" class="timer-icon" />
+      <span class="timer-label">Time Remaining:</span>
+      <span class="timer-value">{{ timeRemaining }}</span>
+    </div>
+
+    <!-- Duration Info (for available quests) -->
+    <div v-if="status === 'available' && quest.duration_minutes" class="quest-duration">
+      <Icon icon="mdi:clock-outline" class="duration-icon" />
+      <span>Duration: {{ quest.duration_minutes }} min</span>
+      <span v-if="!hasParty" class="duration-hint">(Assign party to start)</span>
+    </div>
+
     <!-- Action Button -->
     <UButton
       class="quest-action-btn"
-      :variant="status === 'completed' ? 'secondary' : 'primary'"
-      :disabled="status === 'available' && !prerequisitesMet"
+      :variant="status === 'completed' ? 'secondary' : status === 'active' && !timeRemaining ? 'primary' : 'primary'"
+      :disabled="isButtonDisabled"
       @click="handleAction"
     >
       <Icon
-        :icon="status === 'completed' ? 'mdi:eye' : status === 'active' ? 'mdi:check-bold' : 'mdi:play'"
+        :icon="status === 'completed' ? 'mdi:eye' : status === 'active' ? 'mdi:progress-clock' : hasParty ? 'mdi:play' : 'mdi:account-plus'"
         class="btn-icon"
       />
       {{ actionButtonText }}
@@ -362,5 +479,87 @@ const handleAction = () => {
 
 .btn-icon {
   margin-right: 8px;
+}
+
+.party-members {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.party-member {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.member-icon {
+  color: var(--color-theme-accent);
+}
+
+.member-name {
+  flex: 1;
+  color: var(--color-theme-primary);
+  font-weight: bold;
+}
+
+.member-level {
+  color: var(--color-theme-accent);
+  font-size: 0.8rem;
+}
+
+.quest-timer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(0, 217, 255, 0.1);
+  border: 1px solid var(--color-theme-accent);
+  border-radius: 6px;
+  margin-top: 12px;
+}
+
+.timer-icon {
+  font-size: 1.2rem;
+  color: var(--color-theme-accent);
+}
+
+.timer-label {
+  color: var(--color-theme-primary);
+  font-size: 0.85rem;
+}
+
+.timer-value {
+  font-weight: bold;
+  font-size: 1.1rem;
+  color: var(--color-theme-accent);
+  font-family: 'Courier New', monospace;
+}
+
+.quest-duration {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  margin-top: 12px;
+  font-size: 0.85rem;
+  color: var(--color-theme-primary);
+}
+
+.duration-icon {
+  color: var(--color-theme-accent);
+}
+
+.duration-hint {
+  color: var(--color-theme-primary);
+  opacity: 0.6;
+  font-size: 0.8rem;
+  margin-left: auto;
 }
 </style>

@@ -11,6 +11,7 @@ from app.models.vault_quest import (
 )
 
 if TYPE_CHECKING:
+    from app.models.quest_party import QuestParty
     from app.models.quest_requirement import QuestRequirement
     from app.models.quest_reward import QuestReward
     from app.models.vault import Vault
@@ -32,6 +33,7 @@ class QuestBase(SQLModel):
     rewards: str = Field(min_length=3, max_length=255)
     quest_type: QuestType = Field(default=QuestType.SIDE, index=True)
     quest_category: str | None = Field(default=None, max_length=64, index=True)
+    duration_minutes: int = Field(default=60, description="Quest duration in minutes")
 
     chain_id: str | None = Field(default=None, max_length=64, index=True)
     chain_order: int = Field(default=0)
@@ -56,6 +58,10 @@ class Quest(BaseUUIDModel, QuestBase, TimeStampMixin, table=True):
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
     quest_rewards: list["QuestReward"] = Relationship(
+        back_populates="quest",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+    party_members: list["QuestParty"] = Relationship(
         back_populates="quest",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )

@@ -5,10 +5,12 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/stores/dweller'
 import { useExplorationStore } from '../stores/exploration'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { Icon } from '@iconify/vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import ExplorerCard from '../components/ExplorerCard.vue'
+import QuestPartyCard from '../components/QuestPartyCard.vue'
 import EventTimeline from '../components/EventTimeline.vue'
 import ExplorationRewardsModal from '../components/ExplorationRewardsModal.vue'
 import type { RewardsSummary } from '../stores/exploration'
@@ -19,9 +21,11 @@ const { isCollapsed } = useSidePanel()
 const dwellerStore = useDwellerStore()
 const explorationStore = useExplorationStore()
 const vaultStore = useVaultStore()
+const questStore = useQuestStore()
 
 const vaultId = computed(() => route.params.id as string)
 const selectedExplorerId = ref<string | null>(null)
+const selectedQuestPartyId = ref<string | null>(null)
 
 // Rewards modal state
 const showRewardsModal = ref(false)
@@ -34,6 +38,8 @@ onMounted(async () => {
     try {
       await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
       await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
+      await questStore.fetchVaultQuests(vaultId.value)
+      await questStore.fetchPartiesForActiveQuests(vaultId.value)
     } catch (error) {
       console.error('Failed to load exploration data:', error)
     }
@@ -71,6 +77,36 @@ const selectedExploration = computed(() => {
 
 const getDwellerById = (dwellerId: string) => {
   return dwellerStore.dwellers.find((d) => d.id === dwellerId)
+}
+
+const getPartyMembersForQuest = (questId: string) => {
+  const party = questStore.questPartyMap[questId]
+  if (!party) return []
+  return party
+    .map((p) => dwellerStore.dwellers.find((d) => d.id === p.dweller_id))
+    .filter((d): d is NonNullable<typeof d> => d !== undefined)
+}
+
+const activeQuestsWithParty = computed(() => {
+  return questStore.activeQuests.filter((q) => {
+    const party = questStore.questPartyMap[q.id]
+    return party && party.length > 0
+  })
+})
+
+const handleCompleteQuest = async (questId: string) => {
+  if (!vaultId.value || !authStore.token) return
+
+  try {
+    await questStore.completeQuest(vaultId.value, questId)
+    await questStore.fetchVaultQuests(vaultId.value)
+    await questStore.fetchPartiesForActiveQuests(vaultId.value)
+    if (selectedQuestPartyId.value === questId) {
+      selectedQuestPartyId.value = null
+    }
+  } catch (error) {
+    console.error('Failed to complete quest:', error)
+  }
 }
 
 const handleCompleteExploration = async (explorationId: string) => {
@@ -159,14 +195,19 @@ const closeRewardsModal = () => {
           <Icon icon="mdi:compass" class="header-icon" />
           <div>
             <h1 class="header-title">Wasteland Exploration</h1>
-            <p class="header-subtitle">Monitor active explorations and manage your explorers</p>
+            <p class="header-subtitle">Monitor active explorations and quest parties</p>
           </div>
         </div>
         <div class="header-stats">
           <div class="stat-badge">
             <Icon icon="mdi:account-search" class="stat-icon" />
             <span class="stat-value">{{ activeExplorationsArray.length }}</span>
-            <span class="stat-label">Active</span>
+            <span class="stat-label">Explorations</span>
+          </div>
+          <div class="stat-badge">
+            <Icon icon="mdi:sword-cross" class="stat-icon" />
+            <span class="stat-value">{{ activeQuestsWithParty.length }}</span>
+            <span class="stat-label">Quests</span>
           </div>
         </div>
       </div>
@@ -175,11 +216,11 @@ const closeRewardsModal = () => {
       <div class="exploration-content">
         <!-- Explorer Cards List -->
         <div class="explorers-section">
-          <div v-if="activeExplorationsArray.length === 0" class="empty-state">
+          <div v-if="activeExplorationsArray.length === 0 && activeQuestsWithParty.length === 0" class="empty-state">
             <Icon icon="mdi:compass-off" class="empty-icon" />
-            <h3 class="empty-title">No Active Explorations</h3>
+            <h3 class="empty-title">No Active Activities</h3>
             <p class="empty-text">
-              Send dwellers to the wasteland from the vault overview to start exploring.
+              Send dwellers to the wasteland or assign quest parties to see them here.
             </p>
           </div>
 
@@ -193,6 +234,15 @@ const closeRewardsModal = () => {
               @select="selectedExplorerId = exploration.id"
               @complete="handleCompleteExploration"
               @recall="handleRecallExploration"
+            />
+            <QuestPartyCard
+              v-for="quest in activeQuestsWithParty"
+              :key="quest.id"
+              :quest="quest"
+              :party-members="getPartyMembersForQuest(quest.id)"
+              :selected="selectedQuestPartyId === quest.id"
+              @select="selectedQuestPartyId = quest.id"
+              @complete="handleCompleteQuest"
             />
           </div>
         </div>

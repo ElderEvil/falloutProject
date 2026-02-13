@@ -3,10 +3,10 @@
   "Long description": "Raiders captured and attempted to domesticate a Deathclaw. It did not go well. They all need to die.",
   "Quest objective": "1. Eliminate the Raider Leader. 2. Destroy the Deathclaw.",
   "Short description": "Kill the Raiders and their Deathclaw.",
-  "Requirements": "Level 44 dwellers, Junk Jet, 6+ Strength",
+  "Requirements": "Level 44 dwellers",
   "Rewards": "Lunchbox, Legendary junk, Plasma rifle",
   "quest_requirements": [
-    {"requirement_type": "dweller_level", "requirement_data": {"min_level": 44}, "is_mandatory": true}
+    {"requirement_type": "level", "requirement_data": {"level": 44}, "is_mandatory": true}
   ],
   "quest_rewards": [
     {"reward_type": "LUNCHBOX", "reward_data": {"quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Lunchbox", "rarity": "legendary", "value": 100}},

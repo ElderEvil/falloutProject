@@ -1,4 +1,4 @@
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from pydantic import UUID4
 from sqlmodel import SQLModel, and_, select
@@ -43,13 +43,15 @@ class CompletionMixin[LinkModelType]:
         db_session: AsyncSession,
         db_obj: LinkModelType,
         vault_id: UUID4,
-    ) -> None:
+    ) -> list[dict[str, Any]]:
         msg = "Subclasses must implement this method"
         raise NotImplementedError(msg)
 
-    async def complete(self, *, db_session: AsyncSession, quest_entity_id: UUID4, vault_id: UUID4) -> LinkModelType:
+    async def complete(
+        self, *, db_session: AsyncSession, quest_entity_id: UUID4, vault_id: UUID4
+    ) -> tuple[Any, list[dict[str, Any]]]:
         db_obj = await self.get(db_session, quest_entity_id)
         await self._mark_as_complete(db_session=db_session, vault_id=vault_id, quest_entity_id=quest_entity_id)
-        await self._handle_completion_cascade(db_session=db_session, db_obj=db_obj, vault_id=vault_id)
+        granted_rewards = await self._handle_completion_cascade(db_session=db_session, db_obj=db_obj, vault_id=vault_id)
 
-        return db_obj
+        return db_obj, granted_rewards

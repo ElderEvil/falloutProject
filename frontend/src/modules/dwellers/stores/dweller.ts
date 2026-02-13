@@ -12,7 +12,7 @@ import type {
 import { useToast } from '@/core/composables/useToast'
 import { useGaryMode } from '@/core/composables/useGaryMode'
 
-export type DwellerStatus = 'idle' | 'working' | 'exploring' | 'training' | 'resting' | 'dead'
+export type DwellerStatus = 'idle' | 'working' | 'exploring' | 'questing' | 'training' | 'resting' | 'dead'
 
 export interface DwellerWithStatus extends DwellerShort {
   status: DwellerStatus
@@ -117,19 +117,10 @@ export const useDwellerStore = defineStore('dweller', () => {
     return result
   })
 
-  // Actions
   async function fetchDwellers(token: string): Promise<void> {
-    try {
-      const response = await axios.get('/api/v1/dwellers', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-      dwellers.value = response.data
-    } catch (error) {
-      console.error('Failed to fetch dwellers', error)
-    }
+    console.warn("fetchDwellers is deprecated, use fetchDwellersByVault with vaultId")
   }
+
 
   async function fetchDwellersByVault(
     vaultId: string,

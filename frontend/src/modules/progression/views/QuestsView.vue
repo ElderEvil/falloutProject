@@ -1,22 +1,32 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useQuestStore } from '@/stores/quest'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRoomStore } from '@/stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { Icon } from '@iconify/vue'
-import { QuestCard } from '../components'
+import { QuestCard, PartySelectionModal } from '../components'
+import type { VaultQuest } from '../models/quest'
+import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 
 const route = useRoute()
 const questStore = useQuestStore()
 const vaultStore = useVaultStore()
 const roomStore = useRoomStore()
 const authStore = useAuthStore()
+const dwellerStore = useDwellerStore()
 const { isCollapsed } = useSidePanel()
 const activeTab = ref<'active' | 'completed'>('active')
+
+// Modal state
+const showPartyModal = ref(false)
+const selectedQuest = ref<VaultQuest | null>(null)
+const questPartyMembers = ref<DwellerShort[]>([])
+const questPartyMembersMap = ref<Record<string, DwellerShort[]>>({})
 
 const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
@@ -27,32 +37,98 @@ const hasOverseerOffice = computed(() => {
   )
 })
 
-onMounted(async () => {
-  if (vaultId.value) {
-    // Fetch rooms first (requires token)
-    if (authStore.token) {
-      await roomStore.fetchRooms(vaultId.value, authStore.token)
-    }
-    if (hasOverseerOffice.value) {
-      questStore.fetchVaultQuests(vaultId.value)
-      questStore.fetchAllQuests()
-    }
-  }
-})
-
+// Computed properties for quest lists
 const activeQuests = computed(() => questStore.activeQuests)
 const availableQuests = computed(() => questStore.availableQuests)
 const completedQuests = computed(() => questStore.completedQuests)
 
+// Get party members for a specific quest
+const getPartyMembersForQuest = async (quest: VaultQuest): Promise<DwellerShort[]> => {
+  if (!vaultId.value) return []
+  try {
+    const party = await questStore.getParty(vaultId.value, quest.id)
+    return party
+      .map((p) => dwellerStore.dwellers.find((d) => d.id === p.dweller_id))
+      .filter((d): d is DwellerShort => d !== undefined)
+  } catch {
+    return []
+  }
+}
+
+// Handle opening party selection modal
+const handleAssignParty = async (questId: string) => {
+  const quest = [...availableQuests.value, ...activeQuests.value].find((q) => q.id === questId)
+  if (!quest || !vaultId.value) return
+
+  selectedQuest.value = quest
+
+  // Load current party members
+  questPartyMembers.value = await getPartyMembersForQuest(quest)
+
+  showPartyModal.value = true
+}
+
+// Handle party assignment
+const handlePartyAssigned = async (dwellerIds: string[]) => {
+  if (!vaultId.value || !selectedQuest.value) {
+    return
+  }
+
+  await questStore.assignParty(vaultId.value, selectedQuest.value.id, dwellerIds)
+
+  // Refresh quests to get updated state
+  await questStore.fetchVaultQuests(vaultId.value)
+
+  // Fetch party for this specific quest and update map
+  const party = await questStore.getParty(vaultId.value, selectedQuest.value.id)
+  const mappedParty = party
+    .map((p) => dwellerStore.dwellers.find((d) => d.id === p.dweller_id))
+    .filter((d): d is DwellerShort => d !== undefined)
+
+  questPartyMembersMap.value[selectedQuest.value.id] = mappedParty
+
+  // Refresh party members for modal
+  questPartyMembers.value = mappedParty
+}
+
+// Handle starting the quest after party assignment
+const handleStartQuestAfterAssign = async () => {
+  if (!vaultId.value || !selectedQuest.value) return
+
+  await questStore.startQuest(vaultId.value, selectedQuest.value.id)
+
+  showPartyModal.value = false
+  selectedQuest.value = null
+  questPartyMembers.value = []
+}
+
+// Original handlers (for backwards compatibility)
 const handleStartQuest = async (questId: string) => {
-  if (!vaultId.value) return
-  await questStore.assignQuest(vaultId.value, questId, true)
+  if (!vaultId.value) {
+    return
+  }
+  await questStore.startQuest(vaultId.value, questId)
 }
 
 const handleCompleteQuest = async (questId: string) => {
   if (!vaultId.value) return
   await questStore.completeQuest(vaultId.value, questId)
 }
+
+// Fetch quests on mount
+onMounted(async () => {
+  const token = authStore.token || localStorage.getItem('token')?.replace(/^"|"$/g, '')
+
+  if (vaultId.value && token) {
+    await roomStore.fetchRooms(vaultId.value, token)
+    await dwellerStore.fetchDwellersByVault(vaultId.value, token)
+
+    if (hasOverseerOffice.value) {
+      await questStore.fetchVaultQuests(vaultId.value)
+      await questStore.fetchAllQuests()
+    }
+  }
+})
 </script>
 
 <template>
@@ -123,7 +199,9 @@ const handleCompleteQuest = async (questId: string) => {
                     :quest="quest"
                     :vault-id="vaultId"
                     status="active"
+                    :party-members="questPartyMembersMap[quest.id] || []"
                     @complete="handleCompleteQuest"
+                    @assign-party="handleAssignParty"
                   />
                 </div>
               </div>
@@ -141,7 +219,9 @@ const handleCompleteQuest = async (questId: string) => {
                     :quest="quest"
                     :vault-id="vaultId"
                     status="available"
+                    :party-members="questPartyMembersMap[quest.id] || []"
                     @start="handleStartQuest"
+                    @assign-party="handleAssignParty"
                   />
                 </div>
               </div>
@@ -174,6 +254,16 @@ const handleCompleteQuest = async (questId: string) => {
               </div>
             </div>
           </div>
+
+          <!-- Party Selection Modal -->
+          <PartySelectionModal
+            v-model="showPartyModal"
+            :quest="selectedQuest"
+            :dwellers="dwellerStore.dwellers"
+            :current-party="questPartyMembers"
+            @assign="handlePartyAssigned"
+            @start="handleStartQuestAfterAssign"
+          />
         </div>
       </div>
     </div>

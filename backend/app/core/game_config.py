@@ -307,6 +307,26 @@ class RelationshipConfig(BaseSettings):
     romance_threshold: int = Field(default=70, description="Affinity required for romance", ge=0, le=100)
     partner_happiness_bonus: int = Field(default=10, description="Happiness bonus from having partner", ge=0)
 
+    # Quick pair affinity setting (for admin quick-pair feature)
+    quick_pair_affinity: int = Field(
+        default=90,
+        description="Affinity percentage for quick-paired dwellers",
+        ge=0,
+        le=100,
+    )
+
+    # Compatibility calculation settings
+    max_special_diff: int = Field(
+        default=70,
+        description="Maximum SPECIAL stat difference for compatibility (7 stats * 10)",
+        ge=1,
+    )
+    max_level_diff: int = Field(
+        default=50,
+        description="Maximum level difference for compatibility",
+        ge=1,
+    )
+
     # Compatibility weights (must sum to 1.0)
     compatibility_special_weight: float = Field(default=0.3, ge=0.0, le=1.0)
     compatibility_happiness_weight: float = Field(default=0.2, ge=0.0, le=1.0)

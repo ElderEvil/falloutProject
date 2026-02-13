@@ -24,6 +24,7 @@ class DwellerStatusEnum(CaseInsensitiveEnum):
     IDLE = "idle"
     WORKING = "working"
     EXPLORING = "exploring"
+    QUESTING = "questing"
     TRAINING = "training"
     RESTING = "resting"
     DEAD = "dead"

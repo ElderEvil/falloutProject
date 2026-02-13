@@ -26,6 +26,7 @@ export const useQuestStore = defineStore('quest', () => {
   const quests = ref<Quest[]>([])
   const vaultQuests = ref<VaultQuest[]>([])
   const isLoading = ref(false)
+  const questPartyMap = ref<Record<string, QuestPartyMember[]>>({})
 
   const getAuthHeaders = () => {
     const token = authStore.token || localStorage.getItem('token')?.replace(/^"|"$/g, '')
@@ -71,6 +72,20 @@ export const useQuestStore = defineStore('quest', () => {
       throw error
     } finally {
       isLoading.value = false
+    }
+  }
+
+  async function fetchPartiesForActiveQuests(vaultId: string): Promise<void> {
+    const active = vaultQuests.value.filter((q) => q.is_visible && q.started_at != null && !q.is_completed)
+    for (const quest of active) {
+      try {
+        const party = await getParty(vaultId, quest.id)
+        if (party.length > 0) {
+          questPartyMap.value[quest.id] = party
+        }
+      } catch {
+        questPartyMap.value[quest.id] = []
+      }
     }
   }
 
@@ -184,11 +199,13 @@ export const useQuestStore = defineStore('quest', () => {
     quests,
     vaultQuests,
     isLoading,
+    questPartyMap,
     activeQuests,
     availableQuests,
     completedQuests,
     fetchAllQuests,
     fetchVaultQuests,
+    fetchPartiesForActiveQuests,
     getQuest,
     assignQuest,
     completeQuest,

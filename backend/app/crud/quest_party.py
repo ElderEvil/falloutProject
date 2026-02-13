@@ -45,6 +45,8 @@ class CRUDQuestParty(CRUDBase[QuestParty, None, None]):
             if dweller.vault_id != vault_id:
                 raise ValueError(f"Dweller {dweller_id} does not belong to vault {vault_id}")
 
+            dweller.status = "questing"
+
             party = QuestParty(
                 quest_id=quest_id,
                 vault_id=vault_id,

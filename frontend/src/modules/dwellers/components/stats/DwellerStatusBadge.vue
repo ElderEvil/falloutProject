@@ -25,6 +25,15 @@ const statusConfig = computed(() => {
         borderColor: 'border-blue-500/50',
         glowColor: 'shadow-blue-500/30',
       }
+    case 'questing':
+      return {
+        icon: 'mdi:sword-cross',
+        label: 'Questing',
+        color: 'text-orange-400',
+        bgColor: 'bg-orange-900/30',
+        borderColor: 'border-orange-500/50',
+        glowColor: 'shadow-orange-500/30',
+      }
     case 'working':
       return {
         icon: 'mdi:hammer-wrench',

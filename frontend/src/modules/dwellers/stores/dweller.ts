@@ -12,7 +12,7 @@ import type {
 import { useToast } from '@/core/composables/useToast'
 import { useGaryMode } from '@/core/composables/useGaryMode'
 
-export type DwellerStatus = 'idle' | 'working' | 'exploring' | 'training' | 'resting' | 'dead'
+export type DwellerStatus = 'idle' | 'working' | 'exploring' | 'questing' | 'training' | 'resting' | 'dead'
 
 export interface DwellerWithStatus extends DwellerShort {
   status: DwellerStatus

@@ -253,9 +253,8 @@ async def start_quest(
 
     try:
         await quest_service.start_quest(db_session, quest_id, vault_id, duration_minutes)
-        from app.crud.quest import quest_crud
-
-        return await quest_crud.get_for_vault(db_session, vault_id, quest_id, user=_user)
+        await db_session.refresh(quest, ["quest_requirements", "quest_rewards"])
+        return quest
     except (ResourceNotFoundException, AccessDeniedException):
         raise
     except ValueError as e:

@@ -117,7 +117,7 @@ export const useDwellerStore = defineStore('dweller', () => {
     return result
   })
 
-  async function fetchDwellers(token: string): Promise<void> {
+  async function fetchDwellers(_token: string): Promise<void> {
     console.warn("fetchDwellers is deprecated, use fetchDwellersByVault with vaultId")
   }
 

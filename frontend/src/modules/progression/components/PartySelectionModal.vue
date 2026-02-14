@@ -116,12 +116,17 @@ const handleAssign = () => {
 const handleStart = () => {
   emit('start')
 }
+
+const handleAssignAndStart = () => {
+  emit('assign', selectedDwellerIds.value)
+  emit('start')
+}
 </script>
 
 <template>
   <UModal
     :model-value="modelValue"
-    :title="quest ? `Assign Party: ${quest.title}` : 'Assign Party'"
+    :title="quest ? `Start Quest: ${quest.title}` : 'Start Quest'"
     size="lg"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -215,9 +220,9 @@ const handleStart = () => {
     <template #footer>
       <div class="modal-actions">
         <UButton variant="secondary" @click="close"> Cancel </UButton>
-        <UButton variant="primary" :disabled="!canSubmit" @click="handleAssign">
+        <UButton variant="primary" :disabled="!canSubmit" @click="handleAssignAndStart">
           <Icon icon="mdi:check" class="btn-icon" />
-          Assign Party
+          Start Quest
         </UButton>
       </div>
     </template>

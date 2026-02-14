@@ -9,7 +9,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.api.game_data_deps import get_static_game_data
 from app.crud import dweller as dweller_crud
 from app.crud import room as room_crud
-from app.crud.objective import objective_crud
 from app.crud.vault import vault as vault_crud
 from app.models import Room
 from app.models.vault import Vault
@@ -317,30 +316,51 @@ class VaultService:
             raise
 
     async def _assign_initial_objectives(self, db_session: AsyncSession, vault_id: UUID4) -> None:
-        """Assign a few initial objectives to a new vault.
+        """Assign initial objectives to a new vault.
 
-        Uses only complete objectives (with all automation fields set) to ensure
-        proper progress tracking.
+        Assigns exactly 1 daily and 1 weekly objective to new vaults.
         """
         try:
-            objectives = await objective_crud.get_multi_complete(db_session, skip=0, limit=5)
+            from sqlmodel import select
 
-            if not objectives:
-                self.logger.warning("No complete objectives found for vault %s", vault_id)
-                return
+            from app.models.objective import Objective
 
-            for objective in objectives:
-                link = VaultObjectiveProgressLink(
-                    vault_id=vault_id,
-                    objective_id=objective.id,
-                    progress=0,
-                    total=objective.target_amount or 1,
-                    is_completed=False,
+            daily_result = await db_session.execute(
+                select(Objective)
+                .where(Objective.challenge.contains("Daily"))
+                .where(Objective.objective_type.isnot(None))
+                .limit(1)
+            )
+            daily_objective = daily_result.scalar_one_or_none()
+
+            weekly_result = await db_session.execute(
+                select(Objective)
+                .where(Objective.challenge.contains("Weekly"))
+                .where(Objective.objective_type.isnot(None))
+                .limit(1)
+            )
+            weekly_objective = weekly_result.scalar_one_or_none()
+
+            assigned_count = 0
+            for objective in [daily_objective, weekly_objective]:
+                if objective:
+                    link = VaultObjectiveProgressLink(
+                        vault_id=vault_id,
+                        objective_id=objective.id,
+                        progress=0,
+                        total=objective.target_amount or 1,
+                        is_completed=False,
+                    )
+                    db_session.add(link)
+                    assigned_count += 1
+
+            if assigned_count > 0:
+                await db_session.commit()
+                self.logger.info(
+                    "Assigned %d initial objectives (1 daily, 1 weekly) to vault %s", assigned_count, vault_id
                 )
-                db_session.add(link)
-
-            await db_session.commit()
-            self.logger.info("Assigned %d initial objectives to vault %s", len(objectives), vault_id)
+            else:
+                self.logger.warning("No daily/weekly objectives found for vault %s", vault_id)
         except SQLAlchemyError as e:
             self.logger.warning("Failed to assign initial objectives to vault %s: %s", vault_id, e)
 

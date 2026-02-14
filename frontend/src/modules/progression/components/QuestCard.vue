@@ -154,7 +154,7 @@ const actionButtonText = computed(() => {
   }
   switch (props.status) {
     case 'available':
-      return hasParty.value ? 'Start Quest' : 'Assign Party'
+      return 'Start Quest'
     case 'active':
       return timeRemaining.value ? 'In Progress' : 'Complete Quest'
     case 'completed':

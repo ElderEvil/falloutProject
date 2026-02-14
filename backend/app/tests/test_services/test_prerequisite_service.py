@@ -323,7 +323,7 @@ async def test_quest_start_blocked_when_requirements_not_met(
     headers = await user_authentication_headers(client=async_client, email=user.email, password=user_data["password"])
 
     response = await async_client.post(
-        f"/api/v1/quests/{vault.id}/{quest.id}/start",
+        f"/quests/{vault.id}/{quest.id}/start",
         headers=headers,
     )
 
@@ -376,7 +376,7 @@ async def test_get_eligible_dwellers_for_quest(async_client: AsyncClient, async_
     headers = await user_authentication_headers(client=async_client, email=user.email, password=user_data["password"])
 
     response = await async_client.get(
-        f"/api/v1/quests/{vault.id}/{quest.id}/eligible-dwellers",
+        f"/quests/{vault.id}/{quest.id}/eligible-dwellers",
         headers=headers,
     )
 
@@ -430,7 +430,7 @@ async def test_get_available_quests_excludes_locked(async_client: AsyncClient, a
     headers = await user_authentication_headers(client=async_client, email=user.email, password=user_data["password"])
 
     response = await async_client.get(
-        f"/api/v1/quests/{vault.id}/available",
+        f"/quests/{vault.id}/available",
         headers=headers,
     )
 

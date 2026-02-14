@@ -85,7 +85,33 @@ const handleAssignParty = async (questId: string) => {
   showPartyModal.value = true
 }
 
-// Handle party assignment
+// Handle party assignment + quest start (combined in one click)
+const handleAssignAndStart = async (dwellerIds: string[]) => {
+  if (!vaultId.value || !selectedQuest.value) {
+    return
+  }
+
+  try {
+    // First assign party
+    await questStore.assignParty(vaultId.value, selectedQuest.value.id, dwellerIds)
+
+    // Then start the quest
+    await questStore.startQuest(vaultId.value, selectedQuest.value.id)
+
+    // Refresh quests to get updated state
+    await questStore.fetchVaultQuests(vaultId.value)
+
+    // Close the modal after successful assignment and start
+    showPartyModal.value = false
+    selectedQuest.value = null
+    questPartyMembers.value = []
+  } catch {
+    // Error is already handled in the store (toast notification)
+    // Just prevent further execution
+  }
+}
+
+// Handle party assignment only (for backwards compatibility)
 const handlePartyAssigned = async (dwellerIds: string[]) => {
   if (!vaultId.value || !selectedQuest.value) {
     return
@@ -300,8 +326,7 @@ onMounted(async () => {
             :vault-id="vaultId"
             :dwellers="dwellerStore.dwellers"
             :current-party="questPartyMembers"
-            @assign="handlePartyAssigned"
-            @start="handleStartQuestAfterAssign"
+            @assign="handleAssignAndStart"
           />
         </div>
       </div>

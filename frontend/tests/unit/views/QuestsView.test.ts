@@ -293,7 +293,7 @@ describe('QuestsView', () => {
 
       await wrapper.vm.$nextTick()
 
-      expect(wrapper.text()).toContain('No quests available')
+      expect(wrapper.text()).toContain('No unlocked quests available')
     })
   })
 

@@ -59,13 +59,19 @@ async def get_available_quests(
     limit: int = 100,
 ):
     """Get available quests for a vault (respects quest chain unlocks)."""
+    from sqlalchemy.orm import selectinload
     from sqlmodel import and_, select
 
     from app.models.quest import Quest
     from app.models.vault_quest import VaultQuestCompletionLink
 
+    # Eagerly load requirements and rewards to avoid MissingGreenlet errors
     result = await db_session.execute(
         select(Quest)
+        .options(
+            selectinload(Quest.quest_requirements),
+            selectinload(Quest.quest_rewards),
+        )
         .join(
             VaultQuestCompletionLink,
             and_(Quest.id == VaultQuestCompletionLink.quest_id, VaultQuestCompletionLink.vault_id == vault_id),

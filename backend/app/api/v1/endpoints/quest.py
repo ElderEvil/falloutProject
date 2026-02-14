@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -193,7 +193,10 @@ async def assign_party_to_quest(
     if len(party_data.dweller_ids) < 1:
         raise ValidationException("Minimum 1 dweller per quest")
 
-    return await quest_party_crud.assign_party(db_session, quest_id, vault_id, party_data.dweller_ids)
+    try:
+        return await quest_party_crud.assign_party(db_session, quest_id, vault_id, party_data.dweller_ids)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.get("/{vault_id}/{quest_id}/party", response_model=list[dict])

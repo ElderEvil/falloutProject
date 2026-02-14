@@ -21,6 +21,7 @@ const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
 const { isCollapsed } = useSidePanel()
 const activeTab = ref<'active' | 'completed'>('active')
+const showAllQuests = ref(false)
 
 // Modal state
 const showPartyModal = ref(false)
@@ -39,7 +40,7 @@ const hasOverseerOffice = computed(() => {
 
 // Computed properties for quest lists
 const activeQuests = computed(() => questStore.activeQuests)
-const availableQuests = computed(() => questStore.availableQuests)
+const availableQuests = computed(() => showAllQuests.value ? questStore.allVisibleQuests.filter(q => !q.is_completed && !q.started_at) : questStore.availableQuests)
 const completedQuests = computed(() => questStore.completedQuests)
 
 // Get party members for a specific quest
@@ -124,7 +125,7 @@ onMounted(async () => {
     await dwellerStore.fetchDwellersByVault(vaultId.value, token)
 
     if (hasOverseerOffice.value) {
-      await questStore.fetchVaultQuests(vaultId.value)
+      await questStore.fetchAvailableQuests(vaultId.value)
       await questStore.fetchAllQuests()
     }
   }
@@ -182,6 +183,16 @@ onMounted(async () => {
                 <Icon icon="mdi:check-circle" class="inline mr-2" />
                 Completed
               </button>
+              <div class="toggle-container">
+                <label class="toggle-label">
+                  <input
+                    v-model="showAllQuests"
+                    type="checkbox"
+                    class="toggle-input"
+                  />
+                  <span class="toggle-text">Show All Quests</span>
+                </label>
+              </div>
             </div>
 
             <!-- Active & Available Quests -->
@@ -259,6 +270,7 @@ onMounted(async () => {
           <PartySelectionModal
             v-model="showPartyModal"
             :quest="selectedQuest"
+            :vault-id="vaultId"
             :dwellers="dwellerStore.dwellers"
             :current-party="questPartyMembers"
             @assign="handlePartyAssigned"
@@ -644,5 +656,55 @@ onMounted(async () => {
 
 .empty-state p {
   font-size: 1.5rem;
+}
+
+.toggle-container {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--color-theme-primary);
+}
+
+.toggle-input {
+  appearance: none;
+  width: 40px;
+  height: 20px;
+  background: #333;
+  border-radius: 10px;
+  position: relative;
+  cursor: pointer;
+  border: 2px solid var(--color-theme-primary);
+}
+
+.toggle-input:checked {
+  background: var(--color-theme-primary);
+}
+
+.toggle-input::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  top: 1px;
+  left: 2px;
+  transition: transform 0.2s;
+}
+
+.toggle-input:checked::after {
+  transform: translateX(20px);
+}
+
+.toggle-text {
+  user-select: none;
 }
 </style>

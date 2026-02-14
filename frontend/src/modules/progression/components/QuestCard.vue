@@ -232,7 +232,22 @@ const handleAction = () => {
             :icon="prerequisitesMet ? 'mdi:check-circle' : 'mdi:lock'"
             class="prerequisite-icon"
           />
-          <span class="prerequisite-text">{{ req.requirement_type }}</span>
+          <span class="prerequisite-text">
+            <template v-if="req.requirement_type === 'level' && req.requirement_data">
+              Requires Level {{ req.requirement_data.level || 1 }}+ dweller
+              <span v-if="req.requirement_data.count > 1">(x{{ req.requirement_data.count }})</span>
+            </template>
+            <template v-else-if="req.requirement_type === 'item' && req.requirement_data">
+              Requires {{ req.requirement_data.name || req.requirement_data.item_id }}
+              <span v-if="req.requirement_data.count > 1">(x{{ req.requirement_data.count }})</span>
+            </template>
+            <template v-else-if="req.requirement_type === 'quest_completed' && req.requirement_data">
+              Complete: {{ req.requirement_data.quest_name || 'Previous quest' }}
+            </template>
+            <template v-else>
+              {{ req.requirement_type }}
+            </template>
+          </span>
         </li>
       </ul>
     </div>

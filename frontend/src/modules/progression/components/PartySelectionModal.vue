@@ -61,8 +61,9 @@ watch(
 const canSubmit = computed(() => selectedDwellerIds.value.length > 0)
 
 const availableDwellers = computed(() => {
-  // Use eligible dwellers from API, or fall back to filtering all dwellers
-  const baseDwellers = eligibleDwellers.value.length > 0 ? eligibleDwellers.value : props.dwellers
+  // FIX: Only show eligible dwellers from API - no fallback to all dwellers
+  // This enforces quest requirements (level, items, etc.)
+  const baseDwellers = eligibleDwellers.value.length > 0 ? eligibleDwellers.value : []
 
   return baseDwellers.filter((dweller) => {
     // Include if already selected for this quest

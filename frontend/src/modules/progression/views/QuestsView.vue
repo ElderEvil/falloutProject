@@ -33,10 +33,10 @@ const isQuestUnlocked = (quest: VaultQuest): boolean => {
 // Filtered available quests based on toggle
 const filteredAvailableQuests = computed(() => {
   if (showAllQuests.value) {
-    // Show all visible quests that haven't been started
-    return questStore.vaultQuests.filter(q => q.is_visible && !q.started_at && !q.is_completed)
+    // Show ALL quests that haven't been started (including locked ones)
+    return questStore.vaultQuests.filter(q => !q.started_at && !q.is_completed)
   }
-  // Show only unlocked quests
+  // Show only visible AND unlocked quests
   return questStore.vaultQuests.filter(q => q.is_visible && !q.started_at && !q.is_completed && isQuestUnlocked(q))
 })
 

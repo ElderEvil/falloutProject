@@ -329,3 +329,61 @@ async def test_quest_start_blocked_when_requirements_not_met(
 
     assert response.status_code == 400, f"Expected 400, got {response.status_code}: {response.text}"
     assert "requirement" in response.text.lower() or "prerequisite" in response.text.lower()
+
+
+@pytest.mark.asyncio
+async def test_get_eligible_dwellers_for_quest(async_client: AsyncClient, async_session: AsyncSession) -> None:
+    """Test that eligible dwellers endpoint returns only dwellers meeting quest requirements.
+
+    This is a TDD test - it will fail until the eligible dwellers endpoint is implemented.
+    """
+    from app.tests.utils.user import user_authentication_headers
+
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault_data = create_fake_vault()
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+
+    quest = Quest(
+        title="Level Quest",
+        short_description="Requires level 5",
+        long_description="This quest requires a level 5 dweller",
+        requirements="Level 5 dweller",
+        rewards="100 caps",
+        quest_type="side",
+    )
+    async_session.add(quest)
+    await async_session.commit()
+    await async_session.refresh(quest)
+
+    req = QuestRequirement(
+        quest_id=quest.id,
+        requirement_type=RequirementType.LEVEL,
+        requirement_data={"level": 5, "count": 1},
+        is_mandatory=True,
+    )
+    async_session.add(req)
+    await async_session.commit()
+
+    dweller_low = Dweller(first_name="Low", gender="male", rarity="common", level=1, vault_id=vault.id)
+    dweller_med = Dweller(first_name="Med", gender="male", rarity="common", level=5, vault_id=vault.id)
+    dweller_high = Dweller(first_name="High", gender="male", rarity="common", level=10, vault_id=vault.id)
+    async_session.add(dweller_low)
+    async_session.add(dweller_med)
+    async_session.add(dweller_high)
+    await async_session.commit()
+
+    headers = await user_authentication_headers(client=async_client, email=user.email, password=user_data["password"])
+
+    response = await async_client.get(
+        f"/api/v1/quests/{vault.id}/{quest.id}/eligible-dwellers",
+        headers=headers,
+    )
+
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+    data = response.json()
+    assert len(data) == 2, f"Expected 2 eligible dwellers, got {len(data)}"
+    dweller_ids = [d["id"] for d in data]
+    assert str(dweller_med.id) in dweller_ids
+    assert str(dweller_high.id) in dweller_ids
+    assert str(dweller_low.id) not in dweller_ids

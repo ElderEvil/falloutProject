@@ -207,3 +207,49 @@ async def start_quest(
         raise
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.get("/{vault_id}/{quest_id}/eligible-dwellers", response_model=list[dict])
+async def get_eligible_dwellers(
+    vault_id: UUID4,
+    quest_id: UUID4,
+    _user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+):
+    """Get dwellers eligible for a quest based on requirements."""
+    from sqlmodel import select
+
+    from app.models.dweller import Dweller
+    from app.models.quest import Quest
+
+    quest = await db_session.get(Quest, quest_id)
+    if quest is None:
+        from app.utils.exceptions import ResourceNotFoundException
+
+        raise ResourceNotFoundException(Quest, identifier=quest_id)
+
+    await db_session.refresh(quest, ["quest_requirements"])
+
+    result = await db_session.execute(select(Dweller).where(Dweller.vault_id == vault_id, Dweller.is_deleted == False))
+    dwellers = result.scalars().all()
+
+    eligible = []
+    for dweller in dwellers:
+        meets_req = True
+        for req in quest.quest_requirements:
+            if req.requirement_type == "level" and dweller.level < req.requirement_data.get("level", 1):
+                meets_req = False
+                break
+
+        if meets_req:
+            eligible.append(
+                {
+                    "id": str(dweller.id),
+                    "first_name": dweller.first_name,
+                    "last_name": dweller.last_name,
+                    "level": dweller.level,
+                    "rarity": dweller.rarity,
+                }
+            )
+
+    return eligible

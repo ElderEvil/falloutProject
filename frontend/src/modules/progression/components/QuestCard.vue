@@ -8,12 +8,14 @@ import { UCard, UBadge, UButton } from '@/core/components/ui'
 interface Props {
   quest: VaultQuest
   vaultId: string
-  status: 'available' | 'active' | 'completed'
+  status: 'available' | 'active' | 'completed' | 'locked'
   partyMembers?: DwellerShort[]
+  isLocked?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   partyMembers: () => [],
+  isLocked: false,
 })
 
 const emit = defineEmits<{
@@ -137,6 +139,9 @@ const prerequisitesMet = computed(() => {
 })
 
 const actionButtonText = computed(() => {
+  if (props.isLocked) {
+    return 'Locked'
+  }
   switch (props.status) {
     case 'available':
       return hasParty.value ? 'Start Quest' : 'Assign Party'
@@ -150,6 +155,9 @@ const actionButtonText = computed(() => {
 })
 
 const cardBorderColor = computed(() => {
+  if (props.isLocked) {
+    return '#ff6600'
+  }
   switch (props.status) {
     case 'active':
       return 'var(--color-theme-accent)'
@@ -161,10 +169,13 @@ const cardBorderColor = computed(() => {
 })
 
 const isButtonDisabled = computed(() => {
-  return false
+  return props.isLocked
 })
 
 const handleAction = () => {
+  if (props.isLocked) {
+    return // Don't do anything for locked quests
+  }
   switch (props.status) {
     case 'available':
       if (hasParty.value) {
@@ -205,6 +216,10 @@ const handleAction = () => {
         <UBadge v-if="isChainQuest" variant="outline" class="chain-badge">
           <Icon icon="mdi:link-variant" class="inline-icon" />
           {{ chainPosition }}
+        </UBadge>
+        <UBadge v-if="isLocked" variant="outline" class="locked-badge">
+          <Icon icon="mdi:lock" class="inline-icon" />
+          LOCKED
         </UBadge>
       </div>
     </div>
@@ -385,11 +400,17 @@ const handleAction = () => {
 
 .type-badge,
 .category-badge,
-.chain-badge {
+.chain-badge,
+.locked-badge {
   font-size: 0.7rem;
   font-weight: bold;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+.locked-badge {
+  border-color: #ff6600 !important;
+  color: #ff6600 !important;
 }
 
 .quest-description {

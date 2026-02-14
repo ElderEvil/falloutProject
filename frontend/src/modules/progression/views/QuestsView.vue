@@ -23,17 +23,21 @@ const { isCollapsed } = useSidePanel()
 const activeTab = ref<'active' | 'completed'>('active')
 const showAllQuests = ref(false)
 
-// Watch toggle and re-fetch quests when it changes
-watch(showAllQuests, async (showAll) => {
-  if (vaultId.value) {
-    if (showAll) {
-      // Fetch all quests including locked ones
-      await questStore.fetchVaultQuests(vaultId.value)
-    } else {
-      // Fetch only available (unlocked) quests
-      await questStore.fetchAvailableQuests(vaultId.value)
-    }
+// Check if a quest is unlocked (no previous quest or previous is completed)
+const isQuestUnlocked = (quest: VaultQuest): boolean => {
+  if (!quest.previous_quest_id) return true
+  const previousQuest = questStore.vaultQuests.find(q => q.id === quest.previous_quest_id)
+  return previousQuest?.is_completed ?? false
+}
+
+// Filtered available quests based on toggle
+const filteredAvailableQuests = computed(() => {
+  if (showAllQuests.value) {
+    // Show all visible quests that haven't been started
+    return questStore.vaultQuests.filter(q => q.is_visible && !q.started_at && !q.is_completed)
   }
+  // Show only unlocked quests
+  return questStore.vaultQuests.filter(q => q.is_visible && !q.started_at && !q.is_completed && isQuestUnlocked(q))
 })
 
 // Modal state
@@ -53,7 +57,6 @@ const hasOverseerOffice = computed(() => {
 
 // Computed properties for quest lists
 const activeQuests = computed(() => questStore.activeQuests)
-const availableQuests = computed(() => showAllQuests.value ? questStore.allVisibleQuests.filter(q => !q.is_completed && !q.started_at) : questStore.availableQuests)
 const completedQuests = computed(() => questStore.completedQuests)
 
 // Get party members for a specific quest
@@ -233,18 +236,20 @@ onMounted(async () => {
               </div>
 
               <!-- Available Quests Section -->
-              <div v-if="availableQuests.length > 0" class="quest-section">
+              <div v-if="filteredAvailableQuests.length > 0" class="quest-section">
                 <h2 class="section-title">
                   <Icon icon="mdi:book-open-page-variant" class="inline mr-2" />
                   AVAILABLE QUESTS
+                  <span v-if="showAllQuests" class="section-badge">(Showing All)</span>
                 </h2>
                 <div class="quest-grid">
                   <QuestCard
-                    v-for="quest in availableQuests"
+                    v-for="quest in filteredAvailableQuests"
                     :key="quest.id"
                     :quest="quest"
                     :vault-id="vaultId"
-                    status="available"
+                    :status="isQuestUnlocked(quest) ? 'available' : 'locked'"
+                    :is-locked="!isQuestUnlocked(quest)"
                     :party-members="questPartyMembersMap[quest.id] || []"
                     @start="handleStartQuest"
                     @assign-party="handleAssignParty"
@@ -254,11 +259,12 @@ onMounted(async () => {
 
               <!-- Empty State -->
               <div
-                v-if="activeQuests.length === 0 && availableQuests.length === 0"
+                v-if="activeQuests.length === 0 && filteredAvailableQuests.length === 0"
                 class="empty-state"
               >
                 <Icon icon="mdi:inbox" class="text-8xl mb-6 opacity-30" />
-                <p>No quests available at the moment</p>
+                <p v-if="showAllQuests">No quests available at the moment</p>
+                <p v-else>No unlocked quests available. Complete previous quests to unlock more.</p>
               </div>
             </div>
 
@@ -444,6 +450,17 @@ onMounted(async () => {
   color: var(--color-theme-primary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-badge {
+  font-size: 0.75rem;
+  font-weight: normal;
+  color: var(--color-theme-accent);
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 /* Quest Grid */

@@ -181,8 +181,22 @@ async def start_quest(
     duration_minutes: int | None = None,
 ):
     """Start a quest (starts the timer)."""
+    from fastapi import HTTPException
+
+    from app.models.quest import Quest
+    from app.services.prerequisite_service import prerequisite_service
     from app.services.quest_service import quest_service
     from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException
+
+    quest = await db_session.get(Quest, quest_id)
+    if quest is None:
+        raise ResourceNotFoundException(Quest, identifier=quest_id)
+
+    await db_session.refresh(quest, ["quest_requirements"])
+
+    can_start, missing = await prerequisite_service.can_start_quest(db_session, vault_id, quest)
+    if not can_start:
+        raise HTTPException(status_code=400, detail=f"Missing requirements: {', '.join(missing)}")
 
     try:
         await quest_service.start_quest(db_session, quest_id, vault_id, duration_minutes)
@@ -192,6 +206,4 @@ async def start_quest(
     except (ResourceNotFoundException, AccessDeniedException):
         raise
     except ValueError as e:
-        from fastapi import HTTPException
-
         raise HTTPException(status_code=400, detail=str(e)) from e

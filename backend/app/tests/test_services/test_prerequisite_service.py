@@ -1,6 +1,8 @@
 """Tests for PrerequisiteService."""
 
 import pytest
+from fastapi.testclient import TestClient
+from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
@@ -273,3 +275,57 @@ async def test_get_missing_requirements(async_session: AsyncSession) -> None:
 
     assert len(missing) > 0
     assert any("level" in desc.lower() for desc in missing)
+
+
+@pytest.mark.asyncio
+async def test_quest_start_blocked_when_requirements_not_met(
+    async_client: AsyncClient, async_session: AsyncSession
+) -> None:
+    """Test that quest start endpoint returns 400 when requirements not met.
+
+    This is a TDD test - it will fail until prerequisite validation is wired
+    into the quest start endpoint.
+    """
+    from app.tests.utils.user import user_authentication_headers
+
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault_data = create_fake_vault()
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+
+    quest = Quest(
+        title="Hard Quest",
+        short_description="Requires high level",
+        long_description="This quest requires a level 50 dweller",
+        requirements="Level 50 dweller",
+        rewards="1000 caps",
+        quest_type="side",
+    )
+    async_session.add(quest)
+    await async_session.commit()
+    await async_session.refresh(quest)
+
+    req = QuestRequirement(
+        quest_id=quest.id,
+        requirement_type=RequirementType.LEVEL,
+        requirement_data={"level": 50, "count": 1},
+        is_mandatory=True,
+    )
+    async_session.add(req)
+    await async_session.commit()
+
+    await crud.quest_crud.assign_to_vault(async_session, quest_id=quest.id, vault_id=vault.id)
+
+    dweller = Dweller(first_name="Weak", gender="male", rarity="common", level=1, vault_id=vault.id)
+    async_session.add(dweller)
+    await async_session.commit()
+
+    headers = await user_authentication_headers(client=async_client, email=user.email, password=user_data["password"])
+
+    response = await async_client.post(
+        f"/api/v1/quests/{vault.id}/{quest.id}/start",
+        headers=headers,
+    )
+
+    assert response.status_code == 400, f"Expected 400, got {response.status_code}: {response.text}"
+    assert "requirement" in response.text.lower() or "prerequisite" in response.text.lower()

@@ -9,6 +9,26 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.10.5] - 2026-02-14
+
+### What's New
+
+- **Quest Requirements Validation** - Quests now validate requirements before starting
+  - Quest start is blocked if vault doesn't meet requirements (e.g., dweller level)
+  - Shows clear error message with missing requirements
+- **Quest Chain Support** - Quests can now be chained with prerequisites
+  - New `/available` endpoint returns only unlocked quests
+  - Quests with `previous_quest_id` set only appear after previous quest is completed
+- **Eligible Dwellers Endpoint** - New API to filter dwellers by quest requirements
+  - `GET /quests/{vault_id}/{quest_id}/eligible-dwellers` returns only qualified dwellers
+  - Frontend store updated with `fetchAvailableQuests` and `getEligibleDwellers` actions
+
+### Fixed
+
+- **Quest Start** - Improved error handling when starting quests
+
+---
+
 ## [2.10.4] - 2026-02-13
 
 ### What's New

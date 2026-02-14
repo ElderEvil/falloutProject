@@ -32,12 +32,15 @@ const isQuestUnlocked = (quest: VaultQuest): boolean => {
 
 // Filtered available quests based on toggle
 const filteredAvailableQuests = computed(() => {
+  const isAvailableQuest = (q: VaultQuest) =>
+    !q.started_at && !q.is_completed
+
   if (showAllQuests.value) {
-    // Show ALL quests that haven't been started (including locked ones)
-    return questStore.vaultQuests.filter(q => !q.started_at && !q.is_completed)
+    return questStore.vaultQuests.filter(isAvailableQuest)
   }
-  // Show only visible AND unlocked quests
-  return questStore.vaultQuests.filter(q => q.is_visible && !q.started_at && !q.is_completed && isQuestUnlocked(q))
+  return questStore.vaultQuests.filter(
+    (q) => q.is_visible && isAvailableQuest(q) && isQuestUnlocked(q)
+  )
 })
 
 // Modal state
@@ -112,36 +115,6 @@ const handleAssignAndStart = async (dwellerIds: string[]) => {
   showPartyModal.value = false
   selectedQuest.value = null
   questPartyMembers.value = []
-}
-
-// Handle party assignment only (for backwards compatibility)
-const handlePartyAssigned = async (dwellerIds: string[]) => {
-  if (!vaultId.value || !selectedQuest.value) {
-    return
-  }
-
-  try {
-    await questStore.assignParty(vaultId.value, selectedQuest.value.id, dwellerIds)
-
-    // Refresh quests to get updated state
-    await questStore.fetchVaultQuests(vaultId.value)
-
-    // Fetch party for this specific quest and update map
-    const party = await questStore.getParty(vaultId.value, selectedQuest.value.id)
-    const mappedParty = party
-      .map((p) => dwellerStore.dwellers.find((d) => d.id === p.dweller_id))
-      .filter((d): d is DwellerShort => d !== undefined)
-
-    questPartyMembersMap.value[selectedQuest.value.id] = mappedParty
-
-    // Close the modal after successful assignment
-    showPartyModal.value = false
-    selectedQuest.value = null
-    questPartyMembers.value = []
-  } catch {
-    // Error is already handled in the store (toast notification)
-    // Just prevent further execution
-  }
 }
 
 // Handle starting the quest after party assignment

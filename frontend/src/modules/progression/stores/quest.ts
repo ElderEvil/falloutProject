@@ -25,7 +25,6 @@ export const useQuestStore = defineStore('quest', () => {
   // State
   const quests = ref<Quest[]>([])
   const vaultQuests = ref<VaultQuest[]>([])
-  const unlockedVaultQuests = ref<VaultQuest[]>([])
   const isLoading = ref(false)
   const questPartyMap = ref<Record<string, QuestPartyMember[]>>({})
 
@@ -75,23 +74,6 @@ export const useQuestStore = defineStore('quest', () => {
     } catch (error: unknown) {
       console.error('Failed to fetch vault quests:', error)
       toast.error('Failed to load vault quests')
-      throw error
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  async function fetchAvailableQuests(vaultId: string): Promise<void> {
-    try {
-      isLoading.value = true
-      const url = `/api/v1/quests/${vaultId}/available`
-      const response = await axios.get<VaultQuest[]>(url, {
-        headers: getAuthHeaders(),
-      })
-      unlockedVaultQuests.value = response.data
-    } catch (error: unknown) {
-      console.error('Failed to fetch available quests:', error)
-      toast.error('Failed to load available quests')
       throw error
     } finally {
       isLoading.value = false
@@ -213,7 +195,8 @@ export const useQuestStore = defineStore('quest', () => {
 
   async function getEligibleDwellers(vaultId: string, questId: string): Promise<EligibleDweller[]> {
     try {
-      const response = await axios.get<EligibleDweller[]>(`/api/v1/quests/${vaultId}/${questId}/eligible-dwellers`)
+      const url = `/api/v1/quests/${vaultId}/${questId}/eligible-dwellers`
+      const response = await axios.get<EligibleDweller[]>(url)
       return response.data
     } catch (error: unknown) {
       console.error('Failed to fetch eligible dwellers:', error)
@@ -239,7 +222,6 @@ export const useQuestStore = defineStore('quest', () => {
   return {
     quests,
     vaultQuests,
-    unlockedVaultQuests,
     isLoading,
     questPartyMap,
     activeQuests,
@@ -248,7 +230,6 @@ export const useQuestStore = defineStore('quest', () => {
     completedQuests,
     fetchAllQuests,
     fetchVaultQuests,
-    fetchAvailableQuests,
     fetchPartiesForActiveQuests,
     getQuest,
     assignQuest,

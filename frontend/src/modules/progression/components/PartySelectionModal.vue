@@ -45,10 +45,13 @@ watch(
         isLoadingEligible.value = true
         try {
           const eligible = await questStore.getEligibleDwellers(props.vaultId, props.quest.id)
-          // Map eligible dwellers back to full dweller objects
-          eligibleDwellers.value = eligible.map(e => {
-            const fullDweller = props.dwellers.find(d => d.id === e.id)
-            return fullDweller || e as DwellerShort
+          eligibleDwellers.value = eligible.map((e) => {
+            const fullDweller = props.dwellers.find((d) => d.id === e.id)
+            if (fullDweller) return fullDweller
+            return {
+              ...e,
+              status: (e as { status?: string }).status || 'idle',
+            } as DwellerShort
           }).filter((d): d is DwellerShort => d !== undefined)
         } catch (error) {
           eligibleDwellersError.value = 'Failed to check eligibility'

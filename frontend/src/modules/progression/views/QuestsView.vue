@@ -23,6 +23,19 @@ const { isCollapsed } = useSidePanel()
 const activeTab = ref<'active' | 'completed'>('active')
 const showAllQuests = ref(false)
 
+// Watch toggle and re-fetch quests when it changes
+watch(showAllQuests, async (showAll) => {
+  if (vaultId.value) {
+    if (showAll) {
+      // Fetch all quests including locked ones
+      await questStore.fetchVaultQuests(vaultId.value)
+    } else {
+      // Fetch only available (unlocked) quests
+      await questStore.fetchAvailableQuests(vaultId.value)
+    }
+  }
+})
+
 // Modal state
 const showPartyModal = ref(false)
 const selectedQuest = ref<VaultQuest | null>(null)
@@ -88,8 +101,10 @@ const handlePartyAssigned = async (dwellerIds: string[]) => {
 
   questPartyMembersMap.value[selectedQuest.value.id] = mappedParty
 
-  // Refresh party members for modal
-  questPartyMembers.value = mappedParty
+  // Close the modal after successful assignment
+  showPartyModal.value = false
+  selectedQuest.value = null
+  questPartyMembers.value = []
 }
 
 // Handle starting the quest after party assignment

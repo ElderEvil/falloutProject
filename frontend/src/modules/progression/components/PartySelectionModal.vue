@@ -30,6 +30,7 @@ const emit = defineEmits<{
 const questStore = useQuestStore()
 const selectedDwellerIds = ref<string[]>([])
 const eligibleDwellers = ref<DwellerShort[]>([])
+const eligibleDwellersError = ref<string | null>(null)
 const isLoadingEligible = ref(false)
 
 // Sync with current party when modal opens
@@ -38,6 +39,7 @@ watch(
   async (isOpen) => {
     if (isOpen) {
       selectedDwellerIds.value = props.currentParty.map((d) => d.id)
+      eligibleDwellersError.value = null
       // Fetch eligible dwellers for this quest
       if (props.quest && props.vaultId) {
         isLoadingEligible.value = true
@@ -48,7 +50,8 @@ watch(
             const fullDweller = props.dwellers.find(d => d.id === e.id)
             return fullDweller || e as DwellerShort
           }).filter((d): d is DwellerShort => d !== undefined)
-        } catch {
+        } catch (error) {
+          eligibleDwellersError.value = 'Failed to check eligibility'
           eligibleDwellers.value = []
         } finally {
           isLoadingEligible.value = false
@@ -204,8 +207,9 @@ const handleAssignAndStart = () => {
 
           <div v-if="availableDwellers.length === 0" class="no-dwellers">
             <Icon icon="mdi:account-off" class="no-dwellers-icon" />
-            <p>No available dwellers found</p>
-            <p class="hint">Build more living quarters to get more dwellers</p>
+            <p v-if="eligibleDwellersError">{{ eligibleDwellersError }}</p>
+            <p v-else>No available dwellers found</p>
+            <p v-if="!eligibleDwellersError" class="hint">Build more living quarters to get more dwellers</p>
           </div>
         </div>
       </div>

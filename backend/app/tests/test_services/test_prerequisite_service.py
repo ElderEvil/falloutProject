@@ -372,6 +372,9 @@ async def test_get_eligible_dwellers_for_quest(async_client: AsyncClient, async_
     async_session.add(dweller_med)
     async_session.add(dweller_high)
     await async_session.commit()
+    await async_session.refresh(dweller_low)
+    await async_session.refresh(dweller_med)
+    await async_session.refresh(dweller_high)
 
     headers = await user_authentication_headers(client=async_client, email=user.email, password=user_data["password"])
 

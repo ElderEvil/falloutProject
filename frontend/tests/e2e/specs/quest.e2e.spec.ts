@@ -190,7 +190,7 @@ test.describe('Quests - Party Assignment', () => {
     expect(hasEligible || hasDwellers || hasNoDwellers).toBe(true)
   })
 
-  test('should not allow selecting dwellers below quest level requirement', async ({ page }) => {
+  test('should display eligible dwellers with level info', async ({ page }) => {
     await page.waitForSelector('text=Quests', { timeout: 10000 })
     
     const assignButton = page.getByRole('button', { name: /assign party/i }).first()
@@ -298,24 +298,28 @@ test.describe('Quests - Requirements Display', () => {
     
     // Look for LOCKED badge
     const lockedBadges = page.locator('text=LOCKED')
-    
-    // This test is informational - locked quests might not exist in test data
-    // We just verify the page loads correctly
-    expect(await page.locator('.quest-card').count()).toBeGreaterThanOrEqual(0)
+    const lockedCount = await lockedBadges.count()
+
+    if (lockedCount > 0) {
+      await expect(lockedBadges.first()).toBeVisible()
+    } else {
+      const questCards = page.locator('.quest-card')
+      await expect(questCards.first()).toBeVisible()
+    }
   })
 
   test('should display quest rewards section', async ({ page }) => {
     await page.waitForSelector('text=Quests', { timeout: 10000 })
-    
-    // Check for rewards section on quest cards
-    const rewardsSection = page.locator('text=REWARDS')
-    
-    // Should have rewards section visible on quest cards
-    const questCards = await page.locator('.quest-card').count()
-    
-    if (questCards > 0) {
-      // Test passes - quest cards exist
-      expect(true).toBe(true)
+
+    const questCards = page.locator('.quest-card')
+    const cardCount = await questCards.count()
+
+    expect(cardCount).toBeGreaterThan(0)
+
+    for (let i = 0; i < cardCount; i++) {
+      const card = questCards.nth(i)
+      const rewardsText = card.locator('text=REWARDS')
+      await expect(rewardsText).toBeVisible()
     }
   })
 })

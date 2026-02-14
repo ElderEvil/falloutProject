@@ -25,6 +25,7 @@ export const useQuestStore = defineStore('quest', () => {
   // State
   const quests = ref<Quest[]>([])
   const vaultQuests = ref<VaultQuest[]>([])
+  const unlockedVaultQuests = ref<VaultQuest[]>([])
   const isLoading = ref(false)
   const questPartyMap = ref<Record<string, QuestPartyMember[]>>({})
 
@@ -83,8 +84,11 @@ export const useQuestStore = defineStore('quest', () => {
   async function fetchAvailableQuests(vaultId: string): Promise<void> {
     try {
       isLoading.value = true
-      const response = await axios.get<VaultQuest[]>(`/api/v1/quests/${vaultId}/available`, { headers: getAuthHeaders() })
-      vaultQuests.value = response.data
+      const url = `/api/v1/quests/${vaultId}/available`
+      const response = await axios.get<VaultQuest[]>(url, {
+        headers: getAuthHeaders(),
+      })
+      unlockedVaultQuests.value = response.data
     } catch (error: unknown) {
       console.error('Failed to fetch available quests:', error)
       toast.error('Failed to load available quests')
@@ -235,6 +239,7 @@ export const useQuestStore = defineStore('quest', () => {
   return {
     quests,
     vaultQuests,
+    unlockedVaultQuests,
     isLoading,
     questPartyMap,
     activeQuests,

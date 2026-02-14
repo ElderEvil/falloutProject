@@ -92,23 +92,26 @@ const handleAssignAndStart = async (dwellerIds: string[]) => {
   }
 
   try {
-    // First assign party
     await questStore.assignParty(vaultId.value, selectedQuest.value.id, dwellerIds)
+  } catch {
+    return
+  }
 
-    // Then start the quest
+  try {
     await questStore.startQuest(vaultId.value, selectedQuest.value.id)
-
-    // Refresh quests to get updated state
+  } catch {
     await questStore.fetchVaultQuests(vaultId.value)
-
-    // Close the modal after successful assignment and start
     showPartyModal.value = false
     selectedQuest.value = null
     questPartyMembers.value = []
-  } catch {
-    // Error is already handled in the store (toast notification)
-    // Just prevent further execution
+    return
   }
+
+  await questStore.fetchVaultQuests(vaultId.value)
+
+  showPartyModal.value = false
+  selectedQuest.value = null
+  questPartyMembers.value = []
 }
 
 // Handle party assignment only (for backwards compatibility)

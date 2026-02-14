@@ -342,6 +342,7 @@ class VaultService:
             weekly_objective = weekly_result.scalar_one_or_none()
 
             assigned_count = 0
+            assigned_types = []
             for objective in [daily_objective, weekly_objective]:
                 if objective:
                     link = VaultObjectiveProgressLink(
@@ -353,11 +354,16 @@ class VaultService:
                     )
                     db_session.add(link)
                     assigned_count += 1
+                    if objective.challenge and "Daily" in objective.challenge:
+                        assigned_types.append("daily")
+                    elif objective.challenge and "Weekly" in objective.challenge:
+                        assigned_types.append("weekly")
 
             if assigned_count > 0:
                 await db_session.commit()
+                types_str = ", ".join(assigned_types) if assigned_types else "objectives"
                 self.logger.info(
-                    "Assigned %d initial objectives (1 daily, 1 weekly) to vault %s", assigned_count, vault_id
+                    "Assigned %d initial objective(s) (%s) to vault %s", assigned_count, types_str, vault_id
                 )
             else:
                 self.logger.warning("No daily/weekly objectives found for vault %s", vault_id)

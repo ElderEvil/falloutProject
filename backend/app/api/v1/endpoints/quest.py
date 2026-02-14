@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -65,7 +65,16 @@ async def get_available_quests(
     from app.models.quest import Quest
     from app.models.vault_quest import VaultQuestCompletionLink
 
-    # Eagerly load requirements and rewards to avoid MissingGreenlet errors
+    completed_result = await db_session.execute(
+        select(VaultQuestCompletionLink.quest_id).where(
+            and_(
+                VaultQuestCompletionLink.vault_id == vault_id,
+                VaultQuestCompletionLink.is_completed == True,
+            )
+        )
+    )
+    completed_quest_ids = set(completed_result.scalars().all())
+
     result = await db_session.execute(
         select(Quest)
         .options(
@@ -82,20 +91,8 @@ async def get_available_quests(
 
     available = []
     for quest in all_quests:
-        if quest.previous_quest_id is None:
+        if quest.previous_quest_id is None or quest.previous_quest_id in completed_quest_ids:
             available.append(quest)
-        else:
-            prev_completed = await db_session.execute(
-                select(VaultQuestCompletionLink).where(
-                    and_(
-                        VaultQuestCompletionLink.vault_id == vault_id,
-                        VaultQuestCompletionLink.quest_id == quest.previous_quest_id,
-                        VaultQuestCompletionLink.is_completed == True,
-                    )
-                )
-            )
-            if prev_completed.scalar_one_or_none() is not None:
-                available.append(quest)
 
     return available[skip : skip + limit]
 
@@ -196,7 +193,7 @@ async def assign_party_to_quest(
     try:
         return await quest_party_crud.assign_party(db_session, quest_id, vault_id, party_data.dweller_ids)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise ValidationException(str(e)) from e
 
 
 @router.get("/{vault_id}/{quest_id}/party", response_model=list[dict])
@@ -234,12 +231,10 @@ async def start_quest(
     duration_minutes: int | None = None,
 ):
     """Start a quest (starts the timer)."""
-    from fastapi import HTTPException
-
     from app.models.quest import Quest
     from app.services.prerequisite_service import prerequisite_service
     from app.services.quest_service import quest_service
-    from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException
+    from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
 
     quest = await db_session.get(Quest, quest_id)
     if quest is None:
@@ -249,7 +244,7 @@ async def start_quest(
 
     can_start, missing = await prerequisite_service.can_start_quest(db_session, vault_id, quest)
     if not can_start:
-        raise HTTPException(status_code=400, detail=f"Missing requirements: {', '.join(missing)}")
+        raise ValidationException(detail=f"Missing requirements: {', '.join(missing)}")
 
     try:
         await quest_service.start_quest(db_session, quest_id, vault_id, duration_minutes)
@@ -258,7 +253,7 @@ async def start_quest(
     except (ResourceNotFoundException, AccessDeniedException):
         raise
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise ValidationException(str(e)) from e
 
 
 @router.get("/{vault_id}/{quest_id}/eligible-dwellers", response_model=list[dict])
@@ -286,10 +281,21 @@ async def get_eligible_dwellers(
     dwellers = result.scalars().all()
 
     eligible = []
+    vault_level_req_types = {"item", "room", "dweller_count", "quest_completed"}
     for dweller in dwellers:
         meets_req = True
         for req in quest.quest_requirements:
-            if req.requirement_type == "level" and dweller.level < req.requirement_data.get("level", 1):
+            req_type = req.requirement_type
+            req_data = req.requirement_data or {}
+
+            if req_type == "level":
+                required_level = req_data.get("level", 1)
+                if dweller.level < required_level:
+                    meets_req = False
+                    break
+            elif req_type in vault_level_req_types:
+                pass
+            else:
                 meets_req = False
                 break
 

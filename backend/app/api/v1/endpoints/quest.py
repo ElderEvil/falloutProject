@@ -50,6 +50,50 @@ async def read_vault_quests(
     return await crud.quest_crud.get_multi_for_vault(db_session=db_session, vault_id=vault_id, skip=skip, limit=limit)
 
 
+@router.get("/{vault_id}/available", response_model=list[QuestRead])
+async def get_available_quests(
+    vault_id: UUID4,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    user: CurrentActiveUser,  # noqa: ARG001
+    skip: int = 0,
+    limit: int = 100,
+):
+    """Get available quests for a vault (respects quest chain unlocks)."""
+    from sqlmodel import and_, select
+
+    from app.models.quest import Quest
+    from app.models.vault_quest import VaultQuestCompletionLink
+
+    result = await db_session.execute(
+        select(Quest)
+        .join(
+            VaultQuestCompletionLink,
+            and_(Quest.id == VaultQuestCompletionLink.quest_id, VaultQuestCompletionLink.vault_id == vault_id),
+        )
+        .where(VaultQuestCompletionLink.is_visible == True)
+    )
+    all_quests = result.scalars().all()
+
+    available = []
+    for quest in all_quests:
+        if quest.previous_quest_id is None:
+            available.append(quest)
+        else:
+            prev_completed = await db_session.execute(
+                select(VaultQuestCompletionLink).where(
+                    and_(
+                        VaultQuestCompletionLink.vault_id == vault_id,
+                        VaultQuestCompletionLink.quest_id == quest.previous_quest_id,
+                        VaultQuestCompletionLink.is_completed == True,
+                    )
+                )
+            )
+            if prev_completed.scalar_one_or_none() is not None:
+                available.append(quest)
+
+    return available[skip : skip + limit]
+
+
 @router.get("/{vault_id}/{quest_id}", response_model=QuestRead)
 async def read_quest(
     quest_id: UUID4,

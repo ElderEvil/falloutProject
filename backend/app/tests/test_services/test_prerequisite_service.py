@@ -387,3 +387,55 @@ async def test_get_eligible_dwellers_for_quest(async_client: AsyncClient, async_
     assert str(dweller_med.id) in dweller_ids
     assert str(dweller_high.id) in dweller_ids
     assert str(dweller_low.id) not in dweller_ids
+
+
+@pytest.mark.asyncio
+async def test_get_available_quests_excludes_locked(async_client: AsyncClient, async_session: AsyncSession) -> None:
+    """Test that available quests endpoint excludes locked chain quests."""
+    from app.tests.utils.user import user_authentication_headers
+
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault_data = create_fake_vault()
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+
+    quest_a = Quest(
+        title="Quest A",
+        short_description="First quest",
+        long_description="Complete quest A first",
+        requirements="None",
+        rewards="100 caps",
+        quest_type="side",
+    )
+    async_session.add(quest_a)
+    await async_session.commit()
+    await async_session.refresh(quest_a)
+
+    quest_b = Quest(
+        title="Quest B",
+        short_description="Second quest",
+        long_description="Requires quest A",
+        requirements="Complete quest A",
+        rewards="200 caps",
+        quest_type="side",
+        previous_quest_id=quest_a.id,
+    )
+    async_session.add(quest_b)
+    await async_session.commit()
+    await async_session.refresh(quest_b)
+
+    await crud.quest_crud.assign_to_vault(async_session, quest_id=quest_a.id, vault_id=vault.id)
+    await crud.quest_crud.assign_to_vault(async_session, quest_id=quest_b.id, vault_id=vault.id)
+
+    headers = await user_authentication_headers(client=async_client, email=user.email, password=user_data["password"])
+
+    response = await async_client.get(
+        f"/api/v1/quests/{vault.id}/available",
+        headers=headers,
+    )
+
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+    data = response.json()
+    quest_titles = [q["title"] for q in data]
+    assert "Quest A" in quest_titles, "Quest A should be available"
+    assert "Quest B" not in quest_titles, "Quest B should be locked (previous not completed)"

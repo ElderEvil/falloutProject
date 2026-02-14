@@ -91,23 +91,28 @@ const handlePartyAssigned = async (dwellerIds: string[]) => {
     return
   }
 
-  await questStore.assignParty(vaultId.value, selectedQuest.value.id, dwellerIds)
+  try {
+    await questStore.assignParty(vaultId.value, selectedQuest.value.id, dwellerIds)
 
-  // Refresh quests to get updated state
-  await questStore.fetchVaultQuests(vaultId.value)
+    // Refresh quests to get updated state
+    await questStore.fetchVaultQuests(vaultId.value)
 
-  // Fetch party for this specific quest and update map
-  const party = await questStore.getParty(vaultId.value, selectedQuest.value.id)
-  const mappedParty = party
-    .map((p) => dwellerStore.dwellers.find((d) => d.id === p.dweller_id))
-    .filter((d): d is DwellerShort => d !== undefined)
+    // Fetch party for this specific quest and update map
+    const party = await questStore.getParty(vaultId.value, selectedQuest.value.id)
+    const mappedParty = party
+      .map((p) => dwellerStore.dwellers.find((d) => d.id === p.dweller_id))
+      .filter((d): d is DwellerShort => d !== undefined)
 
-  questPartyMembersMap.value[selectedQuest.value.id] = mappedParty
+    questPartyMembersMap.value[selectedQuest.value.id] = mappedParty
 
-  // Close the modal after successful assignment
-  showPartyModal.value = false
-  selectedQuest.value = null
-  questPartyMembers.value = []
+    // Close the modal after successful assignment
+    showPartyModal.value = false
+    selectedQuest.value = null
+    questPartyMembers.value = []
+  } catch {
+    // Error is already handled in the store (toast notification)
+    // Just prevent further execution
+  }
 }
 
 // Handle starting the quest after party assignment

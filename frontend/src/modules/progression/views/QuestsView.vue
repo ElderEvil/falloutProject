@@ -74,7 +74,7 @@ const getPartyMembersForQuest = async (quest: VaultQuest): Promise<DwellerShort[
 
 // Handle opening party selection modal
 const handleAssignParty = async (questId: string) => {
-  const quest = [...availableQuests.value, ...activeQuests.value].find((q) => q.id === questId)
+  const quest = [...filteredAvailableQuests.value, ...activeQuests.value].find((q) => q.id === questId)
   if (!quest || !vaultId.value) return
 
   selectedQuest.value = quest
@@ -143,7 +143,8 @@ onMounted(async () => {
     await dwellerStore.fetchDwellersByVault(vaultId.value, token)
 
     if (hasOverseerOffice.value) {
-      await questStore.fetchAvailableQuests(vaultId.value)
+      // Fetch all quests so we can filter client-side (including locked ones)
+      await questStore.fetchVaultQuests(vaultId.value)
       await questStore.fetchAllQuests()
     }
   }
@@ -201,16 +202,6 @@ onMounted(async () => {
                 <Icon icon="mdi:check-circle" class="inline mr-2" />
                 Completed
               </button>
-              <div class="toggle-container">
-                <label class="toggle-label">
-                  <input
-                    v-model="showAllQuests"
-                    type="checkbox"
-                    class="toggle-input"
-                  />
-                  <span class="toggle-text">Show All Quests</span>
-                </label>
-              </div>
             </div>
 
             <!-- Active & Available Quests -->
@@ -237,11 +228,21 @@ onMounted(async () => {
 
               <!-- Available Quests Section -->
               <div v-if="filteredAvailableQuests.length > 0" class="quest-section">
-                <h2 class="section-title">
-                  <Icon icon="mdi:book-open-page-variant" class="inline mr-2" />
-                  AVAILABLE QUESTS
-                  <span v-if="showAllQuests" class="section-badge">(Showing All)</span>
-                </h2>
+                <div class="section-header">
+                  <h2 class="section-title">
+                    <Icon icon="mdi:book-open-page-variant" class="inline mr-2" />
+                    AVAILABLE QUESTS
+                    <span v-if="showAllQuests" class="section-badge">(Showing All)</span>
+                  </h2>
+                  <label class="toggle-label">
+                    <input
+                      v-model="showAllQuests"
+                      type="checkbox"
+                      class="toggle-input"
+                    />
+                    <span class="toggle-text">Show All</span>
+                  </label>
+                </div>
                 <div class="quest-grid">
                   <QuestCard
                     v-for="quest in filteredAvailableQuests"
@@ -441,18 +442,27 @@ onMounted(async () => {
   margin-bottom: 32px;
 }
 
-.section-title {
-  font-size: 1.3rem;
-  font-weight: bold;
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 16px;
   padding-bottom: 8px;
   border-bottom: 2px solid var(--color-theme-glow);
+}
+
+.section-title {
+  font-size: 1.3rem;
+  font-weight: bold;
   color: var(--color-theme-primary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   display: flex;
   align-items: center;
   gap: 12px;
+  margin: 0;
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
 .section-badge {
@@ -461,6 +471,50 @@ onMounted(async () => {
   color: var(--color-theme-accent);
   text-transform: none;
   letter-spacing: normal;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--color-theme-primary);
+}
+
+.toggle-input {
+  appearance: none;
+  width: 40px;
+  height: 20px;
+  background: #333;
+  border-radius: 10px;
+  position: relative;
+  cursor: pointer;
+  border: 2px solid var(--color-theme-primary);
+}
+
+.toggle-input:checked {
+  background: var(--color-theme-primary);
+}
+
+.toggle-input::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  top: 1px;
+  left: 2px;
+  transition: transform 0.2s;
+}
+
+.toggle-input:checked::after {
+  transform: translateX(20px);
+}
+
+.toggle-text {
+  user-select: none;
 }
 
 /* Quest Grid */
@@ -690,53 +744,4 @@ onMounted(async () => {
   font-size: 1.5rem;
 }
 
-.toggle-container {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-}
-
-.toggle-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  color: var(--color-theme-primary);
-}
-
-.toggle-input {
-  appearance: none;
-  width: 40px;
-  height: 20px;
-  background: #333;
-  border-radius: 10px;
-  position: relative;
-  cursor: pointer;
-  border: 2px solid var(--color-theme-primary);
-}
-
-.toggle-input:checked {
-  background: var(--color-theme-primary);
-}
-
-.toggle-input::after {
-  content: '';
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  background: #fff;
-  border-radius: 50%;
-  top: 1px;
-  left: 2px;
-  transition: transform 0.2s;
-}
-
-.toggle-input:checked::after {
-  transform: translateX(20px);
-}
-
-.toggle-text {
-  user-select: none;
-}
 </style>

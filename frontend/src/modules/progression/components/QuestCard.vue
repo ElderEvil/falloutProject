@@ -4,6 +4,9 @@ import { Icon } from '@iconify/vue'
 import type { VaultQuest, QuestPartyMember } from '../models/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { UCard, UBadge, UButton } from '@/core/components/ui'
+import { useQuestStore } from '@/stores/quest'
+
+const questStore = useQuestStore()
 
 interface Props {
   quest: VaultQuest
@@ -127,6 +130,13 @@ const chainPosition = computed(() => {
   return props.quest.chain_order > 0 ? `Quest ${props.quest.chain_order}` : 'Chain Quest'
 })
 
+// Get the previous quest name for locked quests
+const previousQuestName = computed(() => {
+  if (!props.quest.previous_quest_id) return null
+  const previousQuest = questStore.vaultQuests.find(q => q.id === props.quest.previous_quest_id)
+  return previousQuest?.title || null
+})
+
 const hasPrerequisites = computed(() => {
   return props.quest.quest_requirements && props.quest.quest_requirements.length > 0
 })
@@ -226,6 +236,18 @@ const handleAction = () => {
 
     <!-- Description -->
     <p class="quest-description">{{ quest.short_description }}</p>
+
+    <!-- Previous Quest Info (for locked chain quests) -->
+    <div v-if="isLocked && previousQuestName" class="quest-section locked-info">
+      <div class="section-label">
+        <Icon icon="mdi:lock-alert" class="inline-icon" />
+        LOCKED
+      </div>
+      <div class="locked-message">
+        <Icon icon="mdi:arrow-left" class="locked-icon" />
+        Complete "{{ previousQuestName }}" to unlock
+      </div>
+    </div>
 
     <!-- Divider -->
     <div class="quest-divider"></div>
@@ -597,5 +619,39 @@ const handleAction = () => {
   opacity: 0.6;
   font-size: 0.8rem;
   margin-left: auto;
+}
+
+/* Locked quest info styling */
+.locked-info {
+  background: rgba(255, 102, 0, 0.1);
+  border: 1px solid #ff6600;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 12px 0;
+}
+
+.locked-info .section-label {
+  color: #ff6600;
+  font-size: 0.75rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.locked-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-theme-primary);
+  font-size: 0.9rem;
+}
+
+.locked-icon {
+  color: #ff6600;
+  font-size: 1.1rem;
 }
 </style>

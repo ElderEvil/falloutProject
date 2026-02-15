@@ -34,6 +34,11 @@ const dweller = computed(() => {
   return dwellerStore.dwellers.find((d) => d.id === exploration.value!.dweller_id)
 })
 
+const detailedDweller = computed(() => {
+  if (!exploration.value) return null
+  return dwellerStore.detailedDwellers[exploration.value.dweller_id] || null
+})
+
 const dwellerName = computed(() => {
   if (!dweller.value) return 'Unknown'
   return `${dweller.value.first_name} ${dweller.value.last_name}`
@@ -202,6 +207,11 @@ let pollInterval: ReturnType<typeof setInterval> | null = null
 onMounted(async () => {
   if (vaultId.value && authStore.token) {
     await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
+
+    // Fetch full dweller data for the explorer (includes weapon/outfit)
+    if (exploration.value) {
+      await dwellerStore.fetchDwellerDetails(exploration.value.dweller_id, authStore.token)
+    }
   }
 
   pollInterval = setInterval(async () => {
@@ -415,7 +425,7 @@ watch(
           <div class="equipment-info">
             <span class="equipment-label">Weapon</span>
             <span class="equipment-value">{{
-              dweller && 'weapon' in dweller ? dweller.weapon?.name || 'Unarmed' : 'Unarmed'
+              detailedDweller?.weapon?.name || 'Unarmed'
             }}</span>
           </div>
         </div>
@@ -424,7 +434,7 @@ watch(
           <div class="equipment-info">
             <span class="equipment-label">Outfit</span>
             <span class="equipment-value">{{
-              dweller && 'outfit' in dweller ? dweller.outfit?.name || 'Vault Suit' : 'Vault Suit'
+              detailedDweller?.outfit?.name || 'Vault Suit'
             }}</span>
           </div>
         </div>

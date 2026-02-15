@@ -40,6 +40,11 @@ onMounted(async () => {
       await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
       await questStore.fetchVaultQuests(vaultId.value)
       await questStore.fetchPartiesForActiveQuests(vaultId.value)
+
+      // Fetch full dweller data for explorers (includes weapon/outfit)
+      for (const exploration of activeExplorationsArray.value) {
+        await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
+      }
     } catch (error) {
       console.error('Failed to load exploration data:', error)
     }
@@ -77,6 +82,10 @@ const selectedExploration = computed(() => {
 
 const getDwellerById = (dwellerId: string) => {
   return dwellerStore.dwellers.find((d) => d.id === dwellerId)
+}
+
+const getDetailedDweller = (dwellerId: string) => {
+  return dwellerStore.detailedDwellers[dwellerId] || null
 }
 
 const getPartyMembersForQuest = (questId: string) => {
@@ -229,7 +238,7 @@ const closeRewardsModal = () => {
               v-for="exploration in activeExplorationsArray"
               :key="exploration.id"
               :exploration="exploration"
-              :dweller="getDwellerById(exploration.dweller_id)"
+              :dweller="getDetailedDweller(exploration.dweller_id)"
               :selected="selectedExplorerId === exploration.id"
               @select="selectedExplorerId = exploration.id"
               @complete="handleCompleteExploration"
@@ -260,7 +269,7 @@ const closeRewardsModal = () => {
           </div>
           <EventTimeline
             :exploration="selectedExploration"
-            :dweller="getDwellerById(selectedExploration.dweller_id)"
+            :dweller="getDetailedDweller(selectedExploration.dweller_id)"
           />
         </div>
       </div>

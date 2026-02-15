@@ -16,6 +16,7 @@ from app.models.outfit import Outfit
 from app.models.weapon import Weapon
 from app.schemas.common import GenderEnum, JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
 from app.schemas.exploration_event import RewardsSchema
+from app.services.event_bus import GameEvent, event_bus
 from app.services.exploration import data_loader
 from app.services.exploration.event_generator import event_generator
 from app.services.exploration.rewards_calculator import rewards_calculator
@@ -389,6 +390,21 @@ class ExplorationCoordinator:
 
         await db_session.commit()
 
+        # Emit stimpak and radaway collection events after commit
+        if exploration.stimpaks > 0:
+            await event_bus.emit(
+                GameEvent.ITEM_COLLECTED,
+                exploration.vault_id,
+                {"item_type": "stimpak", "amount": exploration.stimpaks},
+            )
+
+        if exploration.radaways > 0:
+            await event_bus.emit(
+                GameEvent.ITEM_COLLECTED,
+                exploration.vault_id,
+                {"item_type": "radaway", "amount": exploration.radaways},
+            )
+
         return RewardsSchema(
             caps=total_caps,
             items=transfer_result["transferred"],
@@ -592,6 +608,7 @@ class ExplorationCoordinator:
                 if weapon:
                     db_session.add(weapon)
                     item_created = True
+                    await event_bus.emit(GameEvent.ITEM_COLLECTED, vault.id, {"item_type": "weapon", "amount": 1})
 
             elif item_type == "outfit":
                 outfit_data = next((o for o in outfits_data if o["name"] == item_name), None)
@@ -599,6 +616,7 @@ class ExplorationCoordinator:
                 if outfit:
                     db_session.add(outfit)
                     item_created = True
+                    await event_bus.emit(GameEvent.ITEM_COLLECTED, vault.id, {"item_type": "outfit", "amount": 1})
 
             else:
                 junk = self._create_junk_from_loot(item_name, rarity, storage_id)

@@ -4,16 +4,21 @@ import { Icon } from '@iconify/vue'
 import type { VaultQuest, QuestPartyMember } from '../models/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { UCard, UBadge, UButton } from '@/core/components/ui'
+import { useQuestStore } from '@/stores/quest'
+
+const questStore = useQuestStore()
 
 interface Props {
   quest: VaultQuest
   vaultId: string
-  status: 'available' | 'active' | 'completed'
+  status: 'available' | 'active' | 'completed' | 'locked'
   partyMembers?: DwellerShort[]
+  isLocked?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   partyMembers: () => [],
+  isLocked: false,
 })
 
 const emit = defineEmits<{
@@ -125,6 +130,13 @@ const chainPosition = computed(() => {
   return props.quest.chain_order > 0 ? `Quest ${props.quest.chain_order}` : 'Chain Quest'
 })
 
+// Get the previous quest name for locked quests
+const previousQuestName = computed(() => {
+  if (!props.quest.previous_quest_id) return null
+  const previousQuest = questStore.vaultQuests.find(q => q.id === props.quest.previous_quest_id)
+  return previousQuest?.title || null
+})
+
 const hasPrerequisites = computed(() => {
   return props.quest.quest_requirements && props.quest.quest_requirements.length > 0
 })
@@ -137,9 +149,12 @@ const prerequisitesMet = computed(() => {
 })
 
 const actionButtonText = computed(() => {
+  if (props.isLocked) {
+    return 'Locked'
+  }
   switch (props.status) {
     case 'available':
-      return hasParty.value ? 'Start Quest' : 'Assign Party'
+      return 'Start Quest'
     case 'active':
       return timeRemaining.value ? 'In Progress' : 'Complete Quest'
     case 'completed':
@@ -150,6 +165,9 @@ const actionButtonText = computed(() => {
 })
 
 const cardBorderColor = computed(() => {
+  if (props.isLocked) {
+    return '#ff6600'
+  }
   switch (props.status) {
     case 'active':
       return 'var(--color-theme-accent)'
@@ -161,10 +179,13 @@ const cardBorderColor = computed(() => {
 })
 
 const isButtonDisabled = computed(() => {
-  return false
+  return props.isLocked
 })
 
 const handleAction = () => {
+  if (props.isLocked) {
+    return // Don't do anything for locked quests
+  }
   switch (props.status) {
     case 'available':
       if (hasParty.value) {
@@ -206,11 +227,27 @@ const handleAction = () => {
           <Icon icon="mdi:link-variant" class="inline-icon" />
           {{ chainPosition }}
         </UBadge>
+        <UBadge v-if="isLocked" variant="outline" class="locked-badge">
+          <Icon icon="mdi:lock" class="inline-icon" />
+          LOCKED
+        </UBadge>
       </div>
     </div>
 
     <!-- Description -->
     <p class="quest-description">{{ quest.short_description }}</p>
+
+    <!-- Previous Quest Info (for locked chain quests) -->
+    <div v-if="isLocked && previousQuestName" class="quest-section locked-info">
+      <div class="section-label">
+        <Icon icon="mdi:lock-alert" class="inline-icon" />
+        LOCKED
+      </div>
+      <div class="locked-message">
+        <Icon icon="mdi:arrow-left" class="locked-icon" />
+        Complete "{{ previousQuestName }}" to unlock
+      </div>
+    </div>
 
     <!-- Divider -->
     <div class="quest-divider"></div>
@@ -232,7 +269,22 @@ const handleAction = () => {
             :icon="prerequisitesMet ? 'mdi:check-circle' : 'mdi:lock'"
             class="prerequisite-icon"
           />
-          <span class="prerequisite-text">{{ req.requirement_type }}</span>
+          <span class="prerequisite-text">
+            <template v-if="req.requirement_type === 'level' && req.requirement_data">
+              Requires Level {{ req.requirement_data.level || 1 }}+ dweller
+              <span v-if="req.requirement_data.count > 1">(x{{ req.requirement_data.count }})</span>
+            </template>
+            <template v-else-if="req.requirement_type === 'item' && req.requirement_data">
+              Requires {{ req.requirement_data.name || req.requirement_data.item_id }}
+              <span v-if="req.requirement_data.count > 1">(x{{ req.requirement_data.count }})</span>
+            </template>
+            <template v-else-if="req.requirement_type === 'quest_completed' && req.requirement_data">
+              Complete: {{ req.requirement_data.quest_name || 'Previous quest' }}
+            </template>
+            <template v-else>
+              {{ req.requirement_type }}
+            </template>
+          </span>
         </li>
       </ul>
     </div>
@@ -370,11 +422,17 @@ const handleAction = () => {
 
 .type-badge,
 .category-badge,
-.chain-badge {
+.chain-badge,
+.locked-badge {
   font-size: 0.7rem;
   font-weight: bold;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+.locked-badge {
+  border-color: #ff6600 !important;
+  color: #ff6600 !important;
 }
 
 .quest-description {
@@ -561,5 +619,39 @@ const handleAction = () => {
   opacity: 0.6;
   font-size: 0.8rem;
   margin-left: auto;
+}
+
+/* Locked quest info styling */
+.locked-info {
+  background: rgba(255, 102, 0, 0.1);
+  border: 1px solid #ff6600;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 12px 0;
+}
+
+.locked-info .section-label {
+  color: #ff6600;
+  font-size: 0.75rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.locked-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-theme-primary);
+  font-size: 0.9rem;
+}
+
+.locked-icon {
+  color: #ff6600;
+  font-size: 1.1rem;
 }
 </style>

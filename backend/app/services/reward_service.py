@@ -16,6 +16,7 @@ from app.models.storage import Storage
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.models.weapon import Weapon
 from app.schemas.vault import VaultUpdate
+from app.services.event_bus import GameEvent, event_bus
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,7 @@ class RewardService:
             db_session.add(weapon)
             await db_session.commit()
             await db_session.refresh(weapon)
+            await event_bus.emit(GameEvent.ITEM_COLLECTED, vault_id, {"item_type": "weapon", "amount": 1})
             logger.info(f"Granted weapon '{item_name}' ({item_rarity}) to vault {vault_id}")
             return {"reward_type": RewardType.ITEM, "item_type": "weapon", "name": item_name, "item_id": str(weapon.id)}
 
@@ -82,6 +84,7 @@ class RewardService:
             db_session.add(outfit)
             await db_session.commit()
             await db_session.refresh(outfit)
+            await event_bus.emit(GameEvent.ITEM_COLLECTED, vault_id, {"item_type": "outfit", "amount": 1})
             logger.info(f"Granted outfit '{item_name}' ({item_rarity}) to vault {vault_id}")
             return {
                 "reward_type": RewardType.ITEM,
@@ -211,6 +214,7 @@ class RewardService:
         dweller.stimpack = (dweller.stimpack or 0) + amount
         db_session.add(dweller)
         await db_session.commit()
+        await event_bus.emit(GameEvent.ITEM_COLLECTED, vault_id, {"item_type": "stimpak", "amount": amount})
 
         logger.info(f"Granted {amount} stimpaks to dweller {dweller.first_name} in vault {vault_id}")
         return {"reward_type": RewardType.STIMPAK, "amount": amount, "dweller_id": str(dweller.id)}

@@ -8,6 +8,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useToast } from '@/core/composables/useToast'
 import { Icon } from '@iconify/vue'
 import { QuestCard, PartySelectionModal } from '../components'
 import type { VaultQuest } from '../models/quest'
@@ -20,7 +21,29 @@ const roomStore = useRoomStore()
 const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
 const { isCollapsed } = useSidePanel()
+const toast = useToast()
 const activeTab = ref<'active' | 'completed'>('active')
+const showAllQuests = ref(false)
+
+// Check if a quest is unlocked (no previous quest or previous is completed)
+const isQuestUnlocked = (quest: VaultQuest): boolean => {
+  if (!quest.previous_quest_id) return true
+  const previousQuest = questStore.vaultQuests.find(q => q.id === quest.previous_quest_id)
+  return previousQuest?.is_completed ?? false
+}
+
+// Filtered available quests based on toggle
+const filteredAvailableQuests = computed(() => {
+  const isAvailableQuest = (q: VaultQuest) =>
+    !q.started_at && !q.is_completed
+
+  if (showAllQuests.value) {
+    return questStore.vaultQuests.filter(isAvailableQuest)
+  }
+  return questStore.vaultQuests.filter(
+    (q) => q.is_visible && isAvailableQuest(q) && isQuestUnlocked(q)
+  )
+})
 
 // Modal state
 const showPartyModal = ref(false)
@@ -39,7 +62,6 @@ const hasOverseerOffice = computed(() => {
 
 // Computed properties for quest lists
 const activeQuests = computed(() => questStore.activeQuests)
-const availableQuests = computed(() => questStore.availableQuests)
 const completedQuests = computed(() => questStore.completedQuests)
 
 // Get party members for a specific quest
@@ -57,7 +79,7 @@ const getPartyMembersForQuest = async (quest: VaultQuest): Promise<DwellerShort[
 
 // Handle opening party selection modal
 const handleAssignParty = async (questId: string) => {
-  const quest = [...availableQuests.value, ...activeQuests.value].find((q) => q.id === questId)
+  const quest = [...filteredAvailableQuests.value, ...activeQuests.value].find((q) => q.id === questId)
   if (!quest || !vaultId.value) return
 
   selectedQuest.value = quest
@@ -68,27 +90,37 @@ const handleAssignParty = async (questId: string) => {
   showPartyModal.value = true
 }
 
-// Handle party assignment
-const handlePartyAssigned = async (dwellerIds: string[]) => {
+// Handle party assignment + quest start (combined in one click)
+const handleAssignAndStart = async (dwellerIds: string[]) => {
   if (!vaultId.value || !selectedQuest.value) {
     return
   }
 
-  await questStore.assignParty(vaultId.value, selectedQuest.value.id, dwellerIds)
+  try {
+    await questStore.assignParty(vaultId.value, selectedQuest.value.id, dwellerIds)
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Failed to assign party'
+    toast.error(errorMessage)
+    return
+  }
 
-  // Refresh quests to get updated state
+  try {
+    await questStore.startQuest(vaultId.value, selectedQuest.value.id)
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Failed to start quest'
+    toast.error(errorMessage)
+    await questStore.fetchVaultQuests(vaultId.value)
+    showPartyModal.value = false
+    selectedQuest.value = null
+    questPartyMembers.value = []
+    return
+  }
+
   await questStore.fetchVaultQuests(vaultId.value)
 
-  // Fetch party for this specific quest and update map
-  const party = await questStore.getParty(vaultId.value, selectedQuest.value.id)
-  const mappedParty = party
-    .map((p) => dwellerStore.dwellers.find((d) => d.id === p.dweller_id))
-    .filter((d): d is DwellerShort => d !== undefined)
-
-  questPartyMembersMap.value[selectedQuest.value.id] = mappedParty
-
-  // Refresh party members for modal
-  questPartyMembers.value = mappedParty
+  showPartyModal.value = false
+  selectedQuest.value = null
+  questPartyMembers.value = []
 }
 
 // Handle starting the quest after party assignment
@@ -124,6 +156,7 @@ onMounted(async () => {
     await dwellerStore.fetchDwellersByVault(vaultId.value, token)
 
     if (hasOverseerOffice.value) {
+      // Fetch all quests so we can filter client-side (including locked ones)
       await questStore.fetchVaultQuests(vaultId.value)
       await questStore.fetchAllQuests()
     }
@@ -207,18 +240,30 @@ onMounted(async () => {
               </div>
 
               <!-- Available Quests Section -->
-              <div v-if="availableQuests.length > 0" class="quest-section">
-                <h2 class="section-title">
-                  <Icon icon="mdi:book-open-page-variant" class="inline mr-2" />
-                  AVAILABLE QUESTS
-                </h2>
+              <div v-if="filteredAvailableQuests.length > 0" class="quest-section">
+                <div class="section-header">
+                  <h2 class="section-title">
+                    <Icon icon="mdi:book-open-page-variant" class="inline mr-2" />
+                    AVAILABLE QUESTS
+                    <span v-if="showAllQuests" class="section-badge">(Showing All)</span>
+                  </h2>
+                  <label class="toggle-label">
+                    <input
+                      v-model="showAllQuests"
+                      type="checkbox"
+                      class="toggle-input"
+                    />
+                    <span class="toggle-text">Show All</span>
+                  </label>
+                </div>
                 <div class="quest-grid">
                   <QuestCard
-                    v-for="quest in availableQuests"
+                    v-for="quest in filteredAvailableQuests"
                     :key="quest.id"
                     :quest="quest"
                     :vault-id="vaultId"
-                    status="available"
+                    :status="isQuestUnlocked(quest) ? 'available' : 'locked'"
+                    :is-locked="!isQuestUnlocked(quest)"
                     :party-members="questPartyMembersMap[quest.id] || []"
                     @start="handleStartQuest"
                     @assign-party="handleAssignParty"
@@ -228,11 +273,12 @@ onMounted(async () => {
 
               <!-- Empty State -->
               <div
-                v-if="activeQuests.length === 0 && availableQuests.length === 0"
+                v-if="activeQuests.length === 0 && filteredAvailableQuests.length === 0"
                 class="empty-state"
               >
                 <Icon icon="mdi:inbox" class="text-8xl mb-6 opacity-30" />
-                <p>No quests available at the moment</p>
+                <p v-if="showAllQuests">No quests available at the moment</p>
+                <p v-else>No unlocked quests available. Complete previous quests to unlock more.</p>
               </div>
             </div>
 
@@ -259,10 +305,10 @@ onMounted(async () => {
           <PartySelectionModal
             v-model="showPartyModal"
             :quest="selectedQuest"
+            :vault-id="vaultId"
             :dwellers="dwellerStore.dwellers"
             :current-party="questPartyMembers"
-            @assign="handlePartyAssigned"
-            @start="handleStartQuestAfterAssign"
+            @assign="handleAssignAndStart"
           />
         </div>
       </div>
@@ -408,15 +454,79 @@ onMounted(async () => {
   margin-bottom: 32px;
 }
 
-.section-title {
-  font-size: 1.3rem;
-  font-weight: bold;
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 16px;
   padding-bottom: 8px;
   border-bottom: 2px solid var(--color-theme-glow);
+}
+
+.section-title {
+  font-size: 1.3rem;
+  font-weight: bold;
   color: var(--color-theme-primary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.section-badge {
+  font-size: 0.75rem;
+  font-weight: normal;
+  color: var(--color-theme-accent);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--color-theme-primary);
+}
+
+.toggle-input {
+  appearance: none;
+  width: 40px;
+  height: 20px;
+  background: #333;
+  border-radius: 10px;
+  position: relative;
+  cursor: pointer;
+  border: 2px solid var(--color-theme-primary);
+}
+
+.toggle-input:checked {
+  background: var(--color-theme-primary);
+}
+
+.toggle-input::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  top: 1px;
+  left: 2px;
+  transition: transform 0.2s;
+}
+
+.toggle-input:checked::after {
+  transform: translateX(20px);
+}
+
+.toggle-text {
+  user-select: none;
 }
 
 /* Quest Grid */
@@ -645,4 +755,5 @@ onMounted(async () => {
 .empty-state p {
   font-size: 1.5rem;
 }
+
 </style>

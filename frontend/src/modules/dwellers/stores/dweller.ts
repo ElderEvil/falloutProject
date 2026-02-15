@@ -12,7 +12,7 @@ import type {
 import { useToast } from '@/core/composables/useToast'
 import { useGaryMode } from '@/core/composables/useGaryMode'
 
-export type DwellerStatus = 'idle' | 'working' | 'exploring' | 'questing' | 'training' | 'resting' | 'dead'
+export type DwellerStatus = 'idle' | 'working' | 'exploring' | 'questing' | 'training' | 'dead'
 
 export interface DwellerWithStatus extends DwellerShort {
   status: DwellerStatus
@@ -117,8 +117,9 @@ export const useDwellerStore = defineStore('dweller', () => {
     return result
   })
 
-  async function fetchDwellers(token: string): Promise<void> {
-    console.warn("fetchDwellers is deprecated, use fetchDwellersByVault with vaultId")
+  async function fetchDwellers(vaultId: string, _token?: string): Promise<void> {
+    console.warn('fetchDwellers is deprecated, use fetchDwellersByVault with vaultId')
+    await fetchDwellersByVault(vaultId, _token || '')
   }
 
 

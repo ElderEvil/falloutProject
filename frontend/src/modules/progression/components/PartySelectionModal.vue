@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import UModal from '@/core/components/ui/UModal.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import UBadge from '@/core/components/ui/UBadge.vue'
+import { useQuestStore } from '@/stores/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { VaultQuest } from '../models/quest'
 
 interface Props {
   modelValue: boolean
   quest: VaultQuest | null
+  vaultId: string
   dwellers: DwellerShort[]
   currentParty: DwellerShort[]
   maxPartySize?: number
@@ -25,14 +27,39 @@ const emit = defineEmits<{
   (e: 'start'): void
 }>()
 
+const questStore = useQuestStore()
 const selectedDwellerIds = ref<string[]>([])
+const eligibleDwellers = ref<DwellerShort[]>([])
+const eligibleDwellersError = ref<string | null>(null)
+const isLoadingEligible = ref(false)
 
 // Sync with current party when modal opens
 watch(
   () => props.modelValue,
-  (isOpen) => {
+  async (isOpen) => {
     if (isOpen) {
       selectedDwellerIds.value = props.currentParty.map((d) => d.id)
+      eligibleDwellersError.value = null
+      // Fetch eligible dwellers for this quest
+      if (props.quest && props.vaultId) {
+        isLoadingEligible.value = true
+        try {
+          const eligible = await questStore.getEligibleDwellers(props.vaultId, props.quest.id)
+          eligibleDwellers.value = eligible.map((e) => {
+            const fullDweller = props.dwellers.find((d) => d.id === e.id)
+            if (fullDweller) return fullDweller
+            return {
+              ...e,
+              status: (e as { status?: string }).status || 'idle',
+            } as DwellerShort
+          }).filter((d): d is DwellerShort => d !== undefined)
+        } catch (error) {
+          eligibleDwellersError.value = 'Failed to check eligibility'
+          eligibleDwellers.value = []
+        } finally {
+          isLoadingEligible.value = false
+        }
+      }
     }
   }
 )
@@ -40,13 +67,15 @@ watch(
 const canSubmit = computed(() => selectedDwellerIds.value.length > 0)
 
 const availableDwellers = computed(() => {
-  // Filter out dwellers already in other quests (excluding current quest's party)
-  return props.dwellers.filter((dweller) => {
+  // FIX: Only show eligible dwellers from API - no fallback to all dwellers
+  // This enforces quest requirements (level, items, etc.)
+  const baseDwellers = eligibleDwellers.value.length > 0 ? eligibleDwellers.value : []
+
+  return baseDwellers.filter((dweller) => {
     // Include if already selected for this quest
     if (selectedDwellerIds.value.includes(dweller.id)) return true
 
     // Only show idle or working dwellers (not on other quests)
-    // Note: In a real implementation, we'd check if they're on another quest
     return dweller.status === 'idle' || dweller.status === 'working'
   })
 })
@@ -93,12 +122,17 @@ const handleAssign = () => {
 const handleStart = () => {
   emit('start')
 }
+
+const handleAssignAndStart = () => {
+  emit('assign', selectedDwellerIds.value)
+  emit('start')
+}
 </script>
 
 <template>
   <UModal
     :model-value="modelValue"
-    :title="quest ? `Assign Party: ${quest.title}` : 'Assign Party'"
+    :title="quest ? `Start Quest: ${quest.title}` : 'Start Quest'"
     size="lg"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -139,8 +173,14 @@ const handleStart = () => {
         <div class="dwellers-label">
           <Icon icon="mdi:account-search" class="inline-icon" />
           Available Dwellers
+          <span v-if="isLoadingEligible" class="loading-text">(Loading...)</span>
+          <span v-else-if="eligibleDwellers.length > 0" class="eligible-badge">(Level Requirements Met)</span>
         </div>
-        <div class="dwellers-list">
+        <div v-if="isLoadingEligible" class="loading-dwellers">
+          <Icon icon="mdi:loading" class="loading-icon spin" />
+          <p>Checking dweller eligibility...</p>
+        </div>
+        <div v-else class="dwellers-list">
           <div
             v-for="dweller in availableDwellers"
             :key="dweller.id"
@@ -170,8 +210,9 @@ const handleStart = () => {
 
           <div v-if="availableDwellers.length === 0" class="no-dwellers">
             <Icon icon="mdi:account-off" class="no-dwellers-icon" />
-            <p>No available dwellers found</p>
-            <p class="hint">Build more living quarters to get more dwellers</p>
+            <p v-if="eligibleDwellersError">{{ eligibleDwellersError }}</p>
+            <p v-else>No available dwellers found</p>
+            <p v-if="!eligibleDwellersError" class="hint">Build more living quarters to get more dwellers</p>
           </div>
         </div>
       </div>
@@ -186,9 +227,9 @@ const handleStart = () => {
     <template #footer>
       <div class="modal-actions">
         <UButton variant="secondary" @click="close"> Cancel </UButton>
-        <UButton variant="primary" :disabled="!canSubmit" @click="handleAssign">
+        <UButton variant="primary" :disabled="!canSubmit" @click="handleAssignAndStart">
           <Icon icon="mdi:check" class="btn-icon" />
-          Assign Party
+          Start Quest
         </UButton>
       </div>
     </template>
@@ -423,5 +464,37 @@ const handleStart = () => {
 
 .btn-icon {
   margin-right: 8px;
+}
+
+.loading-text {
+  font-size: 0.8rem;
+  color: var(--color-theme-accent);
+  font-weight: normal;
+}
+
+.eligible-badge {
+  font-size: 0.8rem;
+  color: #00ff00;
+  font-weight: normal;
+}
+
+.loading-dwellers {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--color-theme-primary);
+}
+
+.loading-icon {
+  font-size: 2rem;
+  margin-bottom: 12px;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>

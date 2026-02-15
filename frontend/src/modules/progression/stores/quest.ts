@@ -46,6 +46,11 @@ export const useQuestStore = defineStore('quest', () => {
     vaultQuests.value.filter((quest) => quest.is_visible && quest.started_at == null && !quest.is_completed)
   )
 
+  // All visible quests (for "show all" toggle)
+  const allVisibleQuests = computed(() =>
+    vaultQuests.value.filter((quest) => quest.is_visible)
+  )
+
   // Actions
   async function fetchAllQuests(): Promise<void> {
     try {
@@ -180,6 +185,25 @@ export const useQuestStore = defineStore('quest', () => {
     }
   }
 
+  interface EligibleDweller {
+    id: string
+    first_name: string
+    last_name: string | null
+    level: number
+    rarity: string
+  }
+
+  async function getEligibleDwellers(vaultId: string, questId: string): Promise<EligibleDweller[]> {
+    try {
+      const url = `/api/v1/quests/${vaultId}/${questId}/eligible-dwellers`
+      const response = await axios.get<EligibleDweller[]>(url)
+      return response.data
+    } catch (error: unknown) {
+      console.error('Failed to fetch eligible dwellers:', error)
+      throw error
+    }
+  }
+
   async function startQuest(vaultId: string, questId: string): Promise<void> {
     try {
       await axios.post(`/api/v1/quests/${vaultId}/${questId}/start`)
@@ -202,6 +226,7 @@ export const useQuestStore = defineStore('quest', () => {
     questPartyMap,
     activeQuests,
     availableQuests,
+    allVisibleQuests,
     completedQuests,
     fetchAllQuests,
     fetchVaultQuests,
@@ -211,6 +236,7 @@ export const useQuestStore = defineStore('quest', () => {
     completeQuest,
     assignParty,
     getParty,
+    getEligibleDwellers,
     startQuest,
   }
 })

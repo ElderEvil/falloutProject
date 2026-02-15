@@ -7,15 +7,20 @@ const authFile = join(__dirname, '../.auth/user.json')
 
 setup('authenticate', async ({ page }) => {
   await page.goto('/login')
-  await expect(page).toHaveTitle(/Login|Authenticate|Sign/i)
+  await page.waitForLoadState('networkidle')
 
   const emailInput = page.getByLabel(/email/i)
+  const isLoginPage = await emailInput.count() > 0
+
+  if (!isLoginPage) {
+    await page.context().storageState({ path: authFile })
+    return
+  }
+
+  await expect(page).toHaveTitle(/Login|Authenticate|Sign/i)
+
   const passwordInput = page.getByLabel(/password/i)
   const submitButton = page.getByRole('button', { name: /sign.?in|login|enter/i })
-
-  if (await emailInput.count() === 0) {
-    throw new Error('Login form not found — email input is missing. Cannot create authenticated storage state.')
-  }
 
   if (await passwordInput.count() === 0) {
     throw new Error('Login form not found — password input is missing. Cannot create authenticated storage state.')

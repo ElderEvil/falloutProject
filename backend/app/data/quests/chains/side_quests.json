@@ -1,0 +1,99 @@
+{
+  "chain_id": "side_quests",
+  "chain_name": "Side Quests",
+  "chain_description": "Quick side quests for extra rewards",
+  "quests": [
+    {
+      "quest_name": "Gather Supplies",
+      "short_description": "Collect basic resources for your vault.",
+      "long_description": "Your vault needs basic supplies. Gather 100 caps to help your vault thrive.",
+      "requirements": "1 Dweller",
+      "quest_type": "side",
+      "quest_category": "collection",
+      "chain_order": 1,
+      "quest_requirements": [
+        {
+          "requirement_type": "DWELLER_COUNT",
+          "requirement_data": {"count": 1},
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 50},
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Build Living Quarters",
+      "short_description": "Build a room for your dwellers.",
+      "long_description": "Your dwellers need a place to live. Build a Living Quarter to accommodate more dwellers.",
+      "requirements": "1 Living Quarter",
+      "quest_type": "side",
+      "quest_category": "building",
+      "chain_order": 2,
+      "quest_requirements": [
+        {
+          "requirement_type": "ROOM",
+          "requirement_data": {"room_type": "living_quarter", "count": 1},
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 100},
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Expand Population",
+      "short_description": "Grow your vault population.",
+      "long_description": "A vault needs dwellers. Reach a population of 5 dwellers.",
+      "requirements": "5 Dwellers",
+      "quest_type": "side",
+      "quest_category": "population",
+      "chain_order": 3,
+      "quest_requirements": [
+        {
+          "requirement_type": "DWELLER_COUNT",
+          "requirement_data": {"count": 5},
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 75},
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Level Up",
+      "short_description": "Train your dwellers to level 2.",
+      "long_description": "Train your dwellers to improve their skills. Reach level 2 with any dweller.",
+      "requirements": "Level 2 Dweller",
+      "quest_type": "side",
+      "quest_category": "training",
+      "chain_order": 4,
+      "quest_requirements": [
+        {
+          "requirement_type": "LEVEL",
+          "requirement_data": {"level": 2, "count": 1},
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 150},
+          "reward_chance": 1.0
+        }
+      ]
+    }
+  ]
+}

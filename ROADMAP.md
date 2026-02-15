@@ -28,6 +28,28 @@ AI-powered dweller interactions.
 
 **Note:** Quest UI was already implemented - just fixed the seeding bugs that prevented it from working.
 
+### v2.10.6 - Medical Storage System (Planned)
+
+**Focus**: Stimpaks and Radaways vault storage with production from Medbay/Science Lab
+
+**Planned:**
+- [ ] **Vault Storage for Medical Items** - Add stimpaks and radaways to vault storage
+  - New storage model fields: `stimpaks`, `radaways`
+  - Max capacity calculated from Medbay/Science Lab rooms (number + tier)
+  - UI: Show medical items in Storage view
+- [ ] **Medbay Production** - Medbay rooms produce stimpaks over time
+  - Production rate based on room tier
+  - Produced items go directly to vault storage
+- [ ] **Science Lab Production** - Science Lab rooms produce radaways over time
+  - Production rate based on room tier
+  - Produced items go directly to vault storage
+- [ ] **Exploration Integration** - Dwellers can equip stimpaks/radaways from storage before exploration
+  - Show available stimpaks/radaways in exploration preparation UI
+  - Deduct from storage when dweller takes them
+- [ ] **Objectives Support** - "Collect X Stimpaks/Radaways" objectives work with storage
+
+---
+
 ### v2.10.3 - Frontend Cleanup (February 13, 2026)
 
 **Focus**: Fixed type errors and lint warnings
@@ -721,6 +743,7 @@ watch(() => userStore.caps, (caps) => {
 
 | Version | Release      | Highlights                             |
 |---------|--------------|----------------------------------------|
+| v2.10.6 | Planned      | Medical storage (stimpaks/radaways)    |
 | v2.10.4 | Feb 13, 2026 | Quest seeding fixes, UI verified       |
 | v2.10.3 | Feb 13, 2026 | Frontend typecheck fixes               |
 | v2.10.0 | Feb 10, 2026 | Quest & Objective system launch         |

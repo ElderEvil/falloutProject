@@ -9,12 +9,11 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.api.game_data_deps import get_static_game_data
 from app.crud import dweller as dweller_crud
 from app.crud import room as room_crud
-from app.crud.objective import objective_crud
 from app.crud.vault import vault as vault_crud
 from app.models import Room
 from app.models.vault import Vault
 from app.models.vault_objective import VaultObjectiveProgressLink
-from app.schemas.common import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
+from app.schemas.common import DwellerStatusEnum, GenderEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreateCommonOverride, DwellerUpdate
 from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultNumber, VaultUpdate
@@ -93,6 +92,12 @@ class VaultService:
             RoomCreate(**water_treatment_data),
         ]
 
+        # Add Medbay and Science Lab for boosted (produce stimpaks/radaways)
+        if is_boosted:
+            medbay_data = self._prepare_room_data(rooms, "medbay", vault_id, 7, 1)
+            science_lab_data = self._prepare_room_data(rooms, "science lab", vault_id, 7, 2)
+            production_rooms.extend([RoomCreate(**medbay_data), RoomCreate(**science_lab_data)])
+
         # Miscellaneous rooms
         radio_studio_data = self._prepare_room_data(rooms, "radio studio", vault_id, 2, 3)
         misc_rooms = [RoomCreate(**radio_studio_data)]
@@ -130,15 +135,17 @@ class VaultService:
         production_rooms: list[RoomCreate],
         misc_rooms: list[RoomCreate],
         training_rooms: list[RoomCreate],
-    ) -> tuple[Vault, list[Room], list[Room]]:
+    ) -> tuple[Vault, list[Room], list[Room], list[Room], list[Room]]:
         """Create all rooms for a new vault and return production/training rooms."""
         # Create infrastructure rooms
         for room_data in infrastructure_rooms:
             await room_crud.create(db_session, room_data)
 
         # Create capacity rooms and update vault max capacities
+        created_capacity_rooms = []
         for room_data in capacity_rooms:
             created_room = await room_crud.create(db_session, room_data)
+            created_capacity_rooms.append(created_room)
             # Update vault capacities based on new rooms
             if created_room.category == RoomTypeEnum.CAPACITY:
                 # Check room name to determine what capacity to increase
@@ -177,8 +184,10 @@ class VaultService:
                     vault.water_max += created_room.capacity
 
         # Create misc rooms
+        created_misc_rooms = []
         for room_data in misc_rooms:
-            await room_crud.create(db_session, room_data)
+            created_room = await room_crud.create(db_session, room_data)
+            created_misc_rooms.append(created_room)
 
         # Create training rooms
         created_training_rooms = []
@@ -190,10 +199,10 @@ class VaultService:
 
         # Refresh vault and room objects
         await db_session.refresh(vault)
-        for room in created_production_rooms + created_training_rooms:
+        for room in created_production_rooms + created_training_rooms + created_misc_rooms + created_capacity_rooms:
             await db_session.refresh(room)
 
-        return vault, created_production_rooms, created_training_rooms
+        return vault, created_production_rooms, created_training_rooms, created_misc_rooms, created_capacity_rooms
 
     async def _create_initial_dwellers(
         self,
@@ -201,6 +210,8 @@ class VaultService:
         vault_id: UUID4,
         created_production_rooms: list[Room],
         created_training_rooms: list[Room],
+        created_misc_rooms: list[Room],
+        created_capacity_rooms: list[Room],
         is_boosted: bool,
     ) -> None:
         """Create and assign initial dwellers to production and training rooms."""
@@ -228,6 +239,33 @@ class VaultService:
                 )
                 self.logger.info(f"Dweller {dweller_obj.id} assigned to room {room.id}")
 
+            # Medbay and Science Lab dwellers (boosted only, Intelligence-based)
+            if is_boosted and len(created_production_rooms) >= 5:
+                medbay_room = created_production_rooms[3]  # 4th room is Medbay
+                science_lab_room = created_production_rooms[4]  # 5th room is Science Lab
+
+                # Create 2 dwellers for Medbay
+                for _ in range(2):
+                    dweller_data = DwellerCreateCommonOverride(special_boost=SPECIALEnum.INTELLIGENCE)
+                    dweller_obj = await dweller_crud.create_random(db_session, vault_id, dweller_data)
+                    await dweller_crud.update(
+                        db_session=db_session,
+                        id=dweller_obj.id,
+                        obj_in=DwellerUpdate(room_id=medbay_room.id, status=DwellerStatusEnum.WORKING),
+                    )
+                    self.logger.info(f"Dweller {dweller_obj.id} assigned to Medbay")
+
+                # Create 2 dwellers for Science Lab
+                for _ in range(2):
+                    dweller_data = DwellerCreateCommonOverride(special_boost=SPECIALEnum.INTELLIGENCE)
+                    dweller_obj = await dweller_crud.create_random(db_session, vault_id, dweller_data)
+                    await dweller_crud.update(
+                        db_session=db_session,
+                        id=dweller_obj.id,
+                        obj_in=DwellerUpdate(room_id=science_lab_room.id, status=DwellerStatusEnum.WORKING),
+                    )
+                    self.logger.info(f"Dweller {dweller_obj.id} assigned to Science Lab")
+
             # Training dwellers (boosted only)
             if is_boosted:
                 training_stats = [
@@ -254,6 +292,45 @@ class VaultService:
                             obj_in=DwellerUpdate(room_id=room.id, status=DwellerStatusEnum.IDLE),
                         )
                         self.logger.info(f"Dweller {dweller_obj.id} assigned to training room {room.id}")
+
+            # Radio studio dweller (Charisma-based, for recruitment)
+            if created_misc_rooms:
+                radio_room = next((r for r in created_misc_rooms if "radio" in r.name.lower()), None)
+                if radio_room:
+                    dweller_data = DwellerCreateCommonOverride(special_boost=SPECIALEnum.CHARISMA)
+                    dweller_obj = await dweller_crud.create_random(db_session, vault_id, dweller_data)
+                    await dweller_crud.update(
+                        db_session=db_session,
+                        id=dweller_obj.id,
+                        obj_in=DwellerUpdate(room_id=radio_room.id, status=DwellerStatusEnum.WORKING),
+                    )
+                    self.logger.info(f"Dweller {dweller_obj.id} assigned to Radio Studio")
+
+            # Living quarters dwellers (opposite genders for birth testing)
+            living_rooms = [r for r in created_capacity_rooms if "living" in r.name.lower()]
+            if living_rooms:
+                # Create one male and one female dweller in the first living room
+                living_room = living_rooms[0]
+
+                # Create male dweller
+                male_dweller_data = DwellerCreateCommonOverride(gender=GenderEnum.MALE)
+                male_dweller = await dweller_crud.create_random(db_session, vault_id, male_dweller_data)
+                await dweller_crud.update(
+                    db_session=db_session,
+                    id=male_dweller.id,
+                    obj_in=DwellerUpdate(room_id=living_room.id, status=DwellerStatusEnum.IDLE),
+                )
+                self.logger.info(f"Male dweller {male_dweller.id} assigned to living quarters for birth testing")
+
+                # Create female dweller
+                female_dweller_data = DwellerCreateCommonOverride(gender=GenderEnum.FEMALE)
+                female_dweller = await dweller_crud.create_random(db_session, vault_id, female_dweller_data)
+                await dweller_crud.update(
+                    db_session=db_session,
+                    id=female_dweller.id,
+                    obj_in=DwellerUpdate(room_id=living_room.id, status=DwellerStatusEnum.IDLE),
+                )
+                self.logger.info(f"Female dweller {female_dweller.id} assigned to living quarters for birth testing")
 
         except Exception:
             self.logger.exception("Failed to create dwellers")
@@ -316,20 +393,67 @@ class VaultService:
             self.logger.error(f"Failed to start training sessions: {e}", exc_info=True)  # noqa: G201
             raise
 
-    async def _assign_initial_objectives(self, db_session: AsyncSession, vault_id: UUID4) -> None:
-        """Assign a few initial objectives to a new vault.
+    async def _assign_initial_objectives(
+        self, db_session: AsyncSession, vault_id: UUID4, is_boosted: bool = False
+    ) -> None:
+        """Assign initial objectives to a new vault.
 
-        Uses only complete objectives (with all automation fields set) to ensure
-        proper progress tracking.
+        Standard vaults get 1 daily and 1 weekly objective.
+        Boosted vaults get additional achievement objectives (weapons, outfits, stimpaks, etc.)
         """
         try:
-            objectives = await objective_crud.get_multi_complete(db_session, skip=0, limit=5)
+            from sqlmodel import select
 
-            if not objectives:
-                self.logger.warning("No complete objectives found for vault %s", vault_id)
-                return
+            from app.models.objective import Objective
 
-            for objective in objectives:
+            assigned_count = 0
+            assigned_types = []
+            objectives_to_assign = []
+
+            # Get 1 daily objective
+            daily_result = await db_session.execute(
+                select(Objective)
+                .where(Objective.challenge.ilike("%daily%"))
+                .where(Objective.objective_type.isnot(None))
+                .order_by(Objective.id)
+                .limit(1)
+            )
+            daily_objective = daily_result.scalar_one_or_none()
+            if daily_objective:
+                objectives_to_assign.append(daily_objective)
+                assigned_types.append("daily")
+
+            # Get 1 weekly objective
+            weekly_result = await db_session.execute(
+                select(Objective)
+                .where(Objective.challenge.ilike("%weekly%"))
+                .where(Objective.objective_type.isnot(None))
+                .order_by(Objective.id)
+                .limit(1)
+            )
+            weekly_objective = weekly_result.scalar_one_or_none()
+            if weekly_objective:
+                objectives_to_assign.append(weekly_objective)
+                assigned_types.append("weekly")
+
+            # For boosted vaults, add achievement objectives (collection, build, etc.)
+            if is_boosted:
+                # Get basic objectives (non-daily, non-weekly) with different types
+                basic_result = await db_session.execute(
+                    select(Objective)
+                    .where(Objective.challenge.not_ilike("%daily%"))
+                    .where(Objective.challenge.not_ilike("%weekly%"))
+                    .where(Objective.objective_type.isnot(None))
+                    .order_by(Objective.id)
+                    .limit(8)
+                )
+                basic_objectives = basic_result.scalars().all()
+                objectives_to_assign.extend(basic_objectives)
+                if basic_objectives:
+                    assigned_types.append(f"{len(basic_objectives)} achievement")
+
+            # Assign all objectives
+            for objective in objectives_to_assign:
                 link = VaultObjectiveProgressLink(
                     vault_id=vault_id,
                     objective_id=objective.id,
@@ -338,9 +462,16 @@ class VaultService:
                     is_completed=False,
                 )
                 db_session.add(link)
+                assigned_count += 1
 
-            await db_session.commit()
-            self.logger.info("Assigned %d initial objectives to vault %s", len(objectives), vault_id)
+            if assigned_count > 0:
+                await db_session.commit()
+                types_str = ", ".join(assigned_types) if assigned_types else "objectives"
+                self.logger.info(
+                    "Assigned %d initial objective(s) (%s) to vault %s", assigned_count, types_str, vault_id
+                )
+            else:
+                self.logger.warning("No objectives found for vault %s", vault_id)
         except SQLAlchemyError as e:
             self.logger.warning("Failed to assign initial objectives to vault %s: %s", vault_id, e)
 
@@ -379,8 +510,14 @@ class VaultService:
             self._prepare_initial_rooms(rooms, vault_db_obj.id, is_boosted)
         )
 
-        # Create rooms and get created production/training rooms
-        vault_db_obj, created_production_rooms, created_training_rooms = await self._create_initial_rooms(
+        # Create rooms and get created production/training/misc rooms
+        (
+            vault_db_obj,
+            created_production_rooms,
+            created_training_rooms,
+            created_misc_rooms,
+            created_capacity_rooms,
+        ) = await self._create_initial_rooms(
             db_session, vault_db_obj, infrastructure_rooms, capacity_rooms, production_rooms, misc_rooms, training_rooms
         )
 
@@ -396,7 +533,13 @@ class VaultService:
 
         # Create and assign dwellers
         await self._create_initial_dwellers(
-            db_session, vault_db_obj.id, created_production_rooms, created_training_rooms, is_boosted
+            db_session,
+            vault_db_obj.id,
+            created_production_rooms,
+            created_training_rooms,
+            created_misc_rooms,
+            created_capacity_rooms,
+            is_boosted,
         )
 
         # Commit to ensure all dwellers and rooms are persisted before starting training
@@ -405,8 +548,8 @@ class VaultService:
         # Start training sessions for boosted vaults
         await self._start_training_sessions(db_session, vault_db_obj.id, created_training_rooms, is_boosted)
 
-        # Assign initial objectives to the vault
-        await self._assign_initial_objectives(db_session, vault_db_obj.id)
+        # Assign initial objectives to the vault (boosted vaults get more objectives)
+        await self._assign_initial_objectives(db_session, vault_db_obj.id, is_boosted)
 
         return vault_db_obj
 

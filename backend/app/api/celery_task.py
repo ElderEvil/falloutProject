@@ -41,6 +41,12 @@ def game_tick_task(self):
             from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
             from app.core.config import settings
+            from app.services.objective_evaluators import evaluator_manager
+            from app.services.objective_notifications import register_objective_event_handlers
+
+            # Initialize objective evaluators (Celery runs in separate process)
+            evaluator_manager.initialize()
+            register_objective_event_handlers()
 
             engine = create_async_engine(
                 str(settings.ASYNC_DATABASE_URI),
@@ -79,6 +85,12 @@ def process_vault_tick_task(self, vault_id: str):
             from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
             from app.core.config import settings
+            from app.services.objective_evaluators import evaluator_manager
+            from app.services.objective_notifications import register_objective_event_handlers
+
+            # Initialize objective evaluators (Celery runs in separate process)
+            evaluator_manager.initialize()
+            register_objective_event_handlers()
 
             engine = create_async_engine(
                 str(settings.ASYNC_DATABASE_URI),
@@ -95,9 +107,9 @@ def process_vault_tick_task(self, vault_id: str):
                 await engine.dispose()
 
         result = asyncio.run(run_vault_tick())
-    except Exception as e:
+    except Exception:
         logger.exception(f"Vault {vault_id} tick failed")
-        raise self.retry(exc=e, countdown=30)  # noqa: B904
+        raise self.retry(exc=vault_id, countdown=30)  # noqa: B904
     else:
         logger.info(f"Vault {vault_id} tick completed")
         return result

@@ -157,10 +157,18 @@ class CollectEvaluator(ObjectiveEvaluator):
         target = objective.target_entity or {}
 
         if event_type == GameEvent.RESOURCE_COLLECTED:
-            return data.get("resource_type") == target.get("resource_type")
+            target_resource = target.get("resource_type")
+            # Wildcard matches any resource ("*", "any", or null)
+            if not target_resource or target_resource in ("*", "any"):
+                return True
+            return data.get("resource_type") == target_resource
 
         if event_type == GameEvent.ITEM_COLLECTED:
-            return data.get("item_type") == target.get("item_type")
+            target_item = target.get("item_type")
+            # Wildcard matches any item ("*", "any", or null)
+            if not target_item or target_item in ("*", "any"):
+                return True
+            return data.get("item_type") == target_item
 
         return False
 
@@ -182,10 +190,17 @@ class BuildEvaluator(ObjectiveEvaluator):
         target = objective.target_entity or {}
         target_room_type = target.get("room_type")
 
-        if not target_room_type or target_room_type == "*":
+        # Wildcard matches any room ("*", "any", or null)
+        if not target_room_type or target_room_type in ("*", "any"):
             return True
 
-        return data.get("room_type") == target_room_type
+        # Normalize both to snake_case for comparison
+        # Event data has room name (e.g., "Living Quarters")
+        # Objective target uses snake_case (e.g., "living_quarters")
+        event_room_type = data.get("room_type", "").lower().replace(" ", "_")
+        target_normalized = target_room_type.lower().replace(" ", "_")
+
+        return event_room_type == target_normalized
 
     def _extract_amount(self, data: dict[str, Any]) -> int:  # noqa: ARG002
         return 1
@@ -253,9 +268,10 @@ class ReachEvaluator(ObjectiveEvaluator):
 
     def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:  # noqa: ARG002
         target = objective.target_entity or {}
-        target_type = target.get("reach_type")
+        target_type = target.get("reach_type") or target.get("target")
 
-        if target_type == "dweller_count":
+        # Handle various target type keys
+        if target_type in ("dweller_count", "population"):
             return event_type == GameEvent.DWELLER_ASSIGNED
 
         if target_type == "level":
@@ -273,9 +289,9 @@ class ReachEvaluator(ObjectiveEvaluator):
     ) -> None:
         """Override: 'reach' objectives use absolute values from event data."""
         target = objective.target_entity or {}
-        target_type = target.get("reach_type")
+        target_type = target.get("reach_type") or target.get("target")
 
-        if target_type == "dweller_count":
+        if target_type in ("dweller_count", "population"):
             current_value = await self._get_dweller_count(db_session, vault_id)
         elif target_type == "level":
             current_value = amount

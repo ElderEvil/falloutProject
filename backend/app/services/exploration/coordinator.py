@@ -388,7 +388,9 @@ class ExplorationCoordinator:
         # Transfer loot items to vault storage (with space validation)
         transfer_result = await self._transfer_loot_to_storage(db_session, exploration)
 
-        # Emit stimpak collection events
+        await db_session.commit()
+
+        # Emit stimpak and radaway collection events after commit
         if exploration.stimpaks > 0:
             await event_bus.emit(
                 GameEvent.ITEM_COLLECTED,
@@ -396,7 +398,12 @@ class ExplorationCoordinator:
                 {"item_type": "stimpak", "amount": exploration.stimpaks},
             )
 
-        await db_session.commit()
+        if exploration.radaways > 0:
+            await event_bus.emit(
+                GameEvent.ITEM_COLLECTED,
+                exploration.vault_id,
+                {"item_type": "radaway", "amount": exploration.radaways},
+            )
 
         return RewardsSchema(
             caps=total_caps,

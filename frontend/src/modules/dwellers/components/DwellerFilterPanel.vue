@@ -31,7 +31,6 @@ const statusOptions = [
   { value: 'training', label: 'Training', icon: 'mdi:dumbbell' },
   { value: 'exploring', label: 'Exploring', icon: 'mdi:compass-outline' },
   { value: 'questing', label: 'Questing', icon: 'mdi:sword-cross' },
-  { value: 'resting', label: 'Resting', icon: 'mdi:sleep' },
   { value: 'dead', label: 'Dead', icon: 'mdi:skull' },
 ]
 

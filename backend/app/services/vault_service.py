@@ -199,7 +199,7 @@ class VaultService:
 
         # Refresh vault and room objects
         await db_session.refresh(vault)
-        for room in created_production_rooms + created_training_rooms + created_misc_rooms:
+        for room in created_production_rooms + created_training_rooms + created_misc_rooms + created_capacity_rooms:
             await db_session.refresh(room)
 
         return vault, created_production_rooms, created_training_rooms, created_misc_rooms, created_capacity_rooms

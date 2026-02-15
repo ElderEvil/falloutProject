@@ -355,3 +355,171 @@ async def test_evaluator_already_completed(
     await async_session.refresh(link)
     assert link.progress == 100
     assert link.is_completed is True
+
+
+@pytest.mark.asyncio
+async def test_collect_evaluator_item_collected_weapon(
+    async_session: AsyncSession,
+    fresh_event_bus,
+    patched_session_maker,
+) -> None:
+    """Test CollectEvaluator updates progress on weapon collection."""
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault_data = create_fake_vault()
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+
+    # Create objective
+    objective = Objective(
+        challenge="Collect 3 weapons",
+        reward="300 caps",
+        objective_type="collect",
+        target_entity={"item_type": "weapon"},
+        target_amount=3,
+    )
+    async_session.add(objective)
+    await async_session.commit()
+    await async_session.refresh(objective)
+
+    # Create progress link
+    link = VaultObjectiveProgressLink(
+        vault_id=vault.id, objective_id=objective.id, progress=0, total=3, is_completed=False
+    )
+    async_session.add(link)
+    await async_session.commit()
+
+    # Create evaluator
+    CollectEvaluator(fresh_event_bus)
+
+    # Emit item collected event for weapon
+    await fresh_event_bus.emit(GameEvent.ITEM_COLLECTED, vault.id, {"item_type": "weapon", "amount": 1})
+
+    # Refresh and check progress
+    await async_session.refresh(link)
+    assert link.progress == 1
+
+
+@pytest.mark.asyncio
+async def test_collect_evaluator_item_collected_outfit(
+    async_session: AsyncSession,
+    fresh_event_bus,
+    patched_session_maker,
+) -> None:
+    """Test CollectEvaluator updates progress on outfit collection."""
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault_data = create_fake_vault()
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+
+    # Create objective
+    objective = Objective(
+        challenge="Collect 3 outfits",
+        reward="300 caps",
+        objective_type="collect",
+        target_entity={"item_type": "outfit"},
+        target_amount=3,
+    )
+    async_session.add(objective)
+    await async_session.commit()
+    await async_session.refresh(objective)
+
+    # Create progress link
+    link = VaultObjectiveProgressLink(
+        vault_id=vault.id, objective_id=objective.id, progress=0, total=3, is_completed=False
+    )
+    async_session.add(link)
+    await async_session.commit()
+
+    # Create evaluator
+    CollectEvaluator(fresh_event_bus)
+
+    # Emit item collected event for outfit
+    await fresh_event_bus.emit(GameEvent.ITEM_COLLECTED, vault.id, {"item_type": "outfit", "amount": 1})
+
+    # Refresh and check progress
+    await async_session.refresh(link)
+    assert link.progress == 1
+
+
+@pytest.mark.asyncio
+async def test_collect_evaluator_item_collected_stimpak(
+    async_session: AsyncSession,
+    fresh_event_bus,
+    patched_session_maker,
+) -> None:
+    """Test CollectEvaluator updates progress on stimpak collection."""
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault_data = create_fake_vault()
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+
+    # Create objective
+    objective = Objective(
+        challenge="Collect 5 stimpaks",
+        reward="250 caps",
+        objective_type="collect",
+        target_entity={"item_type": "stimpak"},
+        target_amount=5,
+    )
+    async_session.add(objective)
+    await async_session.commit()
+    await async_session.refresh(objective)
+
+    # Create progress link
+    link = VaultObjectiveProgressLink(
+        vault_id=vault.id, objective_id=objective.id, progress=0, total=5, is_completed=False
+    )
+    async_session.add(link)
+    await async_session.commit()
+
+    # Create evaluator
+    CollectEvaluator(fresh_event_bus)
+
+    # Emit item collected event for stimpak (collecting 2 at once)
+    await fresh_event_bus.emit(GameEvent.ITEM_COLLECTED, vault.id, {"item_type": "stimpak", "amount": 2})
+
+    # Refresh and check progress
+    await async_session.refresh(link)
+    assert link.progress == 2
+
+
+@pytest.mark.asyncio
+async def test_collect_evaluator_item_wrong_type(
+    async_session: AsyncSession,
+    fresh_event_bus,
+    patched_session_maker,
+) -> None:
+    """Test CollectEvaluator ignores wrong item type."""
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault_data = create_fake_vault()
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+
+    # Create objective for weapons only
+    objective = Objective(
+        challenge="Collect 3 weapons",
+        reward="300 caps",
+        objective_type="collect",
+        target_entity={"item_type": "weapon"},
+        target_amount=3,
+    )
+    async_session.add(objective)
+    await async_session.commit()
+    await async_session.refresh(objective)
+
+    # Create progress link
+    link = VaultObjectiveProgressLink(
+        vault_id=vault.id, objective_id=objective.id, progress=0, total=3, is_completed=False
+    )
+    async_session.add(link)
+    await async_session.commit()
+
+    # Create evaluator
+    CollectEvaluator(fresh_event_bus)
+
+    # Emit item collected event for outfit (should not count)
+    await fresh_event_bus.emit(GameEvent.ITEM_COLLECTED, vault.id, {"item_type": "outfit", "amount": 1})
+
+    # Refresh and check progress unchanged
+    await async_session.refresh(link)
+    assert link.progress == 0

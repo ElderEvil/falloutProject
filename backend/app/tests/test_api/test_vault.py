@@ -370,12 +370,12 @@ async def test_auto_assign_training_room_sets_training_status(
 
 
 @pytest.mark.asyncio
-async def test_vault_initiate_normal_creates_6_dwellers(
+async def test_vault_initiate_normal_creates_9_dwellers(
     async_client: AsyncClient,
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ):
-    """Test that normal vault initialization creates 6 dwellers."""
+    """Test that normal vault initialization creates 9 dwellers (6 production + 1 radio + 2 birth testing)."""
     from uuid import UUID
 
     vault_number = {"number": 100}
@@ -386,16 +386,16 @@ async def test_vault_initiate_normal_creates_6_dwellers(
     vault_with_counts = await crud.vault.get_vault_with_room_and_dweller_count(
         db_session=async_session, vault_id=vault_id
     )
-    assert vault_with_counts.dweller_count == 6, f"Expected 6 dwellers, got {vault_with_counts.dweller_count}"
+    assert vault_with_counts.dweller_count == 9, f"Expected 9 dwellers, got {vault_with_counts.dweller_count}"
 
 
 @pytest.mark.asyncio
-async def test_vault_initiate_boosted_creates_13_dwellers(
+async def test_vault_initiate_boosted_creates_20_dwellers(
     async_client: AsyncClient,
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ):
-    """Test that boosted vault initialization creates 13 dwellers."""
+    """Test that boosted vault initialization creates 20 dwellers (10 production + 1 radio + 2 birth + 7 training)."""
     from uuid import UUID
 
     vault_number = {"number": 101, "boosted": True}
@@ -406,16 +406,16 @@ async def test_vault_initiate_boosted_creates_13_dwellers(
     vault_with_counts = await crud.vault.get_vault_with_room_and_dweller_count(
         db_session=async_session, vault_id=vault_id
     )
-    assert vault_with_counts.dweller_count == 13, f"Expected 13 dwellers, got {vault_with_counts.dweller_count}"
+    assert vault_with_counts.dweller_count == 20, f"Expected 20 dwellers, got {vault_with_counts.dweller_count}"
 
 
 @pytest.mark.asyncio
-async def test_vault_initiate_superuser_creates_13_dwellers(
+async def test_vault_initiate_superuser_creates_20_dwellers(
     async_client: AsyncClient,
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ):
-    """Test that superuser vault initialization creates 13 dwellers (parity with boosted)."""
+    """Test that superuser vault initialization creates 20 dwellers (parity with boosted)."""
     from uuid import UUID
 
     vault_number = {"number": 202}
@@ -426,8 +426,8 @@ async def test_vault_initiate_superuser_creates_13_dwellers(
     vault_with_counts = await crud.vault.get_vault_with_room_and_dweller_count(
         db_session=async_session, vault_id=vault_id
     )
-    assert vault_with_counts.dweller_count == 13, (
-        f"Expected 13 dwellers for superuser, got {vault_with_counts.dweller_count}"
+    assert vault_with_counts.dweller_count == 20, (
+        f"Expected 20 dwellers for superuser, got {vault_with_counts.dweller_count}"
     )
 
 
@@ -461,5 +461,5 @@ async def test_vault_initiate_boosted_and_superuser_parity(
     superuser_vault = await crud.vault.get_vault_with_room_and_dweller_count(
         db_session=async_session, vault_id=superuser_vault_id
     )
-    assert boosted_vault.dweller_count == 13, f"Expected 13 dwellers, got {boosted_vault.dweller_count}"
-    assert superuser_vault.dweller_count == 13, f"Expected 13 dwellers, got {superuser_vault.dweller_count}"
+    assert boosted_vault.dweller_count == 20, f"Expected 20 dwellers, got {boosted_vault.dweller_count}"
+    assert superuser_vault.dweller_count == 20, f"Expected 20 dwellers, got {superuser_vault.dweller_count}"

@@ -58,6 +58,11 @@ onMounted(async () => {
     }
     try {
       await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
+
+      // Fetch full dweller data for explorers (includes weapon/outfit)
+      for (const exploration of activeExplorationsArray.value) {
+        await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
+      }
     } catch (error) {
       console.error('Failed to load explorations:', error)
     }
@@ -105,14 +110,20 @@ const getDwellerById = (dwellerId: string) => {
   return dwellerStore.dwellers.find((d) => d.id === dwellerId)
 }
 
+const getDetailedDweller = (dwellerId: string) => {
+  return dwellerStore.detailedDwellers[dwellerId] || null
+}
+
 const getDwellerWeapon = (dwellerId: string) => {
-  const dweller = getDwellerById(dwellerId)
-  return dweller?.weapon || null
+  const detailed = getDetailedDweller(dwellerId)
+  if (detailed?.weapon) return detailed.weapon
+  return null
 }
 
 const getDwellerOutfit = (dwellerId: string) => {
-  const dweller = getDwellerById(dwellerId)
-  return dweller?.outfit || null
+  const detailed = getDetailedDweller(dwellerId)
+  if (detailed?.outfit) return detailed.outfit
+  return null
 }
 
 const handleDragOver = (event: DragEvent) => {

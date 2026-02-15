@@ -13,7 +13,7 @@ from app.crud.vault import vault as vault_crud
 from app.models import Room
 from app.models.vault import Vault
 from app.models.vault_objective import VaultObjectiveProgressLink
-from app.schemas.common import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
+from app.schemas.common import DwellerStatusEnum, GenderEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreateCommonOverride, DwellerUpdate
 from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultNumber, VaultUpdate
@@ -311,7 +311,6 @@ class VaultService:
             if living_rooms:
                 # Create one male and one female dweller in the first living room
                 living_room = living_rooms[0]
-                from app.models.dweller import GenderEnum
 
                 # Create male dweller
                 male_dweller_data = DwellerCreateCommonOverride(gender=GenderEnum.MALE)

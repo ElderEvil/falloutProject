@@ -8,6 +8,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useToast } from '@/core/composables/useToast'
 import { Icon } from '@iconify/vue'
 import { QuestCard, PartySelectionModal } from '../components'
 import type { VaultQuest } from '../models/quest'
@@ -20,6 +21,7 @@ const roomStore = useRoomStore()
 const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
 const { isCollapsed } = useSidePanel()
+const toast = useToast()
 const activeTab = ref<'active' | 'completed'>('active')
 const showAllQuests = ref(false)
 
@@ -96,7 +98,9 @@ const handleAssignAndStart = async (dwellerIds: string[]) => {
 
   try {
     await questStore.assignParty(vaultId.value, selectedQuest.value.id, dwellerIds)
-  } catch {
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Failed to assign party'
+    toast.error(errorMessage)
     return
   }
 

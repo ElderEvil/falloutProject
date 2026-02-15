@@ -388,6 +388,17 @@ class ExplorationCoordinator:
         # Transfer loot items to vault storage (with space validation)
         transfer_result = await self._transfer_loot_to_storage(db_session, exploration)
 
+        # Return unused stimpaks and radaways to vault storage
+        if exploration.stimpaks > 0 or exploration.radaways > 0:
+            vault = await crud_vault.get(db_session, exploration.vault_id)
+            new_stimpaks = min((vault.stimpack or 0) + exploration.stimpaks, vault.stimpack_max or 99999)
+            new_radaways = min((vault.radaway or 0) + exploration.radaways, vault.radaway_max or 99999)
+            await crud_vault.update(
+                db_session,
+                exploration.vault_id,
+                obj_in={"stimpack": new_stimpaks, "radaway": new_radaways},
+            )
+
         await db_session.commit()
 
         # Emit stimpak and radaway collection events after commit

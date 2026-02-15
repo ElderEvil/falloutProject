@@ -33,6 +33,10 @@ class VaultBase(SQLModel):
     food_max: int = Field(0, ge=0, le=10_000)
     water: int = Field(1, ge=0, le=10_000)
     water_max: int = Field(0, ge=0, le=10_000)
+    stimpack: int = Field(default=0, ge=0, le=10_000)
+    stimpack_max: int = Field(default=0, ge=0, le=10_000)
+    radaway: int = Field(default=0, ge=0, le=10_000)
+    radaway_max: int = Field(default=0, ge=0, le=10_000)
 
     # Population limits
     population_max: int | None = Field(default=0, ge=0, le=200, nullable=True)

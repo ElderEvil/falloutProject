@@ -79,6 +79,8 @@ class ResourceManager:
                 power=round(new_resources["power"]),
                 food=round(new_resources["food"]),
                 water=round(new_resources["water"]),
+                stimpack=new_resources["stimpack"],
+                radaway=new_resources["radaway"],
             ),
             events,
         )
@@ -105,7 +107,7 @@ class ResourceManager:
         self, rooms_with_dwellers: list[tuple[Room, list[Dweller]]], seconds_passed: int, current_power: int
     ) -> dict[str, float]:
         """Calculate resource production from all production rooms."""
-        production_totals = {"power": 0.0, "food": 0.0, "water": 0.0}
+        production_totals = {"power": 0.0, "food": 0.0, "water": 0.0, "stimpack": 0.0, "radaway": 0.0}
 
         for room, dwellers in rooms_with_dwellers:
             if room.category != RoomTypeEnum.PRODUCTION or not room.ability or not room.output:
@@ -119,7 +121,7 @@ class ResourceManager:
                 continue
 
             production = self._calculate_room_production(room, dwellers, seconds_passed)
-            self._apply_room_production(room.ability, production, production_totals)
+            self._apply_room_production(room.name, room.ability, production, production_totals)
 
         return {k: round(v, 2) for k, v in production_totals.items()}
 
@@ -137,7 +139,9 @@ class ResourceManager:
         return production
 
     @staticmethod
-    def _apply_room_production(ability: SPECIALEnum, production: float, totals: dict[str, float]) -> None:
+    def _apply_room_production(
+        room_name: str, ability: SPECIALEnum, production: float, totals: dict[str, float]
+    ) -> None:
         """Apply production to the appropriate resource type based on room ability."""
         match ability:
             case SPECIALEnum.STRENGTH:  # Power plants
@@ -146,6 +150,11 @@ class ResourceManager:
                 totals["food"] += production
             case SPECIALEnum.PERCEPTION:  # Water treatment
                 totals["water"] += production
+            case SPECIALEnum.INTELLIGENCE:  # Medbay and Science Lab
+                if "medbay" in room_name.lower():
+                    totals["stimpack"] += production
+                elif "science" in room_name.lower():
+                    totals["radaway"] += production
             case SPECIALEnum.ENDURANCE:  # Special rooms that produce all
                 for resource in totals:
                     totals[resource] += production / 3
@@ -159,6 +168,8 @@ class ResourceManager:
             "power": max(0, min(vault.power - consumption["power"] + production["power"], vault.power_max)),
             "food": max(0, min(vault.food - consumption["food"] + production["food"], vault.food_max)),
             "water": max(0, min(vault.water - consumption["water"] + production["water"], vault.water_max)),
+            "stimpack": max(0, min(int(vault.stimpack + production["stimpack"]), vault.stimpack_max)),
+            "radaway": max(0, min(int(vault.radaway + production["radaway"]), vault.radaway_max)),
         }
 
     @staticmethod

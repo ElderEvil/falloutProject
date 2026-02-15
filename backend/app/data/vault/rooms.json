@@ -104,7 +104,8 @@
     "t3_upgrade_cost": 3000,
     "capacity_formula": "10*S",
     "size_min": 3,
-    "size_max": 9
+    "size_max": 9,
+    "output_formula": "S"
   },
   {
     "name": "Science Lab",
@@ -117,7 +118,8 @@
     "t3_upgrade_cost": 3000,
     "capacity_formula": "10*S",
     "size_min": 3,
-    "size_max": 9
+    "size_max": 9,
+    "output_formula": "S"
   },
   {
     "name": "Overseer's Office",

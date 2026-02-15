@@ -8,6 +8,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud import exploration as crud_exploration
+from app.crud import vault as crud_vault
 from app.crud.dweller import dweller as dweller_crud
 from app.models.exploration import Exploration
 from app.schemas.exploration import ExplorationProgress
@@ -109,21 +110,63 @@ class ExplorationService:
             msg = f"Radaways cannot be negative. Provided: {radaways}"
             raise ValueError(msg)
 
+        # Check vault storage first, then fall back to dweller inventory
+        vault = await crud_vault.get(db_session, vault_id)
+        vault_stimpaks = vault.stimpack or 0
+        vault_radaways = vault.radaway or 0
+
+        # Get total available (vault + dweller)
         dweller = await dweller_crud.get(db_session, dweller_id)
-        if dweller.stimpack < stimpaks:
-            msg = f"Dweller only has {dweller.stimpack} Stimpaks"
+        dweller_stimpaks = dweller.stimpack or 0
+        dweller_radaways = dweller.radaway or 0
+        total_stimpaks = vault_stimpaks + dweller_stimpaks
+        total_radaways = vault_radaways + dweller_radaways
+
+        if stimpaks > total_stimpaks:
+            msg = f"Total available stimpaks: {total_stimpaks}"
             raise ValueError(msg)
-        if dweller.radaway < radaways:
-            msg = f"Dweller only has {dweller.radaway} Radaways"
+        if radaways > total_radaways:
+            msg = f"Total available radaways: {total_radaways}"
             raise ValueError(msg)
+
+        # Calculate how much to take from vault vs dweller
+        stimpaks_from_vault = min(stimpaks, vault_stimpaks)
+        stimpaks_from_dweller = stimpaks - stimpaks_from_vault
+
+        radaways_from_vault = min(radaways, vault_radaways)
+        radaways_from_dweller = radaways - radaways_from_vault
+
+        # Deduct from vault storage
+        if stimpaks_from_vault > 0 or radaways_from_vault > 0:
+            new_vault_stimpaks = vault_stimpaks - stimpaks_from_vault
+            new_vault_radaways = vault_radaways - radaways_from_vault
+            await crud_vault.update(
+                db_session,
+                vault_id,
+                obj_in={"stimpack": new_vault_stimpaks, "radaway": new_vault_radaways},
+            )
+
+        # Deduct from dweller inventory
+        if stimpaks_from_dweller > 0 or radaways_from_dweller > 0:
+            new_dweller_stimpaks = (dweller.stimpack or 0) - stimpaks_from_dweller
+            new_dweller_radaways = (dweller.radaway or 0) - radaways_from_dweller
+            await dweller_crud.update(
+                db_session,
+                dweller_id,
+                obj_in={"stimpack": new_dweller_stimpaks, "radaway": new_dweller_radaways},
+            )
+
+        # Total supplies for exploration
+        total_stimpaks = stimpaks_from_vault + stimpaks_from_dweller
+        total_radaways = radaways_from_vault + radaways_from_dweller
 
         return await crud_exploration.create_with_dweller_stats(
             db_session,
             vault_id=vault_id,
             dweller_id=dweller_id,
             duration=duration,
-            stimpaks=stimpaks,
-            radaways=radaways,
+            stimpaks=total_stimpaks,
+            radaways=total_radaways,
         )
 
     async def get_exploration_progress(self, db_session: AsyncSession, exploration_id: UUID4) -> ExplorationProgress:

@@ -26,6 +26,18 @@ const storageSpace = ref<{
   utilization_pct: number
 } | null>(null)
 
+const currentVault = computed(() => vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null)
+
+const medicalSupplies = computed(() => {
+  const vault = currentVault.value
+  return {
+    stimpaks: vault?.stimpack ?? 0,
+    stimpaksMax: vault?.stimpack_max ?? 0,
+    radaways: vault?.radaway ?? 0,
+    radawaysMax: vault?.radaway_max ?? 0,
+  }
+})
+
 const storageItems = ref<StorageItemsResponse>({
   weapons: [],
   outfits: [],
@@ -53,6 +65,9 @@ const fetchStorageData = async () => {
 
     storageSpace.value = spaceData
     storageItems.value = itemsData
+
+    // Refresh vault to get medical supplies
+    await vaultStore.refreshVault(vaultId.value, authStore.token)
   } catch (error) {
     console.error('Failed to load storage data:', error)
     toast.error('Failed to load storage data')
@@ -61,7 +76,11 @@ const fetchStorageData = async () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // Load vault if not already loaded
+  if (vaultId.value && authStore.token && !vaultStore.loadedVaults[vaultId.value]) {
+    await vaultStore.loadVault(vaultId.value, authStore.token)
+  }
   fetchStorageData()
 })
 
@@ -224,7 +243,7 @@ const getRarityColor = (rarity?: string) => {
         </div>
 
         <!-- Storage Space Info -->
-        <UCard v-if="storageSpace" glow crt class="max-w-2xl">
+        <UCard v-if="storageSpace" glow crt class="max-w-2xl mb-6">
           <div class="flex items-center gap-2 mb-3 font-mono">
             <span class="text-theme-accent text-sm font-semibold">Used:</span>
             <span class="text-theme-primary text-lg font-bold">
@@ -246,6 +265,31 @@ const getRarityColor = (rarity?: string) => {
             {{ storageSpace.available_space }} slots available ({{
               storageSpace.utilization_pct.toFixed(1)
             }}% full)
+          </div>
+        </UCard>
+
+        <!-- Medical Supplies -->
+        <UCard glow crt class="max-w-2xl mb-6">
+          <div class="font-mono mb-4">
+            <h3 class="text-theme-accent text-lg font-semibold mb-3">Medical Supplies</h3>
+            <div class="grid grid-cols-2 gap-4">
+              <!-- Stimpaks -->
+              <div class="flex items-center gap-3 p-3 bg-black/40 rounded border border-theme-primary/30">
+                <Icon icon="mdi:medical-bag" class="w-8 h-8 text-green-500" />
+                <div>
+                  <div class="text-theme-primary font-bold">{{ medicalSupplies.stimpaks }}</div>
+                  <div class="text-theme-accent text-xs">/ {{ medicalSupplies.stimpaksMax ?? '-' }} Stimpaks</div>
+                </div>
+              </div>
+              <!-- Radaways -->
+              <div class="flex items-center gap-3 p-3 bg-black/40 rounded border border-theme-primary/30">
+                <Icon icon="mdi:pill" class="w-8 h-8 text-purple-500" />
+                <div>
+                  <div class="text-theme-primary font-bold">{{ medicalSupplies.radaways }}</div>
+                  <div class="text-theme-accent text-xs">/ {{ medicalSupplies.radawaysMax ?? '-' }} Radaways</div>
+                </div>
+              </div>
+            </div>
           </div>
         </UCard>
       </div>

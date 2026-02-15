@@ -85,6 +85,18 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
                 case "perception":
                     new_capacity = self._calculate_new_capacity(action, vault_obj.water_max, room_obj.capacity)
                     await _update_vault(VaultUpdate(water_max=new_capacity))
+                case "intelligence":
+                    # Medbay produces stimpaks, Science Lab produces radaways
+                    if "medbay" in room_obj.name.lower():
+                        new_capacity = self._calculate_new_capacity(
+                            action, vault_obj.stimpack_max or 0, room_obj.capacity
+                        )
+                        await _update_vault(VaultUpdate(stimpack_max=new_capacity))
+                    elif "science" in room_obj.name.lower():
+                        new_capacity = self._calculate_new_capacity(
+                            action, vault_obj.radaway_max or 0, room_obj.capacity
+                        )
+                        await _update_vault(VaultUpdate(radaway_max=new_capacity))
                 case _:
                     error_msg = f"Invalid room ability: {room_obj.ability}"
                     raise ValueError(error_msg)

@@ -403,10 +403,15 @@ class VaultService:
         """Create initial weapons and outfits for testing."""
         from sqlmodel import select
 
+        from app.models.outfit import Outfit
         from app.models.storage import Storage
         from app.models.weapon import Weapon
-        from app.models.outfit import Outfit
-        from app.schemas.common import RarityEnum, WeaponTypeEnum, WeaponSubtypeEnum, OutfitTypeEnum, GenderEnum
+        from app.schemas.common import (
+            OutfitTypeEnum,
+            RarityEnum,
+            WeaponSubtypeEnum,
+            WeaponTypeEnum,
+        )
 
         result = await db_session.execute(select(Storage).where(Storage.vault_id == vault_id))
         storage = result.scalar_one_or_none()

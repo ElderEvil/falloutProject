@@ -77,9 +77,15 @@ onMounted(() => {
       try {
         await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
 
-        // Check for completed explorations
+        // Check for completed explorations and fetch detailed data for new explorers
         for (const exploration of activeExplorationsArray.value) {
           const progress = getProgressPercentage(exploration.id)
+
+          // Fetch full dweller data if not already loaded
+          if (!dwellerStore.detailedDwellers[exploration.dweller_id]) {
+            await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
+          }
+
           if (
             progress >= 100 &&
             exploration.status === 'active' &&

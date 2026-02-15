@@ -315,7 +315,7 @@ test.describe('Quests - Requirements Display', () => {
       return
     }
 
-    const unlockedCards = questCards.locator('.quest-card:not(:has(.badge:has-text("LOCKED")))')
+    const unlockedCards = page.locator('.quest-card:not(:has(.badge:has-text("LOCKED")))')
     const unlockedCount = await unlockedCards.count()
 
     if (unlockedCount === 0) {

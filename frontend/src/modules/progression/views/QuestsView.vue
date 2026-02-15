@@ -106,7 +106,9 @@ const handleAssignAndStart = async (dwellerIds: string[]) => {
 
   try {
     await questStore.startQuest(vaultId.value, selectedQuest.value.id)
-  } catch {
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Failed to start quest'
+    toast.error(errorMessage)
     await questStore.fetchVaultQuests(vaultId.value)
     showPartyModal.value = false
     selectedQuest.value = null

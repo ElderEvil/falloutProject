@@ -76,6 +76,8 @@ class ExplorationReadShort(SQLModel):
     total_distance: int
     total_caps_found: int
     enemies_encountered: int
+    stimpaks: int
+    radaways: int
 
 
 class ExplorationProgress(SQLModel):

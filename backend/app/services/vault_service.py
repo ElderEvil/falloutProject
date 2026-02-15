@@ -182,6 +182,12 @@ class VaultService:
                     vault.food_max += created_room.capacity
                 elif ability_lower == "perception":
                     vault.water_max += created_room.capacity
+                elif ability_lower == "intelligence":
+                    # Medbay produces stimpaks, Science Lab produces radaways
+                    if "medbay" in created_room.name.lower():
+                        vault.stimpack_max += created_room.capacity
+                    elif "science" in created_room.name.lower():
+                        vault.radaway_max += created_room.capacity
 
         # Create misc rooms
         created_misc_rooms = []
@@ -393,6 +399,136 @@ class VaultService:
             self.logger.error(f"Failed to start training sessions: {e}", exc_info=True)  # noqa: G201
             raise
 
+    async def _create_initial_items(self, db_session: AsyncSession, vault_id: UUID4) -> None:
+        """Create initial weapons and outfits for testing."""
+        from sqlmodel import select
+
+        from app.models.storage import Storage
+        from app.models.weapon import Weapon
+        from app.models.outfit import Outfit
+        from app.schemas.common import RarityEnum, WeaponTypeEnum, WeaponSubtypeEnum, OutfitTypeEnum, GenderEnum
+
+        result = await db_session.execute(select(Storage).where(Storage.vault_id == vault_id))
+        storage = result.scalar_one_or_none()
+        if not storage:
+            return
+
+        weapons_data = [
+            {
+                "name": "Rusty Pistol",
+                "rarity": RarityEnum.COMMON,
+                "value": 50,
+                "weapon_type": WeaponTypeEnum.GUN,
+                "weapon_subtype": WeaponSubtypeEnum.PISTOL,
+                "stat": "agility",
+                "damage_min": 2,
+                "damage_max": 5,
+            },
+            {
+                "name": "Hunting Rifle",
+                "rarity": RarityEnum.RARE,
+                "value": 150,
+                "weapon_type": WeaponTypeEnum.GUN,
+                "weapon_subtype": WeaponSubtypeEnum.RIFLE,
+                "stat": "perception",
+                "damage_min": 5,
+                "damage_max": 12,
+            },
+            {
+                "name": "Sledgehammer",
+                "rarity": RarityEnum.RARE,
+                "value": 300,
+                "weapon_type": WeaponTypeEnum.MELEE,
+                "weapon_subtype": WeaponSubtypeEnum.BLUNT,
+                "stat": "strength",
+                "damage_min": 8,
+                "damage_max": 15,
+            },
+            {
+                "name": "Laser Pistol",
+                "rarity": RarityEnum.LEGENDARY,
+                "value": 500,
+                "weapon_type": WeaponTypeEnum.ENERGY,
+                "weapon_subtype": WeaponSubtypeEnum.PISTOL,
+                "stat": "intelligence",
+                "damage_min": 10,
+                "damage_max": 20,
+            },
+        ]
+
+        outfits_data = [
+            {
+                "name": "Vault Jumpsuit",
+                "rarity": RarityEnum.COMMON,
+                "value": 20,
+                "outfit_type": OutfitTypeEnum.COMMON,
+                "gender": None,
+            },
+            {
+                "name": "Leather Armor",
+                "rarity": RarityEnum.RARE,
+                "value": 100,
+                "outfit_type": OutfitTypeEnum.RARE,
+                "gender": None,
+            },
+            {
+                "name": "Metal Armor",
+                "rarity": RarityEnum.RARE,
+                "value": 250,
+                "outfit_type": OutfitTypeEnum.RARE,
+                "gender": None,
+            },
+            {
+                "name": "T-51b Power Armor",
+                "rarity": RarityEnum.LEGENDARY,
+                "value": 1000,
+                "outfit_type": OutfitTypeEnum.POWER_ARMOR,
+                "gender": None,
+            },
+        ]
+
+        for weapon_data in weapons_data:
+            weapon = Weapon(**weapon_data, storage_id=storage.id)
+            db_session.add(weapon)
+
+        outfits_data = [
+            {
+                "name": "Vault Jumpsuit",
+                "rarity": RarityEnum.COMMON,
+                "value": 20,
+                "outfit_type": OutfitTypeEnum.ARMOR,
+                "gender": None,
+            },
+            {
+                "name": "Leather Armor",
+                "rarity": RarityEnum.UNCOMMON,
+                "value": 100,
+                "outfit_type": OutfitTypeEnum.ARMOR,
+                "gender": None,
+            },
+            {
+                "name": "Metal Armor",
+                "rarity": RarityEnum.RARE,
+                "value": 250,
+                "outfit_type": OutfitTypeEnum.ARMOR,
+                "gender": None,
+            },
+            {
+                "name": "T-51b Power Armor",
+                "rarity": RarityEnum.LEGENDARY,
+                "value": 1000,
+                "outfit_type": OutfitTypeEnum.POWER_ARMOR,
+                "gender": None,
+            },
+        ]
+
+        for outfit_data in outfits_data:
+            outfit = Outfit(**outfit_data, storage_id=storage.id)
+            db_session.add(outfit)
+
+        await db_session.commit()
+        self.logger.info(f"Created initial items for vault {vault_id}")
+
     async def _assign_initial_objectives(
         self, db_session: AsyncSession, vault_id: UUID4, is_boosted: bool = False
     ) -> None:
@@ -528,7 +664,13 @@ class VaultService:
         vault_db_obj = await vault_crud.update(
             db_session=db_session,
             id=vault_db_obj.id,
-            obj_in=VaultUpdate(power=initial_power, food=initial_food, water=initial_water),
+            obj_in=VaultUpdate(
+                power=initial_power,
+                food=initial_food,
+                water=initial_water,
+                stimpack=5,
+                radaway=5,
+            ),
         )
 
         # Create and assign dwellers
@@ -550,6 +692,9 @@ class VaultService:
 
         # Assign initial objectives to the vault (boosted vaults get more objectives)
         await self._assign_initial_objectives(db_session, vault_db_obj.id, is_boosted)
+
+        # Create initial weapons and outfits for testing
+        await self._create_initial_items(db_session, vault_db_obj.id)
 
         return vault_db_obj
 

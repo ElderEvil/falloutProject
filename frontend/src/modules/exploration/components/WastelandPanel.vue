@@ -158,9 +158,13 @@ const handleDrop = async (event: DragEvent) => {
       currentRoomId,
     }
 
-    // Reset medical supplies based on vault storage (capped at 25 per item)
-    selectedStimpaks.value = Math.min(vaultMedicalSupplies.value.stimpaks, 25)
-    selectedRadaways.value = Math.min(vaultMedicalSupplies.value.radaways, 25)
+    // Default to 5 stimpaks and 5 radaways (capped by vault storage and dweller limit of 15)
+    const DEFAULT_STIMPAKS = 5
+    const DEFAULT_RADAWAYS = 5
+    const DWELLER_MAX_SUPPLIES = 15
+
+    selectedStimpaks.value = Math.min(DEFAULT_STIMPAKS, vaultMedicalSupplies.value.stimpaks, DWELLER_MAX_SUPPLIES)
+    selectedRadaways.value = Math.min(DEFAULT_RADAWAYS, vaultMedicalSupplies.value.radaways, DWELLER_MAX_SUPPLIES)
 
     showDurationModal.value = true
   } catch (error) {
@@ -492,7 +496,7 @@ const closeRewardsModal = () => {
                 type="range"
                 v-model.number="selectedStimpaks"
                 min="0"
-                :max="Math.min(vaultMedicalSupplies.stimpaks, 25)"
+                :max="Math.min(vaultMedicalSupplies.stimpaks, 15)"
                 class="supply-slider stimpak-slider"
               />
             </div>
@@ -507,7 +511,7 @@ const closeRewardsModal = () => {
                 type="range"
                 v-model.number="selectedRadaways"
                 min="0"
-                :max="Math.min(vaultMedicalSupplies.radaways, 25)"
+                :max="Math.min(vaultMedicalSupplies.radaways, 15)"
                 class="supply-slider radaway-slider"
               />
             </div>

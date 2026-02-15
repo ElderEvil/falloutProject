@@ -68,5 +68,26 @@
     "objective_type": "reach",
     "target_entity": {"reach_type": "dweller_count"},
     "target_amount": 10
+  },
+  {
+    "challenge": "Collect 3 Weapons",
+    "reward": "300 Caps",
+    "objective_type": "collect",
+    "target_entity": {"item_type": "weapon"},
+    "target_amount": 3
+  },
+  {
+    "challenge": "Collect 3 Outfits",
+    "reward": "300 Caps",
+    "objective_type": "collect",
+    "target_entity": {"item_type": "outfit"},
+    "target_amount": 3
+  },
+  {
+    "challenge": "Collect 5 Stimpaks",
+    "reward": "250 Caps",
+    "objective_type": "collect",
+    "target_entity": {"item_type": "stimpak"},
+    "target_amount": 5
   }
 ]

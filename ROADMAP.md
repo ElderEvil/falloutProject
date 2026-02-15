@@ -33,20 +33,20 @@ AI-powered dweller interactions.
 **Focus**: Stimpaks and Radaways vault storage with production from Medbay/Science Lab
 
 **Planned:**
-- ✅ **Vault Storage for Medical Items** - Add stimpaks and radaways to vault storage
+- [ ] **Vault Storage for Medical Items** - Add stimpaks and radaways to vault storage
   - New storage model fields: `stimpaks`, `radaways`
   - Max capacity calculated from Medbay/Science Lab rooms (number + tier)
   - UI: Show medical items in Storage view
-- ✅ **Medbay Production** - Medbay rooms produce stimpaks over time
+- [ ] **Medbay Production** - Medbay rooms produce stimpaks over time
   - Production rate based on room tier
   - Produced items go directly to vault storage
-- ✅ **Science Lab Production** - Science Lab rooms produce radaways over time
+- [ ] **Science Lab Production** - Science Lab rooms produce radaways over time
   - Production rate based on room tier
   - Produced items go directly to vault storage
-- ✅ **Exploration Integration** - Dwellers can equip stimpaks/radaways from storage before exploration
+- [ ] **Exploration Integration** - Dwellers can equip stimpaks/radaways from storage before exploration
   - Show available stimpaks/radaways in exploration preparation UI
   - Deduct from storage when dweller takes them
-- ✅ **Objectives Support** - "Collect X Stimpaks/Radaways" objectives work with storage
+- [ ] **Objectives Support** - "Collect X Stimpaks/Radaways" objectives work with storage
 
 ---
 

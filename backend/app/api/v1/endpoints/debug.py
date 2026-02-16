@@ -33,8 +33,8 @@ async def emit_test_event(
     defaults = {
         GameEvent.RESOURCE_COLLECTED: {"resource_type": "caps", "amount": 10},
         GameEvent.ITEM_COLLECTED: {"item_type": "weapon", "amount": 1},
-        GameEvent.ROOM_BUILT: {"room_type": "living_quarters"},
-        GameEvent.ROOM_UPGRADED: {"room_type": "living_quarters", "level": 2},
+        GameEvent.ROOM_BUILT: {"room_type": "Living Quarters"},
+        GameEvent.ROOM_UPGRADED: {"room_type": "Living Quarters", "level": 2},
         GameEvent.DWELLER_TRAINED: {"stat": "strength", "dweller_id": "test-dweller"},
         GameEvent.DWELLER_ASSIGNED: {"dweller_id": "test-dweller", "room_type": "power_plant"},
         GameEvent.DWELLER_LEVEL_UP: {"dweller_id": "test-dweller", "level": 2},
@@ -64,12 +64,6 @@ async def list_subscribed_events():
         "events": handlers,
         "handler_count": sum(len(h) for h in event_bus._handlers.values()),
     }
-
-
-@router.get("/health")
-async def debug_health():
-    """Debug health check endpoint."""
-    return {"status": "debug_mode_active"}
 
 
 @router.get("/objectives/{vault_id}")

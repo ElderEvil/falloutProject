@@ -16,7 +16,7 @@ from app.models.vault_objective import VaultObjectiveProgressLink
 from app.schemas.common import DwellerStatusEnum, GenderEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreateCommonOverride, DwellerUpdate
 from app.schemas.room import RoomCreate
-from app.schemas.vault import VaultNumber, VaultUpdate
+from app.schemas.vault import MedicalTransferResponse, VaultNumber, VaultUpdate
 from app.services.resource_manager import ResourceManager
 from app.services.training_service import training_service
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
@@ -182,6 +182,12 @@ class VaultService:
                     vault.food_max += created_room.capacity
                 elif ability_lower == "perception":
                     vault.water_max += created_room.capacity
+                elif ability_lower == "intelligence":
+                    # Medbay produces stimpaks, Science Lab produces radaways
+                    if "medbay" in created_room.name.lower():
+                        vault.stimpack_max += created_room.capacity
+                    elif "science" in created_room.name.lower():
+                        vault.radaway_max += created_room.capacity
 
         # Create misc rooms
         created_misc_rooms = []
@@ -393,6 +399,110 @@ class VaultService:
             self.logger.error(f"Failed to start training sessions: {e}", exc_info=True)  # noqa: G201
             raise
 
+    async def _create_initial_items(self, db_session: AsyncSession, vault_id: UUID4) -> None:
+        """Create initial weapons and outfits for testing."""
+        from sqlmodel import select
+
+        from app.models.outfit import Outfit
+        from app.models.storage import Storage
+        from app.models.weapon import Weapon
+        from app.schemas.common import (
+            OutfitTypeEnum,
+            RarityEnum,
+            WeaponSubtypeEnum,
+            WeaponTypeEnum,
+        )
+
+        result = await db_session.execute(select(Storage).where(Storage.vault_id == vault_id))
+        storage = result.scalar_one_or_none()
+        if not storage:
+            return
+
+        weapons_data = [
+            {
+                "name": "Rusty Pistol",
+                "rarity": RarityEnum.COMMON,
+                "value": 50,
+                "weapon_type": WeaponTypeEnum.GUN,
+                "weapon_subtype": WeaponSubtypeEnum.PISTOL,
+                "stat": "agility",
+                "damage_min": 2,
+                "damage_max": 5,
+            },
+            {
+                "name": "Hunting Rifle",
+                "rarity": RarityEnum.RARE,
+                "value": 150,
+                "weapon_type": WeaponTypeEnum.GUN,
+                "weapon_subtype": WeaponSubtypeEnum.RIFLE,
+                "stat": "perception",
+                "damage_min": 5,
+                "damage_max": 12,
+            },
+            {
+                "name": "Sledgehammer",
+                "rarity": RarityEnum.RARE,
+                "value": 300,
+                "weapon_type": WeaponTypeEnum.MELEE,
+                "weapon_subtype": WeaponSubtypeEnum.BLUNT,
+                "stat": "strength",
+                "damage_min": 8,
+                "damage_max": 15,
+            },
+            {
+                "name": "Laser Pistol",
+                "rarity": RarityEnum.LEGENDARY,
+                "value": 500,
+                "weapon_type": WeaponTypeEnum.ENERGY,
+                "weapon_subtype": WeaponSubtypeEnum.PISTOL,
+                "stat": "intelligence",
+                "damage_min": 10,
+                "damage_max": 20,
+            },
+        ]
+
+        outfits_data = [
+            {
+                "name": "Vault Jumpsuit",
+                "rarity": RarityEnum.COMMON,
+                "value": 20,
+                "outfit_type": OutfitTypeEnum.COMMON,
+                "gender": None,
+            },
+            {
+                "name": "Leather Armor",
+                "rarity": RarityEnum.RARE,
+                "value": 100,
+                "outfit_type": OutfitTypeEnum.RARE,
+                "gender": None,
+            },
+            {
+                "name": "Metal Armor",
+                "rarity": RarityEnum.RARE,
+                "value": 250,
+                "outfit_type": OutfitTypeEnum.RARE,
+                "gender": None,
+            },
+            {
+                "name": "T-51b Power Armor",
+                "rarity": RarityEnum.LEGENDARY,
+                "value": 1000,
+                "outfit_type": OutfitTypeEnum.POWER_ARMOR,
+                "gender": None,
+            },
+        ]
+
+        for weapon_data in weapons_data:
+            weapon = Weapon(**weapon_data, storage_id=storage.id)
+            db_session.add(weapon)
+
+        for outfit_data in outfits_data:
+            outfit = Outfit(**outfit_data, storage_id=storage.id)
+            db_session.add(outfit)
+
+        await db_session.commit()
+        self.logger.info(f"Created initial items for vault {vault_id}")
+
     async def _assign_initial_objectives(
         self, db_session: AsyncSession, vault_id: UUID4, is_boosted: bool = False
     ) -> None:
@@ -525,10 +635,20 @@ class VaultService:
         initial_power = vault_db_obj.power_max // 2
         initial_food = vault_db_obj.food_max // 2
         initial_water = vault_db_obj.water_max // 2
+
+        initial_stimpack = min(5, vault_db_obj.stimpack_max) if vault_db_obj.stimpack_max > 0 else 0
+        initial_radaway = min(5, vault_db_obj.radaway_max) if vault_db_obj.radaway_max > 0 else 0
+
         vault_db_obj = await vault_crud.update(
             db_session=db_session,
             id=vault_db_obj.id,
-            obj_in=VaultUpdate(power=initial_power, food=initial_food, water=initial_water),
+            obj_in=VaultUpdate(
+                power=initial_power,
+                food=initial_food,
+                water=initial_water,
+                stimpack=initial_stimpack,
+                radaway=initial_radaway,
+            ),
         )
 
         # Create and assign dwellers
@@ -551,6 +671,9 @@ class VaultService:
         # Assign initial objectives to the vault (boosted vaults get more objectives)
         await self._assign_initial_objectives(db_session, vault_db_obj.id, is_boosted)
 
+        # Create initial weapons and outfits for testing
+        await self._create_initial_items(db_session, vault_db_obj.id)
+
         return vault_db_obj
 
     async def update_vault_resources(self, db_session: AsyncSession, vault_id: UUID4) -> Vault:
@@ -560,6 +683,85 @@ class VaultService:
         )
 
         return await vault_crud.update(db_session=db_session, id=vault_id, obj_in=updated_resources)
+
+    async def transfer_medical_supplies(
+        self,
+        db_session: AsyncSession,
+        vault: Vault,
+        dweller_id: UUID4,
+        stimpaks: int,
+        radaways: int,
+    ) -> dict:
+        """
+        Transfer medical supplies from vault storage to a dweller's inventory.
+
+        Dwellers can carry max 15 stimpaks and 15 radaways each.
+        """
+        vault_stimpaks = vault.stimpack or 0
+        vault_radaways = vault.radaway or 0
+
+        if stimpaks > vault_stimpaks:
+            raise ResourceConflictException(detail=f"Vault only has {vault_stimpaks} stimpaks")
+        if radaways > vault_radaways:
+            raise ResourceConflictException(detail=f"Vault only has {vault_radaways} radaways")
+
+        dweller = await dweller_crud.get(db_session, dweller_id)
+
+        if dweller.vault_id != vault.id:
+            from app.utils.exceptions import AccessDeniedException
+
+            raise AccessDeniedException(detail="Dweller does not belong to this vault")
+
+        dweller_stimpaks = dweller.stimpack or 0
+        dweller_radaways = dweller.radaway or 0
+
+        max_per_dweller = 15
+        if stimpaks + dweller_stimpaks > max_per_dweller:
+            raise ResourceConflictException(detail=f"Dweller can only carry {max_per_dweller} stimpaks")
+        if radaways + dweller_radaways > max_per_dweller:
+            raise ResourceConflictException(detail=f"Dweller can only carry {max_per_dweller} radaways")
+
+        new_vault_stimpaks = vault_stimpaks - stimpaks
+        new_vault_radaways = vault_radaways - radaways
+        new_dweller_stimpaks = dweller_stimpaks + stimpaks
+        new_dweller_radaways = dweller_radaways + radaways
+
+        try:
+            await vault_crud.update(
+                db_session,
+                vault.id,
+                obj_in={"stimpack": new_vault_stimpaks, "radaway": new_vault_radaways},
+                commit=False,
+            )
+
+            await dweller_crud.update(
+                db_session,
+                dweller_id,
+                obj_in={"stimpack": new_dweller_stimpaks, "radaway": new_dweller_radaways},
+                commit=False,
+            )
+
+            await db_session.commit()
+        except Exception:
+            await db_session.rollback()
+            raise
+
+        self.logger.info(
+            "Medical supplies transferred",
+            extra={
+                "vault_id": str(vault.id),
+                "dweller_id": str(dweller_id),
+                "stimpaks_transferred": stimpaks,
+                "radaways_transferred": radaways,
+            },
+        )
+
+        return MedicalTransferResponse(
+            vault_stimpaks=new_vault_stimpaks,
+            vault_radaways=new_vault_radaways,
+            dweller_stimpaks=new_dweller_stimpaks,
+            dweller_radaways=new_dweller_radaways,
+        )
 
 
 # Singleton instance

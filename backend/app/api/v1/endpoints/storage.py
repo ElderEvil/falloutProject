@@ -11,6 +11,7 @@ from app.db.session import get_async_session
 from app.schemas.junk import JunkRead
 from app.schemas.outfit import OutfitRead
 from app.schemas.storage import StorageItemsResponse, StorageSpaceResponse
+from app.schemas.vault import MedicalTransferRequest, MedicalTransferResponse
 from app.schemas.weapon import WeaponRead
 
 router = APIRouter()
@@ -82,4 +83,30 @@ async def get_storage_items(
         weapons=[WeaponRead.model_validate(w) for w in items["weapons"]],
         outfits=[OutfitRead.model_validate(o) for o in items["outfits"]],
         junk=[JunkRead.model_validate(j) for j in items["junk"]],
+    )
+
+
+@router.post("/vault/{vault_id}/medical/transfer")
+async def transfer_medical_supplies(
+    vault_id: UUID4,
+    request: MedicalTransferRequest,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    current_user: CurrentActiveUser,
+) -> MedicalTransferResponse:
+    """
+    Transfer medical supplies from vault storage to a dweller's inventory.
+
+    Dwellers can carry max 15 stimpaks and 15 radaways each.
+    Requires ownership of the vault.
+    """
+    from app.services.vault_service import vault_service
+
+    vault = await get_user_vault_or_403(vault_id, current_user, db_session)
+
+    return await vault_service.transfer_medical_supplies(
+        db_session=db_session,
+        vault=vault,
+        dweller_id=request.dweller_id,
+        stimpaks=request.stimpaks,
+        radaways=request.radaways,
     )

@@ -9,6 +9,36 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.10.6] - 2026-02-15
+
+### What's New
+
+- **Initial Items on Vault Creation** - New vaults now spawn with starter equipment
+  - 4 weapons: Rusty Pistol, Hunting Rifle, Sledgehammer, Laser Pistol
+  - 4 outfits: Vault Jumpsuit, Leather Armor, Metal Armor, T-51b Power Armor
+- **Exploration Equipment Display** - Shows equipped weapon and outfit on exploration cards
+  - WastelandPanel (overview), ExplorationView, and ExplorationDetailView now show equipped items
+  - Fetches full dweller data including weapon/outfit relations
+- **Medical Supplies Default** - Exploration prep now defaults to 5 stimpaks/5 radaways
+  - Maximum 15 per dweller (capped by vault storage)
+
+### Fixed
+
+- **Objective Build Progress** - Building rooms now correctly counts toward build objectives
+  - Fixed room type format mismatch between event data (display name) and objective targets (snake_case)
+  - Added support for "any" wildcard in addition to "*"
+- **Objective Collect Progress** - Collecting resources now correctly counts toward collect objectives
+  - Added wildcard support for resource_type matching
+- **Objective Reach Progress** - Population objectives now show actual dweller count as progress
+  - Fixed target entity key mismatch ("population" vs "reach_type")
+- **Exploration Stimpak Validation** - Fixed duplicate validation that rejected valid vault storage
+  - Removed redundant check in crud (validation already done in service)
+- **Exploration Stimpaks Display** - Added stimpaks/radaways to exploration list response
+- **Celery Task Evaluators** - Objective evaluators now initialize in Celery workers
+  - Game loop ticks now properly process objectives
+
+---
+
 ## [2.10.5] - 2026-02-14
 
 ### What's New

@@ -28,18 +28,11 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         """
         Create an exploration with dweller's SPECIAL stats.
         Captures the dweller's stats at the moment of departure.
+        Validation is done in exploration_service.send_dweller().
         """
         # Fetch the dweller to get their current stats
         result = await db_session.execute(select(Dweller).where(Dweller.id == dweller_id))
         dweller = result.scalar_one()
-
-        # Validate that dweller has enough supplies
-        if stimpaks > dweller.stimpack:
-            msg = f"Dweller does not have enough stimpacks. Requested: {stimpaks}, Available: {dweller.stimpack}"
-            raise ValueError(msg)
-        if radaways > dweller.radaway:
-            msg = f"Dweller does not have enough radaways. Requested: {radaways}, Available: {dweller.radaway}"
-            raise ValueError(msg)
 
         obj_in = ExplorationCreate(
             vault_id=vault_id,

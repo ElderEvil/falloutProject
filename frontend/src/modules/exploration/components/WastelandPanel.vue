@@ -19,6 +19,16 @@ const toast = useToast()
 
 const vaultId = computed(() => route.params.id as string)
 
+const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
+const vaultMedicalSupplies = computed(() => {
+  const v = currentVault.value
+  console.log('[WastelandPanel] vault:', v?.id, 'stimpack:', v?.stimpack, 'radaway:', v?.radaway)
+  return {
+    stimpaks: v?.stimpack ?? 0,
+    radaways: v?.radaway ?? 0,
+  }
+})
+
 const isDraggingOver = ref(false)
 const showDurationModal = ref(false)
 const pendingDweller = ref<{
@@ -42,8 +52,17 @@ const completingExplorations = ref<Set<string>>(new Set())
 // Fetch active explorations on mount
 onMounted(async () => {
   if (vaultId.value && authStore.token) {
+    // Ensure vault is loaded for medical supplies
+    if (!vaultStore.loadedVaults[vaultId.value]) {
+      await vaultStore.loadVault(vaultId.value, authStore.token)
+    }
     try {
       await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
+
+      // Fetch full dweller data for explorers (includes weapon/outfit)
+      for (const exploration of activeExplorationsArray.value) {
+        await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
+      }
     } catch (error) {
       console.error('Failed to load explorations:', error)
     }
@@ -58,9 +77,15 @@ onMounted(() => {
       try {
         await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
 
-        // Check for completed explorations
+        // Check for completed explorations and fetch detailed data for new explorers
         for (const exploration of activeExplorationsArray.value) {
           const progress = getProgressPercentage(exploration.id)
+
+          // Fetch full dweller data if not already loaded
+          if (!dwellerStore.detailedDwellers[exploration.dweller_id]) {
+            await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
+          }
+
           if (
             progress >= 100 &&
             exploration.status === 'active' &&
@@ -91,6 +116,22 @@ const getDwellerById = (dwellerId: string) => {
   return dwellerStore.dwellers.find((d) => d.id === dwellerId)
 }
 
+const getDetailedDweller = (dwellerId: string) => {
+  return dwellerStore.detailedDwellers[dwellerId] || null
+}
+
+const getDwellerWeapon = (dwellerId: string) => {
+  const detailed = getDetailedDweller(dwellerId)
+  if (detailed?.weapon) return detailed.weapon
+  return null
+}
+
+const getDwellerOutfit = (dwellerId: string) => {
+  const detailed = getDetailedDweller(dwellerId)
+  if (detailed?.outfit) return detailed.outfit
+  return null
+}
+
 const handleDragOver = (event: DragEvent) => {
   event.preventDefault()
   event.dataTransfer!.dropEffect = 'move'
@@ -117,15 +158,13 @@ const handleDrop = async (event: DragEvent) => {
       currentRoomId,
     }
 
-    // Reset medical supplies based on what the dweller already has
-    const dweller = getDwellerById(dwellerId)
-    if (dweller) {
-      selectedStimpaks.value = Math.min(dweller.stimpack || 0, 25) // Clamp to backend limit of 25
-      selectedRadaways.value = Math.min(dweller.radaway || 0, 25) // Clamp to backend limit of 25
-    } else {
-      selectedStimpaks.value = 0
-      selectedRadaways.value = 0
-    }
+    // Default to 5 stimpaks and 5 radaways (capped by vault storage and dweller limit of 15)
+    const DEFAULT_STIMPAKS = 5
+    const DEFAULT_RADAWAYS = 5
+    const DWELLER_MAX_SUPPLIES = 15
+
+    selectedStimpaks.value = Math.min(DEFAULT_STIMPAKS, vaultMedicalSupplies.value.stimpaks, DWELLER_MAX_SUPPLIES)
+    selectedRadaways.value = Math.min(DEFAULT_RADAWAYS, vaultMedicalSupplies.value.radaways, DWELLER_MAX_SUPPLIES)
 
     showDurationModal.value = true
   } catch (error) {
@@ -366,6 +405,17 @@ const closeRewardsModal = () => {
                   <span>{{ exploration.total_caps_found || 0 }} caps</span>
                 </div>
               </div>
+              <!-- Equipped Items -->
+              <div v-if="getDwellerWeapon(exploration.dweller_id) || getDwellerOutfit(exploration.dweller_id)" class="equipped-items mt-2">
+                <div v-if="getDwellerWeapon(exploration.dweller_id)" class="stat-item text-amber-400">
+                  <Icon icon="mdi:sword" class="h-4 w-4" />
+                  <span class="text-xs">{{ getDwellerWeapon(exploration.dweller_id)?.name }}</span>
+                </div>
+                <div v-if="getDwellerOutfit(exploration.dweller_id)" class="stat-item text-blue-400">
+                  <Icon icon="mdi:tshirt-crew" class="h-4 w-4" />
+                  <span class="text-xs">{{ getDwellerOutfit(exploration.dweller_id)?.name }}</span>
+                </div>
+              </div>
               <!-- Progress Bar -->
               <div class="progress-bar-container">
                 <div
@@ -439,15 +489,14 @@ const closeRewardsModal = () => {
               <div class="flex items-center justify-between mb-1">
                 <label class="text-xs">Stimpaks (Heals HP)</label>
                 <span class="text-xs font-bold"
-                  >{{ selectedStimpaks }} /
-                  {{ getDwellerById(pendingDweller?.dwellerId || '')?.stimpack || 0 }}</span
+                  >{{ selectedStimpaks }} / {{ vaultMedicalSupplies.stimpaks }}</span
                 >
               </div>
               <input
                 type="range"
                 v-model.number="selectedStimpaks"
                 min="0"
-                :max="Math.min(getDwellerById(pendingDweller?.dwellerId || '')?.stimpack || 0, 25)"
+                :max="Math.min(vaultMedicalSupplies.stimpaks, 15)"
                 class="supply-slider stimpak-slider"
               />
             </div>
@@ -455,22 +504,20 @@ const closeRewardsModal = () => {
               <div class="flex items-center justify-between mb-1">
                 <label class="text-xs">RadAway (Removes Rads)</label>
                 <span class="text-xs font-bold"
-                  >{{ selectedRadaways }} /
-                  {{ getDwellerById(pendingDweller?.dwellerId || '')?.radaway || 0 }}</span
+                  >{{ selectedRadaways }} / {{ vaultMedicalSupplies.radaways }}</span
                 >
               </div>
               <input
                 type="range"
                 v-model.number="selectedRadaways"
                 min="0"
-                :max="Math.min(getDwellerById(pendingDweller?.dwellerId || '')?.radaway || 0, 25)"
+                :max="Math.min(vaultMedicalSupplies.radaways, 15)"
                 class="supply-slider radaway-slider"
               />
             </div>
           </div>
           <p class="text-[10px] text-orange-400 mt-2">
-            * Selected items will be removed from dweller's inventory and used automatically in the
-            wasteland.
+            * Selected items will be removed from vault storage and used automatically in the wasteland.
           </p>
         </div>
 

@@ -37,24 +37,39 @@ watch(selectedStat, () => {
 })
 
 // Fetch rooms when modal opens
-watch(() => props.modelValue, async (isOpen) => {
-  if (isOpen && authStore.token && props.dweller.vault) {
-    await roomStore.fetchRooms(props.dweller.vault.id, authStore.token)
+watch(
+  () => props.modelValue,
+  async (isOpen) => {
+    if (isOpen && authStore.token && props.dweller.vault) {
+      await roomStore.fetchRooms(props.dweller.vault.id, authStore.token)
+    }
   }
-})
+)
 
 const stats = [
   { key: 'strength', label: 'Strength', short: 'S', icon: 'mdi:arm-flex', color: 'text-red-400' },
   { key: 'perception', label: 'Perception', short: 'P', icon: 'mdi:eye', color: 'text-blue-400' },
   { key: 'endurance', label: 'Endurance', short: 'E', icon: 'mdi:heart', color: 'text-orange-400' },
-  { key: 'charisma', label: 'Charisma', short: 'C', icon: 'mdi:account-heart', color: 'text-pink-400' },
-  { key: 'intelligence', label: 'Intelligence', short: 'I', icon: 'mdi:brain', color: 'text-purple-400' },
+  {
+    key: 'charisma',
+    label: 'Charisma',
+    short: 'C',
+    icon: 'mdi:account-heart',
+    color: 'text-pink-400',
+  },
+  {
+    key: 'intelligence',
+    label: 'Intelligence',
+    short: 'I',
+    icon: 'mdi:brain',
+    color: 'text-purple-400',
+  },
   { key: 'agility', label: 'Agility', short: 'A', icon: 'mdi:run-fast', color: 'text-green-400' },
   { key: 'luck', label: 'Luck', short: 'L', icon: 'mdi:clover', color: 'text-yellow-400' },
 ]
 
 const availableStats = computed(() => {
-  return stats.filter(stat => (props.dweller as any)[stat.short] < 10)
+  return stats.filter((stat) => (props.dweller as any)[stat.short] < 10)
 })
 
 const selectedRoom = computed(() => {
@@ -119,7 +134,9 @@ const close = () => {
   >
     <div class="training-start-modal">
       <p class="description">
-        Select a SPECIAL stat to improve for <span class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</span>.
+        Select a SPECIAL stat to improve for
+        <span class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</span
+        >.
       </p>
 
       <UAlert v-if="errorMessage" variant="error" class="error-alert">
@@ -132,7 +149,7 @@ const close = () => {
           v-for="stat in availableStats"
           :key="stat.key"
           class="stat-button"
-          :class="{ 'selected': selectedStat === stat.key }"
+          :class="{ selected: selectedStat === stat.key }"
           @click="selectedStat = stat.key"
         >
           <div class="stat-icon-wrapper" :class="stat.color">
@@ -166,12 +183,7 @@ const close = () => {
 
       <div class="modal-actions">
         <UButton variant="secondary" @click="close">Cancel</UButton>
-        <UButton
-          variant="primary"
-          :disabled="!canStart"
-          :loading="loading"
-          @click="handleStart"
-        >
+        <UButton variant="primary" :disabled="!canStart" :loading="loading" @click="handleStart">
           Start Training
         </UButton>
       </div>

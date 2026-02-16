@@ -223,7 +223,7 @@ class TrainEvaluator(ObjectiveEvaluator):
         if not target_stat:
             return True
 
-        return data.get("stat") == target_stat
+        return data.get("stat_trained") == target_stat
 
     def _extract_amount(self, data: dict[str, Any]) -> int:  # noqa: ARG002
         return 1
@@ -277,7 +277,11 @@ class ReachEvaluator(ObjectiveEvaluator):
         if target_type == "level":
             return event_type == GameEvent.DWELLER_LEVEL_UP
 
-        return True
+        # Unknown or missing target_type - don't match to avoid false positives
+        if not target_type:
+            return False
+
+        return False
 
     async def _update_progress(
         self,

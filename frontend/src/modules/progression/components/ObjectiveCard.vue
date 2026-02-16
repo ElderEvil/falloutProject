@@ -63,7 +63,12 @@ const canClaim = computed(() => {
       </div>
       <div class="objective-info">
         <h3 class="objective-title">{{ objective.challenge }}</h3>
-        <UBadge :variant="category === 'daily' ? 'primary' : category === 'weekly' ? 'secondary' : 'outline'" class="category-badge">
+        <UBadge
+          :variant="
+            category === 'daily' ? 'primary' : category === 'weekly' ? 'secondary' : 'outline'
+          "
+          class="category-badge"
+        >
           {{ categoryLabel }}
         </UBadge>
       </div>

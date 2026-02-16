@@ -13,6 +13,7 @@ import { useToast } from '@/core/composables/useToast'
 import { useGaryMode } from '@/core/composables/useGaryMode'
 
 export type DwellerStatus = 'idle' | 'working' | 'exploring' | 'questing' | 'training' | 'dead'
+export type DwellerAgeGroup = 'child' | 'teen' | 'adult' | 'all'
 
 export interface DwellerWithStatus extends DwellerShort {
   status: DwellerStatus
@@ -44,6 +45,7 @@ export const useDwellerStore = defineStore('dweller', () => {
 
   // Filter and sort state (persisted in localStorage)
   const filterStatus = useLocalStorage<DwellerStatus | 'all'>('dwellerFilterStatus', 'all')
+  const filterAgeGroup = useLocalStorage<DwellerAgeGroup>('dwellerFilterAgeGroup', 'all')
   const sortBy = useLocalStorage<DwellerSortBy>('dwellerSortBy', 'name')
   const sortDirection = useLocalStorage<SortDirection>('dwellerSortDirection', 'asc')
   const viewMode = useLocalStorage<'list' | 'grid'>('dwellerViewMode', 'list')
@@ -122,12 +124,12 @@ export const useDwellerStore = defineStore('dweller', () => {
     await fetchDwellersByVault(vaultId, _token || '')
   }
 
-
   async function fetchDwellersByVault(
     vaultId: string,
     token: string,
     options?: {
       status?: DwellerStatus | 'all'
+      ageGroup?: DwellerAgeGroup
       search?: string
       sortBy?: string
       order?: 'asc' | 'desc'
@@ -139,6 +141,7 @@ export const useDwellerStore = defineStore('dweller', () => {
     try {
       const params = new URLSearchParams()
       if (options?.status && options.status !== 'all') params.append('status', options.status)
+      if (options?.ageGroup && options.ageGroup !== 'all') params.append('age_group', options.ageGroup)
       if (options?.search) params.append('search', options.search)
       if (options?.sortBy) params.append('sort_by', options.sortBy)
       if (options?.order) params.append('order', options.order)
@@ -320,6 +323,10 @@ export const useDwellerStore = defineStore('dweller', () => {
 
   function setFilterStatus(status: DwellerStatus | 'all'): void {
     filterStatus.value = status
+  }
+
+  function setFilterAgeGroup(ageGroup: DwellerAgeGroup): void {
+    filterAgeGroup.value = ageGroup
   }
 
   function setSortBy(sort: DwellerSortBy): void {
@@ -714,6 +721,7 @@ export const useDwellerStore = defineStore('dweller', () => {
     isLoading,
     isDeadLoading,
     filterStatus,
+    filterAgeGroup,
     sortBy,
     sortDirection,
     viewMode,
@@ -731,6 +739,7 @@ export const useDwellerStore = defineStore('dweller', () => {
     unassignDwellerFromRoom,
     renameDweller,
     setFilterStatus,
+    setFilterAgeGroup,
     setSortBy,
     setSortDirection,
     setViewMode,

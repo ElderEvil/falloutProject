@@ -36,20 +36,22 @@ export const useQuestStore = defineStore('quest', () => {
   // Computed
   // Quest is available if visible and not started yet (can assign party)
   const activeQuests = computed(() =>
-    vaultQuests.value.filter((quest) => quest.is_visible && quest.started_at != null && !quest.is_completed)
+    vaultQuests.value.filter(
+      (quest) => quest.is_visible && quest.started_at != null && !quest.is_completed
+    )
   )
 
   const completedQuests = computed(() => vaultQuests.value.filter((quest) => quest.is_completed))
 
   // Quest is available if visible but not started (can still assign party)
   const availableQuests = computed(() =>
-    vaultQuests.value.filter((quest) => quest.is_visible && quest.started_at == null && !quest.is_completed)
+    vaultQuests.value.filter(
+      (quest) => quest.is_visible && quest.started_at == null && !quest.is_completed
+    )
   )
 
   // All visible quests (for "show all" toggle)
-  const allVisibleQuests = computed(() =>
-    vaultQuests.value.filter((quest) => quest.is_visible)
-  )
+  const allVisibleQuests = computed(() => vaultQuests.value.filter((quest) => quest.is_visible))
 
   // Actions
   async function fetchAllQuests(): Promise<void> {
@@ -69,7 +71,9 @@ export const useQuestStore = defineStore('quest', () => {
   async function fetchVaultQuests(vaultId: string): Promise<void> {
     try {
       isLoading.value = true
-      const response = await axios.get<VaultQuest[]>(`/api/v1/quests/${vaultId}/`, { headers: getAuthHeaders() })
+      const response = await axios.get<VaultQuest[]>(`/api/v1/quests/${vaultId}/`, {
+        headers: getAuthHeaders(),
+      })
       vaultQuests.value = response.data
     } catch (error: unknown) {
       console.error('Failed to fetch vault quests:', error)
@@ -81,7 +85,9 @@ export const useQuestStore = defineStore('quest', () => {
   }
 
   async function fetchPartiesForActiveQuests(vaultId: string): Promise<void> {
-    const active = vaultQuests.value.filter((q) => q.is_visible && q.started_at != null && !q.is_completed)
+    const active = vaultQuests.value.filter(
+      (q) => q.is_visible && q.started_at != null && !q.is_completed
+    )
     for (const quest of active) {
       try {
         const party = await getParty(vaultId, quest.id)
@@ -177,7 +183,9 @@ export const useQuestStore = defineStore('quest', () => {
 
   async function getParty(vaultId: string, questId: string): Promise<QuestPartyMember[]> {
     try {
-      const response = await axios.get<QuestPartyMember[]>(`/api/v1/quests/${vaultId}/${questId}/party`)
+      const response = await axios.get<QuestPartyMember[]>(
+        `/api/v1/quests/${vaultId}/${questId}/party`
+      )
       return response.data
     } catch (error: unknown) {
       console.error('Failed to fetch party:', error)

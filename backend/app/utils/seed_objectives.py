@@ -7,6 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.objective import Objective
 from app.schemas.objective import ObjectiveCreate
+from app.utils.objective_constants import validate_target_entity
 from app.utils.seeding import seed_from_json
 from app.utils.static_data import DATA_DIR
 
@@ -22,6 +23,22 @@ def _transform_objective_create_to_model(objective_data: ObjectiveCreate) -> Obj
         target_entity=objective_data.target_entity,
         target_amount=objective_data.target_amount,
     )
+
+
+def _validate_objective(objective_data: ObjectiveCreate) -> list[str]:
+    """Validate an objective's target_entity.
+
+    Args:
+        objective_data: The objective data to validate
+
+    Returns:
+        List of validation errors (empty if valid)
+    """
+    errors = validate_target_entity(
+        objective_type=objective_data.objective_type,
+        target_entity=objective_data.target_entity,
+    )
+    return errors
 
 
 async def seed_objectives_from_json(db_session: AsyncSession, objectives_dir: Path | None = None) -> int:
@@ -45,4 +62,5 @@ async def seed_objectives_from_json(db_session: AsyncSession, objectives_dir: Pa
         directory=objectives_dir,
         unique_field="challenge",
         transform_fn=_transform_objective_create_to_model,
+        validate_fn=_validate_objective,
     )

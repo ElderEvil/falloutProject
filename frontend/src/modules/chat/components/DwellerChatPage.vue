@@ -31,11 +31,11 @@ onMounted(async () => {
     }
     dweller.value = result
 
-     // Set active vault ID from dweller's vault for navigation
-     if (result.vault?.id) {
-       vaultStore.activeVaultId = result.vault.id
-       await vaultStore.loadVault(result.vault.id, authStore.token)
-     }
+    // Set active vault ID from dweller's vault for navigation
+    if (result.vault?.id) {
+      vaultStore.activeVaultId = result.vault.id
+      await vaultStore.loadVault(result.vault.id, authStore.token)
+    }
   } catch (error) {
     console.error('Error fetching dweller data:', error)
     // Handle error (e.g., show error message to user, redirect to error page)

@@ -8,7 +8,7 @@ import { Icon } from '@iconify/vue'
 import {
   changelogService,
   type ChangelogEntry,
-  type ChangeEntry
+  type ChangeEntry,
 } from '@/modules/profile/services/changelogService'
 import FormattedChangeDescription from '@/modules/profile/components/FormattedChangeDescription.vue'
 
@@ -25,7 +25,7 @@ interface Emits {
 
 const props = withDefaults(defineProps<Props>(), {
   currentVersion: '2.7.5',
-  lastSeenVersion: undefined
+  lastSeenVersion: undefined,
 })
 
 const emit = defineEmits<Emits>()
@@ -79,10 +79,7 @@ const fetchChangelog = async () => {
 }
 
 const handleViewAllChangelog = () => {
-  window.open(
-    'https://github.com/ElderEvil/falloutProject/blob/master/CHANGELOG.md',
-    '_blank'
-  )
+  window.open('https://github.com/ElderEvil/falloutProject/blob/master/CHANGELOG.md', '_blank')
 }
 
 const handleBackdropClick = () => {
@@ -117,12 +114,10 @@ const getCategoryInfo = (category: string) => {
     Changed: { color: 'text-yellow-400', icon: 'mdi:swap-horizontal' },
     Removed: { color: 'text-red-400', icon: 'mdi:minus-circle' },
     Documentation: { color: 'text-blue-400', icon: 'mdi:file-document' },
-    Testing: { color: 'text-purple-400', icon: 'mdi:test-tube' }
+    Testing: { color: 'text-purple-400', icon: 'mdi:test-tube' },
   }
   return categoryMap[category] || { color: 'text-gray-400', icon: 'mdi:circle' }
 }
-
-
 
 // Fetch changelog when modal opens (with immediate:true for initial show=true)
 watch(
@@ -155,12 +150,7 @@ onUnmounted(() => {
         class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
         @click="handleBackdropClick"
       >
-        <UCard
-          glow
-          crt
-          class="w-full max-w-4xl max-h-[85vh] overflow-hidden"
-          @click.stop
-        >
+        <UCard glow crt class="w-full max-w-4xl max-h-[85vh] overflow-hidden" @click.stop>
           <template #header>
             <div class="flex items-center justify-between w-full">
               <div class="flex items-center gap-3">
@@ -189,10 +179,7 @@ onUnmounted(() => {
           </div>
 
           <!-- No new versions -->
-          <div
-            v-else-if="!hasNewVersions"
-            class="flex flex-col items-center justify-center py-12"
-          >
+          <div v-else-if="!hasNewVersions" class="flex flex-col items-center justify-center py-12">
             <Icon
               icon="mdi:check-circle"
               class="h-16 w-16 text-[--color-terminal-green-400] mb-4"
@@ -217,16 +204,20 @@ onUnmounted(() => {
                 </div>
               </div>
 
-               <!-- Changes grouped by category -->
-               <div class="space-y-4">
-                 <div
-                   v-for="[category, changes] in groupChangesByCategory(entry.changes)"
-                   :key="`${entry.version}-${category}`"
-                   class="mb-4"
-                 >
+              <!-- Changes grouped by category -->
+              <div class="space-y-4">
+                <div
+                  v-for="[category, changes] in groupChangesByCategory(entry.changes)"
+                  :key="`${entry.version}-${category}`"
+                  class="mb-4"
+                >
                   <!-- Category header -->
                   <div class="flex items-center gap-2 mb-3">
-                    <Icon :icon="getCategoryInfo(category).icon" :class="getCategoryInfo(category).color" class="h-5 w-5" />
+                    <Icon
+                      :icon="getCategoryInfo(category).icon"
+                      :class="getCategoryInfo(category).color"
+                      class="h-5 w-5"
+                    />
                     <h3 :class="getCategoryInfo(category).color" class="font-semibold font-mono">
                       {{ category }}
                     </h3>
@@ -247,22 +238,22 @@ onUnmounted(() => {
             </div>
           </div>
 
-           <!-- Actions -->
-           <template #footer>
-             <div class="flex justify-between items-center">
-               <div class="flex gap-3">
-                 <UButton variant="secondary" @click="handleViewAllChangelog">
-                   View Full Changelog
-                 </UButton>
-               </div>
+          <!-- Actions -->
+          <template #footer>
+            <div class="flex justify-between items-center">
+              <div class="flex gap-3">
+                <UButton variant="secondary" @click="handleViewAllChangelog">
+                  View Full Changelog
+                </UButton>
+              </div>
 
-               <div class="flex gap-3">
-                 <UButton v-if="hasNewVersions" variant="primary" @click="handleMarkAsSeen">
-                   Got it!
-                 </UButton>
-               </div>
-             </div>
-           </template>
+              <div class="flex gap-3">
+                <UButton v-if="hasNewVersions" variant="primary" @click="handleMarkAsSeen">
+                  Got it!
+                </UButton>
+              </div>
+            </div>
+          </template>
         </UCard>
       </div>
     </Transition>

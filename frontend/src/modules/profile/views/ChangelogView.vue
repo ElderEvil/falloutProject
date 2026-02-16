@@ -5,7 +5,11 @@
 import { ref, onMounted, computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { UCard, UButton, UBadge, USkeleton } from '@/core/components/ui'
-import { changelogService, type ChangelogEntry, type ChangeEntry } from '@/modules/profile/services/changelogService'
+import {
+  changelogService,
+  type ChangelogEntry,
+  type ChangeEntry,
+} from '@/modules/profile/services/changelogService'
 import FormattedChangeDescription from '@/modules/profile/components/FormattedChangeDescription.vue'
 
 const changelog = ref<ChangelogEntry[]>([])
@@ -17,8 +21,8 @@ const selectedCategory = ref('all')
 // All available categories for filtering
 const categories = computed(() => {
   const cats = new Set<string>()
-  changelog.value.forEach(entry => {
-    entry.changes.forEach(change => cats.add(change.category))
+  changelog.value.forEach((entry) => {
+    entry.changes.forEach((change) => cats.add(change.category))
   })
   return Array.from(cats).sort()
 })
@@ -29,21 +33,23 @@ const filteredChangelog = computed(() => {
 
   // Category filter
   if (selectedCategory.value !== 'all') {
-    filtered = filtered.map(entry => ({
-      ...entry,
-      changes: entry.changes.filter(change => change.category === selectedCategory.value)
-    })).filter(entry => entry.changes.length > 0)
+    filtered = filtered
+      .map((entry) => ({
+        ...entry,
+        changes: entry.changes.filter((change) => change.category === selectedCategory.value),
+      }))
+      .filter((entry) => entry.changes.length > 0)
   }
 
   // Search filter
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase()
-    filtered = filtered.map(entry => ({
-      ...entry,
-      changes: entry.changes.filter(change =>
-        change.description.toLowerCase().includes(query)
-      )
-    })).filter(entry => entry.changes.length > 0)
+    filtered = filtered
+      .map((entry) => ({
+        ...entry,
+        changes: entry.changes.filter((change) => change.description.toLowerCase().includes(query)),
+      }))
+      .filter((entry) => entry.changes.length > 0)
   }
 
   return filtered
@@ -53,7 +59,7 @@ const filteredChangelog = computed(() => {
 const groupChangesByCategory = (changes: ChangeEntry[]) => {
   const grouped = new Map<string, ChangeEntry[]>()
 
-  changes.forEach(change => {
+  changes.forEach((change) => {
     if (!grouped.has(change.category)) {
       grouped.set(change.category, [])
     }
@@ -66,15 +72,15 @@ const groupChangesByCategory = (changes: ChangeEntry[]) => {
 // Category colors and icons
 const getCategoryInfo = (category: string) => {
   const categoryMap: Record<string, { color: string; icon: string }> = {
-    'Added': { color: 'text-green-400', icon: '✨' },
-    'Fixed': { color: 'text-blue-400', icon: '🔧' },
-    'Changed': { color: 'text-yellow-400', icon: '🔄' },
-    'Removed': { color: 'text-red-400', icon: '🗑️' },
-    'Documentation': { color: 'text-purple-400', icon: '📚' },
-    'Testing': { color: 'text-cyan-400', icon: '🧪' },
-    'Technical': { color: 'text-gray-400', icon: '⚙️' },
-    'Security': { color: 'text-orange-400', icon: '🔒' },
-    'Performance': { color: 'text-pink-400', icon: '⚡' }
+    Added: { color: 'text-green-400', icon: '✨' },
+    Fixed: { color: 'text-blue-400', icon: '🔧' },
+    Changed: { color: 'text-yellow-400', icon: '🔄' },
+    Removed: { color: 'text-red-400', icon: '🗑️' },
+    Documentation: { color: 'text-purple-400', icon: '📚' },
+    Testing: { color: 'text-cyan-400', icon: '🧪' },
+    Technical: { color: 'text-gray-400', icon: '⚙️' },
+    Security: { color: 'text-orange-400', icon: '🔒' },
+    Performance: { color: 'text-pink-400', icon: '⚡' },
   }
 
   return categoryMap[category] || { color: 'text-gray-300', icon: '📝' }
@@ -107,7 +113,9 @@ onMounted(() => {
   <div class="container mx-auto px-4 py-8">
     <!-- Header -->
     <div class="mb-8 text-center">
-      <h1 class="text-4xl font-bold text-[var(--color-theme-primary)] mb-4 terminal-glow flex items-center justify-center gap-3">
+      <h1
+        class="text-4xl font-bold text-[var(--color-theme-primary)] mb-4 terminal-glow flex items-center justify-center gap-3"
+      >
         <Icon icon="mdi:console-line" class="w-10 h-10" />
         Changelog
       </h1>
@@ -146,7 +154,10 @@ onMounted(() => {
         <!-- Clear Filters -->
         <UButton
           variant="secondary"
-          @click="searchQuery = ''; selectedCategory = 'all'"
+          @click="
+            searchQuery = ''
+            selectedCategory = 'all'
+          "
           :disabled="!searchQuery && selectedCategory === 'all'"
         >
           Clear Filters
@@ -173,28 +184,22 @@ onMounted(() => {
 
     <!-- Changelog content -->
     <div v-else class="space-y-8">
-      <div
-        v-for="entry in filteredChangelog"
-        :key="entry.version"
-        class="mb-8"
-      >
+      <div v-for="entry in filteredChangelog" :key="entry.version" class="mb-8">
         <!-- Version header -->
         <UCard class="mb-4" glow>
           <div class="flex items-center gap-3">
-            <UBadge variant="primary" class="text-xl font-bold">
-              v{{ entry.version }}
-            </UBadge>
+            <UBadge variant="primary" class="text-xl font-bold"> v{{ entry.version }} </UBadge>
             <span class="text-gray-400">{{ entry.date_display }}</span>
           </div>
         </UCard>
 
-         <!-- Changes grouped by category -->
-         <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-           <div
-             v-for="[category, changes] in groupChangesByCategory(entry.changes)"
-             :key="`${entry.version}-${category}`"
-             class="bg-gray-900 rounded-lg p-4 border border-gray-800"
-           >
+        <!-- Changes grouped by category -->
+        <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div
+            v-for="[category, changes] in groupChangesByCategory(entry.changes)"
+            :key="`${entry.version}-${category}`"
+            class="bg-gray-900 rounded-lg p-4 border border-gray-800"
+          >
             <!-- Category header -->
             <div class="flex items-center gap-2 mb-3 pb-2 border-b border-gray-700">
               <span :class="getCategoryInfo(category).color" class="text-lg">
@@ -208,16 +213,16 @@ onMounted(() => {
               </UBadge>
             </div>
 
-             <!-- Change items -->
-             <ul class="space-y-2">
-               <li
-                 v-for="(change, index) in changes"
-                 :key="`${entry.version}-${category}-${index}`"
-                 class="text-gray-300 text-sm leading-relaxed"
-               >
-                 <FormattedChangeDescription :description="change.description" />
-               </li>
-             </ul>
+            <!-- Change items -->
+            <ul class="space-y-2">
+              <li
+                v-for="(change, index) in changes"
+                :key="`${entry.version}-${category}-${index}`"
+                class="text-gray-300 text-sm leading-relaxed"
+              >
+                <FormattedChangeDescription :description="change.description" />
+              </li>
+            </ul>
           </div>
         </div>
       </div>
@@ -237,12 +242,10 @@ onMounted(() => {
   </div>
 </template>
 
-
-
 <style scoped>
 /* Terminal-style bullets */
 .space-y-2 > li::before {
-  content: "▸";
+  content: '▸';
   color: var(--color-theme-primary);
   margin-right: 8px;
   font-weight: bold;

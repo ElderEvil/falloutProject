@@ -129,9 +129,7 @@ onUnmounted(() => {
         <div class="summary-row">
           <Icon icon="mdi:account-multiple" class="summary-icon" />
           <span class="summary-text">
-            {{ activeTrainings.length }} dweller{{
-              activeTrainings.length !== 1 ? 's' : ''
-            }}
+            {{ activeTrainings.length }} dweller{{ activeTrainings.length !== 1 ? 's' : '' }}
             training
           </span>
         </div>

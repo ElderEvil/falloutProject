@@ -11,23 +11,33 @@ defineProps<Props>()
 <template>
   <Teleport to="body">
     <Transition name="gary">
-      <div
-        v-if="show"
-        class="fixed inset-0 z-[10000] pointer-events-none overflow-hidden"
-      >
+      <div v-if="show" class="fixed inset-0 z-[10000] pointer-events-none overflow-hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm flicker crt-screen">
           <div class="absolute inset-0 flex items-center justify-center">
             <div class="text-center space-y-8 animate-pulse">
-              <div class="text-[--color-terminal-green-400] text-9xl font-bold terminal-glow-strong font-mono">
+              <div
+                class="text-[--color-terminal-green-400] text-9xl font-bold terminal-glow-strong font-mono"
+              >
                 GARY
               </div>
               <div class="text-[--color-terminal-green-300] text-4xl font-mono terminal-glow">
                 GARY GARY GARY
               </div>
               <div class="flex justify-center gap-8 text-6xl">
-                <Icon icon="mdi:account-alert" class="text-[--color-terminal-green-400] terminal-glow animate-bounce" />
-                <Icon icon="mdi:alert" class="text-[--color-terminal-green-400] terminal-glow animate-bounce" style="animation-delay: 0.2s" />
-                <Icon icon="mdi:account-alert" class="text-[--color-terminal-green-400] terminal-glow animate-bounce" style="animation-delay: 0.4s" />
+                <Icon
+                  icon="mdi:account-alert"
+                  class="text-[--color-terminal-green-400] terminal-glow animate-bounce"
+                />
+                <Icon
+                  icon="mdi:alert"
+                  class="text-[--color-terminal-green-400] terminal-glow animate-bounce"
+                  style="animation-delay: 0.2s"
+                />
+                <Icon
+                  icon="mdi:account-alert"
+                  class="text-[--color-terminal-green-400] terminal-glow animate-bounce"
+                  style="animation-delay: 0.4s"
+                />
               </div>
             </div>
           </div>

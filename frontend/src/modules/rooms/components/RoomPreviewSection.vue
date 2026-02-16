@@ -21,12 +21,7 @@ defineProps<Props>()
     </h3>
     <div class="preview-container">
       <div class="room-image-container">
-            <img
-              v-if="roomImageUrl"
-              :src="roomImageUrl"
-              :alt="roomName || 'Room'"
-              class="room-image"
-            />
+        <img v-if="roomImageUrl" :src="roomImageUrl" :alt="roomName || 'Room'" class="room-image" />
         <div class="room-image-placeholder" :class="{ 'has-image': imageUrl }">
           <template v-if="!imageUrl">
             <Icon icon="mdi:home-variant-outline" class="h-16 w-16 opacity-30" />

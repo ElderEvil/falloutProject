@@ -42,7 +42,9 @@ export const useObjectivesStore = defineStore('objectives', () => {
 
   async function completeObjective(vaultId: string, objectiveId: string): Promise<Objective> {
     try {
-      const response = await axios.post<Objective>(`/api/v1/objectives/${vaultId}/${objectiveId}/complete`)
+      const response = await axios.post<Objective>(
+        `/api/v1/objectives/${vaultId}/${objectiveId}/complete`
+      )
       const index = objectives.value.findIndex((obj) => obj.id === objectiveId)
       if (index !== -1) {
         objectives.value[index] = response.data
@@ -57,12 +59,12 @@ export const useObjectivesStore = defineStore('objectives', () => {
   async function updateProgress(
     vaultId: string,
     objectiveId: string,
-    progress: number,
+    progress: number
   ): Promise<Objective> {
     try {
       const response = await axios.post<Objective>(
         `/api/v1/objectives/${vaultId}/${objectiveId}/progress`,
-        { progress },
+        { progress }
       )
       const index = objectives.value.findIndex((obj) => obj.id === objectiveId)
       if (index !== -1) {

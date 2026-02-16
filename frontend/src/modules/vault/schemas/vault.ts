@@ -6,9 +6,13 @@ import { z } from 'zod'
  * Using Zod v4 best practices: top-level validators and unified error parameter
  */
 export const vaultNumberSchema = z.object({
-  number: z.number({
-    error: 'Vault number must be a number',
-  }).int({ error: 'Vault number must be a whole number' }).min(1, { error: 'Vault number must be at least 1' }).max(999, { error: 'Vault number must be 999 or less' }),
+  number: z
+    .number({
+      error: 'Vault number must be a number',
+    })
+    .int({ error: 'Vault number must be a whole number' })
+    .min(1, { error: 'Vault number must be at least 1' })
+    .max(999, { error: 'Vault number must be 999 or less' }),
   boosted: z.boolean().default(false),
 })
 

@@ -203,11 +203,7 @@ const goBack = () => {
                 </UCard>
 
                 <!-- Prerequisites Section -->
-                <UCard
-                  v-if="hasPrerequisites"
-                  title="Prerequisites"
-                  class="prerequisites-card"
-                >
+                <UCard v-if="hasPrerequisites" title="Prerequisites" class="prerequisites-card">
                   <ul class="prerequisites-list">
                     <li
                       v-for="req in quest.quest_requirements"
@@ -249,12 +245,11 @@ const goBack = () => {
               <!-- Right Column: Rewards & Actions -->
               <div class="quest-sidebar">
                 <UCard title="Rewards" class="rewards-card">
-                  <div v-if="quest.quest_rewards && quest.quest_rewards.length > 0" class="rewards-list">
-                    <div
-                      v-for="reward in quest.quest_rewards"
-                      :key="reward.id"
-                      class="reward-item"
-                    >
+                  <div
+                    v-if="quest.quest_rewards && quest.quest_rewards.length > 0"
+                    class="rewards-list"
+                  >
+                    <div v-for="reward in quest.quest_rewards" :key="reward.id" class="reward-item">
                       <div class="reward-icon-wrapper">
                         <Icon icon="mdi:gift" class="reward-icon" />
                       </div>

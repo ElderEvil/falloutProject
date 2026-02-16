@@ -24,6 +24,7 @@ async def seed_from_json(
     directory: Path,
     unique_field: str,
     transform_fn: Callable[[T], M],
+    validate_fn: Callable[[T], list[str]] | None = None,
     file_pattern: str = "*.json",
 ) -> int:
     """
@@ -36,6 +37,7 @@ async def seed_from_json(
         directory: Directory containing JSON files
         unique_field: Field name to check for duplicates (e.g., "title", "challenge")
         transform_fn: Function to transform schema instance to model instance
+        validate_fn: Optional function to validate data after schema validation
         file_pattern: Glob pattern for JSON files (default: "*.json")
 
     Returns:
@@ -93,6 +95,15 @@ async def seed_from_json(
 
             # Mark as seen and seed
             seen_values.add(unique_value)
+
+            # Run custom validation if provided
+            if validate_fn:
+                errors = validate_fn(data_item)
+                if errors:
+                    for error in errors:
+                        logger.error("Validation error for %s=%s: %s", unique_field, unique_value, error)
+                    continue
+
             model_instance = transform_fn(data_item)
             db_session.add(model_instance)
             seeded_count += 1

@@ -53,6 +53,9 @@ class CRUDObjective(
                 id=obj.id,
                 challenge=obj.challenge,
                 reward=obj.reward,
+                objective_type=obj.objective_type,
+                target_entity=obj.target_entity,
+                target_amount=obj.target_amount,
                 progress=progress,
                 total=total,
                 is_completed=is_completed,
@@ -158,7 +161,7 @@ class CRUDObjective(
             select(self.model)
             .where(self.model.objective_type.is_not(None))
             .where(self.model.target_entity.is_not(None))
-            .where(self.model.target_amount > 1)
+            .where(self.model.target_amount >= 1)
             .offset(skip)
             .limit(limit)
         )

@@ -9,7 +9,7 @@ from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_
 from app.api.game_data_deps import get_static_game_data
 from app.crud.dweller import determine_status_for_room
 from app.db.session import get_async_session
-from app.schemas.common import DwellerStatusEnum
+from app.schemas.common import AgeGroupEnum, DwellerStatusEnum
 from app.schemas.dweller import (
     DwellerCreate,
     DwellerCreateCommonOverride,
@@ -121,11 +121,12 @@ async def read_dwellers_by_vault(
     skip: int = 0,
     limit: int = 100,
     status: DwellerStatusEnum | None = None,
+    age_group: AgeGroupEnum | None = None,
     search: str | None = None,
     sort_by: str = "created_at",
     order: str = "desc",
 ):
-    """Get dwellers by vault with optional filtering by status, search by name, and sorting."""
+    """Get dwellers by vault with optional filtering by status, age group, search by name, and sorting."""
     await get_user_vault_or_403(vault_id, user, db_session)
     return await crud.dweller.get_multi_by_vault(
         db_session=db_session,
@@ -133,6 +134,7 @@ async def read_dwellers_by_vault(
         skip=skip,
         limit=limit,
         status=status,
+        age_group=age_group,
         search=search,
         sort_by=sort_by,
         order=order,

@@ -9,7 +9,28 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
-## [2.10.6] - 2026-02-15
+## [2.10.7] - 2026-02-16
+
+### Fixed
+
+- **Living Room population_max** - Building living rooms now correctly updates vault.population_max
+  - Fixed detection from room name matching to using room attributes (category=CAPACITY + ability=CHARISMA)
+- **Objective Resource Collection** - Resource production now correctly counts toward collect objectives
+  - Fixed int conversion order in game_loop.py (convert before > 0 check, not after)
+  - Added event emission in vault_service.py for manual resource updates
+- **Build Objective Matching** - Building rooms now correctly matches build objectives
+  - Fixed room type mismatch: objective used "living_quarters", actual room is "living_room"
+  - Added validation in seeding to catch invalid target_entity values
+- **Objective Response Fields** - API now returns all objective fields including target_entity
+  - Fixed get_multi_for_vault to include objective_type and target_entity
+
+### Guards Added
+
+- **Objective Target Validation** - New validation system for objective target_entity values
+  - Validates room_type, resource_type, item_type against allowed values
+  - Generates clear error during seeding if invalid values found
+  - Prevents silent failures at runtime
+  - Added unit tests for validation logic
 
 ### What's New
 

@@ -68,9 +68,10 @@ const tooltipPositionStyle = computed(() => {
     top: `${top}px`,
     left: `${left}px`,
     zIndex: '200',
-    transform: props.position === 'top' || props.position === 'bottom'
-      ? 'translateX(-50%) translateY(' + (props.position === 'top' ? '-100%' : '0') + ')'
-      : 'translateY(-50%) translateX(' + (props.position === 'left' ? '-100%' : '0') + ')'
+    transform:
+      props.position === 'top' || props.position === 'bottom'
+        ? 'translateX(-50%) translateY(' + (props.position === 'top' ? '-100%' : '0') + ')'
+        : 'translateY(-50%) translateX(' + (props.position === 'left' ? '-100%' : '0') + ')',
   }
 })
 

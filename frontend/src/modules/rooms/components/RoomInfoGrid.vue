@@ -29,9 +29,7 @@ defineProps<Props>()
       </div>
       <div class="info-item">
         <span class="info-label">Room Size:</span>
-        <span class="info-value"
-            >{{ Math.ceil((room.size ?? room.size_min) / 3) }}x merged</span
-        >
+        <span class="info-value">{{ Math.ceil((room.size ?? room.size_min) / 3) }}x merged</span>
       </div>
       <div class="info-item">
         <span class="info-label">Position:</span>

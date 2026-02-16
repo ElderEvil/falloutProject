@@ -55,7 +55,7 @@ const emit = defineEmits<{
     </div>
     <div class="bio-content">
       <template v-if="bio">
-        <p class="bio-text">{{ bio }}</p>
+        <p class="bio-text" v-html="bio"></p>
       </template>
       <template v-else>
         <div class="bio-placeholder">

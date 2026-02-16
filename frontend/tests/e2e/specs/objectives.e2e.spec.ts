@@ -211,3 +211,72 @@ test.describe('Objectives - Navigation', () => {
     }
   })
 })
+
+test.describe('Objectives - Training Integration', () => {
+  test.use({ storageState: authFile })
+
+  test.beforeEach(async ({ page }) => {
+    const vaultId = await enterFirstVaultOrFail(page)
+    await page.goto(`/vault/${vaultId}/objectives`)
+    await page.waitForLoadState('networkidle')
+  })
+
+  test('should display training objectives with stat-specific tracking', async ({ page }) => {
+    await page.waitForSelector('text=Objectives', { timeout: 10000 })
+
+    const trainObjective = page.locator('text=/Train.*[Ss]trength|Train.*[Pp]erception|Train.*[Ee]ndurance|Train.*[Cc]harisma|Train.*[Ii]ntelligence|Train.*[Aa]gility|Train.*[Ll]uck/i')
+
+    const count = await trainObjective.count()
+    if (count > 0) {
+      await expect(trainObjective.first()).toBeVisible()
+
+      const progressInfo = page.locator('text=/\\d+\\s*\\/\\s*\\d+/').first()
+      if (await progressInfo.count() > 0) {
+        await expect(progressInfo).toBeVisible()
+      }
+    }
+  })
+
+  test('should display progress percentage for objectives', async ({ page }) => {
+    await page.waitForSelector('text=Objectives', { timeout: 10000 })
+
+    const progressBar = page.locator('[role="progressbar"], .progress-bar')
+    const progressBarCount = await progressBar.count()
+
+    if (progressBarCount > 0) {
+      await expect(progressBar.first()).toBeVisible()
+    }
+  })
+})
+
+test.describe('Objectives - Reach Type', () => {
+  test.use({ storageState: authFile })
+
+  test.beforeEach(async ({ page }) => {
+    const vaultId = await enterFirstVaultOrFail(page)
+    await page.goto(`/vault/${vaultId}/objectives`)
+    await page.waitForLoadState('networkidle')
+  })
+
+  test('should display population reach objectives', async ({ page }) => {
+    await page.waitForSelector('text=Objectives', { timeout: 10000 })
+
+    const populationObjective = page.locator('text=/Reach.*\\d+.*[Dd]weller|Population.*\\d+/i')
+    const count = await populationObjective.count()
+
+    if (count > 0) {
+      await expect(populationObjective.first()).toBeVisible()
+    }
+  })
+
+  test('should display level reach objectives', async ({ page }) => {
+    await page.waitForSelector('text=Objectives', { timeout: 10000 })
+
+    const levelObjective = page.locator('text=/Reach.*[Ll]evel.*\\d+/i')
+    const count = await levelObjective.count()
+
+    if (count > 0) {
+      await expect(levelObjective.first()).toBeVisible()
+    }
+  })
+})

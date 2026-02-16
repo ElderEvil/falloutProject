@@ -43,22 +43,12 @@ const handleAutoAssignAll = async () => {
 
 <template>
   <div class="bulk-actions-inline">
-    <UButton
-      variant="danger"
-      size="xs"
-      @click="showConfirmDialog = true"
-      :loading="unassigningAll"
-    >
+    <UButton variant="danger" size="xs" @click="showConfirmDialog = true" :loading="unassigningAll">
       <Icon icon="mdi:account-remove" class="h-4 w-4 mr-1" />
       Unassign All
     </UButton>
 
-    <UButton
-      variant="primary"
-      size="xs"
-      @click="handleAutoAssignAll"
-      :loading="autoAssigning"
-    >
+    <UButton variant="primary" size="xs" @click="handleAutoAssignAll" :loading="autoAssigning">
       <Icon icon="mdi:auto-mode" class="h-4 w-4 mr-1" />
       Auto-Assign All Rooms
     </UButton>
@@ -72,7 +62,9 @@ const handleAutoAssignAll = async () => {
             <p>This will remove all dwellers from their current room assignments.</p>
             <div class="dialog-actions">
               <UButton variant="secondary" @click="showConfirmDialog = false">Cancel</UButton>
-              <UButton variant="danger" @click="handleUnassignAll" :loading="unassigningAll">Confirm</UButton>
+              <UButton variant="danger" @click="handleUnassignAll" :loading="unassigningAll"
+                >Confirm</UButton
+              >
             </div>
           </div>
         </div>
@@ -132,26 +124,68 @@ const handleAutoAssignAll = async () => {
 }
 
 @keyframes flicker {
-  0% { opacity: 0.97; }
-  5% { opacity: 0.95; }
-  10% { opacity: 0.9; }
-  15% { opacity: 0.95; }
-  20% { opacity: 0.98; }
-  25% { opacity: 0.95; }
-  30% { opacity: 0.9; }
-  35% { opacity: 0.95; }
-  40% { opacity: 0.98; }
-  45% { opacity: 1; }
-  50% { opacity: 0.98; }
-  55% { opacity: 0.95; }
-  60% { opacity: 0.9; }
-  65% { opacity: 0.95; }
-  70% { opacity: 0.98; }
-  75% { opacity: 0.95; }
-  80% { opacity: 0.9; }
-  85% { opacity: 0.95; }
-  90% { opacity: 0.98; }
-  95% { opacity: 0.95; }
-  100% { opacity: 0.98; }
+  0% {
+    opacity: 0.97;
+  }
+  5% {
+    opacity: 0.95;
+  }
+  10% {
+    opacity: 0.9;
+  }
+  15% {
+    opacity: 0.95;
+  }
+  20% {
+    opacity: 0.98;
+  }
+  25% {
+    opacity: 0.95;
+  }
+  30% {
+    opacity: 0.9;
+  }
+  35% {
+    opacity: 0.95;
+  }
+  40% {
+    opacity: 0.98;
+  }
+  45% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.98;
+  }
+  55% {
+    opacity: 0.95;
+  }
+  60% {
+    opacity: 0.9;
+  }
+  65% {
+    opacity: 0.95;
+  }
+  70% {
+    opacity: 0.98;
+  }
+  75% {
+    opacity: 0.95;
+  }
+  80% {
+    opacity: 0.9;
+  }
+  85% {
+    opacity: 0.95;
+  }
+  90% {
+    opacity: 0.98;
+  }
+  95% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0.98;
+  }
 }
 </style>

@@ -80,7 +80,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
             headers: {
               Authorization: `Bearer ${getToken()}`,
             },
-          },
+          }
         )
         messages.value.push({
           type: 'dweller',

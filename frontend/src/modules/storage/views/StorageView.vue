@@ -26,7 +26,7 @@ const storageSpace = ref<{
   utilization_pct: number
 } | null>(null)
 
-const currentVault = computed(() => vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null)
+const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
 
 const medicalSupplies = computed(() => {
   const vault = currentVault.value
@@ -274,19 +274,27 @@ const getRarityColor = (rarity?: string) => {
             <h3 class="text-theme-accent text-lg font-semibold mb-3">Medical Supplies</h3>
             <div class="grid grid-cols-2 gap-4">
               <!-- Stimpaks -->
-              <div class="flex items-center gap-3 p-3 bg-black/40 rounded border border-theme-primary/30">
+              <div
+                class="flex items-center gap-3 p-3 bg-black/40 rounded border border-theme-primary/30"
+              >
                 <Icon icon="mdi:medical-bag" class="w-8 h-8 text-green-500" />
                 <div>
                   <div class="text-theme-primary font-bold">{{ medicalSupplies.stimpaks }}</div>
-                  <div class="text-theme-accent text-xs">/ {{ medicalSupplies.stimpaksMax ?? '-' }} Stimpaks</div>
+                  <div class="text-theme-accent text-xs">
+                    / {{ medicalSupplies.stimpaksMax ?? '-' }} Stimpaks
+                  </div>
                 </div>
               </div>
               <!-- Radaways -->
-              <div class="flex items-center gap-3 p-3 bg-black/40 rounded border border-theme-primary/30">
+              <div
+                class="flex items-center gap-3 p-3 bg-black/40 rounded border border-theme-primary/30"
+              >
                 <Icon icon="mdi:pill" class="w-8 h-8 text-purple-500" />
                 <div>
                   <div class="text-theme-primary font-bold">{{ medicalSupplies.radaways }}</div>
-                  <div class="text-theme-accent text-xs">/ {{ medicalSupplies.radawaysMax ?? '-' }} Radaways</div>
+                  <div class="text-theme-accent text-xs">
+                    / {{ medicalSupplies.radawaysMax ?? '-' }} Radaways
+                  </div>
                 </div>
               </div>
             </div>

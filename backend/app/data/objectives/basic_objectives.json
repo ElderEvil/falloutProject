@@ -59,7 +59,7 @@
     "challenge": "Build a Living Quarter",
     "reward": "600 Caps",
     "objective_type": "build",
-    "target_entity": {"room_type": "living_quarters"},
+    "target_entity": {"room_type": "living_room"},
     "target_amount": 1
   },
   {

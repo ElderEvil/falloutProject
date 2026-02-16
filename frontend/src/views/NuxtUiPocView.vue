@@ -2,7 +2,11 @@
 import { ref } from 'vue'
 import { useTheme } from '@/core/composables/useTheme'
 import { useVisualEffects } from '@/core/composables/useVisualEffects'
-import { UCard as CustomCard, UButton as CustomButton, UBadge as CustomBadge } from '@/core/components/ui'
+import {
+  UCard as CustomCard,
+  UButton as CustomButton,
+  UBadge as CustomBadge,
+} from '@/core/components/ui'
 
 const { currentTheme, setTheme, availableThemes } = useTheme()
 const { flickering, toggleFlickering } = useVisualEffects()
@@ -15,7 +19,7 @@ const alertVisible = ref(true)
 
 function triggerLoading() {
   buttonLoading.value = true
-  setTimeout(() => buttonLoading.value = false, 2000)
+  setTimeout(() => (buttonLoading.value = false), 2000)
 }
 </script>
 
@@ -24,21 +28,19 @@ function triggerLoading() {
     <div class="max-w-6xl mx-auto">
       <!-- Header -->
       <div class="mb-8">
-        <h1
-          class="text-3xl font-bold mb-2"
-          :style="{ color: 'var(--color-theme-primary)' }"
-        >
+        <h1 class="text-3xl font-bold mb-2" :style="{ color: 'var(--color-theme-primary)' }">
           Nuxt UI Integration POC
         </h1>
-        <p class="text-gray-400">
-          Testing Nuxt UI components with your existing theme system
-        </p>
+        <p class="text-gray-400">Testing Nuxt UI components with your existing theme system</p>
       </div>
 
       <!-- Theme Switcher (Works with both!) -->
       <CustomCard class="mb-8" title="Theme Switcher" glow>
         <p class="mb-4 text-sm text-gray-400">
-          Current: <span :style="{ color: currentTheme.colors.primary }">{{ currentTheme.displayName }}</span>
+          Current:
+          <span :style="{ color: currentTheme.colors.primary }">{{
+            currentTheme.displayName
+          }}</span>
         </p>
         <div class="flex gap-3 flex-wrap">
           <button
@@ -48,12 +50,13 @@ function triggerLoading() {
             class="px-4 py-2 border-2 rounded transition-all"
             :class="{
               'opacity-100': currentTheme.name === theme.name,
-              'opacity-60': currentTheme.name !== theme.name
+              'opacity-60': currentTheme.name !== theme.name,
             }"
             :style="{
               borderColor: theme.colors.primary,
               color: theme.colors.primary,
-              boxShadow: currentTheme.name === theme.name ? `0 0 15px ${theme.colors.glow}` : 'none'
+              boxShadow:
+                currentTheme.name === theme.name ? `0 0 15px ${theme.colors.glow}` : 'none',
             }"
           >
             {{ theme.name.toUpperCase() }}
@@ -73,14 +76,20 @@ function triggerLoading() {
           class="px-4 py-2 transition-colors"
           :class="{
             'border-b-2': activeTab === tab,
-            'text-gray-400': activeTab !== tab
+            'text-gray-400': activeTab !== tab,
           }"
           :style="{
             color: activeTab === tab ? 'var(--color-theme-primary)' : undefined,
-            borderColor: activeTab === tab ? 'var(--color-theme-primary)' : undefined
+            borderColor: activeTab === tab ? 'var(--color-theme-primary)' : undefined,
           }"
         >
-          {{ tab === 'comparison' ? 'Side-by-Side' : tab === 'native-nuxt' ? 'Native Nuxt UI' : 'Your Custom' }}
+          {{
+            tab === 'comparison'
+              ? 'Side-by-Side'
+              : tab === 'native-nuxt'
+                ? 'Native Nuxt UI'
+                : 'Your Custom'
+          }}
         </button>
       </div>
 
@@ -121,9 +130,7 @@ function triggerLoading() {
               Show Alert Again
             </CustomButton>
 
-            <UButton @click="modalOpen = true" variant="outline">
-              Open Nuxt UI Modal
-            </UButton>
+            <UButton @click="modalOpen = true" variant="outline"> Open Nuxt UI Modal </UButton>
 
             <USkeleton class="h-4 w-full" />
             <USkeleton class="h-4 w-3/4" />
@@ -132,9 +139,7 @@ function triggerLoading() {
 
         <!-- Your Custom Components -->
         <CustomCard title="Your Custom Components" glow>
-          <p class="text-xs text-gray-500 mb-4">
-            These use your current custom UI components
-          </p>
+          <p class="text-xs text-gray-500 mb-4">These use your current custom UI components</p>
 
           <div class="space-y-4">
             <div class="flex gap-2 flex-wrap">
@@ -153,7 +158,10 @@ function triggerLoading() {
 
             <div
               class="p-4 rounded border"
-              :style="{ borderColor: 'var(--color-theme-primary)', color: 'var(--color-theme-primary)' }"
+              :style="{
+                borderColor: 'var(--color-theme-primary)',
+                color: 'var(--color-theme-primary)',
+              }"
             >
               <strong>Custom Alert:</strong> This uses your existing alert styling
             </div>
@@ -271,19 +279,13 @@ function triggerLoading() {
 
       <!-- Modal -->
       <UModal v-model="modalOpen" title="Nuxt UI Modal Test">
-        <p class="mb-4">
-          This is a native Nuxt UI modal. Check if it respects your theme colors!
-        </p>
+        <p class="mb-4">This is a native Nuxt UI modal. Check if it respects your theme colors!</p>
         <p class="text-sm text-gray-500">
           The modal should have your theme color in the header and buttons.
         </p>
         <template #footer>
-          <UButton @click="modalOpen = false" variant="outline">
-            Cancel
-          </UButton>
-          <UButton @click="modalOpen = false" color="primary">
-            Confirm
-          </UButton>
+          <UButton @click="modalOpen = false" variant="outline"> Cancel </UButton>
+          <UButton @click="modalOpen = false" color="primary"> Confirm </UButton>
         </template>
       </UModal>
 

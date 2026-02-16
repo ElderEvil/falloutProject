@@ -176,3 +176,95 @@ async def debug_evaluators():
             event_type: [h.__name__ for h in handlers] for event_type, handlers in event_bus._handlers.items()
         },
     }
+
+
+@router.post("/test-build-living-room/{vault_id}")
+async def test_build_living_room(
+    vault_id: UUID4,
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Debug endpoint to test building a living room and check population_max update."""
+    from app import crud
+    from app.models.room import Room
+    from app.models.vault import Vault
+    from app.schemas.common import RoomTypeEnum, SPECIALEnum
+    from app.schemas.room import RoomCreate
+
+    # Get vault before building
+    vault_before = await crud.vault.get(session, id=vault_id)
+    if not vault_before:
+        return {"error": "Vault not found"}
+
+    # Find a living room from the rooms data
+    from app.core.game_config import game_config
+
+    living_room_data = None
+    for room_data in game_config.rooms:
+        if room_data.get("name", "").lower() in ("living room", "living quarter"):
+            living_room_data = room_data
+            break
+
+    if not living_room_data:
+        return {"error": "No living room found in game config"}
+
+    # Build the living room
+    room_create = RoomCreate(
+        vault_id=vault_id,
+        name=living_room_data["name"],
+        category=RoomTypeEnum(living_room_data["category"]),
+        tier=1,
+        size=3,
+        ability=SPECIALEnum(living_room_data["ability"]) if living_room_data.get("ability") else None,
+        capacity=8,  # Typical size 3 living room
+        population_required=living_room_data.get("population_required"),
+        base_cost=living_room_data["base_cost"],
+        incremental_cost=living_room_data["incremental_cost"],
+        t2_upgrade_cost=living_room_data["t2_upgrade_cost"],
+        t3_upgrade_cost=living_room_data["t3_upgrade_cost"],
+        size_min=living_room_data["size_min"],
+        size_max=living_room_data["size_max"],
+        coordinate_x=1,
+        coordinate_y=1,
+    )
+
+    # Check requires_recalculation
+    from app.crud.room import room as room_crud
+
+    requires_calc = room_crud.requires_recalculation(room_create)
+
+    # Build the room
+    created_room = await room_crud.build(session, obj_in=room_create)
+
+    # Get vault after building
+    await session.refresh(vault_before)
+    vault_after = await crud.vault.get(session, id=vault_id)
+
+    # Get all rooms
+    rooms_result = await session.execute(select(Room).where(Room.vault_id == vault_id))
+    all_rooms = rooms_result.scalars().all()
+
+    return {
+        "vault_id": str(vault_id),
+        "before": {
+            "population_max": vault_before.population_max,
+        },
+        "after": {
+            "population_max": vault_after.population_max,
+        },
+        "room_built": {
+            "name": created_room.name,
+            "category": created_room.category.value if created_room.category else None,
+            "ability": created_room.ability.value if created_room.ability else None,
+            "capacity": created_room.capacity,
+        },
+        "requires_recalculation": requires_calc,
+        "all_rooms": [
+            {
+                "name": r.name,
+                "category": r.category.value if r.category else None,
+                "ability": r.ability.value if r.ability else None,
+                "capacity": r.capacity,
+            }
+            for r in all_rooms
+        ],
+    }

@@ -88,9 +88,9 @@ const happinessTrend = computed((): 'increasing' | 'decreasing' | 'stable' => {
 
   // Critical issues always cause decreasing trend (idle dwellers checked separately)
   if (
-    props.activeIncidentCount > 0
-    || props.lowResourceCount > 0
-    || props.idleDwellerCount >= IDLE_DWELLER_TREND_THRESHOLD
+    props.activeIncidentCount > 0 ||
+    props.lowResourceCount > 0 ||
+    props.idleDwellerCount >= IDLE_DWELLER_TREND_THRESHOLD
   ) {
     return 'decreasing'
   }
@@ -319,7 +319,6 @@ const distributionPercentage = (count: number) => {
           </div>
         </div>
       </div>
-
     </div>
 
     <!-- Quick Actions Footer -->

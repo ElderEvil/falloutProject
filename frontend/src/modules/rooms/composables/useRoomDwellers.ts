@@ -17,7 +17,7 @@ type SpecialKey =
 export function useRoomDwellers(
   room: Ref<Room | null>,
   actionError: Ref<string | null>,
-  emitRoomUpdated: () => void,
+  emitRoomUpdated: () => void
 ) {
   const route = useRoute()
   const router = useRouter()
@@ -74,9 +74,7 @@ export function useRoomDwellers(
 
     try {
       const results = await Promise.allSettled(
-        dwellersToUnassign.map((dweller) =>
-          dwellerStore.unassignDwellerFromRoom(dweller.id, token),
-        ),
+        dwellersToUnassign.map((dweller) => dwellerStore.unassignDwellerFromRoom(dweller.id, token))
       )
 
       const rejected = results.filter((result) => result.status === 'rejected')

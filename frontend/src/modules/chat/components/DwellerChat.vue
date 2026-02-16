@@ -92,7 +92,7 @@ const sendAudioMessage = async () => {
           Authorization: `Bearer ${authStore.token}`,
           'Content-Type': 'multipart/form-data',
         },
-      },
+      }
     )
 
     const placeholderMessage = messages.value[placeholderIndex]

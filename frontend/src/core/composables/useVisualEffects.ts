@@ -122,9 +122,9 @@ export function useVisualEffects() {
   })
 
   /**
-    * Random flicker effect using JavaScript for more unpredictability
-    * This creates truly random opacity changes that CSS animations can't achieve
-    */
+   * Random flicker effect using JavaScript for more unpredictability
+   * This creates truly random opacity changes that CSS animations can't achieve
+   */
   const flickerOpacity = ref(1)
   // Local flicker interval handler (moved from module scope)
   let flickerInterval: ReturnType<typeof setInterval> | null = null
@@ -132,17 +132,20 @@ export function useVisualEffects() {
   function startRandomFlicker() {
     if (flickerInterval) clearInterval(flickerInterval)
 
-    flickerInterval = setInterval(() => {
-      const random = Math.random()
-      // Check most restrictive threshold first (random > 0.97)
-      if (random > 0.97) {
-        flickerOpacity.value = 0.93 + Math.random() * 0.04
-      } else if (random > 0.92) {
-        flickerOpacity.value = 0.90 + Math.random() * 0.05
-      } else {
-        flickerOpacity.value = 0.97 + Math.random() * 0.03
-      }
-    }, 1500 + Math.random() * 2000)
+    flickerInterval = setInterval(
+      () => {
+        const random = Math.random()
+        // Check most restrictive threshold first (random > 0.97)
+        if (random > 0.97) {
+          flickerOpacity.value = 0.93 + Math.random() * 0.04
+        } else if (random > 0.92) {
+          flickerOpacity.value = 0.9 + Math.random() * 0.05
+        } else {
+          flickerOpacity.value = 0.97 + Math.random() * 0.03
+        }
+      },
+      1500 + Math.random() * 2000
+    )
   }
 
   function stopRandomFlicker() {
@@ -154,13 +157,17 @@ export function useVisualEffects() {
   }
 
   // Watch flickering state and start/stop accordingly
-  watch(flickering, (enabled) => {
-    if (enabled) {
-      startRandomFlicker()
-    } else {
-      stopRandomFlicker()
-    }
-  }, { immediate: true })
+  watch(
+    flickering,
+    (enabled) => {
+      if (enabled) {
+        startRandomFlicker()
+      } else {
+        stopRandomFlicker()
+      }
+    },
+    { immediate: true }
+  )
 
   // Cleanup on scope dispose
   onScopeDispose(() => {

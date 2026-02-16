@@ -193,7 +193,6 @@ const gridCells = computed(() => {
 // Drag and drop for dweller assignment
 const draggingOverRoomId = ref<string | null>(null)
 
-
 const handleDragOver = (event: DragEvent, roomId: string) => {
   event.preventDefault()
   event.dataTransfer!.dropEffect = 'move'
@@ -207,7 +206,6 @@ const handleDragLeave = () => {
 const handleDrop = async (event: DragEvent, roomId: string) => {
   event.preventDefault()
   draggingOverRoomId.value = null
-
 
   try {
     const data = JSON.parse(event.dataTransfer!.getData('application/json'))
@@ -230,9 +228,9 @@ const handleDrop = async (event: DragEvent, roomId: string) => {
 
       // Prevent assignment if room is full (unless moving from same room)
       if (currentDwellers >= capacity && currentRoomId !== roomId) {
-    toast.warning(`${targetRoom.name} is full (${currentDwellers}/${capacity})`)
-    return
-  }
+        toast.warning(`${targetRoom.name} is full (${currentDwellers}/${capacity})`)
+        return
+      }
     }
 
     // Assign dweller to room
@@ -399,13 +397,11 @@ const closeDetailModal = () => {
             <div class="room-header">
               <h3 class="room-name">
                 {{ room.name }}
-                <span v-if="room.ability" class="ability-letter">({{ getAbilityLetter(room.ability) }})</span>
+                <span v-if="room.ability" class="ability-letter"
+                  >({{ getAbilityLetter(room.ability) }})</span
+                >
               </h3>
-              <Icon
-                v-if="room.ability"
-                :icon="getAbilityIcon(room.ability)"
-                class="ability-icon"
-              />
+              <Icon v-if="room.ability" :icon="getAbilityIcon(room.ability)" class="ability-icon" />
             </div>
             <p class="room-category">{{ room.category }}</p>
             <div v-if="room.tier" class="room-tier">Tier {{ room.tier }}</div>
@@ -503,8 +499,6 @@ const closeDetailModal = () => {
 .room-grid-container {
   position: relative;
 }
-
-
 
 @keyframes slideIn {
   from {

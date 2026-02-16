@@ -54,9 +54,7 @@ const emit = defineEmits<{
       </UButton>
       <div v-else class="disabled-action">
         <Icon icon="mdi:arrow-up-circle" class="h-5 w-5 opacity-50" />
-        <span>
-          Max tier reached ({{ room.tier }}/{{ upgradeInfo?.maxTier ?? 'N/A' }})
-        </span>
+        <span> Max tier reached ({{ room.tier }}/{{ upgradeInfo?.maxTier ?? 'N/A' }}) </span>
       </div>
 
       <!-- Radio controls slot -->

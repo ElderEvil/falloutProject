@@ -144,6 +144,7 @@ class ExplorationService:
                 db_session,
                 vault_id,
                 obj_in={"stimpack": new_vault_stimpaks, "radaway": new_vault_radaways},
+                commit=False,
             )
 
         # Deduct from dweller inventory
@@ -154,6 +155,7 @@ class ExplorationService:
                 db_session,
                 dweller_id,
                 obj_in={"stimpack": new_dweller_stimpaks, "radaway": new_dweller_radaways},
+                commit=False,
             )
 
         # Total supplies for exploration

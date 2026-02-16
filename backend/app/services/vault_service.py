@@ -496,37 +496,6 @@ class VaultService:
             weapon = Weapon(**weapon_data, storage_id=storage.id)
             db_session.add(weapon)
 
-        outfits_data = [
-            {
-                "name": "Vault Jumpsuit",
-                "rarity": RarityEnum.COMMON,
-                "value": 20,
-                "outfit_type": OutfitTypeEnum.COMMON,
-                "gender": None,
-            },
-            {
-                "name": "Leather Armor",
-                "rarity": RarityEnum.RARE,
-                "value": 100,
-                "outfit_type": OutfitTypeEnum.RARE,
-                "gender": None,
-            },
-            {
-                "name": "Metal Armor",
-                "rarity": RarityEnum.RARE,
-                "value": 250,
-                "outfit_type": OutfitTypeEnum.RARE,
-                "gender": None,
-            },
-            {
-                "name": "T-51b Power Armor",
-                "rarity": RarityEnum.LEGENDARY,
-                "value": 1000,
-                "outfit_type": OutfitTypeEnum.POWER_ARMOR,
-                "gender": None,
-            },
-        ]
-
         for outfit_data in outfits_data:
             outfit = Outfit(**outfit_data, storage_id=storage.id)
             db_session.add(outfit)

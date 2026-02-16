@@ -14,6 +14,7 @@ from app.schemas.junk import JunkRead
 from app.schemas.outfit import OutfitRead
 from app.schemas.storage import StorageItemsResponse, StorageSpaceResponse
 from app.schemas.weapon import WeaponRead
+from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -110,51 +111,61 @@ async def transfer_medical_supplies(
     """
     vault = await get_user_vault_or_403(vault_id, current_user, db_session)
 
-    dweller = await crud_dweller.get(db_session, request.dweller_id)
-    if not dweller:
-        raise HTTPException(status_code=404, detail="Dweller not found")
+    try:
+        dweller = await crud_dweller.get(db_session, request.dweller_id)
+    except ResourceNotFoundException as e:
+        raise HTTPException(status_code=404, detail="Dweller not found") from e
+
     if dweller.vault_id != vault.id:
         raise HTTPException(status_code=403, detail="Dweller does not belong to this vault")
 
     if request.stimpaks < 0 or request.radaways < 0:
-        raise HTTPException(status_code=400, detail="Transfer amounts cannot be negative")
+        raise ValidationException(detail="Transfer amounts cannot be negative")
 
     if request.stimpaks == 0 and request.radaways == 0:
-        raise HTTPException(status_code=400, detail="No items to transfer")
+        raise ValidationException(detail="No items to transfer")
 
     vault_stimpaks = vault.stimpack or 0
     vault_radaways = vault.radaway or 0
 
     if request.stimpaks > vault_stimpaks:
-        raise HTTPException(status_code=400, detail=f"Vault only has {vault_stimpaks} stimpaks")
+        raise ValidationException(detail=f"Vault only has {vault_stimpaks} stimpaks")
     if request.radaways > vault_radaways:
-        raise HTTPException(status_code=400, detail=f"Vault only has {vault_radaways} radaways")
+        raise ValidationException(detail=f"Vault only has {vault_radaways} radaways")
 
     dweller_stimpaks = dweller.stimpack or 0
     dweller_radaways = dweller.radaway or 0
 
     max_per_dweller = 15
     if request.stimpaks + dweller_stimpaks > max_per_dweller:
-        raise HTTPException(status_code=400, detail=f"Dweller can only carry {max_per_dweller} stimpaks")
+        raise ValidationException(detail=f"Dweller can only carry {max_per_dweller} stimpaks")
     if request.radaways + dweller_radaways > max_per_dweller:
-        raise HTTPException(status_code=400, detail=f"Dweller can only carry {max_per_dweller} radaways")
+        raise ValidationException(detail=f"Dweller can only carry {max_per_dweller} radaways")
 
     new_vault_stimpaks = vault_stimpaks - request.stimpaks
     new_vault_radaways = vault_radaways - request.radaways
     new_dweller_stimpaks = dweller_stimpaks + request.stimpaks
     new_dweller_radaways = dweller_radaways + request.radaways
 
-    await crud_vault.update(
-        db_session,
-        vault.id,
-        obj_in={"stimpack": new_vault_stimpaks, "radaway": new_vault_radaways},
-    )
+    try:
+        await crud_vault.update(
+            db_session,
+            vault.id,
+            obj_in={"stimpack": new_vault_stimpaks, "radaway": new_vault_radaways},
+            commit=False,
+        )
 
-    await crud_dweller.update(
-        db_session,
-        request.dweller_id,
-        obj_in={"stimpack": new_dweller_stimpaks, "radaway": new_dweller_radaways},
-    )
+        await crud_dweller.update(
+            db_session,
+            request.dweller_id,
+            obj_in={"stimpack": new_dweller_stimpaks, "radaway": new_dweller_radaways},
+            commit=False,
+        )
+
+        await db_session.commit()
+    except Exception:
+        await db_session.rollback()
+        raise
 
     logger.info(
         "Medical supplies transferred",

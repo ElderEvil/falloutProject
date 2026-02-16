@@ -107,9 +107,9 @@ def process_vault_tick_task(self, vault_id: str):
                 await engine.dispose()
 
         result = asyncio.run(run_vault_tick())
-    except Exception:
+    except Exception as e:
         logger.exception(f"Vault {vault_id} tick failed")
-        raise self.retry(exc=vault_id, countdown=30)  # noqa: B904
+        raise self.retry(exc=e, countdown=30) from e
     else:
         logger.info(f"Vault {vault_id} tick completed")
         return result

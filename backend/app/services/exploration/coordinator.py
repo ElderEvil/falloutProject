@@ -16,6 +16,7 @@ from app.models.outfit import Outfit
 from app.models.weapon import Weapon
 from app.schemas.common import GenderEnum, JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
 from app.schemas.exploration_event import RewardsSchema
+from app.schemas.vault import VaultUpdate
 from app.services.event_bus import GameEvent, event_bus
 from app.services.exploration import data_loader
 from app.services.exploration.event_generator import event_generator
@@ -391,12 +392,15 @@ class ExplorationCoordinator:
         # Return unused stimpaks and radaways to vault storage
         if exploration.stimpaks > 0 or exploration.radaways > 0:
             vault = await crud_vault.get(db_session, exploration.vault_id)
-            new_stimpaks = min((vault.stimpack or 0) + exploration.stimpaks, vault.stimpack_max or 99999)
-            new_radaways = min((vault.radaway or 0) + exploration.radaways, vault.radaway_max or 99999)
+            large_limit = 99999
+            stimpak_capacity = vault.stimpack_max if vault.stimpack_max is not None else large_limit
+            radaway_capacity = vault.radaway_max if vault.radaway_max is not None else large_limit
+            new_stimpaks = min((vault.stimpack or 0) + exploration.stimpaks, stimpak_capacity)
+            new_radaways = min((vault.radaway or 0) + exploration.radaways, radaway_capacity)
             await crud_vault.update(
                 db_session,
                 exploration.vault_id,
-                obj_in={"stimpack": new_stimpaks, "radaway": new_radaways},
+                obj_in=VaultUpdate(stimpack=new_stimpaks, radaway=new_radaways),
             )
 
         await db_session.commit()

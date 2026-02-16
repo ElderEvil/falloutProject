@@ -155,9 +155,11 @@ class ResourceManager:
                     totals["stimpack"] += production
                 elif "science" in room_name.lower():
                     totals["radaway"] += production
-            case SPECIALEnum.ENDURANCE:  # Special rooms that produce all
-                for resource in totals:
-                    totals[resource] += production / 3
+            case SPECIALEnum.ENDURANCE:
+                base_resources = ["power", "food", "water"]
+                per_share = production / len(base_resources)
+                for resource in base_resources:
+                    totals[resource] += per_share
 
     @staticmethod
     def _apply_resource_changes(
@@ -168,8 +170,8 @@ class ResourceManager:
             "power": max(0, min(vault.power - consumption["power"] + production["power"], vault.power_max)),
             "food": max(0, min(vault.food - consumption["food"] + production["food"], vault.food_max)),
             "water": max(0, min(vault.water - consumption["water"] + production["water"], vault.water_max)),
-            "stimpack": max(0, min(int(vault.stimpack + production["stimpack"]), vault.stimpack_max)),
-            "radaway": max(0, min(int(vault.radaway + production["radaway"]), vault.radaway_max)),
+            "stimpack": max(0, min(round(vault.stimpack + production["stimpack"]), vault.stimpack_max or 99999)),
+            "radaway": max(0, min(round(vault.radaway + production["radaway"]), vault.radaway_max or 99999)),
         }
 
     @staticmethod

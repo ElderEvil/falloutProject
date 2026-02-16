@@ -132,7 +132,7 @@ jobs:
 
       - name: Upload Locust Report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: locust-report
           path: backend/report.html
@@ -140,7 +140,7 @@ jobs:
 
       - name: Upload Locust CSV Data
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: locust-csv
           path: backend/locust_results*
@@ -148,7 +148,7 @@ jobs:
 
       - name: Upload API Logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: api-logs
           path: /tmp/api.log

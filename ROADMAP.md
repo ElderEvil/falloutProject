@@ -32,6 +32,12 @@ AI-powered dweller interactions.
 
 **Focus**: Stimpaks and Radaways vault storage with production from Medbay/Science Lab
 
+**Known Issue (needs fix):**
+- ⚠️ **Storage Model Refactor** - Currently stimpaks/radaways are on Vault model, should be on Storage model
+  - Add fields to Storage: `stimpack`, `radaway`, `stimpack_max`, `radaway_max`
+  - Remove from Vault model
+  - Update all code to read/write from storage instead of vault
+
 **Planned:**
 - [ ] **Vault Storage for Medical Items** - Add stimpaks and radaways to vault storage
   - New storage model fields: `stimpaks`, `radaways`

@@ -186,7 +186,6 @@ async def test_build_living_room(
     """Debug endpoint to test building a living room and check population_max update."""
     from app import crud
     from app.models.room import Room
-    from app.models.vault import Vault
     from app.schemas.common import RoomTypeEnum, SPECIALEnum
     from app.schemas.room import RoomCreate
 

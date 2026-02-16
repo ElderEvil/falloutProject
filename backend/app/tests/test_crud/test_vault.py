@@ -4,9 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import crud
 from app.crud.room import room as room_crud
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
+from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
-from app.schemas.room import RoomCreate
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 
@@ -66,8 +66,9 @@ async def test_building_living_room_updates_population_max(async_session: AsyncS
 @pytest.mark.asyncio
 async def test_building_storage_room_updates_storage_capacity(async_session: AsyncSession) -> None:
     """Test that building a storage room updates vault storage."""
-    from app.models.storage import Storage
     from sqlmodel import select
+
+    from app.models.storage import Storage
 
     user_data = create_fake_user()
     user_in = UserCreate(**user_data)

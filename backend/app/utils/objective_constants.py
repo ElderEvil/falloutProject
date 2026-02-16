@@ -4,8 +4,6 @@ This module provides validation for objective target_entity values to ensure
 they match actual game data (rooms, resources, etc.).
 """
 
-from typing import Literal
-
 # Valid room types for build objectives (snake_case, matching room names)
 VALID_ROOM_TYPES = frozenset(
     {

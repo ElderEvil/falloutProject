@@ -3,40 +3,14 @@ from datetime import UTC, datetime
 from typing import Optional
 
 from fastapi import APIRouter
-from pydantic import BaseModel
 
 from app.core.config import settings
+from app.schemas.system import ChangelogEntry, InfoResponse
 from app.utils.exceptions import NotFoundException
 from app.utils.version import get_app_version, get_python_version, parse_changelog, version_tuple
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-
-class InfoResponse(BaseModel):
-    """Application information response schema."""
-
-    app_version: str
-    api_version: str
-    environment: str
-    python_version: str
-    build_date: str
-
-
-class ChangeEntry(BaseModel):
-    """Individual change entry within a changelog version."""
-
-    category: str
-    description: str
-
-
-class ChangelogEntry(BaseModel):
-    """Changelog entry response schema."""
-
-    version: str
-    date: str
-    date_display: str
-    changes: list[ChangeEntry]
 
 
 @router.get("/info", status_code=200)

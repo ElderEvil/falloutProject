@@ -66,12 +66,6 @@ async def list_subscribed_events():
     }
 
 
-@router.get("/health")
-async def debug_health():
-    """Debug health check endpoint."""
-    return {"status": "debug_mode_active"}
-
-
 @router.get("/objectives/{vault_id}")
 async def debug_objectives(vault_id: UUID4, session: AsyncSession = Depends(get_async_session)):  # noqa: FAST002
     """Debug endpoint to inspect objectives and their progress for a vault."""

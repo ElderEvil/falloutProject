@@ -10,7 +10,7 @@ from app.crud.base import CRUDBase
 from app.models import Dweller, Room, Storage
 from app.models.game_state import GameState
 from app.models.vault import Vault
-from app.schemas.common import GameStatusEnum, RoomActionEnum, RoomTypeEnum
+from app.schemas.common import GameStatusEnum, RoomActionEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultNumber, VaultReadWithNumbers, VaultUpdate
 from app.services.resource_manager import ResourceManager
 from app.utils.exceptions import InsufficientResourcesException, ResourceNotFoundException
@@ -78,20 +78,25 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         self, db_session: AsyncSession, vault_obj: Vault, room_obj: Room, action: RoomActionEnum
     ) -> None:
         """Handle production room capacity updates."""
-        if room_obj.ability not in ("strength", "agility", "perception", "intelligence"):
+        if room_obj.ability not in (
+            SPECIALEnum.STRENGTH,
+            SPECIALEnum.AGILITY,
+            SPECIALEnum.PERCEPTION,
+            SPECIALEnum.INTELLIGENCE,
+        ):
             msg = f"Invalid room ability: {room_obj.ability}"
             raise ValueError(msg)
 
         resource_map = {
-            "strength": ("power_max", vault_obj.power_max),
-            "agility": ("food_max", vault_obj.food_max),
-            "perception": ("water_max", vault_obj.water_max),
-            "intelligence": (None, None),
+            SPECIALEnum.STRENGTH: ("power_max", vault_obj.power_max),
+            SPECIALEnum.AGILITY: ("food_max", vault_obj.food_max),
+            SPECIALEnum.PERCEPTION: ("water_max", vault_obj.water_max),
+            SPECIALEnum.INTELLIGENCE: (None, None),
         }
 
         field, current = resource_map[room_obj.ability]
 
-        if room_obj.ability == "intelligence":
+        if room_obj.ability == SPECIALEnum.INTELLIGENCE:
             if "medbay" in room_obj.name.lower():
                 field = "stimpack_max"
                 current = vault_obj.stimpack_max or 0
@@ -119,6 +124,10 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         elif room_name == "storage room" and room_obj.capacity is not None:
             storage_result = await db_session.execute(select(Storage).where(Storage.vault_id == vault_obj.id))
             storage_obj = storage_result.scalars().first()
+
+            if storage_obj is None:
+                storage_obj = await self.create_storage(db_session=db_session, vault_id=vault_obj.id)
+
             current_max_space = storage_obj.max_space if storage_obj else 0
 
             new_storage_space_max = self._calculate_new_capacity(action, current_max_space, room_obj.capacity)

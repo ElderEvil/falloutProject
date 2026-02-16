@@ -2,19 +2,17 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import UUID4, BaseModel
+from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403
-from app.crud import dweller as crud_dweller
 from app.crud import storage as crud_storage
-from app.crud import vault as crud_vault
 from app.db.session import get_async_session
 from app.schemas.junk import JunkRead
 from app.schemas.outfit import OutfitRead
 from app.schemas.storage import StorageItemsResponse, StorageSpaceResponse
+from app.schemas.vault import MedicalTransferRequest, MedicalTransferResponse
 from app.schemas.weapon import WeaponRead
-from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -88,99 +86,27 @@ async def get_storage_items(
     )
 
 
-class MedicalTransferRequest(BaseModel):
-    """Request schema for medical supply transfer."""
-
-    dweller_id: UUID4
-    stimpaks: int = 0
-    radaways: int = 0
-
-
 @router.post("/vault/{vault_id}/medical/transfer")
 async def transfer_medical_supplies(
     vault_id: UUID4,
     request: MedicalTransferRequest,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     current_user: CurrentActiveUser,
-) -> dict:
+) -> MedicalTransferResponse:
     """
     Transfer medical supplies from vault storage to a dweller's inventory.
 
     Dwellers can carry max 15 stimpaks and 15 radaways each.
     Requires ownership of the vault.
     """
+    from app.services.vault_service import vault_service
+
     vault = await get_user_vault_or_403(vault_id, current_user, db_session)
 
-    try:
-        dweller = await crud_dweller.get(db_session, request.dweller_id)
-    except ResourceNotFoundException as e:
-        raise HTTPException(status_code=404, detail="Dweller not found") from e
-
-    if dweller.vault_id != vault.id:
-        raise HTTPException(status_code=403, detail="Dweller does not belong to this vault")
-
-    if request.stimpaks < 0 or request.radaways < 0:
-        raise ValidationException(detail="Transfer amounts cannot be negative")
-
-    if request.stimpaks == 0 and request.radaways == 0:
-        raise ValidationException(detail="No items to transfer")
-
-    vault_stimpaks = vault.stimpack or 0
-    vault_radaways = vault.radaway or 0
-
-    if request.stimpaks > vault_stimpaks:
-        raise ValidationException(detail=f"Vault only has {vault_stimpaks} stimpaks")
-    if request.radaways > vault_radaways:
-        raise ValidationException(detail=f"Vault only has {vault_radaways} radaways")
-
-    dweller_stimpaks = dweller.stimpack or 0
-    dweller_radaways = dweller.radaway or 0
-
-    max_per_dweller = 15
-    if request.stimpaks + dweller_stimpaks > max_per_dweller:
-        raise ValidationException(detail=f"Dweller can only carry {max_per_dweller} stimpaks")
-    if request.radaways + dweller_radaways > max_per_dweller:
-        raise ValidationException(detail=f"Dweller can only carry {max_per_dweller} radaways")
-
-    new_vault_stimpaks = vault_stimpaks - request.stimpaks
-    new_vault_radaways = vault_radaways - request.radaways
-    new_dweller_stimpaks = dweller_stimpaks + request.stimpaks
-    new_dweller_radaways = dweller_radaways + request.radaways
-
-    try:
-        await crud_vault.update(
-            db_session,
-            vault.id,
-            obj_in={"stimpack": new_vault_stimpaks, "radaway": new_vault_radaways},
-            commit=False,
-        )
-
-        await crud_dweller.update(
-            db_session,
-            request.dweller_id,
-            obj_in={"stimpack": new_dweller_stimpaks, "radaway": new_dweller_radaways},
-            commit=False,
-        )
-
-        await db_session.commit()
-    except Exception:
-        await db_session.rollback()
-        raise
-
-    logger.info(
-        "Medical supplies transferred",
-        extra={
-            "vault_id": str(vault_id),
-            "dweller_id": str(request.dweller_id),
-            "stimpaks_transferred": request.stimpaks,
-            "radaways_transferred": request.radaways,
-            "user_id": str(current_user.id),
-        },
+    return await vault_service.transfer_medical_supplies(
+        db_session=db_session,
+        vault=vault,
+        dweller_id=request.dweller_id,
+        stimpaks=request.stimpaks,
+        radaways=request.radaways,
     )
-
-    return {
-        "stimpaks": new_dweller_stimpaks,
-        "radaways": new_dweller_radaways,
-        "vault_stimpaks": new_vault_stimpaks,
-        "vault_radaways": new_vault_radaways,
-    }

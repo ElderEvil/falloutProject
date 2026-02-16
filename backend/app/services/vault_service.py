@@ -16,7 +16,7 @@ from app.models.vault_objective import VaultObjectiveProgressLink
 from app.schemas.common import DwellerStatusEnum, GenderEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreateCommonOverride, DwellerUpdate
 from app.schemas.room import RoomCreate
-from app.schemas.vault import VaultNumber, VaultUpdate
+from app.schemas.vault import MedicalTransferResponse, VaultNumber, VaultUpdate
 from app.services.resource_manager import ResourceManager
 from app.services.training_service import training_service
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
@@ -635,6 +635,10 @@ class VaultService:
         initial_power = vault_db_obj.power_max // 2
         initial_food = vault_db_obj.food_max // 2
         initial_water = vault_db_obj.water_max // 2
+
+        initial_stimpack = min(5, vault_db_obj.stimpack_max) if vault_db_obj.stimpack_max > 0 else 0
+        initial_radaway = min(5, vault_db_obj.radaway_max) if vault_db_obj.radaway_max > 0 else 0
+
         vault_db_obj = await vault_crud.update(
             db_session=db_session,
             id=vault_db_obj.id,
@@ -642,8 +646,8 @@ class VaultService:
                 power=initial_power,
                 food=initial_food,
                 water=initial_water,
-                stimpack=5,
-                radaway=5,
+                stimpack=initial_stimpack,
+                radaway=initial_radaway,
             ),
         )
 
@@ -679,6 +683,85 @@ class VaultService:
         )
 
         return await vault_crud.update(db_session=db_session, id=vault_id, obj_in=updated_resources)
+
+    async def transfer_medical_supplies(
+        self,
+        db_session: AsyncSession,
+        vault: Vault,
+        dweller_id: UUID4,
+        stimpaks: int,
+        radaways: int,
+    ) -> dict:
+        """
+        Transfer medical supplies from vault storage to a dweller's inventory.
+
+        Dwellers can carry max 15 stimpaks and 15 radaways each.
+        """
+        vault_stimpaks = vault.stimpack or 0
+        vault_radaways = vault.radaway or 0
+
+        if stimpaks > vault_stimpaks:
+            raise ResourceConflictException(detail=f"Vault only has {vault_stimpaks} stimpaks")
+        if radaways > vault_radaways:
+            raise ResourceConflictException(detail=f"Vault only has {vault_radaways} radaways")
+
+        dweller = await dweller_crud.get(db_session, dweller_id)
+
+        if dweller.vault_id != vault.id:
+            from app.utils.exceptions import AccessDeniedException
+
+            raise AccessDeniedException(detail="Dweller does not belong to this vault")
+
+        dweller_stimpaks = dweller.stimpack or 0
+        dweller_radaways = dweller.radaway or 0
+
+        max_per_dweller = 15
+        if stimpaks + dweller_stimpaks > max_per_dweller:
+            raise ResourceConflictException(detail=f"Dweller can only carry {max_per_dweller} stimpaks")
+        if radaways + dweller_radaways > max_per_dweller:
+            raise ResourceConflictException(detail=f"Dweller can only carry {max_per_dweller} radaways")
+
+        new_vault_stimpaks = vault_stimpaks - stimpaks
+        new_vault_radaways = vault_radaways - radaways
+        new_dweller_stimpaks = dweller_stimpaks + stimpaks
+        new_dweller_radaways = dweller_radaways + radaways
+
+        try:
+            await vault_crud.update(
+                db_session,
+                vault.id,
+                obj_in={"stimpack": new_vault_stimpaks, "radaway": new_vault_radaways},
+                commit=False,
+            )
+
+            await dweller_crud.update(
+                db_session,
+                dweller_id,
+                obj_in={"stimpack": new_dweller_stimpaks, "radaway": new_dweller_radaways},
+                commit=False,
+            )
+
+            await db_session.commit()
+        except Exception:
+            await db_session.rollback()
+            raise
+
+        self.logger.info(
+            "Medical supplies transferred",
+            extra={
+                "vault_id": str(vault.id),
+                "dweller_id": str(dweller_id),
+                "stimpaks_transferred": stimpaks,
+                "radaways_transferred": radaways,
+            },
+        )
+
+        return MedicalTransferResponse(
+            vault_stimpaks=new_vault_stimpaks,
+            vault_radaways=new_vault_radaways,
+            dweller_stimpaks=new_dweller_stimpaks,
+            dweller_radaways=new_dweller_radaways,
+        )
 
 
 # Singleton instance

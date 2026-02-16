@@ -170,8 +170,20 @@ class ResourceManager:
             "power": max(0, min(vault.power - consumption["power"] + production["power"], vault.power_max)),
             "food": max(0, min(vault.food - consumption["food"] + production["food"], vault.food_max)),
             "water": max(0, min(vault.water - consumption["water"] + production["water"], vault.water_max)),
-            "stimpack": max(0, min(round(vault.stimpack + production["stimpack"]), vault.stimpack_max or 99999)),
-            "radaway": max(0, min(round(vault.radaway + production["radaway"]), vault.radaway_max or 99999)),
+            "stimpack": max(
+                0,
+                min(
+                    round(vault.stimpack + production["stimpack"]),
+                    vault.stimpack_max if vault.stimpack_max is not None else 99999,
+                ),
+            ),
+            "radaway": max(
+                0,
+                min(
+                    round(vault.radaway + production["radaway"]),
+                    vault.radaway_max if vault.radaway_max is not None else 99999,
+                ),
+            ),
         }
 
     @staticmethod

@@ -113,15 +113,18 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         self, db_session: AsyncSession, vault_obj: Vault, room_obj: Room, action: RoomActionEnum
     ) -> None:
         """Handle capacity room updates."""
-        room_name = room_obj.name.lower()
-
-        if room_name == "living room":
+        # Living rooms: category=CAPACITY + ability=Charisma
+        # Storage rooms: category=CAPACITY + ability=Endurance
+        if room_obj.category == RoomTypeEnum.CAPACITY and room_obj.ability == SPECIALEnum.CHARISMA:
             new_population_max = self._calculate_new_capacity(action, vault_obj.population_max or 0, room_obj.capacity)
-            await self.update(
-                db_session=db_session, id=vault_obj.id, obj_in={"population_max": new_population_max}, commit=False
-            )
+            vault_obj.population_max = new_population_max
+            db_session.add(vault_obj)
             await db_session.commit()
-        elif room_name == "storage room" and room_obj.capacity is not None:
+        elif (
+            room_obj.category == RoomTypeEnum.CAPACITY
+            and room_obj.ability == SPECIALEnum.ENDURANCE
+            and room_obj.capacity is not None
+        ):
             storage_result = await db_session.execute(select(Storage).where(Storage.vault_id == vault_obj.id))
             storage_obj = storage_result.scalars().first()
 

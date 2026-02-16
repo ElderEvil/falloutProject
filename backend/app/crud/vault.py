@@ -66,76 +66,63 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
     async def recalculate_vault_attributes(
         self, *, db_session: AsyncSession, vault_obj: Vault, room_obj: Room, action: RoomActionEnum
     ) -> Vault:
-        """
-        Recalculate the vault attributes based on the newly added or removed room.
-        """
-
-        async def _update_vault(vault_update: VaultUpdate):
-            await self.update(db_session=db_session, id=vault_obj.id, obj_in=vault_update)
-
-        # Calculate the new vault resource capacity for production rooms
+        """Recalculate the vault attributes based on the newly added or removed room."""
         if room_obj.category == RoomTypeEnum.PRODUCTION and room_obj.capacity is not None:
-            match room_obj.ability:
-                case "strength":
-                    new_capacity = self._calculate_new_capacity(action, vault_obj.power_max, room_obj.capacity)
-                    await _update_vault(VaultUpdate(power_max=new_capacity))
-                case "agility":
-                    new_capacity = self._calculate_new_capacity(action, vault_obj.food_max, room_obj.capacity)
-                    await _update_vault(VaultUpdate(food_max=new_capacity))
-                case "perception":
-                    new_capacity = self._calculate_new_capacity(action, vault_obj.water_max, room_obj.capacity)
-                    await _update_vault(VaultUpdate(water_max=new_capacity))
-                case "intelligence":
-                    # Medbay produces stimpaks, Science Lab produces radaways
-                    if "medbay" in room_obj.name.lower():
-                        new_capacity = self._calculate_new_capacity(
-                            action, vault_obj.stimpack_max or 0, room_obj.capacity
-                        )
-                        await _update_vault(VaultUpdate(stimpack_max=new_capacity))
-                    elif "science" in room_obj.name.lower():
-                        new_capacity = self._calculate_new_capacity(
-                            action, vault_obj.radaway_max or 0, room_obj.capacity
-                        )
-                        await _update_vault(VaultUpdate(radaway_max=new_capacity))
-                case _:
-                    error_msg = f"Invalid room ability: {room_obj.ability}"
-                    raise ValueError(error_msg)
-
-        # Calculate the new vault capacity for capacity rooms
+            await self._handle_production_room(db_session, vault_obj, room_obj, action)
         elif room_obj.category == RoomTypeEnum.CAPACITY:
-            logger.info(
-                f"Processing CAPACITY room: {room_obj.name}, capacity={room_obj.capacity}, category={room_obj.category}"
-            )
-            match room_obj.name.lower():
-                case "living room":
-                    logger.info(
-                        f"Matched living room! Current population_max={vault_obj.population_max}, "
-                        f"room capacity={room_obj.capacity}"
-                    )
-                    new_population_max = self._calculate_new_capacity(
-                        action, vault_obj.population_max or 0, room_obj.capacity
-                    )
-                    logger.info(f"New population_max calculated: {new_population_max}")
-                    await _update_vault(VaultUpdate(population_max=new_population_max))
-                case "storage room":
-                    # Only process if room has capacity defined
-                    if room_obj.capacity is not None:
-                        # Query storage to get current max_space (avoid lazy load issue)
-                        storage_result = await db_session.execute(
-                            select(Storage).where(Storage.vault_id == vault_obj.id)
-                        )
-                        storage_obj = storage_result.scalars().first()
-                        current_max_space = storage_obj.max_space if storage_obj else 0
-
-                        new_storage_space_max = self._calculate_new_capacity(
-                            action, current_max_space, room_obj.capacity
-                        )
-                        await self.update_storage(db_session, vault_obj.id, new_storage_space_max)
-                case _:
-                    error_msg = f"Invalid room name: {room_obj.name}"
-                    raise ValueError(error_msg)
+            await self._handle_capacity_room(db_session, vault_obj, room_obj, action)
 
         return vault_obj
+
+    async def _handle_production_room(
+        self, db_session: AsyncSession, vault_obj: Vault, room_obj: Room, action: RoomActionEnum
+    ) -> None:
+        """Handle production room capacity updates."""
+        if room_obj.ability not in ("strength", "agility", "perception", "intelligence"):
+            msg = f"Invalid room ability: {room_obj.ability}"
+            raise ValueError(msg)
+
+        resource_map = {
+            "strength": ("power_max", vault_obj.power_max),
+            "agility": ("food_max", vault_obj.food_max),
+            "perception": ("water_max", vault_obj.water_max),
+            "intelligence": (None, None),
+        }
+
+        field, current = resource_map[room_obj.ability]
+
+        if room_obj.ability == "intelligence":
+            if "medbay" in room_obj.name.lower():
+                field = "stimpack_max"
+                current = vault_obj.stimpack_max or 0
+            elif "science" in room_obj.name.lower():
+                field = "radaway_max"
+                current = vault_obj.radaway_max or 0
+
+        if field:
+            new_capacity = self._calculate_new_capacity(action, current, room_obj.capacity)
+            await self.update(db_session=db_session, id=vault_obj.id, obj_in={field: new_capacity}, commit=False)
+            await db_session.commit()
+
+    async def _handle_capacity_room(
+        self, db_session: AsyncSession, vault_obj: Vault, room_obj: Room, action: RoomActionEnum
+    ) -> None:
+        """Handle capacity room updates."""
+        room_name = room_obj.name.lower()
+
+        if room_name == "living room":
+            new_population_max = self._calculate_new_capacity(action, vault_obj.population_max or 0, room_obj.capacity)
+            await self.update(
+                db_session=db_session, id=vault_obj.id, obj_in={"population_max": new_population_max}, commit=False
+            )
+            await db_session.commit()
+        elif room_name == "storage room" and room_obj.capacity is not None:
+            storage_result = await db_session.execute(select(Storage).where(Storage.vault_id == vault_obj.id))
+            storage_obj = storage_result.scalars().first()
+            current_max_space = storage_obj.max_space if storage_obj else 0
+
+            new_storage_space_max = self._calculate_new_capacity(action, current_max_space, room_obj.capacity)
+            await self.update_storage(db_session, vault_obj.id, new_storage_space_max)
 
     @staticmethod
     async def get_population(*, db_session: AsyncSession, vault_id: UUID4) -> int:

@@ -141,7 +141,8 @@ export const useDwellerStore = defineStore('dweller', () => {
     try {
       const params = new URLSearchParams()
       if (options?.status && options.status !== 'all') params.append('status', options.status)
-      if (options?.ageGroup && options.ageGroup !== 'all') params.append('age_group', options.ageGroup)
+      if (options?.ageGroup && options.ageGroup !== 'all')
+        params.append('age_group', options.ageGroup)
       if (options?.search) params.append('search', options.search)
       if (options?.sortBy) params.append('sort_by', options.sortBy)
       if (options?.order) params.append('order', options.order)

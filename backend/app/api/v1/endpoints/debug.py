@@ -280,7 +280,7 @@ async def test_build_living_room(
 @router.post("/objectives/{vault_id}/test-build")
 async def test_build_event(
     vault_id: UUID4,
-    room_type: str = "living_room",
+    room_type: str = "living_room",  # noqa: PT028
 ) -> dict:
     """Emit a ROOM_BUILT event for testing build objectives."""
     from app.services.event_bus import event_bus
@@ -298,8 +298,8 @@ async def test_build_event(
 @router.post("/objectives/{vault_id}/test-train")
 async def test_train_event(
     vault_id: UUID4,
-    stat_trained: str = "strength",
-    dweller_id: str = "test-dweller",
+    stat_trained: str = "strength",  # noqa: PT028
+    dweller_id: str = "test-dweller",  # noqa: PT028
 ) -> dict:
     """Emit a DWELLER_TRAINED event for testing train objectives."""
     from app.services.event_bus import event_bus
@@ -317,8 +317,8 @@ async def test_train_event(
 @router.post("/objectives/{vault_id}/test-assign")
 async def test_assign_event(
     vault_id: UUID4,
-    room_type: str = "power_generator",
-    dweller_id: str = "test-dweller",
+    room_type: str = "power_generator",  # noqa: PT028
+    dweller_id: str = "test-dweller",  # noqa: PT028
 ) -> dict:
     """Emit a DWELLER_ASSIGNED event for testing assign objectives."""
     from app.services.event_bus import event_bus
@@ -336,8 +336,8 @@ async def test_assign_event(
 @router.post("/objectives/{vault_id}/test-reach")
 async def test_reach_event(
     vault_id: UUID4,
-    level: int = 2,
-    dweller_id: str = "test-dweller",
+    level: int = 2,  # noqa: PT028
+    dweller_id: str = "test-dweller",  # noqa: PT028
 ) -> dict:
     """Emit a DWELLER_LEVEL_UP event for testing reach objectives."""
     from app.services.event_bus import event_bus
@@ -355,8 +355,8 @@ async def test_reach_event(
 @router.post("/objectives/{vault_id}/test-collect-resource")
 async def test_collect_resource_event(
     vault_id: UUID4,
-    resource_type: str = "caps",
-    amount: int = 10,
+    resource_type: str = "caps",  # noqa: PT028
+    amount: int = 10,  # noqa: PT028
 ) -> dict:
     """Emit a RESOURCE_COLLECTED event for testing collect objectives."""
     from app.services.event_bus import event_bus
@@ -374,8 +374,8 @@ async def test_collect_resource_event(
 @router.post("/objectives/{vault_id}/test-collect-item")
 async def test_collect_item_event(
     vault_id: UUID4,
-    item_type: str = "weapon",
-    amount: int = 1,
+    item_type: str = "weapon",  # noqa: PT028
+    amount: int = 1,  # noqa: PT028
 ) -> dict:
     """Emit an ITEM_COLLECTED event for testing collect objectives."""
     from app.services.event_bus import event_bus

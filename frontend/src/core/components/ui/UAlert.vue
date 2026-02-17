@@ -36,17 +36,17 @@ const close = () => {
 
 const variantClasses = {
   success:
-    'bg-[color:var(--color-theme-primary)]/10 '
-    + 'border-[color:var(--color-theme-primary)] '
-    + 'text-[color:var(--color-theme-primary)]',
+    'bg-[color:var(--color-theme-primary)]/10 ' +
+    'border-[color:var(--color-theme-primary)] ' +
+    'text-[color:var(--color-theme-primary)]',
   warning:
-    'bg-[color:var(--color-warning)]/10 '
-    + 'border-[color:var(--color-warning)] '
-    + 'text-[color:var(--color-warning)]',
+    'bg-[color:var(--color-warning)]/10 ' +
+    'border-[color:var(--color-warning)] ' +
+    'text-[color:var(--color-warning)]',
   danger:
-    'bg-[color:var(--color-danger)]/10 '
-    + 'border-[color:var(--color-danger)] '
-    + 'text-[color:var(--color-danger)]',
+    'bg-[color:var(--color-danger)]/10 ' +
+    'border-[color:var(--color-danger)] ' +
+    'text-[color:var(--color-danger)]',
   info: 'bg-[color:var(--color-info)]/10 border-[color:var(--color-info)] text-[color:var(--color-info)]',
 }
 

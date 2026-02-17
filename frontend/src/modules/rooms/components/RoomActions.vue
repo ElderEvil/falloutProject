@@ -26,7 +26,9 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const maxTierText = computed(() => `Max tier reached (${props.room.tier}/${props.upgradeInfo?.maxTier ?? 'N/A'})`)
+const maxTierText = computed(
+  () => `Max tier reached (${props.room.tier}/${props.upgradeInfo?.maxTier ?? 'N/A'})`
+)
 
 const emit = defineEmits<{
   upgrade: []

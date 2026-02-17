@@ -207,6 +207,42 @@ def normalize_item_type(item_type: str | None) -> str | None:
     return None
 
 
+def _validate_room_type(room_type: str | None) -> list[str]:
+    """Validate a room type value."""
+    if not room_type or room_type in ("*", "any"):
+        return []
+    if normalize_room_type(room_type) is None:
+        return [f"Invalid room_type '{room_type}'. Must be one of: {', '.join(sorted(VALID_ROOM_TYPES))}"]
+    return []
+
+
+def _validate_resource_type(resource_type: str | None) -> list[str]:
+    """Validate a resource type value."""
+    if not resource_type or resource_type in ("*", "any"):
+        return []
+    if normalize_resource_type(resource_type) is None:
+        return [
+            f"Invalid resource_type '{resource_type}'. Must be one of: {', '.join(sorted(VALID_RESOURCE_TYPES))}, any"
+        ]
+    return []
+
+
+def _validate_item_type(item_type: str | None) -> list[str]:
+    """Validate an item type value."""
+    if not item_type:
+        return []
+    if normalize_item_type(item_type) is None:
+        return [f"Invalid item_type '{item_type}'. Must be one of: {', '.join(sorted(VALID_ITEM_TYPES))}"]
+    return []
+
+
+def _validate_reach_type(reach_type: str | None) -> list[str]:
+    """Validate a reach type value."""
+    if not reach_type or reach_type in VALID_REACH_TYPES:
+        return []
+    return [f"Invalid reach_type '{reach_type}'. Must be one of: {', '.join(sorted(VALID_REACH_TYPES))}"]
+
+
 def validate_target_entity(
     objective_type: str | None,
     target_entity: dict | None,
@@ -220,42 +256,17 @@ def validate_target_entity(
     Returns:
         List of validation errors (empty if valid)
     """
-    errors = []
-
     if target_entity is None:
-        return errors
+        return []
 
-    if objective_type == "build":
-        room_type = target_entity.get("room_type")
-        if room_type:
-            # Allow wildcards
-            if room_type in ("*", "any"):
-                return errors
-            normalized = normalize_room_type(room_type)
-            if normalized is None:
-                errors.append(f"Invalid room_type '{room_type}'. Must be one of: {', '.join(sorted(VALID_ROOM_TYPES))}")
+    validators = {
+        "build": lambda: _validate_room_type(target_entity.get("room_type")),
+        "collect": lambda: (
+            _validate_resource_type(target_entity.get("resource_type"))
+            + _validate_item_type(target_entity.get("item_type"))
+        ),
+        "reach": lambda: _validate_reach_type(target_entity.get("reach_type")),
+    }
 
-    elif objective_type == "collect":
-        resource_type = target_entity.get("resource_type")
-        if resource_type:
-            # Allow wildcards
-            if resource_type not in ("*", "any"):
-                normalized = normalize_resource_type(resource_type)
-                if normalized is None:
-                    valid_resources = ", ".join(sorted(VALID_RESOURCE_TYPES))
-                    errors.append(f"Invalid resource_type '{resource_type}'. Must be one of: {valid_resources}, any")
-
-        item_type = target_entity.get("item_type")
-        if item_type:
-            normalized = normalize_item_type(item_type)
-            if normalized is None:
-                valid_items = ", ".join(sorted(VALID_ITEM_TYPES))
-                errors.append(f"Invalid item_type '{item_type}'. Must be one of: {valid_items}")
-
-    elif objective_type == "reach":
-        reach_type = target_entity.get("reach_type")
-        if reach_type and reach_type not in VALID_REACH_TYPES:
-            valid_reach = ", ".join(sorted(VALID_REACH_TYPES))
-            errors.append(f"Invalid reach_type '{reach_type}'. Must be one of: {valid_reach}")
-
-    return errors
+    validator = validators.get(objective_type if objective_type else "")
+    return validator() if validator else []

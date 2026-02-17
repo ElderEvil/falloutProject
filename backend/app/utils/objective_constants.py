@@ -78,6 +78,56 @@ ROOM_TYPE_ALIASES: dict[str, str] = {
     "garden": "garden",
 }
 
+# Map from resource type aliases to canonical names
+RESOURCE_ALIASES: dict[str, str] = {
+    # Capitalization variants
+    "caps": "caps",
+    "food": "food",
+    "water": "water",
+    "power": "power",
+    "stimpak": "stimpak",
+    "radaway": "radaway",
+    # Common aliases
+    "cap": "caps",
+    "money": "caps",
+    "currency": "caps",
+    "nuka_cola": "caps",
+    "nukacola": "caps",
+    "electricity": "power",
+    "energy": "power",
+    "stim": "stimpak",
+    "stimpaks": "stimpak",
+    "stims": "stimpak",
+    "rad_away": "radaway",
+    "radaways": "radaway",
+    "rads": "radaway",
+}
+
+# Map from item type aliases to canonical names
+ITEM_ALIASES: dict[str, str] = {
+    # Plural variants
+    "weapons": "weapon",
+    "outfits": "outfit",
+    "stimpaks": "stimpak",
+    "radaways": "radaway",
+    "junks": "junk",
+    "rare_weapons": "rare_weapon",
+    "rare_outfits": "rare_outfit",
+    # Common aliases
+    "gun": "weapon",
+    "guns": "weapon",
+    "rifle": "weapon",
+    "pistol": "weapon",
+    "armor": "outfit",
+    "clothes": "outfit",
+    "clothing": "outfit",
+    "suit": "outfit",
+    "scrap": "junk",
+    "materials": "junk",
+    "legendary_weapon": "rare_weapon",
+    "legendary_outfit": "rare_outfit",
+}
+
 
 def normalize_room_type(room_type: str | None) -> str | None:
     """Normalize a room type string to valid snake_case.
@@ -100,6 +150,58 @@ def normalize_room_type(room_type: str | None) -> str | None:
 
     # If already valid, return it
     if normalized in VALID_ROOM_TYPES:
+        return normalized
+
+    return None
+
+
+def normalize_resource_type(resource_type: str | None) -> str | None:
+    """Normalize a resource type string to valid snake_case.
+
+    Args:
+        resource_type: Resource type string (e.g., "Caps", "power", "Stimpaks")
+
+    Returns:
+        Normalized resource type in snake_case, or None if invalid
+    """
+    if not resource_type:
+        return None
+
+    # Convert to lowercase and replace spaces/hyphens with underscores
+    normalized = resource_type.lower().replace(" ", "_").replace("-", "_")
+
+    # Check aliases first
+    if normalized in RESOURCE_ALIASES:
+        return RESOURCE_ALIASES[normalized]
+
+    # If already valid, return it
+    if normalized in VALID_RESOURCE_TYPES:
+        return normalized
+
+    return None
+
+
+def normalize_item_type(item_type: str | None) -> str | None:
+    """Normalize an item type string to valid snake_case.
+
+    Args:
+        item_type: Item type string (e.g., "Weapons", "outfits", "Rare Weapons")
+
+    Returns:
+        Normalized item type in snake_case, or None if invalid
+    """
+    if not item_type:
+        return None
+
+    # Convert to lowercase and replace spaces/hyphens with underscores
+    normalized = item_type.lower().replace(" ", "_").replace("-", "_")
+
+    # Check aliases first
+    if normalized in ITEM_ALIASES:
+        return ITEM_ALIASES[normalized]
+
+    # If already valid, return it
+    if normalized in VALID_ITEM_TYPES:
         return normalized
 
     return None
@@ -135,14 +237,20 @@ def validate_target_entity(
 
     elif objective_type == "collect":
         resource_type = target_entity.get("resource_type")
-        if resource_type and resource_type not in VALID_RESOURCE_TYPES and resource_type != "any":
-            valid_resources = ", ".join(sorted(VALID_RESOURCE_TYPES))
-            errors.append(f"Invalid resource_type '{resource_type}'. Must be one of: {valid_resources}, any")
+        if resource_type:
+            # Allow wildcards
+            if resource_type not in ("*", "any"):
+                normalized = normalize_resource_type(resource_type)
+                if normalized is None:
+                    valid_resources = ", ".join(sorted(VALID_RESOURCE_TYPES))
+                    errors.append(f"Invalid resource_type '{resource_type}'. Must be one of: {valid_resources}, any")
 
         item_type = target_entity.get("item_type")
-        if item_type and item_type not in VALID_ITEM_TYPES:
-            valid_items = ", ".join(sorted(VALID_ITEM_TYPES))
-            errors.append(f"Invalid item_type '{item_type}'. Must be one of: {valid_items}")
+        if item_type:
+            normalized = normalize_item_type(item_type)
+            if normalized is None:
+                valid_items = ", ".join(sorted(VALID_ITEM_TYPES))
+                errors.append(f"Invalid item_type '{item_type}'. Must be one of: {valid_items}")
 
     elif objective_type == "reach":
         reach_type = target_entity.get("reach_type")

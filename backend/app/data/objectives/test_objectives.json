@@ -1,0 +1,58 @@
+[
+  {
+    "challenge": "TEST: Collect 1 Caps",
+    "reward": "10 caps",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "caps"},
+    "target_amount": 1
+  },
+  {
+    "challenge": "TEST: Build 1 Room",
+    "reward": "25 caps",
+    "objective_type": "build",
+    "target_entity": {"room_type": "*"},
+    "target_amount": 1
+  },
+  {
+    "challenge": "TEST: Assign 2 Dwellers",
+    "reward": "50 caps",
+    "objective_type": "assign",
+    "target_entity": {},
+    "target_amount": 2
+  },
+  {
+    "challenge": "TEST: Train 1 Dweller",
+    "reward": "75 caps",
+    "objective_type": "train",
+    "target_entity": {},
+    "target_amount": 1
+  },
+  {
+    "challenge": "TEST: Reach 2 Dwellers",
+    "reward": "100 caps",
+    "objective_type": "reach",
+    "target_entity": {"reach_type": "dweller_count"},
+    "target_amount": 2
+  },
+  {
+    "challenge": "TEST: Collect 1 Weapon",
+    "reward": "20 caps",
+    "objective_type": "collect",
+    "target_entity": {"item_type": "weapon"},
+    "target_amount": 1
+  },
+  {
+    "challenge": "TEST: Build a Living Room",
+    "reward": "30 caps",
+    "objective_type": "build",
+    "target_entity": {"room_type": "living_room"},
+    "target_amount": 1
+  },
+  {
+    "challenge": "TEST: Collect 3 Food",
+    "reward": "15 caps",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "food"},
+    "target_amount": 3
+  }
+]

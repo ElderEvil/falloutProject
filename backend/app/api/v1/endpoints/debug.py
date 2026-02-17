@@ -275,3 +275,116 @@ async def test_build_living_room(
             for r in all_rooms
         ],
     }
+
+
+@router.post("/objectives/{vault_id}/test-build")
+async def test_build_event(
+    vault_id: UUID4,
+    room_type: str = "living_room",
+) -> dict:
+    """Emit a ROOM_BUILT event for testing build objectives."""
+    from app.services.event_bus import event_bus
+
+    data = {"room_type": room_type}
+    await event_bus.emit(GameEvent.ROOM_BUILT, vault_id, data)
+    return {
+        "status": "ok",
+        "event": "ROOM_BUILT",
+        "vault_id": str(vault_id),
+        "data": data,
+    }
+
+
+@router.post("/objectives/{vault_id}/test-train")
+async def test_train_event(
+    vault_id: UUID4,
+    stat_trained: str = "strength",
+    dweller_id: str = "test-dweller",
+) -> dict:
+    """Emit a DWELLER_TRAINED event for testing train objectives."""
+    from app.services.event_bus import event_bus
+
+    data = {"stat_trained": stat_trained, "dweller_id": dweller_id}
+    await event_bus.emit(GameEvent.DWELLER_TRAINED, vault_id, data)
+    return {
+        "status": "ok",
+        "event": "DWELLER_TRAINED",
+        "vault_id": str(vault_id),
+        "data": data,
+    }
+
+
+@router.post("/objectives/{vault_id}/test-assign")
+async def test_assign_event(
+    vault_id: UUID4,
+    room_type: str = "power_generator",
+    dweller_id: str = "test-dweller",
+) -> dict:
+    """Emit a DWELLER_ASSIGNED event for testing assign objectives."""
+    from app.services.event_bus import event_bus
+
+    data = {"room_type": room_type, "dweller_id": dweller_id}
+    await event_bus.emit(GameEvent.DWELLER_ASSIGNED, vault_id, data)
+    return {
+        "status": "ok",
+        "event": "DWELLER_ASSIGNED",
+        "vault_id": str(vault_id),
+        "data": data,
+    }
+
+
+@router.post("/objectives/{vault_id}/test-reach")
+async def test_reach_event(
+    vault_id: UUID4,
+    level: int = 2,
+    dweller_id: str = "test-dweller",
+) -> dict:
+    """Emit a DWELLER_LEVEL_UP event for testing reach objectives."""
+    from app.services.event_bus import event_bus
+
+    data = {"level": level, "dweller_id": dweller_id}
+    await event_bus.emit(GameEvent.DWELLER_LEVEL_UP, vault_id, data)
+    return {
+        "status": "ok",
+        "event": "DWELLER_LEVEL_UP",
+        "vault_id": str(vault_id),
+        "data": data,
+    }
+
+
+@router.post("/objectives/{vault_id}/test-collect-resource")
+async def test_collect_resource_event(
+    vault_id: UUID4,
+    resource_type: str = "caps",
+    amount: int = 10,
+) -> dict:
+    """Emit a RESOURCE_COLLECTED event for testing collect objectives."""
+    from app.services.event_bus import event_bus
+
+    data = {"resource_type": resource_type, "amount": amount}
+    await event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault_id, data)
+    return {
+        "status": "ok",
+        "event": "RESOURCE_COLLECTED",
+        "vault_id": str(vault_id),
+        "data": data,
+    }
+
+
+@router.post("/objectives/{vault_id}/test-collect-item")
+async def test_collect_item_event(
+    vault_id: UUID4,
+    item_type: str = "weapon",
+    amount: int = 1,
+) -> dict:
+    """Emit an ITEM_COLLECTED event for testing collect objectives."""
+    from app.services.event_bus import event_bus
+
+    data = {"item_type": item_type, "amount": amount}
+    await event_bus.emit(GameEvent.ITEM_COLLECTED, vault_id, data)
+    return {
+        "status": "ok",
+        "event": "ITEM_COLLECTED",
+        "vault_id": str(vault_id),
+        "data": data,
+    }

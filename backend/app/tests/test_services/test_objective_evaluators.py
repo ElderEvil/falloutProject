@@ -523,3 +523,105 @@ async def test_collect_evaluator_item_wrong_type(
     # Refresh and check progress unchanged
     await async_session.refresh(link)
     assert link.progress == 0
+
+
+class TestAliasMatching:
+    """Tests for evaluator alias matching functionality."""
+
+    def test_build_evaluator_matches_room_alias(self, fresh_event_bus):
+        """Test BuildEvaluator matches room aliases like 'living quarters' -> 'living_room'."""
+        evaluator = BuildEvaluator(fresh_event_bus)
+        objective = Objective(
+            challenge="Build a Living Room",
+            reward="100 caps",
+            objective_type="build",
+            target_entity={"room_type": "living_room"},
+            target_amount=1,
+        )
+        # Event uses alias "Living Quarters"
+        data = {"room_type": "Living Quarters"}
+        assert evaluator._matches(objective, GameEvent.ROOM_BUILT, data) is True
+
+    def test_build_evaluator_matches_power_plant_alias(self, fresh_event_bus):
+        """Test BuildEvaluator matches 'Power Plant' -> 'power_generator'."""
+        evaluator = BuildEvaluator(fresh_event_bus)
+        objective = Objective(
+            challenge="Build a Power Generator",
+            reward="100 caps",
+            objective_type="build",
+            target_entity={"room_type": "power_generator"},
+            target_amount=1,
+        )
+        # Event uses alias "Power Plant"
+        data = {"room_type": "Power Plant"}
+        assert evaluator._matches(objective, GameEvent.ROOM_BUILT, data) is True
+
+    def test_collect_evaluator_matches_resource_alias_caps(self, fresh_event_bus):
+        """Test CollectEvaluator matches 'Caps' -> 'caps'."""
+        evaluator = CollectEvaluator(fresh_event_bus)
+        objective = Objective(
+            challenge="Collect 100 caps",
+            reward="50 caps",
+            objective_type="collect",
+            target_entity={"resource_type": "caps"},
+            target_amount=100,
+        )
+        # Event uses capitalized "Caps"
+        data = {"resource_type": "Caps"}
+        assert evaluator._matches(objective, GameEvent.RESOURCE_COLLECTED, data) is True
+
+    def test_collect_evaluator_matches_item_alias_weapons(self, fresh_event_bus):
+        """Test CollectEvaluator matches 'Weapons' -> 'weapon'."""
+        evaluator = CollectEvaluator(fresh_event_bus)
+        objective = Objective(
+            challenge="Collect 3 weapons",
+            reward="100 caps",
+            objective_type="collect",
+            target_entity={"item_type": "weapon"},
+            target_amount=3,
+        )
+        # Event uses plural "Weapons"
+        data = {"item_type": "Weapons"}
+        assert evaluator._matches(objective, GameEvent.ITEM_COLLECTED, data) is True
+
+    def test_collect_evaluator_matches_item_alias_outfits(self, fresh_event_bus):
+        """Test CollectEvaluator matches 'Outfits' -> 'outfit'."""
+        evaluator = CollectEvaluator(fresh_event_bus)
+        objective = Objective(
+            challenge="Collect 3 outfits",
+            reward="100 caps",
+            objective_type="collect",
+            target_entity={"item_type": "outfit"},
+            target_amount=3,
+        )
+        # Event uses plural "Outfits"
+        data = {"item_type": "Outfits"}
+        assert evaluator._matches(objective, GameEvent.ITEM_COLLECTED, data) is True
+
+    def test_assign_evaluator_matches_room_alias(self, fresh_event_bus):
+        """Test AssignEvaluator matches room aliases."""
+        evaluator = AssignEvaluator(fresh_event_bus)
+        objective = Objective(
+            challenge="Assign to Living Room",
+            reward="50 caps",
+            objective_type="assign",
+            target_entity={"room_type": "living_room"},
+            target_amount=1,
+        )
+        # Event uses alias "Living Quarters"
+        data = {"room_type": "Living Quarters"}
+        assert evaluator._matches(objective, GameEvent.DWELLER_ASSIGNED, data) is True
+
+    def test_assign_evaluator_optional_room_type(self, fresh_event_bus):
+        """Test AssignEvaluator matches when no room_type specified (any assignment)."""
+        evaluator = AssignEvaluator(fresh_event_bus)
+        objective = Objective(
+            challenge="Assign 5 dwellers",
+            reward="100 caps",
+            objective_type="assign",
+            target_entity={},
+            target_amount=5,
+        )
+        # Any room type should match when target has no room_type
+        data = {"room_type": "power_generator"}
+        assert evaluator._matches(objective, GameEvent.DWELLER_ASSIGNED, data) is True

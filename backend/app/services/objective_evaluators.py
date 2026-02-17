@@ -24,6 +24,11 @@ from app.db.session import async_session_maker
 from app.models.objective import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.services.event_bus import EventBus, GameEvent, event_bus
+from app.utils.objective_constants import (
+    normalize_item_type,
+    normalize_resource_type,
+    normalize_room_type,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -161,14 +166,20 @@ class CollectEvaluator(ObjectiveEvaluator):
             # Wildcard matches any resource ("*", "any", or null)
             if not target_resource or target_resource in ("*", "any"):
                 return True
-            return data.get("resource_type") == target_resource
+            # Use normalize_resource_type to handle aliases (e.g., "Caps" -> "caps")
+            event_resource = normalize_resource_type(data.get("resource_type", ""))
+            target_normalized = normalize_resource_type(target_resource)
+            return event_resource == target_normalized
 
         if event_type == GameEvent.ITEM_COLLECTED:
             target_item = target.get("item_type")
             # Wildcard matches any item ("*", "any", or null)
             if not target_item or target_item in ("*", "any"):
                 return True
-            return data.get("item_type") == target_item
+            # Use normalize_item_type to handle aliases (e.g., "Weapons" -> "weapon")
+            event_item = normalize_item_type(data.get("item_type", ""))
+            target_normalized = normalize_item_type(target_item)
+            return event_item == target_normalized
 
         return False
 
@@ -194,11 +205,9 @@ class BuildEvaluator(ObjectiveEvaluator):
         if not target_room_type or target_room_type in ("*", "any"):
             return True
 
-        # Normalize both to snake_case for comparison
-        # Event data has room name (e.g., "Living Quarters")
-        # Objective target uses snake_case (e.g., "living_quarters")
-        event_room_type = data.get("room_type", "").lower().replace(" ", "_")
-        target_normalized = target_room_type.lower().replace(" ", "_")
+        # Use normalize_room_type to handle aliases (e.g., "living quarters" -> "living_room")
+        event_room_type = normalize_room_type(data.get("room_type", ""))
+        target_normalized = normalize_room_type(target_room_type)
 
         return event_room_type == target_normalized
 
@@ -246,7 +255,10 @@ class AssignEvaluator(ObjectiveEvaluator):
         if not target_room_type:
             return True
 
-        return data.get("room_type") == target_room_type
+        # Use normalize_room_type to handle aliases (e.g., "living quarters" -> "living_room")
+        event_room_type = normalize_room_type(data.get("room_type", ""))
+        target_normalized = normalize_room_type(target_room_type)
+        return event_room_type == target_normalized
 
     def _extract_amount(self, data: dict[str, Any]) -> int:  # noqa: ARG002
         return 1

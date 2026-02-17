@@ -58,7 +58,7 @@ async def _get_existing_values(  # noqa: UP047
     return set(result.scalars().all())
 
 
-def _seed_records(  # noqa: UP047
+def _seed_records(
     db_session: AsyncSession,
     all_data: list[T],
     existing_values: set,
@@ -97,7 +97,7 @@ def _seed_records(  # noqa: UP047
     return seeded_count
 
 
-async def seed_from_json(  # noqa: UP047
+async def seed_from_json(
     db_session: AsyncSession,
     model_class: type[M],
     schema_class: type[T],

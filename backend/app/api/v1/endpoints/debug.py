@@ -178,7 +178,7 @@ async def debug_evaluators():
     }
 
 
-@router.post("/test-build-living-room/{vault_id}")  # noqa: FAST002
+@router.post("/test-build-living-room/{vault_id}")
 async def test_build_living_room(
     vault_id: UUID4,
     session: AsyncSession = Depends(get_async_session),
@@ -196,7 +196,6 @@ async def test_build_living_room(
 
     # Find a living room from the rooms data
     from app.api.game_data_deps import get_static_game_data
-    from app.schemas.common import SPECIALEnum
 
     game_data_store = get_static_game_data()
     living_room_data = None

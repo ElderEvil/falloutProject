@@ -107,14 +107,18 @@ class GameLoopService:
         }
 
         # === PHASE 1: Resource Management ===
+        from sqlalchemy.exc import SQLAlchemyError
+
+        from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
 
         try:
             resource_update, resource_events = await self.resource_manager.process_vault_resources(
                 db_session, vault_id, seconds_passed
             )
 
-            # Apply resource updates (don't commit yet - will commit with final game_state)
-            await vault_crud.update(db_session, vault_id, resource_update, commit=False)
+            # Apply resource updates
+            await vault_crud.update(db_session, vault_id, resource_update)
+            await db_session.commit()
 
             # Emit RESOURCE_COLLECTED events for production (for objective tracking)
             production = resource_events.get("production", {})

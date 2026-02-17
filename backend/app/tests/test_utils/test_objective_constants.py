@@ -57,7 +57,7 @@ class TestValidateTargetEntity:
         assert len(errors) == 1
         assert "Invalid room_type" in errors[0]
 
-    def test_validate_build_no_room_type(self):
+    def test_validate_build_room_type_wildcard(self):
         errors = validate_target_entity("build", {"room_type": "*"})
         assert errors == []
 

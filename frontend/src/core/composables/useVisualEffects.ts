@@ -129,6 +129,10 @@ export function useVisualEffects() {
   let flickerTimeout: ReturnType<typeof setTimeout> | null = null
 
   function startRandomFlicker() {
+    if (flickerTimeout) {
+      clearTimeout(flickerTimeout)
+      flickerTimeout = null
+    }
     const runFlicker = () => {
       const random = Math.random()
       if (random > 0.97) {

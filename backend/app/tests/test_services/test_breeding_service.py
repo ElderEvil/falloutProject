@@ -709,20 +709,27 @@ async def test_deliver_baby_pregnancy_not_found(
 
 def test_generate_newborn_bio_format():
     """Test that newborn bio format works correctly."""
+    from unittest.mock import patch
+
     from app.services.breeding_service import _generate_newborn_bio
 
-    bio = _generate_newborn_bio(
-        mother_name="Jane",
-        father_name="John",
-        mother_id="mother-123",
-        father_id="father-456",
-        vault_id="vault-789",
-    )
+    with patch("app.services.breeding_service.random.choice") as mock_choice:
+        mock_choice.side_effect = [
+            "Born during a {event}. {mother} and {father} couldn't be prouder.",
+            "a vault celebration",
+        ]
+        bio = _generate_newborn_bio(
+            mother_name="Jane",
+            father_name="John",
+            mother_id="mother-123",
+            father_id="father-456",
+            vault_id="vault-789",
+        )
 
-    assert "Jane" in bio or "John" in bio
+    assert "Jane" in bio
+    assert "John" in bio
     assert 'href="/vault/vault-789/dwellers/mother-123"' in bio
     assert 'href="/vault/vault-789/dwellers/father-456"' in bio
-    assert len(bio) <= 200
 
 
 def test_breeding_config_values():

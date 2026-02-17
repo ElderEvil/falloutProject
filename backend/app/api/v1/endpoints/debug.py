@@ -4,7 +4,7 @@ WARNING: These endpoints are for development/testing only.
 Do not expose in production environments.
 """
 
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
 from pydantic import UUID4
@@ -13,8 +13,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.db.session import get_async_session
 from app.models.objective import Objective
+from app.models.vault import Vault
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.services.event_bus import GameEvent, event_bus
+from app.utils.exceptions import ResourceNotFoundException
 
 router = APIRouter()
 
@@ -181,7 +183,7 @@ async def debug_evaluators():
 @router.post("/test-build-living-room/{vault_id}")
 async def test_build_living_room(
     vault_id: UUID4,
-    session: AsyncSession = Depends(get_async_session),
+    session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """Debug endpoint to test building a living room and check population_max update."""
     from app import crud
@@ -192,7 +194,7 @@ async def test_build_living_room(
     # Get vault before building
     vault_before = await crud.vault.get(session, id=vault_id)
     if not vault_before:
-        return {"error": "Vault not found"}
+        raise ResourceNotFoundException(model=Vault, identifier=vault_id)
 
     # Find a living room from the rooms data
     from app.api.game_data_deps import get_static_game_data
@@ -207,7 +209,10 @@ async def test_build_living_room(
             break
 
     if not living_room_data:
-        return {"error": "No living room found in game config"}
+        raise ResourceNotFoundException(model=Vault, identifier="living room", identifier_type="name")
+
+    # Capture population_max before building
+    vault_before_population_max = vault_before.population_max
 
     # Build the living room
     room_create = RoomCreate(
@@ -248,7 +253,7 @@ async def test_build_living_room(
     return {
         "vault_id": str(vault_id),
         "before": {
-            "population_max": vault_before.population_max,
+            "population_max": vault_before_population_max,
         },
         "after": {
             "population_max": vault_after.population_max,

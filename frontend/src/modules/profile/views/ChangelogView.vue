@@ -27,7 +27,9 @@ const clearFilters = () => {
 const categories = computed(() => {
   const cats = new Set<string>()
   changelog.value.forEach((entry) => {
-    entry.changes.forEach((change) => cats.add(change.category))
+    entry.changes.forEach((change) => {
+      cats.add(change.category)
+    })
   })
   return Array.from(cats).sort()
 })

@@ -112,7 +112,7 @@ def validate_target_entity(
     """Validate target_entity for an objective.
 
     Args:
-        objective_type: Type of objective (collect, build, assign, train, reach)
+        objective_type: Type of objective (collect, build, reach)
         target_entity: Target entity dictionary
 
     Returns:

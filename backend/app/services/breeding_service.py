@@ -70,12 +70,7 @@ def _generate_newborn_bio(mother_name: str, father_name: str, mother_id: str, fa
     mother_link = f'<a href="/vault/{vault_id}/dwellers/{mother_id}" class="dweller-link">{safe_mother_name}</a>'
     father_link = f'<a href="/vault/{vault_id}/dwellers/{father_id}" class="dweller-link">{safe_father_name}</a>'
 
-    bio = template.format(mother=mother_link, father=father_link, event=event)
-
-    if len(bio) > 200:
-        bio = bio[:197] + "..."
-
-    return bio
+    return template.format(mother=mother_link, father=father_link, event=event)
 
 
 class BreedingService:

@@ -34,11 +34,10 @@ def _validate_objective(objective_data: ObjectiveCreate) -> list[str]:
     Returns:
         List of validation errors (empty if valid)
     """
-    errors = validate_target_entity(
-        objective_type=objective_data.objective_type,
+    return validate_target_entity(
+        objective_type=objective_data.objective_type or "",
         target_entity=objective_data.target_entity,
     )
-    return errors
 
 
 async def seed_objectives_from_json(db_session: AsyncSession, objectives_dir: Path | None = None) -> int:

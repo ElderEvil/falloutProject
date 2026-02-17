@@ -103,7 +103,7 @@ def normalize_room_type(room_type: str | None) -> str | None:
 
 
 def validate_target_entity(
-    objective_type: str,
+    objective_type: str | None,
     target_entity: dict | None,
 ) -> list[str]:
     """Validate target_entity for an objective.
@@ -132,16 +132,14 @@ def validate_target_entity(
 
     elif objective_type == "collect":
         resource_type = target_entity.get("resource_type")
-        if resource_type:
-            if resource_type not in VALID_RESOURCE_TYPES and resource_type != "any":
-                errors.append(
-                    f"Invalid resource_type '{resource_type}'. Must be one of: {', '.join(sorted(VALID_RESOURCE_TYPES))}, any"
-                )
+        if resource_type and resource_type not in VALID_RESOURCE_TYPES and resource_type != "any":
+            valid_resources = ", ".join(sorted(VALID_RESOURCE_TYPES))
+            errors.append(f"Invalid resource_type '{resource_type}'. Must be one of: {valid_resources}, any")
 
         item_type = target_entity.get("item_type")
-        if item_type:
-            if item_type not in VALID_ITEM_TYPES:
-                errors.append(f"Invalid item_type '{item_type}'. Must be one of: {', '.join(sorted(VALID_ITEM_TYPES))}")
+        if item_type and item_type not in VALID_ITEM_TYPES:
+            valid_items = ", ".join(sorted(VALID_ITEM_TYPES))
+            errors.append(f"Invalid item_type '{item_type}'. Must be one of: {valid_items}")
 
     elif objective_type == "reach":
         reach_type = target_entity.get("reach_type")

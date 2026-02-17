@@ -161,7 +161,7 @@ class CRUDObjective(
             select(self.model)
             .where(self.model.objective_type.is_not(None))
             .where(self.model.target_entity.is_not(None))
-            .where(self.model.target_amount >= 1)
+            .where(self.model.target_amount > 1)
             .offset(skip)
             .limit(limit)
         )

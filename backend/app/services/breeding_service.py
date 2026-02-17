@@ -1,5 +1,6 @@
 """Service for managing dweller breeding, pregnancy, and child growth."""
 
+import html
 import logging
 import random
 from datetime import UTC, datetime, timedelta
@@ -61,8 +62,13 @@ def _generate_newborn_bio(mother_name: str, father_name: str, mother_id: str, fa
     template = random.choice(NEWBORN_BIO_TEMPLATES)
     event = random.choice(NEWBORN_EVENTS)
 
-    mother_link = f'<a href="/vault/{vault_id}/dwellers/{mother_id}" class="dweller-link">{mother_name}</a>'
-    father_link = f'<a href="/vault/{vault_id}/dwellers/{father_id}" class="dweller-link">{father_name}</a>'
+    # Truncate names to a safe max length before escaping
+    max_name_len = 30
+    safe_mother_name = html.escape(mother_name[:max_name_len])
+    safe_father_name = html.escape(father_name[:max_name_len])
+
+    mother_link = f'<a href="/vault/{vault_id}/dwellers/{mother_id}" class="dweller-link">{safe_mother_name}</a>'
+    father_link = f'<a href="/vault/{vault_id}/dwellers/{father_id}" class="dweller-link">{safe_father_name}</a>'
 
     bio = template.format(mother=mother_link, father=father_link, event=event)
 

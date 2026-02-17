@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { useDwellerStore, type DwellerStatus, type DwellerSortBy, type DwellerAgeGroup } from '../stores/dweller'
+import {
+  useDwellerStore,
+  type DwellerStatus,
+  type DwellerSortBy,
+  type DwellerAgeGroup,
+} from '@/stores/dweller'
 
 interface Props {
   showStatusFilter?: boolean

@@ -35,7 +35,7 @@ async def emit_test_event(
         GameEvent.ITEM_COLLECTED: {"item_type": "weapon", "amount": 1},
         GameEvent.ROOM_BUILT: {"room_type": "Living Quarters"},
         GameEvent.ROOM_UPGRADED: {"room_type": "Living Quarters", "level": 2},
-        GameEvent.DWELLER_TRAINED: {"stat": "strength", "dweller_id": "test-dweller"},
+        GameEvent.DWELLER_TRAINED: {"stat_trained": "strength", "dweller_id": "test-dweller"},
         GameEvent.DWELLER_ASSIGNED: {"dweller_id": "test-dweller", "room_type": "power_plant"},
         GameEvent.DWELLER_LEVEL_UP: {"dweller_id": "test-dweller", "level": 2},
     }
@@ -178,7 +178,7 @@ async def debug_evaluators():
     }
 
 
-@router.post("/test-build-living-room/{vault_id}")
+@router.post("/test-build-living-room/{vault_id}")  # noqa: FAST002
 async def test_build_living_room(
     vault_id: UUID4,
     session: AsyncSession = Depends(get_async_session),
@@ -195,12 +195,16 @@ async def test_build_living_room(
         return {"error": "Vault not found"}
 
     # Find a living room from the rooms data
-    from app.core.game_config import game_config
+    from app.api.game_data_deps import get_static_game_data
+    from app.schemas.common import SPECIALEnum
 
+    game_data_store = get_static_game_data()
     living_room_data = None
-    for room_data in game_config.rooms:
-        if room_data.get("name", "").lower() in ("living room", "living quarter"):
-            living_room_data = room_data
+    for room in game_data_store.rooms:
+        # Match by ability (CHARISMA) which is the authoritative attribute for living rooms
+        if room.ability == SPECIALEnum.CHARISMA:
+            # Convert RoomCreateWithoutVaultID to dict for compatibility
+            living_room_data = room.model_dump()
             break
 
     if not living_room_data:

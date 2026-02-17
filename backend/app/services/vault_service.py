@@ -148,10 +148,11 @@ class VaultService:
             created_capacity_rooms.append(created_room)
             # Update vault capacities based on new rooms
             if created_room.category == RoomTypeEnum.CAPACITY:
-                # Living rooms: category=CAPACITY + ability=Charisma
+                # Living rooms: ability=Charisma
                 if created_room.ability == SPECIALEnum.CHARISMA:
                     vault.population_max += created_room.capacity or 0
-                elif "storage" in created_room.name.lower() and created_room.capacity:
+                # Storage rooms: ability=Endurance
+                elif created_room.ability == SPECIALEnum.ENDURANCE and created_room.capacity:
                     # Storage rooms increase Storage.max_space, not individual vault capacities
                     # Query current storage max_space to avoid lazy load issue
                     from sqlmodel import select

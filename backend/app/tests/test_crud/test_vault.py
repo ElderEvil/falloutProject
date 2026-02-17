@@ -77,6 +77,10 @@ async def test_building_storage_room_updates_storage_capacity(async_session: Asy
     vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
     vault = await crud.vault.create(async_session, obj_in=vault_in)
 
+    initial_storage_result = await async_session.execute(select(Storage).where(Storage.vault_id == vault.id))
+    initial_storage = initial_storage_result.scalars().first()
+    initial_max_space = initial_storage.max_space if initial_storage else 0
+
     room_data = RoomCreate(
         vault_id=vault.id,
         name="Storage room",
@@ -103,3 +107,6 @@ async def test_building_storage_room_updates_storage_capacity(async_session: Asy
 
     assert storage is not None, "Storage should be created when building storage room"
     assert storage.max_space == 20, f"Expected storage max_space to be 20, got {storage.max_space}"
+    assert storage.max_space == initial_max_space + 20, (
+        f"Expected storage max_space to increase by 20, but went from {initial_max_space} to {storage.max_space}"
+    )

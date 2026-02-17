@@ -290,7 +290,11 @@ class TrainingService:
 
         await dweller_crud.update(db_session, dweller.id, DwellerUpdate(status=DwellerStatusEnum.IDLE, room_id=None))
 
-        # Emit DWELLER_TRAINED event for objective tracking
+        await db_session.commit()
+        await db_session.refresh(training)
+        await db_session.refresh(dweller)
+
+        # Emit DWELLER_TRAINED event for objective tracking (after commit)
         await event_bus.emit(
             GameEvent.DWELLER_TRAINED,
             dweller.vault_id,
@@ -299,9 +303,6 @@ class TrainingService:
                 "stat_trained": training.stat_being_trained.value,
             },
         )
-
-        await db_session.commit()
-        await db_session.refresh(training)
 
         self.logger.info(
             f"Completed training: Dweller {dweller.first_name} increased "

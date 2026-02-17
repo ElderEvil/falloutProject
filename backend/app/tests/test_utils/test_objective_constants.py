@@ -5,6 +5,7 @@ import pytest
 from app.utils.objective_constants import (
     ROOM_TYPE_ALIASES,
     VALID_ITEM_TYPES,
+    VALID_REACH_TYPES,
     VALID_RESOURCE_TYPES,
     VALID_ROOM_TYPES,
     normalize_room_type,
@@ -87,7 +88,9 @@ class TestValidateTargetEntity:
     def test_validate_reach_valid(self):
         errors = validate_target_entity("reach", {"reach_type": "dweller_count"})
         assert errors == []
-        errors = validate_target_entity("reach", {"reach_type": "happiness"})
+        errors = validate_target_entity("reach", {"reach_type": "population"})
+        assert errors == []
+        errors = validate_target_entity("reach", {"reach_type": "level"})
         assert errors == []
 
     def test_validate_reach_invalid(self):
@@ -120,3 +123,11 @@ class TestValidConstants:
 
     def test_room_type_aliases_not_empty(self):
         assert len(ROOM_TYPE_ALIASES) > 0
+
+    def test_valid_reach_types_not_empty(self):
+        assert len(VALID_REACH_TYPES) > 0
+
+    def test_reach_types_contains_expected(self):
+        assert "dweller_count" in VALID_REACH_TYPES
+        assert "population" in VALID_REACH_TYPES
+        assert "level" in VALID_REACH_TYPES

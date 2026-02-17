@@ -155,7 +155,7 @@ class CRUDObjective(
         Complete objectives have:
         - objective_type is not None
         - target_entity is not None (can be None for some types like assign)
-        - target_amount > 1
+        - target_amount >= 1
         """
         query = (
             select(self.model)

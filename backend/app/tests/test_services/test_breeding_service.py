@@ -705,3 +705,30 @@ async def test_deliver_baby_pregnancy_not_found(
             async_session,
             fake_id,
         )
+
+
+def test_generate_newborn_bio_format():
+    """Test that newborn bio format works correctly."""
+    from app.services.breeding_service import _generate_newborn_bio
+
+    bio = _generate_newborn_bio(
+        mother_name="Jane",
+        father_name="John",
+        mother_id="mother-123",
+        father_id="father-456",
+        vault_id="vault-789",
+    )
+
+    assert "Jane" in bio or "John" in bio
+    assert 'href="/vault/vault-789/dwellers/mother-123"' in bio
+    assert 'href="/vault/vault-789/dwellers/father-456"' in bio
+    assert len(bio) <= 200
+
+
+def test_breeding_config_values():
+    """Test that breeding config has valid values."""
+    from app.core.game_config import game_config
+
+    assert 0.0 <= game_config.breeding.conception_chance_per_tick <= 1.0
+    assert game_config.breeding.pregnancy_duration_hours > 0
+    assert game_config.breeding.child_growth_duration_hours > 0

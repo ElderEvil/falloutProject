@@ -16,7 +16,7 @@ VALID_ROOM_TYPES = frozenset(
         "storage_room",
         "medbay",
         "science_lab",
-        "overseer's_office",
+        "overseers_office",
         "radio_studio",
         "weapon_workshop",
         "weight_room",
@@ -60,6 +60,9 @@ VALID_ITEM_TYPES = frozenset(
         "rare_outfit",
     }
 )
+
+# Valid reach types for reach objectives
+VALID_REACH_TYPES = frozenset({"dweller_count", "population", "level"})
 
 # Map from objective room_type values to valid room names (for normalization)
 ROOM_TYPE_ALIASES: dict[str, str] = {
@@ -143,9 +146,8 @@ def validate_target_entity(
 
     elif objective_type == "reach":
         reach_type = target_entity.get("reach_type")
-        if reach_type:
-            valid_reach_types = frozenset({"dweller_count", "happiness"})
-            if reach_type not in valid_reach_types:
-                errors.append(f"Invalid reach_type '{reach_type}'. Must be one of: dweller_count, happiness")
+        if reach_type and reach_type not in VALID_REACH_TYPES:
+            valid_reach = ", ".join(sorted(VALID_REACH_TYPES))
+            errors.append(f"Invalid reach_type '{reach_type}'. Must be one of: {valid_reach}")
 
     return errors

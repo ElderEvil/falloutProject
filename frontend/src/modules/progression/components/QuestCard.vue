@@ -344,13 +344,7 @@ const handleAction = () => {
     <!-- Action Button -->
     <UButton
       class="quest-action-btn"
-      :variant="
-        status === 'completed'
-          ? 'secondary'
-          : status === 'active' && !timeRemaining
-            ? 'primary'
-            : 'primary'
-      "
+      :variant="status === 'completed' ? 'secondary' : 'primary'"
       :disabled="isButtonDisabled"
       @click="handleAction"
     >

@@ -1,9 +1,9 @@
 import { computed, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import type { Room } from '../models/room'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import type { Room } from '../models/room'
 
 type SpecialKey =
   | 'strength'

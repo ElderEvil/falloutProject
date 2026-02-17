@@ -18,6 +18,11 @@ const error = ref('')
 const searchQuery = ref('')
 const selectedCategory = ref('all')
 
+const clearFilters = () => {
+  searchQuery.value = ''
+  selectedCategory.value = 'all'
+}
+
 // All available categories for filtering
 const categories = computed(() => {
   const cats = new Set<string>()
@@ -154,10 +159,7 @@ onMounted(() => {
         <!-- Clear Filters -->
         <UButton
           variant="secondary"
-          @click="
-            searchQuery = ''
-            selectedCategory = 'all'
-          "
+          @click="clearFilters"
           :disabled="!searchQuery && selectedCategory === 'all'"
         >
           Clear Filters

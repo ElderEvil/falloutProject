@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import { computed } from 'vue'
 import type { Room } from '../models/room'
 import UButton from '@/core/components/ui/UButton.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
@@ -23,7 +24,9 @@ interface Props {
   assignedDwellerCount: number
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
+
+const maxTierText = computed(() => `Max tier reached (${props.room.tier}/${props.upgradeInfo?.maxTier ?? 'N/A'})`)
 
 const emit = defineEmits<{
   upgrade: []
@@ -54,7 +57,7 @@ const emit = defineEmits<{
       </UButton>
       <div v-else class="disabled-action">
         <Icon icon="mdi:arrow-up-circle" class="h-5 w-5 opacity-50" />
-        <span> Max tier reached ({{ room.tier }}/{{ upgradeInfo?.maxTier ?? 'N/A' }}) </span>
+        <span> {{ maxTierText }} </span>
       </div>
 
       <!-- Radio controls slot -->

@@ -110,7 +110,12 @@ onMounted(async () => {
 
 // Watch for filter/sort changes and refetch
 watch(
-  () => [dwellerStore.filterStatus, dwellerStore.filterAgeGroup, dwellerStore.sortBy, dwellerStore.sortDirection],
+  () => [
+    dwellerStore.filterStatus,
+    dwellerStore.filterAgeGroup,
+    dwellerStore.sortBy,
+    dwellerStore.sortDirection,
+  ],
   async () => {
     if (dwellerStore.filterStatus === 'dead') {
       // Fetch dead dwellers when dead filter is active

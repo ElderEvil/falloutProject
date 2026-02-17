@@ -93,9 +93,6 @@ async def seed_from_json(
                 logger.warning("Skipping duplicate (within batch): %s=%s", unique_field, unique_value)
                 continue
 
-            # Mark as seen and seed
-            seen_values.add(unique_value)
-
             # Run custom validation if provided
             if validate_fn:
                 errors = validate_fn(data_item)
@@ -103,6 +100,9 @@ async def seed_from_json(
                     for error in errors:
                         logger.error("Validation error for %s=%s: %s", unique_field, unique_value, error)
                     continue
+
+            # Mark as seen and seed (only after validation passes)
+            seen_values.add(unique_value)
 
             model_instance = transform_fn(data_item)
             db_session.add(model_instance)

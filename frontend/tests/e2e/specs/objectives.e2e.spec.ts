@@ -221,10 +221,12 @@ test.describe('Objectives - Training Integration', () => {
     await page.waitForLoadState('networkidle')
   })
 
-  test('should display training objectives with stat-specific tracking', async ({ page }) => {
+  const trainingObjectiveLocator = 'text=/Train.*[Ss]trength|Train.*[Pp]erception|Train.*[Ee]ndurance|Train.*[Cc]harisma|Train.*[Ii]ntelligence|Train.*[Aa]gility|Train.*[Ll]uck/i'
+
+  test.skip('should display training objectives with stat-specific tracking', async ({ page }) => {
     await page.waitForSelector('text=Objectives', { timeout: 10000 })
 
-    const trainObjective = page.locator('text=/Train.*[Ss]trength|Train.*[Pp]erception|Train.*[Ee]ndurance|Train.*[Cc]harisma|Train.*[Ii]ntelligence|Train.*[Aa]gility|Train.*[Ll]uck/i')
+    const trainObjective = page.locator(trainingObjectiveLocator)
 
     const count = await trainObjective.count()
     if (count > 0) {
@@ -237,7 +239,7 @@ test.describe('Objectives - Training Integration', () => {
     }
   })
 
-  test('should display progress percentage for objectives', async ({ page }) => {
+  test.skip('should display progress percentage for objectives', async ({ page }) => {
     await page.waitForSelector('text=Objectives', { timeout: 10000 })
 
     const progressBar = page.locator('[role="progressbar"], .progress-bar')

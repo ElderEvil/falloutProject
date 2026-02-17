@@ -24,7 +24,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **Objective Response Fields** - API now returns all objective fields including target_entity
   - Fixed get_multi_for_vault to include objective_type and target_entity
 
-### Guards Added
+### Added
 
 - **Objective Target Validation** - New validation system for objective target_entity values
   - Validates room_type, resource_type, item_type against allowed values

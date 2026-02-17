@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import DOMPurify from 'dompurify'
 import { Icon } from '@iconify/vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 
@@ -15,6 +17,14 @@ const emit = defineEmits<{
   (e: 'generate-bio'): void
   (e: 'generate-all'): void
 }>()
+
+const sanitizedBio = computed(() => {
+  if (!props.bio) return null
+  return DOMPurify.sanitize(props.bio, {
+    ALLOWED_TAGS: ['br', 'em', 'strong', 'a'],
+    ALLOWED_ATTR: ['href', 'class'],
+  })
+})
 </script>
 
 <template>
@@ -54,8 +64,8 @@ const emit = defineEmits<{
       </div>
     </div>
     <div class="bio-content">
-      <template v-if="bio">
-        <p class="bio-text" v-html="bio"></p>
+      <template v-if="sanitizedBio">
+        <p class="bio-text" v-html="sanitizedBio"></p>
       </template>
       <template v-else>
         <div class="bio-placeholder">

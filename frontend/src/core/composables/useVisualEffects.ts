@@ -126,32 +126,28 @@ export function useVisualEffects() {
    * This creates truly random opacity changes that CSS animations can't achieve
    */
   const flickerOpacity = ref(1)
-  // Local flicker interval handler (moved from module scope)
-  let flickerInterval: ReturnType<typeof setInterval> | null = null
+  let flickerTimeout: ReturnType<typeof setTimeout> | null = null
 
   function startRandomFlicker() {
-    if (flickerInterval) clearInterval(flickerInterval)
-
-    flickerInterval = setInterval(
-      () => {
-        const random = Math.random()
-        // Check most restrictive threshold first (random > 0.97)
-        if (random > 0.97) {
-          flickerOpacity.value = 0.93 + Math.random() * 0.04
-        } else if (random > 0.92) {
-          flickerOpacity.value = 0.9 + Math.random() * 0.05
-        } else {
-          flickerOpacity.value = 0.97 + Math.random() * 0.03
-        }
-      },
-      1500 + Math.random() * 2000
-    )
+    const runFlicker = () => {
+      const random = Math.random()
+      if (random > 0.97) {
+        flickerOpacity.value = 0.93 + Math.random() * 0.04
+      } else if (random > 0.92) {
+        flickerOpacity.value = 0.9 + Math.random() * 0.05
+      } else {
+        flickerOpacity.value = 0.97 + Math.random() * 0.03
+      }
+      // Schedule next flicker with new random delay
+      flickerTimeout = setTimeout(runFlicker, 1500 + Math.random() * 2000)
+    }
+    flickerTimeout = setTimeout(runFlicker, 1500 + Math.random() * 2000)
   }
 
   function stopRandomFlicker() {
-    if (flickerInterval) {
-      clearInterval(flickerInterval)
-      flickerInterval = null
+    if (flickerTimeout) {
+      clearTimeout(flickerTimeout)
+      flickerTimeout = null
     }
     flickerOpacity.value = 1
   }

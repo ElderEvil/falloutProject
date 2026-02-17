@@ -383,7 +383,9 @@ const saveNewName = async () => {
                 <DwellerCard
                   :dweller="dweller"
                   :image-url="dweller.image_url"
-                  :loading="generatingAI || usingStimpack || usingRadaway || assigning || unassigning"
+                  :loading="
+                    generatingAI || usingStimpack || usingRadaway || assigning || unassigning
+                  "
                   @chat="navigateToChatPage"
                   @assign="handleAssign"
                   @unassign="handleUnassign"

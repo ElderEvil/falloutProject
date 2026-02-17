@@ -31,6 +31,6 @@ export function useGaryMode() {
     isGaryMode,
     garyUnlocked,
     triggerGaryMode,
-    resetGaryUnlocked
+    resetGaryUnlocked,
   }
 }

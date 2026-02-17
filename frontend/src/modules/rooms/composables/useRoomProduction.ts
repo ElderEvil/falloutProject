@@ -30,7 +30,7 @@ const getResourceName = (ability?: string | null) => {
 export function useRoomProduction(
   room: Ref<Room | null>,
   assignedDwellers: Ref<DwellerShort[]>,
-  dwellerCapacity: Ref<number>,
+  dwellerCapacity: Ref<number>
 ) {
   const resourceIcon = computed(() => {
     if (!room.value?.ability) return 'mdi:home'
@@ -64,11 +64,7 @@ export function useRoomProduction(
   })
 
   const productionInfo = computed(() => {
-    if (
-      !room.value ||
-      !room.value.ability ||
-      room.value.category?.toLowerCase() !== 'production'
-    ) {
+    if (!room.value || !room.value.ability || room.value.category?.toLowerCase() !== 'production') {
       return null
     }
 

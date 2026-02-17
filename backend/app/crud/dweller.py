@@ -12,7 +12,7 @@ from app.crud.base import CRUDBase
 from app.crud.room import room as room_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
-from app.schemas.common import DwellerStatusEnum, RoomTypeEnum
+from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, RoomTypeEnum
 from app.schemas.dweller import (
     DwellerCreate,
     DwellerCreateCommonOverride,
@@ -73,6 +73,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         skip: int = 0,
         limit: int = 100,
         status: DwellerStatusEnum | None = None,
+        age_group: AgeGroupEnum | None = None,
         search: str | None = None,
         sort_by: str = "created_at",
         order: str = "desc",
@@ -88,6 +89,10 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         # Filter by status
         if status:
             query = query.where(self.model.status == status)
+
+        # Filter by age group
+        if age_group:
+            query = query.where(self.model.age_group == age_group)
 
         # Search by name
         if search:

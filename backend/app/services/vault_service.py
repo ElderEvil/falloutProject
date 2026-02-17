@@ -148,10 +148,11 @@ class VaultService:
             created_capacity_rooms.append(created_room)
             # Update vault capacities based on new rooms
             if created_room.category == RoomTypeEnum.CAPACITY:
-                # Check room name to determine what capacity to increase
-                if "living" in created_room.name.lower():
+                # Living rooms: ability=Charisma
+                if created_room.ability == SPECIALEnum.CHARISMA:
                     vault.population_max += created_room.capacity or 0
-                elif "storage" in created_room.name.lower() and created_room.capacity:
+                # Storage rooms: ability=Endurance
+                elif created_room.ability == SPECIALEnum.ENDURANCE and created_room.capacity:
                     # Storage rooms increase Storage.max_space, not individual vault capacities
                     # Query current storage max_space to avoid lazy load issue
                     from sqlmodel import select
@@ -678,9 +679,22 @@ class VaultService:
 
     async def update_vault_resources(self, db_session: AsyncSession, vault_id: UUID4) -> Vault:
         """Update vault resources based on resource manager processing."""
-        updated_resources, _events = await self.resource_manager.process_vault_resources(
+        from app.services.event_bus import GameEvent, event_bus
+
+        updated_resources, events = await self.resource_manager.process_vault_resources(
             db_session=db_session, vault_id=vault_id, seconds_passed=60
         )
+
+        # Emit RESOURCE_COLLECTED events for production (for objective tracking)
+        production = events.get("production", {})
+        for resource_type, amount in production.items():
+            int_amount = int(amount)
+            if int_amount > 0:
+                await event_bus.emit(
+                    GameEvent.RESOURCE_COLLECTED,
+                    vault_id,
+                    {"resource_type": resource_type, "amount": int_amount},
+                )
 
         return await vault_crud.update(db_session=db_session, id=vault_id, obj_in=updated_resources)
 

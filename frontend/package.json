@@ -1,6 +1,6 @@
 {
   "name": "frontend",
-  "version": "2.10.6",
+  "version": "2.10.7",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.28.2",
@@ -28,6 +28,7 @@
     "@vueuse/core": "14.2.1",
     "@vueuse/motion": "3.0.3",
     "axios": "^1.13.5",
+    "dompurify": "3.3.1",
     "jwt-decode": "4.0.0",
     "pinia": "^3.0.4",
     "vue": "^3.5.28",
@@ -38,6 +39,7 @@
     "@playwright/test": "1.58.2",
     "@tailwindcss/vite": "^4.1.18",
     "@tsconfig/node22": "^22.0.5",
+    "@types/dompurify": "3.2.0",
     "@types/jsdom": "27.0.0",
     "@types/node": "^25.2.3",
     "@vitejs/plugin-vue": "^6.0.4",

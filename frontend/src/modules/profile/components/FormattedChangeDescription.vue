@@ -31,7 +31,7 @@ const segments = computed<Segment[]>(() => {
     if (codeMatch) {
       result.push({
         type: 'code',
-        content: codeMatch[1]
+        content: codeMatch[1],
       })
       remaining = remaining.slice(codeMatch[0].length)
       position += codeMatch[0].length
@@ -43,7 +43,7 @@ const segments = computed<Segment[]>(() => {
     if (boldMatch) {
       result.push({
         type: 'bold',
-        content: boldMatch[1]
+        content: boldMatch[1],
       })
       remaining = remaining.slice(boldMatch[0].length)
       position += boldMatch[0].length
@@ -56,7 +56,7 @@ const segments = computed<Segment[]>(() => {
       result.push({
         type: 'link',
         content: urlMatch[1],
-        href: urlMatch[1]
+        href: urlMatch[1],
       })
       remaining = remaining.slice(urlMatch[0].length)
       position += urlMatch[0].length
@@ -70,7 +70,7 @@ const segments = computed<Segment[]>(() => {
     const httpsIdx = remaining.indexOf('https://')
 
     // Find the minimum index (first occurrence of any special token)
-    const indices = [backtickIdx, boldIdx, httpIdx, httpsIdx].filter(idx => idx !== -1)
+    const indices = [backtickIdx, boldIdx, httpIdx, httpsIdx].filter((idx) => idx !== -1)
     const nextSpecial = indices.length > 0 ? Math.min(...indices) : -1
 
     if (nextSpecial === -1) {
@@ -78,7 +78,7 @@ const segments = computed<Segment[]>(() => {
       if (remaining.length > 0) {
         result.push({
           type: 'text',
-          content: remaining
+          content: remaining,
         })
       }
       break
@@ -88,7 +88,7 @@ const segments = computed<Segment[]>(() => {
       if (textSegment.length > 0) {
         result.push({
           type: 'text',
-          content: textSegment
+          content: textSegment,
         })
       }
       remaining = remaining.slice(nextSpecial)

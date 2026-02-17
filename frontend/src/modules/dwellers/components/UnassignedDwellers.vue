@@ -58,7 +58,6 @@ const unassignedDwellers = computed(() => {
 
 const isDraggingOver = ref(false)
 
-
 const emit = defineEmits<{
   dragStart: [dweller: DwellerShort]
   dragEnd: []
@@ -122,8 +121,6 @@ const getImageUrl = (imagePath: string | null) => {
 
 <template>
   <div class="unassigned-dwellers-panel">
-
-
     <div class="panel-header">
       <div class="header-row">
         <div>
@@ -254,8 +251,6 @@ const getImageUrl = (imagePath: string | null) => {
 </template>
 
 <style scoped>
-
-
 @keyframes slideIn {
   from {
     transform: translateX(100%);

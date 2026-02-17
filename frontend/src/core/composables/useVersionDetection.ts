@@ -25,7 +25,7 @@ export function useVersionDetection() {
     current: currentVersion.value,
     lastSeen: lastSeenVersion.value,
     hasUpdate: hasVersionUpdate.value,
-    isFirstTime: !lastSeenVersion.value
+    isFirstTime: !lastSeenVersion.value,
   }))
 
   const hasVersionUpdate = computed(() => {
@@ -99,6 +99,6 @@ export function useVersionDetection() {
     markVersionAsSeen,
     showChangelog,
     hideChangelog,
-    resetVersionTracking
+    resetVersionTracking,
   }
 }

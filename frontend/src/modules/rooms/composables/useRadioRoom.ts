@@ -11,7 +11,7 @@ import axios from '@/core/plugins/axios'
 export function useRadioRoom(
   room: Ref<Room | null>,
   modelValue: Ref<boolean>,
-  _assignedDwellers: Ref<DwellerShort[]>,
+  _assignedDwellers: Ref<DwellerShort[]>
 ) {
   const route = useRoute()
   const authStore = useAuthStore()
@@ -34,7 +34,7 @@ export function useRadioRoom(
       if (newMode) {
         localRadioMode.value = newMode
       }
-    },
+    }
   )
 
   const vaultId = computed(() => route.params.id)
@@ -68,7 +68,7 @@ export function useRadioRoom(
         loadRadioStats()
       }
     },
-    { immediate: true },
+    { immediate: true }
   )
 
   const handleSwitchRadioMode = async (mode: 'recruitment' | 'happiness') => {
@@ -89,7 +89,7 @@ export function useRadioRoom(
         {},
         {
           headers: { Authorization: `Bearer ${token}` },
-        },
+        }
       )
 
       await vaultStore.refreshVault(vaultIdValue, token)
@@ -123,7 +123,7 @@ export function useRadioRoom(
       const response = await axios.post(
         `/api/v1/radio/vault/${vaultIdValue}/recruit`,
         {},
-        { headers: { Authorization: `Bearer ${token}` } },
+        { headers: { Authorization: `Bearer ${token}` } }
       )
 
       toast.success(response.data.message || 'Dweller recruited successfully!')

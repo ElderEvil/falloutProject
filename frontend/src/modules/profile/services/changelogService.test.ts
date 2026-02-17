@@ -16,9 +16,9 @@ describe('ChangelogService', () => {
           date_display: '2026-01-29',
           changes: [
             { category: 'Added', description: 'New feature' },
-            { category: 'Fixed', description: 'Bug fix' }
-          ]
-        }
+            { category: 'Fixed', description: 'Bug fix' },
+          ],
+        },
       ]
 
       vi.spyOn(api, 'apiGet').mockResolvedValue(mockData)
@@ -49,7 +49,7 @@ describe('ChangelogService', () => {
         version: '2.8.0',
         date: '2026-01-29T00:00:00',
         date_display: '2026-01-29',
-        changes: [{ category: 'Added', description: 'New feature' }]
+        changes: [{ category: 'Added', description: 'New feature' }],
       }
 
       vi.spyOn(api, 'apiGet').mockResolvedValue(mockData)

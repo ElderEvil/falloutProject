@@ -225,7 +225,10 @@ const closeRewardsModal = () => {
       <div class="exploration-content">
         <!-- Explorer Cards List -->
         <div class="explorers-section">
-          <div v-if="activeExplorationsArray.length === 0 && activeQuestsWithParty.length === 0" class="empty-state">
+          <div
+            v-if="activeExplorationsArray.length === 0 && activeQuestsWithParty.length === 0"
+            class="empty-state"
+          >
             <Icon icon="mdi:compass-off" class="empty-icon" />
             <h3 class="empty-title">No Active Activities</h3>
             <p class="empty-text">

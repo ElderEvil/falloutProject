@@ -49,6 +49,6 @@ export function useFakeCrash() {
     handleVersionClick,
     triggerFakeCrash,
     resetCrash,
-    resetCrashUnlocked
+    resetCrashUnlocked,
   }
 }

@@ -67,9 +67,7 @@ const emit = defineEmits<{
     <!-- Recruit Dweller Button -->
     <UButton
       @click="emit('recruit')"
-      :disabled="
-        isRecruiting || assignedDwellers.length === 0 || localRadioMode !== 'recruitment'
-      "
+      :disabled="isRecruiting || assignedDwellers.length === 0 || localRadioMode !== 'recruitment'"
       variant="primary"
       class="recruit-btn"
     >

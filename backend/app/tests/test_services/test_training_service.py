@@ -9,6 +9,7 @@ from app.models.dweller import Dweller
 from app.models.vault import Vault
 from app.schemas.common import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomCreate
+from app.services.event_bus import GameEvent, event_bus
 from app.services.training_service import TrainingService
 
 
@@ -346,3 +347,60 @@ async def test_cancel_training(
     await async_session.refresh(dweller)
     assert dweller.strength == initial_strength
     assert dweller.status == DwellerStatusEnum.IDLE
+
+
+@pytest.mark.asyncio
+async def test_complete_training_emits_dweller_trained_event(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    training_service: TrainingService,
+):
+    """Test that completing training emits DWELLER_TRAINED event for objectives."""
+    # Create a training room
+    room_data = {
+        "name": "Weight Room",
+        "category": RoomTypeEnum.TRAINING,
+        "tier": 1,
+        "size": 2,
+        "capacity": 6,
+        "ability": SPECIALEnum.STRENGTH,
+        "base_cost": 1000,
+        "t2_upgrade_cost": 2500,
+        "t3_upgrade_cost": 5000,
+        "size_min": 1,
+        "size_max": 3,
+    }
+    room_in = RoomCreate(**room_data, vault_id=vault.id)
+    room = await room_crud.create(async_session, room_in)
+
+    # Set dweller to IDLE and reasonable strength
+    dweller.status = DwellerStatusEnum.IDLE
+    dweller.strength = 5
+    async_session.add(dweller)
+    await async_session.commit()
+
+    # Start training
+    training = await training_service.start_training(async_session, dweller.id, room.id)
+
+    # Track emitted events
+    emitted_events: list[dict] = []
+
+    async def capture_event(event_type: str, vault_id, data: dict):
+        emitted_events.append({"event_type": event_type, "vault_id": str(vault_id), "data": data})
+
+    # Subscribe to capture the event
+    event_bus.subscribe(GameEvent.DWELLER_TRAINED, capture_event)
+    try:
+        # Complete training
+        await training_service.complete_training(async_session, training.id)
+
+        # Verify event was emitted
+        assert len(emitted_events) == 1
+        event = emitted_events[0]
+        assert event["event_type"] == GameEvent.DWELLER_TRAINED
+        assert event["vault_id"] == str(vault.id)
+        assert event["data"]["dweller_id"] == str(dweller.id)
+        assert event["data"]["stat_trained"] == "strength"
+    finally:
+        event_bus.unsubscribe(GameEvent.DWELLER_TRAINED, capture_event)

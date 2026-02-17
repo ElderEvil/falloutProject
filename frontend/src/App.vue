@@ -27,8 +27,7 @@ useTokenRefresh()
 useResourceWarnings()
 
 // Version detection and changelog system
-const { showChangelogModal, versionInfo, markVersionAsSeen, hideChangelog } =
-  useVersionDetection()
+const { showChangelogModal, versionInfo, markVersionAsSeen, hideChangelog } = useVersionDetection()
 
 // Easter eggs
 const { isGaryMode } = useGaryMode()

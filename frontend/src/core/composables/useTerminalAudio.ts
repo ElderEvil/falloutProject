@@ -1,7 +1,13 @@
 import { ref, computed } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
 
-export type AudioType = 'key-click' | 'button-hover' | 'button-click' | 'menu-open' | 'success' | 'error'
+export type AudioType =
+  | 'key-click'
+  | 'button-hover'
+  | 'button-click'
+  | 'menu-open'
+  | 'success'
+  | 'error'
 
 // Web Audio API context
 let audioContext: AudioContext | null = null
@@ -83,9 +89,9 @@ export function useTerminalAudio() {
   }
 
   /**
-    * Mechanical keyboard click sound
-    * Short noise burst filtered to sound like a keycap
-    */
+   * Mechanical keyboard click sound
+   * Short noise burst filtered to sound like a keycap
+   */
   function playKeyClick(time: number, destination: AudioNode) {
     if (!audioContext) return
 
@@ -118,9 +124,9 @@ export function useTerminalAudio() {
   }
 
   /**
-    * Soft hover sound
-    * Very subtle high-frequency sine wave
-    */
+   * Soft hover sound
+   * Very subtle high-frequency sine wave
+   */
   function playButtonHover(time: number, destination: AudioNode) {
     if (!audioContext) return
 
@@ -147,9 +153,9 @@ export function useTerminalAudio() {
   }
 
   /**
-    * Terminal button confirmation beep
-    * Classic 1kHz tone with slight decay
-    */
+   * Terminal button confirmation beep
+   * Classic 1kHz tone with slight decay
+   */
   function playButtonClick(time: number, destination: AudioNode) {
     if (!audioContext) return
 
@@ -176,9 +182,9 @@ export function useTerminalAudio() {
   }
 
   /**
-    * Menu open slide sound
-    * Frequency slide from low to high
-    */
+   * Menu open slide sound
+   * Frequency slide from low to high
+   */
   function playMenuOpen(time: number, destination: AudioNode) {
     if (!audioContext) return
 
@@ -206,9 +212,9 @@ export function useTerminalAudio() {
   }
 
   /**
-    * Success chime
-    * Two-tone positive confirmation
-    */
+   * Success chime
+   * Two-tone positive confirmation
+   */
   function playSuccess(time: number, destination: AudioNode) {
     if (!audioContext) return
 
@@ -247,9 +253,9 @@ export function useTerminalAudio() {
   }
 
   /**
-    * Error buzz
-    * Low frequency warning tone
-    */
+   * Error buzz
+   * Low frequency warning tone
+   */
   function playError(time: number, destination: AudioNode) {
     if (!audioContext) return
 

@@ -57,6 +57,7 @@ const fetchDwellers = async () => {
   if (authStore.isAuthenticated && vaultId.value) {
     await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token as string, {
       status: dwellerStore.filterStatus !== 'all' ? dwellerStore.filterStatus : undefined,
+      ageGroup: dwellerStore.filterAgeGroup !== 'all' ? dwellerStore.filterAgeGroup : undefined,
       sortBy: dwellerStore.sortBy,
       order: dwellerStore.sortDirection,
     })
@@ -68,6 +69,7 @@ onMounted(async () => {
   const sortByParam = route.query.sortBy as DwellerSortBy | undefined
   const orderParam = route.query.order as SortDirection | undefined
   const filterParam = route.query.filter as DwellerStatus | undefined
+  const ageGroupParam = route.query.ageGroup as 'child' | 'teen' | 'adult' | undefined
 
   if (
     sortByParam &&
@@ -95,6 +97,9 @@ onMounted(async () => {
   ) {
     dwellerStore.setFilterStatus(filterParam)
   }
+  if (ageGroupParam && ['child', 'teen', 'adult'].includes(ageGroupParam)) {
+    dwellerStore.setFilterAgeGroup(ageGroupParam)
+  }
 
   await fetchDwellers()
   // Fetch rooms to show room assignments
@@ -105,7 +110,12 @@ onMounted(async () => {
 
 // Watch for filter/sort changes and refetch
 watch(
-  () => [dwellerStore.filterStatus, dwellerStore.sortBy, dwellerStore.sortDirection],
+  () => [
+    dwellerStore.filterStatus,
+    dwellerStore.filterAgeGroup,
+    dwellerStore.sortBy,
+    dwellerStore.sortDirection,
+  ],
   async () => {
     if (dwellerStore.filterStatus === 'dead') {
       // Fetch dead dwellers when dead filter is active
@@ -268,7 +278,11 @@ const handleQuickUnassign = async (dwellerId: string) => {
 
           <!-- Filter Panel with View Toggle -->
           <div class="w-full mb-6">
-            <DwellerFilterPanel :show-view-toggle="true" :show-bulk-actions="false" :vault-id="vaultId" />
+            <DwellerFilterPanel
+              :show-view-toggle="true"
+              :show-bulk-actions="false"
+              :vault-id="vaultId"
+            />
           </div>
 
           <!-- Bulk Actions - Separate Section -->
@@ -438,25 +452,25 @@ const handleQuickUnassign = async (dwellerId: string) => {
                   </div>
                 </div>
 
-                  <!-- Room Assignment - right side -->
-                  <div class="ml-auto flex items-center gap-2">
-                    <template v-if="getRoomForDweller(dweller.room_id)">
-                      <div
-                        class="px-3 py-1.5 rounded text-sm font-medium bg-gray-700/80 text-gray-200 border border-gray-600 cursor-pointer hover:bg-gray-700 transition-all flex items-center gap-2"
-                        @click.stop="openRoomModal(dweller.room_id!)"
+                <!-- Room Assignment - right side -->
+                <div class="ml-auto flex items-center gap-2">
+                  <template v-if="getRoomForDweller(dweller.room_id)">
+                    <div
+                      class="px-3 py-1.5 rounded text-sm font-medium bg-gray-700/80 text-gray-200 border border-gray-600 cursor-pointer hover:bg-gray-700 transition-all flex items-center gap-2"
+                      @click.stop="openRoomModal(dweller.room_id!)"
+                    >
+                      {{ getRoomForDweller(dweller.room_id)?.name }}
+                      <button
+                        @click.stop="handleQuickUnassign(dweller.id)"
+                        class="ml-auto p-0.5 hover:bg-red-500/20 rounded transition-colors"
+                        title="Unassign from room"
                       >
-                        {{ getRoomForDweller(dweller.room_id)?.name }}
-                        <button
-                          @click.stop="handleQuickUnassign(dweller.id)"
-                          class="ml-auto p-0.5 hover:bg-red-500/20 rounded transition-colors"
-                          title="Unassign from room"
-                        >
-                          <Icon icon="mdi:close" class="h-4 w-4 text-red-400" />
-                        </button>
-                      </div>
-                    </template>
+                        <Icon icon="mdi:close" class="h-4 w-4 text-red-400" />
+                      </button>
+                    </div>
+                  </template>
 
-                    <!-- Chevron -->
+                  <!-- Chevron -->
                   <Icon
                     icon="mdi:chevron-right"
                     class="h-5 w-5 text-terminalGreen/50 flex-shrink-0"

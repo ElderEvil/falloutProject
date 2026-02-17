@@ -17,13 +17,94 @@ T = TypeVar("T", bound=BaseModel)
 M = TypeVar("M")
 
 
-async def seed_from_json(
+async def _load_json_files(  # noqa: UP047
+    directory: Path, file_pattern: str, schema_class: type[T]
+) -> list[T]:
+    """Load and validate data from JSON files."""
+    all_data: list[T] = []
+    anyio_path = anyio.Path(directory)
+
+    if not await anyio_path.exists():
+        logger.warning("Directory not found: %s", directory)
+        return all_data
+
+    async for json_file in anyio_path.glob(file_pattern):
+        try:
+            async with await json_file.open("r", encoding="utf-8") as f:
+                content = await f.read()
+                data = json.loads(content)
+                if isinstance(data, list):
+                    validated = [schema_class.model_validate(item) for item in data]
+                    all_data.extend(validated)
+                else:
+                    validated = schema_class.model_validate(data)
+                    all_data.append(validated)
+        except ValidationError:
+            logger.exception("Validation error in %s", json_file)
+            continue
+        except Exception:
+            logger.exception("Failed to load data from %s", json_file)
+            continue
+
+    logger.info("Loaded %d records from JSON files", len(all_data))
+    return all_data
+
+
+async def _get_existing_values(  # noqa: UP047
+    db_session: AsyncSession, model_class: type[M], unique_field: str
+) -> set:
+    """Get existing unique field values from database."""
+    result = await db_session.execute(select(getattr(model_class, unique_field)))
+    return set(result.scalars().all())
+
+
+def _seed_records[T, M](
+    db_session: AsyncSession,
+    all_data: list[T],
+    existing_values: set,
+    unique_field: str,
+    transform_fn: Callable[[T], M],
+    validate_fn: Callable[[T], list[str]] | None,
+) -> int:
+    """Seed records that don't exist yet."""
+    seen_values = set(existing_values)
+    seeded_count = 0
+
+    for data_item in all_data:
+        unique_value = getattr(data_item, unique_field)
+
+        if unique_value in existing_values:
+            logger.debug("Skipping duplicate (exists in DB): %s=%s", unique_field, unique_value)
+            continue
+
+        if unique_value in seen_values:
+            logger.warning("Skipping duplicate (within batch): %s=%s", unique_field, unique_value)
+            continue
+
+        if validate_fn:
+            errors = validate_fn(data_item)
+            if errors:
+                for error in errors:
+                    logger.error("Validation error for %s=%s: %s", unique_field, unique_value, error)
+                continue
+
+        seen_values.add(unique_value)
+        model_instance = transform_fn(data_item)
+        db_session.add(model_instance)
+        seeded_count += 1
+        logger.debug("Seeding record with %s=%s", unique_field, unique_value)
+
+    return seeded_count
+
+
+async def seed_from_json[T, M](
     db_session: AsyncSession,
     model_class: type[M],
     schema_class: type[T],
     directory: Path,
     unique_field: str,
     transform_fn: Callable[[T], M],
+    validate_fn: Callable[[T], list[str]] | None = None,
     file_pattern: str = "*.json",
 ) -> int:
     """
@@ -36,73 +117,28 @@ async def seed_from_json(
         directory: Directory containing JSON files
         unique_field: Field name to check for duplicates (e.g., "title", "challenge")
         transform_fn: Function to transform schema instance to model instance
+        validate_fn: Optional function to validate data after schema validation
         file_pattern: Glob pattern for JSON files (default: "*.json")
 
     Returns:
         Number of records seeded
     """
     try:
-        anyio_path = anyio.Path(directory)
-        if not await anyio_path.exists():
-            logger.warning("Directory not found: %s", directory)
+        all_data = await _load_json_files(directory, file_pattern, schema_class)
+
+        if not all_data:
             return 0
 
-        # Load all data from JSON files
-        all_data: list[T] = []
-        async for json_file in anyio_path.glob(file_pattern):
-            try:
-                async with await json_file.open("r", encoding="utf-8") as f:
-                    content = await f.read()
-                    data = json.loads(content)
-                    if isinstance(data, list):
-                        validated = [schema_class.model_validate(item) for item in data]
-                        all_data.extend(validated)
-                    else:
-                        validated = schema_class.model_validate(data)
-                        all_data.append(validated)
-            except ValidationError:
-                logger.exception("Validation error in %s", json_file)
-                continue
-            except Exception:
-                logger.exception("Failed to load data from %s", json_file)
-                continue
+        existing_values = await _get_existing_values(db_session, model_class, unique_field)
 
-        logger.info("Loaded %d records from JSON files", len(all_data))
-
-        # Check which records already exist in database
-        existing_values_result = await db_session.execute(select(getattr(model_class, unique_field)))
-        existing_values = set(existing_values_result.scalars().all())
-
-        # Track values seen in current batch to prevent in-batch duplicates
-        seen_values = set(existing_values)
-
-        # Seed records that don't exist yet
-        seeded_count = 0
-        for data_item in all_data:
-            unique_value = getattr(data_item, unique_field)
-
-            # Skip if already in database
-            if unique_value in existing_values:
-                logger.debug("Skipping duplicate (exists in DB): %s=%s", unique_field, unique_value)
-                continue
-
-            # Skip if already seen in this batch
-            if unique_value in seen_values:
-                logger.warning("Skipping duplicate (within batch): %s=%s", unique_field, unique_value)
-                continue
-
-            # Mark as seen and seed
-            seen_values.add(unique_value)
-            model_instance = transform_fn(data_item)
-            db_session.add(model_instance)
-            seeded_count += 1
-            logger.debug("Seeding record with %s=%s", unique_field, unique_value)
+        seeded_count = _seed_records(db_session, all_data, existing_values, unique_field, transform_fn, validate_fn)
 
         if seeded_count > 0:
             await db_session.commit()
             logger.info("Seeded %d new records into database", seeded_count)
         else:
             logger.info("No new records to seed, all records already exist in database")
+
         return seeded_count
     except Exception:
         logger.exception("Failed to seed records from JSON files")

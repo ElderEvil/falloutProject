@@ -27,9 +27,7 @@ defineProps<Props>()
           >Tier {{ tier }}</span
         >
         <span v-if="ability" class="metadata-divider">&middot;</span>
-        <span v-if="ability" class="metadata-item"
-          >Requires: {{ ability.charAt(0) }}</span
-        >
+        <span v-if="ability" class="metadata-item">Requires: {{ ability.charAt(0) }}</span>
       </div>
     </div>
   </div>

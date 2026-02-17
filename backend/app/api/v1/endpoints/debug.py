@@ -4,7 +4,7 @@ WARNING: These endpoints are for development/testing only.
 Do not expose in production environments.
 """
 
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
 from pydantic import UUID4
@@ -13,8 +13,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.db.session import get_async_session
 from app.models.objective import Objective
+from app.models.vault import Vault
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.services.event_bus import GameEvent, event_bus
+from app.utils.exceptions import ResourceNotFoundException
 
 router = APIRouter()
 
@@ -35,7 +37,7 @@ async def emit_test_event(
         GameEvent.ITEM_COLLECTED: {"item_type": "weapon", "amount": 1},
         GameEvent.ROOM_BUILT: {"room_type": "Living Quarters"},
         GameEvent.ROOM_UPGRADED: {"room_type": "Living Quarters", "level": 2},
-        GameEvent.DWELLER_TRAINED: {"stat": "strength", "dweller_id": "test-dweller"},
+        GameEvent.DWELLER_TRAINED: {"stat_trained": "strength", "dweller_id": "test-dweller"},
         GameEvent.DWELLER_ASSIGNED: {"dweller_id": "test-dweller", "room_type": "power_plant"},
         GameEvent.DWELLER_LEVEL_UP: {"dweller_id": "test-dweller", "level": 2},
     }
@@ -175,4 +177,214 @@ async def debug_evaluators():
         "subscriptions": {
             event_type: [h.__name__ for h in handlers] for event_type, handlers in event_bus._handlers.items()
         },
+    }
+
+
+@router.post("/test-build-living-room/{vault_id}")
+async def test_build_living_room(
+    vault_id: UUID4,
+    session: Annotated[AsyncSession, Depends(get_async_session)],
+):
+    """Debug endpoint to test building a living room and check population_max update."""
+    from app import crud
+    from app.models.room import Room
+    from app.schemas.common import RoomTypeEnum, SPECIALEnum
+    from app.schemas.room import RoomCreate
+
+    # Get vault before building
+    vault_before = await crud.vault.get(session, id=vault_id)
+    if not vault_before:
+        raise ResourceNotFoundException(model=Vault, identifier=vault_id)
+
+    # Find a living room from the rooms data
+    from app.api.game_data_deps import get_static_game_data
+
+    game_data_store = get_static_game_data()
+    living_room_data = None
+    for room in game_data_store.rooms:
+        # Match by ability (CHARISMA) which is the authoritative attribute for living rooms
+        if room.ability == SPECIALEnum.CHARISMA:
+            # Convert RoomCreateWithoutVaultID to dict for compatibility
+            living_room_data = room.model_dump()
+            break
+
+    if not living_room_data:
+        raise ResourceNotFoundException(model=Vault, identifier="living room", identifier_type="name")
+
+    # Capture population_max before building
+    vault_before_population_max = vault_before.population_max
+
+    # Build the living room
+    room_create = RoomCreate(
+        vault_id=vault_id,
+        name=living_room_data["name"],
+        category=RoomTypeEnum(living_room_data["category"]),
+        tier=1,
+        size=3,
+        ability=SPECIALEnum(living_room_data["ability"]) if living_room_data.get("ability") else None,
+        capacity=8,  # Typical size 3 living room
+        population_required=living_room_data.get("population_required"),
+        base_cost=living_room_data["base_cost"],
+        incremental_cost=living_room_data["incremental_cost"],
+        t2_upgrade_cost=living_room_data["t2_upgrade_cost"],
+        t3_upgrade_cost=living_room_data["t3_upgrade_cost"],
+        size_min=living_room_data["size_min"],
+        size_max=living_room_data["size_max"],
+        coordinate_x=1,
+        coordinate_y=1,
+    )
+
+    # Check requires_recalculation
+    from app.crud.room import room as room_crud
+
+    requires_calc = room_crud.requires_recalculation(room_create)
+
+    # Build the room
+    created_room = await room_crud.build(session, obj_in=room_create)
+
+    # Get vault after building
+    await session.refresh(vault_before)
+    vault_after = await crud.vault.get(session, id=vault_id)
+
+    # Get all rooms
+    rooms_result = await session.execute(select(Room).where(Room.vault_id == vault_id))
+    all_rooms = rooms_result.scalars().all()
+
+    return {
+        "vault_id": str(vault_id),
+        "before": {
+            "population_max": vault_before_population_max,
+        },
+        "after": {
+            "population_max": vault_after.population_max,
+        },
+        "room_built": {
+            "name": created_room.name,
+            "category": created_room.category.value if created_room.category else None,
+            "ability": created_room.ability.value if created_room.ability else None,
+            "capacity": created_room.capacity,
+        },
+        "requires_recalculation": requires_calc,
+        "all_rooms": [
+            {
+                "name": r.name,
+                "category": r.category.value if r.category else None,
+                "ability": r.ability.value if r.ability else None,
+                "capacity": r.capacity,
+            }
+            for r in all_rooms
+        ],
+    }
+
+
+@router.post("/objectives/{vault_id}/test-build")
+async def test_build_event(
+    vault_id: UUID4,
+    room_type: str = "living_room",  # noqa: PT028
+) -> dict:
+    """Emit a ROOM_BUILT event for testing build objectives."""
+    from app.services.event_bus import event_bus
+
+    data = {"room_type": room_type}
+    await event_bus.emit(GameEvent.ROOM_BUILT, vault_id, data)
+    return {
+        "status": "ok",
+        "event": "ROOM_BUILT",
+        "vault_id": str(vault_id),
+        "data": data,
+    }
+
+
+@router.post("/objectives/{vault_id}/test-train")
+async def test_train_event(
+    vault_id: UUID4,
+    stat_trained: str = "strength",  # noqa: PT028
+    dweller_id: str = "test-dweller",  # noqa: PT028
+) -> dict:
+    """Emit a DWELLER_TRAINED event for testing train objectives."""
+    from app.services.event_bus import event_bus
+
+    data = {"stat_trained": stat_trained, "dweller_id": dweller_id}
+    await event_bus.emit(GameEvent.DWELLER_TRAINED, vault_id, data)
+    return {
+        "status": "ok",
+        "event": "DWELLER_TRAINED",
+        "vault_id": str(vault_id),
+        "data": data,
+    }
+
+
+@router.post("/objectives/{vault_id}/test-assign")
+async def test_assign_event(
+    vault_id: UUID4,
+    room_type: str = "power_generator",  # noqa: PT028
+    dweller_id: str = "test-dweller",  # noqa: PT028
+) -> dict:
+    """Emit a DWELLER_ASSIGNED event for testing assign objectives."""
+    from app.services.event_bus import event_bus
+
+    data = {"room_type": room_type, "dweller_id": dweller_id}
+    await event_bus.emit(GameEvent.DWELLER_ASSIGNED, vault_id, data)
+    return {
+        "status": "ok",
+        "event": "DWELLER_ASSIGNED",
+        "vault_id": str(vault_id),
+        "data": data,
+    }
+
+
+@router.post("/objectives/{vault_id}/test-reach")
+async def test_reach_event(
+    vault_id: UUID4,
+    level: int = 2,  # noqa: PT028
+    dweller_id: str = "test-dweller",  # noqa: PT028
+) -> dict:
+    """Emit a DWELLER_LEVEL_UP event for testing reach objectives."""
+    from app.services.event_bus import event_bus
+
+    data = {"level": level, "dweller_id": dweller_id}
+    await event_bus.emit(GameEvent.DWELLER_LEVEL_UP, vault_id, data)
+    return {
+        "status": "ok",
+        "event": "DWELLER_LEVEL_UP",
+        "vault_id": str(vault_id),
+        "data": data,
+    }
+
+
+@router.post("/objectives/{vault_id}/test-collect-resource")
+async def test_collect_resource_event(
+    vault_id: UUID4,
+    resource_type: str = "caps",  # noqa: PT028
+    amount: int = 10,  # noqa: PT028
+) -> dict:
+    """Emit a RESOURCE_COLLECTED event for testing collect objectives."""
+    from app.services.event_bus import event_bus
+
+    data = {"resource_type": resource_type, "amount": amount}
+    await event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault_id, data)
+    return {
+        "status": "ok",
+        "event": "RESOURCE_COLLECTED",
+        "vault_id": str(vault_id),
+        "data": data,
+    }
+
+
+@router.post("/objectives/{vault_id}/test-collect-item")
+async def test_collect_item_event(
+    vault_id: UUID4,
+    item_type: str = "weapon",  # noqa: PT028
+    amount: int = 1,  # noqa: PT028
+) -> dict:
+    """Emit an ITEM_COLLECTED event for testing collect objectives."""
+    from app.services.event_bus import event_bus
+
+    data = {"item_type": item_type, "amount": amount}
+    await event_bus.emit(GameEvent.ITEM_COLLECTED, vault_id, data)
+    return {
+        "status": "ok",
+        "event": "ITEM_COLLECTED",
+        "vault_id": str(vault_id),
+        "data": data,
     }

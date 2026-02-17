@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import { computed } from 'vue'
 import type { Room } from '../models/room'
 
 interface Props {
@@ -9,7 +10,11 @@ interface Props {
   abilityLabel: string | null
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
+
+const roomSizeText = computed(
+  () => `${Math.ceil((props.room.size ?? props.room.size_min) / 3)}x merged`
+)
 </script>
 
 <template>
@@ -29,9 +34,7 @@ defineProps<Props>()
       </div>
       <div class="info-item">
         <span class="info-label">Room Size:</span>
-        <span class="info-value"
-            >{{ Math.ceil((room.size ?? room.size_min) / 3) }}x merged</span
-        >
+        <span class="info-value">{{ roomSizeText }}</span>
       </div>
       <div class="info-item">
         <span class="info-label">Position:</span>

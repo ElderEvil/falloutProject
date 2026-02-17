@@ -41,11 +41,11 @@ const {
   openDwellerDetails,
 } = useRoomDwellers(roomRef, actionError, () => emit('roomUpdated'))
 
-const {
-  resourceIcon,
-  roomImageUrl,
-  productionInfo,
-} = useRoomProduction(roomRef, assignedDwellers, dwellerCapacity)
+const { resourceIcon, roomImageUrl, productionInfo } = useRoomProduction(
+  roomRef,
+  assignedDwellers,
+  dwellerCapacity
+)
 
 const {
   isUpgrading,
@@ -57,7 +57,12 @@ const {
   handleUpgrade,
   handleDestroy,
   handleRushProduction,
-} = useRoomUpgrade(roomRef, actionError, () => emit('roomUpdated'), () => emit('close'))
+} = useRoomUpgrade(
+  roomRef,
+  actionError,
+  () => emit('roomUpdated'),
+  () => emit('close')
+)
 
 const {
   isRecruiting,
@@ -75,7 +80,7 @@ watch(
     if (!newValue) {
       actionError.value = null
     }
-  },
+  }
 )
 </script>
 

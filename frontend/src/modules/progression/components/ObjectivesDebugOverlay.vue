@@ -41,7 +41,7 @@ watch(
       type: 'STATE_CHANGE',
       data: { count: store.objectives.length, objectives: store.objectives },
     })
-  },
+  }
 )
 </script>
 

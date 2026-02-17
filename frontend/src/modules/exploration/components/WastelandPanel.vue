@@ -163,8 +163,16 @@ const handleDrop = async (event: DragEvent) => {
     const DEFAULT_RADAWAYS = 5
     const DWELLER_MAX_SUPPLIES = 15
 
-    selectedStimpaks.value = Math.min(DEFAULT_STIMPAKS, vaultMedicalSupplies.value.stimpaks, DWELLER_MAX_SUPPLIES)
-    selectedRadaways.value = Math.min(DEFAULT_RADAWAYS, vaultMedicalSupplies.value.radaways, DWELLER_MAX_SUPPLIES)
+    selectedStimpaks.value = Math.min(
+      DEFAULT_STIMPAKS,
+      vaultMedicalSupplies.value.stimpaks,
+      DWELLER_MAX_SUPPLIES
+    )
+    selectedRadaways.value = Math.min(
+      DEFAULT_RADAWAYS,
+      vaultMedicalSupplies.value.radaways,
+      DWELLER_MAX_SUPPLIES
+    )
 
     showDurationModal.value = true
   } catch (error) {
@@ -195,7 +203,9 @@ const confirmSendToWasteland = async () => {
       selectedRadaways.value
     )
 
-    toast.success(`${firstName} ${lastName} sent to the wasteland for ${selectedDuration.value} hour(s)!`)
+    toast.success(
+      `${firstName} ${lastName} sent to the wasteland for ${selectedDuration.value} hour(s)!`
+    )
 
     // Close modal and reset
     showDurationModal.value = false
@@ -338,8 +348,6 @@ const closeRewardsModal = () => {
 
 <template>
   <div class="wasteland-panel">
-
-
     <div
       class="wasteland-dropzone"
       :class="{ 'drag-over': isDraggingOver }"
@@ -406,12 +414,24 @@ const closeRewardsModal = () => {
                 </div>
               </div>
               <!-- Equipped Items -->
-              <div v-if="getDwellerWeapon(exploration.dweller_id) || getDwellerOutfit(exploration.dweller_id)" class="equipped-items mt-2">
-                <div v-if="getDwellerWeapon(exploration.dweller_id)" class="stat-item text-amber-400">
+              <div
+                v-if="
+                  getDwellerWeapon(exploration.dweller_id) ||
+                  getDwellerOutfit(exploration.dweller_id)
+                "
+                class="equipped-items mt-2"
+              >
+                <div
+                  v-if="getDwellerWeapon(exploration.dweller_id)"
+                  class="stat-item text-amber-400"
+                >
                   <Icon icon="mdi:sword" class="h-4 w-4" />
                   <span class="text-xs">{{ getDwellerWeapon(exploration.dweller_id)?.name }}</span>
                 </div>
-                <div v-if="getDwellerOutfit(exploration.dweller_id)" class="stat-item text-blue-400">
+                <div
+                  v-if="getDwellerOutfit(exploration.dweller_id)"
+                  class="stat-item text-blue-400"
+                >
                   <Icon icon="mdi:tshirt-crew" class="h-4 w-4" />
                   <span class="text-xs">{{ getDwellerOutfit(exploration.dweller_id)?.name }}</span>
                 </div>
@@ -517,7 +537,8 @@ const closeRewardsModal = () => {
             </div>
           </div>
           <p class="text-[10px] text-orange-400 mt-2">
-            * Selected items will be removed from vault storage and used automatically in the wasteland.
+            * Selected items will be removed from vault storage and used automatically in the
+            wasteland.
           </p>
         </div>
 
@@ -549,8 +570,6 @@ const closeRewardsModal = () => {
   position: relative;
   margin-bottom: 1rem;
 }
-
-
 
 .wasteland-dropzone {
   background: rgba(139, 69, 19, 0.2);

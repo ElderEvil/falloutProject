@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { useDwellerStore, type DwellerStatus, type DwellerSortBy } from '../stores/dweller'
+import {
+  useDwellerStore,
+  type DwellerStatus,
+  type DwellerSortBy,
+  type DwellerAgeGroup,
+} from '@/stores/dweller'
 
 interface Props {
   showStatusFilter?: boolean
+  showAgeFilter?: boolean
   showViewToggle?: boolean
   showBulkActions?: boolean
   vaultId?: string
@@ -12,6 +18,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   showStatusFilter: true,
+  showAgeFilter: false,
   showViewToggle: false,
   showBulkActions: false,
   vaultId: '',
@@ -34,6 +41,13 @@ const statusOptions = [
   { value: 'dead', label: 'Dead', icon: 'mdi:skull' },
 ]
 
+const ageGroupOptions = [
+  { value: 'all', label: 'All Ages', icon: 'mdi:account-multiple' },
+  { value: 'child', label: 'Child', icon: 'mdi:baby' },
+  { value: 'teen', label: 'Teen', icon: 'mdi:human-child' },
+  { value: 'adult', label: 'Adult', icon: 'mdi:account' },
+]
+
 const sortOptions = [
   { value: 'name', label: 'Name', icon: 'mdi:alphabetical' },
   { value: 'level', label: 'Level', icon: 'mdi:star' },
@@ -50,6 +64,11 @@ const sortOptions = [
 const currentFilterStatus = computed({
   get: () => dwellerStore.filterStatus,
   set: (value: DwellerStatus | 'all') => dwellerStore.setFilterStatus(value),
+})
+
+const currentFilterAgeGroup = computed({
+  get: () => dwellerStore.filterAgeGroup,
+  set: (value: DwellerAgeGroup) => dwellerStore.setFilterAgeGroup(value),
 })
 
 const currentSortBy = computed({
@@ -80,6 +99,25 @@ const toggleSortDirection = () => {
           :key="option.value"
           :class="{ active: currentFilterStatus === option.value }"
           @click="currentFilterStatus = option.value as DwellerStatus | 'all'"
+          class="filter-button"
+        >
+          <Icon :icon="option.icon" />
+          <span>{{ option.label }}</span>
+        </button>
+      </div>
+    </div>
+
+    <div v-if="showAgeFilter" class="filter-section">
+      <div class="section-header">
+        <Icon icon="mdi:account-group" />
+        <span>Filter by Age</span>
+      </div>
+      <div class="button-group">
+        <button
+          v-for="option in ageGroupOptions"
+          :key="option.value"
+          :class="{ active: currentFilterAgeGroup === option.value }"
+          @click="currentFilterAgeGroup = option.value as DwellerAgeGroup"
           class="filter-button"
         >
           <Icon :icon="option.icon" />

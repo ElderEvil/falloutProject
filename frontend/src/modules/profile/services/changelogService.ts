@@ -15,10 +15,7 @@ export interface ChangeEntry {
 class ChangelogService {
   private readonly baseUrl = '/api/v1/system/changelog'
 
-  async getChangelog(options?: {
-    limit?: number
-    since?: string
-  }): Promise<ChangelogEntry[]> {
+  async getChangelog(options?: { limit?: number; since?: string }): Promise<ChangelogEntry[]> {
     const params = new URLSearchParams()
 
     if (options?.limit) {

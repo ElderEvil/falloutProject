@@ -113,23 +113,20 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         self, db_session: AsyncSession, vault_obj: Vault, room_obj: Room, action: RoomActionEnum
     ) -> None:
         """Handle capacity room updates."""
-        room_name = room_obj.name.lower()
+        from app.schemas.vault import VaultUpdate
 
-        if room_name == "living room":
+        # Living rooms: ability=Charisma
+        if room_obj.ability == SPECIALEnum.CHARISMA:
             new_population_max = self._calculate_new_capacity(action, vault_obj.population_max or 0, room_obj.capacity)
-            await self.update(
-                db_session=db_session, id=vault_obj.id, obj_in={"population_max": new_population_max}, commit=False
-            )
-            await db_session.commit()
-        elif room_name == "storage room" and room_obj.capacity is not None:
+            await self.update(db_session, vault_obj.id, VaultUpdate(population_max=new_population_max))
+        elif room_obj.ability == SPECIALEnum.ENDURANCE and room_obj.capacity is not None:
             storage_result = await db_session.execute(select(Storage).where(Storage.vault_id == vault_obj.id))
             storage_obj = storage_result.scalars().first()
 
             if storage_obj is None:
                 storage_obj = await self.create_storage(db_session=db_session, vault_id=vault_obj.id)
 
-            current_max_space = storage_obj.max_space if storage_obj else 0
-
+            current_max_space = storage_obj.max_space
             new_storage_space_max = self._calculate_new_capacity(action, current_max_space, room_obj.capacity)
             await self.update_storage(db_session, vault_obj.id, new_storage_space_max)
 

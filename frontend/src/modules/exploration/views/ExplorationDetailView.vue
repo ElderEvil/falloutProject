@@ -424,18 +424,14 @@ watch(
           <Icon icon="mdi:pistol" class="equipment-icon" />
           <div class="equipment-info">
             <span class="equipment-label">Weapon</span>
-            <span class="equipment-value">{{
-              detailedDweller?.weapon?.name || 'Unarmed'
-            }}</span>
+            <span class="equipment-value">{{ detailedDweller?.weapon?.name || 'Unarmed' }}</span>
           </div>
         </div>
         <div class="equipment-slot">
           <Icon icon="mdi:tshirt-crew" class="equipment-icon" />
           <div class="equipment-info">
             <span class="equipment-label">Outfit</span>
-            <span class="equipment-value">{{
-              detailedDweller?.outfit?.name || 'Vault Suit'
-            }}</span>
+            <span class="equipment-value">{{ detailedDweller?.outfit?.name || 'Vault Suit' }}</span>
           </div>
         </div>
       </div>

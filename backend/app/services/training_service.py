@@ -14,6 +14,7 @@ from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.training import Training, TrainingStatus
 from app.schemas.common import DwellerStatusEnum, RoomTypeEnum
+from app.services.event_bus import GameEvent, event_bus
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, VaultOperationException
 
 
@@ -291,6 +292,17 @@ class TrainingService:
 
         await db_session.commit()
         await db_session.refresh(training)
+        await db_session.refresh(dweller)
+
+        # Emit DWELLER_TRAINED event for objective tracking (after commit)
+        await event_bus.emit(
+            GameEvent.DWELLER_TRAINED,
+            dweller.vault_id,
+            {
+                "dweller_id": str(dweller.id),
+                "stat_trained": training.stat_being_trained.value,
+            },
+        )
 
         self.logger.info(
             f"Completed training: Dweller {dweller.first_name} increased "

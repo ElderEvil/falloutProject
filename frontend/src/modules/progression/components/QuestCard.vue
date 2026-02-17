@@ -133,7 +133,7 @@ const chainPosition = computed(() => {
 // Get the previous quest name for locked quests
 const previousQuestName = computed(() => {
   if (!props.quest.previous_quest_id) return null
-  const previousQuest = questStore.vaultQuests.find(q => q.id === props.quest.previous_quest_id)
+  const previousQuest = questStore.vaultQuests.find((q) => q.id === props.quest.previous_quest_id)
   return previousQuest?.title || null
 })
 
@@ -278,7 +278,9 @@ const handleAction = () => {
               Requires {{ req.requirement_data.name || req.requirement_data.item_id }}
               <span v-if="req.requirement_data.count > 1">(x{{ req.requirement_data.count }})</span>
             </template>
-            <template v-else-if="req.requirement_type === 'quest_completed' && req.requirement_data">
+            <template
+              v-else-if="req.requirement_type === 'quest_completed' && req.requirement_data"
+            >
               Complete: {{ req.requirement_data.quest_name || 'Previous quest' }}
             </template>
             <template v-else>
@@ -296,11 +298,7 @@ const handleAction = () => {
         REWARDS
       </div>
       <div v-if="quest.quest_rewards && quest.quest_rewards.length > 0" class="rewards-list">
-        <div
-          v-for="reward in quest.quest_rewards"
-          :key="reward.id"
-          class="reward-item"
-        >
+        <div v-for="reward in quest.quest_rewards" :key="reward.id" class="reward-item">
           <Icon icon="mdi:gift" class="reward-icon" />
           <span class="reward-text">{{ reward.reward_type }}</span>
           <span v-if="reward.reward_chance < 1" class="reward-chance">
@@ -346,12 +344,20 @@ const handleAction = () => {
     <!-- Action Button -->
     <UButton
       class="quest-action-btn"
-      :variant="status === 'completed' ? 'secondary' : status === 'active' && !timeRemaining ? 'primary' : 'primary'"
+      :variant="status === 'completed' ? 'secondary' : 'primary'"
       :disabled="isButtonDisabled"
       @click="handleAction"
     >
       <Icon
-        :icon="status === 'completed' ? 'mdi:eye' : status === 'active' ? 'mdi:progress-clock' : hasParty ? 'mdi:play' : 'mdi:account-plus'"
+        :icon="
+          status === 'completed'
+            ? 'mdi:eye'
+            : status === 'active'
+              ? 'mdi:progress-clock'
+              : hasParty
+                ? 'mdi:play'
+                : 'mdi:account-plus'
+        "
         class="btn-icon"
       />
       {{ actionButtonText }}

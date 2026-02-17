@@ -9,7 +9,7 @@ export function useRoomUpgrade(
   room: Ref<Room | null>,
   actionError: Ref<string | null>,
   emitRoomUpdated: () => void,
-  emitClose: () => void,
+  emitClose: () => void
 ) {
   const route = useRoute()
   const roomStore = useRoomStore()
@@ -105,7 +105,7 @@ export function useRoomUpgrade(
 
     if (
       !confirm(
-        `Are you sure you want to destroy ${room.value.name}? You will receive a partial refund.`,
+        `Are you sure you want to destroy ${room.value.name}? You will receive a partial refund.`
       )
     ) {
       return

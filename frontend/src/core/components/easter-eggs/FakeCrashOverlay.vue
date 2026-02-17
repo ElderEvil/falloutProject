@@ -22,7 +22,7 @@ const crashMessages = [
   'INITIATING PROTOCOL 27...',
   '',
   'MEMORY DUMP IN PROGRESS',
-  '███████████████████░░░░░░░░░ 67%'
+  '███████████████████░░░░░░░░░ 67%',
 ]
 
 const rebootMessages = [
@@ -38,7 +38,7 @@ const rebootMessages = [
   'Emergency systems restored.',
   'All systems nominal.',
   '',
-  'READY.'
+  'READY.',
 ]
 
 const typewriterDelay = 80
@@ -113,7 +113,7 @@ onMounted(() => {
               :class="{
                 'text-lg font-bold': line.includes('REBOOT'),
                 'text-[--color-terminal-green-300]': line.includes('OK'),
-                'text-xl': line.includes('READY')
+                'text-xl': line.includes('READY'),
               }"
             >
               <span v-if="line">{{ line }}</span>

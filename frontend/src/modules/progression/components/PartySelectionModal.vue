@@ -45,14 +45,16 @@ watch(
         isLoadingEligible.value = true
         try {
           const eligible = await questStore.getEligibleDwellers(props.vaultId, props.quest.id)
-          eligibleDwellers.value = eligible.map((e) => {
-            const fullDweller = props.dwellers.find((d) => d.id === e.id)
-            if (fullDweller) return fullDweller
-            return {
-              ...e,
-              status: (e as { status?: string }).status || 'idle',
-            } as DwellerShort
-          }).filter((d): d is DwellerShort => d !== undefined)
+          eligibleDwellers.value = eligible
+            .map((e) => {
+              const fullDweller = props.dwellers.find((d) => d.id === e.id)
+              if (fullDweller) return fullDweller
+              return {
+                ...e,
+                status: (e as { status?: string }).status || 'idle',
+              } as DwellerShort
+            })
+            .filter((d): d is DwellerShort => d !== undefined)
         } catch (error) {
           eligibleDwellersError.value = 'Failed to check eligibility'
           eligibleDwellers.value = []
@@ -154,7 +156,9 @@ const handleAssignAndStart = () => {
               <Icon icon="mdi:account" class="slot-icon" />
               <div class="slot-info">
                 <span class="slot-name">{{ getDwellerName(selectedDwellers[slot - 1]) }}</span>
-                <span class="slot-level">Lv. {{ getDwellerLevel(selectedDwellers[slot - 1]) }}</span>
+                <span class="slot-level"
+                  >Lv. {{ getDwellerLevel(selectedDwellers[slot - 1]) }}</span
+                >
               </div>
               <button class="slot-remove" @click="toggleDweller(selectedDwellers[slot - 1].id)">
                 <Icon icon="mdi:close" />
@@ -174,7 +178,9 @@ const handleAssignAndStart = () => {
           <Icon icon="mdi:account-search" class="inline-icon" />
           Available Dwellers
           <span v-if="isLoadingEligible" class="loading-text">(Loading...)</span>
-          <span v-else-if="eligibleDwellers.length > 0" class="eligible-badge">(Level Requirements Met)</span>
+          <span v-else-if="eligibleDwellers.length > 0" class="eligible-badge"
+            >(Level Requirements Met)</span
+          >
         </div>
         <div v-if="isLoadingEligible" class="loading-dwellers">
           <Icon icon="mdi:loading" class="loading-icon spin" />
@@ -190,7 +196,9 @@ const handleAssignAndStart = () => {
           >
             <div class="dweller-checkbox">
               <Icon
-                :icon="isSelected(dweller.id) ? 'mdi:checkbox-marked' : 'mdi:checkbox-blank-outline'"
+                :icon="
+                  isSelected(dweller.id) ? 'mdi:checkbox-marked' : 'mdi:checkbox-blank-outline'
+                "
                 class="checkbox-icon"
               />
             </div>
@@ -212,7 +220,9 @@ const handleAssignAndStart = () => {
             <Icon icon="mdi:account-off" class="no-dwellers-icon" />
             <p v-if="eligibleDwellersError">{{ eligibleDwellersError }}</p>
             <p v-else>No available dwellers found</p>
-            <p v-if="!eligibleDwellersError" class="hint">Build more living quarters to get more dwellers</p>
+            <p v-if="!eligibleDwellersError" class="hint">
+              Build more living quarters to get more dwellers
+            </p>
           </div>
         </div>
       </div>
@@ -494,7 +504,11 @@ const handleAssignAndStart = () => {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

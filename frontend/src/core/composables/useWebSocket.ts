@@ -204,9 +204,7 @@ export function useChatWebSocket(userId: string, dwellerId: string) {
         is_typing: isTyping,
       })
     } else {
-      console.debug(
-        `Cannot send typing indicator: WebSocket is ${ws.state.value}, not connected`
-      )
+      console.debug(`Cannot send typing indicator: WebSocket is ${ws.state.value}, not connected`)
     }
   }
 
@@ -217,9 +215,7 @@ export function useChatWebSocket(userId: string, dwellerId: string) {
         content,
       })
     } else {
-      console.debug(
-        `Cannot send message: WebSocket is ${ws.state.value}, not connected`
-      )
+      console.debug(`Cannot send message: WebSocket is ${ws.state.value}, not connected`)
     }
   }
 

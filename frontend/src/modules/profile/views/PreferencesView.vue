@@ -229,7 +229,8 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                 Room Rendering
               </h2>
               <p class="text-gray-400 mb-4 text-xs">
-                Control how room graphics are displayed. Disabling images can improve performance on slower devices.
+                Control how room graphics are displayed. Disabling images can improve performance on
+                slower devices.
               </p>
 
               <div class="space-y-3">

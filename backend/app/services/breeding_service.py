@@ -1,5 +1,6 @@
 """Service for managing dweller breeding, pregnancy, and child growth."""
 
+import html
 import logging
 import random
 from datetime import UTC, datetime, timedelta
@@ -23,6 +24,53 @@ from app.schemas.dweller import DwellerCreate
 from app.services.notification_service import notification_service
 
 logger = logging.getLogger(__name__)
+
+# Random event templates for newborn bios (100-200 chars)
+NEWBORN_BIO_TEMPLATES = [
+    "Born during a {event}. {mother} and {father} couldn't be prouder.",
+    "Arrived during {event}. The vault celebrates this new life.",
+    "Entered the world during {event}. A blessing for {mother} and {father}.",
+    "Born under {event}. {father} and {mother} welcome their bundle of joy.",
+    "Came into existence during {event}. A new hope for the vault.",
+    "Born during {event}. {mother} and {father} are overjoyed.",
+    "First cry echoed through the vault during {event}. Precious to {mother} and {father}.",
+    "Entered the shelter during {event}. {father} and {mother} celebrate.",
+    "Born amidst {event}. A miracle for {mother} and {father}.",
+    "Came from {mother} and {father} during {event}. The vault grows.",
+]
+
+NEWBORN_EVENTS = [
+    "a quiet night",
+    "a vault celebration",
+    "a rad-storm",
+    "an emergency drill",
+    "a power outage",
+    "the weekly ration distribution",
+    "a radio broadcast",
+    "the morning shift change",
+    "a rare sunny day",
+    "the lunch hour",
+    "the night watch",
+    "a calm afternoon",
+    "the vault door sealing",
+    "a happiness surge",
+    "the quarterly inventory",
+]
+
+
+def _generate_newborn_bio(mother_name: str, father_name: str, mother_id: str, father_id: str, vault_id: str) -> str:
+    template = random.choice(NEWBORN_BIO_TEMPLATES)
+    event = random.choice(NEWBORN_EVENTS)
+
+    # Truncate names to a safe max length before escaping
+    max_name_len = 30
+    safe_mother_name = html.escape(mother_name[:max_name_len])
+    safe_father_name = html.escape(father_name[:max_name_len])
+
+    mother_link = f'<a href="/vault/{vault_id}/dwellers/{mother_id}" class="dweller-link">{safe_mother_name}</a>'
+    father_link = f'<a href="/vault/{vault_id}/dwellers/{father_id}" class="dweller-link">{safe_father_name}</a>'
+
+    return template.format(mother=mother_link, father=father_link, event=event)
 
 
 class BreedingService:
@@ -367,8 +415,20 @@ class BreedingService:
         # Set parent IDs (not part of DwellerCreate schema)
         child.parent_1_id = mother.id
         child.parent_2_id = father.id
+
+        newborn_bio = _generate_newborn_bio(
+            mother.first_name,
+            father.first_name,
+            str(mother.id),
+            str(father.id),
+            str(mother.vault_id),
+        )
+        child.bio = newborn_bio
+        logger.info(f"Generated newborn bio for {child.first_name}: {newborn_bio[:50]}...")
+
         await db_session.commit()
         await db_session.refresh(child)
+        logger.info(f"Baby delivered with bio: {child.bio is not None}")
 
         # Update pregnancy status
         pregnancy.status = PregnancyStatusEnum.DELIVERED

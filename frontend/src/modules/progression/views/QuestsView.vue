@@ -28,14 +28,13 @@ const showAllQuests = ref(false)
 // Check if a quest is unlocked (no previous quest or previous is completed)
 const isQuestUnlocked = (quest: VaultQuest): boolean => {
   if (!quest.previous_quest_id) return true
-  const previousQuest = questStore.vaultQuests.find(q => q.id === quest.previous_quest_id)
+  const previousQuest = questStore.vaultQuests.find((q) => q.id === quest.previous_quest_id)
   return previousQuest?.is_completed ?? false
 }
 
 // Filtered available quests based on toggle
 const filteredAvailableQuests = computed(() => {
-  const isAvailableQuest = (q: VaultQuest) =>
-    !q.started_at && !q.is_completed
+  const isAvailableQuest = (q: VaultQuest) => !q.started_at && !q.is_completed
 
   if (showAllQuests.value) {
     return questStore.vaultQuests.filter(isAvailableQuest)
@@ -79,7 +78,9 @@ const getPartyMembersForQuest = async (quest: VaultQuest): Promise<DwellerShort[
 
 // Handle opening party selection modal
 const handleAssignParty = async (questId: string) => {
-  const quest = [...filteredAvailableQuests.value, ...activeQuests.value].find((q) => q.id === questId)
+  const quest = [...filteredAvailableQuests.value, ...activeQuests.value].find(
+    (q) => q.id === questId
+  )
   if (!quest || !vaultId.value) return
 
   selectedQuest.value = quest
@@ -248,11 +249,7 @@ onMounted(async () => {
                     <span v-if="showAllQuests" class="section-badge">(Showing All)</span>
                   </h2>
                   <label class="toggle-label">
-                    <input
-                      v-model="showAllQuests"
-                      type="checkbox"
-                      class="toggle-input"
-                    />
+                    <input v-model="showAllQuests" type="checkbox" class="toggle-input" />
                     <span class="toggle-text">Show All</span>
                   </label>
                 </div>
@@ -755,5 +752,4 @@ onMounted(async () => {
 .empty-state p {
   font-size: 1.5rem;
 }
-
 </style>

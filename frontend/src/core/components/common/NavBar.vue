@@ -93,12 +93,14 @@ onUnmounted(() => {
           :class="[
             'relative text-[var(--color-theme-primary)] hover:text-[var(--color-theme-glow)]',
             'focus:outline-none focus:ring-2 focus:ring-[var(--color-theme-primary)]',
-            'focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1 transition-colors'
+            'focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1 transition-colors',
           ]"
           aria-label="View changelog for new version"
         >
           <Icon icon="mdi:newspaper" class="h-5 w-5" />
-          <span class="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full animate-pulse"></span>
+          <span
+            class="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full animate-pulse"
+          ></span>
         </button>
 
         <!-- Notification Bell (only when authenticated) -->

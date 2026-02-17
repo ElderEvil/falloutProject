@@ -81,7 +81,7 @@ export function useChatActions(options: UseChatActionsOptions) {
         }
 
         const matchingStatRooms = trainingRooms.filter(
-          (r) => r.ability?.toLowerCase() === stat.toLowerCase(),
+          (r) => r.ability?.toLowerCase() === stat.toLowerCase()
         )
         let availableTrainingRoom = matchingStatRooms.find((r) => {
           const occupancy = dwellerStore.dwellers.filter((d) => d.room_id === r.id).length
@@ -103,7 +103,7 @@ export function useChatActions(options: UseChatActionsOptions) {
         await dwellerStore.assignDwellerToRoom(
           options.dwellerId,
           availableTrainingRoom.id,
-          authStore.token,
+          authStore.token
         )
         trainingRoomId = availableTrainingRoom.id
       }
@@ -150,7 +150,7 @@ export function useChatActions(options: UseChatActionsOptions) {
         action.duration_hours,
         authStore.token,
         action.stimpaks,
-        action.radaways,
+        action.radaways
       )
       toast.success(`${options.dwellerName} sent to the wasteland!`)
 
@@ -172,7 +172,7 @@ export function useChatActions(options: UseChatActionsOptions) {
     try {
       const progress = await explorationStore.fetchExplorationProgress(
         action.exploration_id,
-        authStore.token,
+        authStore.token
       )
 
       if (

@@ -43,7 +43,15 @@ export interface QuestRequirement {
 export interface QuestReward {
   id: string
   quest_id: string
-  reward_type: 'caps' | 'item' | 'dweller' | 'resource' | 'experience' | 'stimpak' | 'radaway' | 'lunchbox'
+  reward_type:
+    | 'caps'
+    | 'item'
+    | 'dweller'
+    | 'resource'
+    | 'experience'
+    | 'stimpak'
+    | 'radaway'
+    | 'lunchbox'
   reward_data: Record<string, unknown>
   reward_chance: number
   item_data?: Record<string, unknown>

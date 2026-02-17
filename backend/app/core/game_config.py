@@ -363,8 +363,8 @@ class BreedingConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="BREEDING_")
 
     conception_chance_per_tick: float = Field(
-        default=0.02,
-        description="2% chance per tick for partners in living quarters",
+        default=0.20,
+        description="20% chance per tick for partners in living quarters",
         ge=0.0,
         le=1.0,
     )

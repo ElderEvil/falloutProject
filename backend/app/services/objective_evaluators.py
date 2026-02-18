@@ -398,7 +398,11 @@ class LevelUpEvaluator(ObjectiveEvaluator):
 
     def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:  # noqa: ARG002
         target = objective.target_entity or {}
-        min_level = target.get("min_level", 1)
+        raw_min_level = target.get("min_level", 1)
+        try:
+            min_level = int(raw_min_level)
+        except (TypeError, ValueError):
+            min_level = 1
 
         new_level = data.get("new_level", data.get("level", 1))
         return new_level >= min_level

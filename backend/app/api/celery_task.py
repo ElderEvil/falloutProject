@@ -215,14 +215,18 @@ def refresh_daily_objectives_task(self):
 
             try:
                 async with session_maker() as session:
-                    result = await session.execute(select(Vault.id))
+                    result = await session.execute(select(Vault.id).where(Vault.deleted_at.is_(None)))
                     vault_ids = [row[0] for row in result.all()]
 
                     total_assigned = 0
                     for vault_id in vault_ids:
-                        service = ObjectiveAssignmentService(session)
-                        assigned = await service.refresh_daily_objectives(vault_id)
-                        total_assigned += len(assigned)
+                        try:
+                            service = ObjectiveAssignmentService(session)
+                            assigned = await service.refresh_daily_objectives(vault_id)
+                            total_assigned += len(assigned)
+                        except Exception:
+                            logger.exception(f"Failed to refresh daily objectives for vault {vault_id}")
+                            continue
 
                     return {"vaults_processed": len(vault_ids), "objectives_assigned": total_assigned}
             finally:
@@ -261,14 +265,18 @@ def refresh_weekly_objectives_task(self):
 
             try:
                 async with session_maker() as session:
-                    result = await session.execute(select(Vault.id))
+                    result = await session.execute(select(Vault.id).where(Vault.deleted_at.is_(None)))
                     vault_ids = [row[0] for row in result.all()]
 
                     total_assigned = 0
                     for vault_id in vault_ids:
-                        service = ObjectiveAssignmentService(session)
-                        assigned = await service.refresh_weekly_objectives(vault_id)
-                        total_assigned += len(assigned)
+                        try:
+                            service = ObjectiveAssignmentService(session)
+                            assigned = await service.refresh_weekly_objectives(vault_id)
+                            total_assigned += len(assigned)
+                        except Exception:
+                            logger.exception(f"Failed to refresh weekly objectives for vault {vault_id}")
+                            continue
 
                     return {"vaults_processed": len(vault_ids), "objectives_assigned": total_assigned}
             finally:

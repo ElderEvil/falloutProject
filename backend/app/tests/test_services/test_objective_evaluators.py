@@ -640,6 +640,7 @@ class TestExpeditionEvaluator:
             objective_type="expedition",
             target_entity={},
             target_amount=3,
+            category="achievement",
         )
         data = {"quest_type": "main"}
         assert evaluator._matches(objective, GameEvent.QUEST_COMPLETED, data) is True
@@ -653,6 +654,7 @@ class TestExpeditionEvaluator:
             objective_type="expedition",
             target_entity={"quest_type": "main"},
             target_amount=1,
+            category="achievement",
         )
         data = {"quest_type": "main"}
         assert evaluator._matches(objective, GameEvent.QUEST_COMPLETED, data) is True
@@ -666,6 +668,7 @@ class TestExpeditionEvaluator:
             objective_type="expedition",
             target_entity={"quest_type": "main"},
             target_amount=1,
+            category="achievement",
         )
         data = {"quest_type": "side"}
         assert evaluator._matches(objective, GameEvent.QUEST_COMPLETED, data) is False
@@ -679,6 +682,7 @@ class TestExpeditionEvaluator:
             objective_type="expedition",
             target_entity={"quest_type": "*"},
             target_amount=3,
+            category="achievement",
         )
         data = {"quest_type": "daily"}
         assert evaluator._matches(objective, GameEvent.QUEST_COMPLETED, data) is True
@@ -696,6 +700,7 @@ class TestLevelUpEvaluator:
             objective_type="level_up",
             target_entity={"min_level": 5},
             target_amount=2,
+            category="achievement",
         )
         data = {"new_level": 5}
         assert evaluator._matches(objective, GameEvent.DWELLER_LEVEL_UP, data) is True
@@ -709,6 +714,7 @@ class TestLevelUpEvaluator:
             objective_type="level_up",
             target_entity={"min_level": 5},
             target_amount=2,
+            category="achievement",
         )
         data = {"new_level": 10}
         assert evaluator._matches(objective, GameEvent.DWELLER_LEVEL_UP, data) is True
@@ -722,6 +728,7 @@ class TestLevelUpEvaluator:
             objective_type="level_up",
             target_entity={"min_level": 5},
             target_amount=2,
+            category="achievement",
         )
         data = {"new_level": 4}
         assert evaluator._matches(objective, GameEvent.DWELLER_LEVEL_UP, data) is False
@@ -735,6 +742,7 @@ class TestLevelUpEvaluator:
             objective_type="level_up",
             target_entity={},
             target_amount=1,
+            category="achievement",
         )
         data = {"new_level": 2}
         assert evaluator._matches(objective, GameEvent.DWELLER_LEVEL_UP, data) is True

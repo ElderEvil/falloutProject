@@ -1,6 +1,5 @@
 import logging
 import random
-from typing import TYPE_CHECKING
 
 from pydantic import UUID4
 from sqlmodel import select
@@ -9,9 +8,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.models.objective import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.schemas.common import ObjectiveCategoryEnum
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -72,15 +68,25 @@ class ObjectiveAssignmentService:
         return await self._clear_category_objectives(vault_id, ObjectiveCategoryEnum.WEEKLY)
 
     async def refresh_daily_objectives(self, vault_id: UUID4) -> list[Objective]:
-        await self.clear_daily_objectives(vault_id)
-        return await self.assign_daily_objectives(vault_id)
+        # Atomic clear + assign: do not commit between operations
+        await self._clear_category_objectives(vault_id, ObjectiveCategoryEnum.DAILY, auto_commit=False)
+        assigned = await self._assign_category_objectives(
+            vault_id, ObjectiveCategoryEnum.DAILY, self.DAILY_COUNT, auto_commit=False
+        )
+        await self._db_session.commit()
+        return assigned
 
     async def refresh_weekly_objectives(self, vault_id: UUID4) -> list[Objective]:
-        await self.clear_weekly_objectives(vault_id)
-        return await self.assign_weekly_objectives(vault_id)
+        # Atomic clear + assign: do not commit between operations
+        await self._clear_category_objectives(vault_id, ObjectiveCategoryEnum.WEEKLY, auto_commit=False)
+        assigned = await self._assign_category_objectives(
+            vault_id, ObjectiveCategoryEnum.WEEKLY, self.WEEKLY_COUNT, auto_commit=False
+        )
+        await self._db_session.commit()
+        return assigned
 
     async def _assign_category_objectives(
-        self, vault_id: UUID4, category: ObjectiveCategoryEnum, count: int
+        self, vault_id: UUID4, category: ObjectiveCategoryEnum, count: int, auto_commit: bool = True
     ) -> list[Objective]:
         query = select(Objective).where(Objective.category == category)
         result = await self._db_session.execute(query)
@@ -90,7 +96,14 @@ class ObjectiveAssignmentService:
             logger.warning(f"No {category} objectives found in database")
             return []
 
-        available = [obj for obj in all_objectives if not await self._objective_already_assigned(vault_id, obj.id)]
+        # Fetch all assigned objective IDs in a single query to avoid N+1
+        assigned_ids_query = select(VaultObjectiveProgressLink.objective_id).where(
+            VaultObjectiveProgressLink.vault_id == vault_id
+        )
+        assigned_result = await self._db_session.execute(assigned_ids_query)
+        assigned_ids = {row[0] for row in assigned_result.all()}
+
+        available = [obj for obj in all_objectives if obj.id not in assigned_ids]
 
         selected = available if len(available) <= count else random.sample(available, count)
 
@@ -106,13 +119,15 @@ class ObjectiveAssignmentService:
             self._db_session.add(link)
             assigned.append(objective)
 
-        if assigned:
+        if assigned and auto_commit:
             await self._db_session.commit()
             logger.info(f"Assigned {len(assigned)} {category} objectives to vault {vault_id}")
 
         return assigned
 
-    async def _clear_category_objectives(self, vault_id: UUID4, category: ObjectiveCategoryEnum) -> int:
+    async def _clear_category_objectives(
+        self, vault_id: UUID4, category: ObjectiveCategoryEnum, auto_commit: bool = True
+    ) -> int:
         subquery = select(Objective.id).where(Objective.category == category)
         query = (
             select(VaultObjectiveProgressLink)
@@ -125,7 +140,7 @@ class ObjectiveAssignmentService:
         for link in links:
             await self._db_session.delete(link)
 
-        if links:
+        if links and auto_commit:
             await self._db_session.commit()
             logger.info(f"Cleared {len(links)} {category} objectives for vault {vault_id}")
 

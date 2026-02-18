@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from celery import Celery
+from celery.schedules import crontab
 from dotenv import load_dotenv
 
 # Load environment variables before importing settings
@@ -37,8 +38,7 @@ celery_app.conf.beat_schedule = {
     },
     "refresh-weekly-objectives": {
         "task": "refresh_weekly_objectives",
-        "schedule": 604800.0,
-        "options": {"expires": 518400},
+        "schedule": crontab(minute=0, hour=0, day_of_week="monday"),
     },
 }
 

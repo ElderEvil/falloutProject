@@ -245,8 +245,6 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         dweller_obj = await self.update(db_session, dweller_id, DwellerUpdate(room_id=room_id, status=new_status))
 
         # Emit dweller assigned event for objective tracking
-        from app.services.event_bus import GameEvent, event_bus
-
         await event_bus.emit(
             GameEvent.DWELLER_ASSIGNED,
             dweller_obj.vault_id,

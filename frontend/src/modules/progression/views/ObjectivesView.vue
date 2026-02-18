@@ -23,12 +23,9 @@ onMounted(() => {
   }
 })
 
-const filterObjectives = (status: boolean) => {
-  return objectivesStore.objectives.filter((objective) => objective.is_completed === status)
-}
-
-const activeObjectives = computed(() => filterObjectives(false))
-const completedObjectives = computed(() => filterObjectives(true))
+const completedObjectives = computed(() =>
+  objectivesStore.objectives.filter((objective) => objective.is_completed === true)
+)
 
 const dailyObjectives = computed(() =>
   objectivesStore.objectives.filter((obj) => obj.category === 'daily' && !obj.is_completed)

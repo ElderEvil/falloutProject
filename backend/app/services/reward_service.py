@@ -203,14 +203,13 @@ class RewardService:
 
         # Get dwellers in vault
         dwellers = await dweller_crud.get_multi_by_vault(db_session, vault_id=vault_id, skip=0, limit=100)
-        dwellers = [d for d in dwellers if not d.is_deleted]
 
         if not dwellers:
             logger.warning(f"No dwellers found in vault {vault_id} to grant stimpaks")
             return {"reward_type": RewardType.STIMPAK, "amount": 0, "message": "No dwellers found"}
 
         # Grant to random dweller
-        dweller = dwellers[0]
+        dweller = random.choice(dwellers)
         dweller.stimpack = (dweller.stimpack or 0) + amount
         db_session.add(dweller)
         await db_session.commit()
@@ -225,14 +224,13 @@ class RewardService:
 
         # Get dwellers in vault
         dwellers = await dweller_crud.get_multi_by_vault(db_session, vault_id=vault_id, skip=0, limit=100)
-        dwellers = [d for d in dwellers if not d.is_deleted]
 
         if not dwellers:
             logger.warning(f"No dwellers found in vault {vault_id} to grant radaways")
             return {"reward_type": RewardType.RADAWAY, "amount": 0, "message": "No dwellers found"}
 
         # Grant to random dweller
-        dweller = dwellers[0]
+        dweller = random.choice(dwellers)
         dweller.radaway = (dweller.radaway or 0) + amount
         db_session.add(dweller)
         await db_session.commit()
@@ -270,7 +268,7 @@ class RewardService:
 
             rarity = random.choices(
                 [RarityEnum.COMMON, RarityEnum.RARE, RarityEnum.LEGENDARY],
-                weights=[0.6, 0.2, 0.1],
+                weights=[0.7, 0.2, 0.1],
             )[0]
 
             if wtype in (WeaponTypeEnum.MELEE, WeaponTypeEnum.GUN, WeaponTypeEnum.ENERGY, WeaponTypeEnum.HEAVY):

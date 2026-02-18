@@ -17,7 +17,7 @@ class ObjectiveBase(SQLModel):
     challenge: str = Field(min_length=3, max_length=32, index=True)
     reward: str = Field(min_length=3, max_length=32)
     category: ObjectiveCategoryEnum = Field(
-        sa_column=Column(String(50), index=True),
+        sa_column=Column(String(50), index=True, nullable=False),
         description="Objective category: daily, weekly, or achievement",
     )
 

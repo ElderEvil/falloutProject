@@ -6,17 +6,18 @@ Create Date: 2026-02-18 21:04:16.052683
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 import sqlmodel
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
+
 revision: str = "5934c2bdf3e1"
-down_revision: Union[str, None] = "add_medical_storage_fields"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "add_medical_storage_fields"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -36,7 +37,7 @@ def upgrade() -> None:
 
     op.add_column(
         "objective",
-        sa.Column("category", sa.String(50), nullable=False, server_default="ACHIEVEMENT"),
+        sa.Column("category", sa.String(50), nullable=False, server_default="achievement"),
     )
     op.create_index(op.f("ix_objective_category"), "objective", ["category"], unique=False)
 
@@ -46,6 +47,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # NOTE: PostgreSQL does not support DROP VALUE for enum types.
+    # The added values 'STIMPAK', 'RADAWAY', and 'LUNCHBOX' in the 'rewardtype'
+    # enum will remain. Manual DB-level steps are required to fully revert.
     op.drop_index(op.f("ix_objective_category"), table_name="objective")
     op.drop_column("objective", "category")
 

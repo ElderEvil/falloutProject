@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import type { VaultQuest, QuestPartyMember } from '../models/quest'
-import type { DwellerShort } from '@/modules/dwellers/models/dweller'
-import { UCard, UBadge, UButton } from '@/core/components/ui'
+import { UBadge, UButton, UCard } from '@/core/components/ui'
 import { useQuestStore } from '@/stores/quest'
+import type { DwellerShort } from '@/modules/dwellers/models/dweller'
+import type { QuestPartyMember, VaultQuest } from '../models/quest'
 
 const questStore = useQuestStore()
 

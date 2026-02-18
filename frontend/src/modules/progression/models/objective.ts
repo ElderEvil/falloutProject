@@ -6,7 +6,14 @@
  */
 export type ObjectiveCategory = 'daily' | 'weekly' | 'achievement'
 
-export type ObjectiveType = 'collect' | 'build' | 'train' | 'assign' | 'reach' | 'expedition' | 'level_up'
+export type ObjectiveType =
+  | 'assign'
+  | 'build'
+  | 'collect'
+  | 'expedition'
+  | 'level_up'
+  | 'reach'
+  | 'train'
 
 export interface Objective {
   id: string

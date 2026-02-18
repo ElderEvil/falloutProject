@@ -53,6 +53,7 @@ class CRUDObjective(
                 id=obj.id,
                 challenge=obj.challenge,
                 reward=obj.reward,
+                category=obj.category,
                 objective_type=obj.objective_type,
                 target_entity=obj.target_entity,
                 target_amount=obj.target_amount,

@@ -21,9 +21,9 @@ async def test_seed_objectives_from_json_basic(async_session: AsyncSession, tmp_
 
     # Create objectives JSON file
     objectives_data = [
-        {"challenge": "Collect 3 outfits", "reward": "50 caps"},
-        {"challenge": "Collect 3 stimpaks", "reward": "70 caps"},
-        {"challenge": "Collect 4 weapons", "reward": "100 caps"},
+        {"challenge": "Collect 3 outfits", "reward": "50 caps", "category": "achievement"},
+        {"challenge": "Collect 3 stimpaks", "reward": "70 caps", "category": "achievement"},
+        {"challenge": "Collect 4 weapons", "reward": "100 caps", "category": "achievement"},
     ]
 
     objectives_file = objectives_dir / "collect.json"
@@ -53,8 +53,8 @@ async def test_seed_objectives_prevents_duplicates(async_session: AsyncSession, 
     objectives_dir.mkdir()
 
     objectives_data = [
-        {"challenge": "Assign 2 dwellers", "reward": "25 caps"},
-        {"challenge": "Assign 4 dwellers", "reward": "100 caps"},
+        {"challenge": "Assign 2 dwellers", "reward": "25 caps", "category": "achievement"},
+        {"challenge": "Assign 4 dwellers", "reward": "100 caps", "category": "achievement"},
     ]
 
     objectives_file = objectives_dir / "assign.json"
@@ -83,16 +83,16 @@ async def test_seed_objectives_multiple_files(async_session: AsyncSession, tmp_p
 
     # Create first objectives file
     collect_data = [
-        {"challenge": "Collect 100 food", "reward": "50 caps"},
-        {"challenge": "Collect 100 water", "reward": "50 caps"},
+        {"challenge": "Collect 100 food", "reward": "50 caps", "category": "achievement"},
+        {"challenge": "Collect 100 water", "reward": "50 caps", "category": "achievement"},
     ]
     with (objectives_dir / "collect.json").open("w", encoding="utf-8") as f:
         json.dump(collect_data, f)
 
     # Create second objectives file
     assign_data = [
-        {"challenge": "Assign 5 dwellers", "reward": "150 caps"},
-        {"challenge": "Assign 7 dwellers", "reward": "175 caps"},
+        {"challenge": "Assign 5 dwellers", "reward": "150 caps", "category": "achievement"},
+        {"challenge": "Assign 7 dwellers", "reward": "175 caps", "category": "achievement"},
     ]
     with (objectives_dir / "assign.json").open("w", encoding="utf-8") as f:
         json.dump(assign_data, f)
@@ -119,7 +119,7 @@ async def test_seed_objectives_single_object(async_session: AsyncSession, tmp_pa
     objectives_dir.mkdir()
 
     # Create single objective (not in array)
-    objective_data = {"challenge": "Single objective", "reward": "1 lunchbox"}
+    objective_data = {"challenge": "Single objective", "reward": "1 lunchbox", "category": "achievement"}
 
     objective_file = objectives_dir / "single.json"
     with objective_file.open("w", encoding="utf-8") as f:
@@ -147,7 +147,7 @@ async def test_seed_objectives_handles_errors_gracefully(async_session: AsyncSes
         f.write("{ invalid json }")
 
     # Create a valid JSON file
-    valid_data = [{"challenge": "Valid objective", "reward": "10 caps"}]
+    valid_data = [{"challenge": "Valid objective", "reward": "10 caps", "category": "achievement"}]
     valid_file = objectives_dir / "valid.json"
     with valid_file.open("w", encoding="utf-8") as f:
         json.dump(valid_data, f)
@@ -192,8 +192,8 @@ async def test_seed_objectives_validates_schema(async_session: AsyncSession, tmp
 
     # Create objectives with missing required fields
     invalid_data = [
-        {"challenge": "Missing reward field"},  # Missing 'reward'
-        {"challenge": "Valid objective", "reward": "50 caps"},  # Valid
+        {"challenge": "Missing reward field", "category": "achievement"},  # Missing 'reward'
+        {"challenge": "Valid objective", "reward": "50 caps", "category": "achievement"},  # Valid
     ]
 
     objectives_file = objectives_dir / "mixed.json"
@@ -214,7 +214,7 @@ async def test_seed_objectives_rollback_on_error(async_session: AsyncSession, tm
     objectives_dir.mkdir()
 
     # Create objective data
-    objectives_data = [{"challenge": "Test objective", "reward": "10 caps"}]
+    objectives_data = [{"challenge": "Test objective", "reward": "10 caps", "category": "achievement"}]
     with (objectives_dir / "test.json").open("w", encoding="utf-8") as f:
         json.dump(objectives_data, f)
 
@@ -236,8 +236,8 @@ async def test_seed_objectives_with_special_characters(async_session: AsyncSessi
     objectives_dir.mkdir()
 
     objectives_data = [
-        {"challenge": "Collect 8 rare weapons", "reward": "1320 caps"},
-        {"challenge": "Assign 10 dwellers in right room", "reward": "1 lunchbox"},
+        {"challenge": "Collect 8 rare weapons", "reward": "1320 caps", "category": "achievement"},
+        {"challenge": "Assign 10 dwellers right", "reward": "1 lunchbox", "category": "achievement"},
     ]
 
     objectives_file = objectives_dir / "special.json"
@@ -253,7 +253,7 @@ async def test_seed_objectives_with_special_characters(async_session: AsyncSessi
 
     challenges = {obj.challenge for obj in objectives}
     assert "Collect 8 rare weapons" in challenges
-    assert "Assign 10 dwellers in right room" in challenges
+    assert "Assign 10 dwellers right" in challenges
 
 
 @pytest.mark.asyncio
@@ -278,16 +278,18 @@ async def test_get_multi_complete_returns_only_complete_objectives(async_session
         {
             "challenge": "Collect 100 food",
             "reward": "50 caps",
+            "category": "achievement",
             "objective_type": "collect",
             "target_entity": {"resource_type": "food"},
             "target_amount": 100,
         },
         # Incomplete - missing objective_type
-        {"challenge": "Incomplete 1", "reward": "10 caps"},
+        {"challenge": "Incomplete 1", "reward": "10 caps", "category": "achievement"},
         # Complete - assign type, target_entity is optional/empty
         {
             "challenge": "Assign 5 dwellers",
             "reward": "150 caps",
+            "category": "achievement",
             "objective_type": "assign",
             "target_amount": 5,
         },
@@ -295,6 +297,7 @@ async def test_get_multi_complete_returns_only_complete_objectives(async_session
         {
             "challenge": "Build 1 Room",
             "reward": "100 caps",
+            "category": "achievement",
             "objective_type": "build",
             "target_entity": {"room_type": "*"},
             "target_amount": 1,
@@ -303,6 +306,7 @@ async def test_get_multi_complete_returns_only_complete_objectives(async_session
         {
             "challenge": "Build 3 Rooms",
             "reward": "1000 caps",
+            "category": "achievement",
             "objective_type": "build",
             "target_entity": {"room_type": "*"},
             "target_amount": 3,
@@ -357,6 +361,7 @@ async def test_vault_objective_progress_uses_target_amount(async_session: AsyncS
         {
             "challenge": "Collect 500 caps",
             "reward": "500 caps",
+            "category": "achievement",
             "objective_type": "collect",
             "target_entity": {"resource_type": "caps"},
             "target_amount": 500,

@@ -64,6 +64,13 @@ class Settings(BaseSettings):
     RUSTFS_PUBLIC_URL: str | None = "https://s3.evillab.dev"
     RUSTFS_PUBLIC_BUCKET_WHITELIST: list[str] = [
         "fallout-shelter",
+        "dweller-images",
+        "dweller-thumbnails",
+        "dweller-audio",
+        "chat-audio",
+        "outfit-images",
+        "weapon-images",
+        "room-images",
     ]
 
     @property

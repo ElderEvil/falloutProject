@@ -1,14 +1,16 @@
+# ruff: noqa: INP001
 """Set public policies on RustFS buckets."""
 
 import asyncio
 import json
-import os
 import sys
+from pathlib import Path
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import boto3
 from botocore.config import Config
+from botocore.exceptions import BotoCoreError, ClientError
 
 from app.core.config import settings
 
@@ -42,9 +44,9 @@ async def set_bucket_policies():
         try:
             bucket_policy = json.dumps(policy).replace("{bucket}", bucket)
             client.put_bucket_policy(Bucket=bucket, Policy=bucket_policy)
-            print(f"✅ Set public policy for: {bucket}")
-        except Exception as e:
-            print(f"❌ Failed to set policy for {bucket}: {e}")
+            print(f"Set public policy for: {bucket}")
+        except (BotoCoreError, ClientError) as e:
+            print(f"Failed to set policy for {bucket}: {e}")
 
 
 if __name__ == "__main__":

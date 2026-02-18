@@ -1,15 +1,11 @@
-"""Fix dweller image URLs - convert filenames to full URLs.
-
-This script updates existing dweller records that have filenames stored
-instead of full URLs, converting them to proper public URLs.
-"""
+# ruff: noqa: INP001
+"""Fix dweller image URLs - convert filenames to full URLs."""
 
 import asyncio
-import os
 import sys
+from pathlib import Path
 
-# Add backend to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlmodel import select
 
@@ -24,7 +20,6 @@ async def fix_dweller_image_urls():
     base_url = base_url.rstrip("/")
 
     async for db_session in get_async_session():
-        # Get all dwellers with image URLs
         result = await db_session.execute(select(Dweller).where(Dweller.image_url.is_not(None)))
         dwellers = result.scalars().all()
 
@@ -33,9 +28,7 @@ async def fix_dweller_image_urls():
             original_image = dweller.image_url
             original_thumbnail = dweller.thumbnail_url
 
-            # Check if it's just a filename (not a full URL)
             if original_image and "://" not in original_image and not original_image.startswith("/"):
-                # Convert to full URL
                 dweller.image_url = f"{base_url}/dweller-images/{original_image}"
                 updated_count += 1
 

@@ -9,6 +9,19 @@ AI-powered dweller interactions.
 
 ## Latest Release
 
+### v2.10.8 - Script Improvements (February 19, 2026)
+
+**Focus**: Backend script efficiency and correctness fixes
+
+**Completed:**
+- ✅ **fix_dweller_image_urls.py** - Query now selects dwellers with either image_url OR thumbnail_url
+  - Added OR clause to catch all dwellers needing updates
+  - Separate tracking of per-field vs per-dweller update counts
+  - Try/except around commit with diagnostic output
+- ✅ **set_rustfs_bucket_policies.py** - Removed unnecessary async overhead
+  - Pre-serialize policy JSON once before loop
+  - Converted to synchronous function (boto3 is sync)
+
 ### v2.10.4 - Quest System Fix (February 13, 2026)
 
 **Focus**: Fixed quest seeding bugs and verified quest system works

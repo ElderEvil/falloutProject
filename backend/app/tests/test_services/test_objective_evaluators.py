@@ -16,6 +16,8 @@ from app.services.objective_evaluators import (
     AssignEvaluator,
     BuildEvaluator,
     CollectEvaluator,
+    ExpeditionEvaluator,
+    LevelUpEvaluator,
     ReachEvaluator,
     TrainEvaluator,
 )
@@ -622,6 +624,117 @@ class TestAliasMatching:
             target_entity={},
             target_amount=5,
         )
-        # Any room type should match when target has no room_type
         data = {"room_type": "power_generator"}
         assert evaluator._matches(objective, GameEvent.DWELLER_ASSIGNED, data) is True
+
+
+class TestExpeditionEvaluator:
+    """Tests for ExpeditionEvaluator functionality."""
+
+    def test_matches_any_quest_type(self, fresh_event_bus):
+        """Test ExpeditionEvaluator matches any quest when no quest_type specified."""
+        evaluator = ExpeditionEvaluator(fresh_event_bus)
+        objective = Objective(
+            challenge="Complete 3 Expeditions",
+            reward="800 caps",
+            objective_type="expedition",
+            target_entity={},
+            target_amount=3,
+        )
+        data = {"quest_type": "main"}
+        assert evaluator._matches(objective, GameEvent.QUEST_COMPLETED, data) is True
+
+    def test_matches_specific_quest_type(self, fresh_event_bus):
+        """Test ExpeditionEvaluator matches specific quest type."""
+        evaluator = ExpeditionEvaluator(fresh_event_bus)
+        objective = Objective(
+            challenge="Complete 1 Main Quest",
+            reward="2000 caps",
+            objective_type="expedition",
+            target_entity={"quest_type": "main"},
+            target_amount=1,
+        )
+        data = {"quest_type": "main"}
+        assert evaluator._matches(objective, GameEvent.QUEST_COMPLETED, data) is True
+
+    def test_does_not_match_wrong_quest_type(self, fresh_event_bus):
+        """Test ExpeditionEvaluator does not match wrong quest type."""
+        evaluator = ExpeditionEvaluator(fresh_event_bus)
+        objective = Objective(
+            challenge="Complete 1 Main Quest",
+            reward="2000 caps",
+            objective_type="expedition",
+            target_entity={"quest_type": "main"},
+            target_amount=1,
+        )
+        data = {"quest_type": "side"}
+        assert evaluator._matches(objective, GameEvent.QUEST_COMPLETED, data) is False
+
+    def test_matches_wildcard_quest_type(self, fresh_event_bus):
+        """Test ExpeditionEvaluator matches wildcard quest type."""
+        evaluator = ExpeditionEvaluator(fresh_event_bus)
+        objective = Objective(
+            challenge="Complete 3 Expeditions",
+            reward="800 caps",
+            objective_type="expedition",
+            target_entity={"quest_type": "*"},
+            target_amount=3,
+        )
+        data = {"quest_type": "daily"}
+        assert evaluator._matches(objective, GameEvent.QUEST_COMPLETED, data) is True
+
+
+class TestLevelUpEvaluator:
+    """Tests for LevelUpEvaluator functionality."""
+
+    def test_matches_min_level_met(self, fresh_event_bus):
+        """Test LevelUpEvaluator matches when min_level is met."""
+        evaluator = LevelUpEvaluator(fresh_event_bus)
+        objective = Objective(
+            challenge="Level up 2 Dwellers to Lv.5",
+            reward="1000 caps",
+            objective_type="level_up",
+            target_entity={"min_level": 5},
+            target_amount=2,
+        )
+        data = {"new_level": 5}
+        assert evaluator._matches(objective, GameEvent.DWELLER_LEVEL_UP, data) is True
+
+    def test_matches_exceeds_min_level(self, fresh_event_bus):
+        """Test LevelUpEvaluator matches when level exceeds min_level."""
+        evaluator = LevelUpEvaluator(fresh_event_bus)
+        objective = Objective(
+            challenge="Level up 2 Dwellers to Lv.5",
+            reward="1000 caps",
+            objective_type="level_up",
+            target_entity={"min_level": 5},
+            target_amount=2,
+        )
+        data = {"new_level": 10}
+        assert evaluator._matches(objective, GameEvent.DWELLER_LEVEL_UP, data) is True
+
+    def test_does_not_match_below_min_level(self, fresh_event_bus):
+        """Test LevelUpEvaluator does not match when below min_level."""
+        evaluator = LevelUpEvaluator(fresh_event_bus)
+        objective = Objective(
+            challenge="Level up 2 Dwellers to Lv.5",
+            reward="1000 caps",
+            objective_type="level_up",
+            target_entity={"min_level": 5},
+            target_amount=2,
+        )
+        data = {"new_level": 4}
+        assert evaluator._matches(objective, GameEvent.DWELLER_LEVEL_UP, data) is False
+
+    def test_matches_no_min_level_requirement(self, fresh_event_bus):
+        """Test LevelUpEvaluator matches any level when no min_level specified."""
+        evaluator = LevelUpEvaluator(fresh_event_bus)
+        objective = Objective(
+            challenge="Level up a Dweller",
+            reward="500 caps",
+            objective_type="level_up",
+            target_entity={},
+            target_amount=1,
+        )
+        data = {"new_level": 2}
+        assert evaluator._matches(objective, GameEvent.DWELLER_LEVEL_UP, data) is True

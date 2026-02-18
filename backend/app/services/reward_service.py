@@ -120,7 +120,7 @@ class RewardService:
             first_name=first_name,
             last_name=last_name,
             gender=gender,
-            rarity=rarity,
+            rarity=rarity_enum,
             level=level,
             experience=dweller_template.get("experience", 0),
             max_health=dweller_template.get("max_health", 50),
@@ -202,7 +202,7 @@ class RewardService:
         from app.crud.dweller import dweller as dweller_crud
 
         # Get dwellers in vault
-        dwellers = await dweller_crud.get_multi(db_session, skip=0, limit=100, vault_id=vault_id)
+        dwellers = await dweller_crud.get_multi_by_vault(db_session, vault_id=vault_id, skip=0, limit=100)
         dwellers = [d for d in dwellers if not d.is_deleted]
 
         if not dwellers:
@@ -224,7 +224,7 @@ class RewardService:
         from app.crud.dweller import dweller as dweller_crud
 
         # Get dwellers in vault
-        dwellers = await dweller_crud.get_multi(db_session, skip=0, limit=100, vault_id=vault_id)
+        dwellers = await dweller_crud.get_multi_by_vault(db_session, vault_id=vault_id, skip=0, limit=100)
         dwellers = [d for d in dwellers if not d.is_deleted]
 
         if not dwellers:
@@ -261,16 +261,16 @@ class RewardService:
             ("Laser Pistol", WeaponTypeEnum.ENERGY, WeaponSubtypeEnum.PISTOL, "luck"),
             ("Plasma Pistol", WeaponTypeEnum.ENERGY, WeaponSubtypeEnum.PISTOL, "luck"),
             ("Assault Rifle", WeaponTypeEnum.GUN, WeaponSubtypeEnum.RIFLE, "agility"),
-            ("Vault Suit", OutfitTypeEnum.SUIT, None, "endurance"),
-            ("Combat Armor", OutfitTypeEnum.ARMOR, None, "endurance"),
+            ("Vault Suit", OutfitTypeEnum.COMMON, None, "endurance"),
+            ("Combat Armor", OutfitTypeEnum.POWER_ARMOR, None, "endurance"),
         ]
         granted_items = []
         for _ in range(3):
             name, wtype, subtype, stat = random.choice(item_configs)
 
             rarity = random.choices(
-                [RarityEnum.COMMON, RarityEnum.UNCOMMON, RarityEnum.RARE],
-                weights=[0.6, 0.3, 0.1],
+                [RarityEnum.COMMON, RarityEnum.RARE, RarityEnum.LEGENDARY],
+                weights=[0.6, 0.2, 0.1],
             )[0]
 
             if wtype in (WeaponTypeEnum.MELEE, WeaponTypeEnum.GUN, WeaponTypeEnum.ENERGY, WeaponTypeEnum.HEAVY):
@@ -323,7 +323,7 @@ class RewardService:
                 ]
             ),
             "last_name": random.choice(["Smith", "Johnson", "Williams", "Brown", "Jones", "Miller"]),
-            "rarity": random.choice([RarityEnum.COMMON, RarityEnum.UNCOMMON, RarityEnum.RARE, RarityEnum.LEGENDARY]),
+            "rarity": random.choice([RarityEnum.COMMON, RarityEnum.RARE, RarityEnum.LEGENDARY]),
             "level": random.randint(1, 5),
             "gender": random.choice([GenderEnum.MALE, GenderEnum.FEMALE]),
         }

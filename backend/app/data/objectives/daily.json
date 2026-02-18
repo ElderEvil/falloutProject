@@ -1,0 +1,162 @@
+[
+  {
+    "challenge": "Collect 200 Caps",
+    "reward": "150 caps",
+    "category": "daily",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "caps"},
+    "target_amount": 200
+  },
+  {
+    "challenge": "Collect 300 Caps",
+    "reward": "200 caps",
+    "category": "daily",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "caps"},
+    "target_amount": 300
+  },
+  {
+    "challenge": "Collect 500 Caps",
+    "reward": "300 caps",
+    "category": "daily",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "caps"},
+    "target_amount": 500
+  },
+  {
+    "challenge": "Collect 150 Food",
+    "reward": "100 food",
+    "category": "daily",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "food"},
+    "target_amount": 150
+  },
+  {
+    "challenge": "Collect 250 Food",
+    "reward": "150 food",
+    "category": "daily",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "food"},
+    "target_amount": 250
+  },
+  {
+    "challenge": "Collect 150 Water",
+    "reward": "100 water",
+    "category": "daily",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "water"},
+    "target_amount": 150
+  },
+  {
+    "challenge": "Collect 250 Water",
+    "reward": "150 water",
+    "category": "daily",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "water"},
+    "target_amount": 250
+  },
+  {
+    "challenge": "Collect 150 Power",
+    "reward": "100 power",
+    "category": "daily",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "power"},
+    "target_amount": 150
+  },
+  {
+    "challenge": "Collect 250 Power",
+    "reward": "150 power",
+    "category": "daily",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "power"},
+    "target_amount": 250
+  },
+  {
+    "challenge": "Collect 3 Weapons",
+    "reward": "weapon:Pipe Pistol",
+    "category": "daily",
+    "objective_type": "collect",
+    "target_entity": {"item_type": "weapon"},
+    "target_amount": 3
+  },
+  {
+    "challenge": "Collect 3 Outfits",
+    "reward": "outfit:Vault Suit",
+    "category": "daily",
+    "objective_type": "collect",
+    "target_entity": {"item_type": "outfit"},
+    "target_amount": 3
+  },
+  {
+    "challenge": "Build 2 Rooms",
+    "reward": "500 caps",
+    "category": "daily",
+    "objective_type": "build",
+    "target_entity": {"room_type": "*"},
+    "target_amount": 2
+  },
+  {
+    "challenge": "Build 3 Rooms",
+    "reward": "750 caps",
+    "category": "daily",
+    "objective_type": "build",
+    "target_entity": {"room_type": "*"},
+    "target_amount": 3
+  },
+  {
+    "challenge": "Assign 2 Dwellers",
+    "reward": "200 caps",
+    "category": "daily",
+    "objective_type": "assign",
+    "target_entity": {},
+    "target_amount": 2
+  },
+  {
+    "challenge": "Assign 3 Dwellers",
+    "reward": "300 caps",
+    "category": "daily",
+    "objective_type": "assign",
+    "target_entity": {},
+    "target_amount": 3
+  },
+  {
+    "challenge": "Assign 4 Dwellers",
+    "reward": "400 caps",
+    "category": "daily",
+    "objective_type": "assign",
+    "target_entity": {},
+    "target_amount": 4
+  },
+  {
+    "challenge": "Correctly Assign 2 Dwellers",
+    "reward": "300 caps",
+    "category": "daily",
+    "objective_type": "assign_correct",
+    "target_entity": {},
+    "target_amount": 2
+  },
+  {
+    "challenge": "Correctly Assign 3 Dwellers",
+    "reward": "450 caps",
+    "category": "daily",
+    "objective_type": "assign_correct",
+    "target_entity": {},
+    "target_amount": 3
+  },
+  {
+    "challenge": "Train 1 Dweller",
+    "reward": "250 caps",
+    "category": "daily",
+    "objective_type": "train",
+    "target_entity": {},
+    "target_amount": 1
+  },
+  {
+    "challenge": "Train 2 Dwellers",
+    "reward": "450 caps",
+    "category": "daily",
+    "objective_type": "train",
+    "target_entity": {},
+    "target_amount": 2
+  }
+]

@@ -7,6 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from sqlalchemy import or_
 from sqlmodel import select
 
 from app.core.config import settings
@@ -20,25 +21,39 @@ async def fix_dweller_image_urls():
     base_url = base_url.rstrip("/")
 
     async for db_session in get_async_session():
-        result = await db_session.execute(select(Dweller).where(Dweller.image_url.is_not(None)))
+        result = await db_session.execute(
+            select(Dweller).where(or_(Dweller.image_url.is_not(None), Dweller.thumbnail_url.is_not(None)))
+        )
         dwellers = result.scalars().all()
 
         updated_count = 0
+        dweller_updated_count = 0
         for dweller in dwellers:
             original_image = dweller.image_url
             original_thumbnail = dweller.thumbnail_url
+            dweller_modified = False
 
             if original_image and "://" not in original_image and not original_image.startswith("/"):
                 dweller.image_url = f"{base_url}/dweller-images/{original_image}"
                 updated_count += 1
+                dweller_modified = True
 
             if original_thumbnail and "://" not in original_thumbnail and not original_thumbnail.startswith("/"):
                 dweller.thumbnail_url = f"{base_url}/dweller-thumbnails/{original_thumbnail}"
                 updated_count += 1
+                dweller_modified = True
 
-        await db_session.commit()
-        print(f"Updated {updated_count} URL(s) for {len(dwellers)} dwellers")
-        break
+            if dweller_modified:
+                dweller_updated_count += 1
+
+        try:
+            await db_session.commit()
+            print(f"Updated {updated_count} URL(s) across {dweller_updated_count} dwellers")
+        except Exception as e:
+            print(
+                f"Failed to commit updates: {e}. Updated {updated_count} URL(s) across {dweller_updated_count} dwellers"
+            )
+            raise
 
 
 if __name__ == "__main__":

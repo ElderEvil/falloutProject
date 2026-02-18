@@ -1,7 +1,6 @@
 # ruff: noqa: INP001
 """Set public policies on RustFS buckets."""
 
-import asyncio
 import json
 import sys
 from pathlib import Path
@@ -15,7 +14,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from app.core.config import settings
 
 
-async def set_bucket_policies():
+def set_bucket_policies():
     """Set public read policies on all whitelisted buckets."""
     buckets = settings.RUSTFS_PUBLIC_BUCKET_WHITELIST
 
@@ -39,10 +38,11 @@ async def set_bucket_policies():
             }
         ],
     }
+    serialized_policy = json.dumps(policy)
 
     for bucket in buckets:
         try:
-            bucket_policy = json.dumps(policy).replace("{bucket}", bucket)
+            bucket_policy = serialized_policy.replace("{bucket}", bucket)
             client.put_bucket_policy(Bucket=bucket, Policy=bucket_policy)
             print(f"Set public policy for: {bucket}")
         except (BotoCoreError, ClientError) as e:
@@ -50,4 +50,4 @@ async def set_bucket_policies():
 
 
 if __name__ == "__main__":
-    asyncio.run(set_bucket_policies())
+    set_bucket_policies()

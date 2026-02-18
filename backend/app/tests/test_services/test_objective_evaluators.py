@@ -67,6 +67,7 @@ async def test_collect_evaluator_resource_collected(
         objective_type="collect",
         target_entity={"resource_type": "caps"},
         target_amount=100,
+        category="achievement",
     )
     async_session.add(objective)
     await async_session.commit()
@@ -109,6 +110,7 @@ async def test_collect_evaluator_wrong_resource(
         objective_type="collect",
         target_entity={"resource_type": "caps"},
         target_amount=100,
+        category="achievement",
     )
     async_session.add(objective)
     await async_session.commit()
@@ -151,6 +153,7 @@ async def test_build_evaluator_room_built(
         objective_type="build",
         target_entity={"room_type": "*"},
         target_amount=3,
+        category="achievement",
     )
     async_session.add(objective)
     await async_session.commit()
@@ -190,7 +193,12 @@ async def test_train_evaluator_dweller_trained(
 
     # Create objective
     objective = Objective(
-        challenge="Train 5 dwellers", reward="200 caps", objective_type="train", target_entity={}, target_amount=5
+        challenge="Train 5 dwellers",
+        reward="200 caps",
+        objective_type="train",
+        target_entity={},
+        target_amount=5,
+        category="achievement",
     )
     async_session.add(objective)
     await async_session.commit()
@@ -236,7 +244,12 @@ async def test_assign_evaluator_dweller_assigned(
 
     # Create objective
     objective = Objective(
-        challenge="Assign 3 dwellers", reward="150 caps", objective_type="assign", target_entity={}, target_amount=3
+        challenge="Assign 3 dwellers",
+        reward="150 caps",
+        objective_type="assign",
+        target_entity={},
+        target_amount=3,
+        category="achievement",
     )
     async_session.add(objective)
     await async_session.commit()
@@ -287,6 +300,7 @@ async def test_reach_evaluator_population_reached(
         objective_type="reach",
         target_entity={"reach_type": "dweller_count", "target": 10},
         target_amount=10,
+        category="achievement",
     )
     async_session.add(objective)
     await async_session.commit()
@@ -335,6 +349,7 @@ async def test_evaluator_already_completed(
         objective_type="collect",
         target_entity={"resource_type": "caps"},
         target_amount=100,
+        category="achievement",
     )
     async_session.add(objective)
     await async_session.commit()
@@ -378,6 +393,7 @@ async def test_collect_evaluator_item_collected_weapon(
         objective_type="collect",
         target_entity={"item_type": "weapon"},
         target_amount=3,
+        category="achievement",
     )
     async_session.add(objective)
     await async_session.commit()
@@ -420,6 +436,7 @@ async def test_collect_evaluator_item_collected_outfit(
         objective_type="collect",
         target_entity={"item_type": "outfit"},
         target_amount=3,
+        category="achievement",
     )
     async_session.add(objective)
     await async_session.commit()
@@ -462,6 +479,7 @@ async def test_collect_evaluator_item_collected_stimpak(
         objective_type="collect",
         target_entity={"item_type": "stimpak"},
         target_amount=5,
+        category="achievement",
     )
     async_session.add(objective)
     await async_session.commit()
@@ -504,6 +522,7 @@ async def test_collect_evaluator_item_wrong_type(
         objective_type="collect",
         target_entity={"item_type": "weapon"},
         target_amount=3,
+        category="achievement",
     )
     async_session.add(objective)
     await async_session.commit()
@@ -539,6 +558,7 @@ class TestAliasMatching:
             objective_type="build",
             target_entity={"room_type": "living_room"},
             target_amount=1,
+            category="achievement",
         )
         # Event uses alias "Living Quarters"
         data = {"room_type": "Living Quarters"}
@@ -553,6 +573,7 @@ class TestAliasMatching:
             objective_type="build",
             target_entity={"room_type": "power_generator"},
             target_amount=1,
+            category="achievement",
         )
         # Event uses alias "Power Plant"
         data = {"room_type": "Power Plant"}
@@ -567,6 +588,7 @@ class TestAliasMatching:
             objective_type="collect",
             target_entity={"resource_type": "caps"},
             target_amount=100,
+            category="achievement",
         )
         # Event uses capitalized "Caps"
         data = {"resource_type": "Caps"}
@@ -581,6 +603,7 @@ class TestAliasMatching:
             objective_type="collect",
             target_entity={"item_type": "weapon"},
             target_amount=3,
+            category="achievement",
         )
         # Event uses plural "Weapons"
         data = {"item_type": "Weapons"}
@@ -595,6 +618,7 @@ class TestAliasMatching:
             objective_type="collect",
             target_entity={"item_type": "outfit"},
             target_amount=3,
+            category="achievement",
         )
         # Event uses plural "Outfits"
         data = {"item_type": "Outfits"}
@@ -609,6 +633,7 @@ class TestAliasMatching:
             objective_type="assign",
             target_entity={"room_type": "living_room"},
             target_amount=1,
+            category="achievement",
         )
         # Event uses alias "Living Quarters"
         data = {"room_type": "Living Quarters"}
@@ -623,6 +648,7 @@ class TestAliasMatching:
             objective_type="assign",
             target_entity={},
             target_amount=5,
+            category="achievement",
         )
         data = {"room_type": "power_generator"}
         assert evaluator._matches(objective, GameEvent.DWELLER_ASSIGNED, data) is True

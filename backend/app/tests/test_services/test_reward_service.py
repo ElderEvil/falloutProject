@@ -63,7 +63,9 @@ async def test_process_objective_reward_caps(async_session: AsyncSession) -> Non
     # Create objective with caps reward
     from app.crud.objective import objective_crud
 
-    objective = await objective_crud.create(async_session, ObjectiveCreate(challenge="Test", reward="100 caps"))
+    objective = await objective_crud.create(
+        async_session, ObjectiveCreate(challenge="Test", reward="100 caps", category="achievement")
+    )
 
     # Create progress link
     link = VaultObjectiveProgressLink(
@@ -94,7 +96,7 @@ async def test_process_objective_reward_invalid(async_session: AsyncSession) -> 
     from app.crud.objective import objective_crud
 
     objective = await objective_crud.create(
-        async_session, ObjectiveCreate(challenge="Test", reward="invalid reward string")
+        async_session, ObjectiveCreate(challenge="Test", reward="invalid reward string", category="achievement")
     )
 
     link = VaultObjectiveProgressLink(

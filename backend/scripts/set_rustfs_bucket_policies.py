@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import boto3
 from botocore.config import Config
+
 from app.core.config import settings
 
 

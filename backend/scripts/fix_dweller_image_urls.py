@@ -12,6 +12,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from sqlmodel import select
+
 from app.core.config import settings
 from app.db.session import get_async_session
 from app.models.dweller import Dweller

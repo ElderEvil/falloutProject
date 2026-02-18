@@ -9,18 +9,16 @@ AI-powered dweller interactions.
 
 ## Latest Release
 
-### v2.10.8 - Script Improvements (February 19, 2026)
+### v2.10.8 - RustFS Migration & Code Quality (February 19, 2026)
 
-**Focus**: Backend script efficiency and correctness fixes
+**Focus**: Storage provider migration, objective improvements, code quality
 
 **Completed:**
-- ✅ **fix_dweller_image_urls.py** - Query now selects dwellers with either image_url OR thumbnail_url
-  - Added OR clause to catch all dwellers needing updates
-  - Separate tracking of per-field vs per-dweller update counts
-  - Try/except around commit with diagnostic output
-- ✅ **set_rustfs_bucket_policies.py** - Removed unnecessary async overhead
-  - Pre-serialize policy JSON once before loop
-  - Converted to synchronous function (boto3 is sync)
+- ✅ **RustFS Migration** - Switched default storage from MinIO to RustFS
+  - Added utility scripts for image URL fixes and bucket policies
+  - Updated bucket whitelist with all required buckets
+- ✅ **Objective System** - Added `assign_correct` type, made `category` required
+- ✅ **Code Quality** - Fixed lint issues, added integration tests, addressed code review feedback
 
 ### v2.10.4 - Quest System Fix (February 13, 2026)
 
@@ -763,6 +761,7 @@ watch(() => userStore.caps, (caps) => {
 | Version | Release      | Highlights                             |
 |---------|--------------|----------------------------------------|
 | v2.10.6 | Planned      | Medical storage (stimpaks/radaways)    |
+| v2.10.8 | Feb 19, 2026 | RustFS migration, code quality         |
 | v2.10.4 | Feb 13, 2026 | Quest seeding fixes, UI verified       |
 | v2.10.3 | Feb 13, 2026 | Frontend typecheck fixes               |
 | v2.10.0 | Feb 10, 2026 | Quest & Objective system launch         |

@@ -245,13 +245,30 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         dweller_obj = await self.update(db_session, dweller_id, DwellerUpdate(room_id=room_id, status=new_status))
 
         # Emit dweller assigned event for objective tracking
-        from app.services.event_bus import GameEvent, event_bus
-
         await event_bus.emit(
             GameEvent.DWELLER_ASSIGNED,
             dweller_obj.vault_id,
             {"dweller_id": str(dweller_id), "room_type": room_obj.name},
         )
+
+        # Check if this is a "correct" assignment (dweller's highest SPECIAL matches room's ability)
+        if room_obj.ability:
+            special_stats = {
+                "strength": dweller_obj.strength,
+                "perception": dweller_obj.perception,
+                "endurance": dweller_obj.endurance,
+                "charisma": dweller_obj.charisma,
+                "intelligence": dweller_obj.intelligence,
+                "agility": dweller_obj.agility,
+                "luck": dweller_obj.luck,
+            }
+            highest_stat = max(special_stats, key=special_stats.get)
+            if highest_stat == room_obj.ability.value:
+                await event_bus.emit(
+                    GameEvent.DWELLER_ASSIGNED_CORRECTLY,
+                    dweller_obj.vault_id,
+                    {"dweller_id": str(dweller_id), "room_type": room_obj.name, "is_correct": True},
+                )
 
         return DwellerReadWithRoomID.model_validate(dweller_obj)
 

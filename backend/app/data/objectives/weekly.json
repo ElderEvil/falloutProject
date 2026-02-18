@@ -1,0 +1,210 @@
+[
+  {
+    "challenge": "Collect 2000 Caps",
+    "reward": "1000 caps",
+    "category": "weekly",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "caps"},
+    "target_amount": 2000
+  },
+  {
+    "challenge": "Collect 3000 Caps",
+    "reward": "1500 caps",
+    "category": "weekly",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "caps"},
+    "target_amount": 3000
+  },
+  {
+    "challenge": "Collect 5000 Caps",
+    "reward": "2500 caps",
+    "category": "weekly",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "caps"},
+    "target_amount": 5000
+  },
+  {
+    "challenge": "Collect 1000 Food",
+    "reward": "500 food",
+    "category": "weekly",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "food"},
+    "target_amount": 1000
+  },
+  {
+    "challenge": "Collect 2000 Food",
+    "reward": "1000 food",
+    "category": "weekly",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "food"},
+    "target_amount": 2000
+  },
+  {
+    "challenge": "Collect 1000 Water",
+    "reward": "500 water",
+    "category": "weekly",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "water"},
+    "target_amount": 1000
+  },
+  {
+    "challenge": "Collect 2000 Water",
+    "reward": "1000 water",
+    "category": "weekly",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "water"},
+    "target_amount": 2000
+  },
+  {
+    "challenge": "Collect 1000 Power",
+    "reward": "500 power",
+    "category": "weekly",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "power"},
+    "target_amount": 1000
+  },
+  {
+    "challenge": "Collect 2000 Power",
+    "reward": "1000 power",
+    "category": "weekly",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "power"},
+    "target_amount": 2000
+  },
+  {
+    "challenge": "Build 5 Rooms",
+    "reward": "800 caps",
+    "category": "weekly",
+    "objective_type": "build",
+    "target_entity": {"room_type": "*"},
+    "target_amount": 5
+  },
+  {
+    "challenge": "Build 7 Rooms",
+    "reward": "1200 caps",
+    "category": "weekly",
+    "objective_type": "build",
+    "target_entity": {"room_type": "*"},
+    "target_amount": 7
+  },
+  {
+    "challenge": "Build 10 Rooms",
+    "reward": "1800 caps",
+    "category": "weekly",
+    "objective_type": "build",
+    "target_entity": {"room_type": "*"},
+    "target_amount": 10
+  },
+  {
+    "challenge": "Assign 5 Dwellers",
+    "reward": "500 caps",
+    "category": "weekly",
+    "objective_type": "assign",
+    "target_entity": {},
+    "target_amount": 5
+  },
+  {
+    "challenge": "Assign 8 Dwellers",
+    "reward": "800 caps",
+    "category": "weekly",
+    "objective_type": "assign",
+    "target_entity": {},
+    "target_amount": 8
+  },
+  {
+    "challenge": "Assign 10 Dwellers",
+    "reward": "1000 caps",
+    "category": "weekly",
+    "objective_type": "assign",
+    "target_entity": {},
+    "target_amount": 10
+  },
+  {
+    "challenge": "Correctly Assign 5 Dwellers",
+    "reward": "750 caps",
+    "category": "weekly",
+    "objective_type": "assign_correct",
+    "target_entity": {},
+    "target_amount": 5
+  },
+  {
+    "challenge": "Correctly Assign 8 Dwellers",
+    "reward": "1200 caps",
+    "category": "weekly",
+    "objective_type": "assign_correct",
+    "target_entity": {},
+    "target_amount": 8
+  },
+  {
+    "challenge": "Train 3 Dwellers",
+    "reward": "600 caps",
+    "category": "weekly",
+    "objective_type": "train",
+    "target_entity": {},
+    "target_amount": 3
+  },
+  {
+    "challenge": "Train 5 Dwellers",
+    "reward": "1000 caps",
+    "category": "weekly",
+    "objective_type": "train",
+    "target_entity": {},
+    "target_amount": 5
+  },
+  {
+    "challenge": "Level up 2 Dwellers to Lv.5",
+    "reward": "1000 caps",
+    "category": "weekly",
+    "objective_type": "level_up",
+    "target_entity": {"min_level": 5},
+    "target_amount": 2
+  },
+  {
+    "challenge": "Level up 3 Dwellers to Lv.5",
+    "reward": "1500 caps",
+    "category": "weekly",
+    "objective_type": "level_up",
+    "target_entity": {"min_level": 5},
+    "target_amount": 3
+  },
+  {
+    "challenge": "Level up 2 Dwellers to Lv.10",
+    "reward": "1500 caps",
+    "category": "weekly",
+    "objective_type": "level_up",
+    "target_entity": {"min_level": 10},
+    "target_amount": 2
+  },
+  {
+    "challenge": "Reach 30 Dwellers",
+    "reward": "3000 caps",
+    "category": "weekly",
+    "objective_type": "reach",
+    "target_entity": {"reach_type": "dweller_count"},
+    "target_amount": 30
+  },
+  {
+    "challenge": "Complete 2 Expeditions",
+    "reward": "800 caps",
+    "category": "weekly",
+    "objective_type": "expedition",
+    "target_entity": {},
+    "target_amount": 2
+  },
+  {
+    "challenge": "Complete 3 Expeditions",
+    "reward": "1200 caps",
+    "category": "weekly",
+    "objective_type": "expedition",
+    "target_entity": {},
+    "target_amount": 3
+  },
+  {
+    "challenge": "Complete 1 Main Quest",
+    "reward": "2000 caps",
+    "category": "weekly",
+    "objective_type": "expedition",
+    "target_entity": {"quest_type": "main"},
+    "target_amount": 1
+  }
+]

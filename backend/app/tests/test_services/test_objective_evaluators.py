@@ -9,6 +9,7 @@ from app import crud
 from app.models.dweller import Dweller
 from app.models.objective import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
+from app.schemas.common import ObjectiveCategoryEnum
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.event_bus import GameEvent, event_bus
@@ -16,6 +17,8 @@ from app.services.objective_evaluators import (
     AssignEvaluator,
     BuildEvaluator,
     CollectEvaluator,
+    ExpeditionEvaluator,
+    LevelUpEvaluator,
     ReachEvaluator,
     TrainEvaluator,
 )
@@ -65,6 +68,7 @@ async def test_collect_evaluator_resource_collected(
         objective_type="collect",
         target_entity={"resource_type": "caps"},
         target_amount=100,
+        category=ObjectiveCategoryEnum.ACHIEVEMENT,
     )
     async_session.add(objective)
     await async_session.commit()
@@ -107,6 +111,7 @@ async def test_collect_evaluator_wrong_resource(
         objective_type="collect",
         target_entity={"resource_type": "caps"},
         target_amount=100,
+        category=ObjectiveCategoryEnum.ACHIEVEMENT,
     )
     async_session.add(objective)
     await async_session.commit()
@@ -149,6 +154,7 @@ async def test_build_evaluator_room_built(
         objective_type="build",
         target_entity={"room_type": "*"},
         target_amount=3,
+        category=ObjectiveCategoryEnum.ACHIEVEMENT,
     )
     async_session.add(objective)
     await async_session.commit()
@@ -188,7 +194,12 @@ async def test_train_evaluator_dweller_trained(
 
     # Create objective
     objective = Objective(
-        challenge="Train 5 dwellers", reward="200 caps", objective_type="train", target_entity={}, target_amount=5
+        challenge="Train 5 dwellers",
+        reward="200 caps",
+        objective_type="train",
+        target_entity={},
+        target_amount=5,
+        category=ObjectiveCategoryEnum.ACHIEVEMENT,
     )
     async_session.add(objective)
     await async_session.commit()
@@ -234,7 +245,12 @@ async def test_assign_evaluator_dweller_assigned(
 
     # Create objective
     objective = Objective(
-        challenge="Assign 3 dwellers", reward="150 caps", objective_type="assign", target_entity={}, target_amount=3
+        challenge="Assign 3 dwellers",
+        reward="150 caps",
+        objective_type="assign",
+        target_entity={},
+        target_amount=3,
+        category=ObjectiveCategoryEnum.ACHIEVEMENT,
     )
     async_session.add(objective)
     await async_session.commit()
@@ -285,6 +301,7 @@ async def test_reach_evaluator_population_reached(
         objective_type="reach",
         target_entity={"reach_type": "dweller_count", "target": 10},
         target_amount=10,
+        category=ObjectiveCategoryEnum.ACHIEVEMENT,
     )
     async_session.add(objective)
     await async_session.commit()
@@ -333,6 +350,7 @@ async def test_evaluator_already_completed(
         objective_type="collect",
         target_entity={"resource_type": "caps"},
         target_amount=100,
+        category=ObjectiveCategoryEnum.ACHIEVEMENT,
     )
     async_session.add(objective)
     await async_session.commit()
@@ -376,6 +394,7 @@ async def test_collect_evaluator_item_collected_weapon(
         objective_type="collect",
         target_entity={"item_type": "weapon"},
         target_amount=3,
+        category=ObjectiveCategoryEnum.ACHIEVEMENT,
     )
     async_session.add(objective)
     await async_session.commit()
@@ -418,6 +437,7 @@ async def test_collect_evaluator_item_collected_outfit(
         objective_type="collect",
         target_entity={"item_type": "outfit"},
         target_amount=3,
+        category=ObjectiveCategoryEnum.ACHIEVEMENT,
     )
     async_session.add(objective)
     await async_session.commit()
@@ -460,6 +480,7 @@ async def test_collect_evaluator_item_collected_stimpak(
         objective_type="collect",
         target_entity={"item_type": "stimpak"},
         target_amount=5,
+        category=ObjectiveCategoryEnum.ACHIEVEMENT,
     )
     async_session.add(objective)
     await async_session.commit()
@@ -502,6 +523,7 @@ async def test_collect_evaluator_item_wrong_type(
         objective_type="collect",
         target_entity={"item_type": "weapon"},
         target_amount=3,
+        category=ObjectiveCategoryEnum.ACHIEVEMENT,
     )
     async_session.add(objective)
     await async_session.commit()
@@ -537,6 +559,7 @@ class TestAliasMatching:
             objective_type="build",
             target_entity={"room_type": "living_room"},
             target_amount=1,
+            category=ObjectiveCategoryEnum.ACHIEVEMENT,
         )
         # Event uses alias "Living Quarters"
         data = {"room_type": "Living Quarters"}
@@ -551,6 +574,7 @@ class TestAliasMatching:
             objective_type="build",
             target_entity={"room_type": "power_generator"},
             target_amount=1,
+            category=ObjectiveCategoryEnum.ACHIEVEMENT,
         )
         # Event uses alias "Power Plant"
         data = {"room_type": "Power Plant"}
@@ -565,6 +589,7 @@ class TestAliasMatching:
             objective_type="collect",
             target_entity={"resource_type": "caps"},
             target_amount=100,
+            category=ObjectiveCategoryEnum.ACHIEVEMENT,
         )
         # Event uses capitalized "Caps"
         data = {"resource_type": "Caps"}
@@ -579,6 +604,7 @@ class TestAliasMatching:
             objective_type="collect",
             target_entity={"item_type": "weapon"},
             target_amount=3,
+            category=ObjectiveCategoryEnum.ACHIEVEMENT,
         )
         # Event uses plural "Weapons"
         data = {"item_type": "Weapons"}
@@ -593,6 +619,7 @@ class TestAliasMatching:
             objective_type="collect",
             target_entity={"item_type": "outfit"},
             target_amount=3,
+            category=ObjectiveCategoryEnum.ACHIEVEMENT,
         )
         # Event uses plural "Outfits"
         data = {"item_type": "Outfits"}
@@ -607,6 +634,7 @@ class TestAliasMatching:
             objective_type="assign",
             target_entity={"room_type": "living_room"},
             target_amount=1,
+            category=ObjectiveCategoryEnum.ACHIEVEMENT,
         )
         # Event uses alias "Living Quarters"
         data = {"room_type": "Living Quarters"}
@@ -621,7 +649,203 @@ class TestAliasMatching:
             objective_type="assign",
             target_entity={},
             target_amount=5,
+            category=ObjectiveCategoryEnum.ACHIEVEMENT,
         )
-        # Any room type should match when target has no room_type
         data = {"room_type": "power_generator"}
         assert evaluator._matches(objective, GameEvent.DWELLER_ASSIGNED, data) is True
+
+
+class TestExpeditionEvaluator:
+    """Tests for ExpeditionEvaluator functionality."""
+
+    def test_matches_any_quest_type(self, fresh_event_bus):
+        """Test ExpeditionEvaluator matches any quest when no quest_type specified."""
+        evaluator = ExpeditionEvaluator(fresh_event_bus)
+        objective = Objective(
+            challenge="Complete 3 Expeditions",
+            reward="800 caps",
+            objective_type="expedition",
+            target_entity={},
+            target_amount=3,
+            category=ObjectiveCategoryEnum.ACHIEVEMENT,
+        )
+        data = {"quest_type": "main"}
+        assert evaluator._matches(objective, GameEvent.QUEST_COMPLETED, data) is True
+
+    def test_matches_specific_quest_type(self, fresh_event_bus):
+        """Test ExpeditionEvaluator matches specific quest type."""
+        evaluator = ExpeditionEvaluator(fresh_event_bus)
+        objective = Objective(
+            challenge="Complete 1 Main Quest",
+            reward="2000 caps",
+            objective_type="expedition",
+            target_entity={"quest_type": "main"},
+            target_amount=1,
+            category=ObjectiveCategoryEnum.ACHIEVEMENT,
+        )
+        data = {"quest_type": "main"}
+        assert evaluator._matches(objective, GameEvent.QUEST_COMPLETED, data) is True
+
+    def test_does_not_match_wrong_quest_type(self, fresh_event_bus):
+        """Test ExpeditionEvaluator does not match wrong quest type."""
+        evaluator = ExpeditionEvaluator(fresh_event_bus)
+        objective = Objective(
+            challenge="Complete 1 Main Quest",
+            reward="2000 caps",
+            objective_type="expedition",
+            target_entity={"quest_type": "main"},
+            target_amount=1,
+            category=ObjectiveCategoryEnum.ACHIEVEMENT,
+        )
+        data = {"quest_type": "side"}
+        assert evaluator._matches(objective, GameEvent.QUEST_COMPLETED, data) is False
+
+    def test_matches_wildcard_quest_type(self, fresh_event_bus):
+        """Test ExpeditionEvaluator matches wildcard quest type."""
+        evaluator = ExpeditionEvaluator(fresh_event_bus)
+        objective = Objective(
+            challenge="Complete 3 Expeditions",
+            reward="800 caps",
+            objective_type="expedition",
+            target_entity={"quest_type": "*"},
+            target_amount=3,
+            category=ObjectiveCategoryEnum.ACHIEVEMENT,
+        )
+        data = {"quest_type": "daily"}
+        assert evaluator._matches(objective, GameEvent.QUEST_COMPLETED, data) is True
+
+
+class TestLevelUpEvaluator:
+    """Tests for LevelUpEvaluator functionality."""
+
+    def test_matches_min_level_met(self, fresh_event_bus):
+        """Test LevelUpEvaluator matches when min_level is met."""
+        evaluator = LevelUpEvaluator(fresh_event_bus)
+        objective = Objective(
+            challenge="Level up 2 Dwellers to Lv.5",
+            reward="1000 caps",
+            objective_type="level_up",
+            target_entity={"min_level": 5},
+            target_amount=2,
+            category=ObjectiveCategoryEnum.ACHIEVEMENT,
+        )
+        data = {"new_level": 5}
+        assert evaluator._matches(objective, GameEvent.DWELLER_LEVEL_UP, data) is True
+
+    def test_matches_exceeds_min_level(self, fresh_event_bus):
+        """Test LevelUpEvaluator matches when level exceeds min_level."""
+        evaluator = LevelUpEvaluator(fresh_event_bus)
+        objective = Objective(
+            challenge="Level up 2 Dwellers to Lv.5",
+            reward="1000 caps",
+            objective_type="level_up",
+            target_entity={"min_level": 5},
+            target_amount=2,
+            category=ObjectiveCategoryEnum.ACHIEVEMENT,
+        )
+        data = {"new_level": 10}
+        assert evaluator._matches(objective, GameEvent.DWELLER_LEVEL_UP, data) is True
+
+    def test_does_not_match_below_min_level(self, fresh_event_bus):
+        """Test LevelUpEvaluator does not match when below min_level."""
+        evaluator = LevelUpEvaluator(fresh_event_bus)
+        objective = Objective(
+            challenge="Level up 2 Dwellers to Lv.5",
+            reward="1000 caps",
+            objective_type="level_up",
+            target_entity={"min_level": 5},
+            target_amount=2,
+            category=ObjectiveCategoryEnum.ACHIEVEMENT,
+        )
+        data = {"new_level": 4}
+        assert evaluator._matches(objective, GameEvent.DWELLER_LEVEL_UP, data) is False
+
+    def test_matches_no_min_level_requirement(self, fresh_event_bus):
+        """Test LevelUpEvaluator matches any level when no min_level specified."""
+        evaluator = LevelUpEvaluator(fresh_event_bus)
+        objective = Objective(
+            challenge="Level up a Dweller",
+            reward="500 caps",
+            objective_type="level_up",
+            target_entity={},
+            target_amount=1,
+            category=ObjectiveCategoryEnum.ACHIEVEMENT,
+        )
+        data = {"new_level": 2}
+        assert evaluator._matches(objective, GameEvent.DWELLER_LEVEL_UP, data) is True
+
+
+@pytest.mark.asyncio
+async def test_expedition_evaluator_quest_completed(
+    async_session: AsyncSession,
+    fresh_event_bus,
+    patched_session_maker,
+) -> None:
+    """Test ExpeditionEvaluator updates progress on quest completion."""
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault_data = create_fake_vault()
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+
+    objective = Objective(
+        challenge="Complete 3 quests",
+        reward="800 caps",
+        objective_type="expedition",
+        target_entity={},
+        target_amount=3,
+        category=ObjectiveCategoryEnum.ACHIEVEMENT,
+    )
+    async_session.add(objective)
+    await async_session.commit()
+    await async_session.refresh(objective)
+
+    link = VaultObjectiveProgressLink(
+        vault_id=vault.id, objective_id=objective.id, progress=0, total=3, is_completed=False
+    )
+    async_session.add(link)
+    await async_session.commit()
+
+    ExpeditionEvaluator(fresh_event_bus)
+
+    await fresh_event_bus.emit(GameEvent.QUEST_COMPLETED, vault.id, {"quest_type": "main"})
+
+    await async_session.refresh(link)
+    assert link.progress == 1
+
+
+@pytest.mark.asyncio
+async def test_level_up_evaluator_dweller_leveled_up(
+    async_session: AsyncSession,
+    fresh_event_bus,
+    patched_session_maker,
+) -> None:
+    """Test LevelUpEvaluator updates progress on dweller level up."""
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault_data = create_fake_vault()
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+
+    objective = Objective(
+        challenge="Level up 2 dwellers to Lv.5",
+        reward="1000 caps",
+        objective_type="level_up",
+        target_entity={"min_level": 5},
+        target_amount=2,
+        category=ObjectiveCategoryEnum.ACHIEVEMENT,
+    )
+    async_session.add(objective)
+    await async_session.commit()
+    await async_session.refresh(objective)
+
+    link = VaultObjectiveProgressLink(
+        vault_id=vault.id, objective_id=objective.id, progress=0, total=2, is_completed=False
+    )
+    async_session.add(link)
+    await async_session.commit()
+
+    LevelUpEvaluator(fresh_event_bus)
+
+    await fresh_event_bus.emit(GameEvent.DWELLER_LEVEL_UP, vault.id, {"new_level": 5})
+
+    await async_session.refresh(link)
+    assert link.progress == 1

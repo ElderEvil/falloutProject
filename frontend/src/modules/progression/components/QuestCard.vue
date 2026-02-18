@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import type { VaultQuest, QuestPartyMember } from '../models/quest'
-import type { DwellerShort } from '@/modules/dwellers/models/dweller'
-import { UCard, UBadge, UButton } from '@/core/components/ui'
+import { UBadge, UButton, UCard } from '@/core/components/ui'
 import { useQuestStore } from '@/stores/quest'
+import type { DwellerShort } from '@/modules/dwellers/models/dweller'
+import type { QuestPartyMember, VaultQuest } from '../models/quest'
 
 const questStore = useQuestStore()
 
@@ -133,9 +133,74 @@ const chainPosition = computed(() => {
 // Get the previous quest name for locked quests
 const previousQuestName = computed(() => {
   if (!props.quest.previous_quest_id) return null
+  // Search in vaultQuests first, then fall back to all quests
   const previousQuest = questStore.vaultQuests.find((q) => q.id === props.quest.previous_quest_id)
+    || questStore.quests.find((q) => q.id === props.quest.previous_quest_id)
   return previousQuest?.title || null
 })
+
+// Format reward details for display
+const formatReward = (reward: { reward_type: string; reward_data: Record<string, unknown>; reward_chance: number }) => {
+  const data = reward.reward_data || {}
+  const type = reward.reward_type.toLowerCase()
+
+  switch (type) {
+    case 'caps':
+      return `${data.amount || 0} Caps`
+    case 'resource': {
+      const resourceType = String(data.resource_type || 'resource')
+      return `${data.amount || 0} ${resourceType.charAt(0).toUpperCase() + resourceType.slice(1)}`
+    }
+    case 'experience':
+      return `${data.amount || 0} XP`
+    case 'item': {
+      const itemName = String(data.name || 'Unknown Item')
+      const rarity = data.rarity ? ` (${String(data.rarity)})` : ''
+      return `${itemName}${rarity}`
+    }
+    case 'dweller': {
+      const name = String(data.first_name || data.name || 'New Dweller')
+      const rarity = data.rarity ? ` (${String(data.rarity)})` : ''
+      return `${name}${rarity}`
+    }
+    case 'stimpak': {
+      const amt = Number(data.amount) || 1
+      return `${amt} Stimpak${amt > 1 ? 's' : ''}`
+    }
+    case 'radaway': {
+      const amt = Number(data.amount) || 1
+      return `${amt} Radaway${amt > 1 ? 's' : ''}`
+    }
+    case 'lunchbox':
+      return 'Lunchbox (3 items + 1 dweller)'
+    default:
+      return type.charAt(0).toUpperCase() + type.slice(1)
+  }
+}
+
+// Get reward icon based on type
+const getRewardIcon = (rewardType: string) => {
+  switch (rewardType.toLowerCase()) {
+    case 'caps':
+      return 'mdi:currency-usd'
+    case 'resource':
+      return 'mdi:package-variant'
+    case 'experience':
+      return 'mdi:star'
+    case 'item':
+      return 'mdi:sword'
+    case 'dweller':
+      return 'mdi:account-plus'
+    case 'stimpak':
+      return 'mdi:medical-bag'
+    case 'radaway':
+      return 'mdi:pill'
+    case 'lunchbox':
+      return 'mdi:gift'
+    default:
+      return 'mdi:gift'
+  }
+}
 
 const hasPrerequisites = computed(() => {
   return props.quest.quest_requirements && props.quest.quest_requirements.length > 0
@@ -299,8 +364,8 @@ const handleAction = () => {
       </div>
       <div v-if="quest.quest_rewards && quest.quest_rewards.length > 0" class="rewards-list">
         <div v-for="reward in quest.quest_rewards" :key="reward.id" class="reward-item">
-          <Icon icon="mdi:gift" class="reward-icon" />
-          <span class="reward-text">{{ reward.reward_type }}</span>
+          <Icon :icon="getRewardIcon(reward.reward_type)" class="reward-icon" />
+          <span class="reward-text">{{ formatReward(reward) }}</span>
           <span v-if="reward.reward_chance < 1" class="reward-chance">
             ({{ Math.round(reward.reward_chance * 100) }}%)
           </span>

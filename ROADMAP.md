@@ -9,6 +9,17 @@ AI-powered dweller interactions.
 
 ## Latest Release
 
+### v2.10.8 - RustFS Migration & Code Quality (February 19, 2026)
+
+**Focus**: Storage provider migration, objective improvements, code quality
+
+**Completed:**
+- ✅ **RustFS Migration** - Switched default storage from MinIO to RustFS
+  - Added utility scripts for image URL fixes and bucket policies
+  - Updated bucket whitelist with all required buckets
+- ✅ **Objective System** - Added `assign_correct` type, made `category` required
+- ✅ **Code Quality** - Fixed lint issues, added integration tests, addressed code review feedback
+
 ### v2.10.4 - Quest System Fix (February 13, 2026)
 
 **Focus**: Fixed quest seeding bugs and verified quest system works
@@ -750,6 +761,7 @@ watch(() => userStore.caps, (caps) => {
 | Version | Release      | Highlights                             |
 |---------|--------------|----------------------------------------|
 | v2.10.6 | Planned      | Medical storage (stimpaks/radaways)    |
+| v2.10.8 | Feb 19, 2026 | RustFS migration, code quality         |
 | v2.10.4 | Feb 13, 2026 | Quest seeding fixes, UI verified       |
 | v2.10.3 | Feb 13, 2026 | Frontend typecheck fixes               |
 | v2.10.0 | Feb 10, 2026 | Quest & Objective system launch         |

@@ -255,10 +255,28 @@ class AssignEvaluator(ObjectiveEvaluator):
         if not target_room_type:
             return True
 
-        # Use normalize_room_type to handle aliases (e.g., "living quarters" -> "living_room")
         event_room_type = normalize_room_type(data.get("room_type", ""))
         target_normalized = normalize_room_type(target_room_type)
         return event_room_type == target_normalized
+
+    def _extract_amount(self, data: dict[str, Any]) -> int:  # noqa: ARG002
+        return 1
+
+
+class AssignCorrectEvaluator(ObjectiveEvaluator):
+    """Evaluates 'assign_correct' objectives (e.g. 'Correctly Assign 5 Dwellers').
+
+    A "correct" assignment means the dweller's highest SPECIAL stat matches
+    the room's primary production stat (e.g., Strength for Power Plant).
+
+    Listens to DWELLER_ASSIGNED_CORRECTLY events.
+    """
+
+    objective_type = "assign_correct"
+    subscribed_events = [GameEvent.DWELLER_ASSIGNED_CORRECTLY]
+
+    def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:  # noqa: ARG002
+        return data.get("is_correct", False)
 
     def _extract_amount(self, data: dict[str, Any]) -> int:  # noqa: ARG002
         return 1
@@ -343,6 +361,56 @@ class ReachEvaluator(ObjectiveEvaluator):
         return result.scalar_one_or_none() or 0
 
 
+class ExpeditionEvaluator(ObjectiveEvaluator):
+    """Evaluates 'expedition' objectives (e.g. 'Complete 3 Expeditions', 'Complete 1 Main Quest').
+
+    Listens to QUEST_COMPLETED events.
+    Matches on target_entity["quest_type"] for specific quest types, or wildcard for any.
+    """
+
+    objective_type = "expedition"
+    subscribed_events = [GameEvent.QUEST_COMPLETED]
+
+    def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:  # noqa: ARG002
+        target = objective.target_entity or {}
+        target_quest_type = target.get("quest_type")
+
+        if not target_quest_type or target_quest_type in ("*", "any"):
+            return True
+
+        event_quest_type = data.get("quest_type", "")
+        return event_quest_type.lower() == target_quest_type.lower()
+
+    def _extract_amount(self, data: dict[str, Any]) -> int:  # noqa: ARG002
+        return 1
+
+
+class LevelUpEvaluator(ObjectiveEvaluator):
+    """Evaluates 'level_up' objectives (e.g. 'Level up 2 Dwellers to Lv.5+').
+
+    Listens to DWELLER_LEVEL_UP events.
+    Matches if the new level >= target_entity["min_level"].
+    Increments progress for each dweller meeting the level requirement.
+    """
+
+    objective_type = "level_up"
+    subscribed_events = [GameEvent.DWELLER_LEVEL_UP]
+
+    def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:  # noqa: ARG002
+        target = objective.target_entity or {}
+        raw_min_level = target.get("min_level", 1)
+        try:
+            min_level = int(raw_min_level)
+        except (TypeError, ValueError):
+            min_level = 1
+
+        new_level = data.get("new_level", data.get("level", 1))
+        return new_level >= min_level
+
+    def _extract_amount(self, data: dict[str, Any]) -> int:  # noqa: ARG002
+        return 1
+
+
 class ObjectiveEvaluatorManager:
     """Manages all objective evaluators, initializing them with the event bus.
 
@@ -365,7 +433,10 @@ class ObjectiveEvaluatorManager:
             BuildEvaluator,
             TrainEvaluator,
             AssignEvaluator,
+            AssignCorrectEvaluator,
             ReachEvaluator,
+            ExpeditionEvaluator,
+            LevelUpEvaluator,
         ]
 
         for cls in evaluator_classes:

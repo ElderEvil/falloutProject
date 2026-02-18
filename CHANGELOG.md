@@ -9,6 +9,38 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.10.8] - 2026-02-19
+
+### Added
+
+- **Objective Type** - New `assign_correct` objective type for assigning dwellers to correct rooms
+- **RustFS Migration Scripts** - Utility scripts for migrating from MinIO to RustFS storage
+  - `fix_dweller_image_urls.py` - Converts dweller image filenames to full URLs
+  - `set_rustfs_bucket_policies.py` - Sets public read policies on whitelisted buckets
+
+### Changed
+
+- **Storage Provider** - Default storage provider switched from MinIO to RustFS
+- **ObjectiveRead Schema** - `category` field is now required (was optional)
+
+### Fixed
+
+- **Dweller Image URL Query** - Script now selects dwellers with either `image_url` OR `thumbnail_url` (was missing thumbnail-only records)
+- **Bucket Policy Efficiency** - Pre-serialize JSON once before loop (was serializing each iteration)
+- **Bucket Policy Async** - Removed unnecessary async/asyncio wrapper (boto3 is synchronous)
+- **Objective Tests** - Added missing `category` field to Objective test instances
+- **Objective Tests** - Used enum constants instead of string literals
+- **Ruff Linting** - Resolved lint warnings in utility scripts
+- **RustFS Buckets** - Added missing buckets to public whitelist
+
+### Code Quality
+
+- Addressed multiple issues from code review
+- Added integration tests for objectives
+- Pre-commit hook updates
+
+---
+
 ## [2.10.7] - 2026-02-16
 
 ### Fixed

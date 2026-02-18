@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.schemas.common import ObjectiveCategoryEnum
 from app.schemas.objective import ObjectiveCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
@@ -14,7 +15,9 @@ from app.tests.factory.vaults import create_fake_vault
 @pytest.mark.asyncio
 async def test_create_objective(async_session: AsyncSession) -> None:
     """Test creating an objective."""
-    objective_data = ObjectiveCreate(challenge="Collect 10 weapons", reward="100 caps")
+    objective_data = ObjectiveCreate(
+        challenge="Collect 10 weapons", reward="100 caps", category=ObjectiveCategoryEnum.ACHIEVEMENT
+    )
     objective = await crud.objective_crud.create(async_session, obj_in=objective_data)
     assert objective.id
     assert objective.challenge == "Collect 10 weapons"
@@ -24,7 +27,9 @@ async def test_create_objective(async_session: AsyncSession) -> None:
 @pytest.mark.asyncio
 async def test_read_objective(async_session: AsyncSession) -> None:
     """Test reading an objective."""
-    objective_data = ObjectiveCreate(challenge="Assign 5 dwellers", reward="50 caps")
+    objective_data = ObjectiveCreate(
+        challenge="Assign 5 dwellers", reward="50 caps", category=ObjectiveCategoryEnum.ACHIEVEMENT
+    )
     objective = await crud.objective_crud.create(async_session, obj_in=objective_data)
     read_objective = await crud.objective_crud.get(async_session, id=objective.id)
     assert read_objective
@@ -45,7 +50,9 @@ async def test_create_objective_for_vault(async_session: AsyncSession) -> None:
     vault = await crud.vault.create(async_session, obj_in=vault_in)
 
     # Create objective for vault
-    objective_data = ObjectiveCreate(challenge="Collect 3 stimpaks", reward="70 caps")
+    objective_data = ObjectiveCreate(
+        challenge="Collect 3 stimpaks", reward="70 caps", category=ObjectiveCategoryEnum.ACHIEVEMENT
+    )
     objective = await crud.objective_crud.create_for_vault(
         db_session=async_session, vault_id=vault.id, obj_in=objective_data
     )
@@ -68,10 +75,14 @@ async def test_get_multi_for_vault(async_session: AsyncSession) -> None:
     vault = await crud.vault.create(async_session, obj_in=vault_in)
 
     # Create multiple objectives for vault
-    objective1_data = ObjectiveCreate(challenge="Collect 5 outfits", reward="100 caps")
+    objective1_data = ObjectiveCreate(
+        challenge="Collect 5 outfits", reward="100 caps", category=ObjectiveCategoryEnum.ACHIEVEMENT
+    )
     await crud.objective_crud.create_for_vault(db_session=async_session, vault_id=vault.id, obj_in=objective1_data)
 
-    objective2_data = ObjectiveCreate(challenge="Assign 10 dwellers", reward="200 caps")
+    objective2_data = ObjectiveCreate(
+        challenge="Assign 10 dwellers", reward="200 caps", category=ObjectiveCategoryEnum.DAILY
+    )
     await crud.objective_crud.create_for_vault(db_session=async_session, vault_id=vault.id, obj_in=objective2_data)
 
     # Get objectives for vault
@@ -107,7 +118,9 @@ async def test_update_objective_progress(async_session: AsyncSession) -> None:
     vault = await crud.vault.create(async_session, obj_in=vault_in)
 
     # Create objective
-    objective_data = ObjectiveCreate(challenge="Collect 10 weapons", reward="500 caps")
+    objective_data = ObjectiveCreate(
+        challenge="Collect 10 weapons", reward="500 caps", category=ObjectiveCategoryEnum.ACHIEVEMENT
+    )
     objective = await crud.objective_crud.create_for_vault(
         db_session=async_session, vault_id=vault.id, obj_in=objective_data
     )
@@ -135,7 +148,9 @@ async def test_complete_objective(async_session: AsyncSession) -> None:
     vault = await crud.vault.create(async_session, obj_in=vault_in)
 
     # Create objective
-    objective_data = ObjectiveCreate(challenge="Collect 100 food", reward="50 caps")
+    objective_data = ObjectiveCreate(
+        challenge="Collect 100 food", reward="50 caps", category=ObjectiveCategoryEnum.ACHIEVEMENT
+    )
     objective = await crud.objective_crud.create_for_vault(
         db_session=async_session, vault_id=vault.id, obj_in=objective_data
     )
@@ -169,7 +184,9 @@ async def test_complete_nonexistent_objective_creates_link(async_session: AsyncS
     vault = await crud.vault.create(async_session, obj_in=vault_in)
 
     # Create objective WITHOUT using create_for_vault (no link created)
-    objective_data = ObjectiveCreate(challenge="Collect 7 junk", reward="600 caps")
+    objective_data = ObjectiveCreate(
+        challenge="Collect 7 junk", reward="600 caps", category=ObjectiveCategoryEnum.ACHIEVEMENT
+    )
     objective = await crud.objective_crud.create(async_session, obj_in=objective_data)
 
     # Complete objective (should create link automatically)
@@ -202,7 +219,9 @@ async def test_update_progress_creates_link_if_not_exists(async_session: AsyncSe
     vault = await crud.vault.create(async_session, obj_in=vault_in)
 
     # Create objective WITHOUT link
-    objective_data = ObjectiveCreate(challenge="Collect 100 water", reward="50 caps")
+    objective_data = ObjectiveCreate(
+        challenge="Collect 100 water", reward="50 caps", category=ObjectiveCategoryEnum.ACHIEVEMENT
+    )
     objective = await crud.objective_crud.create(async_session, obj_in=objective_data)
 
     # Update progress (should create link)

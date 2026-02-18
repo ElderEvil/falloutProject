@@ -7,6 +7,7 @@ from app import crud
 from app.models.quest import Quest
 from app.models.quest_reward import QuestReward, RewardType
 from app.models.vault_objective import VaultObjectiveProgressLink
+from app.schemas.common import ObjectiveCategoryEnum
 from app.schemas.objective import ObjectiveCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
@@ -63,7 +64,9 @@ async def test_process_objective_reward_caps(async_session: AsyncSession) -> Non
     # Create objective with caps reward
     from app.crud.objective import objective_crud
 
-    objective = await objective_crud.create(async_session, ObjectiveCreate(challenge="Test", reward="100 caps"))
+    objective = await objective_crud.create(
+        async_session, ObjectiveCreate(challenge="Test", reward="100 caps", category=ObjectiveCategoryEnum.ACHIEVEMENT)
+    )
 
     # Create progress link
     link = VaultObjectiveProgressLink(
@@ -94,7 +97,8 @@ async def test_process_objective_reward_invalid(async_session: AsyncSession) -> 
     from app.crud.objective import objective_crud
 
     objective = await objective_crud.create(
-        async_session, ObjectiveCreate(challenge="Test", reward="invalid reward string")
+        async_session,
+        ObjectiveCreate(challenge="Test", reward="invalid reward string", category=ObjectiveCategoryEnum.ACHIEVEMENT),
     )
 
     link = VaultObjectiveProgressLink(

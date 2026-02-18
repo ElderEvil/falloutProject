@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from celery import Celery
+from celery.schedules import crontab
 from dotenv import load_dotenv
 
 # Load environment variables before importing settings
@@ -22,13 +23,22 @@ celery_app.conf.update({"beat_dburi": str(settings.SYNC_CELERY_BEAT_DATABASE_URI
 celery_app.conf.beat_schedule = {
     "game-tick-every-60-seconds": {
         "task": "game_tick",
-        "schedule": 60.0,  # Run every 60 seconds
-        "options": {"expires": 55},  # Expire if not executed within 55 seconds
+        "schedule": 60.0,
+        "options": {"expires": 55},
     },
     "check-permanent-deaths-daily": {
         "task": "check_permanent_deaths",
-        "schedule": 86400.0,  # Run every 24 hours (86400 seconds)
-        "options": {"expires": 82800},  # Expire if not executed within 23 hours
+        "schedule": 86400.0,
+        "options": {"expires": 82800},
+    },
+    "refresh-daily-objectives": {
+        "task": "refresh_daily_objectives",
+        "schedule": 86400.0,
+        "options": {"expires": 82800},
+    },
+    "refresh-weekly-objectives": {
+        "task": "refresh_weekly_objectives",
+        "schedule": crontab(minute=0, hour=0, day_of_week="monday"),
     },
 }
 

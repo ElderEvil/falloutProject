@@ -23,37 +23,20 @@ onMounted(() => {
   }
 })
 
-const filterObjectives = (status: boolean) => {
-  return objectivesStore.objectives.filter((objective) => objective.is_completed === status)
-}
+const completedObjectives = computed(() =>
+  objectivesStore.objectives.filter((objective) => objective.is_completed === true)
+)
 
-const activeObjectives = computed(() => filterObjectives(false))
-const completedObjectives = computed(() => filterObjectives(true))
-
-// Categorize objectives
 const dailyObjectives = computed(() =>
-  objectivesStore.objectives.filter(
-    (obj) => obj.challenge.toLowerCase().includes('daily') && !obj.is_completed
-  )
+  objectivesStore.objectives.filter((obj) => obj.category === 'daily' && !obj.is_completed)
 )
 
 const weeklyObjectives = computed(() =>
-  objectivesStore.objectives.filter(
-    (obj) =>
-      (obj.challenge.toLowerCase().includes('week') || obj.total >= 50) &&
-      !obj.is_completed &&
-      !obj.challenge.toLowerCase().includes('daily')
-  )
+  objectivesStore.objectives.filter((obj) => obj.category === 'weekly' && !obj.is_completed)
 )
 
 const achievementObjectives = computed(() =>
-  objectivesStore.objectives.filter(
-    (obj) =>
-      !obj.is_completed &&
-      !obj.challenge.toLowerCase().includes('daily') &&
-      !obj.challenge.toLowerCase().includes('week') &&
-      obj.total < 50
-  )
+  objectivesStore.objectives.filter((obj) => obj.category === 'achievement' && !obj.is_completed)
 )
 </script>
 

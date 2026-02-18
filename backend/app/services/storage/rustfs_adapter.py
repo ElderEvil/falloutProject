@@ -1,4 +1,5 @@
 import io
+import json
 import logging
 
 import boto3
@@ -64,6 +65,7 @@ class RustFSAdapter:
             return
         client = self._client
         assert client is not None
+        bucket_created = False
         try:
             client.head_bucket(Bucket=bucket_name)
         except ClientError as e:
@@ -72,6 +74,7 @@ class RustFSAdapter:
                 try:
                     client.create_bucket(Bucket=bucket_name)
                     logger.info(f"Created bucket: {bucket_name}")
+                    bucket_created = True
                 except ClientError as create_error:
                     error_msg = f"Error creating bucket {bucket_name}: {create_error}"
                     raise BucketNotFoundError(error_msg) from create_error
@@ -79,9 +82,42 @@ class RustFSAdapter:
                 error_msg = f"Error checking bucket {bucket_name}: {e}"
                 raise BucketNotFoundError(error_msg) from e
 
+        # Set public policy for whitelisted buckets (only after creation or if needed)
+        if bucket_created:
+            self._ensure_bucket_policy(bucket_name)
+
     def _is_public_bucket(self, bucket_name: str) -> bool:
         whitelist = getattr(settings, "RUSTFS_PUBLIC_BUCKET_WHITELIST", [])
         return bucket_name in whitelist
+
+    def _get_public_policy(self, bucket_name: str) -> str:
+        """Generate a public read policy for a bucket."""
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {"AWS": ["*"]},
+                    "Action": ["s3:GetObject"],
+                    "Resource": [f"arn:aws:s3:::{bucket_name}/*"],
+                }
+            ],
+        }
+        return json.dumps(policy)
+
+    def _ensure_bucket_policy(self, bucket_name: str) -> None:
+        """Set public bucket policy for whitelisted buckets."""
+        if not self.enabled or not self.client:
+            return
+        if not self._is_public_bucket(bucket_name):
+            return
+
+        policy = self._get_public_policy(bucket_name)
+        try:
+            self.client.put_bucket_policy(Bucket=bucket_name, Policy=policy)
+            logger.info(f"Set public policy for bucket: {bucket_name}")
+        except ClientError as e:
+            logger.warning(f"Could not set bucket policy for {bucket_name}: {e}")
 
     def upload_file(
         self,

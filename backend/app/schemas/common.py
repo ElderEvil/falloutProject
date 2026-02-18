@@ -44,6 +44,12 @@ class RarityEnum(CaseInsensitiveEnum):
     LEGENDARY = "legendary"
 
 
+class ObjectiveCategoryEnum(CaseInsensitiveEnum):
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    ACHIEVEMENT = "achievement"
+
+
 class SPECIALEnum(CaseInsensitiveEnum):
     STRENGTH = "strength"
     PERCEPTION = "perception"

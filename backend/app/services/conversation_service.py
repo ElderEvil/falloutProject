@@ -154,6 +154,9 @@ class ConversationService:
         dweller_response_text: str
         happiness_impact: HappinessImpact | None = None
         action_suggestion = None
+        prompt_tokens: int | None = None
+        completion_tokens: int | None = None
+        total_tokens: int | None = None
 
         # Prepare agent dependencies
         deps = DwellerChatDeps(
@@ -168,6 +171,11 @@ class ConversationService:
             output: DwellerChatOutput = result.output
 
             dweller_response_text = output.response_text
+
+            usage = result.usage()
+            prompt_tokens = usage.input_tokens if usage else None
+            completion_tokens = usage.output_tokens if usage else None
+            total_tokens = usage.total_tokens if usage else None
 
             # Compute happiness delta from sentiment score
             delta = compute_happiness_delta(output.sentiment_score)
@@ -240,6 +248,9 @@ class ConversationService:
             response=dweller_response_text,
             usage="audio_chat",
             user_id=user.id,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
         )
         llm_interaction = await llm_interaction_crud.create(db_session, obj_in=llm_int_create)
 

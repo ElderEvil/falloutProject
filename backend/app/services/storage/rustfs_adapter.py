@@ -56,9 +56,11 @@ class RustFSAdapter:
             return public_url.rstrip("/")
         hostname = getattr(settings, "RUSTFS_HOSTNAME", "s3.evillab.dev")
         port = getattr(settings, "RUSTFS_PORT", "")
+        use_https = getattr(settings, "RUSTFS_USE_HTTPS", False)
+        scheme = "https" if use_https else "http"
         if port:
-            return f"https://{hostname}:{port}"
-        return f"https://{hostname}"
+            return f"{scheme}://{hostname}:{port}"
+        return f"{scheme}://{hostname}"
 
     def _ensure_bucket_exists(self, bucket_name: str) -> None:
         if not self.enabled:

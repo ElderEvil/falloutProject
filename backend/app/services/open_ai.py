@@ -7,6 +7,12 @@ Migration Guide:
     - New projects: Use PYDANTIC_AI_GATEWAY_API_KEY (recommended)
     - Existing projects: Direct provider keys still work but emit deprecation warnings
     - Set AI_PROVIDER to choose the upstream provider when using Gateway
+
+Architecture Notes:
+    - Chat/Text: Uses PydanticAI Gateway when PYDANTIC_AI_GATEWAY_API_KEY is set
+    - Image (DALL-E): Uses direct OpenAI client (Gateway ImageGenerationTool requires Agent pattern)
+    - Audio (TTS/Whisper): Uses direct OpenAI client (Gateway does not support OpenAI native audio APIs)
+    - For image/audio: Set both PYDANTIC_AI_GATEWAY_API_KEY AND OPENAI_API_KEY for full functionality
 """
 
 import asyncio
@@ -168,10 +174,17 @@ class AIService:
             raise RuntimeError("OpenAI client not available. Use AI_PROVIDER=openai for image/audio features.")
 
     async def generate_image(self, *, prompt: str, return_bytes: bool = False) -> str | bytes:
-        """Generate an image using DALL-E."""
+        """Generate an image using DALL-E via direct OpenAI API.
+
+        Note: Image generation uses direct OpenAI client, not Gateway.
+        Gateway's ImageGenerationTool requires Agent pattern which is incompatible
+        with the current service architecture. Set OPENAI_API_KEY for image features.
+        """
         self._ensure_client_available()
         if self._client is None:
             raise RuntimeError("OpenAI client not available")
+        if self._using_gateway:
+            logger.debug("Image generation via direct OpenAI client (Gateway doesn't support image API)")
         response = await asyncio.to_thread(
             self._client.images.generate, model="dall-e-3", prompt=prompt, size="1024x1024", quality="standard", n=1
         )
@@ -181,10 +194,16 @@ class AIService:
         return await image_url_to_bytes(url) if return_bytes else url
 
     async def generate_audio(self, text: str, voice: str = "alloy", model: str = "tts-1") -> bytes:
-        """Generate audio from text using OpenAI's TTS API."""
+        """Generate audio from text using OpenAI's TTS API via direct client.
+
+        Note: Audio generation uses direct OpenAI client, not Gateway.
+        Gateway does not support OpenAI's native TTS API. Set OPENAI_API_KEY for audio features.
+        """
         self._ensure_client_available()
         if self._client is None:
             raise RuntimeError("OpenAI client not available")
+        if self._using_gateway:
+            logger.debug("Audio generation via direct OpenAI client (Gateway doesn't support TTS API)")
         try:
             with self._client.audio.speech.with_streaming_response.create(
                 model=model,
@@ -251,10 +270,16 @@ class AIService:
         return speech_file_path
 
     async def transcribe_audio(self, audio_bytes: bytes, filename: str = "audio.webm") -> str:
-        """Transcribe audio to text using Whisper."""
+        """Transcribe audio to text using Whisper via direct OpenAI client.
+
+        Note: Audio transcription uses direct OpenAI client, not Gateway.
+        Gateway does not support OpenAI's native Whisper API. Set OPENAI_API_KEY for transcription.
+        """
         self._ensure_client_available()
         if self._client is None:
             raise RuntimeError("OpenAI client not available")
+        if self._using_gateway:
+            logger.debug("Audio transcription via direct OpenAI client (Gateway doesn't support Whisper API)")
         try:
             from io import BytesIO
 

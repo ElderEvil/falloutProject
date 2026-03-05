@@ -7,6 +7,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { UButton, UCard } from '@/core/components/ui'
 import ProfileEditor from '../components/ProfileEditor.vue'
 import { LifeDeathStatistics } from '@/modules/dwellers/components/death'
+import AIUsageCard from '../components/AIUsageCard.vue'
 import type { ProfileUpdate } from '../models/profile'
 import { useWebSocket } from '@/core/composables/useWebSocket'
 
@@ -33,14 +34,15 @@ let statsInterval: ReturnType<typeof setInterval> | null = null
 onMounted(async () => {
   await fetchProfile()
   await profileStore.fetchDeathStatistics()
+  await profileStore.fetchAIUsage()
 
-  // Establish connection if user ID is ready
   if (wsUrl.value) {
     connect(wsUrl.value)
   }
 
   statsInterval = setInterval(() => {
     profileStore.fetchDeathStatistics()
+    profileStore.fetchAIUsage()
   }, 30000)
 })
 
@@ -306,10 +308,14 @@ const formatDate = (dateString: string) => {
         </div>
 
         <!-- Right Column: Statistics -->
-        <div>
+        <div class="space-y-6">
           <LifeDeathStatistics
             :statistics="profileStore.deathStatistics"
             :loading="profileStore.deathStatsLoading"
+          />
+          <AIUsageCard
+            :stats="profileStore.aiUsageStats"
+            :loading="profileStore.aiUsageLoading"
           />
         </div>
       </div>

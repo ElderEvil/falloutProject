@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Annotated
 
@@ -6,6 +7,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
 from pydantic import UUID4
 from pydantic.networks import EmailStr
+from redis.asyncio import Redis
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -15,8 +17,10 @@ from app.core.config import settings
 from app.core.email import send_verification_email
 from app.crud.user_profile import profile_crud
 from app.db.session import get_async_session
+from app.schemas.ai_usage import AIUsageResponse
 from app.schemas.user import UserCreate, UserRead, UserUpdate, UserWithTokens
 from app.schemas.user_profile import ProfileRead, ProfileUpdate
+from app.services.ai_usage_service import ai_usage_service
 
 logger = logging.getLogger(__name__)
 
@@ -285,3 +289,23 @@ async def get_death_statistics(
     from app.services.death_service import death_service
 
     return await death_service.get_death_statistics(db_session, user.id)
+
+
+@router.get("/me/profile/ai-usage", response_model=AIUsageResponse)
+async def get_ai_usage(
+    *,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    user: CurrentActiveUser,
+    redis_client: Annotated[Redis, Depends(get_redis_client)],
+) -> AIUsageResponse:
+    cache_key = f"user:{user.id}:ai_usage"
+
+    cached = await redis_client.get(cache_key)
+    if cached:
+        return AIUsageResponse.model_validate(json.loads(cached))
+
+    usage = await ai_usage_service.get_user_usage(db_session, user.id)
+
+    await redis_client.setex(cache_key, 300, usage.model_dump_json())
+
+    return usage

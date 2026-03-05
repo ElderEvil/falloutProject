@@ -70,11 +70,15 @@ class DwellerAIService:
 
         await dweller_crud.update(db_session, dweller_obj.id, DwellerUpdate(bio=backstory))
 
+        usage = result.usage()
         llm_int_create = LLMInteractionCreate(
             parameters=origin,
             response=backstory,
             usage="generate_backstory",
             user_id=user.id,
+            prompt_tokens=usage.input_tokens if usage else None,
+            completion_tokens=usage.output_tokens if usage else None,
+            total_tokens=usage.total_tokens if usage else None,
         )
         await llm_interaction_crud.create(
             db_session,
@@ -100,11 +104,15 @@ class DwellerAIService:
 
         await dweller_crud.update(db_session, dweller_id, DwellerUpdate(bio=full_bio))
 
+        usage = result.usage()
         llm_int_create = LLMInteractionCreate(
             parameters=dweller_obj.bio,
             response=extended_bio,
             usage="extend_bio",
             user_id=user.id,
+            prompt_tokens=usage.input_tokens if usage else None,
+            completion_tokens=usage.output_tokens if usage else None,
+            total_tokens=usage.total_tokens if usage else None,
         )
         await llm_interaction_crud.create(
             db_session,
@@ -144,11 +152,15 @@ class DwellerAIService:
 
         await dweller_crud.update(db_session, dweller_obj.id, DwellerUpdate(visual_attributes=visual_attributes))
 
+        usage = result.usage()
         llm_int_create = LLMInteractionCreate(
             parameters=dweller_obj.bio,
             response=str(visual_attributes),
             usage="generate_visual_attributes",
             user_id=user.id,
+            prompt_tokens=usage.input_tokens if usage else None,
+            completion_tokens=usage.output_tokens if usage else None,
+            total_tokens=usage.total_tokens if usage else None,
         )
         await llm_interaction_crud.create(
             db_session,

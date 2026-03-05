@@ -53,15 +53,16 @@ class Settings(BaseSettings):
     ]
 
     # Storage Provider Selection (minio or rustfs)
-    STORAGE_PROVIDER: Literal["minio", "rustfs"] = "minio"
+    STORAGE_PROVIDER: Literal["minio", "rustfs"] = "rustfs"
 
     # RustFS Configuration (S3-compatible)
-    RUSTFS_HOSTNAME: str | None = "s3.evillab.dev"
+    RUSTFS_HOSTNAME: str | None = None
     RUSTFS_PORT: str | None = None
+    RUSTFS_USE_HTTPS: bool = False
     RUSTFS_ACCESS_KEY: str | None = None
     RUSTFS_SECRET_KEY: str | None = None
     RUSTFS_DEFAULT_BUCKET: str = "fallout-shelter"
-    RUSTFS_PUBLIC_URL: str | None = "https://s3.evillab.dev"
+    RUSTFS_PUBLIC_URL: str | None = None
     RUSTFS_PUBLIC_BUCKET_WHITELIST: list[str] = [
         "fallout-shelter",
         "dweller-images",
@@ -137,6 +138,14 @@ class Settings(BaseSettings):
     LOG_JSON_FORMAT: bool = False  # True for production (JSON), False for development (human-readable)
     LOG_FILE_PATH: str | None = None  # Optional: "/var/log/fallout_shelter/app.log"
     LOG_FILE_RETENTION_DAYS: int = 14  # Number of days to retain log files
+
+    # Logfire Observability (optional)
+    LOGFIRE_TOKEN: str | None = None  # Get token from https://logfire.pydantic.dev
+
+    @property
+    def logfire_enabled(self) -> bool:
+        """Check if Logfire observability is configured."""
+        return bool(self.LOGFIRE_TOKEN)
 
     # Security & Rate Limiting Configuration (fastapi-guard)
     ENABLE_RATE_LIMITING: bool = True  # Enable/disable rate limiting

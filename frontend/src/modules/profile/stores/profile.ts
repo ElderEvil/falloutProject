@@ -1,10 +1,10 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { UserProfile, ProfileUpdate } from '../models/profile'
+import type { AIUsageStats } from '../models/aiUsage'
 import axios from '@/core/plugins/axios'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
 
-// Death statistics type (matches backend response)
 export interface DeathStatistics {
   total_dwellers_born: number
   total_dwellers_died: number
@@ -20,11 +20,12 @@ export interface DeathStatistics {
 }
 
 export const useProfileStore = defineStore('profile', () => {
-  // State
   const profile = ref<UserProfile | null>(null)
   const deathStatistics = ref<DeathStatistics | null>(null)
+  const aiUsageStats = ref<AIUsageStats | null>(null)
   const loading = ref(false)
   const deathStatsLoading = ref(false)
+  const aiUsageLoading = ref(false)
   const error = ref<string | null>(null)
 
   // Getters
@@ -95,24 +96,38 @@ export const useProfileStore = defineStore('profile', () => {
     }
   }
 
+  async function fetchAIUsage(): Promise<AIUsageStats | null> {
+    aiUsageLoading.value = true
+    try {
+      const response = await axios.get<AIUsageStats>('/api/v1/users/me/profile/ai-usage')
+      aiUsageStats.value = response.data
+      return response.data
+    } catch (err: any) {
+      console.error('Failed to fetch AI usage:', err)
+      return null
+    } finally {
+      aiUsageLoading.value = false
+    }
+  }
+
   function clearError(): void {
     error.value = null
   }
 
   return {
-    // State
     profile,
     deathStatistics,
+    aiUsageStats,
     loading,
     deathStatsLoading,
+    aiUsageLoading,
     error,
-    // Getters
     hasProfile,
     statistics,
-    // Actions
     fetchProfile,
     updateProfile,
     fetchDeathStatistics,
+    fetchAIUsage,
     clearError,
   }
 })

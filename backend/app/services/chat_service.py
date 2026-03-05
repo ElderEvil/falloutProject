@@ -125,7 +125,14 @@ class ChatService:
             raise ValueError("Dweller not found")
 
         # Run agent and get response
-        response_message, happiness_impact, action_suggestion = await self._run_chat_agent(
+        (
+            response_message,
+            happiness_impact,
+            action_suggestion,
+            prompt_tokens,
+            completion_tokens,
+            total_tokens,
+        ) = await self._run_chat_agent(
             db_session=db_session,
             dweller=dweller,
             message_text=message_text,
@@ -137,6 +144,9 @@ class ChatService:
             response=response_message,
             usage="chat_with_dweller",
             user_id=user.id,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
         )
         llm_interaction = await llm_interaction_crud.create(
             db_session,
@@ -185,7 +195,7 @@ class ChatService:
         db_session: AsyncSession,
         dweller: DwellerReadFull,
         message_text: str,
-    ) -> tuple[str, HappinessImpact | None, ActionSuggestion]:
+    ) -> tuple[str, HappinessImpact | None, ActionSuggestion, int | None, int | None, int | None]:
         """Run the chat agent and process the response.
 
         Args:
@@ -194,7 +204,8 @@ class ChatService:
             message_text: Text message from user
 
         Returns:
-            Tuple of (response_message, happiness_impact, action_suggestion)
+            Tuple of (response_message, happiness_impact, action_suggestion,
+                     prompt_tokens, completion_tokens, total_tokens)
         """
         # Prepare agent dependencies
         deps = DwellerChatDeps(
@@ -209,6 +220,11 @@ class ChatService:
             output: DwellerChatOutput = result.output
 
             response_message = output.response_text
+
+            usage = result.usage()
+            prompt_tokens = usage.input_tokens if usage else None
+            completion_tokens = usage.output_tokens if usage else None
+            total_tokens = usage.total_tokens if usage else None
 
             # Compute happiness delta from sentiment score
             delta = compute_happiness_delta(output.sentiment_score)
@@ -232,7 +248,7 @@ class ChatService:
             # Parse action suggestion from agent output
             action_suggestion = await parse_action_suggestion(output, db_session, dweller)
 
-            return response_message, happiness_impact, action_suggestion
+            return response_message, happiness_impact, action_suggestion, prompt_tokens, completion_tokens, total_tokens
 
         except Exception:
             # Fallback: neutral happiness + no_action on agent failure
@@ -257,7 +273,7 @@ class ChatService:
             )
             action_suggestion = NoAction(reason="Unable to analyze conversation for suggestions")
 
-            return response_message, happiness_impact, action_suggestion
+            return response_message, happiness_impact, action_suggestion, None, None, None
 
 
 # Singleton instance

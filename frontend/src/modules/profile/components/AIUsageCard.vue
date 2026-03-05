@@ -57,7 +57,7 @@ const monthLabel = computed(() => props.stats?.month ?? '')
 
       <div class="border-t border-theme-primary/20 pt-4 space-y-3">
         <div class="text-xs text-theme-primary/60 uppercase tracking-wider mb-3">Token Breakdown</div>
-        
+
         <div class="flex items-center gap-3">
           <Icon icon="mdi:arrow-up-bold" class="h-5 w-5 text-green-400" />
           <div class="flex-1">
@@ -66,8 +66,8 @@ const monthLabel = computed(() => props.stats?.month ?? '')
               <span class="text-theme-primary">{{ formatNumber(stats.all_time.prompt_tokens) }}</span>
             </div>
             <div class="h-1 bg-theme-primary/10 rounded mt-1">
-              <div 
-                class="h-full bg-green-400/60 rounded" 
+              <div
+                class="h-full bg-green-400/60 rounded"
                 :style="{ width: stats.all_time.total_tokens > 0 ? (stats.all_time.prompt_tokens / stats.all_time.total_tokens * 100) + '%' : '0%' }"
               />
             </div>
@@ -82,8 +82,8 @@ const monthLabel = computed(() => props.stats?.month ?? '')
               <span class="text-theme-primary">{{ formatNumber(stats.all_time.completion_tokens) }}</span>
             </div>
             <div class="h-1 bg-theme-primary/10 rounded mt-1">
-              <div 
-                class="h-full bg-blue-400/60 rounded" 
+              <div
+                class="h-full bg-blue-400/60 rounded"
                 :style="{ width: stats.all_time.total_tokens > 0 ? (stats.all_time.completion_tokens / stats.all_time.total_tokens * 100) + '%' : '0%' }"
               />
             </div>

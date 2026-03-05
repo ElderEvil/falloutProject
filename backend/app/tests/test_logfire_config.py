@@ -17,10 +17,10 @@ class TestLogfireConfig:
         assert is_logfire_enabled() is False
 
     def test_configure_logfire_with_token_sets_enabled(self, monkeypatch):
-        from app.core import config
-
         import importlib
+
         import app.core.logfire_config as logfire_module
+        from app.core import config
 
         monkeypatch.setattr(config.settings, "LOGFIRE_TOKEN", "test_token_for_testing")
 

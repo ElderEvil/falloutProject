@@ -1,5 +1,4 @@
-from pydantic import Field
-from sqlmodel import SQLModel
+from sqlmodel import Field, SQLModel
 
 
 class AIUsageStats(SQLModel):

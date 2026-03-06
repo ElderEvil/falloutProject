@@ -34,6 +34,7 @@ from app.admin.views import (
 )
 from app.api.v1.api import api_router as api_router_v1
 from app.core.config import settings
+from app.core.logfire_config import configure_logfire
 from app.core.logging import setup_logging
 from app.db.session import async_engine, get_async_session
 from app.middleware.request_id import RequestIdMiddleware
@@ -95,6 +96,9 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         break
 
     logger.info("Fallout Shelter API startup complete")
+
+    # Initialize logfire observability (before evaluators)
+    configure_logfire()
 
     # Initialize objective evaluators
     evaluator_manager.initialize()

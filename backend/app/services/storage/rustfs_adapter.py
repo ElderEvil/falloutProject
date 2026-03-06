@@ -54,7 +54,7 @@ class RustFSAdapter:
         public_url = getattr(settings, "RUSTFS_PUBLIC_URL", "")
         if public_url:
             return public_url.rstrip("/")
-        hostname = getattr(settings, "RUSTFS_HOSTNAME", "s3.evillab.dev")
+        hostname = getattr(settings, "RUSTFS_HOSTNAME", None) or "s3.evillab.dev"
         port = getattr(settings, "RUSTFS_PORT", "")
         use_https = getattr(settings, "RUSTFS_USE_HTTPS", False)
         scheme = "https" if use_https else "http"

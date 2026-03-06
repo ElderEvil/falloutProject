@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import EmailStr, PostgresDsn, field_validator
+from pydantic import EmailStr, PostgresDsn, field_validator, model_validator
 from pydantic_core.core_schema import FieldValidationInfo
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -215,6 +215,16 @@ class Settings(BaseSettings):
                 path=info.data["POSTGRES_DB"],
             )
         return v
+
+    @model_validator(mode="after")
+    def validate_rustfs_config(self) -> "Settings":
+        if self.STORAGE_PROVIDER == "rustfs" and (not self.RUSTFS_HOSTNAME or not self.RUSTFS_PORT):
+            msg = (
+                "STORAGE_PROVIDER is 'rustfs' but RUSTFS_HOSTNAME and/or RUSTFS_PORT are not set. "
+                "Either configure RustFS settings or change STORAGE_PROVIDER to 'minio'."
+            )
+            raise ValueError(msg)
+        return self
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

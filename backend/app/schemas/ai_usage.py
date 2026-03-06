@@ -1,10 +1,11 @@
+from pydantic import Field
 from sqlmodel import SQLModel
 
 
 class AIUsageStats(SQLModel):
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
-    total_tokens: int = 0
+    prompt_tokens: int = Field(default=0, ge=0)
+    completion_tokens: int = Field(default=0, ge=0)
+    total_tokens: int = Field(default=0, ge=0)
 
 
 class AIUsageResponse(SQLModel):

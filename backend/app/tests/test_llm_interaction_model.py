@@ -1,4 +1,5 @@
 import pytest
+from pydantic import ValidationError
 
 from app.models.llm_interaction import LLMInteraction, LLMInteractionBase
 
@@ -28,7 +29,7 @@ class TestLLMInteractionModel:
         assert data.total_tokens is None
 
     def test_token_fields_reject_negative_values(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError, match="greater than or equal to 0"):
             LLMInteractionBase(
                 parameters="test",
                 response="test response",

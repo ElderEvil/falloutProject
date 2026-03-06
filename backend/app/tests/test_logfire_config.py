@@ -1,5 +1,9 @@
+import importlib
+
 import pytest
 
+import app.core.config as config_module
+import app.core.logfire_config as logfire_module
 from app.core.logfire_config import configure_logfire, is_logfire_enabled
 
 
@@ -8,21 +12,14 @@ class TestLogfireConfig:
         assert is_logfire_enabled() is False
 
     def test_configure_logfire_without_token(self, monkeypatch):
-        from app.core import config
-
-        monkeypatch.setattr(config.settings, "LOGFIRE_TOKEN", None)
+        monkeypatch.setattr(config_module.settings, "LOGFIRE_TOKEN", None)
 
         configure_logfire()
 
         assert is_logfire_enabled() is False
 
     def test_configure_logfire_with_token_sets_enabled(self, monkeypatch):
-        import importlib
-
-        import app.core.logfire_config as logfire_module
-        from app.core import config
-
-        monkeypatch.setattr(config.settings, "LOGFIRE_TOKEN", "test_token_for_testing")
+        monkeypatch.setattr(config_module.settings, "LOGFIRE_TOKEN", "test_token_for_testing")
 
         logfire_module.configure_logfire()
 

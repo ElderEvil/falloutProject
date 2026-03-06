@@ -101,43 +101,17 @@ class ConversationService:
         Try to be in character and be in line with the Fallout universe.{audio_instruction}
         """
 
-    async def process_audio_message(
-        self,
-        db_session: AsyncSession,
-        user: User,
-        dweller_id: UUID4,
-        audio_bytes: bytes,
-        audio_filename: str = "audio.webm",
-    ) -> dict:
-        """
-        Process an audio message from user to dweller.
-
-        Steps:
-        1. Transcribe audio (STT)
-        2. Generate text response from dweller (LLM with structured output)
-        3. Apply happiness delta from sentiment analysis
-        4. Generate audio response (TTS)
-        5. Save everything to database and MinIO
-
-        Returns:
-            dict with user_message, dweller_response, happiness_impact, action_suggestion, and dweller_audio_url
-        """
-        # Get dweller info
-        dweller = await dweller_crud.get_full_info(db_session, dweller_id)
-        if not dweller:
-            msg = f"Dweller {dweller_id} not found"
-            raise ValueError(msg)
-
-        # Step 1: Transcribe user audio
-        logger.info("Transcribing audio message from user %s to dweller %s", user.id, dweller_id)
+    async def _transcribe_audio(
+        self, audio_bytes: bytes, user_id: UUID4, dweller_id: UUID4, audio_filename: str
+    ) -> tuple[str, str | None, float]:
+        """Transcribe audio and upload to storage. Returns (text, audio_url, duration)."""
         transcribed_text = await self.ai_service.transcribe_audio(audio_bytes, filename=audio_filename)
         logger.debug("Transcription result: %s", transcribed_text)
 
-        # Upload user audio to MinIO (optional, for history)
         user_audio_url = None
         if self.storage_service is not None:
             user_audio_filename = (
-                f"chat/{user.id}/{dweller_id}/user_{uuid4()}.{audio_filename.rsplit('.', maxsplit=1)[-1]}"
+                f"chat/{user_id}/{dweller_id}/user_{uuid4()}.{audio_filename.rsplit('.', maxsplit=1)[-1]}"
             )
             user_audio_url = self.storage_service.upload_file(
                 file_data=audio_bytes,
@@ -146,48 +120,30 @@ class ConversationService:
                 bucket_name="chat-audio",
             )
 
-        # Calculate audio duration (rough estimate: 1 byte ~ 1/8000 seconds for typical audio)
-        # This is a placeholder - ideally use a library like pydub to get accurate duration
-        audio_duration = len(audio_bytes) / 16000.0  # Rough estimate for WebM/Opus
+        audio_duration = len(audio_bytes) / 16000.0
+        return transcribed_text, user_audio_url, audio_duration
 
-        # Step 2: Generate dweller response using PydanticAI agent with structured output
-        dweller_response_text: str
-        happiness_impact: HappinessImpact | None = None
-        action_suggestion = None
-        prompt_tokens: int | None = None
-        completion_tokens: int | None = None
-        total_tokens: int | None = None
-
-        # Prepare agent dependencies
-        deps = DwellerChatDeps(
-            db_session=db_session,
-            dweller=dweller,
-            vault_id=dweller.vault.id,
-        )
+    async def _generate_response_with_agent(
+        self, db_session: AsyncSession, dweller, transcribed_text: str
+    ) -> tuple[str, HappinessImpact | None, dict | None, int | None, int | None, int | None]:
+        """Generate dweller response using PydanticAI agent. Returns (response, happiness, action, tokens...)."""
+        deps = DwellerChatDeps(db_session=db_session, dweller=dweller, vault_id=dweller.vault.id)
 
         try:
             logger.info("Generating dweller response using PydanticAI agent")
             result = await dweller_chat_agent.run(transcribed_text, deps=deps)
             output: DwellerChatOutput = result.output
 
-            dweller_response_text = output.response_text
-
             usage = result.usage()
             prompt_tokens = usage.input_tokens if usage else None
             completion_tokens = usage.output_tokens if usage else None
             total_tokens = usage.total_tokens if usage else None
 
-            # Compute happiness delta from sentiment score
             delta = compute_happiness_delta(output.sentiment_score)
-
-            # Apply happiness change to dweller and vault
             new_dweller_happiness, _ = await apply_chat_happiness(
-                db_session=db_session,
-                dweller_id=dweller_id,
-                delta=delta,
+                db_session=db_session, dweller_id=dweller.id, delta=delta
             )
 
-            # Build happiness impact response
             reason_code_str = derive_reason_code(output.sentiment_score)
             happiness_impact = HappinessImpact(
                 delta=delta,
@@ -196,53 +152,70 @@ class ConversationService:
                 happiness_after=new_dweller_happiness,
             )
 
-            # Parse action suggestion from agent output
             action_suggestion = await parse_action_suggestion(output, db_session, dweller)
-
-        except Exception:
-            # Fallback: neutral happiness + no_action on agent failure
-            logger.exception("Dweller chat agent failed, using fallback for voice chat")
-
-            # Fall back to basic chat completion
-            dweller_prompt = self._build_dweller_prompt(dweller, for_audio=True)
-            dweller_response_text = await self.ai_service.chat_completion(
-                [
-                    {"role": "system", "content": dweller_prompt.strip()},
-                    {"role": "user", "content": transcribed_text},
-                ]
+            return (
+                output.response_text,
+                happiness_impact,
+                action_suggestion,
+                prompt_tokens,
+                completion_tokens,
+                total_tokens,
             )
 
-            # Neutral fallback - no happiness change
-            happiness_impact = HappinessImpact(
+        except Exception:
+            logger.exception("Dweller chat agent failed, using fallback for voice chat")
+            dweller_prompt = self._build_dweller_prompt(dweller, for_audio=True)
+            response = await self.ai_service.chat_completion(
+                [{"role": "system", "content": dweller_prompt.strip()}, {"role": "user", "content": transcribed_text}]
+            )
+            happiness = HappinessImpact(
                 delta=0,
                 reason_code=HappinessReasonCode.CHAT_NEUTRAL,
                 reason_text="Voice chat processed without sentiment analysis",
                 happiness_after=dweller.happiness,
             )
-            action_suggestion = NoAction(reason="Unable to analyze conversation for suggestions")
-
-        # Step 3: Generate audio response (TTS)
-        voice = self._select_voice_for_gender(dweller.gender)
-        logger.info("Generating TTS audio for dweller response (gender=%s, voice=%s)", dweller.gender, voice)
-        dweller_audio_bytes = await self.ai_service.generate_audio(
-            text=dweller_response_text,
-            voice=voice,
-            model="tts-1",
-        )
-
-        # Upload dweller audio to MinIO
-        dweller_audio_url = None
-        if self.storage_service is not None:
-            dweller_audio_filename = f"chat/{user.id}/{dweller_id}/dweller_{uuid4()}.mp3"
-            dweller_audio_url = self.storage_service.upload_file(
-                file_data=dweller_audio_bytes,
-                file_name=dweller_audio_filename,
-                file_type="audio/mpeg",
-                bucket_name="chat-audio",
+            return (
+                response,
+                happiness,
+                NoAction(reason="Unable to analyze conversation for suggestions"),
+                None,
+                None,
+                None,
             )
 
-        # Step 4: Save to database
-        # Save LLM interaction statistics
+    async def _generate_tts_audio(
+        self, text: str, gender: GenderEnum | None, user_id: UUID4, dweller_id: UUID4
+    ) -> tuple[bytes, str | None]:
+        """Generate TTS audio and upload to storage. Returns (audio_bytes, audio_url)."""
+        voice = self._select_voice_for_gender(gender)
+        logger.info("Generating TTS audio (gender=%s, voice=%s)", gender, voice)
+        audio_bytes = await self.ai_service.generate_audio(text=text, voice=voice, model="tts-1")
+
+        audio_url = None
+        if self.storage_service is not None:
+            audio_filename = f"chat/{user_id}/{dweller_id}/dweller_{uuid4()}.mp3"
+            audio_url = self.storage_service.upload_file(
+                file_data=audio_bytes, file_name=audio_filename, file_type="audio/mpeg", bucket_name="chat-audio"
+            )
+
+        return audio_bytes, audio_url
+
+    async def _save_messages_to_db(
+        self,
+        db_session: AsyncSession,
+        user: User,
+        dweller,
+        transcribed_text: str,
+        user_audio_url: str | None,
+        audio_duration: float,
+        dweller_response_text: str,
+        dweller_audio_url: str | None,
+        happiness_impact: HappinessImpact | None,
+        prompt_tokens: int | None,
+        completion_tokens: int | None,
+        total_tokens: int | None,
+    ) -> UUID4:
+        """Save messages and LLM interaction to database. Returns dweller_message_id."""
         llm_int_create = LLMInteractionCreate(
             parameters=transcribed_text,
             response=dweller_response_text,
@@ -254,7 +227,6 @@ class ConversationService:
         )
         llm_interaction = await llm_interaction_crud.create(db_session, obj_in=llm_int_create)
 
-        # Save user message
         await chat_message_crud.create_message(
             db_session,
             obj_in=ChatMessageCreate(
@@ -268,7 +240,6 @@ class ConversationService:
             ),
         )
 
-        # Save dweller response
         chat_create_data = ChatMessageCreate(
             vault_id=dweller.vault.id,
             from_dweller_id=dweller.id,
@@ -277,14 +248,58 @@ class ConversationService:
             audio_url=dweller_audio_url,
             llm_interaction_id=llm_interaction.id,
         )
-
         if happiness_impact:
             chat_create_data.happiness_delta = happiness_impact.delta
             chat_create_data.happiness_reason = happiness_impact.reason_text
 
-        dweller_message = await chat_message_crud.create_message(
+        dweller_message = await chat_message_crud.create_message(db_session, obj_in=chat_create_data)
+        return dweller_message.id
+
+    async def process_audio_message(
+        self,
+        db_session: AsyncSession,
+        user: User,
+        dweller_id: UUID4,
+        audio_bytes: bytes,
+        audio_filename: str = "audio.webm",
+    ) -> dict:
+        """Process an audio message from user to dweller."""
+        dweller = await dweller_crud.get_full_info(db_session, dweller_id)
+        if not dweller:
+            msg = f"Dweller {dweller_id} not found"
+            raise ValueError(msg)
+
+        logger.info("Transcribing audio message from user %s to dweller %s", user.id, dweller_id)
+        transcribed_text, user_audio_url, audio_duration = await self._transcribe_audio(
+            audio_bytes, user.id, dweller_id, audio_filename
+        )
+
+        (
+            dweller_response_text,
+            happiness_impact,
+            action_suggestion,
+            prompt_tokens,
+            completion_tokens,
+            total_tokens,
+        ) = await self._generate_response_with_agent(db_session, dweller, transcribed_text)
+
+        dweller_audio_bytes, dweller_audio_url = await self._generate_tts_audio(
+            dweller_response_text, dweller.gender, user.id, dweller_id
+        )
+
+        dweller_message_id = await self._save_messages_to_db(
             db_session,
-            obj_in=chat_create_data,
+            user,
+            dweller,
+            transcribed_text,
+            user_audio_url,
+            audio_duration,
+            dweller_response_text,
+            dweller_audio_url,
+            happiness_impact,
+            prompt_tokens,
+            completion_tokens,
+            total_tokens,
         )
 
         return {
@@ -292,8 +307,8 @@ class ConversationService:
             "user_audio_url": user_audio_url,
             "dweller_response": dweller_response_text,
             "dweller_audio_url": dweller_audio_url,
-            "dweller_audio_bytes": dweller_audio_bytes,  # For immediate playback
-            "dweller_message_id": dweller_message.id,
+            "dweller_audio_bytes": dweller_audio_bytes,
+            "dweller_message_id": dweller_message_id,
             "happiness_impact": happiness_impact,
             "action_suggestion": action_suggestion,
         }

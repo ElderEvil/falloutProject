@@ -232,5 +232,5 @@ class FileDownloadError(MinioError):
     """Raised when a file download from MinIO fails."""
 
 
-class DwellerNotFoundError(Exception):
+class DwellerNotFoundError(NotFoundException):
     """Raised when a dweller is not found."""

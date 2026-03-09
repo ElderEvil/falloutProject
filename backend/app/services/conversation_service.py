@@ -45,7 +45,7 @@ class MessagePayload:
 
     transcribed_text: str
     user_audio_url: str | None
-    audio_duration: float
+    audio_duration: float | None
     dweller_response_text: str
     dweller_audio_url: str | None
     happiness_impact: HappinessImpact | None = None
@@ -98,7 +98,7 @@ class ConversationService:
 
     async def _transcribe_audio(
         self, audio_bytes: bytes, user_id: UUID4, dweller_id: UUID4, audio_filename: str
-    ) -> tuple[str, str | None, float]:
+    ) -> tuple[str, str | None, float | None]:
         transcribed_text = await self.ai_service.transcribe_audio(audio_bytes, filename=audio_filename)
         logger.debug("Transcription result: %s", transcribed_text)
 
@@ -114,8 +114,7 @@ class ConversationService:
                 bucket_name="chat-audio",
             )
 
-        audio_duration = len(audio_bytes) / 16000.0
-        return transcribed_text, user_audio_url, audio_duration
+        return transcribed_text, user_audio_url, None
 
     async def _generate_response_with_agent(
         self, db_session: AsyncSession, dweller, transcribed_text: str
@@ -125,31 +124,6 @@ class ConversationService:
         try:
             logger.info("Generating dweller response using PydanticAI agent")
             result = await dweller_chat_agent.run(transcribed_text, deps=deps)
-            output: DwellerChatOutput = result.output
-            usage = result.usage()
-            prompt_tokens = usage.input_tokens if usage else None
-            completion_tokens = usage.output_tokens if usage else None
-            total_tokens = usage.total_tokens if usage else None
-            delta = compute_happiness_delta(output.sentiment_score)
-            new_dweller_happiness, _ = await apply_chat_happiness(
-                db_session=db_session, dweller_id=dweller.id, delta=delta
-            )
-            reason_code_str = derive_reason_code(output.sentiment_score)
-            happiness_impact = HappinessImpact(
-                delta=delta,
-                reason_code=HappinessReasonCode(reason_code_str),
-                reason_text=output.reason_text,
-                happiness_after=new_dweller_happiness,
-            )
-            action_suggestion = await parse_action_suggestion(output, db_session, dweller)
-            return (
-                output.response_text,
-                happiness_impact,
-                action_suggestion,
-                prompt_tokens,
-                completion_tokens,
-                total_tokens,
-            )
         except Exception:
             logger.exception("Dweller chat agent failed, using fallback for voice chat")
             dweller_prompt = self._build_dweller_prompt(dweller, for_audio=True)
@@ -173,6 +147,30 @@ class ConversationService:
                 None,
                 None,
             )
+
+        output: DwellerChatOutput = result.output
+        usage = result.usage()
+        prompt_tokens = usage.input_tokens if usage else None
+        completion_tokens = usage.output_tokens if usage else None
+        total_tokens = usage.total_tokens if usage else None
+        delta = compute_happiness_delta(output.sentiment_score)
+        new_dweller_happiness, _ = await apply_chat_happiness(db_session=db_session, dweller_id=dweller.id, delta=delta)
+        reason_code_str = derive_reason_code(output.sentiment_score)
+        happiness_impact = HappinessImpact(
+            delta=delta,
+            reason_code=HappinessReasonCode(reason_code_str),
+            reason_text=output.reason_text,
+            happiness_after=new_dweller_happiness,
+        )
+        action_suggestion = await parse_action_suggestion(output, db_session, dweller)
+        return (
+            output.response_text,
+            happiness_impact,
+            action_suggestion,
+            prompt_tokens,
+            completion_tokens,
+            total_tokens,
+        )
 
     async def _generate_tts_audio(
         self, text: str, gender: GenderEnum | None, user_id: UUID4, dweller_id: UUID4

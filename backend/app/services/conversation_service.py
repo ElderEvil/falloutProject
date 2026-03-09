@@ -55,6 +55,16 @@ class MessagePayload:
     total_tokens: int | None = None
 
 
+@dataclass
+class ChatGenerationResult:
+    text: str
+    happiness_impact: HappinessImpact | None
+    action_suggestion: ActionSuggestion | None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    total_tokens: int | None = None
+
+
 class ConversationService:
     """Handles audio conversation logic: STT, LLM response, TTS."""
 
@@ -118,7 +128,7 @@ class ConversationService:
 
     async def _generate_response_with_agent(
         self, db_session: AsyncSession, dweller, transcribed_text: str
-    ) -> tuple[str, HappinessImpact | None, ActionSuggestion | None, int | None, int | None, int | None]:
+    ) -> ChatGenerationResult:
         deps = DwellerChatDeps(db_session=db_session, dweller=dweller, vault_id=dweller.vault.id)
 
         try:
@@ -127,7 +137,7 @@ class ConversationService:
         except Exception:
             logger.exception("Dweller chat agent failed, using fallback for voice chat")
             dweller_prompt = self._build_dweller_prompt(dweller, for_audio=True)
-            response = await self.ai_service.chat_completion(
+            result = await self.ai_service.chat_completion_with_usage(
                 [
                     {"role": "system", "content": dweller_prompt.strip()},
                     {"role": "user", "content": transcribed_text},
@@ -139,13 +149,13 @@ class ConversationService:
                 reason_text="Voice chat processed without sentiment analysis",
                 happiness_after=dweller.happiness,
             )
-            return (
-                response,
-                happiness,
-                NoAction(reason="Unable to analyze conversation for suggestions"),
-                None,
-                None,
-                None,
+            return ChatGenerationResult(
+                text=result.text,
+                happiness_impact=happiness,
+                action_suggestion=NoAction(reason="Unable to analyze conversation for suggestions"),
+                prompt_tokens=result.prompt_tokens,
+                completion_tokens=result.completion_tokens,
+                total_tokens=result.total_tokens,
             )
 
         output: DwellerChatOutput = result.output
@@ -163,13 +173,13 @@ class ConversationService:
             happiness_after=new_dweller_happiness,
         )
         action_suggestion = await parse_action_suggestion(output, db_session, dweller)
-        return (
-            output.response_text,
-            happiness_impact,
-            action_suggestion,
-            prompt_tokens,
-            completion_tokens,
-            total_tokens,
+        return ChatGenerationResult(
+            text=output.response_text,
+            happiness_impact=happiness_impact,
+            action_suggestion=action_suggestion,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
         )
 
     async def _generate_tts_audio(
@@ -247,40 +257,33 @@ class ConversationService:
             audio_bytes, user.id, dweller_id, audio_filename
         )
 
-        (
-            dweller_response_text,
-            happiness_impact,
-            action_suggestion,
-            prompt_tokens,
-            completion_tokens,
-            total_tokens,
-        ) = await self._generate_response_with_agent(db_session, dweller, transcribed_text)
+        response = await self._generate_response_with_agent(db_session, dweller, transcribed_text)
         dweller_audio_bytes, dweller_audio_url = await self._generate_tts_audio(
-            dweller_response_text, dweller.gender, user.id, dweller_id
+            response.text, dweller.gender, user.id, dweller_id
         )
         payload = MessagePayload(
             transcribed_text=transcribed_text,
             user_audio_url=user_audio_url,
             audio_duration=audio_duration,
-            dweller_response_text=dweller_response_text,
+            dweller_response_text=response.text,
             dweller_audio_url=dweller_audio_url,
-            happiness_impact=happiness_impact,
-            action_suggestion=action_suggestion,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            total_tokens=total_tokens,
+            happiness_impact=response.happiness_impact,
+            action_suggestion=response.action_suggestion,
+            prompt_tokens=response.prompt_tokens,
+            completion_tokens=response.completion_tokens,
+            total_tokens=response.total_tokens,
         )
         dweller_message_id = await self._save_messages_to_db(db_session, user, dweller, payload)
 
         return {
             "transcription": transcribed_text,
             "user_audio_url": user_audio_url,
-            "dweller_response": dweller_response_text,
+            "dweller_response": response.text,
             "dweller_audio_url": dweller_audio_url,
             "dweller_audio_bytes": dweller_audio_bytes,
             "dweller_message_id": dweller_message_id,
-            "happiness_impact": happiness_impact,
-            "action_suggestion": action_suggestion,
+            "happiness_impact": response.happiness_impact,
+            "action_suggestion": response.action_suggestion,
         }
 
 

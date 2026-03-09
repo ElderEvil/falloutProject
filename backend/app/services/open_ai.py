@@ -18,6 +18,7 @@ Architecture Notes:
 import asyncio
 import logging
 import warnings
+from dataclasses import dataclass
 from typing import Any, Optional, Self
 
 import openai
@@ -28,6 +29,14 @@ from app.core.config import settings
 from app.utils.image_processing import image_url_to_bytes
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ChatCompletionResult:
+    text: str
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    total_tokens: int | None = None
 
 
 class AIService:
@@ -299,7 +308,10 @@ class AIService:
             raise
 
     async def chat_completion(self, messages: list[dict[str, str]]) -> str:
-        """Generate chat completion using the configured AI provider and model."""
+        result = await self.chat_completion_with_usage(messages)
+        return result.text
+
+    async def chat_completion_with_usage(self, messages: list[dict[str, str]]) -> ChatCompletionResult:
         self._ensure_model_available()
         if self._model is None:
             raise RuntimeError("AI model not configured")
@@ -317,7 +329,14 @@ class AIService:
 
         agent = Agent(model=self._model, system_prompt=system_prompt) if system_prompt else Agent(model=self._model)
         result = await agent.run(user_input)
-        return result.output
+
+        usage = result.usage()
+        return ChatCompletionResult(
+            text=result.output,
+            prompt_tokens=usage.input_tokens if usage else None,
+            completion_tokens=usage.output_tokens if usage else None,
+            total_tokens=usage.total_tokens if usage else None,
+        )
 
 
 def get_ai_service() -> AIService:

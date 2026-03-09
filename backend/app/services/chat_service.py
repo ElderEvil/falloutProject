@@ -251,20 +251,17 @@ class ChatService:
             return response_message, happiness_impact, action_suggestion, prompt_tokens, completion_tokens, total_tokens
 
         except Exception:
-            # Fallback: neutral happiness + no_action on agent failure
             logger.exception("Dweller chat agent failed, using fallback")
 
-            # Fall back to basic chat completion
             ai_service = get_ai_service()
             dweller_prompt = conversation_service._build_dweller_prompt(dweller, for_audio=False)
-            response_message = await ai_service.chat_completion(
+            result = await ai_service.chat_completion_with_usage(
                 [
                     {"role": "system", "content": dweller_prompt.strip()},
                     {"role": "user", "content": message_text},
                 ]
             )
 
-            # Neutral fallback - no happiness change
             happiness_impact = HappinessImpact(
                 delta=0,
                 reason_code=HappinessReasonCode.CHAT_NEUTRAL,
@@ -273,7 +270,14 @@ class ChatService:
             )
             action_suggestion = NoAction(reason="Unable to analyze conversation for suggestions")
 
-            return response_message, happiness_impact, action_suggestion, None, None, None
+            return (
+                result.text,
+                happiness_impact,
+                action_suggestion,
+                result.prompt_tokens,
+                result.completion_tokens,
+                result.total_tokens,
+            )
 
 
 # Singleton instance

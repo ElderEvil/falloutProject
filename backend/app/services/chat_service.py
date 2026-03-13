@@ -30,6 +30,8 @@ from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.chat_happiness_service import apply_chat_happiness
 from app.services.conversation_service import conversation_service
 from app.services.open_ai import get_ai_service
+from app.services.quota_service import quota_service
+from app.utils.exceptions import QuotaExceededException
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +125,21 @@ class ChatService:
         dweller = await dweller_crud.get_full_info(db_session, dweller_id)
         if not dweller:
             raise ValueError("Dweller not found")
+
+        # Check quota before running chat agent
+        quota_result = await quota_service.check_quota(user.id, db_session)
+
+        # Build headers for quota info
+        quota_headers = {
+            "X-Quota-Remaining": str(quota_result.remaining),
+        }
+        if quota_result.warning:
+            quota_headers["X-Quota-Warning"] = "true"
+
+        # If quota exceeded, raise exception with headers
+        if not quota_result.allowed:
+            detail = f"Monthly token quota exceeded. You have used {quota_result.used} of {quota_result.limit} tokens."
+            raise QuotaExceededException(detail=detail, headers=quota_headers)
 
         # Run agent and get response
         (

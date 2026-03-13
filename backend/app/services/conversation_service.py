@@ -28,8 +28,9 @@ from app.schemas.happiness import HappinessImpact, HappinessReasonCode
 from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.chat_happiness_service import apply_chat_happiness
 from app.services.open_ai import get_ai_service
+from app.services.quota_service import quota_service
 from app.services.storage import get_storage_client
-from app.utils.exceptions import DwellerNotFoundError
+from app.utils.exceptions import DwellerNotFoundError, QuotaExceededException
 
 logger = logging.getLogger(__name__)
 
@@ -256,6 +257,21 @@ class ConversationService:
         transcribed_text, user_audio_url, audio_duration = await self._transcribe_audio(
             audio_bytes, user.id, dweller_id, audio_filename
         )
+
+        # Check quota before running LLM (after transcription, before AI response)
+        quota_result = await quota_service.check_quota(user.id, db_session)
+
+        # Build headers for quota info
+        quota_headers = {
+            "X-Quota-Remaining": str(quota_result.remaining),
+        }
+        if quota_result.warning:
+            quota_headers["X-Quota-Warning"] = "true"
+
+        # If quota exceeded, raise exception with headers
+        if not quota_result.allowed:
+            detail = f"Monthly token quota exceeded. You have used {quota_result.used} of {quota_result.limit} tokens."
+            raise QuotaExceededException(detail=detail, headers=quota_headers)
 
         response = await self._generate_response_with_agent(db_session, dweller, transcribed_text)
         dweller_audio_bytes, dweller_audio_url = await self._generate_tts_audio(

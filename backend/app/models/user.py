@@ -21,6 +21,7 @@ class UserBase(SQLModel):
     email_verification_token: str | None = Field(default=None, index=True)
     password_reset_token: str | None = Field(default=None, index=True)
     password_reset_expires: datetime | None = Field(default=None)
+    monthly_token_limit: int | None = Field(default=500000, nullable=True)
 
 
 class User(BaseUUIDModel, UserBase, TimeStampMixin, SoftDeleteMixin, table=True):

@@ -157,6 +157,9 @@ class Settings(BaseSettings):
     SECURITY_WHITELIST_IPS: list[str] = []  # IPs to whitelist (bypass rate limiting)
     SECURITY_BLACKLIST_IPS: list[str] = []  # IPs to block completely
 
+    # Quota Configuration
+    QUOTA_DISABLED: bool = False  # Disable token quotas (useful for local dev/testing)
+
     @property
     def redis_url(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"

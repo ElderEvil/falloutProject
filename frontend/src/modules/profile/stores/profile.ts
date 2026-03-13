@@ -31,6 +31,9 @@ export const useProfileStore = defineStore('profile', () => {
   // Getters
   const hasProfile = computed(() => profile.value !== null)
 
+  const quotaExceeded = computed(() => aiUsageStats.value?.quota_exceeded ?? false)
+  const quotaWarning = computed(() => aiUsageStats.value?.quota_warning ?? false)
+
   const statistics = computed(() => {
     if (!profile.value) return null
     return {
@@ -110,6 +113,11 @@ export const useProfileStore = defineStore('profile', () => {
     }
   }
 
+  async function fetchQuotaStatus(): Promise<AIUsageStats | null> {
+    // Fetch fresh quota status from API (no caching)
+    return fetchAIUsage()
+  }
+
   function clearError(): void {
     error.value = null
   }
@@ -124,10 +132,13 @@ export const useProfileStore = defineStore('profile', () => {
     error,
     hasProfile,
     statistics,
+    quotaExceeded,
+    quotaWarning,
     fetchProfile,
     updateProfile,
     fetchDeathStatistics,
     fetchAIUsage,
+    fetchQuotaStatus,
     clearError,
   }
 })

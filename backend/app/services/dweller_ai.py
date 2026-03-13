@@ -1,4 +1,5 @@
 import logging
+from math import ceil
 
 from fastapi import HTTPException
 from pydantic import UUID4
@@ -14,8 +15,9 @@ from app.schemas.common import GenderEnum
 from app.schemas.dweller import DwellerReadFull, DwellerUpdate, DwellerVisualAttributesInput
 from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.open_ai import get_ai_service
+from app.services.quota_service import quota_service
 from app.services.storage import get_storage_client
-from app.utils.exceptions import ContentNoChangeException
+from app.utils.exceptions import ContentNoChangeException, QuotaExceededException
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +45,13 @@ class DwellerAIService:
         origin: str | None = None,
     ) -> DwellerReadFull:
         """Generate a backstory for a dweller using PydanticAI agent."""
+        # Check quota before making LLM call
+        quota_result = await quota_service.check_quota(user.id, db_session)
+        if not quota_result.allowed:
+            raise QuotaExceededException(
+                detail=f"Monthly token quota exceeded. Used: {quota_result.used}/{quota_result.limit} tokens."
+            )
+
         dweller_obj = dweller_info or await dweller_crud.get_full_info(db_session, dweller_id)
         if dweller_obj.bio:
             raise ContentNoChangeException(detail="Dweller already has a bio")
@@ -89,6 +98,13 @@ class DwellerAIService:
 
     async def extend_bio(self, db_session: AsyncSession, dweller_id: UUID4, user: User) -> DwellerReadFull:
         """Extend existing dweller bio using PydanticAI agent."""
+        # Check quota before making LLM call
+        quota_result = await quota_service.check_quota(user.id, db_session)
+        if not quota_result.allowed:
+            raise QuotaExceededException(
+                detail=f"Monthly token quota exceeded. Used: {quota_result.used}/{quota_result.limit} tokens."
+            )
+
         dweller_obj = await dweller_crud.get_full_info(db_session, dweller_id)
         if not dweller_obj.bio:
             raise ContentNoChangeException(detail="Dweller doesn't have a bio to extend")
@@ -130,6 +146,13 @@ class DwellerAIService:
         dweller_info: DwellerReadFull | None = None,
     ) -> DwellerReadFull:
         """Generate visual attributes for a dweller using PydanticAI agent."""
+        # Check quota before making LLM call
+        quota_result = await quota_service.check_quota(user.id, db_session)
+        if not quota_result.allowed:
+            raise QuotaExceededException(
+                detail=f"Monthly token quota exceeded. Used: {quota_result.used}/{quota_result.limit} tokens."
+            )
+
         dweller_obj = dweller_info or await dweller_crud.get_full_info(db_session, dweller_id)
         if dweller_obj.visual_attributes:
             raise ContentNoChangeException(detail="Dweller already has visual attributes")
@@ -234,6 +257,10 @@ class DwellerAIService:
         """
         Generates a voice line for a dweller, uploads it to MinIO, and updates dweller info.
         """
+        # Estimate TTS tokens using character count approximation (~4 chars per token)
+        # TTS doesn't return token counts from API, so we estimate based on input text
+        estimated_tokens = ceil(len(text) / 4)
+
         dweller_obj = dweller_info or await dweller_crud.get_full_info(db_session, dweller_id)
         if dweller_obj.visual_attributes and dweller_obj.visual_attributes.get("voice_line_url"):
             raise ContentNoChangeException(detail="Dweller already has an audio line. Overwrite not implemented yet.")
@@ -243,6 +270,13 @@ class DwellerAIService:
             raise HTTPException(
                 status_code=503,
                 detail="Audio upload service (MinIO) is not available. Cannot generate audio.",
+            )
+
+        # Check quota before making TTS API call
+        quota_result = await quota_service.check_quota(user.id, db_session)
+        if not quota_result.allowed:
+            raise QuotaExceededException(
+                detail=f"Monthly token quota exceeded. Used: {quota_result.used}/{quota_result.limit} tokens."
             )
 
         try:
@@ -270,10 +304,13 @@ class DwellerAIService:
         )
 
         llm_int_create = LLMInteractionCreate(
-            parameters=f"text_input: {text}, voice_type: {voice_type}",  # Store input parameters
+            parameters=f"text_input: {text}, voice_type: {voice_type}",
             response=audio_url,
             usage="generate_audio",
             user_id=user.id,
+            prompt_tokens=None,
+            completion_tokens=estimated_tokens,
+            total_tokens=estimated_tokens,
         )
         await llm_interaction_crud.create(
             db_session,

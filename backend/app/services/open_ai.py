@@ -145,8 +145,11 @@ class AIService:
     def _initialize_ollama(self) -> None:
         """Initialize using local Ollama instance."""
         if settings.OLLAMA_BASE_URL:
-            self._model = OpenAIChatModel(model_name=settings.AI_MODEL, provider="ollama")
-            logger.info(f"AI initialized with Ollama ({settings.AI_MODEL})")
+            from pydantic_ai.providers.ollama import OllamaProvider
+
+            provider = OllamaProvider(base_url=settings.OLLAMA_BASE_URL)
+            self._model = OpenAIChatModel(model_name=settings.AI_MODEL, provider=provider)
+            logger.info(f"AI initialized with Ollama ({settings.AI_MODEL}) at {settings.OLLAMA_BASE_URL}")
 
     @property
     def model(self) -> Optional[Any]:

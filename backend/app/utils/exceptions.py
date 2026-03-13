@@ -234,3 +234,19 @@ class FileDownloadError(MinioError):
 
 class DwellerNotFoundError(NotFoundException):
     """Raised when a dweller is not found."""
+
+
+class QuotaExceededException(HTTPException):
+    """
+    Exception raised when a user exceeds their monthly token quota.
+
+    :param detail: Optional detailed message with quota information.
+    :param headers: Optional HTTP headers to be sent in the response.
+    """
+
+    def __init__(
+        self,
+        detail: str = "Monthly token quota exceeded. Please try again next month or contact support.",
+        headers: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=detail, headers=headers)

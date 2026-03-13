@@ -9,6 +9,7 @@ from uuid import UUID
 
 import pytest
 import pytest_asyncio
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
@@ -92,7 +93,7 @@ async def check_and_record_quota(
 
         return True
 
-    except Exception:
+    except SQLAlchemyError:
         return False
 
 

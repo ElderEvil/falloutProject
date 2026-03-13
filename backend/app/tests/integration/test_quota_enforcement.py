@@ -44,8 +44,7 @@ async def quota_user_fixture(async_session: AsyncSession) -> User:
         password="testpass123",
         is_superuser=False,
     )
-    user = await crud.user.create(db_session=async_session, obj_in=user_in)
-    return user
+    return await crud.user.create(db_session=async_session, obj_in=user_in)
 
 
 @pytest_asyncio.fixture(name="user_at_quota_limit")
@@ -388,7 +387,6 @@ class TestAdminQuotaBypass:
     async def test_admin_bypasses_quota(
         self,
         async_client: AsyncClient,
-        async_session: AsyncSession,
         superuser_token_headers: dict[str, str],
         quota_dweller: "Dweller",
     ):

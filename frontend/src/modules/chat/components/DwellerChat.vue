@@ -32,9 +32,11 @@ const audioMode = ref(false)
 // Quota exceeded state
 const isQuotaExceeded = computed(() => profileStore.quotaExceeded)
 const resetDate = computed(() => {
-  const date = profileStore.aiUsageStats?.reset_date
-  if (!date) return 'soon'
-  return new Date(date).toLocaleDateString('en-US', {
+  const resetDateStr = profileStore.aiUsageStats?.quota?.reset_date || ''
+  if (!resetDateStr) return 'soon'
+  const [year, month, day] = resetDateStr.split('-')
+  const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+  return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',

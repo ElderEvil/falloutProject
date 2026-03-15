@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     # RustFS Configuration (S3-compatible)
     RUSTFS_HOSTNAME: str | None = None
     RUSTFS_PORT: str | None = None
-    RUSTFS_USE_HTTPS: bool = False
+    RUSTFS_USE_HTTPS: bool = True
     RUSTFS_ACCESS_KEY: str | None = None
     RUSTFS_SECRET_KEY: str | None = None
     RUSTFS_DEFAULT_BUCKET: str = "fallout-shelter"

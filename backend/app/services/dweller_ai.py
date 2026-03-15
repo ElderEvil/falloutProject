@@ -274,9 +274,10 @@ class DwellerAIService:
 
         # Check quota before making TTS API call
         quota_result = await quota_service.check_quota(user.id, db_session)
-        if not quota_result.allowed:
+        if not quota_result.allowed or quota_result.remaining < estimated_tokens:
             raise QuotaExceededException(
-                detail=f"Monthly token quota exceeded. Used: {quota_result.used}/{quota_result.limit} tokens."
+                detail=f"Monthly token quota exceeded. Used: {quota_result.used}/{quota_result.limit} tokens. "
+                f"Estimated TTS cost: {estimated_tokens} tokens."
             )
 
         try:

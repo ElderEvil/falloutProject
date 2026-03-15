@@ -8,7 +8,7 @@ All tests mock the LLM service to avoid calling real APIs.
 """
 
 import io
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -315,14 +315,10 @@ class TestVoiceChatQuotaEnforcement:
                     params={"return_audio": False},
                 )
 
-                # Quota check happens after transcription in conversation_service
-                # So we may get 429 if blocked after transcription, or 200 if transcription passed
-                # but the LLM response is blocked
-                if response.status_code == 429:
-                    data = response.json()
-                    assert "detail" in data
-                    assert "quota" in data["detail"].lower()
-                # If 200, the transcription succeeded but we should verify the response structure
+                assert response.status_code == 429
+                data = response.json()
+                assert "detail" in data
+                assert "quota" in data["detail"].lower()
 
 
 @pytest.mark.asyncio

@@ -21,14 +21,14 @@ from sqlalchemy import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.llm_interaction import LLMInteraction
+from app.models.user import User
 from app.schemas.ai_usage import AIUsageResponse, AIUsageStats, QuotaInfo
+from app.services.quota_service import DEFAULT_QUOTA_LIMIT
 
 if TYPE_CHECKING:
     from uuid import UUID
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_QUOTA_LIMIT = 100000
 
 
 class AIUsageService:
@@ -42,11 +42,20 @@ class AIUsageService:
             current_month_start = datetime(now.year, now.month, 1)
             month_str = now.strftime("%Y-%m")
 
+            # Fetch user to get their monthly_token_limit
+            from sqlalchemy import select as sa_select
+            from sqlmodel import col
+
+            user_result = await db_session.execute(sa_select(User).where(col(User.id) == user_id))
+            user = user_result.scalar_one_or_none()
+
             all_time_stats = await self._aggregate_tokens(db_session, user_id)
             monthly_stats = await self._aggregate_tokens(db_session, user_id, since=current_month_start)
 
             quota_used = monthly_stats.total_tokens
-            quota_limit = DEFAULT_QUOTA_LIMIT
+            quota_limit = (
+                user.monthly_token_limit if user and user.monthly_token_limit is not None else DEFAULT_QUOTA_LIMIT
+            )
             quota_remaining = max(0, quota_limit - quota_used)
             quota_percentage = (quota_used / quota_limit * 100) if quota_limit > 0 else 0.0
             quota_warning = quota_percentage >= 80.0

@@ -31,8 +31,8 @@ export const useProfileStore = defineStore('profile', () => {
   // Getters
   const hasProfile = computed(() => profile.value !== null)
 
-  const quotaExceeded = computed(() => aiUsageStats.value?.quota_exceeded ?? false)
-  const quotaWarning = computed(() => aiUsageStats.value?.quota_warning ?? false)
+  const quotaExceeded = computed(() => aiUsageStats.value?.quota?.quota_exceeded ?? false)
+  const quotaWarning = computed(() => aiUsageStats.value?.quota?.quota_warning ?? false)
 
   const statistics = computed(() => {
     if (!profile.value) return null

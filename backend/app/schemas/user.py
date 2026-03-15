@@ -33,3 +33,9 @@ class UserReadWithVaults(UserRead):
 @optional()
 class UserUpdate(UserBase):
     password: str | None
+
+
+class UserAdminUpdate(UserBase):
+    """Schema for admin-only updates including quota management."""
+
+    monthly_token_limit: int | None = None

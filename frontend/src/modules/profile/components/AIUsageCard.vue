@@ -3,8 +3,8 @@ import { computed, ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { UCard, UAlert } from '@/core/components/ui'
-import type { AIUsageStats } from '../models/aiUsage'
 import USkeleton from '@/core/components/ui/USkeleton.vue'
+import type { AIUsageStats } from '../models/aiUsage'
 
 interface Props {
   stats: AIUsageStats | null

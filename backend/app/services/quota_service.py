@@ -108,7 +108,7 @@ class QuotaService:
                 used=0,
             )
 
-        quota_limit = user.monthly_token_limit or DEFAULT_QUOTA_LIMIT
+        quota_limit = user.monthly_token_limit if user.monthly_token_limit is not None else DEFAULT_QUOTA_LIMIT
 
         now = datetime.now(UTC)
         current_month_start = datetime(now.year, now.month, 1, tzinfo=UTC)
@@ -158,6 +158,9 @@ class QuotaService:
             Exception: Re-raised after logging if database or cache operation fails.
         """
         from redis.exceptions import RedisError
+
+        if tokens < 0:
+            raise ValueError("Token count cannot be negative")
 
         try:
             interaction = LLMInteraction(

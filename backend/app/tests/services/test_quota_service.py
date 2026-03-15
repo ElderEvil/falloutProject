@@ -30,25 +30,25 @@ from app.utils.exceptions import ResourceNotFoundException
 
 
 @pytest.fixture
-def quota_service():
+def quota_service() -> QuotaService:
     """Create a fresh QuotaService instance."""
     return QuotaService()
 
 
 @pytest.fixture
-def user_id():
+def user_id() -> UUID:
     """Generate a test user ID."""
     return uuid4()
 
 
 @pytest.fixture
-def mock_db_session():
+def mock_db_session() -> AsyncMock:
     """Create a mock database session."""
     return AsyncMock()
 
 
 @pytest.fixture
-def mock_redis_client():
+def mock_redis_client() -> Redis:
     """Create a mock Redis client."""
     redis = AsyncMock(spec=Redis)
     redis.delete = AsyncMock(return_value=1)
@@ -56,7 +56,7 @@ def mock_redis_client():
 
 
 @pytest.fixture
-def mock_user():
+def mock_user() -> User:
     """Create a mock user object."""
     user = MagicMock(spec=User)
     user.id = uuid4()

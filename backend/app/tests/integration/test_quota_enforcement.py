@@ -27,6 +27,7 @@ from app.schemas.common import GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.dweller_ai import DwellerBackstory, DwellerVisualAttributes
 from app.schemas.user import UserCreate
+from app.services.conversation_service import conversation_service
 from app.services.dweller_ai import dweller_ai
 from app.tests.utils.user import authentication_token_from_email
 
@@ -300,25 +301,26 @@ class TestVoiceChatQuotaEnforcement:
         audio_data = b"RIFF" + b"\x00" * 100
         files = {"audio_file": ("test.webm", io.BytesIO(audio_data), "audio/webm")}
 
-        with patch("app.services.conversation_service.dweller_chat_agent") as mock_agent:
+        mock_ai_service = MagicMock()
+        mock_ai_service.transcribe_audio = AsyncMock(return_value="Hello there")
+        with (
+            patch("app.services.conversation_service.dweller_chat_agent") as mock_agent,
+            patch.object(conversation_service, "ai_service", mock_ai_service),
+            patch("app.services.quota_service.settings") as mock_settings,
+        ):
             mock_agent.run = AsyncMock()
+            mock_settings.QUOTA_DISABLED = False
+            response = await async_client.post(
+                f"chat/{quota_dweller.id}/voice",
+                headers=token_headers,
+                files=files,
+                params={"return_audio": False},
+            )
 
-            with patch("app.services.conversation_service.get_ai_service") as mock_ai:
-                mock_ai_service = MagicMock()
-                mock_ai_service.transcribe_audio = AsyncMock(return_value="Hello there")
-                mock_ai.return_value = mock_ai_service
-
-                response = await async_client.post(
-                    f"chat/{quota_dweller.id}/voice",
-                    headers=token_headers,
-                    files=files,
-                    params={"return_audio": False},
-                )
-
-                assert response.status_code == 429
-                data = response.json()
-                assert "detail" in data
-                assert "quota" in data["detail"].lower()
+            assert response.status_code == 429, f"Expected 429, got {response.status_code}: {response.text}"
+            data = response.json()
+            assert "detail" in data
+            assert "quota" in data["detail"].lower()
 
 
 @pytest.mark.asyncio

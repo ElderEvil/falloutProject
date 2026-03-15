@@ -15,7 +15,7 @@ from app.schemas.chat import DwellerChatResponse, DwellerVoiceChatResponse
 from app.services.chat_service import chat_service
 from app.services.conversation_service import conversation_service
 from app.services.websocket_manager import manager
-from app.utils.exceptions import ValidationException
+from app.utils.exceptions import QuotaExceededException, ValidationException
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -194,6 +194,8 @@ async def voice_chat_with_dweller(
 
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+    except QuotaExceededException:
+        raise
     except Exception as e:
         logger.exception("Error processing voice chat")
         raise HTTPException(status_code=500, detail=f"Error processing audio: {e!s}") from e

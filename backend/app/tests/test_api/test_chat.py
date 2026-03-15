@@ -22,6 +22,7 @@ from app.models.vault import Vault
 from app.schemas.chat import AssignToRoomAction, NoAction, RecallExplorationAction, StartExplorationAction
 from app.schemas.common import GenderEnum
 from app.schemas.dweller import DwellerCreate
+from app.services.open_ai import ChatCompletionResult
 from app.tests.factory.dwellers import create_fake_dweller
 
 pytestmark = pytest.mark.asyncio(scope="module")
@@ -179,7 +180,12 @@ class TestTextChat:
 
         # Mock fallback AI service
         mock_ai = AsyncMock()
-        mock_ai.chat_completion.return_value = "Fallback response"
+        mock_ai.chat_completion_with_usage.return_value = ChatCompletionResult(
+            text="Fallback response",
+            prompt_tokens=10,
+            completion_tokens=20,
+            total_tokens=30,
+        )
         mock_ai_service_func.return_value = mock_ai
 
         response = await async_client.post(

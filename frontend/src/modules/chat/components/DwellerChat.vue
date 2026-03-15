@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useProfileStore } from '@/modules/profile/stores/profile'
 import { Icon } from '@iconify/vue'
 import apiClient from '@/core/plugins/axios'
 import type { ActionSuggestion } from '../models/chat'
@@ -11,6 +12,9 @@ import { useTypingIndicator } from '../composables/useTypingIndicator'
 import { useChatActions } from '../composables/useChatActions'
 import { useChatWebSocket } from '@/core/composables/useWebSocket'
 import { normalizeImageUrl } from '@/utils/image'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 const props = defineProps<{
   dwellerId: string
@@ -20,9 +24,28 @@ const props = defineProps<{
 }>()
 
 const authStore = useAuthStore()
+const profileStore = useProfileStore()
 
 const isSendingAudio = ref(false)
 const audioMode = ref(false)
+
+// Quota exceeded state
+const isQuotaExceeded = computed(() => profileStore.quotaExceeded)
+const resetDate = computed(() => {
+  const resetDateStr = profileStore.aiUsageStats?.quota?.reset_date || ''
+  if (!resetDateStr) return 'soon'
+  const [year, month, day] = resetDateStr.split('-')
+  const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+})
+
+const goToProfile = () => {
+  router.push('/profile')
+}
 
 const {
   recordingState,
@@ -337,7 +360,22 @@ onUnmounted(() => {
     </div>
 
     <!-- Chat input - always visible -->
-    <div class="chat-input">
+    <!-- Quota exceeded message -->
+    <div v-if="isQuotaExceeded" class="chat-input quota-exceeded">
+      <div class="quota-blocked-message">
+        <Icon icon="mdi:alert-circle" class="quota-icon" />
+        <div class="quota-text">
+          <span class="quota-title">Monthly quota exceeded</span>
+          <span class="quota-reset">Resets on {{ resetDate }}</span>
+        </div>
+        <button @click="goToProfile" class="quota-profile-btn">
+          View Profile
+        </button>
+      </div>
+    </div>
+
+    <!-- Normal chat input -->
+    <div v-else class="chat-input">
       <!-- Mode toggle button -->
       <button
         @click="audioMode = !audioMode"
@@ -1015,5 +1053,68 @@ onUnmounted(() => {
   background-color: rgba(255, 68, 68, 0.1);
   border-color: rgba(255, 68, 68, 0.5);
   color: #ff4444;
+}
+
+/* Quota exceeded state */
+.chat-input.quota-exceeded {
+  justify-content: center;
+  padding: 0.75rem 1rem;
+}
+
+.quota-blocked-message {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 500px;
+  padding: 0.75rem 1rem;
+  background-color: rgba(255, 68, 68, 0.1);
+  border: 1px solid rgba(255, 68, 68, 0.4);
+  border-radius: 8px;
+}
+
+.quota-icon {
+  width: 24px;
+  height: 24px;
+  color: #ff4444;
+  flex-shrink: 0;
+}
+
+.quota-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.quota-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #ff4444;
+}
+
+.quota-reset {
+  font-size: 0.75rem;
+  color: #ff4444;
+  opacity: 0.8;
+}
+
+.quota-profile-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  border: 1px solid #ff4444;
+  background-color: rgba(255, 68, 68, 0.15);
+  color: #ff4444;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.quota-profile-btn:hover {
+  background-color: #ff4444;
+  color: #000;
+  box-shadow: 0 0 10px rgba(255, 68, 68, 0.4);
 }
 </style>

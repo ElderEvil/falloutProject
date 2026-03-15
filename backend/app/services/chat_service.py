@@ -30,6 +30,8 @@ from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.chat_happiness_service import apply_chat_happiness
 from app.services.conversation_service import conversation_service
 from app.services.open_ai import get_ai_service
+from app.services.quota_service import quota_service
+from app.utils.exceptions import QuotaExceededException
 
 logger = logging.getLogger(__name__)
 
@@ -124,8 +126,30 @@ class ChatService:
         if not dweller:
             raise ValueError("Dweller not found")
 
+        # Check quota before running chat agent
+        quota_result = await quota_service.check_quota(user.id, db_session)
+
+        # Build headers for quota info
+        quota_headers = {
+            "X-Quota-Remaining": str(quota_result.remaining),
+        }
+        if quota_result.warning:
+            quota_headers["X-Quota-Warning"] = "true"
+
+        # If quota exceeded, raise exception with headers
+        if not quota_result.allowed:
+            detail = f"Monthly token quota exceeded. You have used {quota_result.used} of {quota_result.limit} tokens."
+            raise QuotaExceededException(detail=detail, headers=quota_headers)
+
         # Run agent and get response
-        response_message, happiness_impact, action_suggestion = await self._run_chat_agent(
+        (
+            response_message,
+            happiness_impact,
+            action_suggestion,
+            prompt_tokens,
+            completion_tokens,
+            total_tokens,
+        ) = await self._run_chat_agent(
             db_session=db_session,
             dweller=dweller,
             message_text=message_text,
@@ -137,6 +161,9 @@ class ChatService:
             response=response_message,
             usage="chat_with_dweller",
             user_id=user.id,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
         )
         llm_interaction = await llm_interaction_crud.create(
             db_session,
@@ -185,7 +212,7 @@ class ChatService:
         db_session: AsyncSession,
         dweller: DwellerReadFull,
         message_text: str,
-    ) -> tuple[str, HappinessImpact | None, ActionSuggestion]:
+    ) -> tuple[str, HappinessImpact | None, ActionSuggestion, int | None, int | None, int | None]:
         """Run the chat agent and process the response.
 
         Args:
@@ -194,7 +221,8 @@ class ChatService:
             message_text: Text message from user
 
         Returns:
-            Tuple of (response_message, happiness_impact, action_suggestion)
+            Tuple of (response_message, happiness_impact, action_suggestion,
+                     prompt_tokens, completion_tokens, total_tokens)
         """
         # Prepare agent dependencies
         deps = DwellerChatDeps(
@@ -209,6 +237,11 @@ class ChatService:
             output: DwellerChatOutput = result.output
 
             response_message = output.response_text
+
+            usage = result.usage()
+            prompt_tokens = usage.input_tokens if usage else None
+            completion_tokens = usage.output_tokens if usage else None
+            total_tokens = usage.total_tokens if usage else None
 
             # Compute happiness delta from sentiment score
             delta = compute_happiness_delta(output.sentiment_score)
@@ -232,23 +265,20 @@ class ChatService:
             # Parse action suggestion from agent output
             action_suggestion = await parse_action_suggestion(output, db_session, dweller)
 
-            return response_message, happiness_impact, action_suggestion
+            return response_message, happiness_impact, action_suggestion, prompt_tokens, completion_tokens, total_tokens
 
         except Exception:
-            # Fallback: neutral happiness + no_action on agent failure
             logger.exception("Dweller chat agent failed, using fallback")
 
-            # Fall back to basic chat completion
             ai_service = get_ai_service()
             dweller_prompt = conversation_service._build_dweller_prompt(dweller, for_audio=False)
-            response_message = await ai_service.chat_completion(
+            result = await ai_service.chat_completion_with_usage(
                 [
                     {"role": "system", "content": dweller_prompt.strip()},
                     {"role": "user", "content": message_text},
                 ]
             )
 
-            # Neutral fallback - no happiness change
             happiness_impact = HappinessImpact(
                 delta=0,
                 reason_code=HappinessReasonCode.CHAT_NEUTRAL,
@@ -257,7 +287,14 @@ class ChatService:
             )
             action_suggestion = NoAction(reason="Unable to analyze conversation for suggestions")
 
-            return response_message, happiness_impact, action_suggestion
+            return (
+                result.text,
+                happiness_impact,
+                action_suggestion,
+                result.prompt_tokens,
+                result.completion_tokens,
+                result.total_tokens,
+            )
 
 
 # Singleton instance

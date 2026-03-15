@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import EmailStr, PostgresDsn, field_validator
+from pydantic import EmailStr, PostgresDsn, field_validator, model_validator
 from pydantic_core.core_schema import FieldValidationInfo
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -53,15 +53,16 @@ class Settings(BaseSettings):
     ]
 
     # Storage Provider Selection (minio or rustfs)
-    STORAGE_PROVIDER: Literal["minio", "rustfs"] = "minio"
+    STORAGE_PROVIDER: Literal["minio", "rustfs"] = "rustfs"
 
     # RustFS Configuration (S3-compatible)
-    RUSTFS_HOSTNAME: str | None = "s3.evillab.dev"
+    RUSTFS_HOSTNAME: str | None = None
     RUSTFS_PORT: str | None = None
+    RUSTFS_USE_HTTPS: bool = True
     RUSTFS_ACCESS_KEY: str | None = None
     RUSTFS_SECRET_KEY: str | None = None
     RUSTFS_DEFAULT_BUCKET: str = "fallout-shelter"
-    RUSTFS_PUBLIC_URL: str | None = "https://s3.evillab.dev"
+    RUSTFS_PUBLIC_URL: str | None = None
     RUSTFS_PUBLIC_BUCKET_WHITELIST: list[str] = [
         "fallout-shelter",
         "dweller-images",
@@ -138,6 +139,14 @@ class Settings(BaseSettings):
     LOG_FILE_PATH: str | None = None  # Optional: "/var/log/fallout_shelter/app.log"
     LOG_FILE_RETENTION_DAYS: int = 14  # Number of days to retain log files
 
+    # Logfire Observability (optional)
+    LOGFIRE_TOKEN: str | None = None  # Get token from https://logfire.pydantic.dev
+
+    @property
+    def logfire_enabled(self) -> bool:
+        """Check if Logfire observability is configured."""
+        return bool(self.LOGFIRE_TOKEN)
+
     # Security & Rate Limiting Configuration (fastapi-guard)
     ENABLE_RATE_LIMITING: bool = True  # Enable/disable rate limiting
     RATE_LIMIT_REQUESTS: int = 100  # Requests per window per IP
@@ -147,6 +156,9 @@ class Settings(BaseSettings):
     IPINFO_TOKEN: str | None = None  # Optional: IPInfo API token for geolocation
     SECURITY_WHITELIST_IPS: list[str] = []  # IPs to whitelist (bypass rate limiting)
     SECURITY_BLACKLIST_IPS: list[str] = []  # IPs to block completely
+
+    # Quota Configuration
+    QUOTA_DISABLED: bool = False  # Disable token quotas (useful for local dev/testing)
 
     @property
     def redis_url(self) -> str:
@@ -206,6 +218,16 @@ class Settings(BaseSettings):
                 path=info.data["POSTGRES_DB"],
             )
         return v
+
+    @model_validator(mode="after")
+    def validate_rustfs_config(self) -> "Settings":
+        if self.STORAGE_PROVIDER == "rustfs" and (not self.RUSTFS_HOSTNAME or not self.RUSTFS_PORT):
+            msg = (
+                "STORAGE_PROVIDER is 'rustfs' but RUSTFS_HOSTNAME and/or RUSTFS_PORT are not set. "
+                "Either configure RustFS settings or change STORAGE_PROVIDER to 'minio'."
+            )
+            raise ValueError(msg)
+        return self
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

@@ -15,10 +15,15 @@ class LLMInteractionBase(SQLModel):
     # ai_model_type: AIModelType = Field(default=AIModelType.CHATGPT)
     parameters: str | None
     response: str | None
-    usage: str | None
+    usage: str | None  # Legacy field - stores operation type (kept for backward compatibility)
+
+    # Token tracking fields (for AI usage statistics)
+    prompt_tokens: int | None = Field(default=None, ge=0, description="Number of tokens in the prompt")
+    completion_tokens: int | None = Field(default=None, ge=0, description="Number of tokens in the completion")
+    total_tokens: int | None = Field(default=None, ge=0, description="Total tokens used (prompt + completion)")
 
     prompt_id: UUID | None = Field(default=None, foreign_key="prompt.id")
-    user_id: UUID | None = Field(default=None, foreign_key="user.id")
+    user_id: UUID | None = Field(default=None, foreign_key="user.id", index=True)
 
 
 class LLMInteraction(BaseUUIDModel, LLMInteractionBase, table=True):

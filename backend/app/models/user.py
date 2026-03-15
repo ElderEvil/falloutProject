@@ -25,6 +25,7 @@ class UserBase(SQLModel):
 
 class User(BaseUUIDModel, UserBase, TimeStampMixin, SoftDeleteMixin, table=True):
     hashed_password: str = Field(nullable=False)
+    monthly_token_limit: int | None = Field(default=500000, nullable=True)
 
     profile: "UserProfile" = Relationship(
         back_populates="user", cascade_delete=True, sa_relationship_kwargs={"uselist": False}

@@ -9,6 +9,62 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.10.9] - 2026-03-13
+
+### New Features
+
+- **AI Usage API & Quota System** - Per-user monthly token quota limits with enforcement
+  - New `/me/profile/ai-usage` endpoint with Redis caching (5-min TTL)
+  - Profile AI usage card with terminal-themed UI showing usage stats
+  - Monthly quota limits (default: 500K tokens) with enforcement
+  - HTTP 429 responses with `Quota-Remaining` and `Quota-Limit` headers when exceeded
+  - UI blocking and notifications when quota exceeded
+  - Quota warning at 80% usage threshold
+  - Admin bypass for quota limits
+
+- **Token Tracking** - Comprehensive token statistics across all AI calls
+  - Track `prompt_tokens`, `completion_tokens`, `total_tokens` in LLMInteraction model
+  - All-time and monthly aggregation via AIUsageService
+  - Token usage surfaced in chat messages and usage records
+
+### Improvements
+
+- **Storage Provider** - Default storage moved to RustFS with enhanced configuration
+  - Optional `RUSTFS_PUBLIC_URL` for public access URLs
+  - `RUSTFS_USE_HTTPS` flag for HTTPS endpoints
+  - Port configuration (default: 443 for HTTPS)
+
+- **Observability** - Optional Logfire integration for enhanced monitoring
+  - Initialized at startup when `LOGFIRE_TOKEN` configured
+  - Richer OpenAI usage reporting with token statistics
+  - Better error tracking and performance monitoring
+
+- **Error Handling** - Improved exception hierarchy and error messages
+  - New `QuotaExceededException` with structured error details
+  - Better test isolation for quota-related tests
+
+### Chores
+
+- **MinIO Removal** - Removed legacy MinIO integration
+  - Updated `.env.example` with RustFS configuration
+  - Updated Docker Compose configuration
+  - Migration scripts for moving data to RustFS
+
+- **Dependencies** - Routine dependency updates
+  - Docker actions updated (build-push-action, setup-buildx-action, login-action)
+  - Frontend and backend production dependencies updated
+
+### Tests
+
+- **AI Usage Tests** - Extensive test coverage for new features
+  - Unit tests for AIUsageService and quota calculations
+  - Integration tests for quota enforcement across chat, dweller AI, and conversations
+  - Race condition tests for concurrent quota checks
+  - E2E tests for quota blocking UI behavior
+  - Tests for quota service with edge cases (no usage, custom limits, warning thresholds)
+
+---
+
 ## [2.10.8] - 2026-02-19
 
 ### Added

@@ -9,6 +9,31 @@ AI-powered dweller interactions.
 
 ## Latest Release
 
+### v2.10.9 - AI Usage Tracking & Quota System (March 13, 2026)
+
+**Focus**: AI usage monitoring, token quota enforcement, and observability improvements
+
+**Completed:**
+- ✅ **AI Usage API** - New `/me/profile/ai-usage` endpoint with token statistics
+  - Tracks prompt, completion, and total tokens across all AI calls
+  - Redis-cached responses for performance
+  - Terminal-themed UI card in profile view
+- ✅ **Quota System** - Per-user monthly token limits with enforcement
+  - Default 500K tokens per month per user
+  - Atomic quota checks with SELECT FOR UPDATE
+  - HTTP 429 responses when quota exceeded
+  - UI blocking and warnings at 80% threshold
+  - Admin bypass support
+- ✅ **Observability** - Optional Logfire integration
+  - Initialized at startup when configured
+  - Richer OpenAI usage reporting
+- ✅ **Storage** - Completed RustFS migration
+  - Removed legacy MinIO integration
+  - Added HTTPS and public URL configuration options
+- ✅ **Tests** - Comprehensive test coverage
+  - Unit, integration, and race condition tests for quota system
+  - E2E tests for quota blocking UI
+
 ### v2.10.8 - RustFS Migration & Code Quality (February 19, 2026)
 
 **Focus**: Storage provider migration, objective improvements, code quality

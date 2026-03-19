@@ -7,6 +7,18 @@ AI-powered dweller interactions.
 
 ---
 
+## In Progress
+
+### v2.11.0 - (In Development)
+
+**Focus**: Bug fixes and improvements on top of 2.10.9
+
+**Completed:**
+- ✅ **Type Hint Fix** - Added missing return type hint to `mock_admin_user()` fixture
+- ✅ **CI Fix** - Fixed `RUSTFS_PORT=443` in `.env.example` for proper HTTPS validation
+
+---
+
 ## Latest Release
 
 ### v2.10.9 - AI Usage Tracking & Quota System (March 13, 2026)

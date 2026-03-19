@@ -7,15 +7,15 @@ describe('ProfileStats', () => {
     totalDwellersCreated: 10,
     totalCapsEarned: 5000,
     totalExplorations: 25,
-    totalRoomsBuilt: 8
+    totalRoomsBuilt: 8,
   }
 
   describe('Component Rendering', () => {
     it('should render component with title', () => {
       const wrapper = mount(ProfileStats, {
         props: {
-          statistics: mockStatistics
-        }
+          statistics: mockStatistics,
+        },
       })
 
       expect(wrapper.text()).toContain('Vault Statistics')
@@ -24,8 +24,8 @@ describe('ProfileStats', () => {
     it('should render all statistics when data is provided', () => {
       const wrapper = mount(ProfileStats, {
         props: {
-          statistics: mockStatistics
-        }
+          statistics: mockStatistics,
+        },
       })
 
       expect(wrapper.text()).toContain('Total Dwellers Created')
@@ -37,8 +37,8 @@ describe('ProfileStats', () => {
     it('should display correct values for each statistic', () => {
       const wrapper = mount(ProfileStats, {
         props: {
-          statistics: mockStatistics
-        }
+          statistics: mockStatistics,
+        },
       })
 
       const statValues = wrapper.findAll('.font-bold.text-xl')
@@ -51,8 +51,8 @@ describe('ProfileStats', () => {
     it('should show placeholder message when statistics is null', () => {
       const wrapper = mount(ProfileStats, {
         props: {
-          statistics: null
-        }
+          statistics: null,
+        },
       })
 
       expect(wrapper.text()).toContain('No statistics available')
@@ -67,9 +67,9 @@ describe('ProfileStats', () => {
             totalDwellersCreated: 0,
             totalCapsEarned: 0,
             totalExplorations: 0,
-            totalRoomsBuilt: 0
-          }
-        }
+            totalRoomsBuilt: 0,
+          },
+        },
       })
 
       const statValues = wrapper.findAll('.font-bold.text-xl')
@@ -86,9 +86,9 @@ describe('ProfileStats', () => {
             totalDwellersCreated: 999,
             totalCapsEarned: 1000000,
             totalExplorations: 5000,
-            totalRoomsBuilt: 500
-          }
-        }
+            totalRoomsBuilt: 500,
+          },
+        },
       })
 
       const statValues = wrapper.findAll('.font-bold.text-xl')
@@ -103,8 +103,8 @@ describe('ProfileStats', () => {
     it('should apply correct container styles', () => {
       const wrapper = mount(ProfileStats, {
         props: {
-          statistics: mockStatistics
-        }
+          statistics: mockStatistics,
+        },
       })
 
       const container = wrapper.find('.bg-gray-800')
@@ -116,8 +116,8 @@ describe('ProfileStats', () => {
     it('should render stat items with correct layout', () => {
       const wrapper = mount(ProfileStats, {
         props: {
-          statistics: mockStatistics
-        }
+          statistics: mockStatistics,
+        },
       })
 
       const statItems = wrapper.findAll('.flex.justify-between.items-center')
@@ -134,8 +134,8 @@ describe('ProfileStats', () => {
     it('should not render stats when statistics is null', () => {
       const wrapper = mount(ProfileStats, {
         props: {
-          statistics: null
-        }
+          statistics: null,
+        },
       })
 
       expect(wrapper.find('.space-y-4').exists()).toBe(false)
@@ -145,8 +145,8 @@ describe('ProfileStats', () => {
     it('should render stats when statistics is provided', () => {
       const wrapper = mount(ProfileStats, {
         props: {
-          statistics: mockStatistics
-        }
+          statistics: mockStatistics,
+        },
       })
 
       expect(wrapper.find('.space-y-4').exists()).toBe(true)

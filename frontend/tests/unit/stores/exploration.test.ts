@@ -32,7 +32,7 @@ describe('Exploration Store', () => {
     dweller_charisma: 4,
     dweller_intelligence: 5,
     dweller_agility: 6,
-    dweller_luck: 8
+    dweller_luck: 8,
   }
 
   const mockExplorationProgress = {
@@ -42,18 +42,18 @@ describe('Exploration Store', () => {
     time_remaining_seconds: 10800,
     elapsed_time_seconds: 3600,
     events: [],
-    loot_collected: []
+    loot_collected: [],
   }
 
   const mockRewardsSummary = {
     caps: 150,
     items: [
-      { item_name: 'Desk Fan', quantity: 1, rarity: 'Common', found_at: '2025-01-01T00:00:00Z' }
+      { item_name: 'Desk Fan', quantity: 1, rarity: 'Common', found_at: '2025-01-01T00:00:00Z' },
     ],
     experience: 750,
     distance: 50,
     enemies_defeated: 5,
-    events_encountered: 3
+    events_encountered: 3,
   }
 
   describe('State Initialization', () => {
@@ -72,7 +72,7 @@ describe('Exploration Store', () => {
       const store = useExplorationStore()
       store.explorations = [
         mockExploration,
-        { ...mockExploration, id: 'exploration-2', dweller_id: 'dweller-2' }
+        { ...mockExploration, id: 'exploration-2', dweller_id: 'dweller-2' },
       ]
 
       const exploration = store.getExplorationByDwellerId('dweller-1')
@@ -106,15 +106,15 @@ describe('Exploration Store', () => {
           id: 'exploration-3',
           dweller_id: 'dweller-3',
           vault_id: 'vault-2',
-          status: 'active'
+          status: 'active',
         },
         {
           ...mockExploration,
           id: 'exploration-4',
           dweller_id: 'dweller-4',
           vault_id: 'vault-1',
-          status: 'completed'
-        }
+          status: 'completed',
+        },
       ]
 
       const vaultExplorations = store.getActiveExplorationsForVault('vault-1')
@@ -202,9 +202,12 @@ describe('Exploration Store', () => {
 
       const result = await store.fetchExplorationsByVault('vault-1', 'test-token', true)
 
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/explorations/vault/vault-1?active_only=true', {
-        headers: { Authorization: 'Bearer test-token' }
-      })
+      expect(axios.get).toHaveBeenCalledWith(
+        '/api/v1/explorations/vault/vault-1?active_only=true',
+        {
+          headers: { Authorization: 'Bearer test-token' },
+        }
+      )
       expect(result).toEqual(explorations)
       expect(store.explorations).toEqual(explorations)
       expect(Object.keys(store.activeExplorations)).toHaveLength(2)
@@ -214,15 +217,18 @@ describe('Exploration Store', () => {
       const store = useExplorationStore()
       const explorations = [
         mockExploration,
-        { ...mockExploration, id: 'exploration-2', status: 'completed' }
+        { ...mockExploration, id: 'exploration-2', status: 'completed' },
       ]
       vi.mocked(axios.get).mockResolvedValueOnce({ data: explorations })
 
       await store.fetchExplorationsByVault('vault-1', 'test-token', false)
 
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/explorations/vault/vault-1?active_only=false', {
-        headers: { Authorization: 'Bearer test-token' }
-      })
+      expect(axios.get).toHaveBeenCalledWith(
+        '/api/v1/explorations/vault/vault-1?active_only=false',
+        {
+          headers: { Authorization: 'Bearer test-token' },
+        }
+      )
       expect(store.explorations).toEqual(explorations)
       expect(Object.keys(store.activeExplorations)).toHaveLength(1) // Only active ones in map
     })
@@ -262,7 +268,7 @@ describe('Exploration Store', () => {
       const result = await store.fetchExplorationDetails('exploration-1', 'test-token')
 
       expect(axios.get).toHaveBeenCalledWith('/api/v1/explorations/exploration-1', {
-        headers: { Authorization: 'Bearer test-token' }
+        headers: { Authorization: 'Bearer test-token' },
       })
       expect(result).toEqual(updatedExploration)
       expect(store.explorations[0]).toEqual(updatedExploration)
@@ -301,7 +307,7 @@ describe('Exploration Store', () => {
       const result = await store.fetchExplorationProgress('exploration-1', 'test-token')
 
       expect(axios.get).toHaveBeenCalledWith('/api/v1/explorations/exploration-1/progress', {
-        headers: { Authorization: 'Bearer test-token' }
+        headers: { Authorization: 'Bearer test-token' },
       })
       expect(result).toEqual(mockExplorationProgress)
     })
@@ -325,7 +331,7 @@ describe('Exploration Store', () => {
       const recalledExploration = { ...mockExploration, status: 'recalled' }
       const response = {
         exploration: recalledExploration,
-        rewards_summary: { ...mockRewardsSummary, recalled_early: true, progress_percentage: 50 }
+        rewards_summary: { ...mockRewardsSummary, recalled_early: true, progress_percentage: 50 },
       }
       vi.mocked(axios.post).mockResolvedValueOnce({ data: response })
 
@@ -365,7 +371,7 @@ describe('Exploration Store', () => {
       const completedExploration = { ...mockExploration, status: 'completed' }
       const response = {
         exploration: completedExploration,
-        rewards_summary: mockRewardsSummary
+        rewards_summary: mockRewardsSummary,
       }
       vi.mocked(axios.post).mockResolvedValueOnce({ data: response })
 
@@ -424,7 +430,7 @@ describe('Exploration Store', () => {
       const explorations = [
         mockExploration,
         { ...mockExploration, id: 'exploration-2', dweller_id: 'dweller-2', status: 'active' },
-        { ...mockExploration, id: 'exploration-3', dweller_id: 'dweller-3', status: 'completed' }
+        { ...mockExploration, id: 'exploration-3', dweller_id: 'dweller-3', status: 'completed' },
       ]
       vi.mocked(axios.get).mockResolvedValueOnce({ data: explorations })
 
@@ -445,7 +451,7 @@ describe('Exploration Store', () => {
       const updatedExploration = {
         ...mockExploration,
         total_caps_found: 100,
-        events: [{ type: 'loot_found', description: 'Found loot!' }]
+        events: [{ type: 'loot_found', description: 'Found loot!' }],
       }
       vi.mocked(axios.get).mockResolvedValueOnce({ data: updatedExploration })
 

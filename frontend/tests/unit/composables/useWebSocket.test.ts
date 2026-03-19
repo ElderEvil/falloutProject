@@ -136,9 +136,7 @@ describe('Bug #2: WebSocket URL Construction', () => {
       ws.sendTypingIndicator(true)
 
       // ASSERT: Should log debug message
-      expect(debugSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Cannot send typing indicator')
-      )
+      expect(debugSpy).toHaveBeenCalledWith(expect.stringContaining('Cannot send typing indicator'))
 
       debugSpy.mockRestore()
     })

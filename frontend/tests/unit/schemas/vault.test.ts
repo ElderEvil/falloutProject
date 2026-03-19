@@ -34,19 +34,27 @@ describe('Vault Number Validation', () => {
     describe('Edge Cases - Invalid Values', () => {
       it('should reject numbers below 1', () => {
         expect(() => vaultNumberSchema.parse({ number: -1 })).toThrow(ZodError)
-        expect(() => vaultNumberSchema.parse({ number: -1 })).toThrow('Vault number must be at least 1')
+        expect(() => vaultNumberSchema.parse({ number: -1 })).toThrow(
+          'Vault number must be at least 1'
+        )
         expect(() => vaultNumberSchema.parse({ number: 0 })).toThrow(ZodError)
-        expect(() => vaultNumberSchema.parse({ number: 0 })).toThrow('Vault number must be at least 1')
+        expect(() => vaultNumberSchema.parse({ number: 0 })).toThrow(
+          'Vault number must be at least 1'
+        )
       })
 
       it('should reject numbers above 999', () => {
         expect(() => vaultNumberSchema.parse({ number: 1000 })).toThrow(ZodError)
-        expect(() => vaultNumberSchema.parse({ number: 1000 })).toThrow('Vault number must be 999 or less')
+        expect(() => vaultNumberSchema.parse({ number: 1000 })).toThrow(
+          'Vault number must be 999 or less'
+        )
       })
 
       it('should reject decimal numbers', () => {
         expect(() => vaultNumberSchema.parse({ number: 100.5 })).toThrow(ZodError)
-        expect(() => vaultNumberSchema.parse({ number: 100.5 })).toThrow('Vault number must be a whole number')
+        expect(() => vaultNumberSchema.parse({ number: 100.5 })).toThrow(
+          'Vault number must be a whole number'
+        )
       })
 
       it('should reject string values', () => {

@@ -7,9 +7,9 @@ import DwellerCard from '@/modules/dwellers/components/cards/DwellerCard.vue'
 vi.mock('@/modules/dwellers/services/happinessService', () => ({
   happinessService: {
     getDwellerModifiers: vi.fn().mockResolvedValue({
-      data: { positive: [], negative: [] }
-    })
-  }
+      data: { positive: [], negative: [] },
+    }),
+  },
 }))
 
 beforeEach(() => {
@@ -39,7 +39,7 @@ describe('DwellerCard', () => {
     stimpack: 2,
     radaway: 1,
     status: 'idle',
-    room: null
+    room: null,
   } as any
 
   describe('Portrait Display', () => {
@@ -47,8 +47,8 @@ describe('DwellerCard', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
-          imageUrl: null
-        }
+          imageUrl: null,
+        },
       })
 
       const placeholder = wrapper.find('.portrait-placeholder')
@@ -59,8 +59,8 @@ describe('DwellerCard', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
-          imageUrl: null
-        }
+          imageUrl: null,
+        },
       })
 
       const hint = wrapper.find('.placeholder-hint')
@@ -72,8 +72,8 @@ describe('DwellerCard', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
-          imageUrl: 'https://example.com/image.jpg'
-        }
+          imageUrl: 'https://example.com/image.jpg',
+        },
       })
 
       const image = wrapper.find('.portrait-image')
@@ -87,8 +87,8 @@ describe('DwellerCard', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
-          imageUrl: null
-        }
+          imageUrl: null,
+        },
       })
 
       const genderBadge = wrapper.find('.gender-badge')
@@ -100,8 +100,8 @@ describe('DwellerCard', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
-          imageUrl: null
-        }
+          imageUrl: null,
+        },
       })
 
       const rarityBadge = wrapper.find('.rarity-badge')
@@ -115,8 +115,8 @@ describe('DwellerCard', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
-          imageUrl: null
-        }
+          imageUrl: null,
+        },
       })
 
       expect(wrapper.text()).toContain('Level')
@@ -127,8 +127,8 @@ describe('DwellerCard', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
-          imageUrl: null
-        }
+          imageUrl: null,
+        },
       })
 
       expect(wrapper.text()).toContain('Health')
@@ -139,8 +139,8 @@ describe('DwellerCard', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
-          imageUrl: null
-        }
+          imageUrl: null,
+        },
       })
 
       expect(wrapper.text()).toContain('Happiness')
@@ -151,8 +151,8 @@ describe('DwellerCard', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
-          imageUrl: null
-        }
+          imageUrl: null,
+        },
       })
 
       const healthBar = wrapper.find('.health-bar')
@@ -169,8 +169,8 @@ describe('DwellerCard', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
-          imageUrl: null
-        }
+          imageUrl: null,
+        },
       })
 
       expect(wrapper.text()).toContain('Stimpack')
@@ -181,8 +181,8 @@ describe('DwellerCard', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
-          imageUrl: null
-        }
+          imageUrl: null,
+        },
       })
 
       expect(wrapper.text()).toContain('RadAway')
@@ -195,12 +195,13 @@ describe('DwellerCard', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
-          imageUrl: null
-        }
+          imageUrl: null,
+        },
       })
 
-      const chatButton = wrapper.findAllComponents({ name: 'UButton' })
-        .find(btn => btn.text().includes('Chat'))
+      const chatButton = wrapper
+        .findAllComponents({ name: 'UButton' })
+        .find((btn) => btn.text().includes('Chat'))
 
       expect(chatButton).toBeDefined()
       await chatButton!.trigger('click')
@@ -211,12 +212,13 @@ describe('DwellerCard', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
-          imageUrl: null
-        }
+          imageUrl: null,
+        },
       })
 
-      const assignButton = wrapper.findAllComponents({ name: 'UButton' })
-        .find(btn => btn.text().includes('Assign to Room'))
+      const assignButton = wrapper
+        .findAllComponents({ name: 'UButton' })
+        .find((btn) => btn.text().includes('Assign to Room'))
 
       expect(assignButton).toBeDefined()
       await assignButton!.trigger('click')
@@ -228,12 +230,13 @@ describe('DwellerCard', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: exploringDweller,
-          imageUrl: null
-        }
+          imageUrl: null,
+        },
       })
 
-      const recallButton = wrapper.findAllComponents({ name: 'UButton' })
-        .find(btn => btn.text().includes('Recall from Wasteland'))
+      const recallButton = wrapper
+        .findAllComponents({ name: 'UButton' })
+        .find((btn) => btn.text().includes('Recall from Wasteland'))
 
       expect(recallButton).toBeDefined()
     })
@@ -242,12 +245,13 @@ describe('DwellerCard', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
-          imageUrl: null
-        }
+          imageUrl: null,
+        },
       })
 
-      const recallButton = wrapper.findAllComponents({ name: 'UButton' })
-        .find(btn => btn.text().includes('Recall from Wasteland'))
+      const recallButton = wrapper
+        .findAllComponents({ name: 'UButton' })
+        .find((btn) => btn.text().includes('Recall from Wasteland'))
 
       expect(recallButton).toBeUndefined()
     })
@@ -258,12 +262,13 @@ describe('DwellerCard', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
-          imageUrl: null
-        }
+          imageUrl: null,
+        },
       })
 
-      const stimpPackButton = wrapper.findAllComponents({ name: 'UButton' })
-        .find(btn => btn.text().includes('Use Stimpack'))
+      const stimpPackButton = wrapper
+        .findAllComponents({ name: 'UButton' })
+        .find((btn) => btn.text().includes('Use Stimpack'))
 
       expect(stimpPackButton).toBeDefined()
       expect(stimpPackButton!.attributes('disabled')).toBeUndefined()
@@ -274,12 +279,13 @@ describe('DwellerCard', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: dwellerNoStimpack,
-          imageUrl: null
-        }
+          imageUrl: null,
+        },
       })
 
-      const stimpPackButton = wrapper.findAllComponents({ name: 'UButton' })
-        .find(btn => btn.text().includes('Use Stimpack'))
+      const stimpPackButton = wrapper
+        .findAllComponents({ name: 'UButton' })
+        .find((btn) => btn.text().includes('Use Stimpack'))
 
       expect(stimpPackButton).toBeDefined()
       expect(stimpPackButton!.attributes('disabled')).toBeDefined()
@@ -289,12 +295,13 @@ describe('DwellerCard', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
-          imageUrl: null
-        }
+          imageUrl: null,
+        },
       })
 
-      const radawayButton = wrapper.findAllComponents({ name: 'UButton' })
-        .find(btn => btn.text().includes('Use RadAway'))
+      const radawayButton = wrapper
+        .findAllComponents({ name: 'UButton' })
+        .find((btn) => btn.text().includes('Use RadAway'))
 
       expect(radawayButton).toBeDefined()
       expect(radawayButton!.attributes('disabled')).toBeDefined()
@@ -305,12 +312,13 @@ describe('DwellerCard', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: dwellerWithRadiation,
-          imageUrl: null
-        }
+          imageUrl: null,
+        },
       })
 
-      const radawayButton = wrapper.findAllComponents({ name: 'UButton' })
-        .find(btn => btn.text().includes('Use RadAway'))
+      const radawayButton = wrapper
+        .findAllComponents({ name: 'UButton' })
+        .find((btn) => btn.text().includes('Use RadAway'))
 
       expect(radawayButton).toBeDefined()
       expect(radawayButton!.attributes('disabled')).toBeUndefined()
@@ -322,8 +330,8 @@ describe('DwellerCard', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
-          imageUrl: null
-        }
+          imageUrl: null,
+        },
       })
 
       const trainButton = wrapper.find('.locked-action-button')
@@ -335,8 +343,8 @@ describe('DwellerCard', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
-          imageUrl: null
-        }
+          imageUrl: null,
+        },
       })
 
       expect(wrapper.text()).toContain('Assign Pet')
@@ -348,14 +356,12 @@ describe('DwellerCard', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
-          imageUrl: null
-        }
+          imageUrl: null,
+        },
       })
 
       const tooltips = wrapper.findAllComponents({ name: 'UTooltip' })
-      const trainTooltip = tooltips.find(t =>
-        t.props('text')?.includes('Train SPECIAL stats')
-      )
+      const trainTooltip = tooltips.find((t) => t.props('text')?.includes('Train SPECIAL stats'))
 
       expect(trainTooltip).toBeDefined()
     })
@@ -364,14 +370,12 @@ describe('DwellerCard', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
-          imageUrl: null
-        }
+          imageUrl: null,
+        },
       })
 
       const tooltips = wrapper.findAllComponents({ name: 'UTooltip' })
-      const petTooltip = tooltips.find(t =>
-        t.props('text')?.includes('Assign a pet companion')
-      )
+      const petTooltip = tooltips.find((t) => t.props('text')?.includes('Assign a pet companion'))
 
       expect(petTooltip).toBeDefined()
     })

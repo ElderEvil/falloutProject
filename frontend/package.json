@@ -3,22 +3,21 @@
   "version": "2.10.8",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.28.2",
   "scripts": {
     "types:generate": "openapi-typescript http://localhost:8000/api/v1/openapi.json -o src/core/types/api.generated.ts",
-    "dev": "pnpm types:generate && vite",
-    "build": "vite build",
-    "build:with-types": "pnpm types:generate && vue-tsc -b && vite build",
-    "preview": "vite preview",
-    "test": "vitest",
-    "test:run": "vitest run",
+    "dev": "pnpm types:generate && vp dev",
+    "build": "vp build",
+    "build:with-types": "pnpm types:generate && vue-tsc -b && vp build",
+    "preview": "vp preview",
+    "test": "vp test",
+    "test:run": "vp test run",
     "test:e2e": "playwright test --config=tests/e2e/playwright.config.ts",
     "test:e2e:ui": "playwright test --config=tests/e2e/playwright.config.ts --ui",
     "test:e2e:setup": "playwright test --config=tests/e2e/playwright.config.ts --project=chromium --reporter=list tests/e2e/support/e2e.setup.ts",
-    "lint": "oxlint src",
-    "lint:fix": "oxlint src --fix",
-    "format": "oxfmt src",
-    "format:check": "oxfmt src --check",
+    "lint": "vp lint src",
+    "lint:fix": "vp lint src --fix",
+    "format": "vp fmt src",
+    "format:check": "vp fmt src --check",
     "typecheck": "vue-tsc --noEmit",
     "ci": "pnpm run lint && pnpm run typecheck && pnpm run test:run"
   },
@@ -47,13 +46,19 @@
     "@vue/tsconfig": "^0.9.0",
     "jsdom": "^28.1.0",
     "openapi-typescript": "7.13.0",
-    "oxfmt": "0.36.0",
-    "oxlint": "^1.51.0",
     "rollup-plugin-visualizer": "7.0.1",
     "tailwindcss": "^4.2.1",
     "typescript": "^5.9.3",
-    "vite": "npm:rolldown-vite@^7.3.1",
-    "vitest": "^4.0.18",
+    "vite": "npm:@voidzero-dev/vite-plus-core@latest",
+    "vite-plus": "latest",
+    "vitest": "npm:@voidzero-dev/vite-plus-test@latest",
     "vue-tsc": "^3.2.5"
+  },
+  "packageManager": "pnpm@10.28.2",
+  "pnpm": {
+    "overrides": {
+      "vite": "npm:@voidzero-dev/vite-plus-core@latest",
+      "vitest": "npm:@voidzero-dev/vite-plus-test@latest"
+    }
   }
 }

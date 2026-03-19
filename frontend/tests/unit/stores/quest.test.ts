@@ -44,7 +44,7 @@ describe('Quest Store', () => {
           is_visible: true,
           is_completed: false,
           started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60
+          duration_minutes: 60,
         },
         {
           id: '2',
@@ -58,8 +58,8 @@ describe('Quest Store', () => {
           is_visible: true,
           is_completed: true,
           started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60
-        }
+          duration_minutes: 60,
+        },
       ]
 
       expect(store.activeQuests).toHaveLength(1)
@@ -81,7 +81,7 @@ describe('Quest Store', () => {
           is_visible: true,
           is_completed: false,
           started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60
+          duration_minutes: 60,
         },
         {
           id: '2',
@@ -95,8 +95,8 @@ describe('Quest Store', () => {
           is_visible: true,
           is_completed: true,
           started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60
-        }
+          duration_minutes: 60,
+        },
       ]
 
       expect(store.completedQuests).toHaveLength(1)
@@ -119,7 +119,7 @@ describe('Quest Store', () => {
           is_visible: true,
           is_completed: false,
           started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60
+          duration_minutes: 60,
         },
         {
           id: '2',
@@ -133,8 +133,8 @@ describe('Quest Store', () => {
           is_visible: true,
           is_completed: false,
           started_at: null,
-          duration_minutes: null
-        }
+          duration_minutes: null,
+        },
       ]
 
       expect(store.availableQuests).toHaveLength(1)
@@ -153,8 +153,8 @@ describe('Quest Store', () => {
           requirements: 'Level 5',
           rewards: '50 caps',
           created_at: '2025-01-01',
-          updated_at: '2025-01-01'
-        }
+          updated_at: '2025-01-01',
+        },
       ]
 
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockQuests })
@@ -162,7 +162,10 @@ describe('Quest Store', () => {
       const store = useQuestStore()
       await store.fetchAllQuests()
 
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/', expect.objectContaining({ headers: expect.any(Object) }))
+      expect(axios.get).toHaveBeenCalledWith(
+        '/api/v1/quests/',
+        expect.objectContaining({ headers: expect.any(Object) })
+      )
       expect(store.quests).toEqual(mockQuests)
       expect(store.isLoading).toBe(false)
     })
@@ -189,8 +192,8 @@ describe('Quest Store', () => {
           created_at: '2025-01-01',
           updated_at: '2025-01-01',
           is_visible: true,
-          is_completed: false
-        }
+          is_completed: false,
+        },
       ]
 
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockVaultQuests })
@@ -198,7 +201,10 @@ describe('Quest Store', () => {
       const store = useQuestStore()
       await store.fetchVaultQuests('vault-123')
 
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/vault-123/', expect.objectContaining({ headers: expect.any(Object) }))
+      expect(axios.get).toHaveBeenCalledWith(
+        '/api/v1/quests/vault-123/',
+        expect.objectContaining({ headers: expect.any(Object) })
+      )
       expect(store.vaultQuests).toEqual(mockVaultQuests)
     })
 
@@ -223,7 +229,7 @@ describe('Quest Store', () => {
         created_at: '2025-01-01',
         updated_at: '2025-01-01',
         is_visible: true,
-        is_completed: false
+        is_completed: false,
       }
 
       vi.mocked(axios.post).mockResolvedValueOnce({ data: mockAssignedQuest })
@@ -233,9 +239,12 @@ describe('Quest Store', () => {
       await store.assignQuest('vault-123', 'quest-1', true)
 
       expect(axios.post).toHaveBeenCalledWith('/api/v1/quests/vault-123/quest-1/assign', null, {
-        params: { is_visible: true }
+        params: { is_visible: true },
       })
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/vault-123/', expect.objectContaining({ headers: expect.any(Object) }))
+      expect(axios.get).toHaveBeenCalledWith(
+        '/api/v1/quests/vault-123/',
+        expect.objectContaining({ headers: expect.any(Object) })
+      )
     })
 
     it('should handle assign error', async () => {
@@ -258,7 +267,7 @@ describe('Quest Store', () => {
         created_at: '2025-01-01',
         updated_at: '2025-01-01',
         is_visible: true,
-        is_completed: true
+        is_completed: true,
       }
 
       vi.mocked(axios.post).mockResolvedValueOnce({ data: { success: true } })
@@ -268,7 +277,10 @@ describe('Quest Store', () => {
       await store.completeQuest('vault-123', 'quest-1')
 
       expect(axios.post).toHaveBeenCalledWith('/api/v1/quests/vault-123/quest-1/complete')
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/vault-123/', expect.objectContaining({ headers: expect.any(Object) }))
+      expect(axios.get).toHaveBeenCalledWith(
+        '/api/v1/quests/vault-123/',
+        expect.objectContaining({ headers: expect.any(Object) })
+      )
     })
 
     it('should handle complete error', async () => {

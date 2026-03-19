@@ -89,7 +89,7 @@ pnpm run lint         # Lint with Oxlint (fast!)
 We've built 8 custom terminal-themed UI components in `src/components/ui/`:
 
 | Component     | Description                                   |
-|---------------|-----------------------------------------------|
+| ------------- | --------------------------------------------- |
 | **UButton**   | Button with 4 variants, 5 sizes, icon support |
 | **UInput**    | Input field with label, validation, icons     |
 | **UCard**     | Card container with header/footer slots       |
@@ -102,18 +102,15 @@ We've built 8 custom terminal-themed UI components in `src/components/ui/`:
 **Usage Example:**
 
 ```vue
-
 <script setup lang="ts">
-  import { UButton, UInput, UCard } from '@/components/ui'
-  import { PlusIcon } from '@heroicons/vue/24/solid'
+import { UButton, UInput, UCard } from '@/components/ui'
+import { PlusIcon } from '@heroicons/vue/24/solid'
 </script>
 
 <template>
   <UCard title="Create Vault" glow crt>
     <UInput v-model="vaultNumber" label="Vault Number" type="number" />
-    <UButton variant="primary" :icon="PlusIcon" @click="createVault">
-      Create Vault
-    </UButton>
+    <UButton variant="primary" :icon="PlusIcon" @click="createVault"> Create Vault </UButton>
   </UCard>
 </template>
 ```
@@ -212,8 +209,7 @@ See [`TEST_COVERAGE.md`](./TEST_COVERAGE.md) for detailed test documentation.
 
 ### Recommended IDE Setup
 
-- **[VSCode](https://code.visualstudio.com/)** + *
-  *[Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar)**
+- **[VSCode](https://code.visualstudio.com/)** + \* \*[Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar)\*\*
 - Disable Vetur if installed
 - Install recommended extensions (see `.vscode/extensions.json`)
 
@@ -236,21 +232,20 @@ pnpm run build  # Runs type-check before build
 **Example:**
 
 ```vue
-
 <script setup lang="ts">
-  /**
-   * VaultCard - Displays vault statistics
-   * @component
-   */
-  import { UCard } from '@/components/ui'
+/**
+ * VaultCard - Displays vault statistics
+ * @component
+ */
+import { UCard } from '@/components/ui'
 
-  interface Props {
-    vaultNumber: number
-    population: number
-    happiness: number
-  }
+interface Props {
+  vaultNumber: number
+  population: number
+  happiness: number
+}
 
-  const props = defineProps<Props>()
+const props = defineProps<Props>()
 </script>
 
 <template>

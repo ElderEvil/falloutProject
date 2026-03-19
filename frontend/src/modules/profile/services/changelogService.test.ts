@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 import { changelogService, type ChangelogEntry } from '@/modules/profile/services/changelogService'
 import * as api from '@/core/utils/api'
 

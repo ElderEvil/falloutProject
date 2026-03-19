@@ -29,7 +29,7 @@ describe('DwellerFilterPanel', () => {
 
       // Find and click the "Working" filter button
       const buttons = wrapper.findAll('.filter-button')
-      const workingButton = buttons.find(btn => btn.text().includes('Working'))
+      const workingButton = buttons.find((btn) => btn.text().includes('Working'))
 
       expect(workingButton).toBeDefined()
       await workingButton!.trigger('click')
@@ -46,7 +46,7 @@ describe('DwellerFilterPanel', () => {
 
       // Check that the working filter has active class
       const buttons = wrapper.findAll('.filter-button')
-      const workingButton = buttons.find(btn => btn.text().includes('Working'))
+      const workingButton = buttons.find((btn) => btn.text().includes('Working'))
 
       expect(workingButton!.classes()).toContain('active')
     })

@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { mount } from '@vue/test-utils';
-import HappinessDashboard from '@/modules/vault/components/HappinessDashboard.vue';
+import { describe, it, expect } from 'vitest'
+import { mount } from '@vue/test-utils'
+import HappinessDashboard from '@/modules/vault/components/HappinessDashboard.vue'
 
 describe('HappinessDashboard', () => {
   const defaultProps = {
@@ -12,16 +12,16 @@ describe('HappinessDashboard', () => {
       low: 2,
       critical: 1,
     },
-  };
+  }
 
   it('should render happiness gauge with correct percentage', () => {
     const wrapper = mount(HappinessDashboard, {
       props: defaultProps,
-    });
+    })
 
-    expect(wrapper.text()).toContain('75%');
-    expect(wrapper.text()).toContain('EXCELLENT');
-  });
+    expect(wrapper.text()).toContain('75%')
+    expect(wrapper.text()).toContain('EXCELLENT')
+  })
 
   it('should display correct happiness level labels', () => {
     const levels = [
@@ -29,7 +29,7 @@ describe('HappinessDashboard', () => {
       { happiness: 60, label: 'GOOD' },
       { happiness: 35, label: 'POOR' },
       { happiness: 15, label: 'CRITICAL' },
-    ];
+    ]
 
     levels.forEach(({ happiness, label }) => {
       const wrapper = mount(HappinessDashboard, {
@@ -37,34 +37,34 @@ describe('HappinessDashboard', () => {
           ...defaultProps,
           vaultHappiness: happiness,
         },
-      });
+      })
 
-      expect(wrapper.text()).toContain(label);
-    });
-  });
+      expect(wrapper.text()).toContain(label)
+    })
+  })
 
   it('should display dweller distribution correctly', () => {
     const wrapper = mount(HappinessDashboard, {
       props: defaultProps,
-    });
+    })
 
-    expect(wrapper.text()).toContain('3'); // high count
-    expect(wrapper.text()).toContain('4'); // medium count
-    expect(wrapper.text()).toContain('2'); // low count
-    expect(wrapper.text()).toContain('1'); // critical count
-  });
+    expect(wrapper.text()).toContain('3') // high count
+    expect(wrapper.text()).toContain('4') // medium count
+    expect(wrapper.text()).toContain('2') // low count
+    expect(wrapper.text()).toContain('1') // critical count
+  })
 
   it('should calculate distribution percentages correctly', () => {
     const wrapper = mount(HappinessDashboard, {
       props: defaultProps,
-    });
+    })
 
     // 3/10 = 30%, 4/10 = 40%, 2/10 = 20%, 1/10 = 10%
-    expect(wrapper.text()).toContain('(30%)');
-    expect(wrapper.text()).toContain('(40%)');
-    expect(wrapper.text()).toContain('(20%)');
-    expect(wrapper.text()).toContain('(10%)');
-  });
+    expect(wrapper.text()).toContain('(30%)')
+    expect(wrapper.text()).toContain('(40%)')
+    expect(wrapper.text()).toContain('(20%)')
+    expect(wrapper.text()).toContain('(10%)')
+  })
 
   it('should show active modifiers when provided', () => {
     const wrapper = mount(HappinessDashboard, {
@@ -74,12 +74,12 @@ describe('HappinessDashboard', () => {
         activeIncidentCount: 3,
         idleDwellerCount: 5,
       },
-    });
+    })
 
-    expect(wrapper.text()).toContain('Low Resources');
-    expect(wrapper.text()).toContain('Active Incidents (3)');
-    expect(wrapper.text()).toContain('Idle Dwellers (5)');
-  });
+    expect(wrapper.text()).toContain('Low Resources')
+    expect(wrapper.text()).toContain('Active Incidents (3)')
+    expect(wrapper.text()).toContain('Idle Dwellers (5)')
+  })
 
   it('should show radio happiness mode modifier', () => {
     const wrapper = mount(HappinessDashboard, {
@@ -87,10 +87,10 @@ describe('HappinessDashboard', () => {
         ...defaultProps,
         radioHappinessMode: true,
       },
-    });
+    })
 
-    expect(wrapper.text()).toContain('Radio Happiness Mode');
-  });
+    expect(wrapper.text()).toContain('Radio Happiness Mode')
+  })
 
   it('should not show modifiers section when no modifiers exist', () => {
     const wrapper = mount(HappinessDashboard, {
@@ -101,10 +101,10 @@ describe('HappinessDashboard', () => {
         idleDwellerCount: 0,
         radioHappinessMode: false,
       },
-    });
+    })
 
-    expect(wrapper.text()).not.toContain('ACTIVE MODIFIERS');
-  });
+    expect(wrapper.text()).not.toContain('ACTIVE MODIFIERS')
+  })
 
   it('should show quick actions when there are negative modifiers', () => {
     const wrapper = mount(HappinessDashboard, {
@@ -112,11 +112,11 @@ describe('HappinessDashboard', () => {
         ...defaultProps,
         idleDwellerCount: 5,
       },
-    });
+    })
 
-    expect(wrapper.text()).toContain('QUICK ACTIONS');
-    expect(wrapper.text()).toContain('Assign Idle Dwellers');
-  });
+    expect(wrapper.text()).toContain('QUICK ACTIONS')
+    expect(wrapper.text()).toContain('Assign Idle Dwellers')
+  })
 
   it('should emit assign-idle event when button clicked', async () => {
     const wrapper = mount(HappinessDashboard, {
@@ -124,18 +124,18 @@ describe('HappinessDashboard', () => {
         ...defaultProps,
         idleDwellerCount: 5,
       },
-    });
+    })
 
-    const buttons = wrapper.findAll('button');
-    const assignButton = buttons.find(b => b.text().includes('Assign Idle Dwellers'));
+    const buttons = wrapper.findAll('button')
+    const assignButton = buttons.find((b) => b.text().includes('Assign Idle Dwellers'))
 
     if (assignButton) {
-      await assignButton.trigger('click');
-      expect(wrapper.emitted('assign-idle')).toBeTruthy();
+      await assignButton.trigger('click')
+      expect(wrapper.emitted('assign-idle')).toBeTruthy()
     } else {
-      throw new Error('Assign Idle Dwellers button not found');
+      throw new Error('Assign Idle Dwellers button not found')
     }
-  });
+  })
 
   it('should emit activate-radio event when button clicked', async () => {
     const wrapper = mount(HappinessDashboard, {
@@ -144,16 +144,16 @@ describe('HappinessDashboard', () => {
         idleDwellerCount: 1,
         radioHappinessMode: false,
       },
-    });
+    })
 
-    const buttons = wrapper.findAll('button');
-    const radioButton = buttons.find(b => b.text().includes('Activate Radio'));
+    const buttons = wrapper.findAll('button')
+    const radioButton = buttons.find((b) => b.text().includes('Activate Radio'))
 
     if (radioButton) {
-      await radioButton.trigger('click');
-      expect(wrapper.emitted('activate-radio')).toBeTruthy();
+      await radioButton.trigger('click')
+      expect(wrapper.emitted('activate-radio')).toBeTruthy()
     }
-  });
+  })
 
   it('should emit view-low-happiness event when button clicked', async () => {
     const wrapper = mount(HappinessDashboard, {
@@ -166,16 +166,16 @@ describe('HappinessDashboard', () => {
           critical: 1,
         },
       },
-    });
+    })
 
-    const buttons = wrapper.findAll('button');
-    const viewButton = buttons.find(b => b.text().includes('View Low Happiness'));
+    const buttons = wrapper.findAll('button')
+    const viewButton = buttons.find((b) => b.text().includes('View Low Happiness'))
 
     if (viewButton) {
-      await viewButton.trigger('click');
-      expect(wrapper.emitted('view-low-happiness')).toBeTruthy();
+      await viewButton.trigger('click')
+      expect(wrapper.emitted('view-low-happiness')).toBeTruthy()
     }
-  });
+  })
 
   it('should not show "Activate Radio Mode" button when already active', () => {
     const wrapper = mount(HappinessDashboard, {
@@ -184,10 +184,10 @@ describe('HappinessDashboard', () => {
         radioHappinessMode: true,
         idleDwellerCount: 1,
       },
-    });
+    })
 
-    expect(wrapper.text()).not.toContain('Activate Radio Mode');
-  });
+    expect(wrapper.text()).not.toContain('Activate Radio Mode')
+  })
 
   it('should not show "Assign Idle Dwellers" when no idle dwellers', () => {
     const wrapper = mount(HappinessDashboard, {
@@ -196,10 +196,10 @@ describe('HappinessDashboard', () => {
         idleDwellerCount: 0,
         lowResourceCount: 1,
       },
-    });
+    })
 
-    expect(wrapper.text()).not.toContain('Assign Idle Dwellers');
-  });
+    expect(wrapper.text()).not.toContain('Assign Idle Dwellers')
+  })
 
   it('should handle zero dweller count', () => {
     const wrapper = mount(HappinessDashboard, {
@@ -213,11 +213,11 @@ describe('HappinessDashboard', () => {
           critical: 0,
         },
       },
-    });
+    })
 
     // Should not crash and show 0% for all
-    expect(wrapper.text()).toContain('(0%)');
-  });
+    expect(wrapper.text()).toContain('(0%)')
+  })
 
   it('should apply correct colors based on happiness level', () => {
     const wrapper = mount(HappinessDashboard, {
@@ -225,30 +225,30 @@ describe('HappinessDashboard', () => {
         ...defaultProps,
         vaultHappiness: 85,
       },
-    });
+    })
 
-    const gaugeValue = wrapper.find('.gauge-value');
-    expect(gaugeValue.attributes('style')).toContain('var(--color-theme-primary)');
-  });
+    const gaugeValue = wrapper.find('.gauge-value')
+    expect(gaugeValue.attributes('style')).toContain('var(--color-theme-primary)')
+  })
 
   it('should render SVG gauge with correct dimensions', () => {
     const wrapper = mount(HappinessDashboard, {
       props: defaultProps,
-    });
+    })
 
-    const svg = wrapper.find('svg');
-    expect(svg.exists()).toBe(true);
-    expect(svg.attributes('viewBox')).toBe('0 0 160 160');
-  });
+    const svg = wrapper.find('svg')
+    expect(svg.exists()).toBe(true)
+    expect(svg.attributes('viewBox')).toBe('0 0 160 160')
+  })
 
   it('should show trend icon', () => {
     const wrapper = mount(HappinessDashboard, {
       props: defaultProps,
-    });
+    })
 
-    const trendIcon = wrapper.find('.gauge-trend');
-    expect(trendIcon.exists()).toBe(true);
-  });
+    const trendIcon = wrapper.find('.gauge-trend')
+    expect(trendIcon.exists()).toBe(true)
+  })
 
   it('should limit modifiers to 5', () => {
     const wrapper = mount(HappinessDashboard, {
@@ -259,9 +259,9 @@ describe('HappinessDashboard', () => {
         idleDwellerCount: 5,
         radioHappinessMode: true,
       },
-    });
+    })
 
-    const modifierItems = wrapper.findAll('.modifier-item');
-    expect(modifierItems.length).toBeLessThanOrEqual(5);
-  });
-});
+    const modifierItems = wrapper.findAll('.modifier-item')
+    expect(modifierItems.length).toBeLessThanOrEqual(5)
+  })
+})

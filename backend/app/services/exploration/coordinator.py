@@ -651,6 +651,9 @@ class ExplorationCoordinator:
                     },
                 )
 
+        # Commit items first so they're visible to count query
+        await db_session.commit()
+
         # Update storage used_space counter
         await crud_storage.update_used_space(db_session, storage_id)
 

@@ -27,7 +27,7 @@ export default {
         700: '#00aa00',
         800: '#008800',
         900: '#006600',
-        950: '#004400'
+        950: '#004400',
       },
       // Secondary uses theme-accent
       secondary: {
@@ -41,7 +41,7 @@ export default {
         700: '#008800',
         800: '#006600',
         900: '#004400',
-        950: '#003300'
+        950: '#003300',
       },
       // Success maps to terminal green (already primary)
       success: {
@@ -55,7 +55,7 @@ export default {
         700: '#15803d',
         800: '#166534',
         900: '#14532d',
-        950: '#052e16'
+        950: '#052e16',
       },
       // Warning uses amber
       warning: {
@@ -69,7 +69,7 @@ export default {
         700: '#b45309',
         800: '#92400e',
         900: '#78350f',
-        950: '#451a03'
+        950: '#451a03',
       },
       // Error uses red
       error: {
@@ -83,7 +83,7 @@ export default {
         700: '#b91c1c',
         800: '#991b1b',
         900: '#7f1d1d',
-        950: '#450a0a'
+        950: '#450a0a',
       },
       // Info uses blue
       info: {
@@ -97,8 +97,8 @@ export default {
         700: '#1d4ed8',
         800: '#1e40af',
         900: '#1e3a8a',
-        950: '#172554'
-      }
+        950: '#172554',
+      },
     },
     // Letter spacing
     letterSpacing: {
@@ -107,8 +107,8 @@ export default {
       normal: '0',
       wide: '0.025em',
       wider: '0.05em',
-      widest: '0.1em'
-    }
+      widest: '0.1em',
+    },
   },
 
   // Component defaults for terminal theme consistency
@@ -116,20 +116,20 @@ export default {
     Button: {
       default: {
         color: 'primary',
-        variant: 'solid'
-      }
+        variant: 'solid',
+      },
     },
     Input: {
       default: {
         color: 'primary',
-        variant: 'outline'
-      }
+        variant: 'outline',
+      },
     },
     Card: {
       default: {
-        color: 'primary'
-      }
-    }
+        color: 'primary',
+      },
+    },
   },
 
   // Hook into Nuxt UI's theming
@@ -137,10 +137,13 @@ export default {
     // Register custom shortcuts for terminal theme
     'shortcuts:register'(shortcuts: Record<string, string>) {
       Object.assign(shortcuts, {
-        'terminal-btn': 'px-4 py-2 border border-[var(--color-theme-primary)] text-[var(--color-theme-primary)] bg-transparent hover:bg-[var(--color-theme-primary)]/10 transition-all cursor-pointer rounded',
-        'terminal-input': 'px-4 py-2 border border-[var(--color-theme-primary)] bg-black text-[var(--color-theme-primary)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--color-theme-primary)]/50',
-        'terminal-card': 'border border-[var(--color-theme-primary)] bg-black/90 rounded shadow-[0_0_10px_var(--color-theme-glow)]'
+        'terminal-btn':
+          'px-4 py-2 border border-[var(--color-theme-primary)] text-[var(--color-theme-primary)] bg-transparent hover:bg-[var(--color-theme-primary)]/10 transition-all cursor-pointer rounded',
+        'terminal-input':
+          'px-4 py-2 border border-[var(--color-theme-primary)] bg-black text-[var(--color-theme-primary)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--color-theme-primary)]/50',
+        'terminal-card':
+          'border border-[var(--color-theme-primary)] bg-black/90 rounded shadow-[0_0_10px_var(--color-theme-glow)]',
       })
-    }
-  }
+    },
+  },
 }

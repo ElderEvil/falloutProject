@@ -30,7 +30,7 @@ describe('Objectives Store', () => {
             progress: 50,
             total: 100,
             reward: '50 caps',
-            is_completed: false
+            is_completed: false,
           },
           {
             id: '2',
@@ -38,8 +38,8 @@ describe('Objectives Store', () => {
             progress: 3,
             total: 5,
             reward: '100 caps',
-            is_completed: false
-          }
+            is_completed: false,
+          },
         ]
 
         vi.mocked(axios.get).mockResolvedValueOnce({ data: mockObjectives })
@@ -47,7 +47,7 @@ describe('Objectives Store', () => {
         await objectivesStore.fetchObjectives('vault-123')
 
         expect(axios.get).toHaveBeenCalledWith('/api/v1/objectives/vault-123/', {
-          params: { skip: 0, limit: 100 }
+          params: { skip: 0, limit: 100 },
         })
         expect(objectivesStore.objectives).toEqual(mockObjectives)
       })
@@ -59,7 +59,7 @@ describe('Objectives Store', () => {
         await objectivesStore.fetchObjectives('vault-123', 10, 50)
 
         expect(axios.get).toHaveBeenCalledWith('/api/v1/objectives/vault-123/', {
-          params: { skip: 10, limit: 50 }
+          params: { skip: 10, limit: 50 },
         })
       })
 
@@ -115,11 +115,9 @@ describe('Objectives Store', () => {
         const newObjective = {
           challenge: 'New challenge',
           total: 10,
-          reward: '50 caps'
+          reward: '50 caps',
         }
-        const updatedObjectives = [
-          { id: '1', ...newObjective, progress: 0, is_completed: false }
-        ]
+        const updatedObjectives = [{ id: '1', ...newObjective, progress: 0, is_completed: false }]
 
         vi.mocked(axios.post).mockResolvedValueOnce({ data: {} })
         vi.mocked(axios.get).mockResolvedValueOnce({ data: updatedObjectives })
@@ -128,7 +126,7 @@ describe('Objectives Store', () => {
 
         expect(axios.post).toHaveBeenCalledWith('/api/v1/objectives/vault-123/', newObjective)
         expect(axios.get).toHaveBeenCalledWith('/api/v1/objectives/vault-123/', {
-          params: { skip: 0, limit: 100 }
+          params: { skip: 0, limit: 100 },
         })
         expect(objectivesStore.objectives).toEqual(updatedObjectives)
       })
@@ -182,7 +180,7 @@ describe('Objectives Store', () => {
           progress: 5,
           total: 10,
           reward: '25 caps',
-          is_completed: false
+          is_completed: false,
         }
 
         vi.mocked(axios.get).mockResolvedValueOnce({ data: mockObjective })
@@ -210,9 +208,9 @@ describe('Objectives Store', () => {
         const error = new Error('Not found')
         vi.mocked(axios.get).mockRejectedValueOnce(error)
 
-        await expect(
-          objectivesStore.getObjective('vault-123', 'obj-1')
-        ).rejects.toThrow('Not found')
+        await expect(objectivesStore.getObjective('vault-123', 'obj-1')).rejects.toThrow(
+          'Not found'
+        )
       })
 
       it('should log error to console on get failure', async () => {
@@ -243,14 +241,14 @@ describe('Objectives Store', () => {
       const newObjective = { challenge: 'Test', total: 10, reward: '10 caps' }
       vi.mocked(axios.post).mockResolvedValueOnce({ data: {} })
       vi.mocked(axios.get).mockResolvedValueOnce({
-        data: [{ id: '1', ...newObjective, progress: 0, is_completed: false }]
+        data: [{ id: '1', ...newObjective, progress: 0, is_completed: false }],
       })
       await objectivesStore.addObjective('vault-123', newObjective)
       expect(objectivesStore.objectives).toHaveLength(1)
 
       // Get specific objective
       vi.mocked(axios.get).mockResolvedValueOnce({
-        data: { id: '1', ...newObjective, progress: 5, is_completed: false }
+        data: { id: '1', ...newObjective, progress: 5, is_completed: false },
       })
       const objective = await objectivesStore.getObjective('vault-123', '1')
       expect(objective.progress).toBe(5)
@@ -259,14 +257,14 @@ describe('Objectives Store', () => {
     it('should handle multiple vaults independently', async () => {
       // Fetch for vault 1
       vi.mocked(axios.get).mockResolvedValueOnce({
-        data: [{ id: '1', challenge: 'Vault 1 objective' }]
+        data: [{ id: '1', challenge: 'Vault 1 objective' }],
       })
       await objectivesStore.fetchObjectives('vault-1')
       const vault1Objectives = [...objectivesStore.objectives]
 
       // Fetch for vault 2
       vi.mocked(axios.get).mockResolvedValueOnce({
-        data: [{ id: '2', challenge: 'Vault 2 objective' }]
+        data: [{ id: '2', challenge: 'Vault 2 objective' }],
       })
       await objectivesStore.fetchObjectives('vault-2')
 
@@ -287,7 +285,7 @@ describe('Objectives Store', () => {
         is_completed: false,
         description: 'Test description',
         created_at: '2025-01-01T00:00:00Z',
-        updated_at: '2025-01-02T00:00:00Z'
+        updated_at: '2025-01-02T00:00:00Z',
       }
 
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [completeObjective] })
@@ -303,7 +301,7 @@ describe('Objectives Store', () => {
         progress: 10,
         total: 10,
         reward: '50 caps',
-        is_completed: true
+        is_completed: true,
       }
 
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [completedObjective] })

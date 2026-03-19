@@ -9,17 +9,34 @@ AI-powered dweller interactions.
 
 ## In Progress
 
-### v2.11.0 - (In Development)
+### v2.11.1 - (In Development)
 
-**Focus**: Bug fixes and improvements on top of 2.10.9
+**Focus**: Upcoming improvements
 
-**Completed:**
-- ✅ **Type Hint Fix** - Added missing return type hint to `mock_admin_user()` fixture
-- ✅ **CI Fix** - Fixed `RUSTFS_PORT=443` in `.env.example` for proper HTTPS validation
+**Planned:**
+- [ ] Additional feature or improvement
 
 ---
 
 ## Latest Release
+
+### v2.11.0 - Toolchain Migration & Recycling Service (March 19, 2026)
+
+**Focus**: Vite+ unified toolchain, dweller recycling service, and test fixes
+
+**Completed:**
+- ✅ **Vite+ Unified Toolchain** - Migrated to Vite+ for improved bundling and DX
+  - Unified build tooling across frontend
+  - Improved build performance
+- ✅ **MinIO Deprecation Warnings** - RustFS is now the primary storage provider
+  - Added deprecation warnings for MinIO configuration
+  - RustFS marked as default and recommended option
+- ✅ **Dweller Recycling Service** - New service for processing dead dwellers
+  - Implemented recycling mechanics for permanent deaths
+  - Integration with vault economy system
+- ✅ **Exploration Coordinator Tests** - Fixed 4 failing tests
+  - Test isolation issues resolved
+  - All exploration coordinator tests now passing
 
 ### v2.10.9 - AI Usage Tracking & Quota System (March 13, 2026)
 

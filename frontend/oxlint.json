@@ -12,12 +12,7 @@
     "NodeJS": "readonly"
   },
   "plugins": ["vue"],
-  "ignorePatterns": [
-    "node_modules",
-    "dist",
-    ".pnpm-store",
-    "*.config.*"
-  ],
+  "ignorePatterns": ["node_modules", "dist", ".pnpm-store", "*.config.*"],
   "format": {
     "indentWidth": 2,
     "useTabs": false,

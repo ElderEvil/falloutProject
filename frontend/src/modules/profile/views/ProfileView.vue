@@ -313,10 +313,7 @@ const formatDate = (dateString: string) => {
             :statistics="profileStore.deathStatistics"
             :loading="profileStore.deathStatsLoading"
           />
-          <AIUsageCard
-            :stats="profileStore.aiUsageStats"
-            :loading="profileStore.aiUsageLoading"
-          />
+          <AIUsageCard :stats="profileStore.aiUsageStats" :loading="profileStore.aiUsageLoading" />
         </div>
       </div>
     </div>

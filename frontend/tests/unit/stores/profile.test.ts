@@ -23,7 +23,7 @@ describe('Profile Store', () => {
     total_explorations: 5,
     total_rooms_built: 8,
     created_at: '2023-01-01T00:00:00Z',
-    updated_at: '2023-01-02T00:00:00Z'
+    updated_at: '2023-01-02T00:00:00Z',
   }
 
   describe('State Initialization', () => {
@@ -55,7 +55,7 @@ describe('Profile Store', () => {
         totalDwellersCreated: 10,
         totalCapsEarned: 500,
         totalExplorations: 5,
-        totalRoomsBuilt: 8
+        totalRoomsBuilt: 8,
       })
     })
 
@@ -98,9 +98,9 @@ describe('Profile Store', () => {
       const mockError = {
         response: {
           data: {
-            detail: 'Profile not found'
-          }
-        }
+            detail: 'Profile not found',
+          },
+        },
       }
 
       vi.mocked(axios.get).mockRejectedValueOnce(mockError)
@@ -127,7 +127,7 @@ describe('Profile Store', () => {
     const updateData: ProfileUpdate = {
       bio: 'Updated bio',
       avatar_url: 'https://example.com/new-avatar.jpg',
-      preferences: { theme: 'light', notifications: true }
+      preferences: { theme: 'light', notifications: true },
     }
 
     it('should update profile successfully', async () => {
@@ -163,9 +163,9 @@ describe('Profile Store', () => {
       const mockError = {
         response: {
           data: {
-            detail: 'Validation error'
-          }
-        }
+            detail: 'Validation error',
+          },
+        },
       }
 
       vi.mocked(axios.put).mockRejectedValueOnce(mockError)
@@ -235,10 +235,10 @@ describe('Profile Store', () => {
         radiation: 2,
         incident: 2,
         exploration: 2,
-        combat: 1
+        combat: 1,
       },
       revivable_count: 3,
-      permanently_dead_count: 7
+      permanently_dead_count: 7,
     }
 
     it('should initialize with null death statistics', () => {

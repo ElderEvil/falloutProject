@@ -12,15 +12,15 @@ vi.mock('@/stores/equipment', () => ({
     equipWeapon: vi.fn().mockResolvedValue(undefined),
     equipOutfit: vi.fn().mockResolvedValue(undefined),
     unequipWeapon: vi.fn().mockResolvedValue(undefined),
-    unequipOutfit: vi.fn().mockResolvedValue(undefined)
-  })
+    unequipOutfit: vi.fn().mockResolvedValue(undefined),
+  }),
 }))
 
 vi.mock('@/modules/auth/stores/auth', () => ({
   useAuthStore: () => ({
     token: 'test-token',
-    isAuthenticated: true
-  })
+    isAuthenticated: true,
+  }),
 }))
 
 describe('DwellerEquipment', () => {
@@ -47,7 +47,7 @@ describe('DwellerEquipment', () => {
     gender: 'male',
     status: 'idle',
     weapon: null,
-    outfit: null
+    outfit: null,
   }
 
   it('renders equipment slots', () => {
@@ -58,9 +58,9 @@ describe('DwellerEquipment', () => {
           Icon: true,
           WeaponCard: true,
           OutfitCard: true,
-          Teleport: true
-        }
-      }
+          Teleport: true,
+        },
+      },
     })
 
     expect(wrapper.text()).toContain('Weapon')
@@ -75,9 +75,9 @@ describe('DwellerEquipment', () => {
           Icon: true,
           WeaponCard: true,
           OutfitCard: true,
-          Teleport: true
-        }
-      }
+          Teleport: true,
+        },
+      },
     })
 
     expect(wrapper.text()).toContain('Click to equip weapon')
@@ -92,9 +92,9 @@ describe('DwellerEquipment', () => {
           Icon: true,
           WeaponCard: true,
           OutfitCard: true,
-          Teleport: true
-        }
-      }
+          Teleport: true,
+        },
+      },
     })
 
     wrapper.vm.$emit('refresh')

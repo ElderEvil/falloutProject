@@ -6,11 +6,11 @@ import type { AIUsageStats } from '@/modules/profile/models/aiUsage'
 vi.mock('vue-router', () => ({
   RouterLink: {
     name: 'RouterLink',
-    template: '<a><slot /></a>'
+    template: '<a><slot /></a>',
   },
   useRouter: () => ({
-    push: vi.fn()
-  })
+    push: vi.fn(),
+  }),
 }))
 
 const localStorageMock = (() => {
@@ -26,14 +26,14 @@ const localStorageMock = (() => {
     },
     clear: () => {
       store = {}
-    }
+    },
   }
 })()
 
 Object.defineProperty(global, 'localStorage', {
   value: localStorageMock,
   configurable: true,
-  writable: true
+  writable: true,
 })
 
 describe('AIUsageCard', () => {
@@ -41,12 +41,12 @@ describe('AIUsageCard', () => {
     all_time: {
       prompt_tokens: 1000,
       completion_tokens: 500,
-      total_tokens: 1500
+      total_tokens: 1500,
     },
     current_month: {
       prompt_tokens: 500,
       completion_tokens: 250,
-      total_tokens: 750
+      total_tokens: 750,
     },
     month: 'January 2026',
     quota_limit: 100000,
@@ -56,7 +56,7 @@ describe('AIUsageCard', () => {
     quota_warning: false,
     quota_exceeded: false,
     reset_date: '2026-02-01',
-    ...overrides
+    ...overrides,
   })
 
   beforeEach(() => {
@@ -74,11 +74,11 @@ describe('AIUsageCard', () => {
         quota_limit: 100000,
         quota_percentage: 50,
         quota_warning: false,
-        quota_exceeded: false
+        quota_exceeded: false,
       })
 
       const wrapper = mount(AIUsageCard, {
-        props: { stats }
+        props: { stats },
       })
 
       expect(wrapper.text()).toContain('50%')
@@ -91,11 +91,11 @@ describe('AIUsageCard', () => {
         quota_limit: 100000,
         quota_percentage: 75,
         quota_warning: false,
-        quota_exceeded: false
+        quota_exceeded: false,
       })
 
       const wrapper = mount(AIUsageCard, {
-        props: { stats }
+        props: { stats },
       })
 
       expect(wrapper.text()).toContain('75%')
@@ -107,11 +107,11 @@ describe('AIUsageCard', () => {
         quota_limit: 100000,
         quota_percentage: 120,
         quota_warning: false,
-        quota_exceeded: true
+        quota_exceeded: true,
       })
 
       const wrapper = mount(AIUsageCard, {
-        props: { stats }
+        props: { stats },
       })
 
       expect(wrapper.text()).toContain('120%')
@@ -126,13 +126,13 @@ describe('AIUsageCard', () => {
         quota_limit: 100000,
         quota_percentage: 80,
         quota_warning: true,
-        quota_exceeded: false
+        quota_exceeded: false,
       })
 
       localStorage.setItem('quota_warning_dismissed_2026-01', 'false')
 
       const wrapper = mount(AIUsageCard, {
-        props: { stats }
+        props: { stats },
       })
       await flushPromises()
 
@@ -145,11 +145,11 @@ describe('AIUsageCard', () => {
         quota_limit: 100000,
         quota_percentage: 80,
         quota_warning: true,
-        quota_exceeded: false
+        quota_exceeded: false,
       })
 
       const wrapper = mount(AIUsageCard, {
-        props: { stats }
+        props: { stats },
       })
 
       expect(wrapper.text()).toContain('Approaching quota limit')
@@ -161,11 +161,11 @@ describe('AIUsageCard', () => {
         quota_limit: 100000,
         quota_percentage: 80,
         quota_warning: false,
-        quota_exceeded: false
+        quota_exceeded: false,
       })
 
       const wrapper = mount(AIUsageCard, {
-        props: { stats }
+        props: { stats },
       })
 
       expect(wrapper.text()).not.toContain("You've used")
@@ -179,11 +179,11 @@ describe('AIUsageCard', () => {
         quota_limit: 100000,
         quota_percentage: 100,
         quota_warning: false,
-        quota_exceeded: true
+        quota_exceeded: true,
       })
 
       const wrapper = mount(AIUsageCard, {
-        props: { stats }
+        props: { stats },
       })
 
       expect(wrapper.text()).toContain('Quota exceeded')
@@ -196,11 +196,11 @@ describe('AIUsageCard', () => {
         quota_limit: 100000,
         quota_percentage: 100,
         quota_warning: false,
-        quota_exceeded: true
+        quota_exceeded: true,
       })
 
       const wrapper = mount(AIUsageCard, {
-        props: { stats }
+        props: { stats },
       })
 
       const exceededAlert = wrapper.find('.text-red-400')
@@ -214,11 +214,11 @@ describe('AIUsageCard', () => {
         quota_limit: 100000,
         quota_percentage: 99,
         quota_warning: true,
-        quota_exceeded: false
+        quota_exceeded: false,
       })
 
       const wrapper = mount(AIUsageCard, {
-        props: { stats }
+        props: { stats },
       })
 
       expect(wrapper.text()).not.toContain('Quota exceeded')
@@ -232,11 +232,11 @@ describe('AIUsageCard', () => {
         quota_limit: 100000,
         quota_percentage: 50,
         quota_warning: false,
-        quota_exceeded: false
+        quota_exceeded: false,
       })
 
       const wrapper = mount(AIUsageCard, {
-        props: { stats }
+        props: { stats },
       })
 
       const progressBar = wrapper.find('.bg-theme-primary')
@@ -249,11 +249,11 @@ describe('AIUsageCard', () => {
         quota_limit: 100000,
         quota_percentage: 80,
         quota_warning: true,
-        quota_exceeded: false
+        quota_exceeded: false,
       })
 
       const wrapper = mount(AIUsageCard, {
-        props: { stats }
+        props: { stats },
       })
 
       const progressBar = wrapper.find('.bg-amber-500')
@@ -269,11 +269,11 @@ describe('AIUsageCard', () => {
         quota_limit: 100000,
         quota_percentage: 90,
         quota_warning: true,
-        quota_exceeded: false
+        quota_exceeded: false,
       })
 
       const wrapper = mount(AIUsageCard, {
-        props: { stats }
+        props: { stats },
       })
 
       const progressBar = wrapper.find('.bg-amber-500')
@@ -286,11 +286,11 @@ describe('AIUsageCard', () => {
         quota_limit: 100000,
         quota_percentage: 100,
         quota_warning: false,
-        quota_exceeded: true
+        quota_exceeded: true,
       })
 
       const wrapper = mount(AIUsageCard, {
-        props: { stats }
+        props: { stats },
       })
 
       const progressBar = wrapper.find('.bg-red-500')
@@ -306,11 +306,11 @@ describe('AIUsageCard', () => {
         quota_limit: 100000,
         quota_percentage: 120,
         quota_warning: false,
-        quota_exceeded: true
+        quota_exceeded: true,
       })
 
       const wrapper = mount(AIUsageCard, {
-        props: { stats }
+        props: { stats },
       })
 
       const progressBar = wrapper.find('.bg-red-500')
@@ -323,8 +323,8 @@ describe('AIUsageCard', () => {
       const wrapper = mount(AIUsageCard, {
         props: {
           stats: null,
-          loading: true
-        }
+          loading: true,
+        },
       })
       await flushPromises()
 
@@ -336,8 +336,8 @@ describe('AIUsageCard', () => {
       const wrapper = mount(AIUsageCard, {
         props: {
           stats: null,
-          loading: false
-        }
+          loading: false,
+        },
       })
 
       expect(wrapper.text()).toContain('No AI usage data available')

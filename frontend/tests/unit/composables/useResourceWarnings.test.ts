@@ -8,8 +8,8 @@ const mockToastWarning = vi.fn()
 vi.mock('@/core/composables/useToast', () => ({
   useToast: () => ({
     error: mockToastError,
-    warning: mockToastWarning
-  })
+    warning: mockToastWarning,
+  }),
 }))
 
 const localStorageMock = (() => {
@@ -25,14 +25,14 @@ const localStorageMock = (() => {
     },
     clear: () => {
       store = {}
-    }
+    },
   }
 })()
 
 Object.defineProperty(global, 'localStorage', {
   value: localStorageMock,
   configurable: true,
-  writable: true
+  writable: true,
 })
 
 describe('useResourceWarnings', () => {
@@ -57,10 +57,10 @@ describe('useResourceWarnings', () => {
     vaultStore.$patch({
       loadedVaults: {
         'test-id': {
-          resource_warnings: [{ type: 'low_power', message: 'Power low' }]
-        }
+          resource_warnings: [{ type: 'low_power', message: 'Power low' }],
+        },
       },
-      activeVaultId: 'test-id'
+      activeVaultId: 'test-id',
     })
 
     await nextTick()
@@ -75,10 +75,10 @@ describe('useResourceWarnings', () => {
     vaultStore.$patch({
       loadedVaults: {
         'test-id': {
-          resource_warnings: [{ type: 'low_power', message: 'Power low' }]
-        }
+          resource_warnings: [{ type: 'low_power', message: 'Power low' }],
+        },
       },
-      activeVaultId: 'test-id'
+      activeVaultId: 'test-id',
     })
     await nextTick()
     expect(mockToastWarning).toHaveBeenCalledTimes(1)
@@ -86,10 +86,10 @@ describe('useResourceWarnings', () => {
     vaultStore.$patch({
       loadedVaults: {
         'test-id': {
-          resource_warnings: [{ type: 'low_power', message: 'Power low' }]
-        }
+          resource_warnings: [{ type: 'low_power', message: 'Power low' }],
+        },
       },
-      activeVaultId: 'test-id'
+      activeVaultId: 'test-id',
     })
     await nextTick()
     expect(mockToastWarning).toHaveBeenCalledTimes(1)
@@ -99,10 +99,10 @@ describe('useResourceWarnings', () => {
     vaultStore.$patch({
       loadedVaults: {
         'test-id': {
-          resource_warnings: [{ type: 'low_power', message: 'Power low' }]
-        }
+          resource_warnings: [{ type: 'low_power', message: 'Power low' }],
+        },
       },
-      activeVaultId: 'test-id'
+      activeVaultId: 'test-id',
     })
     await nextTick()
 
@@ -116,10 +116,10 @@ describe('useResourceWarnings', () => {
     vaultStore.$patch({
       loadedVaults: {
         'test-id': {
-          resource_warnings: [{ type: 'critical_power', message: 'Power Critical' }]
-        }
+          resource_warnings: [{ type: 'critical_power', message: 'Power Critical' }],
+        },
       },
-      activeVaultId: 'test-id'
+      activeVaultId: 'test-id',
     })
     await nextTick()
 

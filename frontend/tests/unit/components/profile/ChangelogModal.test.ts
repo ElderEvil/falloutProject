@@ -8,8 +8,8 @@ vi.mock('@iconify/vue', () => ({
   Icon: {
     name: 'Icon',
     props: ['icon'],
-    template: '<div class="mock-icon" :data-icon="icon"></div>'
-  }
+    template: '<div class="mock-icon" :data-icon="icon"></div>',
+  },
 }))
 
 // Mock changelogService
@@ -22,12 +22,12 @@ vi.mock('@/modules/profile/services/changelogService', () => ({
         changes: [
           {
             category: 'Added',
-            description: 'New feature'
-          }
-        ]
-      }
-    ])
-  }
+            description: 'New feature',
+          },
+        ],
+      },
+    ]),
+  },
 }))
 
 // Mock FormattedChangeDescription component
@@ -35,8 +35,8 @@ vi.mock('@/modules/profile/components/FormattedChangeDescription.vue', () => ({
   default: {
     name: 'FormattedChangeDescription',
     props: ['description'],
-    template: '<span>{{ description }}</span>'
-  }
+    template: '<span>{{ description }}</span>',
+  },
 }))
 
 // Mock UCard, UButton, UBadge
@@ -56,18 +56,19 @@ vi.mock('@/core/components/ui', () => ({
           <slot name="footer" />
         </div>
       </div>
-    `
+    `,
   },
   UButton: {
     name: 'UButton',
     props: ['variant', 'disabled'],
-    template: '<button class="mock-button" :class="`variant-${variant}`" :disabled="disabled"><slot /></button>'
+    template:
+      '<button class="mock-button" :class="`variant-${variant}`" :disabled="disabled"><slot /></button>',
   },
   UBadge: {
     name: 'UBadge',
     props: ['variant'],
-    template: '<span class="mock-badge"><slot /></span>'
-  }
+    template: '<span class="mock-badge"><slot /></span>',
+  },
 }))
 
 describe('ChangelogModal', () => {
@@ -82,17 +83,17 @@ describe('ChangelogModal', () => {
         props: {
           show: true,
           currentVersion: '2.9.5',
-          lastSeenVersion: '2.9.4'
+          lastSeenVersion: '2.9.4',
         },
         global: {
-          stubs: { Teleport: true }
-        }
+          stubs: { Teleport: true },
+        },
       })
 
       await flushPromises()
       expect(wrapper.text()).toContain('New feature')
       const buttons = wrapper.findAll('.mock-button')
-      const closeButton = buttons.find(btn => btn.text().includes('Close'))
+      const closeButton = buttons.find((btn) => btn.text().includes('Close'))
       expect(closeButton).toBeUndefined()
     })
 
@@ -101,17 +102,17 @@ describe('ChangelogModal', () => {
         props: {
           show: true,
           currentVersion: '2.9.5',
-          lastSeenVersion: '2.9.5'
+          lastSeenVersion: '2.9.5',
         },
         global: {
-          stubs: { Teleport: true }
-        }
+          stubs: { Teleport: true },
+        },
       })
 
       await flushPromises()
       expect(wrapper.text()).toContain('All caught up')
       const buttons = wrapper.findAll('.mock-button')
-      const gotItButton = buttons.find(btn => btn.text().includes('Got it!'))
+      const gotItButton = buttons.find((btn) => btn.text().includes('Got it!'))
       expect(gotItButton).toBeUndefined()
     })
   })
@@ -122,11 +123,11 @@ describe('ChangelogModal', () => {
         props: {
           show: true,
           currentVersion: '2.9.5',
-          lastSeenVersion: '2.9.4'
+          lastSeenVersion: '2.9.4',
         },
         global: {
-          stubs: { Teleport: true }
-        }
+          stubs: { Teleport: true },
+        },
       })
 
       await wrapper.vm.$nextTick()
@@ -139,11 +140,11 @@ describe('ChangelogModal', () => {
         props: {
           show: true,
           currentVersion: '2.9.5',
-          lastSeenVersion: '2.9.4'
+          lastSeenVersion: '2.9.4',
         },
         global: {
-          stubs: { Teleport: true }
-        }
+          stubs: { Teleport: true },
+        },
       })
 
       await wrapper.vm.$nextTick()
@@ -160,11 +161,11 @@ describe('ChangelogModal', () => {
         props: {
           show: false,
           currentVersion: '2.9.5',
-          lastSeenVersion: '2.9.4'
+          lastSeenVersion: '2.9.4',
         },
         global: {
-          stubs: { Teleport: true }
-        }
+          stubs: { Teleport: true },
+        },
       })
 
       expect(wrapper.find('.mock-card').exists()).toBe(false)

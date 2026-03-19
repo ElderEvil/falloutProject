@@ -7,15 +7,15 @@ describe('ProfileEditor', () => {
   const mockInitialData = {
     bio: 'Test bio',
     avatar_url: 'https://example.com/avatar.jpg',
-    preferences: { theme: 'dark', notifications: true }
+    preferences: { theme: 'dark', notifications: true },
   }
 
   describe('Component Rendering', () => {
     it('should render form with all fields', () => {
       const wrapper = mount(ProfileEditor, {
         props: {
-          initialData: mockInitialData
-        }
+          initialData: mockInitialData,
+        },
       })
 
       expect(wrapper.find('#bio').exists()).toBe(true)
@@ -26,8 +26,8 @@ describe('ProfileEditor', () => {
     it('should populate fields with initial data', () => {
       const wrapper = mount(ProfileEditor, {
         props: {
-          initialData: mockInitialData
-        }
+          initialData: mockInitialData,
+        },
       })
 
       const bioTextarea = wrapper.find('#bio').element as HTMLTextAreaElement
@@ -42,8 +42,8 @@ describe('ProfileEditor', () => {
     it('should render with empty data', () => {
       const wrapper = mount(ProfileEditor, {
         props: {
-          initialData: {}
-        }
+          initialData: {},
+        },
       })
 
       const bioTextarea = wrapper.find('#bio').element as HTMLTextAreaElement
@@ -55,8 +55,8 @@ describe('ProfileEditor', () => {
     it('should update bio when typing', async () => {
       const wrapper = mount(ProfileEditor, {
         props: {
-          initialData: mockInitialData
-        }
+          initialData: mockInitialData,
+        },
       })
 
       const bioTextarea = wrapper.find('#bio')
@@ -68,8 +68,8 @@ describe('ProfileEditor', () => {
     it('should show character count', () => {
       const wrapper = mount(ProfileEditor, {
         props: {
-          initialData: { bio: 'Test' }
-        }
+          initialData: { bio: 'Test' },
+        },
       })
 
       expect(wrapper.text()).toContain('4 / 500 characters')
@@ -78,8 +78,8 @@ describe('ProfileEditor', () => {
     it('should enforce maxlength of 500 characters', () => {
       const wrapper = mount(ProfileEditor, {
         props: {
-          initialData: mockInitialData
-        }
+          initialData: mockInitialData,
+        },
       })
 
       const bioTextarea = wrapper.find('#bio')
@@ -91,8 +91,8 @@ describe('ProfileEditor', () => {
     it('should update avatar URL when typing', async () => {
       const wrapper = mount(ProfileEditor, {
         props: {
-          initialData: mockInitialData
-        }
+          initialData: mockInitialData,
+        },
       })
 
       const avatarInput = wrapper.find('#avatar_url')
@@ -106,8 +106,8 @@ describe('ProfileEditor', () => {
     it('should show avatar preview when URL is provided', async () => {
       const wrapper = mount(ProfileEditor, {
         props: {
-          initialData: mockInitialData
-        }
+          initialData: mockInitialData,
+        },
       })
 
       const img = wrapper.find('img[alt="Avatar preview"]')
@@ -118,8 +118,8 @@ describe('ProfileEditor', () => {
     it('should not show avatar preview when URL is empty', () => {
       const wrapper = mount(ProfileEditor, {
         props: {
-          initialData: { bio: 'Test' }
-        }
+          initialData: { bio: 'Test' },
+        },
       })
 
       const img = wrapper.find('img[alt="Avatar preview"]')
@@ -129,8 +129,8 @@ describe('ProfileEditor', () => {
     it('should enforce maxlength of 255 characters', () => {
       const wrapper = mount(ProfileEditor, {
         props: {
-          initialData: mockInitialData
-        }
+          initialData: mockInitialData,
+        },
       })
 
       const avatarInput = wrapper.find('#avatar_url')
@@ -142,8 +142,8 @@ describe('ProfileEditor', () => {
     it('should display preferences as formatted JSON', () => {
       const wrapper = mount(ProfileEditor, {
         props: {
-          initialData: mockInitialData
-        }
+          initialData: mockInitialData,
+        },
       })
 
       const preferencesTextarea = wrapper.find('#preferences').element as HTMLTextAreaElement
@@ -155,8 +155,8 @@ describe('ProfileEditor', () => {
     it('should show error for invalid JSON', async () => {
       const wrapper = mount(ProfileEditor, {
         props: {
-          initialData: mockInitialData
-        }
+          initialData: mockInitialData,
+        },
       })
 
       const preferencesTextarea = wrapper.find('#preferences')
@@ -168,8 +168,8 @@ describe('ProfileEditor', () => {
     it('should not show error for valid JSON', async () => {
       const wrapper = mount(ProfileEditor, {
         props: {
-          initialData: mockInitialData
-        }
+          initialData: mockInitialData,
+        },
       })
 
       const preferencesTextarea = wrapper.find('#preferences')
@@ -183,8 +183,8 @@ describe('ProfileEditor', () => {
     it('should emit submit event with updated data', async () => {
       const wrapper = mount(ProfileEditor, {
         props: {
-          initialData: mockInitialData
-        }
+          initialData: mockInitialData,
+        },
       })
 
       await wrapper.find('#bio').setValue('New bio')
@@ -198,8 +198,8 @@ describe('ProfileEditor', () => {
     it('should not submit when JSON is invalid', async () => {
       const wrapper = mount(ProfileEditor, {
         props: {
-          initialData: mockInitialData
-        }
+          initialData: mockInitialData,
+        },
       })
 
       await wrapper.find('#preferences').setValue('{ invalid }')
@@ -211,8 +211,8 @@ describe('ProfileEditor', () => {
     it('should convert empty strings to null', async () => {
       const wrapper = mount(ProfileEditor, {
         props: {
-          initialData: mockInitialData
-        }
+          initialData: mockInitialData,
+        },
       })
 
       await wrapper.find('#bio').setValue('')
@@ -229,8 +229,8 @@ describe('ProfileEditor', () => {
     it('should emit cancel event when cancel button is clicked', async () => {
       const wrapper = mount(ProfileEditor, {
         props: {
-          initialData: mockInitialData
-        }
+          initialData: mockInitialData,
+        },
       })
 
       await wrapper.findAll('button')[1].trigger('click') // Cancel button
@@ -244,8 +244,8 @@ describe('ProfileEditor', () => {
       const wrapper = mount(ProfileEditor, {
         props: {
           initialData: mockInitialData,
-          loading: true
-        }
+          loading: true,
+        },
       })
 
       const submitButton = wrapper.find('button[type="submit"]')
@@ -256,8 +256,8 @@ describe('ProfileEditor', () => {
       const wrapper = mount(ProfileEditor, {
         props: {
           initialData: mockInitialData,
-          loading: true
-        }
+          loading: true,
+        },
       })
 
       expect(wrapper.text()).toContain('Saving...')
@@ -267,8 +267,8 @@ describe('ProfileEditor', () => {
       const wrapper = mount(ProfileEditor, {
         props: {
           initialData: mockInitialData,
-          loading: false
-        }
+          loading: false,
+        },
       })
 
       expect(wrapper.text()).toContain('Save Changes')
@@ -281,8 +281,8 @@ describe('ProfileEditor', () => {
       const wrapper = mount(ProfileEditor, {
         props: {
           initialData: mockInitialData,
-          error: 'Failed to save profile'
-        }
+          error: 'Failed to save profile',
+        },
       })
 
       expect(wrapper.text()).toContain('Failed to save profile')
@@ -292,8 +292,8 @@ describe('ProfileEditor', () => {
       const wrapper = mount(ProfileEditor, {
         props: {
           initialData: mockInitialData,
-          error: null
-        }
+          error: null,
+        },
       })
 
       expect(wrapper.find('.text-red-500').exists()).toBe(false)

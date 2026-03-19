@@ -11,10 +11,10 @@ vi.mock('@/core/plugins/axios', () => ({
         api_version: 'v1',
         environment: 'local',
         python_version: '3.13.1',
-        build_date: '2026-01-22T00:00:00+00:00'
-      }
-    })
-  }
+        build_date: '2026-01-22T00:00:00+00:00',
+      },
+    }),
+  },
 }))
 
 // Mock the UI components
@@ -22,24 +22,24 @@ vi.mock('@/core/components/ui', () => ({
   UCard: {
     name: 'UCard',
     props: ['title', 'glow', 'crt'],
-    template: '<div class="u-card"><h2>{{ title }}</h2><slot /></div>'
+    template: '<div class="u-card"><h2>{{ title }}</h2><slot /></div>',
   },
   USkeleton: {
     name: 'USkeleton',
-    template: '<div class="skeleton"></div>'
+    template: '<div class="skeleton"></div>',
   },
   UButton: {
     name: 'UButton',
     props: ['variant', 'size'],
-    template: '<button class="u-button"><slot /></button>'
-  }
+    template: '<button class="u-button"><slot /></button>',
+  },
 }))
 
 // Mock vue-router
 vi.mock('vue-router', () => ({
   useRouter: () => ({
-    push: vi.fn()
-  })
+    push: vi.fn(),
+  }),
 }))
 
 describe('AboutView', () => {

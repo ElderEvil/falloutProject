@@ -9,6 +9,39 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.11.0] - 2026-03-19
+
+### Migrated
+
+- **Vite+ Unified Toolchain** - Migrated to Vite 8 + Vitest 4.1+ for unified frontend build and test tooling
+  - Replaced oxlint with oxlint for linting only
+  - Rolldown for bundling (native Rust-based)
+  - Simplified package.json scripts and configuration
+
+### Deprecated
+
+- **MinIO Storage Provider** - MinIO is now deprecated in favor of RustFS
+  - RustFS is the primary and recommended storage provider
+  - MinIO will be removed in a future release
+  - Existing MinIO users should migrate to RustFS
+
+### Added
+
+- **Dweller Recycling Service** - New service for restoring soft-deleted dwellers
+  - `POST /api/v1/dwellers/{vault_id}/recycle-dweller` endpoint to restore a dweller from soft delete
+  - Handles all state restoration including relationships, pregnancy, training, and quests
+  - Automatic reroll of SPECIAL stats with configurable caps
+
+### Fixed
+
+- **Exploration Coordinator Tests** - Removed skip decorators from 4 tests
+  - `test_get_exploration_invalid_state_transitions` now runs
+  - `test_start_exploration_invalid_vault_id` now runs
+  - `test_recall_exploration_invalid_exploration_id` now runs
+  - `test_get_exploration_invalid_exploration_id` now runs
+
+---
+
 ## [2.10.9] - 2026-03-13
 
 ### New Features

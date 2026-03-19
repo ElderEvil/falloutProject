@@ -8,8 +8,8 @@ import { useVaultStore } from '@/modules/vault/stores/vault'
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({
-    params: { id: 'vault-123' }
-  })
+    params: { id: 'vault-123' },
+  }),
 }))
 
 describe('QuestsView', () => {
@@ -39,9 +39,9 @@ describe('QuestsView', () => {
         global: {
           stubs: {
             SidePanel: true,
-            Icon: true
-          }
-        }
+            Icon: true,
+          },
+        },
       })
 
       expect(wrapper.find('.locked-container').exists()).toBe(true)
@@ -69,17 +69,17 @@ describe('QuestsView', () => {
           vault_id: 'vault-123',
           under_construction: false,
           build_time: 60,
-          upgrade_cost: 100
-        }
+          upgrade_cost: 100,
+        },
       ]
 
       wrapper = mount(QuestsView, {
         global: {
           stubs: {
             SidePanel: true,
-            Icon: true
-          }
-        }
+            Icon: true,
+          },
+        },
       })
 
       await wrapper.vm.$nextTick()
@@ -111,8 +111,8 @@ describe('QuestsView', () => {
           vault_id: 'vault-123',
           under_construction: false,
           build_time: 60,
-          upgrade_cost: 100
-        }
+          upgrade_cost: 100,
+        },
       ]
     })
 
@@ -121,9 +121,9 @@ describe('QuestsView', () => {
         global: {
           stubs: {
             SidePanel: true,
-            Icon: true
-          }
-        }
+            Icon: true,
+          },
+        },
       })
 
       await wrapper.vm.$nextTick()
@@ -137,9 +137,9 @@ describe('QuestsView', () => {
         global: {
           stubs: {
             SidePanel: true,
-            Icon: true
-          }
-        }
+            Icon: true,
+          },
+        },
       })
 
       await wrapper.vm.$nextTick()
@@ -173,8 +173,8 @@ describe('QuestsView', () => {
           vault_id: 'vault-123',
           under_construction: false,
           build_time: 60,
-          upgrade_cost: 100
-        }
+          upgrade_cost: 100,
+        },
       ]
     })
 
@@ -192,17 +192,17 @@ describe('QuestsView', () => {
           is_visible: true,
           is_completed: false,
           started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60
-        }
+          duration_minutes: 60,
+        },
       ]
 
       wrapper = mount(QuestsView, {
         global: {
           stubs: {
             SidePanel: true,
-            Icon: true
-          }
-        }
+            Icon: true,
+          },
+        },
       })
 
       await wrapper.vm.$nextTick()
@@ -225,17 +225,17 @@ describe('QuestsView', () => {
           is_visible: true,
           is_completed: false,
           started_at: null,
-          duration_minutes: null
-        }
+          duration_minutes: null,
+        },
       ]
 
       wrapper = mount(QuestsView, {
         global: {
           stubs: {
             SidePanel: true,
-            Icon: true
-          }
-        }
+            Icon: true,
+          },
+        },
       })
 
       await wrapper.vm.$nextTick()
@@ -255,17 +255,17 @@ describe('QuestsView', () => {
           created_at: '2025-01-01',
           updated_at: '2025-01-01',
           is_visible: true,
-          is_completed: true
-        }
+          is_completed: true,
+        },
       ]
 
       wrapper = mount(QuestsView, {
         global: {
           stubs: {
             SidePanel: true,
-            Icon: true
-          }
-        }
+            Icon: true,
+          },
+        },
       })
 
       await wrapper.vm.$nextTick()
@@ -286,9 +286,9 @@ describe('QuestsView', () => {
         global: {
           stubs: {
             SidePanel: true,
-            Icon: true
-          }
-        }
+            Icon: true,
+          },
+        },
       })
 
       await wrapper.vm.$nextTick()
@@ -319,8 +319,8 @@ describe('QuestsView', () => {
           vault_id: 'vault-123',
           under_construction: false,
           build_time: 60,
-          upgrade_cost: 100
-        }
+          upgrade_cost: 100,
+        },
       ]
     })
 
@@ -338,8 +338,8 @@ describe('QuestsView', () => {
           is_visible: true,
           is_completed: false,
           started_at: null,
-          duration_minutes: 60
-        }
+          duration_minutes: 60,
+        },
       ]
 
       const startSpy = vi.spyOn(questStore, 'startQuest').mockResolvedValue()
@@ -350,12 +350,13 @@ describe('QuestsView', () => {
             SidePanel: true,
             Icon: true,
             QuestCard: {
-              template: '<div><button class="start-btn" @click="$emit(\'start\', quest.id)">Start Quest</button></div>',
+              template:
+                '<div><button class="start-btn" @click="$emit(\'start\', quest.id)">Start Quest</button></div>',
               props: ['quest', 'vaultId', 'status', 'partyMembers'],
-              emits: ['start', 'complete', 'assign-party']
-            }
-          }
-        }
+              emits: ['start', 'complete', 'assign-party'],
+            },
+          },
+        },
       })
 
       await wrapper.vm.$nextTick()
@@ -381,8 +382,8 @@ describe('QuestsView', () => {
           is_visible: true,
           is_completed: false,
           started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60
-        }
+          duration_minutes: 60,
+        },
       ]
 
       const completeSpy = vi.spyOn(questStore, 'completeQuest').mockResolvedValue()
@@ -393,12 +394,13 @@ describe('QuestsView', () => {
             SidePanel: true,
             Icon: true,
             QuestCard: {
-              template: '<div><button class="complete-btn" @click="$emit(\'complete\', quest.id)">Complete Quest</button></div>',
+              template:
+                '<div><button class="complete-btn" @click="$emit(\'complete\', quest.id)">Complete Quest</button></div>',
               props: ['quest', 'vaultId', 'status', 'partyMembers'],
-              emits: ['start', 'complete', 'assign-party']
-            }
-          }
-        }
+              emits: ['start', 'complete', 'assign-party'],
+            },
+          },
+        },
       })
 
       await wrapper.vm.$nextTick()
@@ -418,9 +420,9 @@ describe('QuestsView', () => {
         global: {
           stubs: {
             SidePanel: true,
-            Icon: true
-          }
-        }
+            Icon: true,
+          },
+        },
       })
 
       expect(wrapper.findComponent({ name: 'SidePanel' }).exists()).toBe(true)
@@ -433,9 +435,9 @@ describe('QuestsView', () => {
         global: {
           stubs: {
             SidePanel: true,
-            Icon: true
-          }
-        }
+            Icon: true,
+          },
+        },
       })
 
       // This tests that the component structure supports the collapsed state

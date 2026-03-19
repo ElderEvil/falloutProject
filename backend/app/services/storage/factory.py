@@ -29,6 +29,10 @@ def create_storage_service() -> Optional[StorageService]:
             logger.exception("Failed to initialize RustFS")
             return None
     if provider == "minio":
+        logger.warning(
+            "MinIO storage provider is deprecated. Please migrate to RustFS "
+            "(STORAGE_PROVIDER='rustfs') for better performance and reliability."
+        )
         try:
             return MinIOAdapter()
         except Exception:

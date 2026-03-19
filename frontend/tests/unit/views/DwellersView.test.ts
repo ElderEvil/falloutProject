@@ -23,11 +23,14 @@ describe('DwellersView', () => {
 
     // Set up auth store
     localStorage.setItem('token', 'test-token')
-    localStorage.setItem('user', JSON.stringify({
-      id: 'test-user-id',
-      username: 'testuser',
-      email: 'test@example.com'
-    }))
+    localStorage.setItem(
+      'user',
+      JSON.stringify({
+        id: 'test-user-id',
+        username: 'testuser',
+        email: 'test@example.com',
+      })
+    )
 
     authStore = useAuthStore()
     dwellerStore = useDwellerStore()
@@ -38,17 +41,21 @@ describe('DwellersView', () => {
     vaultStore.loadedVaults['vault-1'] = {
       id: 'vault-1',
       number: 101,
-      bottle_caps: 1000
+      bottle_caps: 1000,
     } as any
 
     router = createRouter({
       history: createMemoryHistory(),
       routes: [
         { path: '/vault/:id/dwellers', component: DwellersView },
-        { path: '/vault/:id/dwellers/:dwellerId', name: 'dwellerDetail', component: { template: '<div>Dweller Detail</div>' } },
+        {
+          path: '/vault/:id/dwellers/:dwellerId',
+          name: 'dwellerDetail',
+          component: { template: '<div>Dweller Detail</div>' },
+        },
         { path: '/vault/:id', component: { template: '<div>Vault View</div>' } },
-        { path: '/dweller/:id/chat', component: { template: '<div>Chat</div>' } }
-      ]
+        { path: '/dweller/:id/chat', component: { template: '<div>Chat</div>' } },
+      ],
     })
 
     router.push('/vault/vault-1/dwellers')
@@ -64,8 +71,8 @@ describe('DwellersView', () => {
       await router.isReady()
       const wrapper = mount(DwellersView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -78,8 +85,8 @@ describe('DwellersView', () => {
       await router.isReady()
       mount(DwellersView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -96,8 +103,8 @@ describe('DwellersView', () => {
       await router.isReady()
       mount(DwellersView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -108,7 +115,6 @@ describe('DwellersView', () => {
       )
     })
   })
-
 
   describe('Dweller Navigation', () => {
     it('should navigate to dweller detail page when clicking', async () => {
@@ -123,8 +129,8 @@ describe('DwellersView', () => {
           happiness: 80,
           status: 'working',
           room_id: null,
-          vault_id: 'vault-1'
-        }
+          vault_id: 'vault-1',
+        },
       ]
 
       vi.mocked(axios.get)
@@ -134,8 +140,8 @@ describe('DwellersView', () => {
       await router.isReady()
       const wrapper = mount(DwellersView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -160,8 +166,8 @@ describe('DwellersView', () => {
       await router.isReady()
       const wrapper = mount(DwellersView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 

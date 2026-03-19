@@ -1,6 +1,6 @@
 # Fallout Shelter Frontend 🎮
 
-> **Terminal-themed Vue 3 application with modern tooling - v2.1.1**
+> **Terminal-themed Vue 3 application with modern tooling - v2.10.8**
 
 A retro-futuristic frontend for the Fallout Shelter management game, featuring terminal aesthetics, CRT effects,
 and cutting-edge JavaScript tooling.
@@ -9,25 +9,25 @@ and cutting-edge JavaScript tooling.
 
 ### Core Framework
 
-- **Vue 3.5.13** - Composition API with `<script setup>`
-- **TypeScript 5.7** - Full type safety
-- **Vite (rolldown-vite)** - Ultra-fast dev server with Rolldown bundler
+- **Vue 3.5.29** - Composition API with `<script setup>`
+- **TypeScript 5.9** - Full type safety
+- **Vite+** - Unified toolchain (Vite 8 + Vitest 4.1 + Rolldown bundler)
 - **Pinia 3.0** - State management
-- **Vue Router 4.5** - Client-side routing
+- **Vue Router 4.6** - Client-side routing
 
 ### Styling & UI
 
 - **TailwindCSS v4** - With custom `@theme` design system
 - **@tailwindcss/vite** - Native Vite integration
 - **Custom UI Components** - 8 terminal-themed wrapper components
-- **Nuxt UI 3.0** - Component library (optional integration)
+- **Nuxt UI 4.5** - Component library (optional integration)
 - **Heroicons** - Icon library
 
 ### Development Tools
 
-- **pnpm 10.26** - Fast, disk-efficient package manager
-- **Oxlint** - Blazingly fast linting (replaces ESLint + Prettier)
-- **Vitest 2.1** - Unit testing framework
+- **pnpm 10.28** - Fast, disk-efficient package manager
+- **Vite+ (`vp` CLI)** - Unified toolchain for dev, build, test, lint, format
+- **Oxlint/Oxfmt** - Blazingly fast linting and formatting (via Vite+)
 - **vue-tsc** - TypeScript type checking for Vue
 - **jsdom** - DOM testing environment
 
@@ -41,7 +41,26 @@ and cutting-edge JavaScript tooling.
 ## 📋 Prerequisites
 
 - **Node.js 22+** (required)
-- **pnpm 10.26+** (recommended) or npm
+- **pnpm 10.28+** (recommended) or npm
+
+## 🔧 Vite+ Toolchain
+
+This project uses [Vite+](https://viteplus.dev/), a unified toolchain built on Vite, Rolldown, Vitest, Oxlint, and Oxfmt.
+
+**Key Commands:**
+- `vp dev` - Start development server
+- `vp build` - Build for production
+- `vp test` - Run tests
+- `vp lint` - Lint code
+- `vp fmt` - Format code
+- `vp check` - Run all checks (format, lint, typecheck)
+
+**Important:**
+- Do not use `pnpm`, `npm`, or `yarn` directly - Vite+ wraps package management
+- Do not install `vitest` or `oxlint` separately - they come bundled with Vite+
+- Import from `vite-plus` instead of `vite` or `vitest`
+
+See [`AGENTS.md`](./AGENTS.md) for Vite+ development guidelines.
 
 ## 🚀 Quick Start
 
@@ -68,20 +87,25 @@ Visit [http://localhost:5173](http://localhost:5173) to see the app!
 
 ## 📜 Available Scripts
 
+All commands use the Vite+ unified CLI (`vp`):
+
 ```bash
 # Development
-pnpm run dev          # Start dev server with HMR
+pnpm run dev          # Start dev server with HMR (vp dev)
 
 # Production
-pnpm run build        # Type-check and build for production
+pnpm run build        # Build for production (vp build)
 pnpm run preview      # Preview production build locally
 
 # Testing
-pnpm run test         # Run unit tests with Vitest
-pnpm run test -- --watch  # Run tests in watch mode
+pnpm run test         # Run tests (vp test)
+pnpm run test:run     # Run tests once
 
-# Linting
-pnpm run lint         # Lint with Oxlint (fast!)
+# Code Quality
+pnpm run lint         # Lint with Oxlint (vp lint)
+pnpm run lint:fix     # Fix linting issues
+pnpm run format       # Format with Oxfmt (vp fmt)
+pnpm run typecheck    # TypeScript check (vue-tsc)
 ```
 
 ## 🎨 UI Component Library
@@ -161,15 +185,15 @@ frontend/
 │   ├── App.vue             # Root component
 │   └── main.ts             # Application entry point
 ├── tests/
-│   └── unit/               # Unit tests (88 tests)
+│   └── unit/               # Unit tests (843 tests)
 ├── public/                 # Static files
 ├── STYLEGUIDE.md          # Design system documentation
-├── MIGRATION_GUIDE.md     # VoidZero stack migration guide
+├── MIGRATION_GUIDE.md     # Vite+ migration guide
 ├── TEST_COVERAGE.md       # Test suite documentation
 ├── FRONTEND_IMPROVEMENTS.md  # Recent improvements summary
 ├── package.json           # Dependencies
 ├── pnpm-lock.yaml        # Lockfile
-├── vite.config.ts        # Vite configuration
+├── vite.config.ts        # Vite+ configuration
 ├── vitest.config.ts      # Vitest configuration
 ├── oxlint.json           # Oxlint configuration
 ├── tsconfig.json         # TypeScript configuration
@@ -180,7 +204,7 @@ frontend/
 
 **Current Status:**
 
-- ✅ **88/88 tests passing**
+- ✅ **843 tests passing**
 - ✅ AuthStore tests (21)
 - ✅ VaultStore tests (20)
 - ✅ Component tests (17)
@@ -190,14 +214,16 @@ frontend/
 **Run Tests:**
 
 ```bash
-# Run all tests
+# Run all tests (via Vite+)
 pnpm run test
+# or
+vp test
+
+# Run once
+pnpm run test:run
 
 # Watch mode
 pnpm run test -- --watch
-
-# With coverage
-pnpm run test -- --coverage
 
 # Specific file
 pnpm run test tests/unit/stores/auth.test.ts
@@ -209,7 +235,7 @@ See [`TEST_COVERAGE.md`](./TEST_COVERAGE.md) for detailed test documentation.
 
 ### Recommended IDE Setup
 
-- **[VSCode](https://code.visualstudio.com/)** + \* \*[Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar)\*\*
+- **[VSCode](https://code.visualstudio.com/)** + **[Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar)**
 - Disable Vetur if installed
 - Install recommended extensions (see `.vscode/extensions.json`)
 
@@ -263,7 +289,7 @@ const props = defineProps<Props>()
 - Use Composition API with `<script setup>`
 - TypeScript for all new code
 - Follow Vue 3 style guide
-- Use Oxlint for formatting (auto-formats)
+- Use Oxfmt for formatting (via Vite+)
 - Components use PascalCase
 - Composables start with `use`
 
@@ -316,7 +342,7 @@ const apiUrl = import.meta.env.VITE_API_URL
 ## 📚 Documentation
 
 - **[STYLEGUIDE.md](./STYLEGUIDE.md)** - Complete design system guide
-- **[MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md)** - VoidZero stack details
+- **[MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md)** - Vite+ migration details
 - **[TEST_COVERAGE.md](./TEST_COVERAGE.md)** - Test suite documentation
 - **[FRONTEND_IMPROVEMENTS.md](./FRONTEND_IMPROVEMENTS.md)** - Recent enhancements
 - **[src/components/ui/README.md](./src/components/ui/README.md)** - UI component API
@@ -340,7 +366,7 @@ pnpm install
 # Cmd/Ctrl + Shift + P -> "TypeScript: Restart TS Server"
 ```
 
-**Vite not starting:**
+**Vite+ not starting:**
 
 ```bash
 # Check port 5173 is not in use
@@ -356,11 +382,11 @@ pnpm run dev -- --port 3000
 
 ## 🌟 What Makes This Frontend Special
 
-- ✨ **Modern Tooling** - VoidZero stack (Rolldown, Oxlint, Vitest 2)
+- ✨ **Vite+ Toolchain** - Unified dev, build, test, lint in one CLI
 - 🎨 **Design System** - 100+ tokens, comprehensive styleguide
 - 🧩 **Component Library** - 8 custom terminal-themed components
 - ♿ **Accessible** - WCAG 2.1 AA compliant
-- 🧪 **Tested** - 88 unit tests with high coverage
+- 🧪 **Tested** - 843 unit tests with high coverage
 - ⚡ **Fast** - Rolldown bundler, instant HMR
 - 📱 **Responsive** - Mobile-first approach
 - 🎮 **Themed** - Authentic Fallout terminal aesthetic
@@ -368,11 +394,10 @@ pnpm run dev -- --port 3000
 ## 📖 Additional Resources
 
 - [Vue 3 Documentation](https://vuejs.org/)
-- [Vite Documentation](https://vitejs.dev/)
-- [TailwindCSS v4 Beta](https://tailwindcss.com/docs/v4-beta)
+- [Vite+ Documentation](https://viteplus.dev/)
+- [TailwindCSS v4](https://tailwindcss.com/docs/v4-beta)
 - [Pinia Documentation](https://pinia.vuejs.org/)
 - [Vitest Documentation](https://vitest.dev/)
-- [VoidZero Announcement](https://voidzero.dev/)
 
 ---
 

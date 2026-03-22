@@ -26,7 +26,7 @@ and cutting-edge JavaScript tooling.
 ### Development Tools
 
 - **pnpm 10.28** - Fast, disk-efficient package manager
-- **Vite+ (`vp` CLI)** - Unified toolchain for dev, build, test, lint, format
+- **Vite+** - Unified toolchain for dev, build, test, lint, format (via pnpm scripts)
 - **Oxlint/Oxfmt** - Blazingly fast linting and formatting (via Vite+)
 - **vue-tsc** - TypeScript type checking for Vue
 - **jsdom** - DOM testing environment
@@ -47,18 +47,34 @@ and cutting-edge JavaScript tooling.
 
 This project uses [Vite+](https://viteplus.dev/), a unified toolchain built on Vite, Rolldown, Vitest, Oxlint, and Oxfmt.
 
+**Note:** Run Vite+ commands via pnpm scripts, not directly:
+
+```bash
+# ✅ Correct - use pnpm scripts (recommended)
+pnpm run dev
+pnpm run build
+pnpm run test
+pnpm run lint
+
+# ✅ Correct - use pnpm exec for direct CLI access
+pnpm exec vp --version
+pnpm exec vp help
+
+# ❌ Incorrect - don't run vp directly
+vp dev  # This will show an error
+```
+
 **Key Commands:**
-- `vp dev` - Start development server
-- `vp build` - Build for production
-- `vp test` - Run tests
-- `vp lint` - Lint code
-- `vp fmt` - Format code
-- `vp check` - Run all checks (format, lint, typecheck)
+- `pnpm run dev` - Start development server
+- `pnpm run build` - Build for production
+- `pnpm run test` - Run tests
+- `pnpm run lint` - Lint code
+- `pnpm run format` - Format code
+- `pnpm run typecheck` - TypeScript check
 
 **Important:**
-- Do not use `pnpm`, `npm`, or `yarn` directly - Vite+ wraps package management
-- Do not install `vitest` or `oxlint` separately - they come bundled with Vite+
-- Import from `vite-plus` instead of `vite` or `vitest`
+- Vite+ bundles Vitest, Oxlint, and Oxfmt - don't install them separately
+- Import from `vite-plus` in config files
 
 See [`AGENTS.md`](./AGENTS.md) for Vite+ development guidelines.
 

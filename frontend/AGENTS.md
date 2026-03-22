@@ -2,11 +2,31 @@
 
 # Using Vite+, the Unified Toolchain for the Web
 
-This project is using Vite+, a unified toolchain built on top of Vite, Rolldown, Vitest, tsdown, Oxlint, Oxfmt, and Vite Task. Vite+ wraps runtime management, package management, and frontend tooling. **Note:** Run Vite+ commands via pnpm scripts (`pnpm run dev`) or `pnpm exec vp` - running `vp` directly will fail.
+This project uses [Vite+](https://viteplus.dev/), a unified toolchain built on Vite, Rolldown, Vitest, Oxlint, Oxfmt, and Vite Task.
 
-## Vite+ Workflow
+## Two Ways to Use Vite+
 
-`vp` is a global binary that handles the full development lifecycle. Run `vp help` to print a list of commands and `vp <command> --help` for information about a specific command.
+**Option 1: pnpm scripts (no global installation required)**
+```bash
+pnpm run dev          # Development server
+pnpm run build        # Production build
+pnpm run test         # Run tests
+pnpm run lint         # Lint code
+```
+
+**Option 2: Global Vite+ CLI (install once)**
+```bash
+# Install globally
+curl -fsSL https://viteplus.dev/install.sh | sh
+# Restart shell, then:
+vp dev                # Development server
+vp build              # Production build
+vp test               # Run tests
+```
+
+**Note:** Without global installation, run `pnpm exec vp <command>` for direct CLI access.
+
+## Vite+ Commands
 
 ### Start
 
@@ -61,7 +81,7 @@ These commands map to their corresponding tools. For example, `vp dev --port 300
 
 ## Common Pitfalls
 
-- **Using Vite+ commands:** Use `pnpm run` scripts (recommended) or `pnpm exec vp` for direct CLI access. Running `vp` directly (without `pnpm exec`) will fail because the global stub only shows an error.
+- **Using Vite+ commands:** Use `pnpm run` scripts (recommended) or install Vite+ globally with `curl -fsSL https://viteplus.dev/install.sh | sh`. Running `vp` without global installation will fail - use `pnpm exec vp` instead.
 - **Always use Vite commands to run tools:** Don't attempt to run `vp vitest` or `vp oxlint`. They do not exist. Use `vp test` and `vp lint` instead.
 - **Running scripts:** Vite+ commands take precedence over `package.json` scripts. If there is a `test` script defined in `scripts` that conflicts with the built-in `vp test` command, run it using `vp run test`.
 - **Do not install Vitest, Oxlint, Oxfmt, or tsdown directly:** Vite+ wraps these tools. They must not be installed directly. You cannot upgrade these tools by installing their latest versions. Always use Vite+ commands.

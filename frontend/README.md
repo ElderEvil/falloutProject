@@ -45,36 +45,73 @@ and cutting-edge JavaScript tooling.
 
 ## 🔧 Vite+ Toolchain
 
-This project uses [Vite+](https://viteplus.dev/), a unified toolchain built on Vite, Rolldown, Vitest, Oxlint, and Oxfmt.
+This project uses [Vite+](https://viteplus.dev/), a unified toolchain built on Vite, Rolldown, Vitest, Oxlint, Oxfmt, and Vite Task.
 
-**Note:** Run Vite+ commands via pnpm scripts, not directly:
+### Two Ways to Use Vite+
+
+**Option 1: pnpm scripts (no global installation)**
+
+Works out of the box - Vite+ is included as a project dependency:
 
 ```bash
-# ✅ Correct - use pnpm scripts (recommended)
-pnpm run dev
-pnpm run build
-pnpm run test
-pnpm run lint
-
-# ✅ Correct - use pnpm exec for direct CLI access
-pnpm exec vp --version
-pnpm exec vp help
-
-# ❌ Incorrect - don't run vp directly
-vp dev  # This will show an error
+pnpm run dev          # Start development server
+pnpm run build        # Build for production
+pnpm run test         # Run tests
+pnpm run lint         # Lint code
+pnpm run format       # Format code
+pnpm run typecheck    # TypeScript check
 ```
 
-**Key Commands:**
-- `pnpm run dev` - Start development server
-- `pnpm run build` - Build for production
-- `pnpm run test` - Run tests
-- `pnpm run lint` - Lint code
-- `pnpm run format` - Format code
-- `pnpm run typecheck` - TypeScript check
+**Option 2: Global Vite+ CLI**
 
-**Important:**
-- Vite+ bundles Vitest, Oxlint, and Oxfmt - don't install them separately
-- Import from `vite-plus` in config files
+Install once, use `vp` commands everywhere:
+
+```bash
+# Install globally (one-time setup)
+curl -fsSL https://viteplus.dev/install.sh | sh
+
+# Restart your shell or run:
+source ~/.bashrc  # or ~/.zshrc, ~/.config/fish/config.fish
+
+# Then use directly:
+vp dev              # Start development server
+vp build            # Build for production
+vp test             # Run tests
+vp lint              # Lint code
+vp fmt               # Format code
+vp check             # Run format, lint, and typecheck
+```
+
+### Vite+ Features
+
+| Command | Description |
+|---------|-------------|
+| `vp dev` | Development server with HMR |
+| `vp build` | Production build (uses Rolldown) |
+| `vp test` | Run tests with Vitest |
+| `vp lint` | Lint with Oxlint |
+| `vp fmt` | Format with Oxfmt |
+| `vp check` | Run format check, lint, and TypeScript |
+| `vp install` | Install dependencies (wraps pnpm/npm/yarn) |
+| `vp add <pkg>` | Add package to dependencies |
+| `vp run <script>` | Run a package.json script |
+| `vp preview` | Preview production build locally |
+
+### Bundled Tools
+
+Vite+ bundles these tools - no separate installation needed:
+
+- **Vite 8** - Next-gen frontend tooling
+- **Rolldown** - Ultra-fast bundler (replaces Rollup)
+- **Vitest 4.1+** - Unit testing framework
+- **Oxlint** - Fast linter (ESLint replacement)
+- **Oxfmt** - Code formatter (Prettier replacement)
+
+### Important Notes
+
+- Import from `vite-plus` in config files: `import { defineConfig } from 'vite-plus'`
+- Don't install `vitest`, `oxlint`, or `oxfmt` separately
+- The npm package `vite-plus` provides the local `vp` wrapper
 
 See [`AGENTS.md`](./AGENTS.md) for Vite+ development guidelines.
 

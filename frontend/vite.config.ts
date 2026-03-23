@@ -24,6 +24,10 @@ export default defineConfig({
     bracketSpacing: true,
     arrowParens: 'always',
   },
+  staged: {
+    '*.{js,ts,tsx,vue}': 'vp lint --fix',
+    '*.{json,md,css,html}': 'vp fmt',
+  },
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
   },

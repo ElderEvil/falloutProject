@@ -80,10 +80,10 @@ describe('happinessService', () => {
 
       const result = happinessService.calculateDistribution(dwellers)
 
-      // Note: happiness: 0 is treated as falsy and defaults to 50 (medium)
-      // All three cases default to 50 (medium)
-      expect(result.critical).toBe(0)
-      expect(result.medium).toBe(3) // all values default to 50
+      // Note: happiness: 0 is preserved as 0 (critical) with nullish coalescing
+      // undefined/null values default to 50 (medium)
+      expect(result.critical).toBe(1) // happiness: 0 is preserved
+      expect(result.medium).toBe(2) // undefined values default to 50
     })
 
     it('should handle all dwellers in one category', () => {

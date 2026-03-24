@@ -49,11 +49,15 @@ vi.mock('@/core/composables/useWebSocket', () => ({
 }))
 
 // Mock useToast
+const mockToastSuccess = vi.fn()
+const mockToastError = vi.fn()
+const mockToastInfo = vi.fn()
+
 vi.mock('@/core/composables/useToast', () => ({
   useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
+    success: mockToastSuccess,
+    error: mockToastError,
+    info: mockToastInfo,
   }),
 }))
 
@@ -1021,9 +1025,170 @@ describe('DwellerChat', () => {
       )
     })
 
-    it.todo('should show error when no training rooms available')
+    it('should show error when no training rooms available', async () => {
+      mockRooms.value = [
+        {
+          id: 'room-456',
+          name: 'Power Plant',
+          category: 'production',
+          ability: null,
+          max_capacity: 3,
+        },
+      ]
 
-    it.todo('should show error when all training rooms at capacity')
+      const dwellerStore = useDwellerStore()
+
+      dwellerStore.$patch({
+        dwellers: [
+          {
+            id: 'dweller-123',
+            first_name: 'Test',
+            last_name: 'Dweller',
+            room_id: 'room-456',
+            level: 1,
+            happiness: 50,
+            strength: 5,
+            perception: 5,
+            endurance: 5,
+            charisma: 5,
+            intelligence: 5,
+            agility: 5,
+            luck: 5,
+            status: 'idle',
+          },
+        ],
+      })
+
+      const wrapper = mountComponent()
+      await flushPromises()
+
+      ;(apiClient.post as Mock).mockResolvedValueOnce({
+        data: {
+          response: 'I want to train strength!',
+          happiness_impact: { delta: 2, reason_text: 'Eager' },
+          action_suggestion: {
+            action_type: 'start_training',
+            stat: 'strength',
+            reason: 'Improve strength',
+          },
+        },
+      })
+
+      const input = wrapper.find('.chat-input-field')
+      await input.setValue('Train strength')
+      await wrapper.find('.chat-send-btn').trigger('click')
+      await flushPromises()
+
+      const confirmBtn = wrapper.find('.action-confirm-btn')
+      await confirmBtn.trigger('click')
+      await flushPromises()
+
+      expect(mockToastError).toHaveBeenCalledWith('No training rooms available')
+    })
+
+    it('should show error when all training rooms at capacity', async () => {
+      mockRooms.value = [
+        {
+          id: 'strength-training',
+          name: 'Strength Training',
+          category: 'training',
+          ability: 'STRENGTH',
+          max_capacity: 5,
+        },
+        {
+          id: 'endurance-training',
+          name: 'Endurance Training',
+          category: 'training',
+          ability: 'ENDURANCE',
+          max_capacity: 3,
+        },
+      ]
+
+      const dwellerStore = useDwellerStore()
+
+      // Fill all training rooms to capacity
+      const strengthFillers = Array.from({ length: 5 }, (_, i) => ({
+        id: `dweller-strength-${i}`,
+        first_name: `Strength`,
+        last_name: `Dweller${i}`,
+        room_id: 'strength-training',
+        level: 1,
+        happiness: 50,
+        strength: 5,
+        perception: 5,
+        endurance: 5,
+        charisma: 5,
+        intelligence: 5,
+        agility: 5,
+        luck: 5,
+        status: 'idle',
+      }))
+      const enduranceFillers = Array.from({ length: 3 }, (_, i) => ({
+        id: `dweller-endurance-${i}`,
+        first_name: `Endurance`,
+        last_name: `Dweller${i}`,
+        room_id: 'endurance-training',
+        level: 1,
+        happiness: 50,
+        strength: 5,
+        perception: 5,
+        endurance: 5,
+        charisma: 5,
+        intelligence: 5,
+        agility: 5,
+        luck: 5,
+        status: 'idle',
+      }))
+
+      dwellerStore.$patch({
+        dwellers: [
+          ...strengthFillers,
+          ...enduranceFillers,
+          {
+            id: 'dweller-123',
+            first_name: 'Test',
+            last_name: 'Dweller',
+            room_id: 'room-456',
+            level: 1,
+            happiness: 50,
+            strength: 5,
+            perception: 5,
+            endurance: 5,
+            charisma: 5,
+            intelligence: 5,
+            agility: 5,
+            luck: 5,
+            status: 'idle',
+          },
+        ],
+      })
+
+      const wrapper = mountComponent()
+      await flushPromises()
+
+      ;(apiClient.post as Mock).mockResolvedValueOnce({
+        data: {
+          response: 'I want to train strength!',
+          happiness_impact: { delta: 2, reason_text: 'Eager' },
+          action_suggestion: {
+            action_type: 'start_training',
+            stat: 'strength',
+            reason: 'Improve strength',
+          },
+        },
+      })
+
+      const input = wrapper.find('.chat-input-field')
+      await input.setValue('Train strength')
+      await wrapper.find('.chat-send-btn').trigger('click')
+      await flushPromises()
+
+      const confirmBtn = wrapper.find('.action-confirm-btn')
+      await confirmBtn.trigger('click')
+      await flushPromises()
+
+      expect(mockToastError).toHaveBeenCalledWith('No available training rooms (all at capacity)')
+    })
   })
 
   describe('Bug #5: Training works via roomStore when activeVault has no rooms', () => {
@@ -1039,6 +1204,7 @@ describe('DwellerChat', () => {
             max_capacity: 5,
           },
         ]
+        return Promise.resolve()
       })
 
       const dwellerStore = useDwellerStore()

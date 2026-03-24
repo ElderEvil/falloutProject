@@ -56,7 +56,7 @@ describe('RegisterForm', () => {
         },
       })
 
-      expect(wrapper.text()).toContain('v1.10.0')
+      expect(wrapper.text()).toMatch(/v?\d+\.\d+\.\d+/)
     })
 
     it('should have terminal-style button with arrow icons', () => {

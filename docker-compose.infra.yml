@@ -46,6 +46,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      rustfs:
+        condition: service_started
     working_dir: /app
     command: [ "uv", "run", "celery", "-A", "app.core.celery", "worker", "-l", "info" ]
 
@@ -67,6 +69,8 @@ services:
       db:
         condition: service_healthy
       redis:
+        condition: service_started
+      rustfs:
         condition: service_started
     working_dir: /app
     command: [ "uv", "run", "celery", "-A", "app.core.celery", "beat", "-l", "info", "--scheduler", "sqlalchemy_celery_beat.schedulers:DatabaseScheduler" ]

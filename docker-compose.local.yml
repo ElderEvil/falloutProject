@@ -125,6 +125,7 @@ services:
       - POSTGRES_SERVER=db
       - REDIS_HOST=redis
       - RUSTFS_HOSTNAME=rustfs
+      - RUSTFS_PORT=9000
     env_file: ".env.local"
     depends_on:
       db:

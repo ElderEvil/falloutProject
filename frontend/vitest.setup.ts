@@ -1,5 +1,3 @@
-import { vi } from 'vite-plus/test'
-
 // Mock localStorage for jsdom environment
 const localStorageMock = (() => {
   let store: Record<string, string> = {}

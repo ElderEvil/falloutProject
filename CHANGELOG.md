@@ -14,7 +14,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ### Migrated
 
 - **Vite+ Unified Toolchain** - Migrated to Vite 8 + Vitest 4.1+ for unified frontend build and test tooling
-  - Replaced oxlint with oxlint for linting only
+  - Replaced ESLint with oxlint for linting only
   - Rolldown for bundling (native Rust-based)
   - Simplified package.json scripts and configuration
 

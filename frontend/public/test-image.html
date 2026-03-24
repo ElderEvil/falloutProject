@@ -47,6 +47,7 @@
       <h2>Test 1: Direct Backend URL (port 8000)</h2>
       <img
         src="http://localhost:8000/static/room_images/FOS Athletics 1-1.png"
+        alt="Test image: FOS Athletics 1-1"
         onload="document.getElementById('test1').textContent = '✅ SUCCESS'"
         onerror="document.getElementById('test1').textContent = '❌ FAILED'"
       />
@@ -57,6 +58,7 @@
       <h2>Test 2: Proxied URL (through Vite on port 5173)</h2>
       <img
         src="/static/room_images/FOS Athletics 1-1.png"
+        alt="Test image: FOS Athletics 1-1 (proxied)"
         onload="document.getElementById('test2').textContent = '✅ SUCCESS'"
         onerror="document.getElementById('test2').textContent = '❌ FAILED'"
       />
@@ -101,6 +103,7 @@
       testImages.forEach((src, index) => {
         const img = document.createElement('img')
         img.src = src
+        img.alt = `Room image test ${index + 1}: ${src.split('/').pop()}`
         img.onload = () => {
           console.log(`✅ Image ${index + 1} loaded:`, src)
         }

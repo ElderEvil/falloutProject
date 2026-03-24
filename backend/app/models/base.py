@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from pydantic import UUID4
@@ -6,10 +6,10 @@ from sqlmodel import Field, SQLModel
 
 
 class TimeStampMixin(SQLModel):
-    created_at: datetime | None = Field(default_factory=datetime.utcnow)
+    created_at: datetime | None = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime | None = Field(
-        default_factory=datetime.utcnow,
-        sa_column_kwargs={"onupdate": datetime.utcnow},
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column_kwargs={"onupdate": lambda: datetime.now(timezone.utc)},
     )
 
 
@@ -29,7 +29,7 @@ class SoftDeleteMixin(SQLModel):
     def soft_delete(self):
         """Marks the object as deleted."""
         self.is_deleted = True
-        self.deleted_at = datetime.utcnow()
+        self.deleted_at = datetime.now(timezone.utc)
 
     def restore(self):
         """Restores the object if it was soft-deleted."""

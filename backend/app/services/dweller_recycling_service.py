@@ -92,7 +92,8 @@ class DwellerRecyclingService:
         if not vault:
             raise ResourceNotFoundException(Vault, identifier=target_vault_id)
 
-        query = select(Dweller).where(Dweller.id == dweller_id)
+        # Use SELECT ... FOR UPDATE to prevent race conditions
+        query = select(Dweller).where(Dweller.id == dweller_id).with_for_update()
         response = await db_session.exec(query)
         dweller = response.one_or_none()
 
@@ -102,11 +103,12 @@ class DwellerRecyclingService:
         if not dweller.is_deleted:
             raise ResourceConflictException(detail=f"Dweller {dweller_id} is not soft-deleted and cannot be recycled")
 
-        # Restore the dweller
+        # Restore the dweller (now safe due to row lock)
         dweller.restore()
 
         # Update vault assignment
         dweller.vault_id = target_vault_id
+        dweller.room_id = None  # Always clear room_id when vault changes
 
         # Reset stats if requested
         if reset_stats:
@@ -116,7 +118,6 @@ class DwellerRecyclingService:
             dweller.radiation = 0
             dweller.happiness = 50
             dweller.status = DwellerStatusEnum.IDLE
-            dweller.room_id = None
             dweller.stimpack = 0
             dweller.radaway = 0
             # Clear relationships
@@ -218,26 +219,31 @@ class DwellerRecyclingService:
         """
         cutoff_date = datetime.now(UTC) - timedelta(days=days_threshold)
 
-        query = (
-            select(Dweller)
-            .where(col(Dweller.is_deleted).is_(True))
-            .where(col(Dweller.deleted_at) <= cutoff_date)
-            .limit(batch_size)
-        )
-
-        response = await db_session.exec(query)
-        dwellers_to_delete = response.all()
-
         deleted_count = 0
 
-        for dweller in dwellers_to_delete:
-            await db_session.delete(dweller)
-            deleted_count += 1
+        while True:
+            query = (
+                select(Dweller)
+                .where(col(Dweller.is_deleted).is_(True))
+                .where(col(Dweller.deleted_at) <= cutoff_date)
+                .limit(batch_size)
+            )
+
+            response = await db_session.exec(query)
+            dwellers_to_delete = response.all()
+
+            if not dwellers_to_delete:
+                break
+
+            for dweller in dwellers_to_delete:
+                await db_session.delete(dweller)
+                deleted_count += 1
+
+            await db_session.commit()
 
         if deleted_count > 0:
-            await db_session.commit()
             logger.info(
-                "Permanently deleted %d dwellers (older than %d days)",
+                "Permanently deleted %d dwellers total (older than %d days)",
                 deleted_count,
                 days_threshold,
             )

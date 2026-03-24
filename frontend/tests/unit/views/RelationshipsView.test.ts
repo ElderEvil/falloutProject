@@ -66,7 +66,7 @@ describe('RelationshipsView', () => {
   let dwellerStore: any
   let authStore: any
 
-  beforeEach(() => {
+  beforeEach(async () => {
     setActivePinia(createPinia())
     relationshipStore = useRelationshipStore()
     dwellerStore = useDwellerStore()
@@ -105,6 +105,7 @@ describe('RelationshipsView', () => {
     })
 
     router.push('/vault/test-vault-id/relationships')
+    await router.isReady()
   })
 
   describe('Rendering', () => {

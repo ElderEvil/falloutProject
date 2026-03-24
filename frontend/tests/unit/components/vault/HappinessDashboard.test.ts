@@ -141,7 +141,7 @@ describe('HappinessDashboard', () => {
     const wrapper = mount(HappinessDashboard, {
       props: {
         ...defaultProps,
-        idleDwellerCount: 1,
+        idleDwellerCount: 5,
         radioHappinessMode: false,
       },
     })
@@ -152,6 +152,8 @@ describe('HappinessDashboard', () => {
     if (radioButton) {
       await radioButton.trigger('click')
       expect(wrapper.emitted('activate-radio')).toBeTruthy()
+    } else {
+      throw new Error('Activate Radio button not found')
     }
   })
 
@@ -159,6 +161,7 @@ describe('HappinessDashboard', () => {
     const wrapper = mount(HappinessDashboard, {
       props: {
         ...defaultProps,
+        idleDwellerCount: 5,
         distribution: {
           high: 3,
           medium: 4,
@@ -174,6 +177,8 @@ describe('HappinessDashboard', () => {
     if (viewButton) {
       await viewButton.trigger('click')
       expect(wrapper.emitted('view-low-happiness')).toBeTruthy()
+    } else {
+      throw new Error('View Low Happiness button not found')
     }
   })
 
@@ -250,7 +255,7 @@ describe('HappinessDashboard', () => {
     expect(trendIcon.exists()).toBe(true)
   })
 
-  it('should limit modifiers to 5', () => {
+  it('should not exceed 5 modifiers', () => {
     const wrapper = mount(HappinessDashboard, {
       props: {
         ...defaultProps,

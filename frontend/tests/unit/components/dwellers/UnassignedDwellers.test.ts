@@ -49,6 +49,21 @@ vi.mock('@/core/composables/useToast', () => ({
   useToast: () => mockToast,
 }))
 
+// Helper to create consistent drop event payloads
+function createDropEvent(dwellerId: string, firstName: string, lastName: string, currentRoomId: string | null) {
+  return {
+    dataTransfer: {
+      getData: () =>
+        JSON.stringify({
+          dwellerId,
+          firstName,
+          lastName,
+          currentRoomId,
+        }),
+    },
+  }
+}
+
 describe('UnassignedDwellers', () => {
   let dwellerStore: any
   let explorationStore: any
@@ -244,17 +259,7 @@ describe('UnassignedDwellers', () => {
       const wrapper = mount(UnassignedDwellers)
 
       const dropZone = wrapper.find('.empty-state')
-      await dropZone.trigger('drop', {
-        dataTransfer: {
-          getData: () =>
-            JSON.stringify({
-              dwellerId: 'dweller-1',
-              firstName: 'John',
-              lastName: 'Doe',
-              currentRoomId: 'room-1',
-            }),
-        },
-      })
+      await dropZone.trigger('drop', createDropEvent('dweller-1', 'John', 'Doe', 'room-1'))
 
       await flushPromises()
 
@@ -267,17 +272,7 @@ describe('UnassignedDwellers', () => {
       const wrapper = mount(UnassignedDwellers)
 
       const dropZone = wrapper.find('.empty-state')
-      await dropZone.trigger('drop', {
-        dataTransfer: {
-          getData: () =>
-            JSON.stringify({
-              dwellerId: 'dweller-1',
-              firstName: 'John',
-              lastName: 'Doe',
-              currentRoomId: 'room-1',
-            }),
-        },
-      })
+      await dropZone.trigger('drop', createDropEvent('dweller-1', 'John', 'Doe', 'room-1'))
 
       await flushPromises()
 
@@ -291,17 +286,7 @@ describe('UnassignedDwellers', () => {
       const wrapper = mount(UnassignedDwellers)
 
       const dropZone = wrapper.find('.empty-state')
-      await dropZone.trigger('drop', {
-        dataTransfer: {
-          getData: () =>
-            JSON.stringify({
-              dwellerId: 'dweller-1',
-              firstName: 'John',
-              lastName: 'Doe',
-              currentRoomId: null,
-            }),
-        },
-      })
+      await dropZone.trigger('drop', createDropEvent('dweller-1', 'John', 'Doe', null))
 
       await flushPromises()
 
@@ -346,17 +331,7 @@ describe('UnassignedDwellers', () => {
       const wrapper = mount(UnassignedDwellers)
 
       const dropZone = wrapper.find('.empty-state')
-      await dropZone.trigger('drop', {
-        dataTransfer: {
-          getData: () =>
-            JSON.stringify({
-              dwellerId: 'dweller-1',
-              firstName: 'John',
-              lastName: 'Doe',
-              currentRoomId: 'room-1',
-            }),
-        },
-      })
+      await dropZone.trigger('drop', createDropEvent('dweller-1', 'John', 'Doe', 'room-1'))
 
       await flushPromises()
 

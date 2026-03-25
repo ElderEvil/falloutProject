@@ -134,13 +134,18 @@ const chainPosition = computed(() => {
 const previousQuestName = computed(() => {
   if (!props.quest.previous_quest_id) return null
   // Search in vaultQuests first, then fall back to all quests
-  const previousQuest = questStore.vaultQuests.find((q) => q.id === props.quest.previous_quest_id)
-    || questStore.quests.find((q) => q.id === props.quest.previous_quest_id)
+  const previousQuest =
+    questStore.vaultQuests.find((q) => q.id === props.quest.previous_quest_id) ||
+    questStore.quests.find((q) => q.id === props.quest.previous_quest_id)
   return previousQuest?.title || null
 })
 
 // Format reward details for display
-const formatReward = (reward: { reward_type: string; reward_data: Record<string, unknown>; reward_chance: number }) => {
+const formatReward = (reward: {
+  reward_type: string
+  reward_data: Record<string, unknown>
+  reward_chance: number
+}) => {
   const data = reward.reward_data || {}
   const type = reward.reward_type.toLowerCase()
 

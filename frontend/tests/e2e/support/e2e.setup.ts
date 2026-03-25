@@ -10,7 +10,7 @@ setup('authenticate', async ({ page }) => {
   await page.waitForLoadState('networkidle')
 
   const emailInput = page.getByLabel(/email/i)
-  const isLoginPage = await emailInput.count() > 0
+  const isLoginPage = (await emailInput.count()) > 0
 
   if (!isLoginPage) {
     await page.context().storageState({ path: authFile })
@@ -22,8 +22,10 @@ setup('authenticate', async ({ page }) => {
   const passwordInput = page.getByLabel(/password/i)
   const submitButton = page.getByRole('button', { name: /sign.?in|login|enter/i })
 
-  if (await passwordInput.count() === 0) {
-    throw new Error('Login form not found — password input is missing. Cannot create authenticated storage state.')
+  if ((await passwordInput.count()) === 0) {
+    throw new Error(
+      'Login form not found — password input is missing. Cannot create authenticated storage state.'
+    )
   }
 
   await emailInput.fill(process.env.E2E_USER_EMAIL || 'admin@vault.shelter')

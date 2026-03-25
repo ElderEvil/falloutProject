@@ -9,8 +9,8 @@ vi.mock('@iconify/vue', () => ({
   Icon: {
     name: 'Icon',
     props: ['icon'],
-    template: '<div class="mock-icon" :data-icon="icon"></div>'
-  }
+    template: '<div class="mock-icon" :data-icon="icon"></div>',
+  },
 }))
 
 describe('IncidentAlert', () => {
@@ -29,7 +29,7 @@ describe('IncidentAlert', () => {
     last_spread_time: null,
     loot: null,
     resolved_at: null,
-    duration: 60
+    duration: 60,
   }
 
   beforeEach(() => {
@@ -41,8 +41,8 @@ describe('IncidentAlert', () => {
     it('should render with single incident', () => {
       const wrapper = mount(IncidentAlert, {
         props: {
-          incidents: [mockIncident]
-        }
+          incidents: [mockIncident],
+        },
       })
 
       expect(wrapper.exists()).toBe(true)
@@ -52,8 +52,8 @@ describe('IncidentAlert', () => {
     it('should handle empty incidents array', () => {
       const wrapper = mount(IncidentAlert, {
         props: {
-          incidents: []
-        }
+          incidents: [],
+        },
       })
 
       expect(wrapper.exists()).toBe(true)
@@ -64,8 +64,8 @@ describe('IncidentAlert', () => {
     it('should display incident type correctly', () => {
       const wrapper = mount(IncidentAlert, {
         props: {
-          incidents: [mockIncident]
-        }
+          incidents: [mockIncident],
+        },
       })
 
       expect(wrapper.text()).toContain('RAIDER ATTACK')
@@ -74,8 +74,8 @@ describe('IncidentAlert', () => {
     it('should display difficulty stars', () => {
       const wrapper = mount(IncidentAlert, {
         props: {
-          incidents: [mockIncident]
-        }
+          incidents: [mockIncident],
+        },
       })
 
       const stars = wrapper.text().match(/★/g)
@@ -85,8 +85,8 @@ describe('IncidentAlert', () => {
     it('should show elapsed time', () => {
       const wrapper = mount(IncidentAlert, {
         props: {
-          incidents: [mockIncident]
-        }
+          incidents: [mockIncident],
+        },
       })
 
       expect(wrapper.text()).toMatch(/\d+:\d+/)
@@ -95,8 +95,8 @@ describe('IncidentAlert', () => {
     it('should display correct icon for raider attack', () => {
       const wrapper = mount(IncidentAlert, {
         props: {
-          incidents: [mockIncident]
-        }
+          incidents: [mockIncident],
+        },
       })
 
       const icon = wrapper.find('.mock-icon')
@@ -106,13 +106,13 @@ describe('IncidentAlert', () => {
     it('should display correct icon for fire', () => {
       const fireIncident = {
         ...mockIncident,
-        type: IncidentType.FIRE
+        type: IncidentType.FIRE,
       }
 
       const wrapper = mount(IncidentAlert, {
         props: {
-          incidents: [fireIncident]
-        }
+          incidents: [fireIncident],
+        },
       })
 
       const icon = wrapper.find('.mock-icon')
@@ -127,9 +127,9 @@ describe('IncidentAlert', () => {
           incidents: [
             mockIncident,
             { ...mockIncident, id: 'incident-2', type: IncidentType.FIRE },
-            { ...mockIncident, id: 'incident-3', type: IncidentType.RADROACH_INFESTATION }
-          ]
-        }
+            { ...mockIncident, id: 'incident-3', type: IncidentType.RADROACH_INFESTATION },
+          ],
+        },
       })
 
       expect(wrapper.text()).toContain('3 ACTIVE')
@@ -138,11 +138,8 @@ describe('IncidentAlert', () => {
     it('should display first incident details when multiple', () => {
       const wrapper = mount(IncidentAlert, {
         props: {
-          incidents: [
-            mockIncident,
-            { ...mockIncident, id: 'incident-2', type: IncidentType.FIRE }
-          ]
-        }
+          incidents: [mockIncident, { ...mockIncident, id: 'incident-2', type: IncidentType.FIRE }],
+        },
       })
 
       expect(wrapper.text()).toContain('RAIDER ATTACK')
@@ -154,8 +151,8 @@ describe('IncidentAlert', () => {
     it('should emit click event with incident id', async () => {
       const wrapper = mount(IncidentAlert, {
         props: {
-          incidents: [mockIncident]
-        }
+          incidents: [mockIncident],
+        },
       })
 
       await wrapper.trigger('click')
@@ -169,8 +166,8 @@ describe('IncidentAlert', () => {
     it('should have pulsing class when incidents exist', () => {
       const wrapper = mount(IncidentAlert, {
         props: {
-          incidents: [mockIncident]
-        }
+          incidents: [mockIncident],
+        },
       })
 
       expect(wrapper.find('.incident-alert').classes()).toContain('pulsing')
@@ -179,8 +176,8 @@ describe('IncidentAlert', () => {
     it('should have red border color', () => {
       const wrapper = mount(IncidentAlert, {
         props: {
-          incidents: [mockIncident]
-        }
+          incidents: [mockIncident],
+        },
       })
 
       const alert = wrapper.find('.incident-alert')
@@ -192,13 +189,13 @@ describe('IncidentAlert', () => {
     it('should handle incident with 10 difficulty', () => {
       const maxDifficultyIncident = {
         ...mockIncident,
-        difficulty: 10
+        difficulty: 10,
       }
 
       const wrapper = mount(IncidentAlert, {
         props: {
-          incidents: [maxDifficultyIncident]
-        }
+          incidents: [maxDifficultyIncident],
+        },
       })
 
       const stars = wrapper.text().match(/★/g)
@@ -208,13 +205,13 @@ describe('IncidentAlert', () => {
     it('should handle incident with 1 difficulty', () => {
       const minDifficultyIncident = {
         ...mockIncident,
-        difficulty: 1
+        difficulty: 1,
       }
 
       const wrapper = mount(IncidentAlert, {
         props: {
-          incidents: [minDifficultyIncident]
-        }
+          incidents: [minDifficultyIncident],
+        },
       })
 
       const stars = wrapper.text().match(/★/g)
@@ -226,13 +223,13 @@ describe('IncidentAlert', () => {
         ...mockIncident,
         status: IncidentStatus.SPREADING,
         spread_count: 2,
-        rooms_affected: ['room-1', 'room-2', 'room-3']
+        rooms_affected: ['room-1', 'room-2', 'room-3'],
       }
 
       const wrapper = mount(IncidentAlert, {
         props: {
-          incidents: [spreadingIncident]
-        }
+          incidents: [spreadingIncident],
+        },
       })
 
       expect(wrapper.exists()).toBe(true)
@@ -248,14 +245,14 @@ describe('IncidentAlert', () => {
       { type: IncidentType.DEATHCLAW_ATTACK, icon: 'mdi:claw-mark' },
       { type: IncidentType.RADIATION_LEAK, icon: 'mdi:radioactive' },
       { type: IncidentType.ELECTRICAL_FAILURE, icon: 'mdi:lightning-bolt' },
-      { type: IncidentType.WATER_CONTAMINATION, icon: 'mdi:water-alert' }
+      { type: IncidentType.WATER_CONTAMINATION, icon: 'mdi:water-alert' },
     ]
 
     incidentTypes.forEach(({ type, icon }) => {
       it(`should display correct icon for ${type}`, () => {
         const incident = { ...mockIncident, type }
         const wrapper = mount(IncidentAlert, {
-          props: { incidents: [incident] }
+          props: { incidents: [incident] },
         })
 
         const iconElement = wrapper.find('.mock-icon')

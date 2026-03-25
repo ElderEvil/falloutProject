@@ -368,9 +368,7 @@ onUnmounted(() => {
           <span class="quota-title">Monthly quota exceeded</span>
           <span class="quota-reset">Resets on {{ resetDate }}</span>
         </div>
-        <button @click="goToProfile" class="quota-profile-btn">
-          View Profile
-        </button>
+        <button @click="goToProfile" class="quota-profile-btn">View Profile</button>
       </div>
     </div>
 

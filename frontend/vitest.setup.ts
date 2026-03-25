@@ -1,5 +1,3 @@
-import { vi } from 'vitest'
-
 // Mock localStorage for jsdom environment
 const localStorageMock = (() => {
   let store: Record<string, string> = {}
@@ -21,12 +19,12 @@ const localStorageMock = (() => {
     },
     get length() {
       return Object.keys(store).length
-    }
+    },
   }
 })()
 
 Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock
+  value: localStorageMock,
 })
 
 // Mock sessionStorage similarly
@@ -50,10 +48,10 @@ const sessionStorageMock = (() => {
     },
     get length() {
       return Object.keys(store).length
-    }
+    },
   }
 })()
 
 Object.defineProperty(window, 'sessionStorage', {
-  value: sessionStorageMock
+  value: sessionStorageMock,
 })

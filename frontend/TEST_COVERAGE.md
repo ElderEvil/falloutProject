@@ -1,11 +1,13 @@
 # Test Coverage Summary
 
 ## Overview
+
 Comprehensive test suite created to cover all essential functionality before migrating to new UI components (Nuxt UI).
 
 ## Test Structure
 
 Tests are organized in a separate `tests/` directory:
+
 ```
 tests/
 └── unit/
@@ -32,6 +34,7 @@ tests/
 ## Test Statistics
 
 ### Store Tests
+
 - **Auth Store**: `tests/unit/stores/auth.test.ts` - 21 tests
   - State initialization
   - Login/logout functionality
@@ -53,6 +56,7 @@ tests/
   - API endpoint validation (bug fix verification)
 
 ### Router Tests
+
 - **Router Guards**: `tests/unit/router/guards.test.ts` - 7 tests
   - Authentication guards
   - Protected routes
@@ -60,6 +64,7 @@ tests/
   - Redirect behavior
 
 ### Component Tests
+
 - **ResourceBar**: `tests/unit/components/common/ResourceBar.test.ts` - 17 tests
   - Props rendering
   - Percentage calculation
@@ -75,6 +80,7 @@ tests/
   - Validation
 
 ### View Tests
+
 - **HomeView**: `tests/unit/views/HomeView.test.ts` - 21 tests
   - Welcome message and form rendering
   - Empty state and vault list display
@@ -85,6 +91,7 @@ tests/
   - Vault stats display and sorting
 
 ### Validation Schema Tests
+
 - **Vault Schemas**: `tests/unit/schemas/vault.test.ts` - 31 tests
   - Valid vault numbers (0-999, following Fallout lore)
   - Boundary values (0, 999)
@@ -101,6 +108,7 @@ tests/
   - Security edge cases (SQL injection, XSS patterns)
 
 ### Service Tests
+
 - **Auth Service**: `tests/unit/services/authService.test.ts` - 18 tests
   - Login API
   - Registration API
@@ -110,11 +118,13 @@ tests/
   - Error handling
 
 ## Total Test Count
+
 **196 tests** covering critical application functionality (87% increase from initial 99 tests)
 
 ## What's Covered
 
 ### Authentication Flow
+
 ✅ Login with credentials
 ✅ Registration with validation
 ✅ Token management (access + refresh)
@@ -126,6 +136,7 @@ tests/
 ✅ Email format validation
 
 ### Vault Management
+
 ✅ Fetching vaults
 ✅ Creating new vaults with validation (0-999 range)
 ✅ Deleting vaults with confirmation
@@ -137,6 +148,7 @@ tests/
 ✅ Vault stats display and sorting
 
 ### Objectives System
+
 ✅ Fetching objectives with pagination
 ✅ Adding new objectives
 ✅ Retrieving single objectives
@@ -144,6 +156,7 @@ tests/
 ✅ Error handling
 
 ### Input Validation (Hybrid OpenAPI + Zod)
+
 ✅ Vault number validation (0-999, integers only)
 ✅ Login form validation (username, password)
 ✅ Registration form validation (username, email, password complexity)
@@ -151,6 +164,7 @@ tests/
 ✅ Security pattern detection (SQL injection, XSS)
 
 ### UI Components
+
 ✅ Resource bars with percentage calculation
 ✅ Login form with error handling
 ✅ Input validation with inline errors
@@ -158,6 +172,7 @@ tests/
 ✅ Loading states and disabled buttons
 
 ### API Integration
+
 ✅ HTTP request formatting
 ✅ Error handling
 ✅ Authorization headers
@@ -205,6 +220,7 @@ Our testing strategy follows the industry-standard test pyramid approach:
    - Objective tracking
 
 ### Current Status
+
 ✅ Unit Tests: Comprehensive coverage (196 tests)
 ✅ Integration Tests: Covered via component/store tests
 ⏳ E2E Tests: Planned for Phase 3 (Playwright setup)
@@ -212,6 +228,7 @@ Our testing strategy follows the industry-standard test pyramid approach:
 ## Test Categories
 
 ### Unit Tests
+
 - **Validation Schemas** (63 tests): Zod schema validation for forms
 - **Store Tests** (60 tests): State management and API interaction
 - **Component Tests** (33 tests): UI component rendering and logic
@@ -220,6 +237,7 @@ Our testing strategy follows the industry-standard test pyramid approach:
 - **Router Tests** (7 tests): Route guards and navigation
 
 ### Integration Tests
+
 - Router navigation with auth guards
 - Store + API interaction with real HTTP mocking
 - Component + Store integration (HomeView, LoginForm)
@@ -242,6 +260,7 @@ Our testing strategy follows the industry-standard test pyramid approach:
 ## Recent Improvements
 
 ### Bug Fixes Validated by Tests
+
 1. **Objectives Store API Endpoints** - Fixed incorrect URL format from `/api/v1/${vaultId}/` to `/api/v1/objectives/${vaultId}/`
    - Validated by: `tests/unit/stores/objectives.test.ts` (line 87-94)
 
@@ -249,6 +268,7 @@ Our testing strategy follows the industry-standard test pyramid approach:
    - Backend: `backend/app/crud/vault.py:367-377`
 
 ### New Features with Test Coverage
+
 1. **Hybrid Validation System** - OpenAPI type generation + Zod runtime validation
    - Types auto-generated from FastAPI schemas via `openapi-typescript`
    - Zod schemas for form validation with inline errors
@@ -283,6 +303,7 @@ Before migrating to Nuxt UI components:
 ## Notes
 
 ### Technology Stack
+
 - Tests use **Vitest** (compatible with VoidZero/Rolldown stack)
 - **Zod v4** for runtime validation
 - **openapi-typescript** for type generation from FastAPI schemas
@@ -292,12 +313,15 @@ Before migrating to Nuxt UI components:
 - Router mocked for navigation tests
 
 ### Type Safety System
+
 We use a **hybrid approach** for maximum safety:
+
 1. **OpenAPI types** (compile-time) - Generated from backend schemas, single source of truth
 2. **Zod schemas** (runtime) - Form validation with user-friendly error messages
 3. Auto-generation on dev/build: `pnpm types:generate` runs before `vite`
 
 ### Test Execution
+
 - Tests run in parallel for speed
 - Intentional error logs in stderr from error-handling tests (expected behavior)
 - Test file organization mirrors src structure
@@ -305,6 +329,7 @@ We use a **hybrid approach** for maximum safety:
 ## Next Steps
 
 ### Phase 1: Complete Current Testing (In Progress)
+
 1. ✅ Validation schema tests (vault, auth)
 2. ✅ Objectives store tests
 3. ✅ HomeView tests
@@ -312,12 +337,14 @@ We use a **hybrid approach** for maximum safety:
 5. ⏳ Generate coverage report
 
 ### Phase 2: Expand Test Coverage (Optional)
+
 1. VaultView component tests
 2. DwellersView component tests
 3. ObjectivesView component tests
 4. Additional store tests (dwellers, rooms)
 
 ### Phase 3: E2E Testing (Planned)
+
 1. Install Playwright
 2. Configure E2E test environment
 3. Implement critical user journey tests:
@@ -327,4 +354,5 @@ We use a **hybrid approach** for maximum safety:
    - Objective completion
 
 ### Phase 4: UI Migration
+
 Begin Nuxt UI component migration with confidence that tests will catch regressions

@@ -11,8 +11,8 @@ vi.mock('@/core/composables/useToast', () => ({
     success: vi.fn(),
     error: vi.fn(),
     warning: vi.fn(),
-    info: vi.fn()
-  })
+    info: vi.fn(),
+  }),
 }))
 
 describe('Incident Store', () => {
@@ -41,7 +41,7 @@ describe('Incident Store', () => {
     last_spread_time: null,
     loot: null,
     resolved_at: null,
-    duration: 60
+    duration: 60,
   }
 
   const mockIncidentList: IncidentListResponse = {
@@ -57,9 +57,9 @@ describe('Incident Store', () => {
         start_time: '2025-01-01T00:00:00Z',
         elapsed_time: 60,
         damage_dealt: 10,
-        enemies_defeated: 2
-      }
-    ]
+        enemies_defeated: 2,
+      },
+    ],
   }
 
   describe('State Initialization', () => {
@@ -122,7 +122,7 @@ describe('Incident Store', () => {
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce({
         vault_id: 'vault-1',
         incident_count: 0,
-        incidents: []
+        incidents: [],
       })
 
       await store.fetchIncidents('vault-1', 'token')
@@ -172,7 +172,7 @@ describe('Incident Store', () => {
         message: 'Incident resolved',
         incident_id: 'incident-1',
         caps_earned: 150,
-        items_earned: []
+        items_earned: [],
       })
 
       await store.resolveIncident('vault-1', 'incident-1', 'token', true)
@@ -251,7 +251,7 @@ describe('Incident Store', () => {
         incident_id: 'incident-1',
         type: 'raider_attack',
         room_id: 'room-1',
-        difficulty: 5
+        difficulty: 5,
       })
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
       vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
@@ -279,7 +279,7 @@ describe('Incident Store', () => {
         incident_id: 'incident-1',
         type: 'fire',
         room_id: 'room-1',
-        difficulty: 3
+        difficulty: 3,
       })
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
       vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
@@ -334,7 +334,7 @@ describe('Incident Store', () => {
             start_time: '2025-01-01T00:00:00Z',
             elapsed_time: 60,
             damage_dealt: 10,
-            enemies_defeated: 2
+            enemies_defeated: 2,
           },
           {
             id: 'incident-2',
@@ -345,9 +345,9 @@ describe('Incident Store', () => {
             start_time: '2025-01-01T00:00:00Z',
             elapsed_time: 30,
             damage_dealt: 5,
-            enemies_defeated: 0
-          }
-        ]
+            enemies_defeated: 0,
+          },
+        ],
       }
 
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(multipleIncidents)
@@ -368,7 +368,7 @@ describe('Incident Store', () => {
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce({
         vault_id: 'vault-1',
         incident_count: 1,
-        incidents: [mockIncidentList.incidents[0]]
+        incidents: [mockIncidentList.incidents[0]],
       })
       vi.mocked(incidentApi.getIncident).mockResolvedValue(mockIncident)
 

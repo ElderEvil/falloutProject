@@ -651,6 +651,8 @@ class ExplorationCoordinator:
                     },
                 )
 
+        await db_session.flush()
+
         # Update storage used_space counter
         await crud_storage.update_used_space(db_session, storage_id)
 

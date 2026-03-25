@@ -66,7 +66,7 @@ def mock_user() -> User:
 
 
 @pytest.fixture
-def mock_admin_user():
+def mock_admin_user() -> User:
     """Create a mock admin user object."""
     user = MagicMock(spec=User)
     user.id = uuid4()

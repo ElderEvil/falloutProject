@@ -35,7 +35,7 @@ describe('Room Store', () => {
           level: 1,
           position_x: 0,
           position_y: 0,
-          vault_id: 'vault-1'
+          vault_id: 'vault-1',
         },
         {
           id: 'room-2',
@@ -44,8 +44,8 @@ describe('Room Store', () => {
           level: 1,
           position_x: 1,
           position_y: 0,
-          vault_id: 'vault-1'
-        }
+          vault_id: 'vault-1',
+        },
       ]
 
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockRooms })
@@ -56,7 +56,7 @@ describe('Room Store', () => {
       expect(axios.get).toHaveBeenCalledWith(
         '/api/v1/rooms/vault/vault-1/',
         expect.objectContaining({
-          headers: { Authorization: 'Bearer test-token' }
+          headers: { Authorization: 'Bearer test-token' },
         })
       )
       expect(store.rooms).toEqual(mockRooms)
@@ -77,7 +77,7 @@ describe('Room Store', () => {
     it('should fetch available room types without vault ID (legacy)', async () => {
       const mockAvailableRooms = [
         { id: 'power-gen', name: 'Power Generator', type: 'power', cost: 100 },
-        { id: 'diner', name: 'Diner', type: 'food', cost: 150 }
+        { id: 'diner', name: 'Diner', type: 'food', cost: 150 },
       ]
 
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockAvailableRooms })
@@ -88,7 +88,7 @@ describe('Room Store', () => {
       expect(axios.get).toHaveBeenCalledWith(
         '/api/v1/rooms/read_data/',
         expect.objectContaining({
-          headers: { Authorization: 'Bearer test-token' }
+          headers: { Authorization: 'Bearer test-token' },
         })
       )
       expect(store.availableRooms).toEqual(mockAvailableRooms)
@@ -97,7 +97,7 @@ describe('Room Store', () => {
     it('should fetch buildable rooms when vault ID is provided', async () => {
       const mockBuildableRooms = [
         { id: 'power-gen', name: 'Power Generator', type: 'power', cost: 100 },
-        { id: 'diner', name: 'Diner', type: 'food', cost: 150 }
+        { id: 'diner', name: 'Diner', type: 'food', cost: 150 },
         // Note: Vault Door should NOT be in this list
       ]
 
@@ -109,7 +109,7 @@ describe('Room Store', () => {
       expect(axios.get).toHaveBeenCalledWith(
         '/api/v1/rooms/buildable/vault-1/',
         expect.objectContaining({
-          headers: { Authorization: 'Bearer test-token' }
+          headers: { Authorization: 'Bearer test-token' },
         })
       )
       expect(store.availableRooms).toEqual(mockBuildableRooms)
@@ -134,14 +134,14 @@ describe('Room Store', () => {
         level: 1,
         position_x: 2,
         position_y: 0,
-        vault_id: 'vault-1'
+        vault_id: 'vault-1',
       }
 
       const roomData = {
         type: 'water',
         position_x: 2,
         position_y: 0,
-        vault_id: 'vault-1'
+        vault_id: 'vault-1',
       }
 
       vi.mocked(axios.post).mockResolvedValueOnce({ data: newRoom })
@@ -157,7 +157,7 @@ describe('Room Store', () => {
         '/api/v1/rooms/build/',
         roomData,
         expect.objectContaining({
-          headers: { Authorization: 'Bearer test-token' }
+          headers: { Authorization: 'Bearer test-token' },
         })
       )
       expect(store.rooms).toContainEqual(newRoom)
@@ -167,8 +167,8 @@ describe('Room Store', () => {
       const error = new AxiosError('Request failed')
       error.response = {
         data: {
-          detail: 'Insufficient caps'
-        }
+          detail: 'Insufficient caps',
+        },
       } as any
 
       vi.mocked(axios.post).mockRejectedValueOnce(error)
@@ -180,40 +180,38 @@ describe('Room Store', () => {
     })
   })
 
-   describe('destroyRoom', () => {
+  describe('destroyRoom', () => {
     it('should destroy a room', async () => {
-        vi.mocked(axios.delete).mockResolvedValueOnce({ data: {} })
-        vi.mocked(axios.get).mockResolvedValueOnce({ data: { id: 'vault-1', bottle_caps: 900 } })
+      vi.mocked(axios.delete).mockResolvedValueOnce({ data: {} })
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: { id: 'vault-1', bottle_caps: 900 } })
 
-        const store = useRoomStore()
-        const vaultStore = useVaultStore()
-        store.rooms = [
-          { id: 'room-1', name: 'Power Gen' } as any,
-          { id: 'room-2', name: 'Diner' } as any
-        ]
-        vaultStore.loadedVaults['vault-1'] = { id: 'vault-1', bottle_caps: 1000 } as any
+      const store = useRoomStore()
+      const vaultStore = useVaultStore()
+      store.rooms = [
+        { id: 'room-1', name: 'Power Gen' } as any,
+        { id: 'room-2', name: 'Diner' } as any,
+      ]
+      vaultStore.loadedVaults['vault-1'] = { id: 'vault-1', bottle_caps: 1000 } as any
 
-        await store.destroyRoom('room-1', 'test-token', 'vault-1')
+      await store.destroyRoom('room-1', 'test-token', 'vault-1')
 
-       expect(axios.delete).toHaveBeenCalledWith(
-         '/api/v1/rooms/destroy/room-1',
-         expect.objectContaining({
-           headers: { Authorization: 'Bearer test-token' }
-         })
-       )
-       expect(store.rooms).toHaveLength(1)
-       expect(store.rooms[0].id).toBe('room-2')
-     })
+      expect(axios.delete).toHaveBeenCalledWith(
+        '/api/v1/rooms/destroy/room-1',
+        expect.objectContaining({
+          headers: { Authorization: 'Bearer test-token' },
+        })
+      )
+      expect(store.rooms).toHaveLength(1)
+      expect(store.rooms[0].id).toBe('room-2')
+    })
 
-     it('should handle errors', async () => {
-       vi.mocked(axios.delete).mockRejectedValueOnce(new Error('Failed'))
+    it('should handle errors', async () => {
+      vi.mocked(axios.delete).mockRejectedValueOnce(new Error('Failed'))
 
-       const store = useRoomStore()
-       store.rooms = [{ id: 'room-1' } as any]
+      const store = useRoomStore()
+      store.rooms = [{ id: 'room-1' } as any]
 
-       await expect(
-         store.destroyRoom('room-1', 'test-token', 'vault-1')
-       ).rejects.toThrow('Failed')
+      await expect(store.destroyRoom('room-1', 'test-token', 'vault-1')).rejects.toThrow('Failed')
 
       expect(console.error).toHaveBeenCalledWith('Failed to destroy room', expect.any(Error))
       expect(store.rooms).toHaveLength(1) // Room not removed on error
@@ -228,14 +226,14 @@ describe('Room Store', () => {
         tier: 1,
         capacity: 10,
         output: 20,
-        vault_id: 'vault-1'
+        vault_id: 'vault-1',
       }
 
       const upgradedRoom = {
         ...originalRoom,
         tier: 2,
         capacity: 12,
-        output: 24
+        output: 24,
       }
 
       vi.mocked(axios.post).mockResolvedValueOnce({ data: upgradedRoom })
@@ -252,7 +250,7 @@ describe('Room Store', () => {
         '/api/v1/rooms/upgrade/room-1',
         {},
         expect.objectContaining({
-          headers: { Authorization: 'Bearer test-token' }
+          headers: { Authorization: 'Bearer test-token' },
         })
       )
       expect(store.rooms[0].tier).toBe(2)
@@ -264,41 +262,39 @@ describe('Room Store', () => {
       const error = new AxiosError('Request failed')
       error.response = {
         data: {
-          detail: 'Insufficient caps for upgrade'
-        }
+          detail: 'Insufficient caps for upgrade',
+        },
       } as any
 
       vi.mocked(axios.post).mockRejectedValueOnce(error)
 
       const store = useRoomStore()
-      await expect(
-        store.upgradeRoom('room-1', 'test-token', 'vault-1')
-      ).rejects.toThrow('Insufficient caps for upgrade')
+      await expect(store.upgradeRoom('room-1', 'test-token', 'vault-1')).rejects.toThrow(
+        'Insufficient caps for upgrade'
+      )
     })
 
     it('should throw error when room is at max tier', async () => {
       const error = new AxiosError('Request failed')
       error.response = {
         data: {
-          detail: 'Room is already at maximum tier 3'
-        }
+          detail: 'Room is already at maximum tier 3',
+        },
       } as any
 
       vi.mocked(axios.post).mockRejectedValueOnce(error)
 
       const store = useRoomStore()
-      await expect(
-        store.upgradeRoom('room-1', 'test-token', 'vault-1')
-      ).rejects.toThrow('Room is already at maximum tier 3')
+      await expect(store.upgradeRoom('room-1', 'test-token', 'vault-1')).rejects.toThrow(
+        'Room is already at maximum tier 3'
+      )
     })
 
     it('should handle generic errors', async () => {
       vi.mocked(axios.post).mockRejectedValueOnce(new Error('Network error'))
 
       const store = useRoomStore()
-      await expect(
-        store.upgradeRoom('room-1', 'test-token', 'vault-1')
-      ).rejects.toThrow()
+      await expect(store.upgradeRoom('room-1', 'test-token', 'vault-1')).rejects.toThrow()
     })
 
     it('should update the correct room in the array', async () => {

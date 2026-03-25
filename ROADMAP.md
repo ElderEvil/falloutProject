@@ -7,7 +7,61 @@ AI-powered dweller interactions.
 
 ---
 
+## In Progress
+
+### v2.11.1 - (In Development)
+
+**Focus**: Upcoming improvements
+
+**Planned:**
+- [ ] Additional feature or improvement
+
+---
+
 ## Latest Release
+
+### v2.11.0 - Toolchain Migration & Recycling Service (March 19, 2026)
+
+**Focus**: Vite+ unified toolchain, dweller recycling service, and test fixes
+
+**Completed:**
+- ✅ **Vite+ Unified Toolchain** - Migrated to Vite+ for improved bundling and DX
+  - Unified build tooling across frontend
+  - Improved build performance
+- ✅ **MinIO Deprecation Warnings** - RustFS is now the primary storage provider
+  - Added deprecation warnings for MinIO configuration
+  - RustFS marked as default and recommended option
+- ✅ **Dweller Recycling Service** - New service for processing dead dwellers
+  - Implemented recycling mechanics for permanent deaths
+  - Integration with vault economy system
+- ✅ **Exploration Coordinator Tests** - Fixed 4 failing tests
+  - Test isolation issues resolved
+  - All exploration coordinator tests now passing
+
+### v2.10.9 - AI Usage Tracking & Quota System (March 13, 2026)
+
+**Focus**: AI usage monitoring, token quota enforcement, and observability improvements
+
+**Completed:**
+- ✅ **AI Usage API** - New `/me/profile/ai-usage` endpoint with token statistics
+  - Tracks prompt, completion, and total tokens across all AI calls
+  - Redis-cached responses for performance
+  - Terminal-themed UI card in profile view
+- ✅ **Quota System** - Per-user monthly token limits with enforcement
+  - Default 500K tokens per month per user
+  - Atomic quota checks with SELECT FOR UPDATE
+  - HTTP 429 responses when quota exceeded
+  - UI blocking and warnings at 80% threshold
+  - Admin bypass support
+- ✅ **Observability** - Optional Logfire integration
+  - Initialized at startup when configured
+  - Richer OpenAI usage reporting
+- ✅ **Storage** - Completed RustFS migration
+  - Removed legacy MinIO integration
+  - Added HTTPS and public URL configuration options
+- ✅ **Tests** - Comprehensive test coverage
+  - Unit, integration, and race condition tests for quota system
+  - E2E tests for quota blocking UI
 
 ### v2.10.8 - RustFS Migration & Code Quality (February 19, 2026)
 

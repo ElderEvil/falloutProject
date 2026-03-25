@@ -76,16 +76,18 @@ test.describe('Quota Blocking', () => {
     await page.waitForLoadState('networkidle')
 
     // Wait for dwellers list to load and click on first dweller
-    const firstDweller = page.locator('.dweller-card, [data-testid="dweller-card"], .dweller-grid-item').first()
+    const firstDweller = page
+      .locator('.dweller-card, [data-testid="dweller-card"], .dweller-grid-item')
+      .first()
 
     // If dweller cards exist, click on one to open chat
-    if (await firstDweller.count() > 0) {
+    if ((await firstDweller.count()) > 0) {
       await firstDweller.click()
     } else {
       // Alternative: try navigating directly to a dweller's chat page
       // This handles cases where the UI structure differs
       const chatLink = page.locator('a[href*="/dwellers/"], a[href*="/chat"]').first()
-      if (await chatLink.count() > 0) {
+      if ((await chatLink.count()) > 0) {
         await chatLink.click()
       }
     }
@@ -97,7 +99,9 @@ test.describe('Quota Blocking', () => {
     })
 
     // Verify quota exceeded message is visible in chat
-    const quotaExceededMessage = page.locator('.quota-exceeded, .quota-blocked-message, [data-testid="quota-exceeded"]').first()
+    const quotaExceededMessage = page
+      .locator('.quota-exceeded, .quota-blocked-message, [data-testid="quota-exceeded"]')
+      .first()
     await expect(quotaExceededMessage).toBeVisible({ timeout: 10000 })
 
     // Verify "Monthly quota exceeded" text is displayed
@@ -105,11 +109,15 @@ test.describe('Quota Blocking', () => {
     await expect(quotaTitle).toBeVisible()
 
     // Verify "View Profile" button is visible
-    const viewProfileButton = page.locator('.quota-profile-btn, button:has-text("View Profile"), button:has-text("Profile")').first()
+    const viewProfileButton = page
+      .locator('.quota-profile-btn, button:has-text("View Profile"), button:has-text("Profile")')
+      .first()
     await expect(viewProfileButton).toBeVisible()
 
     // Verify normal chat input is NOT visible (replaced by quota message)
-    const chatInput = page.locator('.chat-input-field, input[placeholder*="message"], textarea[placeholder*="message"]').first()
+    const chatInput = page
+      .locator('.chat-input-field, input[placeholder*="message"], textarea[placeholder*="message"]')
+      .first()
     await expect(chatInput).not.toBeVisible()
   })
 
@@ -119,9 +127,11 @@ test.describe('Quota Blocking', () => {
     await page.waitForLoadState('networkidle')
 
     // Try to find and open a dweller chat
-    const firstDweller = page.locator('.dweller-card, [data-testid="dweller-card"], .dweller-grid-item').first()
+    const firstDweller = page
+      .locator('.dweller-card, [data-testid="dweller-card"], .dweller-grid-item')
+      .first()
 
-    if (await firstDweller.count() > 0) {
+    if ((await firstDweller.count()) > 0) {
       await firstDweller.click()
     }
 
@@ -129,10 +139,12 @@ test.describe('Quota Blocking', () => {
     await page.waitForTimeout(2000)
 
     // Click "View Profile" button from quota exceeded message
-    const viewProfileButton = page.locator('.quota-profile-btn, button:has-text("View Profile"), button:has-text("Profile")').first()
+    const viewProfileButton = page
+      .locator('.quota-profile-btn, button:has-text("View Profile"), button:has-text("Profile")')
+      .first()
 
     // If we're not in chat view (e.g., already blocked), navigate directly to profile
-    if (await viewProfileButton.count() === 0) {
+    if ((await viewProfileButton.count()) === 0) {
       await page.goto('/profile')
     } else {
       await viewProfileButton.click()
@@ -147,12 +159,16 @@ test.describe('Quota Blocking', () => {
 
     // Verify profile page shows quota exceeded status
     // Look for quota exceeded indicators
-    const quotaExceededIndicator = page.locator(
-      '.quota-exceeded, [data-testid="quota-exceeded"], .text-red-500, .bg-red-500, .border-red-500'
-    ).first()
+    const quotaExceededIndicator = page
+      .locator(
+        '.quota-exceeded, [data-testid="quota-exceeded"], .text-red-500, .bg-red-500, .border-red-500'
+      )
+      .first()
 
     // Check for specific text indicators
-    const quotaExceededText = page.locator('text=Quota exceeded, text=quota exceeded, text=exceeded').first()
+    const quotaExceededText = page
+      .locator('text=Quota exceeded, text=quota exceeded, text=exceeded')
+      .first()
 
     // At least one of these should be visible
     const hasQuotaIndicator = await quotaExceededIndicator.isVisible().catch(() => false)
@@ -174,9 +190,11 @@ test.describe('Quota Blocking', () => {
     await page.goto('/dwellers')
     await page.waitForLoadState('networkidle')
 
-    const firstDweller = page.locator('.dweller-card, [data-testid="dweller-card"], .dweller-grid-item').first()
+    const firstDweller = page
+      .locator('.dweller-card, [data-testid="dweller-card"], .dweller-grid-item')
+      .first()
 
-    if (await firstDweller.count() > 0) {
+    if ((await firstDweller.count()) > 0) {
       await firstDweller.click()
     }
 
@@ -186,7 +204,7 @@ test.describe('Quota Blocking', () => {
     // Verify quota exceeded message shows reset date
     const quotaResetText = page.locator('.quota-reset, text=Resets on').first()
 
-    if (await quotaResetText.count() > 0) {
+    if ((await quotaResetText.count()) > 0) {
       await expect(quotaResetText).toBeVisible()
 
       // Verify reset date format (should contain a date)
@@ -209,11 +227,15 @@ test.describe('Quota Blocking - Real API', () => {
     await page.waitForLoadState('networkidle')
 
     // Verify AI Usage card is visible
-    const aiUsageCard = page.locator('text=AI USAGE STATISTICS, text=AI Usage, .ai-usage-card').first()
+    const aiUsageCard = page
+      .locator('text=AI USAGE STATISTICS, text=AI Usage, .ai-usage-card')
+      .first()
     await expect(aiUsageCard).toBeVisible()
 
     // Verify quota information is displayed
-    const quotaSection = page.locator('text=Monthly Quota, .quota-section, [data-testid="quota-section"]').first()
+    const quotaSection = page
+      .locator('text=Monthly Quota, .quota-section, [data-testid="quota-section"]')
+      .first()
     await expect(quotaSection).toBeVisible()
 
     // Check for quota percentage display

@@ -15,15 +15,15 @@ describe('authService', () => {
       const mockResponse = {
         data: {
           access_token: 'test-access-token',
-          refresh_token: 'test-refresh-token'
-        }
+          refresh_token: 'test-refresh-token',
+        },
       }
 
       vi.mocked(apiClient.post).mockResolvedValueOnce(mockResponse)
 
       const result = await authService.login({
         username: 'test@test.com',
-        password: 'password123'
+        password: 'password123',
       })
 
       expect(result.data).toEqual(mockResponse.data)
@@ -46,14 +46,14 @@ describe('authService', () => {
       await expect(
         authService.login({
           username: 'test@test.com',
-          password: 'wrong'
+          password: 'wrong',
         })
       ).rejects.toThrow(AuthError)
 
       await expect(
         authService.login({
           username: 'test@test.com',
-          password: 'wrong'
+          password: 'wrong',
         })
       ).rejects.toThrow('Login failed')
     })
@@ -63,7 +63,7 @@ describe('authService', () => {
 
       await authService.login({
         username: 'user@example.com',
-        password: 'secure-password'
+        password: 'secure-password',
       })
 
       const callArgs = vi.mocked(apiClient.post).mock.calls[0]
@@ -82,8 +82,8 @@ describe('authService', () => {
           username: 'newuser',
           email: 'new@test.com',
           is_active: true,
-          is_superuser: false
-        }
+          is_superuser: false,
+        },
       }
 
       vi.mocked(apiClient.post).mockResolvedValueOnce(mockResponse)
@@ -91,14 +91,14 @@ describe('authService', () => {
       const result = await authService.register({
         username: 'newuser',
         email: 'new@test.com',
-        password: 'password123'
+        password: 'password123',
       })
 
       expect(result.data).toEqual(mockResponse.data)
       expect(apiClient.post).toHaveBeenCalledWith('/api/v1/users/open', {
         username: 'newuser',
         email: 'new@test.com',
-        password: 'password123'
+        password: 'password123',
       })
     })
 
@@ -109,7 +109,7 @@ describe('authService', () => {
         authService.register({
           username: 'newuser',
           email: 'existing@test.com',
-          password: 'password123'
+          password: 'password123',
         })
       ).rejects.toThrow(AuthError)
 
@@ -117,7 +117,7 @@ describe('authService', () => {
         authService.register({
           username: 'newuser',
           email: 'existing@test.com',
-          password: 'password123'
+          password: 'password123',
         })
       ).rejects.toThrow('Registration failed')
     })
@@ -128,13 +128,13 @@ describe('authService', () => {
       await authService.register({
         username: 'testuser',
         email: 'test@example.com',
-        password: 'secret'
+        password: 'secret',
       })
 
       expect(apiClient.post).toHaveBeenCalledWith('/api/v1/users/open', {
         username: 'testuser',
         email: 'test@example.com',
-        password: 'secret'
+        password: 'secret',
       })
     })
   })
@@ -144,8 +144,8 @@ describe('authService', () => {
       const mockResponse = {
         data: {
           access_token: 'new-access-token',
-          refresh_token: 'new-refresh-token'
-        }
+          refresh_token: 'new-refresh-token',
+        },
       }
 
       vi.mocked(apiClient.post).mockResolvedValueOnce(mockResponse)
@@ -153,10 +153,9 @@ describe('authService', () => {
       const result = await authService.refreshToken('old-refresh-token')
 
       expect(result.data).toEqual(mockResponse.data)
-      expect(apiClient.post).toHaveBeenCalledWith(
-        '/api/v1/auth/refresh',
-        { refresh_token: 'old-refresh-token' }
-      )
+      expect(apiClient.post).toHaveBeenCalledWith('/api/v1/auth/refresh', {
+        refresh_token: 'old-refresh-token',
+      })
     })
 
     it('should throw AuthError on refresh failure', async () => {
@@ -204,8 +203,8 @@ describe('authService', () => {
           username: 'testuser',
           email: 'test@test.com',
           is_active: true,
-          is_superuser: false
-        }
+          is_superuser: false,
+        },
       }
 
       vi.mocked(apiClient.get).mockResolvedValueOnce(mockResponse)
@@ -242,7 +241,7 @@ describe('authService', () => {
         () => authService.register({ username: 'test', email: 'test', password: 'test' }),
         () => authService.refreshToken('token'),
         () => authService.logout(),
-        () => authService.getCurrentUser()
+        () => authService.getCurrentUser(),
       ]
 
       vi.mocked(apiClient.post).mockRejectedValue(new Error('Generic error'))

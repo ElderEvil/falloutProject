@@ -7,17 +7,21 @@ vi.mock('@vueuse/core', () => {
       const storedValue = localStorage.getItem(key)
       const value = ref(storedValue ? JSON.parse(storedValue) : defaultValue)
 
-      watch(value, (newVal) => {
-        localStorage.setItem(key, JSON.stringify(newVal))
-      }, { immediate: false, flush: 'sync' })
+      watch(
+        value,
+        (newVal) => {
+          localStorage.setItem(key, JSON.stringify(newVal))
+        },
+        { immediate: false, flush: 'sync' }
+      )
 
       return value
     },
     useIntervalFn: vi.fn(() => ({
       pause: vi.fn(),
       resume: vi.fn(),
-      isActive: ref(false)
-    }))
+      isActive: ref(false),
+    })),
   }
 })
 

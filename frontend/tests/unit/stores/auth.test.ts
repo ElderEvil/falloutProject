@@ -46,8 +46,8 @@ describe('Auth Store', () => {
         data: {
           id: '1',
           username: 'testuser',
-          email: 'test@test.com'
-        }
+          email: 'test@test.com',
+        },
       }
 
       localStorage.setItem('token', mockToken)
@@ -100,15 +100,15 @@ describe('Auth Store', () => {
       const mockResponse = {
         data: {
           access_token: 'new-access-token',
-          refresh_token: 'new-refresh-token'
-        }
+          refresh_token: 'new-refresh-token',
+        },
       }
       const mockUserResponse = {
         data: {
           id: '1',
           username: 'testuser',
-          email: 'test@test.com'
-        }
+          email: 'test@test.com',
+        },
       }
 
       vi.mocked(axios.post).mockResolvedValueOnce(mockResponse)
@@ -158,8 +158,8 @@ describe('Auth Store', () => {
           updated_at: '2024-01-01T00:00:00Z',
           access_token: 'new-access-token',
           refresh_token: 'new-refresh-token',
-          token_type: 'bearer'
-        }
+          token_type: 'bearer',
+        },
       }
 
       vi.mocked(axios.post).mockResolvedValueOnce(mockResponse)
@@ -172,7 +172,7 @@ describe('Auth Store', () => {
       expect(store.user).toMatchObject({
         id: '1',
         username: 'newuser',
-        email: 'new@test.com'
+        email: 'new@test.com',
       })
     })
 
@@ -195,8 +195,8 @@ describe('Auth Store', () => {
         data: {
           id: '1',
           username: 'testuser',
-          email: 'test@test.com'
-        }
+          email: 'test@test.com',
+        },
       }
 
       vi.mocked(axios.get).mockResolvedValueOnce(mockUserResponse)
@@ -233,8 +233,8 @@ describe('Auth Store', () => {
       store.refreshToken = 'old-refresh-token'
       const mockResponse = {
         data: {
-          access_token: 'new-access-token'
-        }
+          access_token: 'new-access-token',
+        },
       }
 
       vi.mocked(axios.post).mockResolvedValueOnce(mockResponse)

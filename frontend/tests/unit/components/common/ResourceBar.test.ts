@@ -7,8 +7,8 @@ vi.mock('@iconify/vue', () => ({
   Icon: {
     name: 'Icon',
     props: ['icon'],
-    template: '<div class="mock-icon" :data-icon="icon"></div>'
-  }
+    template: '<div class="mock-icon" :data-icon="icon"></div>',
+  },
 }))
 
 describe('ResourceBar', () => {
@@ -18,8 +18,8 @@ describe('ResourceBar', () => {
         props: {
           current: 50,
           max: 100,
-          icon: 'mdi:lightning-bolt'
-        }
+          icon: 'mdi:lightning-bolt',
+        },
       })
 
       expect(wrapper.exists()).toBe(true)
@@ -31,8 +31,8 @@ describe('ResourceBar', () => {
         props: {
           current: 75,
           max: 150,
-          icon: 'mdi:water'
-        }
+          icon: 'mdi:water',
+        },
       })
 
       expect(wrapper.text()).toContain('75/150')
@@ -45,8 +45,8 @@ describe('ResourceBar', () => {
         props: {
           current: 50,
           max: 100,
-          icon: 'mdi:lightning-bolt'
-        }
+          icon: 'mdi:lightning-bolt',
+        },
       })
 
       const progressBar = wrapper.find('.transition-all')
@@ -58,8 +58,8 @@ describe('ResourceBar', () => {
         props: {
           current: 0,
           max: 100,
-          icon: 'mdi:lightning-bolt'
-        }
+          icon: 'mdi:lightning-bolt',
+        },
       })
 
       const progressBar = wrapper.find('.transition-all')
@@ -71,8 +71,8 @@ describe('ResourceBar', () => {
         props: {
           current: 100,
           max: 100,
-          icon: 'mdi:lightning-bolt'
-        }
+          icon: 'mdi:lightning-bolt',
+        },
       })
 
       const progressBar = wrapper.find('.transition-all')
@@ -84,8 +84,8 @@ describe('ResourceBar', () => {
         props: {
           current: 150,
           max: 100,
-          icon: 'mdi:lightning-bolt'
-        }
+          icon: 'mdi:lightning-bolt',
+        },
       })
 
       const progressBar = wrapper.find('.transition-all')
@@ -97,8 +97,8 @@ describe('ResourceBar', () => {
         props: {
           current: 33,
           max: 100,
-          icon: 'mdi:lightning-bolt'
-        }
+          icon: 'mdi:lightning-bolt',
+        },
       })
 
       const progressBar = wrapper.find('.transition-all')
@@ -112,8 +112,8 @@ describe('ResourceBar', () => {
         props: {
           current: 50,
           max: 100,
-          icon: 'mdi:lightning-bolt'
-        }
+          icon: 'mdi:lightning-bolt',
+        },
       })
 
       expect(wrapper.find('.mock-icon').exists()).toBe(true)
@@ -124,8 +124,8 @@ describe('ResourceBar', () => {
         props: {
           current: 50,
           max: 100,
-          icon: 'mdi:water'
-        }
+          icon: 'mdi:water',
+        },
       })
 
       const icon = wrapper.find('.mock-icon')
@@ -139,8 +139,8 @@ describe('ResourceBar', () => {
         props: {
           current: 50,
           max: 100,
-          icon: 'mdi:lightning-bolt'
-        }
+          icon: 'mdi:lightning-bolt',
+        },
       })
 
       const container = wrapper.find('.relative.flex.items-center.space-x-2')
@@ -152,11 +152,13 @@ describe('ResourceBar', () => {
         props: {
           current: 50,
           max: 100,
-          icon: 'mdi:lightning-bolt'
-        }
+          icon: 'mdi:lightning-bolt',
+        },
       })
 
-      const barContainer = wrapper.find('.h-6.w-40.rounded-full.border-2.border-gray-600.bg-gray-800')
+      const barContainer = wrapper.find(
+        '.h-6.w-40.rounded-full.border-2.border-gray-600.bg-gray-800'
+      )
       expect(barContainer.exists()).toBe(true)
     })
 
@@ -165,8 +167,8 @@ describe('ResourceBar', () => {
         props: {
           current: 75,
           max: 100,
-          icon: 'mdi:lightning-bolt'
-        }
+          icon: 'mdi:lightning-bolt',
+        },
       })
 
       const overlay = wrapper.find('.absolute.inset-0')
@@ -181,8 +183,8 @@ describe('ResourceBar', () => {
         props: {
           current: 5,
           max: 100,
-          icon: 'mdi:lightning-bolt'
-        }
+          icon: 'mdi:lightning-bolt',
+        },
       })
 
       const progressBar = wrapper.find('.transition-all')
@@ -194,8 +196,8 @@ describe('ResourceBar', () => {
         props: {
           current: 20,
           max: 100,
-          icon: 'mdi:lightning-bolt'
-        }
+          icon: 'mdi:lightning-bolt',
+        },
       })
 
       const progressBar = wrapper.find('.transition-all')
@@ -207,8 +209,8 @@ describe('ResourceBar', () => {
         props: {
           current: 50,
           max: 100,
-          icon: 'mdi:lightning-bolt'
-        }
+          icon: 'mdi:lightning-bolt',
+        },
       })
 
       const progressBar = wrapper.find('.transition-all')
@@ -220,12 +222,14 @@ describe('ResourceBar', () => {
         props: {
           current: 75,
           max: 100,
-          icon: 'mdi:lightning-bolt'
-        }
+          icon: 'mdi:lightning-bolt',
+        },
       })
 
       const progressBar = wrapper.find('.transition-all')
-      expect(progressBar.attributes('style')).toContain('background-color: var(--color-theme-primary)')
+      expect(progressBar.attributes('style')).toContain(
+        'background-color: var(--color-theme-primary)'
+      )
     })
   })
 
@@ -235,8 +239,8 @@ describe('ResourceBar', () => {
         props: {
           current: 0,
           max: 0,
-          icon: 'mdi:lightning-bolt'
-        }
+          icon: 'mdi:lightning-bolt',
+        },
       })
 
       expect(wrapper.text()).toContain('0/0')
@@ -249,8 +253,8 @@ describe('ResourceBar', () => {
         props: {
           current: 9999,
           max: 10000,
-          icon: 'mdi:lightning-bolt'
-        }
+          icon: 'mdi:lightning-bolt',
+        },
       })
 
       expect(wrapper.text()).toContain('9999/10000')
@@ -263,8 +267,8 @@ describe('ResourceBar', () => {
         props: {
           current: -10,
           max: 100,
-          icon: 'mdi:lightning-bolt'
-        }
+          icon: 'mdi:lightning-bolt',
+        },
       })
 
       expect(wrapper.text()).toContain('-10/100')
@@ -277,8 +281,8 @@ describe('ResourceBar', () => {
         props: {
           current: 50,
           max: 100,
-          icon: 'mdi:lightning-bolt'
-        }
+          icon: 'mdi:lightning-bolt',
+        },
       })
 
       expect(wrapper.text()).toContain('50/100')
@@ -295,8 +299,8 @@ describe('ResourceBar', () => {
         props: {
           current: 50,
           max: 100,
-          icon: 'mdi:lightning-bolt'
-        }
+          icon: 'mdi:lightning-bolt',
+        },
       })
 
       let progressBar = wrapper.find('.transition-all')
@@ -316,8 +320,8 @@ describe('ResourceBar', () => {
           current: 50,
           max: 100,
           icon: 'mdi:lightning-bolt',
-          label: 'Power'
-        }
+          label: 'Power',
+        },
       })
 
       expect(wrapper.text()).toContain('Power')
@@ -328,8 +332,8 @@ describe('ResourceBar', () => {
         props: {
           current: 50,
           max: 100,
-          icon: 'mdi:lightning-bolt'
-        }
+          icon: 'mdi:lightning-bolt',
+        },
       })
 
       const label = wrapper.find('.text-xs.text-gray-400')

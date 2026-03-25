@@ -24,13 +24,13 @@ describe('DwellerGridItem', () => {
     agility: 6,
     luck: 7,
     status: 'working',
-    room_id: 'room-123'
+    room_id: 'room-123',
   }
 
   const mockRoom = {
     id: 'room-123',
     name: 'Power Generator',
-    ability: 'strength'
+    ability: 'strength',
   }
 
   describe('Job Stat Display', () => {
@@ -39,8 +39,8 @@ describe('DwellerGridItem', () => {
         props: {
           dweller: mockDweller,
           roomName: mockRoom.name,
-          roomAbility: mockRoom.ability
-        }
+          roomAbility: mockRoom.ability,
+        },
       })
 
       // Should show strength stat (💪 STR: 8)
@@ -53,8 +53,8 @@ describe('DwellerGridItem', () => {
         props: {
           dweller: mockDweller,
           roomName: mockRoom.name,
-          roomAbility: 'strength'
-        }
+          roomAbility: 'strength',
+        },
       })
 
       const jobStat = wrapper.find('.job-stat')
@@ -68,8 +68,8 @@ describe('DwellerGridItem', () => {
       const wrapper = mount(DwellerGridItem, {
         props: {
           dweller: unassignedDweller,
-          roomAbility: undefined
-        }
+          roomAbility: undefined,
+        },
       })
 
       const jobStat = wrapper.find('.job-stat')
@@ -81,8 +81,8 @@ describe('DwellerGridItem', () => {
         props: {
           dweller: mockDweller, // strength = 8
           roomName: mockRoom.name,
-          roomAbility: 'strength'
-        }
+          roomAbility: 'strength',
+        },
       })
 
       const statValue = wrapper.find('.job-stat-value')
@@ -96,8 +96,8 @@ describe('DwellerGridItem', () => {
         props: {
           dweller: mediumStatDweller,
           roomName: 'Science Lab',
-          roomAbility: 'intelligence'
-        }
+          roomAbility: 'intelligence',
+        },
       })
 
       const statValue = wrapper.find('.job-stat-value')
@@ -111,8 +111,8 @@ describe('DwellerGridItem', () => {
         props: {
           dweller: lowStatDweller,
           roomName: 'Radio Station',
-          roomAbility: 'charisma'
-        }
+          roomAbility: 'charisma',
+        },
       })
 
       const statValue = wrapper.find('.job-stat-value')
@@ -127,7 +127,7 @@ describe('DwellerGridItem', () => {
         { ability: 'charisma', label: 'CHA', value: mockDweller.charisma, icon: '💬' },
         { ability: 'intelligence', label: 'INT', value: mockDweller.intelligence, icon: '🧠' },
         { ability: 'agility', label: 'AGI', value: mockDweller.agility, icon: '⚡' },
-        { ability: 'luck', label: 'LCK', value: mockDweller.luck, icon: '🍀' }
+        { ability: 'luck', label: 'LCK', value: mockDweller.luck, icon: '🍀' },
       ]
 
       testCases.forEach(({ ability, label, value, icon }) => {
@@ -135,8 +135,8 @@ describe('DwellerGridItem', () => {
           props: {
             dweller: mockDweller,
             roomName: 'Test Room',
-            roomAbility: ability
-          }
+            roomAbility: ability,
+          },
         })
 
         const jobStat = wrapper.find('.job-stat')
@@ -151,8 +151,8 @@ describe('DwellerGridItem', () => {
     it('should render dweller name', () => {
       const wrapper = mount(DwellerGridItem, {
         props: {
-          dweller: mockDweller
-        }
+          dweller: mockDweller,
+        },
       })
 
       expect(wrapper.text()).toContain('John Doe')
@@ -161,8 +161,8 @@ describe('DwellerGridItem', () => {
     it('should render level information', () => {
       const wrapper = mount(DwellerGridItem, {
         props: {
-          dweller: mockDweller
-        }
+          dweller: mockDweller,
+        },
       })
 
       expect(wrapper.text()).toContain('5') // Level

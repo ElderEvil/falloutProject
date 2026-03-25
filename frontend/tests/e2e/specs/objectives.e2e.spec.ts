@@ -20,7 +20,7 @@ async function enterFirstVaultOrFail(page: any): Promise<string> {
   await page.waitForLoadState('networkidle')
 
   const url = page.url()
-  const vaultMatch = url.match(/\/vault\/([^\/]+)/)
+  const vaultMatch = url.match(/\/vault\/([^/]+)/)
 
   if (!vaultMatch) {
     throw new Error('Failed to extract vault ID from URL after clicking vault card')
@@ -48,8 +48,10 @@ test.describe('Objectives - Display', () => {
   test('should display active objectives', async ({ page }) => {
     await page.waitForSelector('text=Objectives', { timeout: 10000 })
 
-    const objectiveCards = page.locator('.objective-card, [data-testid="objective-item"], .objective-item')
-    const hasObjectives = await objectiveCards.count() > 0
+    const objectiveCards = page.locator(
+      '.objective-card, [data-testid="objective-item"], .objective-item'
+    )
+    const hasObjectives = (await objectiveCards.count()) > 0
 
     if (hasObjectives) {
       await expect(objectiveCards.first()).toBeVisible()
@@ -80,7 +82,7 @@ test.describe('Objectives - Display', () => {
 
     const rewardText = page.locator('text=/Reward|Caps|XP|caps/i').first()
 
-    if (await rewardText.count() > 0) {
+    if ((await rewardText.count()) > 0) {
       await expect(rewardText).toBeVisible()
     }
   })
@@ -100,7 +102,7 @@ test.describe('Objectives - Collection Types', () => {
 
     const capsObjective = page.locator('text=/Collect.*[Cc]aps|[Cc]aps.*Collect/i').first()
 
-    if (await capsObjective.count() > 0) {
+    if ((await capsObjective.count()) > 0) {
       await expect(capsObjective).toBeVisible()
     }
   })
@@ -110,7 +112,7 @@ test.describe('Objectives - Collection Types', () => {
 
     const resourceObjective = page.locator('text=/Collect.*(?:Power|Food|Water)/i').first()
 
-    if (await resourceObjective.count() > 0) {
+    if ((await resourceObjective.count()) > 0) {
       await expect(resourceObjective).toBeVisible()
     }
   })
@@ -120,7 +122,7 @@ test.describe('Objectives - Collection Types', () => {
 
     const itemObjective = page.locator('text=/Collect.*(?:Weapon|Outfit|[Ss]timpak)/i').first()
 
-    if (await itemObjective.count() > 0) {
+    if ((await itemObjective.count()) > 0) {
       await expect(itemObjective).toBeVisible()
     }
   })
@@ -130,7 +132,7 @@ test.describe('Objectives - Collection Types', () => {
 
     const buildObjective = page.locator('text=/Build.*(?:Room|rooms)/i').first()
 
-    if (await buildObjective.count() > 0) {
+    if ((await buildObjective.count()) > 0) {
       await expect(buildObjective).toBeVisible()
     }
   })
@@ -140,7 +142,7 @@ test.describe('Objectives - Collection Types', () => {
 
     const trainObjective = page.locator('text=/Train.*[Dd]weller/i').first()
 
-    if (await trainObjective.count() > 0) {
+    if ((await trainObjective.count()) > 0) {
       await expect(trainObjective).toBeVisible()
     }
   })
@@ -150,7 +152,7 @@ test.describe('Objectives - Collection Types', () => {
 
     const assignObjective = page.locator('text=/Assign.*[Dd]weller/i').first()
 
-    if (await assignObjective.count() > 0) {
+    if ((await assignObjective.count()) > 0) {
       await expect(assignObjective).toBeVisible()
     }
   })
@@ -168,13 +170,15 @@ test.describe('Objectives - Completion', () => {
   test('should show completed objectives differently', async ({ page }) => {
     await page.waitForSelector('text=Objectives', { timeout: 10000 })
 
-    const completedObjective = page.locator('.objective-completed, [data-completed="true"], .completed').first()
+    const completedObjective = page
+      .locator('.objective-completed, [data-completed="true"], .completed')
+      .first()
 
-    if (await completedObjective.count() > 0) {
+    if ((await completedObjective.count()) > 0) {
       await expect(completedObjective).toBeVisible()
 
       const completedBadge = page.locator('text=/Completed|Done|✓/i').first()
-      if (await completedBadge.count() > 0) {
+      if ((await completedBadge.count()) > 0) {
         await expect(completedBadge).toBeVisible()
       }
     }
@@ -185,7 +189,7 @@ test.describe('Objectives - Completion', () => {
 
     const claimButton = page.getByRole('button', { name: /claim|reward/i }).first()
 
-    if (await claimButton.count() > 0) {
+    if ((await claimButton.count()) > 0) {
       await expect(claimButton).toBeVisible()
       await expect(claimButton).toBeEnabled()
     }
@@ -201,9 +205,9 @@ test.describe('Objectives - Navigation', () => {
     const objectivesLink = page.getByRole('link', { name: /objectives/i }).first()
     const objectivesButton = page.getByRole('button', { name: /objectives/i }).first()
 
-    const objectivesNav = await objectivesLink.count() > 0 ? objectivesLink : objectivesButton
+    const objectivesNav = (await objectivesLink.count()) > 0 ? objectivesLink : objectivesButton
 
-    if (await objectivesNav.count() > 0) {
+    if ((await objectivesNav.count()) > 0) {
       await objectivesNav.click()
       await page.waitForLoadState('networkidle')
 
@@ -221,7 +225,8 @@ test.describe('Objectives - Training Integration', () => {
     await page.waitForLoadState('networkidle')
   })
 
-  const trainingObjectiveLocator = 'text=/Train.*[Ss]trength|Train.*[Pp]erception|Train.*[Ee]ndurance|Train.*[Cc]harisma|Train.*[Ii]ntelligence|Train.*[Aa]gility|Train.*[Ll]uck/i'
+  const trainingObjectiveLocator =
+    'text=/Train.*[Ss]trength|Train.*[Pp]erception|Train.*[Ee]ndurance|Train.*[Cc]harisma|Train.*[Ii]ntelligence|Train.*[Aa]gility|Train.*[Ll]uck/i'
 
   test.skip('should display training objectives with stat-specific tracking', async ({ page }) => {
     await page.waitForSelector('text=Objectives', { timeout: 10000 })
@@ -233,7 +238,7 @@ test.describe('Objectives - Training Integration', () => {
       await expect(trainObjective.first()).toBeVisible()
 
       const progressInfo = page.locator('text=/\\d+\\s*\\/\\s*\\d+/').first()
-      if (await progressInfo.count() > 0) {
+      if ((await progressInfo.count()) > 0) {
         await expect(progressInfo).toBeVisible()
       }
     }

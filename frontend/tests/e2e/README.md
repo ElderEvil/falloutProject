@@ -30,10 +30,10 @@ pnpm run test:e2e:setup
 
 ### Test Files
 
-| File | Description |
-|------|-------------|
-| `specs/auth.e2e.spec.ts` | Authentication flows (login, logout, protected routes) |
-| `specs/navigation.e2e.spec.ts` | Navigation and routing tests |
+| File                           | Description                                            |
+| ------------------------------ | ------------------------------------------------------ |
+| `specs/auth.e2e.spec.ts`       | Authentication flows (login, logout, protected routes) |
+| `specs/navigation.e2e.spec.ts` | Navigation and routing tests                           |
 
 ## 📁 Structure
 
@@ -55,10 +55,10 @@ tests/e2e/
 > **Note**: Credentials must be provided via environment variables.
 > The values below are local-only examples - do not use in staging/production.
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `E2E_USER_EMAIL` | Test user email for authentication | (required) |
-| `E2E_USER_PASSWORD` | Test user password | (required) |
+| Variable            | Description                        | Default    |
+| ------------------- | ---------------------------------- | ---------- |
+| `E2E_USER_EMAIL`    | Test user email for authentication | (required) |
+| `E2E_USER_PASSWORD` | Test user password                 | (required) |
 
 ## ⚙️ Configuration
 

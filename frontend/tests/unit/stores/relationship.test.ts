@@ -18,7 +18,7 @@ describe('Relationship Store', () => {
     relationship_type: 'acquaintance',
     affinity: 50,
     created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z'
+    updated_at: '2026-01-01T00:00:00Z',
   }
 
   const mockCompatibilityScore = {
@@ -28,7 +28,7 @@ describe('Relationship Store', () => {
     special_score: 0.8,
     happiness_score: 0.9,
     level_score: 0.7,
-    proximity_score: 0.0
+    proximity_score: 0.0,
   }
 
   describe('State Initialization', () => {
@@ -69,12 +69,12 @@ describe('Relationship Store', () => {
       const store = useRelationshipStore()
       const result = await store.createRelationship({
         dweller_1_id: 'dweller-1',
-        dweller_2_id: 'dweller-2'
+        dweller_2_id: 'dweller-2',
       })
 
       expect(axios.post).toHaveBeenCalledWith('/api/v1/relationships/', {
         dweller_1_id: 'dweller-1',
-        dweller_2_id: 'dweller-2'
+        dweller_2_id: 'dweller-2',
       })
       expect(result).toEqual(mockRelationship)
       expect(store.relationships).toContainEqual(mockRelationship)
@@ -86,7 +86,7 @@ describe('Relationship Store', () => {
       const store = useRelationshipStore()
       const result = await store.createRelationship({
         dweller_1_id: 'dweller-1',
-        dweller_2_id: 'dweller-2'
+        dweller_2_id: 'dweller-2',
       })
 
       expect(result).toBeNull()
@@ -110,7 +110,7 @@ describe('Relationship Store', () => {
 
     it('should handle romance error', async () => {
       vi.mocked(axios.put).mockRejectedValueOnce({
-        response: { data: { detail: 'Affinity too low' } }
+        response: { data: { detail: 'Affinity too low' } },
       })
 
       const store = useRelationshipStore()
@@ -139,7 +139,7 @@ describe('Relationship Store', () => {
   describe('breakUp', () => {
     it('should break up relationship successfully', async () => {
       vi.mocked(axios.delete).mockResolvedValueOnce({
-        data: { message: 'Relationship ended' }
+        data: { message: 'Relationship ended' },
       })
 
       const store = useRelationshipStore()
@@ -188,7 +188,11 @@ describe('Relationship Store', () => {
 
   describe('quickPair', () => {
     it('should quick pair dwellers successfully', async () => {
-      const partnerRelationship = { ...mockRelationship, relationship_type: 'partner', affinity: 90 }
+      const partnerRelationship = {
+        ...mockRelationship,
+        relationship_type: 'partner',
+        affinity: 90,
+      }
       vi.mocked(axios.post).mockResolvedValueOnce({ data: partnerRelationship })
 
       const store = useRelationshipStore()
@@ -201,7 +205,7 @@ describe('Relationship Store', () => {
 
     it('should handle quick pair error with insufficient dwellers', async () => {
       vi.mocked(axios.post).mockRejectedValueOnce({
-        response: { data: { detail: 'Need at least 2 adult dwellers without partners' } }
+        response: { data: { detail: 'Need at least 2 adult dwellers without partners' } },
       })
 
       const store = useRelationshipStore()
@@ -229,7 +233,7 @@ describe('Relationship Store', () => {
       store.relationships = [
         mockRelationship,
         { ...mockRelationship, id: 'rel-2', relationship_type: 'partner' },
-        { ...mockRelationship, id: 'rel-3', relationship_type: 'romantic' }
+        { ...mockRelationship, id: 'rel-3', relationship_type: 'romantic' },
       ]
 
       const partners = store.getPartnerRelationships
@@ -242,7 +246,7 @@ describe('Relationship Store', () => {
       store.relationships = [
         mockRelationship,
         { ...mockRelationship, id: 'rel-2', relationship_type: 'romantic' },
-        { ...mockRelationship, id: 'rel-3', relationship_type: 'partner' }
+        { ...mockRelationship, id: 'rel-3', relationship_type: 'partner' },
       ]
 
       const romantics = store.getRomanticRelationships

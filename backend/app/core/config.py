@@ -53,6 +53,8 @@ class Settings(BaseSettings):
     ]
 
     # Storage Provider Selection (minio or rustfs)
+    # DEPRECATED: minio support will be removed in a future release.
+    # Please use STORAGE_PROVIDER='rustfs' (S3-compatible, better performance).
     STORAGE_PROVIDER: Literal["minio", "rustfs"] = "rustfs"
 
     # RustFS Configuration (S3-compatible)

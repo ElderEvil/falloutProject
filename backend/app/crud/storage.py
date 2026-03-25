@@ -93,8 +93,7 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
         used = await self.count_items(db_session, storage_id)
         storage.used_space = used
         db_session.add(storage)
-        await db_session.commit()
-        await db_session.refresh(storage)
+        await db_session.flush()
 
         logger.info(
             "Updated storage used_space",

@@ -6,7 +6,7 @@ import { useRouter } from 'vue-router'
 
 vi.mock('@/core/plugins/axios')
 vi.mock('vue-router', () => ({
-  useRouter: vi.fn()
+  useRouter: vi.fn(),
 }))
 
 describe('Vault Store', () => {
@@ -18,7 +18,7 @@ describe('Vault Store', () => {
     vi.clearAllMocks()
 
     mockRouter = {
-      push: vi.fn().mockResolvedValue(undefined)
+      push: vi.fn().mockResolvedValue(undefined),
     }
     vi.mocked(useRouter).mockReturnValue(mockRouter)
   })
@@ -38,7 +38,7 @@ describe('Vault Store', () => {
     created_at: '2025-01-01T00:00:00Z',
     updated_at: '2025-01-01T00:00:00Z',
     room_count: 5,
-    dweller_count: 10
+    dweller_count: 10,
   }
 
   describe('State Initialization', () => {
@@ -90,7 +90,7 @@ describe('Vault Store', () => {
       const store = useVaultStore()
       store.loadedVaults = {
         'vault-1': mockVault,
-        'vault-2': { ...mockVault, id: 'vault-2' }
+        'vault-2': { ...mockVault, id: 'vault-2' },
       }
 
       expect(store.loadedVaultIds).toEqual(['vault-1', 'vault-2'])
@@ -101,7 +101,7 @@ describe('Vault Store', () => {
     it('should fetch vaults successfully', async () => {
       const store = useVaultStore()
       const mockResponse = {
-        data: [mockVault, { ...mockVault, id: 'vault-2' }]
+        data: [mockVault, { ...mockVault, id: 'vault-2' }],
       }
 
       vi.mocked(axios.get).mockResolvedValueOnce(mockResponse)
@@ -110,7 +110,7 @@ describe('Vault Store', () => {
 
       expect(store.vaults).toEqual(mockResponse.data)
       expect(axios.get).toHaveBeenCalledWith('/api/v1/vaults/my', {
-        headers: { Authorization: 'Bearer test-token' }
+        headers: { Authorization: 'Bearer test-token' },
       })
     })
 

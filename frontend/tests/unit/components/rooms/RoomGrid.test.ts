@@ -22,7 +22,7 @@ describe('RoomGrid', () => {
     size: 3,
     size_min: 3,
     tier: 1,
-    capacity: 6
+    capacity: 6,
   }
 
   describe('Room Highlighting', () => {
@@ -33,8 +33,8 @@ describe('RoomGrid', () => {
       const wrapper = mount(RoomGrid, {
         props: {
           highlightedRoomId: 'room-123',
-          incidents: []
-        }
+          incidents: [],
+        },
       })
 
       const builtRoom = wrapper.find('.built-room')
@@ -48,8 +48,8 @@ describe('RoomGrid', () => {
       const wrapper = mount(RoomGrid, {
         props: {
           highlightedRoomId: 'different-room-id',
-          incidents: []
-        }
+          incidents: [],
+        },
       })
 
       const builtRoom = wrapper.find('.built-room')
@@ -63,14 +63,13 @@ describe('RoomGrid', () => {
       const wrapper = mount(RoomGrid, {
         props: {
           highlightedRoomId: null,
-          incidents: []
-        }
+          incidents: [],
+        },
       })
 
       const builtRoom = wrapper.find('.built-room')
       expect(builtRoom.classes()).not.toContain('highlighted')
     })
-
   })
 
   describe('Multiple Rooms', () => {
@@ -83,15 +82,15 @@ describe('RoomGrid', () => {
           id: 'room-456',
           name: 'Diner',
           coordinate_x: 1,
-          coordinate_y: 0
-        }
+          coordinate_y: 0,
+        },
       ]
 
       const wrapper = mount(RoomGrid, {
         props: {
           highlightedRoomId: 'room-123', // Only first room should be highlighted
-          incidents: []
-        }
+          incidents: [],
+        },
       })
 
       const builtRooms = wrapper.findAll('.built-room')
@@ -114,14 +113,14 @@ describe('RoomGrid', () => {
         id: 'incident-1',
         room_id: 'room-123',
         type: 'FIRE',
-        severity: 'medium'
+        severity: 'medium',
       }
 
       const wrapper = mount(RoomGrid, {
         props: {
           highlightedRoomId: 'room-123',
-          incidents: [mockIncident] as any
-        }
+          incidents: [mockIncident] as any,
+        },
       })
 
       const builtRoom = wrapper.find('.built-room')
@@ -134,8 +133,8 @@ describe('RoomGrid', () => {
     it('should render room grid container', () => {
       const wrapper = mount(RoomGrid, {
         props: {
-          incidents: []
-        }
+          incidents: [],
+        },
       })
 
       const grid = wrapper.find('.room-grid')
@@ -148,8 +147,8 @@ describe('RoomGrid', () => {
 
       const wrapper = mount(RoomGrid, {
         props: {
-          incidents: []
-        }
+          incidents: [],
+        },
       })
 
       const builtRoom = wrapper.find('.built-room')
@@ -166,8 +165,8 @@ describe('RoomGrid', () => {
       const wrapper = mount(RoomGrid, {
         props: {
           highlightedRoomId: 'room-123',
-          incidents: []
-        }
+          incidents: [],
+        },
       })
 
       expect(wrapper.props('highlightedRoomId')).toBe('room-123')
@@ -177,8 +176,8 @@ describe('RoomGrid', () => {
       const wrapper = mount(RoomGrid, {
         props: {
           highlightedRoomId: null,
-          incidents: []
-        }
+          incidents: [],
+        },
       })
 
       expect(wrapper.props('highlightedRoomId')).toBeNull()
@@ -206,7 +205,7 @@ describe('RoomGrid', () => {
         size: 3,
         size_min: 3,
         tier: 1,
-        capacity: 6
+        capacity: 6,
       }
       roomStore.rooms = [trainingRoom]
 
@@ -216,7 +215,7 @@ describe('RoomGrid', () => {
         first_name: 'John',
         last_name: 'Doe',
         room_id: 'training-room-123',
-        status: 'training'
+        status: 'training',
       } as any)
 
       const startTrainingSpy = vi.spyOn(trainingStore, 'startTraining').mockResolvedValue({
@@ -224,13 +223,13 @@ describe('RoomGrid', () => {
         dweller_id: 'dweller-123',
         room_id: 'training-room-123',
         stat_being_trained: 'strength',
-        status: 'active'
+        status: 'active',
       } as any)
 
       const wrapper = mount(RoomGrid, {
         props: {
-          incidents: []
-        }
+          incidents: [],
+        },
       })
 
       // Simulate drop event with JSON data
@@ -243,12 +242,12 @@ describe('RoomGrid', () => {
                 dwellerId: 'dweller-123',
                 firstName: 'John',
                 lastName: 'Doe',
-                currentRoomId: null
+                currentRoomId: null,
               })
             }
             return ''
-          })
-        }
+          }),
+        },
       }
 
       const roomElement = wrapper.find('.built-room')
@@ -291,7 +290,7 @@ describe('RoomGrid', () => {
         size: 3,
         size_min: 3,
         tier: 1,
-        capacity: 6
+        capacity: 6,
       }
       roomStore.rooms = [productionRoom]
 
@@ -300,15 +299,15 @@ describe('RoomGrid', () => {
         first_name: 'John',
         last_name: 'Doe',
         room_id: 'production-room-123',
-        status: 'working'
+        status: 'working',
       } as any)
 
       const startTrainingSpy = vi.spyOn(trainingStore, 'startTraining')
 
       const wrapper = mount(RoomGrid, {
         props: {
-          incidents: []
-        }
+          incidents: [],
+        },
       })
 
       // Simulate drop event with JSON data
@@ -321,12 +320,12 @@ describe('RoomGrid', () => {
                 dwellerId: 'dweller-123',
                 firstName: 'John',
                 lastName: 'Doe',
-                currentRoomId: null
+                currentRoomId: null,
               })
             }
             return ''
-          })
-        }
+          }),
+        },
       }
 
       const roomElement = wrapper.find('.built-room')
@@ -358,7 +357,7 @@ describe('RoomGrid', () => {
         size: 3,
         size_min: 3,
         tier: 1,
-        capacity: 6
+        capacity: 6,
       }
       roomStore.rooms = [trainingRoom]
 
@@ -367,7 +366,7 @@ describe('RoomGrid', () => {
         first_name: 'John',
         last_name: 'Doe',
         room_id: 'training-room-123',
-        status: 'training'
+        status: 'training',
       } as any)
 
       // Mock training start to fail
@@ -375,8 +374,8 @@ describe('RoomGrid', () => {
 
       const wrapper = mount(RoomGrid, {
         props: {
-          incidents: []
-        }
+          incidents: [],
+        },
       })
 
       const dropEvent = {
@@ -388,12 +387,12 @@ describe('RoomGrid', () => {
                 dwellerId: 'dweller-123',
                 firstName: 'John',
                 lastName: 'Doe',
-                currentRoomId: null
+                currentRoomId: null,
               })
             }
             return ''
-          })
-        }
+          }),
+        },
       }
 
       const roomElement = wrapper.find('.built-room')

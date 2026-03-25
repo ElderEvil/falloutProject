@@ -1,6 +1,7 @@
 import io
 import json
 import logging
+import warnings
 
 from minio import Minio
 from minio.error import S3Error
@@ -43,6 +44,13 @@ class MinIOAdapter:
         self._client = None
         self.default_bucket_name = "fastapi-minio"
         self._enabled = settings.minio_enabled
+
+        warnings.warn(
+            "MinIO is deprecated and will be removed in a future release. "
+            "Please migrate to RustFS (STORAGE_PROVIDER='rustfs') for better performance and reliability.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
         if not self._enabled:
             logger.info("MinIO not configured. Storage features will be disabled.")

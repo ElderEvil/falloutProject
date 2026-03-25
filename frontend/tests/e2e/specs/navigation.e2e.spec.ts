@@ -35,7 +35,7 @@ test.describe('Navigation', () => {
     for (const link of navLinks) {
       const navLink = page.getByRole('link', { name: link.name })
 
-      if (await navLink.count() > 0) {
+      if ((await navLink.count()) > 0) {
         await navLink.click()
         await page.waitForURL(link.path, { timeout: 5000 })
         await expect(page).toHaveURL(link.path)
@@ -46,7 +46,7 @@ test.describe('Navigation', () => {
   test('should highlight active navigation item', async ({ page }) => {
     const activeLink = page.getByRole('navigation').getByRole('link', { name: /vault|dashboard/i })
 
-    if (await activeLink.count() > 0) {
+    if ((await activeLink.count()) > 0) {
       await expect(activeLink).toHaveClass(/active|current|selected/i)
     }
   })
@@ -56,7 +56,7 @@ test.describe('Navigation', () => {
 
     const hamburgerMenu = page.getByRole('button', { name: /menu|hamburger/i })
 
-    if (await hamburgerMenu.count() > 0) {
+    if ((await hamburgerMenu.count()) > 0) {
       await expect(page.getByRole('navigation')).not.toBeVisible()
       await hamburgerMenu.click()
       await expect(page.getByRole('navigation')).toBeVisible()

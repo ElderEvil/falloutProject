@@ -37,11 +37,11 @@ The UI supports **3 dynamic themes** that can be switched at runtime. Themes are
 
 #### Available Themes
 
-| ID | Name | Primary | Secondary | Accent | Glow |
-|----|------|---------|-----------|--------|------|
-| `fo4` | Fallout 4 — Modern Green | `#00ff00` | `#003300` | `#00cc00` | `rgba(0, 255, 0, 0.3)` |
+| ID    | Name                     | Primary   | Secondary | Accent    | Glow                     |
+| ----- | ------------------------ | --------- | --------- | --------- | ------------------------ |
+| `fo4` | Fallout 4 — Modern Green | `#00ff00` | `#003300` | `#00cc00` | `rgba(0, 255, 0, 0.3)`   |
 | `fo3` | Fallout 3 — Classic Teal | `#00ff9f` | `#003322` | `#00cc88` | `rgba(0, 255, 159, 0.3)` |
-| `fnv` | New Vegas — Amber | `#ffb700` | `#332200` | `#ff9900` | `rgba(255, 183, 0, 0.3)` |
+| `fnv` | New Vegas — Amber        | `#ffb700` | `#332200` | `#ff9900` | `rgba(255, 183, 0, 0.3)` |
 
 **Default theme:** `fo4` (green). Theme preference is stored in `localStorage` under key `theme`.
 
@@ -49,31 +49,33 @@ The UI supports **3 dynamic themes** that can be switched at runtime. Themes are
 
 These variables are set dynamically based on the active theme:
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `--theme-primary` | Primary text color | `#00ff00` |
-| `--theme-secondary` | Secondary/dark backgrounds | `#003300` |
-| `--theme-accent` | Accent/hover states | `#00cc00` |
-| `--theme-glow` | Glow effects | `rgba(0, 255, 0, 0.3)` |
+| Variable            | Description                | Default                |
+| ------------------- | -------------------------- | ---------------------- |
+| `--theme-primary`   | Primary text color         | `#00ff00`              |
+| `--theme-secondary` | Secondary/dark backgrounds | `#003300`              |
+| `--theme-accent`    | Accent/hover states        | `#00cc00`              |
+| `--theme-glow`      | Glow effects               | `rgba(0, 255, 0, 0.3)` |
 
 #### Design Token Mappings
 
 Use these tokens in your CSS/components (mapped in `tailwind.css`):
 
-| Token | Maps To | Usage |
-|-------|---------|-------|
-| `--color-theme-primary` | `var(--theme-primary)` | Primary text, active elements |
-| `--color-theme-secondary` | `var(--theme-secondary)` | Secondary backgrounds |
-| `--color-theme-accent` | `var(--theme-accent)` | Hover states, accents |
-| `--color-theme-glow` | `var(--theme-glow)` | Glow effects |
+| Token                     | Maps To                  | Usage                         |
+| ------------------------- | ------------------------ | ----------------------------- |
+| `--color-theme-primary`   | `var(--theme-primary)`   | Primary text, active elements |
+| `--color-theme-secondary` | `var(--theme-secondary)` | Secondary backgrounds         |
+| `--color-theme-accent`    | `var(--theme-accent)`    | Hover states, accents         |
+| `--color-theme-glow`      | `var(--theme-glow)`      | Glow effects                  |
 
 **Legacy aliases** (for backward compatibility):
+
 - `--color-terminal-green` → `--color-theme-primary`
 - `--color-terminal-green-light` → `--color-theme-primary`
 - `--color-terminal-green-dark` → `--color-theme-accent`
 - `--color-terminal-green-glow` → `--color-theme-glow`
 
 **Usage Example:**
+
 ```vue
 <!-- Using theme variables in scoped CSS -->
 <style scoped>
@@ -92,45 +94,45 @@ Use these tokens in your CSS/components (mapped in `tailwind.css`):
 
 ### Background & Surface Colors
 
-| Variable | Value | Usage |
-|----------|-------|-------|
-| `--color-terminal-background` | `#000000` | Page background |
-| `--color-surface` | `#111111` | Card backgrounds |
-| `--color-surface-light` | `#1a1a1a` | Hover surfaces |
-| `--color-surface-dark` | `#0a0a0a` | Nested surfaces |
+| Variable                      | Value     | Usage            |
+| ----------------------------- | --------- | ---------------- |
+| `--color-terminal-background` | `#000000` | Page background  |
+| `--color-surface`             | `#111111` | Card backgrounds |
+| `--color-surface-light`       | `#1a1a1a` | Hover surfaces   |
+| `--color-surface-dark`        | `#0a0a0a` | Nested surfaces  |
 
 ### Gray Scale
 
 For secondary UI elements and borders:
 
-| Shade | Value | Usage |
-|-------|-------|-------|
-| `gray-900` | `#171717` | Darkest borders |
+| Shade      | Value     | Usage                     |
+| ---------- | --------- | ------------------------- |
+| `gray-900` | `#171717` | Darkest borders           |
 | `gray-800` | `#262626` | Dark backgrounds (NavBar) |
-| `gray-700` | `#404040` | Medium-dark elements |
-| `gray-600` | `#525252` | Borders |
-| `gray-500` | `#737373` | Secondary text |
-| `gray-400` | `#a3a3a3` | Placeholder text |
+| `gray-700` | `#404040` | Medium-dark elements      |
+| `gray-600` | `#525252` | Borders                   |
+| `gray-500` | `#737373` | Secondary text            |
+| `gray-400` | `#a3a3a3` | Placeholder text          |
 
 ### Semantic Colors
 
-| Purpose | Variable | Value | When to Use |
-|---------|----------|-------|-------------|
+| Purpose | Variable          | Value     | When to Use                      |
+| ------- | ----------------- | --------- | -------------------------------- |
 | Success | `--color-success` | `#00ff00` | Confirmations, positive feedback |
-| Warning | `--color-warning` | `#ffaa00` | Alerts, cautions |
-| Danger | `--color-danger` | `#ff0000` | Errors, destructive actions |
-| Info | `--color-info` | `#00aaff` | Informational messages |
+| Warning | `--color-warning` | `#ffaa00` | Alerts, cautions                 |
+| Danger  | `--color-danger`  | `#ff0000` | Errors, destructive actions      |
+| Info    | `--color-info`    | `#00aaff` | Informational messages           |
 
 ### Resource Colors
 
 Special colors for game resources:
 
-| Resource | Variable | Value | Icon Color |
-|----------|----------|-------|------------|
-| Power | `--color-power` | `#ffdd57` | ⚡ Yellow |
-| Food | `--color-food` | `#ff6b6b` | 🍰 Red |
-| Water | `--color-water` | `#4dabf7` | 💧 Blue |
-| Caps | `--color-caps` | `#ffd43b` | 💰 Gold |
+| Resource | Variable        | Value     | Icon Color |
+| -------- | --------------- | --------- | ---------- |
+| Power    | `--color-power` | `#ffdd57` | ⚡ Yellow  |
+| Food     | `--color-food`  | `#ff6b6b` | 🍰 Red     |
+| Water    | `--color-water` | `#4dabf7` | 💧 Blue    |
+| Caps     | `--color-caps`  | `#ffd43b` | 💰 Gold    |
 
 ---
 
@@ -146,18 +148,19 @@ font-family: var(--font-family-mono); /* "Courier New", Courier, monospace */
 
 ### Font Sizes
 
-| Size | Variable | Value | Usage |
-|------|----------|-------|-------|
-| XS | `--font-size-xs` | `0.75rem` (12px) | Small labels, footnotes |
-| SM | `--font-size-sm` | `0.875rem` (14px) | Secondary text |
-| Base | `--font-size-base` | `1rem` (16px) | Body text (default) |
-| LG | `--font-size-lg` | `1.125rem` (18px) | Emphasized text |
-| XL | `--font-size-xl` | `1.25rem` (20px) | Subheadings |
-| 2XL | `--font-size-2xl` | `1.5rem` (24px) | Section headings |
-| 3XL | `--font-size-3xl` | `1.875rem` (30px) | Page titles |
-| 4XL | `--font-size-4xl` | `2.25rem` (36px) | Hero text |
+| Size | Variable           | Value             | Usage                   |
+| ---- | ------------------ | ----------------- | ----------------------- |
+| XS   | `--font-size-xs`   | `0.75rem` (12px)  | Small labels, footnotes |
+| SM   | `--font-size-sm`   | `0.875rem` (14px) | Secondary text          |
+| Base | `--font-size-base` | `1rem` (16px)     | Body text (default)     |
+| LG   | `--font-size-lg`   | `1.125rem` (18px) | Emphasized text         |
+| XL   | `--font-size-xl`   | `1.25rem` (20px)  | Subheadings             |
+| 2XL  | `--font-size-2xl`  | `1.5rem` (24px)   | Section headings        |
+| 3XL  | `--font-size-3xl`  | `1.875rem` (30px) | Page titles             |
+| 4XL  | `--font-size-4xl`  | `2.25rem` (36px)  | Hero text               |
 
 **Usage Example:**
+
 ```vue
 <h1 class="text-4xl font-bold">Vault 111</h1>
 <p class="text-base">Dwellers: 42</p>
@@ -166,18 +169,18 @@ font-family: var(--font-family-mono); /* "Courier New", Courier, monospace */
 
 ### Font Weights
 
-| Weight | Variable | Value | Usage |
-|--------|----------|-------|-------|
-| Normal | `--font-weight-normal` | `400` | Body text |
-| Medium | `--font-weight-medium` | `500` | Emphasis |
-| Bold | `--font-weight-bold` | `700` | Headings, CTAs |
+| Weight | Variable               | Value | Usage          |
+| ------ | ---------------------- | ----- | -------------- |
+| Normal | `--font-weight-normal` | `400` | Body text      |
+| Medium | `--font-weight-medium` | `500` | Emphasis       |
+| Bold   | `--font-weight-bold`   | `700` | Headings, CTAs |
 
 ### Line Heights
 
-| Height | Variable | Value | Usage |
-|--------|----------|-------|-------|
-| Tight | `--line-height-tight` | `1.25` | Headings |
-| Normal | `--line-height-normal` | `1.5` | Body text |
+| Height  | Variable                | Value  | Usage             |
+| ------- | ----------------------- | ------ | ----------------- |
+| Tight   | `--line-height-tight`   | `1.25` | Headings          |
+| Normal  | `--line-height-normal`  | `1.5`  | Body text         |
 | Relaxed | `--line-height-relaxed` | `1.75` | Long-form content |
 
 ---
@@ -188,21 +191,22 @@ font-family: var(--font-family-mono); /* "Courier New", Courier, monospace */
 
 Consistent spacing using 4px base unit:
 
-| Size | Variable | Value | Pixels |
-|------|----------|-------|--------|
-| 0 | `--spacing-0` | `0` | 0px |
-| 1 | `--spacing-1` | `0.25rem` | 4px |
-| 2 | `--spacing-2` | `0.5rem` | 8px |
-| 3 | `--spacing-3` | `0.75rem` | 12px |
-| 4 | `--spacing-4` | `1rem` | 16px |
-| 5 | `--spacing-5` | `1.25rem` | 20px |
-| 6 | `--spacing-6` | `1.5rem` | 24px |
-| 8 | `--spacing-8` | `2rem` | 32px |
-| 10 | `--spacing-10` | `2.5rem` | 40px |
-| 12 | `--spacing-12` | `3rem` | 48px |
-| 16 | `--spacing-16` | `4rem` | 64px |
+| Size | Variable       | Value     | Pixels |
+| ---- | -------------- | --------- | ------ |
+| 0    | `--spacing-0`  | `0`       | 0px    |
+| 1    | `--spacing-1`  | `0.25rem` | 4px    |
+| 2    | `--spacing-2`  | `0.5rem`  | 8px    |
+| 3    | `--spacing-3`  | `0.75rem` | 12px   |
+| 4    | `--spacing-4`  | `1rem`    | 16px   |
+| 5    | `--spacing-5`  | `1.25rem` | 20px   |
+| 6    | `--spacing-6`  | `1.5rem`  | 24px   |
+| 8    | `--spacing-8`  | `2rem`    | 32px   |
+| 10   | `--spacing-10` | `2.5rem`  | 40px   |
+| 12   | `--spacing-12` | `3rem`    | 48px   |
+| 16   | `--spacing-16` | `4rem`    | 64px   |
 
 **Usage Guidelines:**
+
 - **4px (1)**: Tight spacing between related elements
 - **8px (2)**: Small gaps, icon padding
 - **16px (4)**: Standard component padding
@@ -211,23 +215,23 @@ Consistent spacing using 4px base unit:
 
 ### Borders
 
-| Width | Variable | Value |
-|-------|----------|-------|
-| Thin | `--border-width-thin` | `1px` |
+| Width  | Variable                | Value |
+| ------ | ----------------------- | ----- |
+| Thin   | `--border-width-thin`   | `1px` |
 | Medium | `--border-width-medium` | `2px` |
-| Thick | `--border-width-thick` | `4px` |
+| Thick  | `--border-width-thick`  | `4px` |
 
 ### Border Radius
 
-| Size | Variable | Value | Usage |
-|------|----------|-------|-------|
-| None | `--border-radius-none` | `0` | Sharp corners (default) |
-| SM | `--border-radius-sm` | `0.125rem` | Subtle rounding |
-| Base | `--border-radius-base` | `0.25rem` | Buttons, inputs |
-| MD | `--border-radius-md` | `0.375rem` | Cards |
-| LG | `--border-radius-lg` | `0.5rem` | Large elements |
-| XL | `--border-radius-xl` | `0.75rem` | Modals |
-| Full | `--border-radius-full` | `9999px` | Pills, avatars |
+| Size | Variable               | Value      | Usage                   |
+| ---- | ---------------------- | ---------- | ----------------------- |
+| None | `--border-radius-none` | `0`        | Sharp corners (default) |
+| SM   | `--border-radius-sm`   | `0.125rem` | Subtle rounding         |
+| Base | `--border-radius-base` | `0.25rem`  | Buttons, inputs         |
+| MD   | `--border-radius-md`   | `0.375rem` | Cards                   |
+| LG   | `--border-radius-lg`   | `0.5rem`   | Large elements          |
+| XL   | `--border-radius-xl`   | `0.75rem`  | Modals                  |
+| Full | `--border-radius-full` | `9999px`   | Pills, avatars          |
 
 ---
 
@@ -237,12 +241,16 @@ Consistent spacing using 4px base unit:
 
 ```vue
 <!-- Primary Button -->
-<button class="bg-terminalGreen text-black px-4 py-2 rounded hover:bg-terminalGreenLight transition-colors">
+<button
+  class="bg-terminalGreen text-black px-4 py-2 rounded hover:bg-terminalGreenLight transition-colors"
+>
   Primary Action
 </button>
 
 <!-- Secondary Button -->
-<button class="border-2 border-terminalGreen text-terminalGreen px-4 py-2 rounded hover:bg-terminalGreenGlow transition-colors">
+<button
+  class="border-2 border-terminalGreen text-terminalGreen px-4 py-2 rounded hover:bg-terminalGreenGlow transition-colors"
+>
   Secondary Action
 </button>
 
@@ -312,9 +320,9 @@ Consistent spacing using 4px base unit:
 Use CSS variables for consistent timing:
 
 ```css
-transition-duration: var(--transition-fast);   /* 150ms - quick feedback */
-transition-duration: var(--transition-base);   /* 200ms - standard */
-transition-duration: var(--transition-slow);   /* 300ms - deliberate */
+transition-duration: var(--transition-fast); /* 150ms - quick feedback */
+transition-duration: var(--transition-base); /* 200ms - standard */
+transition-duration: var(--transition-slow); /* 300ms - deliberate */
 ```
 
 ### Flicker Effect
@@ -328,11 +336,19 @@ Apply to elements for CRT monitor authenticity:
 ```
 
 **How it works:**
+
 ```css
 @keyframes flicker {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.95; }
-  75% { opacity: 0.98; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.95;
+  }
+  75% {
+    opacity: 0.98;
+  }
 }
 ```
 
@@ -375,7 +391,9 @@ For modal dialogs and important containers:
 Always provide visible focus indicators:
 
 ```vue
-<button class="focus:outline-none focus:ring-2 focus:ring-terminalGreen focus:ring-offset-2 focus:ring-offset-black">
+<button
+  class="focus:outline-none focus:ring-2 focus:ring-terminalGreen focus:ring-offset-2 focus:ring-offset-black"
+>
   Accessible Button
 </button>
 ```
@@ -399,6 +417,7 @@ Always provide visible focus indicators:
 ### Color Contrast
 
 All text must meet WCAG AA standards:
+
 - **Normal text:** 4.5:1 contrast ratio
 - **Large text (18px+):** 3:1 contrast ratio
 
@@ -501,15 +520,13 @@ Mobile-first approach using breakpoints:
 ```vue
 <template>
   <div class="flex min-h-screen items-center justify-center bg-terminalBackground">
-    <div class="w-full max-w-sm rounded-lg bg-surface border-2 border-gray-800 p-8 shadow-glow-lg crt-screen">
-      <h2 class="mb-6 text-center text-2xl font-bold text-terminalGreen terminal-glow">
-        Login
-      </h2>
+    <div
+      class="w-full max-w-sm rounded-lg bg-surface border-2 border-gray-800 p-8 shadow-glow-lg crt-screen"
+    >
+      <h2 class="mb-6 text-center text-2xl font-bold text-terminalGreen terminal-glow">Login</h2>
       <form @submit.prevent="handleSubmit" class="space-y-4">
         <div>
-          <label for="email" class="block text-sm font-medium text-gray-300 mb-1">
-            Email
-          </label>
+          <label for="email" class="block text-sm font-medium text-gray-300 mb-1"> Email </label>
           <input
             type="email"
             id="email"

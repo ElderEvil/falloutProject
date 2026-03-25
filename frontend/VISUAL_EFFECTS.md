@@ -18,10 +18,10 @@ All effects can be configured by users via the Preferences page (`/preferences`)
 
 ```vue
 <script setup lang="ts">
-import { inject, ref } from 'vue';
+import { inject, ref } from 'vue'
 
 // Inject scanlines state from App.vue
-const scanlinesEnabled = inject('scanlines', ref(true));
+const scanlinesEnabled = inject('scanlines', ref(true))
 </script>
 
 <template>
@@ -37,7 +37,7 @@ const scanlinesEnabled = inject('scanlines', ref(true));
 ### Using the Composable Directly
 
 ```ts
-import { useVisualEffects } from '@/composables/useVisualEffects';
+import { useVisualEffects } from '@/composables/useVisualEffects'
 
 const {
   flickering,
@@ -46,20 +46,21 @@ const {
   glowClass,
   toggleFlickering,
   toggleScanlines,
-  setGlowIntensity
-} = useVisualEffects();
+  setGlowIntensity,
+} = useVisualEffects()
 
 // Toggle effects
-toggleFlickering();
-toggleScanlines();
+toggleFlickering()
+toggleScanlines()
 
 // Set glow intensity
-setGlowIntensity('subtle'); // 'off' | 'subtle' | 'normal' | 'strong'
+setGlowIntensity('subtle') // 'off' | 'subtle' | 'normal' | 'strong'
 ```
 
 ## CSS Classes
 
 ### Scanlines
+
 ```css
 .scanlines {
   /* Always-on scanline overlay */
@@ -68,6 +69,7 @@ setGlowIntensity('subtle'); // 'off' | 'subtle' | 'normal' | 'strong'
 ```
 
 ### Flickering
+
 ```css
 .flicker {
   /* Apply to elements that should flicker */
@@ -76,6 +78,7 @@ setGlowIntensity('subtle'); // 'off' | 'subtle' | 'normal' | 'strong'
 ```
 
 ### Glow Effects
+
 ```css
 .terminal-glow-subtle {
   /* Minimal glow - good for readability */
@@ -112,6 +115,7 @@ All settings are automatically saved to localStorage.
 ## Accessibility
 
 Visual effects can be completely disabled for:
+
 - Motion sensitivity (flickering)
 - Performance on low-end devices
 - Personal preference
@@ -123,13 +127,15 @@ Use the "Disable All Effects" button in preferences for accessibility mode.
 When adding scanlines to a new component:
 
 1. **Import inject and ref**:
+
    ```ts
-   import { inject, ref } from 'vue';
+   import { inject, ref } from 'vue'
    ```
 
 2. **Inject scanlines state**:
+
    ```ts
-   const scanlinesEnabled = inject('scanlines', ref(true));
+   const scanlinesEnabled = inject('scanlines', ref(true))
    ```
 
 3. **Make scanlines conditional**:
@@ -161,6 +167,7 @@ The following components currently use scanlines:
 Returns an object with:
 
 **State:**
+
 - `flickering` (ComputedRef<boolean>) - Flickering enabled
 - `scanlines` (ComputedRef<boolean>) - Scanlines enabled
 - `glowIntensity` (ComputedRef<EffectIntensity>) - Current glow level
@@ -169,6 +176,7 @@ Returns an object with:
 - `currentConfig` (ComputedRef<VisualEffectsConfig>) - All settings as object
 
 **Actions:**
+
 - `toggleFlickering()` - Toggle flicker on/off
 - `toggleScanlines()` - Toggle scanlines on/off
 - `setGlowIntensity(intensity: EffectIntensity)` - Set glow level

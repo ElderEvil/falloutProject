@@ -21,11 +21,14 @@ describe('HomeView', () => {
     // Set token and user in localStorage before initializing store
     // so useLocalStorage picks them up and doesn't trigger fetchUser
     localStorage.setItem('token', 'test-token')
-    localStorage.setItem('user', JSON.stringify({
-      id: 'test-user-id',
-      username: 'testuser',
-      email: 'test@example.com'
-    }))
+    localStorage.setItem(
+      'user',
+      JSON.stringify({
+        id: 'test-user-id',
+        username: 'testuser',
+        email: 'test@example.com',
+      })
+    )
 
     authStore = useAuthStore()
     vaultStore = useVaultStore()
@@ -34,8 +37,8 @@ describe('HomeView', () => {
       history: createMemoryHistory(),
       routes: [
         { path: '/', component: HomeView },
-        { path: '/vault/:id', component: { template: '<div>Vault</div>' } }
-      ]
+        { path: '/vault/:id', component: { template: '<div>Vault</div>' } },
+      ],
     })
 
     // Mock console.error to clean up test output
@@ -48,8 +51,8 @@ describe('HomeView', () => {
     it('should render welcome message', async () => {
       const wrapper = mount(HomeView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -59,8 +62,8 @@ describe('HomeView', () => {
     it('should render create vault form', async () => {
       const wrapper = mount(HomeView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -74,8 +77,8 @@ describe('HomeView', () => {
 
       const wrapper = mount(HomeView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -97,14 +100,14 @@ describe('HomeView', () => {
           water_max: 100,
           room_count: 5,
           dweller_count: 10,
-          updated_at: new Date().toISOString()
-        }
+          updated_at: new Date().toISOString(),
+        },
       ]
 
       const wrapper = mount(HomeView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -117,8 +120,8 @@ describe('HomeView', () => {
     it('should accept valid vault number (0-999)', async () => {
       const wrapper = mount(HomeView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -137,8 +140,8 @@ describe('HomeView', () => {
 
       const wrapper = mount(HomeView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -157,8 +160,8 @@ describe('HomeView', () => {
 
       const wrapper = mount(HomeView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -178,8 +181,8 @@ describe('HomeView', () => {
 
       const wrapper = mount(HomeView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -192,7 +195,7 @@ describe('HomeView', () => {
       // This documents current behavior - decimals are truncated
       expect(axios.post).toHaveBeenCalledWith(
         '/api/v1/vaults/initiate',
-        { number: 100, boosted: false },  // Not 100.5
+        { number: 100, boosted: false }, // Not 100.5
         expect.anything()
       )
     })
@@ -200,8 +203,8 @@ describe('HomeView', () => {
     it('should disable submit button when validation fails', async () => {
       const wrapper = mount(HomeView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -223,8 +226,8 @@ describe('HomeView', () => {
 
       const wrapper = mount(HomeView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -238,21 +241,21 @@ describe('HomeView', () => {
         { number: 123, boosted: false },
         expect.objectContaining({
           headers: expect.objectContaining({
-            Authorization: 'Bearer test-token'
-          })
+            Authorization: 'Bearer test-token',
+          }),
         })
       )
     })
 
     it('should show loading state during vault creation', async () => {
-      vi.mocked(axios.post).mockImplementationOnce(() =>
-        new Promise(resolve => setTimeout(() => resolve({ data: {} }), 100))
+      vi.mocked(axios.post).mockImplementationOnce(
+        () => new Promise((resolve) => setTimeout(() => resolve({ data: {} }), 100))
       )
 
       const wrapper = mount(HomeView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -274,8 +277,8 @@ describe('HomeView', () => {
 
       const wrapper = mount(HomeView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -288,14 +291,14 @@ describe('HomeView', () => {
     })
 
     it('should prevent double submission during creation', async () => {
-      vi.mocked(axios.post).mockImplementationOnce(() =>
-        new Promise(resolve => setTimeout(() => resolve({ data: {} }), 100))
+      vi.mocked(axios.post).mockImplementationOnce(
+        () => new Promise((resolve) => setTimeout(() => resolve({ data: {} }), 100))
       )
 
       const wrapper = mount(HomeView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -315,8 +318,8 @@ describe('HomeView', () => {
     it('should not submit with invalid vault number', async () => {
       const wrapper = mount(HomeView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -348,16 +351,16 @@ describe('HomeView', () => {
           water_max: 100,
           room_count: 5,
           dweller_count: 10,
-          updated_at: new Date().toISOString()
-        }
+          updated_at: new Date().toISOString(),
+        },
       ]
     })
 
     it('should show delete button when vault is selected', async () => {
       const wrapper = mount(HomeView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -374,8 +377,8 @@ describe('HomeView', () => {
 
       const wrapper = mount(HomeView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -385,7 +388,7 @@ describe('HomeView', () => {
 
       // Find delete button by text content
       const buttons = wrapper.findAll('button')
-      const deleteBtn = buttons.find(btn => btn.text() === 'Delete')
+      const deleteBtn = buttons.find((btn) => btn.text() === 'Delete')
 
       if (deleteBtn) {
         await deleteBtn.trigger('click')
@@ -402,8 +405,8 @@ describe('HomeView', () => {
 
       const wrapper = mount(HomeView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -412,7 +415,7 @@ describe('HomeView', () => {
       await flushPromises()
 
       const buttons = wrapper.findAll('button')
-      const deleteBtn = buttons.find(btn => btn.text() === 'Delete')
+      const deleteBtn = buttons.find((btn) => btn.text() === 'Delete')
 
       if (deleteBtn) {
         await deleteBtn.trigger('click')
@@ -422,8 +425,8 @@ describe('HomeView', () => {
           '/api/v1/vaults/vault-1',
           expect.objectContaining({
             headers: expect.objectContaining({
-              Authorization: 'Bearer test-token'
-            })
+              Authorization: 'Bearer test-token',
+            }),
           })
         )
       }
@@ -446,14 +449,14 @@ describe('HomeView', () => {
           water_max: 100,
           room_count: 5,
           dweller_count: 10,
-          updated_at: new Date().toISOString()
-        }
+          updated_at: new Date().toISOString(),
+        },
       ]
 
       const wrapper = mount(HomeView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -462,7 +465,7 @@ describe('HomeView', () => {
       await flushPromises()
 
       const buttons = wrapper.findAll('button')
-      const loadBtn = buttons.find(btn => btn.text() === 'Load')
+      const loadBtn = buttons.find((btn) => btn.text() === 'Load')
 
       if (loadBtn) {
         await loadBtn.trigger('click')
@@ -488,14 +491,14 @@ describe('HomeView', () => {
           water_max: 100,
           room_count: 8,
           dweller_count: 15,
-          updated_at: new Date().toISOString()
-        }
+          updated_at: new Date().toISOString(),
+        },
       ]
 
       const wrapper = mount(HomeView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -527,7 +530,7 @@ describe('HomeView', () => {
           water: 70,
           water_max: 100,
           room_count: 5,
-          dweller_count: 10
+          dweller_count: 10,
         },
         {
           id: 'vault-2',
@@ -542,14 +545,14 @@ describe('HomeView', () => {
           water: 70,
           water_max: 100,
           room_count: 5,
-          dweller_count: 10
-        }
+          dweller_count: 10,
+        },
       ]
 
       const wrapper = mount(HomeView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 

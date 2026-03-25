@@ -8,8 +8,8 @@ describe('DwellerBio', () => {
       const wrapper = mount(DwellerBio, {
         props: {
           firstName: 'John',
-          bio: null
-        }
+          bio: null,
+        },
       })
 
       const generateButton = wrapper.find('.generate-button')
@@ -20,8 +20,8 @@ describe('DwellerBio', () => {
       const wrapper = mount(DwellerBio, {
         props: {
           firstName: 'John',
-          bio: ''
-        }
+          bio: '',
+        },
       })
 
       const generateButton = wrapper.find('.generate-button')
@@ -32,8 +32,8 @@ describe('DwellerBio', () => {
       const wrapper = mount(DwellerBio, {
         props: {
           firstName: 'John',
-          bio: null
-        }
+          bio: null,
+        },
       })
 
       const generateButton = wrapper.find('.generate-button')
@@ -44,8 +44,8 @@ describe('DwellerBio', () => {
       const wrapper = mount(DwellerBio, {
         props: {
           firstName: 'John',
-          bio: 'John is a brave vault dweller who loves to explore.'
-        }
+          bio: 'John is a brave vault dweller who loves to explore.',
+        },
       })
 
       const generateButton = wrapper.find('.generate-button')
@@ -56,8 +56,8 @@ describe('DwellerBio', () => {
       const wrapper = mount(DwellerBio, {
         props: {
           firstName: 'John',
-          bio: null
-        }
+          bio: null,
+        },
       })
 
       const generateButton = wrapper.find('.generate-button')
@@ -74,8 +74,8 @@ describe('DwellerBio', () => {
         props: {
           firstName: 'John',
           bio: null,
-          isAnyGenerating: true
-        }
+          isAnyGenerating: true,
+        },
       })
 
       const generateButton = wrapper.find('.generate-button')
@@ -87,8 +87,8 @@ describe('DwellerBio', () => {
         props: {
           firstName: 'John',
           bio: null,
-          isAnyGenerating: false
-        }
+          isAnyGenerating: false,
+        },
       })
 
       const generateButton = wrapper.find('.generate-button')
@@ -100,8 +100,8 @@ describe('DwellerBio', () => {
         props: {
           firstName: 'John',
           bio: null,
-          generatingBio: true
-        }
+          generatingBio: true,
+        },
       })
 
       const icon = wrapper.find('.generate-button svg')
@@ -116,8 +116,8 @@ describe('DwellerBio', () => {
       const wrapper = mount(DwellerBio, {
         props: {
           firstName: 'John',
-          bio: bioText
-        }
+          bio: bioText,
+        },
       })
 
       expect(wrapper.text()).toContain(bioText)
@@ -127,8 +127,8 @@ describe('DwellerBio', () => {
       const wrapper = mount(DwellerBio, {
         props: {
           firstName: 'John',
-          bio: null
-        }
+          bio: null,
+        },
       })
 
       const placeholder = wrapper.find('.bio-placeholder')
@@ -142,8 +142,8 @@ describe('DwellerBio', () => {
       const wrapper = mount(DwellerBio, {
         props: {
           firstName: 'John',
-          bio: bioText
-        }
+          bio: bioText,
+        },
       })
 
       const bioContent = wrapper.find('.bio-content')
@@ -160,8 +160,8 @@ describe('DwellerBio', () => {
       const wrapper = mount(DwellerBio, {
         props: {
           firstName: 'John',
-          bio: null
-        }
+          bio: null,
+        },
       })
 
       const bioHeader = wrapper.find('.bio-header')
@@ -176,8 +176,8 @@ describe('DwellerBio', () => {
       const wrapper = mount(DwellerBio, {
         props: {
           firstName: 'John',
-          bio: null
-        }
+          bio: null,
+        },
       })
 
       const tooltip = wrapper.findComponent({ name: 'UTooltip' })
@@ -191,8 +191,8 @@ describe('DwellerBio', () => {
       const wrapper = mount(DwellerBio, {
         props: {
           firstName: 'Sarah',
-          bio: null
-        }
+          bio: null,
+        },
       })
 
       const placeholderText = wrapper.find('.placeholder-text')
@@ -204,8 +204,8 @@ describe('DwellerBio', () => {
       const wrapper = mount(DwellerBio, {
         props: {
           firstName: 'John',
-          bio: null
-        }
+          bio: null,
+        },
       })
 
       const placeholderHint = wrapper.find('.placeholder-hint')
@@ -219,8 +219,8 @@ describe('DwellerBio', () => {
       const wrapper = mount(DwellerBio, {
         props: {
           firstName: 'John',
-          bio: null
-        }
+          bio: null,
+        },
       })
 
       const comboButton = wrapper.find('.combo-button')
@@ -232,8 +232,8 @@ describe('DwellerBio', () => {
       const wrapper = mount(DwellerBio, {
         props: {
           firstName: 'John',
-          bio: null
-        }
+          bio: null,
+        },
       })
 
       const comboButton = wrapper.find('.combo-button')

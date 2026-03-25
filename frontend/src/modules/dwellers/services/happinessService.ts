@@ -39,7 +39,7 @@ export const happinessService = {
     }
 
     dwellers.forEach((dweller) => {
-      const happiness = dweller.happiness || 50
+      const happiness = dweller.happiness ?? 50
       if (happiness >= 75) {
         distribution.high++
       } else if (happiness >= 50) {

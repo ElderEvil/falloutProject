@@ -83,15 +83,11 @@ const showWarningBanner = computed(() => {
 
     <div v-else-if="stats" class="space-y-6">
       <!-- Warning Banner -->
-      <UAlert
-        v-if="showWarningBanner"
-        variant="warning"
-        dismissible
-        @close="dismissBanner"
-      >
+      <UAlert v-if="showWarningBanner" variant="warning" dismissible @close="dismissBanner">
         <div class="flex items-center justify-between gap-4 flex-wrap">
           <span>
-            You've used <strong>{{ Math.round(quotaPercentage) }}%</strong> of your monthly token quota
+            You've used <strong>{{ Math.round(quotaPercentage) }}%</strong> of your monthly token
+            quota
           </span>
           <RouterLink
             to="/profile"
@@ -105,7 +101,9 @@ const showWarningBanner = computed(() => {
 
       <div class="grid grid-cols-2 gap-4">
         <div class="text-center p-4 bg-black/40 rounded border border-theme-primary/20">
-          <div class="text-xs text-theme-primary/60 uppercase tracking-wider mb-2">All-Time Tokens</div>
+          <div class="text-xs text-theme-primary/60 uppercase tracking-wider mb-2">
+            All-Time Tokens
+          </div>
           <div class="text-2xl font-bold text-theme-primary terminal-glow-subtle">
             {{ formatNumber(allTimeTotal) }}
           </div>
@@ -121,19 +119,28 @@ const showWarningBanner = computed(() => {
       </div>
 
       <div class="border-t border-theme-primary/20 pt-4 space-y-3">
-        <div class="text-xs text-theme-primary/60 uppercase tracking-wider mb-3">Token Breakdown</div>
+        <div class="text-xs text-theme-primary/60 uppercase tracking-wider mb-3">
+          Token Breakdown
+        </div>
 
         <div class="flex items-center gap-3">
           <Icon icon="mdi:arrow-up-bold" class="h-5 w-5 text-green-400" />
           <div class="flex-1">
             <div class="flex justify-between text-sm">
               <span class="text-theme-primary/70">Prompt Tokens</span>
-              <span class="text-theme-primary">{{ formatNumber(stats.all_time.prompt_tokens) }}</span>
+              <span class="text-theme-primary">{{
+                formatNumber(stats.all_time.prompt_tokens)
+              }}</span>
             </div>
             <div class="h-1 bg-theme-primary/10 rounded mt-1">
               <div
                 class="h-full bg-green-400/60 rounded"
-                :style="{ width: stats.all_time.total_tokens > 0 ? (stats.all_time.prompt_tokens / stats.all_time.total_tokens * 100) + '%' : '0%' }"
+                :style="{
+                  width:
+                    stats.all_time.total_tokens > 0
+                      ? (stats.all_time.prompt_tokens / stats.all_time.total_tokens) * 100 + '%'
+                      : '0%',
+                }"
               />
             </div>
           </div>
@@ -144,12 +151,19 @@ const showWarningBanner = computed(() => {
           <div class="flex-1">
             <div class="flex justify-between text-sm">
               <span class="text-theme-primary/70">Completion Tokens</span>
-              <span class="text-theme-primary">{{ formatNumber(stats.all_time.completion_tokens) }}</span>
+              <span class="text-theme-primary">{{
+                formatNumber(stats.all_time.completion_tokens)
+              }}</span>
             </div>
             <div class="h-1 bg-theme-primary/10 rounded mt-1">
               <div
                 class="h-full bg-blue-400/60 rounded"
-                :style="{ width: stats.all_time.total_tokens > 0 ? (stats.all_time.completion_tokens / stats.all_time.total_tokens * 100) + '%' : '0%' }"
+                :style="{
+                  width:
+                    stats.all_time.total_tokens > 0
+                      ? (stats.all_time.completion_tokens / stats.all_time.total_tokens) * 100 + '%'
+                      : '0%',
+                }"
               />
             </div>
           </div>
@@ -161,15 +175,27 @@ const showWarningBanner = computed(() => {
         <div class="text-xs text-theme-primary/60 uppercase tracking-wider mb-3">Monthly Quota</div>
 
         <!-- Progress Bar -->
-        <div class="relative h-6 bg-black/40 rounded border border-theme-primary/20 overflow-hidden">
+        <div
+          class="relative h-6 bg-black/40 rounded border border-theme-primary/20 overflow-hidden"
+        >
           <div
             class="h-full transition-all duration-300"
             :class="quotaBarColor"
             :style="{ width: Math.min(quotaPercentage, 100) + '%' }"
           />
           <div class="absolute inset-0 flex items-center justify-center text-sm font-bold">
-            <span :class="quotaPercentage >= 100 ? 'text-red-500' : quotaPercentage >= 80 ? 'text-amber-500' : 'text-theme-primary'">
-              {{ formatNumber(stats.quota_used) }} / {{ formatNumber(stats.quota_limit) }} ({{ Math.round(quotaPercentage) }}%)
+            <span
+              :class="
+                quotaPercentage >= 100
+                  ? 'text-red-500'
+                  : quotaPercentage >= 80
+                    ? 'text-amber-500'
+                    : 'text-theme-primary'
+              "
+            >
+              {{ formatNumber(stats.quota_used) }} / {{ formatNumber(stats.quota_limit) }} ({{
+                Math.round(quotaPercentage)
+              }}%)
             </span>
           </div>
         </div>
@@ -184,9 +210,7 @@ const showWarningBanner = computed(() => {
           </div>
           <div v-if="resetDateFormatted" class="flex items-center gap-2">
             <Icon icon="mdi:calendar-refresh" class="h-4 w-4 text-theme-primary/60" />
-            <span class="text-theme-primary/70">
-              Resets on {{ resetDateFormatted }}
-            </span>
+            <span class="text-theme-primary/70"> Resets on {{ resetDateFormatted }} </span>
           </div>
         </div>
 

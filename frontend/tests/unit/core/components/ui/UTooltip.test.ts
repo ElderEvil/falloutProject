@@ -7,8 +7,8 @@ describe('UTooltip', () => {
     const wrapper = mount(UTooltip, {
       props: { text: 'Test tooltip' },
       slots: {
-        default: '<button>Hover me</button>'
-      }
+        default: '<button>Hover me</button>',
+      },
     })
 
     expect(wrapper.find('button').text()).toBe('Hover me')
@@ -16,7 +16,7 @@ describe('UTooltip', () => {
 
   it('has correct default props', () => {
     const wrapper = mount(UTooltip, {
-      props: { text: 'Test tooltip' }
+      props: { text: 'Test tooltip' },
     })
 
     expect(wrapper.props('position')).toBe('top')
@@ -25,7 +25,7 @@ describe('UTooltip', () => {
 
   it('accepts custom position prop', () => {
     const wrapper = mount(UTooltip, {
-      props: { text: 'Test tooltip', position: 'bottom' }
+      props: { text: 'Test tooltip', position: 'bottom' },
     })
 
     expect(wrapper.props('position')).toBe('bottom')
@@ -33,7 +33,7 @@ describe('UTooltip', () => {
 
   it('accepts custom delay prop', () => {
     const wrapper = mount(UTooltip, {
-      props: { text: 'Test tooltip', delay: 500 }
+      props: { text: 'Test tooltip', delay: 500 },
     })
 
     expect(wrapper.props('delay')).toBe(500)
@@ -41,7 +41,7 @@ describe('UTooltip', () => {
 
   it('uses theme-aware CSS classes', () => {
     const wrapper = mount(UTooltip, {
-      props: { text: 'Test tooltip' }
+      props: { text: 'Test tooltip' },
     })
 
     const html = wrapper.html()

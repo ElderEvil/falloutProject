@@ -1,3 +1,11 @@
+# ⚠️ DEPRECATED
+
+**This document is deprecated.** MinIO has been removed from the project in favor of [RustFS](https://github.com/rustfs/rustfs).
+
+See [Deployment Documentation](../DEPLOYMENT.md) for current storage setup instructions.
+
+---
+
 # MinIO Public Access Setup Guide
 
 ## Overview

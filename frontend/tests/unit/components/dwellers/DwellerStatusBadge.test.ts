@@ -11,15 +11,15 @@ describe('DwellerStatusBadge', () => {
         { status: 'exploring', label: 'Exploring' },
         { status: 'questing', label: 'Questing' },
         { status: 'training', label: 'Training' },
-        { status: 'dead', label: 'Dead' }
+        { status: 'dead', label: 'Dead' },
       ]
 
       statuses.forEach(({ status, label }) => {
         const wrapper = mount(DwellerStatusBadge, {
           props: {
             status: status as any,
-            showLabel: true
-          }
+            showLabel: true,
+          },
         })
 
         expect(wrapper.text()).toContain(label)
@@ -29,8 +29,8 @@ describe('DwellerStatusBadge', () => {
     it('should render status badge container', () => {
       const wrapper = mount(DwellerStatusBadge, {
         props: {
-          status: 'working'
-        }
+          status: 'working',
+        },
       })
 
       const badge = wrapper.find('.status-badge')
@@ -43,8 +43,8 @@ describe('DwellerStatusBadge', () => {
       const wrapper = mount(DwellerStatusBadge, {
         props: {
           status: 'working',
-          showLabel: true
-        }
+          showLabel: true,
+        },
       })
 
       expect(wrapper.text()).toContain('Working')
@@ -54,8 +54,8 @@ describe('DwellerStatusBadge', () => {
       const wrapper = mount(DwellerStatusBadge, {
         props: {
           status: 'working',
-          showLabel: false
-        }
+          showLabel: false,
+        },
       })
 
       expect(wrapper.text()).not.toContain('Working')
@@ -67,8 +67,8 @@ describe('DwellerStatusBadge', () => {
       const wrapper = mount(DwellerStatusBadge, {
         props: {
           status: 'working',
-          size: 'small'
-        }
+          size: 'small',
+        },
       })
 
       const badge = wrapper.find('.status-badge')
@@ -79,8 +79,8 @@ describe('DwellerStatusBadge', () => {
       const wrapper = mount(DwellerStatusBadge, {
         props: {
           status: 'working',
-          size: 'medium'
-        }
+          size: 'medium',
+        },
       })
 
       const badge = wrapper.find('.status-badge')
@@ -91,8 +91,8 @@ describe('DwellerStatusBadge', () => {
       const wrapper = mount(DwellerStatusBadge, {
         props: {
           status: 'working',
-          size: 'large'
-        }
+          size: 'large',
+        },
       })
 
       const badge = wrapper.find('.status-badge')
@@ -104,8 +104,8 @@ describe('DwellerStatusBadge', () => {
     it('should use default props when not specified', () => {
       const wrapper = mount(DwellerStatusBadge, {
         props: {
-          status: 'working'
-        }
+          status: 'working',
+        },
       })
 
       // Default showLabel is false

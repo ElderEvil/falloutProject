@@ -13,13 +13,16 @@ function createStorageMapMock() {
       watch(value, (newVal) => {
         storageMap.set(key, newVal)
         if (typeof localStorage !== 'undefined') {
-          localStorage.setItem(key, newVal === true ? 'true' : newVal === false ? 'false' : String(newVal))
+          localStorage.setItem(
+            key,
+            newVal === true ? 'true' : newVal === false ? 'false' : String(newVal)
+          )
         }
       })
 
       return value
     },
-    clear: () => storageMap.clear()
+    clear: () => storageMap.clear(),
   }
 }
 
@@ -32,7 +35,7 @@ vi.mock('@vueuse/core', () => {
   return {
     useLocalStorage: (key: string, defaultValue: any) => {
       return mockInstance.useLocalStorage(key, defaultValue)
-    }
+    },
   }
 })
 
@@ -55,14 +58,14 @@ const localStorageMock = (() => {
     },
     clear: () => {
       store = {}
-    }
+    },
   }
 })()
 
 Object.defineProperty(global, 'localStorage', {
   value: localStorageMock,
   configurable: true,
-  writable: true
+  writable: true,
 })
 
 describe('useGaryMode', () => {
@@ -99,18 +102,18 @@ describe('useGaryMode', () => {
     expect(isGaryMode.value).toBe(false)
   })
 
-   it('persists garyUnlocked to localStorage', async () => {
-     const { garyUnlocked, triggerGaryMode, resetGaryUnlocked } = useGaryMode()
+  it('persists garyUnlocked to localStorage', async () => {
+    const { garyUnlocked, triggerGaryMode, resetGaryUnlocked } = useGaryMode()
 
-     resetGaryUnlocked()
-     await nextTick()
-     expect(garyUnlocked.value).toBe(false)
+    resetGaryUnlocked()
+    await nextTick()
+    expect(garyUnlocked.value).toBe(false)
 
-     triggerGaryMode()
-     await nextTick()
-     expect(garyUnlocked.value).toBe(true)
-     expect(localStorage.getItem('fallout_gary_unlocked')).toBe('true')
-   })
+    triggerGaryMode()
+    await nextTick()
+    expect(garyUnlocked.value).toBe(true)
+    expect(localStorage.getItem('fallout_gary_unlocked')).toBe('true')
+  })
 
   it('does not re-trigger if already active', () => {
     const { isGaryMode, triggerGaryMode } = useGaryMode()

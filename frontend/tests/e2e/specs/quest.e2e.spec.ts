@@ -16,7 +16,7 @@ test.describe('Quests - Toggle Feature', () => {
 
     // Click on first vault to enter it
     const firstVault = page.locator('.vault-card, [data-testid="vault-card"]').first()
-    if (await firstVault.count() > 0) {
+    if ((await firstVault.count()) > 0) {
       await firstVault.click()
       await page.waitForLoadState('networkidle')
     }
@@ -51,7 +51,7 @@ test.describe('Quests - Toggle Feature', () => {
     const toggleInput = toggleLabel.locator('input[type="checkbox"]')
 
     // Check if toggle exists
-    if (await toggleInput.count() === 0) {
+    if ((await toggleInput.count()) === 0) {
       test.skip()
       return
     }
@@ -84,7 +84,7 @@ test.describe('Quests - Toggle Feature', () => {
     const toggleLabel = page.locator('label:has-text("Show All")')
     const toggleInput = toggleLabel.locator('input[type="checkbox"]')
 
-    if (await toggleInput.count() === 0) {
+    if ((await toggleInput.count()) === 0) {
       test.skip()
       return
     }
@@ -117,7 +117,7 @@ test.describe('Quests - Toggle Feature', () => {
     const toggleLabel = page.locator('label:has-text("Show All")')
     const toggleInput = toggleLabel.locator('input[type="checkbox"]')
 
-    if (await toggleInput.count() === 0) {
+    if ((await toggleInput.count()) === 0) {
       test.skip()
       return
     }
@@ -147,7 +147,7 @@ test.describe('Quests - Party Assignment', () => {
     const assignButton = page.getByRole('button', { name: /assign party/i }).first()
 
     // Only run if there's an available quest with Assign Party button
-    if (await assignButton.count() === 0) {
+    if ((await assignButton.count()) === 0) {
       test.skip()
       return
     }
@@ -164,7 +164,7 @@ test.describe('Quests - Party Assignment', () => {
 
     const assignButton = page.getByRole('button', { name: /assign party/i }).first()
 
-    if (await assignButton.count() === 0) {
+    if ((await assignButton.count()) === 0) {
       test.skip()
       return
     }
@@ -183,9 +183,9 @@ test.describe('Quests - Party Assignment', () => {
     const noDwellers = page.locator('text=No available dwellers')
 
     // One of these should be visible after loading
-    const hasEligible = await eligibleBadge.count() > 0
-    const hasDwellers = await dwellersList.count() > 0
-    const hasNoDwellers = await noDwellers.count() > 0
+    const hasEligible = (await eligibleBadge.count()) > 0
+    const hasDwellers = (await dwellersList.count()) > 0
+    const hasNoDwellers = (await noDwellers.count()) > 0
 
     expect(hasEligible || hasDwellers || hasNoDwellers).toBe(true)
   })
@@ -195,7 +195,7 @@ test.describe('Quests - Party Assignment', () => {
 
     const assignButton = page.getByRole('button', { name: /assign party/i }).first()
 
-    if (await assignButton.count() === 0) {
+    if ((await assignButton.count()) === 0) {
       test.skip()
       return
     }
@@ -216,7 +216,10 @@ test.describe('Quests - Party Assignment', () => {
     // Check that all shown dwellers have level displayed
     for (let i = 0; i < count; i++) {
       const dweller = dwellerItems.nth(i)
-      const levelText = await dweller.locator('text=/Level \\d+/').textContent().catch(() => null)
+      const levelText = await dweller
+        .locator('text=/Level \\d+/')
+        .textContent()
+        .catch(() => null)
       expect(levelText).toBeTruthy()
     }
 
@@ -233,7 +236,7 @@ test.describe('Quests - Party Assignment', () => {
 
     const assignButton = page.getByRole('button', { name: /assign party/i }).first()
 
-    if (await assignButton.count() === 0) {
+    if ((await assignButton.count()) === 0) {
       test.skip()
       return
     }
@@ -243,12 +246,12 @@ test.describe('Quests - Party Assignment', () => {
 
     // Select first available dweller if any
     const dwellerItems = page.locator('.dweller-item')
-    if (await dwellerItems.count() > 0) {
+    if ((await dwellerItems.count()) > 0) {
       await dwellerItems.first().click()
 
       // Click Start Quest button
       const assignPartyBtn = page.getByRole('button', { name: 'Start Quest', exact: true })
-      if (await assignPartyBtn.count() > 0 && await assignPartyBtn.isEnabled()) {
+      if ((await assignPartyBtn.count()) > 0 && (await assignPartyBtn.isEnabled())) {
         await assignPartyBtn.click()
 
         // Modal should close
@@ -287,7 +290,7 @@ test.describe('Quests - Requirements Display', () => {
     const toggleLabel = page.locator('label:has-text("Show All")')
     const toggleInput = toggleLabel.locator('input[type="checkbox"]')
 
-    if (await toggleInput.count() > 0) {
+    if ((await toggleInput.count()) > 0) {
       await toggleInput.check()
       await page.waitForTimeout(500)
     }

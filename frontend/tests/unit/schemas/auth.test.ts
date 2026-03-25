@@ -8,7 +8,7 @@ describe('Auth Validation Schemas', () => {
       it('should accept valid login credentials', () => {
         const result = loginSchema.parse({
           username: 'testuser',
-          password: 'password123'
+          password: 'password123',
         })
         expect(result.username).toBe('testuser')
         expect(result.password).toBe('password123')
@@ -17,7 +17,7 @@ describe('Auth Validation Schemas', () => {
       it('should accept minimum valid username (3 chars)', () => {
         const result = loginSchema.parse({
           username: 'abc',
-          password: 'pass'
+          password: 'pass',
         })
         expect(result.username).toBe('abc')
       })
@@ -25,7 +25,7 @@ describe('Auth Validation Schemas', () => {
       it('should accept username with underscores', () => {
         const result = loginSchema.parse({
           username: 'test_user',
-          password: 'password'
+          password: 'password',
         })
         expect(result.username).toBe('test_user')
       })
@@ -33,7 +33,7 @@ describe('Auth Validation Schemas', () => {
       it('should accept username with hyphens', () => {
         const result = loginSchema.parse({
           username: 'test-user',
-          password: 'password'
+          password: 'password',
         })
         expect(result.username).toBe('test-user')
       })
@@ -41,7 +41,7 @@ describe('Auth Validation Schemas', () => {
       it('should accept username with numbers', () => {
         const result = loginSchema.parse({
           username: 'user123',
-          password: 'password'
+          password: 'password',
         })
         expect(result.username).toBe('user123')
       })
@@ -52,13 +52,13 @@ describe('Auth Validation Schemas', () => {
         expect(() =>
           loginSchema.parse({
             username: 'ab',
-            password: 'password'
+            password: 'password',
           })
         ).toThrow(ZodError)
         expect(() =>
           loginSchema.parse({
             username: 'ab',
-            password: 'password'
+            password: 'password',
           })
         ).toThrow('Username must be at least 3 characters')
       })
@@ -68,7 +68,7 @@ describe('Auth Validation Schemas', () => {
         expect(() =>
           loginSchema.parse({
             username: longUsername,
-            password: 'password'
+            password: 'password',
           })
         ).toThrow('Username must be less than 50 characters')
       })
@@ -77,7 +77,7 @@ describe('Auth Validation Schemas', () => {
         expect(() =>
           loginSchema.parse({
             username: 'test user',
-            password: 'password'
+            password: 'password',
           })
         ).toThrow('Username can only contain letters, numbers, underscores, and hyphens')
       })
@@ -86,7 +86,7 @@ describe('Auth Validation Schemas', () => {
         expect(() =>
           loginSchema.parse({
             username: 'test@user',
-            password: 'password'
+            password: 'password',
           })
         ).toThrow('Username can only contain letters, numbers, underscores, and hyphens')
       })
@@ -95,7 +95,7 @@ describe('Auth Validation Schemas', () => {
         expect(() =>
           loginSchema.parse({
             username: '',
-            password: 'password'
+            password: 'password',
           })
         ).toThrow()
       })
@@ -106,7 +106,7 @@ describe('Auth Validation Schemas', () => {
         expect(() =>
           loginSchema.parse({
             username: 'testuser',
-            password: ''
+            password: '',
           })
         ).toThrow('Password is required')
       })
@@ -114,7 +114,7 @@ describe('Auth Validation Schemas', () => {
       it('should accept any non-empty password for login', () => {
         const result = loginSchema.parse({
           username: 'testuser',
-          password: 'x'
+          password: 'x',
         })
         expect(result.password).toBe('x')
       })
@@ -127,7 +127,7 @@ describe('Auth Validation Schemas', () => {
         const result = registerSchema.parse({
           username: 'newuser',
           email: 'user@example.com',
-          password: 'Password123'
+          password: 'Password123',
         })
         expect(result.username).toBe('newuser')
         expect(result.email).toBe('user@example.com')
@@ -138,7 +138,7 @@ describe('Auth Validation Schemas', () => {
         const result = registerSchema.parse({
           username: 'newuser',
           email: 'user@example.com',
-          password: 'MyP@ssw0rd123!'
+          password: 'MyP@ssw0rd123!',
         })
         expect(result.password).toBe('MyP@ssw0rd123!')
       })
@@ -147,7 +147,7 @@ describe('Auth Validation Schemas', () => {
         const result = registerSchema.parse({
           username: 'newuser',
           email: 'user@mail.example.com',
-          password: 'Password123'
+          password: 'Password123',
         })
         expect(result.email).toBe('user@mail.example.com')
       })
@@ -159,7 +159,7 @@ describe('Auth Validation Schemas', () => {
           registerSchema.parse({
             username: 'ab',
             email: 'user@example.com',
-            password: 'Password123'
+            password: 'Password123',
           })
         ).toThrow('Username must be at least 3 characters')
       })
@@ -170,7 +170,7 @@ describe('Auth Validation Schemas', () => {
           registerSchema.parse({
             username: longUsername,
             email: 'user@example.com',
-            password: 'Password123'
+            password: 'Password123',
           })
         ).toThrow('Username must be less than 50 characters')
       })
@@ -180,7 +180,7 @@ describe('Auth Validation Schemas', () => {
           registerSchema.parse({
             username: 'user@name',
             email: 'user@example.com',
-            password: 'Password123'
+            password: 'Password123',
           })
         ).toThrow('Username can only contain letters, numbers, underscores, and hyphens')
       })
@@ -192,7 +192,7 @@ describe('Auth Validation Schemas', () => {
           registerSchema.parse({
             username: 'newuser',
             email: 'invalid-email',
-            password: 'Password123'
+            password: 'Password123',
           })
         ).toThrow('Invalid email address')
       })
@@ -202,7 +202,7 @@ describe('Auth Validation Schemas', () => {
           registerSchema.parse({
             username: 'newuser',
             email: 'userexample.com',
-            password: 'Password123'
+            password: 'Password123',
           })
         ).toThrow('Invalid email address')
       })
@@ -212,7 +212,7 @@ describe('Auth Validation Schemas', () => {
           registerSchema.parse({
             username: 'newuser',
             email: 'user@',
-            password: 'Password123'
+            password: 'Password123',
           })
         ).toThrow('Invalid email address')
       })
@@ -222,7 +222,7 @@ describe('Auth Validation Schemas', () => {
           registerSchema.parse({
             username: 'newuser',
             email: '',
-            password: 'Password123'
+            password: 'Password123',
           })
         ).toThrow()
       })
@@ -234,7 +234,7 @@ describe('Auth Validation Schemas', () => {
           registerSchema.parse({
             username: 'newuser',
             email: 'user@example.com',
-            password: 'Pass1'
+            password: 'Pass1',
           })
         ).toThrow('Password must be at least 8 characters')
       })
@@ -244,7 +244,7 @@ describe('Auth Validation Schemas', () => {
           registerSchema.parse({
             username: 'newuser',
             email: 'user@example.com',
-            password: 'password123'
+            password: 'password123',
           })
         ).toThrow('Password must contain at least one uppercase letter')
       })
@@ -254,7 +254,7 @@ describe('Auth Validation Schemas', () => {
           registerSchema.parse({
             username: 'newuser',
             email: 'user@example.com',
-            password: 'PASSWORD123'
+            password: 'PASSWORD123',
           })
         ).toThrow('Password must contain at least one lowercase letter')
       })
@@ -264,7 +264,7 @@ describe('Auth Validation Schemas', () => {
           registerSchema.parse({
             username: 'newuser',
             email: 'user@example.com',
-            password: 'Password'
+            password: 'Password',
           })
         ).toThrow('Password must contain at least one number')
       })
@@ -273,7 +273,7 @@ describe('Auth Validation Schemas', () => {
         const result = registerSchema.parse({
           username: 'newuser',
           email: 'user@example.com',
-          password: 'Pass123a'
+          password: 'Pass123a',
         })
         expect(result.password).toBe('Pass123a')
       })
@@ -286,7 +286,7 @@ describe('Auth Validation Schemas', () => {
         const result = registerSchema.parse({
           username: 'newuser',
           email: 'user@example.com',
-          password: 'Password1'
+          password: 'Password1',
         })
         expect(result.password).toBe('Password1')
       })
@@ -295,7 +295,7 @@ describe('Auth Validation Schemas', () => {
         const result = registerSchema.parse({
           username: 'newuser',
           email: 'user@example.com',
-          password: 'MySecure#Pass123'
+          password: 'MySecure#Pass123',
         })
         expect(result.password).toBe('MySecure#Pass123')
       })
@@ -305,7 +305,7 @@ describe('Auth Validation Schemas', () => {
         const result = registerSchema.parse({
           username: 'newuser',
           email: 'user@example.com',
-          password: longPassword
+          password: longPassword,
         })
         expect(result.password).toBe(longPassword)
       })
@@ -316,7 +316,7 @@ describe('Auth Validation Schemas', () => {
     it('should infer correct types from loginSchema', () => {
       const data = loginSchema.parse({
         username: 'test',
-        password: 'pass'
+        password: 'pass',
       })
       // TypeScript should infer these as strings
       const username: string = data.username
@@ -329,7 +329,7 @@ describe('Auth Validation Schemas', () => {
       const data = registerSchema.parse({
         username: 'test',
         email: 'test@example.com',
-        password: 'Password123'
+        password: 'Password123',
       })
       // TypeScript should infer these as strings
       const username: string = data.username

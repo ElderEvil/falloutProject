@@ -42,7 +42,7 @@ test.describe('Authentication', () => {
   test('should remember me functionality', async ({ page }) => {
     const rememberMeCheckbox = page.getByLabel(/remember.?me|keep.?me/i)
 
-    if (await rememberMeCheckbox.count() > 0) {
+    if ((await rememberMeCheckbox.count()) > 0) {
       await rememberMeCheckbox.check()
       await expect(rememberMeCheckbox).toBeChecked()
     }
@@ -64,7 +64,7 @@ test.describe('Authentication - Logged In', () => {
     await page.waitForLoadState('networkidle')
 
     const userMenu = page.getByRole('button', { name: /user|profile|account/i })
-    if (await userMenu.count() > 0) {
+    if ((await userMenu.count()) > 0) {
       await userMenu.click()
       await expect(page.getByText(/logout|sign.?out/i)).toBeVisible()
     }

@@ -19,9 +19,7 @@ describe('Radio Store', () => {
     radio_rooms_count: 1,
     manual_cost_caps: 500,
     radio_mode: 'recruitment',
-    speedup_multipliers: [
-      { room_id: 'room-1', speedup: 1.0 }
-    ]
+    speedup_multipliers: [{ room_id: 'room-1', speedup: 1.0 }],
   }
 
   const mockRecruitmentResponse = {
@@ -31,10 +29,10 @@ describe('Radio Store', () => {
       last_name: 'Doe',
       vault_id: 'vault-1',
       gender: 'male',
-      level: 1
+      level: 1,
     },
     message: 'John Doe has joined your vault!',
-    caps_spent: 500
+    caps_spent: 500,
   }
 
   describe('State Initialization', () => {
@@ -83,7 +81,7 @@ describe('Radio Store', () => {
 
     it('should handle recruitment error', async () => {
       vi.mocked(axios.post).mockRejectedValueOnce({
-        response: { data: { detail: 'Insufficient caps' } }
+        response: { data: { detail: 'Insufficient caps' } },
       })
 
       const store = useRadioStore()
@@ -107,20 +105,18 @@ describe('Radio Store', () => {
   describe('setRadioMode', () => {
     it('should set radio mode successfully', async () => {
       vi.mocked(axios.put).mockResolvedValueOnce({
-        data: { message: 'Radio mode set to happiness', radio_mode: 'happiness' }
+        data: { message: 'Radio mode set to happiness', radio_mode: 'happiness' },
       })
       vi.mocked(axios.get).mockResolvedValueOnce({
-        data: { ...mockRadioStats, radio_mode: 'happiness' }
+        data: { ...mockRadioStats, radio_mode: 'happiness' },
       })
 
       const store = useRadioStore()
       const result = await store.setRadioMode('vault-1', 'happiness')
 
-      expect(axios.put).toHaveBeenCalledWith(
-        '/api/v1/radio/vault/vault-1/mode',
-        null,
-        { params: { mode: 'happiness' } }
-      )
+      expect(axios.put).toHaveBeenCalledWith('/api/v1/radio/vault/vault-1/mode', null, {
+        params: { mode: 'happiness' },
+      })
       expect(result).toBe(true)
     })
 
@@ -137,7 +133,7 @@ describe('Radio Store', () => {
   describe('setRadioSpeedup', () => {
     it('should set speedup successfully', async () => {
       vi.mocked(axios.put).mockResolvedValueOnce({
-        data: { message: 'Speedup set', room_id: 'room-1', speedup: 5.0 }
+        data: { message: 'Speedup set', room_id: 'room-1', speedup: 5.0 },
       })
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockRadioStats })
 
@@ -154,7 +150,7 @@ describe('Radio Store', () => {
 
     it('should handle speedup error', async () => {
       vi.mocked(axios.put).mockRejectedValueOnce({
-        response: { data: { detail: 'Speedup must be between 1.0 and 10.0' } }
+        response: { data: { detail: 'Speedup must be between 1.0 and 10.0' } },
       })
 
       const store = useRadioStore()

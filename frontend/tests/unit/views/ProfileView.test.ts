@@ -29,7 +29,7 @@ describe('ProfileView', () => {
     total_explorations: 25,
     total_rooms_built: 8,
     created_at: '2023-01-01T00:00:00Z',
-    updated_at: '2023-01-02T00:00:00Z'
+    updated_at: '2023-01-02T00:00:00Z',
   }
 
   const mockDeathStatistics: DeathStatistics = {
@@ -40,10 +40,10 @@ describe('ProfileView', () => {
       radiation: 2,
       incident: 2,
       exploration: 2,
-      combat: 1
+      combat: 1,
     },
     revivable_count: 3,
-    permanently_dead_count: 7
+    permanently_dead_count: 7,
   }
 
   beforeEach(() => {
@@ -58,12 +58,12 @@ describe('ProfileView', () => {
     authStore.user = {
       id: 'user-123',
       email: 'overseer@vault.com',
-      username: 'Overseer'
+      username: 'Overseer',
     }
 
     router = createRouter({
       history: createMemoryHistory(),
-      routes: [{ path: '/profile', component: ProfileView }]
+      routes: [{ path: '/profile', component: ProfileView }],
     })
 
     vi.clearAllMocks()
@@ -88,8 +88,8 @@ describe('ProfileView', () => {
 
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -101,8 +101,8 @@ describe('ProfileView', () => {
 
       mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -114,8 +114,8 @@ describe('ProfileView', () => {
 
       mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -131,8 +131,8 @@ describe('ProfileView', () => {
 
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
 
       await wrapper.vm.$nextTick()
@@ -144,8 +144,8 @@ describe('ProfileView', () => {
 
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -157,13 +157,13 @@ describe('ProfileView', () => {
     it('should display error message on fetch failure', async () => {
       const errorMessage = 'Failed to fetch profile'
       vi.mocked(axios.get).mockRejectedValueOnce({
-        response: { data: { detail: errorMessage } }
+        response: { data: { detail: errorMessage } },
       })
 
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -173,13 +173,13 @@ describe('ProfileView', () => {
 
     it('should show retry button on error', async () => {
       vi.mocked(axios.get).mockRejectedValueOnce({
-        response: { data: { detail: 'Network error' } }
+        response: { data: { detail: 'Network error' } },
       })
 
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -201,8 +201,8 @@ describe('ProfileView', () => {
 
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -225,8 +225,8 @@ describe('ProfileView', () => {
     it('should display user email from auth store', async () => {
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -236,8 +236,8 @@ describe('ProfileView', () => {
     it('should display bio when provided', async () => {
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -247,8 +247,8 @@ describe('ProfileView', () => {
     it('should display avatar when URL is provided', async () => {
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -260,8 +260,8 @@ describe('ProfileView', () => {
     it('should display preferences as JSON', async () => {
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -273,8 +273,8 @@ describe('ProfileView', () => {
     it('should display created and updated timestamps', async () => {
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -289,8 +289,8 @@ describe('ProfileView', () => {
 
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -303,8 +303,8 @@ describe('ProfileView', () => {
 
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -317,8 +317,8 @@ describe('ProfileView', () => {
 
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -333,8 +333,8 @@ describe('ProfileView', () => {
 
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -347,8 +347,8 @@ describe('ProfileView', () => {
 
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -365,8 +365,8 @@ describe('ProfileView', () => {
 
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -388,8 +388,8 @@ describe('ProfileView', () => {
 
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -408,8 +408,8 @@ describe('ProfileView', () => {
 
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -431,8 +431,8 @@ describe('ProfileView', () => {
 
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -452,8 +452,8 @@ describe('ProfileView', () => {
 
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -471,13 +471,13 @@ describe('ProfileView', () => {
     it('should stay in edit mode if update fails', async () => {
       mockBothApis()
       vi.mocked(axios.put).mockRejectedValueOnce({
-        response: { data: { detail: 'Validation error' } }
+        response: { data: { detail: 'Validation error' } },
       })
 
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -500,8 +500,8 @@ describe('ProfileView', () => {
 
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -519,13 +519,13 @@ describe('ProfileView', () => {
     it('should pass error state to editor', async () => {
       mockBothApis()
       vi.mocked(axios.put).mockRejectedValueOnce({
-        response: { data: { detail: 'Validation error' } }
+        response: { data: { detail: 'Validation error' } },
       })
 
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -550,8 +550,8 @@ describe('ProfileView', () => {
 
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 
@@ -569,13 +569,13 @@ describe('ProfileView', () => {
     it('should clear error when canceling edit mode', async () => {
       mockBothApis()
       vi.mocked(axios.put).mockRejectedValueOnce({
-        response: { data: { detail: 'Update error' } }
+        response: { data: { detail: 'Update error' } },
       })
 
       const wrapper = mount(ProfileView, {
         global: {
-          plugins: [router]
-        }
+          plugins: [router],
+        },
       })
       await flushPromises()
 

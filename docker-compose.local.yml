@@ -74,17 +74,16 @@ services:
       - celery_worker
       - redis
 
-  minio:
-    image: minio/minio
-    container_name: minio
+  rustfs:
+    image: rustfs/rustfs:latest
+    container_name: rustfs
     env_file:
       - .env.local
     ports:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - minio_data_local:/data
-    command: server /data --console-address ":9001"
+      - rustfs_data_local:/data
 
   mailpit:
     image: axllent/mailpit:latest
@@ -125,12 +124,13 @@ services:
     environment:
       - POSTGRES_SERVER=db
       - REDIS_HOST=redis
-      - MINIO_HOSTNAME=minio
+      - RUSTFS_HOSTNAME=rustfs
+      - RUSTFS_PORT=9000
     env_file: ".env.local"
     depends_on:
       db:
         condition: service_healthy
-      minio:
+      rustfs:
         condition: service_started
     ports:
       - "8000:8000"
@@ -157,5 +157,5 @@ services:
 volumes:
   postgres-data-local:
   redis-data-local:
-  minio_data_local:
+  rustfs_data_local:
   ollama_models:

@@ -1,6 +1,6 @@
 # Fallout Shelter Frontend 🎮
 
-> **Terminal-themed Vue 3 application with modern tooling - v2.10.9**
+> **Terminal-themed Vue 3 application with modern tooling - v2.11**
 
 A retro-futuristic frontend for the Fallout Shelter management game, featuring terminal aesthetics, CRT effects,
 and cutting-edge JavaScript tooling.

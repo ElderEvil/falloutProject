@@ -13,15 +13,15 @@ interface ImportMeta {
 }
 
 // Declare vMotion directive from @vueuse/motion
-declare module "@vue/runtime-core" {
+declare module '@vue/runtime-core' {
   export interface GlobalDirectives {
     vMotion: any
   }
 }
 
 // Vue component shim for TypeScript and lint tools
-declare module "*.vue" {
-  import type { DefineComponent } from "vue"
+declare module '*.vue' {
+  import type { DefineComponent } from 'vue'
   const component: DefineComponent<object, object, unknown>
   export default component
 }

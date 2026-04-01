@@ -279,17 +279,6 @@ done
 # Expected: First 100 return 200, next 10 return 429
 ```
 
-### Load Testing
-
-Use locust for realistic load testing:
-
-```bash
-cd backend
-uv run locust -f locust/locustfile.py --host=http://localhost:8000
-```
-
-Monitor rate limiting behavior under load.
-
 ---
 
 ## 📚 API Error Responses

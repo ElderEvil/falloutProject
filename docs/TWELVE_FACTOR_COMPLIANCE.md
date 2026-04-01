@@ -44,13 +44,13 @@ This Fallout Shelter management game demonstrates **strong partial compliance** 
 - `backend/uv.lock` - Lockfile for reproducible builds
 - Virtual environment isolation (`.venv/` in `.gitignore`)
 - Uses `uv` package manager for dependency management
-- Separate dependency groups: `test`, `lint`, `perf`
+- Separate dependency groups: `test`, `lint`
 
 **Frontend (Vue 3/TypeScript)**:
 - `frontend/package.json` - NPM package declarations
 - `frontend/pnpm-lock.yaml` - Locked dependencies
-- Uses `pnpm` package manager (specified: `"packageManager": "pnpm@10.26.2"`)
-- Node version pinned: `.nvmrc` present
+- Uses `pnpm` package manager (specified: `"packageManager": "pnpm@10.28.2"`)
+- Minimum Node and pnpm versions are enforced via `engines` in `frontend/package.json`
 
 **Recommendations**: None - excellent dependency management with modern tooling.
 

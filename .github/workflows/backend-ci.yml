@@ -44,7 +44,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: backend
-        run: uv sync --locked --all-extras
+        run: uv sync --locked
 
       - name: Set up test environment
         working-directory: backend

@@ -1,6 +1,6 @@
 # Fallout Shelter Frontend 🎮
 
-> **Terminal-themed Vue 3 application with modern tooling - v2.10.8**
+> **Terminal-themed Vue 3 application with modern tooling - v2.11.1**
 
 A retro-futuristic frontend for the Fallout Shelter management game, featuring terminal aesthetics, CRT effects,
 and cutting-edge JavaScript tooling.
@@ -41,7 +41,7 @@ and cutting-edge JavaScript tooling.
 ## 📋 Prerequisites
 
 - **Node.js 22+** (required)
-- **pnpm 10.28+** (recommended) or npm
+- **pnpm 10.28+** (required)
 
 ## 🔧 Vite+ Toolchain
 
@@ -112,8 +112,26 @@ Vite+ bundles these tools - no separate installation needed:
 - Import from `vite-plus` in config files: `import { defineConfig } from 'vite-plus'`
 - Don't install `vitest`, `oxlint`, or `oxfmt` separately
 - The npm package `vite-plus` provides the local `vp` wrapper
+- Formatting rules live in `vite.config.ts` under `fmt`; run `pnpm run format` or `pnpm exec vp fmt src`
 
 See [`AGENTS.md`](./AGENTS.md) for Vite+ development guidelines.
+
+## Supply Chain Guardrails
+
+Frontend installs use pnpm hardening to reduce supply-chain risk:
+
+- `frontend/.npmrc` enforces `engine-strict`, blocks exotic transitive sources, and keeps install scripts allowlisted
+- `frontend/pnpm-workspace.yaml` delays new package releases for 7 days via `minimumReleaseAge: 10080`
+
+### Emergency Security Override
+
+The 7-day delay can slow urgent security patches. When a verified fix must ship immediately, only a maintainer with push access to the protected branch should approve the override.
+
+1. Verify the advisory or CVE and the exact safe package version to install.
+2. Add the package name or exact version to `minimumReleaseAgeExclude` in `frontend/pnpm-workspace.yaml`.
+3. Run `pnpm install` and, for direct dependencies, pin the safe version in `frontend/package.json`.
+4. Run `pnpm run lint`, `pnpm run typecheck`, and `pnpm run test:run` before merging.
+5. Keep the PR and CI green, then remove the temporary exclusion in a follow-up commit once the verified version is locked and the emergency window has passed.
 
 ## 🚀 Quick Start
 
@@ -241,14 +259,12 @@ frontend/
 │   └── unit/               # Unit tests (843 tests)
 ├── public/                 # Static files
 ├── STYLEGUIDE.md          # Design system documentation
-├── MIGRATION_GUIDE.md     # Vite+ migration guide
-├── TEST_COVERAGE.md       # Test suite documentation
-├── FRONTEND_IMPROVEMENTS.md  # Recent improvements summary
 ├── package.json           # Dependencies
 ├── pnpm-lock.yaml        # Lockfile
-├── vite.config.ts        # Vite+ configuration
+├── vite.config.ts        # Vite+ configuration (lint + fmt source of truth)
 ├── vitest.config.ts      # Vitest configuration
-├── oxlint.json           # Oxlint configuration
+├── oxlint.json           # Oxlint lint rules and ignore patterns
+├── pnpm-workspace.yaml   # pnpm workspace settings (release-age policy)
 ├── tsconfig.json         # TypeScript configuration
 └── nuxt-ui.config.ts     # Nuxt UI configuration
 ```
@@ -281,8 +297,6 @@ pnpm run test -- --watch
 # Specific file
 pnpm run test tests/unit/stores/auth.test.ts
 ```
-
-See [`TEST_COVERAGE.md`](./TEST_COVERAGE.md) for detailed test documentation.
 
 ## 🛠️ Development
 
@@ -395,9 +409,6 @@ const apiUrl = import.meta.env.VITE_API_URL
 ## 📚 Documentation
 
 - **[STYLEGUIDE.md](./STYLEGUIDE.md)** - Complete design system guide
-- **[MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md)** - Vite+ migration details
-- **[TEST_COVERAGE.md](./TEST_COVERAGE.md)** - Test suite documentation
-- **[FRONTEND_IMPROVEMENTS.md](./FRONTEND_IMPROVEMENTS.md)** - Recent enhancements
 - **[src/components/ui/README.md](./src/components/ui/README.md)** - UI component API
 
 ## 🔧 Troubleshooting

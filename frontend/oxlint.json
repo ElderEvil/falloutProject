@@ -12,14 +12,5 @@
     "NodeJS": "readonly"
   },
   "plugins": ["vue"],
-  "ignorePatterns": ["node_modules", "dist", ".pnpm-store", "*.config.*"],
-  "format": {
-    "indentWidth": 2,
-    "useTabs": false,
-    "lineWidth": 100,
-    "indentStyle": "space",
-    "semicolons": "never",
-    "trailingCommas": "none",
-    "quoteStyle": "single"
-  }
+  "ignorePatterns": ["node_modules", "dist", ".pnpm-store", "*.config.*"]
 }

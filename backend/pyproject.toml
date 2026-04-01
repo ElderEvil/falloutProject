@@ -1,6 +1,6 @@
 [project]
 name = "fallout-shelter-fast-api"
-version = "2.11"
+version = "2.11.1"
 authors = [{ name = "ElderEvil", email = "elder.evil.dev@proton.me" }, ]
 description = "Fallout Shelter FastAPI Game is a web-based simulation game where the player manages a vault full of dwellers, balancing their needs and resources to keep the vault thriving."
 requires-python = ">=3.12,<3.14"
@@ -32,7 +32,7 @@ dependencies = [
     "python-json-logger>=4.0.0",
     "psycopg2>=2.9.11",
     "uvloop>=0.21.0; sys_platform != 'win32'",
-    "fastapi-guard>=4.2.2,<5",
+    "fastapi-guard>=4.2.2,<6",
 ]
 
 [dependency-groups]

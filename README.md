@@ -28,7 +28,7 @@ See [ROADMAP.md](./ROADMAP.md) for recent updates and upcoming features.
 - **uv** (Python package manager):
   - macOS/Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`
   - Windows: `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`
-- **pnpm** (via Corepack): `corepack enable && corepack use pnpm@latest`
+- **pnpm** (via Corepack): `corepack enable && corepack use pnpm@10.28.2`
 
 ## 🚀 Quick Start (Hybrid Development)
 
@@ -45,7 +45,7 @@ docker compose -f docker-compose.infra.yml up -d
 # 3. Setup and run backend (http://localhost:8000)
 cd backend
 cp ../.env .env
-uv sync --all-extras --dev
+uv sync --dev
 uv run alembic upgrade head
 uv run fastapi dev main.py
 
@@ -123,7 +123,7 @@ docker compose logs -f fastapi  # Watch startup (Ctrl+C to exit)
 
 ```bash
 cd backend
-uv sync --all-extras --dev && prek install
+uv sync --dev && prek install
 uv run pytest app/tests/        # Run tests
 uv run ruff check . && uv run ruff format .  # Lint & format
 uv run alembic upgrade head     # Migrations

@@ -1,6 +1,6 @@
 {
   "name": "frontend",
-  "version": "2.10.8",
+  "version": "2.10.9",
   "private": true,
   "type": "module",
   "scripts": {
@@ -26,7 +26,7 @@
     "@nuxt/ui": "^4.5.1",
     "@vueuse/core": "14.2.1",
     "@vueuse/motion": "3.0.3",
-    "axios": "^1.13.6",
+    "axios": "1.13.6",
     "dompurify": "3.3.2",
     "jwt-decode": "4.0.0",
     "pinia": "^3.0.4",
@@ -55,10 +55,19 @@
     "vue-tsc": "^3.2.5"
   },
   "packageManager": "pnpm@10.28.2",
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=10.28.2 <11"
+  },
   "pnpm": {
     "overrides": {
       "vite": "npm:@voidzero-dev/vite-plus-core@latest",
       "vitest": "npm:@voidzero-dev/vite-plus-test@latest"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "@tailwindcss/vite",
+      "@voidzero-dev/vite-plus-core",
+      "@voidzero-dev/vite-plus-test"
+    ]
   }
 }

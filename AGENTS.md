@@ -21,7 +21,7 @@ frontend/src/     # Vue 3 (modules, core, components, stores, services)
 
 ```bash
 cd backend
-uv sync --all-extras --dev
+uv sync --dev
 uv run fastapi dev main.py              # http://localhost:8000
 uv run alembic upgrade head
 ```

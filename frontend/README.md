@@ -133,6 +133,16 @@ The 7-day delay can slow urgent security patches. When a verified fix must ship 
 4. Run `pnpm run lint`, `pnpm run typecheck`, and `pnpm run test:run` before merging.
 5. Keep the PR and CI green, then remove the temporary exclusion in a follow-up commit once the verified version is locked and the emergency window has passed.
 
+## Planned HTTP Client Migration
+
+We plan to deprecate `axios` through a staged migration, but this is not active in the current release.
+The migration plan, phases, risks, and done criteria are tracked in [`HTTP_CLIENT_MIGRATION.md`](./HTTP_CLIENT_MIGRATION.md).
+
+Current policy during planning/migration:
+
+- Avoid introducing new direct `axios` imports in new code.
+- Prefer the shared API boundary in `src/core/utils/api.ts`.
+
 ## 🚀 Quick Start
 
 ### 1. Install pnpm (if not installed)
@@ -410,6 +420,7 @@ const apiUrl = import.meta.env.VITE_API_URL
 
 - **[STYLEGUIDE.md](./STYLEGUIDE.md)** - Complete design system guide
 - **[src/components/ui/README.md](./src/components/ui/README.md)** - UI component API
+- **[HTTP_CLIENT_MIGRATION.md](./HTTP_CLIENT_MIGRATION.md)** - Axios deprecation and migration plan
 
 ## 🔧 Troubleshooting
 

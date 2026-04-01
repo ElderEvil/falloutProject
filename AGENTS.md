@@ -81,7 +81,8 @@ pnpm run types:generate                   # requires backend running at :8000
 ### Lint / Format / Types
 
 Authoritative config:
-- `frontend/oxlint.json` (format: 100 cols, single quotes, no semicolons, 2 spaces)
+- `frontend/vite.config.ts` (`fmt`: 100 cols, single quotes, no semicolons, 2 spaces)
+- `frontend/oxlint.json` (lint rules and ignore patterns)
 - `frontend/tsconfig.app.json` (strict: true, strictTemplates: true)
 
 ```bash
@@ -138,7 +139,7 @@ pnpm run test:e2e:setup
 
 ### Frontend Code Style
 
-- **Formatting**: 100 char line width; single quotes; no semicolons; 2-space indent (`frontend/oxlint.json`).
+- **Formatting**: 100 char line width; single quotes; no semicolons; 2-space indent (`frontend/vite.config.ts` under `fmt`). Run `pnpm run format` or `pnpm exec vp fmt src`.
 - **Imports**: prefer `@/` aliases (`frontend/tsconfig.app.json` paths); order roughly: Vue/core → third-party → `@/` → relative.
 - **Naming**:
   - Components/types: `PascalCase`

@@ -84,18 +84,18 @@ vp check             # Run format, lint, and typecheck
 
 ### Vite+ Features
 
-| Command | Description |
-|---------|-------------|
-| `vp dev` | Development server with HMR |
-| `vp build` | Production build (uses Rolldown) |
-| `vp test` | Run tests with Vitest |
-| `vp lint` | Lint with Oxlint |
-| `vp fmt` | Format with Oxfmt |
-| `vp check` | Run format check, lint, and TypeScript |
-| `vp install` | Install dependencies (wraps pnpm/npm/yarn) |
-| `vp add <pkg>` | Add package to dependencies |
-| `vp run <script>` | Run a package.json script |
-| `vp preview` | Preview production build locally |
+| Command           | Description                                |
+| ----------------- | ------------------------------------------ |
+| `vp dev`          | Development server with HMR                |
+| `vp build`        | Production build (uses Rolldown)           |
+| `vp test`         | Run tests with Vitest                      |
+| `vp lint`         | Lint with Oxlint                           |
+| `vp fmt`          | Format with Oxfmt                          |
+| `vp check`        | Run format check, lint, and TypeScript     |
+| `vp install`      | Install dependencies (wraps pnpm/npm/yarn) |
+| `vp add <pkg>`    | Add package to dependencies                |
+| `vp run <script>` | Run a package.json script                  |
+| `vp preview`      | Preview production build locally           |
 
 ### Bundled Tools
 

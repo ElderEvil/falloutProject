@@ -5,7 +5,6 @@ import { defineConfig } from 'vite-plus'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 import ui from '@nuxt/ui/vite'
-import { visualizer } from 'rollup-plugin-visualizer'
 
 // Read version from package.json
 const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'))
@@ -31,20 +30,7 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
   },
-  plugins: [
-    vue(),
-    ui(),
-    tailwindcss(),
-    // Bundle analyzer - run with ANALYZE=true
-    process.env.ANALYZE
-      ? visualizer({
-          open: true,
-          filename: 'dist/stats.html',
-          gzipSize: true,
-          brotliSize: true,
-        })
-      : null,
-  ].filter(Boolean) as any,
+  plugins: [vue(), ui(), tailwindcss()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

@@ -64,7 +64,7 @@ describe('Objectives Store', () => {
       })
 
       it('should use correct API endpoint format (bug fix validation)', async () => {
-        // This test validates our fix: changed from /api/v1/${vaultId}/ to /api/v1/objectives/${vaultId}/
+        // This test validates our fix: changed base path to /api/v1/objectives/${vaultId}/
         vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
 
         await objectivesStore.fetchObjectives('abc-123')

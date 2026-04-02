@@ -22,11 +22,13 @@ No runtime behavior changes are part of this planning update.
 - Tests: 845 passed, 1 skipped.
 - Build artifact currently includes an axios chunk (`dist/assets/axios-*.js`) around 36 kB (about 14 kB gzip).
 - Axios coupling includes:
-  - `src/core/plugins/axios.ts` is the main coupling point (29 files import `apiClient` from `@/core/plugins/axios`)
+  - `src/core/plugins/axios.ts` is the main coupling point (29 files import from `@/core/plugins/axios` across `src`, 25 under `src/modules`)
   - `src/core/utils/api.ts` is only an optional typed wrapper used by ~2 files
-  - Many files (e.g., authService.ts, storageService.ts, equipment.ts and 26+ others) import directly from `@/core/plugins/axios`
+  - Shared types/helpers in `src/core/types/utils.ts`
+  - Many files (e.g., authService.ts, storageService.ts, equipment.ts and many others) import directly from `@/core/plugins/axios`
   - 6 files also import Axios types directly from `axios` (AxiosResponse, AxiosError)
   - Centralized interceptor/token refresh flow located in `src/core/plugins/axios.ts` (lines 64-232)
+  - Guardrail policy below is the target for new/updated code during migration, not the current baseline usage.
 
 ## Migration phases
 
@@ -81,7 +83,7 @@ No runtime behavior changes are part of this planning update.
 
 ## Guardrail policy during transition
 
-- **Prohibited**: Any new direct imports from the `axios` package (e.g., `import axios from 'axios'`).
+- **Prohibited**: Any new direct runtime imports from the `axios` package (e.g., `import axios from 'axios'`) (type-only imports like `import type { AxiosResponse } from 'axios'` are allowed).
 - **Prohibited**: Any new direct plugin-level axios consumers (e.g., `import apiClient from '@/core/plugins/axios'`).
 - **Required**: Use the centralized HTTP boundary in `src/core/utils/api.ts` for runtime calls (e.g., `apiGet`, `apiPost`, `apiPut`, `apiPatch`, `apiDelete`).
 - **Allowed**: Type-only imports from `axios` for typing purposes only (e.g., `import type { AxiosResponse } from 'axios'`), but prefer migrating to adapter-compatible types.

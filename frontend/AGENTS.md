@@ -7,6 +7,7 @@ This project uses [Vite+](https://viteplus.dev/), a unified toolchain built on V
 ## Two Ways to Use Vite+
 
 **Option 1: pnpm scripts (no global installation required)**
+
 ```bash
 pnpm run dev          # Development server
 pnpm run build        # Production build
@@ -15,6 +16,7 @@ pnpm run lint         # Lint code
 ```
 
 **Option 2: Global Vite+ CLI (install once)**
+
 ```bash
 # Install globally
 curl -fsSL https://viteplus.dev/install.sh | sh

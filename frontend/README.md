@@ -84,18 +84,18 @@ vp check             # Run format, lint, and typecheck
 
 ### Vite+ Features
 
-| Command | Description |
-|---------|-------------|
-| `vp dev` | Development server with HMR |
-| `vp build` | Production build (uses Rolldown) |
-| `vp test` | Run tests with Vitest |
-| `vp lint` | Lint with Oxlint |
-| `vp fmt` | Format with Oxfmt |
-| `vp check` | Run format check, lint, and TypeScript |
-| `vp install` | Install dependencies (wraps pnpm/npm/yarn) |
-| `vp add <pkg>` | Add package to dependencies |
-| `vp run <script>` | Run a package.json script |
-| `vp preview` | Preview production build locally |
+| Command           | Description                                |
+| ----------------- | ------------------------------------------ |
+| `vp dev`          | Development server with HMR                |
+| `vp build`        | Production build (uses Rolldown)           |
+| `vp test`         | Run tests with Vitest                      |
+| `vp lint`         | Lint with Oxlint                           |
+| `vp fmt`          | Format with Oxfmt                          |
+| `vp check`        | Run format check, lint, and TypeScript     |
+| `vp install`      | Install dependencies (wraps pnpm/npm/yarn) |
+| `vp add <pkg>`    | Add package to dependencies                |
+| `vp run <script>` | Run a package.json script                  |
+| `vp preview`      | Preview production build locally           |
 
 ### Bundled Tools
 
@@ -137,6 +137,8 @@ The 7-day delay can slow urgent security patches. When a verified fix must ship 
 
 We plan to deprecate `axios` through a staged migration, but this is not active in the current release.
 The migration plan, phases, risks, and done criteria are tracked in [`HTTP_CLIENT_MIGRATION.md`](./HTTP_CLIENT_MIGRATION.md).
+Today, `src/core/utils/api.ts` is an optional/aspirational wrapper (used by ~2 files) while many files still import
+from `@/core/plugins/axios`; the preference for the shared boundary will become enforced during the staged migration.
 
 Current policy during planning/migration:
 

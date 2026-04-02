@@ -50,7 +50,12 @@ vi.mock('@/core/composables/useToast', () => ({
 }))
 
 // Helper to create consistent drop event payloads
-function createDropEvent(dwellerId: string, firstName: string, lastName: string, currentRoomId: string | null) {
+function createDropEvent(
+  dwellerId: string,
+  firstName: string,
+  lastName: string,
+  currentRoomId: string | null
+) {
   return {
     dataTransfer: {
       getData: () =>

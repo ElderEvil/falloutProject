@@ -7,7 +7,6 @@
     "types:generate": "openapi-typescript http://localhost:8000/api/v1/openapi.json -o src/core/types/api.generated.ts",
     "dev": "pnpm types:generate && vp dev",
     "build": "vp build",
-    "build:with-types": "pnpm types:generate && vue-tsc -b && vp build",
     "preview": "vp preview",
     "test": "vp test",
     "test:run": "vp test run",
@@ -15,8 +14,7 @@
     "lint:fix": "vp lint src --fix",
     "format": "vp fmt src",
     "format:check": "vp fmt src --check",
-    "typecheck": "vue-tsc --noEmit",
-    "ci": "pnpm run lint && pnpm run typecheck && pnpm run test:run"
+    "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
     "@iconify/vue": "5.0.0",

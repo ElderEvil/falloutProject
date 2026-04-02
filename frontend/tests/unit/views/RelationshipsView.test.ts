@@ -110,7 +110,7 @@ describe('RelationshipsView', () => {
 
   describe('Rendering', () => {
     it('should render relationships view with header', async () => {
-      mount(RelationshipsView, {
+      const wrapper = mount(RelationshipsView, {
         global: {
           plugins: [router],
         },
@@ -122,7 +122,7 @@ describe('RelationshipsView', () => {
     })
 
     it('should render all four tabs', async () => {
-      mount(RelationshipsView, {
+      const wrapper = mount(RelationshipsView, {
         global: {
           plugins: [router],
         },
@@ -137,7 +137,7 @@ describe('RelationshipsView', () => {
     })
 
     it('should render stats overview cards', async () => {
-      mount(RelationshipsView, {
+      const wrapper = mount(RelationshipsView, {
         global: {
           plugins: [router],
         },

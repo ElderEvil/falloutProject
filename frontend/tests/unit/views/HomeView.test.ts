@@ -11,7 +11,6 @@ vi.mock('@/core/plugins/axios')
 
 describe('HomeView', () => {
   let router: any
-  let authStore: any
   let vaultStore: any
 
   beforeEach(() => {
@@ -30,7 +29,7 @@ describe('HomeView', () => {
       })
     )
 
-    authStore = useAuthStore()
+    useAuthStore()
     vaultStore = useVaultStore()
 
     router = createRouter({

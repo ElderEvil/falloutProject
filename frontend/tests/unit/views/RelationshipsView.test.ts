@@ -448,7 +448,7 @@ describe('RelationshipsView', () => {
     it('should fetch all data on mount', async () => {
       await router.isReady()
 
-      const wrapper = mount(RelationshipsView, {
+      mount(RelationshipsView, {
         global: {
           plugins: [router],
         },

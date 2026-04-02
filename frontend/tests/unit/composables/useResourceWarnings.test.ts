@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useResourceWarnings } from '@/composables/useResourceWarnings'
-import { ref, nextTick } from 'vue'
+import { nextTick } from 'vue'
 import { setActivePinia, createPinia } from 'pinia'
 
 const mockToastError = vi.fn()

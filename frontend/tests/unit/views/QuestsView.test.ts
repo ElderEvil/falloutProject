@@ -16,13 +16,13 @@ describe('QuestsView', () => {
   let wrapper: VueWrapper
   let questStore: ReturnType<typeof useQuestStore>
   let roomStore: ReturnType<typeof useRoomStore>
-  let vaultStore: ReturnType<typeof useVaultStore>
+  let _vaultStore: ReturnType<typeof useVaultStore>
 
   beforeEach(() => {
     setActivePinia(createPinia())
     questStore = useQuestStore()
     roomStore = useRoomStore()
-    vaultStore = useVaultStore()
+    _vaultStore = useVaultStore()
 
     vi.clearAllMocks()
 

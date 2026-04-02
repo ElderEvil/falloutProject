@@ -16,6 +16,14 @@ AI-powered dweller interactions.
 **Planned:**
 - [ ] Additional feature or improvement
 
+**Current update:**
+- ✅ Frontend dependency/config trimming pass completed (safe-only)
+  - Removed optional `rollup-plugin-visualizer` from frontend devDependencies
+  - Simplified Vite/Vitest config typing cleanup (removed `as any` config casts)
+- ✅ Declared intent for staged axios deprecation (no runtime behavior change yet)
+  - Added migration plan: `frontend/HTTP_CLIENT_MIGRATION.md`
+  - Added guardrail: avoid introducing new direct `axios` imports in new code
+
 ---
 
 ## Latest Release

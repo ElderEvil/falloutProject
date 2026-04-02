@@ -99,7 +99,7 @@ describe('Objectives Store', () => {
 
         try {
           await objectivesStore.fetchObjectives('vault-123')
-        } catch (e) {
+        } catch {
           // Expected to throw
         }
 
@@ -161,7 +161,7 @@ describe('Objectives Store', () => {
 
         try {
           await objectivesStore.addObjective('vault-123', { challenge: 'Test' })
-        } catch (e) {
+        } catch {
           // Expected to throw
         }
 
@@ -220,7 +220,7 @@ describe('Objectives Store', () => {
 
         try {
           await objectivesStore.getObjective('vault-123', 'obj-1')
-        } catch (e) {
+        } catch {
           // Expected to throw
         }
 

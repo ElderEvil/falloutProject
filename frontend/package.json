@@ -11,9 +11,6 @@
     "preview": "vp preview",
     "test": "vp test",
     "test:run": "vp test run",
-    "test:e2e": "playwright test --config=tests/e2e/playwright.config.ts",
-    "test:e2e:ui": "playwright test --config=tests/e2e/playwright.config.ts --ui",
-    "test:e2e:setup": "playwright test --config=tests/e2e/playwright.config.ts --project=chromium --reporter=list tests/e2e/support/e2e.setup.ts",
     "lint": "vp lint src",
     "lint:fix": "vp lint src --fix",
     "format": "vp fmt src",
@@ -35,34 +32,33 @@
     "zod": "4.3.6"
   },
   "devDependencies": {
-    "@playwright/test": "1.58.2",
     "@tailwindcss/vite": "^4.2.2",
     "@tsconfig/node22": "^22.0.5",
     "@types/dompurify": "3.2.0",
     "@types/jsdom": "28.0.1",
     "@types/node": "^25.5.0",
     "@vitejs/plugin-vue": "^6.0.5",
+    "@vitest/ui": "4.1.1",
     "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.9.1",
     "jsdom": "^29.0.0",
     "openapi-typescript": "7.13.0",
-    "rollup-plugin-visualizer": "7.0.1",
     "tailwindcss": "^4.2.2",
     "typescript": "^5.9.3",
     "vite": "npm:@voidzero-dev/vite-plus-core@latest",
     "vite-plus": "latest",
-    "vitest": "npm:@voidzero-dev/vite-plus-test@latest",
+    "vitest": "npm:@voidzero-dev/vite-plus-test@0.1.14",
     "vue-tsc": "^3.2.6"
   },
-  "packageManager": "pnpm@10.28.2",
   "engines": {
     "node": ">=22",
     "pnpm": ">=10.28.2 <11"
   },
+  "packageManager": "pnpm@10.28.2",
   "pnpm": {
     "overrides": {
       "vite": "npm:@voidzero-dev/vite-plus-core@latest",
-      "vitest": "npm:@voidzero-dev/vite-plus-test@latest"
+      "vitest": "npm:@voidzero-dev/vite-plus-test@0.1.14"
     },
     "onlyBuiltDependencies": [
       "@tailwindcss/vite",

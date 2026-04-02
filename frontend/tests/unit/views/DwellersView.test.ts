@@ -13,10 +13,10 @@ vi.mock('@/core/plugins/axios')
 
 describe('DwellersView', () => {
   let router: any
-  let authStore: any
-  let dwellerStore: any
+  let _authStore: any
+  let _dwellerStore: any
   let vaultStore: any
-  let roomStore: any
+  let _roomStore: any
 
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -32,10 +32,10 @@ describe('DwellersView', () => {
       })
     )
 
-    authStore = useAuthStore()
-    dwellerStore = useDwellerStore()
+    _authStore = useAuthStore()
+    _dwellerStore = useDwellerStore()
     vaultStore = useVaultStore()
-    roomStore = useRoomStore()
+    _roomStore = useRoomStore()
 
     // Mock vault
     vaultStore.loadedVaults['vault-1'] = {

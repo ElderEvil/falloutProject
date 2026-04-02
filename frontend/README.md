@@ -137,6 +137,8 @@ The 7-day delay can slow urgent security patches. When a verified fix must ship 
 
 We plan to deprecate `axios` through a staged migration, but this is not active in the current release.
 The migration plan, phases, risks, and done criteria are tracked in [`HTTP_CLIENT_MIGRATION.md`](./HTTP_CLIENT_MIGRATION.md).
+Today, `src/core/utils/api.ts` is an optional/aspirational wrapper (used by ~2 files) while many files still import
+from `@/core/plugins/axios`; the preference for the shared boundary will become enforced during the staged migration.
 
 Current policy during planning/migration:
 

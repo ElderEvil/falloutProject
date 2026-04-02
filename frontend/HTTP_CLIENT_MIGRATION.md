@@ -22,9 +22,11 @@ No runtime behavior changes are part of this planning update.
 - Tests: 845 passed, 1 skipped.
 - Build artifact currently includes an axios chunk (`dist/assets/axios-*.js`) around 36 kB (about 14 kB gzip).
 - Axios coupling includes:
-  - centralized interceptor/token refresh flow in `src/core/plugins/axios.ts`
-  - shared helpers in `src/core/utils/api.ts` and `src/core/types/utils.ts`
-  - direct usage across stores/services/views and unit tests
+  - `src/core/plugins/axios.ts` is the main coupling point (29 files import `apiClient` from `@/core/plugins/axios`)
+  - `src/core/utils/api.ts` is only an optional typed wrapper used by ~2 files
+  - Many files (e.g., authService.ts, storageService.ts, equipment.ts and 26+ others) import directly from `@/core/plugins/axios`
+  - 6 files also import Axios types directly from `axios` (AxiosResponse, AxiosError)
+  - Centralized interceptor/token refresh flow located in `src/core/plugins/axios.ts` (lines 64-232)
 
 ## Migration phases
 
@@ -39,15 +41,23 @@ No runtime behavior changes are part of this planning update.
    - Keep public helper function signatures stable where practical.
 
 3. Call-site migration (incremental)
+   - Scan and identify all direct imports of `@/core/plugins/axios` (29 files).
+   - Scan and identify all type imports from `axios` (6 files importing AxiosResponse, AxiosError).
    - Migrate stores/services/composables in small batches.
-   - Replace direct axios imports with adapter/helper usage.
+   - Replace direct `apiClient` imports from `@/core/plugins/axios` with adapter/helper usage from `src/core/utils/api.ts`.
+   - Replace direct Axios type imports with adapter-compatible types.
    - Keep each batch test-backed and releasable.
 
-4. Test migration
+4. Interceptor/token refresh migration
+   - Consolidate or adapt the interceptor/token refresh flow from `src/core/plugins/axios.ts` (lines 64-232) into the new fetch-based adapter.
+   - Preserve auth header injection, refresh-on-401 flow, error notification handling, and retry logic.
+   - Ensure localStorage token management helpers are reused or adapted for the new adapter.
+
+5. Test migration
    - Replace axios mocks with adapter mocks.
    - Ensure behavior tests still cover auth refresh and error handling.
 
-5. Decommission axios
+6. Decommission axios
    - Remove remaining axios imports.
    - Remove `axios` from `package.json`.
    - Remove obsolete plugin/re-export files once references are zero.
@@ -71,6 +81,11 @@ No runtime behavior changes are part of this planning update.
 
 ## Guardrail policy during transition
 
-- Do not add new direct axios imports in new code.
-- Prefer `src/core/utils/api.ts` (or the new adapter) as the only HTTP boundary.
-- If legacy axios usage is required temporarily, isolate it and add a migration TODO in the same file.
+- **Prohibited**: Any new direct imports from the `axios` package (e.g., `import axios from 'axios'`).
+- **Prohibited**: Any new direct plugin-level axios consumers (e.g., `import apiClient from '@/core/plugins/axios'`).
+- **Required**: Use the centralized HTTP boundary in `src/core/utils/api.ts` for runtime calls (e.g., `apiGet`, `apiPost`, `apiPut`, `apiPatch`, `apiDelete`).
+- **Allowed**: Type-only imports from `axios` for typing purposes only (e.g., `import type { AxiosResponse } from 'axios'`), but prefer migrating to adapter-compatible types.
+- **Legacy code**: If legacy direct axios usage already exists:
+  - Wrap it with a `// TODO: Migrate to src/core/utils/api.ts - see HTTP_CLIENT_MIGRATION.md` comment.
+  - Immediately replace direct calls with the adapter/api functions (use `apiGet`, `apiPost`, etc. from `src/core/utils/api.ts`).
+  - If a specific pattern is not yet supported, add a short-term shim in `src/core/utils/api.ts` that delegates to `apiClient` and add a migration note pointing to `api.ts` as the single source of truth.

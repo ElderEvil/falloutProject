@@ -6,8 +6,7 @@ Provides rate limiting, IP filtering, and security protection for the API.
 
 import logging
 
-from guard.handlers.ipinfo_handler import IPInfoManager
-from guard.models import SecurityConfig
+from guard import IPInfoManager, SecurityConfig
 
 from app.core.config import settings
 
@@ -28,7 +27,7 @@ def create_security_config() -> SecurityConfig:
             geo_ip_handler = IPInfoManager(settings.IPINFO_TOKEN)
             logger.info("IPInfo geolocation enabled")
         except (ValueError, RuntimeError) as e:
-            logger.warning(f"Failed to initialize IPInfo handler: {e}")
+            logger.warning("Failed to initialize IPInfo handler: %s", e)
 
     config = SecurityConfig(
         # Rate Limiting

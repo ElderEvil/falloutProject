@@ -6,6 +6,7 @@ import time
 from pydantic import UUID4
 
 from app.core.celery import celery_app
+from app.services.cleanup_service import cleanup_service
 from app.services.death_service import death_service
 from app.services.game_loop import game_loop_service
 
@@ -288,4 +289,43 @@ def refresh_weekly_objectives_task(self):
         raise self.retry(exc=e, countdown=3600) from e
     else:
         logger.info(f"Weekly objectives refresh completed: {result}")
+        return result
+
+
+@celery_app.task(name="cleanup_old_records", bind=True)
+def cleanup_old_records_task(self):
+    try:
+        logger.info("Starting cleanup of old incidents and notifications")
+
+        async def run_cleanup():
+            from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+            from app.core.config import settings
+
+            engine = create_async_engine(
+                str(settings.ASYNC_DATABASE_URI),
+                echo=False,
+                future=True,
+                pool_pre_ping=True,
+                connect_args={"server_settings": {"timezone": "UTC"}},
+            )
+            session_maker = async_sessionmaker(engine, expire_on_commit=False)
+
+            try:
+                async with session_maker() as session:
+                    incidents_deleted = await cleanup_service.cleanup_old_incidents(session)
+                    notifications_deleted = await cleanup_service.cleanup_old_notifications(session)
+                    return {
+                        "incidents_deleted": incidents_deleted,
+                        "notifications_deleted": notifications_deleted,
+                    }
+            finally:
+                await engine.dispose()
+
+        result = asyncio.run(run_cleanup())
+    except Exception as e:
+        logger.exception("Cleanup of old records failed")
+        raise self.retry(exc=e, countdown=3600) from e
+    else:
+        logger.info(f"Cleanup completed: {result}")
         return result

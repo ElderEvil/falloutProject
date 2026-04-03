@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import EmailStr, PostgresDsn, field_validator, model_validator
+from pydantic import EmailStr, Field, PostgresDsn, field_validator, model_validator
 from pydantic_core.core_schema import FieldValidationInfo
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -140,6 +140,10 @@ class Settings(BaseSettings):
     LOG_JSON_FORMAT: bool = False  # True for production (JSON), False for development (human-readable)
     LOG_FILE_PATH: str | None = None  # Optional: "/var/log/fallout_shelter/app.log"
     LOG_FILE_RETENTION_DAYS: int = 14  # Number of days to retain log files
+
+    INCIDENT_RETENTION_DAYS: int = Field(default=7, ge=1)
+    NOTIFICATION_RETENTION_DAYS: int = Field(default=30, ge=1)
+    CLEANUP_BATCH_SIZE: int = Field(default=500, ge=1, le=10_000)
 
     # Logfire Observability (optional)
     LOGFIRE_TOKEN: str | None = None  # Get token from https://logfire.pydantic.dev

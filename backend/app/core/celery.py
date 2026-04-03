@@ -40,6 +40,11 @@ celery_app.conf.beat_schedule = {
         "task": "refresh_weekly_objectives",
         "schedule": crontab(minute=0, hour=0, day_of_week="monday"),
     },
+    "cleanup-old-records": {
+        "task": "cleanup_old_records",
+        "schedule": 86400.0,
+        "options": {"expires": 82800},
+    },
 }
 
 celery_app.conf.timezone = "UTC"

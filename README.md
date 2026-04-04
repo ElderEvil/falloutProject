@@ -11,6 +11,8 @@ vault thriving. Built with modern Python tooling.
 
 See [ROADMAP.md](./ROADMAP.md) for recent updates and upcoming features.
 
+**Keywords:** fallout shelter, vault management, simulation game, python, fastapi, vue, typescript, postgresql, redis
+
 ## ✨ Tech Stack
 
 **Backend:** FastAPI · SQLModel · PostgreSQL 18 · Celery · Redis · MinIO · PydanticAI

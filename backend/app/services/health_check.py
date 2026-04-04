@@ -7,14 +7,11 @@ from enum import StrEnum
 import aiosmtplib
 import httpx
 from botocore.exceptions import ClientError
-from minio import Minio
-from minio.error import S3Error
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine
-from urllib3.exceptions import MaxRetryError
 
 from app.core.config import settings
 
@@ -156,62 +153,6 @@ class HealthCheckService:
                 status=ServiceStatus.UNHEALTHY,
                 message=f"Celery check failed: {e!s}",
                 details={"error": str(e), "recommendation": "Check if Redis is running and workers are started"},
-            )
-
-    @staticmethod
-    def check_minio() -> HealthCheckResult:
-        """
-        Check MinIO connectivity and bucket access.
-
-        Returns:
-            HealthCheckResult with connection status
-        """
-        # Check if MinIO is configured
-        if not settings.minio_enabled:
-            return HealthCheckResult(
-                service="minio",
-                status=ServiceStatus.DEGRADED,
-                message="MinIO not configured (optional service)",
-                details={"configured": False, "note": "Image/audio upload features disabled"},
-            )
-
-        try:
-            client = Minio(
-                f"{settings.MINIO_HOSTNAME}:{settings.MINIO_PORT}",
-                access_key=settings.MINIO_ROOT_USER,
-                secret_key=settings.MINIO_ROOT_PASSWORD,
-                secure=False,
-            )
-
-            # Test connection by listing buckets
-            buckets = client.list_buckets()
-            bucket_names = [bucket.name for bucket in buckets]
-
-            return HealthCheckResult(
-                service="minio",
-                status=ServiceStatus.HEALTHY,
-                message="MinIO connection successful",
-                details={
-                    "host": settings.MINIO_HOSTNAME,
-                    "port": settings.MINIO_PORT,
-                    "buckets": bucket_names,
-                },
-            )
-        except S3Error as e:
-            logger.warning("MinIO health check failed (non-critical): %s", e)
-            return HealthCheckResult(
-                service="minio",
-                status=ServiceStatus.DEGRADED,
-                message=f"MinIO connection failed (optional service): {e!s}",
-                details={"host": settings.MINIO_HOSTNAME, "error": str(e)},
-            )
-        except (OSError, ValueError, MaxRetryError) as e:
-            logger.warning("MinIO health check failed (non-critical): %s", e)
-            return HealthCheckResult(
-                service="minio",
-                status=ServiceStatus.DEGRADED,
-                message=f"MinIO connection failed (optional service): {e!s}",
-                details={"host": settings.MINIO_HOSTNAME, "error": str(e)},
             )
 
     @staticmethod
@@ -458,10 +399,6 @@ class HealthCheckService:
         # Check Redis
         redis_result = await self.check_redis()
         results["redis"] = redis_result
-
-        # Check MinIO
-        minio_result = self.check_minio()
-        results["minio"] = minio_result
 
         # Check RustFS
         rustfs_result = self.check_rustfs()

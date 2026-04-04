@@ -9,6 +9,70 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.11.6] - 2026-04-04
+
+### Chores
+
+- **Version Bump** - Updated backend and frontend versions to 2.11.6
+- **Lockfiles** - Regenerated backend `uv.lock` for the release
+
+---
+
+## [2.11.5] - 2026-04-04
+
+### Fixed
+
+- **Auth Guard Imports** - Aligned FastAPI guard imports for v5 compatibility
+- **Health Check** - Removed deprecated MinIO health check wiring
+
+### Tests
+
+- **Middleware Tests** - Added security middleware test package initialization
+- **Health Check Tests** - Added coverage for service health checks
+
+---
+
+## [2.11.4] - 2026-04-03
+
+### Chores
+
+- **Cleanup Job** - Added scheduled cleanup for stale incidents
+
+---
+
+## [2.11.3] - 2026-04-02
+
+### Chores
+
+- **Docs & Test Config** - Updated documentation and test configuration for the 2.11.3 release
+- **Maintenance** - Removed stale backend backup test file and trimmed frontend scripts
+- **HTTP Client Migration** - Aligned staged migration documentation
+- **Lockfiles** - Refreshed backend `uv.lock`
+
+---
+
+## [2.11.2] - 2026-04-02
+
+### Chores
+
+- **Frontend Tooling** - Enabled Vitest UI and removed the Vite visualizer plugin
+- **Testing** - Cleaned test lint warnings and removed the frontend E2E test suite
+- **Docs** - Documented staged axios migration
+
+### Fixed
+
+- **Test Helpers** - Restored wrapper usage in relationships tests
+
+---
+
+## [2.11.1] - 2026-04-01
+
+### Chores
+
+- **Release Cleanup** - Purged 2.11.1 release artifacts
+
+---
+
 ## [2.11.0] - 2026-03-19
 
 ### Migrated

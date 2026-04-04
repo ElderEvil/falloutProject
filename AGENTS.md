@@ -141,6 +141,17 @@ When a bug is reported:
 2. **Delegate the fix to subagents** (provide the failing test file + repro steps).
 3. **Prove the fix** by running the test and ensuring it passes (and run the relevant suite).
 
+## Release Version Bump Workflow
+
+When cutting a release branch or version bump:
+
+1. Update backend version in `backend/pyproject.toml`.
+2. Regenerate the backend lockfile: `cd backend && uv lock`.
+3. Update frontend version in `frontend/package.json`.
+4. Sync frontend lockfile when needed: `cd frontend && pnpm install`.
+5. Commit backend and frontend version changes separately (backend `pyproject.toml` + `uv.lock`, frontend `package.json`).
+6. Push the release branch and keep unrelated files untracked.
+
 ## Repo Guardrails
 
 1. Never push to git without explicit approval.

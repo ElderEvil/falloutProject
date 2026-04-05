@@ -131,6 +131,8 @@ uv run ruff check . && uv run ruff format .  # Lint & format
 uv run alembic upgrade head     # Migrations
 ```
 
+**Timestamp convention:** store and compare timestamps as naive UTC (`datetime.utcnow()`), with the DB connection pinned to UTC.
+
 ### Frontend
 
 ```bash

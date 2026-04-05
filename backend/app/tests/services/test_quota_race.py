@@ -4,7 +4,7 @@ These tests verify that the SELECT FOR UPDATE locking prevents race conditions
 when multiple concurrent requests attempt to check and use quota simultaneously.
 """
 
-from datetime import UTC, datetime, timezone
+from datetime import datetime
 from uuid import UUID
 
 import pytest
@@ -147,8 +147,8 @@ async def test_concurrent_quota_checks_no_over_usage(
     )
 
     # Verify total usage is exactly 100 tokens (no over-usage)
-    now = datetime.now(UTC)
-    current_month_start = datetime(now.year, now.month, 1, tzinfo=UTC)
+    now = datetime.utcnow()
+    current_month_start = datetime(now.year, now.month, 1)
 
     usage_query = select(col(LLMInteraction.total_tokens)).where(
         col(LLMInteraction.user_id) == user_id,
@@ -204,8 +204,8 @@ async def test_sequential_quota_checks_correct_counting(
     assert successful_requests == 5, f"Expected 5 successful requests, got {successful_requests}"
 
     # Verify total usage
-    now = datetime.now(UTC)
-    current_month_start = datetime(now.year, now.month, 1, tzinfo=UTC)
+    now = datetime.utcnow()
+    current_month_start = datetime(now.year, now.month, 1)
 
     usage_query = select(col(LLMInteraction.total_tokens)).where(
         col(LLMInteraction.user_id) == user_id,
@@ -252,8 +252,8 @@ async def test_quota_prevents_over_usage_with_isolated_sessions(
     assert failures == NUM_CONCURRENT_REQUESTS - EXPECTED_SUCCESSFUL_REQUESTS
 
     # Verify total usage equals successful requests times tokens per request
-    now = datetime.now(UTC)
-    current_month_start = datetime(now.year, now.month, 1, tzinfo=UTC)
+    now = datetime.utcnow()
+    current_month_start = datetime(now.year, now.month, 1)
 
     usage_query = select(col(LLMInteraction.total_tokens)).where(
         col(LLMInteraction.user_id) == user_id,

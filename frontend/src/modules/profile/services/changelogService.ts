@@ -1,4 +1,4 @@
-import { apiGet } from '@/core/utils/api'
+import apiClient from '@/core/plugins/axios'
 
 export interface ChangelogEntry {
   version: string
@@ -16,21 +16,19 @@ class ChangelogService {
   private readonly baseUrl = '/api/v1/system/changelog'
 
   async getChangelog(options?: { limit?: number; since?: string }): Promise<ChangelogEntry[]> {
-    const params = new URLSearchParams()
+    const params: Record<string, number | string> = {}
 
-    if (options?.limit) {
-      params.append('limit', options.limit.toString())
+    if (options?.limit !== undefined) {
+      params.limit = options.limit
     }
 
     if (options?.since) {
-      params.append('since', options.since)
+      params.since = options.since
     }
 
-    const url = `${this.baseUrl}?${params.toString()}`
-
     try {
-      const result = await apiGet<ChangelogEntry[]>(url)
-      return result
+      const response = await apiClient.get<ChangelogEntry[]>(this.baseUrl, { params })
+      return response.data
     } catch (error) {
       if (error instanceof Error) {
         console.error('Changelog API error:', error.message)
@@ -43,7 +41,8 @@ class ChangelogService {
 
   async getLatestChangelog(): Promise<ChangelogEntry | null> {
     try {
-      return await apiGet<ChangelogEntry>(`${this.baseUrl}/latest`)
+      const response = await apiClient.get<ChangelogEntry>(`${this.baseUrl}/latest`)
+      return response.data
     } catch (error: any) {
       if (error?.response?.status === 404) {
         // 404 is expected when no changelog exists

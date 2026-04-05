@@ -30,6 +30,16 @@ def create_security_config() -> SecurityConfig:
             logger.warning("Failed to initialize IPInfo handler: %s", e)
 
     config = SecurityConfig(
+        exclude_paths=[
+            "/docs",
+            "/redoc",
+            "/openapi.json",
+            "/openapi.yaml",
+            "/favicon.ico",
+            "/static",
+            "/api/v1/system/changelog",
+            "/api/v1/system/changelog/latest",
+        ],
         # Rate Limiting
         rate_limit=settings.RATE_LIMIT_REQUESTS,
         rate_limit_window=settings.RATE_LIMIT_WINDOW,

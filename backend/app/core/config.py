@@ -11,7 +11,11 @@ class Settings(BaseSettings):
     API_V1_STR: str = f"/api/{API_VERSION}"
     PROJECT_NAME: str = "Fallout Shelter API"
     ENVIRONMENT: Literal["local", "staging", "production"] = "local"
-    BACKEND_CORS_ORIGINS: list[str] = ["*"]
+    BACKEND_CORS_ORIGINS: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://fallout.evillab.dev",
+    ]
 
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
@@ -233,6 +237,12 @@ class Settings(BaseSettings):
                 "Either configure RustFS settings or change STORAGE_PROVIDER to 'minio'."
             )
             raise ValueError(msg)
+        return self
+
+    @model_validator(mode="after")
+    def ensure_frontend_origin(self) -> "Settings":
+        if self.FRONTEND_URL and self.FRONTEND_URL not in self.BACKEND_CORS_ORIGINS:
+            self.BACKEND_CORS_ORIGINS.append(self.FRONTEND_URL)
         return self
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

@@ -9,7 +9,7 @@ Cache invalidation happens in record_usage() to ensure fresh quota data.
 
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -110,8 +110,8 @@ class QuotaService:
 
         quota_limit = user.monthly_token_limit if user.monthly_token_limit is not None else DEFAULT_QUOTA_LIMIT
 
-        now = datetime.now(UTC)
-        current_month_start = datetime(now.year, now.month, 1, tzinfo=UTC)
+        now = datetime.utcnow()
+        current_month_start = datetime(now.year, now.month, 1)
 
         usage_query = select(func.coalesce(func.sum(col(LLMInteraction.total_tokens)), 0).label("total_used")).where(
             col(LLMInteraction.user_id) == user_id,

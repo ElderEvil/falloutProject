@@ -6,6 +6,11 @@ from sqlmodel import Field, SQLModel
 
 
 class TimeStampMixin(SQLModel):
+    """Store timestamps as naive UTC (no tzinfo).
+
+    The database connection is pinned to UTC, so naive datetimes are treated as UTC.
+    """
+
     created_at: datetime | None = Field(default_factory=datetime.utcnow)
     updated_at: datetime | None = Field(
         default_factory=datetime.utcnow,

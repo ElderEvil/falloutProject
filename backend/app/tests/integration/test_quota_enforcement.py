@@ -8,7 +8,7 @@ All tests mock the LLM service to avoid calling real APIs.
 """
 
 import io
-from datetime import UTC, datetime
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -60,7 +60,7 @@ async def user_at_quota_limit_fixture(async_session: AsyncSession, quota_user: U
         prompt_tokens=250000,
         completion_tokens=250000,
         total_tokens=500000,
-        created_at=datetime.now(UTC),
+        created_at=datetime.utcnow(),
     )
     async_session.add(interaction)
     await async_session.commit()

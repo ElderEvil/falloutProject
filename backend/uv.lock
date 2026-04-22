@@ -773,7 +773,7 @@ requires-dist = [
     { name = "python-jose", extras = ["cryptography"], specifier = ">=3.5.0" },
     { name = "python-json-logger", specifier = ">=4.0.0" },
     { name = "redis", specifier = ">=7.1.0,<8" },
-    { name = "sqladmin", extras = ["full"], specifier = ">=0.24.0" },
+    { name = "sqladmin", extras = ["full"], specifier = ">=0.25.0" },
     { name = "sqlalchemy-celery-beat", specifier = ">=0.7.4" },
     { name = "sqlmodel", specifier = ">=0.0.31,<1" },
     { name = "uvloop", marker = "sys_platform != 'win32'", specifier = ">=0.21.0" },
@@ -2344,7 +2344,7 @@ wheels = [
 
 [[package]]
 name = "sqladmin"
-version = "0.24.0"
+version = "0.25.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jinja2" },
@@ -2353,9 +2353,9 @@ dependencies = [
     { name = "starlette" },
     { name = "wtforms" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/dd/34/33fec68662aadddae8bbeb815653062298516d3330d68925888a0814ca03/sqladmin-0.24.0.tar.gz", hash = "sha256:186680182855c30d9b912267bd5a5f66493b15ee2f8ca296d16c420faa6cfb96", size = 1437857, upload-time = "2026-03-30T12:55:01.812Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9f/42/ac352f9afc118491a57c3acd1d54c84447f8d6a7b9420fdd9e4fe28b3ba7/sqladmin-0.25.0.tar.gz", hash = "sha256:370f183eca5ea95281176c086b23d704773e6c77b745342753601a9a9abcb93c", size = 1440449, upload-time = "2026-04-18T01:25:40.15Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/70/06/7901983e5ce10948cde3e15ea906ab031a7ab35c7521843cca1379eff611/sqladmin-0.24.0-py3-none-any.whl", hash = "sha256:ff9b9ad29723bc23334f6f37953250817e9fc2347d4bdcc3a64920dbeb5e742a", size = 1451273, upload-time = "2026-03-30T12:55:03.034Z" },
+    { url = "https://files.pythonhosted.org/packages/ba/1c/4a9bdeb541478a27fd8bf2af85faa3a1574a8ab3de0f07e8c01b29ccd9ff/sqladmin-0.25.0-py3-none-any.whl", hash = "sha256:fd45a7c78e989cb1cf8242f94bd108475f5d35622d79035a2cb147350f54ce1d", size = 1456019, upload-time = "2026-04-18T01:25:38.523Z" },
 ]
 
 [package.optional-dependencies]

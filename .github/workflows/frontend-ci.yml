@@ -27,9 +27,7 @@ jobs:
           node-version: 22
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v5
-        with:
-          version: 10
+        uses: pnpm/action-setup@v6
 
       - name: Install dependencies
         working-directory: frontend

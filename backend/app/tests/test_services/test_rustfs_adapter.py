@@ -254,9 +254,7 @@ class TestListFiles:
 
     def test_list_files_with_prefix(self, mock_settings):
         mock_client = MagicMock()
-        mock_client.list_objects_v2.return_value = {
-            "Contents": [{"Key": "images/photo.png"}]
-        }
+        mock_client.list_objects_v2.return_value = {"Contents": [{"Key": "images/photo.png"}]}
         with patch.object(RustFSAdapter, "client", new_callable=lambda: property(lambda self: mock_client)):
             adapter = RustFSAdapter()
             result = adapter.list_files(prefix="images/")

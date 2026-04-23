@@ -28,16 +28,20 @@ async def test_grant_item_weapon_success(async_session: AsyncSession) -> None:
     async_session.add(storage)
     await async_session.commit()
 
-    result = await reward_service.grant_item(async_session, vault.id, {
-        "item_type": "weapon",
-        "name": "Laser Rifle",
-        "rarity": "rare",
-        "weapon_type": "energy",
-        "weapon_subtype": "rifle",
-        "stat": "perception",
-        "damage_min": 5,
-        "damage_max": 15,
-    })
+    result = await reward_service.grant_item(
+        async_session,
+        vault.id,
+        {
+            "item_type": "weapon",
+            "name": "Laser Rifle",
+            "rarity": "rare",
+            "weapon_type": "energy",
+            "weapon_subtype": "rifle",
+            "stat": "perception",
+            "damage_min": 5,
+            "damage_max": 15,
+        },
+    )
 
     assert result["reward_type"] == RewardType.ITEM
     assert result["item_type"] == "weapon"
@@ -56,13 +60,17 @@ async def test_grant_item_outfit_success(async_session: AsyncSession) -> None:
     async_session.add(storage)
     await async_session.commit()
 
-    result = await reward_service.grant_item(async_session, vault.id, {
-        "item_type": "outfit",
-        "name": "Combat Armor",
-        "rarity": "rare",
-        "outfit_type": "power_armor",
-        "gender": "male",
-    })
+    result = await reward_service.grant_item(
+        async_session,
+        vault.id,
+        {
+            "item_type": "outfit",
+            "name": "Combat Armor",
+            "rarity": "rare",
+            "outfit_type": "power_armor",
+            "gender": "male",
+        },
+    )
 
     assert result["reward_type"] == RewardType.ITEM
     assert result["item_type"] == "outfit"
@@ -81,10 +89,14 @@ async def test_grant_item_unknown_type_raises(async_session: AsyncSession) -> No
     await async_session.commit()
 
     with pytest.raises(ValueError, match="Unknown item_type"):
-        await reward_service.grant_item(async_session, vault.id, {
-            "item_type": "armor",
-            "name": "Mystery Item",
-        })
+        await reward_service.grant_item(
+            async_session,
+            vault.id,
+            {
+                "item_type": "armor",
+                "name": "Mystery Item",
+            },
+        )
 
 
 @pytest.mark.asyncio
@@ -95,10 +107,14 @@ async def test_grant_item_no_storage_raises(async_session: AsyncSession) -> None
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
     with pytest.raises(ValueError, match="No storage found"):
-        await reward_service.grant_item(async_session, vault.id, {
-            "item_type": "weapon",
-            "name": "Test Weapon",
-        })
+        await reward_service.grant_item(
+            async_session,
+            vault.id,
+            {
+                "item_type": "weapon",
+                "name": "Test Weapon",
+            },
+        )
 
 
 @pytest.mark.asyncio
@@ -129,10 +145,14 @@ async def test_grant_item_storage_full_raises(async_session: AsyncSession) -> No
     await async_session.commit()
 
     with pytest.raises(ValueError, match="Storage full"):
-        await reward_service.grant_item(async_session, vault.id, {
-            "item_type": "weapon",
-            "name": "Test Weapon",
-        })
+        await reward_service.grant_item(
+            async_session,
+            vault.id,
+            {
+                "item_type": "weapon",
+                "name": "Test Weapon",
+            },
+        )
 
 
 @pytest.mark.asyncio
@@ -143,13 +163,17 @@ async def test_grant_dweller_success(async_session: AsyncSession) -> None:
     vault_data = create_fake_vault()
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
-    result = await reward_service.grant_dweller(async_session, vault.id, {
-        "first_name": "James",
-        "last_name": "Paladin",
-        "rarity": "rare",
-        "level": 3,
-        "gender": "male",
-    })
+    result = await reward_service.grant_dweller(
+        async_session,
+        vault.id,
+        {
+            "first_name": "James",
+            "last_name": "Paladin",
+            "rarity": "rare",
+            "level": 3,
+            "gender": "male",
+        },
+    )
 
     assert result["reward_type"] == RewardType.DWELLER
     assert "dweller_id" in result
@@ -164,10 +188,14 @@ async def test_grant_dweller_invalid_rarity_defaults_common(async_session: Async
     vault_data = create_fake_vault()
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
-    result = await reward_service.grant_dweller(async_session, vault.id, {
-        "first_name": "Test",
-        "rarity": "mythical",
-    })
+    result = await reward_service.grant_dweller(
+        async_session,
+        vault.id,
+        {
+            "first_name": "Test",
+            "rarity": "mythical",
+        },
+    )
 
     assert result["reward_type"] == RewardType.DWELLER
 
@@ -266,7 +294,13 @@ async def test_grant_experience_success(async_session: AsyncSession) -> None:
         health=100,
         radiation=0,
         happiness=50,
-        strength=5, perception=5, endurance=5, charisma=5, intelligence=5, agility=5, luck=5,
+        strength=5,
+        perception=5,
+        endurance=5,
+        charisma=5,
+        intelligence=5,
+        agility=5,
+        luck=5,
         vault_id=vault.id,
     )
     dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
@@ -299,7 +333,13 @@ async def test_grant_experience_level_up(async_session: AsyncSession) -> None:
         health=100,
         radiation=0,
         happiness=50,
-        strength=5, perception=5, endurance=5, charisma=5, intelligence=5, agility=5, luck=5,
+        strength=5,
+        perception=5,
+        endurance=5,
+        charisma=5,
+        intelligence=5,
+        agility=5,
+        luck=5,
         vault_id=vault.id,
     )
     dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
@@ -342,7 +382,13 @@ async def test_grant_stimpak_success(async_session: AsyncSession) -> None:
         health=100,
         radiation=0,
         happiness=50,
-        strength=5, perception=5, endurance=5, charisma=5, intelligence=5, agility=5, luck=5,
+        strength=5,
+        perception=5,
+        endurance=5,
+        charisma=5,
+        intelligence=5,
+        agility=5,
+        luck=5,
         vault_id=vault.id,
     )
     await crud.dweller.create(async_session, obj_in=dweller_in)
@@ -390,7 +436,13 @@ async def test_grant_radaway_success(async_session: AsyncSession) -> None:
         health=100,
         radiation=0,
         happiness=50,
-        strength=5, perception=5, endurance=5, charisma=5, intelligence=5, agility=5, luck=5,
+        strength=5,
+        perception=5,
+        endurance=5,
+        charisma=5,
+        intelligence=5,
+        agility=5,
+        luck=5,
         vault_id=vault.id,
     )
     await crud.dweller.create(async_session, obj_in=dweller_in)
@@ -498,10 +550,17 @@ async def test_process_quest_rewards_multiple(async_session: AsyncSession) -> No
         "health": 100,
         "radiation": 0,
         "happiness": 50,
-        "strength": 5, "perception": 5, "endurance": 5, "charisma": 5, "intelligence": 5, "agility": 5, "luck": 5,
+        "strength": 5,
+        "perception": 5,
+        "endurance": 5,
+        "charisma": 5,
+        "intelligence": 5,
+        "agility": 5,
+        "luck": 5,
         "vault_id": vault.id,
     }
     from app.schemas.dweller import DwellerCreate
+
     await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_in))
 
     await async_session.refresh(quest, ["quest_rewards"])
@@ -618,13 +677,21 @@ async def test_process_single_reward_experience(async_session: AsyncSession) -> 
         health=100,
         radiation=0,
         happiness=50,
-        strength=5, perception=5, endurance=5, charisma=5, intelligence=5, agility=5, luck=5,
+        strength=5,
+        perception=5,
+        endurance=5,
+        charisma=5,
+        intelligence=5,
+        agility=5,
+        luck=5,
         vault_id=vault.id,
     )
     dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
 
     result = await reward_service._process_single_reward(
-        async_session, vault.id, RewardType.EXPERIENCE,
+        async_session,
+        vault.id,
+        RewardType.EXPERIENCE,
         {"dweller_ids": [str(dweller.id)], "amount": 50},
     )
 
@@ -635,9 +702,7 @@ async def test_process_single_reward_experience(async_session: AsyncSession) -> 
 async def test_process_single_reward_unknown_type_raises(async_session: AsyncSession) -> None:
     """Test _process_single_reward raises on unknown type."""
     with pytest.raises(ValueError, match="Unknown reward type"):
-        await reward_service._process_single_reward(
-            async_session, "fake-vault-id", "unknown_type", {}
-        )
+        await reward_service._process_single_reward(async_session, "fake-vault-id", "unknown_type", {})
 
 
 @pytest.mark.asyncio

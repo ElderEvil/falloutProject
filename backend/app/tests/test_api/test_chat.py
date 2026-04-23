@@ -1,7 +1,7 @@
 """Tests for chat API endpoints (text and audio chat).
 
 Note: These are simplified tests focusing on API contract validation and basic functionality.
-Integration tests with external services (OpenAI API, MinIO) are omitted due to complexity.
+Integration tests with external services (OpenAI API, storage) are omitted due to complexity.
 """
 
 import json

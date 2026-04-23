@@ -40,28 +40,7 @@ class Settings(BaseSettings):
     POOL_SIZE: int = max(DB_POOL_SIZE // WEB_CONCURRENCY, 5)
     ASYNC_DATABASE_URI: PostgresDsn | str = ""
 
-    MINIO_HOSTNAME: str | None = None
-    MINIO_PORT: str | None = None
-    MINIO_ROOT_USER: str | None = None
-    MINIO_ROOT_PASSWORD: str | None = None
-    MINIO_DEFAULT_BUCKET: str | None = None
-    MINIO_PUBLIC_URL: str | None = None
-    MINIO_PUBLIC_BUCKET_WHITELIST: list[str] = [
-        "dweller-images",
-        "dweller-thumbnails",
-        "dweller-audio",
-        "chat-audio",
-        "outfit-images",
-        "weapon-images",
-        "room-images",
-    ]
-
-    # Storage Provider Selection (minio or rustfs)
-    # DEPRECATED: minio support will be removed in a future release.
-    # Please use STORAGE_PROVIDER='rustfs' (S3-compatible, better performance).
-    STORAGE_PROVIDER: Literal["minio", "rustfs"] = "rustfs"
-
-    # RustFS Configuration (S3-compatible)
+    # Storage Provider - RustFS (S3-compatible)
     RUSTFS_HOSTNAME: str | None = None
     RUSTFS_PORT: str | None = None
     RUSTFS_USE_HTTPS: bool = True
@@ -80,27 +59,7 @@ class Settings(BaseSettings):
         "room-images",
     ]
 
-    @property
-    def minio_enabled(self) -> bool:
-        """Check if MinIO is configured and should be used."""
-        return all(
-            [
-                self.MINIO_HOSTNAME,
-                self.MINIO_PORT,
-                self.MINIO_ROOT_USER,
-                self.MINIO_ROOT_PASSWORD,
-            ]
-        )
-
-    @property
-    def minio_public_base_url(self) -> str:
-        """Get the public-facing base URL for MinIO (without trailing slash)."""
-        if self.MINIO_PUBLIC_URL:
-            return self.MINIO_PUBLIC_URL.rstrip("/")
-        # Fallback to internal hostname:port for local development
-        return f"http://{self.MINIO_HOSTNAME}:{self.MINIO_PORT}"
-
-    # AI Configuration - Pydantic AI Gateway (recommended)
+    # AI Configuration
     PYDANTIC_AI_GATEWAY_API_KEY: str | None = None
 
     # Legacy direct provider API keys (deprecated, use Gateway instead)
@@ -231,11 +190,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_rustfs_config(self) -> "Settings":
-        if self.STORAGE_PROVIDER == "rustfs" and (not self.RUSTFS_HOSTNAME or not self.RUSTFS_PORT):
-            msg = (
-                "STORAGE_PROVIDER is 'rustfs' but RUSTFS_HOSTNAME and/or RUSTFS_PORT are not set. "
-                "Either configure RustFS settings or change STORAGE_PROVIDER to 'minio'."
-            )
+        if not self.RUSTFS_HOSTNAME or not self.RUSTFS_PORT:
+            msg = "RUSTFS_HOSTNAME and/or RUSTFS_PORT are not set. Configure RustFS settings."
             raise ValueError(msg)
         return self
 

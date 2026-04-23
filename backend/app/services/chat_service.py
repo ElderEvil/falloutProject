@@ -238,10 +238,16 @@ class ChatService:
 
             response_message = output.response_text
 
-            usage = result.usage()
-            prompt_tokens = usage.input_tokens if usage else None
-            completion_tokens = usage.output_tokens if usage else None
-            total_tokens = usage.total_tokens if usage else None
+            try:
+                usage = result.usage()
+                prompt_tokens = usage.input_tokens
+                completion_tokens = usage.output_tokens
+                total_tokens = usage.total_tokens
+            except Exception:  # noqa: BLE001
+                logger.warning("Failed to extract usage info from agent result")
+                prompt_tokens = None
+                completion_tokens = None
+                total_tokens = None
 
             # Compute happiness delta from sentiment score
             delta = compute_happiness_delta(output.sentiment_score)

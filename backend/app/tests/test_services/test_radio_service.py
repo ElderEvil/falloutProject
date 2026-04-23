@@ -74,7 +74,11 @@ async def radio_dweller_fixture(async_session: AsyncSession, vault: Vault, radio
         "luck": 5,
     }
     dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
-    return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+    dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+    dweller.room_id = radio_room.id
+    async_session.add(dweller)
+    await async_session.commit()
+    return dweller
 
 
 @pytest.mark.asyncio
@@ -200,7 +204,6 @@ async def test_recruit_dweller(
     assert dweller.last_name is not None
 
 
-@pytest.mark.skip(reason="FIXME: Session isolation - radio_dweller fixture not visible to RadioService query")
 @pytest.mark.asyncio
 async def test_manual_recruit_success(
     async_session: AsyncSession,
@@ -221,7 +224,6 @@ async def test_manual_recruit_success(
     assert vault.bottle_caps == initial_caps - game_config.radio.manual_recruitment_cost
 
 
-@pytest.mark.skip(reason="FIXME: Session isolation - radio_dweller fixture not visible to RadioService query")
 @pytest.mark.asyncio
 async def test_manual_recruit_insufficient_caps(
     async_session: AsyncSession,
@@ -248,7 +250,6 @@ async def test_manual_recruit_no_radio(
         await RadioService.manual_recruit(async_session, vault.id)
 
 
-@pytest.mark.skip(reason="FIXME: Session isolation - radio_dweller fixture not visible to RadioService query")
 @pytest.mark.asyncio
 async def test_manual_recruit_custom_cost(
     async_session: AsyncSession,

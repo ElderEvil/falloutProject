@@ -9,6 +9,34 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.12.0] - 2026-04-23
+
+### Fixed
+
+- **Chat Error Handling** - Hardened `_run_chat_agent` and related services against AI provider failures
+  - Added safe usage extraction with fallback to `None` for token counts
+  - Applied fix across `chat_service.py`, `dweller_ai.py`, `open_ai.py`, `conversation_service.py`
+  - Added 4 regression tests for error handling scenarios
+
+- **Session Isolation in Tests** - Fixed 23 previously failing/skipped backend tests
+  - 18 quota tests: resolved session visibility for LLMInteraction records
+  - 5 radio tests: unskipped and fixed by ensuring proper session commits in fixtures
+
+### Removed
+
+- **MinIO Storage Provider** - Fully removed deprecated MinIO adapter and all references
+  - Deleted `minio_adapter.py` and migration scripts
+  - Removed MinIO config from `config.py`, Docker Compose, and `.env.example`
+  - Updated error messages and docstrings to reference generic "Storage service"
+
+### Chores
+
+- **Celery TODO Stubs** - Removed unused `generate_dweller_attributes` task stub
+- **Version Bump** - Updated backend and frontend versions to 2.12.0
+- **Lockfiles** - Regenerated backend `uv.lock` and synced frontend dependencies
+
+---
+
 ## [2.11.6] - 2026-04-04
 
 ### Chores

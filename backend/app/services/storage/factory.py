@@ -4,42 +4,24 @@ import logging
 from functools import lru_cache
 from typing import Optional
 
-from app.core.config import settings
-
 from .base import StorageService
-from .minio_adapter import MinIOAdapter
 from .rustfs_adapter import RustFSAdapter
 
 logger = logging.getLogger(__name__)
 
 
 def create_storage_service() -> Optional[StorageService]:
-    """Factory function to create the appropriate storage service.
+    """Factory function to create the storage service.
 
     Returns:
-        StorageService implementation based on STORAGE_PROVIDER config.
+        RustFS storage service instance.
         Returns None if storage is unavailable or misconfigured.
     """
-    provider = getattr(settings, "STORAGE_PROVIDER", "minio").lower()
-
-    if provider == "rustfs":
-        try:
-            return RustFSAdapter()
-        except Exception:
-            logger.exception("Failed to initialize RustFS")
-            return None
-    if provider == "minio":
-        logger.warning(
-            "MinIO storage provider is deprecated. Please migrate to RustFS "
-            "(STORAGE_PROVIDER='rustfs') for better performance and reliability."
-        )
-        try:
-            return MinIOAdapter()
-        except Exception:
-            logger.exception("Failed to initialize MinIO")
-            return None
-    logger.warning("Invalid STORAGE_PROVIDER: %s, no storage available", provider)
-    return None
+    try:
+        return RustFSAdapter()
+    except Exception:
+        logger.exception("Failed to initialize RustFS")
+        return None
 
 
 @lru_cache

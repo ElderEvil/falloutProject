@@ -79,15 +79,25 @@ class DwellerAIService:
 
         await dweller_crud.update(db_session, dweller_obj.id, DwellerUpdate(bio=backstory))
 
-        usage = result.usage()
+        try:
+            usage = result.usage()
+            prompt_tokens = usage.input_tokens
+            completion_tokens = usage.output_tokens
+            total_tokens = usage.total_tokens
+        except Exception:  # noqa: BLE001
+            logger.warning("Failed to extract usage info from backstory agent result")
+            prompt_tokens = None
+            completion_tokens = None
+            total_tokens = None
+
         llm_int_create = LLMInteractionCreate(
             parameters=origin,
             response=backstory,
             usage="generate_backstory",
             user_id=user.id,
-            prompt_tokens=usage.input_tokens if usage else None,
-            completion_tokens=usage.output_tokens if usage else None,
-            total_tokens=usage.total_tokens if usage else None,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
         )
         await llm_interaction_crud.create(
             db_session,
@@ -120,15 +130,25 @@ class DwellerAIService:
 
         await dweller_crud.update(db_session, dweller_id, DwellerUpdate(bio=full_bio))
 
-        usage = result.usage()
+        try:
+            usage = result.usage()
+            prompt_tokens = usage.input_tokens
+            completion_tokens = usage.output_tokens
+            total_tokens = usage.total_tokens
+        except Exception:  # noqa: BLE001
+            logger.warning("Failed to extract usage info from bio extension agent result")
+            prompt_tokens = None
+            completion_tokens = None
+            total_tokens = None
+
         llm_int_create = LLMInteractionCreate(
             parameters=dweller_obj.bio,
             response=extended_bio,
             usage="extend_bio",
             user_id=user.id,
-            prompt_tokens=usage.input_tokens if usage else None,
-            completion_tokens=usage.output_tokens if usage else None,
-            total_tokens=usage.total_tokens if usage else None,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
         )
         await llm_interaction_crud.create(
             db_session,
@@ -175,15 +195,25 @@ class DwellerAIService:
 
         await dweller_crud.update(db_session, dweller_obj.id, DwellerUpdate(visual_attributes=visual_attributes))
 
-        usage = result.usage()
+        try:
+            usage = result.usage()
+            prompt_tokens = usage.input_tokens
+            completion_tokens = usage.output_tokens
+            total_tokens = usage.total_tokens
+        except Exception:  # noqa: BLE001
+            logger.warning("Failed to extract usage info from visual attributes agent result")
+            prompt_tokens = None
+            completion_tokens = None
+            total_tokens = None
+
         llm_int_create = LLMInteractionCreate(
             parameters=dweller_obj.bio,
             response=str(visual_attributes),
             usage="generate_visual_attributes",
             user_id=user.id,
-            prompt_tokens=usage.input_tokens if usage else None,
-            completion_tokens=usage.output_tokens if usage else None,
-            total_tokens=usage.total_tokens if usage else None,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
         )
         await llm_interaction_crud.create(
             db_session,
@@ -208,7 +238,7 @@ class DwellerAIService:
         if self.storage_service is None:
             raise HTTPException(
                 status_code=503,
-                detail="Image upload service (MinIO) is not available. Cannot generate photo.",
+                detail="Image upload service is not available. Cannot generate photo.",
             )
 
         prompt = (
@@ -255,7 +285,7 @@ class DwellerAIService:
         voice_type: str = "echo",
     ) -> DwellerReadFull:
         """
-        Generates a voice line for a dweller, uploads it to MinIO, and updates dweller info.
+        Generates a voice line for a dweller, uploads it to storage, and updates dweller info.
         """
         # Estimate TTS tokens using character count approximation (~4 chars per token)
         # TTS doesn't return token counts from API, so we estimate based on input text
@@ -266,10 +296,10 @@ class DwellerAIService:
             raise ContentNoChangeException(detail="Dweller already has an audio line. Overwrite not implemented yet.")
 
         if not self.storage_service.enabled:
-            logger.warning("MinIO is disabled, cannot generate audio for dweller %s", dweller_obj.id)
+            logger.warning("Storage service is disabled, cannot generate audio for dweller %s", dweller_obj.id)
             raise HTTPException(
                 status_code=503,
-                detail="Audio upload service (MinIO) is not available. Cannot generate audio.",
+                detail="Audio upload service is not available. Cannot generate audio.",
             )
 
         # Check quota before making TTS API call

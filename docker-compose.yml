@@ -125,8 +125,8 @@ services:
     volumes:
       - rustfs_data:/data
     environment:
-      - RUSTFS_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
-      - RUSTFS_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - RUSTFS_ROOT_USER=${RUSTFS_ACCESS_KEY:-admin}
+      - RUSTFS_ROOT_PASSWORD=${RUSTFS_SECRET_KEY:-password}
     healthcheck:
       test: [ "CMD", "sh", "-c", "wget -qO- http://localhost:9000/health || exit 1" ]
       interval: 30s

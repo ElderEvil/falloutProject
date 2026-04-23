@@ -7,7 +7,7 @@ from typing import Protocol
 class StorageService(Protocol):
     """Protocol defining the interface for storage services.
 
-    All storage adapters (MinIO, RustFS, etc.) must implement this interface.
+    All storage adapters (RustFS, etc.) must implement this interface.
     """
 
     @property

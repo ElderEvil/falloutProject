@@ -9,12 +9,14 @@ AI-powered dweller interactions.
 
 ## In Progress
 
-### v2.11.1 - (In Development)
+### v2.13.0 - Dramatiq & Nuxt UI Migration (Planned)
 
-**Focus**: Upcoming improvements
+**Focus**: Celery → Dramatiq migration and Nuxt UI theme system
 
 **Planned:**
-- [ ] Additional feature or improvement
+- [ ] Dramatiq task queue migration
+- [ ] Nuxt UI component migration
+- [ ] Multi-theme support
 
 **Current update:**
 - ✅ Frontend dependency/config trimming pass completed (safe-only)
@@ -27,6 +29,26 @@ AI-powered dweller interactions.
 ---
 
 ## Latest Release
+
+### v2.12.0 - Stabilization & Quality (April 23, 2026)
+
+**Focus**: Fix all failing tests, remove deprecated code, harden error handling
+
+**Completed:**
+- ✅ **Chat Error Handling** - Hardened AI provider failure handling across all services
+  - Fixed `AttributeError: 'coroutine' object has no attribute 'input_tokens'` bug
+  - Added safe usage extraction with fallback to `None` for token counts
+  - Applied fix to `chat_service.py`, `dweller_ai.py`, `open_ai.py`, `conversation_service.py`
+  - Added 4 regression tests for error handling scenarios
+- ✅ **Test Suite Green** - Fixed 23 previously failing/skipped backend tests
+  - 18 quota tests: resolved session isolation for LLMInteraction records
+  - 5 radio tests: unskipped by fixing fixture session commit patterns
+  - Full suite: 657 passed, 20 skipped, 0 failures
+- ✅ **MinIO Removal** - Completely removed deprecated MinIO storage provider
+  - Deleted `minio_adapter.py` and all references
+  - Removed MinIO config, Docker Compose services, and env vars
+- ✅ **Celery Cleanup** - Removed unused `generate_dweller_attributes` task stub
+- ✅ **Version Bump** - Backend and frontend aligned at v2.12.0
 
 ### v2.11.0 - Toolchain Migration & Recycling Service (March 19, 2026)
 

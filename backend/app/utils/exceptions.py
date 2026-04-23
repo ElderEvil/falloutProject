@@ -216,22 +216,6 @@ class UniqueRoomViolationException(VaultOperationException):
         super().__init__(detail=detail, headers=headers)
 
 
-class MinioError(Exception):
-    """Base class for MinIO related exceptions."""
-
-
-class BucketNotFoundError(MinioError):
-    """Raised when a specified bucket does not exist."""
-
-
-class FileUploadError(MinioError):
-    """Raised when a file upload to MinIO fails."""
-
-
-class FileDownloadError(MinioError):
-    """Raised when a file download from MinIO fails."""
-
-
 class DwellerNotFoundError(NotFoundException):
     """Raised when a dweller is not found."""
 
@@ -250,3 +234,24 @@ class QuotaExceededException(HTTPException):
         headers: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=detail, headers=headers)
+
+
+class BucketNotFoundError(HTTPException):
+    """Raised when a storage bucket is not found or cannot be created."""
+
+    def __init__(self, detail: str = "Storage bucket not found.", headers: dict[str, Any] | None = None):
+        super().__init__(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=detail, headers=headers)
+
+
+class FileUploadError(HTTPException):
+    """Raised when a file upload operation fails."""
+
+    def __init__(self, detail: str = "File upload failed.", headers: dict[str, Any] | None = None):
+        super().__init__(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=detail, headers=headers)
+
+
+class FileDownloadError(HTTPException):
+    """Raised when a file download operation fails."""
+
+    def __init__(self, detail: str = "File download failed.", headers: dict[str, Any] | None = None):
+        super().__init__(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=detail, headers=headers)

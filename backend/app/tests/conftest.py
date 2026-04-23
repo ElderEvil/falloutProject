@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from collections.abc import AsyncGenerator, Generator
 from contextlib import suppress
 from typing import Any
@@ -26,18 +27,24 @@ from app.core.config import settings  # noqa: E402
 # Disable rate limiting for tests before importing main
 settings.ENABLE_RATE_LIMITING = False
 
+# Enable quota enforcement for tests (override .env setting)
+settings.QUOTA_DISABLED = False
+
 # Mock storage service before importing main
-with patch("app.services.storage.factory.create_storage_service") as mock_storage:
-    mock_instance = MagicMock()
-    mock_instance.enabled = False  # Disable storage for tests by default
-    mock_storage.return_value = mock_instance
-    from main import app
+mock_storage_module = MagicMock()
+mock_instance = MagicMock()
+mock_instance.enabled = False  # Disable storage for tests by default
+mock_storage_module.factory.create_storage_service.return_value = mock_instance
+mock_storage_module.get_storage_client.return_value = mock_instance
+sys.modules["app.services.storage"] = mock_storage_module
+sys.modules["app.services.storage.factory"] = mock_storage_module.factory
 
 from app import crud  # noqa: E402
 from app.db.session import get_async_session  # noqa: E402
 from app.schemas.user import UserCreate  # noqa: E402
 from app.tests.utils.user import authentication_token_from_email  # noqa: E402
 from app.tests.utils.utils import get_superuser_token_headers  # noqa: E402
+from main import app  # noqa: E402
 
 
 @pytest.fixture(scope="session")
@@ -290,7 +297,11 @@ async def radio_dweller_fixture(async_session: AsyncSession, vault: "Vault", rad
         "luck": 5,
     }
     dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
-    return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+    dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+    dweller.room_id = radio_room.id
+    async_session.add(dweller)
+    await async_session.commit()
+    return dweller
 
 
 # Notification test fixtures

@@ -1,4 +1,4 @@
-"""Storage service module with adapter pattern for MinIO and RustFS."""
+"""Storage service module with adapter pattern for RustFS."""
 
 from .base import StorageService
 from .factory import create_storage_service, get_storage_client

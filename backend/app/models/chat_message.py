@@ -30,7 +30,7 @@ class ChatMessageBase(SQLModel):
     llm_interaction_id: UUID | None = Field(default=None, foreign_key="llminteraction.id")
 
     # Audio conversation fields
-    audio_url: str | None = Field(default=None, max_length=500, description="MinIO URL for audio message")
+    audio_url: str | None = Field(default=None, max_length=500, description="Storage URL for audio message")
     transcription: str | None = Field(default=None, max_length=2000, description="STT transcription of audio")
     audio_duration: float | None = Field(default=None, description="Duration of audio in seconds")
 

@@ -160,10 +160,16 @@ class ConversationService:
             )
 
         output: DwellerChatOutput = result.output
-        usage = result.usage()
-        prompt_tokens = usage.input_tokens if usage else None
-        completion_tokens = usage.output_tokens if usage else None
-        total_tokens = usage.total_tokens if usage else None
+        try:
+            usage = result.usage()
+            prompt_tokens = usage.input_tokens
+            completion_tokens = usage.output_tokens
+            total_tokens = usage.total_tokens
+        except Exception:  # noqa: BLE001
+            logger.warning("Failed to extract usage info from voice chat agent result")
+            prompt_tokens = None
+            completion_tokens = None
+            total_tokens = None
         delta = compute_happiness_delta(output.sentiment_score)
         new_dweller_happiness, _ = await apply_chat_happiness(db_session=db_session, dweller_id=dweller.id, delta=delta)
         reason_code_str = derive_reason_code(output.sentiment_score)

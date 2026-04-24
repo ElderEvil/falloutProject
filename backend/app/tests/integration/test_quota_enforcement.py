@@ -402,6 +402,11 @@ class TestAdminQuotaBypass:
             )
             mock_result = MagicMock(spec=AgentRunResult)
             mock_result.output = mock_output
+            mock_result.usage.return_value = MagicMock(
+                input_tokens=50,
+                output_tokens=30,
+                total_tokens=80,
+            )
             mock_agent.run = AsyncMock(return_value=mock_result)
 
             response = await async_client.post(

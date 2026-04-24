@@ -12,7 +12,7 @@ def _ok_result(service: str) -> HealthCheckResult:
 
 
 @pytest.mark.asyncio
-async def test_health_check_skips_minio_when_rustfs_provider(monkeypatch) -> None:
+async def test_health_check_rustfs_provider(monkeypatch) -> None:
     async def check_postgres(_engine) -> HealthCheckResult:
         return _ok_result("postgresql")
 
@@ -22,7 +22,6 @@ async def test_health_check_skips_minio_when_rustfs_provider(monkeypatch) -> Non
     def check_rustfs() -> HealthCheckResult:
         return _ok_result("rustfs")
 
-    monkeypatch.setattr(settings, "STORAGE_PROVIDER", "rustfs", raising=False)
     monkeypatch.setattr(HealthCheckService, "check_postgres", staticmethod(check_postgres))
     monkeypatch.setattr(HealthCheckService, "check_redis", staticmethod(check_redis))
     monkeypatch.setattr(HealthCheckService, "check_rustfs", staticmethod(check_rustfs))
@@ -31,4 +30,4 @@ async def test_health_check_skips_minio_when_rustfs_provider(monkeypatch) -> Non
     engine = cast(AsyncEngine, object())
     results = await service.check_all_services(engine=engine, include_celery=False, include_smtp=False)
 
-    assert "minio" not in results
+    assert "rustfs" in results

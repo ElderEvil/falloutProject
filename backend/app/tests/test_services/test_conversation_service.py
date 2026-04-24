@@ -129,5 +129,5 @@ class TestPromptBuilder:
 
 
 # Note: Integration tests for audio processing are omitted as they require complex mocking
-# of external services (OpenAI API, MinIO). The unit tests above (voice selection and
+# of external services (OpenAI API, storage). The unit tests above (voice selection and
 # prompt building) cover the core logic of the conversation service.

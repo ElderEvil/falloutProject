@@ -23,11 +23,6 @@ def create_task(task_time: int):
     return True
 
 
-@celery_app.task(bind=True, max_retries=3)
-def generate_dweller_attributes():  # TODO: Implement generate with AI
-    pass
-
-
 @celery_app.task(name="game_tick", bind=True)
 def game_tick_task(self):
     """

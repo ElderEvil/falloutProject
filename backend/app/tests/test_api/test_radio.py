@@ -111,7 +111,6 @@ async def test_manual_recruit_no_radio(
     assert "No radio room" in response.json()["detail"]
 
 
-@pytest.mark.skip(reason="FIXME: Session isolation issue - dweller created in test not visible to service query")
 @pytest.mark.asyncio
 async def test_manual_recruit_insufficient_caps(
     async_client: AsyncClient,
@@ -173,7 +172,10 @@ async def test_manual_recruit_insufficient_caps(
         luck=5,
         vault_id=vault.id,
     )
-    await crud.dweller.create(db_session=async_session, obj_in=dweller_data)
+    dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_data)
+    dweller.room_id = room.id
+    async_session.add(dweller)
+    await async_session.commit()
 
     response = await async_client.post(
         f"/radio/vault/{vault.id}/recruit",
@@ -184,7 +186,6 @@ async def test_manual_recruit_insufficient_caps(
     assert "Insufficient caps" in response.json()["detail"]
 
 
-@pytest.mark.skip(reason="FIXME: Session isolation issue - dweller created in test not visible to service query")
 @pytest.mark.asyncio
 async def test_manual_recruit_success(
     async_client: AsyncClient,
@@ -232,7 +233,9 @@ async def test_manual_recruit_success(
         vault_id=vault.id,
         room_id=room.id,
     )
-    await crud.dweller.create(async_session, dweller_data)
+    dweller = await crud.dweller.create(async_session, dweller_data)
+    dweller.room_id = room.id
+    async_session.add(dweller)
     await async_session.commit()
 
     response = await async_client.post(
@@ -365,15 +368,6 @@ async def test_set_radio_speedup_invalid_range(
     assert "between 1.0 and 10.0" in response.json()["detail"]
 
 
-@pytest.mark.skip(
-    reason=(
-        "SKIPPED: Test setup issue - radio recruitment requires dweller assigned to room, "
-        "but test fixture doesn't properly establish the room-dweller relationship. "
-        "Error: 'No residents assigned to radio room'. "
-        "This is a pre-existing test infrastructure issue, not related to v2.9.0 features. "
-        "Tracking: Requires investigation of radio service query logic or test fixture setup."
-    )
-)
 @pytest.mark.asyncio
 async def test_manual_recruit_does_not_break_subsequent_api_calls(
     async_client: AsyncClient,
@@ -430,7 +424,9 @@ async def test_manual_recruit_does_not_break_subsequent_api_calls(
         vault_id=vault.id,
         room_id=room.id,
     )
-    dweller = await crud.dweller.create(async_session, dweller_data)  # noqa: F841
+    dweller = await crud.dweller.create(async_session, dweller_data)
+    dweller.room_id = room.id
+    async_session.add(dweller)
     await async_session.commit()
 
     response = await async_client.get(
@@ -495,7 +491,6 @@ async def test_manual_recruit_does_not_break_subsequent_api_calls(
     )
 
 
-@pytest.mark.skip(reason="Skipping due to session isolation issues with dweller assignment")
 @pytest.mark.asyncio
 async def test_manual_recruit_with_assigned_dweller(
     async_session: AsyncSession,
@@ -507,7 +502,44 @@ async def test_manual_recruit_with_assigned_dweller(
     Reproduces bug: Recruiting a dweller with caps causes session corruption.
     Expected: Vault state remains consistent and accessible after recruitment.
     """
+    from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
+    from app.schemas.dweller import DwellerCreate
     from app.services.radio_service import RadioService
+
+    radio_room = RoomCreate(
+        name="Radio Studio",
+        vault_id=vault.id,
+        tier=1,
+        size=2,
+        coordinate_x=1,
+        coordinate_y=1,
+        category="misc.",
+        ability=None,
+        capacity=None,
+        output=None,
+        base_cost=100,
+        incremental_cost=50,
+        t2_upgrade_cost=500,
+        t3_upgrade_cost=1500,
+        size_min=1,
+        size_max=3,
+    )
+    room = await crud.room.create(async_session, radio_room)
+
+    dweller_in = DwellerCreate(
+        first_name="Radio",
+        last_name="DJ",
+        gender=GenderEnum.MALE,
+        age_group=AgeGroupEnum.ADULT,
+        rarity=RarityEnum.COMMON,
+        vault_id=vault.id,
+        room_id=room.id,
+        charisma=10,
+    )
+    dweller = await crud.dweller.create(async_session, dweller_in)
+    dweller.room_id = room.id
+    async_session.add(dweller)
+    await async_session.commit()
 
     initial_caps = vault.bottle_caps
     vault_id_copy = vault.id

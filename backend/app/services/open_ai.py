@@ -333,12 +333,22 @@ class AIService:
         agent = Agent(model=self._model, system_prompt=system_prompt) if system_prompt else Agent(model=self._model)
         result = await agent.run(user_input)
 
-        usage = result.usage()
+        try:
+            usage = result.usage()
+            prompt_tokens = usage.input_tokens
+            completion_tokens = usage.output_tokens
+            total_tokens = usage.total_tokens
+        except Exception:  # noqa: BLE001
+            logger.warning("Failed to extract usage info from AI service result")
+            prompt_tokens = None
+            completion_tokens = None
+            total_tokens = None
+
         return ChatCompletionResult(
             text=result.output,
-            prompt_tokens=usage.input_tokens if usage else None,
-            completion_tokens=usage.output_tokens if usage else None,
-            total_tokens=usage.total_tokens if usage else None,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
         )
 
 

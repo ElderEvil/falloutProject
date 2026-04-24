@@ -144,7 +144,6 @@ async def test_manual_tick(
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 async def test_get_incidents(
     async_client: AsyncClient,
     async_session: AsyncSession,
@@ -158,6 +157,7 @@ async def test_get_incidents(
         obj_in=VaultNumber(number=995),
         user_id=user.id,
     )
+    await async_session.commit()
 
     # Get incidents (should be empty for new vault)
     response = await async_client.get(
@@ -210,7 +210,6 @@ async def test_vault_initialization_creates_game_state(
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 async def test_spawn_incident_debug(
     async_client: AsyncClient,
     async_session: AsyncSession,
@@ -250,7 +249,10 @@ async def test_spawn_incident_debug(
         agility=5,
         luck=5,
     )
-    await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+    dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+    dweller.room_id = room.id
+    async_session.add(dweller)
+    await async_session.commit()
 
     # Spawn incident
     response = await async_client.post(
@@ -267,7 +269,6 @@ async def test_spawn_incident_debug(
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 async def test_spawn_incident_specific_type(
     async_client: AsyncClient,
     async_session: AsyncSession,
@@ -305,7 +306,10 @@ async def test_spawn_incident_specific_type(
         agility=5,
         luck=5,
     )
-    await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+    dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+    dweller.room_id = room.id
+    async_session.add(dweller)
+    await async_session.commit()
 
     # Spawn fire incident
     response = await async_client.post(
@@ -319,7 +323,6 @@ async def test_spawn_incident_specific_type(
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 async def test_get_incident_details(
     async_client: AsyncClient,
     async_session: AsyncSession,
@@ -359,7 +362,10 @@ async def test_get_incident_details(
         agility=6,
         luck=5,
     )
-    await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+    dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+    dweller.room_id = room.id
+    async_session.add(dweller)
+    await async_session.commit()
 
     # Create incident directly
     incident = await crud.incident_crud.create(
@@ -369,6 +375,7 @@ async def test_get_incident_details(
         incident_type=IncidentType.RAIDER_ATTACK,
         difficulty=5,
     )
+    await async_session.commit()
 
     # Get incident details
     response = await async_client.get(
@@ -386,7 +393,6 @@ async def test_get_incident_details(
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 async def test_resolve_incident_success(
     async_client: AsyncClient,
     async_session: AsyncSession,
@@ -427,7 +433,10 @@ async def test_resolve_incident_success(
         agility=10,
         luck=10,
     )
-    await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+    dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+    dweller.room_id = room.id
+    async_session.add(dweller)
+    await async_session.commit()
 
     # Create incident
     incident = await crud.incident_crud.create(
@@ -437,6 +446,7 @@ async def test_resolve_incident_success(
         incident_type=IncidentType.RADROACH_INFESTATION,
         difficulty=3,
     )
+    await async_session.commit()
 
     # Resolve incident
     response = await async_client.post(
@@ -456,7 +466,6 @@ async def test_resolve_incident_success(
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Session isolation issue - fixture data not visible to spawn_incident query")
 async def test_resolve_incident_failure(
     async_client: AsyncClient,
     async_session: AsyncSession,
@@ -496,7 +505,10 @@ async def test_resolve_incident_failure(
         agility=1,
         luck=1,
     )
-    await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+    dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+    dweller.room_id = room.id
+    async_session.add(dweller)
+    await async_session.commit()
 
     # Create incident
     incident = await crud.incident_crud.create(
@@ -506,6 +518,7 @@ async def test_resolve_incident_failure(
         incident_type=IncidentType.DEATHCLAW_ATTACK,
         difficulty=10,
     )
+    await async_session.commit()
 
     # Abandon incident
     response = await async_client.post(

@@ -243,8 +243,8 @@ class ChatService:
                 prompt_tokens = usage.input_tokens
                 completion_tokens = usage.output_tokens
                 total_tokens = usage.total_tokens
-            except Exception:  # noqa: BLE001
-                logger.warning("Failed to extract usage info from agent result")
+            except (AttributeError, TypeError):
+                logger.warning("Failed to extract usage info from agent result", exc_info=True)
                 prompt_tokens = None
                 completion_tokens = None
                 total_tokens = None

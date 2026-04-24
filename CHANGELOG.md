@@ -14,13 +14,20 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ### Fixed
 
 - **Chat Error Handling** - Hardened `_run_chat_agent` and related services against AI provider failures
-  - Added safe usage extraction with fallback to `None` for token counts
+  - Narrowed `except Exception` → `except (AttributeError, TypeError)` for usage extraction so programming errors propagate instead of being silently swallowed
+  - Added `exc_info=True` to warning logs for traceability
   - Applied fix across `chat_service.py`, `dweller_ai.py`, `open_ai.py`, `conversation_service.py`
-  - Added 4 regression tests for error handling scenarios
+  - Updated regression test to match narrowed exception type (`AttributeError` instead of `RuntimeError`)
 
 - **Session Isolation in Tests** - Fixed 23 previously failing/skipped backend tests
   - 18 quota tests: resolved session visibility for LLMInteraction records
   - 5 radio tests: unskipped and fixed by ensuring proper session commits in fixtures
+
+- **Storage Singleton** - Replaced `@lru_cache` in `get_storage_client()` with module-level singleton that doesn't cache `None`; RustFS connection failures are now retryable instead of permanently disabling storage
+
+- **Storage Error Sanitization** - `FileUploadError`, `FileDownloadError`, `BucketNotFoundError` now expose generic messages to clients (no internal S3 details) while logging full error context server-side
+
+- **Storage Factory** - Narrowed `create_storage_service()` exception handling from `except Exception` to `except ClientError`; config validation at startup already catches misconfiguration
 
 ### Removed
 
@@ -28,6 +35,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   - Deleted `minio_adapter.py` and migration scripts
   - Removed MinIO config from `config.py`, Docker Compose, and `.env.example`
   - Updated error messages and docstrings to reference generic "Storage service"
+  - Changed Docker Compose credentials from `MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD` to `RUSTFS_ACCESS_KEY`/`RUSTFS_SECRET_KEY`
 
 ### Chores
 

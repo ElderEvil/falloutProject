@@ -160,12 +160,17 @@ class TestChatServiceErrorHandling:
             assert completion_tokens is None
             assert total_tokens is None
 
-    async def test_run_chat_agent_handles_usage_raises_exception(
+    async def test_run_chat_agent_handles_usage_raises_attribute_error(
         self,
         async_session: AsyncSession,
         chat_dweller: Dweller,
     ):
-        """Test that _run_chat_agent handles usage() raising any exception gracefully."""
+        """Test that _run_chat_agent handles usage() raising AttributeError/TypeError gracefully.
+
+        These are the specific exceptions that can occur when usage() returns
+        an unexpected type (e.g., coroutine) and attribute access fails.
+        Other exceptions should propagate so we detect failures early.
+        """
         from pydantic_ai.agent import AgentRunResult
 
         from app.agents.dweller_chat_agent import DwellerChatOutput
@@ -183,7 +188,7 @@ class TestChatServiceErrorHandling:
 
         mock_result = MagicMock(spec=AgentRunResult)
         mock_result.output = mock_output
-        mock_result.usage.side_effect = RuntimeError("Usage data unavailable")
+        mock_result.usage.side_effect = AttributeError("'coroutine' object has no attribute 'input_tokens'")
 
         with patch("app.services.chat_service.dweller_chat_agent") as mock_agent:
             mock_agent.run = AsyncMock(return_value=mock_result)

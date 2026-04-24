@@ -37,7 +37,8 @@ AI-powered dweller interactions.
 **Completed:**
 - ✅ **Chat Error Handling** - Hardened AI provider failure handling across all services
   - Fixed `AttributeError: 'coroutine' object has no attribute 'input_tokens'` bug
-  - Added safe usage extraction with fallback to `None` for token counts
+  - Narrowed `except Exception` → `except (AttributeError, TypeError)` for usage extraction in 5 locations
+  - Added `exc_info=True` to warning logs so failures are traceable
   - Applied fix to `chat_service.py`, `dweller_ai.py`, `open_ai.py`, `conversation_service.py`
   - Added 4 regression tests for error handling scenarios
 - ✅ **Test Suite Green** - Fixed 23 previously failing/skipped backend tests
@@ -49,6 +50,10 @@ AI-powered dweller interactions.
   - Removed MinIO config, Docker Compose services, and env vars
 - ✅ **Celery Cleanup** - Removed unused `generate_dweller_attributes` task stub
 - ✅ **Version Bump** - Backend and frontend aligned at v2.12.0
+- ✅ **Storage Singleton Fix** - Replaced `@lru_cache` in `get_storage_client()` with module-level singleton that doesn't cache `None`; if RustFS is down at startup, subsequent calls retry instead of permanently disabling storage
+- ✅ **Storage Error Sanitization** - `FileUploadError`, `FileDownloadError`, `BucketNotFoundError` now expose generic messages to clients (HTTP 500) while logging full S3 error details server-side via `logger.exception()`
+- ✅ **Storage Factory Narrowed Exception** - `create_storage_service()` now catches `ClientError` instead of broad `Exception`; config validation at startup already catches misconfiguration
+- ✅ **Docker Compose Credentials** - Changed from `${MINIO_ROOT_USER:-minioadmin}` / `${MINIO_ROOT_PASSWORD:-minioadmin}` to `${RUSTFS_ACCESS_KEY:-admin}` / `${RUSTFS_SECRET_KEY:-password}`
 
 ### v2.11.0 - Toolchain Migration & Recycling Service (March 19, 2026)
 

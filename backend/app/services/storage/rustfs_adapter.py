@@ -75,14 +75,14 @@ class RustFSAdapter:
             if error_code == "404":
                 try:
                     client.create_bucket(Bucket=bucket_name)
-                    logger.info(f"Created bucket: {bucket_name}")
+                    logger.info("Created bucket: %s", bucket_name)
                     bucket_created = True
                 except ClientError as create_error:
-                    error_msg = f"Error creating bucket {bucket_name}: {create_error}"
-                    raise BucketNotFoundError(error_msg) from create_error
+                    logger.exception("Error creating bucket %s", bucket_name)
+                    raise BucketNotFoundError(f"Storage bucket {bucket_name} could not be created.") from create_error
             else:
-                error_msg = f"Error checking bucket {bucket_name}: {e}"
-                raise BucketNotFoundError(error_msg) from e
+                logger.exception("Error checking bucket %s", bucket_name)
+                raise BucketNotFoundError(f"Storage bucket {bucket_name} is unavailable.") from e
 
         # Set public policy for whitelisted buckets (only after creation or if needed)
         if bucket_created:
@@ -152,8 +152,8 @@ class RustFSAdapter:
             )
             logger.info(f"Successfully uploaded {file_name} to {bucket_name}")
         except ClientError as e:
-            error_msg = f"Error uploading file to RustFS: {e}"
-            raise FileUploadError(error_msg) from e
+            logger.exception("Error uploading file %s to RustFS", file_name)
+            raise FileUploadError("File upload failed.") from e
         else:
             if self._is_public_bucket(bucket_name):
                 return self.public_url(file_name=file_name, bucket_name=bucket_name)
@@ -190,8 +190,8 @@ class RustFSAdapter:
             response = self.client.get_object(Bucket=bucket_name, Key=file_name)
             return response["Body"].read()
         except ClientError as e:
-            error_msg = f"Error downloading file from RustFS: {e}"
-            raise FileDownloadError(error_msg) from e
+            logger.exception("Error downloading file %s from RustFS", file_name)
+            raise FileDownloadError("File download failed.") from e
 
     def public_url(
         self,

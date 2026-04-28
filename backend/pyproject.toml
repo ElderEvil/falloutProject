@@ -31,7 +31,7 @@ dependencies = [
     "python-json-logger>=4.0.0",
     "psycopg2>=2.9.12",
     "uvloop>=0.21.0; sys_platform != 'win32'",
-    "fastapi-guard>=4.2.2,<6",
+    "fastapi-guard>=6.0.0,<7",
 ]
 
 [dependency-groups]

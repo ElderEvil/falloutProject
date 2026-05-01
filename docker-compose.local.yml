@@ -3,7 +3,27 @@ services:
     image: postgres:18-alpine
     restart: always
     env_file: ".env.local"
-    volumes:
+      dramatiq_worker:
+    container_name: dramatiq_worker
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: always
+    env_file: ".env"
+    environment:
+      - POSTGRES_SERVER=db
+      - REDIS_HOST=redis
+      - SMTP_HOST=mailpit
+      - OLLAMA_BASE_URL=http://ollama:11434/v1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    working_dir: /app
+    command: [ "uv", "run", "dramatiq", "app.api.tasks" ]
+
+volumes:
       - postgres-data-local:/var/lib/postgresql/data
     ports:
       - "5432:5432"
@@ -20,59 +40,28 @@ services:
     restart: always
     ports:
       - "6379:6379"
-    volumes:
+      dramatiq_worker:
+    container_name: dramatiq_worker
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: always
+    env_file: ".env"
+    environment:
+      - POSTGRES_SERVER=db
+      - REDIS_HOST=redis
+      - SMTP_HOST=mailpit
+      - OLLAMA_BASE_URL=http://ollama:11434/v1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    working_dir: /app
+    command: [ "uv", "run", "dramatiq", "app.api.tasks" ]
+
+volumes:
       - redis-data-local:/data
-
-  celery_worker:
-    container_name: celery_worker
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    restart: always
-    env_file: ".env.local"
-    environment:
-      - POSTGRES_SERVER=db
-      - REDIS_HOST=redis
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    working_dir: /app
-    command: [ "uv", "run", "celery", "-A", "app.core.celery", "worker", "-l", "info" ]
-    volumes:
-      - ./backend/app:/app/app
-
-  celery_beat:
-    container_name: celery_beat
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    restart: always
-    env_file: ".env.local"
-    environment:
-      - POSTGRES_SERVER=db
-      - REDIS_HOST=redis
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    working_dir: /app
-    command: [ "uv", "run", "celery", "-A", "app.core.celery", "beat", "-l", "info" ]
-    volumes:
-      - ./backend/app:/app/app
-
-  flower:
-    image: mher/flower:latest
-    restart: always
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-    ports:
-      - "5555:5555"
-    depends_on:
-      - celery_worker
-      - redis
 
   rustfs:
     image: rustfs/rustfs:latest
@@ -82,7 +71,27 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
-    volumes:
+      dramatiq_worker:
+    container_name: dramatiq_worker
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: always
+    env_file: ".env"
+    environment:
+      - POSTGRES_SERVER=db
+      - REDIS_HOST=redis
+      - SMTP_HOST=mailpit
+      - OLLAMA_BASE_URL=http://ollama:11434/v1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    working_dir: /app
+    command: [ "uv", "run", "dramatiq", "app.api.tasks" ]
+
+volumes:
       - rustfs_data_local:/data
 
   mailpit:
@@ -103,7 +112,27 @@ services:
     restart: always
     ports:
       - "11434:11434"
-    volumes:
+      dramatiq_worker:
+    container_name: dramatiq_worker
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: always
+    env_file: ".env"
+    environment:
+      - POSTGRES_SERVER=db
+      - REDIS_HOST=redis
+      - SMTP_HOST=mailpit
+      - OLLAMA_BASE_URL=http://ollama:11434/v1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    working_dir: /app
+    command: [ "uv", "run", "dramatiq", "app.api.tasks" ]
+
+volumes:
       - ollama_models:/root/.ollama
     environment:
       - OLLAMA_KEEP_ALIVE=24h
@@ -136,7 +165,27 @@ services:
       - "8000:8000"
     working_dir: /app
     command: [ "sh", "-c", "uv run alembic upgrade head && uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload" ]
-    volumes:
+      dramatiq_worker:
+    container_name: dramatiq_worker
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: always
+    env_file: ".env"
+    environment:
+      - POSTGRES_SERVER=db
+      - REDIS_HOST=redis
+      - SMTP_HOST=mailpit
+      - OLLAMA_BASE_URL=http://ollama:11434/v1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    working_dir: /app
+    command: [ "uv", "run", "dramatiq", "app.api.tasks" ]
+
+volumes:
       - ./backend/app:/app/app
       - ./backend/alembic:/app/alembic
 
@@ -148,11 +197,51 @@ services:
     restart: always
     ports:
       - "3000:3000"
-    volumes:
+      dramatiq_worker:
+    container_name: dramatiq_worker
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: always
+    env_file: ".env"
+    environment:
+      - POSTGRES_SERVER=db
+      - REDIS_HOST=redis
+      - SMTP_HOST=mailpit
+      - OLLAMA_BASE_URL=http://ollama:11434/v1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    working_dir: /app
+    command: [ "uv", "run", "dramatiq", "app.api.tasks" ]
+
+volumes:
       - ./frontend:/app
       - /app/node_modules
     environment:
       - NODE_ENV=development
+
+  dramatiq_worker:
+    container_name: dramatiq_worker
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: always
+    env_file: ".env"
+    environment:
+      - POSTGRES_SERVER=db
+      - REDIS_HOST=redis
+      - SMTP_HOST=mailpit
+      - OLLAMA_BASE_URL=http://ollama:11434/v1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    working_dir: /app
+    command: [ "uv", "run", "dramatiq", "app.api.tasks" ]
 
 volumes:
   postgres-data-local:

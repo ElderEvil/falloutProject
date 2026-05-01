@@ -7,7 +7,27 @@ services:
     image: postgres:18-alpine
     restart: always
     env_file: ".env"
-    volumes:
+      dramatiq_worker:
+    container_name: dramatiq_worker
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: always
+    env_file: ".env"
+    environment:
+      - POSTGRES_SERVER=db
+      - REDIS_HOST=redis
+      - SMTP_HOST=mailpit
+      - OLLAMA_BASE_URL=http://ollama:11434/v1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    working_dir: /app
+    command: [ "uv", "run", "dramatiq", "app.api.tasks" ]
+
+volumes:
       - postgres-data-infra:/var/lib/postgresql/data
     ports:
       - "5432:5432"
@@ -24,68 +44,28 @@ services:
     restart: always
     ports:
       - "6379:6379"
-    volumes:
+      dramatiq_worker:
+    container_name: dramatiq_worker
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: always
+    env_file: ".env"
+    environment:
+      - POSTGRES_SERVER=db
+      - REDIS_HOST=redis
+      - SMTP_HOST=mailpit
+      - OLLAMA_BASE_URL=http://ollama:11434/v1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    working_dir: /app
+    command: [ "uv", "run", "dramatiq", "app.api.tasks" ]
+
+volumes:
       - redis-data-infra:/data
-
-  celery_worker:
-    container_name: celery_worker_infra
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    restart: always
-    environment:
-      - POSTGRES_SERVER=db
-      - REDIS_HOST=redis
-      - RUSTFS_HOSTNAME=rustfs
-      - SMTP_HOST=mailpit
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-    env_file: ".env"
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-      rustfs:
-        condition: service_started
-    working_dir: /app
-    command: [ "uv", "run", "celery", "-A", "app.core.celery", "worker", "-l", "info" ]
-
-  celery_beat:
-    container_name: celery_beat_infra
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    restart: always
-    environment:
-      - POSTGRES_SERVER=db
-      - REDIS_HOST=redis
-      - RUSTFS_HOSTNAME=rustfs
-      - SMTP_HOST=mailpit
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-    env_file: ".env"
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-      rustfs:
-        condition: service_started
-    working_dir: /app
-    command: [ "uv", "run", "celery", "-A", "app.core.celery", "beat", "-l", "info", "--scheduler", "sqlalchemy_celery_beat.schedulers:DatabaseScheduler" ]
-
-  flower:
-    image: mher/flower:latest
-    container_name: flower_infra
-    restart: always
-    env_file: ".env"
-    environment:
-      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
-    ports:
-      - "5555:5555"
-    depends_on:
-      - celery_worker
 
   rustfs:
     image: rustfs/rustfs:latest
@@ -95,7 +75,27 @@ services:
     ports:
       - "9002:9000"
       - "9003:9001"
-    volumes:
+      dramatiq_worker:
+    container_name: dramatiq_worker
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: always
+    env_file: ".env"
+    environment:
+      - POSTGRES_SERVER=db
+      - REDIS_HOST=redis
+      - SMTP_HOST=mailpit
+      - OLLAMA_BASE_URL=http://ollama:11434/v1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    working_dir: /app
+    command: [ "uv", "run", "dramatiq", "app.api.tasks" ]
+
+volumes:
       - rustfs_data_infra:/data
 
   mailpit:
@@ -109,6 +109,26 @@ services:
       MP_MAX_MESSAGES: 5000
       MP_SMTP_AUTH_ACCEPT_ANY: 1
       MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
+  dramatiq_worker:
+    container_name: dramatiq_worker
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: always
+    env_file: ".env"
+    environment:
+      - POSTGRES_SERVER=db
+      - REDIS_HOST=redis
+      - SMTP_HOST=mailpit
+      - OLLAMA_BASE_URL=http://ollama:11434/v1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    working_dir: /app
+    command: [ "uv", "run", "dramatiq", "app.api.tasks" ]
 
 volumes:
   postgres-data-infra:

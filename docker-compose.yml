@@ -25,8 +25,6 @@ services:
       - POSTGRES_SERVER=db
       - REDIS_HOST=redis
       - SMTP_HOST=mailpit
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - OLLAMA_BASE_URL=http://ollama:11434/v1
     env_file: ".env"
     depends_on:
@@ -56,8 +54,8 @@ services:
     ports:
       - "6379:6379"
 
-  celery_worker:
-    container_name: celery_worker
+  dramatiq_worker:
+    container_name: dramatiq_worker
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -66,8 +64,6 @@ services:
       - POSTGRES_SERVER=db
       - REDIS_HOST=redis
       - SMTP_HOST=mailpit
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - OLLAMA_BASE_URL=http://ollama:11434/v1
     env_file: ".env"
     depends_on:
@@ -76,40 +72,7 @@ services:
       redis:
         condition: service_started
     working_dir: /app
-    command: [ "uv", "run", "celery", "-A", "app.core.celery", "worker", "-l", "info" ]
-
-  celery_beat:
-    container_name: celery_beat
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    restart: always
-    environment:
-      - POSTGRES_SERVER=db
-      - REDIS_HOST=redis
-      - SMTP_HOST=mailpit
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - OLLAMA_BASE_URL=http://ollama:11434/v1
-    env_file: ".env"
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    working_dir: /app
-    command: [ "uv", "run", "celery", "-A", "app.core.celery", "beat", "-l", "info", "--scheduler", "sqlalchemy_celery_beat.schedulers:DatabaseScheduler" ]
-
-  flower:
-    image: mher/flower:latest
-    restart: always
-    env_file: ".env"
-    environment:
-      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
-    ports:
-      - "5555:5555"
-    depends_on:
-      - celery_worker
+    command: [ "uv", "run", "dramatiq", "app.api.tasks" ]
 
   rustfs:
     image: rustfs/rustfs:latest

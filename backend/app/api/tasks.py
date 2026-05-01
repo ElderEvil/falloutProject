@@ -3,9 +3,9 @@ import logging
 import sys
 import time
 
-from pydantic import UUID4
-
 import dramatiq
+import periodiq
+from pydantic import UUID4
 
 from app.services.cleanup_service import cleanup_service
 from app.services.death_service import death_service
@@ -312,3 +312,17 @@ def cleanup_old_records():
     else:
         logger.info(f"Cleanup completed: {result}")
         return result
+# Periodiq schedule configuration
+# These actors are scheduled to run periodically via Periodiq scheduler
+# Command: periodiq app.core.dramatiq app.api.tasks
+
+# Every minute (60 seconds)
+game_tick.options["periodic"] = periodiq.cron("* * * * *")
+
+# Daily at midnight
+check_permanent_deaths.options["periodic"] = periodiq.cron("0 0 * * *")
+refresh_daily_objectives.options["periodic"] = periodiq.cron("0 0 * * *")
+cleanup_old_records.options["periodic"] = periodiq.cron("0 0 * * *")
+
+# Weekly on Monday at midnight
+refresh_weekly_objectives.options["periodic"] = periodiq.cron("0 0 * * 1")

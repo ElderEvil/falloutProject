@@ -39,7 +39,6 @@ x-backend-env: &backend-env
   POSTGRES_USER: ${POSTGRES_USER:-postgres}
   POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Required}
   POSTGRES_DB: ${POSTGRES_DB:-fallout_db}
-  CELERY_DATABASE_NAME: celery_schedule_jobs
   DB_POOL_SIZE: 83
   WEB_CONCURRENCY: 9
   # Redis
@@ -50,13 +49,6 @@ x-backend-env: &backend-env
   AI_MODEL: ${AI_MODEL:-gpt-4o}
   OPENAI_API_KEY: ${OPENAI_API_KEY:-}
   OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://localhost:11434/v1}
-  # MinIO
-  MINIO_HOSTNAME: minio
-  MINIO_PORT: 9000
-  MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Required}
-  MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Required}
-  MINIO_DEFAULT_BUCKET: fallout-bucket
-  MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-https://fallout-media.evillab.dev}
   # SMTP
   SMTP_HOST: ${SMTP_HOST:-mailpit}
   SMTP_PORT: ${SMTP_PORT:-1025}
@@ -89,7 +81,25 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    volumes:
+      dramatiq_worker:
+    image: elerevil/fo-shelter-be:${BE_VERSION:-latest}
+    container_name: fallout_dramatiq_worker
+    restart: always
+    working_dir: /app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command:
+      - uv
+      - run
+      - dramatiq
+      - app.api.tasks
+    environment:
+      <<: *backend-env
+
+volumes:
       - postgres-data:/var/lib/postgresql/data
     # Bind to localhost only - remove entirely if external access not needed
     ports:
@@ -106,20 +116,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  minio:
-    image: minio/minio
-    container_name: fallout_minio
-    restart: always
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Required}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Required}
-    volumes:
-      - minio_data:/data
-    ports:
-      - "9000:9000"
-      - "9001:9001"
 
   fastapi:
     image: elerevil/fo-shelter-be:${BE_VERSION:-latest}
@@ -138,64 +134,6 @@ services:
       BACKEND_CORS_ORIGINS: '["http://localhost:3000","http://localhost:8000","http://localhost:5173","${FRONTEND_URL}","${API_URL}"]'
     ports:
       - "8000:8000"
-
-  celery_worker:
-    image: elerevil/fo-shelter-be:${BE_VERSION:-latest}
-    container_name: fallout_celery_worker
-    restart: always
-    working_dir: /app
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    command:
-      - uv
-      - run
-      - celery
-      - -A
-      - app.core.celery
-      - worker
-      - -l
-      - info
-    environment:
-      <<: *backend-env
-
-  celery_beat:
-    image: elerevil/fo-shelter-be:${BE_VERSION:-latest}
-    container_name: fallout_celery_beat
-    restart: always
-    working_dir: /app
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    command:
-      - uv
-      - run
-      - celery
-      - -A
-      - app.core.celery
-      - beat
-      - -l
-      - info
-      - --scheduler
-      - sqlalchemy_celery_beat.schedulers:DatabaseScheduler
-    environment:
-      <<: *backend-env
-
-  flower:
-    image: mher/flower:latest
-    container_name: fallout_flower
-    restart: always
-    depends_on:
-      - celery_worker
-    environment:
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
-    ports:
-      - "5555:5555"
 
   mailpit:
     image: axllent/mailpit:latest
@@ -219,6 +157,24 @@ services:
     restart: always
     ports:
       - "3210:3000"
+
+  dramatiq_worker:
+    image: elerevil/fo-shelter-be:${BE_VERSION:-latest}
+    container_name: fallout_dramatiq_worker
+    restart: always
+    working_dir: /app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command:
+      - uv
+      - run
+      - dramatiq
+      - app.api.tasks
+    environment:
+      <<: *backend-env
 
 volumes:
   postgres-data:

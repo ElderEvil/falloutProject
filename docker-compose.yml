@@ -72,7 +72,7 @@ services:
       redis:
         condition: service_started
     working_dir: /app
-    command: [ "uv", "run", "dramatiq", "app.api.tasks" ]
+    command: [ "sh", "-c", "uv run periodiq app.core.dramatiq app.api.tasks & uv run dramatiq app.api.tasks" ]
 
   rustfs:
     image: rustfs/rustfs:latest

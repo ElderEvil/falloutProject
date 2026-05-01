@@ -21,7 +21,7 @@ services:
       redis:
         condition: service_started
     working_dir: /app
-    command: [ "uv", "run", "dramatiq", "app.api.tasks" ]
+    command: [ "sh", "-c", "uv run periodiq app.core.dramatiq app.api.tasks & uv run dramatiq app.api.tasks" ]
 
 volumes:
       - postgres-data-local:/var/lib/postgresql/data
@@ -58,7 +58,7 @@ volumes:
       redis:
         condition: service_started
     working_dir: /app
-    command: [ "uv", "run", "dramatiq", "app.api.tasks" ]
+    command: [ "sh", "-c", "uv run periodiq app.core.dramatiq app.api.tasks & uv run dramatiq app.api.tasks" ]
 
 volumes:
       - redis-data-local:/data
@@ -89,7 +89,7 @@ volumes:
       redis:
         condition: service_started
     working_dir: /app
-    command: [ "uv", "run", "dramatiq", "app.api.tasks" ]
+    command: [ "sh", "-c", "uv run periodiq app.core.dramatiq app.api.tasks & uv run dramatiq app.api.tasks" ]
 
 volumes:
       - rustfs_data_local:/data
@@ -130,7 +130,7 @@ volumes:
       redis:
         condition: service_started
     working_dir: /app
-    command: [ "uv", "run", "dramatiq", "app.api.tasks" ]
+    command: [ "sh", "-c", "uv run periodiq app.core.dramatiq app.api.tasks & uv run dramatiq app.api.tasks" ]
 
 volumes:
       - ollama_models:/root/.ollama
@@ -183,7 +183,7 @@ volumes:
       redis:
         condition: service_started
     working_dir: /app
-    command: [ "uv", "run", "dramatiq", "app.api.tasks" ]
+    command: [ "sh", "-c", "uv run periodiq app.core.dramatiq app.api.tasks & uv run dramatiq app.api.tasks" ]
 
 volumes:
       - ./backend/app:/app/app
@@ -215,7 +215,7 @@ volumes:
       redis:
         condition: service_started
     working_dir: /app
-    command: [ "uv", "run", "dramatiq", "app.api.tasks" ]
+    command: [ "sh", "-c", "uv run periodiq app.core.dramatiq app.api.tasks & uv run dramatiq app.api.tasks" ]
 
 volumes:
       - ./frontend:/app
@@ -241,7 +241,7 @@ volumes:
       redis:
         condition: service_started
     working_dir: /app
-    command: [ "uv", "run", "dramatiq", "app.api.tasks" ]
+    command: [ "sh", "-c", "uv run periodiq app.core.dramatiq app.api.tasks & uv run dramatiq app.api.tasks" ]
 
 volumes:
   postgres-data-local:

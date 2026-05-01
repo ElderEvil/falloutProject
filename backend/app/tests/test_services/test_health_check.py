@@ -28,6 +28,6 @@ async def test_health_check_rustfs_provider(monkeypatch) -> None:
 
     service = HealthCheckService()
     engine = cast(AsyncEngine, object())
-    results = await service.check_all_services(engine=engine, include_celery=False, include_smtp=False)
+    results = await service.check_all_services(engine=engine, include_dramatiq=False, include_smtp=False)
 
     assert "rustfs" in results

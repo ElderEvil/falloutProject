@@ -1,6 +1,5 @@
-# Read Python version from .python-version file
 ARG PYTHON_VERSION
-FROM python:${PYTHON_VERSION:-3.13}-slim-bookworm
+FROM python:${PYTHON_VERSION:-3.13}-slim-bookworm AS builder
 
 # Install build dependencies for Python packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -13,10 +12,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Create a non-root user
-RUN useradd -m appuser
-
-# Set working directory
 WORKDIR /app
 
 # Set environment variables
@@ -29,11 +24,28 @@ COPY backend/pyproject.toml backend/uv.lock /app/
 # Create virtual environment and install dependencies using uv sync
 RUN uv sync --frozen --no-dev --no-install-project --no-cache
 
+# Runtime stage
+FROM python:${PYTHON_VERSION:-3.13}-slim-bookworm
+
+# Install uv (needed for uv run commands)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Create a non-root user
+RUN useradd -m appuser
+
+WORKDIR /app
+
+# Set environment variables
+ENV VIRTUAL_ENV=/app/.venv \
+    PATH="/app/.venv/bin:$PATH"
+
+# Copy installed virtual environment from builder
+COPY --from=builder /app/.venv /app/.venv
+
 # Copy backend application code
 COPY backend/ /app/
 
-# Copy changelog to project root (needed by /api/v1/system/changelog)
-# project_root resolves to / from /app/app/core/config.py
+# Copy changelog to project root
 COPY CHANGELOG.md /CHANGELOG.md
 
 # Command to run the application

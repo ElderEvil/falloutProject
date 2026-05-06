@@ -101,6 +101,13 @@ services:
       EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-noreply@falloutshelter.com}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Fallout Shelter}
       FRONTEND_URL: ${FRONTEND_URL:-https://fallout.evillab.dev}
+      RUSTFS_HOSTNAME: ${RUSTFS_HOSTNAME:?RUSTFS_HOSTNAME is required}
+      RUSTFS_PORT: ${RUSTFS_PORT:-9876}
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:-}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:-}
+      RUSTFS_DEFAULT_BUCKET: ${RUSTFS_DEFAULT_BUCKET:-fallout-shelter}
+      RUSTFS_PUBLIC_URL: ${RUSTFS_PUBLIC_URL:-}
+      RUSTFS_USE_HTTPS: ${RUSTFS_USE_HTTPS:-False}
       BACKEND_CORS_ORIGINS: '["http://localhost:3000","http://localhost:8000","http://localhost:5173","${FRONTEND_URL}","${API_URL}"]'
     ports:
       - "8000:8000"
@@ -185,5 +192,12 @@ services:
       EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-noreply@falloutshelter.com}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Fallout Shelter}
       FRONTEND_URL: ${FRONTEND_URL:-https://fallout.evillab.dev}
+      RUSTFS_HOSTNAME: ${RUSTFS_HOSTNAME:?RUSTFS_HOSTNAME is required}
+      RUSTFS_PORT: ${RUSTFS_PORT:-9876}
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:-}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:-}
+      RUSTFS_DEFAULT_BUCKET: ${RUSTFS_DEFAULT_BUCKET:-fallout-shelter}
+      RUSTFS_PUBLIC_URL: ${RUSTFS_PUBLIC_URL:-}
+      RUSTFS_USE_HTTPS: ${RUSTFS_USE_HTTPS:-False}
 
 

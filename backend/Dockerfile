@@ -48,5 +48,8 @@ COPY backend/ /app/
 # Copy changelog to project root
 COPY CHANGELOG.md /CHANGELOG.md
 
+RUN chown -R appuser:appuser /app
+USER appuser
+
 # Command to run the application
 CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

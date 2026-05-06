@@ -10,57 +10,6 @@
 #   - elerevil/fo-shelter-be:latest
 #   - elerevil/fo-shelter-fe:latest
 
-x-backend-env: &backend-env
-  ENVIRONMENT: ${ENVIRONMENT:-staging}
-  API_VERSION: v1
-  PROJECT_NAME: Fallout Shelter API
-  # Auth
-  SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
-  ALGORITHM: HS256
-  ACCESS_TOKEN_EXPIRE_MINUTES: 30
-  REFRESH_TOKEN_EXPIRE_MINUTES: 6048
-  # Rate Limiting
-  ENABLE_RATE_LIMITING: "true"
-  RATE_LIMIT_REQUESTS: 250
-  RATE_LIMIT_WINDOW: 60
-  AUTO_BAN_THRESHOLD: 10
-  AUTO_BAN_DURATION: 3600
-  # Logging
-  LOG_LEVEL: INFO
-  LOG_JSON_FORMAT: "true"
-  # Initial Admin
-  FIRST_SUPERUSER_USERNAME: ${FIRST_SUPERUSER_USERNAME:?Required}
-  FIRST_SUPERUSER_EMAIL: ${FIRST_SUPERUSER_EMAIL:?Required}
-  FIRST_SUPERUSER_PASSWORD: ${FIRST_SUPERUSER_PASSWORD:?Required}
-  EMAIL_TEST_USER: test@example.com
-  USERS_OPEN_REGISTRATION: "true"
-  # Database
-  POSTGRES_SERVER: db
-  POSTGRES_USER: ${POSTGRES_USER:-postgres}
-  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Required}
-  POSTGRES_DB: ${POSTGRES_DB:-fallout_db}
-  DB_POOL_SIZE: 83
-  WEB_CONCURRENCY: 9
-  # Redis
-  REDIS_HOST: redis
-  REDIS_PORT: 6379
-  # AI
-  AI_PROVIDER: ${AI_PROVIDER:-openai}
-  AI_MODEL: ${AI_MODEL:-gpt-4o}
-  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-  OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://localhost:11434/v1}
-  # SMTP
-  SMTP_HOST: ${SMTP_HOST:-mailpit}
-  SMTP_PORT: ${SMTP_PORT:-1025}
-  SMTP_USER: ${SMTP_USER:-}
-  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-  SMTP_TLS: ${SMTP_TLS:-false}
-  SMTP_SSL: ${SMTP_SSL:-false}
-  EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-noreply@falloutshelter.com}
-  EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Fallout Shelter}
-  # URLs
-  FRONTEND_URL: ${FRONTEND_URL:-https://fallout.evillab.dev}
-
 services:
   db:
     image: postgres:18-alpine
@@ -112,7 +61,46 @@ services:
     command: >
       sh -c "uv run alembic upgrade head && uv run uvicorn main:app --host 0.0.0.0 --port 8000"
     environment:
-      <<: *backend-env
+      ENVIRONMENT: ${ENVIRONMENT:-staging}
+      API_VERSION: v1
+      PROJECT_NAME: Fallout Shelter API
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      REFRESH_TOKEN_EXPIRE_MINUTES: 6048
+      ENABLE_RATE_LIMITING: "true"
+      RATE_LIMIT_REQUESTS: 250
+      RATE_LIMIT_WINDOW: 60
+      AUTO_BAN_THRESHOLD: 10
+      AUTO_BAN_DURATION: 3600
+      LOG_LEVEL: INFO
+      LOG_JSON_FORMAT: "true"
+      FIRST_SUPERUSER_USERNAME: ${FIRST_SUPERUSER_USERNAME:?Required}
+      FIRST_SUPERUSER_EMAIL: ${FIRST_SUPERUSER_EMAIL:?Required}
+      FIRST_SUPERUSER_PASSWORD: ${FIRST_SUPERUSER_PASSWORD:?Required}
+      EMAIL_TEST_USER: test@example.com
+      USERS_OPEN_REGISTRATION: "true"
+      POSTGRES_SERVER: db
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Required}
+      POSTGRES_DB: ${POSTGRES_DB:-fallout_db}
+      DB_POOL_SIZE: 83
+      WEB_CONCURRENCY: 9
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      AI_MODEL: ${AI_MODEL:-gpt-4o}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://localhost:11434/v1}
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_TLS: ${SMTP_TLS:-false}
+      SMTP_SSL: ${SMTP_SSL:-false}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-noreply@falloutshelter.com}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Fallout Shelter}
+      FRONTEND_URL: ${FRONTEND_URL:-https://fallout.evillab.dev}
       BACKEND_CORS_ORIGINS: '["http://localhost:3000","http://localhost:8000","http://localhost:5173","${FRONTEND_URL}","${API_URL}"]'
     ports:
       - "8000:8000"
@@ -157,6 +145,45 @@ services:
       kill $PERIODIQ_PID $DRAMATIQ_PID 2>/dev/null;
       wait"
     environment:
-      <<: *backend-env
+      ENVIRONMENT: ${ENVIRONMENT:-staging}
+      API_VERSION: v1
+      PROJECT_NAME: Fallout Shelter API
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      REFRESH_TOKEN_EXPIRE_MINUTES: 6048
+      ENABLE_RATE_LIMITING: "true"
+      RATE_LIMIT_REQUESTS: 250
+      RATE_LIMIT_WINDOW: 60
+      AUTO_BAN_THRESHOLD: 10
+      AUTO_BAN_DURATION: 3600
+      LOG_LEVEL: INFO
+      LOG_JSON_FORMAT: "true"
+      FIRST_SUPERUSER_USERNAME: ${FIRST_SUPERUSER_USERNAME:?Required}
+      FIRST_SUPERUSER_EMAIL: ${FIRST_SUPERUSER_EMAIL:?Required}
+      FIRST_SUPERUSER_PASSWORD: ${FIRST_SUPERUSER_PASSWORD:?Required}
+      EMAIL_TEST_USER: test@example.com
+      USERS_OPEN_REGISTRATION: "true"
+      POSTGRES_SERVER: db
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Required}
+      POSTGRES_DB: ${POSTGRES_DB:-fallout_db}
+      DB_POOL_SIZE: 83
+      WEB_CONCURRENCY: 9
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      AI_MODEL: ${AI_MODEL:-gpt-4o}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://localhost:11434/v1}
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_TLS: ${SMTP_TLS:-false}
+      SMTP_SSL: ${SMTP_SSL:-false}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-noreply@falloutshelter.com}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Fallout Shelter}
+      FRONTEND_URL: ${FRONTEND_URL:-https://fallout.evillab.dev}
 
 

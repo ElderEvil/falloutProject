@@ -53,8 +53,7 @@ docker compose down
 | Frontend | http://localhost:5173 |
 | Backend API | http://localhost:8000 |
 | API Docs | http://localhost:8000/docs |
-| Flower | http://localhost:5555 |
-| MinIO Console | http://localhost:9001 |
+| Dramatiq Worker | (background tasks) |
 | Mailpit | http://localhost:8025 |
 
 ## TrueNAS Staging
@@ -247,10 +246,10 @@ docker compose exec db psql -U postgres -d fallout_db -c "SELECT 1"
 - Verify reverse proxy configuration
 - Check browser console for CORS errors
 
-### Celery Tasks Not Running
+### Background Tasks Not Running
 ```bash
 docker compose ps redis
-docker compose logs celery_worker
+docker compose logs dramatiq_worker
 ```
 
 ## Security Checklist

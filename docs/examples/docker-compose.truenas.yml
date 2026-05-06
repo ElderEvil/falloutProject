@@ -82,7 +82,7 @@ services:
       timeout: 5s
       retries: 5
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - /mnt/dead-pool/apps/fallout-shelter/postgres-data:/var/lib/postgresql/data
     # Bind to localhost only - remove entirely if external access not needed
     ports:
       - "127.0.0.1:5432:5432"
@@ -159,5 +159,4 @@ services:
     environment:
       <<: *backend-env
 
-volumes:
-  postgres-data:
+

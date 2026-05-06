@@ -144,7 +144,7 @@ jobs:
             SERVICES=""
 
             if [[ "${{ inputs.deploy_backend }}" == "true" ]]; then
-              SERVICES="$SERVICES fastapi celery_worker celery_beat"
+              SERVICES="$SERVICES fastapi dramatiq_worker"
             fi
 
             if [[ "${{ inputs.deploy_frontend }}" == "true" ]]; then

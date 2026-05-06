@@ -312,6 +312,8 @@ def cleanup_old_records():
     else:
         logger.info(f"Cleanup completed: {result}")
         return result
+
+
 # Periodiq schedule configuration
 # These actors are scheduled to run periodically via Periodiq scheduler
 # Command: periodiq app.core.dramatiq app.api.tasks

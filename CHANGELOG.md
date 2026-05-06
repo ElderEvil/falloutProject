@@ -7,6 +7,14 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ## [Unreleased]
 
+### Fixed
+
+- **Security: containers now run as non-root user** - The backend Docker image no longer runs as root for improved security
+- **Security: RustFS no longer uses hardcoded credentials** - Docker Compose now requires explicit `RUSTFS_ACCESS_KEY` and `RUSTFS_SECRET_KEY` instead of silently falling back to insecure defaults
+- **Reliability: task scheduler auto-recovery** - If the Dramatiq task worker or Periodiq scheduler crashes, Docker will now automatically restart the container instead of leaving it in a half-dead state
+- **Reliability: database migration cleanup** - Fixed a migration that could leave orphaned PostgreSQL enum types behind when dropping old Celery tables
+- **Configuration: restored missing RustFS settings** - The production environment template (`.env.prod.example`) now includes all required `RUSTFS_*` variables with placeholders and setup instructions
+
 ---
 
 ## [2.13.0] - 2026-05-01

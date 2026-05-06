@@ -27,20 +27,19 @@ services:
     volumes:
       - redis-data-infra:/data
 
-  celery_worker:
-    container_name: celery_worker_infra
+  dramatiq_worker:
+    container_name: dramatiq_worker_infra
     build:
       context: .
       dockerfile: backend/Dockerfile
     restart: always
+    env_file: ".env"
     environment:
       - POSTGRES_SERVER=db
       - REDIS_HOST=redis
       - RUSTFS_HOSTNAME=rustfs
       - SMTP_HOST=mailpit
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-    env_file: ".env"
+      - OLLAMA_BASE_URL=http://ollama:11434/v1
     depends_on:
       db:
         condition: service_healthy
@@ -49,43 +48,7 @@ services:
       rustfs:
         condition: service_started
     working_dir: /app
-    command: [ "uv", "run", "celery", "-A", "app.core.celery", "worker", "-l", "info" ]
-
-  celery_beat:
-    container_name: celery_beat_infra
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    restart: always
-    environment:
-      - POSTGRES_SERVER=db
-      - REDIS_HOST=redis
-      - RUSTFS_HOSTNAME=rustfs
-      - SMTP_HOST=mailpit
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-    env_file: ".env"
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-      rustfs:
-        condition: service_started
-    working_dir: /app
-    command: [ "uv", "run", "celery", "-A", "app.core.celery", "beat", "-l", "info", "--scheduler", "sqlalchemy_celery_beat.schedulers:DatabaseScheduler" ]
-
-  flower:
-    image: mher/flower:latest
-    container_name: flower_infra
-    restart: always
-    env_file: ".env"
-    environment:
-      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
-    ports:
-      - "5555:5555"
-    depends_on:
-      - celery_worker
+    command: [ "sh", "-c", "uv run periodiq app.core.dramatiq app.api.tasks & PERIODIQ_PID=$!; uv run dramatiq app.api.tasks & DRAMATIQ_PID=$!; wait -n; kill $PERIODIQ_PID $DRAMATIQ_PID 2>/dev/null; wait" ]
 
   rustfs:
     image: rustfs/rustfs:latest

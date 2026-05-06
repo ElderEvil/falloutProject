@@ -3,44 +3,39 @@ import logging
 import sys
 import time
 
+import dramatiq
+import periodiq
 from pydantic import UUID4
 
-from app.core.celery import celery_app
 from app.services.cleanup_service import cleanup_service
 from app.services.death_service import death_service
 from app.services.game_loop import game_loop_service
 
 logger = logging.getLogger(__name__)
 
-# Fix for Windows asyncio + asyncpg issue
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
-@celery_app.task(name="create_task1")
+@dramatiq.actor(actor_name="create_task")
 def create_task(task_time: int):
     time.sleep(task_time)
     return True
 
 
-@celery_app.task(name="game_tick", bind=True)
-def game_tick_task(self):
-    """
-    Main game tick task - processes all active vaults.
-    Scheduled to run every 60 seconds via Celery Beat.
-    """
+@dramatiq.actor(actor_name="game_tick", max_retries=3, min_backoff=60000)
+def game_tick():
+    """Main game tick - processes all active vaults. Scheduled every 60 seconds."""
     try:
         logger.info("Starting game tick")
 
         async def run_tick():
-            # Create a new session maker in the current event loop context
             from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
             from app.core.config import settings
             from app.services.objective_evaluators import evaluator_manager
             from app.services.objective_notifications import register_objective_event_handlers
 
-            # Initialize objective evaluators (Celery runs in separate process)
             evaluator_manager.initialize()
             register_objective_event_handlers()
 
@@ -59,32 +54,27 @@ def game_tick_task(self):
                 await engine.dispose()
 
         stats = asyncio.run(run_tick())
-    except Exception as e:
+    except Exception:
         logger.exception("Game tick failed")
-        raise self.retry(exc=e, countdown=60) from e
+        raise
     else:
         logger.info(f"Game tick completed: {stats}")
         return stats
 
 
-@celery_app.task(name="process_vault_tick", bind=True)
-def process_vault_tick_task(self, vault_id: str):
-    """
-    Process a single vault tick.
-    Can be called manually or for catch-up processing.
-    """
+@dramatiq.actor(actor_name="process_vault_tick", max_retries=3, min_backoff=30000)
+def process_vault_tick(vault_id: str):
+    """Process a single vault tick. Can be called manually or for catch-up processing."""
     try:
         logger.info(f"Processing vault tick for {vault_id}")
 
         async def run_vault_tick():
-            # Create a new session maker in the current event loop context
             from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
             from app.core.config import settings
             from app.services.objective_evaluators import evaluator_manager
             from app.services.objective_notifications import register_objective_event_handlers
 
-            # Initialize objective evaluators (Celery runs in separate process)
             evaluator_manager.initialize()
             register_objective_event_handlers()
 
@@ -103,20 +93,17 @@ def process_vault_tick_task(self, vault_id: str):
                 await engine.dispose()
 
         result = asyncio.run(run_vault_tick())
-    except Exception as e:
+    except Exception:
         logger.exception(f"Vault {vault_id} tick failed")
-        raise self.retry(exc=e, countdown=30) from e
+        raise
     else:
         logger.info(f"Vault {vault_id} tick completed")
         return result
 
 
-@celery_app.task(name="check_permanent_deaths", bind=True)
-def check_permanent_deaths_task(self):
-    """
-    Check for dead dwellers past the revival window and mark them as permanently dead.
-    Scheduled to run daily via Celery Beat.
-    """
+@dramatiq.actor(actor_name="check_permanent_deaths", max_retries=3, min_backoff=3600000)
+def check_permanent_deaths():
+    """Check for dead dwellers past the revival window and mark them as permanently dead."""
     try:
         logger.info("Starting permanent death check")
 
@@ -142,16 +129,16 @@ def check_permanent_deaths_task(self):
                 await engine.dispose()
 
         count = asyncio.run(run_check())
-    except Exception as e:
+    except Exception:
         logger.exception("Permanent death check failed")
-        raise self.retry(exc=e, countdown=3600) from e  # Retry in 1 hour
+        raise
     else:
         logger.info(f"Permanent death check completed: {count} dwellers marked as permanently dead")
         return {"marked_permanently_dead": count}
 
 
-@celery_app.task(name="check_quest_completion", bind=True)
-def check_quest_completion_task(self):
+@dramatiq.actor(actor_name="check_quest_completion", max_retries=3, min_backoff=300000)
+def check_quest_completion():
     """Check for quests that have exceeded their duration and auto-complete them."""
     try:
         logger.info("Starting quest completion check")
@@ -179,17 +166,17 @@ def check_quest_completion_task(self):
                 await engine.dispose()
 
         count = asyncio.run(run_check())
-    except Exception as e:
+    except Exception:
         logger.exception("Quest completion check failed")
-        raise self.retry(exc=e, countdown=300) from e
+        raise
     else:
         logger.info(f"Quest completion check completed: {count} quests auto-completed")
         return {"quests_completed": count}
 
 
-@celery_app.task(name="refresh_daily_objectives", bind=True)
-def refresh_daily_objectives_task(self):
-    """Refresh daily objectives for all vaults. Scheduled to run daily via Celery Beat."""
+@dramatiq.actor(actor_name="refresh_daily_objectives", max_retries=3, min_backoff=3600000)
+def refresh_daily_objectives():
+    """Refresh daily objectives for all vaults."""
     try:
         logger.info("Starting daily objectives refresh")
 
@@ -229,17 +216,17 @@ def refresh_daily_objectives_task(self):
                 await engine.dispose()
 
         result = asyncio.run(run_refresh())
-    except Exception as e:
+    except Exception:
         logger.exception("Daily objectives refresh failed")
-        raise self.retry(exc=e, countdown=3600) from e
+        raise
     else:
         logger.info(f"Daily objectives refresh completed: {result}")
         return result
 
 
-@celery_app.task(name="refresh_weekly_objectives", bind=True)
-def refresh_weekly_objectives_task(self):
-    """Refresh weekly objectives for all vaults. Scheduled to run weekly via Celery Beat."""
+@dramatiq.actor(actor_name="refresh_weekly_objectives", max_retries=3, min_backoff=3600000)
+def refresh_weekly_objectives():
+    """Refresh weekly objectives for all vaults."""
     try:
         logger.info("Starting weekly objectives refresh")
 
@@ -279,16 +266,17 @@ def refresh_weekly_objectives_task(self):
                 await engine.dispose()
 
         result = asyncio.run(run_refresh())
-    except Exception as e:
+    except Exception:
         logger.exception("Weekly objectives refresh failed")
-        raise self.retry(exc=e, countdown=3600) from e
+        raise
     else:
         logger.info(f"Weekly objectives refresh completed: {result}")
         return result
 
 
-@celery_app.task(name="cleanup_old_records", bind=True)
-def cleanup_old_records_task(self):
+@dramatiq.actor(actor_name="cleanup_old_records", max_retries=3, min_backoff=3600000)
+def cleanup_old_records():
+    """Clean up old incidents and notifications based on retention settings."""
     try:
         logger.info("Starting cleanup of old incidents and notifications")
 
@@ -318,9 +306,25 @@ def cleanup_old_records_task(self):
                 await engine.dispose()
 
         result = asyncio.run(run_cleanup())
-    except Exception as e:
+    except Exception:
         logger.exception("Cleanup of old records failed")
-        raise self.retry(exc=e, countdown=3600) from e
+        raise
     else:
         logger.info(f"Cleanup completed: {result}")
         return result
+
+
+# Periodiq schedule configuration
+# These actors are scheduled to run periodically via Periodiq scheduler
+# Command: periodiq app.core.dramatiq app.api.tasks
+
+# Every minute (60 seconds)
+game_tick.options["periodic"] = periodiq.cron("* * * * *")
+
+# Daily at midnight
+check_permanent_deaths.options["periodic"] = periodiq.cron("0 0 * * *")
+refresh_daily_objectives.options["periodic"] = periodiq.cron("0 0 * * *")
+cleanup_old_records.options["periodic"] = periodiq.cron("0 0 * * *")
+
+# Weekly on Monday at midnight
+refresh_weekly_objectives.options["periodic"] = periodiq.cron("0 0 * * 1")

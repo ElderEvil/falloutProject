@@ -23,8 +23,8 @@ services:
     volumes:
       - redis-data-local:/data
 
-  celery_worker:
-    container_name: celery_worker
+  dramatiq_worker:
+    container_name: dramatiq_worker
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -39,40 +39,9 @@ services:
       redis:
         condition: service_started
     working_dir: /app
-    command: [ "uv", "run", "celery", "-A", "app.core.celery", "worker", "-l", "info" ]
+    command: [ "sh", "-c", "uv run periodiq app.core.dramatiq app.api.tasks & uv run dramatiq app.api.tasks" ]
     volumes:
       - ./backend/app:/app/app
-
-  celery_beat:
-    container_name: celery_beat
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    restart: always
-    env_file: ".env.local"
-    environment:
-      - POSTGRES_SERVER=db
-      - REDIS_HOST=redis
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    working_dir: /app
-    command: [ "uv", "run", "celery", "-A", "app.core.celery", "beat", "-l", "info" ]
-    volumes:
-      - ./backend/app:/app/app
-
-  flower:
-    image: mher/flower:latest
-    restart: always
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-    ports:
-      - "5555:5555"
-    depends_on:
-      - celery_worker
-      - redis
 
   rustfs:
     image: rustfs/rustfs:latest
@@ -90,8 +59,8 @@ services:
     container_name: mailpit
     restart: always
     ports:
-      - "1025:1025"  # SMTP server
-      - "8025:8025"  # Web UI
+      - "1025:1025"
+      - "8025:8025"
     environment:
       MP_MAX_MESSAGES: 5000
       MP_SMTP_AUTH_ACCEPT_ANY: 1

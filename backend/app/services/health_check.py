@@ -16,9 +16,9 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from app.core.config import settings
 
 try:
-    from app.core.celery import celery_app
+    from app.core.dramatiq import broker
 except ImportError:
-    celery_app = None
+    broker = None
 
 logger = logging.getLogger(__name__)
 
@@ -104,55 +104,36 @@ class HealthCheckService:
                 await redis_client.close()
 
     @staticmethod
-    def check_celery() -> HealthCheckResult:
-        """
-        Check Celery worker and beat connectivity.
-
-        Returns:
-            HealthCheckResult with Celery status
-        """
-        if celery_app is None:
+    def check_dramatiq() -> HealthCheckResult:
+        """Check Dramatiq broker and registered actors."""
+        if broker is None:
             return HealthCheckResult(
-                service="celery",
+                service="dramatiq",
                 status=ServiceStatus.DEGRADED,
-                message="Celery not configured",
-                details={"workers": 0, "active_tasks": 0},
+                message="Dramatiq not configured",
+                details={"actors": 0},
             )
 
         try:
-            # Check if workers are available
-            inspect = celery_app.control.inspect()
-            stats = inspect.stats()
-            active_tasks = inspect.active()
-
-            if not stats:
-                return HealthCheckResult(
-                    service="celery",
-                    status=ServiceStatus.UNHEALTHY,
-                    message="No Celery workers available",
-                    details={"workers": 0, "recommendation": "Start workers with: celery -A app.core.celery worker"},
-                )
-
-            worker_count = len(stats)
-            total_active_tasks = sum(len(tasks) for tasks in (active_tasks or {}).values())
+            actor_count = len(broker.actors)
+            actor_names = list(broker.actors.keys())
 
             return HealthCheckResult(
-                service="celery",
+                service="dramatiq",
                 status=ServiceStatus.HEALTHY,
-                message="Celery workers available",
+                message="Dramatiq broker configured",
                 details={
-                    "workers": worker_count,
-                    "active_tasks": total_active_tasks,
-                    "worker_names": list(stats.keys()),
+                    "actors": actor_count,
+                    "actor_names": actor_names,
                 },
             )
         except (RedisError, ConnectionError, TimeoutError, RuntimeError) as e:
-            logger.exception("Celery health check failed")
+            logger.exception("Dramatiq health check failed")
             return HealthCheckResult(
-                service="celery",
+                service="dramatiq",
                 status=ServiceStatus.UNHEALTHY,
-                message=f"Celery check failed: {e!s}",
-                details={"error": str(e), "recommendation": "Check if Redis is running and workers are started"},
+                message=f"Dramatiq check failed: {e!s}",
+                details={"error": str(e), "recommendation": "Check if Redis is running"},
             )
 
     @staticmethod
@@ -374,22 +355,11 @@ class HealthCheckService:
         self,
         engine: AsyncEngine,
         *,
-        include_celery: bool = True,
+        include_dramatiq: bool = True,
         include_smtp: bool = True,
         include_ollama: bool = False,
     ) -> dict[str, HealthCheckResult]:
-        """
-        Check all services and return results.
-
-        Args:
-            engine: AsyncEngine for database connection
-            include_celery: Whether to check Celery workers (default: True)
-            include_smtp: Whether to check SMTP email service (default: True)
-            include_ollama: Whether to check Ollama service (default: True)
-
-        Returns:
-            Dictionary mapping service names to health check results
-        """
+        """Check all services and return results."""
         results = {}
 
         # Check PostgreSQL
@@ -414,10 +384,10 @@ class HealthCheckService:
             smtp_result = await self.check_smtp()
             results["smtp"] = smtp_result
 
-        # Check Celery (optional, may be slow on startup)
-        if include_celery:
-            celery_result = self.check_celery()
-            results["celery"] = celery_result
+        # Check Dramatiq (optional)
+        if include_dramatiq:
+            dramatiq_result = self.check_dramatiq()
+            results["dramatiq"] = dramatiq_result
 
         return results
 

@@ -9,6 +9,65 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.13.0] - 2026-05-01
+
+### Breaking Changes
+
+- **Celery Replaced by Dramatiq** - Migrated from Celery + Celery Beat to Dramatiq + Periodiq for task processing
+  - Removed `celery`, `sqlalchemy-celery-beat`, `celery-types`, `psycopg2` dependencies
+  - Added `dramatiq[redis]` and `periodiq` dependencies
+  - Redis downgraded from 7.4.0 to 6.4.0 (dramatiq compatibility)
+  - 3 Celery containers + 1 Flower container → 1 Dramatiq worker container
+  - Update `.env` files: remove `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `FLOWER_USER`, `FLOWER_PASSWORD`
+  - Update Docker Compose: replace `celery_worker`, `celery_beat`, `flower` with `dramatiq_worker`
+  - Run DB migration to drop `celery_schedule_jobs` table (created by `sqlalchemy_celery_beat`)
+
+### Added
+
+- **Dramatiq Task Processing** - New task queue system with 8 actors
+  - `game_tick` - processes all vaults every 60 seconds
+  - `process_vault_tick` - single vault processing (on-demand)
+  - `check_permanent_deaths` - daily check for dwellers past revival window
+  - `check_quest_completion` - checks for expired quests (on-demand)
+  - `refresh_daily_objectives` - daily objectives refresh
+  - `refresh_weekly_objectives` - weekly objectives refresh (Mondays)
+  - `cleanup_old_records` - cleans old incidents and notifications
+  - `create_task` - demo task
+
+- **Periodiq Scheduling** - Periodic task scheduler for Dramatiq
+  - Replaces Celery Beat for all scheduled tasks
+  - Uses cron syntax for scheduling
+
+### Removed
+
+- **Celery** - Complete removal of Celery ecosystem
+  - Deleted `backend/app/core/celery.py`
+  - Deleted `backend/app/api/celery_task.py`
+  - Removed Celery-specific DB URI properties from `config.py`
+  - Updated `health_check.py` to use `check_dramatiq` instead of `check_celery`
+
+- **Flower Monitoring** - Removed Flower dashboard
+  - No replacement monitoring UI (use logs instead)
+
+- **MinIO Environment Variables** - Cleaned dead config from all `.env` files
+  - Removed `MINIO_HOSTNAME`, `MINIO_PORT`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `MINIO_DEFAULT_BUCKET`
+  - Removed `STORAGE_PROVIDER` (not referenced in code)
+
+### Changed
+
+- **Backend Dockerfile** - Multi-stage build for smaller image
+  - Builder stage with gcc/g++/libffi-dev/libpq-dev
+  - Runtime stage without build dependencies
+
+### Migration Guide
+
+1. Update `.env` files: remove `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `FLOWER_USER`, `FLOWER_PASSWORD`, `MINIO_*`, `STORAGE_PROVIDER`
+2. Update Docker Compose: replace `celery_worker` + `celery_beat` + `flower` with `dramatiq_worker`
+3. Run DB migration: `cd backend && uv run alembic revision --autogenerate -m "drop celery_schedule_jobs"` then `uv run alembic upgrade head`
+4. Start worker: `docker compose up -d dramatiq_worker`
+
+---
+
 ## [2.12.0] - 2026-04-23
 
 ### Fixed

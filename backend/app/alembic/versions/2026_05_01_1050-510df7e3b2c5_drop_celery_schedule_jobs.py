@@ -18,12 +18,14 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.drop_table('celery_clockedschedule')
-    op.drop_table('celery_periodictaskchanged')
-    op.drop_table('celery_periodictask')
-    op.drop_table('celery_intervalschedule')
-    op.drop_table('celery_crontabschedule')
-    op.drop_table('celery_solarschedule')
+    op.execute('DROP TYPE IF EXISTS "solarevent" CASCADE')
+    op.execute('DROP TYPE IF EXISTS "period" CASCADE')
+    op.execute('DROP TABLE IF EXISTS "celery_clockedschedule" CASCADE')
+    op.execute('DROP TABLE IF EXISTS "celery_periodictaskchanged" CASCADE')
+    op.execute('DROP TABLE IF EXISTS "celery_periodictask" CASCADE')
+    op.execute('DROP TABLE IF EXISTS "celery_intervalschedule" CASCADE')
+    op.execute('DROP TABLE IF EXISTS "celery_crontabschedule" CASCADE')
+    op.execute('DROP TABLE IF EXISTS "celery_solarschedule" CASCADE')
 
 
 def downgrade() -> None:

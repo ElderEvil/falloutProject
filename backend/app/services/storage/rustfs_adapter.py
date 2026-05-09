@@ -51,9 +51,7 @@ class RustFSAdapter:
         return self._enabled
 
     def _get_endpoint_url(self) -> str:
-        public_url = getattr(settings, "RUSTFS_PUBLIC_URL", "")
-        if public_url:
-            return public_url.rstrip("/")
+        """Internal S3 endpoint for boto3 client connections."""
         hostname = getattr(settings, "RUSTFS_HOSTNAME", None) or "s3.evillab.dev"
         port = getattr(settings, "RUSTFS_PORT", "")
         use_https = getattr(settings, "RUSTFS_USE_HTTPS", False)
@@ -61,6 +59,13 @@ class RustFSAdapter:
         if port:
             return f"{scheme}://{hostname}:{port}"
         return f"{scheme}://{hostname}"
+
+    def _get_public_base_url(self) -> str:
+        """Public-facing URL for generating file URLs. Falls back to internal endpoint."""
+        public_url = getattr(settings, "RUSTFS_PUBLIC_URL", "")
+        if public_url:
+            return public_url.rstrip("/")
+        return self._get_endpoint_url()
 
     def _ensure_bucket_exists(self, bucket_name: str) -> None:
         if not self.enabled:
@@ -204,7 +209,7 @@ class RustFSAdapter:
             return ""
 
         bucket_name = bucket_name or self.default_bucket_name
-        base_url = self._get_endpoint_url()
+        base_url = self._get_public_base_url()
         return f"{base_url}/{bucket_name}/{file_name}"
 
     def delete_file(

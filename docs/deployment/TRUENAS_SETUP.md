@@ -292,6 +292,12 @@ docker build --build-arg VITE_API_BASE_URL=https://your-api.com -t fo-shelter-fe
 ### RustFS / Object Storage Issues
 - Verify RustFS is running: `docker ps | grep rustfs`
 - Check credentials in `.env` match TrueNAS RustFS admin user
+- Set up MinIO Client alias before testing connectivity:
+  ```bash
+  mc alias set truenas https://s3-api.evillab.dev \
+    "$RUSTFS_ACCESS_KEY" "$RUSTFS_SECRET_KEY" --api S3v4
+  ```
+  (Export `RUSTFS_ACCESS_KEY` and `RUSTFS_SECRET_KEY` from your `.env`, or substitute values directly.)
 - Test S3 connectivity: `mc ls truenas/`
 
 ## Security Considerations

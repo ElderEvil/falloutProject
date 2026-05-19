@@ -7,7 +7,7 @@ requires-python = ">=3.12,<3.14"
 dependencies = [
     "alembic>=1.18.1,<2.0",
     "asyncpg>=0.30.0,<1.0",
-    "dramatiq[redis]>=1.17.0,<2",
+    "dramatiq[redis]>=2.1.0,<3",
     "periodiq>=0.2.0,<1",
     "faker>=40.15.0",
     "fastapi[standard]>=0.136.1",
@@ -27,7 +27,7 @@ dependencies = [
     "httpcore>=1.0.9",
     "httptools>=0.7.1,<1",
     "greenlet>=3.5.0",
-    "pydantic-ai-slim[openai, anthropic, logfire]>=1.90.0",
+    "pydantic-ai-slim[openai, anthropic, logfire]>=1.93.0",
     "aiosmtplib>=5.1.0",
     "python-json-logger>=4.0.0",
     "psycopg2>=2.9.12",

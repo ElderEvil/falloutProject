@@ -9,26 +9,33 @@ AI-powered dweller interactions.
 
 ## In Progress
 
-### v2.13.0 - Dramatiq & Nuxt UI Migration (Planned)
-
-**Focus**: Celery → Dramatiq migration and Nuxt UI theme system
-
-**Planned:**
-- [ ] Dramatiq task queue migration
-- [ ] Nuxt UI component migration
-- [ ] Multi-theme support
-
-**Current update:**
-- ✅ Frontend dependency/config trimming pass completed (safe-only)
-  - Removed optional `rollup-plugin-visualizer` from frontend devDependencies
-  - Simplified Vite/Vitest config typing cleanup (removed `as any` config casts)
-- ✅ Declared intent for staged axios deprecation (no runtime behavior change yet)
-  - Added migration plan: `frontend/HTTP_CLIENT_MIGRATION.md`
-  - Added guardrail: avoid introducing new direct `axios` imports in new code
+**Current work (post-v2.13.0):**
+- [ ] Nuxt UI component migration (phased, see archived plan)
+- [ ] Multi-theme support (Terminal Green, Amber, Teal + custom)
+- [ ] Staged axios deprecation (see `frontend/HTTP_CLIENT_MIGRATION.md`)
+- [ ] Infrastructure hardening (non-root containers, RustFS security)
 
 ---
 
 ## Latest Release
+
+### v2.13.0 - Dramatiq Migration (May 1, 2026)
+
+**Focus**: Replaced Celery with Dramatiq for simpler, more reliable task processing
+
+**Completed:**
+- ✅ **Dramatiq Task Queue** - Migrated from Celery + Celery Beat to Dramatiq + Periodiq
+  - 8 task actors: `game_tick`, `process_vault_tick`, `check_permanent_deaths`, `check_quest_completion`, `refresh_daily_objectives`, `refresh_weekly_objectives`, `cleanup_old_records`, `create_task`
+  - Periodiq scheduler replaces Celery Beat with cron syntax
+  - 3 Celery containers + Flower → 1 Dramatiq worker container
+- ✅ **Backend Dockerfile** - Multi-stage build (builder + runtime stages)
+- ✅ **MinIO Cleanup** - Removed dead MinIO env vars from all `.env` files
+- ✅ **Dependency Cleanup** - Removed `celery`, `sqlalchemy-celery-beat`, `celery-types`, `psycopg2`
+
+**Migration required:**
+- Update `.env`: remove `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `FLOWER_USER`, `FLOWER_PASSWORD`
+- Update Docker Compose: replace `celery_worker` + `celery_beat` + `flower` with `dramatiq_worker`
+- Run DB migration to drop `celery_schedule_jobs` table
 
 ### v2.12.0 - Stabilization & Quality (April 23, 2026)
 
@@ -611,9 +618,9 @@ watch(() => userStore.caps, (caps) => {
     - Prevents asyncpg DataError: "can't subtract offset-naive and offset-aware datetimes"
 - **System Info Fix**: `build_date` now uses timezone-aware datetime for proper ISO format
 - **Documentation**:
-    - `HOTFIX_TIMEZONE_NAIVE.md` - Deployment guide (184 lines)
-    - `TIMEZONE_NAIVE_ANALYSIS.md` - Analysis of 169 timezone issues (1,062 lines)
-    - `RELEASE_NOTES_v2.4.1.md` - Complete release notes (206 lines)
+    - Hotfix deployment guide
+    - Timezone-naive analysis (169 occurrences)
+    - Release notes
 - **Impact**: Celery workers stable, game tick processing uninterrupted, all systems operational
 - **Note**: Temporary fix - full timezone-aware migration planned for future release
 
@@ -708,7 +715,7 @@ watch(() => userStore.caps, (caps) => {
 - **Frontend Refactor**: 10 feature modules, 300+ files reorganized
 - **TypeScript**: strictTemplates enabled, all build errors resolved
 - **Backward Compat**: Re-exports for smooth migration
-- **Docs**: [MODULAR_FRONTEND_ARCHITECTURE.md](docs/MODULAR_FRONTEND_ARCHITECTURE.md)
+- **Docs**: Modular frontend architecture guide (archived)
 
 ### v2.0.0 Major Release (January 22, 2026)
 
@@ -758,100 +765,29 @@ watch(() => userStore.caps, (caps) => {
 
 ---
 
-## Next Sprint: UX Enhancements (P2)
-
-**Target: v2.4.0**
-
-### Animation & Motion
-
-- [ ] **Motion Vue Integration** - Smooth animations throughout app
-- [ ] **Sidebar Navigation Animations** - Sliding transitions
-- [ ] **Component Transitions** - Enter/leave animations for modals, cards
-- [ ] **Room Action Feedback** - Animated build/upgrade/destroy responses
-
-### Future UX (P3)
-
-- [x] ~~Training drag-and-drop UI~~ → COMPLETED
-- Sound effects (terminal UI sounds, ambient audio)
-- Room damage & repair mechanics
-- Sentry integration for error tracking
-
----
-
-## Planned Features (P4 - Future)
-
-### Phase 1: Core Gameplay (Feb 2026)
-
-- Room management improvements (optimal dweller suggestions)
-- Crafting system (weapons/outfits with recipes)
-
-### Phase 2: Advanced Gameplay (Mar 2026)
-
-- Combat enhancements (statistics, log/replay)
-- Exploration enhancement (events with choices, journal)
-- Family visualization (relationship graph, family tree)
-
-### Phase 3: Endgame (Apr 2026)
-
-- Pet system, legendary dwellers
-- Merchant system, economy
-- Achievement system, daily/weekly challenges
-- **Dead Dweller Reuse System**
-    - Soft-delete permanently dead dwellers (keep data)
-    - Reuse as raiders attacking other vaults
-    - Transformation chance: ghoul, synth, super mutant
-    - Cross-vault encounters with former dwellers
-
-### Phase 4: Multiplayer (May 2026)
-
-- Social features (friends, vault visits, leaderboards)
-- Cloud saves, multi-device sync
-
----
-
-## Technical Debt (P3)
-
-### Backend
-
-- [x] Router consolidation: Merge small routers (settings, info) into logical groupings
-- [ ] Storage migration: MinIO → RustFS (lighter, faster)
-- [ ] Performance testing: Locust in nightly CI
-- [ ] Datetime consistency: Migrate all `datetime.utcnow()` and naive `datetime.now()` to aware `datetime.now(UTC)`
-- [ ] Test coverage: Target 80% (both FE/BE)
-
-### Frontend
-
-- [x] ~~Vue architecture refactor~~ → COMPLETED (v2.1.0)
-- [ ] Component refactoring: Break down large components (DwellerCard 813 lines, RoomGrid 814 lines)
-
-### DevOps
-
-- [ ] Deployment optimization ([docs/DEPLOYMENT_OPTIMIZATION.md](docs/DEPLOYMENT_OPTIMIZATION.md))
-- [x] ~~Docker build automation~~ → COMPLETED (build.yml)
-
----
-
 ## Progress Metrics
 
-### Current Stats (January 24, 2026)
+### Current Stats (May 2026)
 
-- **Backend**: 22+ routers, 92+ endpoints, 15+ services, 68% coverage
-- **Frontend**: 55+ Vue components, 10 feature modules
-- **Tests**: Frontend 683, Backend 388
-- **Models**: 18+ database models
+- **Backend**: 25+ routers, 100+ endpoints, 18+ services, ~70% coverage
+- **Frontend**: 60+ Vue components, 10 feature modules
+- **Tests**: Frontend 799+, Backend 657+
+- **Models**: 20+ database models
 
 ### Version Milestones
 
 | Version | Release      | Highlights                             |
 |---------|--------------|----------------------------------------|
-| v2.10.6 | Planned      | Medical storage (stimpaks/radaways)    |
-| v2.10.8 | Feb 19, 2026 | RustFS migration, code quality         |
-| v2.10.4 | Feb 13, 2026 | Quest seeding fixes, UI verified       |
-| v2.10.3 | Feb 13, 2026 | Frontend typecheck fixes               |
-| v2.10.0 | Feb 10, 2026 | Quest & Objective system launch         |
-| v2.9.3  | Feb 08, 2026 | Component refactoring                  |
-| v2.9.0  | Feb 07, 2026 | Chat exploration actions                |
-| v2.8.5  | Feb 04, 2026 | Code quality, refactoring              |
+| v2.13.0 | May 01, 2026 | Dramatiq migration, Celery removal     |
+| v2.12.0 | Apr 23, 2026 | Test suite green, MinIO removed        |
+| v2.11.0 | Mar 19, 2026 | Vite+ toolchain, dweller recycling     |
+| v2.10.9 | Mar 13, 2026 | AI quota system, usage tracking        |
+| v2.10.0 | Feb 10, 2026 | Quest & Objective system launch        |
+| v2.9.0  | Feb 07, 2026 | Chat exploration actions               |
+| v2.8.0  | Jan 29, 2026 | Easter eggs, changelog system          |
+| v2.7.0  | Jan 28, 2026 | Storage management, keyboard shortcuts |
+| v2.6.5  | Jan 27, 2026 | Notification bell system               |
+| v2.5.0  | Jan 26, 2026 | Room visual assets, capacity enforcement|
 
 ---
 
@@ -865,331 +801,57 @@ watch(() => userStore.caps, (caps) => {
 
 ---
 
-## Code Quality Audit Results (January 29, 2026)
+## Planned Features (Future)
 
-### Duplicates Identified
+### Phase 1: Core Gameplay
 
-| Category | Files Affected | Lines | Priority |
-|----------|----------------|-------|----------|
-| Empty CRUD classes | weapon.py, outfit.py, junk.py | ~30 | 🔴 Critical |
-| Vault filtering logic | weapon.py, outfit.py endpoints | 25 each | 🔴 Critical |
-| Seeding functions | seed_quests.py, seed_objectives.py | ~65 each | 🟡 High |
-| Query patterns | 10+ CRUD files | ~200 total | 🟢 Medium |
-| Exception handling | 28 endpoint files | ~56 total | 🟢 Medium |
+- Room management improvements (optimal dweller suggestions)
+- Crafting system (weapons/outfits with recipes)
 
-### Issues by Severity
+### Phase 2: Advanced Gameplay
 
-**🔴 Critical (3 issues)**
-- Unimplemented TODO stub (`celery_task.py:26`)
-- Broken test isolation (2 test files)
-- `game_loop.py` too large (767 lines)
+- Combat enhancements (statistics, log/replay)
+- Exploration enhancement (events with choices, journal)
+- Family visualization (relationship graph, family tree)
 
-**🟡 High Priority (11 issues)**
-- 11 bare `except Exception` handlers with silent failures
-- 6 functions with complexity suppressions (noqa: C901, PLR0912, PLR0915)
-- Hardcoded magic numbers in 5+ files
-- N+1 query patterns in game loop
-- Large transaction in vault initialization
+### Phase 3: Endgame
 
-**🟢 Medium Priority (9 issues)**
-- Debug print statement in migration
-- Repeated notification error handling (5+ services)
-- Datetime handling duplication (10+ locations)
-- Performance concerns in exploration coordinator
-- Inconsistent service instantiation patterns
+- Pet system, legendary dwellers
+- Merchant system, economy
+- Achievement system, daily/weekly challenges
+- **Dead Dweller Reuse System**
+  - Soft-delete permanently dead dwellers (keep data)
+  - Reuse as raiders attacking other vaults
+  - Transformation chance: ghoul, synth, super mutant
+  - Cross-vault encounters with former dwellers
 
-### Metrics
-- **Total Lines of Duplicate Code**: 200-300 lines
-- **Files with Issues**: 35+ files
-- **TODO Comments**: 7 locations
-- **Complexity Violations**: 6 functions
-- **Test Coverage**: 68% (target: 80%)
+### Phase 4: Multiplayer
+
+- Social features (friends, vault visits, leaderboards)
+- Cloud saves, multi-device sync
 
 ---
 
-## Upcoming Releases
+## Technical Debt
 
-### v2.9.1 - UX Papercuts & Docs (Completed - February 8, 2026)
+### Backend
 
-**Focus**: Quick UX fixes and documentation updates
+- [x] Router consolidation: Merge small routers into logical groupings
+- [x] MinIO → RustFS migration
+- [ ] Performance testing: Locust in nightly CI
+- [ ] Datetime consistency: Migrate all `datetime.utcnow()` to aware `datetime.now(UTC)`
+- [ ] Test coverage: Target 80% (both FE/BE)
 
-**Completed:**
-- ✅ ChangelogModal single footer CTA (Got it only)
-- ✅ Vault experimental warning banner (create + list)
-- ✅ DwellerChat message-id-based keys for WebSocket correlation
+### Frontend
 
-### v2.9.2 - Boosted Start (Completed - February 8, 2026)
+- [x] Vue architecture refactor → COMPLETED (v2.1.0)
+- [ ] Component refactoring: Break down large components (DwellerCard, RoomGrid)
 
-**Focus**: Opt-in boosted vault creation
+### DevOps
 
-**Completed:**
-- ✅ Opt-in "Boosted Start" vault creation option
-- ✅ Creates vault with 6 dwellers (3F/3M), 1000 caps, and starter resources
-- ✅ Reduced initial build costs for faster early game
-
-### v2.9.3 - Component Refactoring & Quick Wins (Completed - February 8, 2026)
-
-**Focus**: Component splitting and backend code quality
-
-**Completed:**
-- ✅ RoomDetailModal deep split into 7 components + 4 composables
-- ✅ DwellerChat light split (logic extraction)
-- ✅ Backend service logging added
-- ✅ Dead code removal (get_spreading_incidents)
-- ✅ Version bump to 2.9.3 (BE + FE)
-
-### v2.10.0 - Quests & Objectives Phase 1 (Planned)
-
-**Focus**: Transform basic quests/objectives into fully functional automated system
-
-**Planned:**
-- **Structured Data**: Requirements and rewards as structured schema (not just text)
-- **Reward Distribution**: Automatic reward granting (caps, items, dwellers, resources)
-- **Quest Types**: Main, side, daily, repeatable categories with visual distinction
-- **Prerequisites**: Quest prerequisites enforced (previous quest, level, items, rooms)
-- **Quest Chains**: Multi-quest sequences with automatic progression
-- **Progress Automation**: Objectives auto-update based on game events (collect, build, train)
-- **Real-time Updates**: WebSocket progress notifications for objectives
-- **UI Improvements**: Quest detail view, progress bars, reward previews, type badges
-- **Notifications**: Quest/objective completion notifications
-
-**See**: `.sisyphus/plans/v2.10.0-quests-objectives-phase1.md` for full plan
-
-**Deferred to Phase 2 (v2.12+):**
-- Combat system for quests
-- Quest party assignment and dweller sending
-- Time-limited events
-- Advanced reward types (buffs, cosmetics)
+- [x] Docker build automation → COMPLETED
+- [ ] Full CI/CD: smoke tests, DB dry-run, notifications, backup automation
 
 ---
 
-### v2.11.0 - Frontend Quick Wins (Planned - was v2.9.4)
-
-**Focus**: Time-boxed frontend improvements
-
-**Planned:**
-- UI polish (a11y, loading states)
-- DX improvements (type safety, remove debug logs)
-- Add missing store tests
-
-### v2.12.0 - Stabilization (Planned - was v2.9.5)
-
-**Focus**: Regression fixes and final polish
-
-**Planned:**
-- Regression fixes from 2.9.1-2.11.0
-- Final polish
-- Version bump preparation
-
-### v2.13.0 - Nuxt UI Migration & Theme System (Planned)
-
-**Focus**: Migrate from custom UI components to pure Nuxt UI with multi-theme support
-
-**Vision**: Unified component library with user-customizable themes (Terminal Green, Amber, Teal + custom)
-
-#### Phase 1: Foundation & Proof of Concept (Week 1)
-
-**Goal**: Validate Nuxt UI integration with terminal theme
-
-- [ ] **Nuxt UI Component Audit**
-  - Map custom components to Nuxt UI equivalents
-  - Identify API differences and migration effort
-  - Document style override requirements
-
-- [ ] **Theme Architecture Design**
-  - Design theme system supporting multiple color palettes
-  - Plan for user-created custom themes
-  - CSS variable strategy for runtime theme switching
-  - Theme persistence (localStorage + user preferences API)
-
-- [ ] **Proof of Concept**
-  - Migrate 1 simple component (UBadge or UAlert)
-  - Apply terminal green theme via Nuxt UI config
-  - Verify bundle impact (+5-15KB expected)
-  - Test in 3-5 locations
-
-**Deliverables:**
-- Migrated UBadge component using pure Nuxt UI
-- Theme switcher UI (dev-only)
-- Bundle comparison report
-- Migration guide documentation
-
-#### Phase 2: Core Components Migration (Week 2-3)
-
-**Goal**: Migrate high-usage components with minimal bundle impact
-
-**Priority Order (by usage count):**
-1. **UButton** (78 usages) - Most used, biggest impact
-2. **UCard** (48 usages) - Layout foundation
-3. **USkeleton** (25 usages) - Loading states
-4. **UBadge** (18 usages) - Status indicators
-5. **UTooltip** (16 usages) - UX enhancement
-
-**For each component:**
-- [ ] Replace custom implementation with Nuxt UI equivalent
-- [ ] Apply terminal theme styling via config/overrides
-- [ ] Update all usages (find & replace)
-- [ ] Delete custom component file
-- [ ] Verify no visual regressions
-
-**Deliverables:**
-- 5 core components migrated
-- ~200KB custom component code removed
-- Unified styling across app
-
-#### Phase 3: Complex Components & Theme System (Week 4)
-
-**Goal**: Migrate complex components and implement theme switcher
-
-- [ ] **UModal Migration** (4 usages)
-  - Higher complexity - different API
-  - Focus on accessibility improvements
-
-- [ ] **UAlert Migration** (4 usages)
-  - Notification system integration
-
-- [ ] **UTabs Migration** (3 usages)
-  - Different structure than custom
-
-- [ ] **Theme System Implementation**
-  - Theme configuration: Terminal Green, Amber, Teal presets
-  - Custom theme builder UI (color picker + preview)
-  - Theme preview in real-time
-  - Save/load custom themes
-  - Apply theme on app load
-
-**Deliverables:**
-- All components migrated to Nuxt UI
-- 3 built-in themes + custom theme creator
-- Theme persistence
-- ~15KB net bundle change (removed custom code offsets Nuxt UI usage)
-
-#### Phase 4: Cleanup & Polish (Week 5)
-
-**Goal**: Remove legacy code and optimize
-
-- [ ] **Delete Legacy Components**
-  - Remove `/src/core/components/ui/` folder
-  - Update all imports
-  - Verify no broken references
-
-- [ ] **Documentation**
-  - Update STYLEGUIDE.md with Nuxt UI patterns
-  - Theme customization guide
-  - Component usage examples
-
-- [ ] **Testing**
-  - Visual regression tests
-  - Theme switching tests
-  - Accessibility audit (Nuxt UI has better a11y)
-
-- [ ] **Performance Validation**
-  - Final bundle size check
-  - Load time comparison
-  - Memory usage check
-
-**Deliverables:**
-- Clean codebase with no custom UI components
-- Complete documentation
-- Test coverage maintained
-- Performance metrics improved or neutral
-
-#### Multi-Theme Support Architecture
-
-**Theme Structure:**
-```typescript
-interface Theme {
-  id: string
-  name: string
-  colors: {
-    primary: string      // Main accent (Terminal Green #00ff00)
-    secondary: string    // Secondary accent
-    background: string   // App background
-    surface: string      // Card/modal backgrounds
-    text: string         // Primary text
-    textMuted: string    // Secondary text
-    success: string
-    warning: string
-    error: string
-    info: string
-  }
-  fonts: {
-    mono: string         // Terminal font
-    sans: string         // UI font
-  }
-  effects: {
-    glow: boolean        // Terminal glow effect
-    scanlines: boolean   // CRT scanlines
-    flicker: boolean     // CRT flicker
-  }
-}
-```
-
-**Built-in Themes:**
-1. **Terminal Green** (default) - Classic Fallout terminal
-2. **Amber** - Vintage amber monitor
-3. **Teal** - Cyan/blue terminal
-4. **Custom** - User-defined colors
-
-**Technical Implementation:**
-- Nuxt UI theme config integration
-- CSS custom properties for runtime switching
-- localStorage for guest users
-- User preferences API for logged-in users
-- Theme preview component
-
-#### Expected Impact
-
-**Bundle Size:**
-- Current: 186KB (nuxt-ui plugin) + ~15KB custom components
-- After: 186KB (nuxt-ui) + ~5KB theme system
-- **Net change: ~-10KB** (removed custom code)
-
-**Benefits:**
-- ✅ Delete ~2000 lines of custom component code
-- ✅ Consistent API across all UI components
-- ✅ Built-in accessibility (ARIA, keyboard nav)
-- ✅ Better animations and transitions
-- ✅ User-customizable themes
-- ✅ Easier maintenance (community-supported library)
-- ✅ Professional UI component patterns
-
-**Risks:**
-- ⚠️ Breaking changes in component APIs (mitigated by phased migration)
-- ⚠️ Style overrides needed for terminal aesthetic (planned in theme system)
-- ⚠️ Testing required for all migrated components
-
-**Rollback Strategy:**
-- **Trigger Conditions:**
-  - Bundle size increase >30KB
-  - Performance regression >200ms first paint
-  - >3 critical visual regressions detected
-  - Accessibility failures (WCAG 2.1 AA violations)
-
-- **Rollback Process:**
-  1. Revert via Git tag: `git checkout v2.13.0 && git switch -c chore/rollback-migration`
-  2. Restore custom components from backup branch `backup/custom-ui-components`
-  3. Update imports with automated script: `scripts/migrate-imports.sh`
-  4. Deploy rollback within 2 hours of detection
-
-- **Prevention Measures:**
-  - 2-week staging period before production deployment
-  - Feature flag gradual rollout: 10% → 50% → 100%
-  - Automated visual regression testing in CI ( Percy or similar)
-  - Bundle size monitoring in CI pipeline
-  - Lighthouse performance budgets enforced
-
-#### Success Criteria
-
-- [ ] All custom UI components removed
-- [ ] Zero visual regressions in terminal theme
-- [ ] Bundle size neutral or improved
-- [ ] 3 built-in themes working
-- [ ] Custom theme creator functional
-- [ ] Theme persists across sessions
-- [ ] All existing tests pass
-- [ ] New theme tests added
-
----
-
-*Last updated: February 13, 2026*
+*Last updated: 2026-05-19*

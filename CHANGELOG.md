@@ -7,6 +7,10 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ## [Unreleased]
 
+---
+
+## [2.13.1] - 2026-05-19
+
 ### Fixed
 
 - **Security: containers now run as non-root user** - The backend Docker image no longer runs as root for improved security
@@ -14,6 +18,11 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **Reliability: task scheduler auto-recovery** - If the Dramatiq task worker or Periodiq scheduler crashes, Docker will now automatically restart the container instead of leaving it in a half-dead state
 - **Reliability: database migration cleanup** - Fixed a migration that could leave orphaned PostgreSQL enum types behind when dropping old Celery tables
 - **Configuration: restored missing RustFS settings** - The production environment template (`.env.prod.example`) now includes all required `RUSTFS_*` variables with placeholders and setup instructions
+
+### Changed
+
+- **Documentation cleanup** - Removed outdated docs (11 files), archived completed/abandoned guides (4 files), compacted 12-factor compliance report (539 → 38 lines), merged deployment optimization tips into DEPLOYMENT.md
+- **ROADMAP restructuring** - Moved v2.13.0 to Latest Release, cleaned up In Progress section, removed 285 lines of stale planning content
 
 ---
 
@@ -626,9 +635,9 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ### Added
 - **Documentation**
-  - `HOTFIX_TIMEZONE_NAIVE.md` - Deployment guide with rollback procedures (184 lines)
-  - `TIMEZONE_NAIVE_ANALYSIS.md` - Complete analysis of 169 timezone-naive issues across codebase (1,062 lines)
-  - `RELEASE_NOTES_v2.4.1.md` - Comprehensive release notes (206 lines)
+  - Hotfix deployment guide with rollback procedures
+  - Timezone-naive analysis (169 occurrences identified)
+  - Comprehensive release notes
 
 ### Changed
 - Version bumped from 2.4.0 to 2.4.1 (backend and frontend)
@@ -642,7 +651,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ### Notes
 - This is a temporary fix ensuring all datetime objects remain naive to match database schema (`TIMESTAMP WITHOUT TIME ZONE`)
-- Future work: Full migration to timezone-aware system (see `TIMEZONE_NAIVE_ANALYSIS.md`)
+- Future work: Full migration to timezone-aware system
 
 ---
 
@@ -743,7 +752,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ### Fixed
 - **UI Theme Consistency** - Replaced hardcoded colors in notification components with CSS theme variables
-- **Documentation Organization** - Moved REFACTORING_PROGRESS.md to docs directory
+- **Documentation Organization** - Archived completed refactoring documentation
 
 ### Removed
 - Obsolete development scripts (check_rooms.py, test_config.py)
@@ -997,7 +1006,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   - `modules/social/` - Relationships and pregnancy
   - `modules/profile/` - User profile and settings
 - **Backward Compatibility**: Re-exports for smooth migration
-- **Documentation**: Complete architecture guide in `docs/MODULAR_FRONTEND_ARCHITECTURE.md`
+- **Documentation**: Complete architecture guide (archived)
 
 ### Changed
 - Reorganized 300+ frontend files into modular structure

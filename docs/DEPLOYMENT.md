@@ -94,7 +94,6 @@ docker compose up -d
 SECRET_KEY=             # Generate: openssl rand -hex 32
 FIRST_SUPERUSER_PASSWORD=  # Admin password
 POSTGRES_PASSWORD=      # Database password
-MINIO_ROOT_PASSWORD=    # Min 8 characters
 ```
 
 **Database:**
@@ -108,7 +107,6 @@ POSTGRES_DB=fallout_db
 ```bash
 FRONTEND_URL=https://fallout.evillab.dev
 API_URL=https://fallout-api.evillab.dev
-MINIO_PUBLIC_URL=https://fallout-media.evillab.dev
 ```
 
 **AI Provider:**
@@ -132,14 +130,12 @@ When using Docker Compose, use **service names**:
 ```bash
 POSTGRES_SERVER=db
 REDIS_HOST=redis
-MINIO_HOSTNAME=minio
 ```
 
 When running natively:
 ```bash
 POSTGRES_SERVER=localhost
 REDIS_HOST=localhost
-MINIO_HOSTNAME=localhost
 ```
 
 ## CI/CD Automation
@@ -262,13 +258,78 @@ docker compose logs dramatiq_worker
 - [ ] Regular database backups
 - [ ] Rate limiting enabled
 
+## Performance Notes
+
+### Dockerfile Optimizations
+
+**Backend:** Use `--no-dev --no-cache` for production builds:
+```dockerfile
+RUN uv sync --frozen --no-dev --no-install-project --no-cache
+```
+
+**Frontend:** Use multi-stage builds with production-only dependencies:
+```dockerfile
+FROM node:22-alpine AS deps
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --prod
+
+FROM node:22-alpine AS build
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN pnpm run build
+
+FROM node:22-alpine
+RUN npm install -g serve
+COPY --from=build /app/dist .
+CMD ["serve", "-s", ".", "-l", "3000"]
+```
+
+**Layer Ordering:** Copy dependency manifests before source code to maximize cache hits:
+```dockerfile
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project
+COPY . .
+```
+
+**BuildKit Cache:** Enable registry caching in CI:
+```yaml
+cache_from:
+  - type=registry,ref=${DOCKER_USERNAME}/fastapi:cache
+cache_to:
+  - type=registry,ref=${DOCKER_USERNAME}/fastapi:cache,mode=max
+```
+
+### .dockerignore Recommendations
+
+**Backend:**
+```
+__pycache__
+*.pyc
+.pytest_cache
+.coverage
+htmlcov/
+.env
+.venv
+.git
+**/tests/
+```
+
+**Frontend:**
+```
+node_modules
+dist
+.git
+.env
+.env.local
+coverage
+tests
+```
+
 ## Related Documentation
 
 - [TrueNAS Setup](deployment/TRUENAS_SETUP.md) - TrueNAS-specific guide
-- [Nginx Proxy Manager](deployment/NGINX_PROXY_MANAGER_SETUP.md) - Reverse proxy setup
-- [MinIO Setup](deployment/MINIO_SETUP.md) - Object storage configuration
 - [Security Guide](SECURITY_GUIDE.md) - Security best practices
 
 ---
 
-**Last Updated:** 2026-01-21
+**Last Updated:** 2026-05-19

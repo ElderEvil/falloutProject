@@ -15,7 +15,7 @@ See [ROADMAP.md](./ROADMAP.md) for recent updates and upcoming features.
 
 ## ✨ Tech Stack
 
-**Backend:** FastAPI · SQLModel · PostgreSQL 18 · Celery · Redis · MinIO · PydanticAI
+**Backend:** FastAPI · SQLModel · PostgreSQL 18 · Redis · PydanticAI
 **Frontend:** Vue 3.5 · TypeScript · Vite · Pinia · TailwindCSS v4 · Vitest
 **Tooling:** uv · ruff · Rolldown · Oxlint · Docker/Podman
 
@@ -41,7 +41,7 @@ See [ROADMAP.md](./ROADMAP.md) for recent updates and upcoming features.
 git clone https://github.com/ElderEvil/falloutProject && cd falloutProject
 cp .env.example .env  # Edit with your settings (keep localhost hostnames)
 
-# 2. Start infrastructure services (PostgreSQL, Redis, MinIO, Mailpit)
+# 2. Start infrastructure services (PostgreSQL, Redis, Mailpit)
 docker compose -f docker-compose.infra.yml up -d
 
 # 3. Setup and run backend (http://localhost:8000)
@@ -51,14 +51,7 @@ uv sync --dev
 uv run alembic upgrade head
 uv run fastapi dev main.py
 
-# 4. In separate terminals, start Celery workers
-# Terminal 2:
-uv run celery -A app.core.celery worker -l info
-
-# Terminal 3:
-uv run celery -A app.core.celery beat -l info --scheduler sqlalchemy_celery_beat.schedulers:DatabaseScheduler
-
-# 5. Setup and run frontend (http://localhost:5173)
+# 4. Setup and run frontend (http://localhost:5173)
 # ⚠️ IMPORTANT: Backend API must be accessible at http://localhost:8000
 cd ../frontend
 pnpm install
@@ -111,8 +104,6 @@ docker compose logs -f fastapi  # Watch startup (Ctrl+C to exit)
 - **Frontend:** http://localhost:3000
 - **Backend API:** http://localhost:8000/docs (Swagger UI)
 - **Mailpit (email testing):** http://localhost:8025
-- **Flower (Celery monitor):** http://localhost:5555
-- **MinIO Console:** http://localhost:9001 (login: minioadmin/minioadmin)
 
 **Notes:**
 - No need to edit hostnames in `.env` - Docker Compose automatically overrides them
@@ -248,7 +239,6 @@ docker compose start fastapi
   - `OPENAI_API_KEY` - Only if using OpenAI (leave empty for ollama)
   - Database: `POSTGRES_SERVER`, `POSTGRES_DB`, `POSTGRES_USER`
   - Redis: `REDIS_HOST`, `REDIS_PORT`
-  - MinIO: `MINIO_HOSTNAME`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`
 
 **AI Setup Notes:**
 - **Ollama (Free):** For Docker: already runs in `ollama` container. For hybrid: [install locally](https://ollama.ai/download)

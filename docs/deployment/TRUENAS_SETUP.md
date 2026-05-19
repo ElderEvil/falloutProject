@@ -13,7 +13,7 @@ Complete guide for deploying Fallout Shelter to TrueNAS Scale using Docker Compo
 **Domains:**
 - Frontend: `https://fallout.evillab.dev`
 - Backend API: `https://fallout-api.evillab.dev`
-- Media (MinIO): `https://fallout-media.evillab.dev`
+- Object Storage (RustFS): `https://s3-api.evillab.dev`
 
 ## Prerequisites
 
@@ -33,7 +33,6 @@ On TrueNAS:
 │   └── truenas-app.yml        # TrueNAS Apps integration (optional)
 └── volumes/                   # Auto-created by Docker
     ├── postgres-data/
-    ├── minio_data/
     └── redis-data/
 ```
 
@@ -63,9 +62,8 @@ sudo nano .env
 | `SECRET_KEY` | Generate with `openssl rand -hex 32` |
 | `POSTGRES_PASSWORD` | Strong password |
 | `FIRST_SUPERUSER_PASSWORD` | Admin password |
-| `MINIO_ROOT_PASSWORD` | Min 8 characters |
-| `OPENAI_API_KEY` | Your API key |
 | URLs | Verify they match your domains |
+| RustFS vars | Set credentials for s3-api.evillab.dev |
 
 ### Step 3: Create Docker Compose File
 
@@ -83,7 +81,6 @@ Create proxy hosts for:
 |--------|--------|-------|
 | `fallout.evillab.dev` | `http://fallout_frontend:3000` | Frontend |
 | `fallout-api.evillab.dev` | `http://fallout_api:8000` | Backend API |
-| `fallout-media.evillab.dev` | `http://fallout_minio:9000` | MinIO with CORS |
 
 ### Step 5: Deploy
 
@@ -211,7 +208,6 @@ docker compose logs -f
 
 # Specific service
 docker compose logs -f fastapi
-docker compose logs -f celery_worker
 
 # Last 100 lines
 docker compose logs --tail=100
@@ -246,10 +242,6 @@ docker compose ps
 ```bash
 docker stats
 ```
-
-### Celery Tasks (Flower)
-- URL: `http://truenas-ip:5555`
-- Or expose through Nginx Proxy Manager
 
 ### Email Testing (Mailpit)
 - URL: `http://truenas-ip:8025`
@@ -297,20 +289,10 @@ docker build --build-arg VITE_API_BASE_URL=https://your-api.com -t fo-shelter-fe
 # This is fine if your API is at fallout-api.evillab.dev
 ```
 
-### MinIO/Media Files Not Loading
-See [NGINX_PROXY_MANAGER_SETUP.md](NGINX_PROXY_MANAGER_SETUP.md) for CORS configuration.
-
-### Celery Tasks Not Running
-```bash
-# Check Redis
-docker compose ps redis
-
-# Check worker logs
-docker compose logs celery_worker
-
-# Inspect active tasks
-docker compose exec celery_worker celery -A app.core.celery inspect active
-```
+### RustFS / Object Storage Issues
+- Verify RustFS is running: `docker ps | grep rustfs`
+- Check credentials in `.env` match TrueNAS RustFS admin user
+- Test S3 connectivity: `mc ls truenas/`
 
 ## Security Considerations
 
@@ -322,7 +304,6 @@ docker compose exec celery_worker celery -A app.core.celery inspect active
 
 **Recommended:**
 - [ ] Firewall rules restrict access to ports
-- [ ] Restrict Flower (port 5555) to internal network
 - [ ] Restrict Mailpit (port 8025) to internal network
 - [ ] Set up automated backups
 
@@ -335,8 +316,6 @@ Complete example files are available in the repository:
 
 ## Related Documentation
 
-- [Nginx Proxy Manager Setup](NGINX_PROXY_MANAGER_SETUP.md)
-- [MinIO Setup](MINIO_SETUP.md)
 - [Main Deployment Guide](../DEPLOYMENT.md)
 - [Security Guide](../SECURITY_GUIDE.md)
 

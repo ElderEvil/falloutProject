@@ -270,15 +270,18 @@ RUN uv sync --frozen --no-dev --no-install-project --no-cache
 **Frontend:** Use multi-stage builds with production-only dependencies:
 ```dockerfile
 FROM node:22-alpine AS deps
+WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --prod
 
 FROM node:22-alpine AS build
+WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm run build
 
 FROM node:22-alpine
+WORKDIR /app
 RUN npm install -g serve
 COPY --from=build /app/dist .
 CMD ["serve", "-s", ".", "-l", "3000"]
@@ -302,7 +305,7 @@ cache_to:
 ### .dockerignore Recommendations
 
 **Backend:**
-```
+```text
 __pycache__
 *.pyc
 .pytest_cache
@@ -315,7 +318,7 @@ htmlcov/
 ```
 
 **Frontend:**
-```
+```text
 node_modules
 dist
 .git

@@ -519,15 +519,15 @@ const handleVersionClick = () => {
 **Code Snippet**:
 
 ```typescript
-import { useMagicKeys } from "@vueuse/core";
+import { useMagicKeys } from '@vueuse/core'
 
-const { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, b, a } = useMagicKeys();
-const sequence = ref("");
+const { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, b, a } = useMagicKeys()
+const sequence = ref('')
 
 watch([ArrowUp, ArrowDown, ArrowLeft, ArrowRight, b, a], () => {
   // Track key sequence and check for Konami Code
   // ↑ ↑ ↓ ↓ ← → ← → B A
-});
+})
 ```
 
 ---

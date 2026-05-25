@@ -245,7 +245,7 @@ class RadioService:
         vault_id: UUID4,
         caps_cost: int | None = None,
         override: DwellerCreateCommonOverride | None = None,
-    ) -> Dweller:
+    ) -> tuple[Dweller, bool]:
         """
         Manually recruit a dweller for caps.
 
@@ -256,7 +256,9 @@ class RadioService:
             override: Optional override for dweller attributes
 
         Returns:
-            Newly recruited dweller
+            Tuple of (dweller, recycled) — the recruited Dweller and a bool that
+            is True when a soft-deleted dweller was restored rather than a fresh
+            one created.
 
         Raises:
             ValueError: If insufficient caps or no radio room

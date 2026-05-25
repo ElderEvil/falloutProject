@@ -48,6 +48,7 @@ from app.utils.seed_quests import seed_quests_from_json
 # Import security middleware (conditional on settings)
 if settings.ENABLE_RATE_LIMITING:
     from guard.middleware import SecurityMiddleware
+    from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
     from app.middleware.security import create_security_config
 
@@ -128,6 +129,9 @@ app.add_middleware(RequestIdMiddleware)
 if settings.ENABLE_RATE_LIMITING:
     security_config = create_security_config()
     app.add_middleware(SecurityMiddleware, config=security_config)
+    # ProxyHeadersMiddleware must be added after SecurityMiddleware so it runs first,
+    # rewriting request.client with the real IP from X-Forwarded-For before guard sees it.
+    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
     logger.info("Security middleware enabled with rate limiting")
 
 # Add session middleware for admin authentication

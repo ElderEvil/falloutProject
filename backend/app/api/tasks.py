@@ -5,6 +5,8 @@ import time
 
 import dramatiq
 import periodiq
+
+import app.core.dramatiq  # noqa: F401 - ensures broker is configured (set_broker) when dramatiq CLI imports this module
 from pydantic import UUID4
 
 from app.services.cleanup_service import cleanup_service

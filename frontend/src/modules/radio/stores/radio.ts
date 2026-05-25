@@ -41,7 +41,11 @@ export const useRadioStore = defineStore('radio', () => {
       const response = await axios.post(`/api/v1/radio/vault/${vaultId}/recruit`, request)
       const result: RecruitmentResponse = response.data
 
-      toast.success(result.message)
+      if (result.recycled) {
+        toast.success(`📡 ${result.message} A familiar face answers the call from the wastes.`)
+      } else {
+        toast.success(result.message)
+      }
       return result
     } catch (error: unknown) {
       console.error('Failed to recruit dweller:', error)

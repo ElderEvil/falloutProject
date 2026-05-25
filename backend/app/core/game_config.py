@@ -432,6 +432,14 @@ class RadioConfig(BaseSettings):
 
     happiness_bonus: int = Field(default=1, description="+1 happiness per dweller per tick", ge=0)
 
+    recycle_enabled: bool = Field(default=True, description="Prefer soft-deleted dwellers when radio recruits")
+    recycle_probability: float = Field(
+        default=0.8, description="Probability of using a recycled dweller when pool has candidates", ge=0.0, le=1.0
+    )
+    recycle_min_age_days: int = Field(
+        default=7, description="Minimum days since deletion before a dweller is eligible for radio recycling", ge=1
+    )
+
     def get_tier_multiplier(self, tier: int) -> float:
         """Get radio effectiveness multiplier for room tier."""
         multipliers = {

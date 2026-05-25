@@ -40,3 +40,4 @@ class RecruitmentResponse(SQLModel):
     dweller: DwellerRead
     message: str
     caps_spent: int | None = Field(default=None, description="Caps spent if manual recruitment")
+    recycled: bool = Field(default=False, description="True if the recruit was restored from a soft-deleted dweller")

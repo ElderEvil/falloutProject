@@ -40,7 +40,7 @@ async def manual_recruit_dweller(
     try:
         from app.core.game_config import game_config
 
-        dweller = await radio_service.manual_recruit(
+        dweller, recycled = await radio_service.manual_recruit(
             db_session,
             vault_id,
             override=recruit_request.override,
@@ -52,6 +52,7 @@ async def manual_recruit_dweller(
             dweller=dweller,  # type: ignore  # noqa: PGH003
             message=f"{dweller.first_name} {dweller.last_name} has joined your vault!",
             caps_spent=game_config.radio.manual_recruitment_cost,
+            recycled=recycled,
         )
     except ValueError as e:
         raise ValidationException(detail=str(e)) from e

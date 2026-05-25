@@ -128,9 +128,12 @@ class RadioService:
 
         # Roll for recruitment
         if random.random() < rate:
-            dweller = await RadioService.recruit_dweller(db_session, vault_id)
+            dweller, _ = await RadioService.recruit_dweller(db_session, vault_id)
             logger.info(
-                f"Radio recruitment successful: {dweller.first_name} {dweller.last_name} joined vault {vault_id}"
+                "Radio recruitment successful: %s %s joined vault %s",
+                dweller.first_name,
+                dweller.last_name,
+                vault_id,
             )
             return dweller
 
@@ -141,26 +144,80 @@ class RadioService:
         db_session: AsyncSession,
         vault_id: UUID4,
         override: DwellerCreateCommonOverride | None = None,
-    ) -> Dweller:
+    ) -> tuple[Dweller, bool]:
         """
-        Recruit a new random dweller to the vault.
+        Recruit a new dweller to the vault.
+
+        Prefers restoring a soft-deleted dweller (reusing their S3 assets) when the
+        recycling pool has eligible candidates and the config allows it. Falls back to
+        creating a fresh random dweller when no candidates are found, recycling is
+        disabled, or an explicit override was supplied by the caller.
 
         Args:
             db_session: Database session
             vault_id: Vault ID
-            override: Optional override for dweller attributes
+            override: Optional override for dweller attributes (skips recycling)
 
         Returns:
-            Newly created dweller
+            Tuple of (dweller, recycled) where recycled=True means a soft-deleted
+            dweller was restored rather than a new one created.
         """
-        # Create random common dweller
-        dweller = await crud.dweller.create_random(
-            db_session=db_session,
-            obj_in=override,
-            vault_id=vault_id,
-        )
+        from app.services.dweller_recycling_service import dweller_recycling_service
+        from app.utils.exceptions import ResourceConflictException
 
-        logger.info(f"Recruited dweller: {dweller.first_name} {dweller.last_name} to vault {vault_id}")
+        recycled = False
+        dweller: Dweller | None = None
+
+        # Only attempt recycling when no caller-supplied override is present — an
+        # override signals an intentional customisation, so honour it with a fresh dweller.
+        if (
+            game_config.radio.recycle_enabled
+            and override is None
+            and random.random() < game_config.radio.recycle_probability
+        ):
+            candidates = await dweller_recycling_service.get_recyclable_dwellers(
+                db_session=db_session,
+                min_age_days=game_config.radio.recycle_min_age_days,
+                limit=5,
+            )
+            if candidates:
+                candidate = random.choice(candidates)
+                try:
+                    dweller = await dweller_recycling_service.recycle_dweller_for_vault(
+                        db_session=db_session,
+                        dweller_id=candidate.id,
+                        target_vault_id=vault_id,
+                        reset_stats=True,
+                    )
+                    recycled = True
+                    logger.info(
+                        "Radio recycled dweller %s (%s %s) into vault %s",
+                        candidate.id,
+                        dweller.first_name,
+                        dweller.last_name,
+                        vault_id,
+                    )
+                except ResourceConflictException:
+                    logger.warning(
+                        "Recycling candidate %s was no longer soft-deleted, falling back to create_random",
+                        candidate.id,
+                    )
+                    dweller = None
+
+        if dweller is None:
+            dweller = await crud.dweller.create_random(
+                db_session=db_session,
+                obj_in=override,
+                vault_id=vault_id,
+            )
+
+        logger.info(
+            "Radio recruited %s %s into vault %s (recycled=%s)",
+            dweller.first_name,
+            dweller.last_name,
+            vault_id,
+            recycled,
+        )
 
         # Send notification (non-critical, don't break recruitment on failure)
         try:
@@ -173,14 +230,14 @@ class RadioService:
                     user_id=vault.user_id,
                     vault_id=vault_id,
                     dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
-                    meta_data={"dweller_id": str(dweller.id)},
+                    meta_data={"dweller_id": str(dweller.id), "recycled": recycled},
                 )
         except Exception:
             logger.exception(
                 "Failed to send radio recruitment notification: vault_id=%s, dweller_id=%s", vault_id, dweller.id
             )
 
-        return dweller
+        return dweller, recycled
 
     @staticmethod
     async def manual_recruit(
@@ -188,7 +245,7 @@ class RadioService:
         vault_id: UUID4,
         caps_cost: int | None = None,
         override: DwellerCreateCommonOverride | None = None,
-    ) -> Dweller:
+    ) -> tuple[Dweller, bool]:
         """
         Manually recruit a dweller for caps.
 
@@ -199,7 +256,9 @@ class RadioService:
             override: Optional override for dweller attributes
 
         Returns:
-            Newly recruited dweller
+            Tuple of (dweller, recycled) — the recruited Dweller and a bool that
+            is True when a soft-deleted dweller was restored rather than a fresh
+            one created.
 
         Raises:
             ValueError: If insufficient caps or no radio room
@@ -236,13 +295,18 @@ class RadioService:
 
         await crud_vault.withdraw_caps(db_session=db_session, vault_obj=vault, amount=caps_cost)
 
-        dweller = await RadioService.recruit_dweller(db_session, vault_id, override)
+        dweller, recycled = await RadioService.recruit_dweller(db_session, vault_id, override)
 
         logger.info(
-            f"Manual recruitment: {dweller.first_name} {dweller.last_name} to vault {vault_id} for {caps_cost} caps"
+            "Manual recruitment: %s %s to vault %s for %d caps (recycled=%s)",
+            dweller.first_name,
+            dweller.last_name,
+            vault_id,
+            caps_cost,
+            recycled,
         )
 
-        return dweller
+        return dweller, recycled
 
     @staticmethod
     async def get_recruitment_stats(

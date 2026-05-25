@@ -82,7 +82,7 @@ class TestRadioNotifications:
             mock_notify.return_value = AsyncMock()
 
             # Recruit a dweller
-            dweller = await RadioService.recruit_dweller(async_session, vault.id)
+            dweller, _ = await RadioService.recruit_dweller(async_session, vault.id)
 
             # Verify notification was called
             mock_notify.assert_called_once()

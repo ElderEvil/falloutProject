@@ -9,6 +9,48 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.14.0] - 2026-05-26
+
+### Added
+
+- **Radio asset repurpose** - When the radio recruits a new dweller, it now prefers restoring a
+  soft-deleted dweller from the cross-vault recycling pool (reusing their existing S3 image,
+  thumbnail, bio, and original rarity) over generating a blank new one
+  - Falls back to `create_random` when the pool is empty or the caller supplies an override
+  - Config-gated: `RADIO_RECYCLE_ENABLED` (default `true`), `RADIO_RECYCLE_PROBABILITY` (default `0.8`),
+    `RADIO_RECYCLE_MIN_AGE_DAYS` (default `7`)
+  - `RecruitmentResponse` gains a `recycled` boolean field; frontend shows a distinct
+    "A familiar face answers the call" toast when `recycled: true`
+  - 11 new service tests covering recycling, fallback, stat reset, asset preservation,
+    rarity preservation, config flags, and race-condition handling
+
+### Fixed
+
+- **SQLAlchemy async concurrency in game tick** - `InterfaceError: cannot perform operation:
+another operation is in progress` during objective queries inside game tick tasks.
+  Root cause: concurrent async operations sharing the same session. Fix: ensure proper
+  session isolation per task (`async with` session per query) _(carried from v2.13.2 plan)_
+
+### Changed
+
+- **Test session uses SQLModel `AsyncSession`** - `conftest.py` now uses
+  `sqlmodel.ext.asyncio.session.AsyncSession` instead of SQLAlchemy's base class, making
+  `.exec()` available to all service tests without patching
+- **Removed unused sync PostgreSQL drivers** - `psycopg` (psycopg3) and `psycopg2-binary`
+  were leftover from the Celery era (psycopg2 was required by `sqlalchemy-celery-beat`);
+  the app and Alembic use `asyncpg` exclusively
+- **Docker infra: PG18 volume mount** - `docker-compose.infra.yml` volume path updated from
+  `/var/lib/postgresql/data` to `/var/lib/postgresql` for PostgreSQL 18 compatibility
+- **ROADMAP** - Retired `v2.13.2` placeholder, promoted its items into `v2.14.0`
+
+### Chores
+
+- **Version bump** - Backend and frontend versions updated to `2.14.0`
+- **Lockfiles** - Regenerated `uv.lock` (removed `psycopg`, `psycopg2-binary`;
+  133 → 131 packages); `pnpm` lockfile unchanged
+
+---
+
 ## [2.13.1] - 2026-05-19
 
 ### Fixed
@@ -336,7 +378,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 - **Objective Build Progress** - Building rooms now correctly counts toward build objectives
   - Fixed room type format mismatch between event data (display name) and objective targets (snake_case)
-  - Added support for "any" wildcard in addition to "*"
+  - Added support for "any" wildcard in addition to "\*"
 - **Objective Collect Progress** - Collecting resources now correctly counts toward collect objectives
   - Added wildcard support for resource_type matching
 - **Objective Reach Progress** - Population objectives now show actual dweller count as progress
@@ -461,6 +503,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [2.9.3] - 2026-02-08
 
 ### What's New
+
 - **Component Refactoring** - Major frontend architecture improvements
   - Deep split: `RoomDetailModal.vue` broken into 7 focused components + 4 composables
     - Components: RoomDetailHeader, RoomPreviewSection, RoomInfoGrid, ProductionStats, DwellerList, RoomActions, RadioControls
@@ -475,6 +518,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   - Removed unused `get_spreading_incidents()` function from incident CRUD
 
 ### Fixed
+
 - **DwellerChat Message Keys** - Uses messageId-based keys for better WebSocket correlation
 - **RoomDetailModal Edge Cases** - Better null handling and radio room conditional rendering
 
@@ -483,6 +527,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [2.9.2] - 2026-02-08
 
 ### What's New
+
 - **Boosted Start** - New vault creation option for faster progression
   - Creates vault with 6 dwellers (3F/3M), 1000 caps, and starter resources
   - Reduced initial build costs for faster early game
@@ -492,6 +537,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [2.9.1] - 2026-02-08
 
 ### Fixed
+
 - **Chat Message Display** - Messages now use proper message-id-based keys for WebSocket updates
 - **DwellerChat PLAN.md Compliance** - All PLAN.md requirements verified and working
   - Latest-only action suggestion rendering
@@ -502,6 +548,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [2.9.0] - 2026-02-07
 
 ### What's New
+
 - **Dwellers Can Move to Any Room** - Chat room assignments now work for all room types
   - Ask your dweller to move to any room — capacity, crafting, misc, production, quests, theme, or training
   - Dwellers follow your orders strictly when you name a specific room
@@ -517,6 +564,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   - Room coordinates, costs, and speedup multipliers are now visible
 
 ### Fixed
+
 - **Chat Training Actions** - No more "Unable to access vault data" errors
   - Fixed: training room lookup was reading from vault data (which doesn't include rooms) instead of the room store
   - Training actions from chat now work reliably
@@ -537,6 +585,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   - Empty audio files get a clear validation error instead of generic server error
 
 ### Technical
+
 - **Auth Token Refresh** - Fixed 422 validation error when refreshing access tokens
   - Backend now accepts `refresh_token` in request body (JSON) instead of query parameter
   - More RESTful and secure (tokens no longer exposed in URLs/logs)
@@ -558,6 +607,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [2.8.5] - 2026-02-04
 
 ### Changed
+
 - **Code Quality & Refactoring** - Major backend cleanup and simplification
   - Removed empty CRUD wrappers for weapon/outfit/junk items (use CRUDItem directly)
   - Deduplicated vault_id item list filtering in weapon/outfit endpoints
@@ -567,6 +617,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   - Simplified exploration loot transfer logic (reduced from 171 to ~110 lines, removed complexity suppressions)
 
 ### Added
+
 - **Storage Provider** - RustFS support added alongside MinIO for S3-compatible object storage
   - Add STORAGE_PROVIDER config option (minio/rustfs)
   - RustFS services in docker-compose.yml and docker-compose.infra.yml
@@ -576,6 +627,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **Testing** - Added 5 new tests for exploration loot transfer (weapon/outfit creation, missing data, invalid rarity)
 
 ### Fixed
+
 - **Room Images** - Room images now load correctly in dockerized HTTPS staging environments
   - Frontend prepends API base URL to image paths
   - Fixes "failed to load room image" errors on staging
@@ -586,17 +638,20 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [2.8.3] - 2026-02-02
 
 ### What's New
+
 - **Smarter Dweller Assignments** - Dwellers assigned to training rooms now correctly show "Training" status instead of "Working"
   - No more confusion about what your dwellers are actually doing
   - Training progress and status now match up perfectly
 
 ### Improvements
+
 - **Better Error Messages** - When things go wrong, you'll get clearer, more helpful error messages
   - Missing dwellers or resources? The game now tells you exactly what couldn't be found
   - Validation errors (like trying to recruit with the wrong gender) are more descriptive
   - All error messages now follow a consistent format for easier reading
 
 ### Behind the Scenes
+
 - **More Reliable Timestamps** - Database seed data now uses consistent UTC timestamps
 - **Stronger Code Quality** - Added comprehensive tests for error handling and edge cases
 - **Cleaner Architecture** - Standardized how the backend handles different types of errors
@@ -608,12 +663,14 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [2.8.0] - 2026-01-29
 
 ### What's New
+
 - **Dweller Renaming** - Rename your dwellers! Click the pencil icon next to their name on the detail page
 - **Easter Eggs** - Discover hidden vault secrets! Try naming a dweller "Gary" or rapidly clicking the version number in About page
 - **Toast Notifications** - All feedback messages now match your chosen theme color and automatically group duplicates
 - **Better Room Refunds** - Get 50% of your caps back when destroying upgraded rooms (up from 20%)
 
 ### Improvements
+
 - **Changelog** - Cleaner modal design, works properly, and won't freeze your game anymore
 - **Keyboard Shortcuts** - Build mode hotkey (B) now works with all keyboard layouts
 - **Happiness Dashboard** - Quick actions are now easier to find and use
@@ -626,6 +683,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [2.4.1] - 2026-01-25
 
 ### Fixed
+
 - **Critical: Celery Worker Crashes** - Resolved production crashes caused by mixing timezone-aware and timezone-naive datetime objects
   - Fixed `death_service.py` - All datetime operations now use consistent naive datetime format
   - Fixed `breeding_service.py` - Pregnancy and child aging operations use naive datetimes
@@ -634,22 +692,26 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **Test Suite** - Fixed `test_get_info_returns_valid_build_date` expecting timezone info in ISO format
 
 ### Added
+
 - **Documentation**
   - Hotfix deployment guide with rollback procedures
   - Timezone-naive analysis (169 occurrences identified)
   - Comprehensive release notes
 
 ### Changed
+
 - Version bumped from 2.4.0 to 2.4.1 (backend and frontend)
 - Updated `uv.lock` to reflect version change
 
 ### Impact
+
 - ✅ Celery workers no longer crash on dweller death events
 - ✅ Game tick processing continues uninterrupted
 - ✅ Breeding and pregnancy systems function correctly
 - ✅ All tests passing
 
 ### Notes
+
 - This is a temporary fix ensuring all datetime objects remain naive to match database schema (`TIMESTAMP WITHOUT TIME ZONE`)
 - Future work: Full migration to timezone-aware system
 
@@ -658,6 +720,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [2.7.5] - 2026-01-29
 
 ### Added
+
 - **Changelog System** - Version update notifications and changelog display
   - ChangelogModal component with terminal-themed design and smooth animations
   - Version comparison logic to show new entries since last seen version
@@ -667,6 +730,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   - Version detection composable for automatic new version notifications
 
 ### Fixed
+
 - **API Architecture** - Moved changelog endpoints from `/changelog/` to `/system/changelog/`
   - Added `/system/changelog/latest` endpoint for latest version lookup
   - Fixed module import paths for UI components and API utilities
@@ -674,6 +738,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   - Fixed modal v-model binding and lifecycle management
 
 ### Changed
+
 - **API Organization** - Changelog endpoints now under `/api/v1/system/` as public endpoints
 - **Frontend Structure** - Added profile module with changelog routes and services
 - **Modal Design** - Clean terminal-themed modal with proper UCard integration
@@ -684,6 +749,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [2.7.0] - 2026-01-28
 
 ### Added
+
 - **Storage Management System**
   - Storage sidebar navigation entry (hotkey: 9)
   - Storage space tracking and visualization
@@ -705,6 +771,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   - Replaced Prettier with oxfmt across frontend
 
 ### Fixed
+
 - **Junk Item Pricing** - Now based on rarity (Common=2, Rare=50, Legendary=200)
 - **Equipment Filtering** - Weapons and outfits now properly filter by vault
 - **Storage Schema** - Added missing storage_id fields to weapon/outfit/junk schemas
@@ -713,23 +780,27 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **UI Consistency** - Migrated components to UCard, UButton, UTails components
 
 ### Changed
+
 - Version bumped from 2.6.6 to 2.7.0 (backend and frontend)
 - Replaced Prettier with oxfmt for 30x faster formatting
 - Updated frontend to use Tailwind utilities instead of scoped CSS
 - Enhanced storage item cards with Weight and Durability stats
 
 ### Changed
+
 - Version bumped from 2.6.6 to 2.7.0 (backend and frontend)
 - Replaced Prettier with oxfmt for 30x faster formatting
 - Updated frontend to use Tailwind utilities instead of scoped CSS
 - Enhanced storage item cards with Weight and Durability stats
 
 ### Documentation
+
 - Easter eggs documentation added to ROADMAP.md
 - Development scripts cleanup
 - Moved documentation to proper docs/ directory
 
 ### Testing
+
 - Added comprehensive tests for weapon scrap/sell/vault filtering (9 tests)
 - Added comprehensive tests for outfit scrap/sell/vault filtering (9 tests)
 - Added junk sell tests with pricing verification (6 tests)
@@ -740,6 +811,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [2.6.6] - 2026-01-27
 
 ### Changed
+
 - **Backend Dependencies Updated**
   - alembic: 1.18.0 → 1.18.1
   - faker: 40.1.0 → 40.1.2
@@ -751,10 +823,12 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   - ty: 0.0.11 → 0.0.13
 
 ### Fixed
+
 - **UI Theme Consistency** - Replaced hardcoded colors in notification components with CSS theme variables
 - **Documentation Organization** - Archived completed refactoring documentation
 
 ### Removed
+
 - Obsolete development scripts (check_rooms.py, test_config.py)
 
 ---
@@ -762,6 +836,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [2.6.5] - 2026-01-27
 
 ### Added
+
 - **Notification Bell UI Component**
   - Notification bell in NavBar with unread count badge
   - Pop-up UI showing recent notifications
@@ -775,17 +850,20 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   - Comprehensive notification integration tests (4 tests)
 
 ### Fixed
+
 - **Notification Error Handling** - Wrapped notification calls in try/except to prevent failures from breaking core flows
 - **Memory Leak** - Clear notification polling interval on component unmount
 - **Incident Types** - Added missing incident type mappings (MOLE_RAT_ATTACK, FERAL_GHOUL_ATTACK)
 - **Duplicate Notifications** - Removed duplicate notifications for dweller arrivals and baby births
 
 ### Changed
+
 - Improved incident names with emoji icons for better UX
 - Simplified notification bell display condition
 - Enhanced notification error logging with full context
 
 ### Testing
+
 - Added comprehensive notification integration tests
 - Moved test fixtures to conftest.py following established pattern
 - All 4 notification tests passing
@@ -795,6 +873,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [2.6.0] - 2026-01-26
 
 ### Added
+
 - **Wasteland Exploration Enhancements**
   - Distributed WebSocket system for exploration events
   - Enhanced exploration UI with real-time updates
@@ -805,6 +884,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   - Enhanced UI polish and user experience improvements
 
 ### Changed
+
 - Improved WebSocket infrastructure for better real-time performance
 - Enhanced exploration coordination and event handling
 
@@ -813,6 +893,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [2.5.0] - 2026-01-26
 
 ### Added
+
 - **Room Visual Assets**
   - 220+ room sprite images for all room types, tiers, and sizes
   - Room images render in vault overview grid as backgrounds
@@ -827,6 +908,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   - Real-time capacity validation on drag-and-drop
 
 ### Changed
+
 - **UI Improvements**
   - Compact room info overlay for better visibility
   - Reduced font sizes and padding for room name, category, tier
@@ -846,6 +928,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [2.4.0] - 2026-01-25
 
 ### Added
+
 - **Death System** - Complete dweller death and revival mechanics
   - Death causes: Health depletion, radiation poisoning, incidents, exploration, combat
   - Revival system with bottle cap cost (configurable)
@@ -861,12 +944,14 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [2.3.0] - 2026-01-24
 
 ### Added
+
 - **Pregnancy Debug Panel** - UI controls for testing pregnancy system (superuser only)
   - Force conception between any two adult dwellers
   - Accelerate pregnancy to be immediately due
   - Accessible from Relationships → Pregnancies tab
 
 ### Fixed
+
 - **Exploration Item Tracking** - Item count now updates in real-time during exploration
 - **Exploration Rewards Modal** - Modal stays open until user collects rewards (no auto-close)
 - **Storage Duplicate Items** - Removed unique constraint on item names (fixes crash when finding multiple items)
@@ -875,10 +960,12 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **Relationships View** - Fixed dweller loading for pregnancy debug panel
 
 ### Changed
+
 - Compacted AGENTS.md development guide (830 → 200 lines)
 - Updated pregnancy text to clarify conception chance is configurable
 
 ### Testing
+
 - All 684 frontend tests passing
 
 ---
@@ -886,10 +973,12 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [2.1.1] - 2026-01-22
 
 ### Added
+
 - Implementation plan for v2.2.0 (death system, UX enhancements)
 - Floating tooltips for improved UX
 
 ### Fixed
+
 - **UI Improvements** (#155)
   - AI generation button logic (Generate vs Regenerate states)
   - Theme color consistency fixes
@@ -897,6 +986,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   - Room menu styling
 
 ### Testing
+
 - All 670 frontend tests passing
 
 ---
@@ -904,6 +994,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [2.1.0] - 2026-01-22
 
 ### Added
+
 - **Modular Frontend Architecture** (#149)
   - 10 feature-based domain modules
   - 300+ files reorganized
@@ -911,10 +1002,12 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   - Complete architecture documentation
 
 ### Fixed
+
 - TypeScript strict build errors (#152)
 - Template type errors with strictTemplates (#153)
 
 ### Testing
+
 - All 639 frontend tests passing after refactor
 
 ---
@@ -922,10 +1015,12 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [2.0.2] - 2026-01-22
 
 ### Added
+
 - Agent skills documentation (#143)
 - Deployment optimization guide (#133)
 
 ### Changed
+
 - Documentation consolidation (#148)
 
 ---
@@ -933,6 +1028,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [2.0.1] - 2026-01-22
 
 ### Fixed
+
 - Relationship service and vault CRUD issues (#144)
 - Dependency updates (urllib3, pyasn1)
 
@@ -941,10 +1037,12 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [2.0.0] - 2026-01-22
 
 ### Changed
+
 - **BREAKING**: Major version bump from v1.4.2 for semantic-release alignment
 - No API breaking changes - version jump for release automation
 
 ### Notes
+
 - Docker images now follow v2.x.x tagging
 - See AGENTS.md for versioning strategy
 
@@ -955,6 +1053,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ### Fixed
 
 #### TypeScript Build & Module Polish (PR #152)
+
 - **Build Strict**: Resolved all `build:strict` TypeScript errors across modular architecture
 - **Config Fixes**: Fixed vite.config.ts and vitest.config.ts plugin array type issues
 - **Type Safety**: Fixed useTheme.ts parseInt non-null assertions for regex results
@@ -964,6 +1063,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **Cleanup**: Deleted orphaned view files replaced by module views, updated router paths
 
 ### Changed
+
 - Updated relative imports to `@/` alias throughout codebase (OutfitCard, WeaponCard, RadioStatsPanel, EmptyCell)
 - All 651 frontend tests passing
 
@@ -974,16 +1074,19 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ### Added
 
 #### System Information & About Page
+
 - **Backend**: Public `/api/v1/info` endpoint returning app version, API version, environment, Python version
 - **Frontend**: Terminal-themed About page displaying system information with GitHub link
 - **Testing**: 4 backend tests, 6 frontend tests for info endpoint and About page
 
 #### Rate Limit User Experience
+
 - **429 Error Handling**: User-friendly "Rate Limit Exceeded" messages in axios interceptor
 - **Retry-After Support**: Parses `Retry-After` header to show wait time to users
 - **Toast Notifications**: Clear messaging when rate limited instead of generic errors
 
 ### Changed
+
 - Updated ROADMAP.md with v1.13.6-7 and v1.14 completions
 - Moved "Training Drag-and-Drop UI" from P1 to P3 (nice-to-have)
 
@@ -994,6 +1097,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ### Added
 
 #### Modular Frontend Architecture
+
 - **Feature-Based Organization**: Complete restructure into 10 domain modules
   - `core/` - Shared UI components, composables, utilities
   - `modules/auth/` - Authentication and user management
@@ -1009,10 +1113,12 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **Documentation**: Complete architecture guide (archived)
 
 ### Changed
+
 - Reorganized 300+ frontend files into modular structure
 - Updated all import paths to use new module organization
 
 ### Fixed
+
 - All 639 frontend tests passing after refactor
 
 ---
@@ -1020,11 +1126,13 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [1.13.5-1.13.6] - 2026-01-17
 
 ### Added
+
 - **Proactive Token Refresh**: Automatic refresh 5 minutes before expiry
 - **Refresh Token Rotation**: Enhanced security with token rotation
 - **Production Security**: Rate limiting, IP filtering, auto-banning with Redis
 
 ### Fixed
+
 - **MinIO Production**: Internal connection protocol issues resolved
 - **Database Migrations**: Profile initialization and SQLAlchemy session errors
 - **CI/CD Performance**: Optimized caching strategies
@@ -1034,6 +1142,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [1.9-1.12] - 2026-01-03 to 2026-01-06
 
 ### Summary
+
 - Audio conversation system with STT/TTS
 - Multi-provider AI support (Ollama/Anthropic/OpenAI)
 - WebSocket chat with typing indicators
@@ -1235,10 +1344,12 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **Testing**: 11 comprehensive service tests
 
 ### Changed
+
 - Dweller: Added trainings relationship, max_health → 1500
 - Game balance: Training constants added
 
 ### Fixed
+
 - **Foreign Key Constraints**: Added `ondelete` behavior to prevent IntegrityError
   - Dweller self-references (partner_id, parent_1_id, parent_2_id): `SET NULL` on delete
   - Relationship table (dweller_1_id, dweller_2_id): `CASCADE` on delete
@@ -1251,7 +1362,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 #### Core Leveling System (Backend)
 
-- **XP Calculation**: Exponential curve (100 * level^1.5) for 1-50 progression
+- **XP Calculation**: Exponential curve (100 \* level^1.5) for 1-50 progression
 - **XP Sources**:
   - Exploration (survival +20%, luck +2% per point)
   - Combat (perfect combat +50%)
@@ -1260,6 +1371,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **Testing**: 11 comprehensive tests
 
 ### Changed
+
 - Enhanced exploration/combat XP with bonuses
 - Added ix_dweller_level index
 
@@ -1272,82 +1384,82 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 #### Breeding System (Backend)
 
 - **Relationship Management**:
-    - Complete CRUD API for dweller relationships
-    - Relationship types: acquaintance, friend, romantic, partner, ex
-    - Affinity system (0-100) tracking relationship strength
-    - Relationship progression endpoints (initiate romance, make partners, break up)
-    - Compatibility scoring based on SPECIAL stats and personality traits
-    - Quick-pair testing endpoint for development
-    - Relationship service layer with business logic
+  - Complete CRUD API for dweller relationships
+  - Relationship types: acquaintance, friend, romantic, partner, ex
+  - Affinity system (0-100) tracking relationship strength
+  - Relationship progression endpoints (initiate romance, make partners, break up)
+  - Compatibility scoring based on SPECIAL stats and personality traits
+  - Quick-pair testing endpoint for development
+  - Relationship service layer with business logic
 
 - **Pregnancy System**:
-    - Pregnancy creation with conception mechanics
-    - 3-hour pregnancy duration (configurable)
-    - Pregnancy status tracking (pregnant/delivered)
-    - Baby delivery endpoint with child creation
-    - Child inherits SPECIAL traits from both parents
-    - Age progression system (child → teen → adult)
-    - Due date calculation with timezone-aware comparisons
-    - Progress percentage and time remaining calculations
+  - Pregnancy creation with conception mechanics
+  - 3-hour pregnancy duration (configurable)
+  - Pregnancy status tracking (pregnant/delivered)
+  - Baby delivery endpoint with child creation
+  - Child inherits SPECIAL traits from both parents
+  - Age progression system (child → teen → adult)
+  - Due date calculation with timezone-aware comparisons
+  - Progress percentage and time remaining calculations
 
 #### Radio Recruitment System (Backend)
 
 - **Radio Room Functionality**:
-    - Manual recruitment endpoint (500 caps cost)
-    - Automatic recruitment rate calculation
-    - Radio mode toggle: Recruitment vs. Happiness boost
-    - Recruitment speedup multipliers (1.0x-10.0x per radio room)
-    - Multiple radio rooms stack for increased recruitment rates
-    - Happiness-based recruitment probability
-    - Charisma stat influence on recruitment
-    - Radio service layer with rate calculations
+  - Manual recruitment endpoint (500 caps cost)
+  - Automatic recruitment rate calculation
+  - Radio mode toggle: Recruitment vs. Happiness boost
+  - Recruitment speedup multipliers (1.0x-10.0x per radio room)
+  - Multiple radio rooms stack for increased recruitment rates
+  - Happiness-based recruitment probability
+  - Charisma stat influence on recruitment
+  - Radio service layer with rate calculations
 
 #### Database & Models
 
 - **New Models**:
-    - `Relationship` model with dweller associations
-    - `Pregnancy` model with parent tracking
-    - Extended `Dweller` model with age group and parent fields
-    - `RadioMode` enum for room mode tracking
+  - `Relationship` model with dweller associations
+  - `Pregnancy` model with parent tracking
+  - Extended `Dweller` model with age group and parent fields
+  - `RadioMode` enum for room mode tracking
 
 - **Enums**:
-    - `RelationshipTypeEnum` (acquaintance, friend, romantic, partner, ex)
-    - `PregnancyStatusEnum` (pregnant, delivered)
-    - `AgeGroupEnum` (child, teen, adult)
-    - `RadioModeEnum` (recruitment, happiness)
+  - `RelationshipTypeEnum` (acquaintance, friend, romantic, partner, ex)
+  - `PregnancyStatusEnum` (pregnant, delivered)
+  - `AgeGroupEnum` (child, teen, adult)
+  - `RadioModeEnum` (recruitment, happiness)
 
 ### Fixed
 
 - **Test Suite Corrections**:
-    - Fixed `create_with_user_id` to accept dict inputs in addition to Pydantic models
-    - Fixed pregnancy timezone comparison (naive vs. aware datetime handling)
-    - Fixed radio room test data (category enum: "misc" → "misc.")
-    - Added missing required fields to RoomCreate in tests (base_cost, upgrade costs, size constraints)
-    - Fixed test assertions to match actual API response schemas
-    - Fixed relationship query to use UUID conversion for database lookups
-    - Updated expected status codes (404 → 422 for validation errors)
-    - Updated expected response keys (child → child_id, status values)
+  - Fixed `create_with_user_id` to accept dict inputs in addition to Pydantic models
+  - Fixed pregnancy timezone comparison (naive vs. aware datetime handling)
+  - Fixed radio room test data (category enum: "misc" → "misc.")
+  - Added missing required fields to RoomCreate in tests (base_cost, upgrade costs, size constraints)
+  - Fixed test assertions to match actual API response schemas
+  - Fixed relationship query to use UUID conversion for database lookups
+  - Updated expected status codes (404 → 422 for validation errors)
+  - Updated expected response keys (child → child_id, status values)
 
 ### Testing
 
 - **Backend Tests**:
-    - 11 relationship API tests (CRUD, romance, partners, breakup)
-    - 8 pregnancy API tests (create, deliver, status tracking, progress)
-    - 6 radio API tests (manual recruit, mode toggle, rate calculation)
-    - Full test coverage for breeding and radio services
-    - All backend tests passing (600+ tests)
+  - 11 relationship API tests (CRUD, romance, partners, breakup)
+  - 8 pregnancy API tests (create, deliver, status tracking, progress)
+  - 6 radio API tests (manual recruit, mode toggle, rate calculation)
+  - Full test coverage for breeding and radio services
+  - All backend tests passing (600+ tests)
 
 ### Technical
 
 - **CRUD Operations**:
-    - `CRUDRelationship` with bidirectional relationship queries
-    - `CRUDPregnancy` with due date and delivery logic
-    - Enhanced `CRUDVault` with dict/model input handling
+  - `CRUDRelationship` with bidirectional relationship queries
+  - `CRUDPregnancy` with due date and delivery logic
+  - Enhanced `CRUDVault` with dict/model input handling
 
 - **Service Layer**:
-    - `RelationshipService` with compatibility and progression logic
-    - `BreedingService` with conception and delivery mechanics
-    - `RadioService` with recruitment rate calculations
+  - `RelationshipService` with compatibility and progression logic
+  - `BreedingService` with conception and delivery mechanics
+  - `RadioService` with recruitment rate calculations
 
 ## [1.3.1] - 2026-01-01
 
@@ -1356,19 +1468,19 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 #### Room Detail Modal Enhancements
 
 - **Frontend**:
-    - Added clickable dweller cards in Room Detail Modal
-    - Implemented navigation to dweller detail page when clicking on assigned dwellers
-    - Added hover effects with cursor pointer, lift animation, and enhanced glow for clickable dwellers
-    - Integrated Vue Router navigation with proper route params (vault ID and dweller ID)
+  - Added clickable dweller cards in Room Detail Modal
+  - Implemented navigation to dweller detail page when clicking on assigned dwellers
+  - Added hover effects with cursor pointer, lift animation, and enhanced glow for clickable dwellers
+  - Integrated Vue Router navigation with proper route params (vault ID and dweller ID)
 
 ### Fixed
 
 - Fixed Vue Router mock in RoomDetailModal tests by adding `useRouter` mock
 - Updated test expectations to match new component layout:
-    - Dweller capacity display format (e.g., "2 / 2" instead of "2 / 4")
-    - Room size display format (e.g., "1x merged" instead of raw numbers)
-    - Section title changed from "Assigned Dwellers" to "Dweller Details"
-    - Efficiency calculations updated to reflect actual room capacity logic
+  - Dweller capacity display format (e.g., "2 / 2" instead of "2 / 4")
+  - Room size display format (e.g., "1x merged" instead of raw numbers)
+  - Section title changed from "Assigned Dwellers" to "Dweller Details"
+  - Efficiency calculations updated to reflect actual room capacity logic
 - Fixed router error by properly importing and using `useRouter` at component setup level
 
 ### Testing
@@ -1383,36 +1495,36 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 #### Room Management System
 
 - **Backend**:
-    - Added room upgrade endpoint `POST /api/v1/rooms/upgrade/{room_id}`
-    - Implemented tier progression system (1→2→3) with capacity/output recalculation
-    - Added proportional scaling formula for capacity and output based on tier ratio
-    - Implemented upgrade cost validation (t2_upgrade_cost, t3_upgrade_cost)
-    - Added proper error handling for insufficient caps and max tier validation
-    - Added 7 comprehensive pytest tests for room upgrade functionality
+  - Added room upgrade endpoint `POST /api/v1/rooms/upgrade/{room_id}`
+  - Implemented tier progression system (1→2→3) with capacity/output recalculation
+  - Added proportional scaling formula for capacity and output based on tier ratio
+  - Implemented upgrade cost validation (t2_upgrade_cost, t3_upgrade_cost)
+  - Added proper error handling for insufficient caps and max tier validation
+  - Added 7 comprehensive pytest tests for room upgrade functionality
 
 - **Frontend**:
-    - Implemented 4×8 grid layout for visual vault room management
-    - Created room upgrade UI with cost display and tier progression
-    - Added `upgradeRoom()` function to room store with vault refresh
-    - Implemented upgrade button with golden styling and cost tooltip
-    - Added `canUpgrade()` and `getUpgradeCost()` helper functions
-    - Built room selection and detail view system
-    - Added 5 comprehensive Vitest tests for upgrade store functionality
+  - Implemented 4×8 grid layout for visual vault room management
+  - Created room upgrade UI with cost display and tier progression
+  - Added `upgradeRoom()` function to room store with vault refresh
+  - Implemented upgrade button with golden styling and cost tooltip
+  - Added `canUpgrade()` and `getUpgradeCost()` helper functions
+  - Built room selection and detail view system
+  - Added 5 comprehensive Vitest tests for upgrade store functionality
 
 #### Exploration System Enhancements
 
 - **Backend**:
-    - Fixed datetime timezone handling (reverted to `datetime.utcnow()`)
-    - Removed debug logging from exploration models
-    - Improved timezone compatibility between database and application
+  - Fixed datetime timezone handling (reverted to `datetime.utcnow()`)
+  - Removed debug logging from exploration models
+  - Improved timezone compatibility between database and application
 
 - **Frontend**:
-    - Implemented auto-complete detection for explorations at 100% progress
-    - Added manual Complete button for explorations
-    - Created `ExplorationRewardsModal.vue` with terminal-themed design
-    - Display experience (with golden pulse animation), caps, items, distance, enemies
-    - Added recalled early indicator with reduced rewards display
-    - Implemented duplicate call prevention for completion actions
+  - Implemented auto-complete detection for explorations at 100% progress
+  - Added manual Complete button for explorations
+  - Created `ExplorationRewardsModal.vue` with terminal-themed design
+  - Display experience (with golden pulse animation), caps, items, distance, enemies
+  - Added recalled early indicator with reduced rewards display
+  - Implemented duplicate call prevention for completion actions
 
 ### Fixed
 
@@ -1443,27 +1555,27 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 #### Equipment System
 
 - **Backend**:
-    - Added weapon and outfit equip/unequip endpoints
-    - Implemented eager loading for equipment relationships to prevent lazy loading errors
-    - Updated `DwellerReadFull` schema to include weapon and outfit fields
-    - Override `CRUDDweller.get()` to eager load weapon, outfit, vault, and room relationships
-    - Fixed SQLAlchemy async session issues with `selectinload()`
+  - Added weapon and outfit equip/unequip endpoints
+  - Implemented eager loading for equipment relationships to prevent lazy loading errors
+  - Updated `DwellerReadFull` schema to include weapon and outfit fields
+  - Override `CRUDDweller.get()` to eager load weapon, outfit, vault, and room relationships
+  - Fixed SQLAlchemy async session issues with `selectinload()`
 
 - **Frontend**:
-    - Created comprehensive TypeScript equipment type system (`equipment.ts`)
-        - Weapon types: MELEE, RANGED with subtypes (FIST, BLADE, PISTOL, RIFLE, etc.)
-        - Outfit types: CASUAL, WORK, COMBAT, SPECIAL
-        - Rarity system: COMMON, UNCOMMON, RARE, LEGENDARY
-    - Implemented equipment service layer with API integration
-    - Created Pinia equipment store with state management
-    - Built `WeaponCard.vue` component with damage stats and rarity coloring
-    - Built `OutfitCard.vue` component with SPECIAL stat bonuses
-    - Implemented `DwellerEquipment.vue` with:
-        - Equipment slots for weapon and outfit
-        - Inventory modal with tabbed interface
-        - Real-time equipment updates
-        - Empty states for unequipped slots
-    - Added refresh event chain for automatic data updates after equipment changes
+  - Created comprehensive TypeScript equipment type system (`equipment.ts`)
+    - Weapon types: MELEE, RANGED with subtypes (FIST, BLADE, PISTOL, RIFLE, etc.)
+    - Outfit types: CASUAL, WORK, COMBAT, SPECIAL
+    - Rarity system: COMMON, UNCOMMON, RARE, LEGENDARY
+  - Implemented equipment service layer with API integration
+  - Created Pinia equipment store with state management
+  - Built `WeaponCard.vue` component with damage stats and rarity coloring
+  - Built `OutfitCard.vue` component with SPECIAL stat bonuses
+  - Implemented `DwellerEquipment.vue` with:
+    - Equipment slots for weapon and outfit
+    - Inventory modal with tabbed interface
+    - Real-time equipment updates
+    - Empty states for unequipped slots
+  - Added refresh event chain for automatic data updates after equipment changes
 
 #### UI/UX Improvements
 

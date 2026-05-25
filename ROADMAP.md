@@ -10,6 +10,7 @@ AI-powered dweller interactions.
 ## In Progress
 
 **Current work (post-v2.13.0):**
+
 - [ ] Nuxt UI component migration (phased, see archived plan)
 - [ ] Multi-theme support (Terminal Green, Amber, Teal + custom)
 - [ ] Staged axios deprecation (see `frontend/HTTP_CLIENT_MIGRATION.md`)
@@ -24,6 +25,7 @@ AI-powered dweller interactions.
 **Focus**: Replaced Celery with Dramatiq for simpler, more reliable task processing
 
 **Completed:**
+
 - ✅ **Dramatiq Task Queue** - Migrated from Celery + Celery Beat to Dramatiq + Periodiq
   - 8 task actors: `game_tick`, `process_vault_tick`, `check_permanent_deaths`, `check_quest_completion`, `refresh_daily_objectives`, `refresh_weekly_objectives`, `cleanup_old_records`, `create_task`
   - Periodiq scheduler replaces Celery Beat with cron syntax
@@ -33,15 +35,42 @@ AI-powered dweller interactions.
 - ✅ **Dependency Cleanup** - Removed `celery`, `sqlalchemy-celery-beat`, `celery-types`, `psycopg2`
 
 **Migration required:**
+
 - Update `.env`: remove `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `FLOWER_USER`, `FLOWER_PASSWORD`
 - Update Docker Compose: replace `celery_worker` + `celery_beat` + `flower` with `dramatiq_worker`
 - Run DB migration to drop `celery_schedule_jobs` table
+
+### v2.13.1 - Security & Reliability Hardening (May 19, 2026)
+
+**Focus**: Security improvements and infrastructure reliability post-Dramatiq migration
+
+**Completed:**
+
+- ✅ **Non-root containers** - Backend Docker image no longer runs as root
+- ✅ **RustFS credential security** - Removed hardcoded credentials; `RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY` now required explicitly
+- ✅ **Task scheduler auto-recovery** - Docker restart policy added for Dramatiq worker / Periodiq scheduler
+- ✅ **DB migration cleanup** - Fixed migration leaving orphaned PostgreSQL enum types on Celery table drop
+- ✅ **RustFS config restored** - `.env.prod.example` now includes all required `RUSTFS_*` variables
+- ✅ **Documentation cleanup** - Removed 11 outdated docs, archived 4 guides, compacted 12-factor report
+
+### v2.14 - Asset Repurpose & Bug Fixes (In Progress)
+
+**Focus**: Repurpose soft-deleted dweller assets for radio recruitment; address issues discovered post-Dramatiq migration
+
+**In Progress:**
+
+- [ ] **Radio asset repurpose** (`2.14-repurpose`) - When the radio recruits, prefer restoring a soft-deleted dweller (reusing their existing S3 image/thumbnail/bio assets) over generating a blank new one. Falls back to `create_random` when the recycling pool is empty or an override is supplied. Config-gated via `RADIO_RECYCLE_ENABLED` / `RADIO_RECYCLE_PROBABILITY` / `RADIO_RECYCLE_MIN_AGE_DAYS`. Frontend shows a distinct toast for recycled recruits.
+
+**Planned:**
+
+- [ ] **SQLAlchemy async concurrency error in `game_tick`** - `InterfaceError: cannot perform operation: another operation is in progress` during objective queries (`vaultobjectiveprogresslink`) inside game tick tasks. Root cause: concurrent async operations sharing the same SQLAlchemy connection/session. Fix: ensure proper session isolation per task (`async with` session per query).
 
 ### v2.12.0 - Stabilization & Quality (April 23, 2026)
 
 **Focus**: Fix all failing tests, remove deprecated code, harden error handling
 
 **Completed:**
+
 - ✅ **Chat Error Handling** - Hardened AI provider failure handling across all services
   - Fixed `AttributeError: 'coroutine' object has no attribute 'input_tokens'` bug
   - Added safe usage extraction with fallback to `None` for token counts
@@ -62,6 +91,7 @@ AI-powered dweller interactions.
 **Focus**: Vite+ unified toolchain, dweller recycling service, and test fixes
 
 **Completed:**
+
 - ✅ **Vite+ Unified Toolchain** - Migrated to Vite+ for improved bundling and DX
   - Unified build tooling across frontend
   - Improved build performance
@@ -80,6 +110,7 @@ AI-powered dweller interactions.
 **Focus**: AI usage monitoring, token quota enforcement, and observability improvements
 
 **Completed:**
+
 - ✅ **AI Usage API** - New `/me/profile/ai-usage` endpoint with token statistics
   - Tracks prompt, completion, and total tokens across all AI calls
   - Redis-cached responses for performance
@@ -105,6 +136,7 @@ AI-powered dweller interactions.
 **Focus**: Storage provider migration, objective improvements, code quality
 
 **Completed:**
+
 - ✅ **RustFS Migration** - Switched default storage from MinIO to RustFS
   - Added utility scripts for image URL fixes and bucket policies
   - Updated bucket whitelist with all required buckets
@@ -116,6 +148,7 @@ AI-powered dweller interactions.
 **Focus**: Fixed quest seeding bugs and verified quest system works
 
 **Completed:**
+
 - ✅ **Quest JSON Fixes** - Fixed invalid requirement types in quest files
   - Changed `dweller_level` → `level` in 4 quest files
   - Removed invalid `weapon_damage` requirement type
@@ -135,12 +168,14 @@ AI-powered dweller interactions.
 **Focus**: Stimpaks and Radaways vault storage with production from Medbay/Science Lab
 
 **Known Issue (needs fix):**
+
 - ⚠️ **Storage Model Refactor** - Currently stimpaks/radaways are on Vault model, should be on Storage model
   - Add fields to Storage: `stimpack`, `radaway`, `stimpack_max`, `radaway_max`
   - Remove from Vault model
   - Update all code to read/write from storage instead of vault
 
 **Planned:**
+
 - [ ] **Vault Storage for Medical Items** - Add stimpaks and radaways to vault storage
   - New storage model fields: `stimpaks`, `radaways`
   - Max capacity calculated from Medbay/Science Lab rooms (number + tier)
@@ -163,6 +198,7 @@ AI-powered dweller interactions.
 **Focus**: Fixed type errors and lint warnings
 
 **Completed:**
+
 - ✅ Fixed Vue TypeScript build errors (undefined array access, void elements)
 - ✅ Fixed backend lint warnings
 
@@ -173,6 +209,7 @@ AI-powered dweller interactions.
 **Focus**: Working quest system with proper reward distribution and objective progress tracking
 
 **Completed:**
+
 - ✅ **Quest JSON Loading** - Fixed `QuestJSON` schema to accept both space-separated ("Quest name") and snake_case ("quest_name") field names
 - ✅ **Quest Seeding** - All 19 quests across 7 chains now load correctly from JSON files
 - ✅ **Quest Rewards** - Implemented `reward_service.process_quest_rewards()` with caps, items, dwellers, stimpaks, radaways, and lunchboxes
@@ -190,6 +227,7 @@ AI-powered dweller interactions.
 **Focus**: Major frontend component refactoring and backend code quality improvements
 
 **Completed:**
+
 - ✅ **RoomDetailModal Deep Split** - Reduced from 1045 lines to ~200 lines (~80% reduction)
   - Extracted 7 focused components: RoomDetailHeader, RoomPreviewSection, RoomInfoGrid, ProductionStats, DwellerList, RoomActions, RadioControls
   - Extracted 4 composables: useRoomProduction, useRoomUpgrade, useRoomDwellers, useRadioRoom
@@ -206,6 +244,7 @@ AI-powered dweller interactions.
 **Focus**: Chat action suggestions, exploration integration, and smarter room assignment
 
 **Completed:**
+
 - ✅ **Exploration from Chat** - Start and recall explorations directly from dweller chat
   - `start_exploration` action with automatic supply packing (2 stimpaks / 1 radaway caps)
   - `recall_exploration` action with completion detection (collect rewards if done)
@@ -230,6 +269,7 @@ AI-powered dweller interactions.
 **Focus**: Technical debt reduction, code deduplication, and maintainability improvements
 
 **Completed:**
+
 - ✅ **Code Deduplication**
   - Removed empty CRUD classes (weapon, outfit, junk) - now use CRUDItem directly
   - Extracted vault filtering logic into shared `get_items_list()` utility
@@ -240,7 +280,7 @@ AI-powered dweller interactions.
   - Moved exploration/item constants to game_config.py (rarity priorities, junk values, scrap probabilities)
 - ✅ **Refactoring**
   - Refactored `_transfer_loot_to_storage()` - reduced from 171 to ~110 lines
-  - Extracted 4 helper methods (_parse_rarity_to_enum, _create_weapon_from_loot, _create_outfit_from_loot, _create_junk_from_loot)
+  - Extracted 4 helper methods (\_parse_rarity_to_enum, \_create_weapon_from_loot, \_create_outfit_from_loot, \_create_junk_from_loot)
   - Removed complexity suppressions (PLR0912, PLR0915)
 - ✅ **Storage & Infrastructure**
   - Added RustFS storage provider support (alongside MinIO)
@@ -253,6 +293,7 @@ AI-powered dweller interactions.
   - Added training room status assignment test
 
 **Deferred to Future Releases:**
+
 - Add query builder methods to CRUDBase for soft-delete and vault-scoped queries
 - Create `get_or_404()` helper to reduce ResourceNotFoundException boilerplate (28 locations)
 - Add notification error handling decorator/utility
@@ -267,6 +308,7 @@ AI-powered dweller interactions.
 **Focus**: Hidden features, terminal aesthetic polish, and UX bug fixes
 
 **Completed:**
+
 - ✅ **Changelog System**
   - Terminal-themed modal with version update notifications
   - Auto-show on login after update
@@ -298,6 +340,7 @@ AI-powered dweller interactions.
   - Resource tooltips now visible
 
 **Remaining for v2.10.0+:**
+
 - Token Management & Usage Tracking
 - Provider Rotation (Ollama URL config + health checking)
 - Admin & Configuration (birth control, room render config)
@@ -311,6 +354,7 @@ AI-powered dweller interactions.
 **Focus**: Vault storage system implementation and UI improvements
 
 **Completed:**
+
 - ✅ **Storage Management System**
   - Storage sidebar navigation entry (hotkey: 9)
   - Storage space tracking and visualization
@@ -334,6 +378,7 @@ AI-powered dweller interactions.
   - Improved button layout and grouping
 
 **Remaining for Future Updates:**
+
 - Layout Improvements (sticky panels, smooth scrolling)
 - Toast Notifications (unification, grouping, deduplication)
 - Exploration UI (overflow handling, pagination, history)
@@ -343,6 +388,7 @@ AI-powered dweller interactions.
 **Status**: Notification system implemented
 
 **Completed:**
+
 - ✅ Notification bell UI component with pop-up
 - ✅ Exploration completion notifications
 - ✅ Radio recruitment notifications
@@ -362,11 +408,13 @@ AI-powered dweller interactions.
 **Trigger**: Player renames a dweller to "Gary"
 
 **Effect**:
+
 - For 10 seconds, all text in the UI (headers, buttons, logs, tooltips) displays "Gary"
 - Terminal glitch/flicker animation during transformation
 - Audio: Distorted "Gary!" voice clip (optional)
 
 **Implementation Notes**:
+
 - Vue composable: `useGaryMode()`
 - Global reactive state that temporarily overrides text rendering
 - CSS class `.gary-mode` on `<body>` element
@@ -380,12 +428,14 @@ AI-powered dweller interactions.
 **Trigger**: Rename a dweller to "Todd"
 
 **Effect**:
+
 - **Permanent Buff**: +10 Charisma (CHA) stat
 - **Hidden 24h Buff**: 100% Rush Success Rate
 - **Audio**: On successful rush, play Todd Howard's "It just works" voice clip instead of default success sound
 - **Visual**: Special golden glow effect on the dweller card
 
 **Implementation Notes**:
+
 - Backend: Add hidden buff system for temporary bonuses
 - Track buff expiry with timestamp
 - Frontend: Custom sound effect for Todd dweller rush success
@@ -398,6 +448,7 @@ AI-powered dweller interactions.
 **Trigger**: Rapidly click the version number in footer 7 times
 
 **Effect**:
+
 1. Screen fades to black
 2. Terminal text types out: `CRITICAL FAILURE. INITIATING PROTOCOL 27...`
 3. Fake "Vault-Tec Terminal Crash" screen with CRT effects
@@ -406,6 +457,7 @@ AI-powered dweller interactions.
 6. Toast notification: "Emergency systems restored. Compensation awarded."
 
 **Implementation Notes**:
+
 - Click counter with timeout (reset after 2s of no clicks)
 - Full-screen modal overlay with CRT/terminal aesthetic
 - Typewriter text animation
@@ -413,6 +465,7 @@ AI-powered dweller interactions.
 - Version number extraction from `package.json` (not hardcoded)
 
 **Code Snippet**:
+
 ```vue
 <script setup>
 import { ref } from 'vue'
@@ -445,6 +498,7 @@ const handleVersionClick = () => {
 **Trigger**: Enter Konami Code sequence: ↑ ↑ ↓ ↓ ← → ← → B A
 
 **Effect**:
+
 - Toast notification: "Cheat Codes Enabled"
 - Unlock hidden "Debug Room" in build menu
 - Debug Room properties:
@@ -455,6 +509,7 @@ const handleVersionClick = () => {
   - Category: "Experimental" (new category)
 
 **Implementation Notes**:
+
 - Use VueUse `useMagicKeys()` composable for key sequence detection
 - Backend: Add "Debug Room" template (locked by default)
 - Frontend: Toggle room availability in build menu based on cheat code state
@@ -462,6 +517,7 @@ const handleVersionClick = () => {
 - Deathclaw spawn: Celery task with 50% probability
 
 **Code Snippet**:
+
 ```typescript
 import { useMagicKeys } from '@vueuse/core'
 
@@ -481,12 +537,14 @@ watch([ArrowUp, ArrowDown, ArrowLeft, ArrowRight, b, a], () => {
 **Trigger**: Player reaches exactly 1000 caps (or specific milestone)
 
 **Effect**:
+
 - Mouse cursor leaves glowing blue particle trail (Nuka Quantum style)
 - Particles fade out over 1-2 seconds
 - Effect persists for entire session
 - Subtle, non-intrusive visual enhancement
 
 **Implementation Notes**:
+
 - Canvas overlay with `pointer-events: none`
 - Track mouse coordinates with `mousemove` event
 - Render fading circles/bubbles on canvas
@@ -495,12 +553,10 @@ watch([ArrowUp, ArrowDown, ArrowLeft, ArrowRight, b, a], () => {
 - Z-index: 9999 to stay above all UI
 
 **Code Snippet**:
+
 ```vue
 <template>
-  <canvas
-    ref="quantumCanvas"
-    class="fixed inset-0 pointer-events-none z-[9999]"
-  />
+  <canvas ref="quantumCanvas" class="fixed inset-0 pointer-events-none z-[9999]" />
 </template>
 
 <script setup>
@@ -532,12 +588,14 @@ watch(() => userStore.caps, (caps) => {
 ### Technical Requirements
 
 **Backend**:
+
 - Hidden buff system (temporary stat modifiers)
 - Easter egg event tracking (analytics)
 - API endpoints for easter egg rewards
 - Debug room template data
 
 **Frontend**:
+
 - Global state management for active easter eggs
 - Composables: `useGaryMode()`, `useKonamiCode()`, `useQuantumMouse()`
 - Audio service for custom sound effects
@@ -545,12 +603,14 @@ watch(() => userStore.caps, (caps) => {
 - VueUse integration for key detection
 
 **Testing**:
+
 - Unit tests for each easter egg trigger
 - E2E tests for UI effects
 - Backend tests for buff system
 - Audio playback tests
 
 **Documentation**:
+
 - Easter egg hints in loading screen tips (subtle)
 - Achievement tracking for players who discover them
 - Optional: Hidden achievement badges for each easter egg
@@ -564,6 +624,7 @@ watch(() => userStore.caps, (caps) => {
 **Focus**: Backend refactoring and service improvements
 
 **Completed:**
+
 - ✅ **Backend Refactoring**
   - Split game loop relationship update logic into helper functions
   - Extracted exploration loot transfer into separate coordinator functions
@@ -575,6 +636,7 @@ watch(() => userStore.caps, (caps) => {
 **Focus**: Code quality and service layer enhancements
 
 **Completed:**
+
 - ✅ **Service Refactoring** - Improved game loop service structure
 - ✅ **Code Organization** - Better separation of concerns in backend services
 
@@ -583,44 +645,44 @@ watch(() => userStore.caps, (caps) => {
 **Feature Release** - Room sprite rendering and capacity enforcement
 
 - **Room Images**: Full visual representation of all rooms
-    - 220+ room sprite images for all room types, tiers, and sizes
-    - Images render in vault overview grid as backgrounds
-    - Images display in room detail modal preview section
-    - Intelligent fallback system for missing tier/segment combinations
-    - Automatic image URL generation based on room name, tier, and size
+  - 220+ room sprite images for all room types, tiers, and sizes
+  - Images render in vault overview grid as backgrounds
+  - Images display in room detail modal preview section
+  - Intelligent fallback system for missing tier/segment combinations
+  - Automatic image URL generation based on room name, tier, and size
 - **Room Capacity Enforcement**: Strict dweller assignment limits
-    - Capacity calculation: 2 dwellers per cell (3-cell room = 2, 6-cell = 4, 9-cell = 6)
-    - Prevents over-assignment with user-friendly error messages
-    - Allows reordering dwellers within same room
-    - Real-time capacity validation on drag-and-drop
+  - Capacity calculation: 2 dwellers per cell (3-cell room = 2, 6-cell = 4, 9-cell = 6)
+  - Prevents over-assignment with user-friendly error messages
+  - Allows reordering dwellers within same room
+  - Real-time capacity validation on drag-and-drop
 - **UI Improvements**: Compact room info overlay for better visibility
-    - Reduced font sizes and padding for room name, category, tier
-    - Room info positioned at top with semi-transparent background
-    - Dwellers positioned at bottom
-    - All content properly layered with z-index
+  - Reduced font sizes and padding for room name, category, tier
+  - Room info positioned at top with semi-transparent background
+  - Dwellers positioned at bottom
+  - All content properly layered with z-index
 - **Backend**: Migration to populate image_url for existing rooms
-    - Database migration: `fc75e738a303_add_room_image_urls`
-    - Automatic URL generation during room build and upgrade
-    - Static file serving through `/static` endpoint
+  - Database migration: `fc75e738a303_add_room_image_urls`
+  - Automatic URL generation during room build and upgrade
+  - Static file serving through `/static` endpoint
 - **Frontend**: Vite proxy configuration for image serving
-    - `/static` proxy forwards requests to backend
-    - Image loading with error handlers and console debugging
-    - Test page for verifying image loading functionality
+  - `/static` proxy forwards requests to backend
+  - Image loading with error handlers and console debugging
+  - Test page for verifying image loading functionality
 
 ### v2.4.1 Critical Hotfix (January 25, 2026)
 
 **Hotfix Release** - Resolved production Celery worker crashes
 
 - **Critical Fix**: Timezone-naive datetime mixing causing Celery crashes
-    - Fixed `death_service.py` - All datetime operations use consistent naive format
-    - Fixed `breeding_service.py` - Pregnancy and child aging use naive datetimes
-    - All datetime operations: `datetime.now(UTC).replace(tzinfo=None)`
-    - Prevents asyncpg DataError: "can't subtract offset-naive and offset-aware datetimes"
+  - Fixed `death_service.py` - All datetime operations use consistent naive format
+  - Fixed `breeding_service.py` - Pregnancy and child aging use naive datetimes
+  - All datetime operations: `datetime.now(UTC).replace(tzinfo=None)`
+  - Prevents asyncpg DataError: "can't subtract offset-naive and offset-aware datetimes"
 - **System Info Fix**: `build_date` now uses timezone-aware datetime for proper ISO format
 - **Documentation**:
-    - Hotfix deployment guide
-    - Timezone-naive analysis (169 occurrences)
-    - Release notes
+  - Hotfix deployment guide
+  - Timezone-naive analysis (169 occurrences)
+  - Release notes
 - **Impact**: Celery workers stable, game tick processing uninterrupted, all systems operational
 - **Note**: Temporary fix - full timezone-aware migration planned for future release
 
@@ -629,11 +691,11 @@ watch(() => userStore.caps, (caps) => {
 **Feature Release** - Complete death mechanics and core services
 
 - **Death System**: Full implementation of dweller mortality
-    - Death causes: health, radiation, incidents, exploration, combat
-    - Revival system with bottle cap costs
-    - Permanent death after 7 days (configurable)
-    - Death statistics tracking
-    - Epitaph generation
+  - Death causes: health, radiation, incidents, exploration, combat
+  - Revival system with bottle cap costs
+  - Permanent death after 7 days (configurable)
+  - Death statistics tracking
+  - Epitaph generation
 - **Incident Service**: Room-based incident management
 - **Security Utilities**: Core authentication and authorization helpers
 - **System Endpoint**: Application metadata and version information
@@ -643,8 +705,8 @@ watch(() => userStore.caps, (caps) => {
 **Feature Release** - Testing tools and bug fixes
 
 - **Pregnancy Debug Panel**: UI controls for testing pregnancy system (superuser only)
-    - Force conception between dwellers
-    - Accelerate pregnancy to immediate due date
+  - Force conception between dwellers
+  - Accelerate pregnancy to immediate due date
 - **Exploration Fixes**: Item tracking updates in real-time, rewards modal improvements
 - **Storage Fixes**: Removed unique constraint on item names (fixes duplicate item crash)
 - **Outfit Type Fix**: Fixed KeyError crash with tiered outfits
@@ -657,41 +719,41 @@ watch(() => userStore.caps, (caps) => {
 ### Death System Details
 
 - **Death Mechanics**: Full life/death cycle for dwellers
-    - Death model fields: `is_dead`, `death_timestamp`, `death_cause`, `is_permanently_dead`, `epitaph`
-    - Death causes: health, radiation, incident, exploration, combat
-    - Auto-generated epitaphs based on death cause
-    - 7-day revival window before permanent death
+  - Death model fields: `is_dead`, `death_timestamp`, `death_cause`, `is_permanently_dead`, `epitaph`
+  - Death causes: health, radiation, incident, exploration, combat
+  - Auto-generated epitaphs based on death cause
+  - 7-day revival window before permanent death
 - **Revival System**: Tiered revival costs by level
-    - Level 1-5: 50-250 caps
-    - Level 6-10: 450-750 caps
-    - Level 11+: 1100-2000 caps (capped)
-    - Revival restores 50% max health
+  - Level 1-5: 50-250 caps
+  - Level 6-10: 450-750 caps
+  - Level 11+: 1100-2000 caps (capped)
+  - Revival restores 50% max health
 - **Backend**: Complete death service and API
-    - `POST /api/v1/dwellers/{id}/revive` - Revive dead dweller
-    - `GET /api/v1/dwellers/{id}/revival_cost` - Get revival cost
-    - `GET /api/v1/dwellers/vault/{id}/dead` - List dead (revivable) dwellers
-    - `GET /api/v1/dwellers/vault/{id}/graveyard` - List permanently dead
-    - `GET /api/v1/users/me/profile/statistics` - Death statistics
-    - Celery task for daily permanent death check
+  - `POST /api/v1/dwellers/{id}/revive` - Revive dead dweller
+  - `GET /api/v1/dwellers/{id}/revival_cost` - Get revival cost
+  - `GET /api/v1/dwellers/vault/{id}/dead` - List dead (revivable) dwellers
+  - `GET /api/v1/dwellers/vault/{id}/graveyard` - List permanently dead
+  - `GET /api/v1/users/me/profile/statistics` - Death statistics
+  - Celery task for daily permanent death check
 - **Frontend**: Death UI components
-    - `DeadDwellerCard.vue` - Card for deceased dwellers
-    - `RevivalSection.vue` - Revival cost and action UI
-    - `LifeDeathStatistics.vue` - Death stats dashboard
-    - `GraveyardView.vue` - Memorial for permanently dead
-    - Integration in DwellersView, DwellerDetailView, ProfileView
+  - `DeadDwellerCard.vue` - Card for deceased dwellers
+  - `RevivalSection.vue` - Revival cost and action UI
+  - `LifeDeathStatistics.vue` - Death stats dashboard
+  - `GraveyardView.vue` - Memorial for permanently dead
+  - Integration in DwellersView, DwellerDetailView, ProfileView
 - **Tests**: 23 backend + 10 frontend tests for death system
 
 ### v2.1.3 Backend & Frontend Cleanup (January 22, 2026)
 
 - **Router Consolidation**: Reduced router count from 23 to 20
-    - Merged `settings.py` → `game_control.py` (`/game/balance`)
-    - Moved `info.py` → `system.py` (`/system/info`)
-    - Merged `profile.py` → `user.py` (`/users/me/profile`)
-    - Deleted 3 single-endpoint router files, merged tests
+  - Merged `settings.py` → `game_control.py` (`/game/balance`)
+  - Moved `info.py` → `system.py` (`/system/info`)
+  - Merged `profile.py` → `user.py` (`/users/me/profile`)
+  - Deleted 3 single-endpoint router files, merged tests
 - **Frontend Updates**: Updated to use new API endpoints
-    - AboutView now uses `/api/v1/system/info`
-    - Created systemService in profile module
-    - Dynamic version injection from package.json via Vite define
+  - AboutView now uses `/api/v1/system/info`
+  - Created systemService in profile module
+  - Dynamic version injection from package.json via Vite define
 
 ### v2.1.2 Quick Wins Complete (January 22, 2026)
 
@@ -776,18 +838,19 @@ watch(() => userStore.caps, (caps) => {
 
 ### Version Milestones
 
-| Version | Release      | Highlights                             |
-|---------|--------------|----------------------------------------|
-| v2.13.0 | May 01, 2026 | Dramatiq migration, Celery removal     |
-| v2.12.0 | Apr 23, 2026 | Test suite green, MinIO removed        |
-| v2.11.0 | Mar 19, 2026 | Vite+ toolchain, dweller recycling     |
-| v2.10.9 | Mar 13, 2026 | AI quota system, usage tracking        |
-| v2.10.0 | Feb 10, 2026 | Quest & Objective system launch        |
-| v2.9.0  | Feb 07, 2026 | Chat exploration actions               |
-| v2.8.0  | Jan 29, 2026 | Easter eggs, changelog system          |
-| v2.7.0  | Jan 28, 2026 | Storage management, keyboard shortcuts |
-| v2.6.5  | Jan 27, 2026 | Notification bell system               |
-| v2.5.0  | Jan 26, 2026 | Room visual assets, capacity enforcement|
+| Version | Release      | Highlights                               |
+| ------- | ------------ | ---------------------------------------- |
+| v2.13.1 | May 19, 2026 | Security hardening, non-root containers  |
+| v2.13.0 | May 01, 2026 | Dramatiq migration, Celery removal       |
+| v2.12.0 | Apr 23, 2026 | Test suite green, MinIO removed          |
+| v2.11.0 | Mar 19, 2026 | Vite+ toolchain, dweller recycling       |
+| v2.10.9 | Mar 13, 2026 | AI quota system, usage tracking          |
+| v2.10.0 | Feb 10, 2026 | Quest & Objective system launch          |
+| v2.9.0  | Feb 07, 2026 | Chat exploration actions                 |
+| v2.8.0  | Jan 29, 2026 | Easter eggs, changelog system            |
+| v2.7.0  | Jan 28, 2026 | Storage management, keyboard shortcuts   |
+| v2.6.5  | Jan 27, 2026 | Notification bell system                 |
+| v2.5.0  | Jan 26, 2026 | Room visual assets, capacity enforcement |
 
 ---
 
@@ -854,4 +917,4 @@ watch(() => userStore.caps, (caps) => {
 
 ---
 
-*Last updated: 2026-05-19*
+_Last updated: 2026-05-25_

@@ -545,7 +545,7 @@ async def test_manual_recruit_with_assigned_dweller(
     vault_id_copy = vault.id
 
     # Recruit a dweller - this should not corrupt the vault
-    new_dweller = await RadioService.manual_recruit(async_session, vault.id, caps_cost=500)
+    new_dweller, _ = await RadioService.manual_recruit(async_session, vault.id, caps_cost=500)
     assert new_dweller is not None
     assert new_dweller.vault_id == vault.id
 

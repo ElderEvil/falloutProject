@@ -12,12 +12,12 @@ from sqlalchemy import JSON, event
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import (
     AsyncConnection,
-    AsyncSession,
     create_async_engine,
 )
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 # Global engine reference for database cleanup across fixtures
 _test_async_engine = None
@@ -81,7 +81,7 @@ async def db_connection() -> AsyncConnection:
 
 
 @pytest_asyncio.fixture(scope="function")
-async def async_session(db_connection: AsyncConnection) -> AsyncSession:
+async def async_session(db_connection: AsyncConnection) -> AsyncSession:  # type: ignore[override]
     session = sessionmaker(
         bind=db_connection,
         class_=AsyncSession,

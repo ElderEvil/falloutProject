@@ -36,4 +36,5 @@ export interface RecruitmentResponse {
   dweller: Dweller
   message: string
   caps_spent?: number
+  recycled?: boolean
 }

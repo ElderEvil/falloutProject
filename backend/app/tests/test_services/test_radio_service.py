@@ -1,6 +1,7 @@
 """Tests for radio service logic."""
 
-from unittest.mock import patch
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
@@ -18,9 +19,15 @@ from app.schemas.common import (
     RoomTypeEnum,
     SPECIALEnum,
 )
-from app.schemas.dweller import DwellerCreate
+from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride
 from app.schemas.room import RoomCreate
+from app.services.dweller_recycling_service import dweller_recycling_service
 from app.services.radio_service import RadioService
+from app.utils.exceptions import ResourceConflictException
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
 
 
 @pytest_asyncio.fixture(name="radio_room")
@@ -64,7 +71,6 @@ async def radio_dweller_fixture(async_session: AsyncSession, vault: Vault, radio
         "health": 100,
         "radiation": 0,
         "happiness": 80,
-        "room_id": radio_room.id,
         "strength": 3,
         "perception": 4,
         "endurance": 4,
@@ -79,6 +85,53 @@ async def radio_dweller_fixture(async_session: AsyncSession, vault: Vault, radio
     async_session.add(dweller)
     await async_session.commit()
     return dweller
+
+
+@pytest_asyncio.fixture(name="deleted_dweller")
+async def deleted_dweller_fixture(async_session: AsyncSession, vault: Vault) -> Dweller:
+    """Create a soft-deleted dweller with AI-generated assets, eligible for radio recycling.
+
+    The dweller has bio, image_url, thumbnail_url and a RARE rarity to verify that
+    recycling preserves the original identity and rarity rather than generating a blank dweller.
+    """
+    dweller_data = {
+        "first_name": "Ghost",
+        "last_name": "Signal",
+        "gender": GenderEnum.FEMALE,
+        "rarity": RarityEnum.RARE,
+        "age_group": AgeGroupEnum.ADULT,
+        "level": 3,
+        "experience": 50,
+        "max_health": 100,
+        "health": 100,
+        "radiation": 0,
+        "happiness": 50,
+        "strength": 4,
+        "perception": 5,
+        "endurance": 4,
+        "charisma": 6,
+        "intelligence": 7,
+        "agility": 5,
+        "luck": 4,
+        "bio": "A survivor from the wastes who was lost to time.",
+        "image_url": "https://s3-api.evillab.tech/dweller-images/ghost-signal.png",
+        "thumbnail_url": "https://s3-api.evillab.tech/dweller-thumbnails/ghost-signal_thumbnail.png",
+    }
+    dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
+    dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+
+    # Soft-delete and back-date past the recycling eligibility window (default 7 days)
+    dweller.is_deleted = True
+    dweller.deleted_at = datetime.now(UTC) - timedelta(days=10)
+    async_session.add(dweller)
+    await async_session.commit()
+    await async_session.refresh(dweller)
+    return dweller
+
+
+# ---------------------------------------------------------------------------
+# Existing tests (radio rooms / rates / manual recruit)
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -166,7 +219,8 @@ async def test_check_for_recruitment_success(
     radio_room: Room,
 ):
     """Test successful recruitment via radio."""
-    # Mock random to always succeed
+    # Mock random to always succeed both the rate roll and the recycle probability roll.
+    # The pool is empty in this test so the service falls back to create_random.
     with patch("random.random", return_value=0.0):
         dweller = await RadioService.check_for_recruitment(async_session, vault.id)
 
@@ -182,7 +236,7 @@ async def test_check_for_recruitment_failure(
     radio_room: Room,
 ):
     """Test failed recruitment via radio."""
-    # Mock random to always fail
+    # Mock random to always fail the rate roll
     with patch("random.random", return_value=1.0):
         dweller = await RadioService.check_for_recruitment(async_session, vault.id)
 
@@ -190,18 +244,54 @@ async def test_check_for_recruitment_failure(
 
 
 @pytest.mark.asyncio
-async def test_recruit_dweller(
+async def test_recruit_dweller_returns_tuple(
     async_session: AsyncSession,
     vault: Vault,
 ):
-    """Test recruiting a dweller."""
-    dweller = await RadioService.recruit_dweller(async_session, vault.id)
+    """recruit_dweller must return a (Dweller, bool) tuple."""
+    result = await RadioService.recruit_dweller(async_session, vault.id)
 
-    assert dweller is not None
+    assert isinstance(result, tuple)
+    assert len(result) == 2
+    dweller, recycled = result
+    assert isinstance(dweller, Dweller)
+    assert isinstance(recycled, bool)
+
+
+@pytest.mark.asyncio
+async def test_recruit_dweller_fresh_when_pool_empty(
+    async_session: AsyncSession,
+    vault: Vault,
+):
+    """When no recyclable dwellers exist the service creates a fresh random dweller."""
+    with patch("random.random", return_value=0.0):
+        dweller, recycled = await RadioService.recruit_dweller(async_session, vault.id)
+
+    assert recycled is False
     assert dweller.vault_id == vault.id
     assert dweller.rarity == RarityEnum.COMMON
     assert dweller.first_name is not None
     assert dweller.last_name is not None
+
+
+@pytest.mark.asyncio
+async def test_manual_recruit_returns_tuple(
+    async_session: AsyncSession,
+    vault: Vault,
+    radio_room: Room,
+    radio_dweller: Dweller,
+):
+    """manual_recruit must return a (Dweller, bool) tuple."""
+    vault.bottle_caps = game_config.radio.manual_recruitment_cost + 100
+    await async_session.commit()
+
+    result = await RadioService.manual_recruit(async_session, vault.id)
+
+    assert isinstance(result, tuple)
+    assert len(result) == 2
+    dweller, recycled = result
+    assert isinstance(dweller, Dweller)
+    assert isinstance(recycled, bool)
 
 
 @pytest.mark.asyncio
@@ -212,9 +302,11 @@ async def test_manual_recruit_success(
     radio_dweller: Dweller,
 ):
     """Test manual recruitment with sufficient caps."""
+    vault.bottle_caps = game_config.radio.manual_recruitment_cost + 500
+    await async_session.commit()
     initial_caps = vault.bottle_caps
 
-    dweller = await RadioService.manual_recruit(async_session, vault.id)
+    dweller, _ = await RadioService.manual_recruit(async_session, vault.id)
 
     assert dweller is not None
     assert dweller.vault_id == vault.id
@@ -258,10 +350,12 @@ async def test_manual_recruit_custom_cost(
     radio_dweller: Dweller,
 ):
     """Test manual recruitment with custom cost."""
-    initial_caps = vault.bottle_caps
     custom_cost = 1000
+    vault.bottle_caps = custom_cost + 500
+    await async_session.commit()
+    initial_caps = vault.bottle_caps
 
-    dweller = await RadioService.manual_recruit(async_session, vault.id, caps_cost=custom_cost)
+    dweller, _ = await RadioService.manual_recruit(async_session, vault.id, caps_cost=custom_cost)
 
     assert dweller is not None
 
@@ -357,3 +451,205 @@ async def test_calculate_recruitment_rate_multiple_rooms(
     # Verify rate is positive and reasonable
     assert rate_two_rooms > 0
     assert rate_two_rooms < 1.0  # Should be less than 100% per tick
+
+
+# ---------------------------------------------------------------------------
+# New tests: radio asset repurpose (2.14-repurpose)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_recruit_dweller_recycles_from_pool(
+    async_session: AsyncSession,
+    vault: Vault,
+    deleted_dweller: Dweller,
+):
+    """When a recyclable dweller exists the radio restores it instead of creating a new one."""
+    deleted_dweller_id = deleted_dweller.id
+
+    # Force recycle probability roll to pass
+    with patch("random.random", return_value=0.0):
+        dweller, recycled = await RadioService.recruit_dweller(async_session, vault.id)
+
+    assert recycled is True
+    assert dweller.id == deleted_dweller_id
+    assert dweller.vault_id == vault.id
+    assert dweller.is_deleted is False
+
+
+@pytest.mark.asyncio
+async def test_recruit_dweller_recycled_preserves_rarity(
+    async_session: AsyncSession,
+    vault: Vault,
+    deleted_dweller: Dweller,
+):
+    """The recycled dweller keeps its original rarity (RARE stays RARE, not capped to COMMON)."""
+    with patch("random.random", return_value=0.0):
+        dweller, recycled = await RadioService.recruit_dweller(async_session, vault.id)
+
+    assert recycled is True
+    assert dweller.rarity == RarityEnum.RARE
+
+
+@pytest.mark.asyncio
+async def test_recruit_dweller_recycled_preserves_assets(
+    async_session: AsyncSession,
+    vault: Vault,
+    deleted_dweller: Dweller,
+):
+    """The recycled dweller retains its existing bio, image_url, and thumbnail_url."""
+    with patch("random.random", return_value=0.0):
+        dweller, recycled = await RadioService.recruit_dweller(async_session, vault.id)
+
+    assert recycled is True
+    assert dweller.bio == "A survivor from the wastes who was lost to time."
+    assert dweller.image_url == "https://s3-api.evillab.tech/dweller-images/ghost-signal.png"
+    assert dweller.thumbnail_url == "https://s3-api.evillab.tech/dweller-thumbnails/ghost-signal_thumbnail.png"
+
+
+@pytest.mark.asyncio
+async def test_recruit_dweller_recycled_resets_stats(
+    async_session: AsyncSession,
+    vault: Vault,
+    deleted_dweller: Dweller,
+):
+    """Recycled dweller has its gameplay stats reset to level 1 defaults."""
+    with patch("random.random", return_value=0.0):
+        dweller, recycled = await RadioService.recruit_dweller(async_session, vault.id)
+
+    assert recycled is True
+    assert dweller.level == 1
+    assert dweller.experience == 0
+    assert dweller.radiation == 0
+    assert dweller.partner_id is None
+
+
+@pytest.mark.asyncio
+async def test_recruit_dweller_skips_recycling_when_disabled(
+    async_session: AsyncSession,
+    vault: Vault,
+    deleted_dweller: Dweller,
+):
+    """When recycle_enabled=False the service always creates a fresh dweller."""
+    with patch.object(game_config.radio, "recycle_enabled", new=False), patch("random.random", return_value=0.0):
+        dweller, recycled = await RadioService.recruit_dweller(async_session, vault.id)
+
+    assert recycled is False
+    assert dweller.id != deleted_dweller.id
+    assert dweller.rarity == RarityEnum.COMMON
+
+
+@pytest.mark.asyncio
+async def test_recruit_dweller_skips_recycling_when_override_provided(
+    async_session: AsyncSession,
+    vault: Vault,
+    deleted_dweller: Dweller,
+):
+    """An explicit override bypasses recycling so the caller gets a customised fresh dweller."""
+    override = DwellerCreateCommonOverride(first_name="Custom", last_name="Name")
+
+    with patch("random.random", return_value=0.0):
+        dweller, recycled = await RadioService.recruit_dweller(async_session, vault.id, override=override)
+
+    assert recycled is False
+    assert dweller.first_name == "Custom"
+    assert dweller.last_name == "Name"
+    assert dweller.id != deleted_dweller.id
+
+
+@pytest.mark.asyncio
+async def test_recruit_dweller_skips_recycling_when_probability_roll_fails(
+    async_session: AsyncSession,
+    vault: Vault,
+    deleted_dweller: Dweller,
+):
+    """When the probability roll loses, a fresh dweller is created even if pool has candidates."""
+    with patch("random.random", return_value=0.99):  # 0.99 > default 0.8, roll fails
+        dweller, recycled = await RadioService.recruit_dweller(async_session, vault.id)
+
+    assert recycled is False
+    assert dweller.id != deleted_dweller.id
+
+
+@pytest.mark.asyncio
+async def test_recruit_dweller_falls_back_on_resource_conflict(
+    async_session: AsyncSession,
+    vault: Vault,
+    deleted_dweller: Dweller,
+):
+    """If recycling raises ResourceConflictException the service falls back to create_random."""
+    with (
+        patch.object(
+            dweller_recycling_service,
+            "recycle_dweller_for_vault",
+            new_callable=AsyncMock,
+            side_effect=ResourceConflictException(detail="already restored"),
+        ),
+        patch("random.random", return_value=0.0),
+    ):
+        dweller, recycled = await RadioService.recruit_dweller(async_session, vault.id)
+
+    assert recycled is False
+    assert dweller is not None
+    assert dweller.vault_id == vault.id
+
+
+@pytest.mark.asyncio
+async def test_recruit_dweller_does_not_recycle_recently_deleted(
+    async_session: AsyncSession,
+    vault: Vault,
+):
+    """Dwellers deleted less than recycle_min_age_days ago are not eligible for radio recycling."""
+    # Create a dweller deleted just 1 day ago (below the 7-day threshold)
+    dweller_data = {
+        "first_name": "Fresh",
+        "last_name": "Delete",
+        "gender": GenderEnum.MALE,
+        "rarity": RarityEnum.COMMON,
+        "age_group": AgeGroupEnum.ADULT,
+        "level": 1,
+        "experience": 0,
+        "max_health": 50,
+        "health": 50,
+        "radiation": 0,
+        "happiness": 50,
+        "strength": 5,
+        "perception": 5,
+        "endurance": 5,
+        "charisma": 5,
+        "intelligence": 5,
+        "agility": 5,
+        "luck": 5,
+    }
+    dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
+    recent = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+    recent.is_deleted = True
+    recent.deleted_at = datetime.now(UTC) - timedelta(days=1)
+    async_session.add(recent)
+    await async_session.commit()
+
+    with patch("random.random", return_value=0.0):
+        dweller, recycled = await RadioService.recruit_dweller(async_session, vault.id)
+
+    assert recycled is False
+    assert dweller.id != recent.id
+
+
+@pytest.mark.asyncio
+async def test_manual_recruit_propagates_recycled_flag(
+    async_session: AsyncSession,
+    vault: Vault,
+    radio_room: Room,
+    radio_dweller: Dweller,
+    deleted_dweller: Dweller,
+):
+    """manual_recruit surfaces the recycled flag from recruit_dweller."""
+    vault.bottle_caps = game_config.radio.manual_recruitment_cost + 500
+    await async_session.commit()
+
+    with patch("random.random", return_value=0.0):
+        dweller, recycled = await RadioService.manual_recruit(async_session, vault.id)
+
+    assert recycled is True
+    assert dweller.id == deleted_dweller.id
+    assert dweller.is_deleted is False

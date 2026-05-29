@@ -152,11 +152,17 @@ class HealthCheckService:
                 details={"configured": False, "note": "Image/audio upload features disabled"},
             )
 
+        # Build endpoint the same way as RustFSAdapter._get_endpoint_url()
+        hostname = getattr(settings, "RUSTFS_HOSTNAME", None) or "s3.evillab.dev"
+        port = getattr(settings, "RUSTFS_PORT", "")
+        use_https = getattr(settings, "RUSTFS_USE_HTTPS", False)
+        scheme = "https" if use_https else "http"
+        endpoint_url = f"{scheme}://{hostname}:{port}" if port else f"{scheme}://{hostname}"
+
         try:
             import boto3
             from botocore.config import Config
 
-            endpoint_url = getattr(settings, "RUSTFS_PUBLIC_URL", "https://s3.evillab.dev")
             client = boto3.client(
                 "s3",
                 endpoint_url=endpoint_url,
@@ -185,7 +191,7 @@ class HealthCheckService:
                 service="rustfs",
                 status=ServiceStatus.DEGRADED,
                 message=f"RustFS connection failed (optional service): {e!s}",
-                details={"endpoint": getattr(settings, "RUSTFS_PUBLIC_URL", "unknown"), "error": str(e)},
+                details={"endpoint": endpoint_url, "error": str(e)},
             )
         except (OSError, ValueError, ImportError) as e:
             logger.warning("RustFS health check failed (non-critical): %s", e)
@@ -193,7 +199,7 @@ class HealthCheckService:
                 service="rustfs",
                 status=ServiceStatus.DEGRADED,
                 message=f"RustFS connection failed (optional service): {e!s}",
-                details={"endpoint": getattr(settings, "RUSTFS_PUBLIC_URL", "unknown"), "error": str(e)},
+                details={"endpoint": endpoint_url, "error": str(e)},
             )
 
     @staticmethod

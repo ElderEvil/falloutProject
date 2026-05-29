@@ -26,6 +26,12 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **RustFS config drift** - Added `RUSTFS_BUCKET` as an alias for `RUSTFS_DEFAULT_BUCKET` so the env var
   set in the k8s deployment actually takes effect instead of being silently ignored
 
+- **RustFS health check shows degraded** - `check_rustfs()` used `RUSTFS_PUBLIC_URL` (defaulting to `None`)
+  for the endpoint URL instead of building it from `RUSTFS_HOSTNAME` + `RUSTFS_PORT` + `RUSTFS_USE_HTTPS`
+  like `RustFSAdapter._get_endpoint_url()` does. This caused the health check to try AWS S3 with rustfs
+  credentials, fail with `InvalidAccessKeyId`, and report `degraded`. Fixed by aligning endpoint
+  construction with the adapter's logic.
+
 ---
 
 ## [2.14.0] - 2026-05-26

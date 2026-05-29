@@ -381,10 +381,10 @@ class DwellerAIService:
         # For now, let's assume dweller_ai_service.generate_photo pulls what it needs from dweller_obj
         # after it's updated.
 
-        # 3. Generate Photo (using your existing DwellerAIService)
-        dweller_obj = await dweller_ai.generate_photo(db_session=db_session, dweller_info=updated_dweller, user=user)
+        # 3. Generate Photo
+        dweller_obj = await self.generate_photo(db_session=db_session, dweller_info=updated_dweller, user=user)
         # 4. Generate Audio
-        return await dweller_ai.generate_audio(
+        return await self.generate_audio(
             db_session=db_session,
             dweller_info=dweller_obj,
             user=user,

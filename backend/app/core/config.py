@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import EmailStr, Field, PostgresDsn, field_validator, model_validator
+from pydantic import AliasChoices, EmailStr, Field, PostgresDsn, field_validator, model_validator
 from pydantic_core.core_schema import FieldValidationInfo
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -45,7 +45,10 @@ class Settings(BaseSettings):
     RUSTFS_USE_HTTPS: bool = True
     RUSTFS_ACCESS_KEY: str | None = None
     RUSTFS_SECRET_KEY: str | None = None
-    RUSTFS_DEFAULT_BUCKET: str = "fallout-shelter"
+    RUSTFS_DEFAULT_BUCKET: str = Field(
+        default="fallout-shelter",
+        validation_alias=AliasChoices("RUSTFS_DEFAULT_BUCKET", "RUSTFS_BUCKET"),
+    )
     RUSTFS_PUBLIC_URL: str | None = None
     RUSTFS_PUBLIC_BUCKET_WHITELIST: list[str] = [
         "fallout-shelter",

@@ -20,6 +20,12 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   `contains()` performs substring matching as intended, making push events to `master` trigger builds
   when files under `backend/` or `frontend/` are modified.
 
+- **Dweller AI service** - Replaced module-level singleton calls (`dweller_ai.generate_photo/audio`) with
+  `self.` inside `generate_dweller_avatar` for consistency with rest of the class
+
+- **RustFS config drift** - Added `RUSTFS_BUCKET` as an alias for `RUSTFS_DEFAULT_BUCKET` so the env var
+  set in the k8s deployment actually takes effect instead of being silently ignored
+
 ---
 
 ## [2.14.0] - 2026-05-26

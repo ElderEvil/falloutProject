@@ -7,6 +7,19 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ## [Unreleased]
 
+### Fixed
+
+- **Image generation model** - Updated from deprecated `dall-e-3` to `gpt-image-1`
+  - Made image model configurable via `AI_IMAGE_MODEL` env var (default: `gpt-image-1`)
+  - Updated quality parameter from `standard` to `auto` (new API requirement)
+  - Handle `b64_json` response from `gpt-image-*` models instead of relying on URL
+  - Keep fallback for legacy URL-based model responses
+
+- **CI: Push-triggered builds always skipped** - Fixed `contains()` usage in GitHub Actions workflow conditions.
+  `contains()` on arrays checks for exact element match, not substring. Wrapped arrays with `join()` so
+  `contains()` performs substring matching as intended, making push events to `master` trigger builds
+  when files under `backend/` or `frontend/` are modified.
+
 ---
 
 ## [2.14.0] - 2026-05-26

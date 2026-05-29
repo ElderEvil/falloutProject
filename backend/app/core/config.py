@@ -64,6 +64,7 @@ class Settings(BaseSettings):
     # Legacy direct provider API keys (deprecated, use Gateway instead)
     AI_PROVIDER: Literal["openai", "anthropic", "ollama"] = "openai"
     AI_MODEL: str = "gpt-4o"
+    AI_IMAGE_MODEL: str = "gpt-image-1"
     OPENAI_API_KEY: str | None = None
     ANTHROPIC_API_KEY: str | None = None
     OLLAMA_BASE_URL: str = "http://localhost:11434/v1"

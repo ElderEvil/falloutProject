@@ -16,6 +16,7 @@ Architecture Notes:
 """
 
 import asyncio
+import base64
 import logging
 import warnings
 from dataclasses import dataclass
@@ -186,7 +187,11 @@ class AIService:
             raise RuntimeError("OpenAI client not available. Use AI_PROVIDER=openai for image/audio features.")
 
     async def generate_image(self, *, prompt: str, return_bytes: bool = False) -> str | bytes:
-        """Generate an image using DALL-E via direct OpenAI API.
+        """Generate an image using OpenAI's image model.
+
+        Uses the configured AI_IMAGE_MODEL (default: gpt-image-1).
+        Falls back to URL-based fetching for legacy model responses, but the new
+        gpt-image-* models return b64_json directly.
 
         Note: Image generation uses direct OpenAI client, not Gateway.
         Gateway's ImageGenerationTool requires Agent pattern which is incompatible
@@ -198,12 +203,29 @@ class AIService:
         if self._using_gateway:
             logger.debug("Image generation via direct OpenAI client (Gateway doesn't support image API)")
         response = await asyncio.to_thread(
-            self._client.images.generate, model="dall-e-3", prompt=prompt, size="1024x1024", quality="standard", n=1
+            self._client.images.generate,
+            model=settings.AI_IMAGE_MODEL,
+            prompt=prompt,
+            size="1024x1024",
+            quality="auto",
+            n=1,
         )
-        url = response.data[0].url
-        if url is None:
-            raise RuntimeError("Failed to generate image: no URL returned")
-        return await image_url_to_bytes(url) if return_bytes else url
+        data = response.data[0]
+
+        if return_bytes:
+            if data.b64_json:
+                return base64.b64decode(data.b64_json)
+            if data.url:
+                result = await image_url_to_bytes(data.url)
+                if result is None:
+                    raise RuntimeError("Failed to fetch image from URL")
+                return result
+            raise RuntimeError("Failed to generate image: no image data returned")
+
+        if data.url:
+            return data.url
+        msg = "Image generation did not return a URL. Use return_bytes=True to receive image data as bytes."
+        raise RuntimeError(msg)
 
     async def generate_audio(self, text: str, voice: str = "alloy", model: str = "tts-1") -> bytes:
         """Generate audio from text using OpenAI's TTS API via direct client.

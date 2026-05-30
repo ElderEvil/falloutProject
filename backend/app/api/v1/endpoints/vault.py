@@ -72,7 +72,7 @@ async def update_vault(
     user: CurrentActiveUser,
 ):
     vault = await crud.vault.get(db_session, vault_id)
-    if vault.user_id != user.id or not user.is_superuser:
+    if vault.user_id != user.id and not user.is_superuser:
         raise HTTPException(status_code=403, detail="User does not have permission to update the vault")
     return await crud.vault.update(db_session, vault_id, vault_data)
 

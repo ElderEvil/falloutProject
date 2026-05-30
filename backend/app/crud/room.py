@@ -15,6 +15,7 @@ from app.schemas.room import RoomCreate, RoomUpdate
 from app.services.event_bus import GameEvent, event_bus
 from app.utils.exceptions import InsufficientResourcesException, NoSpaceAvailableException, UniqueRoomViolationException
 from app.utils.room_assets import get_room_image_url
+from app.utils.static_data import game_data_store
 
 logger = logging.getLogger(__name__)
 
@@ -168,6 +169,16 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             if existing_room.name == obj_in.name and existing_room.tier == obj_in.tier:
                 return await self.expand_room(db_session, existing_room, obj_in.size_min)
             raise NoSpaceAvailableException(space_needed=obj_in.size_min)
+
+        # Look up room spec from game data to use backend-derived formulas
+        room_spec = next((r for r in game_data_store.rooms if r.name.lower() == obj_in.name.lower()), None)
+        if room_spec is not None:
+            if room_spec.capacity_formula:
+                obj_in.capacity_formula = room_spec.capacity_formula
+            if room_spec.output_formula:
+                obj_in.output_formula = room_spec.output_formula
+        else:
+            logger.warning("No room spec found for '%s', using client-sent formulas", obj_in.name)
 
         if obj_in.capacity_formula:
             # Use actual size if provided, otherwise fall back to size_min

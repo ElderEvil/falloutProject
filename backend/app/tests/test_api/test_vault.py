@@ -463,3 +463,32 @@ async def test_vault_initiate_boosted_and_superuser_parity(
     )
     assert boosted_vault.dweller_count == 20, f"Expected 20 dwellers, got {boosted_vault.dweller_count}"
     assert superuser_vault.dweller_count == 20, f"Expected 20 dwellers, got {superuser_vault.dweller_count}"
+
+
+@pytest.mark.asyncio
+async def test_non_superuser_owner_can_update_own_vault(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    normal_user_token_headers: dict[str, str],
+):
+    """Test that a non-superuser vault owner can PUT their own vault (permission fix)."""
+    user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
+    assert user is not None
+    assert not user.is_superuser
+
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault_in = VaultCreateWithUserID(**vault_data)
+    vault = await crud.vault.create(async_session, obj_in=vault_in)
+
+    update_payload = {"bottle_caps": 5000}
+    response = await async_client.put(
+        f"/vaults/{vault.id}",
+        json=update_payload,
+        headers=normal_user_token_headers,
+    )
+    assert response.status_code == 200, f"Expected 200 but got {response.status_code}: {response.json()}"
+    response_data = response.json()
+    assert response_data["id"] == str(vault.id)
+    assert response_data["bottle_caps"] == 5000
+    assert response_data["user_id"] == vault_data["user_id"]

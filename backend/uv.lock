@@ -619,6 +619,9 @@ dependencies = [
 ]
 
 [package.dev-dependencies]
+dev = [
+    { name = "fakeredis", extra = ["lua"] },
+]
 lint = [
     { name = "prek" },
     { name = "ruff" },
@@ -665,6 +668,7 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
+dev = [{ name = "fakeredis", extras = ["lua"], specifier = ">=2.36.0" }]
 lint = [
     { name = "prek", specifier = ">=0.4.4" },
     { name = "ruff", specifier = ">=0.15.17" },

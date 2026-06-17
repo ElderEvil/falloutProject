@@ -60,7 +60,14 @@ const positionClasses = {
 <template>
   <div class="relative inline-block" ref="dropdownRef">
     <!-- Trigger -->
-    <div @click="toggle">
+    <div
+      role="button"
+      tabindex="0"
+      data-testid="dropdown-trigger"
+      @click="toggle"
+      @keydown.enter.prevent="toggle"
+      @keydown.space.prevent="toggle"
+    >
       <slot name="trigger"></slot>
     </div>
 

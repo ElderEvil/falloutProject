@@ -86,11 +86,13 @@ onUnmounted(() => {
       >
         <!-- Modal Content -->
         <div
+          role="dialog"
+          aria-modal="true"
           :class="[
             'bg-surface border-2 rounded-lg w-full crt-screen flex flex-col overflow-hidden',
+            'border-terminalGreen',
             sizeClasses[size],
           ]"
-          style="border-color: var(--color-terminal-green)"
           @click.stop
         >
           <!-- Header -->

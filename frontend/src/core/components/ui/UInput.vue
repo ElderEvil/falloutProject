@@ -59,6 +59,8 @@ const inputClasses = [
   .filter(Boolean)
   .join(' ')
 
+const inputId = `ui-input-${Math.random().toString(36).slice(2, 9)}`
+
 const handleInput = (event: InputEvent) => {
   const target = event.target as HTMLInputElement
   emit('update:modelValue', target.value)
@@ -68,7 +70,7 @@ const handleInput = (event: InputEvent) => {
 <template>
   <div class="w-full">
     <!-- Label -->
-    <label v-if="label" class="block text-sm font-medium text-gray-300 mb-1">
+    <label v-if="label" :for="inputId" class="block text-sm font-medium text-gray-300 mb-1">
       {{ label }}
       <span v-if="required" class="text-danger">*</span>
     </label>
@@ -82,6 +84,8 @@ const handleInput = (event: InputEvent) => {
 
       <!-- Input Field -->
       <input
+        :id="inputId"
+        data-testid="ui-input"
         :type="type"
         :value="modelValue"
         :placeholder="placeholder"

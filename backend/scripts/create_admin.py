@@ -86,12 +86,14 @@ def main():
         default="postgresql+asyncpg://postgres:postgres@localhost:5432/fallout_db",
     )
     args = parser.parse_args()
-    asyncio.run(create_admin(
-        db_url=args.db_url,
-        email=args.email,
-        username=args.username,
-        password=args.password,
-    ))
+    asyncio.run(
+        create_admin(
+            db_url=args.db_url,
+            email=args.email,
+            username=args.username,
+            password=args.password,
+        )
+    )
 
 
 if __name__ == "__main__":

@@ -13,8 +13,19 @@ const confirmPassword = ref('')
 const error = ref('')
 
 const handleSubmit = async () => {
+  if (password.value.length < 8) {
+    error.value = 'Passphrase must be at least 8 characters'
+    return
+  }
+
   if (password.value !== confirmPassword.value) {
     error.value = 'Passwords do not match'
+    return
+  }
+
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailPattern.test(email.value)) {
+    error.value = 'Please enter a valid email address'
     return
   }
 

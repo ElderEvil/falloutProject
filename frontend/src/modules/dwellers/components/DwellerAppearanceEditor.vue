@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import UModal from '@/core/components/ui/UModal.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import UInput from '@/core/components/ui/UInput.vue'
+import USelect from '@/core/components/ui/USelect.vue'
 import type { Dweller, VisualAttributes } from '../models/dweller'
 
 interface Props {
@@ -238,16 +239,14 @@ function handleCancel() {
         </h4>
         <div class="form-grid">
           <div class="form-field">
-            <label class="field-label">Race</label>
-            <select v-model="form.race" class="field-select">
+            <USelect v-model="form.race" label="Race">
               <option v-for="race in RACE_OPTIONS" :key="race" :value="race">
                 {{ formatLabel(race) }}
               </option>
-            </select>
+            </USelect>
           </div>
           <div class="form-field">
-            <label class="field-label">Faction</label>
-            <select v-model="form.faction" class="field-select">
+            <USelect v-model="form.faction" label="Faction">
               <option
                 v-for="faction in availableFactions"
                 :key="faction"
@@ -255,11 +254,10 @@ function handleCancel() {
               >
                 {{ formatLabel(faction) }}
               </option>
-            </select>
+            </USelect>
           </div>
           <div v-if="showStateOfBeing" class="form-field">
-            <label class="field-label">State of Being</label>
-            <select v-model="form.state_of_being" class="field-select">
+            <USelect v-model="form.state_of_being" label="State of Being">
               <option
                 v-for="state in availableStates"
                 :key="state"
@@ -267,7 +265,7 @@ function handleCancel() {
               >
                 {{ formatLabel(state) }}
               </option>
-            </select>
+            </USelect>
           </div>
         </div>
       </div>
@@ -280,40 +278,32 @@ function handleCancel() {
         </h4>
         <div class="form-grid">
           <div class="form-field">
-            <label class="field-label">Height</label>
-            <select v-model="form.height" class="field-select">
-              <option value="">—</option>
+            <USelect v-model="form.height" label="Height">
               <option v-for="opt in HEIGHT_OPTIONS" :key="opt" :value="opt">
                 {{ formatLabel(opt) }}
               </option>
-            </select>
+            </USelect>
           </div>
           <div class="form-field">
-            <label class="field-label">Build</label>
-            <select v-model="form.build" class="field-select">
-              <option value="">—</option>
+            <USelect v-model="form.build" label="Build">
               <option v-for="opt in availableBuilds" :key="opt" :value="opt">
                 {{ opt }}
               </option>
-            </select>
+            </USelect>
           </div>
           <div class="form-field">
-            <label class="field-label">Skin Tone</label>
-            <select v-model="form.skin_tone" class="field-select">
-              <option value="">—</option>
+            <USelect v-model="form.skin_tone" label="Skin Tone">
               <option v-for="opt in availableSkinTones" :key="opt" :value="opt">
                 {{ opt }}
               </option>
-            </select>
+            </USelect>
           </div>
           <div class="form-field">
-            <label class="field-label">Eye Color</label>
-            <select v-model="form.eye_color" class="field-select">
-              <option value="">—</option>
+            <USelect v-model="form.eye_color" label="Eye Color">
               <option v-for="opt in EYE_COLOR_OPTIONS" :key="opt" :value="opt">
                 {{ formatLabel(opt) }}
               </option>
-            </select>
+            </USelect>
           </div>
           <div class="form-field">
             <UInput v-model.number="form.age" type="number" label="Age" placeholder="18-80" />
@@ -329,22 +319,18 @@ function handleCancel() {
         </h4>
         <div class="form-grid">
           <div class="form-field">
-            <label class="field-label">Hair Style</label>
-            <select v-model="form.hair_style" class="field-select">
-              <option value="">—</option>
+            <USelect v-model="form.hair_style" label="Hair Style">
               <option v-for="opt in availableHaircuts" :key="opt" :value="opt">
                 {{ opt }}
               </option>
-            </select>
+            </USelect>
           </div>
           <div class="form-field">
-            <label class="field-label">Hair Color</label>
-            <select v-model="form.hair_color" class="field-select">
-              <option value="">—</option>
+            <USelect v-model="form.hair_color" label="Hair Color">
               <option v-for="opt in HAIR_COLORS" :key="opt" :value="opt">
                 {{ formatLabel(opt) }}
               </option>
-            </select>
+            </USelect>
           </div>
           <div class="form-field">
             <UInput v-model="form.facial_hair" label="Facial Hair" placeholder="e.g. beard, stubble" />
@@ -353,23 +339,19 @@ function handleCancel() {
             <UInput v-model="form.makeup" label="Makeup" placeholder="e.g. natural, glamorous" />
           </div>
           <div class="form-field">
-            <label class="field-label">Expression</label>
-            <select v-model="form.expression" class="field-select">
-              <option value="">—</option>
+            <USelect v-model="form.expression" label="Expression">
               <option v-for="opt in EXPRESSIONS" :key="opt" :value="opt">
                 {{ formatLabel(opt) }}
               </option>
-            </select>
+            </USelect>
           </div>
           <div class="form-field">
-            <label class="field-label">Appearance</label>
-            <select v-model="form.appearance" class="field-select">
-              <option value="">—</option>
+            <USelect v-model="form.appearance" label="Appearance">
               <option value="attractive">Attractive</option>
               <option value="cute">Cute</option>
               <option value="average">Average</option>
               <option value="unattractive">Unattractive</option>
-            </select>
+            </USelect>
           </div>
           <div class="form-field form-field-full">
             <UInput v-model="form.distinguishing_features" label="Distinguishing Features" placeholder="e.g. scar, tattoo, mole" />
@@ -385,13 +367,11 @@ function handleCancel() {
         </h4>
         <div class="form-grid">
           <div class="form-field">
-            <label class="field-label">Headgear</label>
-            <select v-model="form.headgear" class="field-select">
-              <option value="">—</option>
+            <USelect v-model="form.headgear" label="Headgear">
               <option v-for="opt in availableHeadgear" :key="opt" :value="opt">
                 {{ opt }}
               </option>
-            </select>
+            </USelect>
           </div>
           <div class="form-field">
             <UInput v-model="form.clothing_style" label="Clothing Style" placeholder="e.g. casual, military" />
@@ -403,22 +383,18 @@ function handleCancel() {
             <UInput v-model="form.object_held" label="Object Held" placeholder="e.g. Laser Rifle" />
           </div>
           <div class="form-field form-field-full">
-            <label class="field-label">Pose</label>
-            <select v-model="form.pose" class="field-select">
-              <option value="">—</option>
+            <USelect v-model="form.pose" label="Pose">
               <option v-for="opt in POSE_OPTIONS" :key="opt" :value="opt">
                 {{ opt }}
               </option>
-            </select>
+            </USelect>
           </div>
           <div class="form-field form-field-full">
-            <label class="field-label">Background</label>
-            <select v-model="form.background" class="field-select">
-              <option value="">—</option>
+            <USelect v-model="form.background" label="Background">
               <option v-for="opt in BACKGROUND_OPTIONS" :key="opt" :value="opt">
                 {{ opt }}
               </option>
-            </select>
+            </USelect>
           </div>
           <div class="form-field form-field-full">
             <UInput v-model="form.voice_line_text" label="Voice Line" placeholder="e.g. For the Brotherhood!" />
@@ -498,41 +474,6 @@ function handleCancel() {
 
 .form-field-full {
   grid-column: 1 / -1;
-}
-
-.field-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-theme-primary);
-  opacity: 0.7;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.field-select,
-.field-input {
-  width: 100%;
-  padding: 0.45rem 0.6rem;
-  background: var(--color-terminal-background);
-  border: 1px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3);
-  border-radius: 4px;
-  color: var(--color-theme-primary);
-  font-size: 0.875rem;
-  font-family: 'Courier New', monospace;
-  transition: border-color 0.2s;
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-.field-select:focus,
-.field-input:focus {
-  outline: none;
-  border-color: var(--color-theme-primary);
-  box-shadow: 0 0 8px var(--color-theme-glow);
-}
-
-.field-input::placeholder {
-  color: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3);
 }
 
 .editor-footer {

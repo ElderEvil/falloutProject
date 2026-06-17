@@ -9,12 +9,36 @@ AI-powered dweller interactions.
 
 ## In Progress
 
-**Current work (post-v2.13.0):**
+**Current work (v2.14.x):**
 
-- [ ] Nuxt UI component migration (phased, see archived plan)
-- [ ] Multi-theme support (Terminal Green, Amber, Teal + custom)
-- [ ] Staged axios deprecation (see `frontend/HTTP_CLIENT_MIGRATION.md`)
-- [ ] Infrastructure hardening (non-root containers, RustFS security)
+- [ ] **FE Polish (v2.14.5)** — UI component accessibility, form validation, CRT consistency
+- [ ] **Dramatiq async concurrency** — Fix `asyncpg InterfaceError: another operation is in progress` during game tick objective queries
+
+---
+
+## Up Next (Recommended)
+
+### v2.15: Dweller Visual Unification
+
+- [ ] **Unify visual attribute schemas** — Merge `DwellerVisualAttributesInput` (user-facing), `DwellerVisualAttributes` (AI output), and `VisualAttributes` (frontend) into a single schema with consistent field names (e.g. `hair_style` not `haircut`, `build` not `body_type`)
+- [ ] **Wire RaceEnum/FactionEnum into AI agent** — Update `dweller_agents.py` prompt to generate appearances consistent with race (Human/Ghoul/Super Mutant/Synth) and faction (BOS/Enclave/Minutemen/etc.)
+- [ ] **Display race/faction in frontend** — Add race, faction, and state-of-being display to `DwellerAppearance.vue` (currently ignored)
+- [ ] **Default visual attributes on creation** — `create_random_common_dweller()` should set default `visual_attributes` with `race: HUMAN` and `faction: VAULT_DWELLER`
+- [ ] **Manual appearance editor** — Build UI for users to customize dweller appearance via `DwellerVisualAttributesInput`
+
+### v2.16: Infrastructure & Code Quality
+
+- [ ] **FE accessibility pass** — `role=button`/tabindex on clickable divs in DwellersView, RoomGrid, HappinessDashboard; full focus trap on UModal
+- [ ] **CRT theme consistency** — Replace hardcoded hex colors in 46 files with CSS variables; migrate raw `<button>`/`<input>` to UButton/UInput in auth forms
+- [ ] **Module READMEs** — Add 1-paragraph docs for each frontend module (auth, vault, dwellers, rooms, etc.)
+- [ ] **Backend skipped tests** — Fix 12 skipped backend tests (incident, happiness, exploration, room, quest)
+
+### v2.17: Medical Storage System
+
+- [ ] **Storage Model Refactor** — Move stimpaks/radaways from Vault model to Storage model
+- [ ] **Medbay Production** — Medbay rooms produce stimpaks over time
+- [ ] **Science Lab Production** — Science Lab rooms produce radaways over time
+- [ ] **Exploration Integration** — Dwellers can equip stimpaks from storage before exploration
 
 ---
 

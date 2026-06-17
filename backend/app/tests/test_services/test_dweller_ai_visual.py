@@ -1,31 +1,31 @@
 """Tests for DwellerAIService visual attribute generation logic."""
 
+import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from pydantic import UUID4
 
 from app.services.dweller_ai import dweller_ai
 
 # --- _has_substantial_visual_attributes ---
 
 
-def test_substantial_none():
+def test_substantial_none() -> None:
     """None should be considered not substantial."""
     assert dweller_ai._has_substantial_visual_attributes(None) is False
 
 
-def test_substantial_empty_dict():
+def test_substantial_empty_dict() -> None:
     """Empty dict should be considered not substantial."""
     assert dweller_ai._has_substantial_visual_attributes({}) is False
 
 
-def test_substantial_only_identity():
+def test_substantial_only_identity() -> None:
     """Only race+faction (defaults) should be considered not substantial."""
     assert dweller_ai._has_substantial_visual_attributes({"race": "human", "faction": "vault_dweller"}) is False
 
 
-def test_substantial_identity_and_state():
+def test_substantial_identity_and_state() -> None:
     """Identity + state_of_being should still be not substantial."""
     assert (
         dweller_ai._has_substantial_visual_attributes({"race": "ghoul", "faction": "none", "state_of_being": "sane"})
@@ -33,14 +33,14 @@ def test_substantial_identity_and_state():
     )
 
 
-def test_substantial_identity_and_age():
+def test_substantial_identity_and_age() -> None:
     """Identity + age should still be not substantial."""
     assert (
         dweller_ai._has_substantial_visual_attributes({"race": "human", "faction": "vault_dweller", "age": 30}) is False
     )
 
 
-def test_substantial_with_height():
+def test_substantial_with_height() -> None:
     """A physical attribute like height should make it substantial."""
     assert (
         dweller_ai._has_substantial_visual_attributes({"race": "human", "faction": "vault_dweller", "height": "tall"})
@@ -48,12 +48,12 @@ def test_substantial_with_height():
     )
 
 
-def test_substantial_with_hair_color():
+def test_substantial_with_hair_color() -> None:
     """Hair color alone should make it substantial."""
     assert dweller_ai._has_substantial_visual_attributes({"race": "human", "hair_color": "brown"}) is True
 
 
-def test_substantial_full_ai_data():
+def test_substantial_full_ai_data() -> None:
     """Full AI-generated data should be substantial."""
     assert (
         dweller_ai._has_substantial_visual_attributes(
@@ -78,7 +78,7 @@ def test_substantial_full_ai_data():
 
 @patch("app.services.dweller_ai.quota_service")
 @patch("app.services.dweller_ai.dweller_crud")
-async def test_generate_raises_if_substantial_attrs_exist(mock_crud: MagicMock, mock_quota: MagicMock):
+async def test_generate_raises_if_substantial_attrs_exist(mock_crud: MagicMock, mock_quota: MagicMock) -> None:
     """Should raise ContentNoChangeException if dweller already has substantial VA."""
     from app.utils.exceptions import ContentNoChangeException
 
@@ -96,7 +96,7 @@ async def test_generate_raises_if_substantial_attrs_exist(mock_crud: MagicMock, 
     mock_dweller.last_name = "Dweller"
     mock_dweller.gender = "male"
     mock_dweller.bio = "A test dweller."
-    mock_dweller.id = UUID4("00000000-0000-0000-0000-000000000001")
+    mock_dweller.id = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
     with pytest.raises(ContentNoChangeException, match="already has visual attributes"):
         await dweller_ai.generate_visual_attributes(user=MagicMock(), db_session=MagicMock(), dweller_info=mock_dweller)
@@ -108,7 +108,7 @@ async def test_generate_raises_if_substantial_attrs_exist(mock_crud: MagicMock, 
 @patch("app.services.dweller_ai.llm_interaction_crud")
 async def test_generate_allows_with_only_defaults(
     mock_llm: MagicMock, mock_agent: MagicMock, mock_crud: MagicMock, mock_quota: MagicMock
-):
+) -> None:
     """Should allow generation when dweller only has identity defaults."""
     import app.schemas.dweller as dweller_schemas
 
@@ -122,10 +122,10 @@ async def test_generate_allows_with_only_defaults(
     mock_dweller.last_name = "Dweller"
     mock_dweller.gender = "male"
     mock_dweller.bio = None
-    mock_dweller.id = UUID4("00000000-0000-0000-0000-000000000002")
+    mock_dweller.id = uuid.UUID("00000000-0000-0000-0000-000000000002")
 
     mock_user = MagicMock()
-    mock_user.id = UUID4("00000000-0000-0000-0000-000000000099")
+    mock_user.id = uuid.UUID("00000000-0000-0000-0000-000000000099")
 
     # Mock agent to return a full set of attributes
     mock_output = dweller_schemas.DwellerVisualAttributes(
@@ -160,7 +160,7 @@ async def test_generate_allows_with_only_defaults(
 # --- Options module ---
 
 
-def test_race_options():
+def test_race_options() -> None:
     """Race options should be importable with correct values."""
     from app.options.races import RaceOption, race_descriptions
 
@@ -169,7 +169,7 @@ def test_race_options():
     assert RaceOption.GHOUL in race_descriptions
 
 
-def test_faction_restrictions():
+def test_faction_restrictions() -> None:
     """Faction restrictions should map correctly per race."""
     from app.options.factions import faction_restrictions
     from app.options.races import RaceOption
@@ -180,7 +180,7 @@ def test_faction_restrictions():
     assert len(faction_restrictions[RaceOption.SYNTH]) < 5  # Synths have fewer
 
 
-def test_appearance_options_per_race():
+def test_appearance_options_per_race() -> None:
     """Appearance options should be organized by race."""
     from app.options.appearance import body_type_options, haircuts, skin_tone_options
     from app.options.races import RaceOption
@@ -191,7 +191,7 @@ def test_appearance_options_per_race():
         assert race in haircuts
 
 
-def test_presets_exist():
+def test_presets_exist() -> None:
     """Archetype presets should be importable with core archetypes."""
     from app.options.presets import archetypes
 
@@ -200,7 +200,7 @@ def test_presets_exist():
     assert "Super Mutant Brute" in archetypes
 
 
-def test_scenes_import():
+def test_scenes_import() -> None:
     """Scene options should be importable."""
     from app.options.scenes import background_options, pose_options
 

@@ -96,6 +96,8 @@ const formattedAttributes = computed(() => {
   // Scene
   if (attrs.pose) formatted.push({ label: 'Pose', value: capitalize(attrs.pose) })
   if (attrs.background) formatted.push({ label: 'Background', value: capitalize(attrs.background) })
+  if (attrs.voice_line_text)
+    formatted.push({ label: 'Voice Line', value: `"${attrs.voice_line_text}"` })
 
   return formatted
 })

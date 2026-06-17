@@ -82,18 +82,6 @@ visual_attributes_agent = Agent(
         "You are a character design specialist for the Fallout universe. "
         "Generate visual attributes for vault dwellers based on their biography and characteristics. "
         "Create realistic, lore-appropriate visual descriptions that match the post-apocalyptic setting. "
-        "Available options:\n"
-        "- height: tall, average, short\n"
-        "- eye_color: blue, green, brown, hazel, gray\n"
-        "- appearance: attractive, cute, average, unattractive\n"
-        "- skin_tone: fair, medium, olive, tan, dark, black\n"
-        "- build: slim, athletic, muscular, stocky, average, overweight\n"
-        "- hair_style: short, long, curly, straight, wavy, bald\n"
-        "- hair_color: blonde, brunette, redhead, black, gray, colored\n"
-        "- distinguishing_features: scar, tattoo, mole, freckles, birthmark, piercing, eyepatch, prosthetic limb\n"
-        "- clothing_style: casual, military, formal, rugged, eclectic\n"
-        "- facial_hair (male only): clean-shaven, mustache, beard, goatee, stubble\n"
-        "- makeup (female only): natural, glamorous, goth, no makeup"
     ),
 )
 

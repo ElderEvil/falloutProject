@@ -49,7 +49,7 @@ AI-powered dweller interactions.
 - ✅ **Manual appearance editor** — Race-filtered dropdowns for all fields, Randomize button, portrait force-regeneration
 - ✅ **Options data module** — `backend/app/options/` ported from `fallout-avatar` project
 - ✅ **Frontend types regenerated** — OpenAPI types include full `DwellerVisualAttributes`
-- ✅ **25 passing tests** (8 schema, 15 service/options, 1 crud, 9 frontend editor)
+- ✅ **33 passing tests** (8 schema, 15 service/options, 1 crud, 9 frontend editor)
 
 ### v2.13.0 - Dramatiq Migration (May 1, 2026)
 

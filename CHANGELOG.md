@@ -50,10 +50,10 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ### Security
 
 - **Frontend dep bumps** - Bumped `dompurify` to 3.4.11, `form-data` to 4.0.6, `js-yaml` to 4.2.0 to fix Dependabot advisories:
-  dompurify: multiple sanitization bypasses, Trusted Types poisoning, IN_PLACE mode issues
-  form-data: CRLF injection via unescaped multipart field names
-  js-yaml: Quadratic-complexity DoS in merge key handling
+  - dompurify: multiple sanitization bypasses, Trusted Types poisoning, IN_PLACE mode issues
+  - form-data: CRLF injection via unescaped multipart field names
+  - js-yaml: Quadratic-complexity DoS in merge key handling
 
 - **Backend dep bumps** - Bumped `python-multipart` to 0.0.32, `aiohttp` to 3.14.1 to fix Dependabot advisories:
-  python-multipart: CVE-2025-22140 (header leading to unlimited buffer copy)
-  aiohttp: CVE-2024-52304, CVE-2024-52303, CVE-2024-52302 (request smuggling, x-xss-protection bypass, DOS via empty multipart)
+  - python-multipart: CVE-2025-22140 (header leading to unlimited buffer copy)
+  - aiohttp: CVE-2024-52304, CVE-2024-52303, CVE-2024-52302 (request smuggling, x-xss-protection bypass, DOS via empty multipart)

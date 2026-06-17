@@ -399,13 +399,15 @@ class DwellerAIService:
 
         # 3. Generate Photo
         dweller_obj = await self.generate_photo(db_session=db_session, dweller_info=updated_dweller, user=user)
-        # 4. Generate Audio
-        return await self.generate_audio(
-            db_session=db_session,
-            dweller_info=dweller_obj,
-            user=user,
-            text=visual_attributes_input.voice_line_text,
-        )
+        # 4. Generate Audio (only if voice_line_text is provided)
+        if visual_attributes_input.voice_line_text:
+            return await self.generate_audio(
+                db_session=db_session,
+                dweller_info=dweller_obj,
+                user=user,
+                text=visual_attributes_input.voice_line_text,
+            )
+        return dweller_obj
 
     def _has_substantial_visual_attributes(self, visual_attributes: dict | None) -> bool:
         """Check if visual_attributes has meaningful content beyond identity defaults."""
@@ -413,7 +415,9 @@ class DwellerAIService:
             return False
         if not isinstance(visual_attributes, dict):
             return True
-        non_identity_keys = [k for k in visual_attributes if k not in ("race", "faction", "age", "state_of_being")]
+        non_identity_keys = [
+            k for k, v in visual_attributes.items() if k not in ("race", "faction", "age", "state_of_being") and v
+        ]
         return bool(non_identity_keys)
 
     async def dweller_generate_pipeline(

@@ -3,7 +3,7 @@
 from app.schemas.dweller import DwellerVisualAttributes, DwellerVisualAttributesInput
 
 
-def test_unified_schema_has_all_fields():
+def test_unified_schema_has_all_fields() -> None:
     """Unified schema should contain both input and AI-generated fields."""
     fields = DwellerVisualAttributes.model_fields
 
@@ -43,20 +43,20 @@ def test_unified_schema_has_all_fields():
     assert len(fields) == 22
 
 
-def test_canonical_field_names():
+def test_canonical_field_names() -> None:
     """Old names (haircut, body_type) should NOT be in the schema."""
     fields = DwellerVisualAttributes.model_fields
     assert "haircut" not in fields, "haircut should be renamed to hair_style"
     assert "body_type" not in fields, "body_type should be renamed to build"
 
 
-def test_all_fields_optional():
+def test_all_fields_optional() -> None:
     """All fields should be optional since JSONB stores sparse data."""
     va = DwellerVisualAttributes()
     assert va.model_dump(exclude_none=True) == {}
 
 
-def test_partial_population():
+def test_partial_population() -> None:
     """Should allow partial data (e.g. only race+faction for defaults)."""
     va = DwellerVisualAttributes(race="human", faction="vault_dweller")
     assert va.race == "human"
@@ -64,7 +64,7 @@ def test_partial_population():
     assert va.height is None
 
 
-def test_full_population():
+def test_full_population() -> None:
     """All fields should accept values."""
     va = DwellerVisualAttributes(
         race="human",
@@ -95,7 +95,7 @@ def test_full_population():
     assert va.hair_style == "short"
 
 
-def test_age_range():
+def test_age_range() -> None:
     """Age should accept valid range."""
     va = DwellerVisualAttributes(age=30)
     assert va.age == 30
@@ -104,12 +104,12 @@ def test_age_range():
     assert va.age is None
 
 
-def test_backward_compatibility_alias():
+def test_backward_compatibility_alias() -> None:
     """DwellerVisualAttributesInput should be an alias of DwellerVisualAttributes."""
     assert DwellerVisualAttributesInput is DwellerVisualAttributes
 
 
-def test_enum_values_serialize():
+def test_enum_values_serialize() -> None:
     """Enum values should serialize to their string values."""
     va = DwellerVisualAttributes(race="human", faction="vault_dweller")
     dumped = va.model_dump()

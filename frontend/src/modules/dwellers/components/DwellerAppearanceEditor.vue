@@ -3,6 +3,7 @@ import { computed, reactive, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import UModal from '@/core/components/ui/UModal.vue'
 import UButton from '@/core/components/ui/UButton.vue'
+import UInput from '@/core/components/ui/UInput.vue'
 import type { Dweller, VisualAttributes } from '../models/dweller'
 
 interface Props {
@@ -116,6 +117,10 @@ const form = reactive<VisualAttributes>({})
 watch(
   () => props.dweller,
   (dweller) => {
+    // Clear any stale keys from previous dweller
+    for (const key in form) {
+      delete form[key]
+    }
     if (dweller.visual_attributes) {
       Object.assign(form, dweller.visual_attributes)
     } else {
@@ -208,8 +213,8 @@ function handleSave() {
       ;(cleaned as Record<string, unknown>)[key] = value
     }
   }
+  // Parent closes the modal after successful save (avoids losing context on failure)
   emit('saved', cleaned)
-  emit('update:modelValue', false)
 }
 
 function handleCancel() {
@@ -311,15 +316,7 @@ function handleCancel() {
             </select>
           </div>
           <div class="form-field">
-            <label class="field-label">Age</label>
-            <input
-              v-model.number="form.age"
-              type="number"
-              min="18"
-              max="80"
-              class="field-input"
-              placeholder="18-80"
-            />
+            <UInput v-model.number="form.age" type="number" label="Age" placeholder="18-80" />
           </div>
         </div>
       </div>
@@ -350,22 +347,10 @@ function handleCancel() {
             </select>
           </div>
           <div class="form-field">
-            <label class="field-label">Facial Hair</label>
-            <input
-              v-model="form.facial_hair"
-              type="text"
-              class="field-input"
-              placeholder="e.g. beard, stubble"
-            />
+            <UInput v-model="form.facial_hair" label="Facial Hair" placeholder="e.g. beard, stubble" />
           </div>
           <div class="form-field">
-            <label class="field-label">Makeup</label>
-            <input
-              v-model="form.makeup"
-              type="text"
-              class="field-input"
-              placeholder="e.g. natural, glamorous"
-            />
+            <UInput v-model="form.makeup" label="Makeup" placeholder="e.g. natural, glamorous" />
           </div>
           <div class="form-field">
             <label class="field-label">Expression</label>
@@ -385,6 +370,9 @@ function handleCancel() {
               <option value="average">Average</option>
               <option value="unattractive">Unattractive</option>
             </select>
+          </div>
+          <div class="form-field form-field-full">
+            <UInput v-model="form.distinguishing_features" label="Distinguishing Features" placeholder="e.g. scar, tattoo, mole" />
           </div>
         </div>
       </div>
@@ -406,31 +394,13 @@ function handleCancel() {
             </select>
           </div>
           <div class="form-field">
-            <label class="field-label">Clothing Style</label>
-            <input
-              v-model="form.clothing_style"
-              type="text"
-              class="field-input"
-              placeholder="e.g. casual, military"
-            />
+            <UInput v-model="form.clothing_style" label="Clothing Style" placeholder="e.g. casual, military" />
           </div>
           <div class="form-field">
-            <label class="field-label">Accessory</label>
-            <input
-              v-model="form.accessory"
-              type="text"
-              class="field-input"
-              placeholder="e.g. Pip-Boy"
-            />
+            <UInput v-model="form.accessory" label="Accessory" placeholder="e.g. Pip-Boy" />
           </div>
           <div class="form-field">
-            <label class="field-label">Object Held</label>
-            <input
-              v-model="form.object_held"
-              type="text"
-              class="field-input"
-              placeholder="e.g. Laser Rifle"
-            />
+            <UInput v-model="form.object_held" label="Object Held" placeholder="e.g. Laser Rifle" />
           </div>
           <div class="form-field form-field-full">
             <label class="field-label">Pose</label>
@@ -449,6 +419,9 @@ function handleCancel() {
                 {{ opt }}
               </option>
             </select>
+          </div>
+          <div class="form-field form-field-full">
+            <UInput v-model="form.voice_line_text" label="Voice Line" placeholder="e.g. For the Brotherhood!" />
           </div>
         </div>
       </div>

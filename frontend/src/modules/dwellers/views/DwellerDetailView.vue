@@ -198,12 +198,15 @@ const handleRefresh = async () => {
 
 const handleAppearanceSaved = async (attributes: Record<string, unknown>) => {
   if (!dweller.value) return
-  await dwellerStore.updateVisualAttributes(
+  const result = await dwellerStore.updateVisualAttributes(
     dwellerId.value,
     attributes,
     authStore.token as string
   )
-  await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
+  if (result) {
+    showAppearanceEditor.value = false
+    await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
+  }
 }
 
 const handleRevive = async () => {

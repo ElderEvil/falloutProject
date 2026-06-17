@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { happinessService } from '@/services/happinessService'
+import { happinessService } from '@/modules/dwellers/services/happinessService'
 import type { AxiosResponse } from 'axios'
 import apiClient from '@/core/plugins/axios'
 

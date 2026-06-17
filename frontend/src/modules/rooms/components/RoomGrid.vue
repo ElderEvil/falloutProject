@@ -10,6 +10,7 @@ import { useRoomInteractions } from '../composables/useRoomInteractions'
 import { useHoverPreview } from '../composables/useHoverPreview'
 import { useRoomRendering } from '../composables/useRoomRendering'
 import { useToast } from '@/core/composables/useToast'
+import { API_BASE_URL } from '@/core/config/api'
 import RoomDwellers from '@/modules/dwellers/components/RoomDwellers.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import { Icon } from '@iconify/vue'
@@ -53,7 +54,7 @@ const getRoomImageUrl = (room: Room): string | null => {
   if (!room.image_url) {
     return null
   }
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+  const baseUrl = API_BASE_URL
   return `${baseUrl}${room.image_url}`
 }
 

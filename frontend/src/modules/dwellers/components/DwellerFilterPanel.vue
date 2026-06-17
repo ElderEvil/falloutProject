@@ -6,7 +6,7 @@ import {
   type DwellerStatus,
   type DwellerSortBy,
   type DwellerAgeGroup,
-} from '@/stores/dweller'
+} from '@/modules/dwellers/stores/dweller'
 
 interface Props {
   showStatusFilter?: boolean

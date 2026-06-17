@@ -2,13 +2,13 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useVaultStore } from '../stores/vault'
-import { useDwellerStore } from '@/stores/dweller'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useIncidentStore } from '@/stores/incident'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import HappinessDashboard from '../components/HappinessDashboard.vue'
-import { happinessService } from '@/services/happinessService'
+import { happinessService } from '@/modules/dwellers/services/happinessService'
 import { Icon } from '@iconify/vue'
 
 const { isCollapsed } = useSidePanel()

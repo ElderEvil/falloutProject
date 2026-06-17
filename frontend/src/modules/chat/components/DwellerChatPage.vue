@@ -2,9 +2,9 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import { useDwellerStore } from '@/stores/dweller'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
-import { UButton } from '@/core/components/ui'
+import { UButton, UCard } from '@/core/components/ui'
 import { Icon } from '@iconify/vue'
 import DwellerChat from './DwellerChat.vue'
 import type { Dweller } from '@/models/dweller'
@@ -18,9 +18,11 @@ const vaultStore = useVaultStore()
 
 const dwellerId = ref(route.params.id as string)
 const dweller = ref<Dweller | null>(null)
+const isLoading = ref(false)
 const username = ref(authStore.user?.username || 'User')
 
 onMounted(async () => {
+  isLoading.value = true
   try {
     if (!authStore.token) {
       throw new Error('No authentication token available')
@@ -39,43 +41,64 @@ onMounted(async () => {
   } catch (error) {
     console.error('Error fetching dweller data:', error)
     // Handle error (e.g., show error message to user, redirect to error page)
+  } finally {
+    isLoading.value = false
   }
 })
 </script>
 
 <template>
   <div class="dweller-chat-page">
-    <div class="chat-header">
-      <UButton
-        v-if="dweller?.vault?.id"
-        variant="ghost"
-        size="sm"
-        class="mr-4"
-        @click="router.push(`/vault/${dweller.vault.id}/dwellers/${dwellerId}`)"
-      >
-        <Icon icon="mdi:arrow-left" class="h-5 w-5 mr-1" />
-        Back to Dweller
-      </UButton>
-      <div v-if="dweller" class="dweller-info">
-        <img
-          :src="normalizeImageUrl(dweller.thumbnail_url)"
-          alt="Dweller Thumbnail"
-          class="dweller-thumbnail"
-        />
-        <h1>{{ dweller.first_name }} {{ dweller.last_name }}</h1>
-      </div>
-
-      <h1 v-else>Loading dweller information...</h1>
+    <!-- Loading State -->
+    <div v-if="isLoading" class="loading-state">
+      <UCard glow crt padding="lg">
+        <div class="loading-content">
+          <Icon icon="mdi:loading" class="loading-spinner" />
+          <p class="loading-text">Establishing connection to dweller...</p>
+          <div class="loading-bars">
+            <div class="loading-bar flicker" />
+            <div class="loading-bar flicker-slow" />
+            <div class="loading-bar flicker-random" />
+          </div>
+        </div>
+      </UCard>
     </div>
-    <div class="chat-container">
-      <DwellerChat
-        v-if="dweller"
-        :dweller-id="dwellerId"
-        :dweller-name="dweller.first_name"
-        :username="username"
-        :dweller-avatar="dweller.thumbnail_url ?? undefined"
-      />
-      <p v-else>Please wait while we set up the chat...</p>
+
+    <!-- Content -->
+    <template v-else-if="dweller">
+      <div class="chat-header">
+        <UButton
+          v-if="dweller?.vault?.id"
+          variant="ghost"
+          size="sm"
+          class="mr-4"
+          @click="router.push(`/vault/${dweller.vault.id}/dwellers/${dwellerId}`)"
+        >
+          <Icon icon="mdi:arrow-left" class="h-5 w-5 mr-1" />
+          Back to Dweller
+        </UButton>
+        <div class="dweller-info">
+          <img
+            :src="normalizeImageUrl(dweller.thumbnail_url)"
+            alt="Dweller Thumbnail"
+            class="dweller-thumbnail"
+          />
+          <h1>{{ dweller.first_name }} {{ dweller.last_name }}</h1>
+        </div>
+      </div>
+      <div class="chat-container">
+        <DwellerChat
+          :dweller-id="dwellerId"
+          :dweller-name="dweller.first_name"
+          :username="username"
+          :dweller-avatar="dweller.thumbnail_url ?? undefined"
+        />
+      </div>
+    </template>
+
+    <!-- Empty / No Data State -->
+    <div v-else class="empty-state">
+      <p>Dweller information unavailable.</p>
     </div>
   </div>
 </template>
@@ -124,5 +147,82 @@ onMounted(async () => {
   max-width: 900px;
   width: 100%;
   margin: 0 auto;
+}
+
+/* Loading State */
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 2rem;
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.loading-spinner {
+  width: 4rem;
+  height: 4rem;
+  color: var(--color-theme-primary);
+  filter: drop-shadow(0 0 10px var(--color-theme-glow));
+  animation: spin 1.5s linear infinite;
+}
+
+.loading-text {
+  font-size: 1rem;
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 6px var(--color-theme-glow);
+}
+
+.loading-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 300px;
+}
+
+.loading-bar {
+  height: 4px;
+  background: var(--color-theme-primary);
+  border-radius: 2px;
+  opacity: 0.3;
+}
+
+.loading-bar:nth-child(1) {
+  width: 100%;
+}
+
+.loading-bar:nth-child(2) {
+  width: 75%;
+}
+
+.loading-bar:nth-child(3) {
+  width: 50%;
+}
+
+/* Empty / No Data State */
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 2rem;
+  color: var(--color-theme-primary);
+  opacity: 0.6;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useRoomInteractions } from '../composables/useRoomInteractions'
+import { API_BASE_URL } from '@/core/config/api'
 
 const props = defineProps({
   room: {
@@ -18,7 +19,7 @@ const { toggleRoomSelection, destroyRoom } = useRoomInteractions()
 
 const roomImageUrl = computed(() => {
   if (!props.room.image_url) return null
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+  const baseUrl = API_BASE_URL
   return `${baseUrl}${props.room.image_url}`
 })
 

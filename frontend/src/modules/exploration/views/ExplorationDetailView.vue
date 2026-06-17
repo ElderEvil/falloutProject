@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import { useDwellerStore } from '@/stores/dweller'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useExplorationStore } from '../stores/exploration'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { Icon } from '@iconify/vue'

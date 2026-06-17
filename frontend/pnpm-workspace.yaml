@@ -1,2 +1,5 @@
 minimumReleaseAge: 10080
-minimumReleaseAgeExclude: []
+minimumReleaseAgeExclude:
+  - dompurify
+  - form-data
+  - js-yaml

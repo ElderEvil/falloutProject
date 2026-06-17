@@ -1,6 +1,7 @@
 import { computed, type Ref } from 'vue'
 import type { Room } from '../models/room'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
+import { API_BASE_URL } from '@/core/config/api'
 
 type SpecialKey =
   | 'strength'
@@ -55,7 +56,7 @@ export function useRoomProduction(
 
   const roomImageUrl = computed(() => {
     if (!room.value?.image_url) return null
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+    const baseUrl = API_BASE_URL
     const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
     const imagePath = room.value.image_url.startsWith('/')
       ? room.value.image_url.slice(1)

@@ -51,7 +51,7 @@ describe('useResourceWarnings', () => {
   })
 
   it('shows warnings when activeVault has resource_warnings', async () => {
-    vaultStore = (await import('@/stores/vault')).useVaultStore()
+    vaultStore = (await import('@/modules/vault/stores/vault')).useVaultStore()
     useResourceWarnings()
 
     vaultStore.$patch({
@@ -69,7 +69,7 @@ describe('useResourceWarnings', () => {
   })
 
   it('rate limits warnings (30s cooldown)', async () => {
-    vaultStore = (await import('@/stores/vault')).useVaultStore()
+    vaultStore = (await import('@/modules/vault/stores/vault')).useVaultStore()
     useResourceWarnings()
 
     vaultStore.$patch({
@@ -110,7 +110,7 @@ describe('useResourceWarnings', () => {
   })
 
   it('shows critical warnings as error', async () => {
-    vaultStore = (await import('@/stores/vault')).useVaultStore()
+    vaultStore = (await import('@/modules/vault/stores/vault')).useVaultStore()
     useResourceWarnings()
 
     vaultStore.$patch({

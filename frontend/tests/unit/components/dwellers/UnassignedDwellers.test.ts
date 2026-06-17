@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import UnassignedDwellers from '@/modules/dwellers/components/UnassignedDwellers.vue'
-import { useDwellerStore } from '@/stores/dweller'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useExplorationStore } from '@/stores/exploration'
 import { useAuthStore } from '@/stores/auth'
 

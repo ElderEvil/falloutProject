@@ -17,7 +17,11 @@ users: list[dict[str, str | UserCreate]] = [
     {
         "data": UserCreate(
             username=settings.FIRST_SUPERUSER_USERNAME,
-            password=settings.FIRST_SUPERUSER_PASSWORD,
+            password=(
+                settings.FIRST_SUPERUSER_PASSWORD
+                if len(settings.FIRST_SUPERUSER_PASSWORD) >= 8
+                else settings.FIRST_SUPERUSER_PASSWORD + "x" * max(0, 8 - len(settings.FIRST_SUPERUSER_PASSWORD))
+            ),
             email=settings.FIRST_SUPERUSER_EMAIL,
             is_superuser=True,
         ),

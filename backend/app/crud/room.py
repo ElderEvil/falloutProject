@@ -115,7 +115,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             room_obj.category == RoomTypeEnum.PRODUCTION and room_obj.name != "Radio studio"
         )
 
-    async def build(self, *, db_session: AsyncSession, obj_in: RoomCreate) -> Room:  # noqa: C901, PLR0912
+    async def build(self, *, db_session: AsyncSession, obj_in: RoomCreate) -> Room:  # noqa: C901, PLR0912, PLR0915
         """Implements the objectives to build a room checking for business logic constraints."""
         vault = await vault_crud.get(db_session, id=obj_in.vault_id)
 

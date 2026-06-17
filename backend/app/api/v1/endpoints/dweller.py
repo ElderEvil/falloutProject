@@ -186,7 +186,7 @@ async def generate_photo(
     dweller_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    force: Annotated[bool, Query(default=False, description="Regenerate even if a photo already exists")],
+    force: Annotated[bool, Query(description="Regenerate even if a photo already exists")] = False,
 ):
     return await dweller_ai.generate_photo(db_session=db_session, dweller_id=dweller_id, user=user, force=force)
 

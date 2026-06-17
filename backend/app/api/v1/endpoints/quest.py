@@ -7,6 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser
 from app.db.session import get_async_session
+from app.models.quest import Quest
 from app.schemas.quest import (
     QuestCompleteResponse,
     QuestCreate,
@@ -14,6 +15,7 @@ from app.schemas.quest import (
     QuestRead,
     QuestUpdate,
 )
+from app.services.quest_service import quest_service
 
 router = APIRouter()
 
@@ -59,42 +61,7 @@ async def get_available_quests(
     limit: int = 100,
 ):
     """Get available quests for a vault (respects quest chain unlocks)."""
-    from sqlalchemy.orm import selectinload
-    from sqlmodel import and_, select
-
-    from app.models.quest import Quest
-    from app.models.vault_quest import VaultQuestCompletionLink
-
-    completed_result = await db_session.execute(
-        select(VaultQuestCompletionLink.quest_id).where(
-            and_(
-                VaultQuestCompletionLink.vault_id == vault_id,
-                VaultQuestCompletionLink.is_completed == True,
-            )
-        )
-    )
-    completed_quest_ids = set(completed_result.scalars().all())
-
-    result = await db_session.execute(
-        select(Quest)
-        .options(
-            selectinload(Quest.quest_requirements),
-            selectinload(Quest.quest_rewards),
-        )
-        .join(
-            VaultQuestCompletionLink,
-            and_(Quest.id == VaultQuestCompletionLink.quest_id, VaultQuestCompletionLink.vault_id == vault_id),
-        )
-        .where(VaultQuestCompletionLink.is_visible == True)
-    )
-    all_quests = result.scalars().all()
-
-    available = []
-    for quest in all_quests:
-        if quest.previous_quest_id is None or quest.previous_quest_id in completed_quest_ids:
-            available.append(quest)
-
-    return available[skip : skip + limit]
+    return await quest_service.get_available_for_vault(db_session, vault_id, skip, limit)
 
 
 @router.get("/{vault_id}/{quest_id}", response_model=QuestRead)
@@ -148,21 +115,7 @@ async def complete_quest(
     """
     Mark a quest as completed for a vault.
     """
-
-    from app.crud.quest_party import quest_party_crud
-    from app.models.dweller import Dweller
-
-    quest, granted_rewards = await crud.quest_crud.complete(
-        db_session=db_session, quest_entity_id=quest_id, vault_id=vault_id
-    )
-
-    party = await quest_party_crud.get_party_for_quest(db_session, quest_id, vault_id)
-    for member in party:
-        dweller = await db_session.get(Dweller, member.dweller_id)
-        if dweller:
-            dweller.status = "idle"
-    await db_session.commit()
-
+    quest, granted_rewards = await quest_service.complete_quest_and_free_party(db_session, quest_id, vault_id)
     return QuestCompleteResponse(
         quest_id=quest.id,
         quest_title=quest.title,
@@ -231,13 +184,13 @@ async def start_quest(
     duration_minutes: int | None = None,
 ):
     """Start a quest (starts the timer)."""
-    from app.models.quest import Quest
     from app.services.prerequisite_service import prerequisite_service
-    from app.services.quest_service import quest_service
-    from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
+    from app.utils.exceptions import ValidationException
 
     quest = await db_session.get(Quest, quest_id)
     if quest is None:
+        from app.utils.exceptions import ResourceNotFoundException
+
         raise ResourceNotFoundException(Quest, identifier=quest_id)
 
     await db_session.refresh(quest, ["quest_requirements"])
@@ -250,8 +203,6 @@ async def start_quest(
         await quest_service.start_quest(db_session, quest_id, vault_id, duration_minutes)
         await db_session.refresh(quest, ["quest_requirements", "quest_rewards"])
         return quest
-    except (ResourceNotFoundException, AccessDeniedException):
-        raise
     except ValueError as e:
         raise ValidationException(str(e)) from e
 
@@ -264,50 +215,4 @@ async def get_eligible_dwellers(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """Get dwellers eligible for a quest based on requirements."""
-    from sqlmodel import select
-
-    from app.models.dweller import Dweller
-    from app.models.quest import Quest
-
-    quest = await db_session.get(Quest, quest_id)
-    if quest is None:
-        from app.utils.exceptions import ResourceNotFoundException
-
-        raise ResourceNotFoundException(Quest, identifier=quest_id)
-
-    await db_session.refresh(quest, ["quest_requirements"])
-
-    result = await db_session.execute(select(Dweller).where(Dweller.vault_id == vault_id, Dweller.is_deleted == False))
-    dwellers = result.scalars().all()
-
-    eligible = []
-    vault_level_req_types = {"item", "room", "dweller_count", "quest_completed"}
-    for dweller in dwellers:
-        meets_req = True
-        for req in quest.quest_requirements:
-            req_type = req.requirement_type
-            req_data = req.requirement_data or {}
-
-            if req_type == "level":
-                required_level = req_data.get("level", 1)
-                if dweller.level < required_level:
-                    meets_req = False
-                    break
-            elif req_type in vault_level_req_types:
-                pass
-            else:
-                meets_req = False
-                break
-
-        if meets_req:
-            eligible.append(
-                {
-                    "id": str(dweller.id),
-                    "first_name": dweller.first_name,
-                    "last_name": dweller.last_name,
-                    "level": dweller.level,
-                    "rarity": dweller.rarity,
-                }
-            )
-
-    return eligible
+    return await quest_service.get_eligible_dwellers(db_session, vault_id, quest_id)

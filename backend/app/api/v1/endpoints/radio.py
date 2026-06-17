@@ -67,11 +67,8 @@ async def set_radio_mode(
 ):
     """Set radio mode (recruitment or happiness)."""
     vault = await get_user_vault_or_403(vault_id, user, db_session)
-
-    # Store the enum value as a string
     vault.radio_mode = mode.value
     await db_session.commit()
-
     return {"message": f"Radio mode set to {mode.value}", "radio_mode": mode.value}
 
 

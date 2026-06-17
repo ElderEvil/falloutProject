@@ -1,27 +1,22 @@
-import json
 import logging
 from typing import Annotated
 
-import aiosmtplib
 from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
-from pydantic import UUID4, ValidationError
+from pydantic import UUID4
 from pydantic.networks import EmailStr
 from redis.asyncio import Redis
-from redis.exceptions import RedisError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_redis_client
-from app.core import security
-from app.core.config import settings
-from app.core.email import send_verification_email
 from app.crud.user_profile import profile_crud
 from app.db.session import get_async_session
 from app.schemas.ai_usage import AIUsageResponse
 from app.schemas.user import UserCreate, UserRead, UserUpdate, UserWithTokens
 from app.schemas.user_profile import ProfileRead, ProfileUpdate
-from app.services.ai_usage_service import ai_usage_service
+from app.services.death_service import death_service
+from app.services.user_service import user_service
 
 logger = logging.getLogger(__name__)
 
@@ -105,45 +100,12 @@ async def create_user_open(
     """
     Create new user and log them in automatically.
     """
-    if not settings.USERS_OPEN_REGISTRATION:
-        raise HTTPException(
-            status_code=403,
-            detail="Open user registration is forbidden on this server",
-        )
-    user = await crud.user.get_by_email(db_session, email=email)
-    if user:
-        raise HTTPException(
-            status_code=409,
-            detail="The user with this email already exists in the system",
-        )
-    user_in = UserCreate(username=username, password=password, email=email)
-    user = await crud.user.create(db_session, obj_in=user_in)
-
-    # Generate email verification token
-    verification_token = security.create_email_verification_token(str(user.id))
-    user.email_verification_token = verification_token
-    await db_session.commit()
-    await db_session.refresh(user)
-
-    # Send verification email (non-blocking, failures won't stop registration)
-    try:
-        await send_verification_email(
-            email_to=user.email,
-            username=user.username,
-            token=verification_token,
-        )
-    except (aiosmtplib.SMTPException, ConnectionError, TimeoutError) as e:
-        # Log error but don't fail registration
-        logger.exception(f"Failed to send verification email: {e}")  # noqa: TRY401
-
-    access_token = security.create_access_token(user.id)
-    refresh_token = await security.create_refresh_token(user.id, redis_client)
-
-    return UserWithTokens(
-        **user.model_dump(),
-        access_token=access_token,
-        refresh_token=refresh_token,
-        token_type="bearer",
+    return await user_service.register_user(
+        db_session=db_session,
+        redis_client=redis_client,
+        username=username,
+        password=password,
+        email=email,
     )
 
 
@@ -287,7 +249,6 @@ async def get_death_statistics(
     :returns: Life/death statistics dictionary
     :rtype: dict
     """
-    from app.services.death_service import death_service
 
     return await death_service.get_death_statistics(db_session, user.id)
 
@@ -299,29 +260,5 @@ async def get_ai_usage(
     user: CurrentActiveUser,
     redis_client: Annotated[Redis, Depends(get_redis_client)],
 ) -> AIUsageResponse:
-    cache_key = f"user:{user.id}:ai_usage"
-
-    # Try to get cached data, handle Redis failures gracefully
-    try:
-        cached = await redis_client.get(cache_key)
-        if cached:
-            try:
-                cached_data = json.loads(cached)
-                return AIUsageResponse.model_validate(cached_data)
-            except json.JSONDecodeError:
-                logger.warning("Invalid JSON in Redis cache for user %s", user.id)
-            except ValidationError:
-                logger.warning("Invalid cached AI usage data for user %s", user.id)
-    except RedisError:
-        logger.warning("Redis error reading cache for user %s", user.id)
-
-    # Fetch from database
-    usage = await ai_usage_service.get_user_usage(db_session, user.id)
-
-    # Try to cache the result, don't fail if Redis is unavailable
-    try:
-        await redis_client.setex(cache_key, 300, usage.model_dump_json())
-    except RedisError:
-        logger.warning("Redis error setting cache for user %s", user.id)
-
-    return usage
+    data = await user_service.get_ai_usage(db_session, redis_client, str(user.id))
+    return AIUsageResponse.model_validate(data)

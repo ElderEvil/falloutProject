@@ -1,10 +1,14 @@
 import logging
 from datetime import datetime, timedelta
+from typing import Any
 
 from pydantic import UUID4
+from sqlalchemy.orm import selectinload
 from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app import crud
+from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.vault_quest import VaultQuestCompletionLink
 
@@ -74,6 +78,106 @@ class QuestService:
             f"Started quest {quest_id} for vault {vault_id} with duration {duration_minutes or 'default'} minutes"
         )
         return link
+
+    async def get_available_for_vault(
+        self, db_session: AsyncSession, vault_id: UUID4, skip: int = 0, limit: int = 100
+    ) -> list[Quest]:
+        """Get quests available for a vault, respecting quest chain prerequisites."""
+        completed_result = await db_session.execute(
+            select(VaultQuestCompletionLink.quest_id).where(
+                and_(
+                    VaultQuestCompletionLink.vault_id == vault_id,
+                    VaultQuestCompletionLink.is_completed == True,
+                )
+            )
+        )
+        completed_quest_ids = set(completed_result.scalars().all())
+
+        result = await db_session.execute(
+            select(Quest)
+            .options(selectinload(Quest.quest_requirements), selectinload(Quest.quest_rewards))
+            .join(
+                VaultQuestCompletionLink,
+                and_(Quest.id == VaultQuestCompletionLink.quest_id, VaultQuestCompletionLink.vault_id == vault_id),
+            )
+            .where(VaultQuestCompletionLink.is_visible == True)
+        )
+        all_quests = result.scalars().all()
+
+        available = []
+        for quest in all_quests:
+            if quest.previous_quest_id is None or quest.previous_quest_id in completed_quest_ids:
+                available.append(quest)
+
+        return available[skip : skip + limit]
+
+    async def complete_quest_and_free_party(
+        self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4
+    ) -> tuple[Quest, list[Any]]:
+        """Complete a quest and set party dwellers back to idle."""
+        from app.crud.quest_party import quest_party_crud
+
+        quest, granted_rewards = await crud.quest_crud.complete(
+            db_session=db_session, quest_entity_id=quest_id, vault_id=vault_id
+        )
+
+        party = await quest_party_crud.get_party_for_quest(db_session, quest_id, vault_id)
+        for member in party:
+            dweller = await db_session.get(Dweller, member.dweller_id)
+            if dweller:
+                dweller.status = "idle"
+        await db_session.commit()
+
+        return quest, granted_rewards
+
+    async def get_eligible_dwellers(
+        self, db_session: AsyncSession, vault_id: UUID4, quest_id: UUID4
+    ) -> list[dict[str, Any]]:
+        """Get dwellers eligible for a quest based on requirements."""
+        from app.utils.exceptions import ResourceNotFoundException
+
+        quest = await db_session.get(Quest, quest_id)
+        if quest is None:
+            raise ResourceNotFoundException(Quest, identifier=quest_id)
+
+        await db_session.refresh(quest, ["quest_requirements"])
+
+        result = await db_session.execute(
+            select(Dweller).where(Dweller.vault_id == vault_id, Dweller.is_deleted == False)
+        )
+        dwellers = result.scalars().all()
+
+        vault_level_req_types = {"item", "room", "dweller_count", "quest_completed"}
+        eligible = []
+        for dweller in dwellers:
+            meets_req = True
+            for req in quest.quest_requirements:
+                req_type = req.requirement_type
+                req_data = req.requirement_data or {}
+
+                if req_type == "level":
+                    required_level = req_data.get("level", 1)
+                    if dweller.level < required_level:
+                        meets_req = False
+                        break
+                elif req_type in vault_level_req_types:
+                    pass
+                else:
+                    meets_req = False
+                    break
+
+            if meets_req:
+                eligible.append(
+                    {
+                        "id": str(dweller.id),
+                        "first_name": dweller.first_name,
+                        "last_name": dweller.last_name,
+                        "level": dweller.level,
+                        "rarity": dweller.rarity,
+                    }
+                )
+
+        return eligible
 
 
 quest_service = QuestService()

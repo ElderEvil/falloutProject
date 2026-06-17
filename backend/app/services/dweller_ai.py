@@ -12,7 +12,7 @@ from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.models import User
 from app.models.base import SPECIALModel
 from app.schemas.common import GenderEnum
-from app.schemas.dweller import DwellerReadFull, DwellerUpdate, DwellerVisualAttributesInput
+from app.schemas.dweller import DwellerReadFull, DwellerUpdate, DwellerVisualAttributes
 from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.open_ai import get_ai_service
 from app.services.quota_service import quota_service
@@ -174,8 +174,15 @@ class DwellerAIService:
             )
 
         dweller_obj = dweller_info or await dweller_crud.get_full_info(db_session, dweller_id)
-        if dweller_obj.visual_attributes:
+
+        # Extract race/faction from existing visual attributes (if any)
+        existing_attrs = dweller_obj.visual_attributes or {}
+
+        # Check if visual_attributes already has meaningful content beyond identity defaults
+        if self._has_substantial_visual_attributes(existing_attrs):
             raise ContentNoChangeException(detail="Dweller already has visual attributes")
+        dweller_race = existing_attrs.get("race") if isinstance(existing_attrs, dict) else None
+        dweller_faction = existing_attrs.get("faction") if isinstance(existing_attrs, dict) else None
 
         # Create dependencies for the agent
         deps = VisualAttributesDeps(
@@ -183,6 +190,8 @@ class DwellerAIService:
             last_name=dweller_obj.last_name or "",
             gender=dweller_obj.gender,
             bio=dweller_obj.bio,
+            race=dweller_race,
+            faction=dweller_faction,
         )
 
         # Run the visual attributes agent
@@ -192,6 +201,12 @@ class DwellerAIService:
 
         # Convert Pydantic model to dict, excluding None values
         visual_attributes = result.output.model_dump(exclude_none=True)
+
+        # Merge with existing identity fields (race/faction) to preserve defaults
+        if isinstance(existing_attrs, dict):
+            for key in ("race", "faction", "age", "state_of_being"):
+                if key in existing_attrs and key not in visual_attributes:
+                    visual_attributes[key] = existing_attrs[key]
 
         await dweller_crud.update(db_session, dweller_obj.id, DwellerUpdate(visual_attributes=visual_attributes))
 
@@ -229,10 +244,11 @@ class DwellerAIService:
         *,
         dweller_id: UUID4 | None = None,
         dweller_info: DwellerReadFull | None = None,
+        force: bool = False,
     ) -> DwellerReadFull:
         """Generate a photo for a dweller."""
         dweller_obj = dweller_info or await dweller_crud.get_full_info(db_session, dweller_id)
-        if dweller_obj.image_url:
+        if dweller_obj.image_url and not force:
             raise ContentNoChangeException(detail="Dweller already has a photo")
 
         if self.storage_service is None:
@@ -355,7 +371,7 @@ class DwellerAIService:
         dweller_id: UUID4,
         dweller_first_name: str,
         dweller_last_name: str,
-        visual_attributes_input: DwellerVisualAttributesInput,
+        visual_attributes_input: DwellerVisualAttributes,
         db_session: AsyncSession,
         user: User,
     ) -> DwellerReadFull:
@@ -391,6 +407,15 @@ class DwellerAIService:
             text=visual_attributes_input.voice_line_text,
         )
 
+    def _has_substantial_visual_attributes(self, visual_attributes: dict | None) -> bool:
+        """Check if visual_attributes has meaningful content beyond identity defaults."""
+        if not visual_attributes:
+            return False
+        if not isinstance(visual_attributes, dict):
+            return True
+        non_identity_keys = [k for k in visual_attributes if k not in ("race", "faction", "age", "state_of_being")]
+        return bool(non_identity_keys)
+
     async def dweller_generate_pipeline(
         self,
         db_session: AsyncSession,
@@ -407,7 +432,7 @@ class DwellerAIService:
             dweller_obj = await self.generate_backstory(
                 db_session=db_session, dweller_info=dweller_obj, origin=origin, user=user
             )
-        if not dweller_obj.visual_attributes:
+        if not self._has_substantial_visual_attributes(dweller_obj.visual_attributes):
             dweller_obj = await self.generate_visual_attributes(
                 db_session=db_session, dweller_info=dweller_obj, user=user
             )

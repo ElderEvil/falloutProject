@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import UUID4, ConfigDict, Field
+from pydantic import UUID4, BaseModel, ConfigDict, Field
 from sqlmodel import SQLModel
 
 from app.models.dweller import DwellerBase
@@ -49,22 +49,43 @@ class DwellerCreate(DwellerCreateWithoutVaultID):
     vault_id: UUID4
 
 
-class DwellerVisualAttributesInput(SQLModel):
+class DwellerVisualAttributes(BaseModel):
+    """Unified schema for dweller visual attributes.
+
+    Merges user-facing input fields (race, faction, equipment, scene)
+    with AI-generated fields (height, appearance, build, clothing_style, etc.).
+    All fields are optional — only populated fields are stored in the JSONB column.
+    """
+
+    # Identity
     race: RaceEnum | None = None
     faction: FactionEnum | None = None
 
-    # Appearance and Facial Features
+    # Physical Attributes
+    height: str | None = Field(None, description="Height: tall, average, short")
+    build: str | None = Field(None, description="Build: slim, athletic, muscular, stocky, average, overweight")
     skin_tone: str | None = None
-    body_type: str | None = None
-    age: int | None = Field(default=None, ge=18, le=80)
-    state_of_being: STATE_OF_BEING_TYPE | None = None  # For non-humans
     eye_color: str | None = None
-    headgear: str | None = None
-    haircut: str | None = None
+    age: int | None = Field(default=None, ge=18, le=80, description="Only for humans")
+    state_of_being: STATE_OF_BEING_TYPE | None = Field(
+        None, description="For non-humans: ghoul feralness, super mutant mutation, synth type"
+    )
+
+    # Appearance & Facial Features
+    appearance: str | None = Field(None, description="Appearance: attractive, cute, average, unattractive")
+    hair_style: str | None = Field(None, description="Hair style: short, long, curly, straight, wavy, bald")
     hair_color: str | None = None
     facial_hair: str | None = None
     makeup: str | None = None
     expression: str | None = None
+    headgear: str | None = None
+    distinguishing_features: list[str] | None = Field(
+        None,
+        description=(
+            "Distinguishing features: scar, tattoo, mole, freckles, birthmark, piercing, eyepatch, prosthetic limb"
+        ),
+    )
+    clothing_style: str | None = Field(None, description="Clothing style: casual, military, formal, rugged, eclectic")
 
     # Equipment
     accessory: str | None = None
@@ -80,10 +101,11 @@ class DwellerVisualAttributesInput(SQLModel):
     # Audio
     voice_line_text: str | None = None
 
-    # More specific fields
-    # distinguishing_features: list[str] | None = None
-
     model_config = ConfigDict(use_enum_values=True)
+
+
+# Backward-compatible alias for migration
+DwellerVisualAttributesInput = DwellerVisualAttributes
 
 
 class DwellerCreateCommonOverride(SQLModel):

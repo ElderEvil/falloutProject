@@ -30,3 +30,5 @@ class VisualAttributesDeps:
     last_name: str
     gender: GenderEnum | None
     bio: str | None
+    race: str | None = None
+    faction: str | None = None

@@ -42,5 +42,6 @@ def create_random_common_dweller(gender: GenderEnum | None = None) -> dict[str, 
         "happiness": 50,
         "stimpack": 0,
         "radaway": 0,
+        "visual_attributes": {"race": "human", "faction": "vault_dweller"},
         **stats,
     }

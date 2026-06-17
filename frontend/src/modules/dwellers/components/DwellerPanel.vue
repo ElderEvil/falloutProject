@@ -22,6 +22,7 @@ const emit = defineEmits<{
   'generate-appearance': []
   'generate-portrait': []
   'generate-all': []
+  'edit-appearance': []
 }>()
 
 const activeTab = ref('profile')
@@ -56,6 +57,7 @@ const tabs = [
             :is-any-generating="props.isAnyGenerating"
             @generate-appearance="emit('generate-appearance')"
             @generate-portrait="emit('generate-portrait')"
+            @edit="emit('edit-appearance')"
           />
           <DwellerStats
             v-else-if="currentTab === 'stats'"

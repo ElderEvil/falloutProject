@@ -25,17 +25,5 @@ export interface Special {
   luck: number
 }
 
-// Visual attributes type matching backend schema
-export interface VisualAttributes {
-  height?: string | null
-  eye_color?: string | null
-  appearance?: string | null
-  skin_tone?: string | null
-  build?: string | null
-  hair_style?: string | null
-  hair_color?: string | null
-  distinguishing_features?: string[] | null
-  clothing_style?: string | null
-  facial_hair?: string | null
-  makeup?: string | null
-}
+/** Visual attributes type — generated from backend OpenAPI schema. */
+export type VisualAttributes = components['schemas']['DwellerVisualAttributes']

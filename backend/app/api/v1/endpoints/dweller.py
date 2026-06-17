@@ -22,7 +22,7 @@ from app.schemas.dweller import (
     DwellerRename,
     DwellerReviveResponse,
     DwellerUpdate,
-    DwellerVisualAttributesInput,
+    DwellerVisualAttributes,
     RevivalCostResponse,
 )
 from app.services.death_service import death_service
@@ -186,8 +186,9 @@ async def generate_photo(
     dweller_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    force: bool = Query(False, description="Regenerate even if a photo already exists"),
 ):
-    return await dweller_ai.generate_photo(db_session=db_session, dweller_id=dweller_id, user=user)
+    return await dweller_ai.generate_photo(db_session=db_session, dweller_id=dweller_id, user=user, force=force)
 
 
 @router.post("/{dweller_id}/generate_audio/", response_model=DwellerReadFull)
@@ -217,7 +218,7 @@ async def generate_dweller_avatar(
     dweller_id: UUID4,
     dweller_first_name: str,
     dweller_last_name: str,
-    visual_attributes_input: DwellerVisualAttributesInput,
+    visual_attributes_input: DwellerVisualAttributes,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     current_user: CurrentActiveUser,
 ):

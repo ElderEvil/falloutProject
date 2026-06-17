@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { IconComponent } from '@/core/types/utils'
+import { useId } from 'vue'
 
 /**
  * UInput - Terminal-themed input component
@@ -59,7 +60,7 @@ const inputClasses = [
   .filter(Boolean)
   .join(' ')
 
-const inputId = `ui-input-${Math.random().toString(36).slice(2, 9)}`
+const inputId = useId()
 
 const handleInput = (event: InputEvent) => {
   const target = event.target as HTMLInputElement

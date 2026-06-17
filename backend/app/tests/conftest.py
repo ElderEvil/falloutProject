@@ -63,18 +63,6 @@ async def _fake_redis_client():
 app.dependency_overrides[get_redis_client] = _fake_redis_client
 
 
-async def _fake_redis_client():
-    """Yield a fakeredis client for test dependency override."""
-    client = fakeredis.aioredis.FakeRedis(decode_responses=True)
-    try:
-        yield client
-    finally:
-        await client.aclose()
-
-
-app.dependency_overrides[get_redis_client] = _fake_redis_client
-
-
 @pytest.fixture(scope="session")
 def event_loop() -> Generator:
     loop = asyncio.new_event_loop()

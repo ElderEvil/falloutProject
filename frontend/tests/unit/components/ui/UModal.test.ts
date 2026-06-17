@@ -1,14 +1,23 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import UModal from '@/core/components/ui/UModal.vue'
 
 describe('UModal (Accessibility)', () => {
-  const mountModal = () =>
-    mount(UModal, {
+  let wrapper: ReturnType<typeof mount> | null = null
+
+  afterEach(() => {
+    wrapper?.unmount()
+    wrapper = null
+  })
+
+  const mountModal = () => {
+    wrapper = mount(UModal, {
       props: { modelValue: true, title: 'Test Modal' },
       slots: { default: '<p class="modal-body">Modal body</p>' },
       attachTo: document.body,
     })
+    return wrapper
+  }
 
   it('should have role="dialog" on the modal content', async () => {
     mountModal()

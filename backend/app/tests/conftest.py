@@ -143,13 +143,10 @@ async def _superuser(async_session: AsyncSession):
     if existing_user is not None:
         return existing_user
 
-    password = settings.FIRST_SUPERUSER_PASSWORD
-    if len(password) < 8:
-        password = "testpass123"  # fallback for short passwords
     user_in = UserCreate(
         username=settings.FIRST_SUPERUSER_EMAIL,
         email=settings.FIRST_SUPERUSER_EMAIL,
-        password=password,
+        password=settings.FIRST_SUPERUSER_PASSWORD,
         is_superuser=True,
     )
     return await crud.user.create(db_session=async_session, obj_in=user_in)

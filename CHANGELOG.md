@@ -7,7 +7,52 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ## [Unreleased]
 
+### Security
+
+- **Frontend dep bumps** - Bumped `dompurify` to 3.4.11, `form-data` to 4.0.6, `js-yaml` to 4.2.0 to fix Dependabot advisories:
+  dompurify: multiple sanitization bypasses, Trusted Types poisoning, IN_PLACE mode issues
+  form-data: CRLF injection via unescaped multipart field names
+  js-yaml: Quadratic-complexity DoS in merge key handling
+
+- **Backend dep bumps** - Bumped `python-multipart` to 0.0.32, `aiohttp` to 3.14.1 to fix Dependabot advisories:
+  python-multipart: Quadratic DoS via semicolons, parameter smuggling, negative Content-Length
+  aiohttp: Websocket bypass, TLS hostname override, pipelined request queue, payload resource leaks
+
+### Performance
+
+- **Database indexes** - Added 11 missing FK indexes on dweller, room, storage, vault, weapon, outfit,
+  pregnancy, and relationship tables for faster joins and filtered queries
+
+- **Quest CRUD N+1** - Eliminated per-quest requirement/reward fetch loops with batch `SELECT IN` queries.
+  Reduces 200+ queries per vault load to 3-4 total
+
+- **Dweller auto-assign N+1** - Replaced per-room dweller count loop with single GROUP BY query in
+  `auto_assign_to_best_room`
+
+- **Frontend re-renders** - Converted 5 computed-returning-function getters to plain methods in exploration
+  and dweller stores (eliminates new closure creation per evaluation). Combined 4 filter computeds into
+  single-pass classification in quest store
+
 ### Fixed
+
+- **Changelog freeze** - Fixed infinite while-loop in `FormattedChangeDescription.vue` parser that froze
+  the frontend on malformed changelog entries (lone backtick, single asterisk, bare "http"). Added
+  forward-progress guard when `nextSpecial === 0`. Added 8 regression tests.
+
+- **Vault permission logic** - Corrected `or` → `and` in PUT `/vaults/{id}` permission check so vault
+  owners who aren't superusers can update their vault
+
+- **Room capacity formulas** - Room build endpoint now derives `capacity_formula` and `output_formula`
+  from backend `rooms.json` instead of trusting client-sent values
+
+### Changed
+
+- **Frontend cleanup** - Removed 14 debug `console.log` statements from storage, profile, and wasteland
+  components. Migrated 48 `console.error` calls to `handleStoreError` across 6 Pinia stores. Deleted 5
+  dead re-export wrapper files. Consolidated 3 duplicated `VITE_API_BASE_URL` fallbacks to `core/config/api.ts`.
+
+- **Loading states** - Added loading skeletons to ExplorationView and DwellerChatPage. Added error
+  fallback with retry buttons to RelationshipList and PregnancyTracker.
 
 - **Image generation model** - Updated from deprecated `dall-e-3` to `gpt-image-1`
   - Made image model configurable via `AI_IMAGE_MODEL` env var (default: `gpt-image-1`)

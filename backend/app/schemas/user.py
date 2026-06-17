@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from pydantic import UUID4
+from pydantic import UUID4, Field
 
 from app.models.user import UserBase
 from app.utils.partial import optional
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 class UserCreate(UserBase):
-    password: str
+    password: str = Field(min_length=8, max_length=128)
 
 
 class UserRead(UserBase):

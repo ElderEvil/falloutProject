@@ -29,17 +29,6 @@ const normalizedItemType = computed(() => {
   return props.itemType
 })
 
-// Debug: Log item data on mount
-console.log(
-  '[StorageItemCard] Item type:',
-  props.itemType,
-  '→ normalized:',
-  normalizedItemType.value
-)
-console.log('[StorageItemCard] Item fields:', Object.keys(props.item))
-console.log('[StorageItemCard] weapon_subtype:', props.item.weapon_subtype)
-console.log('[StorageItemCard] outfit_type:', props.item.outfit_type)
-
 // Get item display name
 const itemName = computed(() => {
   return props.item.name || 'Unknown Item'

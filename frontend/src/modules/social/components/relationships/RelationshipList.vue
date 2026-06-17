@@ -19,6 +19,13 @@
       <p class="mt-2" :style="{ color: 'var(--color-theme-primary)' }">Loading relationships...</p>
     </div>
 
+    <div v-else-if="error" class="error-state text-center py-8">
+      <UCard glow crt class="p-6">
+        <p class="text-red-400 mb-4">{{ error }}</p>
+        <UButton variant="danger" @click="retryFetch()">Retry</UButton>
+      </UCard>
+    </div>
+
     <div v-else-if="filteredRelationships.length === 0" class="empty-state">
       <Icon icon="mdi:heart-outline" class="empty-icon" />
       <p class="empty-text">{{ emptyMessage }}</p>
@@ -41,12 +48,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useRelationshipStore } from '../../stores/relationship'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import RelationshipCard from './RelationshipCard.vue'
 import UButton from '@/core/components/ui/UButton.vue'
+import UCard from '@/core/components/ui/UCard.vue'
 
 interface Props {
   vaultId: string
@@ -60,6 +68,7 @@ const dwellerStore = useDwellerStore()
 
 const relationships = computed(() => relationshipStore.relationships)
 const isLoading = computed(() => relationshipStore.isLoading)
+const error = ref<string | null>(null)
 
 const filteredRelationships = computed(() => {
   let filtered = [...relationships.value]
@@ -108,7 +117,16 @@ function getDwellerName(dwellerId: string): string {
 }
 
 async function refreshRelationships() {
-  await relationshipStore.fetchVaultRelationships(props.vaultId)
+  error.value = null
+  try {
+    await relationshipStore.fetchVaultRelationships(props.vaultId)
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to load relationships'
+  }
+}
+
+function retryFetch() {
+  refreshRelationships()
 }
 
 async function initiateRomance(relationshipId: string) {

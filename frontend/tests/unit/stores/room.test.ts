@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useRoomStore } from '@/stores/room'
-import { useVaultStore } from '@/stores/vault'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import axios from '@/core/plugins/axios'
 import { AxiosError } from 'axios'
 

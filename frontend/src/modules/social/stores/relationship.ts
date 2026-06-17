@@ -42,6 +42,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
     } catch (error: unknown) {
       console.error('Failed to fetch relationships:', error)
       toast.error(getErrorMessage(error))
+      throw error
     } finally {
       isLoading.value = false
     }
@@ -54,6 +55,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
     } catch (error: unknown) {
       console.error('Failed to fetch pregnancies:', error)
       toast.error(getErrorMessage(error))
+      throw error
     }
   }
 

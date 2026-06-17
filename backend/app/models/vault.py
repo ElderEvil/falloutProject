@@ -53,7 +53,7 @@ class VaultBase(SQLModel):
 
 
 class Vault(BaseUUIDModel, VaultBase, TimeStampMixin, SoftDeleteMixin, table=True):
-    user_id: UUID4 = Field(default=None, foreign_key="user.id")
+    user_id: UUID4 = Field(default=None, foreign_key="user.id", index=True)
     user: "User" = Relationship(back_populates="vaults")
 
     dwellers: list["Dweller"] = Relationship(back_populates="vault", cascade_delete=True)

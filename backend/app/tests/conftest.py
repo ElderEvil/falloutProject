@@ -39,12 +39,28 @@ mock_storage_module.get_storage_client.return_value = mock_instance
 sys.modules["app.services.storage"] = mock_storage_module
 sys.modules["app.services.storage.factory"] = mock_storage_module.factory
 
+# Override Redis client with fakeredis so tests run without external Redis
+import fakeredis.aioredis  # noqa: E402
+
 from app import crud  # noqa: E402
+from app.api.deps import get_redis_client  # noqa: E402
 from app.db.session import get_async_session  # noqa: E402
 from app.schemas.user import UserCreate  # noqa: E402
 from app.tests.utils.user import authentication_token_from_email  # noqa: E402
 from app.tests.utils.utils import get_superuser_token_headers  # noqa: E402
 from main import app  # noqa: E402
+
+
+async def _fake_redis_client():
+    """Yield a fakeredis client for test dependency override."""
+    client = fakeredis.aioredis.FakeRedis(decode_responses=True)
+    try:
+        yield client
+    finally:
+        await client.aclose()
+
+
+app.dependency_overrides[get_redis_client] = _fake_redis_client
 
 
 @pytest.fixture(scope="session")

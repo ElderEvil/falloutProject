@@ -55,7 +55,7 @@ describe('Relationship Store', () => {
       vi.mocked(axios.get).mockRejectedValueOnce(new Error('Network error'))
 
       const store = useRelationshipStore()
-      await store.fetchVaultRelationships('vault-1')
+      await expect(store.fetchVaultRelationships('vault-1')).rejects.toThrow('Network error')
 
       expect(store.relationships).toEqual([])
       expect(store.isLoading).toBe(false)

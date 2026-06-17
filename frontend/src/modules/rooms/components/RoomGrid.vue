@@ -10,6 +10,7 @@ import { useRoomInteractions } from '../composables/useRoomInteractions'
 import { useHoverPreview } from '../composables/useHoverPreview'
 import { useRoomRendering } from '../composables/useRoomRendering'
 import { useToast } from '@/core/composables/useToast'
+import { API_BASE_URL } from '@/core/config/api'
 import RoomDwellers from '@/modules/dwellers/components/RoomDwellers.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import { Icon } from '@iconify/vue'
@@ -53,7 +54,7 @@ const getRoomImageUrl = (room: Room): string | null => {
   if (!room.image_url) {
     return null
   }
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+  const baseUrl = API_BASE_URL
   return `${baseUrl}${room.image_url}`
 }
 
@@ -138,8 +139,6 @@ const placeRoom = async (x: number, y: number) => {
         incremental_cost: selectedRoom.incremental_cost,
         t2_upgrade_cost: selectedRoom.t2_upgrade_cost,
         t3_upgrade_cost: selectedRoom.t3_upgrade_cost,
-        capacity_formula: selectedRoom.capacity_formula,
-        output_formula: selectedRoom.output_formula,
         size_min: selectedRoom.size_min,
         size_max: selectedRoom.size_max,
         size: selectedRoom.size_min, // Use size_min as initial size

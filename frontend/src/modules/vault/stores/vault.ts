@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { useLocalStorage, useIntervalFn } from '@vueuse/core'
 import { ref, computed } from 'vue'
 import axios from '@/core/plugins/axios'
+import { handleStoreError } from '@/core/utils/errorHandler'
 import type { components } from '@/core/types/api.generated'
 
 // Use generated API types
@@ -43,7 +44,7 @@ export const useVaultStore = defineStore('vault', () => {
             loadedVaults.value[activeVaultId.value] = response.data
           }
         } catch (error) {
-          console.error('Failed to poll resources', error)
+          handleStoreError(error, 'Failed to poll resources')
         }
       }
     },
@@ -70,7 +71,7 @@ export const useVaultStore = defineStore('vault', () => {
       })
       vaults.value = response.data
     } catch (error) {
-      console.error('Failed to fetch vaults', error)
+      handleStoreError(error, 'Failed to fetch vaults')
     }
   }
 
@@ -87,7 +88,7 @@ export const useVaultStore = defineStore('vault', () => {
       )
       await fetchVaults(token)
     } catch (error) {
-      console.error('Failed to create vault', error)
+      handleStoreError(error, 'Failed to create vault')
     }
   }
 
@@ -116,7 +117,7 @@ export const useVaultStore = defineStore('vault', () => {
         console.info('Vault soft deleted - Data preserved for potential recovery')
       }
     } catch (error) {
-      console.error('Failed to delete vault', error)
+      handleStoreError(error, 'Failed to delete vault')
     }
   }
 
@@ -129,7 +130,7 @@ export const useVaultStore = defineStore('vault', () => {
       loadedVaults.value[id] = response.data
       activeVaultId.value = id
     } catch (error) {
-      console.error('Failed to load vault', error)
+      handleStoreError(error, 'Failed to load vault')
       throw error
     } finally {
       isLoading.value = false
@@ -144,7 +145,7 @@ export const useVaultStore = defineStore('vault', () => {
       loadedVaults.value[id] = response.data
       activeVaultId.value = id
     } catch (error) {
-      console.error('Failed to refresh vault', error)
+      handleStoreError(error, 'Failed to refresh vault')
       throw error
     }
   }
@@ -172,7 +173,7 @@ export const useVaultStore = defineStore('vault', () => {
       gameState.value = response.data
       return response.data
     } catch (error) {
-      console.error('Failed to fetch game state', error)
+      handleStoreError(error, 'Failed to fetch game state')
       throw error
     }
   }
@@ -193,7 +194,7 @@ export const useVaultStore = defineStore('vault', () => {
       stopResourcePolling()
       return response.data
     } catch (error) {
-      console.error('Failed to pause vault', error)
+      handleStoreError(error, 'Failed to pause vault')
       throw error
     }
   }
@@ -214,7 +215,7 @@ export const useVaultStore = defineStore('vault', () => {
       startResourcePolling()
       return response.data
     } catch (error) {
-      console.error('Failed to resume vault', error)
+      handleStoreError(error, 'Failed to resume vault')
       throw error
     }
   }

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import DwellerFilterPanel from '@/modules/dwellers/components/DwellerFilterPanel.vue'
-import { useDwellerStore } from '@/stores/dweller'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 
 describe('DwellerFilterPanel', () => {
   beforeEach(() => {

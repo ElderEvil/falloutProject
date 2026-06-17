@@ -36,6 +36,7 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
     } catch (error: unknown) {
       console.error('Failed to fetch pregnancies:', error)
       toast.error(getErrorMessage(error))
+      throw error
     } finally {
       isLoading.value = false
     }

@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import { useDwellerStore } from '@/stores/dweller'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useExplorationStore } from '@/stores/exploration'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useToast } from '@/core/composables/useToast'
@@ -22,7 +22,6 @@ const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
 const vaultMedicalSupplies = computed(() => {
   const v = currentVault.value
-  console.log('[WastelandPanel] vault:', v?.id, 'stimpack:', v?.stimpack, 'radaway:', v?.radaway)
   return {
     stimpaks: v?.stimpack ?? 0,
     radaways: v?.radaway ?? 0,

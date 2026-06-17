@@ -88,7 +88,7 @@ async def test_building_storage_room_updates_storage_capacity(async_session: Asy
         tier=1,
         size=3,
         ability=SPECIALEnum.ENDURANCE,
-        capacity=20,
+        capacity=30,
         population_required=None,
         base_cost=300,
         incremental_cost=75,
@@ -106,7 +106,94 @@ async def test_building_storage_room_updates_storage_capacity(async_session: Asy
     storage = storage_result.scalars().first()
 
     assert storage is not None, "Storage should be created when building storage room"
-    assert storage.max_space == 20, f"Expected storage max_space to be 20, got {storage.max_space}"
-    assert storage.max_space == initial_max_space + 20, (
-        f"Expected storage max_space to increase by 20, but went from {initial_max_space} to {storage.max_space}"
+    assert storage.max_space == 30, f"Expected storage max_space to be 30, got {storage.max_space}"
+    assert storage.max_space == initial_max_space + 30, (
+        f"Expected storage max_space to increase by 30, but went from {initial_max_space} to {storage.max_space}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_building_living_room_without_capacity_formula_computes_capacity(async_session: AsyncSession) -> None:
+    """Test that building a living room without capacity_formula still computes correct capacity."""
+    user_data = create_fake_user()
+    user_in = UserCreate(**user_data)
+    user = await crud.user.create(async_session, obj_in=user_in)
+    vault_data = create_fake_vault()
+    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(async_session, obj_in=vault_in)
+
+    initial_population_max = vault.population_max
+
+    # Deliberately omit capacity_formula and capacity — backend should derive both
+    room_data = RoomCreate(
+        vault_id=vault.id,
+        name="Living room",
+        category=RoomTypeEnum.CAPACITY,
+        tier=1,
+        size=3,
+        ability=SPECIALEnum.CHARISMA,
+        population_required=None,
+        base_cost=100,
+        incremental_cost=25,
+        t2_upgrade_cost=500,
+        t3_upgrade_cost=1500,
+        size_min=3,
+        size_max=9,
+        coordinate_x=2,
+        coordinate_y=2,
+    )
+
+    created_room = await room_crud.build(db_session=async_session, obj_in=room_data)
+
+    await async_session.refresh(vault)
+
+    assert created_room.capacity == 8, (
+        f"Expected capacity 8 (backend-derived from formula 2*S/3*(L+4)-2), got {created_room.capacity}"
+    )
+    assert vault.population_max == initial_population_max + 8, (
+        f"Expected population_max to increase by 8, but went from {initial_population_max} to {vault.population_max}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_building_living_room_with_wrong_capacity_formula_backend_wins(async_session: AsyncSession) -> None:
+    """Test that building a living room with wrong capacity_formula still uses backend-derived value."""
+    user_data = create_fake_user()
+    user_in = UserCreate(**user_data)
+    user = await crud.user.create(async_session, obj_in=user_in)
+    vault_data = create_fake_vault()
+    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(async_session, obj_in=vault_in)
+
+    initial_population_max = vault.population_max
+
+    # Send a wrong capacity_formula — backend must override it
+    room_data = RoomCreate(
+        vault_id=vault.id,
+        name="Living room",
+        category=RoomTypeEnum.CAPACITY,
+        tier=1,
+        size=3,
+        ability=SPECIALEnum.CHARISMA,
+        capacity_formula="999",
+        population_required=None,
+        base_cost=100,
+        incremental_cost=25,
+        t2_upgrade_cost=500,
+        t3_upgrade_cost=1500,
+        size_min=3,
+        size_max=9,
+        coordinate_x=3,
+        coordinate_y=3,
+    )
+
+    created_room = await room_crud.build(db_session=async_session, obj_in=room_data)
+
+    await async_session.refresh(vault)
+
+    assert created_room.capacity == 8, (
+        f"Expected capacity 8 (backend-derived formula, ignoring client-supplied '999'), got {created_room.capacity}"
+    )
+    assert vault.population_max == initial_population_max + 8, (
+        f"Expected population_max to increase by 8, but went from {initial_population_max} to {vault.population_max}"
     )

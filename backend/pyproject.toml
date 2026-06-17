@@ -1,6 +1,6 @@
 [project]
 name = "fallout-shelter-fast-api"
-version = "2.14.3"
+version = "2.14.4"
 authors = [{ name = "ElderEvil", email = "elder.evil.dev@proton.me" }, ]
 description = "Fallout Shelter FastAPI Game is a web-based simulation game where the player manages a vault full of dwellers, balancing their needs and resources to keep the vault thriving."
 requires-python = ">=3.12,<3.14"
@@ -38,6 +38,7 @@ test = [
     "aiosqlite>=0.22.1",
     "coverage>=7.14.1",
     "factory-boy>=3.3.3",
+    "fakeredis[lua]>=2.36.0",
     "pytest>=9.1.0",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.0.0",

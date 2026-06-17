@@ -17,8 +17,6 @@ export function useVersionDetection() {
   const currentVersion = ref(__APP_VERSION__ || '2.7.0')
   const lastSeenVersion = ref<string | null>(localStorage.getItem(STORAGE_KEY))
   const showChangelogModal = ref(false)
-  const isLoading = ref(false)
-  const error = ref('')
 
   // Computed properties
   const versionInfo = computed<VersionInfo>(() => ({
@@ -67,13 +65,10 @@ export function useVersionDetection() {
     lastSeenVersion.value = null
   }
 
-  // Auto-show changelog when version changes
   watch(
     [currentVersion, () => authStore.isAuthenticated],
     async ([newVersion, isAuthenticated]) => {
-      // Only show changelog for authenticated users when we have a version
       if (isAuthenticated && newVersion && hasVersionUpdate.value) {
-        // Small delay to ensure app is fully loaded
         setTimeout(() => {
           showChangelogModal.value = true
         }, 1000)
@@ -87,8 +82,6 @@ export function useVersionDetection() {
     currentVersion: readonly(currentVersion),
     lastSeenVersion: readonly(lastSeenVersion),
     showChangelogModal: readonly(showChangelogModal),
-    isLoading: readonly(isLoading),
-    error: readonly(error),
 
     // Computed
     versionInfo: readonly(versionInfo),

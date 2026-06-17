@@ -12,8 +12,12 @@ if TYPE_CHECKING:
 
 
 class RelationshipBase(SQLModel):
-    dweller_1_id: UUID4 = Field(sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="CASCADE")))
-    dweller_2_id: UUID4 = Field(sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="CASCADE")))
+    dweller_1_id: UUID4 = Field(
+        sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="CASCADE"), index=True),
+    )
+    dweller_2_id: UUID4 = Field(
+        sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="CASCADE"), index=True),
+    )
     relationship_type: RelationshipTypeEnum = Field(default=RelationshipTypeEnum.ACQUAINTANCE)
     affinity: int = Field(default=0, ge=0, le=100)
 

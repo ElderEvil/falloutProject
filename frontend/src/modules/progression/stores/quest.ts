@@ -34,24 +34,27 @@ export const useQuestStore = defineStore('quest', () => {
   }
 
   // Computed
-  // Quest is available if visible and not started yet (can assign party)
-  const activeQuests = computed(() =>
-    vaultQuests.value.filter(
-      (quest) => quest.is_visible && quest.started_at != null && !quest.is_completed
-    )
-  )
+  // Single pass classification of all vault quests
+  const questCategories = computed(() => {
+    const active: VaultQuest[] = []
+    const completed: VaultQuest[] = []
+    const available: VaultQuest[] = []
+    const allVisible: VaultQuest[] = []
 
-  const completedQuests = computed(() => vaultQuests.value.filter((quest) => quest.is_completed))
+    for (const quest of vaultQuests.value) {
+      if (!quest.is_visible) continue
+      allVisible.push(quest)
+      if (quest.is_completed) {
+        completed.push(quest)
+      } else if (quest.started_at != null) {
+        active.push(quest)
+      } else {
+        available.push(quest)
+      }
+    }
 
-  // Quest is available if visible but not started (can still assign party)
-  const availableQuests = computed(() =>
-    vaultQuests.value.filter(
-      (quest) => quest.is_visible && quest.started_at == null && !quest.is_completed
-    )
-  )
-
-  // All visible quests (for "show all" toggle)
-  const allVisibleQuests = computed(() => vaultQuests.value.filter((quest) => quest.is_visible))
+    return { active, completed, available, allVisible }
+  })
 
   // Actions
   async function fetchAllQuests(): Promise<void> {
@@ -232,10 +235,7 @@ export const useQuestStore = defineStore('quest', () => {
     vaultQuests,
     isLoading,
     questPartyMap,
-    activeQuests,
-    availableQuests,
-    allVisibleQuests,
-    completedQuests,
+    questCategories,
     fetchAllQuests,
     fetchVaultQuests,
     fetchPartiesForActiveQuests,

@@ -17,6 +17,13 @@
       <p class="mt-2" :style="{ color: 'var(--color-theme-primary)' }">Loading pregnancies...</p>
     </div>
 
+    <div v-else-if="error" class="text-center py-8">
+      <UCard glow crt class="p-6">
+        <p class="text-red-400 mb-4">{{ error }}</p>
+        <UButton variant="danger" @click="retryFetch()">Retry</UButton>
+      </UCard>
+    </div>
+
     <div v-else-if="pregnancies.length === 0" class="text-center py-8 text-gray-400">
       <p>No active pregnancies in this vault.</p>
       <p class="text-sm mt-2">Assign partners to living quarters to start families!</p>
@@ -44,6 +51,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import PregnancyCard from './PregnancyCard.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import UBadge from '@/core/components/ui/UBadge.vue'
+import UCard from '@/core/components/ui/UCard.vue'
 
 interface Props {
   vaultId: string
@@ -63,6 +71,7 @@ const authStore = useAuthStore()
 const pregnancies = computed(() => pregnancyStore.activePregnancies)
 const isLoading = computed(() => pregnancyStore.isLoading)
 const deliveringId = ref<string | null>(null)
+const error = ref<string | null>(null)
 
 const dueCount = computed(() => {
   return pregnancies.value.filter((p) => p.is_due).length
@@ -84,7 +93,16 @@ function getDwellerName(dwellerId: string): string {
 }
 
 async function refreshPregnancies() {
-  await pregnancyStore.fetchVaultPregnancies(props.vaultId)
+  error.value = null
+  try {
+    await pregnancyStore.fetchVaultPregnancies(props.vaultId)
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to load pregnancies'
+  }
+}
+
+function retryFetch() {
+  refreshPregnancies()
 }
 
 async function deliverBaby(pregnancyId: string) {

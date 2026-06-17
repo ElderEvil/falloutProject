@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import { useDwellerStore } from '@/stores/dweller'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useExplorationStore } from '../stores/exploration'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useQuestStore } from '@/modules/progression/stores/quest'
@@ -13,6 +14,8 @@ import ExplorerCard from '../components/ExplorerCard.vue'
 import QuestPartyCard from '../components/QuestPartyCard.vue'
 import EventTimeline from '../components/EventTimeline.vue'
 import ExplorationRewardsModal from '../components/ExplorationRewardsModal.vue'
+import UCard from '@/core/components/ui/UCard.vue'
+import UButton from '@/core/components/ui/UButton.vue'
 import type { RewardsSummary } from '../stores/exploration'
 
 const route = useRoute()
@@ -27,28 +30,37 @@ const vaultId = computed(() => route.params.id as string)
 const selectedExplorerId = ref<string | null>(null)
 const selectedQuestPartyId = ref<string | null>(null)
 
+// Store refs for loading/error state
+const { isLoading: explorationLoading, error: explorationError } =
+  storeToRefs(explorationStore)
+
 // Rewards modal state
 const showRewardsModal = ref(false)
 const completedExplorationRewards = ref<RewardsSummary | null>(null)
 const completedDwellerName = ref('')
 
+// Centralized data loading function
+const loadData = async () => {
+  if (!vaultId.value || !authStore.token) return
+
+  try {
+    await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
+    await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
+    await questStore.fetchVaultQuests(vaultId.value)
+    await questStore.fetchPartiesForActiveQuests(vaultId.value)
+
+    // Fetch full dweller data for explorers (includes weapon/outfit)
+    for (const exploration of activeExplorationsArray.value) {
+      await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
+    }
+  } catch (error) {
+    console.error('Failed to load exploration data:', error)
+  }
+}
+
 // Fetch explorations on mount
 onMounted(async () => {
-  if (vaultId.value && authStore.token) {
-    try {
-      await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
-      await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
-      await questStore.fetchVaultQuests(vaultId.value)
-      await questStore.fetchPartiesForActiveQuests(vaultId.value)
-
-      // Fetch full dweller data for explorers (includes weapon/outfit)
-      for (const exploration of activeExplorationsArray.value) {
-        await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
-      }
-    } catch (error) {
-      console.error('Failed to load exploration data:', error)
-    }
-  }
+  await loadData()
 })
 
 // Poll for updates every 15 seconds
@@ -97,7 +109,7 @@ const getPartyMembersForQuest = (questId: string) => {
 }
 
 const activeQuestsWithParty = computed(() => {
-  return questStore.activeQuests.filter((q) => {
+  return questStore.questCategories.active.filter((q) => {
     const party = questStore.questPartyMap[q.id]
     return party && party.length > 0
   })
@@ -223,8 +235,38 @@ const closeRewardsModal = () => {
 
       <!-- Main Content -->
       <div class="exploration-content">
+        <!-- Loading State -->
+        <div v-if="explorationLoading" class="loading-state">
+          <UCard glow crt padding="lg">
+            <div class="loading-content">
+              <Icon icon="mdi:loading" class="loading-spinner" />
+              <p class="loading-text">Scanning wasteland frequencies...</p>
+              <div class="loading-bars">
+                <div class="loading-bar flicker" />
+                <div class="loading-bar flicker-slow" />
+                <div class="loading-bar flicker-random" />
+              </div>
+            </div>
+          </UCard>
+        </div>
+
+        <!-- Error State -->
+        <div v-else-if="explorationError" class="error-state">
+          <UCard padding="lg" :bordered="true">
+            <div class="error-content">
+              <Icon icon="mdi:alert-circle" class="error-icon" />
+              <h3 class="error-title">Signal Lost</h3>
+              <p class="error-message">{{ explorationError }}</p>
+              <UButton variant="secondary" size="md" @click="loadData">
+                <Icon icon="mdi:refresh" class="mr-2" />
+                Retry Connection
+              </UButton>
+            </div>
+          </UCard>
+        </div>
+
         <!-- Explorer Cards List -->
-        <div class="explorers-section">
+        <div v-else class="explorers-section">
           <div
             v-if="activeExplorationsArray.length === 0 && activeQuestsWithParty.length === 0"
             class="empty-state"
@@ -395,6 +437,109 @@ const closeRewardsModal = () => {
 
 .explorers-section {
   min-height: 400px;
+}
+
+/* Loading State */
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.loading-spinner {
+  width: 4rem;
+  height: 4rem;
+  color: var(--color-theme-primary);
+  filter: drop-shadow(0 0 10px var(--color-theme-glow));
+  animation: spin 1.5s linear infinite;
+}
+
+.loading-text {
+  font-size: 1rem;
+  color: var(--color-theme-primary);
+  text-shadow: 0 0 6px var(--color-theme-glow);
+}
+
+.loading-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 300px;
+}
+
+.loading-bar {
+  height: 4px;
+  background: var(--color-theme-primary);
+  border-radius: 2px;
+  opacity: 0.3;
+}
+
+.loading-bar:nth-child(1) {
+  width: 100%;
+}
+
+.loading-bar:nth-child(2) {
+  width: 75%;
+}
+
+.loading-bar:nth-child(3) {
+  width: 50%;
+}
+
+/* Error State */
+.error-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.error-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+.error-icon {
+  width: 4rem;
+  height: 4rem;
+  color: var(--color-danger, #ef4444);
+  filter: drop-shadow(0 0 10px var(--color-danger, #ef4444));
+}
+
+.error-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-danger, #ef4444);
+  text-shadow: 0 0 6px var(--color-danger, #ef4444);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.error-message {
+  font-size: 0.875rem;
+  color: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.7);
+  max-width: 400px;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .empty-state {

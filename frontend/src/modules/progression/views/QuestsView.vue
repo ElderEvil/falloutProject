@@ -60,8 +60,8 @@ const hasOverseerOffice = computed(() => {
 })
 
 // Computed properties for quest lists
-const activeQuests = computed(() => questStore.activeQuests)
-const completedQuests = computed(() => questStore.completedQuests)
+const activeQuests = computed(() => questStore.questCategories.active)
+const completedQuests = computed(() => questStore.questCategories.completed)
 
 // Get party members for a specific quest
 const getPartyMembersForQuest = async (quest: VaultQuest): Promise<DwellerShort[]> => {

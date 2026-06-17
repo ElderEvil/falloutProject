@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import axios from '@/core/plugins/axios'
+import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 
 export interface ExplorationEvent {
@@ -87,17 +88,17 @@ export const useExplorationStore = defineStore('exploration', () => {
   const error = ref<string | null>(null)
 
   // Getters
-  const getExplorationByDwellerId = computed(() => (dwellerId: string) => {
+  function getExplorationByDwellerId(dwellerId: string) {
     return explorations.value.find((e) => e.dweller_id === dwellerId && e.status === 'active')
-  })
+  }
 
-  const getActiveExplorationsForVault = computed(() => (vaultId: string) => {
+  function getActiveExplorationsForVault(vaultId: string) {
     return explorations.value.filter((e) => e.vault_id === vaultId && e.status === 'active')
-  })
+  }
 
-  const isDwellerExploring = computed(() => (dwellerId: string) => {
+  function isDwellerExploring(dwellerId: string) {
     return explorations.value.some((e) => e.dweller_id === dwellerId && e.status === 'active')
-  })
+  }
 
   // Actions
   async function sendDwellerToWasteland(
@@ -130,7 +131,7 @@ export const useExplorationStore = defineStore('exploration', () => {
 
       return exploration
     } catch (err) {
-      console.error('Failed to send dweller to wasteland:', err)
+      handleStoreError(err, 'Failed to send dweller to wasteland')
       error.value = 'Failed to send dweller to wasteland'
       toast.error('Failed to send dweller to wasteland')
       throw err
@@ -165,7 +166,7 @@ export const useExplorationStore = defineStore('exploration', () => {
 
       return response.data
     } catch (err) {
-      console.error('Failed to fetch explorations:', err)
+      handleStoreError(err, 'Failed to fetch explorations')
       error.value = 'Failed to fetch explorations'
       throw err
     } finally {
@@ -197,7 +198,7 @@ export const useExplorationStore = defineStore('exploration', () => {
 
       return response.data
     } catch (err) {
-      console.error('Failed to fetch exploration details:', err)
+      handleStoreError(err, 'Failed to fetch exploration details')
       throw err
     }
   }
@@ -213,7 +214,7 @@ export const useExplorationStore = defineStore('exploration', () => {
 
       return response.data as ExplorationProgress
     } catch (err) {
-      console.error('Failed to fetch exploration progress:', err)
+      handleStoreError(err, 'Failed to fetch exploration progress')
       throw err
     }
   }
@@ -245,7 +246,7 @@ export const useExplorationStore = defineStore('exploration', () => {
       toast.success('Dweller recalled from wasteland!')
       return response.data
     } catch (err) {
-      console.error('Failed to recall dweller:', err)
+      handleStoreError(err, 'Failed to recall dweller')
       error.value = 'Failed to recall dweller'
       toast.error('Failed to recall dweller')
       throw err
@@ -281,7 +282,7 @@ export const useExplorationStore = defineStore('exploration', () => {
       toast.success('Exploration completed successfully!')
       return response.data
     } catch (err) {
-      console.error('Failed to complete exploration:', err)
+      handleStoreError(err, 'Failed to complete exploration')
       error.value = 'Failed to complete exploration'
       toast.error('Failed to complete exploration')
       throw err

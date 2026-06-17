@@ -337,6 +337,93 @@ describe('FormattedChangeDescription', () => {
     })
   })
 
+  describe('Malformed Input Regression Tests', () => {
+    it('should handle lone backtick without hanging', () => {
+      const wrapper = mount(FormattedChangeDescription, {
+        props: {
+          description: '`',
+        },
+      })
+
+      expect(wrapper.text()).toBe('`')
+    })
+
+    it('should handle lone backtick mid-text without hanging', () => {
+      const wrapper = mount(FormattedChangeDescription, {
+        props: {
+          description: 'text ` unclosed more text',
+        },
+      })
+
+      expect(wrapper.text()).toBe('text ` unclosed more text')
+    })
+
+    it('should handle single asterisk without hanging', () => {
+      const wrapper = mount(FormattedChangeDescription, {
+        props: {
+          description: '*',
+        },
+      })
+
+      expect(wrapper.text()).toBe('*')
+    })
+
+    it('should handle double asterisk without closing without hanging', () => {
+      const wrapper = mount(FormattedChangeDescription, {
+        props: {
+          description: '**unclosed',
+        },
+      })
+
+      expect(wrapper.text()).toBe('**unclosed')
+      expect(wrapper.find('strong').exists()).toBe(false)
+    })
+
+    it('should handle triple asterisk without closing without hanging', () => {
+      const wrapper = mount(FormattedChangeDescription, {
+        props: {
+          description: '***test',
+        },
+      })
+
+      expect(wrapper.text()).toBe('***test')
+      expect(wrapper.find('strong').exists()).toBe(false)
+    })
+
+    it('should handle bare "http" without :// as plain text', () => {
+      const wrapper = mount(FormattedChangeDescription, {
+        props: {
+          description: 'check http out',
+        },
+      })
+
+      expect(wrapper.text()).toBe('check http out')
+      expect(wrapper.find('a').exists()).toBe(false)
+    })
+
+    it('should handle backtick-wrapped URL as code, not link', () => {
+      const wrapper = mount(FormattedChangeDescription, {
+        props: {
+          description: '`https://example.com`',
+        },
+      })
+
+      expect(wrapper.find('code').exists()).toBe(true)
+      expect(wrapper.find('code').text()).toBe('https://example.com')
+      expect(wrapper.find('a').exists()).toBe(false)
+    })
+
+    it('should handle mixed lone backtick and single asterisk', () => {
+      const wrapper = mount(FormattedChangeDescription, {
+        props: {
+          description: '` and * in text',
+        },
+      })
+
+      expect(wrapper.text()).toBe('` and * in text')
+    })
+  })
+
   describe('Component Props', () => {
     it('should accept description prop', () => {
       const wrapper = mount(FormattedChangeDescription, {

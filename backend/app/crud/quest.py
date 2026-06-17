@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any
 
@@ -22,6 +23,28 @@ from app.utils.exceptions import ResourceNotFoundException
 logger = logging.getLogger(__name__)
 
 
+async def _batch_load_quest_details(
+    db_session: AsyncSession,
+    quest_ids: list[UUID4],
+) -> tuple[dict[UUID4, list[QuestRequirement]], dict[UUID4, list[QuestReward]]]:
+    """Batch load requirements and rewards for multiple quests in 2 queries."""
+    reqs_by_quest: dict[UUID4, list[QuestRequirement]] = defaultdict(list)
+    if quest_ids:
+        req_stmt = select(QuestRequirement).where(QuestRequirement.quest_id.in_(quest_ids))
+        req_result = await db_session.execute(req_stmt)
+        for req in req_result.scalars().all():
+            reqs_by_quest[req.quest_id].append(req)
+
+    rewards_by_quest: dict[UUID4, list[QuestReward]] = defaultdict(list)
+    if quest_ids:
+        rew_stmt = select(QuestReward).where(QuestReward.quest_id.in_(quest_ids))
+        rew_result = await db_session.execute(rew_stmt)
+        for rew in rew_result.scalars().all():
+            rewards_by_quest[rew.quest_id].append(rew)
+
+    return reqs_by_quest, rewards_by_quest
+
+
 class CRUDQuest(
     CRUDBase[Quest, QuestCreate, QuestUpdate], VaultActionsMixin[Vault], CompletionMixin[VaultQuestCompletionLink]
 ):
@@ -39,15 +62,13 @@ class CRUDQuest(
 
         _ = include_deleted
 
+        quest_ids = [q.id for q in quests]
+        reqs_by_quest, rewards_by_quest = await _batch_load_quest_details(db_session, quest_ids)
+
         result_items = []
         for quest in quests:
-            req_query = select(QuestRequirement).where(QuestRequirement.quest_id == quest.id)
-            req_result = await db_session.execute(req_query)
-            reqs = req_result.scalars().all()
-
-            reward_query = select(QuestReward).where(QuestReward.quest_id == quest.id)
-            reward_result = await db_session.execute(reward_query)
-            rewards = reward_result.scalars().all()
+            reqs = reqs_by_quest.get(quest.id, [])
+            rewards = rewards_by_quest.get(quest.id, [])
 
             result_items.append(
                 QuestRead(
@@ -118,21 +139,23 @@ class CRUDQuest(
         response = await db_session.execute(query)
         quests = response.scalars().all()
 
+        quest_ids = [q.id for q in quests]
+        reqs_by_quest, rewards_by_quest = await _batch_load_quest_details(db_session, quest_ids)
+
+        links_by_quest: dict[UUID4, VaultQuestCompletionLink] = {}
+        if quest_ids:
+            link_stmt = select(self.link_model).where(
+                self.link_model.quest_id.in_(quest_ids),
+                self.link_model.vault_id == vault_id,
+            )
+            link_result = await db_session.execute(link_stmt)
+            links_by_quest = {link.quest_id: link for link in link_result.scalars().all()}
+
         result_items = []
         for quest in quests:
-            link_query = select(self.link_model).where(
-                self.link_model.quest_id == quest.id, self.link_model.vault_id == vault_id
-            )
-            link_result = await db_session.execute(link_query)
-            link = link_result.scalar_one_or_none()
-
-            req_query = select(QuestRequirement).where(QuestRequirement.quest_id == quest.id)
-            req_result = await db_session.execute(req_query)
-            reqs = req_result.scalars().all()
-
-            reward_query = select(QuestReward).where(QuestReward.quest_id == quest.id)
-            reward_result = await db_session.execute(reward_query)
-            rewards = reward_result.scalars().all()
+            link = links_by_quest.get(quest.id)
+            reqs = reqs_by_quest.get(quest.id, [])
+            rewards = rewards_by_quest.get(quest.id, [])
 
             result_items.append(
                 QuestRead(

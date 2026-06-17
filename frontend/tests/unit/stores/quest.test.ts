@@ -62,8 +62,8 @@ describe('Quest Store', () => {
         },
       ]
 
-      expect(store.activeQuests).toHaveLength(1)
-      expect(store.activeQuests[0].id).toBe('1')
+      expect(store.questCategories.active).toHaveLength(1)
+      expect(store.questCategories.active[0].id).toBe('1')
     })
 
     it('should filter completed quests', () => {
@@ -99,8 +99,8 @@ describe('Quest Store', () => {
         },
       ]
 
-      expect(store.completedQuests).toHaveLength(1)
-      expect(store.completedQuests[0].id).toBe('2')
+      expect(store.questCategories.completed).toHaveLength(1)
+      expect(store.questCategories.completed[0].id).toBe('2')
     })
 
     it('should filter available quests (not started)', () => {
@@ -137,8 +137,8 @@ describe('Quest Store', () => {
         },
       ]
 
-      expect(store.availableQuests).toHaveLength(1)
-      expect(store.availableQuests[0].id).toBe('2')
+      expect(store.questCategories.available).toHaveLength(1)
+      expect(store.questCategories.available[0].id).toBe('2')
     })
   })
 

@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { Weapon, Outfit } from '../models/equipment'
 import * as equipmentService from '../services/equipment'
+import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 
 export const useEquipmentStore = defineStore('equipment', () => {
@@ -20,7 +21,7 @@ export const useEquipmentStore = defineStore('equipment', () => {
     try {
       weapons.value = await equipmentService.fetchWeapons(token, vaultId)
     } catch (err) {
-      console.error('Failed to fetch weapons:', err)
+      handleStoreError(err, 'Failed to fetch weapons')
       error.value = 'Failed to load weapons'
       toast.error('Failed to load weapons')
     } finally {
@@ -34,7 +35,7 @@ export const useEquipmentStore = defineStore('equipment', () => {
     try {
       outfits.value = await equipmentService.fetchOutfits(token, vaultId)
     } catch (err) {
-      console.error('Failed to fetch outfits:', err)
+      handleStoreError(err, 'Failed to fetch outfits')
       error.value = 'Failed to load outfits'
       toast.error('Failed to load outfits')
     } finally {
@@ -59,7 +60,7 @@ export const useEquipmentStore = defineStore('equipment', () => {
       toast.success('Weapon equipped successfully!')
       return weapon
     } catch (err) {
-      console.error('Failed to equip weapon:', err)
+      handleStoreError(err, 'Failed to equip weapon')
       toast.error('Failed to equip weapon')
       return null
     }
@@ -82,7 +83,7 @@ export const useEquipmentStore = defineStore('equipment', () => {
       toast.success('Weapon unequipped successfully!')
       return weapon
     } catch (err) {
-      console.error('Failed to unequip weapon:', err)
+      handleStoreError(err, 'Failed to unequip weapon')
       toast.error('Failed to unequip weapon')
       return null
     }
@@ -105,7 +106,7 @@ export const useEquipmentStore = defineStore('equipment', () => {
       toast.success('Outfit equipped successfully!')
       return outfit
     } catch (err) {
-      console.error('Failed to equip outfit:', err)
+      handleStoreError(err, 'Failed to equip outfit')
       toast.error('Failed to equip outfit')
       return null
     }
@@ -128,7 +129,7 @@ export const useEquipmentStore = defineStore('equipment', () => {
       toast.success('Outfit unequipped successfully!')
       return outfit
     } catch (err) {
-      console.error('Failed to unequip outfit:', err)
+      handleStoreError(err, 'Failed to unequip outfit')
       toast.error('Failed to unequip outfit')
       return null
     }

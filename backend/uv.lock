@@ -619,9 +619,6 @@ dependencies = [
 ]
 
 [package.dev-dependencies]
-dev = [
-    { name = "fakeredis", extra = ["lua"] },
-]
 lint = [
     { name = "prek" },
     { name = "ruff" },
@@ -631,6 +628,7 @@ test = [
     { name = "aiosqlite" },
     { name = "coverage" },
     { name = "factory-boy" },
+    { name = "fakeredis", extra = ["lua"] },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -667,7 +665,6 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "fakeredis", extras = ["lua"], specifier = ">=2.36.0" }]
 lint = [
     { name = "prek", specifier = ">=0.4.4" },
     { name = "ruff", specifier = ">=0.15.17" },
@@ -677,6 +674,7 @@ test = [
     { name = "aiosqlite", specifier = ">=0.22.1" },
     { name = "coverage", specifier = ">=7.14.1" },
     { name = "factory-boy", specifier = ">=3.3.3" },
+    { name = "fakeredis", extras = ["lua"], specifier = ">=2.36.0" },
     { name = "pytest", specifier = ">=9.1.0" },
     { name = "pytest-asyncio", specifier = ">=1.4.0" },
     { name = "pytest-cov", specifier = ">=7.0.0" },

@@ -55,7 +55,10 @@ const handleEscape = (event: KeyboardEvent) => {
 }
 
 // Register escape key listener when modal is open
-import { onMounted, onUnmounted, watch } from 'vue'
+import { useId, onMounted, onUnmounted, watch, computed } from 'vue'
+
+const modalTitleId = useId()
+const modalLabel = computed(() => props.title ? { 'aria-labelledby': modalTitleId } : { 'aria-label': 'Dialog' })
 
 watch(
   () => props.modelValue,
@@ -86,11 +89,14 @@ onUnmounted(() => {
       >
         <!-- Modal Content -->
         <div
+          role="dialog"
+          aria-modal="true"
+          v-bind="modalLabel"
           :class="[
             'bg-surface border-2 rounded-lg w-full crt-screen flex flex-col overflow-hidden',
+            'border-terminalGreen',
             sizeClasses[size],
           ]"
-          style="border-color: var(--color-terminal-green)"
           @click.stop
         >
           <!-- Header -->
@@ -99,7 +105,7 @@ onUnmounted(() => {
             class="flex items-center justify-between p-6 pb-4 flex-shrink-0"
           >
             <slot name="header">
-              <h2 class="text-2xl font-bold terminal-glow">{{ title }}</h2>
+              <h2 :id="modalTitleId" class="text-2xl font-bold terminal-glow">{{ title }}</h2>
             </slot>
             <button @click="close" class="modal-close-btn flex-shrink-0" aria-label="Close modal">
               <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -221,6 +221,62 @@ describe('RegisterForm', () => {
 
       expect(registerSpy).not.toHaveBeenCalled()
     })
+
+    it('should show error for password shorter than 8 characters', async () => {
+      const wrapper = mount(RegisterForm, {
+        global: {
+          plugins: [router],
+        },
+      })
+
+      await wrapper.find('#username').setValue('overseer')
+      await wrapper.find('#email').setValue('overseer@vault-tec.com')
+      await wrapper.find('#password').setValue('short')
+      await wrapper.find('#confirmPassword').setValue('short')
+      await wrapper.find('form').trigger('submit.prevent')
+
+      await flushPromises()
+
+      expect(wrapper.text()).toMatch(/at least 8|too short/i)
+    })
+
+    it('should not call register when password is too short', async () => {
+      const wrapper = mount(RegisterForm, {
+        global: {
+          plugins: [router],
+        },
+      })
+
+      const registerSpy = vi.spyOn(authStore, 'register')
+
+      await wrapper.find('#username').setValue('overseer')
+      await wrapper.find('#email').setValue('overseer@vault-tec.com')
+      await wrapper.find('#password').setValue('short')
+      await wrapper.find('#confirmPassword').setValue('short')
+      await wrapper.find('form').trigger('submit.prevent')
+
+      await flushPromises()
+
+      expect(registerSpy).not.toHaveBeenCalled()
+    })
+
+    it('should show error for invalid email format', async () => {
+      const wrapper = mount(RegisterForm, {
+        global: {
+          plugins: [router],
+        },
+      })
+
+      await wrapper.find('#username').setValue('overseer')
+      await wrapper.find('#email').setValue('notanemail')
+      await wrapper.find('#password').setValue('longenoughpassword')
+      await wrapper.find('#confirmPassword').setValue('longenoughpassword')
+      await wrapper.find('form').trigger('submit.prevent')
+
+      await flushPromises()
+
+      expect(wrapper.text()).toMatch(/valid email|invalid email/i)
+    })
   })
 
   describe('Form Submission', () => {

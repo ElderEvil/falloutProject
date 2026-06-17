@@ -60,7 +60,16 @@ const positionClasses = {
 <template>
   <div class="relative inline-block" ref="dropdownRef">
     <!-- Trigger -->
-    <div @click="toggle">
+    <div
+      role="button"
+      tabindex="0"
+      data-testid="dropdown-trigger"
+      :aria-expanded="String(isOpen)"
+      aria-haspopup="menu"
+      @click="toggle"
+      @keydown.enter.prevent="toggle"
+      @keydown.space.prevent="toggle"
+    >
       <slot name="trigger"></slot>
     </div>
 

@@ -48,10 +48,7 @@ const cardClasses = [
     <!-- Header Slot -->
     <div v-if="$slots.header || title" class="mb-4 border-b border-gray-700 pb-4">
       <slot name="header">
-        <h3
-          class="text-xl font-bold terminal-glow"
-          :style="{ color: 'var(--color-theme-primary)' }"
-        >
+        <h3 class="text-xl font-bold terminal-glow text-theme-primary">
           {{ title }}
         </h3>
       </slot>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { IconComponent } from '@/core/types/utils'
+import { useId } from 'vue'
 
 /**
  * UInput - Terminal-themed input component
@@ -59,6 +60,8 @@ const inputClasses = [
   .filter(Boolean)
   .join(' ')
 
+const inputId = useId()
+
 const handleInput = (event: InputEvent) => {
   const target = event.target as HTMLInputElement
   emit('update:modelValue', target.value)
@@ -68,7 +71,7 @@ const handleInput = (event: InputEvent) => {
 <template>
   <div class="w-full">
     <!-- Label -->
-    <label v-if="label" class="block text-sm font-medium text-gray-300 mb-1">
+    <label v-if="label" :for="inputId" class="block text-sm font-medium text-gray-300 mb-1">
       {{ label }}
       <span v-if="required" class="text-danger">*</span>
     </label>
@@ -82,6 +85,8 @@ const handleInput = (event: InputEvent) => {
 
       <!-- Input Field -->
       <input
+        :id="inputId"
+        data-testid="ui-input"
         :type="type"
         :value="modelValue"
         :placeholder="placeholder"

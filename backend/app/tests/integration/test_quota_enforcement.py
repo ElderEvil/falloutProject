@@ -24,8 +24,8 @@ from app.models.dweller import Dweller
 from app.models.llm_interaction import LLMInteraction
 from app.models.user import User
 from app.schemas.common import GenderEnum, RarityEnum
-from app.schemas.dweller import DwellerCreate
-from app.schemas.dweller_ai import DwellerBackstory, DwellerVisualAttributes
+from app.schemas.dweller import DwellerCreate, DwellerVisualAttributes
+from app.schemas.dweller_ai import DwellerBackstory
 from app.schemas.user import UserCreate
 from app.services.conversation_service import conversation_service
 from app.services.dweller_ai import dweller_ai

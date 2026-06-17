@@ -72,6 +72,10 @@ async def test_create_random_common_dweller(async_session: AsyncSession):
     dweller = await crud.dweller.create_random(db_session=async_session, vault_id=vault.id)
     assert dweller.id
     assert dweller.vault_id == vault.id  # Check vault association
+    # Check default visual_attributes
+    assert dweller.visual_attributes is not None
+    assert dweller.visual_attributes.get("race") == "human"
+    assert dweller.visual_attributes.get("faction") == "vault_dweller"
 
     # Create a random dweller with a special boost override
     special_stat = random.choice(list(SPECIALEnum))
@@ -80,6 +84,9 @@ async def test_create_random_common_dweller(async_session: AsyncSession):
     assert dweller_boosted.id
     assert dweller_boosted.vault_id == vault.id  # Check vault association
     assert getattr(dweller_boosted, special_stat.value.lower()) == game_config.dweller.boosted_stat_value
+    # Check default visual_attributes are present even with override
+    assert dweller_boosted.visual_attributes is not None
+    assert dweller_boosted.visual_attributes.get("race") == "human"
 
 
 @pytest.mark.asyncio

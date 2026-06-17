@@ -46,4 +46,5 @@ def create_random_common_dweller(gender: GenderEnum | None = None):
         "health": 100,
         "happiness": 50,
         "is_adult": True,
+        "visual_attributes": {"race": "human", "faction": "vault_dweller"},
     } | stats

@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from app.schemas.common import GenderEnum
+from app.schemas.common import FactionEnum, GenderEnum, RaceEnum
 
 
 @dataclass
@@ -30,3 +30,5 @@ class VisualAttributesDeps:
     last_name: str
     gender: GenderEnum | None
     bio: str | None
+    race: RaceEnum | None = None
+    faction: FactionEnum | None = None

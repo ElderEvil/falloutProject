@@ -16,10 +16,36 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'generate-appearance'): void
   (e: 'generate-portrait'): void
+  (e: 'edit'): void
 }>()
 
 // Helper to capitalize first letter
 const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1)
+
+// Format race for display (handle hyphenated names like "super_mutant")
+const formatRace = (race: string) => {
+  return race
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
+// Format faction for display (handle underscore-separated faction names)
+const formatFaction = (faction: string) => {
+  if (faction === 'none') return 'None'
+  return faction
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
+// Format state_of_being for display
+const formatStateOfBeing = (state: string) => {
+  return state
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
 
 // Format attributes for display
 const formattedAttributes = computed(() => {
@@ -28,8 +54,16 @@ const formattedAttributes = computed(() => {
   const attrs = props.visualAttributes
   const formatted: Array<{ label: string; value: string }> = []
 
+  // Identity section (race, faction, state_of_being)
+  if (attrs.race) formatted.push({ label: 'Race', value: formatRace(attrs.race) })
+  if (attrs.faction) formatted.push({ label: 'Faction', value: formatFaction(attrs.faction) })
+  if (attrs.state_of_being)
+    formatted.push({ label: 'State', value: formatStateOfBeing(attrs.state_of_being) })
+
+  // Physical attributes
   if (attrs.height) formatted.push({ label: 'Height', value: capitalize(attrs.height) })
   if (attrs.build) formatted.push({ label: 'Build', value: capitalize(attrs.build) })
+  if (attrs.age) formatted.push({ label: 'Age', value: String(attrs.age) })
   if (attrs.hair_style || attrs.hair_color) {
     const hair = [attrs.hair_style, attrs.hair_color]
       .filter((val): val is string => Boolean(val))
@@ -43,6 +77,9 @@ const formattedAttributes = computed(() => {
   if (attrs.facial_hair)
     formatted.push({ label: 'Facial Hair', value: capitalize(attrs.facial_hair) })
   if (attrs.makeup) formatted.push({ label: 'Makeup', value: capitalize(attrs.makeup) })
+  if (attrs.expression)
+    formatted.push({ label: 'Expression', value: capitalize(attrs.expression) })
+  if (attrs.headgear) formatted.push({ label: 'Headgear', value: capitalize(attrs.headgear) })
   if (attrs.clothing_style)
     formatted.push({ label: 'Clothing', value: capitalize(attrs.clothing_style) })
 
@@ -51,8 +88,35 @@ const formattedAttributes = computed(() => {
     formatted.push({ label: 'Features', value: features })
   }
 
+  // Equipment
+  if (attrs.accessory) formatted.push({ label: 'Accessory', value: capitalize(attrs.accessory) })
+  if (attrs.object_held)
+    formatted.push({ label: 'Object', value: capitalize(attrs.object_held) })
+
+  // Scene
+  if (attrs.pose) formatted.push({ label: 'Pose', value: capitalize(attrs.pose) })
+  if (attrs.background) formatted.push({ label: 'Background', value: capitalize(attrs.background) })
+  if (attrs.voice_line_text)
+    formatted.push({ label: 'Voice Line', value: `"${attrs.voice_line_text}"` })
+
   return formatted
 })
+
+/** Identity-only fields that the backend considers "not substantial". */
+const IDENTITY_FIELDS = new Set(['race', 'faction', 'age', 'state_of_being'])
+
+/** True if visual_attributes has content beyond basic identity defaults. */
+const hasSubstantialAttributes = computed(() => {
+  const va = props.visualAttributes
+  if (!va) return false
+  const keys = Object.keys(va)
+  return keys.some((k) => !IDENTITY_FIELDS.has(k))
+})
+
+/** True if AI can still generate (no substantial attributes yet). */
+const canGenerateAppearance = computed(
+  () => !props.visualAttributes || !hasSubstantialAttributes.value
+)
 
 const hasAttributes = computed(() => formattedAttributes.value.length > 0)
 </script>
@@ -62,7 +126,11 @@ const hasAttributes = computed(() => formattedAttributes.value.length > 0)
     <div class="appearance-header">
       <h3 class="appearance-title">Appearance</h3>
       <div class="header-buttons">
-        <UTooltip text="Generate visual attributes with AI" position="top">
+        <UTooltip
+          v-if="canGenerateAppearance"
+          text="Generate visual attributes with AI"
+          position="top"
+        >
           <button
             @click="emit('generate-appearance')"
             class="generate-button"
@@ -73,7 +141,7 @@ const hasAttributes = computed(() => formattedAttributes.value.length > 0)
               class="h-5 w-5"
               :class="{ 'animate-spin': generatingAppearance }"
             />
-            <span>{{ hasAttributes ? 'Regen' : 'Attributes' }}</span>
+            <span>{{ hasAttributes ? 'Generate' : 'Attributes' }}</span>
           </button>
         </UTooltip>
 
@@ -89,6 +157,12 @@ const hasAttributes = computed(() => formattedAttributes.value.length > 0)
               :class="{ 'animate-spin': generatingPortrait }"
             />
             <span>Portrait</span>
+          </button>
+        </UTooltip>
+        <UTooltip v-if="hasAttributes" text="Edit appearance manually" position="top">
+          <button @click="emit('edit')" class="generate-button">
+            <Icon icon="mdi:pencil" class="h-5 w-5" />
+            <span>Edit</span>
           </button>
         </UTooltip>
       </div>

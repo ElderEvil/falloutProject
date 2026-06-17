@@ -4,7 +4,8 @@ from pydantic_ai import Agent, RunContext
 
 from app.agents.deps import BackstoryDeps, ExtendBioDeps, VisualAttributesDeps
 from app.schemas.common import GenderEnum
-from app.schemas.dweller_ai import DwellerBackstory, DwellerVisualAttributes, ExtendedBio
+from app.schemas.dweller import DwellerVisualAttributes
+from app.schemas.dweller_ai import DwellerBackstory, ExtendedBio
 from app.services.open_ai import AIService
 
 # Initialize the model (will be shared across agents)
@@ -81,18 +82,6 @@ visual_attributes_agent = Agent(
         "You are a character design specialist for the Fallout universe. "
         "Generate visual attributes for vault dwellers based on their biography and characteristics. "
         "Create realistic, lore-appropriate visual descriptions that match the post-apocalyptic setting. "
-        "Available options:\n"
-        "- height: tall, average, short\n"
-        "- eye_color: blue, green, brown, hazel, gray\n"
-        "- appearance: attractive, cute, average, unattractive\n"
-        "- skin_tone: fair, medium, olive, tan, dark, black\n"
-        "- build: slim, athletic, muscular, stocky, average, overweight\n"
-        "- hair_style: short, long, curly, straight, wavy, bald\n"
-        "- hair_color: blonde, brunette, redhead, black, gray, colored\n"
-        "- distinguishing_features: scar, tattoo, mole, freckles, birthmark, piercing, eyepatch, prosthetic limb\n"
-        "- clothing_style: casual, military, formal, rugged, eclectic\n"
-        "- facial_hair (male only): clean-shaven, mustache, beard, goatee, stubble\n"
-        "- makeup (female only): natural, glamorous, goth, no makeup"
     ),
 )
 
@@ -103,9 +92,50 @@ def visual_attributes_system_prompt(ctx: RunContext[VisualAttributesDeps]) -> st
     pronoun = GENDER_PRONOUNS_MAP.get(ctx.deps.gender, "their")
     bio_context = f"\n\nBackstory: {ctx.deps.bio}" if ctx.deps.bio else ""
 
+    race_context = ""
+    if ctx.deps.race:
+        race_context = f"\nThe dweller's race is {ctx.deps.race}. "
+        match ctx.deps.race:
+            case "ghoul":
+                race_context += (
+                    "Ghouls have leathery, radiation-scarred, slightly decayed skin, sunken eyes, "
+                    "and aged facial features. Choose skin_tones like pale_grey, ashen, "
+                    "mottled, necrotic, or glowing. Builds include skeletal, withered, or twisted."
+                )
+            case "super_mutant":
+                race_context += (
+                    "Super Mutants are large, muscular humanoids with green or dark green skin, "
+                    "rough battle-scarred texture, and powerful bulky frames. "
+                    "Choose skin_tones like light_green, green, dark_green, or olive_green. "
+                    "Builds include muscular, brutish, or towering."
+                )
+            case "synth":
+                race_context += (
+                    "Synths have artificial skin that can appear human-like or visibly synthetic. "
+                    "Choose skin_tones like synthetic_fair, synthetic_dark, metallic_silver, "
+                    "or exposed_component. Builds include slender, muscular, or armored."
+                )
+            case _:  # human
+                race_context += (
+                    "Humans have natural skin tones. Choose from pale, light, tan, brown, "
+                    "dark_brown, or ebony. Builds include slim, athletic, muscular, "
+                    "stocky, average, or overweight."
+                )
+
+    faction_context = ""
+    if ctx.deps.faction and ctx.deps.faction != "none":
+        faction_context = (
+            f"\nThe dweller's faction is {ctx.deps.faction}. "
+            "Consider how their faction affiliation affects their clothing style, "
+            "equipment, and overall appearance."
+        )
+
     return (
         f"Create visual attributes for {ctx.deps.first_name} {ctx.deps.last_name}. "
-        f"Consider {pronoun} background and personality when selecting visual traits.{bio_context}\n\n"
+        f"Consider {pronoun} background and personality when selecting visual traits."
+        f"{race_context}{faction_context}{bio_context}\n\n"
         "Generate a cohesive visual description that matches their character. "
-        "Use the available options to create a believable Fallout character appearance."
+        "Use the available options to create a believable Fallout character appearance. "
+        "IMPORTANT: For the 'build' field, use lore-appropriate options based on the dweller's race. "
+        "For the 'skin_tone' field, use options appropriate to the dweller's race."
     )

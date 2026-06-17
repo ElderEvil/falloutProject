@@ -218,7 +218,8 @@ export const useDwellerStore = defineStore('dweller', () => {
 
   async function generateDwellerPortrait(id: string, token: string): Promise<Dweller | null> {
     try {
-      const response = await axios.post(`/api/v1/dwellers/${id}/generate_photo/`, null, {
+      // force=true allows regeneration even if a photo already exists
+      const response = await axios.post(`/api/v1/dwellers/${id}/generate_photo/?force=true`, null, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -511,6 +512,42 @@ export const useDwellerStore = defineStore('dweller', () => {
     }
   }
 
+  async function updateVisualAttributes(
+    dwellerId: string,
+    visualAttributes: Record<string, unknown>,
+    token: string
+  ): Promise<Dweller | null> {
+    try {
+      const response = await axios.put(
+        `/api/v1/dwellers/${dwellerId}`,
+        { visual_attributes: visualAttributes },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      // Update detailed dweller if cached
+      if (detailedDwellers.value[dwellerId]) {
+        detailedDwellers.value[dwellerId] = response.data
+      }
+
+      toast.success('Appearance updated successfully!')
+      return response.data
+    } catch (error: unknown) {
+      const errorMessage =
+        (
+          error as {
+            response?: { data?: { detail?: string } }
+          }
+        )?.response?.data?.detail || 'Failed to update appearance'
+      handleStoreError(error, `Failed to update appearance for dweller ${dwellerId}`)
+      toast.error(errorMessage)
+      return null
+    }
+  }
+
   async function unassignAllDwellers(
     vaultId: string,
     token: string
@@ -736,6 +773,7 @@ export const useDwellerStore = defineStore('dweller', () => {
     assignDwellerToRoom,
     unassignDwellerFromRoom,
     renameDweller,
+    updateVisualAttributes,
     setFilterStatus,
     setFilterAgeGroup,
     setSortBy,

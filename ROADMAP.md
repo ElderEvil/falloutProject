@@ -18,14 +18,6 @@ AI-powered dweller interactions.
 
 ## Up Next (Recommended)
 
-### v2.15: Dweller Visual Unification
-
-- [ ] **Unify visual attribute schemas** — Merge `DwellerVisualAttributesInput` (user-facing), `DwellerVisualAttributes` (AI output), and `VisualAttributes` (frontend) into a single schema with consistent field names (e.g. `hair_style` not `haircut`, `build` not `body_type`)
-- [ ] **Wire RaceEnum/FactionEnum into AI agent** — Update `dweller_agents.py` prompt to generate appearances consistent with race (Human/Ghoul/Super Mutant/Synth) and faction (BOS/Enclave/Minutemen/etc.)
-- [ ] **Display race/faction in frontend** — Add race, faction, and state-of-being display to `DwellerAppearance.vue` (currently ignored)
-- [ ] **Default visual attributes on creation** — `create_random_common_dweller()` should set default `visual_attributes` with `race: HUMAN` and `faction: VAULT_DWELLER`
-- [ ] **Manual appearance editor** — Build UI for users to customize dweller appearance via `DwellerVisualAttributesInput`
-
 ### v2.16: Infrastructure & Code Quality
 
 - [ ] **FE accessibility pass** — `role=button`/tabindex on clickable divs in DwellersView, RoomGrid, HappinessDashboard; full focus trap on UModal
@@ -43,6 +35,21 @@ AI-powered dweller interactions.
 ---
 
 ## Latest Release
+
+### v2.15.0 - Dweller Visual Unification (June 18, 2026)
+
+**Focus**: Unified visual attribute schemas, race/faction-aware AI agent, manual appearance editor
+
+**Completed:**
+
+- ✅ **Schema unification** — Merged 3 schemas into one 22-field `DwellerVisualAttributes` with canonical field names (`hair_style`, `build`)
+- ✅ **Race/Faction-aware AI agent** — Agent prompt now includes race-specific skin tone, build, and style guidance
+- ✅ **Race/faction display in frontend** — `DwellerAppearance.vue` shows Race, Faction, State of Being
+- ✅ **Default visual attributes** — New dwellers get `{race: human, faction: vault_dweller}`
+- ✅ **Manual appearance editor** — Race-filtered dropdowns for all fields, Randomize button, portrait force-regeneration
+- ✅ **Options data module** — `backend/app/options/` ported from `fallout-avatar` project
+- ✅ **Frontend types regenerated** — OpenAPI types include full `DwellerVisualAttributes`
+- ✅ **33 passing tests** (8 schema, 15 service/options, 1 crud, 9 frontend editor)
 
 ### v2.13.0 - Dramatiq Migration (May 1, 2026)
 
@@ -543,15 +550,15 @@ const handleVersionClick = () => {
 **Code Snippet**:
 
 ```typescript
-import { useMagicKeys } from '@vueuse/core'
+import { useMagicKeys } from "@vueuse/core";
 
-const { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, b, a } = useMagicKeys()
-const sequence = ref('')
+const { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, b, a } = useMagicKeys();
+const sequence = ref("");
 
 watch([ArrowUp, ArrowDown, ArrowLeft, ArrowRight, b, a], () => {
   // Track key sequence and check for Konami Code
   // ↑ ↑ ↓ ↓ ← → ← → B A
-})
+});
 ```
 
 ---

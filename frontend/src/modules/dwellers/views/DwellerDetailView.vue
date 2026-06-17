@@ -9,6 +9,7 @@ import { Icon } from '@iconify/vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import DwellerCard from '../components/cards/DwellerCard.vue'
 import DwellerPanel from '../components/DwellerPanel.vue'
+import DwellerAppearanceEditor from '../components/DwellerAppearanceEditor.vue'
 import TrainingStartModal from '../components/modals/TrainingStartModal.vue'
 import DwellerStatusBadge from '../components/stats/DwellerStatusBadge.vue'
 import UButton from '@/core/components/ui/UButton.vue'
@@ -36,6 +37,7 @@ const generatingBio = ref(false)
 const generatingPortrait = ref(false)
 const generatingAppearance = ref(false)
 const showTrainingModal = ref(false)
+const showAppearanceEditor = ref(false)
 
 // Computed to check if any AI generation is in progress
 const isAnyGenerating = computed(
@@ -192,6 +194,19 @@ const generateDwellerAppearance = async () => {
 
 const handleRefresh = async () => {
   await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
+}
+
+const handleAppearanceSaved = async (attributes: Record<string, unknown>) => {
+  if (!dweller.value) return
+  const result = await dwellerStore.updateVisualAttributes(
+    dwellerId.value,
+    attributes,
+    authStore.token as string
+  )
+  if (result) {
+    showAppearanceEditor.value = false
+    await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
+  }
 }
 
 const handleRevive = async () => {
@@ -432,11 +447,18 @@ const saveNewName = async () => {
                 @generate-appearance="generateDwellerAppearance"
                 @generate-portrait="generateDwellerPortrait"
                 @generate-all="generateDwellerInfo"
+                @edit-appearance="showAppearanceEditor = true"
               />
             </div>
           </div>
 
           <!-- Modals -->
+          <DwellerAppearanceEditor
+            v-if="dweller"
+            v-model="showAppearanceEditor"
+            :dweller="dweller"
+            @saved="handleAppearanceSaved"
+          />
           <TrainingStartModal
             v-if="dweller"
             v-model="showTrainingModal"

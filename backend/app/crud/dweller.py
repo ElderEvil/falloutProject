@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from pydantic import UUID4
-from sqlalchemy import Row, RowMapping
+from sqlalchemy import Row, RowMapping, func
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -493,16 +493,22 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
                 )
 
         # Find room with available capacity (based on room size)
+        room_ids = [r.id for r in matching_rooms]
+        count_stmt = (
+            select(Dweller.room_id, func.count(Dweller.id).label("count"))
+            .where(Dweller.room_id.in_(room_ids))
+            .group_by(Dweller.room_id)
+        )
+        count_result = await db_session.execute(count_stmt)
+        counts = {row.room_id: row.count for row in count_result}
+
         best_room = None
         for room in matching_rooms:
-            # Get current dweller count in room
-            dweller_count_query = select(Dweller).where(Dweller.room_id == room.id)
-            dweller_count_response = await db_session.execute(dweller_count_query)
-            current_dwellers = len(dweller_count_response.scalars().all())
+            dweller_count = counts.get(room.id, 0)
 
             # Room capacity: 2 dwellers per 3 size units (e.g., size 3 = 2 dwellers, size 6 = 4 dwellers)
             max_dwellers = room.size // 3 * 2 if room.size else 0
-            if current_dwellers < max_dwellers:
+            if dweller_count < max_dwellers:
                 best_room = room
                 break
 

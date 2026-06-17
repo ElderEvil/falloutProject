@@ -13,8 +13,8 @@ if TYPE_CHECKING:
 
 
 class PregnancyBase(SQLModel):
-    mother_id: UUID4 = Field(sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="CASCADE")))
-    father_id: UUID4 = Field(sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="CASCADE")))
+    mother_id: UUID4 = Field(sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="CASCADE"), index=True))
+    father_id: UUID4 = Field(sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="CASCADE"), index=True))
     conceived_at: datetime = Field(default_factory=datetime.utcnow)
     due_at: datetime = Field()
     status: PregnancyStatusEnum = Field(default=PregnancyStatusEnum.PREGNANT)

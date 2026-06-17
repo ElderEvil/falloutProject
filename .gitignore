@@ -282,3 +282,4 @@ frontend/playwright-report/
 frontend/test-results/
 locust/*.csv
 locust/*.html
+.omo/

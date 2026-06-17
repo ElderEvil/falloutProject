@@ -18,7 +18,7 @@ class StorageBase(SQLModel):
 
 
 class Storage(BaseUUIDModel, StorageBase, table=True):
-    vault_id: UUID4 = Field(default=None, foreign_key="vault.id")
+    vault_id: UUID4 = Field(default=None, foreign_key="vault.id", index=True)
     vault: "Vault" = Relationship(back_populates="storage", sa_relationship_kwargs={"uselist": False})
 
     junk_items: list["Junk"] = Relationship(back_populates="storage")

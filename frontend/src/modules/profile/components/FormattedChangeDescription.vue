@@ -93,6 +93,17 @@ const segments = computed<Segment[]>(() => {
       }
       remaining = remaining.slice(nextSpecial)
       position += nextSpecial
+      // If nextSpecial is 0, the regex patterns at the top didn't match despite
+      // indexOf finding a special char at position 0 (e.g. lone backtick, bare *).
+      // Consume 1 character as plain text to guarantee forward progress.
+      if (nextSpecial === 0 && remaining.length > 0) {
+        result.push({
+          type: 'text',
+          content: remaining.slice(0, 1),
+        })
+        remaining = remaining.slice(1)
+        position += 1
+      }
     }
   }
 

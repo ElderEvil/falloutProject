@@ -76,19 +76,16 @@ watch(
 
 // Register listeners
 on('dweller:born', (message) => {
-  console.log('Received dweller:born event:', message)
   profileStore.fetchDeathStatistics()
 })
 
 on('dweller:died', (message) => {
-  console.log('Received dweller:died event:', message)
   profileStore.fetchDeathStatistics()
 })
 
 on('notification', (message) => {
   const nType = message.notification?.notification_type
   if (nType === 'baby_born' || nType === 'dweller_died') {
-    console.log(`Received ${nType} notification! Refreshing stats...`)
     profileStore.fetchDeathStatistics()
   }
 })

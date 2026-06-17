@@ -1,6 +1,7 @@
 import { computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
+import { handleStoreError } from '@/core/utils/errorHandler'
 import { authService } from '../services/authService'
 import type { User } from '../types/user'
 
@@ -40,7 +41,7 @@ export const useAuthStore = defineStore('auth', () => {
       await fetchUser()
       return true
     } catch (error) {
-      console.error('Login failed', error)
+      handleStoreError(error, 'Login failed')
       return false
     }
   }
@@ -67,7 +68,7 @@ export const useAuthStore = defineStore('auth', () => {
 
       return true
     } catch (error) {
-      console.error('Registration failed', error)
+      handleStoreError(error, 'Registration failed')
       return false
     }
   }
@@ -79,7 +80,7 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await authService.getCurrentUser()
       user.value = response.data
     } catch (error) {
-      console.error('Failed to fetch user', error)
+      handleStoreError(error, 'Failed to fetch user')
       await logout()
     }
   }
@@ -95,7 +96,7 @@ export const useAuthStore = defineStore('auth', () => {
         refreshToken.value = response.data.refresh_token
       }
     } catch (error) {
-      console.error('Failed to refresh token', error)
+      handleStoreError(error, 'Failed to refresh token')
       await logout()
     }
   }
@@ -106,7 +107,7 @@ export const useAuthStore = defineStore('auth', () => {
         await authService.logout()
       }
     } catch (error) {
-      console.error('Logout failed', error)
+      handleStoreError(error, 'Logout failed')
     } finally {
       // Clear all stored data (VueUse handles localStorage automatically)
       token.value = null

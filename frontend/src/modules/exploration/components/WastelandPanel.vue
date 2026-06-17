@@ -22,7 +22,6 @@ const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
 const vaultMedicalSupplies = computed(() => {
   const v = currentVault.value
-  console.log('[WastelandPanel] vault:', v?.id, 'stimpack:', v?.stimpack, 'radaway:', v?.radaway)
   return {
     stimpaks: v?.stimpack ?? 0,
     radaways: v?.radaway ?? 0,

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { incidentApi } from '../api/incident'
 import type { Incident, IncidentListResponse } from '../models/incident'
+import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 
 export const useIncidentStore = defineStore('incident', () => {
@@ -66,7 +67,7 @@ export const useIncidentStore = defineStore('incident', () => {
         })
       )
     } catch (error) {
-      console.error('Failed to fetch incidents:', error)
+      handleStoreError(error, 'Failed to fetch incidents')
       // Don't throw - just set empty state so the app continues working
       activeIncidentIds.value = []
     }
@@ -92,7 +93,7 @@ export const useIncidentStore = defineStore('incident', () => {
 
       return Promise.resolve()
     } catch (err) {
-      console.error('Failed to resolve incident:', err)
+      handleStoreError(err, 'Failed to resolve incident')
       showError('Resolution Failed: Failed to resolve incident')
       throw err
     }
@@ -111,7 +112,7 @@ export const useIncidentStore = defineStore('incident', () => {
     // Set up polling
     pollInterval.value = window.setInterval(() => {
       fetchIncidents(vaultId, token).catch((err) => {
-        console.error('Error polling incidents:', err)
+        handleStoreError(err, 'Error polling incidents')
       })
     }, intervalMs)
   }
@@ -149,7 +150,7 @@ export const useIncidentStore = defineStore('incident', () => {
       // Immediately fetch updated incidents
       await fetchIncidents(vaultId, token)
     } catch (err: unknown) {
-      console.error('Failed to spawn incident:', err)
+      handleStoreError(err, 'Failed to spawn incident')
 
       let errorMessage = 'Failed to spawn incident'
       if (err && typeof err === 'object' && 'response' in err) {

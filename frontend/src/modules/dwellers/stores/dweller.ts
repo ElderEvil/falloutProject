@@ -9,6 +9,7 @@ import type {
   DwellerReviveResponse,
   RevivalCostResponse,
 } from '../models/dweller'
+import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import { useGaryMode } from '@/core/composables/useGaryMode'
 
@@ -53,15 +54,13 @@ export const useDwellerStore = defineStore('dweller', () => {
   /**
    * Get dweller status - now directly from backend
    */
-  const getDwellerStatus = computed(() => {
-    return (dwellerId: string): DwellerStatus | null => {
-      const dweller = dwellers.value.find((d) => d.id === dwellerId)
-      if (!dweller) return null
+  function getDwellerStatus(dwellerId: string): DwellerStatus | null {
+    const dweller = dwellers.value.find((d) => d.id === dwellerId)
+    if (!dweller) return null
 
-      // Backend now provides status directly
-      return (dweller.status as DwellerStatus) || 'idle'
-    }
-  })
+    // Backend now provides status directly
+    return (dweller.status as DwellerStatus) || 'idle'
+  }
 
   /**
    * Get all dwellers with their status (already provided by backend)
@@ -76,16 +75,14 @@ export const useDwellerStore = defineStore('dweller', () => {
   /**
    * Get dwellers filtered by status - filters are now applied on backend
    */
-  const getDwellersByStatus = computed(() => {
-    return (status: DwellerStatus): DwellerWithStatus[] => {
-      return dwellers.value
-        .filter((dweller) => dweller.status === status)
-        .map((dweller) => ({
-          ...dweller,
-          status: (dweller.status as DwellerStatus) || 'idle',
-        }))
-    }
-  })
+  function getDwellersByStatus(status: DwellerStatus): DwellerWithStatus[] {
+    return dwellers.value
+      .filter((dweller) => dweller.status === status)
+      .map((dweller) => ({
+        ...dweller,
+        status: (dweller.status as DwellerStatus) || 'idle',
+      }))
+  }
 
   /**
    * Get filtered and sorted dwellers based on current filter/sort settings
@@ -159,7 +156,7 @@ export const useDwellerStore = defineStore('dweller', () => {
       })
       dwellers.value = response.data
     } catch (error) {
-      console.error(`Failed to fetch dwellers for vault ${vaultId}`, error)
+      handleStoreError(error, `Failed to fetch dwellers for vault ${vaultId}`)
     } finally {
       isLoading.value = false
     }
@@ -180,7 +177,7 @@ export const useDwellerStore = defineStore('dweller', () => {
       detailedDwellers.value[id] = response.data
       return detailedDwellers.value[id] ?? null
     } catch (error) {
-      console.error(`Failed to fetch details for dweller ${id}`, error)
+      handleStoreError(error, `Failed to fetch details for dweller ${id}`)
       return null
     }
   }
@@ -196,7 +193,7 @@ export const useDwellerStore = defineStore('dweller', () => {
       toast.success('AI portrait generated successfully!')
       return detailedDwellers.value[id] ?? null
     } catch (error) {
-      console.error(`Failed to generate image for dweller ${id}`, error)
+      handleStoreError(error, `Failed to generate image for dweller ${id}`)
       toast.error('Failed to generate AI portrait')
       return null
     }
@@ -213,7 +210,7 @@ export const useDwellerStore = defineStore('dweller', () => {
       toast.success('Biography generated successfully!')
       return detailedDwellers.value[id] ?? null
     } catch (error) {
-      console.error(`Failed to generate biography for dweller ${id}`, error)
+      handleStoreError(error, `Failed to generate biography for dweller ${id}`)
       toast.error('Failed to generate biography')
       return null
     }
@@ -230,7 +227,7 @@ export const useDwellerStore = defineStore('dweller', () => {
       toast.success('Portrait generated successfully!')
       return detailedDwellers.value[id] ?? null
     } catch (error) {
-      console.error(`Failed to generate portrait for dweller ${id}`, error)
+      handleStoreError(error, `Failed to generate portrait for dweller ${id}`)
       toast.error('Failed to generate portrait')
       return null
     }
@@ -251,7 +248,7 @@ export const useDwellerStore = defineStore('dweller', () => {
       toast.success('Appearance generated successfully!')
       return detailedDwellers.value[id] ?? null
     } catch (error) {
-      console.error(`Failed to generate appearance for dweller ${id}`, error)
+      handleStoreError(error, `Failed to generate appearance for dweller ${id}`)
       toast.error('Failed to generate appearance')
       return null
     }
@@ -282,7 +279,7 @@ export const useDwellerStore = defineStore('dweller', () => {
 
       return response.data
     } catch (error) {
-      console.error(`Failed to assign dweller ${dwellerId} to room ${roomId}`, error)
+      handleStoreError(error, `Failed to assign dweller ${dwellerId} to room ${roomId}`)
       throw error
     }
   }
@@ -317,7 +314,7 @@ export const useDwellerStore = defineStore('dweller', () => {
 
       return response.data
     } catch (error) {
-      console.error(`Failed to unassign dweller ${dwellerId}`, error)
+      handleStoreError(error, `Failed to unassign dweller ${dwellerId}`)
       throw error
     }
   }
@@ -377,7 +374,7 @@ export const useDwellerStore = defineStore('dweller', () => {
             response?: { data?: { detail?: string } }
           }
         )?.response?.data?.detail || 'Failed to use stimpack'
-      console.error(`Failed to use stimpack for dweller ${dwellerId}`, error)
+      handleStoreError(error, `Failed to use stimpack for dweller ${dwellerId}`)
       toast.error(errorMessage)
       return null
     }
@@ -418,7 +415,7 @@ export const useDwellerStore = defineStore('dweller', () => {
             response?: { data?: { detail?: string } }
           }
         )?.response?.data?.detail || 'Failed to use RadAway'
-      console.error(`Failed to use radaway for dweller ${dwellerId}`, error)
+      handleStoreError(error, `Failed to use radaway for dweller ${dwellerId}`)
       toast.error(errorMessage)
       return null
     }
@@ -455,7 +452,7 @@ export const useDwellerStore = defineStore('dweller', () => {
             response?: { data?: { detail?: string } }
           }
         )?.response?.data?.detail || 'Failed to auto-assign dweller'
-      console.error(`Failed to auto-assign dweller ${dwellerId}`, error)
+      handleStoreError(error, `Failed to auto-assign dweller ${dwellerId}`)
       toast.error(errorMessage)
       return null
     }
@@ -508,7 +505,7 @@ export const useDwellerStore = defineStore('dweller', () => {
             response?: { data?: { detail?: string } }
           }
         )?.response?.data?.detail || 'Failed to rename dweller'
-      console.error(`Failed to rename dweller ${dwellerId}`, error)
+      handleStoreError(error, `Failed to rename dweller ${dwellerId}`)
       toast.error(errorMessage)
       return null
     }
@@ -541,7 +538,7 @@ export const useDwellerStore = defineStore('dweller', () => {
             response?: { data?: { detail?: string } }
           }
         )?.response?.data?.detail || 'Failed to unassign all dwellers'
-      console.error(`Failed to unassign all dwellers for vault ${vaultId}`, error)
+      handleStoreError(error, `Failed to unassign all dwellers for vault ${vaultId}`)
       toast.error(errorMessage)
       return null
     }
@@ -574,7 +571,7 @@ export const useDwellerStore = defineStore('dweller', () => {
             response?: { data?: { detail?: string } }
           }
         )?.response?.data?.detail || 'Failed to auto-assign dwellers'
-      console.error(`Failed to auto-assign dwellers for vault ${vaultId}`, error)
+      handleStoreError(error, `Failed to auto-assign dwellers for vault ${vaultId}`)
       toast.error(errorMessage)
       return null
     }
@@ -598,7 +595,7 @@ export const useDwellerStore = defineStore('dweller', () => {
       deadDwellers.value = response.data
       return response.data
     } catch (error) {
-      console.error(`Failed to fetch dead dwellers for vault ${vaultId}`, error)
+      handleStoreError(error, `Failed to fetch dead dwellers for vault ${vaultId}`)
       return []
     } finally {
       isDeadLoading.value = false
@@ -622,7 +619,7 @@ export const useDwellerStore = defineStore('dweller', () => {
       graveyardDwellers.value = response.data
       return response.data
     } catch (error) {
-      console.error(`Failed to fetch graveyard for vault ${vaultId}`, error)
+      handleStoreError(error, `Failed to fetch graveyard for vault ${vaultId}`)
       return []
     } finally {
       isDeadLoading.value = false
@@ -653,7 +650,7 @@ export const useDwellerStore = defineStore('dweller', () => {
             response?: { data?: { detail?: string } }
           }
         )?.response?.data?.detail || 'Failed to get revival cost'
-      console.error(`Failed to get revival cost for dweller ${dwellerId}`, error)
+      handleStoreError(error, `Failed to get revival cost for dweller ${dwellerId}`)
       toast.error(errorMessage)
       return null
     }
@@ -707,7 +704,7 @@ export const useDwellerStore = defineStore('dweller', () => {
             response?: { data?: { detail?: string } }
           }
         )?.response?.data?.detail || 'Failed to revive dweller'
-      console.error(`Failed to revive dweller ${dwellerId}`, error)
+      handleStoreError(error, `Failed to revive dweller ${dwellerId}`)
       toast.error(errorMessage)
       return null
     }

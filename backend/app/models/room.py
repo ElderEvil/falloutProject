@@ -46,7 +46,7 @@ class RoomBase(SQLModel):
 
 
 class Room(BaseUUIDModel, RoomBase, TimeStampMixin, table=True):
-    vault_id: UUID4 = Field(default=None, foreign_key="vault.id")
+    vault_id: UUID4 = Field(default=None, foreign_key="vault.id", index=True)
     vault: "Vault" = Relationship(back_populates="rooms")
 
     dwellers: list["Dweller"] = Relationship(back_populates="room")

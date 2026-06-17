@@ -138,8 +138,6 @@ const handleSellItem = async (
       itemType === 'weapons' ? 'weapon' : itemType === 'outfits' ? 'outfit' : itemType
 
     const itemIds = Array.isArray(itemId) ? itemId : [itemId]
-    console.log('[StorageView] Selling items:', itemIds, 'type:', normalizedType)
-
     // Sell all items
     for (const id of itemIds) {
       switch (normalizedType) {
@@ -160,12 +158,10 @@ const handleSellItem = async (
     )
 
     // Force refresh storage and vault data
-    console.log('[StorageView] Refreshing storage after sell...')
     await fetchStorageData()
     if (vaultId.value && authStore.token) {
       await vaultStore.refreshVault(vaultId.value, authStore.token)
     }
-    console.log('[StorageView] Refresh complete')
   } catch (error) {
     console.error('Failed to sell item:', error)
     toast.error('Failed to sell item')
@@ -182,8 +178,6 @@ const handleScrapItem = async (
     const normalizedType =
       itemType === 'weapons' ? 'weapon' : itemType === 'outfits' ? 'outfit' : itemType
 
-    console.log('[StorageView] Scrapping item:', itemId, 'type:', normalizedType)
-
     switch (normalizedType) {
       case 'weapon':
         await storageService.scrapWeapon(itemId)
@@ -196,12 +190,10 @@ const handleScrapItem = async (
     toast.success('Item scrapped for materials')
 
     // Force refresh storage and vault data
-    console.log('[StorageView] Refreshing storage after scrap...')
     await fetchStorageData()
     if (vaultId.value && authStore.token) {
       await vaultStore.refreshVault(vaultId.value, authStore.token)
     }
-    console.log('[StorageView] Refresh complete')
   } catch (error) {
     console.error('Failed to scrap item:', error)
     toast.error('Failed to scrap item')

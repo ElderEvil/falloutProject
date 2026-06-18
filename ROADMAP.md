@@ -9,26 +9,42 @@ AI-powered dweller interactions.
 
 ## In Progress
 
-**Current work (v2.14.x):**
+**Current work (v2.18.x):**
 
-- [ ] **FE Polish (v2.14.5)** — UI component accessibility, form validation, CRT consistency
 - [ ] **Dramatiq async concurrency** — Fix `asyncpg InterfaceError: another operation is in progress` during game tick objective queries
 
 ---
 
 ## Up Next (Recommended)
 
-### v2.17: Medical Storage & Streaming
+### v2.18: FastAPI Yield Streaming
 
-- [ ] **Storage Model Refactor** — Move stimpaks/radaways from Vault model to Storage model
-- [ ] **Medbay Production** — Medbay rooms produce stimpaks over time
-- [ ] **Science Lab Production** — Science Lab rooms produce radaways over time
-- [ ] **Exploration Integration** — Dwellers can equip stimpaks from storage before exploration
-
+- [ ] **Exploration Event Streaming** — Replace WebSocket polling with `yield`-based HTTP streaming for real-time exploration events. Uses FastAPI 0.134.0+ native generator syntax to push JSON Lines events as they happen. Reduces connection overhead vs persistent WebSocket.
+- [ ] **Game Loop Tick Streaming** — Expose game loop processing as an SSE/text-event-stream endpoint. Consumers (frontend dashboards, monitoring) subscribe to tick progress without polling.
+- [ ] **AI Chat Response Streaming** — Add HTTP streaming alternative to the existing WebSocket chat path. Dweller AI responses stream token-by-token over a yield-based endpoint. Enables progress indicators and early-render of partial responses.
+- [ ] **SSE Client Utilities** — Frontend composable (`useEventStream`) for consuming SSE/yield endpoints with auto-reconnect, backpressure handling, and cleanup on unmount. Reuse across exploration, game loop, and chat consumers.
 
 ---
 
 ## Latest Release
+
+### v2.17.0 — Medical Storage Refactor (June 19, 2026)
+
+**Focus**: Move stimpaks/radaways from Vault model to Storage model, compute capacity dynamically from rooms
+
+**Completed:**
+
+- ✅ **Storage model** — Added `stimpack`, `radaway` fields to `StorageBase`
+- ✅ **Vault model cleanup** — Removed `stimpack`, `stimpack_max`, `radaway`, `radaway_max` from `VaultBase`
+- ✅ **Config mapping** — `MEDICAL_ROOM_PRODUCTION` mapping (medbay→stimpak, science lab→radaway) + `compute_medical_capacity()` in `game_config.py`
+- ✅ **Resource Manager** — Medical production writes to Storage, capped by `compute_medical_capacity`, no more string matching
+- ✅ **Vault Service** — Room build no longer updates capacity fields; vault init writes medical to Storage; `transfer_medical_supplies` reads/writes Storage
+- ✅ **Exploration Service** — `send_dweller` deducts from Storage; unused supplies return to Storage capped by capacity
+- ✅ **CRUD** — Removed `stimpack_max`/`radaway_max` special-casing in `crud/vault.py`
+- ✅ **Frontend types regenerated** — `api.generated.ts` no longer has `stimpack_max`/`radaway_max`
+- ✅ **StorageView medical display** — Added `stimpack`/`radaway` fields to `StorageSpaceResponse`; StorageView reads from storage API instead of removed vault fields
+- ✅ **Tests** — 804 backend tests, 861 frontend tests, 19 new medical storage/capacity tests
+- ✅ **DB migration** — `abc123def456` copies data vault→storage, drops 4 columns, reversible
 
 ### v2.15.0 - Dweller Visual Unification (June 18, 2026)
 
@@ -955,4 +971,4 @@ watch(() => userStore.caps, (caps) => {
 
 ---
 
-_Last updated: 2026-05-25_
+_Last updated: 2026-06-19_

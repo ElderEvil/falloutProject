@@ -12,6 +12,7 @@ from app.schemas.relationship import (
     RelationshipCreate,
     RelationshipRead,
 )
+from app.schemas.responses import BreedStatsResponse, RelationshipActionResponse
 from app.services.relationship_service import relationship_service
 
 router = APIRouter()
@@ -96,7 +97,7 @@ async def make_partners(
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@router.delete("/{relationship_id}")
+@router.delete("/{relationship_id}", response_model=RelationshipActionResponse)
 async def break_up_relationship(
     relationship_id: UUID4,
     user: CurrentActiveUser,
@@ -110,7 +111,7 @@ async def break_up_relationship(
         await relationship_service.break_up(db_session, relationship_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-    return {"message": "Relationship ended"}
+    return RelationshipActionResponse(message="Relationship ended")
 
 
 @router.post("/vault/{vault_id}/quick-pair", response_model=RelationshipRead)
@@ -158,7 +159,7 @@ async def calculate_compatibility(
     return await relationship_service.calculate_compatibility_score(db_session, dweller_1_id, dweller_2_id)
 
 
-@router.post("/vault/{vault_id}/process")
+@router.post("/vault/{vault_id}/process", response_model=BreedStatsResponse)
 async def process_vault_breeding(
     vault_id: UUID4,
     user: CurrentActiveUser,
@@ -170,7 +171,7 @@ async def process_vault_breeding(
 
     result = await game_loop_service._process_breeding(db_session, vault_id)
 
-    return {
-        "message": "Breeding and relationships processed successfully",
-        "stats": result,
-    }
+    return BreedStatsResponse(
+        message="Breeding and relationships processed successfully",
+        stats=result,
+    )

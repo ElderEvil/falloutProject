@@ -9,8 +9,8 @@ from app.api.game_data_deps import get_static_game_data
 from app.crud.item_base import get_items_list
 from app.db.session import get_async_session
 from app.models.outfit import Outfit
-from app.schemas.junk import JunkRead
 from app.schemas.outfit import OutfitCreate, OutfitRead, OutfitUpdate
+from app.schemas.responses import JunkListResponse
 
 router = APIRouter()
 
@@ -61,10 +61,10 @@ async def unequip_outfit(outfit_id: UUID4, db_session: Annotated[AsyncSession, D
     return await crud.outfit.unequip(db_session=db_session, item_id=outfit_id)
 
 
-@router.post("/{outfit_id}/scrap/", response_model=dict[str, list[JunkRead]] | None)
+@router.post("/{outfit_id}/scrap/", response_model=JunkListResponse)
 async def scrap_outfit(outfit_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
     junk_list = await crud.outfit.scrap(db_session=db_session, item_id=outfit_id)
-    return {"junk": junk_list}
+    return JunkListResponse(junk=junk_list)
 
 
 @router.post("/{outfit_id}/sell/", status_code=200)

@@ -8,8 +8,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403
 from app.crud import training as crud_training
-from app.crud.dweller import dweller as dweller_crud
-from app.crud.room import room as room_crud
 from app.db.session import get_async_session
 from app.schemas.training import TrainingProgress, TrainingRead
 from app.services.training_service import training_service
@@ -42,23 +40,13 @@ async def start_training(
         400: Training cannot be started (invalid room, stat maxed, etc.)
         409: Dweller already training
     """
-    # Verify dweller belongs to user's vault
-    dweller = await dweller_crud.get(db_session, dweller_id)
-    if not dweller:
-        raise HTTPException(status_code=404, detail="Dweller not found")
-
-    await get_user_vault_or_403(dweller.vault_id, user, db_session)
-
-    # Verify room belongs to user's vault
-    room = await room_crud.get(db_session, room_id)
-    if not room:
-        raise HTTPException(status_code=404, detail="Room not found")
-
-    if room.vault_id != dweller.vault_id:
-        raise HTTPException(status_code=403, detail="Room does not belong to your vault")
-
     try:
-        return await training_service.start_training(db_session, dweller_id, room_id)
+        training = await training_service.start_training(db_session, dweller_id, room_id)
+
+        # Verify access to vault that both dweller and room belong to
+        await get_user_vault_or_403(training.vault_id, user, db_session)
+
+        return training
     except ResourceNotFoundException as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except ResourceConflictException as e:
@@ -84,14 +72,12 @@ async def get_dweller_training(
     Returns:
         Active training session or None
     """
-    # Verify dweller belongs to user's vault
-    dweller = await dweller_crud.get(db_session, dweller_id)
-    if not dweller:
-        raise HTTPException(status_code=404, detail="Dweller not found")
+    training = await crud_training.training.get_active_by_dweller(db_session, dweller_id)
 
-    await get_user_vault_or_403(dweller.vault_id, user, db_session)
+    if training:
+        await get_user_vault_or_403(training.vault_id, user, db_session)
 
-    return await crud_training.training.get_active_by_dweller(db_session, dweller_id)
+    return training
 
 
 @router.get("/vault/{vault_id}", response_model=list[TrainingRead])
@@ -143,7 +129,6 @@ async def get_training(
     # Update progress before returning
     training = await training_service.update_training_progress(db_session, training)
 
-    # Convert to TrainingProgress response
     return TrainingProgress(
         **training.model_dump(),
         progress_percentage=training.progress_percentage(),
@@ -205,11 +190,10 @@ async def list_room_training(
     Returns:
         List of active training sessions in the room
     """
-    # Verify room belongs to user's vault
-    room = await room_crud.get(db_session, room_id)
-    if not room:
-        raise HTTPException(status_code=404, detail="Room not found")
+    trainings = await crud_training.training.get_active_by_room(db_session, room_id)
 
-    await get_user_vault_or_403(room.vault_id, user, db_session)
+    if trainings:
+        # Verify room belongs to user's vault (check via first training's vault)
+        await get_user_vault_or_403(trainings[0].vault_id, user, db_session)
 
-    return await crud_training.training.get_active_by_room(db_session, room_id)
+    return trainings

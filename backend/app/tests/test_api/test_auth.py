@@ -46,11 +46,11 @@ async def mock_redis_client():
 
 @pytest.fixture
 def mock_email_send():
-    """Mock email sending functions at the endpoint level where they're imported."""
+    """Mock email sending functions at the service level where they're imported."""
     with (
-        patch("app.api.v1.endpoints.auth.send_verification_email", new_callable=AsyncMock) as mock_verify,
-        patch("app.api.v1.endpoints.auth.send_password_reset_email", new_callable=AsyncMock) as mock_reset,
-        patch("app.api.v1.endpoints.auth.send_password_changed_email", new_callable=AsyncMock) as mock_changed,
+        patch("app.services.auth_service.send_verification_email", new_callable=AsyncMock) as mock_verify,
+        patch("app.services.auth_service.send_password_reset_email", new_callable=AsyncMock) as mock_reset,
+        patch("app.services.auth_service.send_password_changed_email", new_callable=AsyncMock) as mock_changed,
         patch("app.services.user_service.send_verification_email", new_callable=AsyncMock) as mock_user_verify,
     ):
         yield {

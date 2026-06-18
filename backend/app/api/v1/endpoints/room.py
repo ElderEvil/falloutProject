@@ -9,6 +9,7 @@ from app.api.deps import CurrentActiveUser, get_user_vault_or_403, verify_room_a
 from app.api.game_data_deps import get_static_game_data
 from app.db.session import get_async_session
 from app.schemas.room import RoomCreate, RoomCreateWithoutVaultID, RoomRead, RoomUpdate
+from app.services.room_service import room_service
 
 router = APIRouter()
 
@@ -74,7 +75,6 @@ async def get_buildable_rooms(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    data_store=Depends(get_static_game_data),
 ):
     """
     Get list of rooms that can be built in a vault.
@@ -84,62 +84,34 @@ async def get_buildable_rooms(
     - Unique rooms that are already built in this vault
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-
-    existing_room_names = await crud.room.get_existing_room_names(db_session=db_session, vault_id=vault_id)
-    return data_store.get_buildable_rooms(existing_room_names)
+    return await room_service.get_buildable_rooms(db_session, vault_id)
 
 
 @router.post("/build/", response_model=RoomRead)
 async def build_room(
-    room_data: RoomCreate, user: CurrentActiveUser, db_session: Annotated[AsyncSession, Depends(get_async_session)]
+    room_data: RoomCreate,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
-    from fastapi import HTTPException
-
-    from app.utils.exceptions import (
-        InsufficientResourcesException,
-        NoSpaceAvailableException,
-        UniqueRoomViolationException,
-    )
-
     await get_user_vault_or_403(room_data.vault_id, user, db_session)
-
-    try:
-        return await crud.room.build(db_session=db_session, obj_in=room_data)
-    except (ValueError, InsufficientResourcesException, NoSpaceAvailableException, UniqueRoomViolationException) as e:
-        # Re-raise HTTP exceptions as-is
-        if isinstance(e, (InsufficientResourcesException, NoSpaceAvailableException, UniqueRoomViolationException)):
-            raise
-        # Convert ValueError to proper 400 error
-        raise HTTPException(status_code=400, detail=str(e))  # noqa: B904
+    return await room_service.build_room(db_session, room_data)
 
 
 @router.delete("/destroy/{room_id}", status_code=204)
 async def destroy_room(
-    room_id: UUID4, user: CurrentActiveUser, db_session: Annotated[AsyncSession, Depends(get_async_session)]
+    room_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
-    from fastapi import HTTPException
-
     await verify_room_access(room_id, user, db_session)
-
-    try:
-        return await crud.room.destroy(db_session, room_id)
-    except ValueError as e:
-        # Convert ValueError to proper 400 error (e.g., vault door/elevator protection)
-        raise HTTPException(status_code=400, detail=str(e))  # noqa: B904
+    return await room_service.destroy_room(db_session, room_id)
 
 
 @router.post("/upgrade/{room_id}", response_model=RoomRead)
 async def upgrade_room(
-    room_id: UUID4, user: CurrentActiveUser, db_session: Annotated[AsyncSession, Depends(get_async_session)]
+    room_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
-    from fastapi import HTTPException
-
-    from app.utils.exceptions import InsufficientResourcesException
-
     await verify_room_access(room_id, user, db_session)
-    try:
-        return await crud.room.upgrade(db_session=db_session, room_id=room_id)
-    except (ValueError, InsufficientResourcesException) as e:
-        if isinstance(e, InsufficientResourcesException):
-            raise  # Re-raise HTTPException as-is
-        raise HTTPException(status_code=400, detail=str(e))  # noqa: B904
+    return await room_service.upgrade_room(db_session, room_id)

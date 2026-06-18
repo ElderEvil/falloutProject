@@ -8,6 +8,7 @@ from app.api.deps import CurrentActiveUser
 from app.crud.notification import notification as notification_crud
 from app.db.session import get_async_session
 from app.models.notification import NotificationCreate, NotificationRead
+from app.schemas.responses import CountResponse, MarkReadResponse
 
 router = APIRouter()
 
@@ -30,14 +31,14 @@ async def get_notifications(
     )
 
 
-@router.get("/unread-count", response_model=dict[str, int])
+@router.get("/unread-count", response_model=CountResponse)
 async def get_unread_count(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """Get count of unread notifications"""
     count = await notification_crud.get_unread_count(db_session, user_id=user.id)
-    return {"count": count}
+    return CountResponse(count=count)
 
 
 @router.post("/", response_model=NotificationRead)
@@ -63,14 +64,14 @@ async def mark_notification_as_read(
     return notification
 
 
-@router.post("/mark-all-read", response_model=dict[str, int])
+@router.post("/mark-all-read", response_model=MarkReadResponse)
 async def mark_all_notifications_as_read(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """Mark all notifications as read for the current user"""
     count = await notification_crud.mark_all_as_read(db_session, user_id=user.id)
-    return {"marked_read": count}
+    return MarkReadResponse(marked_read=count)
 
 
 @router.delete("/{notification_id}", response_model=NotificationRead)

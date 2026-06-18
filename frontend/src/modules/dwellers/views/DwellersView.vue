@@ -353,7 +353,11 @@ const handleQuickUnassign = async (dwellerId: string) => {
                 v-for="dweller in dwellerStore.dwellers"
                 :key="dweller.id"
                 class="flex items-center gap-3 rounded border border-gray-700 bg-gray-800/50 p-3 hover:bg-gray-800 transition-all cursor-pointer"
+                role="button"
+                tabindex="0"
                 @click="viewDwellerDetails(dweller.id)"
+                @keydown.enter.prevent="viewDwellerDetails(dweller.id)"
+                @keydown.space.prevent="viewDwellerDetails(dweller.id)"
               >
                 <!-- Avatar - smaller, no generate button -->
                 <div class="flex-shrink-0">
@@ -457,12 +461,17 @@ const handleQuickUnassign = async (dwellerId: string) => {
                   <template v-if="getRoomForDweller(dweller.room_id)">
                     <div
                       class="px-3 py-1.5 rounded text-sm font-medium bg-gray-700/80 text-gray-200 border border-gray-600 cursor-pointer hover:bg-gray-700 transition-all flex items-center gap-2"
+                      role="button"
+                      tabindex="0"
                       @click.stop="openRoomModal(dweller.room_id!)"
+                      @keydown.enter.prevent.stop="openRoomModal(dweller.room_id!)"
+                      @keydown.space.prevent.stop="openRoomModal(dweller.room_id!)"
                     >
                       {{ getRoomForDweller(dweller.room_id)?.name }}
                       <button
                         @click.stop="handleQuickUnassign(dweller.id)"
                         class="ml-auto p-0.5 hover:bg-red-500/20 rounded transition-colors"
+                        aria-label="Unassign from room"
                         title="Unassign from room"
                       >
                         <Icon icon="mdi:close" class="h-4 w-4 text-red-400" />

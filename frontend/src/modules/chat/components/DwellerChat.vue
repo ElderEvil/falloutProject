@@ -456,7 +456,7 @@ onUnmounted(() => {
   max-height: 600px;
   height: 100%;
   font-family: 'Courier New', monospace;
-  background-color: #0a0a0a;
+  background-color: var(--color-surface-dark);
   color: var(--color-theme-primary);
   border: 2px solid var(--color-theme-primary);
   border-radius: 8px;
@@ -635,9 +635,9 @@ onUnmounted(() => {
 
 .audio-replay-btn.is-playing {
   opacity: 1;
-  border-color: #ff4444;
+  border-color: var(--color-danger);
   background-color: rgba(255, 68, 68, 0.1);
-  color: #ff4444;
+  color: var(--color-danger);
   animation: audio-pulse 1.5s ease-in-out infinite;
 }
 
@@ -779,7 +779,7 @@ onUnmounted(() => {
 
 .chat-send-btn:hover {
   background-color: var(--color-theme-primary);
-  color: #000;
+  color: var(--color-terminal-background);
   box-shadow: 0 0 20px var(--color-theme-glow);
 }
 
@@ -853,7 +853,7 @@ onUnmounted(() => {
 .recording-dot {
   width: 12px;
   height: 12px;
-  background-color: #ff4444;
+  background-color: var(--color-danger);
   border-radius: 50%;
   animation: pulse 1.5s infinite;
   flex-shrink: 0;
@@ -904,7 +904,7 @@ onUnmounted(() => {
 .record-btn:hover,
 .send-audio-btn:hover {
   background-color: var(--color-theme-primary);
-  color: #000;
+  color: var(--color-terminal-background);
   box-shadow: 0 0 20px var(--color-theme-glow);
 }
 
@@ -915,8 +915,8 @@ onUnmounted(() => {
 
 .cancel-btn:hover {
   background-color: rgba(255, 68, 68, 0.3);
-  border-color: #ff4444;
-  color: #ff4444;
+  border-color: var(--color-danger);
+  color: var(--color-danger);
   box-shadow: 0 0 15px rgba(255, 68, 68, 0.3);
 }
 
@@ -946,19 +946,19 @@ onUnmounted(() => {
 }
 
 .happiness-indicator.text-green-400 {
-  color: #4ade80;
+  color: var(--color-success);
   background-color: rgba(74, 222, 128, 0.1);
   border: 1px solid rgba(74, 222, 128, 0.3);
 }
 
 .happiness-indicator.text-red-400 {
-  color: #f87171;
+  color: var(--color-danger);
   background-color: rgba(248, 113, 113, 0.1);
   border: 1px solid rgba(248, 113, 113, 0.3);
 }
 
 .happiness-indicator.text-gray-400 {
-  color: #9ca3af;
+  color: var(--color-gray-400);
   background-color: rgba(156, 163, 175, 0.1);
   border: 1px solid rgba(156, 163, 175, 0.3);
 }
@@ -1023,7 +1023,7 @@ onUnmounted(() => {
 
 .action-confirm-btn:hover:not(:disabled) {
   background-color: var(--color-theme-primary);
-  color: #000;
+  color: var(--color-terminal-background);
   box-shadow: 0 0 10px var(--color-theme-glow);
 }
 
@@ -1050,7 +1050,7 @@ onUnmounted(() => {
   opacity: 1;
   background-color: rgba(255, 68, 68, 0.1);
   border-color: rgba(255, 68, 68, 0.5);
-  color: #ff4444;
+  color: var(--color-danger);
 }
 
 /* Quota exceeded state */
@@ -1074,7 +1074,7 @@ onUnmounted(() => {
 .quota-icon {
   width: 24px;
   height: 24px;
-  color: #ff4444;
+  color: var(--color-danger);
   flex-shrink: 0;
 }
 
@@ -1088,21 +1088,21 @@ onUnmounted(() => {
 .quota-title {
   font-size: 0.9rem;
   font-weight: 600;
-  color: #ff4444;
+  color: var(--color-danger);
 }
 
 .quota-reset {
   font-size: 0.75rem;
-  color: #ff4444;
+  color: var(--color-danger);
   opacity: 0.8;
 }
 
 .quota-profile-btn {
   padding: 0.5rem 1rem;
   border-radius: 4px;
-  border: 1px solid #ff4444;
+  border: 1px solid var(--color-danger);
   background-color: rgba(255, 68, 68, 0.15);
-  color: #ff4444;
+  color: var(--color-danger);
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
@@ -1111,8 +1111,8 @@ onUnmounted(() => {
 }
 
 .quota-profile-btn:hover {
-  background-color: #ff4444;
-  color: #000;
+  background-color: var(--color-danger);
+  color: var(--color-terminal-background);
   box-shadow: 0 0 10px rgba(255, 68, 68, 0.4);
 }
 </style>

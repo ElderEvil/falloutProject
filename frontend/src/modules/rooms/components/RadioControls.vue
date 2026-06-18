@@ -107,7 +107,7 @@ const emit = defineEmits<{
 
 .radio-status {
   font-size: 0.75rem;
-  color: #888;
+  color: var(--color-gray-500);
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -118,7 +118,7 @@ const emit = defineEmits<{
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: #555;
+  background-color: var(--color-gray-600);
   box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
 }
 
@@ -158,7 +158,7 @@ const emit = defineEmits<{
   padding: 0.5rem;
   border: none;
   background: transparent;
-  color: #888;
+  color: var(--color-gray-500);
   cursor: pointer;
   border-radius: 4px;
   font-size: 0.875rem;
@@ -168,12 +168,12 @@ const emit = defineEmits<{
 
 .mode-btn:hover {
   background: rgba(255, 255, 255, 0.05);
-  color: #aaa;
+  color: var(--color-gray-400);
 }
 
 .mode-btn.active {
   background: var(--color-theme-primary);
-  color: #000;
+  color: var(--color-terminal-background);
   font-weight: bold;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }

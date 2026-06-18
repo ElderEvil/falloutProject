@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useRoute } from 'vue-router'
 import { useEquipmentStore } from '@/stores/equipment'
@@ -83,6 +83,25 @@ const openOutfitInventory = () => {
   showInventoryModal.value = true
 }
 
+// Close modal on Escape key
+const handleKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Escape') {
+    showInventoryModal.value = false
+  }
+}
+
+watch(showInventoryModal, (isOpen) => {
+  if (isOpen) {
+    document.addEventListener('keydown', handleKeydown)
+  } else {
+    document.removeEventListener('keydown', handleKeydown)
+  }
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+})
+
 const modalTitle = computed(() =>
   inventoryMode.value === 'weapon' ? 'Select Weapon' : 'Select Outfit'
 )
@@ -111,7 +130,15 @@ const modalIcon = computed(() =>
           @unequip="handleUnequipWeapon"
         />
 
-        <div v-else class="empty-slot" @click="openWeaponInventory">
+        <div
+          v-else
+          class="empty-slot"
+          role="button"
+          tabindex="0"
+          @click="openWeaponInventory"
+          @keydown.enter.prevent="openWeaponInventory"
+          @keydown.space.prevent="openWeaponInventory"
+        >
           <Icon icon="mdi:plus-circle" class="empty-icon" />
           <p class="empty-text">Click to equip weapon</p>
         </div>
@@ -132,7 +159,15 @@ const modalIcon = computed(() =>
           @unequip="handleUnequipOutfit"
         />
 
-        <div v-else class="empty-slot" @click="openOutfitInventory">
+        <div
+          v-else
+          class="empty-slot"
+          role="button"
+          tabindex="0"
+          @click="openOutfitInventory"
+          @keydown.enter.prevent="openOutfitInventory"
+          @keydown.space.prevent="openOutfitInventory"
+        >
           <Icon icon="mdi:plus-circle" class="empty-icon" />
           <p class="empty-text">Click to equip outfit</p>
         </div>
@@ -141,14 +176,25 @@ const modalIcon = computed(() =>
 
     <!-- Inventory Modal -->
     <Teleport to="body">
-      <div v-if="showInventoryModal" class="modal-overlay" @click="showInventoryModal = false">
+      <div
+        v-if="showInventoryModal"
+        class="modal-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Equipment inventory"
+        @click="showInventoryModal = false"
+      >
         <div class="modal-content" @click.stop>
           <div class="modal-header">
             <h3 class="modal-title">
               <Icon :icon="modalIcon" />
               {{ modalTitle }}
             </h3>
-            <button @click="showInventoryModal = false" class="close-btn">
+            <button
+              @click="showInventoryModal = false"
+              class="close-btn"
+              aria-label="Close inventory"
+            >
               <Icon icon="mdi:close" />
             </button>
           </div>
@@ -291,7 +337,7 @@ const modalIcon = computed(() =>
 }
 
 .modal-content {
-  background: #0a0a0a;
+  background: var(--color-surface-dark);
   border: 2px solid var(--color-theme-primary);
   border-radius: 8px;
   width: 90%;

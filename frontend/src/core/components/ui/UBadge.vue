@@ -32,12 +32,12 @@ const variantClasses = {
 }
 
 const variantStyles = {
-  success: { color: '#000', borderColor: 'var(--color-theme-primary)' },
+  success: { color: 'var(--color-terminal-background)', borderColor: 'var(--color-theme-primary)' },
   warning: {},
   danger: {},
   info: {
     backgroundColor: 'var(--color-theme-primary)',
-    color: '#000',
+    color: 'var(--color-terminal-background)',
     borderColor: 'var(--color-theme-primary)',
   },
   default: { color: 'var(--color-theme-primary)' },

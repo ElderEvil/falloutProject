@@ -139,7 +139,7 @@ defineProps<Props>()
 
 .placeholder-subtext {
   font-size: 0.875rem;
-  color: #888;
+  color: var(--color-gray-500);
   font-style: italic;
 }
 

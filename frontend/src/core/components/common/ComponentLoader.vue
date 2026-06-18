@@ -30,8 +30,8 @@
 .spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.2);
-  border-top-color: var(--color-theme-primary, #00ff00);
+  border: 3px solid rgba(var(--color-theme-primary-rgb), 0.2);
+  border-top-color: var(--color-theme-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -43,7 +43,7 @@
 }
 
 .loading-text {
-  color: var(--color-theme-primary, #00ff00);
+  color: var(--color-theme-primary);
   font-size: 0.875rem;
   font-weight: 600;
   text-transform: uppercase;

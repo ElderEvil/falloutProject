@@ -94,7 +94,11 @@ const handleViewDetails = () => {
       <!-- Thumbnail Section -->
       <div
         class="relative w-24 h-24 shrink-0 bg-black border border-theme-primary/30 rounded overflow-hidden group cursor-pointer"
+        role="button"
+        tabindex="0"
         @click="handleViewDetails"
+        @keydown.enter.prevent="handleViewDetails"
+        @keydown.space.prevent="handleViewDetails"
       >
         <div v-if="normalizedThumbnail" class="absolute inset-0 grayscale contrast-125 sepia-0">
           <img
@@ -124,7 +128,11 @@ const handleViewDetails = () => {
           <div>
             <h3
               class="font-bold text-lg leading-tight truncate text-theme-primary group-hover:text-theme-glow transition-colors cursor-pointer"
+              role="button"
+              tabindex="0"
               @click="handleViewDetails"
+              @keydown.enter.prevent="handleViewDetails"
+              @keydown.space.prevent="handleViewDetails"
             >
               {{ dweller.first_name }} {{ dweller.last_name }}
             </h3>

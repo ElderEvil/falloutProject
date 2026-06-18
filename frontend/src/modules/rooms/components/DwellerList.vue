@@ -38,7 +38,11 @@ const getDwellerStatValue = (dweller: DwellerShort, ability: string) => {
         v-for="dweller in assignedDwellers"
         :key="dweller.id"
         class="dweller-card clickable"
+        role="button"
+        tabindex="0"
         @click="emit('dwellerClick', dweller.id)"
+        @keydown.enter.prevent="emit('dwellerClick', dweller.id)"
+        @keydown.space.prevent="emit('dwellerClick', dweller.id)"
       >
         <div class="dweller-info">
           <div class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</div>
@@ -134,7 +138,7 @@ const getDwellerStatValue = (dweller: DwellerShort, ability: string) => {
 
 .dweller-level {
   font-size: 0.75rem;
-  color: #aaa;
+  color: var(--color-gray-400);
 }
 
 .dweller-stat {
@@ -151,7 +155,7 @@ const getDwellerStatValue = (dweller: DwellerShort, ability: string) => {
 
 .dweller-stat .stat-label {
   font-weight: bold;
-  color: #fbbf24;
+  color: var(--color-warning);
   font-size: 0.875rem;
 }
 
@@ -167,7 +171,7 @@ const getDwellerStatValue = (dweller: DwellerShort, ability: string) => {
   align-items: center;
   justify-content: center;
   padding: 3rem 1rem;
-  color: #888;
+  color: var(--color-gray-500);
   text-align: center;
 }
 

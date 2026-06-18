@@ -216,6 +216,7 @@ const isTraining = computed(() => {
             @click="loadHappinessModifiers"
             class="happiness-info-button"
             :disabled="loadingModifiers"
+            aria-label="View happiness modifiers"
             title="View happiness modifiers"
           >
             <Icon
@@ -238,7 +239,11 @@ const isTraining = computed(() => {
       <div v-if="showHappinessModifiers && happinessModifiers" class="happiness-modifiers">
         <div class="modifiers-header">
           <span class="modifiers-title">Happiness Modifiers</span>
-          <button @click="showHappinessModifiers = false" class="close-button">
+          <button
+            @click="showHappinessModifiers = false"
+            class="close-button"
+            aria-label="Close happiness modifiers"
+          >
             <Icon icon="mdi:close" class="h-4 w-4" />
           </button>
         </div>

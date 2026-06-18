@@ -19,6 +19,7 @@ interface Props {
   icon?: IconComponent
   iconRight?: IconComponent
   block?: boolean
+  type?: 'button' | 'submit' | 'reset'
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -27,6 +28,7 @@ const props = withDefaults(defineProps<Props>(), {
   disabled: false,
   loading: false,
   block: false,
+  type: 'button',
 })
 
 const emit = defineEmits<{
@@ -67,7 +69,7 @@ const handleClick = (event: MouseEvent) => {
 </script>
 
 <template>
-  <button :class="buttonClasses" :disabled="disabled || loading" @click="handleClick" type="button">
+  <button :class="buttonClasses" :disabled="disabled || loading" @click="handleClick" :type="type">
     <component v-if="icon && !loading" :is="icon" class="h-5 w-5" />
     <span v-if="loading" class="animate-spin">⚙</span>
     <slot></slot>
@@ -92,7 +94,7 @@ const handleClick = (event: MouseEvent) => {
 /* Button Variants */
 .btn-primary {
   background-color: var(--color-theme-accent);
-  color: #000;
+  color: var(--color-terminal-background);
   border: 2px solid var(--color-theme-primary);
 }
 
@@ -113,7 +115,7 @@ const handleClick = (event: MouseEvent) => {
 
 .btn-danger {
   background-color: var(--color-danger);
-  color: #fff;
+  color: var(--color-gray-100);
   border: 2px solid var(--color-danger);
 }
 

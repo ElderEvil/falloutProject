@@ -125,8 +125,8 @@ const sanitizedBio = computed(() => {
 
 .generate-button.combo-button {
   background: rgba(139, 92, 246, 0.15);
-  border-color: #a78bfa;
-  color: #a78bfa;
+  border-color: var(--color-info);
+  color: var(--color-info);
 }
 
 .generate-button:hover:not(:disabled) {
@@ -137,8 +137,8 @@ const sanitizedBio = computed(() => {
 }
 
 .generate-button.combo-button:hover:not(:disabled) {
-  border-color: #a78bfa;
-  box-shadow: 0 0 15px #a78bfa;
+  border-color: var(--color-info);
+  box-shadow: 0 0 15px var(--color-info);
   background: rgba(139, 92, 246, 0.25);
 }
 

@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, inject, onMounted, ref } from 'vue'
+import { computed, inject, onMounted, ref, watch } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '../stores/vault'
 import { useRoomStore } from '@/stores/room'
 import { useRouter } from 'vue-router'
 import { vaultNumberSchema } from '../schemas/vault'
 import { Icon } from '@iconify/vue'
+import { UButton, UInput } from '@/core/components/ui'
 
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
@@ -29,6 +30,10 @@ const sortedVaults = computed(() =>
     (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
   )
 )
+
+watch(newVaultNumber, () => {
+  validateVaultNumber()
+})
 
 const validateVaultNumber = () => {
   vaultNumberError.value = null
@@ -118,30 +123,28 @@ onMounted(async () => {
         <h2 class="mb-4 text-2xl font-bold" :style="{ color: 'var(--color-theme-primary)' }">
           Create New Vault
         </h2>
-        <form @submit.prevent="createVault" class="space-y-2">
-          <div class="flex space-x-2">
-            <input
+        <div class="space-y-2">
+          <div class="flex items-start space-x-2">
+            <UInput
               v-model="newVaultNumber"
               type="number"
+              label="Vault Number"
               placeholder="Vault Number (1-999)"
-              min="1"
-              max="999"
-              @input="validateVaultNumber"
-              class="vault-input flex-grow rounded p-2 focus:outline-none focus:ring-2"
-              :style="{ color: 'var(--color-theme-primary)' }"
-              :class="{ 'ring-2 ring-red-500': vaultNumberError }"
+              :error="vaultNumberError || undefined"
+              class="flex-grow"
             />
-            <button
-              type="submit"
+            <UButton
+              variant="primary"
               :disabled="creatingVault || !!vaultNumberError"
-              class="create-button"
+              @click="createVault"
+              class="mt-6"
             >
-              {{ creatingVault ? 'Creating...' : 'Create' }}
-            </button>
+              {{ creatingVault ? 'Creating...' : 'Create Vault' }}
+            </UButton>
           </div>
-          <p v-if="vaultNumberError" class="text-sm text-red-500">{{ vaultNumberError }}</p>
 
           <!-- Boosted Start Option -->
+          <!-- UInput doesn't support type="checkbox", so raw <input> is kept intentionally -->
           <div class="mt-3 flex items-start space-x-2">
             <input
               id="boosted-start"
@@ -156,7 +159,7 @@ onMounted(async () => {
               </p>
             </label>
           </div>
-        </form>
+        </div>
 
         <!-- Experimental Warning -->
         <div
@@ -234,16 +237,17 @@ onMounted(async () => {
 
             <!-- Action Buttons -->
             <div v-if="selectedVaultId === vault.id" class="vault-actions">
-              <button @click.stop="loadVault(vault.id)" class="vault-button vault-button-load">
-                Load
-              </button>
-              <button
-                @click.stop="deleteVault(vault.id)"
+              <UButton variant="secondary" block @click.stop="loadVault(vault.id)">
+                Load Vault
+              </UButton>
+              <UButton
+                variant="danger"
+                block
                 :disabled="deletingVault === vault.id"
-                class="vault-button vault-button-delete"
+                @click.stop="deleteVault(vault.id)"
               >
-                {{ deletingVault === vault.id ? 'Deleting...' : 'Delete' }}
-              </button>
+                {{ deletingVault === vault.id ? 'Deleting...' : 'Delete Vault' }}
+              </UButton>
             </div>
           </li>
         </ul>
@@ -394,14 +398,14 @@ onMounted(async () => {
 }
 
 .vault-button-delete {
-  background: rgba(239, 68, 68, 0.2);
-  border-color: #ef4444;
-  color: #ef4444;
+  background: color-mix(in srgb, var(--color-danger) 20%, transparent);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 
 .vault-button-delete:hover:not(:disabled) {
-  background: rgba(239, 68, 68, 0.4);
-  box-shadow: 0 0 10px #ef4444;
+  background: color-mix(in srgb, var(--color-danger) 40%, transparent);
+  box-shadow: 0 0 10px var(--color-danger);
 }
 
 .vault-button-delete:disabled {

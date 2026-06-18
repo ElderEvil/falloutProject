@@ -942,7 +942,7 @@ const closeRewardsModal = () => {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #4caf50;
+  background: var(--color-success);
   cursor: pointer;
   box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
 }
@@ -952,7 +952,7 @@ const closeRewardsModal = () => {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #ffeb3b;
+  background: var(--color-caps);
   cursor: pointer;
   box-shadow: 0 0 10px rgba(255, 235, 59, 0.5);
 }

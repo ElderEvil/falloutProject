@@ -46,7 +46,11 @@ const handleDestroyClick = (event: MouseEvent) => {
     class="relative overflow-hidden select-none [-webkit-user-drag:none]"
     :class="{ selected: isSelected, 'has-image': roomImageUrl }"
     draggable="false"
+    role="button"
+    tabindex="0"
     @click="handleRoomClick"
+    @keydown.enter.prevent="handleRoomClick"
+    @keydown.space.prevent="handleRoomClick"
   >
     <div class="room-overlay"></div>
     <div class="room-content">
@@ -57,6 +61,7 @@ const handleDestroyClick = (event: MouseEvent) => {
         v-if="isSelected"
         @click="handleDestroyClick"
         class="destroy-button"
+        aria-label="Destroy room"
         title="Destroy Room"
       >
         <Icon icon="mdi:delete" class="h-5 w-5" />
@@ -68,7 +73,7 @@ const handleDestroyClick = (event: MouseEvent) => {
 <style scoped>
 .room.has-image {
   /* Enhance contrast for rooms with background images */
-  color: #00ff00;
+  color: var(--color-theme-primary);
   text-shadow:
     0 0 4px rgba(0, 0, 0, 0.8),
     0 0 8px rgba(0, 255, 0, 0.5);

@@ -147,7 +147,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+  background: linear-gradient(135deg, var(--color-surface-light) 0%, var(--color-gray-800) 100%);
   border: 2px solid var(--color-theme-primary);
   border-radius: 0.5rem;
   overflow: hidden;

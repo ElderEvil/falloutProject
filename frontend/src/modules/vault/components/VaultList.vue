@@ -117,24 +117,24 @@ const handleDeleteVault = async (id: string) => {
 }
 
 .vault-button-load {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: #3b82f6;
-  color: #3b82f6;
+  background: color-mix(in srgb, var(--color-info) 20%, transparent);
+  border-color: var(--color-info);
+  color: var(--color-info);
 }
 
 .vault-button-load:hover {
-  background: rgba(59, 130, 246, 0.4);
-  box-shadow: 0 0 10px #3b82f6;
+  background: color-mix(in srgb, var(--color-info) 40%, transparent);
+  box-shadow: 0 0 10px var(--color-info);
 }
 
 .vault-button-delete {
-  background: rgba(239, 68, 68, 0.2);
-  border-color: #ef4444;
-  color: #ef4444;
+  background: color-mix(in srgb, var(--color-danger) 20%, transparent);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 
 .vault-button-delete:hover {
-  background: rgba(239, 68, 68, 0.4);
-  box-shadow: 0 0 10px #ef4444;
+  background: color-mix(in srgb, var(--color-danger) 40%, transparent);
+  box-shadow: 0 0 10px var(--color-danger);
 }
 </style>

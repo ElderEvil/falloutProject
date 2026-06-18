@@ -231,7 +231,7 @@ const getRarityColor = (rarity?: string): string => {
 }
 
 .modal-content {
-  background: #0a0a0a;
+  background: var(--color-surface-dark);
   border: 2px solid var(--color-theme-primary);
   border-radius: 8px;
   width: 90%;
@@ -271,7 +271,7 @@ const getRarityColor = (rarity?: string): string => {
 .header-icon {
   width: 2rem;
   height: 2rem;
-  color: #ffd700;
+  color: var(--color-rarity-legendary);
   filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
 }
 
@@ -325,7 +325,7 @@ const getRarityColor = (rarity?: string): string => {
   display: flex;
   align-items: center;
   font-size: 0.875rem;
-  color: #ffa500;
+  color: var(--color-warning);
   text-shadow: 0 0 4px rgba(255, 165, 0, 0.5);
   margin-bottom: 1.5rem;
   padding: 0.75rem;
@@ -378,7 +378,7 @@ const getRarityColor = (rarity?: string): string => {
 
 .reward-icon-container.experience {
   background: rgba(255, 215, 0, 0.2);
-  border: 2px solid #ffd700;
+  border: 2px solid var(--color-rarity-legendary);
 }
 
 .reward-icon-container.caps {
@@ -388,17 +388,17 @@ const getRarityColor = (rarity?: string): string => {
 
 .reward-icon-container.distance {
   background: rgba(65, 105, 225, 0.2);
-  border: 2px solid #4169e1;
+  border: 2px solid var(--color-rarity-rare);
 }
 
 .reward-icon-container.enemies {
   background: rgba(255, 0, 0, 0.2);
-  border: 2px solid #ff0000;
+  border: 2px solid var(--color-danger);
 }
 
 .reward-icon-container.events {
   background: rgba(255, 165, 0, 0.2);
-  border: 2px solid #ffa500;
+  border: 2px solid var(--color-warning);
 }
 
 .reward-icon {
@@ -408,7 +408,7 @@ const getRarityColor = (rarity?: string): string => {
 }
 
 .reward-icon-container.experience .reward-icon {
-  color: #ffd700;
+  color: var(--color-rarity-legendary);
 }
 
 .reward-icon-container.caps .reward-icon {
@@ -416,15 +416,15 @@ const getRarityColor = (rarity?: string): string => {
 }
 
 .reward-icon-container.distance .reward-icon {
-  color: #4169e1;
+  color: var(--color-rarity-rare);
 }
 
 .reward-icon-container.enemies .reward-icon {
-  color: #ff0000;
+  color: var(--color-danger);
 }
 
 .reward-icon-container.events .reward-icon {
-  color: #ffa500;
+  color: var(--color-warning);
 }
 
 .reward-details {
@@ -447,7 +447,7 @@ const getRarityColor = (rarity?: string): string => {
 }
 
 .experience-value {
-  color: #ffd700;
+  color: var(--color-rarity-legendary);
   text-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
   animation: pulse 2s ease-in-out infinite;
 }
@@ -604,7 +604,7 @@ const getRarityColor = (rarity?: string): string => {
 }
 
 .overflow-title {
-  color: #ffa500;
+  color: var(--color-warning);
   border-bottom-color: rgba(255, 165, 0, 0.3);
   text-shadow: 0 0 6px rgba(255, 165, 0, 0.5);
 }
@@ -626,6 +626,6 @@ const getRarityColor = (rarity?: string): string => {
 }
 
 .overflow-icon {
-  color: #ffa500;
+  color: var(--color-warning);
 }
 </style>

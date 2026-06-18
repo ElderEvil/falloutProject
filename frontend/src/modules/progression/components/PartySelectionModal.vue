@@ -345,7 +345,7 @@ const handleAssignAndStart = () => {
 .slot-remove {
   background: none;
   border: none;
-  color: #ff4444;
+  color: var(--color-danger);
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
@@ -484,7 +484,7 @@ const handleAssignAndStart = () => {
 
 .eligible-badge {
   font-size: 0.8rem;
-  color: #00ff00;
+  color: var(--color-theme-primary);
   font-weight: normal;
 }
 

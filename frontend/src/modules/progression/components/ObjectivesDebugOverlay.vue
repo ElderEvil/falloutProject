@@ -76,13 +76,13 @@ watch(
   width: 350px;
   max-height: 400px;
   background: rgba(0, 20, 0, 0.95);
-  border: 2px solid #00ff00;
+  border: 2px solid var(--color-theme-primary);
   border-radius: 4px;
   z-index: 9999;
   font-family: monospace;
   font-size: 12px;
-  color: #00ff00;
-  box-shadow: 0 0 10px #00ff00;
+  color: var(--color-theme-primary);
+  box-shadow: 0 0 10px var(--color-theme-primary);
 }
 
 .debug-header {
@@ -90,13 +90,13 @@ watch(
   justify-content: space-between;
   padding: 8px;
   background: rgba(0, 255, 0, 0.1);
-  border-bottom: 1px solid #00ff00;
+  border-bottom: 1px solid var(--color-theme-primary);
 }
 
 .close-btn {
   background: none;
   border: none;
-  color: #00ff00;
+  color: var(--color-theme-primary);
   font-size: 16px;
   cursor: pointer;
 }
@@ -126,17 +126,17 @@ watch(
 }
 
 .timestamp {
-  color: #00ff00;
+  color: var(--color-theme-primary);
   opacity: 0.7;
 }
 
 .type {
-  color: #ffff00;
+  color: var(--color-warning);
   margin-left: 8px;
 }
 
 .data {
-  color: #00ffff;
+  color: var(--color-info);
   margin-left: 8px;
 }
 
@@ -146,8 +146,8 @@ watch(
   right: 20px;
   padding: 8px 16px;
   background: rgba(0, 255, 0, 0.2);
-  border: 1px solid #00ff00;
-  color: #00ff00;
+  border: 1px solid var(--color-theme-primary);
+  color: var(--color-theme-primary);
   font-family: monospace;
   font-size: 12px;
   cursor: pointer;

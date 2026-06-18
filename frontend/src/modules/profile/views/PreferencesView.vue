@@ -401,7 +401,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
 
 .toggle-button.active .toggle-slider {
   transform: translateX(28px);
-  background: #000;
+  background: var(--color-terminal-background);
 }
 
 /* Glow Controls */
@@ -429,7 +429,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
 
 .glow-option.active {
   background: var(--color-theme-primary);
-  color: #000;
+  color: var(--color-terminal-background);
 }
 
 /* Glow Demo */

@@ -1,4 +1,5 @@
 """Tests for medical supply field migration from Vault to Storage model."""
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 

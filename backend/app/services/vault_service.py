@@ -8,13 +8,13 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.game_data_deps import get_static_game_data
+from app.core.game_config import compute_medical_capacity
 from app.crud import dweller as dweller_crud
 from app.crud import room as room_crud
 from app.crud.vault import vault as vault_crud
 from app.models import Room, Storage
 from app.models.vault import Vault
 from app.models.vault_objective import VaultObjectiveProgressLink
-from app.core.game_config import compute_medical_capacity
 from app.schemas.common import DwellerStatusEnum, GenderEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreateCommonOverride, DwellerUpdate
 from app.schemas.room import RoomCreate
@@ -652,6 +652,7 @@ class VaultService:
         initial_radaway = min(5, medical_capacity.get("radaway", 0))
         if initial_stimpack > 0 or initial_radaway > 0:
             from sqlmodel import select
+
             storage_result = await db_session.execute(select(Storage).where(Storage.vault_id == vault_db_obj.id))
             storage_obj = storage_result.scalar_one_or_none()
             if storage_obj:

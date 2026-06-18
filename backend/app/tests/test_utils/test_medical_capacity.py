@@ -1,4 +1,5 @@
 """Tests for compute_medical_capacity helper and MEDICAL_ROOM_PRODUCTION mapping."""
+
 from unittest.mock import MagicMock
 
 from app.core.game_config import MEDICAL_ROOM_PRODUCTION, compute_medical_capacity

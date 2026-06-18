@@ -658,7 +658,6 @@ def compute_medical_capacity(rooms: Sequence["Room"]) -> dict[str, int]:
     Returns:
         Dict with keys "stimpak" and "radaway" mapping to summed capacities.
     """
-    from app.models.room import Room  # noqa: F811
 
     capacities: dict[str, int] = {"stimpak": 0, "radaway": 0}
     for room in rooms:

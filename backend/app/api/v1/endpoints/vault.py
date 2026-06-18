@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -50,16 +50,8 @@ async def read_vault(
     *,
     vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    user: CurrentActiveUser,
+    _: Annotated[Vault, Depends(get_user_vault_or_403)],
 ):
-    vault = await crud.vault.get(db_session, vault_id)
-    if not vault:
-        raise HTTPException(status_code=404, detail="Vault not found")
-
-    # Only allow users to view their own vaults, unless they're superuser
-    if vault.user_id != user.id and not user.is_superuser:
-        raise HTTPException(status_code=403, detail="The user doesn't have enough privileges")
-
     return await crud.vault.get_vault_with_room_and_dweller_count(db_session=db_session, vault_id=vault_id)
 
 
@@ -69,11 +61,8 @@ async def update_vault(
     vault_id: UUID4,
     vault_data: VaultUpdate,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    user: CurrentActiveUser,
+    _: Annotated[Vault, Depends(get_user_vault_or_403)],
 ):
-    vault = await crud.vault.get(db_session, vault_id)
-    if vault.user_id != user.id and not user.is_superuser:
-        raise HTTPException(status_code=403, detail="User does not have permission to update the vault")
     return await crud.vault.update(db_session, vault_id, vault_data)
 
 
@@ -82,18 +71,13 @@ async def delete_vault(
     *,
     vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    user: CurrentActiveUser,
+    _: Annotated[Vault, Depends(get_user_vault_or_403)],
     hard_delete: Annotated[bool, Query(description="If True, permanently delete. Otherwise soft delete.")] = False,
 ):
     """
     Delete a vault. By default performs soft delete to preserve data.
     Use hard_delete=True to permanently remove the vault.
     """
-    vault = await crud.vault.get(db_session, vault_id)
-    if not vault:
-        raise HTTPException(status_code=404, detail="Vault not found")
-    if vault.user_id != user.id and not user.is_superuser:
-        raise HTTPException(status_code=403, detail="User does not have permission to delete the vault")
     return await crud.vault.delete(db_session, vault_id, soft=not hard_delete)
 
 

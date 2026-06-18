@@ -10,6 +10,7 @@ from app.models.objective import Objective, ObjectiveBase
 from app.models.vault import Vault
 from app.schemas.common import ObjectiveKindEnum
 from app.schemas.objective import ObjectiveCreate, ObjectiveRead
+from app.schemas.responses import AssignedResponse
 from app.services.chat_service import chat_service
 from app.services.objective_assignment_service import ObjectiveAssignmentService
 
@@ -88,4 +89,4 @@ async def assign_random_objectives(
 
     service = ObjectiveAssignmentService(db_session)
     assigned = await service.assign_random_objectives(vault_id, count)
-    return {"assigned": len(assigned), "message": f"Assigned {len(assigned)} objectives to vault"}
+    return AssignedResponse(assigned=len(assigned), message=f"Assigned {len(assigned)} objectives to vault")

@@ -9,7 +9,7 @@ from app.api.game_data_deps import get_static_game_data
 from app.crud.item_base import get_items_list
 from app.db.session import get_async_session
 from app.models.weapon import Weapon
-from app.schemas.junk import JunkRead
+from app.schemas.responses import JunkListResponse
 from app.schemas.weapon import WeaponCreate, WeaponRead, WeaponUpdate
 
 router = APIRouter()
@@ -61,10 +61,10 @@ async def unequip_weapon(weapon_id: UUID4, db_session: Annotated[AsyncSession, D
     return await crud.weapon.unequip(db_session=db_session, item_id=weapon_id)
 
 
-@router.post("/{weapon_id}/scrap/", response_model=dict[str, list[JunkRead]] | None)
+@router.post("/{weapon_id}/scrap/", response_model=JunkListResponse)
 async def scrap_weapon(weapon_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
     junk_list = await crud.weapon.scrap(db_session=db_session, item_id=weapon_id)
-    return {"junk": junk_list}
+    return JunkListResponse(junk=junk_list)
 
 
 @router.post("/{weapon_id}/sell/", status_code=200)

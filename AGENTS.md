@@ -59,13 +59,118 @@ uv run pytest -k "name_substring"
 - **Quotes**: use double quotes in Python.
 - **Typing**: add type hints for new functions; prefer `UUID4`/Pydantic types where applicable.
 - **Import order** (see `backend/app/api/deps.py`): stdlib → third-party → local `app.*`.
-- **Architecture**: controller/endpoint → service → crud → DB.
+- **Architecture**: endpoint → service → crud → DB (see `Service Layer` below).
+
+### Service Layer (MANDATORY)
+
+All business logic MUST live in service classes, not in endpoint functions. Endpoints are thin HTTP handlers — they parse request params, delegate to services, and map exceptions to HTTP responses.
+
+**Rule of thumb:** If an endpoint function contains more than 3 lines of non-trivial logic (validation, orchestration, side effects) beyond calling a service, that logic needs to move into a service.
+
+**Existing services:**
+| Service | File | Covers |
+|---|---|---|
+| `auth_service` | `backend/app/services/auth_service.py` | Login, token refresh, password mgmt, email verification |
+| `chat_service` | `backend/app/services/chat_service.py` | Chat with dweller, objective generation |
+| `room_service` | `backend/app/services/room_service.py` | Build, destroy, upgrade rooms |
+| `vault_service` | `backend/app/services/vault_service.py` | Initiate vault, resource updates, medical transfer |
+| `death_service` | `backend/app/services/death_service.py` | Death, revival, permanent death |
+| `dweller_service` | `backend/app/services/dweller_service.py` | Dweller updates with room-based status |
+| `training_service` | `backend/app/services/training_service.py` | Start/cancel/complete training |
+| `quest_service` | `backend/app/services/quest_service.py` | Quest lifecycle, party management |
+| `exploration_service` | `backend/app/services/exploration_service.py` | Send/recall/complete explorations |
+| `radio_service` | `backend/app/services/radio_service.py` | Recruitment, radio mode |
+| `relationship_service` | `backend/app/services/relationship_service.py` | Relationships, compatibility, breeding |
+| `user_service` | `backend/app/services/user_service.py` | Registration, profile, AI usage |
+| `breeding_service` | `backend/app/services/breeding_service.py` | Pregnancy, delivery, conception |
+| `incident_service` | `backend/app/services/incident_service.py` | Incident spawning, resolution |
+| `game_loop` | `backend/app/services/game_loop.py` | Game tick processing, pause/resume |
+| `notification_service` | `backend/app/services/notification_service.py` | WebSocket/broadcast notifications |
+| `conversation_service` | `backend/app/services/conversation_service.py` | Voice chat, audio processing |
+
+**Service pattern:**
+
+```python
+# ❌ BAD — business logic in endpoint
+@router.post("/login")
+async def login(...):
+    user = await crud.user.authenticate(...)
+    if not user:
+        raise HTTPException(status_code=400, detail="Incorrect email or password")
+    ...
+
+# ✅ GOOD — thin endpoint, business logic in service
+@router.post("/login", response_model=Token)
+async def login_access_token(...):
+    try:
+        return await auth_service.login(...)
+    except ValidationException as e:
+        raise HTTPException(status_code=400, detail=e.detail) from e
+```
+
+### Avoid Nested try-except
+
+Do NOT nest try-except blocks inside other try blocks. This makes error handling hard to follow and can mask failures.
+
+```python
+# ❌ BAD
+try:
+    result = await some_agent.run(...)
+    try:
+        usage = result.usage()
+    except Exception:
+        logger.warning("...")
+    return result
+except Exception:
+    logger.exception("Fallback")
+
+# ✅ GOOD — extract inner block into a helper
+def _extract_usage(result) -> ...:
+    try:
+        return result.usage()
+    except Exception:
+        logger.warning("...")
+        return None
+
+try:
+    result = await some_agent.run(...)
+    usage = _extract_usage(result)
+    return result, usage
+except Exception:
+    logger.exception("Fallback")
+```
+
+### Vault Ownership Checks
+
+Use `get_user_vault_or_403` from `app.api.deps` for vault ownership verification instead of inline checks.
+
+```python
+# ❌ BAD — inline vault ownership check
+@router.post("/vaults/{vault_id}/pause")
+async def pause_vault(vault_id, user, db_session):
+    vault = await crud.vault.get(db_session, vault_id)
+    if not vault:
+        raise HTTPException(status_code=404, ...)
+    if vault.user_id != user.id and not user.is_superuser:
+        raise HTTPException(status_code=403, ...)
+    ...
+
+# ✅ GOOD — use Depends(get_user_vault_or_403)
+@router.post("/vaults/{vault_id}/pause")
+async def pause_vault(
+    vault: Annotated[Vault, Depends(get_user_vault_or_403)],
+    ...
+):
+    ...
+```
 
 ### Backend Error Handling
 
 - Prefer the custom HTTP exceptions in `backend/app/utils/exceptions.py` (e.g., `ResourceNotFoundException`,
   `AccessDeniedException`) over ad-hoc `HTTPException`.
 - Log with `logging.getLogger(__name__)` inside services; use `logger.exception(...)` for unexpected errors.
+- Endpoints catch service exceptions (subclasses of `HTTPException`) and map them: `ValidationException` → 400,
+  `ResourceNotFoundException` → 404, `ResourceConflictException` → 409, `VaultOperationException` → 400.
 
 ## Frontend (Vue 3 / TypeScript)
 
@@ -81,6 +186,7 @@ pnpm run types:generate                   # requires backend running at :8000
 ### Lint / Format / Types
 
 Authoritative config:
+
 - `frontend/vite.config.ts` (`fmt`: 100 cols, single quotes, no semicolons, 2 spaces)
 - `frontend/oxlint.json` (lint rules and ignore patterns)
 - `frontend/tsconfig.app.json` (strict: true, strictTemplates: true)
@@ -156,9 +262,9 @@ When cutting a release branch or version bump:
 
 1. Never push to git without explicit approval.
 2. After backend API changes: regenerate frontend API types: `cd frontend && pnpm run types:generate`.
-3. Prefer small, test-backed changes; follow existing patterns (don’t introduce new architectures).
+3. Prefer small, test-backed changes; follow existing patterns (don't introduce new architectures).
 4. Commit messages: `feat:`, `fix:`, `chore:`; branch prefixes: `feat/`, `fix/`, `chore/`.
 
 ---
 
-*Last updated: 2026-02-01*
+_Last updated: 2026-06-18_

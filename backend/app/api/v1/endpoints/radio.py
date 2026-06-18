@@ -8,6 +8,7 @@ from app.api.deps import CurrentActiveUser, get_user_vault_or_403
 from app.db.session import get_async_session
 from app.schemas.common import RadioModeEnum
 from app.schemas.radio import ManualRecruitRequest, RadioStatsRead, RecruitmentResponse
+from app.schemas.responses import RadioModeResponse, RadioSpeedupResponse
 from app.services.radio_service import radio_service
 from app.utils.exceptions import ValidationException
 
@@ -58,7 +59,7 @@ async def manual_recruit_dweller(
         raise ValidationException(detail=str(e)) from e
 
 
-@router.put("/vault/{vault_id}/mode")
+@router.put("/vault/{vault_id}/mode", response_model=RadioModeResponse)
 async def set_radio_mode(
     vault_id: UUID4,
     mode: RadioModeEnum,
@@ -69,10 +70,10 @@ async def set_radio_mode(
     vault = await get_user_vault_or_403(vault_id, user, db_session)
     vault.radio_mode = mode.value
     await db_session.commit()
-    return {"message": f"Radio mode set to {mode.value}", "radio_mode": mode.value}
+    return RadioModeResponse(message=f"Radio mode set to {mode.value}", radio_mode=mode.value)
 
 
-@router.put("/vault/{vault_id}/room/{room_id}/speedup")
+@router.put("/vault/{vault_id}/room/{room_id}/speedup", response_model=RadioSpeedupResponse)
 async def set_radio_speedup(
     vault_id: UUID4,
     room_id: UUID4,
@@ -90,8 +91,8 @@ async def set_radio_speedup(
     except ValueError as e:
         raise ValidationException(detail=str(e)) from e
 
-    return {
-        "message": f"Radio room speedup set to {speedup}x",
-        "room_id": str(room.id),
-        "speedup": room.speedup_multiplier,
-    }
+    return RadioSpeedupResponse(
+        message=f"Radio room speedup set to {speedup}x",
+        room_id=str(room.id),
+        speedup=room.speedup_multiplier,
+    )

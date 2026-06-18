@@ -14,6 +14,8 @@ class StorageSpaceResponse(BaseModel):
     max_space: int = Field(..., ge=0, description="Maximum storage capacity")
     available_space: int = Field(..., ge=0, description="Available space for new items")
     utilization_pct: float = Field(..., ge=0, le=100, description="Storage utilization percentage")
+    stimpack: int = Field(default=0, ge=0, description="Current stimpaks in vault storage")
+    radaway: int = Field(default=0, ge=0, description="Current radaways in vault storage")
 
     model_config = {"from_attributes": True}
 

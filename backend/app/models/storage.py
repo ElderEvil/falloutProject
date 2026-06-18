@@ -15,6 +15,8 @@ if TYPE_CHECKING:
 class StorageBase(SQLModel):
     used_space: int = Field(default=0, ge=0, le=1_000)
     max_space: int = Field(default=0, ge=0, le=1_000)
+    stimpack: int = Field(default=0, ge=0, le=10_000)
+    radaway: int = Field(default=0, ge=0, le=10_000)
 
 
 class Storage(BaseUUIDModel, StorageBase, table=True):

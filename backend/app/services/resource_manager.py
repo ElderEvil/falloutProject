@@ -8,8 +8,8 @@ from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.game_config import game_config
-from app.models import Dweller, Room, Vault
+from app.core.game_config import MEDICAL_ROOM_PRODUCTION, compute_medical_capacity, game_config
+from app.models import Dweller, Room, Storage, Vault
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.vault import VaultUpdate
 
@@ -31,12 +31,22 @@ class ResourceManager:
         Returns:
             tuple: (VaultUpdate with new resource levels, dict with warnings/events)
         """
-        vault, rooms, dweller_count, rooms_with_dwellers = await self._get_vault_data(db_session, vault_id)
+        vault, storage, rooms, dweller_count, rooms_with_dwellers = await self._get_vault_data(db_session, vault_id)
 
-        # Calculate net resource changes
         resource_update, events = await self._calculate_net_resource_change(
             vault, rooms, dweller_count, rooms_with_dwellers, seconds_passed
         )
+
+        # Write medical production to Storage (separate from VaultUpdate)
+        if storage is not None:
+            production = events.get("production", {})
+            capacity = compute_medical_capacity(rooms)
+            stimpack_prod = round(production.get("stimpack", 0))
+            radaway_prod = round(production.get("radaway", 0))
+            if stimpack_prod > 0 or radaway_prod > 0:
+                storage.stimpack = min(storage.stimpack + stimpack_prod, capacity.get("stimpak", 0))
+                storage.radaway = min(storage.radaway + radaway_prod, capacity.get("radaway", 0))
+                db_session.add(storage)
 
         return resource_update, events
 
@@ -52,26 +62,21 @@ class ResourceManager:
         Calculate net resource change considering production, consumption, and efficiency.
 
         Returns:
-            tuple: (VaultUpdate, dict with events/warnings)
+            tuple: (VaultUpdate with new resource levels, dict with events/warnings)
         """
         events = {"warnings": [], "production": {}, "consumption": {}}
 
-        # Calculate consumption
         consumption = self._calculate_consumption(rooms, dweller_count, seconds_passed)
         events["consumption"] = consumption
 
-        # Calculate production
         production = self._calculate_production(rooms_with_dwellers, seconds_passed, vault.power)
         events["production"] = production
 
-        # Calculate new resource levels
         new_resources = self._apply_resource_changes(vault, consumption, production)
 
-        # Check for warnings
         warnings = self._check_resource_warnings(vault, new_resources)
         events["warnings"] = warnings
 
-        # Log resource changes
         self._log_resource_changes(vault, new_resources)
 
         return (
@@ -79,8 +84,6 @@ class ResourceManager:
                 power=round(new_resources["power"]),
                 food=round(new_resources["food"]),
                 water=round(new_resources["water"]),
-                stimpack=new_resources["stimpack"],
-                radaway=new_resources["radaway"],
             ),
             events,
         )
@@ -151,10 +154,9 @@ class ResourceManager:
             case SPECIALEnum.PERCEPTION:  # Water treatment
                 totals["water"] += production
             case SPECIALEnum.INTELLIGENCE:  # Medbay and Science Lab
-                if "medbay" in room_name.lower():
-                    totals["stimpack"] += production
-                elif "science" in room_name.lower():
-                    totals["radaway"] += production
+                product = MEDICAL_ROOM_PRODUCTION.get(room_name.lower())
+                if product:
+                    totals[product] += production
             case SPECIALEnum.ENDURANCE:
                 base_resources = ["power", "food", "water"]
                 per_share = production / len(base_resources)
@@ -170,20 +172,6 @@ class ResourceManager:
             "power": max(0, min(vault.power - consumption["power"] + production["power"], vault.power_max)),
             "food": max(0, min(vault.food - consumption["food"] + production["food"], vault.food_max)),
             "water": max(0, min(vault.water - consumption["water"] + production["water"], vault.water_max)),
-            "stimpack": max(
-                0,
-                min(
-                    round(vault.stimpack + production["stimpack"]),
-                    vault.stimpack_max if vault.stimpack_max is not None else 99999,
-                ),
-            ),
-            "radaway": max(
-                0,
-                min(
-                    round(vault.radaway + production["radaway"]),
-                    vault.radaway_max if vault.radaway_max is not None else 99999,
-                ),
-            ),
         }
 
     @staticmethod
@@ -215,42 +203,34 @@ class ResourceManager:
 
     @staticmethod
     async def _get_vault_data(db_session: AsyncSession, vault_id: UUID4):
-        """
-        Fetch vault data with optimized queries.
-
-        Returns:
-            tuple: (vault, rooms, dweller_count, rooms_with_dwellers)
-        """
-        # Get vault
         vault_query = select(Vault).where(Vault.id == vault_id)
         vault = (await db_session.execute(vault_query)).scalars().first()
 
         if not vault:
             raise ValueError(f"Vault {vault_id} not found")
 
-        # Get all rooms
+        storage_query = select(Storage).where(Storage.vault_id == vault_id)
+        storage = (await db_session.execute(storage_query)).scalars().first()
+
         rooms_query = select(Room).where(Room.vault_id == vault_id)
         rooms = (await db_session.execute(rooms_query)).scalars().all()
 
-        # Count dwellers
         dweller_count = (
             await db_session.execute(select(func.count(Dweller.id)).where(Dweller.vault_id == vault_id))
         ).scalar()
 
-        # Get rooms with assigned dwellers
         rooms_with_dwellers_query = (
             select(Room, Dweller).join(Dweller, Room.id == Dweller.room_id).where(Room.vault_id == vault_id)
         )
         rooms_with_dwellers_result = (await db_session.execute(rooms_with_dwellers_query)).all()
 
-        # Group dwellers by room
         rooms_with_dwellers_dict = {}
         for room, dweller in rooms_with_dwellers_result:
             if room.id not in rooms_with_dwellers_dict:
                 rooms_with_dwellers_dict[room.id] = (room, [])
             rooms_with_dwellers_dict[room.id][1].append(dweller)
 
-        return vault, rooms, dweller_count or 0, list(rooms_with_dwellers_dict.values())
+        return vault, storage, rooms, dweller_count or 0, list(rooms_with_dwellers_dict.values())
 
     async def check_resource_availability(self, vault: Vault) -> dict[str, bool]:
         """

@@ -96,14 +96,6 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
         field, current = resource_map[room_obj.ability]
 
-        if room_obj.ability == SPECIALEnum.INTELLIGENCE:
-            if "medbay" in room_obj.name.lower():
-                field = "stimpack_max"
-                current = vault_obj.stimpack_max or 0
-            elif "science" in room_obj.name.lower():
-                field = "radaway_max"
-                current = vault_obj.radaway_max or 0
-
         if field:
             new_capacity = self._calculate_new_capacity(action, current, room_obj.capacity)
             await self.update(db_session=db_session, id=vault_obj.id, obj_in={field: new_capacity}, commit=False)

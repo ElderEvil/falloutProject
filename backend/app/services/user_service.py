@@ -2,7 +2,6 @@
 
 import logging
 
-from fastapi import HTTPException
 from pydantic import EmailStr
 from redis.asyncio import Redis
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -11,7 +10,9 @@ from app import crud
 from app.core import security
 from app.core.config import settings
 from app.core.email import send_verification_email
+from app.models.user import User
 from app.schemas.user import UserCreate, UserWithTokens
+from app.utils.exceptions import AccessDeniedException, ResourceAlreadyExistsException
 
 logger = logging.getLogger(__name__)
 
@@ -29,17 +30,11 @@ class UserService:
     ) -> UserWithTokens:
         """Register a new user, verify email, and return tokens."""
         if not settings.USERS_OPEN_REGISTRATION:
-            raise HTTPException(
-                status_code=403,
-                detail="Open user registration is forbidden on this server",
-            )
+            raise AccessDeniedException("Open user registration is forbidden on this server")
 
         existing = await crud.user.get_by_email(db_session, email=email)
         if existing:
-            raise HTTPException(
-                status_code=409,
-                detail="The user with this email already exists in the system",
-            )
+            raise ResourceAlreadyExistsException(model=User, name=email)
 
         user_in = UserCreate(username=username, password=password, email=email)
         user = await crud.user.create(db_session, obj_in=user_in)
@@ -81,16 +76,13 @@ class UserService:
 
         cache_key = f"ai_usage:{user_id}"
 
-        # Try cache first
         cached = await redis_client.get(cache_key)
         if cached:
             return json.loads(cached)
 
-        # Compute from DB
         usage_service = AIUsageService()
         result = await usage_service.get_user_usage(db_session, user_id)
 
-        # Cache for 5 minutes
         data = result.model_dump(mode="json")
         await redis_client.setex(cache_key, 300, json.dumps(data))
         return data

@@ -148,8 +148,6 @@ class ObjectiveAssignmentService:
 
     async def assign_random_objectives(self, vault_id: UUID4, count: int = 5) -> list[Objective]:
         """Assign random unassigned objectives to a vault (testing/debugging)."""
-        import random
-
         # Get all objective IDs already assigned to this vault
         assigned_ids_query = select(VaultObjectiveProgressLink.objective_id).where(
             VaultObjectiveProgressLink.vault_id == vault_id
@@ -175,9 +173,10 @@ class ObjectiveAssignmentService:
             )
             self._db_session.add(link)
 
-        await self._db_session.commit()
         assigned = unassigned[:count]
-        logger.info(f"Assigned {len(assigned)} random objectives to vault {vault_id}")
+        if assigned:
+            await self._db_session.commit()
+            logger.info(f"Assigned {len(assigned)} random objectives to vault {vault_id}")
         return assigned
 
     async def _objective_already_assigned(self, vault_id: UUID4, objective_id: UUID4) -> bool:

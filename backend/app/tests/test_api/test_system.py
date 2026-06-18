@@ -30,13 +30,12 @@ class TestChangelogEndpoint:
 
     async def test_get_latest_changelog_empty(self, async_client: AsyncClient, monkeypatch) -> None:
         """Test latest changelog returns 404 when no entries available."""
-        # Mock parse_changelog to return empty list
-        from app.api.v1.endpoints import system
+        from app.services.changelog_service import changelog_service
 
-        def mock_parse_changelog(_path):
+        def mock_empty():
             return []
 
-        monkeypatch.setattr(system, "parse_changelog", mock_parse_changelog)
+        monkeypatch.setattr(changelog_service, "_get_versions", mock_empty)
 
         response = await async_client.get("/system/changelog/latest")
 

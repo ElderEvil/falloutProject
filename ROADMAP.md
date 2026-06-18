@@ -18,19 +18,13 @@ AI-powered dweller interactions.
 
 ## Up Next (Recommended)
 
-### v2.16: Infrastructure & Code Quality
-
-- [ ] **FE accessibility pass** — `role=button`/tabindex on clickable divs in DwellersView, RoomGrid, HappinessDashboard; full focus trap on UModal
-- [ ] **CRT theme consistency** — Replace hardcoded hex colors in 46 files with CSS variables; migrate raw `<button>`/`<input>` to UButton/UInput in auth forms
-- [ ] **Module READMEs** — Add 1-paragraph docs for each frontend module (auth, vault, dwellers, rooms, etc.)
-- [ ] **Backend skipped tests** — Fix 12 skipped backend tests (incident, happiness, exploration, room, quest)
-
-### v2.17: Medical Storage System
+### v2.17: Medical Storage & Streaming
 
 - [ ] **Storage Model Refactor** — Move stimpaks/radaways from Vault model to Storage model
 - [ ] **Medbay Production** — Medbay rooms produce stimpaks over time
 - [ ] **Science Lab Production** — Science Lab rooms produce radaways over time
 - [ ] **Exploration Integration** — Dwellers can equip stimpaks from storage before exploration
+
 
 ---
 
@@ -50,6 +44,19 @@ AI-powered dweller interactions.
 - ✅ **Options data module** — `backend/app/options/` ported from `fallout-avatar` project
 - ✅ **Frontend types regenerated** — OpenAPI types include full `DwellerVisualAttributes`
 - ✅ **33 passing tests** (8 schema, 15 service/options, 1 crud, 9 frontend editor)
+
+### v2.16.0 - Infrastructure & Code Quality (June 18, 2026)
+
+**Focus**: Frontend accessibility, CRT theme consistency, module READMEs, backend test fixes
+
+**Completed:**
+
+- ✅ **FE accessibility pass** — Added `role=button`/`tabindex`/keyboard handlers to 13 clickable elements across 8 files; full focus trap on UModal with Tab cycling, Escape close, focus restore; `aria-label` on 8 icon-only buttons; `role="dialog"`/`aria-modal` on inline modals
+- ✅ **CRT theme consistency** — Replaced hardcoded hex colors in ~45 files with CSS variables (`--color-theme-primary`, `--color-danger`, etc.); migrated 5 auth forms and HomeView vault creation form from raw `<button>`/`<input>` to UButton/UInput; added `type` prop to UButton
+- ✅ **Module READMEs** — Added 1-paragraph docs for each frontend module (auth, vault, dwellers, rooms, etc.) — 12 READMEs total
+- ✅ **Backend skipped tests** — Fixed 12 skipped backend tests (quest datetime, 6 bare-skips, 3 incident assertions, 2 room session-race)
+- ✅ **Nuxt UI migration plan** — Drafted `.omo/drafts/nuxt-ui-migration-plan.md`
+- ✅ **Dead code removal** — Deleted `LoginForm.vue` (replaced by `LoginFormTerminal`), dropped `fix-changelog-freeze.md`
 
 ### v2.13.0 - Dramatiq Migration (May 1, 2026)
 

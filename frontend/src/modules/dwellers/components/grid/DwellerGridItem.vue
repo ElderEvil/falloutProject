@@ -56,7 +56,14 @@ const getStatColorClass = (value: number) => {
 </script>
 
 <template>
-  <div class="dweller-grid-item" @click="emit('click')">
+  <div
+    class="dweller-grid-item"
+    role="button"
+    tabindex="0"
+    @click="emit('click')"
+    @keydown.enter.prevent="emit('click')"
+    @keydown.space.prevent="emit('click')"
+  >
     <!-- Thumbnail / Avatar -->
     <div class="thumbnail-container">
       <template v-if="dweller.thumbnail_url">
@@ -77,6 +84,7 @@ const getStatColorClass = (value: number) => {
             @click.stop="emit('generate-ai')"
             class="ai-generate-button"
             :disabled="generatingAI"
+            aria-label="Generate AI portrait"
           >
             <Icon
               :icon="generatingAI ? 'mdi:loading' : 'mdi:sparkles'"

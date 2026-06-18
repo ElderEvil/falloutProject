@@ -153,7 +153,7 @@ onMounted(() => {
 .happiness-view {
   display: flex;
   min-height: 100vh;
-  background: var(--color-terminal-background, #0a0a0a);
+  background: var(--color-terminal-background);
   color: var(--color-theme-primary);
   font-family: 'Courier New', monospace;
 }
@@ -223,26 +223,26 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   padding: 4rem;
-  background: rgba(239, 68, 68, 0.1);
-  border: 2px solid #ef4444;
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+  border: 2px solid var(--color-danger);
   border-radius: 0.5rem;
   gap: 1rem;
 }
 
 .error-icon {
   font-size: 4rem;
-  color: #ef4444;
+  color: var(--color-danger);
 }
 
 .error-title {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #ef4444;
+  color: var(--color-danger);
   text-transform: uppercase;
 }
 
 .error-message {
-  color: #fca5a5;
+  color: var(--color-danger);
 }
 
 .retry-button {

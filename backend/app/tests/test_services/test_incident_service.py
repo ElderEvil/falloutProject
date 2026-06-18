@@ -173,7 +173,6 @@ async def test_resolve_incident_manually_success(async_session: AsyncSession, ro
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Needs investigation - assertion may be outdated")
 async def test_resolve_incident_manually_failure(async_session: AsyncSession, room_with_dwellers: dict):
     """Test manual incident resolution with failure."""
     room = room_with_dwellers["room"]
@@ -181,7 +180,7 @@ async def test_resolve_incident_manually_failure(async_session: AsyncSession, ro
 
     result = await incident_service.resolve_incident_manually(async_session, incident.id, success=False)
 
-    assert result["message"] == "Incident abandoned"
+    assert result["message"] == "Incident failed"
     assert result["caps_earned"] == 0
 
     # Verify incident status
@@ -190,43 +189,39 @@ async def test_resolve_incident_manually_failure(async_session: AsyncSession, ro
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Needs investigation - assertion may be outdated")
 async def test_incident_spreading_mechanics(async_session: AsyncSession, room_with_dwellers: dict):
     """Test incident spreading to adjacent rooms."""
     from app.schemas.room import RoomCreate
 
     room = room_with_dwellers["room"]
-    # Create another room adjacent to first room
-    room2_data = create_fake_room()
-    room2_in = RoomCreate(**room2_data, vault_id=room.vault_id)
+    room.coordinate_x = 1
+    room.coordinate_y = 1
+    async_session.add(room)
+    await async_session.commit()
+    await async_session.refresh(room)
+
+    room2_data = create_test_room()
+    room2_in = RoomCreate(**room2_data, vault_id=room.vault_id, coordinate_x=2, coordinate_y=1)
     room2 = await crud.room.create(db_session=async_session, obj_in=room2_in)
 
-    # Create incident
-    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
-
-    # Manually trigger spread time
-    incident.last_spread_time = datetime.utcnow() - timedelta(seconds=61)
-    async_session.add(incident)
-    await async_session.commit()
-    await async_session.refresh(incident)
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=room.vault_id,
+        room_id=room.id,
+        incident_type=IncidentType.FIRE,
+        difficulty=5,
+    )
 
     initial_spread_count = incident.spread_count
 
-    # Check if incident should spread
-    if incident.should_spread():
-        # Get adjacent rooms
-        adjacent_rooms = await incident_service._get_adjacent_rooms(async_session, incident.room_id)
+    await incident_service._spread_incident(async_session, incident)
+    await async_session.commit()
+    await async_session.refresh(incident)
 
-        if adjacent_rooms:
-            # Spread incident
-            incident.spread_to_room(str(room2.id))
-            incident.spread_count += 1
-            async_session.add(incident)
-            await async_session.commit()
-            await async_session.refresh(incident)
-
-            assert incident.spread_count > initial_spread_count
-            assert str(room2.id) in incident.rooms_affected
+    assert incident.spread_count > initial_spread_count
+    active_incidents = await crud.incident_crud.get_active_by_vault(async_session, room.vault_id)
+    room_ids = [str(inc.room_id) for inc in active_incidents]
+    assert str(room2.id) in room_ids
 
 
 @pytest.mark.asyncio
@@ -380,7 +375,6 @@ async def test_no_spawn_in_elevator(async_session: AsyncSession, vault: Vault, d
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Needs investigation - assertion may be outdated")
 async def test_one_incident_per_room(async_session: AsyncSession, vault: Vault, dweller_data: dict):
     """Test that only one incident can be active in a room at once."""
     from app.schemas.dweller import DwellerCreate
@@ -392,9 +386,9 @@ async def test_one_incident_per_room(async_session: AsyncSession, vault: Vault, 
     room_in = RoomCreate(**room_data, vault_id=vault.id, coordinate_x=1, coordinate_y=1)
     room = await crud.room.create(db_session=async_session, obj_in=room_in)
 
-    # Add dweller
-    dweller = DwellerCreate(**dweller_data, vault_id=vault.id, room_id=room.id)
-    await crud.dweller.create(db_session=async_session, obj_in=dweller)
+    dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
+    dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+    await crud.dweller.move_to_room(async_session, dweller.id, room.id)
 
     await async_session.commit()
 

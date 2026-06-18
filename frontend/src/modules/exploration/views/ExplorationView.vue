@@ -31,8 +31,7 @@ const selectedExplorerId = ref<string | null>(null)
 const selectedQuestPartyId = ref<string | null>(null)
 
 // Store refs for loading/error state
-const { isLoading: explorationLoading, error: explorationError } =
-  storeToRefs(explorationStore)
+const { isLoading: explorationLoading, error: explorationError } = storeToRefs(explorationStore)
 
 // Rewards modal state
 const showRewardsModal = ref(false)
@@ -335,14 +334,14 @@ const closeRewardsModal = () => {
   display: flex;
   height: 100vh;
   overflow: hidden;
-  background: #000;
+  background: var(--color-terminal-background);
 }
 
 .exploration-view {
   flex: 1;
   padding: 2rem;
   overflow-y: auto;
-  background: #000;
+  background: var(--color-terminal-background);
   font-family: 'Courier New', monospace;
   margin-left: 240px;
   transition: margin-left 0.3s ease;

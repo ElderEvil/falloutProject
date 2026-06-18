@@ -269,7 +269,7 @@ onUnmounted(() => {
   top: 16px;
   width: 24px;
   height: 24px;
-  background: #000;
+  background: var(--color-terminal-background);
   border: 2px solid var(--color-theme-primary);
   border-radius: 50%;
   display: flex;
@@ -283,7 +283,7 @@ onUnmounted(() => {
 
 .toggle-btn:hover {
   background: var(--color-theme-primary);
-  color: #000;
+  color: var(--color-terminal-background);
   box-shadow: 0 0 15px var(--color-theme-glow);
 }
 

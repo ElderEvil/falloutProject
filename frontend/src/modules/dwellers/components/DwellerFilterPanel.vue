@@ -138,7 +138,11 @@ const toggleSortDirection = () => {
               {{ option.label }}
             </option>
           </select>
-          <button @click="toggleSortDirection" class="sort-direction-button">
+          <button
+            @click="toggleSortDirection"
+            class="sort-direction-button"
+            aria-label="Toggle sort direction"
+          >
             <Icon
               :icon="currentSortDirection === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'"
               width="20"

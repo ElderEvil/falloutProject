@@ -3,6 +3,8 @@ import random
 import pytest
 import pytest_asyncio
 from faker import Faker
+from sqlalchemy.ext.asyncio import AsyncConnection
+from sqlalchemy.orm import sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -152,3 +154,40 @@ async def dweller_fixture(async_session: AsyncSession, vault: Vault, dweller_dat
 async def dweller_with_room_fixture(async_session: AsyncSession, room: Room, dweller_data: dict) -> Dweller:
     dweller_in = DwellerCreate(**dweller_data, vault_id=room.vault_id)
     return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+
+
+@pytest_asyncio.fixture(name="vault_with_caps")
+async def vault_with_caps_fixture(db_connection: AsyncConnection, async_session: AsyncSession) -> Vault:
+    session_maker = sessionmaker(
+        bind=db_connection,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autoflush=False,
+    )
+
+    async with session_maker() as setup_session:
+        user_in = UserCreate(
+            username=fake.user_name(),
+            email=fake.email(),
+            password=fake.password(),
+        )
+        user = await crud.user.create(db_session=setup_session, obj_in=user_in)
+
+        vault_in = VaultCreateWithUserID(
+            number=random.randint(1, 999),
+            bottle_caps=10000,
+            happiness=50,
+            power=50,
+            food=50,
+            water=50,
+            user_id=user.id,
+        )
+        vault = await crud.vault.create(db_session=setup_session, obj_in=vault_in)
+        vault_id = vault.id
+        await setup_session.commit()
+
+    vault_in_test = await async_session.get(Vault, vault_id)
+    if vault_in_test is None:
+        msg = "vault_with_caps fixture failed to load vault into test session"
+        raise RuntimeError(msg)
+    return vault_in_test

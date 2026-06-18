@@ -91,7 +91,7 @@ const sizeClasses: Record<string, string> = {
 }
 
 select option {
-  background: #000000;
+  background: var(--color-terminal-background);
   color: var(--color-theme-primary);
 }
 </style>

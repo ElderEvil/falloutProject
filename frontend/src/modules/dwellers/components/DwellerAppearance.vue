@@ -77,8 +77,7 @@ const formattedAttributes = computed(() => {
   if (attrs.facial_hair)
     formatted.push({ label: 'Facial Hair', value: capitalize(attrs.facial_hair) })
   if (attrs.makeup) formatted.push({ label: 'Makeup', value: capitalize(attrs.makeup) })
-  if (attrs.expression)
-    formatted.push({ label: 'Expression', value: capitalize(attrs.expression) })
+  if (attrs.expression) formatted.push({ label: 'Expression', value: capitalize(attrs.expression) })
   if (attrs.headgear) formatted.push({ label: 'Headgear', value: capitalize(attrs.headgear) })
   if (attrs.clothing_style)
     formatted.push({ label: 'Clothing', value: capitalize(attrs.clothing_style) })
@@ -90,8 +89,7 @@ const formattedAttributes = computed(() => {
 
   // Equipment
   if (attrs.accessory) formatted.push({ label: 'Accessory', value: capitalize(attrs.accessory) })
-  if (attrs.object_held)
-    formatted.push({ label: 'Object', value: capitalize(attrs.object_held) })
+  if (attrs.object_held) formatted.push({ label: 'Object', value: capitalize(attrs.object_held) })
 
   // Scene
   if (attrs.pose) formatted.push({ label: 'Pose', value: capitalize(attrs.pose) })

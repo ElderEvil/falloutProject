@@ -312,7 +312,7 @@ const getImageUrl = (imagePath: string | null) => {
   align-items: center;
   justify-content: center;
   background: var(--color-theme-primary);
-  color: #000;
+  color: var(--color-terminal-background);
   font-size: 0.875rem;
   font-weight: bold;
   min-width: 24px;

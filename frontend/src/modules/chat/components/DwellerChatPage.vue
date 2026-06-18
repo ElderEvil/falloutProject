@@ -110,7 +110,7 @@ onMounted(async () => {
   min-height: 100vh;
   padding: 20px;
   box-sizing: border-box;
-  background-color: #0a0a0a;
+  background-color: var(--color-surface-dark);
   color: var(--color-theme-primary);
 }
 

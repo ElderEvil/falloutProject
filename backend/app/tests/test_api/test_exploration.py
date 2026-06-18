@@ -213,7 +213,6 @@ async def test_get_exploration_progress(
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip
 async def test_recall_dweller_success(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
@@ -299,7 +298,6 @@ async def test_recall_dweller_not_active(
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip
 async def test_complete_exploration_success(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
@@ -353,7 +351,7 @@ async def test_complete_exploration_success(
     assert rewards["enemies_defeated"] == 5
     assert rewards["experience"] > 0  # (distance * 10) + (enemies * 50)
     # Note: loot collection tested separately
-    assert "recalled_early" not in rewards or rewards["recalled_early"] is False
+    assert not rewards.get("recalled_early")  # None for completed, True for recalled
 
     # Verify caps transferred to vault
     await async_session.refresh(vault)

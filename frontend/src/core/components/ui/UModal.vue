@@ -55,20 +55,76 @@ const handleEscape = (event: KeyboardEvent) => {
 }
 
 // Register escape key listener when modal is open
-import { useId, onMounted, onUnmounted, watch, computed } from 'vue'
+import { useId, onUnmounted, watch, computed, ref, nextTick } from 'vue'
 
 const modalTitleId = useId()
-const modalLabel = computed(() => props.title ? { 'aria-labelledby': modalTitleId } : { 'aria-label': 'Dialog' })
+const modalLabel = computed(() =>
+  props.title ? { 'aria-labelledby': modalTitleId } : { 'aria-label': 'Dialog' }
+)
+
+// --- Focus trap ---
+const modalContent = ref<HTMLElement | null>(null)
+const previousActiveElement = ref<HTMLElement | null>(null)
+
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]):not([disabled])'
+
+function getFocusableElements(): HTMLElement[] {
+  if (!modalContent.value) return []
+  return Array.from(modalContent.value.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+}
+
+function focusFirstElement(): void {
+  const elements = getFocusableElements()
+  if (elements.length > 0) {
+    elements[0].focus()
+  }
+}
+
+function handleKeydown(event: KeyboardEvent): void {
+  if (event.key !== 'Tab') return
+
+  const elements = getFocusableElements()
+  if (elements.length === 0) {
+    event.preventDefault()
+    return
+  }
+
+  const firstElement = elements[0]
+  const lastElement = elements[elements.length - 1]
+
+  if (event.shiftKey) {
+    if (document.activeElement === firstElement) {
+      event.preventDefault()
+      lastElement.focus()
+    }
+  } else {
+    if (
+      document.activeElement === lastElement ||
+      !modalContent.value?.contains(document.activeElement)
+    ) {
+      event.preventDefault()
+      firstElement.focus()
+    }
+  }
+}
 
 watch(
   () => props.modelValue,
-  (isOpen) => {
+  async (isOpen) => {
     if (isOpen) {
+      previousActiveElement.value = document.activeElement as HTMLElement | null
       document.addEventListener('keydown', handleEscape)
       document.body.style.overflow = 'hidden' // Prevent background scroll
+      await nextTick()
+      focusFirstElement()
     } else {
       document.removeEventListener('keydown', handleEscape)
       document.body.style.overflow = ''
+      if (previousActiveElement.value && document.body.contains(previousActiveElement.value)) {
+        previousActiveElement.value.focus()
+      }
+      previousActiveElement.value = null
     }
   }
 )
@@ -76,6 +132,9 @@ watch(
 onUnmounted(() => {
   document.removeEventListener('keydown', handleEscape)
   document.body.style.overflow = ''
+  if (previousActiveElement.value && document.body.contains(previousActiveElement.value)) {
+    previousActiveElement.value.focus()
+  }
 })
 </script>
 
@@ -89,6 +148,7 @@ onUnmounted(() => {
       >
         <!-- Modal Content -->
         <div
+          ref="modalContent"
           role="dialog"
           aria-modal="true"
           v-bind="modalLabel"
@@ -98,6 +158,7 @@ onUnmounted(() => {
             sizeClasses[size],
           ]"
           @click.stop
+          @keydown="handleKeydown"
         >
           <!-- Header -->
           <div
@@ -151,7 +212,7 @@ onUnmounted(() => {
 .modal-close-btn {
   background: none;
   border: none;
-  color: #888;
+  color: var(--color-gray-500);
   cursor: pointer;
   padding: 0.25rem;
   transition: all 0.2s;

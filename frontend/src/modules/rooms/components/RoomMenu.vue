@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useRoomStore } from '../stores/room'
 import RoomMenuItem from './RoomMenuItem.vue'
 import type { RoomTemplate } from '../models/room'
@@ -22,10 +22,31 @@ const selectRoom = (room: RoomTemplate) => {
 const closeModal = () => {
   emit('close')
 }
+
+// Close modal on Escape key
+const handleKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Escape') {
+    closeModal()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+})
 </script>
 
 <template>
-  <div class="modal-overlay" @click.self="closeModal">
+  <div
+    class="modal-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Room menu"
+    @click.self="closeModal"
+  >
     <div class="modal-content">
       <div class="modal-header">
         <h2 class="text-xl font-bold text-terminalGreen">Room to Build</h2>
@@ -99,7 +120,7 @@ const closeModal = () => {
 }
 
 .close-btn:hover {
-  color: #fff;
+  color: var(--color-gray-100);
   text-shadow: 0 0 8px var(--color-theme-glow);
 }
 

@@ -89,7 +89,7 @@ defineProps<Props>()
 
 .stat-label {
   font-size: 0.75rem;
-  color: #aaa;
+  color: var(--color-gray-400);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -103,12 +103,12 @@ defineProps<Props>()
 
 .stat-subvalue {
   font-size: 0.75rem;
-  color: #888;
+  color: var(--color-gray-500);
   margin-top: 0.25rem;
 }
 
 .text-success {
-  color: #00ff00 !important;
+  color: var(--color-theme-primary) !important;
   text-shadow: 0 0 8px var(--color-theme-glow);
 }
 </style>

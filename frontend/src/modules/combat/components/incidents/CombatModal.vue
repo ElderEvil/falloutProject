@@ -268,7 +268,7 @@ const estimatedCaps = computed(() => {
   align-items: flex-start;
   padding: 1rem;
   padding-top: 0.5rem;
-  border-bottom: 1px solid #1a1a1a;
+  border-bottom: 1px solid var(--color-surface-light);
 }
 
 .header-left {
@@ -280,7 +280,7 @@ const estimatedCaps = computed(() => {
 .header-icon {
   width: 48px;
   height: 48px;
-  color: #ff3333;
+  color: var(--color-danger);
 }
 
 .header-title {
@@ -312,15 +312,15 @@ const estimatedCaps = computed(() => {
 }
 
 .status-active {
-  background: rgba(255, 51, 51, 0.2);
-  border: 1px solid #ff3333;
-  color: #ff3333;
+  background: color-mix(in srgb, var(--color-danger) 20%, transparent);
+  border: 1px solid var(--color-danger);
+  color: var(--color-danger);
 }
 
 .status-spreading {
-  background: rgba(255, 165, 0, 0.2);
-  border: 1px solid #ffaa33;
-  color: #ffaa33;
+  background: color-mix(in srgb, var(--color-warning) 20%, transparent);
+  border: 1px solid var(--color-warning);
+  color: var(--color-warning);
 }
 
 .status-resolved {
@@ -427,7 +427,7 @@ const estimatedCaps = computed(() => {
 }
 
 .stat-value.danger {
-  color: #ff3333;
+  color: var(--color-danger);
 }
 
 .stat-value.success {
@@ -455,7 +455,7 @@ const estimatedCaps = computed(() => {
 .progress-bar {
   width: 100%;
   height: 20px;
-  background: #1a1a1a;
+  background: var(--color-surface-light);
   border: 1px solid var(--color-theme-glow);
   border-radius: 4px;
   overflow: hidden;
@@ -524,7 +524,7 @@ const estimatedCaps = computed(() => {
   gap: 0.75rem;
   justify-content: flex-end;
   padding: 1rem;
-  border-top: 1px solid #1a1a1a;
+  border-top: 1px solid var(--color-surface-light);
 }
 
 .scanline {
@@ -533,7 +533,11 @@ const estimatedCaps = computed(() => {
   left: 0;
   width: 100%;
   height: 2px;
-  background: linear-gradient(to bottom, rgba(51, 255, 51, 0.3), transparent);
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--color-theme-primary) 30%, transparent),
+    transparent
+  );
   animation: scanline 3s linear infinite;
   pointer-events: none;
   z-index: 1000;

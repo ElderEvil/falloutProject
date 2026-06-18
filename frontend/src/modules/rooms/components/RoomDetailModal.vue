@@ -177,9 +177,9 @@ watch(
   gap: 0.5rem;
   padding: 0.75rem;
   background: rgba(255, 0, 0, 0.1);
-  border: 1px solid #ff0000;
+  border: 1px solid var(--color-danger);
   border-radius: 4px;
-  color: #ff0000;
+  color: var(--color-danger);
   font-size: 0.875rem;
 }
 </style>

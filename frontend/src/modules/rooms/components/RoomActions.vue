@@ -148,12 +148,12 @@ const emit = defineEmits<{
 .cost-badge {
   margin-left: auto;
   padding: 0.25rem 0.75rem;
-  background: #000;
-  border: 2px solid #fbbf24;
+  background: var(--color-terminal-background);
+  border: 2px solid var(--color-warning);
   border-radius: 4px;
   font-size: 0.875rem;
   font-weight: bold;
-  color: #fbbf24;
+  color: var(--color-warning);
   text-shadow: 0 0 8px rgba(251, 191, 36, 0.8);
 }
 
@@ -161,11 +161,11 @@ const emit = defineEmits<{
   margin-left: auto;
   padding: 0.25rem 0.75rem;
   background: rgba(139, 92, 246, 0.3);
-  border: 2px solid #8b5cf6;
+  border: 2px solid var(--color-info);
   border-radius: 4px;
   font-size: 0.75rem;
   font-weight: bold;
-  color: #a78bfa;
+  color: var(--color-info);
   text-shadow: 0 0 4px rgba(139, 92, 246, 0.5);
   font-style: italic;
 }
@@ -203,7 +203,7 @@ const emit = defineEmits<{
   background: rgba(128, 128, 128, 0.1);
   border: 1px solid rgba(128, 128, 128, 0.3);
   border-radius: 4px;
-  color: #888;
+  color: var(--color-gray-500);
   font-size: 0.875rem;
 }
 </style>

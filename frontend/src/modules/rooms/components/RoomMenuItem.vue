@@ -58,6 +58,10 @@ const getCategoryIcon = (category: string) => {
 <template>
   <li
     @click="!isLocked && emit('select', room)"
+    role="button"
+    tabindex="0"
+    @keydown.enter.prevent="!isLocked && emit('select', room)"
+    @keydown.space.prevent="!isLocked && emit('select', room)"
     class="room-menu-item"
     :class="{
       locked: isLocked,
@@ -109,7 +113,7 @@ const getCategoryIcon = (category: string) => {
 .room-menu-item {
   padding: 1rem;
   background: rgba(20, 20, 20, 0.95);
-  border: 2px solid #444;
+  border: 2px solid var(--color-gray-700);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.25s ease;
@@ -146,18 +150,18 @@ const getCategoryIcon = (category: string) => {
 }
 
 .room-menu-item.expensive {
-  border-color: #ff9900;
+  border-color: var(--color-warning);
   background: rgba(30, 25, 20, 0.95);
 }
 
 .room-menu-item.expensive:hover {
-  border-color: #ffaa33;
+  border-color: var(--color-warning);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(255, 153, 0, 0.2);
 }
 
 .room-menu-item.locked {
-  border-color: #555;
+  border-color: var(--color-gray-600);
   opacity: 0.5;
   cursor: not-allowed;
   background: rgba(15, 15, 15, 0.95);
@@ -190,7 +194,7 @@ const getCategoryIcon = (category: string) => {
 .lock-icon {
   width: 18px;
   height: 18px;
-  color: #ff4444;
+  color: var(--color-danger);
 }
 
 .room-icon {
@@ -227,11 +231,11 @@ const getCategoryIcon = (category: string) => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: #999;
+  color: var(--color-gray-400);
 }
 
 .room-cost {
-  color: #fbbf24;
+  color: var(--color-warning);
   font-weight: bold;
 }
 
@@ -242,7 +246,7 @@ const getCategoryIcon = (category: string) => {
 }
 
 .room-population {
-  color: #88ccff;
+  color: var(--color-info);
 }
 
 .population-progress {
@@ -254,7 +258,7 @@ const getCategoryIcon = (category: string) => {
 
 .progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #88ccff 0%, #44aaff 100%);
+  background: linear-gradient(90deg, var(--color-info) 0%, var(--color-info) 100%);
   border-radius: 2px;
   transition: width 0.3s ease;
   box-shadow: 0 0 4px rgba(136, 204, 255, 0.5);

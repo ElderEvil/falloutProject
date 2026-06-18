@@ -46,6 +46,10 @@ describe('HomeView', () => {
     vi.clearAllMocks()
   })
 
+  const findCreateButton = (wrapper: any) => {
+    return wrapper.findAll('button').find((btn: any) => btn.text().includes('Create Vault'))
+  }
+
   describe('Rendering', () => {
     it('should render welcome message', async () => {
       const wrapper = mount(HomeView, {
@@ -67,8 +71,8 @@ describe('HomeView', () => {
       await flushPromises()
 
       expect(wrapper.find('h2').text()).toContain('Create New Vault')
-      expect(wrapper.find('input[type="number"]').exists()).toBe(true)
-      expect(wrapper.find('button[type="submit"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="ui-input"]').exists()).toBe(true)
+      expect(findCreateButton(wrapper)).toBeDefined()
     })
 
     it('should show empty state when no vaults', async () => {
@@ -124,14 +128,14 @@ describe('HomeView', () => {
       })
       await flushPromises()
 
-      const input = wrapper.find('input[type="number"]')
-      const submitBtn = wrapper.find('button[type="submit"]')
+      const input = wrapper.find('[data-testid="ui-input"]')
+      const submitBtn = findCreateButton(wrapper)
 
       await input.setValue('123')
       await flushPromises()
 
-      expect(submitBtn.attributes('disabled')).toBeUndefined()
-      expect(wrapper.find('.text-red-500').exists()).toBe(false)
+      expect(submitBtn!.attributes('disabled')).toBeUndefined()
+      expect(wrapper.find('.text-danger').exists()).toBe(false)
     })
 
     it('should reject negative vault number on submit', async () => {
@@ -144,13 +148,12 @@ describe('HomeView', () => {
       })
       await flushPromises()
 
-      const input = wrapper.find('input[type="number"]')
+      const input = wrapper.find('[data-testid="ui-input"]')
       await input.setValue('-1')
-      await wrapper.find('form').trigger('submit')
       await flushPromises()
 
       // Check for validation error
-      expect(wrapper.find('.text-red-500').exists()).toBe(true)
+      expect(wrapper.find('.text-danger').exists()).toBe(true)
       expect(axios.post).not.toHaveBeenCalled()
     })
 
@@ -164,13 +167,12 @@ describe('HomeView', () => {
       })
       await flushPromises()
 
-      const input = wrapper.find('input[type="number"]')
+      const input = wrapper.find('[data-testid="ui-input"]')
       await input.setValue('1000')
-      await wrapper.find('form').trigger('submit')
       await flushPromises()
 
       // Check for validation error
-      expect(wrapper.find('.text-red-500').exists()).toBe(true)
+      expect(wrapper.find('.text-danger').exists()).toBe(true)
       expect(axios.post).not.toHaveBeenCalled()
     })
 
@@ -185,9 +187,11 @@ describe('HomeView', () => {
       })
       await flushPromises()
 
-      const input = wrapper.find('input[type="number"]')
+      const input = wrapper.find('[data-testid="ui-input"]')
       await input.setValue('100.5')
-      await wrapper.find('form').trigger('submit')
+
+      const submitBtn = findCreateButton(wrapper)
+      await submitBtn!.trigger('click')
       await flushPromises()
 
       // parseInt converts 100.5 to 100, which is valid
@@ -207,14 +211,13 @@ describe('HomeView', () => {
       })
       await flushPromises()
 
-      const input = wrapper.find('input[type="number"]')
-      const submitBtn = wrapper.find('button[type="submit"]')
+      const input = wrapper.find('[data-testid="ui-input"]')
+      const submitBtn = findCreateButton(wrapper)
 
       await input.setValue('1000')
-      await input.trigger('input')
       await flushPromises()
 
-      expect(submitBtn.attributes('disabled')).toBeDefined()
+      expect(submitBtn!.attributes('disabled')).toBeDefined()
     })
   })
 
@@ -230,9 +233,11 @@ describe('HomeView', () => {
       })
       await flushPromises()
 
-      const input = wrapper.find('input[type="number"]')
+      const input = wrapper.find('[data-testid="ui-input"]')
       await input.setValue('123')
-      await wrapper.find('form').trigger('submit')
+
+      const submitBtn = findCreateButton(wrapper)
+      await submitBtn!.trigger('click')
       await flushPromises()
 
       expect(axios.post).toHaveBeenCalledWith(
@@ -258,16 +263,15 @@ describe('HomeView', () => {
       })
       await flushPromises()
 
-      const input = wrapper.find('input[type="number"]')
+      const input = wrapper.find('[data-testid="ui-input"]')
       await input.setValue('123')
 
-      const form = wrapper.find('form')
-      form.trigger('submit')
+      const submitBtn = findCreateButton(wrapper)
+      submitBtn!.trigger('click')
       await wrapper.vm.$nextTick()
 
-      const submitBtn = wrapper.find('button[type="submit"]')
-      expect(submitBtn.text()).toContain('Creating...')
-      expect(submitBtn.attributes('disabled')).toBeDefined()
+      expect(submitBtn!.text()).toContain('Creating...')
+      expect(submitBtn!.attributes('disabled')).toBeDefined()
     })
 
     it('should clear input after successful creation', async () => {
@@ -281,9 +285,11 @@ describe('HomeView', () => {
       })
       await flushPromises()
 
-      const input = wrapper.find('input[type="number"]')
+      const input = wrapper.find('[data-testid="ui-input"]')
       await input.setValue('123')
-      await wrapper.find('form').trigger('submit')
+
+      const submitBtn = findCreateButton(wrapper)
+      await submitBtn!.trigger('click')
       await flushPromises()
 
       expect((input.element as HTMLInputElement).value).toBe('')
@@ -301,13 +307,13 @@ describe('HomeView', () => {
       })
       await flushPromises()
 
-      const input = wrapper.find('input[type="number"]')
+      const input = wrapper.find('[data-testid="ui-input"]')
       await input.setValue('123')
 
-      const form = wrapper.find('form')
-      form.trigger('submit')
-      form.trigger('submit')
-      form.trigger('submit')
+      const submitBtn = findCreateButton(wrapper)
+      submitBtn!.trigger('click')
+      submitBtn!.trigger('click')
+      submitBtn!.trigger('click')
       await flushPromises()
 
       // Should only be called once
@@ -322,12 +328,12 @@ describe('HomeView', () => {
       })
       await flushPromises()
 
-      const input = wrapper.find('input[type="number"]')
+      const input = wrapper.find('[data-testid="ui-input"]')
       await input.setValue('1000')
-      await input.trigger('input')
       await flushPromises()
 
-      await wrapper.find('form').trigger('submit')
+      const submitBtn = findCreateButton(wrapper)
+      await submitBtn!.trigger('click')
       await flushPromises()
 
       expect(axios.post).not.toHaveBeenCalled()
@@ -387,7 +393,7 @@ describe('HomeView', () => {
 
       // Find delete button by text content
       const buttons = wrapper.findAll('button')
-      const deleteBtn = buttons.find((btn) => btn.text() === 'Delete')
+      const deleteBtn = buttons.find((btn: any) => btn.text() === 'Delete Vault')
 
       if (deleteBtn) {
         await deleteBtn.trigger('click')
@@ -414,7 +420,7 @@ describe('HomeView', () => {
       await flushPromises()
 
       const buttons = wrapper.findAll('button')
-      const deleteBtn = buttons.find((btn) => btn.text() === 'Delete')
+      const deleteBtn = buttons.find((btn: any) => btn.text() === 'Delete Vault')
 
       if (deleteBtn) {
         await deleteBtn.trigger('click')
@@ -464,7 +470,7 @@ describe('HomeView', () => {
       await flushPromises()
 
       const buttons = wrapper.findAll('button')
-      const loadBtn = buttons.find((btn) => btn.text() === 'Load')
+      const loadBtn = buttons.find((btn: any) => btn.text() === 'Load Vault')
 
       if (loadBtn) {
         await loadBtn.trigger('click')

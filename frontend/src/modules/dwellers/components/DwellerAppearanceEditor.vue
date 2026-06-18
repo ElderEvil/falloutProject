@@ -29,9 +29,18 @@ const STATE_OF_BEING_OPTIONS: Record<string, string[]> = {
 
 const FACTION_OPTIONS: Record<string, string[]> = {
   human: [
-    'vault_dweller', 'brotherhood_of_steel', 'enclave', 'minutemen',
-    'raiders', 'super_mutant_tribe', 'children_of_atom',
-    'the_institute', 'railroad', 'ncr', 'caesars_legion', 'none',
+    'vault_dweller',
+    'brotherhood_of_steel',
+    'enclave',
+    'minutemen',
+    'raiders',
+    'super_mutant_tribe',
+    'children_of_atom',
+    'the_institute',
+    'railroad',
+    'ncr',
+    'caesars_legion',
+    'none',
   ],
   ghoul: ['vault_dweller', 'raiders', 'children_of_atom', 'none'],
   super_mutant: ['super_mutant_tribe', 'raiders', 'none'],
@@ -55,36 +64,88 @@ const BUILD_OPTIONS: Record<string, string[]> = {
 
 const HAIRCUT_OPTIONS: Record<string, string[]> = {
   human: [
-    'Short Hair', 'Long Hair', 'Ponytail', 'Mohawk', 'Buzz Cut',
-    'Curly Hair', 'Bun', 'Braided Hair', 'Wavy Hair', 'Dreadlocks',
+    'Short Hair',
+    'Long Hair',
+    'Ponytail',
+    'Mohawk',
+    'Buzz Cut',
+    'Curly Hair',
+    'Bun',
+    'Braided Hair',
+    'Wavy Hair',
+    'Dreadlocks',
   ],
   ghoul: [
-    'Patchy Hair', 'Stringy Hair', 'Messy Hair', 'Mohawk',
-    'Burned Scalp', 'Radiation-Scarred', 'Thinning Hair', 'Wispy Remains',
+    'Patchy Hair',
+    'Stringy Hair',
+    'Messy Hair',
+    'Mohawk',
+    'Burned Scalp',
+    'Radiation-Scarred',
+    'Thinning Hair',
+    'Wispy Remains',
   ],
-  super_mutant: ['Bald', 'Scalp Ridges', 'Patchy Tufts', 'Mohawk', 'Thick Stubble', 'War Paint Scalp'],
-  synth: ['Clean Cut', 'Slicked Back', 'Military Precision Cut', 'Exposed Circuits', 'Synthetic Fiber Weave', 'Metallic Sheen Hair'],
+  super_mutant: [
+    'Bald',
+    'Scalp Ridges',
+    'Patchy Tufts',
+    'Mohawk',
+    'Thick Stubble',
+    'War Paint Scalp',
+  ],
+  synth: [
+    'Clean Cut',
+    'Slicked Back',
+    'Military Precision Cut',
+    'Exposed Circuits',
+    'Synthetic Fiber Weave',
+    'Metallic Sheen Hair',
+  ],
 }
 
 const HEADGEAR_OPTIONS: Record<string, string[]> = {
   human: [
-    'Baseball Cap', 'Bandana', 'Combat Helmet', 'Gas Mask', 'Cowboy Hat',
-    'Bowler Hat', 'Fedora', 'Ushanka', 'Beanie', 'Military Beret',
-    'Newsboy Cap', 'Vault-Tec Helmet', 'Hooded Coat',
+    'Baseball Cap',
+    'Bandana',
+    'Combat Helmet',
+    'Gas Mask',
+    'Cowboy Hat',
+    'Bowler Hat',
+    'Fedora',
+    'Ushanka',
+    'Beanie',
+    'Military Beret',
+    'Newsboy Cap',
+    'Vault-Tec Helmet',
+    'Hooded Coat',
   ],
   ghoul: [
-    'Tattered Bandana', 'Raider Cage Mask', 'Wrapped Head Bandages',
-    'Radiation Suit Hood', 'Scrapped Metal Helmet', 'Faded Cap',
-    'Glowing One Crown', 'Leather Hood',
+    'Tattered Bandana',
+    'Raider Cage Mask',
+    'Wrapped Head Bandages',
+    'Radiation Suit Hood',
+    'Scrapped Metal Helmet',
+    'Faded Cap',
+    'Glowing One Crown',
+    'Leather Hood',
   ],
   super_mutant: [
-    'Metal Helmet', 'Spiked Helmet', 'Chain Headdress', 'Skull Trophy',
-    'Heavy Plate Helmet', 'Makeshift Face Guard', 'Mutant Battle Helm',
+    'Metal Helmet',
+    'Spiked Helmet',
+    'Chain Headdress',
+    'Skull Trophy',
+    'Heavy Plate Helmet',
+    'Makeshift Face Guard',
+    'Mutant Battle Helm',
   ],
   synth: [
-    'Institute Hood', 'Metallic Plating', 'Stealth Field Generator',
-    'Neural Interface Helmet', 'Courser Hood',
-    'Synth Component Display', 'Reinforced Circuitry Cap',
+    'Institute Hood',
+    'Metallic Plating',
+    'Stealth Field Generator',
+    'Neural Interface Helmet',
+    'Courser Hood',
+    'Synth Component Display',
+    'Reinforced Circuitry Cap',
   ],
 }
 
@@ -92,23 +153,62 @@ const HEADGEAR_OPTIONS: Record<string, string[]> = {
 const HEIGHT_OPTIONS = ['tall', 'average', 'short'] as const
 const EYE_COLOR_OPTIONS = ['blue', 'green', 'brown', 'hazel', 'gray'] as const
 const HAIR_COLORS = [
-  'blonde', 'brunette', 'black', 'brown', 'red', 'gray', 'white', 'blue', 'green', 'pink',
+  'blonde',
+  'brunette',
+  'black',
+  'brown',
+  'red',
+  'gray',
+  'white',
+  'blue',
+  'green',
+  'pink',
 ] as const
 const EXPRESSIONS = [
-  'neutral', 'smiling', 'laughing', 'proud', 'sad', 'angry', 'frustrated',
-  'shocked', 'terrified', 'determined', 'heroic', 'stoic', 'skeptical',
-  'suspicious', 'confused', 'awkward', 'mischievous', 'flirty',
+  'neutral',
+  'smiling',
+  'laughing',
+  'proud',
+  'sad',
+  'angry',
+  'frustrated',
+  'shocked',
+  'terrified',
+  'determined',
+  'heroic',
+  'stoic',
+  'skeptical',
+  'suspicious',
+  'confused',
+  'awkward',
+  'mischievous',
+  'flirty',
 ] as const
 const POSE_OPTIONS = [
-  'Standing confidently', 'Combat ready', 'Checking Pip-Boy', 'Faction salute',
-  'Alert and wary', 'Action shot', 'Stealth crouch', 'Power armor stance',
-  'Wounded but resilient', 'Weapon drawn', 'Scavenging through debris',
+  'Standing confidently',
+  'Combat ready',
+  'Checking Pip-Boy',
+  'Faction salute',
+  'Alert and wary',
+  'Action shot',
+  'Stealth crouch',
+  'Power armor stance',
+  'Wounded but resilient',
+  'Weapon drawn',
+  'Scavenging through debris',
 ] as const
 const BACKGROUND_OPTIONS = [
-  'Vault Interior', 'Wasteland Ruins', 'Brotherhood Airship',
-  'Super Mutant Camp', 'Nuclear Crater', 'Pre-War Suburb',
-  'Red Rocket Station', 'Settlement', 'Abandoned Factory',
-  'The Institute', 'New Vegas Strip',
+  'Vault Interior',
+  'Wasteland Ruins',
+  'Brotherhood Airship',
+  'Super Mutant Camp',
+  'Nuclear Crater',
+  'Pre-War Suburb',
+  'Red Rocket Station',
+  'Settlement',
+  'Abandoned Factory',
+  'The Institute',
+  'New Vegas Strip',
 ] as const
 
 // --- Form state ---
@@ -147,7 +247,9 @@ const availableStates = computed(() => {
 
 const showStateOfBeing = computed(() => form.race && form.race !== 'human')
 
-const availableSkinTones = computed(() => SKIN_TONE_OPTIONS[raceKey.value] || SKIN_TONE_OPTIONS.human)
+const availableSkinTones = computed(
+  () => SKIN_TONE_OPTIONS[raceKey.value] || SKIN_TONE_OPTIONS.human
+)
 
 const availableBuilds = computed(() => BUILD_OPTIONS[raceKey.value] || BUILD_OPTIONS.human)
 
@@ -247,22 +349,14 @@ function handleCancel() {
           </div>
           <div class="form-field">
             <USelect v-model="form.faction" label="Faction">
-              <option
-                v-for="faction in availableFactions"
-                :key="faction"
-                :value="faction"
-              >
+              <option v-for="faction in availableFactions" :key="faction" :value="faction">
                 {{ formatLabel(faction) }}
               </option>
             </USelect>
           </div>
           <div v-if="showStateOfBeing" class="form-field">
             <USelect v-model="form.state_of_being" label="State of Being">
-              <option
-                v-for="state in availableStates"
-                :key="state"
-                :value="state"
-              >
+              <option v-for="state in availableStates" :key="state" :value="state">
                 {{ formatLabel(state) }}
               </option>
             </USelect>
@@ -333,7 +427,11 @@ function handleCancel() {
             </USelect>
           </div>
           <div class="form-field">
-            <UInput v-model="form.facial_hair" label="Facial Hair" placeholder="e.g. beard, stubble" />
+            <UInput
+              v-model="form.facial_hair"
+              label="Facial Hair"
+              placeholder="e.g. beard, stubble"
+            />
           </div>
           <div class="form-field">
             <UInput v-model="form.makeup" label="Makeup" placeholder="e.g. natural, glamorous" />
@@ -354,7 +452,11 @@ function handleCancel() {
             </USelect>
           </div>
           <div class="form-field form-field-full">
-            <UInput v-model="form.distinguishing_features" label="Distinguishing Features" placeholder="e.g. scar, tattoo, mole" />
+            <UInput
+              v-model="form.distinguishing_features"
+              label="Distinguishing Features"
+              placeholder="e.g. scar, tattoo, mole"
+            />
           </div>
         </div>
       </div>
@@ -374,7 +476,11 @@ function handleCancel() {
             </USelect>
           </div>
           <div class="form-field">
-            <UInput v-model="form.clothing_style" label="Clothing Style" placeholder="e.g. casual, military" />
+            <UInput
+              v-model="form.clothing_style"
+              label="Clothing Style"
+              placeholder="e.g. casual, military"
+            />
           </div>
           <div class="form-field">
             <UInput v-model="form.accessory" label="Accessory" placeholder="e.g. Pip-Boy" />
@@ -397,7 +503,11 @@ function handleCancel() {
             </USelect>
           </div>
           <div class="form-field form-field-full">
-            <UInput v-model="form.voice_line_text" label="Voice Line" placeholder="e.g. For the Brotherhood!" />
+            <UInput
+              v-model="form.voice_line_text"
+              label="Voice Line"
+              placeholder="e.g. For the Brotherhood!"
+            />
           </div>
         </div>
       </div>

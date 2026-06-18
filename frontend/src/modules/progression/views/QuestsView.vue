@@ -361,7 +361,7 @@ onMounted(async () => {
   max-width: 800px;
   margin: 80px auto;
   padding: 60px 40px;
-  background-color: #1a1a1a;
+  background-color: var(--color-surface-light);
   border: 3px solid var(--color-theme-primary);
   border-radius: 12px;
   text-align: center;
@@ -495,7 +495,7 @@ onMounted(async () => {
   appearance: none;
   width: 40px;
   height: 20px;
-  background: #333;
+  background: var(--color-gray-800);
   border-radius: 10px;
   position: relative;
   cursor: pointer;
@@ -511,7 +511,7 @@ onMounted(async () => {
   position: absolute;
   width: 14px;
   height: 14px;
-  background: #fff;
+  background: var(--color-gray-50);
   border-radius: 50%;
   top: 1px;
   left: 2px;
@@ -535,7 +535,7 @@ onMounted(async () => {
 
 /* Quest Card */
 .quest-card {
-  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+  background: linear-gradient(135deg, var(--color-surface-light) 0%, var(--color-gray-800) 100%);
   border: 2px solid var(--color-theme-primary);
   border-radius: 6px;
   padding: 16px;
@@ -562,7 +562,7 @@ onMounted(async () => {
 
 .active-quest {
   border-color: var(--color-theme-accent);
-  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+  background: linear-gradient(135deg, var(--color-surface-light) 0%, var(--color-gray-800) 100%);
 }
 
 .active-quest::before {
@@ -574,13 +574,13 @@ onMounted(async () => {
 }
 
 .completed-quest {
-  border-color: #666666;
+  border-color: var(--color-gray-500);
   opacity: 0.75;
-  background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
+  background: linear-gradient(135deg, var(--color-surface-light) 0%, var(--color-gray-800) 100%);
 }
 
 .completed-quest::before {
-  background: #666666;
+  background: var(--color-gray-500);
 }
 
 /* Quest Header */
@@ -613,7 +613,7 @@ onMounted(async () => {
 
 .active-badge {
   background-color: var(--color-theme-accent);
-  color: #000000;
+  color: var(--color-terminal-background);
   box-shadow: 0 0 10px var(--color-theme-accent);
   animation: pulse 2s infinite;
 }
@@ -630,12 +630,12 @@ onMounted(async () => {
 
 .available-badge {
   background-color: var(--color-theme-primary);
-  color: #000000;
+  color: var(--color-terminal-background);
 }
 
 .completed-badge {
-  background-color: #666666;
-  color: #ffffff;
+  background-color: var(--color-gray-500);
+  color: var(--color-gray-50);
 }
 
 /* Quest Description */
@@ -705,7 +705,7 @@ onMounted(async () => {
 
 .complete-btn {
   background-color: var(--color-theme-accent);
-  color: #000000;
+  color: var(--color-terminal-background);
   border-color: var(--color-theme-accent);
 }
 
@@ -722,7 +722,7 @@ onMounted(async () => {
 
 .start-btn:hover {
   background-color: var(--color-theme-primary);
-  color: #000000;
+  color: var(--color-terminal-background);
   box-shadow: 0 0 20px var(--color-theme-glow);
   transform: translateY(-2px);
 }
@@ -732,9 +732,9 @@ onMounted(async () => {
   text-align: center;
   padding: 12px;
   background-color: rgba(0, 0, 0, 0.5);
-  border: 2px dashed #666666;
+  border: 2px dashed var(--color-gray-500);
   border-radius: 4px;
-  color: #666666;
+  color: var(--color-gray-500);
   font-weight: bold;
   font-size: 1.1rem;
   text-transform: uppercase;

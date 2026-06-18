@@ -133,8 +133,8 @@ const elapsedTime = computed(() => {
   position: relative;
   width: 100%;
   height: 60px;
-  background: linear-gradient(180deg, #2a0000 0%, #1a0000 100%);
-  border: 2px solid #ff3333;
+  background: linear-gradient(180deg, var(--color-surface-dark) 0%, var(--color-surface-dark) 100%);
+  border: 2px solid var(--color-danger);
   border-radius: 4px;
   cursor: pointer;
   overflow: hidden;
@@ -142,8 +142,8 @@ const elapsedTime = computed(() => {
 }
 
 .incident-alert:hover {
-  border-color: #ff5555;
-  box-shadow: 0 0 20px rgba(255, 51, 51, 0.5);
+  border-color: var(--color-danger);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--color-danger) 50%, transparent);
 }
 
 .incident-alert.pulsing {
@@ -153,12 +153,12 @@ const elapsedTime = computed(() => {
 @keyframes pulse {
   0%,
   100% {
-    border-color: #ff3333;
-    box-shadow: 0 0 10px rgba(255, 51, 51, 0.3);
+    border-color: var(--color-danger);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--color-danger) 30%, transparent);
   }
   50% {
-    border-color: #ff5555;
-    box-shadow: 0 0 30px rgba(255, 51, 51, 0.6);
+    border-color: var(--color-danger);
+    box-shadow: 0 0 30px color-mix(in srgb, var(--color-danger) 60%, transparent);
   }
 }
 
@@ -179,15 +179,15 @@ const elapsedTime = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 51, 51, 0.2);
-  border: 1px solid #ff3333;
+  background: color-mix(in srgb, var(--color-danger) 20%, transparent);
+  border: 1px solid var(--color-danger);
   border-radius: 50%;
 }
 
 .alert-icon .icon {
   width: 24px;
   height: 24px;
-  color: #ff3333;
+  color: var(--color-danger);
 }
 
 .alert-info {
@@ -201,14 +201,14 @@ const elapsedTime = computed(() => {
   font-family: 'Courier New', monospace;
   font-size: 1rem;
   font-weight: bold;
-  color: #ff3333;
+  color: var(--color-danger);
   letter-spacing: 0.05em;
 }
 
 .alert-subtitle {
   font-family: 'Courier New', monospace;
   font-size: 0.75rem;
-  color: #ff9999;
+  color: var(--color-danger);
 }
 
 .alert-timer {
@@ -216,15 +216,15 @@ const elapsedTime = computed(() => {
   font-family: 'Courier New', monospace;
   font-size: 1.25rem;
   font-weight: bold;
-  color: #ff3333;
+  color: var(--color-danger);
   letter-spacing: 0.1em;
 }
 
 .alert-badge {
   flex-shrink: 0;
   padding: 0.25rem 0.75rem;
-  background: #ff3333;
-  color: #fff;
+  background: var(--color-danger);
+  color: var(--color-gray-100);
   font-family: 'Courier New', monospace;
   font-size: 0.75rem;
   font-weight: bold;
@@ -238,7 +238,11 @@ const elapsedTime = computed(() => {
   left: 0;
   width: 100%;
   height: 4px;
-  background: linear-gradient(to bottom, rgba(255, 51, 51, 0.8), transparent);
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--color-danger) 80%, transparent),
+    transparent
+  );
   animation: scanline 2s linear infinite;
   pointer-events: none;
   z-index: 3;

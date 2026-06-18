@@ -82,7 +82,7 @@ const roomSizeText = computed(
 }
 
 .info-label {
-  color: #aaa;
+  color: var(--color-gray-400);
   font-size: 0.875rem;
   flex-shrink: 0;
 }

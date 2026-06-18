@@ -378,7 +378,11 @@ const closeDetailModal = () => {
           'power-outage': isRoomAffectedByOutage(room),
         }"
         draggable="false"
+        role="button"
+        tabindex="0"
         @click="handleRoomClick(room, $event)"
+        @keydown.enter.prevent="handleRoomClick(room, $event)"
+        @keydown.space.prevent="handleRoomClick(room, $event)"
         @dragover="handleDragOver($event, room.id)"
         @dragleave="handleDragLeave"
         @drop="handleDrop($event, room.id)"
@@ -422,6 +426,7 @@ const closeDetailModal = () => {
             <button
               @click="destroyRoom(room.id, $event)"
               class="destroy-button"
+              aria-label="Destroy room"
               title="Destroy Room"
             >
               <Icon icon="mdi:delete" class="h-5 w-5" />
@@ -437,7 +442,11 @@ const closeDetailModal = () => {
           <div
             v-if="roomHasIncident(room.id)"
             class="incident-overlay"
+            role="button"
+            tabindex="0"
             @click="handleIncidentClick(room.id, $event)"
+            @keydown.enter.prevent="handleIncidentClick(room.id, $event)"
+            @keydown.space.prevent="handleIncidentClick(room.id, $event)"
           >
             <Icon :icon="getIncidentIcon(getRoomIncident(room.id)!.type)" class="incident-icon" />
             <div class="incident-label">ALERT</div>
@@ -472,7 +481,11 @@ const closeDetailModal = () => {
         }"
         @mouseenter="handleHover(cell.x, cell.y)"
         @mouseleave="clearHover"
+        role="button"
+        tabindex="0"
         @click="handleEmptyCellClick(cell.x, cell.y)"
+        @keydown.enter.prevent="handleEmptyCellClick(cell.x, cell.y)"
+        @keydown.space.prevent="handleEmptyCellClick(cell.x, cell.y)"
       ></div>
 
       <!-- Locked rows indicator (16-25) -->
@@ -536,12 +549,12 @@ const closeDetailModal = () => {
 
 .locked-row {
   background: linear-gradient(135deg, rgba(60, 60, 60, 0.3), rgba(40, 40, 40, 0.3));
-  border: 2px dashed #444;
+  border: 2px dashed var(--color-gray-700);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  color: #666;
+  color: var(--color-gray-500);
   font-family: 'Courier New', monospace;
   font-size: 0.85rem;
   pointer-events: none;
@@ -565,9 +578,8 @@ const closeDetailModal = () => {
 .locked-icon {
   width: 1.5rem;
   height: 1.5rem;
-  color: #555;
+  color: var(--color-gray-600);
 }
-
 .locked-text {
   font-weight: 500;
   letter-spacing: 0.5px;
@@ -577,8 +589,8 @@ const closeDetailModal = () => {
 
 .room {
   position: relative;
-  background-color: #333;
-  border: 1px solid #555;
+  background-color: var(--color-gray-700);
+  border: 1px solid var(--color-gray-600);
   cursor: pointer;
   transition: all 0.2s;
   min-height: 140px;
@@ -667,14 +679,14 @@ const closeDetailModal = () => {
 
 .room-category {
   font-size: 0.65em;
-  color: #ddd;
+  color: var(--color-gray-200);
   font-weight: 500;
   text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
 }
 
 .room-tier {
   font-size: 0.6em;
-  color: #fbbf24;
+  color: var(--color-warning);
   margin-top: 1px;
   font-weight: 600;
   text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
@@ -740,10 +752,10 @@ const closeDetailModal = () => {
 
 .upgrade-button {
   background: none;
-  border: 1px solid #fbbf24;
+  border: 1px solid var(--color-warning);
   border-radius: 4px;
   cursor: pointer;
-  color: #fbbf24;
+  color: var(--color-warning);
   padding: 4px 8px;
   display: flex;
   align-items: center;
@@ -763,7 +775,7 @@ const closeDetailModal = () => {
 
 /* Incident styles */
 .room.has-incident {
-  border-color: #ff3333;
+  border-color: var(--color-danger);
   box-shadow: 0 0 15px rgba(255, 51, 51, 0.6);
   animation: incident-pulse 2s ease-in-out infinite;
 }
@@ -771,11 +783,11 @@ const closeDetailModal = () => {
 @keyframes incident-pulse {
   0%,
   100% {
-    border-color: #ff3333;
+    border-color: var(--color-danger);
     box-shadow: 0 0 15px rgba(255, 51, 51, 0.6);
   }
   50% {
-    border-color: #ff5555;
+    border-color: var(--color-danger);
     box-shadow: 0 0 30px rgba(255, 51, 51, 0.9);
   }
 }
@@ -804,7 +816,7 @@ const closeDetailModal = () => {
 .incident-icon {
   width: 48px;
   height: 48px;
-  color: #ff3333;
+  color: var(--color-danger);
   filter: drop-shadow(0 0 8px rgba(255, 51, 51, 0.8));
   animation: incident-shake 0.5s ease-in-out infinite;
 }
@@ -826,7 +838,7 @@ const closeDetailModal = () => {
   font-family: 'Courier New', monospace;
   font-size: 0.875rem;
   font-weight: bold;
-  color: #ff3333;
+  color: var(--color-danger);
   letter-spacing: 0.1em;
   text-shadow: 0 0 8px rgba(255, 51, 51, 0.8);
 }
@@ -835,18 +847,18 @@ const closeDetailModal = () => {
   background: none;
   border: none;
   cursor: pointer;
-  color: #ff0000;
+  color: var(--color-danger);
   padding: 4px;
   transition: all 0.2s;
 }
 
 .destroy-button:hover {
-  color: #ff4444;
+  color: var(--color-danger);
   transform: scale(1.1);
 }
 
 .empty {
-  border: 1px dashed #555;
+  border: 1px dashed var(--color-gray-600);
   background-color: rgba(0, 0, 0, 0.3);
   aspect-ratio: 2 / 1;
   min-height: 80px;
@@ -886,18 +898,18 @@ const closeDetailModal = () => {
     transparent
   );
   background-size: 20px 20px;
-  border: 2px solid #ff0000;
+  border: 2px solid var(--color-danger);
 }
 
 .room.power-outage {
   filter: brightness(0.3) grayscale(0.8);
-  border-color: #330000;
+  border-color: var(--color-surface-dark);
   pointer-events: none; /* Disable interaction with powerless rooms */
 }
 
 .room.power-outage .room-name,
 .room.power-outage .room-category {
-  color: #666;
+  color: var(--color-gray-500);
 }
 
 .critical-power {

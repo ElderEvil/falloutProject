@@ -115,7 +115,7 @@ const canClaim = computed(() => {
 
 <style scoped>
 .objective-card {
-  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+  background: linear-gradient(135deg, var(--color-surface-light) 0%, var(--color-gray-800) 100%);
   border: 2px solid var(--color-theme-primary);
   border-radius: 6px;
   padding: 16px;
@@ -141,13 +141,13 @@ const canClaim = computed(() => {
 }
 
 .completed-card {
-  border-color: #666666;
+  border-color: var(--color-gray-500);
   opacity: 0.9;
-  background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
+  background: linear-gradient(135deg, var(--color-surface-light) 0%, var(--color-gray-800) 100%);
 }
 
 .completed-card::before {
-  background: #00ff00;
+  background: var(--color-theme-primary);
 }
 
 .objective-header {
@@ -230,7 +230,7 @@ const canClaim = computed(() => {
 }
 
 .progress-complete {
-  background: linear-gradient(90deg, #00ff00, #00cc00);
+  background: linear-gradient(90deg, var(--color-theme-primary), var(--color-theme-accent));
 }
 
 .progress-percent {
@@ -274,7 +274,7 @@ const canClaim = computed(() => {
   margin-top: 12px;
   padding: 10px 16px;
   background: var(--color-theme-accent);
-  color: #000000;
+  color: var(--color-terminal-background);
   border: none;
   border-radius: 4px;
   font-weight: bold;
@@ -300,9 +300,9 @@ const canClaim = computed(() => {
   text-align: center;
   padding: 8px;
   background: rgba(0, 255, 0, 0.1);
-  border: 2px dashed #00ff00;
+  border: 2px dashed var(--color-theme-primary);
   border-radius: 4px;
-  color: #00ff00;
+  color: var(--color-theme-primary);
   font-weight: bold;
   font-size: 0.9rem;
   text-transform: uppercase;

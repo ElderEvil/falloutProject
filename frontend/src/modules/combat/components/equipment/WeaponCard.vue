@@ -220,12 +220,12 @@ const weaponIcon = computed(() => {
 
 .unequip-btn {
   background: rgba(128, 0, 0, 0.3);
-  border: 2px solid #ff0000;
-  color: #ff0000;
+  border: 2px solid var(--color-danger);
+  color: var(--color-danger);
 }
 
 .unequip-btn:hover {
   background: rgba(128, 0, 0, 0.5);
-  box-shadow: 0 0 12px rgba(255, 0, 0, 0.4);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-danger) 40%, transparent);
 }
 </style>

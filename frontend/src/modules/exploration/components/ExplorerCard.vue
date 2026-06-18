@@ -358,15 +358,15 @@ const recentEvents = computed(() => {
 }
 
 .stat-icon.enemies {
-  color: #ff4444;
+  color: var(--color-danger);
 }
 
 .stat-icon.stimpaks {
-  color: #4caf50;
+  color: var(--color-success);
 }
 
 .stat-icon.radaways {
-  color: #ffeb3b;
+  color: var(--color-caps);
 }
 
 .stat-item.medical {
@@ -493,8 +493,8 @@ const recentEvents = computed(() => {
 
 .complete-btn {
   background: rgba(255, 215, 0, 0.1);
-  border-color: #ffd700;
-  color: #ffd700;
+  border-color: var(--color-rarity-legendary);
+  color: var(--color-rarity-legendary);
 }
 
 .complete-btn:hover {

@@ -35,7 +35,7 @@ const isHoverPreview = computed(() => {
 
 <style scoped>
 .empty {
-  border: 1px dashed #555;
+  border: 1px dashed var(--color-gray-600);
   background-color: rgba(0, 0, 0, 0.3);
   aspect-ratio: 2 / 1;
 }
@@ -58,7 +58,7 @@ const isHoverPreview = computed(() => {
     transparent
   );
   background-size: 20px 20px;
-  border: 2px solid #00ff00;
+  border: 2px solid var(--color-theme-primary);
 }
 
 .invalid-placement .hover-preview {
@@ -74,6 +74,6 @@ const isHoverPreview = computed(() => {
     transparent
   );
   background-size: 20px 20px;
-  border: 2px solid #ff0000;
+  border: 2px solid var(--color-danger);
 }
 </style>

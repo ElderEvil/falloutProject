@@ -254,7 +254,7 @@ const achievementObjectives = computed(() =>
 }
 
 .objective-item {
-  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+  background: linear-gradient(135deg, var(--color-surface-light) 0%, var(--color-surface) 100%);
   border: 2px solid var(--color-theme-primary);
   border-radius: 6px;
   padding: 16px;
@@ -302,23 +302,23 @@ const achievementObjectives = computed(() =>
 }
 
 .completed-objective {
-  border-color: #666666;
+  border-color: var(--color-gray-500);
   opacity: 0.75;
-  background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
+  background: linear-gradient(135deg, var(--color-surface-light) 0%, var(--color-gray-800) 100%);
 }
 
 .completed-objective::before {
-  background: #666666;
+  background: var(--color-gray-500);
 }
 
 .completed-objective .objective-details {
-  color: #777777;
+  color: var(--color-gray-500);
 }
 
 .empty-state {
   text-align: center;
   padding: 48px 24px;
-  color: #666666;
+  color: var(--color-gray-500);
   font-size: 1.25rem;
 }
 </style>

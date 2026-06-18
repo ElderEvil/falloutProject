@@ -67,17 +67,17 @@ defineProps<Props>()
   align-items: center;
   gap: 0.5rem;
   font-size: 0.75rem;
-  color: #888;
+  color: var(--color-gray-500);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .metadata-item {
-  color: #888;
+  color: var(--color-gray-500);
 }
 
 .metadata-divider {
-  color: #555;
+  color: var(--color-gray-600);
 }
 
 .tier-upgraded {

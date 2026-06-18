@@ -18,6 +18,33 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.16.0] - 2026-06-18
+
+### Added
+
+- **UModal focus trap** — Hand-rolled (no new deps) with Tab cycling, Escape close, focus restore.
+- **`role="button"`/`tabindex`/keyboard handlers** — Added to 13 clickable elements across 8 files.
+- **`aria-label` attributes** — Added to 8 icon-only buttons in dwellers and rooms modules.
+- **ARIA on inline modals** — Added `role="dialog"`, `aria-modal`, escape-key close to DwellerEquipment and RoomMenu.
+- **Module READMEs** — Added 12 `README.md` files in `frontend/src/modules/` (auth, vault, dwellers, rooms, etc.).
+- **Nuxt UI migration plan** — Added `.omo/drafts/nuxt-ui-migration-plan.md`.
+
+### Changed
+
+- **Auth forms migrated to UButton/UInput** — `LoginFormTerminal`, `RegisterForm`, `ForgotPassword`, `ResetPassword`, `VerifyEmail` now use home-grown UI components instead of raw `<button>`/`<input>`.
+- **HomeView vault creation form** — Migrated to `UButton`/`UInput`.
+- **CSS variable migration** — ~45 files: hardcoded hex colors in scoped CSS replaced with CSS variables (`--color-theme-primary`, `--color-danger`, etc.).
+- **UButton `type` prop** — Added `type` prop (`button`/`submit`/`reset`) for form submit support.
+
+### Fixed
+
+- **12 skipped backend tests** — Fixed and now passing (quest datetime, 6 bare-skips, 3 incident assertions, 2 room session-race).
+- **VerifyEmailView theme color** — Replaced nonstandard `--theme-color` with canonical `--color-theme-primary`.
+- **LoginForm.vue dead code** — Deleted (route uses `LoginFormTerminal.vue`).
+- **`fix-changelog-freeze.md` dropped** — Superseded; fix shipped in v2.14.4.
+
+---
+
 ## [2.15.0] - 2026-06-18
 
 ### Added

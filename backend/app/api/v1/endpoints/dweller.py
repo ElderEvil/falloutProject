@@ -7,7 +7,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403, verify_dweller_access
 from app.api.game_data_deps import get_static_game_data
-from app.crud.dweller import determine_status_for_room
 from app.db.session import get_async_session
 from app.schemas.common import AgeGroupEnum, DwellerStatusEnum
 from app.schemas.dweller import (
@@ -27,6 +26,7 @@ from app.schemas.dweller import (
 )
 from app.services.death_service import death_service
 from app.services.dweller_ai import dweller_ai
+from app.services.dweller_service import dweller_service
 from app.services.happiness_service import happiness_service
 from app.utils.exceptions import ContentNoChangeException
 
@@ -71,17 +71,7 @@ async def update_dweller(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     await verify_dweller_access(dweller_id, user, db_session)
-    # If room_id is being updated, automatically update status
-    if dweller_data.room_id is not None or (
-        hasattr(dweller_data, "model_fields_set") and "room_id" in dweller_data.model_fields_set
-    ):
-        if dweller_data.room_id is None:
-            dweller_data.status = determine_status_for_room(None)
-        else:
-            room_obj = await crud.room.get(db_session, dweller_data.room_id)
-            dweller_data.status = determine_status_for_room(room_obj.category)
-
-    return await crud.dweller.update(db_session, dweller_id, dweller_data)
+    return await dweller_service.update_dweller(db_session=db_session, dweller_id=dweller_id, dweller_data=dweller_data)
 
 
 @router.patch("/{dweller_id}/rename", response_model=DwellerRead)

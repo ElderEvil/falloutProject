@@ -126,7 +126,6 @@ async def force_conception(
     except ValueError as e:
         error_msg = str(e).lower()
         if "not found" in error_msg:
-            # Determine which parent is missing
             identifier = mother_id if "mother" in error_msg else father_id
             raise ResourceNotFoundException(model=Dweller, identifier=identifier) from e
         raise ValidationException(detail=str(e)) from e

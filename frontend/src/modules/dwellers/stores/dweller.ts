@@ -167,6 +167,10 @@ export const useDwellerStore = defineStore('dweller', () => {
     token: string,
     forceRefresh = false
   ): Promise<Dweller | null> {
+    // Guard against invalid IDs (e.g. undefined before route resolves)
+    if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return null
+    }
     if (detailedDwellers.value[id] && !forceRefresh) return detailedDwellers.value[id] ?? null
     try {
       const response = await axios.get(`/api/v1/dwellers/${id}`, {

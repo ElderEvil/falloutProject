@@ -51,7 +51,7 @@ def mock_email_send():
         patch("app.api.v1.endpoints.auth.send_verification_email", new_callable=AsyncMock) as mock_verify,
         patch("app.api.v1.endpoints.auth.send_password_reset_email", new_callable=AsyncMock) as mock_reset,
         patch("app.api.v1.endpoints.auth.send_password_changed_email", new_callable=AsyncMock) as mock_changed,
-        patch("app.api.v1.endpoints.user.send_verification_email", new_callable=AsyncMock) as mock_user_verify,
+        patch("app.services.user_service.send_verification_email", new_callable=AsyncMock) as mock_user_verify,
     ):
         yield {
             "send_verification_email": mock_verify,
@@ -691,7 +691,7 @@ async def test_full_registration_verification_flow(
 
     try:
         # Step 1: Register new user
-        with patch("app.api.v1.endpoints.user.send_verification_email", new_callable=AsyncMock):
+        with patch("app.services.user_service.send_verification_email", new_callable=AsyncMock):
             register_response = await async_client.post(
                 "users/open",
                 json={

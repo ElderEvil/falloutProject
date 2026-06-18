@@ -33,8 +33,6 @@ class CompletionMixin[LinkModelType]:
         )
         quest_completion_link.is_completed = True
 
-        await db_session.commit()
-
         return quest_completion_link
 
     async def _handle_completion_cascade(
@@ -53,5 +51,6 @@ class CompletionMixin[LinkModelType]:
         db_obj = await self.get(db_session, quest_entity_id)
         await self._mark_as_complete(db_session=db_session, vault_id=vault_id, quest_entity_id=quest_entity_id)
         granted_rewards = await self._handle_completion_cascade(db_session=db_session, db_obj=db_obj, vault_id=vault_id)
+        await db_session.commit()
 
         return db_obj, granted_rewards

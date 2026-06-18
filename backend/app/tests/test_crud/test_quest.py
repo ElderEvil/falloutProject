@@ -1,7 +1,5 @@
 """Tests for quest CRUD operations."""
 
-from datetime import UTC
-
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -360,11 +358,10 @@ async def test_start_quest(async_session: AsyncSession) -> None:
     assert link.duration_minutes == 30
 
 
-@pytest.mark.skip(reason="Test uses PostgreSQL-specific datetime handling")
 @pytest.mark.asyncio
 async def test_check_and_complete_quests(async_session: AsyncSession) -> None:
     """Test automatic quest completion after duration."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     from app.models.vault_quest import VaultQuestCompletionLink
     from app.services.quest_service import quest_service
@@ -394,7 +391,7 @@ async def test_check_and_complete_quests(async_session: AsyncSession) -> None:
     async_session.add(link)
     await async_session.commit()
 
-    past_time = datetime.now(UTC) - timedelta(minutes=120)
+    past_time = datetime.utcnow() - timedelta(minutes=120)
     link.started_at = past_time
     link.duration_minutes = 60
     await async_session.commit()

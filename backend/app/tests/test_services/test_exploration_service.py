@@ -195,7 +195,6 @@ async def test_process_event_combat_increases_enemies(
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip
 async def test_complete_exploration_transfers_caps(
     async_session: AsyncSession,
     vault: Vault,
@@ -226,14 +225,11 @@ async def test_complete_exploration_transfers_caps(
     )
 
     await async_session.refresh(exploration)
+    await async_session.refresh(dweller)
     initial_caps = vault.bottle_caps
 
-    # Complete exploration
-    rewards = await exploration_service.complete_exploration(async_session, exploration.id)
-
-    # Calculate expected XP with bonuses
-    await async_session.refresh(dweller)
-    base_xp = (75 * 10) + (10 * 50)  # distance*10 + enemies*50
+    # Calculate expected XP BEFORE completion (XP uses pre-level-up dweller state)
+    base_xp = (75 * 10) + (10 * 50) + (0 * 20)  # distance*10 + enemies*50 + events*20
     expected_xp = base_xp
 
     # Add survival bonus if dweller has >70% health
@@ -243,11 +239,14 @@ async def test_complete_exploration_transfers_caps(
     # Add luck bonus (2% per luck point)
     expected_xp += int(base_xp * (exploration.dweller_luck * 0.02))
 
-    # Verify rewards
-    assert rewards["caps"] == 150
-    assert rewards["distance"] == 75
-    assert rewards["enemies_defeated"] == 10
-    assert rewards["experience"] == expected_xp
+    # Complete exploration — returns RewardsSchema (Pydantic model)
+    rewards = await exploration_service.complete_exploration(async_session, exploration.id)
+
+    # Verify rewards via attribute access (RewardsSchema is a Pydantic model)
+    assert rewards.caps == 150
+    assert rewards.distance == 75
+    assert rewards.enemies_defeated == 10
+    assert rewards.experience == expected_xp
     # Note: Loot collection tested separately
 
     # Verify caps transferred

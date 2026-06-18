@@ -85,18 +85,14 @@ async def test_delete_room(async_client: AsyncClient, superuser_token_headers: d
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(
-    reason="Flaky test: Race condition with vault session state. Needs refactor to use dedicated vault fixture."
-)
 async def test_upgrade_room_tier_1_to_2(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
     async_session: AsyncSession,
-    vault,
+    vault_with_caps: Vault,
     room_data: dict,
 ):
     """Test upgrading a room from tier 1 to tier 2."""
-    # Create room with specific upgrade costs and capacity
     room_data.update(
         {
             "tier": 1,
@@ -108,9 +104,8 @@ async def test_upgrade_room_tier_1_to_2(
         }
     )
 
-    # Ensure vault has enough caps
     vault_update = VaultUpdate(bottle_caps=1000)
-    vault = await crud.vault.update(async_session, vault.id, vault_update)
+    vault = await crud.vault.update(async_session, vault_with_caps.id, vault_update)
     await async_session.refresh(vault)
 
     room_in = RoomCreate(**room_data, vault_id=vault.id)
@@ -120,7 +115,6 @@ async def test_upgrade_room_tier_1_to_2(
     initial_capacity = room.capacity
     initial_output = room.output
 
-    # Upgrade room
     response = await async_client.post(f"/rooms/upgrade/{room.id}", headers=superuser_token_headers)
     assert response.status_code == 200
 
@@ -128,28 +122,22 @@ async def test_upgrade_room_tier_1_to_2(
     assert upgraded_room["tier"] == 2
     assert upgraded_room["id"] == str(room.id)
 
-    # Check capacity and output increased (tier ratio: (2+4)/(1+4) = 1.2)
     assert upgraded_room["capacity"] > initial_capacity
     assert upgraded_room["output"] > initial_output
 
-    # Verify vault caps were deducted
-    await async_session.refresh(vault)
+    vault = await async_session.get(Vault, vault.id)
     assert vault.bottle_caps == initial_caps - 500
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(
-    reason="Flaky test: Race condition with vault session state. Needs refactor to use dedicated vault fixture."
-)
 async def test_upgrade_room_tier_2_to_3(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
     async_session: AsyncSession,
-    vault,
+    vault_with_caps: Vault,
     room_data: dict,
 ):
     """Test upgrading a room from tier 2 to tier 3."""
-    # Start with tier 1 room
     room_data.update(
         {
             "tier": 1,
@@ -161,31 +149,27 @@ async def test_upgrade_room_tier_2_to_3(
     )
 
     vault_update = VaultUpdate(bottle_caps=2500)
-    vault = await crud.vault.update(async_session, vault.id, vault_update)
+    vault = await crud.vault.update(async_session, vault_with_caps.id, vault_update)
     await async_session.refresh(vault)
 
     room_in = RoomCreate(**room_data, vault_id=vault.id)
     room = await crud.room.create(async_session, room_in)
 
-    # First upgrade to tier 2
     response = await async_client.post(f"/rooms/upgrade/{room.id}", headers=superuser_token_headers)
     assert response.status_code == 200
     tier2_room = response.json()
     assert tier2_room["tier"] == 2
 
-    # Refresh vault to get updated caps
-    await async_session.refresh(vault)
+    vault = await async_session.get(Vault, vault.id)
     caps_after_first_upgrade = vault.bottle_caps
 
-    # Now upgrade from tier 2 to tier 3
     response = await async_client.post(f"/rooms/upgrade/{room.id}", headers=superuser_token_headers)
     assert response.status_code == 200
 
     upgraded_room = response.json()
     assert upgraded_room["tier"] == 3
 
-    # Verify vault caps were deducted for tier 3 upgrade
-    await async_session.refresh(vault)
+    vault = await async_session.get(Vault, vault.id)
     assert vault.bottle_caps == caps_after_first_upgrade - 1500
 
 
@@ -276,7 +260,6 @@ async def test_upgrade_room_no_t2_cost(
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip
 async def test_upgrade_room_capacity_calculation(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
@@ -293,6 +276,8 @@ async def test_upgrade_room_capacity_calculation(
             "t3_upgrade_cost": 1500,
             "capacity": 15,  # Known starting capacity
             "output": 30,
+            "category": "production",
+            "ability": "strength",
         }
     )
 

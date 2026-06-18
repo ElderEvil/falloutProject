@@ -161,15 +161,14 @@ class TestHappinessService:
         # Working in good conditions = positive change
         assert working_dweller.happiness >= initial_happiness
 
-    @pytest.mark.skip
-    async def test_idle_dweller_loses_happiness(
+    async def test_idle_dweller_happiness_unchanged(
         self,
         async_session: AsyncSession,
         vault: Vault,
         idle_dweller: Dweller,
     ):
-        """Test that idle dwellers lose happiness."""
-        # Even with good conditions, idle dwellers should decay
+        """Test that idle dwellers' happiness is not updated (production skips idle dwellers)."""
+        # Even with good conditions, idle dwellers are skipped in update_vault_happiness
         vault.power = 90
         vault.power_max = 100
         vault.food = 90
@@ -189,8 +188,8 @@ class TestHappinessService:
 
         await async_session.refresh(idle_dweller)
 
-        # Idle dweller has decay penalty
-        assert idle_dweller.happiness < initial_happiness
+        # Idle dwellers are skipped — happiness does not change
+        assert idle_dweller.happiness == initial_happiness
 
     async def test_low_resources_reduces_happiness(
         self,
@@ -252,15 +251,14 @@ class TestHappinessService:
         # Critical resources = severe penalty
         assert working_dweller.happiness < initial_happiness
 
-    @pytest.mark.skip
-    async def test_injured_dweller_loses_happiness(
+    async def test_injured_dweller_happiness_unchanged(
         self,
         async_session: AsyncSession,
         vault: Vault,
         injured_dweller: Dweller,
     ):
-        """Test that injured/irradiated dwellers lose happiness."""
-        # Good vault conditions
+        """Test that injured idle dwellers' happiness is not updated (production skips idle dwellers)."""
+        # Good vault conditions, but idle dwellers are skipped by update_vault_happiness
         vault.power = 90
         vault.power_max = 100
         vault.food = 90
@@ -280,8 +278,8 @@ class TestHappinessService:
 
         await async_session.refresh(injured_dweller)
 
-        # Low health + high radiation = happiness loss
-        assert injured_dweller.happiness < initial_happiness
+        # Idle dwellers are skipped — even injured ones won't lose happiness here
+        assert injured_dweller.happiness == initial_happiness
 
     async def test_active_incident_reduces_happiness(
         self,

@@ -42,8 +42,7 @@ describe('LoginFormTerminal', () => {
 
       expect(wrapper.text()).toContain('VAULT-TEC INDUSTRIES')
       expect(wrapper.text()).toContain('Vault Network Access Terminal')
-      expect(wrapper.find('#username').exists()).toBe(true)
-      expect(wrapper.find('#password').exists()).toBe(true)
+      expect(wrapper.findAll('[data-testid="ui-input"]').length).toBe(2)
       expect(wrapper.find('button[type="submit"]').exists()).toBe(true)
     })
 
@@ -77,7 +76,7 @@ describe('LoginFormTerminal', () => {
         },
       })
 
-      const emailInput = wrapper.find('#username')
+      const emailInput = wrapper.findAll('[data-testid="ui-input"]')[0]
       expect(emailInput.attributes('type')).toBe('email')
       expect(emailInput.attributes('required')).toBeDefined()
     })
@@ -89,7 +88,7 @@ describe('LoginFormTerminal', () => {
         },
       })
 
-      const passwordInput = wrapper.find('#password')
+      const passwordInput = wrapper.findAll('[data-testid="ui-input"]')[1]
       expect(passwordInput.attributes('type')).toBe('password')
       expect(passwordInput.attributes('required')).toBeDefined()
     })
@@ -134,7 +133,7 @@ describe('LoginFormTerminal', () => {
         },
       })
 
-      const usernameInput = wrapper.find('#username')
+      const usernameInput = wrapper.findAll('[data-testid="ui-input"]')[0]
       await usernameInput.setValue('test@vault-tec.com')
 
       expect((usernameInput.element as HTMLInputElement).value).toBe('test@vault-tec.com')
@@ -147,7 +146,7 @@ describe('LoginFormTerminal', () => {
         },
       })
 
-      const passwordInput = wrapper.find('#password')
+      const passwordInput = wrapper.findAll('[data-testid="ui-input"]')[1]
       await passwordInput.setValue('password123')
 
       expect((passwordInput.element as HTMLInputElement).value).toBe('password123')
@@ -175,9 +174,10 @@ describe('LoginFormTerminal', () => {
 
       const loginSpy = vi.spyOn(authStore, 'login').mockResolvedValue(true)
       const pushSpy = vi.spyOn(router, 'push')
+      const inputs = wrapper.findAll('[data-testid="ui-input"]')
 
-      await wrapper.find('#username').setValue('test@vault-tec.com')
-      await wrapper.find('#password').setValue('password123')
+      await inputs[0].setValue('test@vault-tec.com')
+      await inputs[1].setValue('password123')
       await wrapper.find('form').trigger('submit.prevent')
 
       await flushPromises()
@@ -195,9 +195,10 @@ describe('LoginFormTerminal', () => {
 
       vi.spyOn(authStore, 'login').mockResolvedValue(true)
       const pushSpy = vi.spyOn(router, 'push')
+      const inputs = wrapper.findAll('[data-testid="ui-input"]')
 
-      await wrapper.find('#username').setValue('test@vault-tec.com')
-      await wrapper.find('#password').setValue('password123')
+      await inputs[0].setValue('test@vault-tec.com')
+      await inputs[1].setValue('password123')
       await wrapper.find('form').trigger('submit.prevent')
 
       await flushPromises()
@@ -213,9 +214,10 @@ describe('LoginFormTerminal', () => {
       })
 
       vi.spyOn(authStore, 'login').mockResolvedValue(false)
+      const inputs = wrapper.findAll('[data-testid="ui-input"]')
 
-      await wrapper.find('#username').setValue('wrong@vault-tec.com')
-      await wrapper.find('#password').setValue('wrongpassword')
+      await inputs[0].setValue('wrong@vault-tec.com')
+      await inputs[1].setValue('wrongpassword')
       await wrapper.find('form').trigger('submit.prevent')
 
       await flushPromises()
@@ -233,9 +235,10 @@ describe('LoginFormTerminal', () => {
 
       vi.spyOn(authStore, 'login').mockResolvedValue(false)
       const pushSpy = vi.spyOn(router, 'push')
+      const inputs = wrapper.findAll('[data-testid="ui-input"]')
 
-      await wrapper.find('#username').setValue('wrong@vault-tec.com')
-      await wrapper.find('#password').setValue('wrongpassword')
+      await inputs[0].setValue('wrong@vault-tec.com')
+      await inputs[1].setValue('wrongpassword')
       await wrapper.find('form').trigger('submit.prevent')
 
       await flushPromises()
@@ -253,8 +256,8 @@ describe('LoginFormTerminal', () => {
       })
 
       expect(wrapper.find('.login-container').exists()).toBe(true)
-      expect(wrapper.find('.terminal-button').exists()).toBe(true)
-      expect(wrapper.find('.terminal-input').exists()).toBe(true)
+      expect(wrapper.find('button').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="ui-input"]').exists()).toBe(true)
     })
 
     it('should have system messages section', () => {

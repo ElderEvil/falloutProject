@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { UButton, UInput } from '@/core/components/ui'
 import { useAuthStore } from '../stores/auth'
 import { useRouter } from 'vue-router'
 
@@ -62,58 +63,50 @@ const handleSubmit = async () => {
         <!-- Register Form -->
         <form @submit.prevent="handleSubmit" class="register-form">
           <div class="form-group">
-            <label for="username" class="terminal-label">> OVERSEER USERNAME:</label>
-            <input
-              type="text"
-              id="username"
+            <UInput
               v-model="username"
-              required
-              class="terminal-input"
+              type="text"
+              label="> OVERSEER USERNAME:"
               placeholder="overseer_name"
+              required
             />
           </div>
 
           <div class="form-group">
-            <label for="email" class="terminal-label">> EMAIL ADDRESS:</label>
-            <input
-              type="email"
-              id="email"
+            <UInput
               v-model="email"
-              required
-              class="terminal-input"
+              type="email"
+              label="> EMAIL ADDRESS:"
               placeholder="overseer@vault-tec.com"
+              required
             />
           </div>
 
           <div class="form-group">
-            <label for="password" class="terminal-label">> SECURITY PASSPHRASE:</label>
-            <input
-              type="password"
-              id="password"
+            <UInput
               v-model="password"
-              required
-              class="terminal-input"
+              type="password"
+              label="> SECURITY PASSPHRASE:"
               placeholder="••••••••"
+              required
             />
           </div>
 
           <div class="form-group">
-            <label for="confirmPassword" class="terminal-label">> CONFIRM PASSPHRASE:</label>
-            <input
-              type="password"
-              id="confirmPassword"
+            <UInput
               v-model="confirmPassword"
-              required
-              class="terminal-input"
+              type="password"
+              label="> CONFIRM PASSPHRASE:"
               placeholder="••••••••"
+              required
             />
           </div>
 
-          <button type="submit" class="terminal-button">
+          <UButton variant="primary" type="submit" block>
             <span class="button-icon">►</span>
             REGISTER OVERSEER
             <span class="button-icon">◄</span>
-          </button>
+          </UButton>
         </form>
 
         <!-- Error Message -->
@@ -146,7 +139,7 @@ const handleSubmit = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0a0a0a;
+  background: var(--color-surface-dark);
   font-family: 'Courier New', monospace;
   overflow: hidden;
 }
@@ -250,72 +243,6 @@ const handleSubmit = async () => {
   margin-bottom: 1.25rem;
 }
 
-.terminal-label {
-  display: block;
-  font-size: 0.875rem;
-  font-weight: bold;
-  color: var(--color-theme-primary, #00ff00);
-  margin-bottom: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  text-shadow: 0 0 5px var(--color-theme-glow, rgba(0, 255, 0, 0.5));
-}
-
-.terminal-input {
-  width: 100%;
-  background: rgba(0, 0, 0, 0.8);
-  border: 2px solid var(--color-theme-primary, #00ff00);
-  color: var(--color-theme-primary, #00ff00);
-  padding: 0.75rem;
-  font-family: 'Courier New', monospace;
-  font-size: 1rem;
-  transition: all 0.2s;
-  box-shadow: 0 0 10px var(--color-theme-glow, rgba(0, 255, 0, 0.3));
-}
-
-.terminal-input:focus {
-  outline: none;
-  box-shadow: 0 0 20px var(--color-theme-glow, rgba(0, 255, 0, 0.6));
-  background: rgba(0, 50, 0, 0.3);
-}
-
-.terminal-input::placeholder {
-  color: var(--color-theme-primary, #00ff00);
-  opacity: 0.4;
-}
-
-/* Button */
-.terminal-button {
-  width: 100%;
-  background: rgba(0, 0, 0, 0.8);
-  border: 3px solid var(--color-theme-primary, #00ff00);
-  color: var(--color-theme-primary, #00ff00);
-  padding: 1rem;
-  font-family: 'Courier New', monospace;
-  font-size: 1.125rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  box-shadow: 0 0 15px var(--color-theme-glow, rgba(0, 255, 0, 0.5));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-}
-
-.terminal-button:hover {
-  background: var(--color-theme-primary, #00ff00);
-  color: #000;
-  box-shadow: 0 0 30px var(--color-theme-glow, rgba(0, 255, 0, 0.8));
-  transform: translateY(-2px);
-}
-
-.terminal-button:active {
-  transform: translateY(0);
-}
-
 .button-icon {
   font-size: 1.25rem;
 }
@@ -323,14 +250,14 @@ const handleSubmit = async () => {
 /* Error Message */
 .error-message {
   background: rgba(255, 0, 0, 0.1);
-  border: 2px solid #ff0000;
+  border: 2px solid var(--color-danger);
   padding: 1rem;
   margin-bottom: 1rem;
   box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
 }
 
 .error-message p {
-  color: #ff0000;
+  color: var(--color-danger);
   font-size: 0.75rem;
   margin: 0.25rem 0;
   text-shadow: 0 0 5px rgba(255, 0, 0, 0.8);

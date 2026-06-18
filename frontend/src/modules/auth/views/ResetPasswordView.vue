@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from '@/core/plugins/axios'
+import { UButton, UInput } from '@/core/components/ui'
 
 const route = useRoute()
 const router = useRouter()
@@ -84,36 +85,36 @@ const handleSubmit = async () => {
           </div>
 
           <div class="form-group">
-            <label for="password" class="terminal-label">> NEW PASSPHRASE:</label>
-            <input
-              type="password"
-              id="password"
+            <UInput
               v-model="newPassword"
-              required
-              class="terminal-input"
+              type="password"
+              label="> NEW PASSPHRASE:"
               placeholder="Minimum 8 characters"
               :disabled="loading"
             />
           </div>
 
           <div class="form-group">
-            <label for="confirm-password" class="terminal-label">> CONFIRM PASSPHRASE:</label>
-            <input
-              type="password"
-              id="confirm-password"
+            <UInput
               v-model="confirmPassword"
-              required
-              class="terminal-input"
+              type="password"
+              label="> CONFIRM PASSPHRASE:"
               placeholder="Re-enter passphrase"
               :disabled="loading"
             />
           </div>
 
-          <button type="submit" class="terminal-button" :disabled="loading || !token">
+          <UButton
+            variant="primary"
+            block
+            :loading="loading"
+            :disabled="loading || !token"
+            @click.prevent="handleSubmit"
+          >
             <span class="button-icon">►</span>
             {{ loading ? 'PROCESSING...' : 'RESET PASSWORD' }}
             <span class="button-icon">◄</span>
-          </button>
+          </UButton>
         </form>
 
         <!-- Error Message -->
@@ -142,7 +143,7 @@ const handleSubmit = async () => {
 /* Use same styling as LoginFormTerminal */
 .login-container {
   min-height: 100vh;
-  background: #000;
+  background: var(--color-terminal-background);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -186,7 +187,7 @@ const handleSubmit = async () => {
 
 .login-box {
   background: rgba(0, 0, 0, 0.9);
-  border: 3px solid var(--color-theme-primary, #00ff00);
+  border: 3px solid var(--color-theme-primary);
   padding: 2rem;
   box-shadow:
     0 0 20px var(--color-theme-glow, rgba(0, 255, 0, 0.3)),
@@ -199,7 +200,7 @@ const handleSubmit = async () => {
 }
 
 .terminal-title {
-  color: var(--color-theme-primary, #00ff00);
+  color: var(--color-theme-primary);
   font-size: 2rem;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -208,7 +209,7 @@ const handleSubmit = async () => {
 }
 
 .terminal-subtitle {
-  color: var(--color-theme-primary, #00ff00);
+  color: var(--color-theme-primary);
   font-size: 0.9rem;
   margin-top: 0.5rem;
   opacity: 0.8;
@@ -216,7 +217,7 @@ const handleSubmit = async () => {
 
 .terminal-line {
   height: 2px;
-  background: var(--color-theme-primary, #00ff00);
+  background: var(--color-theme-primary);
   margin-top: 1rem;
   box-shadow: 0 0 5px var(--color-theme-glow, rgba(0, 255, 0, 0.5));
 }
@@ -226,7 +227,7 @@ const handleSubmit = async () => {
 }
 
 .system-msg {
-  color: var(--color-theme-primary, #00ff00);
+  color: var(--color-theme-primary);
   font-size: 0.85rem;
   margin: 0.3rem 0;
   opacity: 0.7;
@@ -240,91 +241,32 @@ const handleSubmit = async () => {
   margin-bottom: 1.5rem;
 }
 
-.terminal-label {
-  display: block;
-  color: var(--color-theme-primary, #00ff00);
-  font-size: 0.9rem;
-  margin-bottom: 0.5rem;
-  text-transform: uppercase;
-}
-
-.terminal-input {
-  width: 100%;
-  padding: 0.75rem;
-  background: rgba(0, 0, 0, 0.7);
-  border: 2px solid var(--color-theme-primary, #00ff00);
-  color: var(--color-theme-primary, #00ff00);
-  font-family: 'Courier New', monospace;
-  font-size: 1rem;
-  outline: none;
-  transition: all 0.3s ease;
-}
-
-.terminal-input:focus {
-  box-shadow: 0 0 10px var(--color-theme-glow, rgba(0, 255, 0, 0.5));
-  border-color: var(--color-theme-primary, #00ff00);
-}
-
-.terminal-input:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.terminal-input::placeholder {
-  color: rgba(0, 255, 0, 0.4);
-}
-
-.terminal-button {
-  width: 100%;
-  padding: 1rem;
-  background: rgba(0, 255, 0, 0.1);
-  border: 2px solid var(--color-theme-primary, #00ff00);
-  color: var(--color-theme-primary, #00ff00);
-  font-family: 'Courier New', monospace;
-  font-size: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
-
-.terminal-button:hover:not(:disabled) {
-  background: rgba(0, 255, 0, 0.2);
-  box-shadow: 0 0 15px var(--color-theme-glow, rgba(0, 255, 0, 0.5));
-}
-
-.terminal-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .button-icon {
   margin: 0 0.5rem;
 }
 
 .error-message {
   background: rgba(255, 0, 0, 0.1);
-  border: 2px solid #ff0000;
+  border: 2px solid var(--color-danger);
   padding: 1rem;
   margin-bottom: 1rem;
 }
 
 .error-message p {
-  color: #ff0000;
+  color: var(--color-danger);
   margin: 0.3rem 0;
   font-size: 0.85rem;
 }
 
 .success-message {
   background: rgba(0, 255, 0, 0.1);
-  border: 2px solid var(--color-theme-primary, #00ff00);
+  border: 2px solid var(--color-theme-primary);
   padding: 1.5rem;
   margin-bottom: 1rem;
 }
 
 .success-message p {
-  color: var(--color-theme-primary, #00ff00);
+  color: var(--color-theme-primary);
   margin: 0.5rem 0;
   font-size: 0.9rem;
   text-align: center;
@@ -336,13 +278,13 @@ const handleSubmit = async () => {
 }
 
 .terminal-text {
-  color: var(--color-theme-primary, #00ff00);
+  color: var(--color-theme-primary);
   font-size: 0.85rem;
   margin: 0;
 }
 
 .link-text {
-  color: var(--color-theme-primary, #00ff00);
+  color: var(--color-theme-primary);
   text-decoration: underline;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -359,7 +301,7 @@ const handleSubmit = async () => {
 }
 
 .footer-text {
-  color: var(--color-theme-primary, #00ff00);
+  color: var(--color-theme-primary);
   font-size: 0.7rem;
   margin: 0;
   opacity: 0.5;

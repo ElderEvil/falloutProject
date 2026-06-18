@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from '@/core/plugins/axios'
+import { UButton } from '@/core/components/ui'
 
 const route = useRoute()
 const router = useRouter()
@@ -71,7 +72,7 @@ onMounted(async () => {
           <p class="terminal-text error-text">> ERROR: VERIFICATION FAILED</p>
           <p class="terminal-text error-text">> {{ error }}</p>
           <div class="error-actions">
-            <router-link to="/login" class="terminal-button"> RETURN TO LOGIN </router-link>
+            <UButton variant="primary" @click="router.push('/login')">RETURN TO LOGIN</UButton>
           </div>
         </div>
       </div>
@@ -85,7 +86,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #000;
+  background: var(--color-terminal-background);
   padding: 2rem;
   position: relative;
 }
@@ -117,7 +118,7 @@ onMounted(async () => {
 
 .terminal-window {
   background: rgba(0, 20, 0, 0.95);
-  border: 2px solid var(--theme-color, #00ff00);
+  border: 2px solid var(--color-theme-primary);
   border-radius: 4px;
   max-width: 700px;
   width: 100%;
@@ -150,10 +151,10 @@ onMounted(async () => {
 
 .terminal-header {
   background: rgba(0, 50, 0, 0.8);
-  border-bottom: 1px solid var(--theme-color, #00ff00);
+  border-bottom: 1px solid var(--color-theme-primary);
   padding: 0.5rem 1rem;
   font-family: 'Courier New', monospace;
-  color: var(--theme-color, #00ff00);
+  color: var(--color-theme-primary);
   text-shadow: 0 0 5px currentColor;
 }
 
@@ -165,13 +166,13 @@ onMounted(async () => {
 .terminal-body {
   padding: 2rem;
   font-family: 'Courier New', monospace;
-  color: var(--theme-color, #00ff00);
+  color: var(--color-theme-primary);
 }
 
 .ascii-art pre {
   font-size: 0.45rem;
   line-height: 1;
-  color: var(--theme-color, #00ff00);
+  color: var(--color-theme-primary);
   text-shadow: 0 0 8px currentColor;
   margin: 0 0 1.5rem 0;
   opacity: 0.8;
@@ -180,10 +181,10 @@ onMounted(async () => {
 .terminal-heading {
   font-size: 1.3rem;
   margin: 0 0 2rem 0;
-  color: var(--theme-color, #00ff00);
+  color: var(--color-theme-primary);
   text-shadow: 0 0 10px currentColor;
   letter-spacing: 2px;
-  border-bottom: 1px solid var(--theme-color, #00ff00);
+  border-bottom: 1px solid var(--color-theme-primary);
   padding-bottom: 0.5rem;
 }
 
@@ -195,13 +196,13 @@ onMounted(async () => {
   margin: 0.5rem 0;
   font-size: 0.95rem;
   line-height: 1.6;
-  color: var(--theme-color, #00ff00);
+  color: var(--color-theme-primary);
   text-shadow: 0 0 5px currentColor;
 }
 
 .error-text {
-  color: #ff4444;
-  text-shadow: 0 0 5px #ff4444;
+  color: var(--color-danger);
+  text-shadow: 0 0 5px var(--color-danger);
 }
 
 .loading-spinner {
@@ -224,33 +225,12 @@ onMounted(async () => {
 .success-indicator {
   margin: 1rem 0;
   font-size: 2rem;
-  color: var(--theme-color, #00ff00);
+  color: var(--color-theme-primary);
   text-shadow: 0 0 15px currentColor;
   animation: pulse 1s infinite;
 }
 
 .error-actions {
   margin-top: 1.5rem;
-}
-
-.terminal-button {
-  display: inline-block;
-  padding: 0.75rem 1.5rem;
-  background: transparent;
-  border: 2px solid var(--theme-color, #00ff00);
-  color: var(--theme-color, #00ff00);
-  text-decoration: none;
-  font-family: 'Courier New', monospace;
-  font-size: 0.9rem;
-  letter-spacing: 1px;
-  cursor: pointer;
-  transition: all 0.3s;
-  text-shadow: 0 0 5px currentColor;
-}
-
-.terminal-button:hover {
-  background: var(--theme-color, #00ff00);
-  color: #000;
-  box-shadow: 0 0 20px currentColor;
 }
 </style>

@@ -42,10 +42,7 @@ describe('RegisterForm', () => {
 
       expect(wrapper.text()).toContain('VAULT-TEC INDUSTRIES')
       expect(wrapper.text()).toContain('New Overseer Registration Terminal')
-      expect(wrapper.find('#username').exists()).toBe(true)
-      expect(wrapper.find('#email').exists()).toBe(true)
-      expect(wrapper.find('#password').exists()).toBe(true)
-      expect(wrapper.find('#confirmPassword').exists()).toBe(true)
+      expect(wrapper.findAll('[data-testid="ui-input"]').length).toBe(4)
       expect(wrapper.find('button[type="submit"]').exists()).toBe(true)
     })
 
@@ -79,10 +76,11 @@ describe('RegisterForm', () => {
         },
       })
 
-      expect(wrapper.find('#username').attributes('required')).toBeDefined()
-      expect(wrapper.find('#email').attributes('required')).toBeDefined()
-      expect(wrapper.find('#password').attributes('required')).toBeDefined()
-      expect(wrapper.find('#confirmPassword').attributes('required')).toBeDefined()
+      const inputs = wrapper.findAll('[data-testid="ui-input"]')
+      expect(inputs[0].attributes('required')).toBeDefined()
+      expect(inputs[1].attributes('required')).toBeDefined()
+      expect(inputs[2].attributes('required')).toBeDefined()
+      expect(inputs[3].attributes('required')).toBeDefined()
     })
 
     it('should have scanlines overlay element', () => {
@@ -136,7 +134,7 @@ describe('RegisterForm', () => {
         },
       })
 
-      const usernameInput = wrapper.find('#username')
+      const usernameInput = wrapper.findAll('[data-testid="ui-input"]')[0]
       await usernameInput.setValue('overseer')
 
       expect((usernameInput.element as HTMLInputElement).value).toBe('overseer')
@@ -149,7 +147,7 @@ describe('RegisterForm', () => {
         },
       })
 
-      const emailInput = wrapper.find('#email')
+      const emailInput = wrapper.findAll('[data-testid="ui-input"]')[1]
       await emailInput.setValue('overseer@vault-tec.com')
 
       expect((emailInput.element as HTMLInputElement).value).toBe('overseer@vault-tec.com')
@@ -162,8 +160,8 @@ describe('RegisterForm', () => {
         },
       })
 
-      const passwordInput = wrapper.find('#password')
-      const confirmInput = wrapper.find('#confirmPassword')
+      const passwordInput = wrapper.findAll('[data-testid="ui-input"]')[2]
+      const confirmInput = wrapper.findAll('[data-testid="ui-input"]')[3]
 
       await passwordInput.setValue('password123')
       await confirmInput.setValue('password123')
@@ -191,10 +189,11 @@ describe('RegisterForm', () => {
         },
       })
 
-      await wrapper.find('#username').setValue('overseer')
-      await wrapper.find('#email').setValue('overseer@vault-tec.com')
-      await wrapper.find('#password').setValue('password123')
-      await wrapper.find('#confirmPassword').setValue('different')
+      const inputs = wrapper.findAll('[data-testid="ui-input"]')
+      await inputs[0].setValue('overseer')
+      await inputs[1].setValue('overseer@vault-tec.com')
+      await inputs[2].setValue('password123')
+      await inputs[3].setValue('different')
       await wrapper.find('form').trigger('submit.prevent')
 
       await flushPromises()
@@ -210,11 +209,12 @@ describe('RegisterForm', () => {
       })
 
       const registerSpy = vi.spyOn(authStore, 'register')
+      const inputs = wrapper.findAll('[data-testid="ui-input"]')
 
-      await wrapper.find('#username').setValue('overseer')
-      await wrapper.find('#email').setValue('overseer@vault-tec.com')
-      await wrapper.find('#password').setValue('password123')
-      await wrapper.find('#confirmPassword').setValue('different')
+      await inputs[0].setValue('overseer')
+      await inputs[1].setValue('overseer@vault-tec.com')
+      await inputs[2].setValue('password123')
+      await inputs[3].setValue('different')
       await wrapper.find('form').trigger('submit.prevent')
 
       await flushPromises()
@@ -229,10 +229,11 @@ describe('RegisterForm', () => {
         },
       })
 
-      await wrapper.find('#username').setValue('overseer')
-      await wrapper.find('#email').setValue('overseer@vault-tec.com')
-      await wrapper.find('#password').setValue('short')
-      await wrapper.find('#confirmPassword').setValue('short')
+      const inputs = wrapper.findAll('[data-testid="ui-input"]')
+      await inputs[0].setValue('overseer')
+      await inputs[1].setValue('overseer@vault-tec.com')
+      await inputs[2].setValue('short')
+      await inputs[3].setValue('short')
       await wrapper.find('form').trigger('submit.prevent')
 
       await flushPromises()
@@ -248,11 +249,12 @@ describe('RegisterForm', () => {
       })
 
       const registerSpy = vi.spyOn(authStore, 'register')
+      const inputs = wrapper.findAll('[data-testid="ui-input"]')
 
-      await wrapper.find('#username').setValue('overseer')
-      await wrapper.find('#email').setValue('overseer@vault-tec.com')
-      await wrapper.find('#password').setValue('short')
-      await wrapper.find('#confirmPassword').setValue('short')
+      await inputs[0].setValue('overseer')
+      await inputs[1].setValue('overseer@vault-tec.com')
+      await inputs[2].setValue('short')
+      await inputs[3].setValue('short')
       await wrapper.find('form').trigger('submit.prevent')
 
       await flushPromises()
@@ -267,10 +269,11 @@ describe('RegisterForm', () => {
         },
       })
 
-      await wrapper.find('#username').setValue('overseer')
-      await wrapper.find('#email').setValue('notanemail')
-      await wrapper.find('#password').setValue('longenoughpassword')
-      await wrapper.find('#confirmPassword').setValue('longenoughpassword')
+      const inputs = wrapper.findAll('[data-testid="ui-input"]')
+      await inputs[0].setValue('overseer')
+      await inputs[1].setValue('notanemail')
+      await inputs[2].setValue('longenoughpassword')
+      await inputs[3].setValue('longenoughpassword')
       await wrapper.find('form').trigger('submit.prevent')
 
       await flushPromises()
@@ -289,11 +292,12 @@ describe('RegisterForm', () => {
 
       const registerSpy = vi.spyOn(authStore, 'register').mockResolvedValue(true)
       const pushSpy = vi.spyOn(router, 'push')
+      const inputs = wrapper.findAll('[data-testid="ui-input"]')
 
-      await wrapper.find('#username').setValue('overseer')
-      await wrapper.find('#email').setValue('overseer@vault-tec.com')
-      await wrapper.find('#password').setValue('password123')
-      await wrapper.find('#confirmPassword').setValue('password123')
+      await inputs[0].setValue('overseer')
+      await inputs[1].setValue('overseer@vault-tec.com')
+      await inputs[2].setValue('password123')
+      await inputs[3].setValue('password123')
       await wrapper.find('form').trigger('submit.prevent')
 
       await flushPromises()
@@ -311,11 +315,12 @@ describe('RegisterForm', () => {
 
       vi.spyOn(authStore, 'register').mockResolvedValue(true)
       const pushSpy = vi.spyOn(router, 'push')
+      const inputs = wrapper.findAll('[data-testid="ui-input"]')
 
-      await wrapper.find('#username').setValue('overseer')
-      await wrapper.find('#email').setValue('overseer@vault-tec.com')
-      await wrapper.find('#password').setValue('password123')
-      await wrapper.find('#confirmPassword').setValue('password123')
+      await inputs[0].setValue('overseer')
+      await inputs[1].setValue('overseer@vault-tec.com')
+      await inputs[2].setValue('password123')
+      await inputs[3].setValue('password123')
       await wrapper.find('form').trigger('submit.prevent')
 
       await flushPromises()
@@ -331,11 +336,12 @@ describe('RegisterForm', () => {
       })
 
       vi.spyOn(authStore, 'register').mockResolvedValue(false)
+      const inputs = wrapper.findAll('[data-testid="ui-input"]')
 
-      await wrapper.find('#username').setValue('overseer')
-      await wrapper.find('#email').setValue('overseer@vault-tec.com')
-      await wrapper.find('#password').setValue('password123')
-      await wrapper.find('#confirmPassword').setValue('password123')
+      await inputs[0].setValue('overseer')
+      await inputs[1].setValue('overseer@vault-tec.com')
+      await inputs[2].setValue('password123')
+      await inputs[3].setValue('password123')
       await wrapper.find('form').trigger('submit.prevent')
 
       await flushPromises()
@@ -353,11 +359,12 @@ describe('RegisterForm', () => {
 
       vi.spyOn(authStore, 'register').mockResolvedValue(false)
       const pushSpy = vi.spyOn(router, 'push')
+      const inputs = wrapper.findAll('[data-testid="ui-input"]')
 
-      await wrapper.find('#username').setValue('overseer')
-      await wrapper.find('#email').setValue('overseer@vault-tec.com')
-      await wrapper.find('#password').setValue('password123')
-      await wrapper.find('#confirmPassword').setValue('password123')
+      await inputs[0].setValue('overseer')
+      await inputs[1].setValue('overseer@vault-tec.com')
+      await inputs[2].setValue('password123')
+      await inputs[3].setValue('password123')
       await wrapper.find('form').trigger('submit.prevent')
 
       await flushPromises()
@@ -375,8 +382,8 @@ describe('RegisterForm', () => {
       })
 
       expect(wrapper.find('.register-container').exists()).toBe(true)
-      expect(wrapper.find('.terminal-button').exists()).toBe(true)
-      expect(wrapper.find('.terminal-input').exists()).toBe(true)
+      expect(wrapper.find('button').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="ui-input"]').exists()).toBe(true)
     })
 
     it('should have system messages section', () => {

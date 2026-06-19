@@ -9,7 +9,6 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud import exploration as crud_exploration
-from app.crud import vault as crud_vault
 from app.crud.dweller import dweller as dweller_crud
 from app.models import Storage
 from app.models.exploration import Exploration
@@ -113,7 +112,6 @@ class ExplorationService:
             raise ValueError(msg)
 
         # Check vault storage first, then fall back to dweller inventory
-        vault = await crud_vault.get(db_session, vault_id)
         storage_result = await db_session.execute(select(Storage).where(Storage.vault_id == vault_id))
         storage = storage_result.scalar_one_or_none()
         vault_stimpaks = storage.stimpack if storage else 0
@@ -142,8 +140,8 @@ class ExplorationService:
 
         # Deduct from vault storage
         if (stimpaks_from_vault > 0 or radaways_from_vault > 0) and storage:
-            storage.stimpack = storage.stimpack - stimpaks_from_vault
-            storage.radaway = storage.radaway - radaways_from_vault
+            storage.stimpack = (storage.stimpack or 0) - stimpaks_from_vault
+            storage.radaway = (storage.radaway or 0) - radaways_from_vault
             db_session.add(storage)
 
         # Deduct from dweller inventory

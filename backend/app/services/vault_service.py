@@ -157,10 +157,6 @@ class VaultService:
                 elif created_room.ability == SPECIALEnum.ENDURANCE and created_room.capacity:
                     # Storage rooms increase Storage.max_space, not individual vault capacities
                     # Query current storage max_space to avoid lazy load issue
-                    from sqlmodel import select
-
-                    from app.models.storage import Storage
-
                     storage_result = await db_session.execute(
                         select(Storage.max_space).where(Storage.vault_id == vault.id)
                     )
@@ -185,8 +181,6 @@ class VaultService:
                     vault.food_max += created_room.capacity
                 elif ability_lower == "perception":
                     vault.water_max += created_room.capacity
-                elif ability_lower == "intelligence":
-                    pass
 
         # Create misc rooms
         created_misc_rooms = []
@@ -648,10 +642,9 @@ class VaultService:
         # Set initial medical supplies on Storage (computed from Medbay/Science Lab rooms)
         all_rooms = created_production_rooms + created_capacity_rooms + created_training_rooms + created_misc_rooms
         medical_capacity = compute_medical_capacity(all_rooms)
-        initial_stimpack = min(5, medical_capacity.get("stimpak", 0))
+        initial_stimpack = min(5, medical_capacity.get("stimpack", 0))
         initial_radaway = min(5, medical_capacity.get("radaway", 0))
         if initial_stimpack > 0 or initial_radaway > 0:
-            from sqlmodel import select
 
             storage_result = await db_session.execute(select(Storage).where(Storage.vault_id == vault_db_obj.id))
             storage_obj = storage_result.scalar_one_or_none()

@@ -400,7 +400,7 @@ class ExplorationCoordinator:
                 capacity = compute_medical_capacity(rooms)
                 storage_obj.stimpack = min(
                     (storage_obj.stimpack or 0) + exploration.stimpaks,
-                    capacity.get("stimpak", 99999),
+                    capacity.get("stimpack", 99999),
                 )
                 storage_obj.radaway = min(
                     (storage_obj.radaway or 0) + exploration.radaways,

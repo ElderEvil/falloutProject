@@ -24,6 +24,10 @@ def upgrade() -> None:
     op.add_column("storage", sa.Column("stimpack", sa.Integer(), nullable=False, server_default="0"))
     op.add_column("storage", sa.Column("radaway", sa.Integer(), nullable=False, server_default="0"))
 
+    # Enforce bounds at DB level (defense-in-depth beyond Pydantic/SQLModel)
+    op.create_check_constraint("ck_storage_stimpack_bounds", "storage", sa.text("stimpack >= 0 AND stimpack <= 10000"))
+    op.create_check_constraint("ck_storage_radaway_bounds", "storage", sa.text("radaway >= 0 AND radaway <= 10000"))
+
     # Copy existing data from vault to storage
     op.execute(
         """
@@ -43,6 +47,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Drop CHECK constraints before dropping columns
+    op.drop_constraint("ck_storage_stimpack_bounds", "storage", type_="check")
+    op.drop_constraint("ck_storage_radaway_bounds", "storage", type_="check")
+
     # Re-add old columns to vault table
     op.add_column("vault", sa.Column("stimpack", sa.Integer(), nullable=False, server_default="0"))
     op.add_column("vault", sa.Column("stimpack_max", sa.Integer(), nullable=False, server_default="0"))
@@ -50,6 +58,9 @@ def downgrade() -> None:
     op.add_column("vault", sa.Column("radaway_max", sa.Integer(), nullable=False, server_default="0"))
 
     # Copy data back from storage to vault
+    # Note: stimpack_max and radaway_max are intentionally set to 0 because
+    # these values are now dynamically computed from rooms (via
+    # compute_medical_capacity), making this data-loss acceptable during rollbacks.
     op.execute(
         """
         UPDATE vault

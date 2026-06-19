@@ -44,7 +44,7 @@ class ResourceManager:
             stimpack_prod = round(production.get("stimpack", 0))
             radaway_prod = round(production.get("radaway", 0))
             if stimpack_prod > 0 or radaway_prod > 0:
-                storage.stimpack = min(storage.stimpack + stimpack_prod, capacity.get("stimpak", 0))
+                storage.stimpack = min(storage.stimpack + stimpack_prod, capacity.get("stimpack", 0))
                 storage.radaway = min(storage.radaway + radaway_prod, capacity.get("radaway", 0))
                 db_session.add(storage)
 

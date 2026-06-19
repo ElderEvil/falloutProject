@@ -645,7 +645,6 @@ class VaultService:
         initial_stimpack = min(5, medical_capacity.get("stimpack", 0))
         initial_radaway = min(5, medical_capacity.get("radaway", 0))
         if initial_stimpack > 0 or initial_radaway > 0:
-
             storage_result = await db_session.execute(select(Storage).where(Storage.vault_id == vault_db_obj.id))
             storage_obj = storage_result.scalar_one_or_none()
             if storage_obj:

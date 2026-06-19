@@ -24,19 +24,11 @@ const storageSpace = ref<{
   max_space: number
   available_space: number
   utilization_pct: number
+  stimpack: number
+  radaway: number
 } | null>(null)
 
 const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
-
-const medicalSupplies = computed(() => {
-  const vault = currentVault.value
-  return {
-    stimpaks: vault?.stimpack ?? 0,
-    stimpaksMax: vault?.stimpack_max ?? 0,
-    radaways: vault?.radaway ?? 0,
-    radawaysMax: vault?.radaway_max ?? 0,
-  }
-})
 
 const storageItems = ref<StorageItemsResponse>({
   weapons: [],
@@ -65,9 +57,6 @@ const fetchStorageData = async () => {
 
     storageSpace.value = spaceData
     storageItems.value = itemsData
-
-    // Refresh vault to get medical supplies
-    await vaultStore.refreshVault(vaultId.value, authStore.token)
   } catch (error) {
     console.error('Failed to load storage data:', error)
     toast.error('Failed to load storage data')
@@ -261,7 +250,7 @@ const getRarityColor = (rarity?: string) => {
         </UCard>
 
         <!-- Medical Supplies -->
-        <UCard glow crt class="max-w-2xl mb-6">
+        <UCard v-if="storageSpace" glow crt class="max-w-2xl mb-6">
           <div class="font-mono mb-4">
             <h3 class="text-theme-accent text-lg font-semibold mb-3">Medical Supplies</h3>
             <div class="grid grid-cols-2 gap-4">
@@ -271,10 +260,8 @@ const getRarityColor = (rarity?: string) => {
               >
                 <Icon icon="mdi:medical-bag" class="w-8 h-8 text-green-500" />
                 <div>
-                  <div class="text-theme-primary font-bold">{{ medicalSupplies.stimpaks }}</div>
-                  <div class="text-theme-accent text-xs">
-                    / {{ medicalSupplies.stimpaksMax ?? '-' }} Stimpaks
-                  </div>
+                  <div class="text-theme-primary font-bold">{{ storageSpace.stimpack }}</div>
+                  <div class="text-theme-accent text-xs">Stimpaks</div>
                 </div>
               </div>
               <!-- Radaways -->
@@ -283,10 +270,8 @@ const getRarityColor = (rarity?: string) => {
               >
                 <Icon icon="mdi:pill" class="w-8 h-8 text-purple-500" />
                 <div>
-                  <div class="text-theme-primary font-bold">{{ medicalSupplies.radaways }}</div>
-                  <div class="text-theme-accent text-xs">
-                    / {{ medicalSupplies.radawaysMax ?? '-' }} Radaways
-                  </div>
+                  <div class="text-theme-primary font-bold">{{ storageSpace.radaway }}</div>
+                  <div class="text-theme-accent text-xs">Radaways</div>
                 </div>
               </div>
             </div>

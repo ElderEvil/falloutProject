@@ -4,13 +4,15 @@ import logging
 
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.game_data_deps import get_static_game_data
+from app.core.game_config import compute_medical_capacity
 from app.crud import dweller as dweller_crud
 from app.crud import room as room_crud
 from app.crud.vault import vault as vault_crud
-from app.models import Room
+from app.models import Room, Storage
 from app.models.vault import Vault
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.schemas.common import DwellerStatusEnum, GenderEnum, RoomTypeEnum, SPECIALEnum
@@ -155,10 +157,6 @@ class VaultService:
                 elif created_room.ability == SPECIALEnum.ENDURANCE and created_room.capacity:
                     # Storage rooms increase Storage.max_space, not individual vault capacities
                     # Query current storage max_space to avoid lazy load issue
-                    from sqlmodel import select
-
-                    from app.models.storage import Storage
-
                     storage_result = await db_session.execute(
                         select(Storage.max_space).where(Storage.vault_id == vault.id)
                     )
@@ -183,12 +181,6 @@ class VaultService:
                     vault.food_max += created_room.capacity
                 elif ability_lower == "perception":
                     vault.water_max += created_room.capacity
-                elif ability_lower == "intelligence":
-                    # Medbay produces stimpaks, Science Lab produces radaways
-                    if "medbay" in created_room.name.lower():
-                        vault.stimpack_max += created_room.capacity
-                    elif "science" in created_room.name.lower():
-                        vault.radaway_max += created_room.capacity
 
         # Create misc rooms
         created_misc_rooms = []
@@ -637,9 +629,6 @@ class VaultService:
         initial_food = vault_db_obj.food_max // 2
         initial_water = vault_db_obj.water_max // 2
 
-        initial_stimpack = min(5, vault_db_obj.stimpack_max) if vault_db_obj.stimpack_max > 0 else 0
-        initial_radaway = min(5, vault_db_obj.radaway_max) if vault_db_obj.radaway_max > 0 else 0
-
         vault_db_obj = await vault_crud.update(
             db_session=db_session,
             id=vault_db_obj.id,
@@ -647,10 +636,22 @@ class VaultService:
                 power=initial_power,
                 food=initial_food,
                 water=initial_water,
-                stimpack=initial_stimpack,
-                radaway=initial_radaway,
             ),
         )
+
+        # Set initial medical supplies on Storage (computed from Medbay/Science Lab rooms)
+        all_rooms = created_production_rooms + created_capacity_rooms + created_training_rooms + created_misc_rooms
+        medical_capacity = compute_medical_capacity(all_rooms)
+        initial_stimpack = min(5, medical_capacity.get("stimpack", 0))
+        initial_radaway = min(5, medical_capacity.get("radaway", 0))
+        if initial_stimpack > 0 or initial_radaway > 0:
+            storage_result = await db_session.execute(select(Storage).where(Storage.vault_id == vault_db_obj.id))
+            storage_obj = storage_result.scalar_one_or_none()
+            if storage_obj:
+                storage_obj.stimpack = initial_stimpack
+                storage_obj.radaway = initial_radaway
+                db_session.add(storage_obj)
+                await db_session.commit()
 
         # Create and assign dwellers
         await self._create_initial_dwellers(
@@ -711,8 +712,13 @@ class VaultService:
 
         Dwellers can carry max 15 stimpaks and 15 radaways each.
         """
-        vault_stimpaks = vault.stimpack or 0
-        vault_radaways = vault.radaway or 0
+        storage_result = await db_session.execute(select(Storage).where(Storage.vault_id == vault.id))
+        storage = storage_result.scalar_one_or_none()
+        if not storage:
+            raise ResourceNotFoundException(model=Storage, identifier=vault.id)
+
+        vault_stimpaks = storage.stimpack or 0
+        vault_radaways = storage.radaway or 0
 
         if stimpaks > vault_stimpaks:
             raise ResourceConflictException(detail=f"Vault only has {vault_stimpaks} stimpaks")
@@ -735,18 +741,15 @@ class VaultService:
         if radaways + dweller_radaways > max_per_dweller:
             raise ResourceConflictException(detail=f"Dweller can only carry {max_per_dweller} radaways")
 
-        new_vault_stimpaks = vault_stimpaks - stimpaks
-        new_vault_radaways = vault_radaways - radaways
+        new_storage_stimpaks = vault_stimpaks - stimpaks
+        new_storage_radaways = vault_radaways - radaways
         new_dweller_stimpaks = dweller_stimpaks + stimpaks
         new_dweller_radaways = dweller_radaways + radaways
 
         try:
-            await vault_crud.update(
-                db_session,
-                vault.id,
-                obj_in={"stimpack": new_vault_stimpaks, "radaway": new_vault_radaways},
-                commit=False,
-            )
+            storage.stimpack = new_storage_stimpaks
+            storage.radaway = new_storage_radaways
+            db_session.add(storage)
 
             await dweller_crud.update(
                 db_session,
@@ -771,8 +774,8 @@ class VaultService:
         )
 
         return MedicalTransferResponse(
-            vault_stimpaks=new_vault_stimpaks,
-            vault_radaways=new_vault_radaways,
+            vault_stimpaks=new_storage_stimpaks,
+            vault_radaways=new_storage_radaways,
             dweller_stimpaks=new_dweller_stimpaks,
             dweller_radaways=new_dweller_radaways,
         )

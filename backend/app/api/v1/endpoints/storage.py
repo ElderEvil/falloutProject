@@ -51,7 +51,11 @@ async def get_storage_space(
         },
     )
 
-    return StorageSpaceResponse(**storage_info)
+    return StorageSpaceResponse(
+        **storage_info,
+        stimpack=storage.stimpack or 0,
+        radaway=storage.radaway or 0,
+    )
 
 
 @router.get("/vault/{vault_id}/items")

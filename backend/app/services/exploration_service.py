@@ -5,11 +5,12 @@ the modular exploration system in services/exploration/ modules.
 """
 
 from pydantic import UUID4
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud import exploration as crud_exploration
-from app.crud import vault as crud_vault
 from app.crud.dweller import dweller as dweller_crud
+from app.models import Storage
 from app.models.exploration import Exploration
 from app.schemas.exploration import ExplorationProgress
 from app.schemas.exploration_event import RewardsSchema
@@ -111,9 +112,10 @@ class ExplorationService:
             raise ValueError(msg)
 
         # Check vault storage first, then fall back to dweller inventory
-        vault = await crud_vault.get(db_session, vault_id)
-        vault_stimpaks = vault.stimpack or 0
-        vault_radaways = vault.radaway or 0
+        storage_result = await db_session.execute(select(Storage).where(Storage.vault_id == vault_id))
+        storage = storage_result.scalar_one_or_none()
+        vault_stimpaks = storage.stimpack if storage else 0
+        vault_radaways = storage.radaway if storage else 0
 
         # Get total available (vault + dweller)
         dweller = await dweller_crud.get(db_session, dweller_id)
@@ -137,15 +139,10 @@ class ExplorationService:
         radaways_from_dweller = radaways - radaways_from_vault
 
         # Deduct from vault storage
-        if stimpaks_from_vault > 0 or radaways_from_vault > 0:
-            new_vault_stimpaks = vault_stimpaks - stimpaks_from_vault
-            new_vault_radaways = vault_radaways - radaways_from_vault
-            await crud_vault.update(
-                db_session,
-                vault_id,
-                obj_in={"stimpack": new_vault_stimpaks, "radaway": new_vault_radaways},
-                commit=False,
-            )
+        if (stimpaks_from_vault > 0 or radaways_from_vault > 0) and storage:
+            storage.stimpack = (storage.stimpack or 0) - stimpaks_from_vault
+            storage.radaway = (storage.radaway or 0) - radaways_from_vault
+            db_session.add(storage)
 
         # Deduct from dweller inventory
         if stimpaks_from_dweller > 0 or radaways_from_dweller > 0:

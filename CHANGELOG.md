@@ -18,6 +18,29 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.17.0] - 2026-06-19
+
+### Added
+
+- **Storage model medical fields** — Added `stimpack` and `radaway` fields to `StorageBase`. Alembic migration `abc123def456` copies existing data from vault to storage and drops the 4 legacy vault columns.
+- **Medical production config** — Added `MEDICAL_ROOM_PRODUCTION` mapping (medbay→stimpak, science lab→radaway) and `compute_medical_capacity()` to `game_config.py`. Capacity is now computed dynamically from rooms instead of stored on the vault.
+- **StorageView medical display** — Added `stimpack`/`radaway` fields to `StorageSpaceResponse` endpoint. StorageView now reads stimpak/radaway counts from storage API instead of removed vault fields.
+
+### Changed
+
+- **Resource manager** — Medical production (`_apply_room_production`) uses `MEDICAL_ROOM_PRODUCTION` config mapping instead of string matching. Writes stimpaks/radaways to Storage, capped by `compute_medical_capacity`.
+- **Vault service** — Room build no longer updates `stimpack_max`/`radaway_max` on vault. Vault init writes initial medical supplies to Storage. `transfer_medical_supplies` reads/writes Storage instead of vault fields.
+- **Exploration service** — `send_dweller` deducts stimpaks/radaways from Storage. Unused supplies returned on recall are written to Storage, capped by computed capacity.
+- **Vault CRUD** — Removed `stimpack_max`/`radaway_max` special-casing in `_handle_production_room`.
+- **Vault model** — Removed `stimpack`, `stimpack_max`, `radaway`, `radaway_max` fields.
+- **Version bump** — Backend 2.16.0 → 2.17.0, frontend 2.16.0 → 2.17.0.
+
+### Removed
+
+- **Legacy vault medical fields** — `stimpack`, `stimpack_max`, `radaway`, `radaway_max` no longer exist on the Vault model. Stimpack/radaway data lives exclusively on Storage.
+
+---
+
 ## [2.16.0] - 2026-06-18
 
 ### Added

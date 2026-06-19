@@ -12,11 +12,16 @@ Usage:
 """
 
 import logging
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.models.incident import IncidentType
+
+if TYPE_CHECKING:
+    from app.models.room import Room
 
 logger = logging.getLogger(__name__)
 
@@ -638,6 +643,32 @@ class GameConfig(BaseSettings):
     death: DeathConfig = Field(default_factory=DeathConfig)
     dweller: DwellerConfig = Field(default_factory=DwellerConfig)
     exploration: ExplorationConfig = Field(default_factory=ExplorationConfig)
+
+
+# Medical room production mapping (room name lowercase → product type)
+# Used to replace fragile string matching like "medbay" in room.name.lower()
+MEDICAL_ROOM_PRODUCTION: dict[str, str] = {
+    "medbay": "stimpack",
+    "science lab": "radaway",
+}
+
+
+def compute_medical_capacity(rooms: Sequence["Room"]) -> dict[str, int]:
+    """Compute max stimpack/radaway capacity from Medbay/Science Lab rooms.
+
+    Args:
+        rooms: All rooms in the vault.
+
+    Returns:
+        Dict with keys "stimpack" and "radaway" mapping to summed capacities.
+    """
+
+    capacities: dict[str, int] = {"stimpack": 0, "radaway": 0}
+    for room in rooms:
+        product = MEDICAL_ROOM_PRODUCTION.get(room.name.lower())
+        if product and room.capacity is not None:
+            capacities[product] += room.capacity
+    return capacities
 
 
 # Singleton instance

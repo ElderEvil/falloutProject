@@ -4,19 +4,20 @@ import logging
 import random
 
 from pydantic import UUID4
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.game_config import game_config
+from app.core.game_config import compute_medical_capacity, game_config
 from app.crud import exploration as crud_exploration
 from app.crud import storage as crud_storage
 from app.crud import vault as crud_vault
+from app.models import Room, Storage
 from app.models.exploration import Exploration
 from app.models.junk import Junk
 from app.models.outfit import Outfit
 from app.models.weapon import Weapon
 from app.schemas.common import GenderEnum, JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
 from app.schemas.exploration_event import RewardsSchema
-from app.schemas.vault import VaultUpdate
 from app.services.event_bus import GameEvent, event_bus
 from app.services.exploration import data_loader
 from app.services.exploration.event_generator import event_generator
@@ -391,17 +392,21 @@ class ExplorationCoordinator:
 
         # Return unused stimpaks and radaways to vault storage
         if exploration.stimpaks > 0 or exploration.radaways > 0:
-            vault = await crud_vault.get(db_session, exploration.vault_id)
-            large_limit = 99999
-            stimpak_capacity = vault.stimpack_max if vault.stimpack_max is not None else large_limit
-            radaway_capacity = vault.radaway_max if vault.radaway_max is not None else large_limit
-            new_stimpaks = min((vault.stimpack or 0) + exploration.stimpaks, stimpak_capacity)
-            new_radaways = min((vault.radaway or 0) + exploration.radaways, radaway_capacity)
-            await crud_vault.update(
-                db_session,
-                exploration.vault_id,
-                obj_in=VaultUpdate(stimpack=new_stimpaks, radaway=new_radaways),
-            )
+            storage_result = await db_session.execute(select(Storage).where(Storage.vault_id == exploration.vault_id))
+            storage_obj = storage_result.scalar_one_or_none()
+            if storage_obj:
+                room_result = await db_session.execute(select(Room).where(Room.vault_id == exploration.vault_id))
+                rooms = room_result.scalars().all()
+                capacity = compute_medical_capacity(rooms)
+                storage_obj.stimpack = min(
+                    (storage_obj.stimpack or 0) + exploration.stimpaks,
+                    capacity.get("stimpack", 99999),
+                )
+                storage_obj.radaway = min(
+                    (storage_obj.radaway or 0) + exploration.radaways,
+                    capacity.get("radaway", 99999),
+                )
+                db_session.add(storage_obj)
 
         await db_session.commit()
 

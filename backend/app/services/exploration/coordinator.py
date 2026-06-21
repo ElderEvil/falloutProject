@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import random
+from typing import Any
 
 from pydantic import UUID4
 from sqlmodel import select
@@ -102,30 +103,18 @@ class ExplorationCoordinator:
         await db_session.commit()
         await db_session.refresh(exploration)
 
-        # Publish SSE event for live updates on the exploration view
-        try:
-            vault = await crud_vault.get(db_session, exploration.vault_id)
-            if vault and vault.user_id:
-                await sse_manager.publish(
-                    vault.user_id,
-                    "exploration",
-                    {
-                        "event_id": str(exploration.id),
-                        "type": "exploration_event",
-                        "vault_id": str(exploration.vault_id),
-                        "exploration_id": str(exploration.id),
-                        "dweller_id": str(exploration.dweller_id),
-                        "event_type": event.type,
-                        "description": event.description,
-                        "progress": exploration.progress_percentage(),
-                        "stimpaks": exploration.stimpaks,
-                        "radaways": exploration.radaways,
-                        "total_caps_found": exploration.total_caps_found,
-                        "enemies_encountered": exploration.enemies_encountered,
-                    },
-                )
-        except Exception:
-            logger.exception("Failed to publish SSE for exploration event")
+        await self._publish_sse(
+            db_session,
+            exploration,
+            "exploration_event",
+            event_type=event.type,
+            description=event.description,
+            progress=exploration.progress_percentage(),
+            stimpaks=exploration.stimpaks,
+            radaways=exploration.radaways,
+            total_caps_found=exploration.total_caps_found,
+            enemies_encountered=exploration.enemies_encountered,
+        )
 
         return exploration
 
@@ -332,23 +321,12 @@ class ExplorationCoordinator:
             )
 
         # Publish SSE event
-        try:
-            _vault = await crud_vault.get(db_session, exploration.vault_id)
-            if _vault and _vault.user_id:
-                await sse_manager.publish(
-                    _vault.user_id,
-                    "exploration",
-                    {
-                        "event_id": str(exploration.id),
-                        "type": "exploration_complete",
-                        "vault_id": str(exploration.vault_id),
-                        "exploration_id": str(exploration.id),
-                        "dweller_id": str(exploration.dweller_id),
-                        "rewards": rewards.model_dump(mode="json"),
-                    },
-                )
-        except Exception:
-            logger.exception("Failed to publish SSE for exploration completion")
+        await self._publish_sse(
+            db_session,
+            exploration,
+            "exploration_complete",
+            rewards=rewards.model_dump(mode="json"),
+        )
 
         return rewards
 
@@ -380,27 +358,14 @@ class ExplorationCoordinator:
         # Calculate and apply reduced rewards
         rewards = await self._apply_rewards(db_session, exploration, progress_multiplier=progress / 100)
 
-        # Add recall-specific fields using model_copy
         rewards = rewards.model_copy(update={"progress_percentage": progress, "recalled_early": True})
 
-        # Publish SSE event
-        try:
-            _vault = await crud_vault.get(db_session, exploration.vault_id)
-            if _vault and _vault.user_id:
-                await sse_manager.publish(
-                    _vault.user_id,
-                    "exploration",
-                    {
-                        "event_id": str(exploration.id),
-                        "type": "exploration_recalled",
-                        "vault_id": str(exploration.vault_id),
-                        "exploration_id": str(exploration.id),
-                        "dweller_id": str(exploration.dweller_id),
-                        "rewards": rewards.model_dump(mode="json"),
-                    },
-                )
-        except Exception:
-            logger.exception("Failed to publish SSE for exploration recall")
+        await self._publish_sse(
+            db_session,
+            exploration,
+            "exploration_recalled",
+            rewards=rewards.model_dump(mode="json"),
+        )
 
         return rewards
 
@@ -752,6 +717,32 @@ class ExplorationCoordinator:
             )
 
         return {"transferred": transferred, "overflow": overflow}
+
+    @staticmethod
+    async def _publish_sse(
+        db_session: AsyncSession,
+        exploration: Exploration,
+        event_type: str,
+        **extra: Any,
+    ) -> None:
+        """Publish an exploration event to SSE. Best-effort."""
+        try:
+            vault = await crud_vault.get(db_session, exploration.vault_id)
+            if vault and vault.user_id:
+                await sse_manager.publish(
+                    vault.user_id,
+                    "exploration",
+                    {
+                        "event_id": str(exploration.id),
+                        "type": event_type,
+                        "vault_id": str(exploration.vault_id),
+                        "exploration_id": str(exploration.id),
+                        "dweller_id": str(exploration.dweller_id),
+                        **extra,
+                    },
+                )
+        except Exception:
+            logger.exception("Failed to publish SSE for exploration %s", event_type)
 
 
 # Singleton instance

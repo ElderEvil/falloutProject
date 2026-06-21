@@ -18,6 +18,7 @@ from app.services.event_bus import GameEvent, event_bus
 from app.services.exploration_service import exploration_service
 from app.services.happiness_service import happiness_service
 from app.services.resource_manager import ResourceManager
+from app.services.stream_manager import sse_manager
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
 
 logger = logging.getLogger(__name__)
@@ -174,6 +175,20 @@ class GameLoopService:
         game_state.update_tick(seconds_passed)
         db_session.add(game_state)
         await db_session.commit()
+
+        try:
+            await sse_manager.publish(
+                vault_id,
+                "game_ticks",
+                {
+                    "event_id": str(game_state.last_tick_time.isoformat()),
+                    "type": "game_tick",
+                    "vault_id": str(vault_id),
+                    "results": results,
+                },
+            )
+        except Exception:
+            self.logger.exception(f"Failed to publish SSE tick for vault {vault_id}")
 
         return results
 

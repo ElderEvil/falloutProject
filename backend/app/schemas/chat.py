@@ -13,6 +13,7 @@ class ChatMessage(BaseModel):
 
     message: str
 
+
 # --- Action Suggestion Discriminated Union ---
 
 

@@ -11,39 +11,35 @@ AI-powered dweller interactions.
 
 **Current work:**
 
-- [ ] **v2.19.0 — Dict-to-Pydantic Schema Refactoring** — Replace `dict` return types with typed Pydantic schemas across API endpoints; move logic from endpoints to service layer.
-  - ✅ New response schemas: `GameBalanceResponse`, `HappinessModifiersResponse`, `DeathStatsResponse`, `UnassignResponse`, `AutoAssignResponse`, `QuestPartyMemberRead`, `EligibleDwellerRead`
-  - ✅ Dict→Pydantic conversion in 8+ endpoints (game balance, happiness, death stats, vault auto-assign, quest party/eligible dwellers)
-  - ✅ 4 pregnancy endpoints: manual field mapping → `PregnancyRead.model_validate()`
-  - ✅ Service layer: radio vault mutation → `radio_service.set_radio_mode()`; exploration CRUD consolidated
-  - ✅ Auth endpoints wired to `MessageResponse`; return type fixes on `unequip_outfit`/`unequip_weapon`
-  - ✅ E2E verified via curl — all refactored endpoints confirmed working
-  - ⬜ **WIP** merge & cut release
-
+- [ ] **v2.20.0 — SSE streaming polish** — Vault store reactivity via game tick SSE, `useSse` auto-reconnect
 - [ ] **Dramatiq async concurrency** — Fix `asyncpg InterfaceError: another operation is in progress` during game tick objective queries
-- [ ] **FastAPI Yield Streaming** — SSE/event-stream endpoints for exploration events, game loop ticks, and AI chat responses
 
 ---
 
 ## Up Next (Recommended)
 
-### FastAPI Yield Streaming
+### SSE Streaming Polish (v2.20.0)
 
-- [ ] **Exploration Event Streaming** — Replace WebSocket polling with `yield`-based HTTP streaming for real-time exploration events. Uses FastAPI 0.134.0+ native generator syntax to push JSON Lines events as they happen. Reduces connection overhead vs persistent WebSocket.
-- [ ] **Game Loop Tick Streaming** — Expose game loop processing as an SSE/text-event-stream endpoint. Consumers (frontend dashboards, monitoring) subscribe to tick progress without polling.
-- [ ] **AI Chat Response Streaming** — Add HTTP streaming alternative to the existing WebSocket chat path. Dweller AI responses stream token-by-token over a yield-based endpoint. Enables progress indicators and early-render of partial responses.
-- [ ] **SSE Client Utilities** — Frontend composable (`useEventStream`) for consuming SSE/yield endpoints with auto-reconnect, backpressure handling, and cleanup on unmount. Reuse across exploration, game loop, and chat consumers.
+- [ ] **Vault store reactivity** — Subscribe vault store to game tick SSE events for live resource updates without manual refresh
+- [ ] **`useSse` auto-reconnect** — Add exponential backoff retry to fetch-based SSE composable (currently no reconnection on connection loss)
+- [ ] **Incident SSE publishing** — Publish incident spawn/resolution events to SSE for real-time UI updates
 
 ---
 
 ## Latest Release
 
-### v2.19.0 — Dict-to-Pydantic Schema Refactoring (June 21, 2026)
+### v2.19.0 — Dict-to-Pydantic Refactoring + SSE Streaming (June 21, 2026)
 
-**Focus**: Replace `dict` return types with typed Pydantic schemas in API endpoints; move logic from endpoints to service layer
+**Focus**: Replace `dict` return types with typed Pydantic schemas; add real-time SSE streaming for game ticks, notifications, chat, and exploration
 
 **Completed:**
-
+- ✅ **SSE streaming infrastructure** — `SSEManager` singleton, 4 SSE endpoints (notifications, game ticks, chat tokens, exploration), heartbeat keepalive
+- ✅ **Dual notification broadcast** — Notifications sent via both WebSocket + SSE; NotificationBell uses live SSE instead of 30s polling
+- ✅ **Streaming AI chat** — Token-by-token SSE streaming via `chat_service.stream_response()`
+- ✅ **Game tick SSE** — `process_vault_tick()` publishes to SSE; duplicate publish bug fixed with TDD (3 tests)
+- ✅ **Exploration SSE** — Live events published from coordinator (process_event, complete_exploration, recall_exploration)
+- ✅ **Frontend SSE composables** — `useEventStream`, `usePostEventStream` (proper SSE protocol parser), `useSse` (auth header support)
+- ✅ **Stream manager tests** — 11 unit tests covering subscribe/publish, queue full, close, heartbeat
 - ✅ **New response schemas** — Created `GameBalanceResponse`, `HappinessModifiersResponse`, `DeathStatsResponse`, `UnassignResponse`, `AutoAssignResponse`, `DwellerAssignmentItem`, `QuestPartyMemberRead`, `EligibleDwellerRead` across `schemas/` files.
 - ✅ **Dict → Pydantic conversion** — Replaced `dict` returns in 8+ endpoints (game balance, happiness, death stats, vault auto-assign, quest party/eligible dwellers).
 - ✅ **Schema unpacking** — 4 pregnancy endpoints switched from manual field mapping to `PregnancyRead.model_validate()`.
@@ -933,7 +929,7 @@ watch(() => userStore.caps, (caps) => {
 
 | Version | Release      | Highlights                                   |
 | ------- | ------------ | -------------------------------------------- |
-| v2.19.0 | Jun 21, 2026 | Dict-to-Pydantic schema refactoring           |
+| v2.19.0 | Jun 21, 2026 | SSE streaming + Dict-to-Pydantic refactoring |
 | v2.18.0 | Jun 21, 2026 | Library skills audit, compliance fixes       |
 | v2.17.0 | Jun 19, 2026 | Medical storage refactor                     |
 | v2.16.0 | Jun 18, 2026 | Accessibility, CRT theme, test fixes         |
@@ -1013,4 +1009,4 @@ watch(() => userStore.caps, (caps) => {
 
 ---
 
-_Last updated: 2026-06-21_ (v2.19.0)
+_Last updated: 2026-06-21_ (v2.19.0, post-SSE)

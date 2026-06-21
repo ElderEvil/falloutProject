@@ -6,6 +6,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.notification import notification as notification_crud
 from app.models.notification import NotificationCreate, NotificationPriority, NotificationType
+from app.services.stream_manager import sse_manager
 from app.services.websocket_manager import manager
 
 logger = logging.getLogger(__name__)
@@ -82,6 +83,28 @@ class NotificationService:
         except Exception:
             logger.exception(f"Failed to send notification {notification.id} to user {user_id}")
             # Best-effort delivery: persistence should succeed even if WS send fails.
+
+        try:
+            await sse_manager.publish(
+                user_id,
+                "notifications",
+                {
+                    "event_id": str(notification.id),
+                    "type": "notification",
+                    "notification": {
+                        "id": str(notification.id),
+                        "notification_type": notification.notification_type,
+                        "priority": notification.priority,
+                        "title": notification.title,
+                        "message": notification.message,
+                        "meta_data": notification.meta_data,
+                        "created_at": notification.created_at.isoformat(),
+                    },
+                },
+            )
+        except Exception:
+            logger.exception(f"Failed to send SSE notification {notification.id} to user {user_id}")
+            # Best-effort delivery: persistence should succeed even if SSE send fails.
 
         return notification
 

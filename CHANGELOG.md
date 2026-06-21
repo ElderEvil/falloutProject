@@ -9,6 +9,20 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ### Added
 
+- 
+### Fixed
+
+- 
+### Changed
+
+- 
+
+---
+
+## [2.19.0] - 2026-06-21
+
+### Added
+
 - **Response schemas** — Added `GameBalanceResponse`, `HappinessModifiersResponse`, `DeathStatsResponse`, `UnassignResponse`, `AutoAssignResponse`, `DwellerAssignmentItem`, `QuestPartyMemberRead`, `EligibleDwellerRead` schemas.
 - **`unequip_outfit`/`unequip_weapon` return types** — Added `response_model=None` and `-> None` type annotations.
 
@@ -27,23 +41,22 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **UI component accessibility** — Added `role=button`, `tabindex`, keyboard Enter/Space handlers to UDropdown. Added `role=dialog` and `aria-modal=true` to UModal. Added auto-generated `id` + label `for` association to UInput. Replaced inline `:style` color with `text-theme-primary` class on UCard.
 - **Admin password** - Updated `backend/.env.example` password to meet `min_length=8` requirement.
 
----
-
-## [2.19.0] - 2026-06-21
-
 ### Added
 
-- **Response schemas** — Added `GameBalanceResponse`, `HappinessModifiersResponse`, `DeathStatsResponse`, `UnassignResponse`, `AutoAssignResponse`, `DwellerAssignmentItem`, `QuestPartyMemberRead`, `EligibleDwellerRead` schemas.
-- **`unequip_outfit`/`unequip_weapon` return types** — Added `response_model=None` and `-> None` type annotation (these endpoints return `None`).
+- **SSE streaming infrastructure** — `SSEManager` singleton with per-user pub/sub queues. 4 SSE endpoints: notifications (`GET /stream/notifications`), game ticks (`GET /stream/game/{vault_id}/ticks`), AI chat tokens (`POST /stream/chat/{dweller_id}`), exploration events (`GET /stream/exploration/{vault_id}`).
+- **Heartbeat keepalive** — `_with_heartbeat` wrapper yields comments every 30s of inactivity on GET SSE endpoints, preventing proxy timeouts.
+- **Dual notification broadcast** — `NotificationService.send_notification` now publishes via both WebSocket and SSE. Frontend `NotificationBell.vue` replaced 30s polling with live SSE subscription (`useSse`).
+- **Streaming AI chat** — `chat_service.stream_response()` yields token-by-token via `run_stream()`. Chat SSE endpoint streams tokens with `event: token`, then `event: done` with dweller_message_id and happiness_impact.
+- **Game tick SSE publishing** — `process_vault_tick()` publishes tick results to SSE after each game tick. Duplicate SSE publish bug fixed with 3 regression tests.
+- **Exploration SSE publishing** — `ExplorationCoordinator.process_event()`, `complete_exploration()`, and `recall_exploration()` publish live events to the `exploration` SSE topic.
+- **Frontend SSE composables** — `useEventStream` (GET, wraps VueUse `useEventSource` with safe JSON parsing), `usePostEventStream` (POST, fetch-based with proper SSE protocol parser handling event/data/id fields), `useSse` (GET with Authorization headers for authenticated streams).
+- **Stream manager tests** — 11 unit tests covering subscribe/publish, multi-subscriber, disconnect cleanup, queue full (best-effort), close/shutdown, broadcast_to_vault, and heartbeat passthrough/timeout.
 
-### Changed
+### Fixed
 
-- **Dict → Pydantic schema refactoring** — Replaced `dict` return types with typed Pydantic schemas in 8+ endpoints: `get_game_balance_settings` (`GameBalanceResponse`), `get_happiness_modifiers` (`HappinessModifiersResponse`), `get_death_statistics` (`DeathStatsResponse`), vault auto-assign endpoints (`UnassignResponse`/`AutoAssignResponse`), quest party/eligible dweller endpoints (`QuestPartyMemberRead`/`EligibleDwellerRead`).
-- **Schema unpacking** — 4 pregnancy endpoints (`list_pregnancies`, `get_pregnancy`, `get_active_pregnancy`, `list_all_pregnancies`) switched from manual field mapping to `PregnancyRead.model_validate()`.
-- **Service layer relocation** — Radio mode vault mutation moved from `radio.py` endpoint to `radio_service.set_radio_mode()`. CRUD exploration `get_by_vault`/`get_active_by_vault` consolidated into single `get_by_vault(active_only=False)`.
-- **Auth endpoint return types** — 5 auth endpoints (`forgot_password`, `reset_password`, `change_password`, `verify_email`, `resend_verification_email`) wired to existing `MessageResponse` schema.
-- **Game control return type annotations** — Added `-> dict[str, Any]` to `get_game_state`, `manual_tick`, `resolve_incident`.
-- **Version bump** — Backend 2.18.0 → 2.19.0, frontend 2.18.0 → 2.19.0.
+- **Duplicate SSE publish in game loop** — `process_game_tick` no longer publishes SSE after `process_vault_tick` (which already publishes). Fixed with TDD (3 regression tests in `test_game_loop_sse.py`).
+- **`usePostEventStream` SSE parsing** — Rewrote to properly parse `event:`, `data:`, `id:` fields, safe JSON parsing with fallback to raw text, and no hardcoded `[DONE]` sentinel (metadata preserved).
+- **Lint warnings** — `stream_manager.py`: unused `after_id`/`vault_id` parameters renamed, unused loop variables prefixed. `stream.py`: `asyncio.TimeoutError` → `TimeoutError`, removed stale `noqa`.
 
 ---
 

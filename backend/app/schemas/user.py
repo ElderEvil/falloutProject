@@ -26,6 +26,7 @@ class DeathStatsResponse(BaseModel):
     revivable_count: int = 0
     permanently_dead_count: int = 0
 
+
 if TYPE_CHECKING:
     from app.schemas.vault import VaultRead
 

@@ -12,7 +12,7 @@ from app.schemas.responses import RadioModeResponse, RadioSpeedupResponse
 from app.services.radio_service import radio_service
 from app.utils.exceptions import ValidationException
 
-router = APIRouter()
+router = APIRouter(prefix="/radio", tags=["Radio"])
 
 
 @router.get("/vault/{vault_id}/stats", response_model=RadioStatsRead)
@@ -20,7 +20,7 @@ async def get_radio_stats(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> RadioStatsRead:
     """Get recruitment statistics for a vault."""
     await get_user_vault_or_403(vault_id, user, db_session)
 
@@ -34,7 +34,7 @@ async def manual_recruit_dweller(
     recruit_request: ManualRecruitRequest,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> RecruitmentResponse:
     """Manually recruit a dweller for caps."""
     await get_user_vault_or_403(vault_id, user, db_session)
 
@@ -65,7 +65,7 @@ async def set_radio_mode(
     mode: RadioModeEnum,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> RadioModeResponse:
     """Set radio mode (recruitment or happiness)."""
     vault = await get_user_vault_or_403(vault_id, user, db_session)
     vault.radio_mode = mode.value
@@ -80,7 +80,7 @@ async def set_radio_speedup(
     speedup: float,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> RadioSpeedupResponse:
     await get_user_vault_or_403(vault_id, user, db_session)
 
     if not 1.0 <= speedup <= 10.0:

@@ -31,6 +31,7 @@ from app.services.chat_happiness_service import apply_chat_happiness
 from app.services.conversation_service import conversation_service
 from app.services.open_ai import get_ai_service
 from app.services.quota_service import quota_service
+from app.services.websocket_manager import manager
 from app.utils.exceptions import QuotaExceededException
 
 logger = logging.getLogger(__name__)
@@ -207,6 +208,54 @@ class ChatService:
             action_suggestion=action_suggestion,
         )
 
+    @staticmethod
+    def _extract_usage(result) -> tuple[int | None, int | None, int | None]:
+        """Extract token usage from an agent run result.
+
+        Returns:
+            Tuple of (prompt_tokens, completion_tokens, total_tokens)
+        """
+        try:
+            usage = result.usage()
+            return usage.input_tokens, usage.output_tokens, usage.total_tokens
+        except Exception:  # noqa: BLE001
+            logger.warning("Failed to extract usage info from agent result")
+            return None, None, None
+
+    @staticmethod
+    async def send_chat_notification(
+        user_id: UUID4,
+        dweller_id: UUID4,
+        dweller_message_id: UUID4,
+        happiness_impact: HappinessImpact | None,
+        action_suggestion: ActionSuggestion | None,
+    ) -> None:
+        """Send WebSocket notifications for happiness updates and action suggestions. Non-fatal."""
+        try:
+            if happiness_impact:
+                await manager.send_chat_message(
+                    {
+                        "type": "happiness_update",
+                        "happiness_impact": happiness_impact.model_dump(mode="json"),
+                        "message_id": str(dweller_message_id),
+                    },
+                    user_id=user_id,
+                    dweller_id=dweller_id,
+                )
+
+            if action_suggestion and action_suggestion.action_type != "no_action":
+                await manager.send_chat_message(
+                    {
+                        "type": "action_suggestion",
+                        "action_suggestion": action_suggestion.model_dump(mode="json"),
+                        "message_id": str(dweller_message_id),
+                    },
+                    user_id=user_id,
+                    dweller_id=dweller_id,
+                )
+        except Exception:
+            logger.exception("Failed to send WebSocket notification, continuing with REST response")
+
     async def _run_chat_agent(
         self,
         db_session: AsyncSession,
@@ -237,17 +286,7 @@ class ChatService:
             output: DwellerChatOutput = result.output
 
             response_message = output.response_text
-
-            try:
-                usage = result.usage()
-                prompt_tokens = usage.input_tokens
-                completion_tokens = usage.output_tokens
-                total_tokens = usage.total_tokens
-            except Exception:  # noqa: BLE001
-                logger.warning("Failed to extract usage info from agent result")
-                prompt_tokens = None
-                completion_tokens = None
-                total_tokens = None
+            prompt_tokens, completion_tokens, total_tokens = self._extract_usage(result)
 
             # Compute happiness delta from sentiment score
             delta = compute_happiness_delta(output.sentiment_score)

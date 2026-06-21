@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from math import ceil
 
@@ -266,11 +267,17 @@ class DwellerAIService:
             f"Dweller visual attributes: {dweller_obj.visual_attributes}"
         )
         image_bytes = await self.open_ai_service.generate_image(prompt=prompt, return_bytes=True)
-        image_url = self.storage_service.upload_file(
-            file_data=image_bytes, file_name=f"{dweller_obj.id}.png", bucket_name="dweller-images"
+        image_url = await asyncio.to_thread(
+            self.storage_service.upload_file,
+            file_data=image_bytes,
+            file_name=f"{dweller_obj.id}.png",
+            bucket_name="dweller-images",
         )
-        thumbnail_url = self.storage_service.upload_thumbnail(
-            file_data=image_bytes, file_name=f"{dweller_obj.id}_thumbnail.png", bucket_name="dweller-thumbnails"
+        thumbnail_url = await asyncio.to_thread(
+            self.storage_service.upload_thumbnail,
+            file_data=image_bytes,
+            file_name=f"{dweller_obj.id}_thumbnail.png",
+            bucket_name="dweller-thumbnails",
         )
 
         await dweller_crud.update(
@@ -333,7 +340,8 @@ class DwellerAIService:
         except (ValueError, RuntimeError) as e:
             raise HTTPException(status_code=500, detail=f"Failed to generate audio via OpenAI: {e}") from e
 
-        audio_url = self.storage_service.upload_file(
+        audio_url = await asyncio.to_thread(
+            self.storage_service.upload_file,
             file_data=audio_bytes,
             file_name=f"{dweller_obj.id}_voice.mp3",
             file_type="audio/mpeg",

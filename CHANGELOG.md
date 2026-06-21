@@ -18,6 +18,35 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.18.0] - 2026-06-21
+
+### Added
+
+- **Library skills** — Added FastAPI, Typer, and Pydantic AI compliance skills from `uvx library-skills`. Added `.agents/skills/fastapi/SKILL.md`, `.agents/skills/typer/SKILL.md`, `.agents/skills/building-pydantic-ai-agents/SKILL.md`.
+- **Router prefix/tags in APIRouter constructors** — Moved `prefix` and `tags` from `include_router()` into individual `APIRouter()` definitions across all 22 router files. Cleans up `api.py` router registration.
+- **`ChatMessage` schema** — Moved request model from `chat.py` endpoint to `schemas/chat.py`.
+- **`ChatService.send_chat_notification()`** — Moved `_send_chat_notification` helper from endpoint to service layer as a static method.
+
+### Changed
+
+- **Annotated dependency style** — Standardized 12 endpoint params and 6 shared deps to `Annotated[Type, Depends()]` pattern in `deps.py` and 9 endpoint files.
+- **Return type annotations** — Added explicit return type annotations to ~108 endpoint functions across all 22 endpoint files.
+- **Nested try-except extraction** — Extracted `_extract_usage()` helpers in `chat_service.py` and `conversation_service.py`. Extracted `_send_chat_notification()` in `chat.py`.
+- **Async safety** — Wrapped sync S3/storage/OpenAI calls with `asyncio.to_thread()` in `open_ai.py`, `dweller_ai.py`, `conversation_service.py`, and `exploration/coordinator.py`.
+- **Version bump** — Backend 2.17.0 → 2.18.0, frontend 2.17.0 → 2.18.0.
+
+### Fixed
+
+- **Chat endpoint nested try-except** — `_send_chat_notification` was nested inside the main `try` block in `voice_chat_with_dweller`; extracted to a helper called after the try block.
+
+### Removed
+
+- **Stale documentation** — Deleted `docs/archive/` (8 outdated planning docs from v2.4–v2.6) and `docs/TWELVE_FACTOR_COMPLIANCE.md` (Jan 2026 one-time audit).
+- **Irrelevant skills** — Removed `tsdown/` (library bundler, not used) and `zod-v4/` (leftover).
+- **Duplicate skills** — Removed `backend/.agents/skills/` copies of fastapi, typer, and building-pydantic-ai-agents (exact duplicates of root copies).
+
+---
+
 ## [2.17.0] - 2026-06-19
 
 ### Added

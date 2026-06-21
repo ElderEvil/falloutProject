@@ -13,7 +13,7 @@ from app.schemas.training import TrainingProgress, TrainingRead
 from app.services.training_service import training_service
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, VaultOperationException
 
-router = APIRouter()
+router = APIRouter(prefix="/training", tags=["Training"])
 
 
 @router.post("/start", response_model=TrainingRead, status_code=201)
@@ -22,7 +22,7 @@ async def start_training(
     room_id: Annotated[UUID4, Query()],
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> TrainingRead:
     """
     Start training a dweller in a training room.
 
@@ -60,7 +60,7 @@ async def get_dweller_training(
     dweller_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> TrainingRead | None:
     """
     Get current active training for a dweller.
 
@@ -85,7 +85,7 @@ async def list_vault_training(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> list[TrainingRead]:
     """
     List all active training sessions in a vault.
 
@@ -107,7 +107,7 @@ async def get_training(
     training_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> TrainingProgress:
     """
     Get training details with current progress.
 
@@ -142,7 +142,7 @@ async def cancel_training(
     training_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> TrainingRead:
     """
     Cancel an active training session.
 
@@ -178,7 +178,7 @@ async def list_room_training(
     room_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> list[TrainingRead]:
     """
     List all active training sessions in a room.
 

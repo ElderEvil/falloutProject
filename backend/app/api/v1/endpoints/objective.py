@@ -14,14 +14,14 @@ from app.schemas.responses import AssignedResponse
 from app.services.chat_service import chat_service
 from app.services.objective_assignment_service import ObjectiveAssignmentService
 
-router = APIRouter()
+router = APIRouter(prefix="/objectives", tags=["Objective"])
 
 
 @router.get("/generate", response_model=list[ObjectiveBase])
 async def generate_objectives(
     objective_kind: ObjectiveKindEnum,
     objective_count: int = 3,
-):
+) -> list[ObjectiveBase]:
     """Generate game objectives using AI."""
     try:
         return await chat_service.generate_objectives(
@@ -35,7 +35,7 @@ async def generate_objectives(
 @router.post("/{vault_id}/", response_model=Objective)
 async def create_objective(
     objective_data: ObjectiveCreate, vault_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]
-):
+) -> Objective:
     return await crud.objective_crud.create_for_vault(db_session, vault_id, objective_data)
 
 
@@ -45,19 +45,21 @@ async def read_objective_list(
     vault_id: UUID4,
     skip: int = 0,
     limit: int = 100,
-):
+) -> list[ObjectiveRead]:
     return await crud.objective_crud.get_multi_for_vault(db_session, vault_id, skip=skip, limit=limit)
 
 
 @router.get("/{objective_id}", response_model=ObjectiveRead)
-async def read_objective(objective_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
+async def read_objective(
+    objective_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]
+) -> ObjectiveRead:
     return await crud.objective_crud.get(db_session, objective_id)
 
 
 @router.post("/{vault_id}/{objective_id}/complete", response_model=Objective)
 async def complete_objective(
     vault_id: UUID4, objective_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]
-):
+) -> Objective:
     """Mark an objective as completed for a vault."""
     return await crud.objective_crud.complete(db_session=db_session, objective_id=objective_id, vault_id=vault_id)
 

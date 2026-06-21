@@ -12,7 +12,7 @@ from app.schemas.vault import VaultCreate, VaultNumber, VaultReadWithNumbers, Va
 from app.services.dweller_assignment_service import dweller_assignment_service
 from app.services.vault_service import vault_service
 
-router = APIRouter()
+router = APIRouter(prefix="/vaults", tags=["Vault"])
 
 
 @router.post("/", response_model=Vault, status_code=201)
@@ -21,7 +21,7 @@ async def create_vault(
     vault_data: VaultCreate,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     admin: CurrentSuperuser,
-):
+) -> Vault:
     return await crud.vault.create_with_user_id(db_session=db_session, obj_in=vault_data, user_id=admin.id)
 
 
@@ -32,7 +32,7 @@ async def read_vault_list(
     limit: int = 100,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: CurrentSuperuser,
-):
+) -> list[VaultReadWithUser]:
     return await crud.vault.get_multi(db_session, skip=skip, limit=limit)
 
 
@@ -41,7 +41,7 @@ async def read_my_vaults(
     *,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
-):
+) -> list[VaultReadWithNumbers]:
     return await crud.vault.get_vaults_with_room_and_dweller_count(db_session=db_session, user_id=user.id)
 
 
@@ -51,7 +51,7 @@ async def read_vault(
     vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: Annotated[Vault, Depends(get_user_vault_or_403)],
-):
+) -> VaultReadWithNumbers:
     return await crud.vault.get_vault_with_room_and_dweller_count(db_session=db_session, vault_id=vault_id)
 
 
@@ -62,7 +62,7 @@ async def update_vault(
     vault_data: VaultUpdate,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: Annotated[Vault, Depends(get_user_vault_or_403)],
-):
+) -> VaultReadWithUser:
     return await crud.vault.update(db_session, vault_id, vault_data)
 
 
@@ -73,7 +73,7 @@ async def delete_vault(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: Annotated[Vault, Depends(get_user_vault_or_403)],
     hard_delete: Annotated[bool, Query(description="If True, permanently delete. Otherwise soft delete.")] = False,
-):
+) -> None:
     """
     Delete a vault. By default performs soft delete to preserve data.
     Use hard_delete=True to permanently remove the vault.
@@ -87,7 +87,7 @@ async def toggle_game_state(
     vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: CurrentActiveUser,
-):
+) -> Vault:
     return await crud.vault.toggle_game_state(db_session=db_session, vault_id=vault_id)
 
 
@@ -97,7 +97,7 @@ async def start_vault(
     vault_data: VaultNumber,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
-):
+) -> Vault:
     is_boosted = vault_data.boosted or user.is_superuser
     return await vault_service.initiate_vault(
         db_session=db_session, obj_in=vault_data, user_id=user.id, is_boosted=is_boosted

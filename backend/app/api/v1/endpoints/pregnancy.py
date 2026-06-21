@@ -13,7 +13,7 @@ from app.schemas.pregnancy import DeliveryResult, PregnancyRead
 from app.services.breeding_service import breeding_service
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
-router = APIRouter()
+router = APIRouter(prefix="/pregnancies", tags=["Pregnancy"])
 logger = logging.getLogger(__name__)
 
 
@@ -22,7 +22,7 @@ async def get_vault_pregnancies(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> list[PregnancyRead]:
     """Get all active pregnancies in a vault."""
     await get_user_vault_or_403(vault_id, user, db_session)
 
@@ -53,7 +53,7 @@ async def get_pregnancy(
     pregnancy_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> PregnancyRead:
     """Get a specific pregnancy."""
     try:
         pregnancy, _ = await crud.pregnancy.get_with_vault_access(db_session, pregnancy_id, user)
@@ -78,7 +78,7 @@ async def deliver_baby(
     pregnancy_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> DeliveryResult:
     """Manually trigger delivery of a baby (must be due)."""
     try:
         _, _mother = await crud.pregnancy.get_with_vault_access(db_session, pregnancy_id, user)
@@ -111,7 +111,7 @@ async def force_conception(
     father_id: UUID4,
     user: CurrentSuperuser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> PregnancyRead:
     logger.info(
         "DEBUG force-conception triggered",
         extra={
@@ -148,7 +148,7 @@ async def accelerate_pregnancy(
     pregnancy_id: UUID4,
     user: CurrentSuperuser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> PregnancyRead:
     try:
         pregnancy = await breeding_service.accelerate_pregnancy(db_session, pregnancy_id)
     except ValueError as e:

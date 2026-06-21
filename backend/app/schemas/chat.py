@@ -1,4 +1,4 @@
-"""Pydantic schemas for dweller chat responses."""
+"""Pydantic schemas for dweller chat requests and responses."""
 
 from typing import Annotated, Literal
 
@@ -6,6 +6,12 @@ from pydantic import UUID4, BaseModel, Field
 
 from app.schemas.common import SPECIALEnum
 from app.schemas.happiness import HappinessImpact
+
+
+class ChatMessage(BaseModel):
+    """Request schema for sending a text message to a dweller."""
+
+    message: str
 
 # --- Action Suggestion Discriminated Union ---
 

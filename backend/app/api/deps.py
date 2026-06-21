@@ -29,8 +29,8 @@ async def get_redis_client():
 
 
 async def get_current_user(
-    db_session: AsyncSession = Depends(get_async_session),
-    token: str = Depends(reusable_oauth2),
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    token: Annotated[str, Depends(reusable_oauth2)],
 ) -> User:
     try:
         payload = jwt.decode(
@@ -78,7 +78,7 @@ CurrentSuperuser = Annotated[User, Depends(get_current_active_superuser)]
 async def get_user_vault_or_403(
     vault_id: UUID4,
     user: CurrentActiveUser,
-    db_session: AsyncSession = Depends(get_async_session),
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Vault:
     """
     Verify that the user has access to the specified vault.
@@ -103,7 +103,7 @@ async def get_user_vault_or_403(
 async def verify_dweller_access(
     dweller_id: UUID4,
     user: CurrentActiveUser,
-    db_session: AsyncSession = Depends(get_async_session),
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> None:
     """Verify user has access to the vault containing the dweller."""
     dweller = await crud.dweller.get(db_session, dweller_id)
@@ -116,7 +116,7 @@ async def verify_dweller_access(
 async def verify_room_access(
     room_id: UUID4,
     user: CurrentActiveUser,
-    db_session: AsyncSession = Depends(get_async_session),
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> None:
     """Verify user has access to the vault containing the room."""
     room = await crud.room.get(db_session, room_id)
@@ -129,7 +129,7 @@ async def verify_room_access(
 async def verify_exploration_access(
     exploration_id: UUID4,
     user: CurrentActiveUser,
-    db_session: AsyncSession = Depends(get_async_session),
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> None:
     """Verify user has access to the vault containing the exploring dweller."""
     from app.crud import exploration as crud_exploration

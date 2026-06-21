@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
-from pydantic import UUID4, BaseModel
+from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentActiveUser
@@ -11,18 +11,13 @@ from app.crud.chat_message import chat_message as chat_message_crud
 from app.crud.dweller import dweller as dweller_crud
 from app.db.session import get_async_session
 from app.models.chat_message import ChatMessageRead
-from app.schemas.chat import DwellerChatResponse, DwellerVoiceChatResponse
+from app.schemas.chat import ChatMessage, DwellerChatResponse, DwellerVoiceChatResponse
 from app.services.chat_service import chat_service
 from app.services.conversation_service import conversation_service
-from app.services.websocket_manager import manager
 from app.utils.exceptions import QuotaExceededException, ValidationException
 
-router = APIRouter()
+router = APIRouter(prefix="/chat", tags=["Chat"])
 logger = logging.getLogger(__name__)
-
-
-class ChatMessage(BaseModel):
-    message: str
 
 
 @router.post("/{dweller_id}", response_model=DwellerChatResponse)
@@ -31,7 +26,7 @@ async def chat_with_dweller(
     user: CurrentActiveUser,
     message: ChatMessage,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> DwellerChatResponse:
     """Send a text message to a dweller and get a response."""
     try:
         response = await chat_service.process_text_message(
@@ -42,30 +37,13 @@ async def chat_with_dweller(
         )
 
         # Emit WebSocket notifications after REST response is ready (non-fatal)
-        try:
-            if response.happiness_impact:
-                await manager.send_chat_message(
-                    {
-                        "type": "happiness_update",
-                        "happiness_impact": response.happiness_impact.model_dump(mode="json"),
-                        "message_id": str(response.dweller_message_id),
-                    },
-                    user_id=user.id,
-                    dweller_id=dweller_id,
-                )
-
-            if response.action_suggestion and response.action_suggestion.action_type != "no_action":
-                await manager.send_chat_message(
-                    {
-                        "type": "action_suggestion",
-                        "action_suggestion": response.action_suggestion.model_dump(mode="json"),
-                        "message_id": str(response.dweller_message_id),
-                    },
-                    user_id=user.id,
-                    dweller_id=dweller_id,
-                )
-        except Exception:
-            logger.exception("Failed to send WebSocket notification, continuing with REST response")
+        await chat_service.send_chat_notification(
+            user_id=user.id,
+            dweller_id=dweller_id,
+            dweller_message_id=response.dweller_message_id,
+            happiness_impact=response.happiness_impact,
+            action_suggestion=response.action_suggestion,
+        )
 
         return response
 
@@ -80,7 +58,7 @@ async def get_chat_history(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     limit: int = 100,
     offset: int = 0,
-):
+) -> list[ChatMessageRead]:
     """Get conversation history between user and dweller"""
     dweller = await dweller_crud.get(db_session, dweller_id)
     if not dweller:
@@ -143,30 +121,13 @@ async def voice_chat_with_dweller(
         )
 
         # Emit WebSocket notifications (non-fatal)
-        try:
-            if result["happiness_impact"]:
-                await manager.send_chat_message(
-                    {
-                        "type": "happiness_update",
-                        "happiness_impact": result["happiness_impact"].model_dump(mode="json"),
-                        "message_id": str(result["dweller_message_id"]),
-                    },
-                    user_id=user.id,
-                    dweller_id=dweller_id,
-                )
-
-            if result["action_suggestion"] and result["action_suggestion"].action_type != "no_action":
-                await manager.send_chat_message(
-                    {
-                        "type": "action_suggestion",
-                        "action_suggestion": result["action_suggestion"].model_dump(mode="json"),
-                        "message_id": str(result["dweller_message_id"]),
-                    },
-                    user_id=user.id,
-                    dweller_id=dweller_id,
-                )
-        except Exception:
-            logger.exception("Failed to send WebSocket notification, continuing with REST response")
+        await chat_service.send_chat_notification(
+            user_id=user.id,
+            dweller_id=dweller_id,
+            dweller_message_id=result["dweller_message_id"],
+            happiness_impact=result["happiness_impact"],
+            action_suggestion=result["action_suggestion"],
+        )
 
         # Return audio bytes directly for immediate playback
         if return_audio:

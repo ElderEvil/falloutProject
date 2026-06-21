@@ -9,15 +9,16 @@ AI-powered dweller interactions.
 
 ## In Progress
 
-**Current work (v2.18.x):**
+**Current work:**
 
 - [ ] **Dramatiq async concurrency** — Fix `asyncpg InterfaceError: another operation is in progress` during game tick objective queries
+- [ ] **FastAPI Yield Streaming** — SSE/event-stream endpoints for exploration events, game loop ticks, and AI chat responses
 
 ---
 
 ## Up Next (Recommended)
 
-### v2.18: FastAPI Yield Streaming
+### FastAPI Yield Streaming
 
 - [ ] **Exploration Event Streaming** — Replace WebSocket polling with `yield`-based HTTP streaming for real-time exploration events. Uses FastAPI 0.134.0+ native generator syntax to push JSON Lines events as they happen. Reduces connection overhead vs persistent WebSocket.
 - [ ] **Game Loop Tick Streaming** — Expose game loop processing as an SSE/text-event-stream endpoint. Consumers (frontend dashboards, monitoring) subscribe to tick progress without polling.
@@ -27,6 +28,21 @@ AI-powered dweller interactions.
 ---
 
 ## Latest Release
+
+### v2.18.0 — Library Skills Compliance (June 21, 2026)
+
+**Focus**: Audit project against FastAPI, Typer, and Pydantic AI best-practice skills; fix all violations
+
+**Completed:**
+
+- ✅ **Library skills audit** — Added FastAPI, Typer, and Pydantic AI skills from `uvx library-skills`. Ran full compliance audit across all 3 skills, fixed all violations.
+- ✅ **Router prefix/tags compliance** — Moved `prefix` and `tags` from `include_router()` into individual `APIRouter()` constructors across all 22 router files.
+- ✅ **Annotated dependency style** — Standardized to `Annotated[Type, Depends()]` pattern in 12 endpoint params and 6 shared deps.
+- ✅ **Return type annotations** — Added explicit return types to ~108 endpoint functions.
+- ✅ **Nested try-except extraction** — Extracted helper functions in `chat_service.py`, `conversation_service.py`, and `chat.py` endpoint.
+- ✅ **Async safety** — Wrapped sync S3/storage/OpenAI calls with `asyncio.to_thread()` in 4 service files.
+- ✅ **Chat endpoint cleanup** — Moved `ChatMessage` model to `schemas/chat.py` and `_send_chat_notification` helper to `ChatService` as a static method.
+- ✅ **Tests** — 37/37 backend tests passing, ruff clean across the entire project.
 
 ### v2.17.0 — Medical Storage Refactor (June 19, 2026)
 
@@ -883,7 +899,7 @@ watch(() => userStore.caps, (caps) => {
 
 ## Progress Metrics
 
-### Current Stats (May 2026)
+### Current Stats (Jun 2026)
 
 - **Backend**: 25+ routers, 100+ endpoints, 18+ services, ~70% coverage
 - **Frontend**: 60+ Vue components, 10 feature modules
@@ -892,19 +908,21 @@ watch(() => userStore.caps, (caps) => {
 
 ### Version Milestones
 
-| Version | Release      | Highlights                               |
-| ------- | ------------ | ---------------------------------------- |
-| v2.13.1 | May 19, 2026 | Security hardening, non-root containers  |
-| v2.13.0 | May 01, 2026 | Dramatiq migration, Celery removal       |
-| v2.12.0 | Apr 23, 2026 | Test suite green, MinIO removed          |
-| v2.11.0 | Mar 19, 2026 | Vite+ toolchain, dweller recycling       |
-| v2.10.9 | Mar 13, 2026 | AI quota system, usage tracking          |
-| v2.10.0 | Feb 10, 2026 | Quest & Objective system launch          |
-| v2.9.0  | Feb 07, 2026 | Chat exploration actions                 |
-| v2.8.0  | Jan 29, 2026 | Easter eggs, changelog system            |
-| v2.7.0  | Jan 28, 2026 | Storage management, keyboard shortcuts   |
-| v2.6.5  | Jan 27, 2026 | Notification bell system                 |
-| v2.5.0  | Jan 26, 2026 | Room visual assets, capacity enforcement |
+| Version | Release      | Highlights                                   |
+| ------- | ------------ | -------------------------------------------- |
+| v2.18.0 | Jun 21, 2026 | Library skills audit, compliance fixes       |
+| v2.17.0 | Jun 19, 2026 | Medical storage refactor                     |
+| v2.16.0 | Jun 18, 2026 | Accessibility, CRT theme, test fixes         |
+| v2.15.0 | Jun 18, 2026 | Dweller visual unification                   |
+| v2.14.4 | Jun 17, 2026 | Security dep bumps                           |
+| v2.13.1 | May 19, 2026 | Security hardening, non-root containers      |
+| v2.13.0 | May 01, 2026 | Dramatiq migration, Celery removal           |
+| v2.12.0 | Apr 23, 2026 | Test suite green, MinIO removed              |
+| v2.11.0 | Mar 19, 2026 | Vite+ toolchain, dweller recycling           |
+| v2.10.9 | Mar 13, 2026 | AI quota system, usage tracking              |
+| v2.10.0 | Feb 10, 2026 | Quest & Objective system launch              |
+| v2.9.0  | Feb 07, 2026 | Chat exploration actions                     |
+| v2.8.0  | Jan 29, 2026 | Easter eggs, changelog system                |
 
 ---
 
@@ -971,4 +989,4 @@ watch(() => userStore.caps, (caps) => {
 
 ---
 
-_Last updated: 2026-06-19_
+_Last updated: 2026-06-21_

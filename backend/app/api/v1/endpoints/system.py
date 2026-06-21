@@ -10,7 +10,7 @@ from app.services.changelog_service import changelog_service
 from app.utils.version import get_app_version, get_python_version
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(prefix="/system", tags=["System"])
 
 
 @router.get("/info", status_code=200)
@@ -26,12 +26,12 @@ async def get_info() -> InfoResponse:
 
 
 @router.get("/changelog", response_model=list[ChangelogEntry])
-async def get_changelog(limit: Optional[int] = 10, since: Optional[str] = None):
+async def get_changelog(limit: Optional[int] = 10, since: Optional[str] = None) -> list[ChangelogEntry]:
     """Get changelog entries with optional version filtering."""
     return changelog_service.get_entries(limit=limit, since=since)
 
 
 @router.get("/changelog/latest", response_model=ChangelogEntry)
-async def get_latest_changelog():
+async def get_latest_changelog() -> ChangelogEntry:
     """Get the most recent changelog entry."""
     return changelog_service.get_latest()

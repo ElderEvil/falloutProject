@@ -1,5 +1,6 @@
 """Exploration coordinator - orchestrates all exploration operations."""
 
+import asyncio
 import logging
 import random
 
@@ -57,7 +58,7 @@ class ExplorationCoordinator:
         Returns:
             Updated exploration
         """
-        event = event_generator.generate_event(exploration)
+        event = await asyncio.to_thread(event_generator.generate_event, exploration)
 
         if not event:
             return exploration
@@ -592,8 +593,8 @@ class ExplorationCoordinator:
         items_added = 0
 
         # Load item data for lookups
-        weapons_data = data_loader.load_weapons()
-        outfits_data = data_loader.load_outfits()
+        weapons_data = await asyncio.to_thread(data_loader.load_weapons)
+        outfits_data = await asyncio.to_thread(data_loader.load_outfits)
 
         for loot_item in sorted_loot:
             item_name = loot_item.get("item_name", "Unknown Item")

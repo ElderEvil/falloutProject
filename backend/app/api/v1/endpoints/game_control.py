@@ -23,7 +23,7 @@ from app.schemas.incident import (
 from app.services.game_loop import game_loop_service
 from app.services.incident_service import incident_service
 
-router = APIRouter()
+router = APIRouter(prefix="/game", tags=["Game"])
 
 
 @router.get("/balance")
@@ -77,7 +77,7 @@ async def pause_vault(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> PauseResumeResponse:
     """Pause the game loop for a vault."""
     game_state = await game_loop_service.pause_vault(db_session, vault.id)
 
@@ -94,7 +94,7 @@ async def resume_vault(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> PauseResumeResponse:
     """Resume the game loop for a vault."""
     game_state = await game_loop_service.resume_vault(db_session, vault.id)
 
@@ -121,7 +121,7 @@ async def list_incidents(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> IncidentListResponse:
     """List all active incidents in a vault."""
     incidents = await crud.incident_crud.get_active_by_vault(db_session, vault.id)
 
@@ -151,7 +151,7 @@ async def get_incident(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     incident_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> IncidentRead:
     """Get details of a specific incident."""
     incident = await crud.incident_crud.get(db_session, incident_id)
     if not incident or incident.vault_id != vault.id:
@@ -181,7 +181,7 @@ async def manual_tick(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> dict:
     """
     Manually trigger a game tick for a vault (for testing/debugging).
 
@@ -229,7 +229,7 @@ async def spawn_debug_incident(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     incident_type: IncidentType | None = None,
-):
+) -> IncidentSpawnResponse:
     """
     [DEBUG] Manually spawn an incident for testing purposes.
 
@@ -256,7 +256,7 @@ async def delete_all_incidents(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _user: CurrentSuperuser,
-):
+) -> DeleteIncidentsResponse:
     """Delete all incidents for a vault."""
     count = await crud.incident_crud.remove_all_by_vault(db_session, vault.id)
 
@@ -274,7 +274,7 @@ async def delete_incident(
     incident_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _user: CurrentSuperuser,
-):
+) -> DeleteIncidentsResponse:
     """Delete a specific incident."""
     # Verify incident belongs to vault
     incident = await crud.incident_crud.get(db_session, incident_id)

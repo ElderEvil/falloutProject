@@ -18,7 +18,7 @@ from app.schemas.exploration import (
 )
 from app.services.exploration_service import exploration_service
 
-router = APIRouter()
+router = APIRouter(prefix="/explorations", tags=["Exploration"])
 
 
 @router.post("/send", response_model=ExplorationRead)
@@ -27,7 +27,7 @@ async def send_dweller_to_wasteland(
     vault_id: Annotated[UUID4, Query()],
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> ExplorationRead:
     """Send a dweller to the wasteland for exploration."""
     await get_user_vault_or_403(vault_id, user, db_session)
     try:
@@ -49,7 +49,7 @@ async def list_explorations_by_vault(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     active_only: bool = True,
-):
+) -> list[ExplorationReadShort]:
     """List all explorations for a vault."""
     await get_user_vault_or_403(vault_id, user, db_session)
     if active_only:
@@ -72,7 +72,7 @@ async def get_exploration(
     exploration_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> ExplorationRead:
     """Get detailed information about an exploration."""
     await verify_exploration_access(exploration_id, user, db_session)
     return await crud_exploration.get(db_session, exploration_id)
@@ -83,7 +83,7 @@ async def get_exploration_progress(
     exploration_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> ExplorationProgress:
     """Get current progress of an exploration."""
     await verify_exploration_access(exploration_id, user, db_session)
     return await exploration_service.get_exploration_progress(db_session, exploration_id)
@@ -94,7 +94,7 @@ async def recall_dweller(
     exploration_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> ExplorationCompleteResponse:
     """Recall a dweller early from exploration."""
     await verify_exploration_access(exploration_id, user, db_session)
     try:
@@ -112,7 +112,7 @@ async def complete_exploration(
     exploration_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> ExplorationCompleteResponse:
     """Complete an exploration and collect rewards."""
     await verify_exploration_access(exploration_id, user, db_session)
     try:
@@ -130,7 +130,7 @@ async def generate_event(
     exploration_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> ExplorationRead:
     """Manually trigger event generation for an exploration (for testing/debugging)."""
     await verify_exploration_access(exploration_id, user, db_session)
     try:

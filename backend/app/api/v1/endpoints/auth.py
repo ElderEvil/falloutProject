@@ -16,7 +16,7 @@ from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/login", response_model=Token)
@@ -24,7 +24,7 @@ async def login_access_token(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     redis_client: Annotated[Redis, Depends(get_redis_client)],
-):
+) -> Token:
     """
     OAuth2 compatible token login, get an access token for future requests.
     """
@@ -44,7 +44,7 @@ async def refresh_access_token(
     refresh_token: Annotated[str, Body(embed=True)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     redis_client: Annotated[Redis, Depends(get_redis_client)],
-):
+) -> Token:
     """
     Refresh access token using refresh token.
     """
@@ -64,7 +64,7 @@ async def refresh_access_token(
 async def logout(
     current_user: CurrentUser,
     redis_client: Annotated[Redis, Depends(get_redis_client)],
-):
+) -> MessageResponse:
     """
     Invalidate the current user's refresh token.
     """
@@ -88,7 +88,7 @@ async def reset_password(
     token: Annotated[str, Body()],
     new_password: Annotated[str, Body(min_length=8)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    redis_client=Depends(get_redis_client),
+    redis_client: Annotated[Redis, Depends(get_redis_client)],
 ) -> dict:
     """
     Reset password using token from email.
@@ -112,7 +112,7 @@ async def change_password(
     new_password: Annotated[str, Body(min_length=8)],
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    redis_client=Depends(get_redis_client),
+    redis_client: Annotated[Redis, Depends(get_redis_client)],
 ) -> dict:
     """
     Change password for authenticated user.

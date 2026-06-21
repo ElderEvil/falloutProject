@@ -40,13 +40,13 @@ async def start_training(
         400: Training cannot be started (invalid room, stat maxed, etc.)
         409: Dweller already training
     """
+    from app.crud.dweller import dweller as dweller_crud
+
+    dweller = await dweller_crud.get(db_session, dweller_id)
+    await get_user_vault_or_403(dweller.vault_id, user, db_session)
+
     try:
-        training = await training_service.start_training(db_session, dweller_id, room_id)
-
-        # Verify access to vault that both dweller and room belong to
-        await get_user_vault_or_403(training.vault_id, user, db_session)
-
-        return training
+        return await training_service.start_training(db_session, dweller_id, room_id)
     except ResourceNotFoundException as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except ResourceConflictException as e:

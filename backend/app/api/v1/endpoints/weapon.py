@@ -59,9 +59,9 @@ async def equip_weapon(
     return await crud.weapon.equip(db_session=db_session, item_id=weapon_id, dweller_id=dweller_id)
 
 
-@router.post("/{weapon_id}/unequip/", status_code=200)
-async def unequip_weapon(weapon_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> dict:
-    return await crud.weapon.unequip(db_session=db_session, item_id=weapon_id)
+@router.post("/{weapon_id}/unequip/", status_code=200, response_model=None)
+async def unequip_weapon(weapon_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> None:
+    await crud.weapon.unequip(db_session=db_session, item_id=weapon_id)
 
 
 @router.post("/{weapon_id}/scrap/", response_model=JunkListResponse)
@@ -72,9 +72,9 @@ async def scrap_weapon(
     return JunkListResponse(junk=junk_list)
 
 
-@router.post("/{weapon_id}/sell/", status_code=200)
-async def sell_weapon(weapon_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> dict:
-    return await crud.weapon.sell(db_session=db_session, item_id=weapon_id)
+@router.post("/{weapon_id}/sell/", status_code=200, response_model=None)
+async def sell_weapon(weapon_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> None:
+    await crud.weapon.sell(db_session=db_session, item_id=weapon_id)
 
 
 @router.get("/read_data/", response_model=list[WeaponCreate])

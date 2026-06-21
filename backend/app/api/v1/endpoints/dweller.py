@@ -24,6 +24,7 @@ from app.schemas.dweller import (
     DwellerVisualAttributes,
     RevivalCostResponse,
 )
+from app.schemas.happiness import HappinessModifiersResponse
 from app.services.death_service import death_service
 from app.services.dweller_ai import dweller_ai
 from app.services.dweller_service import dweller_service
@@ -252,15 +253,16 @@ async def use_radaway(
     return await crud.dweller.use_radaway(db_session, dweller_id)
 
 
-@router.get("/{dweller_id}/happiness_modifiers")
+@router.get("/{dweller_id}/happiness_modifiers", response_model=HappinessModifiersResponse)
 async def get_happiness_modifiers(
     dweller_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> dict:
+) -> HappinessModifiersResponse:
     """Get detailed breakdown of happiness modifiers for a dweller."""
     await verify_dweller_access(dweller_id, user, db_session)
-    return await happiness_service.get_happiness_modifiers(db_session, dweller_id)
+    data = await happiness_service.get_happiness_modifiers(db_session, dweller_id)
+    return HappinessModifiersResponse(**data)
 
 
 @router.post("/{dweller_id}/auto_assign", response_model=DwellerReadWithRoomID)

@@ -1173,9 +1173,6 @@ export interface paths {
          *
          *     This endpoint exposes all game balance constants that can be tuned via
          *     environment variables. Useful for debugging and future admin panels.
-         *
-         *     :returns: Dictionary containing all game balance settings organized by category
-         *     :rtype: dict[str, Any]
          */
         get: operations["get_game_balance_settings_api_v1_game_balance_get"];
         put?: never;
@@ -1401,23 +1398,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/junk/{junk_id}/sell/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Sell Junk */
-        post: operations["sell_junk_api_v1_junk__junk_id__sell__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/junk/read_data/": {
         parameters: {
             query?: never;
@@ -1429,6 +1409,23 @@ export interface paths {
         get: operations["read_junk_data_api_v1_junk_read_data__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/junk/{junk_id}/sell/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sell Junk */
+        post: operations["sell_junk_api_v1_junk__junk_id__sell__post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2843,13 +2840,6 @@ export interface paths {
          *
          *     Returns statistics about dwellers born, died, and breakdown by cause of death,
          *     as well as counts of currently revivable and permanently dead dwellers.
-         *
-         *     :param db_session: Database session
-         *     :type db_session: AsyncSession
-         *     :param user: Current authenticated active user
-         *     :type user: CurrentActiveUser
-         *     :returns: Life/death statistics dictionary
-         *     :rtype: dict
          */
         get: operations["get_death_statistics_api_v1_users_me_profile_statistics_get"];
         put?: never;
@@ -3242,6 +3232,16 @@ export interface components {
              */
             reason: string;
         };
+        /**
+         * AutoAssignResponse
+         * @description Response after auto-assigning dwellers to rooms.
+         */
+        AutoAssignResponse: {
+            /** Assigned Count */
+            assigned_count: number;
+            /** Assignments */
+            assignments: components["schemas"]["DwellerAssignmentItem"][];
+        };
         /** Body_change_password_api_v1_auth_change_password_put */
         Body_change_password_api_v1_auth_change_password_put: {
             /** Current Password */
@@ -3363,9 +3363,15 @@ export interface components {
             /** Changes */
             changes: components["schemas"]["ChangeEntry"][];
         };
-        /** ChatMessage */
+        /**
+         * ChatMessage
+         * @description Request schema for sending a text message to a dweller.
+         */
         ChatMessage: {
-            /** Message */
+            /**
+             * Message
+             * @description The chat message text
+             */
             message: string;
         };
         /** ChatMessageRead */
@@ -3458,10 +3464,68 @@ export interface components {
             count: number;
         };
         /**
+         * DeathCauseBreakdown
+         * @description Breakdown of deaths by cause.
+         */
+        DeathCauseBreakdown: {
+            /**
+             * Health
+             * @default 0
+             */
+            health: number;
+            /**
+             * Radiation
+             * @default 0
+             */
+            radiation: number;
+            /**
+             * Incident
+             * @default 0
+             */
+            incident: number;
+            /**
+             * Exploration
+             * @default 0
+             */
+            exploration: number;
+            /**
+             * Combat
+             * @default 0
+             */
+            combat: number;
+        };
+        /**
          * DeathCauseEnum
          * @enum {string}
          */
         DeathCauseEnum: "health" | "radiation" | "incident" | "exploration" | "combat";
+        /**
+         * DeathStatsResponse
+         * @description Life/death statistics for a user.
+         */
+        DeathStatsResponse: {
+            /**
+             * Total Dwellers Born
+             * @default 0
+             */
+            total_dwellers_born: number;
+            /**
+             * Total Dwellers Died
+             * @default 0
+             */
+            total_dwellers_died: number;
+            deaths_by_cause: components["schemas"]["DeathCauseBreakdown"];
+            /**
+             * Revivable Count
+             * @default 0
+             */
+            revivable_count: number;
+            /**
+             * Permanently Dead Count
+             * @default 0
+             */
+            permanently_dead_count: number;
+        };
         /**
          * DeleteIncidentsResponse
          * @description Response after deleting incidents.
@@ -3491,6 +3555,18 @@ export interface components {
             child_id: string;
             /** Message */
             message: string;
+        };
+        /**
+         * DwellerAssignmentItem
+         * @description Individual dweller-to-room assignment result.
+         */
+        DwellerAssignmentItem: {
+            /** Dweller Id */
+            dweller_id: string;
+            /** Room Id */
+            room_id: string;
+            /** Room Name */
+            room_name: string;
         };
         /**
          * DwellerChatResponse
@@ -4485,6 +4561,25 @@ export interface components {
             action_suggestion?: (components["schemas"]["AssignToRoomAction"] | components["schemas"]["StartTrainingAction"] | components["schemas"]["StartExplorationAction"] | components["schemas"]["RecallExplorationAction"] | components["schemas"]["NoAction"]) | null;
         };
         /**
+         * EligibleDwellerRead
+         * @description Eligible dweller for a quest.
+         */
+        EligibleDwellerRead: {
+            /**
+             * Id
+             * Format: uuid4
+             */
+            id: string;
+            /** First Name */
+            first_name: string;
+            /** Last Name */
+            last_name?: string | null;
+            /** Level */
+            level: number;
+            /** Rarity */
+            rarity: string;
+        };
+        /**
          * ExplorationCompleteResponse
          * @description Schema for completed exploration response.
          */
@@ -4686,6 +4781,68 @@ export interface components {
          */
         FactionEnum: "none" | "vault_dweller" | "brotherhood_of_steel" | "enclave" | "minutemen" | "raiders" | "super_mutant_tribe" | "children_of_atom" | "the_institute" | "railroad" | "ncr" | "caesars_legion";
         /**
+         * GameBalanceResponse
+         * @description Game balance configuration settings response.
+         */
+        GameBalanceResponse: {
+            /** Game Loop */
+            game_loop: {
+                [key: string]: unknown;
+            };
+            /** Incident */
+            incident: {
+                [key: string]: unknown;
+            };
+            /** Combat */
+            combat: {
+                [key: string]: unknown;
+            };
+            /** Health */
+            health: {
+                [key: string]: unknown;
+            };
+            /** Happiness */
+            happiness: {
+                [key: string]: unknown;
+            };
+            /** Training */
+            training: {
+                [key: string]: unknown;
+            };
+            /** Resource */
+            resource: {
+                [key: string]: unknown;
+            };
+            /** Relationship */
+            relationship: {
+                [key: string]: unknown;
+            };
+            /** Breeding */
+            breeding: {
+                [key: string]: unknown;
+            };
+            /** Leveling */
+            leveling: {
+                [key: string]: unknown;
+            };
+            /** Radio */
+            radio: {
+                [key: string]: unknown;
+            };
+            /** Death */
+            death: {
+                [key: string]: unknown;
+            };
+            /** Dweller */
+            dweller: {
+                [key: string]: unknown;
+            };
+            /** Exploration */
+            exploration: {
+                [key: string]: unknown;
+            };
+        };
+        /**
          * GameEvent
          * @enum {string}
          */
@@ -4730,6 +4887,28 @@ export interface components {
              * @description Dweller's happiness value after applying the delta (clamped 0-100)
              */
             happiness_after: number;
+        };
+        /**
+         * HappinessModifierItem
+         * @description Individual happiness modifier with name and value.
+         */
+        HappinessModifierItem: {
+            /** Name */
+            name: string;
+            /** Value */
+            value: number;
+        };
+        /**
+         * HappinessModifiersResponse
+         * @description Detailed breakdown of happiness modifiers for a dweller.
+         */
+        HappinessModifiersResponse: {
+            /** Current Happiness */
+            current_happiness: number;
+            /** Positive */
+            positive: components["schemas"]["HappinessModifierItem"][];
+            /** Negative */
+            negative: components["schemas"]["HappinessModifierItem"][];
         };
         /**
          * HappinessReasonCode
@@ -5558,6 +5737,40 @@ export interface components {
             /** Dweller Ids */
             dweller_ids: string[];
         };
+        /**
+         * QuestPartyMemberRead
+         * @description Quest party member read schema.
+         */
+        QuestPartyMemberRead: {
+            /**
+             * Id
+             * Format: uuid4
+             */
+            id: string;
+            /**
+             * Quest Id
+             * Format: uuid4
+             */
+            quest_id: string;
+            /**
+             * Vault Id
+             * Format: uuid4
+             */
+            vault_id: string;
+            /**
+             * Dweller Id
+             * Format: uuid4
+             */
+            dweller_id: string;
+            /** Slot Number */
+            slot_number: number;
+            /** Status */
+            status: string;
+            /** Created At */
+            created_at?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
         /** QuestRead */
         QuestRead: {
             /** Title */
@@ -6353,6 +6566,14 @@ export interface components {
          * @enum {string}
          */
         TrainingStatus: "active" | "completed" | "cancelled";
+        /**
+         * UnassignResponse
+         * @description Response after unassigning all dwellers.
+         */
+        UnassignResponse: {
+            /** Unassigned Count */
+            unassigned_count: number;
+        };
         /** UserCreate */
         UserCreate: {
             /** Username */
@@ -7221,9 +7442,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["MessageResponse"];
                 };
             };
             /** @description Validation Error */
@@ -7256,9 +7475,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["MessageResponse"];
                 };
             };
             /** @description Validation Error */
@@ -7291,9 +7508,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["MessageResponse"];
                 };
             };
             /** @description Validation Error */
@@ -7326,9 +7541,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["MessageResponse"];
                 };
             };
             /** @description Validation Error */
@@ -7357,9 +7570,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["MessageResponse"];
                 };
             };
         };
@@ -7495,7 +7706,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -7524,7 +7737,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };
@@ -7546,7 +7761,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -7580,7 +7797,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -7609,7 +7828,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };
@@ -7631,7 +7852,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -8463,7 +8686,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["HappinessModifiersResponse"];
                 };
             };
             /** @description Validation Error */
@@ -8972,9 +9195,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["GameBalanceResponse"];
                 };
             };
         };
@@ -9058,7 +9279,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -9215,7 +9438,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -9249,7 +9474,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -9456,6 +9683,28 @@ export interface operations {
             };
         };
     };
+    read_junk_data_api_v1_junk_read_data__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     sell_junk_api_v1_junk__junk_id__sell__post: {
         parameters: {
             query?: never;
@@ -9483,26 +9732,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_junk_data_api_v1_junk_read_data__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
                 };
             };
         };
@@ -10574,6 +10803,7 @@ export interface operations {
             header?: never;
             path: {
                 quest_id: string;
+                vault_id: string;
             };
             cookie?: never;
         };
@@ -10717,9 +10947,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
+                    "application/json": components["schemas"]["QuestPartyMemberRead"][];
                 };
             };
             /** @description Validation Error */
@@ -10785,9 +11013,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
+                    "application/json": components["schemas"]["EligibleDwellerRead"][];
                 };
             };
             /** @description Validation Error */
@@ -12123,9 +12349,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DeathStatsResponse"];
                 };
             };
         };
@@ -12445,9 +12669,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: number;
-                    };
+                    "application/json": components["schemas"]["UnassignResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12478,11 +12700,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: number | {
-                            [key: string]: string;
-                        }[];
-                    };
+                    "application/json": components["schemas"]["AutoAssignResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12513,11 +12731,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: number | {
-                            [key: string]: string;
-                        }[];
-                    };
+                    "application/json": components["schemas"]["AutoAssignResponse"];
                 };
             };
             /** @description Validation Error */

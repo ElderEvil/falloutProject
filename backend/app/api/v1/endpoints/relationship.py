@@ -35,6 +35,8 @@ async def get_relationship(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RelationshipRead:
     relationship = await relationship_crud.get(db_session, relationship_id)
+    if not relationship:
+        raise HTTPException(status_code=404, detail="Relationship not found")
 
     await verify_dweller_access(relationship.dweller_1_id, user, db_session)
     return relationship
@@ -64,6 +66,8 @@ async def initiate_romance(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RelationshipRead:
     relationship = await relationship_crud.get(db_session, relationship_id)
+    if not relationship:
+        raise HTTPException(status_code=404, detail="Relationship not found")
 
     await verify_dweller_access(relationship.dweller_1_id, user, db_session)
 
@@ -84,6 +88,8 @@ async def make_partners(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RelationshipRead:
     relationship = await relationship_crud.get(db_session, relationship_id)
+    if not relationship:
+        raise HTTPException(status_code=404, detail="Relationship not found")
 
     await verify_dweller_access(relationship.dweller_1_id, user, db_session)
 
@@ -104,6 +110,8 @@ async def break_up_relationship(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RelationshipActionResponse:
     relationship = await relationship_crud.get(db_session, relationship_id)
+    if not relationship:
+        raise HTTPException(status_code=404, detail="Relationship not found")
 
     await verify_dweller_access(relationship.dweller_1_id, user, db_session)
 

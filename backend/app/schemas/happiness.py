@@ -1,8 +1,23 @@
-"""Pydantic schemas for happiness-related chat responses."""
+"""Pydantic schemas for happiness-related responses."""
 
 from enum import StrEnum
 
 from pydantic import BaseModel, Field
+
+
+class HappinessModifierItem(BaseModel):
+    """Individual happiness modifier with name and value."""
+
+    name: str
+    value: float
+
+
+class HappinessModifiersResponse(BaseModel):
+    """Detailed breakdown of happiness modifiers for a dweller."""
+
+    current_happiness: int
+    positive: list[HappinessModifierItem]
+    negative: list[HappinessModifierItem]
 
 
 class HappinessReasonCode(StrEnum):

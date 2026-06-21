@@ -11,7 +11,7 @@ from app.schemas.happiness import HappinessImpact
 class ChatMessage(BaseModel):
     """Request schema for sending a text message to a dweller."""
 
-    message: str
+    message: str = Field(..., min_length=1, description="The chat message text")
 
 
 # --- Action Suggestion Discriminated Union ---

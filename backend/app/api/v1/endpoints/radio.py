@@ -68,9 +68,8 @@ async def set_radio_mode(
 ) -> RadioModeResponse:
     """Set radio mode (recruitment or happiness)."""
     vault = await get_user_vault_or_403(vault_id, user, db_session)
-    vault.radio_mode = mode.value
-    await db_session.commit()
-    return RadioModeResponse(message=f"Radio mode set to {mode.value}", radio_mode=mode.value)
+    new_mode = await radio_service.set_radio_mode(db_session, vault, mode.value)
+    return RadioModeResponse(message=f"Radio mode set to {new_mode}", radio_mode=new_mode)
 
 
 @router.put("/vault/{vault_id}/room/{room_id}/speedup", response_model=RadioSpeedupResponse)

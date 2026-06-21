@@ -44,11 +44,11 @@ async def delete_junk(junk_id: UUID4, db_session: Annotated[AsyncSession, Depend
     return await crud.junk.delete(db_session, junk_id)
 
 
-@router.post("/{junk_id}/sell/", status_code=200)
-async def sell_junk(junk_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> dict:
-    return await crud.junk.sell(db_session=db_session, item_id=junk_id)
-
-
 @router.get("/read_data/")
 async def read_junk_data(data_store: Annotated[StaticGameData, Depends(get_static_game_data)]) -> dict:
     return data_store.junk_items
+
+
+@router.post("/{junk_id}/sell/", status_code=200, response_model=None)
+async def sell_junk(junk_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> None:
+    await crud.junk.sell(db_session=db_session, item_id=junk_id)

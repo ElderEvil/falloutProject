@@ -31,21 +31,7 @@ async def get_vault_pregnancies(
         vault_id,
     )
 
-    # Convert to read schema with computed properties
-    return [
-        PregnancyRead(
-            id=p.id,
-            mother_id=p.mother_id,
-            father_id=p.father_id,
-            conceived_at=p.conceived_at,
-            due_at=p.due_at,
-            status=p.status,
-            progress_percentage=p.progress_percentage,
-            time_remaining_seconds=p.time_remaining_seconds,
-            is_due=p.is_due,
-        )
-        for p in pregnancies
-    ]
+    return [PregnancyRead.model_validate(p) for p in pregnancies]
 
 
 @router.get("/{pregnancy_id}", response_model=PregnancyRead)
@@ -60,17 +46,7 @@ async def get_pregnancy(
     except ResourceNotFoundException as exc:
         raise HTTPException(status_code=404, detail=exc.detail) from exc
 
-    return PregnancyRead(
-        id=pregnancy.id,
-        mother_id=pregnancy.mother_id,
-        father_id=pregnancy.father_id,
-        conceived_at=pregnancy.conceived_at,
-        due_at=pregnancy.due_at,
-        status=pregnancy.status,
-        progress_percentage=pregnancy.progress_percentage,
-        time_remaining_seconds=pregnancy.time_remaining_seconds,
-        is_due=pregnancy.is_due,
-    )
+    return PregnancyRead.model_validate(pregnancy)
 
 
 @router.post("/{pregnancy_id}/deliver", response_model=DeliveryResult)
@@ -130,17 +106,7 @@ async def force_conception(
             raise ResourceNotFoundException(model=Dweller, identifier=identifier) from e
         raise ValidationException(detail=str(e)) from e
 
-    return PregnancyRead(
-        id=pregnancy.id,
-        mother_id=pregnancy.mother_id,
-        father_id=pregnancy.father_id,
-        conceived_at=pregnancy.conceived_at,
-        due_at=pregnancy.due_at,
-        status=pregnancy.status,
-        progress_percentage=pregnancy.progress_percentage,
-        time_remaining_seconds=pregnancy.time_remaining_seconds,
-        is_due=pregnancy.is_due,
-    )
+    return PregnancyRead.model_validate(pregnancy)
 
 
 @router.post("/{pregnancy_id}/debug/accelerate", response_model=PregnancyRead)
@@ -164,14 +130,4 @@ async def accelerate_pregnancy(
         },
     )
 
-    return PregnancyRead(
-        id=pregnancy.id,
-        mother_id=pregnancy.mother_id,
-        father_id=pregnancy.father_id,
-        conceived_at=pregnancy.conceived_at,
-        due_at=pregnancy.due_at,
-        status=pregnancy.status,
-        progress_percentage=pregnancy.progress_percentage,
-        time_remaining_seconds=pregnancy.time_remaining_seconds,
-        is_due=pregnancy.is_due,
-    )
+    return PregnancyRead.model_validate(pregnancy)

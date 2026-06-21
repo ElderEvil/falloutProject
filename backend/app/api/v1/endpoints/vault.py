@@ -8,7 +8,15 @@ from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403
 from app.db.session import get_async_session
 from app.models.vault import Vault
-from app.schemas.vault import VaultCreate, VaultNumber, VaultReadWithNumbers, VaultReadWithUser, VaultUpdate
+from app.schemas.vault import (
+    AutoAssignResponse,
+    UnassignResponse,
+    VaultCreate,
+    VaultNumber,
+    VaultReadWithNumbers,
+    VaultReadWithUser,
+    VaultUpdate,
+)
 from app.services.dweller_assignment_service import dweller_assignment_service
 from app.services.vault_service import vault_service
 
@@ -84,11 +92,10 @@ async def delete_vault(
 @router.post("/{vault_id}/toggle_game_state", response_model=Vault, status_code=200)
 async def toggle_game_state(
     *,
-    vault_id: UUID4,
+    vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    _: CurrentActiveUser,
 ) -> Vault:
-    return await crud.vault.toggle_game_state(db_session=db_session, vault_id=vault_id)
+    return await crud.vault.toggle_game_state(db_session=db_session, vault_id=vault.id)
 
 
 @router.post("/initiate", response_model=Vault, status_code=201)
@@ -114,34 +121,36 @@ async def update_vault_resources(
     return await vault_service.update_vault_resources(db_session=db_session, vault_id=vault_id)
 
 
-@router.post("/{vault_id}/dwellers/unassign-all")
+@router.post("/{vault_id}/dwellers/unassign-all", response_model=UnassignResponse)
 async def unassign_all_dwellers(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> dict[str, int]:
+) -> UnassignResponse:
     """Unassign all dwellers from their rooms in the specified vault."""
-    return await dweller_assignment_service.unassign_all_dwellers(db_session, vault.id)
+    result = await dweller_assignment_service.unassign_all_dwellers(db_session, vault.id)
+    return UnassignResponse(**result)
 
 
-@router.post("/{vault_id}/dwellers/auto-assign-production")
+@router.post("/{vault_id}/dwellers/auto-assign-production", response_model=AutoAssignResponse)
 async def auto_assign_production_rooms(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> dict[str, int | list[dict[str, str]]]:
+) -> AutoAssignResponse:
     """
     Intelligently assign unassigned dwellers to production rooms based on SPECIAL stats.
 
     Priority order: Power Plant (Strength) → Diner (Agility) → Water Treatment (Perception)
     Dwellers are matched to rooms based on their relevant SPECIAL stat (highest stat dwellers assigned first).
     """
-    return await dweller_assignment_service.auto_assign_production_rooms(db_session, vault.id)
+    result = await dweller_assignment_service.auto_assign_production_rooms(db_session, vault.id)
+    return AutoAssignResponse(**result)
 
 
-@router.post("/{vault_id}/dwellers/auto-assign-all")
+@router.post("/{vault_id}/dwellers/auto-assign-all", response_model=AutoAssignResponse)
 async def auto_assign_all_rooms(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> dict[str, int | list[dict[str, str]]]:
+) -> AutoAssignResponse:
     """
     Intelligently assign unassigned dwellers to ALL room types based on SPECIAL stats.
 
@@ -154,4 +163,5 @@ async def auto_assign_all_rooms(
     Within each tier, dwellers are distributed proportionally to room capacities.
     Dwellers are matched to rooms based on their relevant SPECIAL stat (highest stat dwellers assigned first).
     """
-    return await dweller_assignment_service.auto_assign_all_rooms(db_session, vault.id)
+    result = await dweller_assignment_service.auto_assign_all_rooms(db_session, vault.id)
+    return AutoAssignResponse(**result)

@@ -376,6 +376,27 @@ class RadioService:
         }
 
     @staticmethod
+    async def set_radio_mode(
+        db_session: AsyncSession,
+        vault: Vault,
+        mode: str,
+    ) -> str:
+        """Set the radio mode for a vault.
+
+        Args:
+            db_session: Database session
+            vault: Vault to update
+            mode: Radio mode string value
+
+        Returns:
+            The new radio mode value
+        """
+        vault.radio_mode = mode
+        db_session.add(vault)
+        await db_session.commit()
+        return mode
+
+    @staticmethod
     async def set_room_speedup(
         db_session: AsyncSession,
         vault_id: UUID4,

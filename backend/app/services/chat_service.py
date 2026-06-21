@@ -5,6 +5,7 @@ import logging
 
 from openai import AsyncOpenAI
 from pydantic import UUID4
+from pydantic_ai.agent import AgentRunResult
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.agents.dweller_chat_agent import (
@@ -209,7 +210,7 @@ class ChatService:
         )
 
     @staticmethod
-    def _extract_usage(result) -> tuple[int | None, int | None, int | None]:
+    def _extract_usage(result: AgentRunResult[DwellerChatOutput]) -> tuple[int | None, int | None, int | None]:
         """Extract token usage from an agent run result.
 
         Returns:
@@ -218,8 +219,8 @@ class ChatService:
         try:
             usage = result.usage()
             return usage.input_tokens, usage.output_tokens, usage.total_tokens
-        except Exception:  # noqa: BLE001
-            logger.warning("Failed to extract usage info from agent result")
+        except Exception:
+            logger.exception("Failed to extract usage info from agent result")
             return None, None, None
 
     @staticmethod

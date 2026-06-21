@@ -11,6 +11,15 @@ AI-powered dweller interactions.
 
 **Current work:**
 
+- [ ] **v2.19.0 — Dict-to-Pydantic Schema Refactoring** — Replace `dict` return types with typed Pydantic schemas across API endpoints; move logic from endpoints to service layer.
+  - ✅ New response schemas: `GameBalanceResponse`, `HappinessModifiersResponse`, `DeathStatsResponse`, `UnassignResponse`, `AutoAssignResponse`, `QuestPartyMemberRead`, `EligibleDwellerRead`
+  - ✅ Dict→Pydantic conversion in 8+ endpoints (game balance, happiness, death stats, vault auto-assign, quest party/eligible dwellers)
+  - ✅ 4 pregnancy endpoints: manual field mapping → `PregnancyRead.model_validate()`
+  - ✅ Service layer: radio vault mutation → `radio_service.set_radio_mode()`; exploration CRUD consolidated
+  - ✅ Auth endpoints wired to `MessageResponse`; return type fixes on `unequip_outfit`/`unequip_weapon`
+  - ✅ E2E verified via curl — all refactored endpoints confirmed working
+  - ⬜ **WIP** merge & cut release
+
 - [ ] **Dramatiq async concurrency** — Fix `asyncpg InterfaceError: another operation is in progress` during game tick objective queries
 - [ ] **FastAPI Yield Streaming** — SSE/event-stream endpoints for exploration events, game loop ticks, and AI chat responses
 
@@ -28,6 +37,20 @@ AI-powered dweller interactions.
 ---
 
 ## Latest Release
+
+### v2.19.0 — Dict-to-Pydantic Schema Refactoring (June 21, 2026)
+
+**Focus**: Replace `dict` return types with typed Pydantic schemas in API endpoints; move logic from endpoints to service layer
+
+**Completed:**
+
+- ✅ **New response schemas** — Created `GameBalanceResponse`, `HappinessModifiersResponse`, `DeathStatsResponse`, `UnassignResponse`, `AutoAssignResponse`, `DwellerAssignmentItem`, `QuestPartyMemberRead`, `EligibleDwellerRead` across `schemas/` files.
+- ✅ **Dict → Pydantic conversion** — Replaced `dict` returns in 8+ endpoints (game balance, happiness, death stats, vault auto-assign, quest party/eligible dwellers).
+- ✅ **Schema unpacking** — 4 pregnancy endpoints switched from manual field mapping to `PregnancyRead.model_validate()`.
+- ✅ **Service layer relocation** — Moved vault mutation from `radio.py` endpoint into `radio_service.set_radio_mode()`; consolidated `get_by_vault`/`get_active_by_vault` into single `get_by_vault(active_only=False)`.
+- ✅ **Return type annotations** — Added `response_model=None` + `-> None` to `unequip_outfit`/`unequip_weapon`; added `-> dict[str, Any]` to game control endpoints; wired 5 auth endpoints to existing `MessageResponse`.
+- ✅ **E2E verification** — All refactored endpoints tested via curl against running backend. Auth (MessageResponse), game balance (GameBalanceResponse), vault auto-assign (UnassignResponse/AutoAssignResponse), and death stats (DeathStatsResponse) confirmed working.
+- ✅ **Tests** — Full suite 804 passing, ruff clean.
 
 ### v2.18.0 — Library Skills Compliance (June 21, 2026)
 
@@ -910,6 +933,7 @@ watch(() => userStore.caps, (caps) => {
 
 | Version | Release      | Highlights                                   |
 | ------- | ------------ | -------------------------------------------- |
+| v2.19.0 | Jun 21, 2026 | Dict-to-Pydantic schema refactoring           |
 | v2.18.0 | Jun 21, 2026 | Library skills audit, compliance fixes       |
 | v2.17.0 | Jun 19, 2026 | Medical storage refactor                     |
 | v2.16.0 | Jun 18, 2026 | Accessibility, CRT theme, test fixes         |
@@ -989,4 +1013,4 @@ watch(() => userStore.caps, (caps) => {
 
 ---
 
-_Last updated: 2026-06-21_
+_Last updated: 2026-06-21_ (v2.19.0)

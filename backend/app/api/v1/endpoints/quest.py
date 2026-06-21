@@ -5,13 +5,15 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.deps import CurrentActiveUser, CurrentSuperuser
+from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403
 from app.db.session import get_async_session
 from app.models.quest import Quest
 from app.schemas.quest import (
+    EligibleDwellerRead,
     QuestCompleteResponse,
     QuestCreate,
     QuestPartyAssign,
+    QuestPartyMemberRead,
     QuestRead,
     QuestUpdate,
 )
@@ -84,7 +86,13 @@ async def update_quest(
 
 
 @router.delete("/{vault_id}/{quest_id}", status_code=204)
-async def delete_quest(quest_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> None:
+async def delete_quest(
+    quest_id: UUID4,
+    vault_id: UUID4,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    user: CurrentActiveUser,
+) -> None:
+    await get_user_vault_or_403(vault_id, user, db_session)
     return await crud.quest_crud.delete(db_session, quest_id)
 
 
@@ -149,28 +157,28 @@ async def assign_party_to_quest(
         raise ValidationException(str(e)) from e
 
 
-@router.get("/{vault_id}/{quest_id}/party", response_model=list[dict])
+@router.get("/{vault_id}/{quest_id}/party", response_model=list[QuestPartyMemberRead])
 async def get_quest_party(
     vault_id: UUID4,
     quest_id: UUID4,
     _user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> list[dict]:
+) -> list[QuestPartyMemberRead]:
     """Get party members assigned to a quest."""
     from app.crud.quest_party import quest_party_crud
 
     party = await quest_party_crud.get_party_for_quest(db_session, quest_id, vault_id)
     return [
-        {
-            "id": str(p.id),
-            "quest_id": str(p.quest_id),
-            "vault_id": str(p.vault_id),
-            "dweller_id": str(p.dweller_id),
-            "slot_number": p.slot_number,
-            "status": p.status,
-            "created_at": p.created_at.isoformat() if p.created_at else None,
-            "updated_at": p.updated_at.isoformat() if p.updated_at else None,
-        }
+        QuestPartyMemberRead(
+            id=p.id,
+            quest_id=p.quest_id,
+            vault_id=p.vault_id,
+            dweller_id=p.dweller_id,
+            slot_number=p.slot_number,
+            status=p.status,
+            created_at=p.created_at.isoformat() if p.created_at else None,
+            updated_at=p.updated_at.isoformat() if p.updated_at else None,
+        )
         for p in party
     ]
 
@@ -207,12 +215,13 @@ async def start_quest(
         raise ValidationException(str(e)) from e
 
 
-@router.get("/{vault_id}/{quest_id}/eligible-dwellers", response_model=list[dict])
+@router.get("/{vault_id}/{quest_id}/eligible-dwellers", response_model=list[EligibleDwellerRead])
 async def get_eligible_dwellers(
     vault_id: UUID4,
     quest_id: UUID4,
     _user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> list[dict]:
+) -> list[EligibleDwellerRead]:
     """Get dwellers eligible for a quest based on requirements."""
-    return await quest_service.get_eligible_dwellers(db_session, vault_id, quest_id)
+    result = await quest_service.get_eligible_dwellers(db_session, vault_id, quest_id)
+    return [EligibleDwellerRead(**d) for d in result]

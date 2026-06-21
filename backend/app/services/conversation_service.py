@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from uuid import uuid4
 
 from pydantic import UUID4
+from pydantic_ai.agent import AgentRunResult
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.agents.dweller_chat_agent import (
@@ -130,7 +131,7 @@ class ConversationService:
         return transcribed_text, user_audio_url, None
 
     @staticmethod
-    def _extract_usage(result) -> tuple[int | None, int | None, int | None]:
+    def _extract_usage(result: AgentRunResult[DwellerChatOutput]) -> tuple[int | None, int | None, int | None]:
         """Extract token usage from an agent run result.
 
         Returns:
@@ -139,8 +140,8 @@ class ConversationService:
         try:
             usage = result.usage()
             return usage.input_tokens, usage.output_tokens, usage.total_tokens
-        except Exception:  # noqa: BLE001
-            logger.warning("Failed to extract usage info from voice chat agent result")
+        except Exception:
+            logger.exception("Failed to extract usage info from voice chat agent result")
             return None, None, None
 
     async def _generate_response_with_agent(

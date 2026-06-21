@@ -72,88 +72,93 @@ async def logout(
     return MessageResponse(msg="Successfully logged out")
 
 
-@router.post("/forgot-password")
+@router.post("/forgot-password", response_model=MessageResponse)
 async def forgot_password(
     email: Annotated[EmailStr, Body(embed=True)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> dict:
+) -> MessageResponse:
     """
     Request password reset email.
     """
-    return await auth_service.forgot_password(db_session=db_session, email=email)
+    result = await auth_service.forgot_password(db_session=db_session, email=email)
+    return MessageResponse(msg=result["msg"])
 
 
-@router.post("/reset-password")
+@router.post("/reset-password", response_model=MessageResponse)
 async def reset_password(
     token: Annotated[str, Body()],
     new_password: Annotated[str, Body(min_length=8)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     redis_client: Annotated[Redis, Depends(get_redis_client)],
-) -> dict:
+) -> MessageResponse:
     """
     Reset password using token from email.
     """
     try:
-        return await auth_service.reset_password(
+        result = await auth_service.reset_password(
             db_session=db_session,
             token=token,
             new_password=new_password,
             redis_client=redis_client,
         )
+        return MessageResponse(msg=result["msg"])
     except ValidationException as e:
         raise HTTPException(status_code=400, detail=e.detail) from e
     except ResourceNotFoundException as e:
         raise HTTPException(status_code=404, detail=e.detail) from e
 
 
-@router.put("/change-password")
+@router.put("/change-password", response_model=MessageResponse)
 async def change_password(
     current_password: Annotated[str, Body()],
     new_password: Annotated[str, Body(min_length=8)],
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     redis_client: Annotated[Redis, Depends(get_redis_client)],
-) -> dict:
+) -> MessageResponse:
     """
     Change password for authenticated user.
     """
     try:
-        return await auth_service.change_password(
+        result = await auth_service.change_password(
             db_session=db_session,
             user=user,
             current_password=current_password,
             new_password=new_password,
             redis_client=redis_client,
         )
+        return MessageResponse(msg=result["msg"])
     except ValidationException as e:
         raise HTTPException(status_code=400, detail=e.detail) from e
 
 
-@router.post("/verify-email")
+@router.post("/verify-email", response_model=MessageResponse)
 async def verify_email(
     token: Annotated[str, Body(embed=True)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> dict:
+) -> MessageResponse:
     """
     Verify user email using token from email.
     """
     try:
-        return await auth_service.verify_email(db_session=db_session, token=token)
+        result = await auth_service.verify_email(db_session=db_session, token=token)
+        return MessageResponse(msg=result["msg"])
     except ValidationException as e:
         raise HTTPException(status_code=400, detail=e.detail) from e
     except ResourceNotFoundException as e:
         raise HTTPException(status_code=404, detail=e.detail) from e
 
 
-@router.post("/resend-verification")
+@router.post("/resend-verification", response_model=MessageResponse)
 async def resend_verification_email(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> dict:
+) -> MessageResponse:
     """
     Resend verification email to current user.
     """
     try:
-        return await auth_service.resend_verification_email(db_session=db_session, user=user)
+        result = await auth_service.resend_verification_email(db_session=db_session, user=user)
+        return MessageResponse(msg=result["msg"])
     except ValidationException as e:
         raise HTTPException(status_code=400, detail=e.detail) from e

@@ -59,9 +59,9 @@ async def equip_outfit(
     return await crud.outfit.equip(db_session=db_session, item_id=outfit_id, dweller_id=dweller_id)
 
 
-@router.post("/{outfit_id}/unequip/", status_code=200)
-async def unequip_outfit(outfit_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> dict:
-    return await crud.outfit.unequip(db_session=db_session, item_id=outfit_id)
+@router.post("/{outfit_id}/unequip/", status_code=200, response_model=None)
+async def unequip_outfit(outfit_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> None:
+    await crud.outfit.unequip(db_session=db_session, item_id=outfit_id)
 
 
 @router.post("/{outfit_id}/scrap/", response_model=JunkListResponse)
@@ -72,9 +72,9 @@ async def scrap_outfit(
     return JunkListResponse(junk=junk_list)
 
 
-@router.post("/{outfit_id}/sell/", status_code=200)
-async def sell_outfit(outfit_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> dict:
-    return await crud.outfit.sell(db_session=db_session, item_id=outfit_id)
+@router.post("/{outfit_id}/sell/", status_code=200, response_model=None)
+async def sell_outfit(outfit_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> None:
+    await crud.outfit.sell(db_session=db_session, item_id=outfit_id)
 
 
 @router.get("/read_data/", response_model=list[OutfitCreate])

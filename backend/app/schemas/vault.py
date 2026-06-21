@@ -28,6 +28,27 @@ class VaultRead(VaultBase):
     resource_warnings: list[dict[str, str]] = Field(default_factory=list)
 
 
+class UnassignResponse(BaseModel):
+    """Response after unassigning all dwellers."""
+
+    unassigned_count: int
+
+
+class DwellerAssignmentItem(BaseModel):
+    """Individual dweller-to-room assignment result."""
+
+    dweller_id: str
+    room_id: str
+    room_name: str
+
+
+class AutoAssignResponse(BaseModel):
+    """Response after auto-assigning dwellers to rooms."""
+
+    assigned_count: int
+    assignments: list[DwellerAssignmentItem]
+
+
 class MedicalTransferRequest(BaseModel):
     """Request schema for medical supply transfer."""
 

@@ -1,0 +1,125 @@
+name: Deploy to Hetzner k3s
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag to deploy (e.g., latest, sha-abc123)'
+        required: false
+        default: 'latest'
+      run_migrations:
+        description: 'Run database migrations'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  deploy:
+    name: Deploy to Hetzner k3s
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/hetzner_key
+          chmod 600 ~/.ssh/hetzner_key
+          ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Update images
+        run: |
+          TAG="${{ inputs.image_tag }}"
+          echo "Deploying tag: $TAG"
+
+          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << EOF
+            set -e
+
+            echo "Updating backend..."
+            kubectl set image deployment/backend -n fallout \
+              backend=elerevil/fo-shelter-be:$TAG
+
+            echo "Updating dramatiq-worker..."
+            kubectl set image deployment/dramatiq-worker -n fallout \
+              worker=elerevil/fo-shelter-be:$TAG
+
+            echo "Updating frontend..."
+            kubectl set image deployment/frontend -n fallout \
+              frontend=elerevil/fo-shelter-fe:$TAG
+
+            echo "Updated all images. Waiting for rollouts..."
+          EOF
+
+      - name: Wait for rollout
+        run: |
+          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
+            set -e
+
+            echo "Waiting for backend..."
+            kubectl rollout status deployment/backend -n fallout --timeout=300s
+
+            echo "Waiting for dramatiq-worker..."
+            kubectl rollout status deployment/dramatiq-worker -n fallout --timeout=300s
+
+            echo "Waiting for frontend..."
+            kubectl rollout status deployment/frontend -n fallout --timeout=300s
+
+            echo "All rollouts complete."
+          EOF
+
+      - name: Run database migrations
+        if: ${{ inputs.run_migrations }}
+        run: |
+          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
+            set -e
+
+            echo "Running alembic upgrade head..."
+            kubectl exec deployment/backend -n fallout -- \
+              uv run alembic upgrade head
+
+            echo "Migrations completed."
+          EOF
+
+      - name: Health check
+        run: |
+          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
+            set -e
+
+            echo "Checking backend health..."
+            kubectl exec deployment/backend -n fallout -- \
+              curl -sf http://localhost:8000/healthcheck || {
+                echo "Health check failed!"
+                kubectl logs -n fallout deployment/backend --tail=30
+                exit 1
+              }
+
+            echo "Health check passed."
+          EOF
+
+      - name: Clean up old images
+        run: |
+          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
+            set -e
+
+            echo "Pruning unused container images..."
+            sudo k3s crictl rmi --prune 2>/dev/null || echo "Nothing to prune"
+
+            echo "Cleanup done."
+          EOF
+
+      - name: Deployment summary
+        run: |
+          echo "## Deploy to Hetzner k3s" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Image tag | \`${{ inputs.image_tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Migrations | ${{ inputs.run_migrations }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Host | ${{ secrets.HETZNER_HOST }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Namespace | \`fallout\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Backend: \`elerevil/fo-shelter-be:${{ inputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "  - Deployment: \`backend\`" >> $GITHUB_STEP_SUMMARY
+          echo "  - Deployment: \`dramatiq-worker\`" >> $GITHUB_STEP_SUMMARY
+          echo "Frontend: \`elerevil/fo-shelter-fe:${{ inputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Deployment completed" >> $GITHUB_STEP_SUMMARY

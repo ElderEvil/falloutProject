@@ -86,7 +86,7 @@ jobs:
 
             echo "Checking backend health..."
             kubectl exec deployment/backend -n fallout -- \
-              curl -sf http://localhost:8000/healthcheck || {
+              python3 -c "import urllib.request; resp = urllib.request.urlopen('http://localhost:8000/healthcheck', timeout=10); body = resp.read().decode(); assert resp.status == 200, f'Status {resp.status}'; assert 'ok' in body, f'Body: {body}'" || {
                 echo "Health check failed!"
                 kubectl logs -n fallout deployment/backend --tail=30
                 exit 1

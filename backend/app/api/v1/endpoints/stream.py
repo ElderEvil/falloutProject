@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import logging
 from collections.abc import AsyncIterable, AsyncIterator
 from typing import Annotated, Any
@@ -36,19 +37,25 @@ async def _with_heartbeat(
     """
     it = stream.__aiter__()
     task: asyncio.Task | None = None
-    while True:
-        if task is None:
-            task = asyncio.create_task(it.__anext__())
-        done, _pending = await asyncio.wait([task], timeout=interval)
-        if done:
-            try:
-                data = task.result()
-                yield data
-                task = None
-            except StopAsyncIteration:
-                return
-        else:
-            yield None
+    try:
+        while True:
+            if task is None:
+                task = asyncio.create_task(it.__anext__())
+            done, _pending = await asyncio.wait([task], timeout=interval)
+            if done:
+                try:
+                    data = task.result()
+                    yield data
+                    task = None
+                except StopAsyncIteration:
+                    return
+            else:
+                yield None
+    finally:
+        if task is not None and not task.done():
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
 
 
 

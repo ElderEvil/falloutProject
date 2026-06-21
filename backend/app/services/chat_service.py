@@ -261,10 +261,10 @@ class ChatService:
             )
 
             async with dweller_chat_agent.run_stream(message_text, deps=deps) as result:
-                async for text in result.stream():
+                async for text in result.stream_text(delta=True):
                     yield {"type": "token", "text": text}
 
-                output: DwellerChatOutput = result.data
+                output: DwellerChatOutput = await result.get_output()
 
                 delta = compute_happiness_delta(output.sentiment_score)
                 new_dweller_happiness, _ = await apply_chat_happiness(

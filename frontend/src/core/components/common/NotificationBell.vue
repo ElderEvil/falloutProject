@@ -26,24 +26,32 @@ const hasUnread = computed(() => unreadCount.value > 0)
 
 // SSE connection for live notifications
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? ''
-const sseUrl = computed(() => {
-  if (!authStore.token) return ''
-  return `${apiBase}/api/v1/stream/notifications`
-})
-const sse = useSse(sseUrl.value, {
-  headers: authStore.token ? { Authorization: `Bearer ${authStore.token}` } : undefined,
-})
+const sse = ref<ReturnType<typeof useSse>>()
+
+const startSse = () => {
+  sse.value?.close()
+  if (!authStore.token) {
+    sse.value = undefined
+    return
+  }
+  const instance = useSse(`${apiBase}/api/v1/stream/notifications`, {
+    headers: { Authorization: `Bearer ${authStore.token}` },
+  })
+  sse.value = instance
+  instance.start()
+}
 
 // Restart SSE when the URL changes (login/logout)
-watch(sseUrl, (url, oldUrl) => {
-  if (oldUrl) sse.close()
-  if (url) {
-    sse.start()
+watch(() => authStore.token, (token) => {
+  if (token) startSse()
+  else {
+    sse.value?.close()
+    sse.value = undefined
   }
 })
 
 // Process incoming SSE notification events
-watch(() => sse.event.value, (evt: SseEvent | null) => {
+watch(() => sse.value?.event.value, (evt: SseEvent | null) => {
   if (!evt || evt.event !== 'notification') return
   const notificationData = (evt.data as any)?.notification
   if (!notificationData) return
@@ -192,12 +200,12 @@ const formatTime = (timestamp: string): string => {
 onMounted(() => {
   fetchUnreadCount()
   if (authStore.token) {
-    sse.start()
+    startSse()
   }
 })
 
 onBeforeUnmount(() => {
-  sse.close()
+  sse.value?.close()
 })
 </script>
 

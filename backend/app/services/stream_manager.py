@@ -22,7 +22,7 @@ class SSEManager:
     consume via subscribe().
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._subscribers: dict[str, dict[UUID, set[asyncio.Queue]]] = {}
         self._queue_maxsize = 256
 
@@ -135,8 +135,15 @@ class SSEManager:
         for _topic, user_map in list(self._subscribers.items()):
             for _user_id, queues in list(user_map.items()):
                 for queue in list(queues):
-                    with contextlib.suppress(asyncio.QueueFull, RuntimeError):
-                        queue.put_nowait(None)
+                    # Drain one item at a time to make room for the sentinel,
+                    # without stealing data from concurrent subscribers.
+                    for _ in range(self._queue_maxsize + 1):
+                        try:
+                            queue.put_nowait(None)
+                            break
+                        except asyncio.QueueFull:
+                            with contextlib.suppress(asyncio.QueueEmpty):
+                                queue.get_nowait()
                 queues.clear()
             user_map.clear()
         self._subscribers.clear()

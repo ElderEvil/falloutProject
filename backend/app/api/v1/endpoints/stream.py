@@ -30,22 +30,25 @@ async def _with_heartbeat(
 ) -> AsyncIterator[dict[str, Any] | None]:
     """Interleave heartbeat sentinels into an SSE event stream.
 
-    Yields items from the underlying stream as-is.  If no item arrives
-    within *interval* seconds, yields ``None`` instead.  The caller
-    converts ``None`` to ``ServerSentEvent(comment="heartbeat")``.
-
-    When the underlying stream is exhausted the wrapper stops without
-    yielding a final ``None``.
+    Uses ``asyncio.wait`` instead of ``asyncio.wait_for`` so the
+    underlying ``__anext__`` task is **never cancelled** — the subscriber
+    stays alive across heartbeat timeouts.
     """
     it = stream.__aiter__()
+    task: asyncio.Task | None = None
     while True:
-        try:
-            data = await asyncio.wait_for(it.__anext__(), timeout=interval)
-            yield data
-        except TimeoutError:
+        if task is None:
+            task = asyncio.create_task(it.__anext__())
+        done, _pending = await asyncio.wait([task], timeout=interval)
+        if done:
+            try:
+                data = task.result()
+                yield data
+                task = None
+            except StopAsyncIteration:
+                return
+        else:
             yield None
-        except StopAsyncIteration:
-            return
 
 
 
@@ -87,11 +90,11 @@ async def stream_chat(
     request: Request,
 ) -> AsyncIterable[ServerSentEvent]:
     try:
-        async for token_text in chat_service.stream_response(db_session, current_user, dweller_id, message.message):
+        async for payload in chat_service.stream_response(db_session, current_user, dweller_id, message.message):
             if await request.is_disconnected():
                 break
-            yield ServerSentEvent(data=token_text, event="token")
-        yield ServerSentEvent(raw_data="[DONE]", event="done")
+            event_type = payload.get("type", "message")
+            yield ServerSentEvent(data=payload, event=event_type)
     except Exception:
         logger.exception("Chat SSE stream failed")
         yield ServerSentEvent(data="Internal streaming error", event="error")

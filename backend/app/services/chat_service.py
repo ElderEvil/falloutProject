@@ -234,6 +234,12 @@ class ChatService:
             if not dweller:
                 raise ValueError("Dweller not found")
 
+            # Ownership check: dweller must belong to the current user
+            if not dweller.vault or dweller.vault.user_id != user.id:
+                from fastapi import HTTPException
+
+                raise HTTPException(status_code=403, detail="Dweller does not belong to the current user")
+
             quota_result = await quota_service.check_quota(user.id, db_session)
 
             quota_headers = {
@@ -328,7 +334,10 @@ class ChatService:
 
         except Exception as e:
             logger.exception("Streaming chat response failed")
-            yield {"type": "error", "detail": str(e)}
+            if isinstance(e, (ValueError, QuotaExceededException)):
+                yield {"type": "error", "detail": str(e)}
+            else:
+                yield {"type": "error", "detail": "An unexpected error occurred during chat"}
 
     @staticmethod
     def _extract_usage(result: AgentRunResult[DwellerChatOutput]) -> tuple[int | None, int | None, int | None]:

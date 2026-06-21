@@ -1,12 +1,24 @@
 # Bug: Duplicate SSE Publish in Game Loop
 
-## Summary
+## Status
 
-Every vault game tick publishes **two identical SSE events** instead of one. SSE subscribers (frontend game tick stream) will process the same update twice per tick, causing redundant renders, double resource/event processing on the client, and unnecessary bandwidth.
+**Fix applied.** This report documents a bug that existed in the initial SSE
+implementation and has since been fixed. See the sections below for the pre-fix
+and post-fix states.
 
-## Root Cause
+---
 
-`backend/app/services/game_loop.py` calls `sse_manager.publish` in **two places** for the same game tick data:
+## Before Fix
+
+The following describes the code before the fix was applied.
+
+### Summary
+
+Every vault game tick published **two identical SSE events** instead of one. SSE subscribers (frontend game tick stream) processed the same update twice per tick, causing redundant renders, double resource/event processing on the client, and unnecessary bandwidth.
+
+### Root Cause
+
+`backend/app/services/game_loop.py` called `sse_manager.publish` in **two places** for the same game tick data:
 
 ### Location 1 — `process_game_tick()` (line 59–71)
 
@@ -64,25 +76,25 @@ process_game_tick(db_session)
 
 Every call to `process_game_tick` triggers `process_vault_tick` which already publishes to SSE. The caller then publishes **the same data again** using the returned results dict.
 
-## Impact
+---
 
-- **Frontend duplication**: The `/stream/game/{vault_id}/ticks` SSE endpoint receives 2 events per tick. If the frontend processes resource updates, dweller changes, etc. on each event, it will double-apply state changes.
-- **Minor bandwidth**: Adds ~1–2 KB per vault per tick to the SSE stream.
-- **No data corruption**: The SSE stream is fire-and-forget — the second event is a duplicate, not a double-write to the database.
+## After Fix
 
-## Event Payload Differences
+The SSE publish in `process_game_tick()` (Location 1) was removed. Only the
+publish inside `process_vault_tick()` (Location 2) remains — it fires when the
+tick data is fresh and complete.
 
-The two publishes use slightly different `event_id` values:
-- Publish #1: `str(vault_results.get("seconds_passed", 0))` → integer-as-string
-- Publish #2: `str(game_state.last_tick_time.isoformat())` → ISO datetime string
+```python
+async def process_game_tick(self, db_session: AsyncSession) -> dict:
+    ...
+    for vault in active_vaults:
+        vault_results = await self.process_vault_tick(db_session, vault.id)
+        stats["vaults_processed"] += 1
+        # SSE publish removed — process_vault_tick already publishes
+    ...
+```
 
-This inconsistency itself would confuse any subscriber trying to deduplicate by `event_id`.
+### Fix Verification
 
-## Fix
-
-Remove the SSE publish from `process_game_tick()` (Location 1) and keep only the one in `process_vault_tick()` (Location 2). The latter is the natural place — it publishes when the data is fresh and complete.
-
-## Verification
-
-- A test that patches `sse_manager.publish` and calls `process_game_tick` with one active vault should assert exactly **1 call** (not 2).
-- A test that calls `process_vault_tick` directly should still assert **1 call**.
+3 regression tests in `backend/app/tests/test_services/test_game_loop_sse.py`
+assert exactly 1 SSE publish per vault per tick.

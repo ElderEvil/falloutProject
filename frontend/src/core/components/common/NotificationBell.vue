@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import { useSse, type SseEvent } from '@/core/composables/useEventStream'
 import axios from '@/core/plugins/axios'
 
 interface Notification {
@@ -21,46 +20,9 @@ const showPopup = ref(false)
 const notifications = ref<Notification[]>([])
 const unreadCount = ref(0)
 const isLoading = ref(false)
+let pollIntervalId: number | null = null
 
 const hasUnread = computed(() => unreadCount.value > 0)
-
-// SSE connection for live notifications
-const apiBase = import.meta.env.VITE_API_BASE_URL ?? ''
-const sseUrl = computed(() => {
-  if (!authStore.token) return ''
-  return `${apiBase}/api/v1/stream/notifications`
-})
-const sse = useSse(sseUrl.value, {
-  headers: authStore.token ? { Authorization: `Bearer ${authStore.token}` } : undefined,
-})
-
-// Restart SSE when the URL changes (login/logout)
-watch(sseUrl, (url, oldUrl) => {
-  if (oldUrl) sse.close()
-  if (url) {
-    sse.start()
-  }
-})
-
-// Process incoming SSE notification events
-watch(() => sse.event.value, (evt: SseEvent | null) => {
-  if (!evt || evt.event !== 'notification') return
-  const notificationData = (evt.data as any)?.notification
-  if (!notificationData) return
-
-  const newNotif: Notification = {
-    id: notificationData.id,
-    notification_type: notificationData.notification_type,
-    title: notificationData.title,
-    message: notificationData.message,
-    priority: notificationData.priority,
-    is_read: false,
-    created_at: notificationData.created_at,
-    meta_data: notificationData.meta_data,
-  }
-  notifications.value.unshift(newNotif)
-  unreadCount.value++
-})
 
 const fetchNotifications = async () => {
   if (!authStore.token) return
@@ -191,13 +153,15 @@ const formatTime = (timestamp: string): string => {
 
 onMounted(() => {
   fetchUnreadCount()
-  if (authStore.token) {
-    sse.start()
-  }
+  // Poll for new notifications every 30 seconds
+  pollIntervalId = setInterval(fetchUnreadCount, 30000)
 })
 
 onBeforeUnmount(() => {
-  sse.close()
+  if (pollIntervalId !== null) {
+    clearInterval(pollIntervalId)
+    pollIntervalId = null
+  }
 })
 </script>
 

@@ -17,7 +17,6 @@ from app.api.v1.endpoints import (
     relationship,
     room,
     storage,
-    stream,
     system,
     training,
     user,
@@ -48,7 +47,6 @@ api_router.include_router(radio.router)
 api_router.include_router(relationship.router)
 api_router.include_router(room.router)
 api_router.include_router(storage.router)
-api_router.include_router(stream.router)
 api_router.include_router(training.router)
 api_router.include_router(user.router)
 api_router.include_router(vault.router)

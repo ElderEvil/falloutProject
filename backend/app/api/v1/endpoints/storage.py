@@ -14,7 +14,7 @@ from app.schemas.storage import StorageItemsResponse, StorageSpaceResponse
 from app.schemas.vault import MedicalTransferRequest, MedicalTransferResponse
 from app.schemas.weapon import WeaponRead
 
-router = APIRouter()
+router = APIRouter(prefix="/storage", tags=["Storage"])
 logger = logging.getLogger(__name__)
 
 

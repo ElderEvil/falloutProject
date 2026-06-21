@@ -52,6 +52,29 @@ class QuestReadShort(SQLModel):
     short_description: str
 
 
+class QuestPartyMemberRead(SQLModel):
+    """Quest party member read schema."""
+
+    id: UUID4
+    quest_id: UUID4
+    vault_id: UUID4
+    dweller_id: UUID4
+    slot_number: int
+    status: str
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class EligibleDwellerRead(SQLModel):
+    """Eligible dweller for a quest."""
+
+    id: UUID4
+    first_name: str
+    last_name: str | None = None
+    level: int
+    rarity: str
+
+
 class QuestPartyAssign(SQLModel):
     dweller_ids: list[UUID4]
 

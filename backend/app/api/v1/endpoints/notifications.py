@@ -10,7 +10,7 @@ from app.db.session import get_async_session
 from app.models.notification import NotificationCreate, NotificationRead
 from app.schemas.responses import CountResponse, MarkReadResponse
 
-router = APIRouter()
+router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
 
 @router.get("/", response_model=list[NotificationRead])
@@ -20,7 +20,7 @@ async def get_notifications(
     unread_only: bool = False,
     limit: int = 50,
     offset: int = 0,
-):
+) -> list[NotificationRead]:
     """Get notifications for the current user"""
     return await notification_crud.get_user_notifications(
         db_session,
@@ -35,7 +35,7 @@ async def get_notifications(
 async def get_unread_count(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> CountResponse:
     """Get count of unread notifications"""
     count = await notification_crud.get_unread_count(db_session, user_id=user.id)
     return CountResponse(count=count)
@@ -46,7 +46,7 @@ async def create_notification(
     notification_data: NotificationCreate,
     user: CurrentActiveUser,  # noqa: ARG001
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> NotificationRead:
     """Create a new notification (admin/system use)"""
     return await notification_crud.create(db_session, obj_in=notification_data)
 
@@ -56,7 +56,7 @@ async def mark_notification_as_read(
     notification_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> NotificationRead:
     """Mark a notification as read"""
     notification = await notification_crud.mark_as_read(db_session, notification_id=notification_id, user_id=user.id)
     if not notification:
@@ -68,7 +68,7 @@ async def mark_notification_as_read(
 async def mark_all_notifications_as_read(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> MarkReadResponse:
     """Mark all notifications as read for the current user"""
     count = await notification_crud.mark_all_as_read(db_session, user_id=user.id)
     return MarkReadResponse(marked_read=count)
@@ -79,7 +79,7 @@ async def dismiss_notification(
     notification_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> NotificationRead:
     """Dismiss (soft delete) a notification"""
     notification = await notification_crud.dismiss(db_session, notification_id=notification_id, user_id=user.id)
     if not notification:

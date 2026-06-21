@@ -20,26 +20,24 @@ from app.schemas.incident import (
     IncidentSpawnResponse,
     PauseResumeResponse,
 )
+from app.schemas.system import GameBalanceResponse
 from app.services.game_loop import game_loop_service
 from app.services.incident_service import incident_service
 
-router = APIRouter()
+router = APIRouter(prefix="/game", tags=["Game"])
 
 
-@router.get("/balance")
-async def get_game_balance_settings() -> dict[str, Any]:
+@router.get("/balance", response_model=GameBalanceResponse)
+async def get_game_balance_settings() -> GameBalanceResponse:
     """
     Get current game balance configuration (read-only).
 
     This endpoint exposes all game balance constants that can be tuned via
     environment variables. Useful for debugging and future admin panels.
-
-    :returns: Dictionary containing all game balance settings organized by category
-    :rtype: dict[str, Any]
     """
-    return {
-        "game_loop": game_config.game_loop.model_dump(),
-        "incident": {
+    return GameBalanceResponse(
+        game_loop=game_config.game_loop.model_dump(),
+        incident={
             **game_config.incident.model_dump(),
             "difficulty_ranges": {
                 incident_type.value: game_config.incident.get_difficulty_range(incident_type)
@@ -50,16 +48,16 @@ async def get_game_balance_settings() -> dict[str, Any]:
                 for incident_type, weight in game_config.incident.get_spawn_weights().items()
             },
         },
-        "combat": game_config.combat.model_dump(),
-        "health": game_config.health.model_dump(),
-        "happiness": game_config.happiness.model_dump(),
-        "training": game_config.training.model_dump(),
-        "resource": game_config.resource.model_dump(),
-        "relationship": game_config.relationship.model_dump(),
-        "breeding": game_config.breeding.model_dump(),
-        "leveling": game_config.leveling.model_dump(),
-        "radio": game_config.radio.model_dump(),
-        "death": {
+        combat=game_config.combat.model_dump(),
+        health=game_config.health.model_dump(),
+        happiness=game_config.happiness.model_dump(),
+        training=game_config.training.model_dump(),
+        resource=game_config.resource.model_dump(),
+        relationship=game_config.relationship.model_dump(),
+        breeding=game_config.breeding.model_dump(),
+        leveling=game_config.leveling.model_dump(),
+        radio=game_config.radio.model_dump(),
+        death={
             **game_config.death.model_dump(),
             "revival_cost_examples": {
                 "level_1": game_config.death.calculate_revival_cost(1),
@@ -69,7 +67,9 @@ async def get_game_balance_settings() -> dict[str, Any]:
                 "level_50": game_config.death.calculate_revival_cost(50),
             },
         },
-    }
+        dweller=game_config.dweller.model_dump(),
+        exploration=game_config.exploration.model_dump(),
+    )
 
 
 @router.post("/vaults/{vault_id}/pause", response_model=PauseResumeResponse, status_code=200)
@@ -77,7 +77,7 @@ async def pause_vault(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> PauseResumeResponse:
     """Pause the game loop for a vault."""
     game_state = await game_loop_service.pause_vault(db_session, vault.id)
 
@@ -94,7 +94,7 @@ async def resume_vault(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> PauseResumeResponse:
     """Resume the game loop for a vault."""
     game_state = await game_loop_service.resume_vault(db_session, vault.id)
 
@@ -111,7 +111,7 @@ async def get_game_state(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> dict[str, Any]:
     """Get current game state for a vault."""
     return await game_loop_service.get_vault_status(db_session, vault.id)
 
@@ -121,7 +121,7 @@ async def list_incidents(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> IncidentListResponse:
     """List all active incidents in a vault."""
     incidents = await crud.incident_crud.get_active_by_vault(db_session, vault.id)
 
@@ -151,7 +151,7 @@ async def get_incident(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     incident_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> IncidentRead:
     """Get details of a specific incident."""
     incident = await crud.incident_crud.get(db_session, incident_id)
     if not incident or incident.vault_id != vault.id:
@@ -181,7 +181,7 @@ async def manual_tick(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> dict[str, Any]:
     """
     Manually trigger a game tick for a vault (for testing/debugging).
 
@@ -205,7 +205,7 @@ async def resolve_incident(
     incident_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     success: bool = True,
-):
+) -> dict[str, Any]:
     """
     Manually resolve an active incident.
 
@@ -229,7 +229,7 @@ async def spawn_debug_incident(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     incident_type: IncidentType | None = None,
-):
+) -> IncidentSpawnResponse:
     """
     [DEBUG] Manually spawn an incident for testing purposes.
 
@@ -256,7 +256,7 @@ async def delete_all_incidents(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _user: CurrentSuperuser,
-):
+) -> DeleteIncidentsResponse:
     """Delete all incidents for a vault."""
     count = await crud.incident_crud.remove_all_by_vault(db_session, vault.id)
 
@@ -274,7 +274,7 @@ async def delete_incident(
     incident_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _user: CurrentSuperuser,
-):
+) -> DeleteIncidentsResponse:
     """Delete a specific incident."""
     # Verify incident belongs to vault
     incident = await crud.incident_crud.get(db_session, incident_id)

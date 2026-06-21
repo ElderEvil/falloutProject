@@ -80,18 +80,24 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         await db_session.refresh(db_obj)
         return db_obj
 
-    async def get_active_by_vault(
+    async def get_by_vault(
         self,
         db_session: AsyncSession,
         *,
         vault_id: UUID4,
+        active_only: bool = False,
     ) -> list[Exploration]:
-        """Get all active explorations for a vault."""
-        result = await db_session.execute(
-            select(Exploration)
-            .where(Exploration.vault_id == vault_id)
-            .where(Exploration.status == ExplorationStatus.ACTIVE)
-        )
+        """Get all explorations for a vault, optionally filtering to active only.
+
+        Args:
+            db_session: Database session.
+            vault_id: Vault ID to filter by.
+            active_only: If True, only return explorations with ACTIVE status.
+        """
+        query = select(Exploration).where(Exploration.vault_id == vault_id)
+        if active_only:
+            query = query.where(Exploration.status == ExplorationStatus.ACTIVE)
+        result = await db_session.execute(query)
         return list(result.scalars().all())
 
     async def get_by_dweller(

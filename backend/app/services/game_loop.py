@@ -262,9 +262,10 @@ class GameLoopService:
 
         try:
             # Get all active explorations for this vault
-            active_explorations = await crud_exploration.get_active_by_vault(
+            active_explorations = await crud_exploration.get_by_vault(
                 db_session,
                 vault_id=vault_id,
+                active_only=True,
             )
 
             stats["active_count"] = len(active_explorations)

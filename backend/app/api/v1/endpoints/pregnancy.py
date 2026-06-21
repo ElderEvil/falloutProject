@@ -13,7 +13,7 @@ from app.schemas.pregnancy import DeliveryResult, PregnancyRead
 from app.services.breeding_service import breeding_service
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
-router = APIRouter()
+router = APIRouter(prefix="/pregnancies", tags=["Pregnancy"])
 logger = logging.getLogger(__name__)
 
 
@@ -22,7 +22,7 @@ async def get_vault_pregnancies(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> list[PregnancyRead]:
     """Get all active pregnancies in a vault."""
     await get_user_vault_or_403(vault_id, user, db_session)
 
@@ -31,21 +31,7 @@ async def get_vault_pregnancies(
         vault_id,
     )
 
-    # Convert to read schema with computed properties
-    return [
-        PregnancyRead(
-            id=p.id,
-            mother_id=p.mother_id,
-            father_id=p.father_id,
-            conceived_at=p.conceived_at,
-            due_at=p.due_at,
-            status=p.status,
-            progress_percentage=p.progress_percentage,
-            time_remaining_seconds=p.time_remaining_seconds,
-            is_due=p.is_due,
-        )
-        for p in pregnancies
-    ]
+    return [PregnancyRead.model_validate(p) for p in pregnancies]
 
 
 @router.get("/{pregnancy_id}", response_model=PregnancyRead)
@@ -53,24 +39,14 @@ async def get_pregnancy(
     pregnancy_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> PregnancyRead:
     """Get a specific pregnancy."""
     try:
         pregnancy, _ = await crud.pregnancy.get_with_vault_access(db_session, pregnancy_id, user)
     except ResourceNotFoundException as exc:
         raise HTTPException(status_code=404, detail=exc.detail) from exc
 
-    return PregnancyRead(
-        id=pregnancy.id,
-        mother_id=pregnancy.mother_id,
-        father_id=pregnancy.father_id,
-        conceived_at=pregnancy.conceived_at,
-        due_at=pregnancy.due_at,
-        status=pregnancy.status,
-        progress_percentage=pregnancy.progress_percentage,
-        time_remaining_seconds=pregnancy.time_remaining_seconds,
-        is_due=pregnancy.is_due,
-    )
+    return PregnancyRead.model_validate(pregnancy)
 
 
 @router.post("/{pregnancy_id}/deliver", response_model=DeliveryResult)
@@ -78,7 +54,7 @@ async def deliver_baby(
     pregnancy_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> DeliveryResult:
     """Manually trigger delivery of a baby (must be due)."""
     try:
         _, _mother = await crud.pregnancy.get_with_vault_access(db_session, pregnancy_id, user)
@@ -111,7 +87,7 @@ async def force_conception(
     father_id: UUID4,
     user: CurrentSuperuser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> PregnancyRead:
     logger.info(
         "DEBUG force-conception triggered",
         extra={
@@ -130,17 +106,7 @@ async def force_conception(
             raise ResourceNotFoundException(model=Dweller, identifier=identifier) from e
         raise ValidationException(detail=str(e)) from e
 
-    return PregnancyRead(
-        id=pregnancy.id,
-        mother_id=pregnancy.mother_id,
-        father_id=pregnancy.father_id,
-        conceived_at=pregnancy.conceived_at,
-        due_at=pregnancy.due_at,
-        status=pregnancy.status,
-        progress_percentage=pregnancy.progress_percentage,
-        time_remaining_seconds=pregnancy.time_remaining_seconds,
-        is_due=pregnancy.is_due,
-    )
+    return PregnancyRead.model_validate(pregnancy)
 
 
 @router.post("/{pregnancy_id}/debug/accelerate", response_model=PregnancyRead)
@@ -148,7 +114,7 @@ async def accelerate_pregnancy(
     pregnancy_id: UUID4,
     user: CurrentSuperuser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> PregnancyRead:
     try:
         pregnancy = await breeding_service.accelerate_pregnancy(db_session, pregnancy_id)
     except ValueError as e:
@@ -164,14 +130,4 @@ async def accelerate_pregnancy(
         },
     )
 
-    return PregnancyRead(
-        id=pregnancy.id,
-        mother_id=pregnancy.mother_id,
-        father_id=pregnancy.father_id,
-        conceived_at=pregnancy.conceived_at,
-        due_at=pregnancy.due_at,
-        status=pregnancy.status,
-        progress_percentage=pregnancy.progress_percentage,
-        time_remaining_seconds=pregnancy.time_remaining_seconds,
-        is_due=pregnancy.is_due,
-    )
+    return PregnancyRead.model_validate(pregnancy)

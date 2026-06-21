@@ -10,19 +10,22 @@ from app.api.game_data_deps import get_static_game_data
 from app.db.session import get_async_session
 from app.schemas.room import RoomCreate, RoomCreateWithoutVaultID, RoomRead, RoomUpdate
 from app.services.room_service import room_service
+from app.utils.static_data import StaticGameData
 
-router = APIRouter()
+router = APIRouter(prefix="/rooms", tags=["Room"])
 
 
 @router.post("/", response_model=RoomRead)
-async def create_room(room_data: RoomCreate, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
+async def create_room(
+    room_data: RoomCreate, db_session: Annotated[AsyncSession, Depends(get_async_session)]
+) -> RoomRead:
     return await crud.room.create(db_session=db_session, obj_in=room_data)
 
 
 @router.get("/", response_model=list[RoomRead])
 async def read_room_list(
     db_session: Annotated[AsyncSession, Depends(get_async_session)], skip: int = 0, limit: int = 100
-):
+) -> list[RoomRead]:
     return await crud.room.get_multi(db_session, skip=skip, limit=limit)
 
 
@@ -33,7 +36,7 @@ async def read_rooms_by_vault(
     user: CurrentActiveUser,
     skip: int = 0,
     limit: int = 100,
-):
+) -> list[RoomRead]:
     await get_user_vault_or_403(vault_id, user, db_session)
     return await crud.room.get_multy_by_vault(db_session=db_session, skip=skip, limit=limit, vault_id=vault_id)
 
@@ -41,7 +44,7 @@ async def read_rooms_by_vault(
 @router.get("/{room_id}", response_model=RoomRead)
 async def read_room(
     room_id: UUID4, user: CurrentActiveUser, db_session: Annotated[AsyncSession, Depends(get_async_session)]
-):
+) -> RoomRead:
     await verify_room_access(room_id, user, db_session)
     return await crud.room.get(db_session, room_id)
 
@@ -52,7 +55,7 @@ async def update_room(
     user: CurrentActiveUser,
     room_data: RoomUpdate,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> RoomRead:
     await verify_room_access(room_id, user, db_session)
     return await crud.room.update(db_session, room_id, room_data)
 
@@ -60,13 +63,15 @@ async def update_room(
 @router.delete("/{room_id}", status_code=204)
 async def delete_room(
     room_id: UUID4, user: CurrentActiveUser, db_session: Annotated[AsyncSession, Depends(get_async_session)]
-):
+) -> None:
     await verify_room_access(room_id, user, db_session)
     return await crud.room.delete(db_session, room_id)
 
 
 @router.get("/read_data/", response_model=list[RoomCreateWithoutVaultID])
-async def read_room_data(data_store=Depends(get_static_game_data)):
+async def read_room_data(
+    data_store: Annotated[StaticGameData, Depends(get_static_game_data)],
+) -> list[RoomCreateWithoutVaultID]:
     return data_store.rooms
 
 
@@ -75,7 +80,7 @@ async def get_buildable_rooms(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> list[RoomCreateWithoutVaultID]:
     """
     Get list of rooms that can be built in a vault.
 
@@ -92,7 +97,7 @@ async def build_room(
     room_data: RoomCreate,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> RoomRead:
     await get_user_vault_or_403(room_data.vault_id, user, db_session)
     return await room_service.build_room(db_session, room_data)
 
@@ -102,7 +107,7 @@ async def destroy_room(
     room_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> None:
     await verify_room_access(room_id, user, db_session)
     return await room_service.destroy_room(db_session, room_id)
 
@@ -112,6 +117,6 @@ async def upgrade_room(
     room_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> RoomRead:
     await verify_room_access(room_id, user, db_session)
     return await room_service.upgrade_room(db_session, room_id)

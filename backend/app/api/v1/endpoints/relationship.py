@@ -15,7 +15,7 @@ from app.schemas.relationship import (
 from app.schemas.responses import BreedStatsResponse, RelationshipActionResponse
 from app.services.relationship_service import relationship_service
 
-router = APIRouter()
+router = APIRouter(prefix="/relationships", tags=["Relationship"])
 
 
 @router.get("/vault/{vault_id}", response_model=list[RelationshipRead])
@@ -23,7 +23,7 @@ async def get_vault_relationships(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> list[RelationshipRead]:
     await get_user_vault_or_403(vault_id, user, db_session)
     return await relationship_crud.get_by_vault(db_session, vault_id)
 
@@ -33,8 +33,10 @@ async def get_relationship(
     relationship_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> RelationshipRead:
     relationship = await relationship_crud.get(db_session, relationship_id)
+    if not relationship:
+        raise HTTPException(status_code=404, detail="Relationship not found")
 
     await verify_dweller_access(relationship.dweller_1_id, user, db_session)
     return relationship
@@ -45,7 +47,7 @@ async def create_relationship(
     relationship_data: RelationshipCreate,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> RelationshipRead:
     """Create or get a relationship between two dwellers."""
     # Verify access to both dwellers
     await verify_dweller_access(relationship_data.dweller_1_id, user, db_session)
@@ -62,8 +64,10 @@ async def initiate_romance(
     relationship_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> RelationshipRead:
     relationship = await relationship_crud.get(db_session, relationship_id)
+    if not relationship:
+        raise HTTPException(status_code=404, detail="Relationship not found")
 
     await verify_dweller_access(relationship.dweller_1_id, user, db_session)
 
@@ -82,8 +86,10 @@ async def make_partners(
     relationship_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> RelationshipRead:
     relationship = await relationship_crud.get(db_session, relationship_id)
+    if not relationship:
+        raise HTTPException(status_code=404, detail="Relationship not found")
 
     await verify_dweller_access(relationship.dweller_1_id, user, db_session)
 
@@ -102,8 +108,10 @@ async def break_up_relationship(
     relationship_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> RelationshipActionResponse:
     relationship = await relationship_crud.get(db_session, relationship_id)
+    if not relationship:
+        raise HTTPException(status_code=404, detail="Relationship not found")
 
     await verify_dweller_access(relationship.dweller_1_id, user, db_session)
 
@@ -119,7 +127,7 @@ async def quick_pair_dwellers(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> RelationshipRead:
     """
     ☢️ Irradiated Cupid ☢️
 
@@ -147,7 +155,7 @@ async def calculate_compatibility(
     dweller_2_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> CompatibilityScore:
     """Calculate compatibility score between two dwellers."""
     # Verify access to both dwellers
     await verify_dweller_access(dweller_1_id, user, db_session)
@@ -164,7 +172,7 @@ async def process_vault_breeding(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> BreedStatsResponse:
     await get_user_vault_or_403(vault_id, user, db_session)
 
     from app.services.game_loop import game_loop_service

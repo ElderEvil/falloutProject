@@ -7,14 +7,72 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ## [Unreleased]
 
+### Added
+
+- **Response schemas** — Added `GameBalanceResponse`, `HappinessModifiersResponse`, `DeathStatsResponse`, `UnassignResponse`, `AutoAssignResponse`, `DwellerAssignmentItem`, `QuestPartyMemberRead`, `EligibleDwellerRead` schemas.
+- **`unequip_outfit`/`unequip_weapon` return types** — Added `response_model=None` and `-> None` type annotations.
+
 ### Fixed
 
 - **Password validation** - Added `min_length=8` to `UserCreate.password` schema. Added client-side password length and email format validation to RegisterForm.
+- **Game balance endpoint** — Added missing `dweller` and `exploration` fields to `GameBalanceResponse` construction.
 
 ### Changed
 
-- **UI component accessibility** - Added `role=button`, `tabindex`, keyboard Enter/Space handlers to UDropdown. Added `role=dialog` and `aria-modal=true` to UModal. Added auto-generated `id` + label `for` association to UInput. Replaced inline `:style` color with `text-theme-primary` class on UCard.
+- **Dict → Pydantic schema refactoring** — Replaced `dict` return types with typed Pydantic schemas in 8+ endpoints: `get_game_balance_settings` (`GameBalanceResponse`), `get_happiness_modifiers` (`HappinessModifiersResponse`), `get_death_statistics` (`DeathStatsResponse`), vault auto-assign endpoints (`UnassignResponse`/`AutoAssignResponse`), quest party/eligible dweller endpoints (`QuestPartyMemberRead`/`EligibleDwellerRead`).
+- **Schema unpacking** — 4 pregnancy endpoints switched from manual field mapping to `PregnancyRead.model_validate()`.
+- **Service layer relocation** — Radio mode vault mutation moved from `radio.py` endpoint to `radio_service.set_radio_mode()`. CRUD exploration `get_by_vault`/`get_active_by_vault` consolidated into single `get_by_vault(active_only=False)`.
+- **Auth endpoint return types** — 5 auth endpoints wired to existing `MessageResponse` schema.
+- **Game control return type annotations** — Added `-> dict[str, Any]` to `get_game_state`, `manual_tick`, `resolve_incident`.
+- **UI component accessibility** — Added `role=button`, `tabindex`, keyboard Enter/Space handlers to UDropdown. Added `role=dialog` and `aria-modal=true` to UModal. Added auto-generated `id` + label `for` association to UInput. Replaced inline `:style` color with `text-theme-primary` class on UCard.
 - **Admin password** - Updated `backend/.env.example` password to meet `min_length=8` requirement.
+
+---
+
+## [2.19.0] - 2026-06-21
+
+### Added
+
+- **Response schemas** — Added `GameBalanceResponse`, `HappinessModifiersResponse`, `DeathStatsResponse`, `UnassignResponse`, `AutoAssignResponse`, `DwellerAssignmentItem`, `QuestPartyMemberRead`, `EligibleDwellerRead` schemas.
+- **`unequip_outfit`/`unequip_weapon` return types** — Added `response_model=None` and `-> None` type annotation (these endpoints return `None`).
+
+### Changed
+
+- **Dict → Pydantic schema refactoring** — Replaced `dict` return types with typed Pydantic schemas in 8+ endpoints: `get_game_balance_settings` (`GameBalanceResponse`), `get_happiness_modifiers` (`HappinessModifiersResponse`), `get_death_statistics` (`DeathStatsResponse`), vault auto-assign endpoints (`UnassignResponse`/`AutoAssignResponse`), quest party/eligible dweller endpoints (`QuestPartyMemberRead`/`EligibleDwellerRead`).
+- **Schema unpacking** — 4 pregnancy endpoints (`list_pregnancies`, `get_pregnancy`, `get_active_pregnancy`, `list_all_pregnancies`) switched from manual field mapping to `PregnancyRead.model_validate()`.
+- **Service layer relocation** — Radio mode vault mutation moved from `radio.py` endpoint to `radio_service.set_radio_mode()`. CRUD exploration `get_by_vault`/`get_active_by_vault` consolidated into single `get_by_vault(active_only=False)`.
+- **Auth endpoint return types** — 5 auth endpoints (`forgot_password`, `reset_password`, `change_password`, `verify_email`, `resend_verification_email`) wired to existing `MessageResponse` schema.
+- **Game control return type annotations** — Added `-> dict[str, Any]` to `get_game_state`, `manual_tick`, `resolve_incident`.
+- **Version bump** — Backend 2.18.0 → 2.19.0, frontend 2.18.0 → 2.19.0.
+
+---
+
+## [2.18.0] - 2026-06-21
+
+### Added
+
+- **Library skills** — Added FastAPI, Typer, and Pydantic AI compliance skills from `uvx library-skills`. Added `.agents/skills/fastapi/SKILL.md`, `.agents/skills/typer/SKILL.md`, `.agents/skills/building-pydantic-ai-agents/SKILL.md`.
+- **Router prefix/tags in APIRouter constructors** — Moved `prefix` and `tags` from `include_router()` into individual `APIRouter()` definitions across all 22 router files. Cleans up `api.py` router registration.
+- **`ChatMessage` schema** — Moved request model from `chat.py` endpoint to `schemas/chat.py`.
+- **`ChatService.send_chat_notification()`** — Moved `_send_chat_notification` helper from endpoint to service layer as a static method.
+
+### Changed
+
+- **Annotated dependency style** — Standardized 12 endpoint params and 6 shared deps to `Annotated[Type, Depends()]` pattern in `deps.py` and 9 endpoint files.
+- **Return type annotations** — Added explicit return type annotations to ~108 endpoint functions across all 22 endpoint files.
+- **Nested try-except extraction** — Extracted `_extract_usage()` helpers in `chat_service.py` and `conversation_service.py`. Extracted `_send_chat_notification()` in `chat.py`.
+- **Async safety** — Wrapped sync S3/storage/OpenAI calls with `asyncio.to_thread()` in `open_ai.py`, `dweller_ai.py`, `conversation_service.py`, and `exploration/coordinator.py`.
+- **Version bump** — Backend 2.17.0 → 2.18.0, frontend 2.17.0 → 2.18.0.
+
+### Fixed
+
+- **Chat endpoint nested try-except** — `_send_chat_notification` was nested inside the main `try` block in `voice_chat_with_dweller`; extracted to a helper called after the try block.
+
+### Removed
+
+- **Stale documentation** — Deleted `docs/archive/` (8 outdated planning docs from v2.4–v2.6) and `docs/TWELVE_FACTOR_COMPLIANCE.md` (Jan 2026 one-time audit).
+- **Irrelevant skills** — Removed `tsdown/` (library bundler, not used) and `zod-v4/` (leftover).
+- **Duplicate skills** — Removed `backend/.agents/skills/` copies of fastapi, typer, and building-pydantic-ai-agents (exact duplicates of root copies).
 
 ---
 

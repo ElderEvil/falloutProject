@@ -1,10 +1,31 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from pydantic import UUID4, Field
+from pydantic import UUID4, BaseModel, Field
 
 from app.models.user import UserBase
 from app.utils.partial import optional
+
+
+class DeathCauseBreakdown(BaseModel):
+    """Breakdown of deaths by cause."""
+
+    health: int = 0
+    radiation: int = 0
+    incident: int = 0
+    exploration: int = 0
+    combat: int = 0
+
+
+class DeathStatsResponse(BaseModel):
+    """Life/death statistics for a user."""
+
+    total_dwellers_born: int = 0
+    total_dwellers_died: int = 0
+    deaths_by_cause: DeathCauseBreakdown
+    revivable_count: int = 0
+    permanently_dead_count: int = 0
+
 
 if TYPE_CHECKING:
     from app.schemas.vault import VaultRead

@@ -18,7 +18,7 @@ from app.models.vault_objective import VaultObjectiveProgressLink
 from app.services.event_bus import GameEvent, event_bus
 from app.utils.exceptions import ResourceNotFoundException
 
-router = APIRouter()
+router = APIRouter(prefix="/debug", tags=["Debug"])
 
 
 @router.post("/emit/{vault_id}")
@@ -26,7 +26,7 @@ async def emit_test_event(
     vault_id: UUID4,
     event_type: GameEvent,
     data: dict[str, Any] | None = None,
-):
+) -> dict:
     """Emit a test event to the EventBus for debugging objectives."""
     if data is None:
         data = {}
@@ -57,7 +57,7 @@ async def emit_test_event(
 
 
 @router.get("/events")
-async def list_subscribed_events():
+async def list_subscribed_events() -> dict:
     """List all currently subscribed events and their handlers."""
     handlers = {}
     for event_type, handler_list in event_bus._handlers.items():
@@ -69,7 +69,7 @@ async def list_subscribed_events():
 
 
 @router.get("/objectives/{vault_id}")
-async def debug_objectives(vault_id: UUID4, session: AsyncSession = Depends(get_async_session)):  # noqa: FAST002
+async def debug_objectives(vault_id: UUID4, session: Annotated[AsyncSession, Depends(get_async_session)]) -> dict:
     """Debug endpoint to inspect objectives and their progress for a vault."""
     objectives_result = await session.execute(select(Objective))
     all_objectives = objectives_result.scalars().all()
@@ -129,8 +129,8 @@ async def test_collect_objective(
     vault_id: UUID4,
     resource_type: str,
     amount: int,
-    session: AsyncSession = Depends(get_async_session),  # noqa: FAST002, PT028
-):
+    session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> dict:
     """Test RESOURCE_COLLECTED event and check if objective progress updates."""
 
     # Get objectives BEFORE
@@ -168,7 +168,7 @@ async def test_collect_objective(
 
 
 @router.get("/evaluators")
-async def debug_evaluators():
+async def debug_evaluators() -> dict:
     """Check which evaluators are subscribed to which events."""
     from app.services.objective_evaluators import evaluator_manager
 
@@ -184,7 +184,7 @@ async def debug_evaluators():
 async def test_build_living_room(
     vault_id: UUID4,
     session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> dict:
     """Debug endpoint to test building a living room and check population_max update."""
     from app import crud
     from app.models.room import Room

@@ -13,14 +13,14 @@ from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_redis_client
 from app.crud.user_profile import profile_crud
 from app.db.session import get_async_session
 from app.schemas.ai_usage import AIUsageResponse
-from app.schemas.user import UserCreate, UserRead, UserUpdate, UserWithTokens
+from app.schemas.user import DeathStatsResponse, UserCreate, UserRead, UserUpdate, UserWithTokens
 from app.schemas.user_profile import ProfileRead, ProfileUpdate
 from app.services.death_service import death_service
 from app.services.user_service import user_service
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(prefix="/users", tags=["User"])
 
 
 @router.post("/", response_model=UserRead)
@@ -29,7 +29,7 @@ async def create_user(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user_in: UserCreate,
     _: CurrentSuperuser,
-):
+) -> UserRead:
     """
     Admin route to create new user.
     """
@@ -50,7 +50,7 @@ async def read_users(
     skip: int = 0,
     limit: int = 100,
     _: CurrentSuperuser,
-):
+) -> list[UserRead]:
     """
     Retrieve users.
     """
@@ -65,7 +65,7 @@ async def update_user_me(
     password: Annotated[str | None, Body()] = None,
     email: Annotated[EmailStr, Body()] = None,
     user: CurrentActiveUser,
-):
+) -> UserRead:
     """
     Update current user.
     """
@@ -81,7 +81,7 @@ async def update_user_me(
 
 
 @router.get("/me", response_model=UserRead)
-async def read_user_me(user: CurrentActiveUser):
+async def read_user_me(user: CurrentActiveUser) -> UserRead:
     """
     Get current user.
     """
@@ -92,11 +92,11 @@ async def read_user_me(user: CurrentActiveUser):
 async def create_user_open(
     *,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    redis_client=Depends(get_redis_client),
-    username: str = Body(...),  # noqa: FAST002
-    password: str = Body(...),  # noqa: FAST002
-    email: EmailStr = Body(...),  # noqa: FAST002
-):
+    redis_client: Annotated[Redis, Depends(get_redis_client)],
+    username: Annotated[str, Body()],
+    password: Annotated[str, Body()],
+    email: Annotated[EmailStr, Body()],
+) -> UserWithTokens:
     """
     Create new user and log them in automatically.
     """
@@ -115,7 +115,7 @@ async def read_user_by_id(
     user_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
-):
+) -> UserRead:
     """
     Get a specific user by id.
     """
@@ -137,7 +137,7 @@ async def update_user(
     user_id: UUID4,
     user_in: UserUpdate,
     _: CurrentSuperuser,
-):
+) -> UserRead:
     """
     Update a user.
     """
@@ -230,27 +230,20 @@ async def update_my_profile(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/me/profile/statistics")
+@router.get("/me/profile/statistics", response_model=DeathStatsResponse)
 async def get_death_statistics(
     *,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
-) -> dict:
+) -> DeathStatsResponse:
     """
     Get life/death statistics for the current user.
 
     Returns statistics about dwellers born, died, and breakdown by cause of death,
     as well as counts of currently revivable and permanently dead dwellers.
-
-    :param db_session: Database session
-    :type db_session: AsyncSession
-    :param user: Current authenticated active user
-    :type user: CurrentActiveUser
-    :returns: Life/death statistics dictionary
-    :rtype: dict
     """
-
-    return await death_service.get_death_statistics(db_session, user.id)
+    data = await death_service.get_death_statistics(db_session, user.id)
+    return DeathStatsResponse(**data)
 
 
 @router.get("/me/profile/ai-usage")

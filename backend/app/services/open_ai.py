@@ -227,6 +227,14 @@ class AIService:
         msg = "Image generation did not return a URL. Use return_bytes=True to receive image data as bytes."
         raise RuntimeError(msg)
 
+    def _sync_generate_audio(self, model: str, voice: str, text: str) -> bytes:
+        with self._client.audio.speech.with_streaming_response.create(
+            model=model,
+            voice=voice,
+            input=text,
+        ) as response:
+            return response.read()
+
     async def generate_audio(self, text: str, voice: str = "alloy", model: str = "tts-1") -> bytes:
         """Generate audio from text using OpenAI's TTS API via direct client.
 
@@ -239,12 +247,7 @@ class AIService:
         if self._using_gateway:
             logger.debug("Audio generation via direct OpenAI client (Gateway doesn't support TTS API)")
         try:
-            with self._client.audio.speech.with_streaming_response.create(
-                model=model,
-                voice=voice,
-                input=text,
-            ) as response:
-                return response.read()
+            return await asyncio.to_thread(self._sync_generate_audio, model, voice, text)
         except Exception as e:
             err_msg = f"Error generating audio from text: {e}"
             logger.exception(err_msg)
@@ -300,7 +303,7 @@ class AIService:
             voice="echo",
             input=text_input,
         )
-        response.stream_to_file(speech_file_path)
+        await asyncio.to_thread(response.stream_to_file, speech_file_path)
         return speech_file_path
 
     async def transcribe_audio(self, audio_bytes: bytes, filename: str = "audio.webm") -> str:

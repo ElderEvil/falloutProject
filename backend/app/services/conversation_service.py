@@ -1,11 +1,13 @@
 """Service for handling audio conversations between users and dwellers."""
 
+import asyncio
 import logging
 import random
 from dataclasses import dataclass
 from uuid import uuid4
 
 from pydantic import UUID4
+from pydantic_ai.agent import AgentRunResult
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.agents.dweller_chat_agent import (
@@ -118,7 +120,8 @@ class ConversationService:
             user_audio_filename = (
                 f"chat/{user_id}/{dweller_id}/user_{uuid4()}.{audio_filename.rsplit('.', maxsplit=1)[-1]}"
             )
-            user_audio_url = self.storage_service.upload_file(
+            user_audio_url = await asyncio.to_thread(
+                self.storage_service.upload_file,
                 file_data=audio_bytes,
                 file_name=user_audio_filename,
                 file_type="audio/webm",
@@ -126,6 +129,20 @@ class ConversationService:
             )
 
         return transcribed_text, user_audio_url, None
+
+    @staticmethod
+    def _extract_usage(result: AgentRunResult[DwellerChatOutput]) -> tuple[int | None, int | None, int | None]:
+        """Extract token usage from an agent run result.
+
+        Returns:
+            Tuple of (prompt_tokens, completion_tokens, total_tokens)
+        """
+        try:
+            usage = result.usage()
+            return usage.input_tokens, usage.output_tokens, usage.total_tokens
+        except Exception:
+            logger.exception("Failed to extract usage info from voice chat agent result")
+            return None, None, None
 
     async def _generate_response_with_agent(
         self, db_session: AsyncSession, dweller, transcribed_text: str
@@ -160,16 +177,7 @@ class ConversationService:
             )
 
         output: DwellerChatOutput = result.output
-        try:
-            usage = result.usage()
-            prompt_tokens = usage.input_tokens
-            completion_tokens = usage.output_tokens
-            total_tokens = usage.total_tokens
-        except Exception:  # noqa: BLE001
-            logger.warning("Failed to extract usage info from voice chat agent result")
-            prompt_tokens = None
-            completion_tokens = None
-            total_tokens = None
+        prompt_tokens, completion_tokens, total_tokens = self._extract_usage(result)
         delta = compute_happiness_delta(output.sentiment_score)
         new_dweller_happiness, _ = await apply_chat_happiness(db_session=db_session, dweller_id=dweller.id, delta=delta)
         reason_code_str = derive_reason_code(output.sentiment_score)
@@ -198,8 +206,12 @@ class ConversationService:
         audio_url = None
         if self.storage_service is not None:
             audio_filename = f"chat/{user_id}/{dweller_id}/dweller_{uuid4()}.mp3"
-            audio_url = self.storage_service.upload_file(
-                file_data=audio_bytes, file_name=audio_filename, file_type="audio/mpeg", bucket_name="chat-audio"
+            audio_url = await asyncio.to_thread(
+                self.storage_service.upload_file,
+                file_data=audio_bytes,
+                file_name=audio_filename,
+                file_type="audio/mpeg",
+                bucket_name="chat-audio",
             )
         return audio_bytes, audio_url
 

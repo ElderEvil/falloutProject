@@ -208,7 +208,7 @@ class TestTextChat:
         assert data["action_suggestion"]["action_type"] == "no_action"
 
     @patch("app.services.chat_service.dweller_chat_agent")
-    @patch("app.api.v1.endpoints.chat.manager")
+    @patch("app.services.chat_service.manager")
     async def test_chat_action_suggestion_websocket_serialization(
         self,
         mock_manager: MagicMock,
@@ -510,7 +510,7 @@ class TestExplorationActions:
         assert result.reason == "Dweller is not currently exploring the wasteland"
 
     @patch("app.services.chat_service.dweller_chat_agent")
-    @patch("app.api.v1.endpoints.chat.manager")
+    @patch("app.services.chat_service.manager")
     async def test_start_exploration_action_api_response(
         self,
         mock_manager: MagicMock,
@@ -691,7 +691,7 @@ class TestMessageIdCorrelation:
     """
 
     @patch("app.services.chat_service.dweller_chat_agent")
-    @patch("app.api.v1.endpoints.chat.manager")
+    @patch("app.services.chat_service.manager")
     async def test_text_chat_response_includes_dweller_message_id(
         self,
         mock_manager: MagicMock,
@@ -730,7 +730,7 @@ class TestMessageIdCorrelation:
             pytest.fail(f"dweller_message_id '{dweller_message_id}' is not a valid UUID")
 
     @patch("app.services.chat_service.dweller_chat_agent")
-    @patch("app.api.v1.endpoints.chat.manager")
+    @patch("app.services.chat_service.manager")
     async def test_ws_action_suggestion_includes_message_id(
         self,
         mock_manager: MagicMock,
@@ -792,7 +792,7 @@ class TestMessageIdCorrelation:
         )
 
     @patch("app.services.chat_service.dweller_chat_agent")
-    @patch("app.api.v1.endpoints.chat.manager")
+    @patch("app.services.chat_service.manager")
     async def test_ws_message_id_is_valid_uuid(
         self,
         mock_manager: MagicMock,
@@ -851,7 +851,7 @@ class TestMessageIdCorrelation:
             pytest.fail(f"message_id '{message_id}' is not a valid UUID")
 
     @patch("app.api.v1.endpoints.chat.conversation_service")
-    @patch("app.api.v1.endpoints.chat.manager")
+    @patch("app.services.chat_service.manager")
     async def test_voice_chat_response_includes_dweller_message_id(
         self,
         mock_manager: MagicMock,
@@ -914,7 +914,7 @@ class TestMessageIdCorrelation:
             pytest.fail(f"dweller_message_id '{dweller_message_id}' is not a valid UUID")
 
     @patch("app.api.v1.endpoints.chat.conversation_service")
-    @patch("app.api.v1.endpoints.chat.manager")
+    @patch("app.services.chat_service.manager")
     async def test_voice_chat_ws_action_suggestion_includes_message_id(
         self,
         mock_manager: MagicMock,

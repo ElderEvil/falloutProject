@@ -11,12 +11,15 @@ from app.db.session import get_async_session
 from app.models.outfit import Outfit
 from app.schemas.outfit import OutfitCreate, OutfitRead, OutfitUpdate
 from app.schemas.responses import JunkListResponse
+from app.utils.static_data import StaticGameData
 
-router = APIRouter()
+router = APIRouter(prefix="/outfits", tags=["Outfit"])
 
 
 @router.post("/", response_model=OutfitRead)
-async def create_outfit(outfit_data: OutfitCreate, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
+async def create_outfit(
+    outfit_data: OutfitCreate, db_session: Annotated[AsyncSession, Depends(get_async_session)]
+) -> OutfitRead:
     return await crud.outfit.create(db_session, outfit_data)
 
 
@@ -26,12 +29,12 @@ async def read_outfit_list(
     skip: int = 0,
     limit: int = 100,
     vault_id: UUID4 | None = None,
-):
+) -> list[OutfitRead]:
     return await get_items_list(crud.outfit, db_session, Outfit, vault_id, skip, limit)
 
 
 @router.get("/{outfit_id}", response_model=OutfitRead)
-async def read_outfit(outfit_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
+async def read_outfit(outfit_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> OutfitRead:
     return await crud.outfit.get(db_session, outfit_id)
 
 
@@ -40,38 +43,40 @@ async def update_outfit(
     outfit_id: UUID4,
     outfit_data: OutfitUpdate,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
+) -> OutfitRead:
     return await crud.outfit.update(db_session, outfit_id, outfit_data)
 
 
 @router.delete("/{outfit_id}", status_code=204)
-async def delete_outfit(outfit_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
+async def delete_outfit(outfit_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> None:
     return await crud.outfit.delete(db_session, outfit_id)
 
 
 @router.post("/{dweller_id}/equip/{outfit_id}", response_model=OutfitRead)
 async def equip_outfit(
     dweller_id: UUID4, outfit_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]
-):
+) -> OutfitRead:
     return await crud.outfit.equip(db_session=db_session, item_id=outfit_id, dweller_id=dweller_id)
 
 
-@router.post("/{outfit_id}/unequip/", status_code=200)
-async def unequip_outfit(outfit_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
-    return await crud.outfit.unequip(db_session=db_session, item_id=outfit_id)
+@router.post("/{outfit_id}/unequip/", status_code=200, response_model=None)
+async def unequip_outfit(outfit_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> None:
+    await crud.outfit.unequip(db_session=db_session, item_id=outfit_id)
 
 
 @router.post("/{outfit_id}/scrap/", response_model=JunkListResponse)
-async def scrap_outfit(outfit_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
+async def scrap_outfit(
+    outfit_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]
+) -> JunkListResponse:
     junk_list = await crud.outfit.scrap(db_session=db_session, item_id=outfit_id)
     return JunkListResponse(junk=junk_list)
 
 
-@router.post("/{outfit_id}/sell/", status_code=200)
-async def sell_outfit(outfit_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]):
-    return await crud.outfit.sell(db_session=db_session, item_id=outfit_id)
+@router.post("/{outfit_id}/sell/", status_code=200, response_model=None)
+async def sell_outfit(outfit_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> None:
+    await crud.outfit.sell(db_session=db_session, item_id=outfit_id)
 
 
 @router.get("/read_data/", response_model=list[OutfitCreate])
-async def read_outfits_data(data_store=Depends(get_static_game_data)):
+async def read_outfits_data(data_store: Annotated[StaticGameData, Depends(get_static_game_data)]) -> list[OutfitCreate]:
     return data_store.outfits

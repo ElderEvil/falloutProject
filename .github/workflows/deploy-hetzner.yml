@@ -40,7 +40,7 @@ jobs:
 
             echo "Updating dramatiq-worker..."
             kubectl set image deployment/dramatiq-worker -n fallout \
-              worker=elerevil/fo-shelter-be:$TAG
+              dramatiq-worker=elerevil/fo-shelter-be:$TAG
 
             echo "Updating frontend..."
             kubectl set image deployment/frontend -n fallout \

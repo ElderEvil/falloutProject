@@ -58,8 +58,6 @@ async def _with_heartbeat(
                 await task
 
 
-
-
 @router.get("/stream/notifications", response_class=EventSourceResponse)
 async def stream_notifications(
     current_user: CurrentUser,

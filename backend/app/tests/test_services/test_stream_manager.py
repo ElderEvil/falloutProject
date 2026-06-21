@@ -43,6 +43,7 @@ def vault_id() -> str:
 
 async def test_subscribe_and_publish(manager: SSEManager, user_id: str):
     """Basic pub/sub: one subscriber receives one event."""
+
     async def _publish():
         await manager.publish(user_id, "test_topic", {"msg": "hello"})
         await manager.close()
@@ -80,6 +81,7 @@ async def test_multiple_subscribers_same_topic(manager: SSEManager, user_id: str
 
 async def test_subscriber_disconnect_cleans_up(manager: SSEManager, user_id: str):
     """When a subscriber exits, its queue is removed from the manager."""
+
     async def consume():
         async for _ in manager.subscribe(user_id, "cleanup"):
             break  # exit after one event
@@ -91,6 +93,7 @@ async def test_subscriber_disconnect_cleans_up(manager: SSEManager, user_id: str
 
 async def test_cancelled_error_unsubscribes(manager: SSEManager, user_id: str):
     """A subscriber cancelled via CancelledError is properly cleaned up."""
+
     async def consume():
         with contextlib.suppress(asyncio.CancelledError):
             async for _ in manager.subscribe(user_id, "cancel_test"):
@@ -131,6 +134,7 @@ async def test_publish_queue_full_drops_event(manager: SSEManager, user_id: str)
 
 async def test_close_shuts_down_all_subscribers(manager: SSEManager, user_id: str):
     """close() sends None sentinel to all subscribers, unsubscribing them."""
+
     async def consume():
         async for _ in manager.subscribe(user_id, "shutdown"):
             pass  # exits when None sentinel triggers generator stop

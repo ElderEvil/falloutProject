@@ -3,6 +3,12 @@ name: Build Docker Images
 on:
   push:
     branches: [ master ]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - '.github/workflows/**'
+      - 'CHANGELOG.md'
+      - 'ROADMAP.md'
   release:
     types: [published]
   workflow_dispatch:
@@ -22,7 +28,6 @@ jobs:
   build-backend:
     name: Build Backend Image
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.build_backend) || (github.event_name == 'push' && (contains(join(github.event.head_commit.modified, ' '), 'backend/') || contains(join(github.event.head_commit.added, ' '), 'backend/'))) }}
 
     steps:
       - name: Checkout code
@@ -78,7 +83,6 @@ jobs:
   build-frontend:
     name: Build Frontend Image
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.build_frontend) || (github.event_name == 'push' && (contains(join(github.event.head_commit.modified, ' '), 'frontend/') || contains(join(github.event.head_commit.added, ' '), 'frontend/'))) }}
 
     steps:
       - name: Checkout code

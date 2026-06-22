@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useRoute } from 'vue-router'
-import { useEquipmentStore } from '@/stores/equipment'
+import { useEquipmentStore } from '@/modules/combat/stores/equipment'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import EquipmentCard from '@/modules/combat/components/equipment/EquipmentCard.vue'
 import type { Dweller } from '../models/dweller'

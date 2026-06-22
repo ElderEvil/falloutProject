@@ -3,7 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import UnassignedDwellers from '@/modules/dwellers/components/UnassignedDwellers.vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
-import { useExplorationStore } from '@/stores/exploration'
+import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
 // Mock Iconify

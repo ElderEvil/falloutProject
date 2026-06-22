@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import type { RewardsSummary } from '@/stores/exploration'
+import type { RewardsSummary } from '@/modules/exploration/stores/exploration'
 
 interface Props {
   rewards: RewardsSummary | null

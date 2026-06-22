@@ -3,12 +3,12 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
-import { useExplorationStore } from '@/stores/exploration'
+import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useToast } from '@/core/composables/useToast'
 import { Icon } from '@iconify/vue'
 import ExplorationRewardsModal from '@/modules/exploration/components/ExplorationRewardsModal.vue'
-import type { RewardsSummary } from '@/stores/exploration'
+import type { RewardsSummary } from '@/modules/exploration/stores/exploration'
 
 const route = useRoute()
 const authStore = useAuthStore()

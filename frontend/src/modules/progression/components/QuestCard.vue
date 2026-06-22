@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { UBadge, UButton, UCard } from '@/core/components/ui'
-import { useQuestStore } from '@/stores/quest'
+import { useQuestStore } from '@/modules/progression/stores/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { QuestPartyMember, VaultQuest } from '../models/quest'
 

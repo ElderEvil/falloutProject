@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import { useIncidentStore } from '@/stores/incident'
+import { useIncidentStore } from '@/modules/combat/stores/incident'
 
 const vaultStore = useVaultStore()
 const authStore = useAuthStore()

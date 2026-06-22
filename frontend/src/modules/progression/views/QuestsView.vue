@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useQuestStore } from '@/stores/quest'
+import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useVaultStore } from '@/modules/vault/stores/vault'
-import { useRoomStore } from '@/stores/room'
+import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import SidePanel from '@/core/components/common/SidePanel.vue'

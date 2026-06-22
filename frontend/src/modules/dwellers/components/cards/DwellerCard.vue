@@ -5,7 +5,7 @@ import UButton from '@/core/components/ui/UButton.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import XPProgressBar from '../stats/XPProgressBar.vue'
 import { happinessService, type HappinessModifiers } from '../../services/happinessService'
-import { useTrainingStore } from '@/stores/training'
+import { useTrainingStore } from '@/modules/progression/stores/training'
 import type { components } from '@/core/types/api.generated'
 import { normalizeImageUrl } from '@/utils/image'
 

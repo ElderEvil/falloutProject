@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useDwellerStore } from '../stores/dweller'
-import { useExplorationStore } from '@/stores/exploration'
+import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
 import { Icon } from '@iconify/vue'

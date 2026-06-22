@@ -4,7 +4,7 @@ import { Icon } from '@iconify/vue'
 import UModal from '@/core/components/ui/UModal.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import UBadge from '@/core/components/ui/UBadge.vue'
-import { useQuestStore } from '@/stores/quest'
+import { useQuestStore } from '@/modules/progression/stores/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { VaultQuest } from '../models/quest'
 

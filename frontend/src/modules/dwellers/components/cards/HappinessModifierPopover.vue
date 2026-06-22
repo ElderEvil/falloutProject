@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { Icon } from '@iconify/vue'
-import { happinessService, type HappinessModifiers } from '../../services/happinessService'
+import UButton from '@/core/components/ui/UButton.vue'
+import { happinessService, type HappinessModifiers } from '@/modules/dwellers/services/happinessService'
 
 interface Props {
   dwellerId: string
@@ -34,30 +35,32 @@ const loadHappinessModifiers = async () => {
 
 <template>
   <div>
-    <button
+    <UButton
+      variant="ghost"
+      size="sm"
       @click="loadHappinessModifiers"
-      class="happiness-info-button"
       :disabled="loadingModifiers"
-      aria-label="View happiness modifiers"
-      title="View happiness modifiers"
+      :aria-label="'View happiness modifiers'"
+      :title="'View happiness modifiers'"
     >
       <Icon
         :icon="loadingModifiers ? 'mdi:loading' : 'mdi:information-outline'"
         :class="{ 'animate-spin': loadingModifiers }"
         class="h-4 w-4"
       />
-    </button>
+    </UButton>
 
     <div v-if="showModifiers && happinessModifiers" class="happiness-modifiers">
       <div class="modifiers-header">
         <span class="modifiers-title">Happiness Modifiers</span>
-        <button
+        <UButton
+          variant="ghost"
+          size="sm"
           @click="showModifiers = false"
-          class="close-button"
           aria-label="Close happiness modifiers"
         >
           <Icon icon="mdi:close" class="h-4 w-4" />
-        </button>
+        </UButton>
       </div>
 
       <div v-if="happinessModifiers.positive.length > 0" class="modifiers-section">

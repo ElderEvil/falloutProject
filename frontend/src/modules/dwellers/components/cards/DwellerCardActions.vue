@@ -121,11 +121,11 @@ const isTraining = computed(() => {
       </UTooltip>
 
       <UTooltip text="Assign a pet companion - Coming in Phase 3 (Mar-Apr 2026)">
-        <button class="locked-action-button" disabled>
-          <Icon icon="mdi:paw" class="h-5 w-5" />
-          <span>Assign Pet</span>
-          <Icon icon="mdi:lock" class="h-4 w-4 lock-icon" />
-        </button>
+        <UButton variant="secondary" size="md" block disabled class="locked-action-button">
+          <Icon icon="mdi:paw" class="h-5 w-5 mr-2" />
+          Assign Pet
+          <Icon icon="mdi:lock" class="h-4 w-4 ml-auto opacity-50" />
+        </UButton>
       </UTooltip>
     </div>
   </div>
@@ -165,30 +165,5 @@ const isTraining = computed(() => {
   border-top: 1px solid var(--color-theme-glow);
 }
 
-.locked-action-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1rem;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 0.375rem;
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: not-allowed;
-  opacity: 0.5;
-  transition: all 0.2s;
-}
 
-.locked-action-button:hover {
-  background: rgba(0, 0, 0, 0.5);
-  opacity: 0.75;
-}
-
-.locked-action-button .lock-icon {
-  margin-left: auto;
-}
 </style>

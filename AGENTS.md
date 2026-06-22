@@ -234,7 +234,7 @@ pnpm run test -- --coverage
 ## UI Guidelines (Terminal CRT Theme)
 
 - Primary color: `#00ff00`.
-- Prefer the repo UI components (see `frontend/src/components/ui/`): `UButton`, `UCard`, `UInput`, `UModal`, etc.
+- Prefer the repo UI components (see `frontend/src/core/components/ui/`): `UButton`, `UCard`, `UInput`, `UModal`, etc.
 - Tailwind utilities only; avoid inline styles.
 - Use CRT effects classes where appropriate: `.flicker`, `.terminal-glow`, `.crt-screen`.
 - Design token source of truth: `frontend/src/assets/tailwind.css` and `frontend/STYLEGUIDE.md`.
@@ -264,6 +264,17 @@ When cutting a release branch or version bump:
 2. After backend API changes: regenerate frontend API types: `cd frontend && pnpm run types:generate`.
 3. Prefer small, test-backed changes; follow existing patterns (don't introduce new architectures).
 4. Commit messages: `feat:`, `fix:`, `chore:`; branch prefixes: `feat/`, `fix/`, `chore/`.
+
+## Frontend Simplification Heuristic
+
+Before writing any new frontend code, apply this ordering to every decision:
+
+1. Does this need to exist?   → no: skip it (YAGNI)
+2. Stdlib does it?            → use it
+3. Native platform feature?   → use it
+4. Installed dependency?      → use it
+5. One line?                  → one line
+6. Only then: the minimum that works
 
 ---
 

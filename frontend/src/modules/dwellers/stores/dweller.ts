@@ -1,14 +1,15 @@
 import { reactive } from 'vue'
 import { getActivePinia } from 'pinia'
 
-export {
+export type {
   DwellerStatus,
   DwellerAgeGroup,
   DwellerWithStatus,
   DwellerSortBy,
   SortDirection,
-  useDwellerFilterStore,
 } from './dwellerFilter'
+
+export { useDwellerFilterStore } from './dwellerFilter'
 
 export { useDwellerGenerationStore } from './dwellerGeneration'
 export { useDwellerManagementStore } from './dwellerManagement'
@@ -21,10 +22,17 @@ import { useDwellerManagementStore } from './dwellerManagement'
 import { useDwellerMedicalStore } from './dwellerMedical'
 import { useDwellerDeathStore } from './dwellerDeath'
 
-let cachedFacade: Record<string, unknown> | null = null
+type DwellerFacade =
+  ReturnType<typeof useDwellerFilterStore> &
+  ReturnType<typeof useDwellerGenerationStore> &
+  ReturnType<typeof useDwellerManagementStore> &
+  ReturnType<typeof useDwellerMedicalStore> &
+  ReturnType<typeof useDwellerDeathStore>
+
+let cachedFacade: DwellerFacade | null = null
 let cachedPinia: ReturnType<typeof getActivePinia> = null
 
-function buildDwellerFacade(): Record<string, unknown> {
+function buildDwellerFacade(): DwellerFacade {
   const filter = useDwellerFilterStore()
   const generation = useDwellerGenerationStore()
   const management = useDwellerManagementStore()

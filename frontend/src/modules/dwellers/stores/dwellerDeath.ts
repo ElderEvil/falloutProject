@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import axios from '@/core/plugins/axios'
 import type { DwellerDead, DwellerReviveResponse, RevivalCostResponse } from '../models/dweller'
@@ -12,13 +12,14 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
 
   const deadDwellers = ref<DwellerDead[]>([])
   const graveyardDwellers = ref<DwellerDead[]>([])
-  const isDeadLoading = ref(false)
+  const deadLoadingCount = ref(0)
+  const isDeadLoading = computed(() => deadLoadingCount.value > 0)
 
   /**
    * Fetch dead dwellers (revivable) for a vault
    */
   async function fetchDeadDwellers(vaultId: string, token: string): Promise<DwellerDead[]> {
-    isDeadLoading.value = true
+    deadLoadingCount.value++
     try {
       const response = await axios.get<DwellerDead[]>(`/api/v1/dwellers/vault/${vaultId}/dead`, {
         headers: {
@@ -31,7 +32,7 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
       handleStoreError(error, `Failed to fetch dead dwellers for vault ${vaultId}`)
       return []
     } finally {
-      isDeadLoading.value = false
+      deadLoadingCount.value--
     }
   }
 
@@ -39,7 +40,7 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
    * Fetch graveyard (permanently dead) dwellers for a vault
    */
   async function fetchGraveyardDwellers(vaultId: string, token: string): Promise<DwellerDead[]> {
-    isDeadLoading.value = true
+    deadLoadingCount.value++
     try {
       const response = await axios.get<DwellerDead[]>(
         `/api/v1/dwellers/vault/${vaultId}/graveyard`,
@@ -55,7 +56,7 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
       handleStoreError(error, `Failed to fetch graveyard for vault ${vaultId}`)
       return []
     } finally {
-      isDeadLoading.value = false
+      deadLoadingCount.value--
     }
   }
 
@@ -150,6 +151,7 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
   return {
     deadDwellers,
     graveyardDwellers,
+    deadLoadingCount,
     isDeadLoading,
     fetchDeadDwellers,
     fetchGraveyardDwellers,

@@ -2,7 +2,7 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import axios from '@/core/plugins/axios'
-import type { Dweller, DwellerShort } from '../models/dweller'
+import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
 import { handleStoreError } from '@/core/utils/errorHandler'
 
 export type DwellerStatus = 'idle' | 'working' | 'exploring' | 'questing' | 'training' | 'dead'

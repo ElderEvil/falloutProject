@@ -17,11 +17,11 @@ export const useDwellerGenerationStore = defineStore('dwellerGeneration', () => 
         },
       })
       filterStore.detailedDwellers[id] = response.data
-      toast.success('AI portrait generated successfully!')
+      toast.success('Dweller info generated successfully!')
       return filterStore.detailedDwellers[id] ?? null
     } catch (error) {
-      handleStoreError(error, `Failed to generate image for dweller ${id}`)
-      toast.error('Failed to generate AI portrait')
+      handleStoreError(error, `Failed to generate info for dweller ${id}`)
+      toast.error('Failed to generate dweller info')
       return null
     }
   }

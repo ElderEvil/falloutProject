@@ -70,6 +70,18 @@ async function readSseStream(
       }
     }
   }
+  buffer += decoder.decode()
+  const remaining = buffer.split('\n')
+  for (const line of remaining) {
+    if (line === '') { dispatch(); continue }
+    const parsed = parseSseLine(line)
+    if (!parsed) continue
+    switch (parsed.field) {
+      case 'event': currentEvent = parsed.value; break
+      case 'data': currentData.push(parsed.value); break
+      case 'id': currentId = parsed.value; break
+    }
+  }
   if (currentData.length > 0 || currentEvent) dispatch()
 }
 
@@ -83,7 +95,7 @@ export interface UsePostEventStreamReturn {
   close: () => void
 }
 
-export function usePostEventStream(url: string): UsePostEventStreamReturn {
+export function usePostEventStream(url: string, options?: { headers?: Record<string, string> }): UsePostEventStreamReturn {
   const event = ref<SseEvent | null>(null)
   const status = ref<'idle' | 'connecting' | 'open' | 'closed'>('idle')
   const error = ref<Error | null>(null)
@@ -106,7 +118,7 @@ export function usePostEventStream(url: string): UsePostEventStreamReturn {
     try {
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...options?.headers },
         body: JSON.stringify(body),
         signal: abortController.signal,
       })

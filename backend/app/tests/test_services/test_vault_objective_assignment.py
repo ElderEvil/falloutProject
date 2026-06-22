@@ -11,6 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.models.objective import Objective
 from app.models.user import User
+from app.models.vault import Vault
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.vault_service import VaultService
@@ -34,10 +35,8 @@ async def _seed_objective(async_session: AsyncSession, challenge: str, category:
     return obj
 
 
-async def _create_vault(async_session: AsyncSession, user: User):
+async def _create_vault(async_session: AsyncSession, user: User) -> Vault:
     """Helper to create a simple vault for a user."""
-    from app.models.vault import Vault
-
     vault_data = VaultCreateWithUserID(**create_fake_vault(), user_id=user.id)
     return await crud.vault.create(async_session, vault_data)
 
@@ -45,7 +44,9 @@ async def _create_vault(async_session: AsyncSession, user: User):
 class TestVaultObjectiveAssignment:
     """Tests for vault objective assignment logic."""
 
-    async def test_assigns_daily_and_weekly_to_standard_vault(self, async_session: AsyncSession, superuser: User):
+    async def test_assigns_daily_and_weekly_to_standard_vault(
+        self, async_session: AsyncSession, superuser: User
+    ) -> None:
         """Standard vault gets 1 daily + 1 weekly objective when matching objectives exist."""
         daily = await _seed_objective(async_session, "Collect 250 Food", "daily", "collect")
         weekly = await _seed_objective(async_session, "Build 5 Rooms", "weekly", "build")
@@ -67,11 +68,13 @@ class TestVaultObjectiveAssignment:
         )
 
         assert len(links) == 2
-        linked_ids = {l.objective_id for l in links}
+        linked_ids = {lnk.objective_id for lnk in links}
         assert daily.id in linked_ids
         assert weekly.id in linked_ids
 
-    async def test_assigns_achievements_for_boosted_vault(self, async_session: AsyncSession, superuser: User):
+    async def test_assigns_achievements_for_boosted_vault(
+        self, async_session: AsyncSession, superuser: User
+    ) -> None:
         """Boosted vault gets extra achievement objectives."""
         await _seed_objective(async_session, "Collect 250 Food", "daily", "collect")
         await _seed_objective(async_session, "Build 5 Rooms", "weekly", "build")
@@ -96,7 +99,9 @@ class TestVaultObjectiveAssignment:
 
         assert len(links) == 7  # 1 daily + 1 weekly + 5 achievement
 
-    async def test_skips_when_no_objectives(self, async_session: AsyncSession, superuser: User):
+    async def test_skips_when_no_objectives(
+        self, async_session: AsyncSession, superuser: User
+    ) -> None:
         """No crash when no objectives exist — assigns nothing."""
         vault = await _create_vault(async_session, superuser)
 
@@ -115,7 +120,9 @@ class TestVaultObjectiveAssignment:
 
         assert len(links) == 0
 
-    async def test_filters_by_category_not_challenge(self, async_session: AsyncSession, superuser: User):
+    async def test_filters_by_category_not_challenge(
+        self, async_session: AsyncSession, superuser: User
+    ) -> None:
         """Regression: uses category= filter, so objectives whose challenge lacks
         'daily'/'weekly' substring are still found if category is correct."""
         obj = await _seed_objective(async_session, "Collect caps", "daily", "collect")

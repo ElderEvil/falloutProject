@@ -106,7 +106,6 @@ class ExplorationCoordinator:
         await self._publish_sse(
             db_session,
             exploration,
-            "exploration_event",
             event_type=event.type,
             description=event.description,
             progress=exploration.progress_percentage(),

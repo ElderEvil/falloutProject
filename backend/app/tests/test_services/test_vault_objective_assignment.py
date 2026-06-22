@@ -72,9 +72,7 @@ class TestVaultObjectiveAssignment:
         assert daily.id in linked_ids
         assert weekly.id in linked_ids
 
-    async def test_assigns_achievements_for_boosted_vault(
-        self, async_session: AsyncSession, superuser: User
-    ) -> None:
+    async def test_assigns_achievements_for_boosted_vault(self, async_session: AsyncSession, superuser: User) -> None:
         """Boosted vault gets extra achievement objectives."""
         await _seed_objective(async_session, "Collect 250 Food", "daily", "collect")
         await _seed_objective(async_session, "Build 5 Rooms", "weekly", "build")
@@ -99,9 +97,7 @@ class TestVaultObjectiveAssignment:
 
         assert len(links) == 7  # 1 daily + 1 weekly + 5 achievement
 
-    async def test_skips_when_no_objectives(
-        self, async_session: AsyncSession, superuser: User
-    ) -> None:
+    async def test_skips_when_no_objectives(self, async_session: AsyncSession, superuser: User) -> None:
         """No crash when no objectives exist — assigns nothing."""
         vault = await _create_vault(async_session, superuser)
 
@@ -120,9 +116,7 @@ class TestVaultObjectiveAssignment:
 
         assert len(links) == 0
 
-    async def test_filters_by_category_not_challenge(
-        self, async_session: AsyncSession, superuser: User
-    ) -> None:
+    async def test_filters_by_category_not_challenge(self, async_session: AsyncSession, superuser: User) -> None:
         """Regression: uses category= filter, so objectives whose challenge lacks
         'daily'/'weekly' substring are still found if category is correct."""
         obj = await _seed_objective(async_session, "Collect caps", "daily", "collect")

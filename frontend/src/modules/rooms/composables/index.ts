@@ -1,3 +1,4 @@
+export { useRoomDestroy } from './useRoomDestroy'
 export { useRoomInteractions } from './useRoomInteractions'
 export { useHoverPreview } from './useHoverPreview'
 export { useRoomProduction } from './useRoomProduction'

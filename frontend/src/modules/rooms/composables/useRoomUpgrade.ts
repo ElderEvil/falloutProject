@@ -4,6 +4,7 @@ import type { Room } from '../models/room'
 import { useRoomStore } from '../stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
+import { useRoomDestroy } from './useRoomDestroy'
 
 export function useRoomUpgrade(
   room: Ref<Room | null>,
@@ -16,8 +17,9 @@ export function useRoomUpgrade(
   const authStore = useAuthStore()
   const toast = useToast()
 
+  const { isDestroying, destroyRoom } = useRoomDestroy()
+
   const isUpgrading = ref(false)
-  const isDestroying = ref(false)
   const isRushing = ref(false)
   const justUpgraded = ref(false)
 
@@ -102,45 +104,14 @@ export function useRoomUpgrade(
 
   const handleDestroy = async () => {
     if (!room.value) return
-
-    if (
-      !confirm(
-        `Are you sure you want to destroy ${room.value.name}? You will receive a partial refund.`
-      )
-    ) {
-      return
-    }
-
-    isDestroying.value = true
-    actionError.value = null
-    const roomName = room.value.name
-
-    const vaultId = route.params.id
-    if (!vaultId || typeof vaultId !== 'string') {
-      actionError.value = 'No vault ID available'
-      isDestroying.value = false
-      return
-    }
-
-    const token = authStore.token
-    if (!token || typeof token !== 'string') {
-      actionError.value = 'No auth token available'
-      isDestroying.value = false
-      return
-    }
-
-    try {
-      await roomStore.destroyRoom(room.value.id, token, vaultId)
-      toast.success(`${roomName} destroyed. Caps refunded (50%).`)
-      emitRoomUpdated()
-      emitClose()
-    } catch (error) {
-      console.error('Failed to destroy room:', error)
-      actionError.value = error instanceof Error ? error.message : 'Failed to destroy room'
-      toast.error(error instanceof Error ? error.message : 'Failed to destroy room', 5000)
-    } finally {
-      isDestroying.value = false
-    }
+    await destroyRoom(room.value.id, {
+      roomName: room.value.name,
+      actionError,
+      onSuccess: () => {
+        emitRoomUpdated()
+        emitClose()
+      },
+    })
   }
 
   const handleRushProduction = async () => {

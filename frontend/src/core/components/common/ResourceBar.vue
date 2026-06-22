@@ -58,11 +58,11 @@ const barColorStyle = computed(() => {
   // Bar fill color changes based on resource status
   switch (status.value) {
     case 'critical':
-      return '#dc2626' // red-600
+      return 'var(--color-danger)'
     case 'low':
-      return '#f97316' // orange-500
+      return 'var(--color-warning)'
     case 'medium':
-      return '#eab308' // yellow-500
+      return 'var(--color-yellow-500)'
     default:
       return 'var(--color-theme-primary)' // Theme-aware
   }

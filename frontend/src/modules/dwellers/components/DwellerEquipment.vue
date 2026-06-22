@@ -4,8 +4,7 @@ import { Icon } from '@iconify/vue'
 import { useRoute } from 'vue-router'
 import { useEquipmentStore } from '@/stores/equipment'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import WeaponCard from '@/modules/combat/components/equipment/WeaponCard.vue'
-import OutfitCard from '@/modules/combat/components/equipment/OutfitCard.vue'
+import EquipmentCard from '@/modules/combat/components/equipment/EquipmentCard.vue'
 import type { Dweller } from '../models/dweller'
 
 interface Props {
@@ -122,9 +121,10 @@ const modalIcon = computed(() =>
           <h4 class="slot-title">Weapon</h4>
         </div>
 
-        <WeaponCard
+        <EquipmentCard
           v-if="equippedWeapon"
-          :weapon="equippedWeapon"
+          :item="equippedWeapon"
+          type="weapon"
           :equipped="true"
           :show-actions="true"
           @unequip="handleUnequipWeapon"
@@ -151,9 +151,10 @@ const modalIcon = computed(() =>
           <h4 class="slot-title">Outfit</h4>
         </div>
 
-        <OutfitCard
+        <EquipmentCard
           v-if="equippedOutfit"
-          :outfit="equippedOutfit"
+          :item="equippedOutfit"
+          type="outfit"
           :equipped="true"
           :show-actions="true"
           @unequip="handleUnequipOutfit"
@@ -203,10 +204,11 @@ const modalIcon = computed(() =>
             <!-- Weapons Section (only when mode is weapon) -->
             <div v-if="inventoryMode === 'weapon'" class="inventory-section">
               <div class="items-list">
-                <WeaponCard
+                <EquipmentCard
                   v-for="weapon in availableWeapons"
                   :key="weapon.id"
-                  :weapon="weapon"
+                  :item="weapon"
+                  type="weapon"
                   :show-actions="true"
                   @equip="handleEquipWeapon(weapon.id)"
                 />
@@ -220,10 +222,11 @@ const modalIcon = computed(() =>
             <!-- Outfits Section (only when mode is outfit) -->
             <div v-if="inventoryMode === 'outfit'" class="inventory-section">
               <div class="items-list">
-                <OutfitCard
+                <EquipmentCard
                   v-for="outfit in availableOutfits"
                   :key="outfit.id"
-                  :outfit="outfit"
+                  :item="outfit"
+                  type="outfit"
                   :show-actions="true"
                   @equip="handleEquipOutfit(outfit.id)"
                 />

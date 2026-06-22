@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Icon } from '@iconify/vue'
+
 interface DwellerDropData {
   dwellerId: string
   firstName: string

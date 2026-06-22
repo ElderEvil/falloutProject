@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import type { ExplorationSummary } from '@/modules/exploration/stores/exploration'
+import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller, DetailedDweller } from '@/modules/dwellers/types'
 
 interface Props {
-  explorations: ExplorationSummary[]
+  explorations: Exploration[]
   dwellers: Dweller[]
   detailedDwellers: Record<string, DetailedDweller>
   vaultId: string
@@ -38,7 +38,7 @@ const getDwellerOutfit = (dwellerId: string) => {
   return null
 }
 
-const getProgressPercentage = (exploration: ExplorationSummary) => {
+const getProgressPercentage = (exploration: Exploration) => {
   const now = Date.now()
   let startTimeStr = exploration.start_time
   if (!startTimeStr.endsWith('Z')) {

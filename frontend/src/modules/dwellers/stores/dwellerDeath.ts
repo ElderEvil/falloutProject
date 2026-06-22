@@ -115,15 +115,19 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
       const existingIndex = filterStore.dwellers.findIndex((d) => d.id === dwellerId)
       if (existingIndex !== -1) {
         // Replace existing stale entry with revived dweller data
-        filterStore.dwellers[existingIndex] = revivedDweller as unknown as import('../models/dweller').DwellerShort
+        filterStore.dwellers[existingIndex] =
+          revivedDweller as unknown as import('../models/dweller').DwellerShort
       } else {
         // Type cast needed since DwellerRead may have slightly different shape than DwellerShort
-        filterStore.dwellers.push(revivedDweller as unknown as import('../models/dweller').DwellerShort)
+        filterStore.dwellers.push(
+          revivedDweller as unknown as import('../models/dweller').DwellerShort
+        )
       }
 
       // Also update cached detailed dweller if present
       if (dwellerId in filterStore.detailedDwellers) {
-        filterStore.detailedDwellers[dwellerId] = revivedDweller as unknown as import('../models/dweller').Dweller
+        filterStore.detailedDwellers[dwellerId] =
+          revivedDweller as unknown as import('../models/dweller').Dweller
       }
 
       toast.success(

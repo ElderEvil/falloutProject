@@ -32,7 +32,7 @@ function parseSseLine(line: string): { field: string; value: string } | null {
 
 async function readSseStream(
   reader: ReadableStreamDefaultReader<Uint8Array>,
-  onEvent: (evt: SseEvent) => void,
+  onEvent: (evt: SseEvent) => void
 ): Promise<void> {
   const decoder = new TextDecoder()
   let buffer = ''
@@ -60,26 +60,44 @@ async function readSseStream(
     const lines = buffer.split('\n')
     buffer = lines.pop() || ''
     for (const line of lines) {
-      if (line === '') { dispatch(); continue }
+      if (line === '') {
+        dispatch()
+        continue
+      }
       const parsed = parseSseLine(line)
       if (!parsed) continue
       switch (parsed.field) {
-        case 'event': currentEvent = parsed.value; break
-        case 'data': currentData.push(parsed.value); break
-        case 'id': currentId = parsed.value; break
+        case 'event':
+          currentEvent = parsed.value
+          break
+        case 'data':
+          currentData.push(parsed.value)
+          break
+        case 'id':
+          currentId = parsed.value
+          break
       }
     }
   }
   buffer += decoder.decode()
   const remaining = buffer.split('\n')
   for (const line of remaining) {
-    if (line === '') { dispatch(); continue }
+    if (line === '') {
+      dispatch()
+      continue
+    }
     const parsed = parseSseLine(line)
     if (!parsed) continue
     switch (parsed.field) {
-      case 'event': currentEvent = parsed.value; break
-      case 'data': currentData.push(parsed.value); break
-      case 'id': currentId = parsed.value; break
+      case 'event':
+        currentEvent = parsed.value
+        break
+      case 'data':
+        currentData.push(parsed.value)
+        break
+      case 'id':
+        currentId = parsed.value
+        break
     }
   }
   if (currentData.length > 0 || currentEvent) dispatch()
@@ -88,7 +106,7 @@ async function readSseStream(
 // Shared SSE base — handles both GET and POST streaming
 function useSseBase(
   url: string,
-  options?: { method?: 'GET' | 'POST'; headers?: Record<string, string> },
+  options?: { method?: 'GET' | 'POST'; headers?: Record<string, string> }
 ) {
   const event = ref<SseEvent | null>(null)
   const status = ref<'idle' | 'connecting' | 'open' | 'closed'>('idle')
@@ -97,8 +115,14 @@ function useSseBase(
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
 
   const close = () => {
-    if (abortController) { abortController.abort(); abortController = null }
-    if (reader) { reader.cancel().catch(() => {}); reader = null }
+    if (abortController) {
+      abortController.abort()
+      abortController = null
+    }
+    if (reader) {
+      reader.cancel().catch(() => {})
+      reader = null
+    }
     status.value = 'closed'
   }
 
@@ -124,7 +148,9 @@ function useSseBase(
 
       status.value = 'open'
       reader = response.body.getReader()
-      await readSseStream(reader, (evt) => { event.value = evt })
+      await readSseStream(reader, (evt) => {
+        event.value = evt
+      })
       status.value = 'closed'
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
@@ -152,9 +178,18 @@ export interface UsePostEventStreamReturn {
   close: () => void
 }
 
-export function usePostEventStream(url: string, options?: { headers?: Record<string, string> }): UsePostEventStreamReturn {
+export function usePostEventStream(
+  url: string,
+  options?: { headers?: Record<string, string> }
+): UsePostEventStreamReturn {
   const { event, status, error, connect, close } = useSseBase(url, { ...options, method: 'POST' })
-  return { event, status, error, connect: connect as (body: Record<string, unknown>) => Promise<void>, close }
+  return {
+    event,
+    status,
+    error,
+    connect: connect as (body: Record<string, unknown>) => Promise<void>,
+    close,
+  }
 }
 
 // Fetch-based GET SSE (supports Authorization headers for authenticated streams)

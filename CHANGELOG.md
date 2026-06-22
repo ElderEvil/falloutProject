@@ -7,15 +7,9 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ## [Unreleased]
 
-### Added
+### Planned
 
--
-### Fixed
-
--
-### Changed
-
--
+- v2.21.0 — @nuxt/ui adoption (11 home-grown U* components → @nuxt/ui), Axios→fetch migration, SSE polish
 
 ---
 

@@ -25,7 +25,10 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       // Update the dweller in the list
       const dwellerIndex = filterStore.dwellers.findIndex((d) => d.id === dwellerId)
       if (dwellerIndex !== -1 && filterStore.dwellers[dwellerIndex]) {
-        filterStore.dwellers[dwellerIndex] = { ...filterStore.dwellers[dwellerIndex]!, room_id: roomId }
+        filterStore.dwellers[dwellerIndex] = {
+          ...filterStore.dwellers[dwellerIndex]!,
+          room_id: roomId,
+        }
       }
 
       // Update detailed dweller if cached

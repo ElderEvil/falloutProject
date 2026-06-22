@@ -68,11 +68,7 @@ const getProgressPercentage = (exploration: ExplorationSummary) => {
       </router-link>
     </div>
     <div class="explorer-list">
-      <div
-        v-for="exploration in explorations"
-        :key="exploration.id"
-        class="explorer-card"
-      >
+      <div v-for="exploration in explorations" :key="exploration.id" class="explorer-card">
         <div class="explorer-info">
           <div class="flex items-center gap-2 mb-1">
             <Icon icon="mdi:account" class="h-5 w-5 text-wasteland" />
@@ -98,22 +94,15 @@ const getProgressPercentage = (exploration: ExplorationSummary) => {
           <!-- Equipped Items -->
           <div
             v-if="
-              getDwellerWeapon(exploration.dweller_id) ||
-              getDwellerOutfit(exploration.dweller_id)
+              getDwellerWeapon(exploration.dweller_id) || getDwellerOutfit(exploration.dweller_id)
             "
             class="equipped-items mt-2"
           >
-            <div
-              v-if="getDwellerWeapon(exploration.dweller_id)"
-              class="stat-item text-amber-400"
-            >
+            <div v-if="getDwellerWeapon(exploration.dweller_id)" class="stat-item text-amber-400">
               <Icon icon="mdi:sword" class="h-4 w-4" />
               <span class="text-xs">{{ getDwellerWeapon(exploration.dweller_id)?.name }}</span>
             </div>
-            <div
-              v-if="getDwellerOutfit(exploration.dweller_id)"
-              class="stat-item text-blue-400"
-            >
+            <div v-if="getDwellerOutfit(exploration.dweller_id)" class="stat-item text-blue-400">
               <Icon icon="mdi:tshirt-crew" class="h-4 w-4" />
               <span class="text-xs">{{ getDwellerOutfit(exploration.dweller_id)?.name }}</span>
             </div>

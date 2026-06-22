@@ -32,7 +32,10 @@ export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
       // Update in list if exists
       const dwellerIndex = filterStore.dwellers.findIndex((d) => d.id === dwellerId)
       if (dwellerIndex !== -1) {
-        filterStore.dwellers[dwellerIndex] = { ...filterStore.dwellers[dwellerIndex], ...response.data }
+        filterStore.dwellers[dwellerIndex] = {
+          ...filterStore.dwellers[dwellerIndex],
+          ...response.data,
+        }
       }
 
       toast.success('Stimpack used! Dweller healed.')
@@ -73,7 +76,10 @@ export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
       // Update in list if exists
       const dwellerIndex = filterStore.dwellers.findIndex((d) => d.id === dwellerId)
       if (dwellerIndex !== -1) {
-        filterStore.dwellers[dwellerIndex] = { ...filterStore.dwellers[dwellerIndex], ...response.data }
+        filterStore.dwellers[dwellerIndex] = {
+          ...filterStore.dwellers[dwellerIndex],
+          ...response.data,
+        }
       }
 
       toast.success('RadAway used! Radiation reduced.')

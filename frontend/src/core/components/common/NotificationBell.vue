@@ -42,33 +42,39 @@ const startSse = () => {
 }
 
 // Restart SSE when the URL changes (login/logout)
-watch(() => authStore.token, (token) => {
-  if (token) startSse()
-  else {
-    sse.value?.close()
-    sse.value = undefined
+watch(
+  () => authStore.token,
+  (token) => {
+    if (token) startSse()
+    else {
+      sse.value?.close()
+      sse.value = undefined
+    }
   }
-})
+)
 
 // Process incoming SSE notification events
-watch(() => sse.value?.event.value, (evt: SseEvent | null) => {
-  if (!evt || evt.event !== 'notification') return
-  const notificationData = (evt.data as any)?.notification
-  if (!notificationData) return
+watch(
+  () => sse.value?.event.value,
+  (evt: SseEvent | null) => {
+    if (!evt || evt.event !== 'notification') return
+    const notificationData = (evt.data as any)?.notification
+    if (!notificationData) return
 
-  const newNotif: Notification = {
-    id: notificationData.id,
-    notification_type: notificationData.notification_type,
-    title: notificationData.title,
-    message: notificationData.message,
-    priority: notificationData.priority,
-    is_read: false,
-    created_at: notificationData.created_at,
-    meta_data: notificationData.meta_data,
+    const newNotif: Notification = {
+      id: notificationData.id,
+      notification_type: notificationData.notification_type,
+      title: notificationData.title,
+      message: notificationData.message,
+      priority: notificationData.priority,
+      is_read: false,
+      created_at: notificationData.created_at,
+      meta_data: notificationData.meta_data,
+    }
+    notifications.value.unshift(newNotif)
+    unreadCount.value++
   }
-  notifications.value.unshift(newNotif)
-  unreadCount.value++
-})
+)
 
 const fetchNotifications = async () => {
   if (!authStore.token) return

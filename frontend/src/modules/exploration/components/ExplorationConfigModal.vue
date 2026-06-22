@@ -44,8 +44,16 @@ watch(
   (dweller) => {
     if (dweller) {
       selectedDuration.value = 4
-      selectedStimpaks.value = Math.min(5, props.vaultMedicalSupplies.stimpaks, DWELLER_MAX_SUPPLIES)
-      selectedRadaways.value = Math.min(5, props.vaultMedicalSupplies.radaways, DWELLER_MAX_SUPPLIES)
+      selectedStimpaks.value = Math.min(
+        5,
+        props.vaultMedicalSupplies.stimpaks,
+        DWELLER_MAX_SUPPLIES
+      )
+      selectedRadaways.value = Math.min(
+        5,
+        props.vaultMedicalSupplies.radaways,
+        DWELLER_MAX_SUPPLIES
+      )
     }
   }
 )

@@ -49,10 +49,19 @@ jobs:
             echo "Updated all images. Waiting for rollouts..."
           EOF
 
-      - name: Wait for rollout
+      - name: Restart deployments and wait for rollout
         run: |
           ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
             set -e
+
+            echo "Restarting backend..."
+            kubectl rollout restart deployment/backend -n fallout
+
+            echo "Restarting dramatiq-worker..."
+            kubectl rollout restart deployment/dramatiq-worker -n fallout
+
+            echo "Restarting frontend..."
+            kubectl rollout restart deployment/frontend -n fallout
 
             echo "Waiting for backend..."
             kubectl rollout status deployment/backend -n fallout --timeout=300s

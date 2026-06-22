@@ -1,6 +1,6 @@
 import { ref, type Ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { useRoomStore } from '../stores/room'
+import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
 

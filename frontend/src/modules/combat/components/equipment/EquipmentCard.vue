@@ -105,7 +105,7 @@ const itemTypeLabel = computed(() =>
         <span class="stat-label">Uses:</span>
         <span class="stat-value">{{ (item as Weapon).stat }}</span>
       </div>
-      <div v-if="(item as Weapon).accuracy" class="stat-item">
+      <div v-if="(item as Weapon).accuracy !== null && (item as Weapon).accuracy !== undefined" class="stat-item">
         <Icon icon="mdi:target" class="stat-icon" />
         <span class="stat-label">Accuracy:</span>
         <span class="stat-value">{{ (item as Weapon).accuracy }}%</span>

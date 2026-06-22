@@ -3,18 +3,18 @@
 This validates that _assign_initial_objectives correctly filters
 objectives by their `category` field (not the `challenge` field).
 """
+
 import pytest
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app import crud
 from app.models.objective import Objective
-from app.models.vault_objective import VaultObjectiveProgressLink
 from app.models.user import User
+from app.models.vault_objective import VaultObjectiveProgressLink
+from app.schemas.vault import VaultCreateWithUserID
 from app.services.vault_service import VaultService
 from app.tests.factory.vaults import create_fake_vault
-from app import crud
-from app.schemas.vault import VaultCreateWithUserID
-
 
 pytestmark = pytest.mark.asyncio(scope="function")
 
@@ -37,6 +37,7 @@ async def _seed_objective(async_session: AsyncSession, challenge: str, category:
 async def _create_vault(async_session: AsyncSession, user: User):
     """Helper to create a simple vault for a user."""
     from app.models.vault import Vault
+
     vault_data = VaultCreateWithUserID(**create_fake_vault(), user_id=user.id)
     return await crud.vault.create(async_session, vault_data)
 
@@ -56,10 +57,14 @@ class TestVaultObjectiveAssignment:
         await service._assign_initial_objectives(async_session, vault.id, is_boosted=False)
 
         links = (
-            await async_session.execute(
-                select(VaultObjectiveProgressLink).where(VaultObjectiveProgressLink.vault_id == vault.id)
+            (
+                await async_session.execute(
+                    select(VaultObjectiveProgressLink).where(VaultObjectiveProgressLink.vault_id == vault.id)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         assert len(links) == 2
         linked_ids = {l.objective_id for l in links}
@@ -80,10 +85,14 @@ class TestVaultObjectiveAssignment:
         await service._assign_initial_objectives(async_session, vault.id, is_boosted=True)
 
         links = (
-            await async_session.execute(
-                select(VaultObjectiveProgressLink).where(VaultObjectiveProgressLink.vault_id == vault.id)
+            (
+                await async_session.execute(
+                    select(VaultObjectiveProgressLink).where(VaultObjectiveProgressLink.vault_id == vault.id)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         assert len(links) == 7  # 1 daily + 1 weekly + 5 achievement
 
@@ -95,10 +104,14 @@ class TestVaultObjectiveAssignment:
         await service._assign_initial_objectives(async_session, vault.id, is_boosted=False)
 
         links = (
-            await async_session.execute(
-                select(VaultObjectiveProgressLink).where(VaultObjectiveProgressLink.vault_id == vault.id)
+            (
+                await async_session.execute(
+                    select(VaultObjectiveProgressLink).where(VaultObjectiveProgressLink.vault_id == vault.id)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         assert len(links) == 0
 
@@ -114,10 +127,14 @@ class TestVaultObjectiveAssignment:
         await service._assign_initial_objectives(async_session, vault.id, is_boosted=False)
 
         links = (
-            await async_session.execute(
-                select(VaultObjectiveProgressLink).where(VaultObjectiveProgressLink.vault_id == vault.id)
+            (
+                await async_session.execute(
+                    select(VaultObjectiveProgressLink).where(VaultObjectiveProgressLink.vault_id == vault.id)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         assert len(links) == 1
         assert links[0].objective_id == obj.id

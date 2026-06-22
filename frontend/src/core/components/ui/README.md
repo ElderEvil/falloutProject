@@ -212,33 +212,6 @@ Terminal-themed tooltip.
 </UTooltip>
 ```
 
-### UDropdown
-
-Terminal-themed dropdown menu.
-
-**Props:**
-
-- `position`: 'left' | 'right' (default: 'right')
-
-**Slots:**
-
-- `trigger`: Element that triggers the dropdown
-- `default`: Dropdown content
-
-**Usage:**
-
-```vue
-<UDropdown position="right">
-  <template #trigger>
-    <UButton>Menu</UButton>
-  </template>
-
-  <div class="px-4 py-2 hover:bg-surfaceLight cursor-pointer">Option 1</div>
-  <div class="px-4 py-2 hover:bg-surfaceLight cursor-pointer">Option 2</div>
-  <div class="px-4 py-2 hover:bg-surfaceLight cursor-pointer">Option 3</div>
-</UDropdown>
-```
-
 ## Importing Components
 
 ### Single Import

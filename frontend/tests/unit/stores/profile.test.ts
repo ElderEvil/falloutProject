@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import { useProfileStore } from '@/stores/profile'
+import { useProfileStore } from '@/modules/profile/stores/profile'
 import axios from '@/core/plugins/axios'
 import type { UserProfile, ProfileUpdate } from '@/models/profile'
 

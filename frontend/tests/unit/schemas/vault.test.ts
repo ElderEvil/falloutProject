@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { vaultNumberSchema, parseVaultNumber } from '@/schemas/vault'
+import { vaultNumberSchema, parseVaultNumber } from '@/modules/vault/schemas/vault'
 import { ZodError } from 'zod'
 
 describe('Vault Number Validation', () => {

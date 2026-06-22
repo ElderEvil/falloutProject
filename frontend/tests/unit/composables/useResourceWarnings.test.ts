@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { useResourceWarnings } from '@/composables/useResourceWarnings'
+import { useResourceWarnings } from '@/modules/vault/composables/useResourceWarnings'
 import { nextTick } from 'vue'
 import { setActivePinia, createPinia } from 'pinia'
 

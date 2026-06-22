@@ -131,7 +131,8 @@ function useSseBase(
     status.value = 'connecting'
     error.value = null
     event.value = null
-    abortController = new AbortController()
+    const controller = new AbortController()
+    abortController = controller
 
     try {
       const isPost = (options?.method ?? 'GET') === 'POST'
@@ -153,6 +154,7 @@ function useSseBase(
       })
       status.value = 'closed'
     } catch (err) {
+      if (abortController !== controller) return // stale invocation, ignore
       if (err instanceof DOMException && err.name === 'AbortError') {
         status.value = 'closed'
       } else {
@@ -160,6 +162,7 @@ function useSseBase(
         status.value = 'closed'
       }
     } finally {
+      if (abortController !== controller) return // stale invocation, ignore
       reader = null
       abortController = null
     }

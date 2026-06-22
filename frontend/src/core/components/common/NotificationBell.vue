@@ -49,6 +49,8 @@ watch(
     else {
       sse.value?.close()
       sse.value = undefined
+      notifications.value = []
+      unreadCount.value = 0
     }
   }
 )

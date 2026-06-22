@@ -516,7 +516,7 @@ class VaultService:
             # Get 1 daily objective
             daily_result = await db_session.execute(
                 select(Objective)
-                .where(Objective.challenge.ilike("%daily%"))
+                .where(Objective.category == "daily")
                 .where(Objective.objective_type.isnot(None))
                 .order_by(Objective.id)
                 .limit(1)
@@ -529,7 +529,7 @@ class VaultService:
             # Get 1 weekly objective
             weekly_result = await db_session.execute(
                 select(Objective)
-                .where(Objective.challenge.ilike("%weekly%"))
+                .where(Objective.category == "weekly")
                 .where(Objective.objective_type.isnot(None))
                 .order_by(Objective.id)
                 .limit(1)
@@ -544,8 +544,8 @@ class VaultService:
                 # Get basic objectives (non-daily, non-weekly) with different types
                 basic_result = await db_session.execute(
                     select(Objective)
-                    .where(Objective.challenge.not_ilike("%daily%"))
-                    .where(Objective.challenge.not_ilike("%weekly%"))
+                    .where(Objective.category != "daily")
+                    .where(Objective.category != "weekly")
                     .where(Objective.objective_type.isnot(None))
                     .order_by(Objective.id)
                     .limit(8)

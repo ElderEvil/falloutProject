@@ -2,6 +2,7 @@
 
 import json
 import logging
+from collections.abc import AsyncIterator
 
 from openai import AsyncOpenAI
 from pydantic import UUID4
@@ -208,6 +209,135 @@ class ChatService:
             happiness_impact=happiness_impact,
             action_suggestion=action_suggestion,
         )
+
+    async def stream_response(
+        self,
+        db_session: AsyncSession,
+        user: User,
+        dweller_id: UUID4,
+        message_text: str,
+    ) -> AsyncIterator[dict]:
+        """Stream a chat response from dweller token-by-token.
+
+        Args:
+            db_session: Database session
+            user: Current authenticated user
+            dweller_id: UUID of the dweller to chat with
+            message_text: Text message from user
+
+        Yields:
+            Dicts with type "token" for each token, then type "done" with metadata,
+            or type "error" on failure.
+        """
+        try:
+            dweller = await dweller_crud.get_full_info(db_session, dweller_id)
+            if not dweller:
+                raise ValueError("Dweller not found")
+
+            # Ownership check: dweller must belong to the current user
+            if not dweller.vault or dweller.vault.user_id != user.id:
+                from fastapi import HTTPException
+
+                raise HTTPException(status_code=403, detail="Dweller does not belong to the current user")
+
+            quota_result = await quota_service.check_quota(user.id, db_session)
+
+            quota_headers = {
+                "X-Quota-Remaining": str(quota_result.remaining),
+            }
+            if quota_result.warning:
+                quota_headers["X-Quota-Warning"] = "true"
+
+            if not quota_result.allowed:
+                detail = (
+                    f"Monthly token quota exceeded. You have used {quota_result.used} of {quota_result.limit} tokens."
+                )
+                raise QuotaExceededException(detail=detail, headers=quota_headers)
+
+            deps = DwellerChatDeps(
+                db_session=db_session,
+                dweller=dweller,
+                vault_id=dweller.vault.id,
+            )
+
+            async with dweller_chat_agent.run_stream(message_text, deps=deps) as result:
+                async for text in result.stream_text(delta=True):
+                    yield {"type": "token", "text": text}
+
+                output: DwellerChatOutput = await result.get_output()
+
+                delta = compute_happiness_delta(output.sentiment_score)
+                new_dweller_happiness, _ = await apply_chat_happiness(
+                    db_session=db_session,
+                    dweller_id=dweller.id,
+                    delta=delta,
+                )
+
+                reason_code_str = derive_reason_code(output.sentiment_score)
+                happiness_impact = HappinessImpact(
+                    delta=delta,
+                    reason_code=HappinessReasonCode(reason_code_str),
+                    reason_text=output.reason_text,
+                    happiness_after=new_dweller_happiness,
+                )
+
+                action_suggestion = await parse_action_suggestion(output, db_session, dweller)
+                prompt_tokens, completion_tokens, total_tokens = self._extract_usage(result)
+
+            llm_int_create = LLMInteractionCreate(
+                parameters=message_text,
+                response=output.response_text,
+                usage="chat_with_dweller",
+                user_id=user.id,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens,
+            )
+            llm_interaction = await llm_interaction_crud.create(
+                db_session,
+                obj_in=llm_int_create,
+            )
+
+            await chat_message_crud.create_message(
+                db_session,
+                obj_in=ChatMessageCreate(
+                    vault_id=dweller.vault.id,
+                    from_user_id=user.id,
+                    to_dweller_id=dweller.id,
+                    message_text=message_text,
+                ),
+            )
+
+            chat_create_data = ChatMessageCreate(
+                vault_id=dweller.vault.id,
+                from_dweller_id=dweller.id,
+                to_user_id=user.id,
+                message_text=output.response_text,
+                llm_interaction_id=llm_interaction.id,
+            )
+
+            if happiness_impact:
+                chat_create_data.happiness_delta = happiness_impact.delta
+                chat_create_data.happiness_reason = happiness_impact.reason_text
+
+            dweller_message = await chat_message_crud.create_message(
+                db_session,
+                obj_in=chat_create_data,
+            )
+
+            yield {
+                "type": "done",
+                "dweller_message_id": str(dweller_message.id),
+                "happiness_impact": happiness_impact.model_dump(mode="json") if happiness_impact else None,
+                "action_suggestion": action_suggestion.model_dump(mode="json") if action_suggestion else None,
+            }
+
+        except Exception as e:
+            logger.exception("Streaming chat response failed")
+            if isinstance(e, (ValueError, QuotaExceededException)):
+                yield {"type": "error", "detail": str(e)}
+            else:
+                yield {"type": "error", "detail": "An unexpected error occurred during chat"}
 
     @staticmethod
     def _extract_usage(result: AgentRunResult[DwellerChatOutput]) -> tuple[int | None, int | None, int | None]:

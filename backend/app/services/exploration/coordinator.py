@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import random
+from typing import Any
 
 from pydantic import UUID4
 from sqlmodel import select
@@ -24,6 +25,7 @@ from app.services.exploration import data_loader
 from app.services.exploration.event_generator import event_generator
 from app.services.exploration.rewards_calculator import rewards_calculator
 from app.services.notification_service import notification_service
+from app.services.stream_manager import sse_manager
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +102,19 @@ class ExplorationCoordinator:
         db_session.add(exploration)
         await db_session.commit()
         await db_session.refresh(exploration)
+
+        await self._publish_sse(
+            db_session,
+            exploration,
+            event_type=event.type,
+            description=event.description,
+            progress=exploration.progress_percentage(),
+            stimpaks=exploration.stimpaks,
+            radaways=exploration.radaways,
+            total_caps_found=exploration.total_caps_found,
+            enemies_encountered=exploration.enemies_encountered,
+        )
+
         return exploration
 
     async def _handle_loot_event(self, db_session: AsyncSession, exploration: Exploration, event) -> None:
@@ -304,6 +319,14 @@ class ExplorationCoordinator:
                 exploration.dweller_id,
             )
 
+        # Publish SSE event
+        await self._publish_sse(
+            db_session,
+            exploration,
+            "exploration_complete",
+            rewards=rewards.model_dump(mode="json"),
+        )
+
         return rewards
 
     async def recall_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> RewardsSchema:
@@ -334,8 +357,16 @@ class ExplorationCoordinator:
         # Calculate and apply reduced rewards
         rewards = await self._apply_rewards(db_session, exploration, progress_multiplier=progress / 100)
 
-        # Add recall-specific fields using model_copy
-        return rewards.model_copy(update={"progress_percentage": progress, "recalled_early": True})
+        rewards = rewards.model_copy(update={"progress_percentage": progress, "recalled_early": True})
+
+        await self._publish_sse(
+            db_session,
+            exploration,
+            "exploration_recalled",
+            rewards=rewards.model_dump(mode="json"),
+        )
+
+        return rewards
 
     async def _update_dweller_status_after_return(self, db_session: AsyncSession, exploration: Exploration) -> None:
         """Update dweller status back to IDLE or WORKING."""
@@ -685,6 +716,32 @@ class ExplorationCoordinator:
             )
 
         return {"transferred": transferred, "overflow": overflow}
+
+    @staticmethod
+    async def _publish_sse(
+        db_session: AsyncSession,
+        exploration: Exploration,
+        event_type: str,
+        **extra: Any,
+    ) -> None:
+        """Publish an exploration event to SSE. Best-effort."""
+        try:
+            vault = await crud_vault.get(db_session, exploration.vault_id)
+            if vault and vault.user_id:
+                await sse_manager.publish(
+                    vault.user_id,
+                    "exploration",
+                    {
+                        "event_id": str(exploration.id),
+                        "type": event_type,
+                        "vault_id": str(exploration.vault_id),
+                        "exploration_id": str(exploration.id),
+                        "dweller_id": str(exploration.dweller_id),
+                        **extra,
+                    },
+                )
+        except Exception:
+            logger.exception("Failed to publish SSE for exploration %s", event_type)
 
 
 # Singleton instance

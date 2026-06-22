@@ -3,7 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import LoginFormTerminal from '@/modules/auth/components/LoginFormTerminal.vue'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 
 // Mock Iconify
 vi.mock('@iconify/vue', () => ({

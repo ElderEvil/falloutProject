@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { authService } from '@/services/authService'
+import { authService } from '@/modules/auth/services/authService'
 import apiClient from '@/core/plugins/axios'
-import { AuthError } from '@/types/auth'
+import { AuthError } from '@/modules/auth/types/auth'
 
 vi.mock('@/core/plugins/axios')
 

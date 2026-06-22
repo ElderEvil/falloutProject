@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import type { Exploration } from '@/stores/exploration'
+import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller } from '@/modules/dwellers/stores/dweller'
 
 interface Props {

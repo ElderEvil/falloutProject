@@ -1,3 +1,3 @@
-import type { components } from '@/types/api.generated'
+import type { components } from '@/core/types/api.generated'
 
 export type InfoResponse = components['schemas']['InfoResponse']

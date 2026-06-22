@@ -11,15 +11,17 @@ AI-powered dweller interactions.
 
 **Current work:**
 
-- [ ] **v2.20.0 — SSE streaming polish** — Vault store reactivity via game tick SSE, `useSse` auto-reconnect
+- [x] **v2.20.0 — FE Simplification (YAGNI + DRY)** — Dead code purge (~1000 LOC deleted), barrel migration, dweller store split, component simplification, DRY consolidation
 - [ ] **Dramatiq async concurrency** — Fix `asyncpg InterfaceError: another operation is in progress` during game tick objective queries
 
 ---
 
 ## Up Next (Recommended)
 
-### SSE Streaming Polish (v2.20.0)
+### v2.21.0 — UI Migration & SSE Polish
 
+- [ ] **@nuxt/ui adoption** — Replace 11 home-grown U* components (~1093 LOC) with @nuxt/ui equivalents; fix grey dropdown background via neutral color scale in `nuxt-ui.config.ts`
+- [ ] **Axios→fetch migration** — Execute `HTTP_CLIENT_MIGRATION.md` 6-phase plan: fetch adapter, call-site migration, interceptor/token-refresh migration, drop axios dep (~14KB gzip bundle saving)
 - [ ] **Vault store reactivity** — Subscribe vault store to game tick SSE events for live resource updates without manual refresh
 - [ ] **`useSse` auto-reconnect** — Add exponential backoff retry to fetch-based SSE composable (currently no reconnection on connection loss)
 - [ ] **Incident SSE publishing** — Publish incident spawn/resolution events to SSE for real-time UI updates
@@ -27,6 +29,25 @@ AI-powered dweller interactions.
 ---
 
 ## Latest Release
+
+### v2.20.0 — FE Simplification (YAGNI + DRY) (June 22, 2026)
+
+**Focus**: Reduce frontend complexity, remove dead code, consolidate DRY violations, migrate barrel imports
+
+**Completed:**
+- ✅ **6-step YAGNI heuristic** — Added to AGENTS.md governing all FE work
+- ✅ **~1500 LOC reduction** — Deleted ~1000 LOC dead code across 43 files (barrel re-exports, dead composables, unused UI components, aspirational infra)
+- ✅ **DRY consolidation** — Merged useSse/usePostEventStream into useSseBase; merged WeaponCard/OutfitCard into EquipmentCard; consolidated room-destroy logic; CSS variables replace hardcoded hex colors
+- ✅ **Barrel migration** — All legacy barrel imports migrated to @/modules/* paths; 8 empty directories removed
+- ✅ **Dweller store split** — dweller.ts (796 LOC) split into 5 focused stores with backward-compat facade
+- ✅ **DwellerCard split** — Extracted DwellerCardActions + HappinessModifierPopover sub-components
+- ✅ **Dead composables removed** — useTerminalAudio (326 LOC), useAuth, useFlickering, composables/index.ts barrel
+- ✅ **Unused UI removed** — ComingSoonBadge, UDropdown (104 LOC)
+- ✅ **Aspirational infra removed** — api.ts wrapper (116 LOC), core/types/index.ts barrel, api/incident.ts dead duplicate
+
+**Deferred to v2.21:**
+- @nuxt/ui adoption (~1093 LOC replacement of 11 home-grown U* components, grey dropdown fix)
+- Axios→fetch migration (HTTP_CLIENT_MIGRATION.md 6-phase plan, ~14KB gzip bundle saving)
 
 ### v2.19.0 — Dict-to-Pydantic Refactoring + SSE Streaming (June 21, 2026)
 
@@ -929,6 +950,8 @@ watch(() => userStore.caps, (caps) => {
 
 | Version | Release      | Highlights                                   |
 | ------- | ------------ | -------------------------------------------- |
+| v2.21.0 | TBD          | UI Migration (nuxt/ui adoption, axios→fetch) + SSE Polish |
+| v2.20.0 | Jun 22, 2026 | FE Simplification (YAGNI + DRY, dead code purge) |
 | v2.19.0 | Jun 21, 2026 | SSE streaming + Dict-to-Pydantic refactoring |
 | v2.18.0 | Jun 21, 2026 | Library skills audit, compliance fixes       |
 | v2.17.0 | Jun 19, 2026 | Medical storage refactor                     |
@@ -1009,4 +1032,4 @@ watch(() => userStore.caps, (caps) => {
 
 ---
 
-_Last updated: 2026-06-21_ (v2.19.0, post-SSE)
+_Last updated: 2026-06-22_ (v2.20.0, post-FE-simplification)

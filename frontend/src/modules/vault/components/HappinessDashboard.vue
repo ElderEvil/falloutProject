@@ -139,7 +139,7 @@ const activeModifiers = computed(() => {
       name: `Active Incidents (${props.activeIncidentCount})`,
       icon: 'mdi:fire',
       severity: 'negative',
-      color: '#f97316',
+      color: 'var(--color-warning)',
     })
   }
 

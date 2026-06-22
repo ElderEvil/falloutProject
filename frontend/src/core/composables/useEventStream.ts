@@ -32,7 +32,7 @@ function parseSseLine(line: string): { field: string; value: string } | null {
 
 async function readSseStream(
   reader: ReadableStreamDefaultReader<Uint8Array>,
-  onEvent: (evt: SseEvent) => void,
+  onEvent: (evt: SseEvent) => void
 ): Promise<void> {
   const decoder = new TextDecoder()
   let buffer = ''
@@ -60,29 +60,116 @@ async function readSseStream(
     const lines = buffer.split('\n')
     buffer = lines.pop() || ''
     for (const line of lines) {
-      if (line === '') { dispatch(); continue }
+      if (line === '') {
+        dispatch()
+        continue
+      }
       const parsed = parseSseLine(line)
       if (!parsed) continue
       switch (parsed.field) {
-        case 'event': currentEvent = parsed.value; break
-        case 'data': currentData.push(parsed.value); break
-        case 'id': currentId = parsed.value; break
+        case 'event':
+          currentEvent = parsed.value
+          break
+        case 'data':
+          currentData.push(parsed.value)
+          break
+        case 'id':
+          currentId = parsed.value
+          break
       }
     }
   }
   buffer += decoder.decode()
   const remaining = buffer.split('\n')
   for (const line of remaining) {
-    if (line === '') { dispatch(); continue }
+    if (line === '') {
+      dispatch()
+      continue
+    }
     const parsed = parseSseLine(line)
     if (!parsed) continue
     switch (parsed.field) {
-      case 'event': currentEvent = parsed.value; break
-      case 'data': currentData.push(parsed.value); break
-      case 'id': currentId = parsed.value; break
+      case 'event':
+        currentEvent = parsed.value
+        break
+      case 'data':
+        currentData.push(parsed.value)
+        break
+      case 'id':
+        currentId = parsed.value
+        break
     }
   }
   if (currentData.length > 0 || currentEvent) dispatch()
+}
+
+// Shared SSE base — handles both GET and POST streaming
+function useSseBase(
+  url: string,
+  options?: { method?: 'GET' | 'POST'; headers?: Record<string, string> }
+) {
+  const event = ref<SseEvent | null>(null)
+  const status = ref<'idle' | 'connecting' | 'open' | 'closed'>('idle')
+  const error = ref<Error | null>(null)
+  let abortController: AbortController | null = null
+  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
+
+  const close = () => {
+    if (abortController) {
+      abortController.abort()
+      abortController = null
+    }
+    if (reader) {
+      reader.cancel().catch(() => {})
+      reader = null
+    }
+    status.value = 'closed'
+  }
+
+  const connect = async (body?: Record<string, unknown>) => {
+    close()
+    status.value = 'connecting'
+    error.value = null
+    event.value = null
+    const controller = new AbortController()
+    abortController = controller
+
+    try {
+      const isPost = (options?.method ?? 'GET') === 'POST'
+      const headers: Record<string, string> = { ...options?.headers }
+      if (isPost) headers['Content-Type'] = 'application/json'
+      const response = await fetch(url, {
+        method: options?.method ?? 'GET',
+        headers,
+        body: isPost ? JSON.stringify(body ?? {}) : undefined,
+        signal: abortController.signal,
+      })
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+      if (!response.body) throw new Error('Response body is null')
+
+      status.value = 'open'
+      reader = response.body.getReader()
+      await readSseStream(reader, (evt) => {
+        event.value = evt
+      })
+      status.value = 'closed'
+    } catch (err) {
+      if (abortController !== controller) return // stale invocation, ignore
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        status.value = 'closed'
+      } else {
+        error.value = err instanceof Error ? err : new Error(String(err))
+        status.value = 'closed'
+      }
+    } finally {
+      if (abortController === controller) {
+        reader = null
+        abortController = null
+      }
+    }
+  }
+
+  return { event, status, error, connect, close }
 }
 
 // POST-based SSE composable (for chat etc.)
@@ -95,54 +182,18 @@ export interface UsePostEventStreamReturn {
   close: () => void
 }
 
-export function usePostEventStream(url: string, options?: { headers?: Record<string, string> }): UsePostEventStreamReturn {
-  const event = ref<SseEvent | null>(null)
-  const status = ref<'idle' | 'connecting' | 'open' | 'closed'>('idle')
-  const error = ref<Error | null>(null)
-  let abortController: AbortController | null = null
-  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
-
-  const close = () => {
-    if (abortController) { abortController.abort(); abortController = null }
-    if (reader) { reader.cancel().catch(() => {}); reader = null }
-    status.value = 'closed'
+export function usePostEventStream(
+  url: string,
+  options?: { headers?: Record<string, string> }
+): UsePostEventStreamReturn {
+  const { event, status, error, connect, close } = useSseBase(url, { ...options, method: 'POST' })
+  return {
+    event,
+    status,
+    error,
+    connect: connect as (body: Record<string, unknown>) => Promise<void>,
+    close,
   }
-
-  const connect = async (body: Record<string, unknown>) => {
-    close()
-    status.value = 'connecting'
-    error.value = null
-    event.value = null
-    abortController = new AbortController()
-
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...options?.headers },
-        body: JSON.stringify(body),
-        signal: abortController.signal,
-      })
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
-      if (!response.body) throw new Error('Response body is null')
-
-      status.value = 'open'
-      reader = response.body.getReader()
-      await readSseStream(reader, (evt) => { event.value = evt })
-      status.value = 'closed'
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') {
-        status.value = 'closed'
-      } else {
-        error.value = err instanceof Error ? err : new Error(String(err))
-        status.value = 'closed'
-      }
-    } finally {
-      reader = null
-      abortController = null
-    }
-  }
-
-  return { event, status, error, connect, close }
 }
 
 // Fetch-based GET SSE (supports Authorization headers for authenticated streams)
@@ -156,50 +207,6 @@ export interface UseSseReturn {
 }
 
 export function useSse(url: string, options?: { headers?: Record<string, string> }): UseSseReturn {
-  const event = ref<SseEvent | null>(null)
-  const status = ref<'idle' | 'connecting' | 'open' | 'closed'>('idle')
-  const error = ref<Error | null>(null)
-  let abortController: AbortController | null = null
-  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
-
-  const close = () => {
-    if (abortController) { abortController.abort(); abortController = null }
-    if (reader) { reader.cancel().catch(() => {}); reader = null }
-    status.value = 'closed'
-  }
-
-  const start = async () => {
-    close()
-    status.value = 'connecting'
-    error.value = null
-    event.value = null
-    abortController = new AbortController()
-
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: options?.headers,
-        signal: abortController.signal,
-      })
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
-      if (!response.body) throw new Error('Response body is null')
-
-      status.value = 'open'
-      reader = response.body.getReader()
-      await readSseStream(reader, (evt) => { event.value = evt })
-      status.value = 'closed'
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') {
-        status.value = 'closed'
-      } else {
-        error.value = err instanceof Error ? err : new Error(String(err))
-        status.value = 'closed'
-      }
-    } finally {
-      reader = null
-      abortController = null
-    }
-  }
-
-  return { event, status, error, start, close }
+  const { event, status, error, connect, close } = useSseBase(url, { ...options, method: 'GET' })
+  return { event, status, error, start: connect, close }
 }

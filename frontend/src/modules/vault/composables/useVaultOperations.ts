@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { useVaultStore } from '../stores/vault'
-import { useRoomStore } from '@/stores/room'
+import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useRouter } from 'vue-router'
 
 export function useVaultOperations() {

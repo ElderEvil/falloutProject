@@ -2,7 +2,7 @@
 import { computed, inject, onMounted, ref, watch } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '../stores/vault'
-import { useRoomStore } from '@/stores/room'
+import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useRouter } from 'vue-router'
 import { vaultNumberSchema } from '../schemas/vault'
 import { Icon } from '@iconify/vue'

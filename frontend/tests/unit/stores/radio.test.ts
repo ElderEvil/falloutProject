@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import { useRadioStore } from '@/stores/radio'
+import { useRadioStore } from '@/modules/radio/stores/radio'
 import axios from '@/core/plugins/axios'
 
 vi.mock('@/core/plugins/axios')

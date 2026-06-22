@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { loginSchema, registerSchema } from '@/schemas/auth'
+import { loginSchema, registerSchema } from '@/modules/auth/schemas/auth'
 import { ZodError } from 'zod'
 
 describe('Auth Validation Schemas', () => {

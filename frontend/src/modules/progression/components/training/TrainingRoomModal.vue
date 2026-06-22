@@ -5,7 +5,7 @@ import UModal from '@/core/components/ui/UModal.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import UAlert from '@/core/components/ui/UAlert.vue'
 import TrainingProgressCard from './TrainingProgressCard.vue'
-import { useTrainingStore } from '@/stores/training'
+import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import type { components } from '@/core/types/api.generated'
 

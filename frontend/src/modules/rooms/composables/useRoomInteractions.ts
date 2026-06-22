@@ -1,10 +1,8 @@
 import { ref } from 'vue'
-import { useRoomStore } from '../stores/room'
-import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useRoomDestroy } from './useRoomDestroy'
 
 export function useRoomInteractions() {
-  const roomStore = useRoomStore()
-  const authStore = useAuthStore()
+  const { destroyRoom: sharedDestroy } = useRoomDestroy()
   const selectedRoomId = ref<string | null>(null)
 
   const toggleRoomSelection = (roomId: string) => {
@@ -12,11 +10,12 @@ export function useRoomInteractions() {
   }
 
   const destroyRoom = async (roomId: string, event: Event) => {
-    event.stopPropagation()
-    if (confirm('Are you sure you want to destroy this room?')) {
-      await roomStore.destroyRoom(roomId, authStore.token as string)
-      selectedRoomId.value = null
-    }
+    await sharedDestroy(roomId, {
+      event,
+      onSuccess: () => {
+        selectedRoomId.value = null
+      },
+    })
   }
 
   return {

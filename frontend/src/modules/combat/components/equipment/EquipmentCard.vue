@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import type { Outfit } from '@/modules/combat/models/equipment'
-import { getRarityColor, getOutfitBonuses } from '@/modules/combat/models/equipment'
+import type { Weapon, Outfit } from '@/modules/combat/models/equipment'
+import { getRarityColor, getDamageRange, getOutfitBonuses } from '@/modules/combat/models/equipment'
 
 interface Props {
-  outfit: Outfit
+  item: Weapon | Outfit
+  type: 'weapon' | 'outfit'
   showActions?: boolean
   equipped?: boolean
 }
@@ -20,11 +21,36 @@ const emit = defineEmits<{
   (e: 'unequip'): void
 }>()
 
-const rarityColor = computed(() => getRarityColor(props.outfit.rarity))
-const bonuses = computed(() => getOutfitBonuses(props.outfit))
+const rarityColor = computed(() => getRarityColor(props.item.rarity))
 
-const outfitIcon = computed(() => {
-  switch (props.outfit.outfit_type) {
+const itemIcon = computed(() => {
+  if (props.type === 'weapon') {
+    const w = props.item as Weapon
+    switch (w.weapon_subtype) {
+      case 'pistol':
+        return 'mdi:pistol'
+      case 'rifle':
+        return 'mdi:rifle'
+      case 'shotgun':
+        return 'mdi:shotgun'
+      case 'automatic':
+        return 'mdi:rifle'
+      case 'explosive':
+        return 'mdi:bomb'
+      case 'flamer':
+        return 'mdi:fire'
+      case 'edged':
+        return 'mdi:sword'
+      case 'blunt':
+        return 'mdi:hammer'
+      case 'pointed':
+        return 'mdi:spear'
+      default:
+        return 'mdi:pistol'
+    }
+  }
+  const o = props.item as Outfit
+  switch (o.outfit_type) {
     case 'common_outfit':
       return 'mdi:tshirt-crew'
     case 'rare_outfit':
@@ -39,21 +65,55 @@ const outfitIcon = computed(() => {
       return 'mdi:tshirt-crew'
   }
 })
+
+const damageRange = computed(() =>
+  props.type === 'weapon' ? getDamageRange(props.item as Weapon) : ''
+)
+
+const bonuses = computed(() =>
+  props.type === 'outfit' ? getOutfitBonuses(props.item as Outfit) : []
+)
+
+const itemTypeLabel = computed(() =>
+  props.type === 'weapon'
+    ? (props.item as Weapon).weapon_subtype
+    : (props.item as Outfit).outfit_type
+)
 </script>
 
 <template>
-  <div class="outfit-card" :class="{ equipped }">
-    <div class="outfit-header">
-      <Icon :icon="outfitIcon" class="outfit-icon" />
-      <div class="outfit-info">
-        <h4 class="outfit-name" :style="{ color: rarityColor }">{{ outfit.name }}</h4>
-        <p class="outfit-type">{{ outfit.outfit_type }} • {{ outfit.rarity }}</p>
+  <div class="equipment-card" :class="{ equipped }">
+    <div class="equipment-header">
+      <Icon :icon="itemIcon" class="equipment-icon" />
+      <div class="equipment-info">
+        <h4 class="equipment-name" :style="{ color: rarityColor }">{{ item.name }}</h4>
+        <p class="equipment-type">{{ itemTypeLabel }} • {{ item.rarity }}</p>
       </div>
     </div>
 
-    <p class="outfit-description">{{ outfit.description }}</p>
+    <p class="equipment-description">{{ item.description }}</p>
 
-    <div v-if="bonuses.length > 0" class="outfit-bonuses">
+    <!-- Weapon stats -->
+    <div v-if="type === 'weapon'" class="equipment-stats">
+      <div class="stat-item">
+        <Icon icon="mdi:sword-cross" class="stat-icon" />
+        <span class="stat-label">Damage:</span>
+        <span class="stat-value">{{ damageRange }}</span>
+      </div>
+      <div class="stat-item">
+        <Icon icon="mdi:alphabet-latin" class="stat-icon" />
+        <span class="stat-label">Uses:</span>
+        <span class="stat-value">{{ (item as Weapon).stat }}</span>
+      </div>
+      <div v-if="(item as Weapon).accuracy !== null && (item as Weapon).accuracy !== undefined" class="stat-item">
+        <Icon icon="mdi:target" class="stat-icon" />
+        <span class="stat-label">Accuracy:</span>
+        <span class="stat-value">{{ (item as Weapon).accuracy }}%</span>
+      </div>
+    </div>
+
+    <!-- Outfit bonuses -->
+    <div v-else-if="bonuses.length > 0" class="equipment-bonuses">
       <div class="bonuses-header">
         <Icon icon="mdi:chevron-up" class="bonus-icon" />
         <span class="bonuses-label">SPECIAL Bonuses:</span>
@@ -66,7 +126,7 @@ const outfitIcon = computed(() => {
       </div>
     </div>
 
-    <div v-if="showActions" class="outfit-actions">
+    <div v-if="showActions" class="equipment-actions">
       <button v-if="!equipped" @click="emit('equip')" class="action-btn equip-btn">
         <Icon icon="mdi:check" />
         Equip
@@ -80,7 +140,7 @@ const outfitIcon = computed(() => {
 </template>
 
 <style scoped>
-.outfit-card {
+.equipment-card {
   background: rgba(0, 0, 0, 0.3);
   border: 2px solid var(--color-theme-glow);
   border-radius: 8px;
@@ -91,58 +151,91 @@ const outfitIcon = computed(() => {
   gap: 0.75rem;
 }
 
-.outfit-card:hover {
+.equipment-card:hover {
   border-color: var(--color-theme-primary);
   background: rgba(0, 0, 0, 0.5);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px var(--color-theme-glow);
 }
 
-.outfit-card.equipped {
+.equipment-card.equipped {
   border-color: var(--color-theme-primary);
   background: rgba(0, 0, 0, 0.5);
   box-shadow: 0 0 12px var(--color-theme-glow);
 }
 
-.outfit-header {
+.equipment-header {
   display: flex;
   align-items: center;
   gap: 0.75rem;
 }
 
-.outfit-icon {
+.equipment-icon {
   width: 2.5rem;
   height: 2.5rem;
   color: var(--color-theme-primary);
   filter: drop-shadow(0 0 4px var(--color-theme-glow));
 }
 
-.outfit-info {
+.equipment-info {
   flex: 1;
 }
 
-.outfit-name {
+.equipment-name {
   font-size: 1.125rem;
   font-weight: 700;
   margin-bottom: 0.25rem;
   text-shadow: 0 0 4px currentColor;
 }
 
-.outfit-type {
+.equipment-type {
   font-size: 0.75rem;
   color: var(--color-theme-primary);
   opacity: 0.7;
   text-transform: capitalize;
 }
 
-.outfit-description {
+.equipment-description {
   font-size: 0.875rem;
   color: var(--color-theme-primary);
   opacity: 0.8;
   line-height: 1.4;
 }
 
-.outfit-bonuses {
+.equipment-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.stat-icon {
+  width: 1rem;
+  height: 1rem;
+  color: var(--color-theme-primary);
+}
+
+.stat-label {
+  color: var(--color-theme-primary);
+  opacity: 0.7;
+}
+
+.stat-value {
+  color: var(--color-theme-primary);
+  font-weight: 700;
+  margin-left: auto;
+}
+
+.equipment-bonuses {
   padding: 0.75rem;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 4px;
@@ -196,7 +289,7 @@ const outfitIcon = computed(() => {
   font-weight: 700;
 }
 
-.outfit-actions {
+.equipment-actions {
   display: flex;
   gap: 0.5rem;
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import { useRelationshipStore } from '@/stores/relationship'
+import { useRelationshipStore } from '@/modules/social/stores/relationship'
 import axios from '@/core/plugins/axios'
 
 vi.mock('@/core/plugins/axios')

@@ -7,15 +7,31 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ## [Unreleased]
 
+### Planned
+
+- v2.21.0 — @nuxt/ui adoption (11 home-grown U* components → @nuxt/ui), Axios→fetch migration, SSE polish
+
+---
+
+## [2.20.0] - 2026-06-22
+
 ### Added
 
--
-### Fixed
+- **6-step YAGNI heuristic** — Added to AGENTS.md governing all FE work
 
--
 ### Changed
 
--
+- **FE LOC reduction ~1500+ lines** — Deleted ~1000 LOC dead code (43 files: barrel re-exports, dead composables, unused UI components, aspirational infra)
+- **DRY consolidation** — Merged useSse/usePostEventStream into useSseBase; merged WeaponCard/OutfitCard into EquipmentCard; consolidated room-destroy logic; CSS variables replace hardcoded hex colors
+- **Barrel migration** — All legacy barrel imports (@/stores/*, @/models/*) migrated to @/modules/* paths; 8 empty directories removed
+- **Dweller store split** — dweller.ts (796 LOC) split into 5 focused stores (filter, generation, management, medical, death) with backward-compat facade
+- **Component simplification** — DwellerCard: extracted DwellerCardActions + HappinessModifierPopover sub-components, dead-CSS cleanup
+
+### Removed
+
+- **Dead composables** — useTerminalAudio (326 LOC), useAuth, useFlickering, composables/index.ts barrel
+- **Unused UI components** — ComingSoonBadge, UDropdown (104 LOC)
+- **Aspirational infra** — api.ts wrapper (116 LOC), core/types/index.ts barrel, api/incident.ts dead duplicate
 
 ---
 

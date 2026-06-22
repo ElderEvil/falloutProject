@@ -464,7 +464,7 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-/* Scanline effect overlay */
+/* Scanline overlay */
 .scanlines {
   position: absolute;
   top: 0;
@@ -482,7 +482,7 @@ onUnmounted(() => {
   z-index: 1;
 }
 
-/* Identity header - anchors chat to dweller */
+/* Identity header */
 .chat-identity-header {
   display: flex;
   align-items: center;
@@ -538,7 +538,6 @@ onUnmounted(() => {
   text-shadow: none; /* Remove glow from status */
 }
 
-/* Chat messages area - compact with max height */
 .chat-messages {
   flex: 1;
   overflow-y: auto;
@@ -548,11 +547,10 @@ onUnmounted(() => {
   min-height: 300px;
 }
 
-/* Message wrapper */
 .message-wrapper {
   display: flex;
   gap: 0.75rem;
-  margin-bottom: 1.25rem; /* Increased spacing between messages */
+  margin-bottom: 1.25rem;
   align-items: flex-start;
 }
 
@@ -560,7 +558,6 @@ onUnmounted(() => {
   flex-direction: row-reverse;
 }
 
-/* Avatar styling */
 .message-avatar {
   flex-shrink: 0;
   width: 40px;
@@ -586,20 +583,20 @@ onUnmounted(() => {
 /* Message bubble */
 .message-bubble {
   flex: 1;
-  max-width: 65ch; /* Constrained to 60-65 characters for readability */
+  max-width: 65ch;
   background-color: rgba(var(--color-theme-primary-rgb), 0.05);
   border: 1px solid var(--color-theme-glow);
-  border-radius: 12px; /* Softer corners for dweller */
-  padding: 0.5rem 0.85rem; /* Reduced padding for lighter feel */
+  border-radius: 12px;
+  padding: 0.5rem 0.85rem;
   box-shadow: 0 0 10px rgba(var(--color-theme-primary-rgb), 0.2);
 }
 
 .user .message-bubble {
   background-color: rgba(var(--color-theme-primary-rgb), 0.1);
   border-color: rgba(var(--color-theme-primary-rgb), 0.5);
-  border-radius: 2px; /* Sharper corners for player */
-  padding: 0.5rem 0.75rem; /* Tighter padding for player */
-  max-width: 60ch; /* Smaller max width for player messages */
+  border-radius: 2px;
+  padding: 0.5rem 0.75rem;
+  max-width: 60ch;
 }
 
 .message-header {
@@ -672,19 +669,17 @@ onUnmounted(() => {
 .message-content {
   color: var(--color-theme-primary);
   font-size: 0.95rem;
-  line-height: 1.75; /* Increased line height for lighter feel */
+  line-height: 1.75;
   word-wrap: break-word;
-  text-shadow: 0 0 2px rgba(var(--color-theme-primary-rgb), 0.2); /* Reduced glow on long text */
-  max-width: 65ch; /* Enforce character limit */
+  text-shadow: 0 0 2px rgba(var(--color-theme-primary-rgb), 0.2);
+  max-width: 65ch;
 }
 
-/* Slightly different styles for user messages */
 .user .message-content {
   line-height: 1.7;
-  text-shadow: 0 0 1px rgba(var(--color-theme-primary-rgb), 0.15); /* Less glow for player messages */
+  text-shadow: 0 0 1px rgba(var(--color-theme-primary-rgb), 0.15);
 }
 
-/* Typing indicator */
 .typing-wrapper {
   display: flex;
   gap: 0.75rem;
@@ -716,7 +711,6 @@ onUnmounted(() => {
   }
 }
 
-/* Chat input - always visible at bottom */
 .chat-input {
   display: flex;
   align-items: center;
@@ -799,7 +793,6 @@ onUnmounted(() => {
   box-shadow: none;
 }
 
-/* Scrollbar styling */
 .chat-messages::-webkit-scrollbar {
   width: 8px;
 }
@@ -943,24 +936,6 @@ onUnmounted(() => {
   background-color: rgba(0, 0, 0, 0.3);
   font-size: 0.75rem;
   font-weight: 600;
-}
-
-.happiness-indicator.text-green-400 {
-  color: var(--color-success);
-  background-color: rgba(74, 222, 128, 0.1);
-  border: 1px solid rgba(74, 222, 128, 0.3);
-}
-
-.happiness-indicator.text-red-400 {
-  color: var(--color-danger);
-  background-color: rgba(248, 113, 113, 0.1);
-  border: 1px solid rgba(248, 113, 113, 0.3);
-}
-
-.happiness-indicator.text-gray-400 {
-  color: var(--color-gray-400);
-  background-color: rgba(156, 163, 175, 0.1);
-  border: 1px solid rgba(156, 163, 175, 0.3);
 }
 
 /* Action suggestion card */

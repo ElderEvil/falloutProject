@@ -162,9 +162,10 @@ function useSseBase(
         status.value = 'closed'
       }
     } finally {
-      if (abortController !== controller) return // stale invocation, ignore
-      reader = null
-      abortController = null
+      if (abortController === controller) {
+        reader = null
+        abortController = null
+      }
     }
   }
 

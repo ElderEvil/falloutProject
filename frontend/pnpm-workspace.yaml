@@ -1,5 +1,39 @@
+# === SUPPLY CHAIN SECURITY ===
 minimumReleaseAge: 10080
 minimumReleaseAgeExclude:
   - dompurify
   - form-data
   - js-yaml
+
+# === BUILD PERMISSIONS ===
+# allowBuilds replaces pnpm 10's onlyBuiltDependencies
+allowBuilds:
+  '@tailwindcss/vite': true
+  '@voidzero-dev/vite-plus-core': true
+  '@voidzero-dev/vite-plus-test': true
+  esbuild: true
+  vue-demi: true
+
+# === DEPENDENCY OVERRIDES ===
+overrides:
+  vite: npm:@voidzero-dev/vite-plus-core@latest
+  vitest: npm:@voidzero-dev/vite-plus-test@0.1.14
+  form-data: 4.0.6
+  js-yaml: 4.2.0
+  undici: 7.28.0
+  postcss: 8.5.15
+  minimatch: 5.1.8
+  defu: 6.1.5
+  fast-uri: 3.1.2
+
+# === PACKAGE MANAGER SETTINGS ===
+engineStrict: true
+lockfile: true
+saveExact: true
+blockExoticSubdeps: true
+strictPeerDependencies: false
+autoInstallPeers: true
+storeDir: ~/.pnpm-store
+modulesCacheMaxAge: 604800
+dedupePeerDependents: true
+shamefullyHoist: false

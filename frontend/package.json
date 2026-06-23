@@ -21,7 +21,7 @@
     "@nuxt/ui": "^4.8.2",
     "@vueuse/core": "14.3.0",
     "@vueuse/motion": "3.0.3",
-    "axios": "1.15.2",
+    "axios": "1.17.0",
     "dompurify": "3.4.11",
     "jwt-decode": "4.0.0",
     "pinia": "^3.0.4",
@@ -50,22 +50,7 @@
   },
   "engines": {
     "node": ">=22",
-    "pnpm": ">=10.28.2 <11"
+    "pnpm": ">=11.0.0 <12"
   },
-  "packageManager": "pnpm@10.33.0+sha512.10568bb4a6afb58c9eb3630da90cc9516417abebd3fabbe6739f0ae795728da1491e9db5a544c76ad8eb7570f5c4bb3d6c637b2cb41bfdcdb47fa823c8649319",
-  "pnpm": {
-    "overrides": {
-      "vite": "npm:@voidzero-dev/vite-plus-core@latest",
-      "vitest": "npm:@voidzero-dev/vite-plus-test@0.1.14",
-      "form-data": "4.0.6",
-      "js-yaml": "4.2.0"
-    },
-    "onlyBuiltDependencies": [
-      "@tailwindcss/vite",
-      "@voidzero-dev/vite-plus-core",
-      "@voidzero-dev/vite-plus-test",
-      "esbuild",
-      "vue-demi"
-    ]
-  }
+  "packageManager": "pnpm@11.9.0"
 }

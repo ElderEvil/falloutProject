@@ -3,7 +3,7 @@ FROM node:26-alpine AS deps
 WORKDIR /app
 
 # Install pnpm first
-RUN npm install -g pnpm@10.26.2
+RUN npm install -g pnpm@11.9.0
 
 # Copy package files
 COPY package.json pnpm-lock.yaml .npmrc ./
@@ -16,7 +16,7 @@ FROM node:26-alpine AS build-stage
 WORKDIR /app
 
 # Install pnpm directly
-RUN npm install -g pnpm@10.26.2
+RUN npm install -g pnpm@11.9.0
 
 # Copy production dependencies
 COPY --from=deps /app/node_modules ./node_modules

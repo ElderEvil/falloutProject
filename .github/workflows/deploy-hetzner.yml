@@ -90,19 +90,41 @@ jobs:
 
       - name: Health check
         run: |
-          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
+          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << SHELL
             set -e
 
             echo "Checking backend health..."
-            kubectl exec deployment/backend -n fallout -- \
-              python3 -c "import urllib.request; resp = urllib.request.urlopen('http://localhost:8000/healthcheck', timeout=10); body = resp.read().decode(); assert resp.status == 200, f'Status {resp.status}'; assert 'ok' in body, f'Body: {body}'" || {
-                echo "Health check failed!"
-                kubectl logs -n fallout deployment/backend --tail=30
-                exit 1
-              }
+            MAX_RETRIES=6
+            RETRY_DELAY=10
+            n=0
+            while [ "$n" -lt "$MAX_RETRIES" ]; do
+              n=$((n + 1))
+              echo "  attempt $n/$MAX_RETRIES..."
+              if kubectl exec deployment/backend -n fallout -- python3 -c "
+import urllib.request, sys
+try:
+    resp = urllib.request.urlopen('http://localhost:8000/healthcheck', timeout=10)
+    body = resp.read().decode()
+    assert resp.status == 200, 'Status %d' % resp.status
+    assert 'ok' in body, 'Body: %s' % body
+    sys.exit(0)
+except Exception as e:
+    print(e, file=sys.stderr)
+    sys.exit(1)
+" 2>/dev/null; then
+                echo "  Health check passed."
+                exit 0
+              fi
+              if [ "$n" -lt "$MAX_RETRIES" ]; then
+                echo "  Retrying in ${RETRY_DELAY}s..."
+                sleep "$RETRY_DELAY"
+              fi
+            done
 
-            echo "Health check passed."
-          EOF
+            echo "Health check failed after $MAX_RETRIES attempts!"
+            kubectl logs -n fallout deployment/backend --tail=30
+            exit 1
+          SHELL
 
       - name: Clean up old images
         run: |

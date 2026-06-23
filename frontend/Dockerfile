@@ -6,7 +6,7 @@ WORKDIR /app
 RUN npm install -g pnpm@11.9.0
 
 # Copy package files
-COPY package.json pnpm-lock.yaml .npmrc ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 
 # Install only production dependencies
 RUN pnpm install --frozen-lockfile --prod
@@ -20,7 +20,7 @@ RUN npm install -g pnpm@11.9.0
 
 # Copy production dependencies
 COPY --from=deps /app/node_modules ./node_modules
-COPY package.json pnpm-lock.yaml .npmrc ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 
 # Install dev dependencies for build
 RUN pnpm install --frozen-lockfile

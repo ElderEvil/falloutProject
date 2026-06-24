@@ -17,6 +17,7 @@ import { useSidePanel } from '@/core/composables/useSidePanel'
 import { RevivalSection } from '../components/death'
 import type { RevivalCostResponse } from '../models/dweller'
 import { useGaryMode } from '@/core/composables/useGaryMode'
+import { useGoBack } from '@/core/composables/useGoBack'
 
 const route = useRoute()
 const router = useRouter()
@@ -81,9 +82,7 @@ watch(isDead, async (newIsDead) => {
   }
 })
 
-const goBack = () => {
-  router.push(`/vault/${vaultId.value}/dwellers`)
-}
+const { goBack } = useGoBack()
 
 const navigateToChatPage = () => {
   router.push(`/dweller/${dwellerId.value}/chat`)

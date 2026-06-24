@@ -3,6 +3,7 @@ import { computed, ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useGoBack } from '@/core/composables/useGoBack'
 import { useRelationshipStore } from '../stores/relationship'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -14,6 +15,7 @@ import PregnancyDebugPanel from '../components/pregnancy/PregnancyDebugPanel.vue
 import ChildrenList from '../components/relationships/ChildrenList.vue'
 const route = useRoute()
 const { isCollapsed } = useSidePanel()
+const { goBack } = useGoBack()
 const relationshipStore = useRelationshipStore()
 const dwellerStore = useDwellerStore()
 const authStore = useAuthStore()
@@ -135,6 +137,9 @@ onMounted(async () => {
       <!-- Main Content Area -->
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
         <div class="container mx-auto px-4 py-8 lg:px-8">
+          <UButton color="primary" variant="ghost" @click="goBack" class="mb-4">
+            ← Back
+          </UButton>
           <div class="max-w-7xl mx-auto">
             <!-- Header -->
             <div class="mb-8">

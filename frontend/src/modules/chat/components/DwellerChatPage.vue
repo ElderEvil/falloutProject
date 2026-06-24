@@ -1,19 +1,20 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useGoBack } from '@/core/composables/useGoBack'
 import { Icon } from '@iconify/vue'
 import DwellerChat from './DwellerChat.vue'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 import { normalizeImageUrl } from '@/utils/image'
 
 const route = useRoute()
-const router = useRouter()
 const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
 const vaultStore = useVaultStore()
+const { goBack } = useGoBack()
 
 const dwellerId = ref(route.params.id as string)
 const dweller = ref<Dweller | null>(null)
@@ -72,7 +73,7 @@ onMounted(async () => {
           variant="ghost"
           size="sm"
           class="mr-4"
-          @click="router.push(`/vault/${dweller.vault.id}/dwellers/${dwellerId}`)"
+          @click="goBack"
         >
           <Icon icon="mdi:arrow-left" class="h-5 w-5 mr-1" />
           Back to Dweller

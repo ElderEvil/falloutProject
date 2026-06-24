@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useGoBack } from '@/core/composables/useGoBack'
 import { useToast } from '@/core/composables/useToast'
 import { storageService, type StorageItemsResponse } from '../services/storageService'
 import { Icon } from '@iconify/vue'
@@ -15,6 +16,7 @@ const route = useRoute()
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
 const { isCollapsed } = useSidePanel()
+const { goBack } = useGoBack()
 const toast = useToast()
 
 const vaultId = computed(() => route.params.id as string)
@@ -209,6 +211,9 @@ const getRarityColor = (rarity?: string) => {
       class="flex-1 transition-[margin] duration-300 p-4 md:p-8"
       :class="isCollapsed ? 'ml-16' : 'ml-60'"
     >
+      <UButton color="primary" variant="ghost" @click="goBack" class="mb-4">
+        ← Back
+      </UButton>
       <!-- Header -->
       <div class="mb-8">
         <div class="flex items-center gap-4 mb-6">

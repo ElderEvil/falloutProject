@@ -10,6 +10,7 @@ import { useDwellerStore } from '../stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useGoBack } from '@/core/composables/useGoBack'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { DeadDwellerCard } from '../components/death'
 
@@ -30,9 +31,7 @@ onMounted(async () => {
   }
 })
 
-const goBack = () => {
-  router.push(`/vault/${vaultId.value}/dwellers`)
-}
+const { goBack } = useGoBack()
 
 const viewDwellerDetails = (dwellerId: string) => {
   router.push(`/vault/${vaultId.value}/dwellers/${dwellerId}`)

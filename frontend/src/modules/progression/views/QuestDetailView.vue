@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useQuestStore } from '../stores/quest'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useGoBack } from '@/core/composables/useGoBack'
 import type { VaultQuest } from '../models/quest'
 
 const route = useRoute()
-const router = useRouter()
 const questStore = useQuestStore()
 const vaultStore = useVaultStore()
 const { isCollapsed } = useSidePanel()
@@ -126,9 +126,7 @@ const handleCompleteQuest = async () => {
   }
 }
 
-const goBack = () => {
-  router.push({ name: 'quests', params: { id: vaultId.value } })
-}
+const { goBack } = useGoBack()
 </script>
 
 <template>

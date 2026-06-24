@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { UButton, UInput } from '@/core/components/ui'
+
 import { useAuthStore } from '../stores/auth'
 import { useRouter } from 'vue-router'
 
@@ -65,7 +65,7 @@ const handleSubmit = async () => {
             />
           </div>
 
-          <UButton variant="primary" type="submit" block>
+          <UButton color="primary" type="submit" class="w-full">
             <span class="button-icon">►</span>
             AUTHENTICATE
             <span class="button-icon">◄</span>

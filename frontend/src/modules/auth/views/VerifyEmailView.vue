@@ -2,8 +2,6 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from '@/core/plugins/axios'
-import { UButton } from '@/core/components/ui'
-
 const route = useRoute()
 const router = useRouter()
 
@@ -72,7 +70,7 @@ onMounted(async () => {
           <p class="terminal-text error-text">> ERROR: VERIFICATION FAILED</p>
           <p class="terminal-text error-text">> {{ error }}</p>
           <div class="error-actions">
-            <UButton variant="primary" @click="router.push('/login')">RETURN TO LOGIN</UButton>
+            <UButton color="primary" class="w-full" @click="router.push('/login')">RETURN TO LOGIN</UButton>
           </div>
         </div>
       </div>

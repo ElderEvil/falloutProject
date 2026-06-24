@@ -2,8 +2,6 @@
 import { computed, ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import { UCard, UAlert } from '@/core/components/ui'
-import USkeleton from '@/core/components/ui/USkeleton.vue'
 import type { AIUsageStats } from '../models/aiUsage'
 
 interface Props {
@@ -74,7 +72,7 @@ const showWarningBanner = computed(() => {
 </script>
 
 <template>
-  <UCard title="AI USAGE STATISTICS" glow crt>
+  <UCard title="AI USAGE STATISTICS" class="shadow-[0_0_10px_var(--color-theme-glow)] crt-screen">
     <div v-if="loading" class="space-y-4">
       <USkeleton class="h-8 w-full" />
       <USkeleton class="h-16 w-full" />
@@ -83,7 +81,7 @@ const showWarningBanner = computed(() => {
 
     <div v-else-if="stats" class="space-y-6">
       <!-- Warning Banner -->
-      <UAlert v-if="showWarningBanner" variant="warning" dismissible @close="dismissBanner">
+      <UAlert v-if="showWarningBanner" color="warning" close @close="dismissBanner">
         <div class="flex items-center justify-between gap-4 flex-wrap">
           <span>
             You've used <strong>{{ Math.round(quotaPercentage) }}%</strong> of your monthly token

@@ -3,7 +3,6 @@
  * ChangelogModal - Displays version updates and changelog information
  */
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { UCard, UButton, UBadge } from '@/core/components/ui'
 import { Icon } from '@iconify/vue'
 import {
   changelogService,
@@ -150,7 +149,7 @@ onUnmounted(() => {
         class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
         @click="handleBackdropClick"
       >
-        <UCard glow crt class="w-full max-w-4xl max-h-[85vh] overflow-hidden" @click.stop>
+        <UCard class="w-full max-w-4xl max-h-[85vh] overflow-hidden shadow-[0_0_10px_var(--color-theme-glow)] crt-screen" @click.stop>
           <template #header>
             <div class="flex items-center justify-between w-full">
               <div class="flex items-center gap-3">
@@ -175,7 +174,7 @@ onUnmounted(() => {
           <!-- Error state -->
           <div v-else-if="error" class="flex flex-col items-center justify-center py-12">
             <div class="text-red-400 mb-4">{{ error }}</div>
-            <UButton variant="primary" @click="fetchChangelog">Retry</UButton>
+            <UButton color="primary" @click="fetchChangelog">Retry</UButton>
           </div>
 
           <!-- No new versions -->
@@ -199,7 +198,7 @@ onUnmounted(() => {
                 class="flex items-center justify-between mb-4 pb-2 border-b border-[--color-terminal-green-500]/30"
               >
                 <div class="flex items-center gap-3">
-                  <UBadge variant="success" class="text-lg"> v{{ entry.version }} </UBadge>
+                  <UBadge color="success" class="text-lg"> v{{ entry.version }} </UBadge>
                   <span class="text-gray-400 text-sm font-mono">{{ entry.date_display }}</span>
                 </div>
               </div>
@@ -242,13 +241,13 @@ onUnmounted(() => {
           <template #footer>
             <div class="flex justify-between items-center">
               <div class="flex gap-3">
-                <UButton variant="secondary" @click="handleViewAllChangelog">
+                <UButton color="primary" variant="outline" @click="handleViewAllChangelog">
                   View Full Changelog
                 </UButton>
               </div>
 
               <div class="flex gap-3">
-                <UButton v-if="hasNewVersions" variant="primary" @click="handleMarkAsSeen">
+                <UButton v-if="hasNewVersions" color="primary" @click="handleMarkAsSeen">
                   Got it!
                 </UButton>
               </div>

@@ -6,8 +6,6 @@ import { useVisualEffects, type EffectIntensity } from '@/core/composables/useVi
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
 import { useRoomRendering } from '@/modules/rooms/composables/useRoomRendering'
 import SidePanel from '@/core/components/common/SidePanel.vue'
-import { UCard, UButton } from '@/core/components/ui'
-import { Icon } from '@iconify/vue'
 
 const router = useRouter()
 

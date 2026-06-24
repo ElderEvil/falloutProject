@@ -4,7 +4,6 @@
  */
 import { ref, onMounted, computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UCard, UButton, UBadge, USkeleton } from '@/core/components/ui'
 import {
   changelogService,
   type ChangelogEntry,
@@ -132,7 +131,7 @@ onMounted(() => {
     </div>
 
     <!-- Filters -->
-    <UCard class="mb-8" glow>
+        <UCard class="mb-8 shadow-[0_0_10px_var(--color-theme-glow)]">
       <div class="flex flex-wrap gap-4 items-center">
         <!-- Search -->
         <div class="flex-1 min-w-64">
@@ -160,7 +159,8 @@ onMounted(() => {
 
         <!-- Clear Filters -->
         <UButton
-          variant="secondary"
+          color="primary"
+          variant="outline"
           @click="clearFilters"
           :disabled="!searchQuery && selectedCategory === 'all'"
         >
@@ -175,13 +175,13 @@ onMounted(() => {
     </div>
 
     <!-- Error state -->
-    <UCard v-else-if="error" glow class="text-center py-12">
+    <UCard v-else-if="error" class="text-center py-12 shadow-[0_0_10px_var(--color-theme-glow)]">
       <div class="text-red-400 text-xl mb-4">{{ error }}</div>
-      <UButton variant="primary" @click="fetchChangelog">Retry</UButton>
+      <UButton color="primary" @click="fetchChangelog">Retry</UButton>
     </UCard>
 
     <!-- No results -->
-    <UCard v-else-if="filteredChangelog.length === 0" glow class="text-center py-12">
+    <UCard v-else-if="filteredChangelog.length === 0" class="text-center py-12 shadow-[0_0_10px_var(--color-theme-glow)]">
       <div class="text-gray-400 text-xl mb-2">No matching entries found</div>
       <div class="text-gray-500">Try adjusting your search or filter criteria</div>
     </UCard>
@@ -190,9 +190,9 @@ onMounted(() => {
     <div v-else class="space-y-8">
       <div v-for="entry in filteredChangelog" :key="entry.version" class="mb-8">
         <!-- Version header -->
-        <UCard class="mb-4" glow>
+        <UCard class="mb-4 shadow-[0_0_10px_var(--color-theme-glow)]">
           <div class="flex items-center gap-3">
-            <UBadge variant="primary" class="text-xl font-bold"> v{{ entry.version }} </UBadge>
+            <UBadge color="primary" class="text-xl font-bold"> v{{ entry.version }} </UBadge>
             <span class="text-gray-400">{{ entry.date_display }}</span>
           </div>
         </UCard>
@@ -212,7 +212,7 @@ onMounted(() => {
               <h3 :class="getCategoryInfo(category).color" class="font-semibold text-lg">
                 {{ category }}
               </h3>
-              <UBadge variant="secondary" class="ml-auto">
+              <UBadge color="neutral" class="ml-auto">
                 {{ changes.length }}
               </UBadge>
             </div>
@@ -235,7 +235,7 @@ onMounted(() => {
     <!-- Back to top button -->
     <div v-if="!loading && !error && filteredChangelog.length > 0" class="fixed bottom-8 right-8">
       <UButton
-        variant="primary"
+        color="primary"
         size="lg"
         @click="scrollToTop()"
         class="shadow-lg shadow-[var(--color-theme-primary)]/50"

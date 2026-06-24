@@ -17,7 +17,7 @@
     </div>
 
     <div v-else class="settings-content">
-      <UTabs v-model="activeTab" :tabs="tabs" class="mb-6" />
+      <UTabs v-model="activeTabIndex" :items="tabItems" class="mb-6" />
 
       <!-- Game Loop -->
       <div v-show="activeTab === 'game-loop'" class="settings-section">
@@ -450,28 +450,40 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useToast } from '@/core/composables/useToast'
 import apiClient from '@/core/plugins/axios'
-import UCard from '@/core/components/ui/UCard.vue'
-import UTabs from '@/core/components/ui/UTabs.vue'
 import SettingItem from '@/core/components/ui/SettingItem.vue'
 
 const { error: showError } = useToast()
 
-const activeTab = ref('game-loop')
-const tabs = [
-  { key: 'game-loop', label: 'Game Loop' },
-  { key: 'incidents', label: 'Incidents' },
-  { key: 'combat', label: 'Combat' },
-  { key: 'happiness', label: 'Happiness' },
-  { key: 'training', label: 'Training' },
-  { key: 'resources', label: 'Resources' },
-  { key: 'leveling', label: 'Leveling' },
-  { key: 'relationships', label: 'Relationships' },
-  { key: 'breeding', label: 'Breeding' },
+const tabKeys = [
+  'game-loop',
+  'incidents',
+  'combat',
+  'happiness',
+  'training',
+  'resources',
+  'leveling',
+  'relationships',
+  'breeding',
 ]
+
+const tabItems = [
+  { label: 'Game Loop' },
+  { label: 'Incidents' },
+  { label: 'Combat' },
+  { label: 'Happiness' },
+  { label: 'Training' },
+  { label: 'Resources' },
+  { label: 'Leveling' },
+  { label: 'Relationships' },
+  { label: 'Breeding' },
+]
+
+const activeTabIndex = ref(0)
+const activeTab = computed(() => tabKeys[activeTabIndex.value])
 
 const settings = ref<any>({})
 const loading = ref(true)

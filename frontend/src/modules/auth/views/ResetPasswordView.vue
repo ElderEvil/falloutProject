@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from '@/core/plugins/axios'
-import { UButton, UInput } from '@/core/components/ui'
+
 
 const route = useRoute()
 const router = useRouter()
@@ -105,8 +105,8 @@ const handleSubmit = async () => {
           </div>
 
           <UButton
-            variant="primary"
-            block
+            color="primary"
+            class="w-full"
             :loading="loading"
             :disabled="loading || !token"
             @click.prevent="handleSubmit"

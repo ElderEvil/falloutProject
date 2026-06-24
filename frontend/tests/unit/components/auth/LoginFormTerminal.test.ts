@@ -42,7 +42,7 @@ describe('LoginFormTerminal', () => {
 
       expect(wrapper.text()).toContain('VAULT-TEC INDUSTRIES')
       expect(wrapper.text()).toContain('Vault Network Access Terminal')
-      expect(wrapper.findAll('[data-testid="ui-input"]').length).toBe(2)
+      expect(wrapper.findAll('input').length).toBe(2)
       expect(wrapper.find('button[type="submit"]').exists()).toBe(true)
     })
 
@@ -76,7 +76,7 @@ describe('LoginFormTerminal', () => {
         },
       })
 
-      const emailInput = wrapper.findAll('[data-testid="ui-input"]')[0]
+      const emailInput = wrapper.findAll('input')[0]
       expect(emailInput.attributes('type')).toBe('email')
       expect(emailInput.attributes('required')).toBeDefined()
     })
@@ -88,7 +88,7 @@ describe('LoginFormTerminal', () => {
         },
       })
 
-      const passwordInput = wrapper.findAll('[data-testid="ui-input"]')[1]
+      const passwordInput = wrapper.findAll('input')[1]
       expect(passwordInput.attributes('type')).toBe('password')
       expect(passwordInput.attributes('required')).toBeDefined()
     })
@@ -133,7 +133,7 @@ describe('LoginFormTerminal', () => {
         },
       })
 
-      const usernameInput = wrapper.findAll('[data-testid="ui-input"]')[0]
+      const usernameInput = wrapper.findAll('input')[0]
       await usernameInput.setValue('test@vault-tec.com')
 
       expect((usernameInput.element as HTMLInputElement).value).toBe('test@vault-tec.com')
@@ -146,7 +146,7 @@ describe('LoginFormTerminal', () => {
         },
       })
 
-      const passwordInput = wrapper.findAll('[data-testid="ui-input"]')[1]
+      const passwordInput = wrapper.findAll('input')[1]
       await passwordInput.setValue('password123')
 
       expect((passwordInput.element as HTMLInputElement).value).toBe('password123')
@@ -174,7 +174,7 @@ describe('LoginFormTerminal', () => {
 
       const loginSpy = vi.spyOn(authStore, 'login').mockResolvedValue(true)
       const pushSpy = vi.spyOn(router, 'push')
-      const inputs = wrapper.findAll('[data-testid="ui-input"]')
+      const inputs = wrapper.findAll('input')
 
       await inputs[0].setValue('test@vault-tec.com')
       await inputs[1].setValue('password123')
@@ -195,7 +195,7 @@ describe('LoginFormTerminal', () => {
 
       vi.spyOn(authStore, 'login').mockResolvedValue(true)
       const pushSpy = vi.spyOn(router, 'push')
-      const inputs = wrapper.findAll('[data-testid="ui-input"]')
+      const inputs = wrapper.findAll('input')
 
       await inputs[0].setValue('test@vault-tec.com')
       await inputs[1].setValue('password123')
@@ -214,7 +214,7 @@ describe('LoginFormTerminal', () => {
       })
 
       vi.spyOn(authStore, 'login').mockResolvedValue(false)
-      const inputs = wrapper.findAll('[data-testid="ui-input"]')
+      const inputs = wrapper.findAll('input')
 
       await inputs[0].setValue('wrong@vault-tec.com')
       await inputs[1].setValue('wrongpassword')
@@ -235,7 +235,7 @@ describe('LoginFormTerminal', () => {
 
       vi.spyOn(authStore, 'login').mockResolvedValue(false)
       const pushSpy = vi.spyOn(router, 'push')
-      const inputs = wrapper.findAll('[data-testid="ui-input"]')
+      const inputs = wrapper.findAll('input')
 
       await inputs[0].setValue('wrong@vault-tec.com')
       await inputs[1].setValue('wrongpassword')
@@ -257,7 +257,7 @@ describe('LoginFormTerminal', () => {
 
       expect(wrapper.find('.login-container').exists()).toBe(true)
       expect(wrapper.find('button').exists()).toBe(true)
-      expect(wrapper.find('[data-testid="ui-input"]').exists()).toBe(true)
+      expect(wrapper.find('input').exists()).toBe(true)
     })
 
     it('should have system messages section', () => {

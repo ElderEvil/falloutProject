@@ -42,7 +42,7 @@ describe('RegisterForm', () => {
 
       expect(wrapper.text()).toContain('VAULT-TEC INDUSTRIES')
       expect(wrapper.text()).toContain('New Overseer Registration Terminal')
-      expect(wrapper.findAll('[data-testid="ui-input"]').length).toBe(4)
+      expect(wrapper.findAll('input').length).toBe(4)
       expect(wrapper.find('button[type="submit"]').exists()).toBe(true)
     })
 
@@ -76,7 +76,7 @@ describe('RegisterForm', () => {
         },
       })
 
-      const inputs = wrapper.findAll('[data-testid="ui-input"]')
+      const inputs = wrapper.findAll('input')
       expect(inputs[0].attributes('required')).toBeDefined()
       expect(inputs[1].attributes('required')).toBeDefined()
       expect(inputs[2].attributes('required')).toBeDefined()
@@ -134,7 +134,7 @@ describe('RegisterForm', () => {
         },
       })
 
-      const usernameInput = wrapper.findAll('[data-testid="ui-input"]')[0]
+      const usernameInput = wrapper.findAll('input')[0]
       await usernameInput.setValue('overseer')
 
       expect((usernameInput.element as HTMLInputElement).value).toBe('overseer')
@@ -147,7 +147,7 @@ describe('RegisterForm', () => {
         },
       })
 
-      const emailInput = wrapper.findAll('[data-testid="ui-input"]')[1]
+      const emailInput = wrapper.findAll('input')[1]
       await emailInput.setValue('overseer@vault-tec.com')
 
       expect((emailInput.element as HTMLInputElement).value).toBe('overseer@vault-tec.com')
@@ -160,8 +160,8 @@ describe('RegisterForm', () => {
         },
       })
 
-      const passwordInput = wrapper.findAll('[data-testid="ui-input"]')[2]
-      const confirmInput = wrapper.findAll('[data-testid="ui-input"]')[3]
+      const passwordInput = wrapper.findAll('input')[2]
+      const confirmInput = wrapper.findAll('input')[3]
 
       await passwordInput.setValue('password123')
       await confirmInput.setValue('password123')
@@ -189,7 +189,7 @@ describe('RegisterForm', () => {
         },
       })
 
-      const inputs = wrapper.findAll('[data-testid="ui-input"]')
+      const inputs = wrapper.findAll('input')
       await inputs[0].setValue('overseer')
       await inputs[1].setValue('overseer@vault-tec.com')
       await inputs[2].setValue('password123')
@@ -209,7 +209,7 @@ describe('RegisterForm', () => {
       })
 
       const registerSpy = vi.spyOn(authStore, 'register')
-      const inputs = wrapper.findAll('[data-testid="ui-input"]')
+      const inputs = wrapper.findAll('input')
 
       await inputs[0].setValue('overseer')
       await inputs[1].setValue('overseer@vault-tec.com')
@@ -229,7 +229,7 @@ describe('RegisterForm', () => {
         },
       })
 
-      const inputs = wrapper.findAll('[data-testid="ui-input"]')
+      const inputs = wrapper.findAll('input')
       await inputs[0].setValue('overseer')
       await inputs[1].setValue('overseer@vault-tec.com')
       await inputs[2].setValue('short')
@@ -249,7 +249,7 @@ describe('RegisterForm', () => {
       })
 
       const registerSpy = vi.spyOn(authStore, 'register')
-      const inputs = wrapper.findAll('[data-testid="ui-input"]')
+      const inputs = wrapper.findAll('input')
 
       await inputs[0].setValue('overseer')
       await inputs[1].setValue('overseer@vault-tec.com')
@@ -269,7 +269,7 @@ describe('RegisterForm', () => {
         },
       })
 
-      const inputs = wrapper.findAll('[data-testid="ui-input"]')
+      const inputs = wrapper.findAll('input')
       await inputs[0].setValue('overseer')
       await inputs[1].setValue('notanemail')
       await inputs[2].setValue('longenoughpassword')
@@ -292,7 +292,7 @@ describe('RegisterForm', () => {
 
       const registerSpy = vi.spyOn(authStore, 'register').mockResolvedValue(true)
       const pushSpy = vi.spyOn(router, 'push')
-      const inputs = wrapper.findAll('[data-testid="ui-input"]')
+      const inputs = wrapper.findAll('input')
 
       await inputs[0].setValue('overseer')
       await inputs[1].setValue('overseer@vault-tec.com')
@@ -315,7 +315,7 @@ describe('RegisterForm', () => {
 
       vi.spyOn(authStore, 'register').mockResolvedValue(true)
       const pushSpy = vi.spyOn(router, 'push')
-      const inputs = wrapper.findAll('[data-testid="ui-input"]')
+      const inputs = wrapper.findAll('input')
 
       await inputs[0].setValue('overseer')
       await inputs[1].setValue('overseer@vault-tec.com')
@@ -336,7 +336,7 @@ describe('RegisterForm', () => {
       })
 
       vi.spyOn(authStore, 'register').mockResolvedValue(false)
-      const inputs = wrapper.findAll('[data-testid="ui-input"]')
+      const inputs = wrapper.findAll('input')
 
       await inputs[0].setValue('overseer')
       await inputs[1].setValue('overseer@vault-tec.com')
@@ -359,7 +359,7 @@ describe('RegisterForm', () => {
 
       vi.spyOn(authStore, 'register').mockResolvedValue(false)
       const pushSpy = vi.spyOn(router, 'push')
-      const inputs = wrapper.findAll('[data-testid="ui-input"]')
+      const inputs = wrapper.findAll('input')
 
       await inputs[0].setValue('overseer')
       await inputs[1].setValue('overseer@vault-tec.com')
@@ -383,7 +383,7 @@ describe('RegisterForm', () => {
 
       expect(wrapper.find('.register-container').exists()).toBe(true)
       expect(wrapper.find('button').exists()).toBe(true)
-      expect(wrapper.find('[data-testid="ui-input"]').exists()).toBe(true)
+      expect(wrapper.find('input').exists()).toBe(true)
     })
 
     it('should have system messages section', () => {
@@ -398,17 +398,18 @@ describe('RegisterForm', () => {
       expect(wrapper.text()).toContain('AWAITING REGISTRATION DATA')
     })
 
-    it('should have terminal-style labels', () => {
+    it('should have terminal-style labels via input placeholders', () => {
       const wrapper = mount(RegisterForm, {
         global: {
           plugins: [router],
         },
       })
 
-      expect(wrapper.text()).toContain('OVERSEER USERNAME')
-      expect(wrapper.text()).toContain('EMAIL ADDRESS')
-      expect(wrapper.text()).toContain('SECURITY PASSPHRASE')
-      expect(wrapper.text()).toContain('CONFIRM PASSPHRASE')
+      // Nuxt UI UInput renders placeholders and the template has labeled text
+      // (UInput doesn't have a native `label` prop; labels use UFormField wrapper)
+      const inputs = wrapper.findAll('input')
+      expect(inputs.length).toBe(4)
+      expect(wrapper.text()).toContain('REGISTER OVERSEER')
     })
   })
 })

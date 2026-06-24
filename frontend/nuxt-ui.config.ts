@@ -140,7 +140,7 @@ export default {
     },
     Card: {
       default: {
-        color: 'primary',
+        color: 'neutral',
       },
     },
     Modal: {

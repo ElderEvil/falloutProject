@@ -151,7 +151,12 @@ const hasAttributes = computed(() => formattedAttributes.value.length > 0)
           />
           <span>Portrait</span>
         </button>
-        <button v-if="hasAttributes" @click="emit('edit')" class="generate-button" title="Edit appearance manually">
+        <button
+          v-if="hasAttributes"
+          @click="emit('edit')"
+          class="generate-button"
+          title="Edit appearance manually"
+        >
           <Icon icon="mdi:pencil" class="h-5 w-5" />
           <span>Edit</span>
         </button>

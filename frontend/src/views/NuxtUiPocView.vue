@@ -121,9 +121,7 @@ function triggerLoading() {
             >
               This is a native Nuxt UI alert component
             </UAlert>
-            <UButton v-else @click="alertVisible = true" size="sm">
-              Show Alert Again
-            </UButton>
+            <UButton v-else @click="alertVisible = true" size="sm"> Show Alert Again </UButton>
 
             <UButton @click="modalOpen = true" variant="outline"> Open Nuxt UI Modal </UButton>
 
@@ -165,7 +163,11 @@ function triggerLoading() {
               {{ buttonLoading ? 'Loading...' : 'Test Loading State' }}
             </UButton>
 
-            <UButton @click="toggleFlickering" color="primary" :variant="flickering ? 'solid' : 'outline'">
+            <UButton
+              @click="toggleFlickering"
+              color="primary"
+              :variant="flickering ? 'solid' : 'outline'"
+            >
               {{ flickering ? 'Disable' : 'Enable' }} Flickering
             </UButton>
           </div>
@@ -244,7 +246,10 @@ function triggerLoading() {
 
       <!-- Your Custom Components Only -->
       <div v-else class="space-y-6">
-        <UCard title="Your Current Button Components" class="shadow-[0_0_10px_var(--color-theme-glow)]">
+        <UCard
+          title="Your Current Button Components"
+          class="shadow-[0_0_10px_var(--color-theme-glow)]"
+        >
           <div class="flex gap-2 flex-wrap">
             <UButton>Default</UButton>
             <UButton color="primary">Primary</UButton>
@@ -261,7 +266,10 @@ function triggerLoading() {
           </div>
         </UCard>
 
-        <UCard title="Your Current Badge Components" class="shadow-[0_0_10px_var(--color-theme-glow)]">
+        <UCard
+          title="Your Current Badge Components"
+          class="shadow-[0_0_10px_var(--color-theme-glow)]"
+        >
           <div class="flex gap-2 flex-wrap">
             <UBadge>Default</UBadge>
             <UBadge color="success">Success</UBadge>

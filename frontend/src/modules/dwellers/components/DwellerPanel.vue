@@ -77,10 +77,7 @@ const tabItems = [
       </template>
       <template #equipment>
         <div class="tab-content">
-          <DwellerEquipment
-            :dweller="dweller"
-            @refresh="emit('refresh')"
-          />
+          <DwellerEquipment :dweller="dweller" @refresh="emit('refresh')" />
         </div>
       </template>
     </UTabs>

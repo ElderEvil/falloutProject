@@ -173,7 +173,11 @@ const formatDate = (dateString: string) => {
         <!-- Left Column: Personal Info -->
         <div>
           <!-- Display Mode -->
-          <UCard v-if="!isEditing" title="PERSONNEL FILE" class="shadow-[0_0_10px_var(--color-theme-glow)] crt-screen">
+          <UCard
+            v-if="!isEditing"
+            title="PERSONNEL FILE"
+            class="shadow-[0_0_10px_var(--color-theme-glow)] crt-screen"
+          >
             <template #header>
               <UButton color="primary" size="sm" @click="startEditing">
                 <Icon icon="mdi:pencil" class="mr-1" />

@@ -216,100 +216,90 @@ const rarityTextClass = computed(() => {
 
 <template>
   <UCard
+    :ui="{
+      root: 'bg-black/90 ring-1 ring-[var(--color-theme-primary)]/20',
+      body: 'p-3 sm:p-3',
+    }"
     :class="[
-      'transition-all duration-200 hover:bg-black/50 hover:-translate-y-0.5 hover:shadow-glow-md font-mono p-3',
+      'w-full transition-all duration-200 hover:bg-black/50 hover:-translate-y-0.5 hover:shadow-glow-md font-mono overflow-hidden',
       rarityBorderClass,
     ]"
   >
-    <div class="flex flex-col gap-3">
-      <!-- Header -->
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 flex items-center justify-center">
-          <Icon
-            :icon="itemIcon"
-            class="w-10 h-10 text-[--color-theme-primary] drop-shadow-[0_0_4px_var(--color-theme-glow)]"
-          />
-        </div>
+    <div class="flex flex-col gap-2">
+      <!-- Header: icon + name + count badge -->
+      <div class="flex items-center gap-2.5">
+        <Icon
+          :icon="itemIcon"
+          class="w-9 h-9 shrink-0 text-[--color-theme-primary] drop-shadow-[0_0_4px_var(--color-theme-glow)]"
+        />
         <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1.5">
             <h3
-              :class="['text-lg font-bold m-0 drop-shadow-[0_0_4px_currentColor]', rarityTextClass]"
+              :class="['text-sm font-bold truncate drop-shadow-[0_0_4px_currentColor]', rarityTextClass]"
             >
               {{ itemName }}
             </h3>
             <span
               v-if="count > 1"
-              class="inline-flex items-center justify-center min-w-[2rem] px-2 py-0.5 bg-[--color-theme-primary] text-black rounded-full text-xs font-bold shadow-[0_0_8px_var(--color-theme-glow)]"
+              class="shrink-0 inline-flex items-center justify-center min-w-[1.4rem] h-5 px-1.5 bg-[--color-theme-primary] text-black rounded-full text-[11px] font-bold shadow-[0_0_6px_var(--color-theme-glow)]"
             >
               ×{{ count }}
             </span>
           </div>
-          <p class="text-xs text-[--color-theme-primary] opacity-70 capitalize mt-1 m-0">
+          <p class="text-xs text-[--color-theme-primary] opacity-70 capitalize truncate leading-tight mt-0.5">
             {{ itemTypeDisplay }}
           </p>
         </div>
       </div>
 
-      <!-- Description -->
-      <p class="text-sm text-[--color-theme-primary] opacity-80 leading-normal m-0">
-        {{ itemDescription }}
-      </p>
-
-      <!-- Stats -->
-      <div v-if="itemStats.length > 0" class="flex flex-col gap-2 p-3 bg-black/30 rounded">
-        <div v-for="stat in itemStats" :key="stat.label" class="flex items-center gap-2 text-sm">
-          <Icon :icon="stat.icon" class="w-4 h-4 text-[--color-theme-primary]" />
-          <span class="text-[--color-theme-primary] opacity-70">{{ stat.label }}:</span>
-          <span class="text-[--color-theme-primary] font-bold ml-auto">{{ stat.value }}</span>
+      <!-- Stats inline -->
+      <div v-if="itemStats.length > 0" class="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-[--color-theme-primary] leading-tight">
+        <div v-for="stat in itemStats" :key="stat.label" class="flex items-center gap-1">
+          <Icon :icon="stat.icon" class="w-3.5 h-3.5 shrink-0" />
+          <span class="opacity-70">{{ stat.label }}:</span>
+          <span class="font-bold">{{ stat.value }}</span>
         </div>
       </div>
 
-      <!-- Footer -->
-      <div
-        class="flex items-center justify-between gap-3 pt-3 border-t border-[--color-theme-glow]"
-      >
-        <div class="flex items-center gap-1 text-[--color-theme-primary] font-bold text-base">
-          <Icon icon="mdi:currency-usd" class="w-5 h-5 text-[--color-caps]" />
-          <span>{{ itemValue }} caps</span>
+      <!-- Footer: value + compact actions -->
+      <div class="flex items-center justify-between gap-1.5 pt-2 border-t border-[--color-theme-primary]/20">
+        <div class="flex items-center gap-1 text-[--color-theme-primary] text-xs font-bold">
+          <Icon icon="mdi:currency-usd" class="w-4 h-4 text-[--color-caps]" />
+          <span>{{ itemValue }}</span>
         </div>
-        <div class="flex items-center gap-2 flex-wrap">
+        <div class="flex items-center gap-1">
           <UButton
             v-if="canScrap"
             color="error"
             variant="solid"
-            size="sm"
+            size="2xs"
             @click="handleScrap"
-            title="Scrap for materials"
-            class="font-mono"
+            title="Scrap"
+            class="font-mono !px-1.5 !py-0.5 !text-[11px] !h-auto !min-h-0"
           >
-            <Icon icon="mdi:hammer-wrench" class="w-4 h-4" />
-            <span>Scrap</span>
+            <Icon icon="mdi:hammer-wrench" class="w-3.5 h-3.5" />
           </UButton>
-          <div class="flex items-center gap-2 ml-auto">
-            <UButton
-              color="primary"
-              variant="outline"
-              size="sm"
-              @click="handleSell"
-              :title="count > 1 ? 'Sell one item' : 'Sell this item'"
-              class="font-mono !text-[--color-caps] !border-[--color-caps] hover:!bg-[--color-caps]/20"
-            >
-              <Icon icon="mdi:cash" class="w-4 h-4" />
-              <span>Sell{{ count > 1 ? ' One' : '' }}</span>
-            </UButton>
-            <UButton
-              v-if="showSellAll"
-              color="primary"
-              variant="solid"
-              size="sm"
-              @click="handleSellAll"
-              title="Sell all items of this type"
-              class="font-mono !bg-[--color-caps]/20 !text-[--color-caps] !border-[--color-caps] hover:!bg-[--color-caps]/30 font-extrabold"
-            >
-              <Icon icon="mdi:cash-multiple" class="w-4 h-4" />
-              <span>Sell All ({{ count }})</span>
-            </UButton>
-          </div>
+          <UButton
+            color="primary"
+            variant="outline"
+            size="2xs"
+            @click="handleSell"
+            :title="count > 1 ? 'Sell one' : 'Sell'"
+            class="font-mono !px-1.5 !py-0.5 !text-[11px] !h-auto !min-h-0 !text-[--color-caps] !border-[--color-caps] hover:!bg-[--color-caps]/20"
+          >
+            <Icon icon="mdi:cash" class="w-3.5 h-3.5" />
+          </UButton>
+          <UButton
+            v-if="showSellAll"
+            color="primary"
+            variant="solid"
+            size="2xs"
+            @click="handleSellAll"
+            title="Sell all ({{ count }})"
+            class="font-mono !px-1.5 !py-0.5 !text-[11px] !h-auto !min-h-0 !bg-[--color-caps]/20 !text-[--color-caps] !border-[--color-caps] hover:!bg-[--color-caps]/30"
+          >
+            <Icon icon="mdi:cash-multiple" class="w-3.5 h-3.5" />
+          </UButton>
         </div>
       </div>
     </div>

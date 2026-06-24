@@ -51,6 +51,7 @@ const handleSubmit = async () => {
               type="email"
               label="> USER IDENTIFICATION:"
               placeholder="overseer@vault-tec.com"
+              class="w-full"
               required
             />
           </div>
@@ -61,6 +62,7 @@ const handleSubmit = async () => {
               type="password"
               label="> SECURITY PASSPHRASE:"
               placeholder="••••••••"
+              class="w-full"
               required
             />
           </div>

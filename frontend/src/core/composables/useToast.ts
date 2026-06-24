@@ -9,7 +9,11 @@ export function useToast() {
 
   const toast = nuxtToast
 
-  const show = (message: string, variant: 'success' | 'error' | 'warning' | 'info' = 'info', duration?: number) => {
+  const show = (
+    message: string,
+    variant: 'success' | 'error' | 'warning' | 'info' = 'info',
+    duration?: number
+  ) => {
     const t = toast.add({
       title: message,
       color: variant,

@@ -51,12 +51,12 @@ const sanitizedBio = computed(() => {
           :disabled="props.isAnyGenerating"
           title="Generate portrait & biography together"
         >
-            <Icon
-              :icon="props.isAnyGenerating ? 'mdi:loading' : 'mdi:sparkles'"
-              class="h-5 w-5"
-              :class="{ 'animate-spin': props.isAnyGenerating }"
-            />
-            <span>All</span>
+          <Icon
+            :icon="props.isAnyGenerating ? 'mdi:loading' : 'mdi:sparkles'"
+            class="h-5 w-5"
+            :class="{ 'animate-spin': props.isAnyGenerating }"
+          />
+          <span>All</span>
         </button>
       </div>
     </div>

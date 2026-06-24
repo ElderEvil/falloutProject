@@ -255,15 +255,23 @@ const availableHeadgear = computed(() => HEADGEAR_OPTIONS[raceKey.value] || HEAD
 
 // Computed items arrays for @nuxt/ui USelect (items-based API)
 const raceItems = computed(() => RACE_OPTIONS.map((r) => ({ value: r, label: formatLabel(r) })))
-const factionItems = computed(() => availableFactions.value.map((f) => ({ value: f, label: formatLabel(f) })))
-const stateOfBeingItems = computed(() => (availableStates.value || []).map((s) => ({ value: s, label: formatLabel(s) })))
+const factionItems = computed(() =>
+  availableFactions.value.map((f) => ({ value: f, label: formatLabel(f) }))
+)
+const stateOfBeingItems = computed(() =>
+  (availableStates.value || []).map((s) => ({ value: s, label: formatLabel(s) }))
+)
 const heightItems = computed(() => HEIGHT_OPTIONS.map((h) => ({ value: h, label: formatLabel(h) })))
 const buildItems = computed(() => availableBuilds.value.map((b) => ({ value: b, label: b })))
 const skinToneItems = computed(() => availableSkinTones.value.map((s) => ({ value: s, label: s })))
-const eyeColorItems = computed(() => EYE_COLOR_OPTIONS.map((e) => ({ value: e, label: formatLabel(e) })))
+const eyeColorItems = computed(() =>
+  EYE_COLOR_OPTIONS.map((e) => ({ value: e, label: formatLabel(e) }))
+)
 const haircutItems = computed(() => availableHaircuts.value.map((h) => ({ value: h, label: h })))
 const hairColorItems = computed(() => HAIR_COLORS.map((h) => ({ value: h, label: formatLabel(h) })))
-const expressionItems = computed(() => EXPRESSIONS.map((e) => ({ value: e, label: formatLabel(e) })))
+const expressionItems = computed(() =>
+  EXPRESSIONS.map((e) => ({ value: e, label: formatLabel(e) }))
+)
 const appearanceItems = computed(() => [
   { value: 'attractive', label: 'Attractive' },
   { value: 'cute', label: 'Cute' },
@@ -358,15 +366,21 @@ function handleCancel() {
         </h4>
         <div class="form-grid">
           <div class="form-field">
-            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70">Race</label>
+            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70"
+              >Race</label
+            >
             <USelect v-model="form.race" :items="raceItems" />
           </div>
           <div class="form-field">
-            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70">Faction</label>
+            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70"
+              >Faction</label
+            >
             <USelect v-model="form.faction" :items="factionItems" />
           </div>
           <div v-if="showStateOfBeing" class="form-field">
-            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70">State of Being</label>
+            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70"
+              >State of Being</label
+            >
             <USelect v-model="form.state_of_being" :items="stateOfBeingItems" />
           </div>
         </div>
@@ -380,23 +394,33 @@ function handleCancel() {
         </h4>
         <div class="form-grid">
           <div class="form-field">
-            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70">Height</label>
+            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70"
+              >Height</label
+            >
             <USelect v-model="form.height" :items="heightItems" />
           </div>
           <div class="form-field">
-            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70">Build</label>
+            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70"
+              >Build</label
+            >
             <USelect v-model="form.build" :items="buildItems" />
           </div>
           <div class="form-field">
-            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70">Skin Tone</label>
+            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70"
+              >Skin Tone</label
+            >
             <USelect v-model="form.skin_tone" :items="skinToneItems" />
           </div>
           <div class="form-field">
-            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70">Eye Color</label>
+            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70"
+              >Eye Color</label
+            >
             <USelect v-model="form.eye_color" :items="eyeColorItems" />
           </div>
           <div class="form-field">
-            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70">Age</label>
+            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70"
+              >Age</label
+            >
             <UInput v-model.number="form.age" type="number" placeholder="18-80" />
           </div>
         </div>
@@ -410,38 +434,46 @@ function handleCancel() {
         </h4>
         <div class="form-grid">
           <div class="form-field">
-            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70">Hair Style</label>
+            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70"
+              >Hair Style</label
+            >
             <USelect v-model="form.hair_style" :items="haircutItems" />
           </div>
           <div class="form-field">
-            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70">Hair Color</label>
+            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70"
+              >Hair Color</label
+            >
             <USelect v-model="form.hair_color" :items="hairColorItems" />
           </div>
           <div class="form-field">
-            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70">Facial Hair</label>
-            <UInput
-              v-model="form.facial_hair"
-              placeholder="e.g. beard, stubble"
-            />
+            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70"
+              >Facial Hair</label
+            >
+            <UInput v-model="form.facial_hair" placeholder="e.g. beard, stubble" />
           </div>
           <div class="form-field">
-            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70">Makeup</label>
+            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70"
+              >Makeup</label
+            >
             <UInput v-model="form.makeup" placeholder="e.g. natural, glamorous" />
           </div>
           <div class="form-field">
-            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70">Expression</label>
+            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70"
+              >Expression</label
+            >
             <USelect v-model="form.expression" :items="expressionItems" />
           </div>
           <div class="form-field">
-            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70">Appearance</label>
+            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70"
+              >Appearance</label
+            >
             <USelect v-model="form.appearance" :items="appearanceItems" />
           </div>
           <div class="form-field form-field-full">
-            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70">Distinguishing Features</label>
-            <UInput
-              v-model="form.distinguishing_features"
-              placeholder="e.g. scar, tattoo, mole"
-            />
+            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70"
+              >Distinguishing Features</label
+            >
+            <UInput v-model="form.distinguishing_features" placeholder="e.g. scar, tattoo, mole" />
           </div>
         </div>
       </div>
@@ -454,38 +486,46 @@ function handleCancel() {
         </h4>
         <div class="form-grid">
           <div class="form-field">
-            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70">Headgear</label>
+            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70"
+              >Headgear</label
+            >
             <USelect v-model="form.headgear" :items="headgearItems" />
           </div>
           <div class="form-field">
-            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70">Clothing Style</label>
-            <UInput
-              v-model="form.clothing_style"
-              placeholder="e.g. casual, military"
-            />
+            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70"
+              >Clothing Style</label
+            >
+            <UInput v-model="form.clothing_style" placeholder="e.g. casual, military" />
           </div>
           <div class="form-field">
-            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70">Accessory</label>
+            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70"
+              >Accessory</label
+            >
             <UInput v-model="form.accessory" placeholder="e.g. Pip-Boy" />
           </div>
           <div class="form-field">
-            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70">Object Held</label>
+            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70"
+              >Object Held</label
+            >
             <UInput v-model="form.object_held" placeholder="e.g. Laser Rifle" />
           </div>
           <div class="form-field form-field-full">
-            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70">Pose</label>
+            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70"
+              >Pose</label
+            >
             <USelect v-model="form.pose" :items="poseItems" />
           </div>
           <div class="form-field form-field-full">
-            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70">Background</label>
+            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70"
+              >Background</label
+            >
             <USelect v-model="form.background" :items="backgroundItems" />
           </div>
           <div class="form-field form-field-full">
-            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70">Voice Line</label>
-            <UInput
-              v-model="form.voice_line_text"
-              placeholder="e.g. For the Brotherhood!"
-            />
+            <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70"
+              >Voice Line</label
+            >
+            <UInput v-model="form.voice_line_text" placeholder="e.g. For the Brotherhood!" />
           </div>
         </div>
       </div>

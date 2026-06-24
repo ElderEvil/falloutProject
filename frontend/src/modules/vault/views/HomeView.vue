@@ -125,21 +125,26 @@ onMounted(async () => {
         <div class="space-y-2">
           <div class="flex items-start space-x-2">
             <div class="flex-grow">
-              <label class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70 mb-1 block">Vault Number</label>
+              <label
+                class="text-xs font-semibold uppercase tracking-wider text-theme-primary/70 mb-1 block"
+                >Vault Number</label
+              >
               <UInput
                 v-model="newVaultNumber"
                 type="number"
                 placeholder="Vault Number (1-999)"
                 class="w-full"
               />
-              <p v-if="vaultNumberError" class="text-red-400 text-xs mt-1">{{ vaultNumberError }}</p>
+              <p v-if="vaultNumberError" class="text-red-400 text-xs mt-1">
+                {{ vaultNumberError }}
+              </p>
             </div>
-              <UButton
-                color="primary"
-                :disabled="creatingVault || !!vaultNumberError"
-                @click="createVault"
-                class="mt-6"
-              >
+            <UButton
+              color="primary"
+              :disabled="creatingVault || !!vaultNumberError"
+              @click="createVault"
+              class="mt-6"
+            >
               {{ creatingVault ? 'Creating...' : 'Create Vault' }}
             </UButton>
           </div>
@@ -238,7 +243,12 @@ onMounted(async () => {
 
             <!-- Action Buttons -->
             <div v-if="selectedVaultId === vault.id" class="vault-actions">
-              <UButton color="primary" variant="outline" class="w-full" @click.stop="loadVault(vault.id)">
+              <UButton
+                color="primary"
+                variant="outline"
+                class="w-full"
+                @click.stop="loadVault(vault.id)"
+              >
                 Load Vault
               </UButton>
               <UButton

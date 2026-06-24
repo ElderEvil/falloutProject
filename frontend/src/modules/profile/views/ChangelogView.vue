@@ -131,7 +131,7 @@ onMounted(() => {
     </div>
 
     <!-- Filters -->
-        <UCard class="mb-8 shadow-[0_0_10px_var(--color-theme-glow)]">
+    <UCard class="mb-8 shadow-[0_0_10px_var(--color-theme-glow)]">
       <div class="flex flex-wrap gap-4 items-center">
         <!-- Search -->
         <div class="flex-1 min-w-64">
@@ -181,7 +181,10 @@ onMounted(() => {
     </UCard>
 
     <!-- No results -->
-    <UCard v-else-if="filteredChangelog.length === 0" class="text-center py-12 shadow-[0_0_10px_var(--color-theme-glow)]">
+    <UCard
+      v-else-if="filteredChangelog.length === 0"
+      class="text-center py-12 shadow-[0_0_10px_var(--color-theme-glow)]"
+    >
       <div class="text-gray-400 text-xl mb-2">No matching entries found</div>
       <div class="text-gray-500">Try adjusting your search or filter criteria</div>
     </UCard>

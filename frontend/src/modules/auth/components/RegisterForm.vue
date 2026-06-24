@@ -68,6 +68,7 @@ const handleSubmit = async () => {
               type="text"
               label="> OVERSEER USERNAME:"
               placeholder="overseer_name"
+              class="w-full"
               required
             />
           </div>
@@ -78,6 +79,7 @@ const handleSubmit = async () => {
               type="email"
               label="> EMAIL ADDRESS:"
               placeholder="overseer@vault-tec.com"
+              class="w-full"
               required
             />
           </div>
@@ -88,6 +90,7 @@ const handleSubmit = async () => {
               type="password"
               label="> SECURITY PASSPHRASE:"
               placeholder="••••••••"
+              class="w-full"
               required
             />
           </div>
@@ -98,6 +101,7 @@ const handleSubmit = async () => {
               type="password"
               label="> CONFIRM PASSPHRASE:"
               placeholder="••••••••"
+              class="w-full"
               required
             />
           </div>

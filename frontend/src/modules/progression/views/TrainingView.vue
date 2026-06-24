@@ -30,9 +30,7 @@ onMounted(async () => {
     <SidePanel />
 
     <div class="training-view" :class="{ collapsed: isCollapsed }">
-      <UButton color="primary" variant="ghost" @click="goBack" class="mb-4">
-        ← Back
-      </UButton>
+      <UButton color="primary" variant="ghost" @click="goBack" class="mb-4"> ← Back </UButton>
       <div class="training-header">
         <div class="header-content">
           <Icon icon="mdi:dumbbell" class="header-icon" />

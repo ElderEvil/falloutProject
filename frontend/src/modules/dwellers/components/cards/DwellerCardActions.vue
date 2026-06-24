@@ -123,12 +123,19 @@ const isTraining = computed(() => {
         {{ isTraining ? 'Training In Progress' : 'Train Stats' }}
       </UButton>
 
-      <UButton color="secondary" variant="outline" size="md" disabled class="w-full locked-action-button" title="Assign a pet companion - Coming in Phase 3 (Mar-Apr 2026)">
-          <Icon icon="mdi:paw" class="h-5 w-5 mr-2" />
-          Assign Pet
-          <Icon icon="mdi:lock" class="h-4 w-4 ml-auto opacity-50" />
-        </UButton>
-      </div>
+      <UButton
+        color="secondary"
+        variant="outline"
+        size="md"
+        disabled
+        class="w-full locked-action-button"
+        title="Assign a pet companion - Coming in Phase 3 (Mar-Apr 2026)"
+      >
+        <Icon icon="mdi:paw" class="h-5 w-5 mr-2" />
+        Assign Pet
+        <Icon icon="mdi:lock" class="h-4 w-4 ml-auto opacity-50" />
+      </UButton>
+    </div>
   </div>
 </template>
 
@@ -165,6 +172,4 @@ const isTraining = computed(() => {
   padding-top: 0.75rem;
   border-top: 1px solid var(--color-theme-glow);
 }
-
-
 </style>

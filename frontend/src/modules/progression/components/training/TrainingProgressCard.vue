@@ -140,12 +140,7 @@ const handleComplete = () => {
           <Icon icon="mdi:check-circle" class="h-4 w-4" />
           Complete
         </UButton>
-        <UButton
-          v-if="training.status === 'active'"
-          size="sm"
-          color="error"
-          @click="handleCancel"
-        >
+        <UButton v-if="training.status === 'active'" size="sm" color="error" @click="handleCancel">
           <Icon icon="mdi:close-circle" class="h-4 w-4" />
           Cancel
         </UButton>

@@ -25,6 +25,12 @@ AI-powered dweller interactions.
 - [ ] **Axios→fetch migration** — Execute `HTTP_CLIENT_MIGRATION.md` 6-phase plan (33 files): fetch adapter, call-site migration, interceptor/token-refresh migration, drop axios dep (~14KB gzip bundle saving)
 - [ ] **Chat REST→WebSocket migration** — Replace POST-SSE chat streaming with dedicated WebSocket endpoint; remove chat SSE stub from stream.py
 
+### v2.24.0 — Pydantic AI v2 Upgrade
+
+- [ ] **Upgrade pydantic-ai-slim from v1 to v2** — Adopt capabilities-based agent architecture; audit all 10+ files using pydantic-ai APIs (dweller chat agents, conversation service, OpenAI/Ollama providers, quota enforcement)
+- [ ] **Refactor agents to use capabilities** — Replace ad-hoc tool/hook wiring with composable `capabilities` primitive
+- [ ] **Test all agent paths** — Dweller chat, quest generation, exploration actions, training; no regressions
+
 ---
 
 ## Latest Release
@@ -990,6 +996,7 @@ watch(() => userStore.caps, (caps) => {
 | ------- | ------------ | -------------------------------------------- |
 | v2.22.0 | Jun 24, 2026 | @nuxt/ui Migration (custom U* components → @nuxt/ui v4)      |
 | v2.23.0 | TBD          | Infrastructure Upgrade (axios→fetch, Chat WebSocket)         |
+| v2.24.0 | TBD          | Pydantic AI v2 Upgrade (capabilities, agent refactor)        |
 | v2.21.0 | Jun 24, 2026 | SSE Polish (incident/game-tick SSE, radio datetime fix) |
 | v2.20.0 | Jun 22, 2026 | FE Simplification (YAGNI + DRY, dead code purge) |
 | v2.19.0 | Jun 21, 2026 | SSE streaming + Dict-to-Pydantic refactoring |

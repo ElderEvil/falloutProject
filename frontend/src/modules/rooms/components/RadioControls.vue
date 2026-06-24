@@ -2,7 +2,6 @@
 import { Icon } from '@iconify/vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 
-
 interface Props {
   localRadioMode: string
   isRecruiting: boolean
@@ -67,7 +66,8 @@ const emit = defineEmits<{
     <UButton
       @click="emit('recruit')"
       :disabled="isRecruiting || assignedDwellers.length === 0 || localRadioMode !== 'recruitment'"
-      color="primary" variant="solid"
+      color="primary"
+      variant="solid"
       class="recruit-btn"
     >
       <Icon icon="mdi:account-plus" class="h-5 w-5" />

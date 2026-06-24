@@ -60,7 +60,9 @@ const handleAutoAssignAll = async () => {
             <h3>Unassign All Dwellers?</h3>
             <p>This will remove all dwellers from their current room assignments.</p>
             <div class="dialog-actions">
-              <UButton color="secondary" variant="outline" @click="showConfirmDialog = false">Cancel</UButton>
+              <UButton color="secondary" variant="outline" @click="showConfirmDialog = false"
+                >Cancel</UButton
+              >
               <UButton color="error" @click="handleUnassignAll" :loading="unassigningAll"
                 >Confirm</UButton
               >

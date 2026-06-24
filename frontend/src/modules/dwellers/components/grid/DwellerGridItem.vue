@@ -85,12 +85,12 @@ const getStatColorClass = (value: number) => {
           aria-label="Generate AI portrait"
           title="Generate AI portrait"
         >
-            <Icon
-              :icon="generatingAI ? 'mdi:loading' : 'mdi:sparkles'"
-              class="ai-icon"
-              :class="{ 'animate-spin': generatingAI }"
-            />
-          </button>
+          <Icon
+            :icon="generatingAI ? 'mdi:loading' : 'mdi:sparkles'"
+            class="ai-icon"
+            :class="{ 'animate-spin': generatingAI }"
+          />
+        </button>
       </template>
     </div>
 
@@ -135,9 +135,13 @@ const getStatColorClass = (value: number) => {
       <!-- Room Badge -->
       <div class="room-info">
         <template v-if="roomName">
-          <button @click.stop="emit('room-click')" class="room-badge" :title="`Assigned to ${roomName}`">
-              <Icon icon="mdi:office-building" class="room-icon" />
-              <span class="room-name">{{ roomName }}</span>
+          <button
+            @click.stop="emit('room-click')"
+            class="room-badge"
+            :title="`Assigned to ${roomName}`"
+          >
+            <Icon icon="mdi:office-building" class="room-icon" />
+            <span class="room-name">{{ roomName }}</span>
           </button>
         </template>
         <template v-else>

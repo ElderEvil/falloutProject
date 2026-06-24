@@ -204,19 +204,18 @@ const getRarityColor = (rarity?: string) => {
 </script>
 
 <template>
-  <div class="flex min-h-screen bg-linear-to-br from-[#0a0a0a] to-[#1a1a1a]">
+  <div class="flex min-h-screen bg-black">
     <SidePanel />
 
     <div
-      class="flex-1 transition-[margin] duration-300 p-4 md:p-8"
+      class="flex-1 transition-[margin] duration-300 p-4 md:p-8 overflow-x-hidden max-w-full min-w-0"
       :class="isCollapsed ? 'ml-16' : 'ml-60'"
     >
-      <UButton color="primary" variant="ghost" @click="goBack" class="mb-4">
-        ← Back
-      </UButton>
-      <!-- Header -->
-      <div class="mb-8">
-        <div class="flex items-center gap-4 mb-6">
+      <UButton color="primary" variant="ghost" @click="goBack" class="mb-4"> ← Back </UButton>
+
+      <div class="mx-auto w-full max-w-screen-xl">
+        <!-- Header -->
+        <div class="flex items-center gap-4 mb-8">
           <Icon
             icon="mdi:package-variant"
             class="w-12 h-12 text-theme-primary drop-shadow-[0_0_8px_var(--color-theme-glow)]"
@@ -229,7 +228,10 @@ const getRarityColor = (rarity?: string) => {
         </div>
 
         <!-- Storage Space Info -->
-        <UCard v-if="storageSpace" class="max-w-2xl mb-6 shadow-[0_0_10px_var(--color-theme-glow)] crt-screen">
+        <UCard
+          v-if="storageSpace"
+          class="mb-6 shadow-[0_0_10px_var(--color-theme-glow)] crt-screen"
+        >
           <div class="flex items-center gap-2 mb-3 font-mono">
             <span class="text-theme-accent text-sm font-semibold">Used:</span>
             <span class="text-theme-primary text-lg font-bold">
@@ -255,11 +257,13 @@ const getRarityColor = (rarity?: string) => {
         </UCard>
 
         <!-- Medical Supplies -->
-        <UCard v-if="storageSpace" class="max-w-2xl mb-6 shadow-[0_0_10px_var(--color-theme-glow)] crt-screen">
+        <UCard
+          v-if="storageSpace"
+          class="mb-6 shadow-[0_0_10px_var(--color-theme-glow)] crt-screen"
+        >
           <div class="font-mono mb-4">
             <h3 class="text-theme-accent text-lg font-semibold mb-3">Medical Supplies</h3>
             <div class="grid grid-cols-2 gap-4">
-              <!-- Stimpaks -->
               <div
                 class="flex items-center gap-3 p-3 bg-black/40 rounded border border-theme-primary/30"
               >
@@ -269,7 +273,6 @@ const getRarityColor = (rarity?: string) => {
                   <div class="text-theme-accent text-xs">Stimpaks</div>
                 </div>
               </div>
-              <!-- Radaways -->
               <div
                 class="flex items-center gap-3 p-3 bg-black/40 rounded border border-theme-primary/30"
               >
@@ -282,64 +285,86 @@ const getRarityColor = (rarity?: string) => {
             </div>
           </div>
         </UCard>
+
+        <!-- Tabs + Inventory Area -->
+        <div class="w-full">
+          <UTabs
+            v-model="activeTab"
+            :items="tabs"
+            :content="false"
+            class="mb-4 w-full"
+            :ui="{
+              root: 'w-full',
+              list: 'w-full bg-black/70 border border-theme-primary/35 rounded-lg p-1 shadow-[0_0_10px_var(--color-theme-glow)] backdrop-blur-sm',
+              indicator: 'bg-theme-primary/20 shadow-[0_0_8px_var(--color-theme-glow)]',
+              trigger:
+                'text-theme-accent data-[state=active]:text-theme-primary data-[state=active]:font-semibold font-mono',
+            }"
+          />
+
+          <!-- Loading State -->
+          <div
+            v-if="isLoading"
+            class="flex flex-col items-center justify-center py-16 text-theme-primary font-mono"
+          >
+            <Icon icon="mdi:loading" class="w-12 h-12 mb-4 animate-spin" />
+            <p>Loading storage...</p>
+          </div>
+
+          <!-- Empty State -->
+          <div
+            v-else-if="totalItems === 0"
+            class="flex flex-col items-center justify-center py-16 text-center"
+          >
+            <Icon
+              icon="mdi:package-variant-closed"
+              class="w-24 h-24 text-theme-accent opacity-50 mb-6"
+            />
+            <h2 class="text-2xl font-bold text-theme-primary mb-2 font-mono">Storage Empty</h2>
+            <p class="text-theme-accent font-mono">
+              Your vault storage is empty. Send dwellers on explorations to find items!
+            </p>
+          </div>
+
+          <!-- No Items in Category State -->
+          <div
+            v-else-if="activeItems.length === 0"
+            class="flex flex-col items-center justify-center py-16 text-center"
+          >
+            <Icon
+              icon="mdi:package-variant-closed"
+              class="w-24 h-24 text-theme-accent opacity-50 mb-6"
+            />
+            <h2 class="text-2xl font-bold text-theme-primary mb-2 font-mono">
+              No {{ activeTab }} Found
+            </h2>
+            <p class="text-theme-accent font-mono">You don't have any {{ activeTab }} in storage.</p>
+          </div>
+
+          <!-- Item Grid Panel -->
+          <div
+            v-if="!isLoading && activeItems.length"
+            class="rounded-lg border border-theme-primary/35 bg-black/80 p-4 shadow-[0_0_12px_var(--color-theme-glow)] backdrop-blur-sm"
+          >
+            <div
+              class="grid [grid-template-columns:repeat(auto-fill,minmax(180px,180px))] justify-start content-start gap-3"
+            >
+              <StorageItemCard
+                v-for="item in activeItems"
+                :key="activeTab === 'junk' ? item.item.id : item.id"
+                :item="activeTab === 'junk' ? item.item : item"
+                :item-type="activeTab"
+                :count="activeTab === 'junk' ? item.count : 1"
+                :ids="activeTab === 'junk' ? item.ids : [item.id]"
+                :get-rarity-color="getRarityColor"
+                @sell="handleSellItem(activeTab === 'junk' ? item.ids[0] : item.id, activeTab)"
+                @sell-all="handleSellItem(activeTab === 'junk' ? item.ids : [item.id], activeTab)"
+                @scrap="handleScrapItem(item.id, activeTab as 'weapon' | 'outfit')"
+              />
+            </div>
+          </div>
+        </div>
       </div>
-
-      <!-- Tabs -->
-      <UTabs v-model="activeTab" :items="tabs" class="mb-8">
-        <!-- Loading State -->
-        <div
-          v-if="isLoading"
-          class="flex flex-col items-center justify-center py-16 text-theme-primary font-mono"
-        >
-          <Icon icon="mdi:loading" class="w-12 h-12 mb-4 animate-spin" />
-          <p>Loading storage...</p>
-        </div>
-
-        <!-- Empty State -->
-        <div
-          v-else-if="totalItems === 0"
-          class="flex flex-col items-center justify-center py-16 text-center"
-        >
-          <Icon
-            icon="mdi:package-variant-closed"
-            class="w-24 h-24 text-theme-accent opacity-50 mb-6"
-          />
-          <h2 class="text-2xl font-bold text-theme-primary mb-2 font-mono">Storage Empty</h2>
-          <p class="text-theme-accent font-mono">
-            Your vault storage is empty. Send dwellers on explorations to find items!
-          </p>
-        </div>
-
-        <!-- No Items in Category State -->
-        <div
-          v-else-if="activeItems.length === 0"
-          class="flex flex-col items-center justify-center py-16 text-center"
-        >
-          <Icon
-            icon="mdi:package-variant-closed"
-            class="w-24 h-24 text-theme-accent opacity-50 mb-6"
-          />
-          <h2 class="text-2xl font-bold text-theme-primary mb-2 font-mono">
-            No {{ activeTab }} Found
-          </h2>
-          <p class="text-theme-accent font-mono">You don't have any {{ activeTab }} in storage.</p>
-        </div>
-
-        <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-8">
-          <StorageItemCard
-            v-for="item in activeItems"
-            :key="activeTab === 'junk' ? item.item.id : item.id"
-            :item="activeTab === 'junk' ? item.item : item"
-            :item-type="activeTab"
-            :count="activeTab === 'junk' ? item.count : 1"
-            :ids="activeTab === 'junk' ? item.ids : [item.id]"
-            :get-rarity-color="getRarityColor"
-            @sell="handleSellItem(activeTab === 'junk' ? item.ids[0] : item.id, activeTab)"
-            @sell-all="handleSellItem(activeTab === 'junk' ? item.ids : [item.id], activeTab)"
-            @scrap="handleScrapItem(item.id, activeTab as 'weapon' | 'outfit')"
-          />
-        </div>
-      </UTabs>
     </div>
   </div>
 </template>

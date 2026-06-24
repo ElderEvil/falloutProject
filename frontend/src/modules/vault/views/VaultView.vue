@@ -16,7 +16,6 @@ import UnassignedDwellers from '@/modules/dwellers/components/UnassignedDwellers
 import WastelandPanel from '@/modules/exploration/components/WastelandPanel.vue'
 import IncidentAlert from '@/modules/combat/components/incidents/IncidentAlert.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useGoBack } from '@/core/composables/useGoBack'

@@ -108,10 +108,20 @@
 
     <template #footer>
       <div class="modal-footer">
-        <UButton @click="handleResolve(true)" color="primary" variant="solid" :disabled="isResolving">
+        <UButton
+          @click="handleResolve(true)"
+          color="primary"
+          variant="solid"
+          :disabled="isResolving"
+        >
           {{ isResolving ? 'RESOLVING...' : 'RESOLVE INCIDENT' }}
         </UButton>
-        <UButton @click="handleResolve(false)" color="error" variant="solid" :disabled="isResolving">
+        <UButton
+          @click="handleResolve(false)"
+          color="error"
+          variant="solid"
+          :disabled="isResolving"
+        >
           ABANDON ROOM
         </UButton>
       </div>

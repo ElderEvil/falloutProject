@@ -106,9 +106,7 @@ onMounted(() => {
     <!-- Main Content -->
     <div class="main-content" :class="{ collapsed: isCollapsed }">
       <div class="container mx-auto px-4 py-6">
-        <UButton color="primary" variant="ghost" @click="goBack" class="mb-4">
-          ← Back
-        </UButton>
+        <UButton color="primary" variant="ghost" @click="goBack" class="mb-4"> ← Back </UButton>
         <!-- Header -->
         <div class="header-section">
           <h1 class="page-title" :style="{ color: 'var(--color-theme-primary)' }">

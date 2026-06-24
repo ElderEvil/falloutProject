@@ -10,9 +10,7 @@
       <!-- Main Content Area -->
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
         <div class="container mx-auto px-4 py-8 lg:px-8">
-          <UButton color="primary" variant="ghost" @click="goBack" class="mb-4">
-            ← Back
-          </UButton>
+          <UButton color="primary" variant="ghost" @click="goBack" class="mb-4"> ← Back </UButton>
           <div class="max-w-4xl mx-auto">
             <!-- Header -->
             <div class="mb-8">

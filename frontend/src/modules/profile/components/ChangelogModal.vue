@@ -149,7 +149,10 @@ onUnmounted(() => {
         class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
         @click="handleBackdropClick"
       >
-        <UCard class="w-full max-w-4xl max-h-[85vh] overflow-hidden shadow-[0_0_10px_var(--color-theme-glow)] crt-screen" @click.stop>
+        <UCard
+          class="w-full max-w-4xl max-h-[85vh] overflow-hidden shadow-[0_0_10px_var(--color-theme-glow)] crt-screen"
+          @click.stop
+        >
           <template #header>
             <div class="flex items-center justify-between w-full">
               <div class="flex items-center gap-3">

@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import { useRadioStore } from '../stores/radio'
 
-
 interface Props {
   vaultId: string
   cost: number
@@ -37,7 +36,8 @@ async function handleRecruit() {
     <UButton
       @click="handleRecruit"
       :disabled="isRecruiting || !canAfford"
-      color="primary" variant="solid"
+      color="primary"
+      variant="solid"
       :class="{ 'opacity-50': !canAfford }"
     >
       <span v-if="isRecruiting">Recruiting...</span>

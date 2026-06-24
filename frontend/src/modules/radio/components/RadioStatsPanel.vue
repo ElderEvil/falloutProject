@@ -3,7 +3,6 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRadioStore } from '../stores/radio'
 import type { RadioMode } from '@/modules/radio/models/radio'
 
-
 interface Props {
   vaultId: string
 }
@@ -206,7 +205,8 @@ onMounted(() => {
         <UButton
           @click="$emit('manual-recruit')"
           :disabled="isRecruiting"
-          color="primary" variant="solid"
+          color="primary"
+          variant="solid"
           class="w-full recruit-button"
         >
           {{ isRecruiting ? 'Recruiting...' : 'Recruit Dweller Now' }}

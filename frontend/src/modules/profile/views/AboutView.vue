@@ -40,7 +40,10 @@ onMounted(async () => {
         Back to Home
       </UButton>
     </div>
-    <UCard title="System Information" class="w-full max-w-2xl shadow-[0_0_10px_var(--color-theme-glow)] crt-screen">
+    <UCard
+      title="System Information"
+      class="w-full max-w-2xl shadow-[0_0_10px_var(--color-theme-glow)] crt-screen"
+    >
       <div v-if="isLoading" class="space-y-4">
         <USkeleton class="h-6 w-full" />
         <USkeleton class="h-6 w-3/4" />

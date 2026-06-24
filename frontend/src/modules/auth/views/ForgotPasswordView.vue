@@ -2,7 +2,6 @@
 import { ref } from 'vue'
 import axios from '@/core/plugins/axios'
 
-
 const email = ref('')
 const error = ref('')
 const success = ref(false)
@@ -67,6 +66,7 @@ const handleSubmit = async () => {
               type="email"
               label="> EMAIL ADDRESS:"
               placeholder="overseer@vault-tec.com"
+              class="w-full"
               :disabled="loading"
             />
           </div>

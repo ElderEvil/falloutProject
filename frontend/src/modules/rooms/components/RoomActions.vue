@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Room } from '../models/room'
 
-
 interface UpgradeInfo {
   canUpgrade: boolean
   upgradeCost: number
@@ -49,7 +48,8 @@ const emit = defineEmits<{
         v-if="upgradeInfo?.canUpgrade"
         @click="emit('upgrade')"
         :disabled="isUpgrading"
-        color="primary" variant="solid"
+        color="primary"
+        variant="solid"
         class="action-btn"
       >
         <Icon icon="mdi:arrow-up-circle" class="h-5 w-5" />
@@ -69,7 +69,8 @@ const emit = defineEmits<{
         v-if="!isRadioRoom && hasProductionInfo"
         @click="emit('rushProduction')"
         :disabled="isRushing || assignedDwellerCount === 0"
-        color="primary" variant="solid"
+        color="primary"
+        variant="solid"
         class="action-btn rush-btn"
       >
         <Icon icon="mdi:lightning-bolt" class="h-5 w-5" />
@@ -81,7 +82,8 @@ const emit = defineEmits<{
       <UButton
         @click="emit('unassignAll')"
         :disabled="assignedDwellerCount === 0"
-        color="primary" variant="outline"
+        color="primary"
+        variant="outline"
         class="action-btn"
       >
         <Icon icon="mdi:account-remove" class="h-5 w-5" />
@@ -99,7 +101,8 @@ const emit = defineEmits<{
         v-else
         @click="emit('destroy')"
         :disabled="isDestroying"
-        color="error" variant="solid"
+        color="error"
+        variant="solid"
         class="action-btn"
       >
         <Icon icon="mdi:delete" class="h-5 w-5" />

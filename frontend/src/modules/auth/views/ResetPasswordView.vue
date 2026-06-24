@@ -3,7 +3,6 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from '@/core/plugins/axios'
 
-
 const route = useRoute()
 const router = useRouter()
 
@@ -90,6 +89,7 @@ const handleSubmit = async () => {
               type="password"
               label="> NEW PASSPHRASE:"
               placeholder="Minimum 8 characters"
+              class="w-full"
               :disabled="loading"
             />
           </div>
@@ -100,6 +100,7 @@ const handleSubmit = async () => {
               type="password"
               label="> CONFIRM PASSPHRASE:"
               placeholder="Re-enter passphrase"
+              class="w-full"
               :disabled="loading"
             />
           </div>

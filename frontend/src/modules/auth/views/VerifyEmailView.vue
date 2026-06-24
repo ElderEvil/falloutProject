@@ -70,7 +70,9 @@ onMounted(async () => {
           <p class="terminal-text error-text">> ERROR: VERIFICATION FAILED</p>
           <p class="terminal-text error-text">> {{ error }}</p>
           <div class="error-actions">
-            <UButton color="primary" class="w-full" @click="router.push('/login')">RETURN TO LOGIN</UButton>
+            <UButton color="primary" class="w-full" @click="router.push('/login')"
+              >RETURN TO LOGIN</UButton
+            >
           </div>
         </div>
       </div>

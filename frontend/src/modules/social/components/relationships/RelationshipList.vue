@@ -20,9 +20,9 @@
     </div>
 
     <div v-else-if="error" class="error-state text-center py-8">
-      <UCard glow crt class="p-6">
+      <UCard class="shadow-[0_0_10px_var(--color-theme-glow)] crt-screen p-6">
         <p class="text-red-400 mb-4">{{ error }}</p>
-        <UButton variant="danger" @click="retryFetch()">Retry</UButton>
+        <UButton color="error" @click="retryFetch()">Retry</UButton>
       </UCard>
     </div>
 
@@ -53,8 +53,6 @@ import { Icon } from '@iconify/vue'
 import { useRelationshipStore } from '../../stores/relationship'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import RelationshipCard from './RelationshipCard.vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import UCard from '@/core/components/ui/UCard.vue'
 
 interface Props {
   vaultId: string

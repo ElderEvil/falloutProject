@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import UModal from '@/core/components/ui/UModal.vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import UAlert from '@/core/components/ui/UAlert.vue'
 import TrainingProgressCard from './TrainingProgressCard.vue'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -227,14 +224,14 @@ watch(
       </div>
 
       <!-- Capacity Full Message -->
-      <UAlert v-else variant="warning" class="capacity-alert">
+      <UAlert v-else color="warning" class="capacity-alert">
         <Icon icon="mdi:alert" class="h-5 w-5" />
         Training room at full capacity. Wait for current training to complete or cancel one.
       </UAlert>
 
       <!-- Close Button -->
       <div class="modal-actions">
-        <UButton variant="secondary" block @click="close"> Close </UButton>
+        <UButton color="primary" variant="outline" class="w-full" @click="close"> Close </UButton>
       </div>
     </div>
   </UModal>

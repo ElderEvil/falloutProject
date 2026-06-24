@@ -4,8 +4,6 @@ import { storeToRefs } from 'pinia'
 import { usePregnancyStore } from '@/modules/social/stores/pregnancy'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import { UCard, UButton } from '@/core/components/ui'
-
 interface Props {
   vaultId: string
 }
@@ -133,11 +131,11 @@ const handleAccelerate = async (id: string) => {
         </div>
 
         <UButton
-          variant="secondary"
-          block
+          color="primary"
+          variant="outline"
           :disabled="!selectedMother || !selectedFather"
           @click="handleForceConception"
-          class="!border-amber-500 !text-amber-500 hover:!bg-amber-500/10 font-mono tracking-wider"
+          class="w-full !border-amber-500 !text-amber-500 hover:!bg-amber-500/10 font-mono tracking-wider"
         >
           INITIATE CONCEPTION SEQUENCE
         </UButton>
@@ -167,7 +165,8 @@ const handleAccelerate = async (id: string) => {
 
             <UButton
               size="sm"
-              variant="secondary"
+              color="primary"
+              variant="outline"
               @click="handleAccelerate(p.id)"
               :disabled="p.is_due"
               class="!border-amber-500 !text-amber-500 hover:!bg-amber-500/10 min-w-[120px]"

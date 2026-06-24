@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import UBadge from '@/core/components/ui/UBadge.vue'
 import type { components } from '@/core/types/api.generated'
 
 type TrainingRead = components['schemas']['TrainingRead']
@@ -109,12 +107,12 @@ const handleComplete = () => {
         <span v-if="dwellerName" class="dweller-name">{{ dwellerName }}</span>
       </div>
       <UBadge
-        :variant="
+        :color="
           training.status === 'active'
             ? 'info'
             : training.status === 'completed'
               ? 'success'
-              : 'default'
+              : 'neutral'
         "
       >
         {{ training.current_stat_value }} → {{ training.target_stat_value }}
@@ -138,14 +136,14 @@ const handleComplete = () => {
         </span>
       </div>
       <div class="actions">
-        <UButton v-if="isReadyToComplete" size="sm" variant="primary" @click="handleComplete">
+        <UButton v-if="isReadyToComplete" size="sm" color="primary" @click="handleComplete">
           <Icon icon="mdi:check-circle" class="h-4 w-4" />
           Complete
         </UButton>
         <UButton
           v-if="training.status === 'active'"
           size="sm"
-          variant="danger"
+          color="error"
           @click="handleCancel"
         >
           <Icon icon="mdi:close-circle" class="h-4 w-4" />

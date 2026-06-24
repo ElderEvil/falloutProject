@@ -10,7 +10,7 @@
         </div>
 
         <!-- Relationship type badge -->
-        <UBadge :variant="relationshipColor" class="mt-1">
+        <UBadge :color="relationshipColor" class="mt-1">
           {{ relationship.relationship_type }}
         </UBadge>
       </div>
@@ -53,7 +53,7 @@
             relationship.relationship_type === 'partner'
           "
           @click="$emit('break-up')"
-          variant="danger"
+          color="error"
           size="sm"
         >
           Break Up
@@ -66,9 +66,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Relationship } from '../../models/relationship'
-import UCard from '@/core/components/ui/UCard.vue'
-import UBadge from '@/core/components/ui/UBadge.vue'
-import UButton from '@/core/components/ui/UButton.vue'
 
 interface Props {
   relationship: Relationship
@@ -84,16 +81,16 @@ defineEmits<{
   'break-up': []
 }>()
 
-const relationshipColor = computed((): 'success' | 'warning' | 'danger' | 'info' | 'default' => {
+const relationshipColor = computed(() => {
   switch (props.relationship.relationship_type) {
     case 'partner':
-      return 'danger' // red for committed relationships
+      return 'error' // red for committed relationships
     case 'romantic':
       return 'info' // closest to pink
     case 'friend':
       return 'warning' // yellow
     case 'ex':
-      return 'default' // gray
+      return 'neutral' // gray
     default:
       return 'success' // green for acquaintance
   }

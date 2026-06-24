@@ -12,8 +12,6 @@ import RelationshipList from '../components/relationships/RelationshipList.vue'
 import PregnancyTracker from '../components/pregnancy/PregnancyTracker.vue'
 import PregnancyDebugPanel from '../components/pregnancy/PregnancyDebugPanel.vue'
 import ChildrenList from '../components/relationships/ChildrenList.vue'
-import UButton from '@/core/components/ui/UButton.vue'
-
 const route = useRoute()
 const { isCollapsed } = useSidePanel()
 const relationshipStore = useRelationshipStore()
@@ -153,7 +151,8 @@ onMounted(async () => {
                     v-if="authStore.isSuperuser"
                     @click="handleProcessBreeding"
                     :disabled="isProcessing"
-                    variant="secondary"
+                    color="primary"
+                    variant="outline"
                     size="sm"
                   >
                     <Icon
@@ -167,7 +166,7 @@ onMounted(async () => {
                     v-if="authStore.isSuperuser"
                     @click="handleQuickPair"
                     :disabled="isLoading"
-                    variant="primary"
+                    color="primary"
                     size="sm"
                   >
                     <Icon icon="mdi:radioactive" class="mr-2" />

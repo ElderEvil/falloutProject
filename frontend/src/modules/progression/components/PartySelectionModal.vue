@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
-import UModal from '@/core/components/ui/UModal.vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import UBadge from '@/core/components/ui/UBadge.vue'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { VaultQuest } from '../models/quest'
@@ -210,7 +207,7 @@ const handleAssignAndStart = () => {
               <span class="dweller-stats">Level {{ getDwellerLevel(dweller) }}</span>
             </div>
             <div class="dweller-status">
-              <UBadge :variant="dweller.status === 'idle' ? 'success' : 'warning'">
+              <UBadge :color="dweller.status === 'idle' ? 'success' : 'warning'">
                 {{ dweller.status }}
               </UBadge>
             </div>
@@ -236,8 +233,8 @@ const handleAssignAndStart = () => {
 
     <template #footer>
       <div class="modal-actions">
-        <UButton variant="secondary" @click="close"> Cancel </UButton>
-        <UButton variant="primary" :disabled="!canSubmit" @click="handleAssignAndStart">
+        <UButton color="primary" variant="outline" @click="close"> Cancel </UButton>
+        <UButton color="primary" :disabled="!canSubmit" @click="handleAssignAndStart">
           <Icon icon="mdi:check" class="btn-icon" />
           Start Quest
         </UButton>

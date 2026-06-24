@@ -10,7 +10,7 @@
         </div>
 
         <!-- Status badge -->
-        <UBadge :variant="statusColor" class="mt-1">
+        <UBadge :color="statusColor" class="mt-1">
           {{ pregnancy.status }}
         </UBadge>
       </div>
@@ -54,9 +54,6 @@
 import { computed } from 'vue'
 import type { Pregnancy } from '../../models/pregnancy'
 import { usePregnancyStore } from '../../stores/pregnancy'
-import UCard from '@/core/components/ui/UCard.vue'
-import UBadge from '@/core/components/ui/UBadge.vue'
-import UButton from '@/core/components/ui/UButton.vue'
 
 interface Props {
   pregnancy: Pregnancy
@@ -75,16 +72,16 @@ defineEmits<{
 
 const pregnancyStore = usePregnancyStore()
 
-const statusColor = computed((): 'success' | 'warning' | 'danger' | 'info' | 'default' => {
+const statusColor = computed(() => {
   switch (props.pregnancy.status) {
     case 'pregnant':
       return props.pregnancy.is_due ? 'warning' : 'success'
     case 'delivered':
       return 'info'
     case 'miscarried':
-      return 'danger'
+      return 'error'
     default:
-      return 'default'
+      return 'neutral'
   }
 })
 

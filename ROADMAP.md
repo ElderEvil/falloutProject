@@ -11,6 +11,7 @@ AI-powered dweller interactions.
 
 **Current work:**
 
+- [x] **v2.22.0 — @nuxt/ui Migration** — 13 custom U* components replaced with @nuxt/ui v4, useGoBack composable, toast migration
 - [x] **v2.21.0 — SSE Polish** — Incident SSE publishing, incidents SSE endpoint, incident/vault store SSE subscriptions, radio datetime fix
 - [x] **v2.20.0 — FE Simplification (YAGNI + DRY)** — Dead code purge (~1000 LOC deleted), barrel migration, dweller store split, component simplification, DRY consolidation
 - [ ] **Dramatiq async concurrency** — Fix `asyncpg InterfaceError: another operation is in progress` during game tick objective queries
@@ -19,10 +20,9 @@ AI-powered dweller interactions.
 
 ## Up Next (Recommended)
 
-### v2.22.0 — UI Migration & Chat WebSocket Migration
+### v2.23.0 — Infrastructure Upgrade
 
-- [ ] **@nuxt/ui adoption** — Replace 11 home-grown U* components (~1093 LOC) with @nuxt/ui equivalents; fix grey dropdown background via neutral color scale in `nuxt-ui.config.ts`
-- [ ] **Axios→fetch migration** — Execute `HTTP_CLIENT_MIGRATION.md` 6-phase plan: fetch adapter, call-site migration, interceptor/token-refresh migration, drop axios dep (~14KB gzip bundle saving)
+- [ ] **Axios→fetch migration** — Execute `HTTP_CLIENT_MIGRATION.md` 6-phase plan (33 files): fetch adapter, call-site migration, interceptor/token-refresh migration, drop axios dep (~14KB gzip bundle saving)
 - [ ] **Chat REST→WebSocket migration** — Replace POST-SSE chat streaming with dedicated WebSocket endpoint; remove chat SSE stub from stream.py
 
 ---
@@ -43,8 +43,26 @@ AI-powered dweller interactions.
 - ✅ **SSE heartbeat configurable** — `SSE_HEARTBEAT_INTERVAL` setting replaces hardcoded 30s
 - ✅ **Dead code removal** — Removed dead POST-SSE `/stream/chat/{dweller_id}` endpoint
 
-**Deferred to v2.22:**
-- @nuxt/ui adoption (~1093 LOC replacement of 11 home-grown U* components, grey dropdown fix)
+**Deferred to v2.22 (completed) / v2.23 (remaining):**
+- ✅ @nuxt/ui adoption (~1093 LOC replacement of 11 home-grown U* components, grey dropdown fix) — completed in v2.22.0
+- Axios→fetch migration (HTTP_CLIENT_MIGRATION.md 6-phase plan, ~14KB gzip bundle saving) — moved to v2.23.0
+- Chat REST→WebSocket migration (replace POST-SSE chat with dedicated WS) — moved to v2.23.0
+
+---
+
+### v2.22.0 — @nuxt/ui Migration (June 24, 2026)
+
+**Focus**: Replace custom-built U* components with @nuxt/ui v4; add useGoBack navigation composable
+
+**Completed:**
+- ✅ **@nuxt/ui adoption** — Replaced 13 home-grown U* components (~1100 LOC) with @nuxt/ui v4 equivalents; added neutral color scale to `nuxt-ui.config.ts` fixing grey dropdown background
+- ✅ **useGoBack composable** — Browser-history back navigation with `router.back()`, `parentRoute` fallback, and no-parent fallback (4 TDD tests)
+- ✅ **parentRoute metadata** — Added `meta.parentRoute` to all 12 sub-view and detail-view route definitions
+- ✅ **Toast migration** — Migrated to @nuxt/ui built-in toast via compatibility adapter (zero call-site changes)
+- ✅ **Component defaults** — Expanded `nuxt-ui.config.ts` defaults for Modal, Badge, Alert, Tooltip, Skeleton, Tabs, Select
+- ✅ **Custom component removal** — Deleted 13 U* component files (UButton, UInput, UCard, UModal, UBadge, UAlert, UTooltip, USkeleton, UTabs, USelect, UToast, UToastContainer, barrel index.ts) and custom useToast
+
+**Deferred to v2.23:**
 - Axios→fetch migration (HTTP_CLIENT_MIGRATION.md 6-phase plan, ~14KB gzip bundle saving)
 - Chat REST→WebSocket migration (replace POST-SSE chat with dedicated WS)
 
@@ -970,7 +988,8 @@ watch(() => userStore.caps, (caps) => {
 
 | Version | Release      | Highlights                                   |
 | ------- | ------------ | -------------------------------------------- |
-| v2.22.0 | TBD          | UI Migration (nuxt/ui adoption, axios→fetch), Chat WebSocket |
+| v2.22.0 | Jun 24, 2026 | @nuxt/ui Migration (custom U* components → @nuxt/ui v4)      |
+| v2.23.0 | TBD          | Infrastructure Upgrade (axios→fetch, Chat WebSocket)         |
 | v2.21.0 | Jun 24, 2026 | SSE Polish (incident/game-tick SSE, radio datetime fix) |
 | v2.20.0 | Jun 22, 2026 | FE Simplification (YAGNI + DRY, dead code purge) |
 | v2.19.0 | Jun 21, 2026 | SSE streaming + Dict-to-Pydantic refactoring |
@@ -1053,4 +1072,4 @@ watch(() => userStore.caps, (caps) => {
 
 ---
 
-_Last updated: 2026-06-24_ (v2.21.0, SSE Polish)
+_Last updated: 2026-06-24_ (v2.22.0, @nuxt/ui Migration)

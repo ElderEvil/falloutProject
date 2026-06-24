@@ -9,7 +9,29 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ### Planned
 
-- v2.22.0 — @nuxt/ui adoption (11 home-grown U* components → @nuxt/ui), Axios→fetch migration, chat REST→WebSocket migration
+- v2.23.0 — Axios→fetch migration (33 files, HTTP_CLIENT_MIGRATION.md 6-phase plan), chat REST→WebSocket migration
+
+---
+
+## [2.22.0] - 2026-06-24
+
+### Added
+
+- Back-button navigation with useGoBack composable using browser history
+- useGoBack TDD tests (4 tests: router.back(), parentRoute fallback, no-parent fallback, param interpolation)
+- meta.parentRoute on all sub-view and detail-view route definitions (12 routes)
+
+### Changed
+
+- All UI components now use @nuxt/ui v4 instead of custom-built U* components (13 custom components removed, ~1100 lines deleted)
+- Neutral color scale added to nuxt-ui.config.ts (fixes grey dropdown bug in ROADMAP)
+- Toast system migrated to @nuxt/ui built-in via compatibility adapter (zero call-site changes)
+- Component defaults expanded in nuxt-ui.config.ts for Modal, Badge, Alert, Tooltip, Skeleton, Tabs, Select
+
+### Removed
+
+- 13 custom U* component files (UButton, UInput, UCard, UModal, UBadge, UAlert, UTooltip, USkeleton, UTabs, USelect, UToast, UToastContainer, barrel index.ts)
+- Custom useToast implementation (replaced by @nuxt/ui compatibility adapter)
 
 ---
 

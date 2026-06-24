@@ -194,22 +194,22 @@ const showSellAll = computed(() => {
 const rarityBorderClass = computed(() => {
   switch (itemRarity.value) {
     case 'rare':
-      return 'border-[--color-rarity-rare]'
+      return 'border-(--color-rarity-rare)'
     case 'legendary':
-      return 'border-[--color-rarity-legendary]'
+      return 'border-(--color-rarity-legendary)'
     default:
-      return 'border-[--color-rarity-common]'
+      return 'border-(--color-rarity-common)'
   }
 })
 
 const rarityTextClass = computed(() => {
   switch (itemRarity.value) {
     case 'rare':
-      return 'text-[--color-rarity-rare]'
+      return 'text-(--color-rarity-rare)'
     case 'legendary':
-      return 'text-[--color-rarity-legendary]'
+      return 'text-(--color-rarity-legendary)'
     default:
-      return 'text-[--color-rarity-common]'
+      return 'text-(--color-rarity-common)'
   }
 })
 </script>
@@ -217,7 +217,7 @@ const rarityTextClass = computed(() => {
 <template>
   <UCard
     :ui="{
-      root: 'bg-black/90 ring-1 ring-[var(--color-theme-primary)]/20',
+      root: 'bg-black/90 ring-1 ring-(--color-theme-primary)/20',
       body: 'p-3 sm:p-3',
     }"
     :class="[
@@ -230,7 +230,7 @@ const rarityTextClass = computed(() => {
       <div class="flex items-center gap-2.5">
         <Icon
           :icon="itemIcon"
-          class="w-9 h-9 shrink-0 text-[--color-theme-primary] drop-shadow-[0_0_4px_var(--color-theme-glow)]"
+          class="w-9 h-9 shrink-0 text-(--color-theme-primary) drop-shadow-[0_0_4px_var(--color-theme-glow)]"
         />
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-1.5">
@@ -241,19 +241,19 @@ const rarityTextClass = computed(() => {
             </h3>
             <span
               v-if="count > 1"
-              class="shrink-0 inline-flex items-center justify-center min-w-[1.4rem] h-5 px-1.5 bg-[--color-theme-primary] text-black rounded-full text-[11px] font-bold shadow-[0_0_6px_var(--color-theme-glow)]"
+              class="shrink-0 inline-flex items-center justify-center min-w-[1.4rem] h-5 px-1.5 bg-(--color-theme-primary) text-black rounded-full text-[11px] font-bold shadow-[0_0_6px_var(--color-theme-glow)]"
             >
               ×{{ count }}
             </span>
           </div>
-          <p class="text-xs text-[--color-theme-primary] opacity-70 capitalize truncate leading-tight mt-0.5">
+          <p class="text-xs text-(--color-theme-primary) opacity-70 capitalize truncate leading-tight mt-0.5">
             {{ itemTypeDisplay }}
           </p>
         </div>
       </div>
 
       <!-- Stats inline -->
-      <div v-if="itemStats.length > 0" class="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-[--color-theme-primary] leading-tight">
+      <div v-if="itemStats.length > 0" class="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-(--color-theme-primary) leading-tight">
         <div v-for="stat in itemStats" :key="stat.label" class="flex items-center gap-1">
           <Icon :icon="stat.icon" class="w-3.5 h-3.5 shrink-0" />
           <span class="opacity-70">{{ stat.label }}:</span>
@@ -262,9 +262,9 @@ const rarityTextClass = computed(() => {
       </div>
 
       <!-- Footer: value + compact actions -->
-      <div class="flex items-center justify-between gap-1.5 pt-2 border-t border-[--color-theme-primary]/20">
-        <div class="flex items-center gap-1 text-[--color-theme-primary] text-xs font-bold">
-          <Icon icon="mdi:currency-usd" class="w-4 h-4 text-[--color-caps]" />
+      <div class="flex items-center justify-between gap-1.5 pt-2 border-t border-(--color-theme-primary)/20">
+        <div class="flex items-center gap-1 text-(--color-theme-primary) text-xs font-bold">
+          <Icon icon="mdi:currency-usd" class="w-4 h-4 text-(--color-caps)" />
           <span>{{ itemValue }}</span>
         </div>
         <div class="flex items-center gap-1">
@@ -285,7 +285,7 @@ const rarityTextClass = computed(() => {
             size="2xs"
             @click="handleSell"
             :title="count > 1 ? 'Sell one' : 'Sell'"
-            class="font-mono !px-1.5 !py-0.5 !text-[11px] !h-auto !min-h-0 !text-[--color-caps] !border-[--color-caps] hover:!bg-[--color-caps]/20"
+            class="font-mono !px-1.5 !py-0.5 !text-[11px] !h-auto !min-h-0 !text-(--color-caps) !border-(--color-caps) hover:!bg-(--color-caps)/20"
           >
             <Icon icon="mdi:cash" class="w-3.5 h-3.5" />
           </UButton>
@@ -296,7 +296,7 @@ const rarityTextClass = computed(() => {
             size="2xs"
             @click="handleSellAll"
             title="Sell all ({{ count }})"
-            class="font-mono !px-1.5 !py-0.5 !text-[11px] !h-auto !min-h-0 !bg-[--color-caps]/20 !text-[--color-caps] !border-[--color-caps] hover:!bg-[--color-caps]/30"
+            class="font-mono !px-1.5 !py-0.5 !text-[11px] !h-auto !min-h-0 !bg-(--color-caps)/20 !text-(--color-caps) !border-(--color-caps) hover:!bg-(--color-caps)/30"
           >
             <Icon icon="mdi:cash-multiple" class="w-3.5 h-3.5" />
           </UButton>

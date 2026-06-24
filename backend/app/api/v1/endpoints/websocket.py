@@ -96,9 +96,11 @@ async def chat_websocket_endpoint(websocket: WebSocket, user_id: UUID4, dweller_
                 )
 
             elif message_type == "message":
-                # For now, just acknowledge receipt
-                # Full text chat via WebSocket can be implemented later
-                # Currently, text chat uses REST API /api/v1/chat/{dweller_id}
+                # TODO: migrate chat from REST to WebSocket
+                # Currently text chat uses POST /api/v1/chat/{dweller_id} (REST)
+                # which returns the AI response. This WebSocket should eventually
+                # stream responses directly instead of punting to REST.
+                # See: .omo/plans/v2-21-sse-polish.md (deferred to v2.22+)
                 await websocket.send_json(
                     {"type": "ack", "message": "Message received. Use REST API for full chat functionality."}
                 )

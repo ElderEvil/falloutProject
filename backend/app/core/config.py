@@ -132,6 +132,15 @@ class Settings(BaseSettings):
     # Quota Configuration
     QUOTA_DISABLED: bool = False  # Disable token quotas (useful for local dev/testing)
 
+    # SSE Configuration
+    SSE_HEARTBEAT_INTERVAL: int = Field(
+        default=30,
+        description="Default heartbeat interval (seconds) for SSE stream keep-alive. "
+        "Individual streams (e.g. game ticks) may override with their own cadence.",
+        ge=5,
+        le=300,
+    )
+
     @property
     def redis_url(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"

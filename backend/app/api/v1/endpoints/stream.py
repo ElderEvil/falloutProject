@@ -6,28 +6,21 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.sse import EventSourceResponse, ServerSentEvent
-from pydantic import UUID4
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentUser, get_user_vault_or_403
-from app.db.session import get_async_session
+from app.core.config import settings
+from app.core.game_config import game_config
 from app.models.vault import Vault
-from app.schemas.chat import ChatMessage
-from app.services.chat_service import chat_service
 from app.services.stream_manager import sse_manager
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Send a heartbeat comment every 30 s of inactivity so nginx / Cloudflare /
-# browsers detect a dead connection within ~30 s instead of waiting minutes.
-_HEARTBEAT_INTERVAL = 30
-
 
 async def _with_heartbeat(
     stream: AsyncIterable[dict[str, Any]],
-    interval: int = _HEARTBEAT_INTERVAL,
+    interval: int = settings.SSE_HEARTBEAT_INTERVAL,
 ) -> AsyncIterator[dict[str, Any] | None]:
     """Interleave heartbeat sentinels into an SSE event stream.
 
@@ -77,32 +70,16 @@ async def stream_game_ticks(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     request: Request,
 ) -> AsyncIterable[ServerSentEvent]:
-    async for data in _with_heartbeat(sse_manager.subscribe(vault.id, "game_ticks")):
+    # Use game tick interval as heartbeat — no point heartbeating faster
+    # than the actual data cadence.
+    stream = sse_manager.subscribe(vault.id, "game_ticks")
+    async for data in _with_heartbeat(stream, interval=game_config.game_loop.tick_interval):
         if await request.is_disconnected():
             break
         if data is None:
             yield ServerSentEvent(comment="heartbeat")
             continue
         yield ServerSentEvent(data=data, event="tick")
-
-
-@router.post("/stream/chat/{dweller_id}", response_class=EventSourceResponse)
-async def stream_chat(
-    dweller_id: UUID4,
-    current_user: CurrentUser,
-    message: ChatMessage,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    request: Request,
-) -> AsyncIterable[ServerSentEvent]:
-    try:
-        async for payload in chat_service.stream_response(db_session, current_user, dweller_id, message.message):
-            if await request.is_disconnected():
-                break
-            event_type = payload.get("type", "message")
-            yield ServerSentEvent(data=payload, event=event_type)
-    except Exception:
-        logger.exception("Chat SSE stream failed")
-        yield ServerSentEvent(data="Internal streaming error", event="error")
 
 
 @router.get("/stream/exploration/{vault_id}", response_class=EventSourceResponse)
@@ -117,3 +94,17 @@ async def stream_exploration(
             yield ServerSentEvent(comment="heartbeat")
             continue
         yield ServerSentEvent(data=data, event="exploration")
+
+
+@router.get("/stream/incidents/{vault_id}", response_class=EventSourceResponse)
+async def stream_incidents(
+    vault: Annotated[Vault, Depends(get_user_vault_or_403)],
+    request: Request,
+) -> AsyncIterable[ServerSentEvent]:
+    async for data in _with_heartbeat(sse_manager.subscribe(vault.id, "incidents")):
+        if await request.is_disconnected():
+            break
+        if data is None:
+            yield ServerSentEvent(comment="heartbeat")
+            continue
+        yield ServerSentEvent(data=data, event="incident")

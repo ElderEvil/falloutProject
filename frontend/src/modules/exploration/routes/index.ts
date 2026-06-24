@@ -11,6 +11,6 @@ export const explorationRoutes: RouteRecordRaw[] = [
     path: '/vault/:id/exploration/:explorationId',
     name: 'exploration-detail',
     component: () => import('../views/ExplorationDetailView.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, parentRoute: '/vault/:id/exploration' },
   },
 ]

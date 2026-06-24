@@ -5,6 +5,6 @@ export const storageRoutes: RouteRecordRaw[] = [
     path: '/vault/:id/storage',
     name: 'VaultStorage',
     component: () => import('./views/StorageView.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, parentRoute: '/vault/:id' },
   },
 ]

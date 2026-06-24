@@ -23,7 +23,7 @@ export const vaultRoutes: RouteRecordRaw[] = [
     path: '/vault/:id/happiness',
     name: 'happiness',
     component: HappinessView,
-    meta: { requiresAuth: true, hideFromNav: true },
+    meta: { requiresAuth: true, hideFromNav: true, parentRoute: '/vault/:id' },
   },
 ]
 

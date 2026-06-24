@@ -6,7 +6,7 @@ AI-generated content (names, bios, visual attributes) to be reused in new vaults
 """
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from pydantic import UUID4
@@ -46,7 +46,7 @@ class DwellerRecyclingService:
         Returns:
             List of recyclable soft-deleted dwellers
         """
-        cutoff_date = datetime.now(UTC) - timedelta(days=min_age_days)
+        cutoff_date = datetime.utcnow() - timedelta(days=min_age_days)
 
         query = (
             select(Dweller)
@@ -217,7 +217,7 @@ class DwellerRecyclingService:
         Returns:
             Number of dwellers permanently deleted
         """
-        cutoff_date = datetime.now(UTC) - timedelta(days=days_threshold)
+        cutoff_date = datetime.utcnow() - timedelta(days=days_threshold)
 
         deleted_count = 0
 
@@ -260,7 +260,7 @@ class DwellerRecyclingService:
         Returns:
             Dictionary with recycling statistics
         """
-        now = datetime.now(UTC)
+        now = datetime.utcnow()
 
         total_deleted_query = select(func.count()).where(col(Dweller.is_deleted).is_(True))
         total_deleted_result = await db_session.exec(total_deleted_query)

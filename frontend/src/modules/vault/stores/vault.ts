@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
 import { useLocalStorage, useIntervalFn } from '@vueuse/core'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import axios from '@/core/plugins/axios'
 import { handleStoreError } from '@/core/utils/errorHandler'
+import { useSse } from '@/core/composables/useEventStream'
 import type { components } from '@/core/types/api.generated'
 
 // Use generated API types
@@ -29,6 +30,7 @@ export const useVaultStore = defineStore('vault', () => {
   const activeVaultId = ref<string | null>(null)
   const isLoading = ref(false)
   const gameState = ref<GameState | null>(null)
+  let gameTickSse: ReturnType<typeof useSse> | null = null
 
   // Polling control
   const {
@@ -129,6 +131,7 @@ export const useVaultStore = defineStore('vault', () => {
       })
       loadedVaults.value[id] = response.data
       activeVaultId.value = id
+      startGameTickSse(id, token)
     } catch (error) {
       handleStoreError(error, 'Failed to load vault')
       throw error
@@ -144,6 +147,7 @@ export const useVaultStore = defineStore('vault', () => {
       })
       loadedVaults.value[id] = response.data
       activeVaultId.value = id
+      startGameTickSse(id, token)
     } catch (error) {
       handleStoreError(error, 'Failed to refresh vault')
       throw error
@@ -161,6 +165,7 @@ export const useVaultStore = defineStore('vault', () => {
       delete loadedVaults.value[id]
       if (activeVaultId.value === id) {
         activeVaultId.value = Object.keys(loadedVaults.value)[0] || null
+        stopGameTickSse()
       }
     }
   }
@@ -212,7 +217,7 @@ export const useVaultStore = defineStore('vault', () => {
         gameState.value.is_paused = false
         gameState.value.resumed_at = response.data.resumed_at
       }
-      startResourcePolling()
+      startResourcePolling(vaultId, token)
       return response.data
     } catch (error) {
       handleStoreError(error, 'Failed to resume vault')
@@ -220,13 +225,45 @@ export const useVaultStore = defineStore('vault', () => {
     }
   }
 
-  function startResourcePolling() {
+  function startGameTickSse(vaultId: string, token: string): void {
+    stopGameTickSse()
+    const apiBase = import.meta.env.VITE_API_BASE_URL ?? ''
+    gameTickSse = useSse(`${apiBase}/api/v1/stream/game/${vaultId}/ticks`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    gameTickSse.start()
+
+    watch(
+      () => gameTickSse?.event.value,
+      (evt) => {
+        if (!evt || evt.event !== 'tick') return
+        const tickData = evt.data as Record<string, unknown> | undefined
+        if (tickData && loadedVaults.value[vaultId]) {
+          loadedVaults.value[vaultId] = tickData as unknown as VaultWithNumbers
+        }
+      }
+    )
+  }
+
+  function stopGameTickSse(): void {
+    if (gameTickSse) {
+      gameTickSse.stopReconnect()
+      gameTickSse.close()
+      gameTickSse = null
+    }
+  }
+
+  function startResourcePolling(vaultId?: string, token?: string) {
     if (!isPollingActive.value) {
       resumePolling()
+    }
+    if (vaultId && token) {
+      startGameTickSse(vaultId, token)
     }
   }
 
   function stopResourcePolling() {
+    stopGameTickSse()
     if (isPollingActive.value) {
       pausePolling()
     }
@@ -257,5 +294,7 @@ export const useVaultStore = defineStore('vault', () => {
     resumeVault,
     startResourcePolling,
     stopResourcePolling,
+    startGameTickSse,
+    stopGameTickSse,
   }
 })

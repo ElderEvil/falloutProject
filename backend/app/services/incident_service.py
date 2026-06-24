@@ -14,7 +14,9 @@ from app.models.dweller import Dweller
 from app.models.game_state import GameState
 from app.models.incident import Incident, IncidentStatus, IncidentType
 from app.models.room import Room
+from app.schemas.incident_sse import IncidentSseEvent
 from app.services.notification_service import notification_service
+from app.services.stream_manager import sse_manager
 
 logger = logging.getLogger(__name__)
 
@@ -229,9 +231,32 @@ class IncidentService:
                 target_room.name,
             )
 
+        try:
+            await sse_manager.publish(
+                incident.vault_id,
+                "incidents",
+                IncidentSseEvent(
+                    event_id=str(incident.id),
+                    type="incident_spawned",
+                    incident_id=str(incident.id),
+                    vault_id=str(incident.vault_id),
+                    incident_type=incident.type,
+                    status=incident.status,
+                    room_id=str(target_room.id) if target_room else None,
+                    room_name=target_room.name if target_room else None,
+                    difficulty=incident.difficulty,
+                ).model_dump(),
+            )
+        except Exception:
+            self.logger.exception(
+                "Failed to publish SSE incident_spawned: incident_id=%s, vault_id=%s",
+                incident.id,
+                vault_id,
+            )
+
         return incident
 
-    async def process_incident(
+    async def process_incident(  # noqa: PLR0915
         self, db_session: AsyncSession, incident: Incident, seconds_passed: int
     ) -> dict[str, int | float]:
         """
@@ -247,6 +272,8 @@ class IncidentService:
         """
         if incident.status not in [IncidentStatus.ACTIVE, IncidentStatus.SPREADING]:
             return {"skipped": True}
+
+        transitioned = False
 
         # Get dwellers in affected room with equipment preloaded (N+1 optimization)
         from sqlalchemy.orm import selectinload
@@ -268,7 +295,31 @@ class IncidentService:
                 incident.elapsed_time() >= incident.duration
                 and incident.spread_count < game_config.incident.max_spread_count
             ):
+                transitioned = True
                 await self._spread_incident(db_session, incident)
+                await db_session.commit()
+                try:
+                    await sse_manager.publish(
+                        incident.vault_id,
+                        "incidents",
+                        IncidentSseEvent(
+                            event_id=str(incident.id),
+                            type="incident_spreading",
+                            incident_id=str(incident.id),
+                            vault_id=str(incident.vault_id),
+                            incident_type=incident.type,
+                            status=incident.status,
+                            room_id=str(incident.room_id) if incident.room_id else None,
+                            room_name=None,
+                            difficulty=incident.difficulty,
+                        ).model_dump(),
+                    )
+                except Exception:
+                    self.logger.exception(
+                        "Failed to publish SSE incident_spreading: incident_id=%s, vault_id=%s",
+                        incident.id,
+                        incident.vault_id,
+                    )
             return {"no_defenders": True, "damage": 0}
 
         # Calculate combat power
@@ -314,6 +365,7 @@ class IncidentService:
 
         if incident.enemies_defeated >= expected_raider_count:
             # Victory! Generate loot and resolve
+            transitioned = True
             incident.loot = self._generate_loot(incident.difficulty, incident.type)
             incident.resolve(success=True)
 
@@ -327,6 +379,31 @@ class IncidentService:
 
         db_session.add(incident)
         await db_session.commit()
+
+        if transitioned:
+            try:
+                await sse_manager.publish(
+                    incident.vault_id,
+                    "incidents",
+                    IncidentSseEvent(
+                        event_id=str(incident.id),
+                        type="incident_resolved",
+                        incident_id=str(incident.id),
+                        vault_id=str(incident.vault_id),
+                        incident_type=incident.type,
+                        status=incident.status,
+                        room_id=str(incident.room_id) if incident.room_id else None,
+                        room_name=None,
+                        difficulty=incident.difficulty,
+                        success=True,
+                    ).model_dump(),
+                )
+            except Exception:
+                self.logger.exception(
+                    "Failed to publish SSE incident_resolved: incident_id=%s, vault_id=%s",
+                    incident.id,
+                    incident.vault_id,
+                )
 
         return {
             "damage_to_dwellers": damage_to_dwellers,
@@ -392,6 +469,30 @@ class IncidentService:
         incident.resolve(success=success)
         db_session.add(incident)
         await db_session.commit()
+
+        try:
+            await sse_manager.publish(
+                incident.vault_id,
+                "incidents",
+                IncidentSseEvent(
+                    event_id=str(incident.id),
+                    type="incident_resolved",
+                    incident_id=str(incident.id),
+                    vault_id=str(incident.vault_id),
+                    incident_type=incident.type,
+                    status=incident.status,
+                    room_id=str(incident.room_id) if incident.room_id else None,
+                    room_name=None,
+                    difficulty=incident.difficulty,
+                    success=success,
+                ).model_dump(),
+            )
+        except Exception:
+            self.logger.exception(
+                "Failed to publish SSE incident_resolved: incident_id=%s, vault_id=%s",
+                incident.id,
+                incident.vault_id,
+            )
 
         self.logger.info(
             f"Incident {incident_id} manually resolved ({'success' if success else 'failure'}). Loot: {loot}"

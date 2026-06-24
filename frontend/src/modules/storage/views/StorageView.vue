@@ -7,7 +7,7 @@ import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
 import { storageService, type StorageItemsResponse } from '../services/storageService'
 import { Icon } from '@iconify/vue'
-import { UCard, UButton, UTabs } from '@/core/components/ui'
+
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import StorageItemCard from '../components/StorageItemCard.vue'
 
@@ -39,9 +39,9 @@ const storageItems = ref<StorageItemsResponse>({
 const activeTab = ref<'weapons' | 'outfits' | 'junk'>('weapons')
 
 const tabs = computed(() => [
-  { key: 'weapons', label: `Weapons (${weapons.value.length})` },
-  { key: 'outfits', label: `Outfits (${outfits.value.length})` },
-  { key: 'junk', label: `Junk (${junk.value.length})` },
+  { slot: 'weapons', label: `Weapons (${weapons.value.length})` },
+  { slot: 'outfits', label: `Outfits (${outfits.value.length})` },
+  { slot: 'junk', label: `Junk (${junk.value.length})` },
 ])
 
 // Fetch storage data
@@ -224,7 +224,7 @@ const getRarityColor = (rarity?: string) => {
         </div>
 
         <!-- Storage Space Info -->
-        <UCard v-if="storageSpace" glow crt class="max-w-2xl mb-6">
+        <UCard v-if="storageSpace" class="max-w-2xl mb-6 shadow-[0_0_10px_var(--color-theme-glow)] crt-screen">
           <div class="flex items-center gap-2 mb-3 font-mono">
             <span class="text-theme-accent text-sm font-semibold">Used:</span>
             <span class="text-theme-primary text-lg font-bold">
@@ -250,7 +250,7 @@ const getRarityColor = (rarity?: string) => {
         </UCard>
 
         <!-- Medical Supplies -->
-        <UCard v-if="storageSpace" glow crt class="max-w-2xl mb-6">
+        <UCard v-if="storageSpace" class="max-w-2xl mb-6 shadow-[0_0_10px_var(--color-theme-glow)] crt-screen">
           <div class="font-mono mb-4">
             <h3 class="text-theme-accent text-lg font-semibold mb-3">Medical Supplies</h3>
             <div class="grid grid-cols-2 gap-4">
@@ -280,7 +280,7 @@ const getRarityColor = (rarity?: string) => {
       </div>
 
       <!-- Tabs -->
-      <UTabs v-model="activeTab" :tabs="tabs" class="mb-8">
+      <UTabs v-model="activeTab" :items="tabs" class="mb-8">
         <!-- Loading State -->
         <div
           v-if="isLoading"

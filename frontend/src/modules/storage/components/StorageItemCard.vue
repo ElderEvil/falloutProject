@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UCard, UButton } from '@/core/components/ui'
 
 interface Props {
   item: any
@@ -218,10 +217,9 @@ const rarityTextClass = computed(() => {
 <template>
   <UCard
     :class="[
-      'transition-all duration-200 hover:bg-black/50 hover:-translate-y-0.5 hover:shadow-glow-md font-mono',
+      'transition-all duration-200 hover:bg-black/50 hover:-translate-y-0.5 hover:shadow-glow-md font-mono p-3',
       rarityBorderClass,
     ]"
-    padding="sm"
   >
     <div class="flex flex-col gap-3">
       <!-- Header -->
@@ -277,7 +275,8 @@ const rarityTextClass = computed(() => {
         <div class="flex items-center gap-2 flex-wrap">
           <UButton
             v-if="canScrap"
-            variant="danger"
+            color="error"
+            variant="solid"
             size="sm"
             @click="handleScrap"
             title="Scrap for materials"
@@ -288,7 +287,8 @@ const rarityTextClass = computed(() => {
           </UButton>
           <div class="flex items-center gap-2 ml-auto">
             <UButton
-              variant="secondary"
+              color="primary"
+              variant="outline"
               size="sm"
               @click="handleSell"
               :title="count > 1 ? 'Sell one item' : 'Sell this item'"
@@ -299,7 +299,8 @@ const rarityTextClass = computed(() => {
             </UButton>
             <UButton
               v-if="showSellAll"
-              variant="primary"
+              color="primary"
+              variant="solid"
               size="sm"
               @click="handleSellAll"
               title="Sell all items of this type"

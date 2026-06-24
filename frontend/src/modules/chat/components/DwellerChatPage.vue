@@ -4,7 +4,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
-import { UButton, UCard } from '@/core/components/ui'
 import { Icon } from '@iconify/vue'
 import DwellerChat from './DwellerChat.vue'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
@@ -51,7 +50,7 @@ onMounted(async () => {
   <div class="dweller-chat-page">
     <!-- Loading State -->
     <div v-if="isLoading" class="loading-state">
-      <UCard glow crt padding="lg">
+      <UCard class="shadow-[0_0_10px_var(--color-theme-glow)] crt-screen p-6">
         <div class="loading-content">
           <Icon icon="mdi:loading" class="loading-spinner" />
           <p class="loading-text">Establishing connection to dweller...</p>
@@ -69,6 +68,7 @@ onMounted(async () => {
       <div class="chat-header">
         <UButton
           v-if="dweller?.vault?.id"
+          color="primary"
           variant="ghost"
           size="sm"
           class="mr-4"

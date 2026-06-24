@@ -9,7 +9,38 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ### Planned
 
-- v2.21.0 — @nuxt/ui adoption (11 home-grown U* components → @nuxt/ui), Axios→fetch migration, SSE polish
+- v2.22.0 — @nuxt/ui adoption (11 home-grown U* components → @nuxt/ui), Axios→fetch migration, chat REST→WebSocket migration
+
+---
+
+## [2.21.0] - 2026-06-24
+
+### Added
+
+- **Incident SSE publishing** — `incident_service` now publishes SSE events (`incident_spawned`, `incident_resolved`, `incident_spreading`) on spawn, state transition, and resolution (3 TDD tests)
+- **Incidents SSE endpoint** — `GET /stream/incidents/{vault_id}` with vault ownership check, heartbeat keepalive
+- **Incident store SSE subscription** — `incident.ts` store replaces `setInterval` polling with SSE subscription; REST polling falls back after 30s SSE disconnect
+- **Vault store game-tick SSE** — `vault.ts` store subscribes to `GET /stream/game/{vault_id}/ticks` for live resource updates; SSE auto-starts on vault load, stops on vault tab close
+- **SSE auto-reconnect** — `useSseBase` now has exponential backoff reconnect (1s→2s→4s→...→30s max) on connection loss (10 tests)
+- **`useSseBase` startPolling/stopPolling SSE integration** — Both incident and vault stores manage SSE lifecycle alongside existing polling
+
+### Fixed
+
+- **Radio recruitment PostgreSQL crash** — Replaced `datetime.now(UTC)` (timezone-aware) with `datetime.utcnow()` (naive UTC) in 3 locations in `dweller_recycling_service.py`; asyncpg no longer throws `DataError` on `TIMESTAMP WITHOUT TIME ZONE` columns
+- **SSE heartbeat interval** — Moved hardcoded `_HEARTBEAT_INTERVAL = 30` to `Settings.SSE_HEARTBEAT_INTERVAL: int = 30`; game ticks stream uses `game_config.game_loop.tick_interval`
+- **Removed dead `/stream/chat/{dweller_id}` POST-SSE endpoint** — 18 lines + 4 unused imports deleted from `stream.py`
+
+### Changed
+
+- **`dweller_recycling_service.py`** — All 3 `datetime.now(UTC)` calls replaced with `datetime.utcnow()`; import simplified
+- **`stream.py`** — Added `stream_incidents` endpoint following exploration pattern; heartbeat now uses settings-driven value
+- **`config.py`** — Added `SSE_HEARTBEAT_INTERVAL: int = 30` to `Settings`
+- **`incident.ts` store** — Added `startSseSubscription`/`stopSseSubscription` with SSE event watcher (incident_spawned, incident_resolved, incident_spreading) and 30s disconnect fallback
+- **`vault.ts` store** — Added `startGameTickSse`/`stopGameTickSse`; `loadVault`, `refreshVault`, `resumeVault` auto-bind SSE; `closeVaultTab` stops SSE
+
+### Removed
+
+- **Dead `/stream/chat/{dweller_id}` endpoint** — POST-based SSE endpoint removed from `stream.py` (chat migration to WebSocket pending)
 
 ---
 

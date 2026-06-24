@@ -11,6 +11,7 @@ AI-powered dweller interactions.
 
 **Current work:**
 
+- [x] **v2.21.0 — SSE Polish** — Incident SSE publishing, incidents SSE endpoint, incident/vault store SSE subscriptions, radio datetime fix
 - [x] **v2.20.0 — FE Simplification (YAGNI + DRY)** — Dead code purge (~1000 LOC deleted), barrel migration, dweller store split, component simplification, DRY consolidation
 - [ ] **Dramatiq async concurrency** — Fix `asyncpg InterfaceError: another operation is in progress` during game tick objective queries
 
@@ -18,17 +19,36 @@ AI-powered dweller interactions.
 
 ## Up Next (Recommended)
 
-### v2.21.0 — UI Migration & SSE Polish
+### v2.22.0 — UI Migration & Chat WebSocket Migration
 
 - [ ] **@nuxt/ui adoption** — Replace 11 home-grown U* components (~1093 LOC) with @nuxt/ui equivalents; fix grey dropdown background via neutral color scale in `nuxt-ui.config.ts`
 - [ ] **Axios→fetch migration** — Execute `HTTP_CLIENT_MIGRATION.md` 6-phase plan: fetch adapter, call-site migration, interceptor/token-refresh migration, drop axios dep (~14KB gzip bundle saving)
-- [ ] **Vault store reactivity** — Subscribe vault store to game tick SSE events for live resource updates without manual refresh
-- [ ] **`useSse` auto-reconnect** — Add exponential backoff retry to fetch-based SSE composable (currently no reconnection on connection loss)
-- [ ] **Incident SSE publishing** — Publish incident spawn/resolution events to SSE for real-time UI updates
+- [ ] **Chat REST→WebSocket migration** — Replace POST-SSE chat streaming with dedicated WebSocket endpoint; remove chat SSE stub from stream.py
 
 ---
 
 ## Latest Release
+
+### v2.21.0 — SSE Polish (June 24, 2026)
+
+**Focus**: Real-time SSE for incidents and game ticks, radio recruitment PostgreSQL fix
+
+**Completed:**
+- ✅ **Incident SSE publishing** — `incident_service` publishes `incident_spawned`, `incident_resolved`, `incident_spreading` via SSE (3 TDD tests)
+- ✅ **Incidents SSE endpoint** — `GET /stream/incidents/{vault_id}` with vault ownership check and heartbeat
+- ✅ **Incident store SSE subscription** — `incident.ts` replaces `setInterval` polling with SSE; 30s fallback to REST on disconnect
+- ✅ **Vault store game-tick SSE** — `vault.ts` subscribes to game tick SSE for live resource updates; SSE lifecycle bound to vault load/close/play-pause
+- ✅ **`useSseBase` auto-reconnect** — Exponential backoff reconnect (1s→2s→4s→...→30s max) on connection loss (10 tests)
+- ✅ **Radio recruitment fix** — 3 `datetime.now(UTC)` → `datetime.utcnow()` in `dweller_recycling_service.py` stops PostgreSQL `DataError` on `TIMESTAMP WITHOUT TIME ZONE` columns
+- ✅ **SSE heartbeat configurable** — `SSE_HEARTBEAT_INTERVAL` setting replaces hardcoded 30s
+- ✅ **Dead code removal** — Removed dead POST-SSE `/stream/chat/{dweller_id}` endpoint
+
+**Deferred to v2.22:**
+- @nuxt/ui adoption (~1093 LOC replacement of 11 home-grown U* components, grey dropdown fix)
+- Axios→fetch migration (HTTP_CLIENT_MIGRATION.md 6-phase plan, ~14KB gzip bundle saving)
+- Chat REST→WebSocket migration (replace POST-SSE chat with dedicated WS)
+
+---
 
 ### v2.20.0 — FE Simplification (YAGNI + DRY) (June 22, 2026)
 
@@ -943,14 +963,15 @@ watch(() => userStore.caps, (caps) => {
 
 - **Backend**: 25+ routers, 100+ endpoints, 18+ services, ~70% coverage
 - **Frontend**: 60+ Vue components, 10 feature modules
-- **Tests**: Frontend 799+, Backend 657+
+- **Tests**: Frontend 867+, Backend 825+
 - **Models**: 20+ database models
 
 ### Version Milestones
 
 | Version | Release      | Highlights                                   |
 | ------- | ------------ | -------------------------------------------- |
-| v2.21.0 | TBD          | UI Migration (nuxt/ui adoption, axios→fetch) + SSE Polish |
+| v2.22.0 | TBD          | UI Migration (nuxt/ui adoption, axios→fetch), Chat WebSocket |
+| v2.21.0 | Jun 24, 2026 | SSE Polish (incident/game-tick SSE, radio datetime fix) |
 | v2.20.0 | Jun 22, 2026 | FE Simplification (YAGNI + DRY, dead code purge) |
 | v2.19.0 | Jun 21, 2026 | SSE streaming + Dict-to-Pydantic refactoring |
 | v2.18.0 | Jun 21, 2026 | Library skills audit, compliance fixes       |
@@ -1032,4 +1053,4 @@ watch(() => userStore.caps, (caps) => {
 
 ---
 
-_Last updated: 2026-06-22_ (v2.20.0, post-FE-simplification)
+_Last updated: 2026-06-24_ (v2.21.0, SSE Polish)

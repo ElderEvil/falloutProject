@@ -2540,23 +2540,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/stream/chat/{dweller_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Stream Chat */
-        post: operations["stream_chat_api_v1_stream_chat__dweller_id__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/stream/exploration/{vault_id}": {
         parameters: {
             query?: never;
@@ -2566,6 +2549,23 @@ export interface paths {
         };
         /** Stream Exploration */
         get: operations["stream_exploration_api_v1_stream_exploration__vault_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stream/incidents/{vault_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stream Incidents */
+        get: operations["stream_incidents_api_v1_stream_incidents__vault_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -11996,20 +11996,16 @@ export interface operations {
             };
         };
     };
-    stream_chat_api_v1_stream_chat__dweller_id__post: {
+    stream_exploration_api_v1_stream_exploration__vault_id__get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                dweller_id: string;
+                vault_id: string;
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ChatMessage"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -12031,7 +12027,7 @@ export interface operations {
             };
         };
     };
-    stream_exploration_api_v1_stream_exploration__vault_id__get: {
+    stream_incidents_api_v1_stream_incidents__vault_id__get: {
         parameters: {
             query?: never;
             header?: never;

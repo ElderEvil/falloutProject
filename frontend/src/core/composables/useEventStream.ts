@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, type Ref } from 'vue'
 
 function safeJsonParse(raw: string): unknown {
   try {
@@ -111,10 +111,24 @@ function useSseBase(
   const event = ref<SseEvent | null>(null)
   const status = ref<'idle' | 'connecting' | 'open' | 'closed'>('idle')
   const error = ref<Error | null>(null)
+  const reconnected = ref(0)
   let abortController: AbortController | null = null
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
+  let intentionalClose = false
+  let attempt = 0
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  let lastBody: Record<string, unknown> | undefined = undefined
 
-  const close = () => {
+  const stopReconnect = () => {
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer)
+      reconnectTimer = null
+    }
+  }
+
+  const close = (isIntentional = true) => {
+    if (isIntentional) intentionalClose = true
+    stopReconnect()
     if (abortController) {
       abortController.abort()
       abortController = null
@@ -126,8 +140,21 @@ function useSseBase(
     status.value = 'closed'
   }
 
-  const connect = async (body?: Record<string, unknown>) => {
-    close()
+  const scheduleReconnect = () => {
+    if (intentionalClose || reconnectTimer) return
+    const delay = Math.min(1000 * 2 ** attempt, 30000)
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null
+      attempt++
+      connect(undefined, true)
+    }, delay)
+  }
+
+  const connect = async (body?: Record<string, unknown>, fromReconnect = false) => {
+    close(false)
+    intentionalClose = false
+    if (body !== undefined) lastBody = body
+    if (fromReconnect) reconnected.value++
     status.value = 'connecting'
     error.value = null
     event.value = null
@@ -141,18 +168,20 @@ function useSseBase(
       const response = await fetch(url, {
         method: options?.method ?? 'GET',
         headers,
-        body: isPost ? JSON.stringify(body ?? {}) : undefined,
+        body: isPost ? JSON.stringify(lastBody ?? {}) : undefined,
         signal: abortController.signal,
       })
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
       if (!response.body) throw new Error('Response body is null')
 
       status.value = 'open'
+      attempt = 0
       reader = response.body.getReader()
       await readSseStream(reader, (evt) => {
         event.value = evt
       })
       status.value = 'closed'
+      scheduleReconnect()
     } catch (err) {
       if (abortController !== controller) return // stale invocation, ignore
       if (err instanceof DOMException && err.name === 'AbortError') {
@@ -161,15 +190,16 @@ function useSseBase(
         error.value = err instanceof Error ? err : new Error(String(err))
         status.value = 'closed'
       }
+      scheduleReconnect()
     } finally {
-      if (abortController === controller) {
+      if (abortController === controller && intentionalClose) {
         reader = null
         abortController = null
       }
     }
   }
 
-  return { event, status, error, connect, close }
+  return { event, status, error, reconnected, connect, close, stopReconnect }
 }
 
 // POST-based SSE composable (for chat etc.)
@@ -178,21 +208,28 @@ export interface UsePostEventStreamReturn {
   event: Ref<SseEvent | null>
   status: Ref<'idle' | 'connecting' | 'open' | 'closed'>
   error: Ref<Error | null>
+  reconnected: Ref<number>
   connect: (body: Record<string, unknown>) => Promise<void>
   close: () => void
+  stopReconnect: () => void
 }
 
 export function usePostEventStream(
   url: string,
   options?: { headers?: Record<string, string> }
 ): UsePostEventStreamReturn {
-  const { event, status, error, connect, close } = useSseBase(url, { ...options, method: 'POST' })
+  const { event, status, error, reconnected, connect, close, stopReconnect } = useSseBase(url, {
+    ...options,
+    method: 'POST',
+  })
   return {
     event,
     status,
     error,
+    reconnected,
     connect: connect as (body: Record<string, unknown>) => Promise<void>,
     close,
+    stopReconnect,
   }
 }
 
@@ -202,11 +239,16 @@ export interface UseSseReturn {
   event: Ref<SseEvent | null>
   status: Ref<'idle' | 'connecting' | 'open' | 'closed'>
   error: Ref<Error | null>
+  reconnected: Ref<number>
   start: () => Promise<void>
   close: () => void
+  stopReconnect: () => void
 }
 
 export function useSse(url: string, options?: { headers?: Record<string, string> }): UseSseReturn {
-  const { event, status, error, connect, close } = useSseBase(url, { ...options, method: 'GET' })
-  return { event, status, error, start: connect, close }
+  const { event, status, error, reconnected, connect, close, stopReconnect } = useSseBase(url, {
+    ...options,
+    method: 'GET',
+  })
+  return { event, status, error, reconnected, start: connect, close, stopReconnect }
 }

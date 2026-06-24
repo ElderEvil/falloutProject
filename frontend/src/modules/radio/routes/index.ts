@@ -7,7 +7,7 @@ export const radioRoutes: RouteRecordRaw[] = [
     path: '/vault/:id/radio',
     name: 'radio',
     component: RadioView,
-    meta: { requiresAuth: true, hideFromNav: true },
+    meta: { requiresAuth: true, hideFromNav: true, parentRoute: '/vault/:id' },
   },
 ]
 

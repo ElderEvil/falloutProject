@@ -14,8 +14,7 @@ import ExplorerCard from '../components/ExplorerCard.vue'
 import QuestPartyCard from '../components/QuestPartyCard.vue'
 import EventTimeline from '../components/EventTimeline.vue'
 import ExplorationRewardsModal from '../components/ExplorationRewardsModal.vue'
-import UCard from '@/core/components/ui/UCard.vue'
-import UButton from '@/core/components/ui/UButton.vue'
+
 import type { RewardsSummary } from '../stores/exploration'
 
 const route = useRoute()
@@ -236,7 +235,7 @@ const closeRewardsModal = () => {
       <div class="exploration-content">
         <!-- Loading State -->
         <div v-if="explorationLoading" class="loading-state">
-          <UCard glow crt padding="lg">
+          <UCard padding="lg" class="shadow-[0_0_10px_var(--color-theme-glow)] crt-screen">
             <div class="loading-content">
               <Icon icon="mdi:loading" class="loading-spinner" />
               <p class="loading-text">Scanning wasteland frequencies...</p>
@@ -256,7 +255,7 @@ const closeRewardsModal = () => {
               <Icon icon="mdi:alert-circle" class="error-icon" />
               <h3 class="error-title">Signal Lost</h3>
               <p class="error-message">{{ explorationError }}</p>
-              <UButton variant="secondary" size="md" @click="loadData">
+              <UButton color="primary" variant="outline" size="md" @click="loadData">
                 <Icon icon="mdi:refresh" class="mr-2" />
                 Retry Connection
               </UButton>

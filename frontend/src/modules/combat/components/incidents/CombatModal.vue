@@ -1,5 +1,5 @@
 <template>
-  <UModal :modelValue="true" @close="$emit('close')" size="xl">
+  <UModal :open="true" @close="$emit('close')" size="xl">
     <template #header>
       <div class="modal-header">
         <div class="header-left">
@@ -108,10 +108,10 @@
 
     <template #footer>
       <div class="modal-footer">
-        <UButton @click="handleResolve(true)" variant="primary" :disabled="isResolving">
+        <UButton @click="handleResolve(true)" color="primary" variant="solid" :disabled="isResolving">
           {{ isResolving ? 'RESOLVING...' : 'RESOLVE INCIDENT' }}
         </UButton>
-        <UButton @click="handleResolve(false)" variant="danger" :disabled="isResolving">
+        <UButton @click="handleResolve(false)" color="error" variant="solid" :disabled="isResolving">
           ABANDON ROOM
         </UButton>
       </div>
@@ -127,8 +127,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useIncidentStore } from '../../stores/incident'
-import UModal from '@/core/components/ui/UModal.vue'
-import UButton from '@/core/components/ui/UButton.vue'
+
 import type { Incident } from '../../models/incident'
 import { IncidentType } from '../../models/incident'
 

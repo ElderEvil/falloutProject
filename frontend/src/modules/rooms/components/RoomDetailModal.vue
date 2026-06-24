@@ -6,7 +6,7 @@ import { useRoomProduction } from '../composables/useRoomProduction'
 import { useRoomUpgrade } from '../composables/useRoomUpgrade'
 import { useRoomDwellers } from '../composables/useRoomDwellers'
 import { useRadioRoom } from '../composables/useRadioRoom'
-import UModal from '@/core/components/ui/UModal.vue'
+
 import RoomDetailHeader from './RoomDetailHeader.vue'
 import RoomPreviewSection from './RoomPreviewSection.vue'
 import RoomInfoGrid from './RoomInfoGrid.vue'
@@ -86,8 +86,8 @@ watch(
 
 <template>
   <UModal
-    :model-value="modelValue"
-    @update:model-value="emit('update:modelValue', $event)"
+    :open="modelValue"
+    @update:open="emit('update:modelValue', $event)"
     @close="emit('close')"
     size="lg"
   >

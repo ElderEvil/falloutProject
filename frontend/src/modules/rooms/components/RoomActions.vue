@@ -2,8 +2,7 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Room } from '../models/room'
-import UButton from '@/core/components/ui/UButton.vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
+
 
 interface UpgradeInfo {
   canUpgrade: boolean
@@ -50,7 +49,7 @@ const emit = defineEmits<{
         v-if="upgradeInfo?.canUpgrade"
         @click="emit('upgrade')"
         :disabled="isUpgrading"
-        variant="primary"
+        color="primary" variant="solid"
         class="action-btn"
       >
         <Icon icon="mdi:arrow-up-circle" class="h-5 w-5" />
@@ -70,7 +69,7 @@ const emit = defineEmits<{
         v-if="!isRadioRoom && hasProductionInfo"
         @click="emit('rushProduction')"
         :disabled="isRushing || assignedDwellerCount === 0"
-        variant="primary"
+        color="primary" variant="solid"
         class="action-btn rush-btn"
       >
         <Icon icon="mdi:lightning-bolt" class="h-5 w-5" />
@@ -82,7 +81,7 @@ const emit = defineEmits<{
       <UButton
         @click="emit('unassignAll')"
         :disabled="assignedDwellerCount === 0"
-        variant="secondary"
+        color="primary" variant="outline"
         class="action-btn"
       >
         <Icon icon="mdi:account-remove" class="h-5 w-5" />
@@ -91,7 +90,7 @@ const emit = defineEmits<{
 
       <!-- Destroy Button -->
       <UTooltip v-if="isVaultDoor" text="The Vault Door is vital and cannot be destroyed.">
-        <UButton disabled variant="danger" class="action-btn">
+        <UButton disabled color="error" variant="solid" class="action-btn">
           <Icon icon="mdi:delete" class="h-5 w-5" />
           <span>Destroy Room</span>
         </UButton>
@@ -100,7 +99,7 @@ const emit = defineEmits<{
         v-else
         @click="emit('destroy')"
         :disabled="isDestroying"
-        variant="danger"
+        color="error" variant="solid"
         class="action-btn"
       >
         <Icon icon="mdi:delete" class="h-5 w-5" />

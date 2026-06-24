@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRadioStore } from '../stores/radio'
-import UButton from '@/core/components/ui/UButton.vue'
+
 
 interface Props {
   vaultId: string
@@ -37,7 +37,7 @@ async function handleRecruit() {
     <UButton
       @click="handleRecruit"
       :disabled="isRecruiting || !canAfford"
-      variant="primary"
+      color="primary" variant="solid"
       :class="{ 'opacity-50': !canAfford }"
     >
       <span v-if="isRecruiting">Recruiting...</span>

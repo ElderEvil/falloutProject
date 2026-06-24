@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import UModal from '@/core/components/ui/UModal.vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import UAlert from '@/core/components/ui/UAlert.vue'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -139,7 +136,7 @@ const close = () => {
         >.
       </p>
 
-      <UAlert v-if="errorMessage" variant="error" class="error-alert">
+      <UAlert v-if="errorMessage" color="error" class="error-alert">
         <Icon icon="mdi:alert-circle" class="h-5 w-5" />
         {{ errorMessage }}
       </UAlert>
@@ -174,7 +171,7 @@ const close = () => {
           </div>
         </template>
         <template v-else>
-          <UAlert variant="error" class="no-room-alert">
+          <UAlert color="error" class="no-room-alert">
             <Icon icon="mdi:alert-circle" class="h-5 w-5" />
             No training room available for {{ selectedStat }}. Build one first!
           </UAlert>
@@ -182,8 +179,8 @@ const close = () => {
       </div>
 
       <div class="modal-actions">
-        <UButton variant="secondary" @click="close">Cancel</UButton>
-        <UButton variant="primary" :disabled="!canStart" :loading="loading" @click="handleStart">
+        <UButton color="secondary" variant="outline" @click="close">Cancel</UButton>
+        <UButton color="primary" :disabled="!canStart" :loading="loading" @click="handleStart">
           Start Training
         </UButton>
       </div>

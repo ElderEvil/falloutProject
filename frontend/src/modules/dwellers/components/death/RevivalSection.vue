@@ -5,7 +5,6 @@
  */
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UCard, UButton, UBadge } from '@/core/components/ui'
 import type { RevivalCostResponse } from '@/modules/dwellers/models/dweller'
 
 interface Props {
@@ -45,7 +44,7 @@ const handleRevive = () => {
 </script>
 
 <template>
-  <UCard title="EMERGENCY MEDICAL PROTOCOL" glow crt class="revival-section">
+  <UCard title="EMERGENCY MEDICAL PROTOCOL" class="revival-section shadow-[0_0_10px_var(--color-theme-glow)] crt-screen">
     <div v-if="revivalCost" class="flex flex-col gap-4">
       <!-- Cost Analysis -->
       <div class="grid grid-cols-2 gap-4">
@@ -107,12 +106,12 @@ const handleRevive = () => {
         </p>
 
         <UButton
-          variant="primary"
+          color="primary"
           size="lg"
-          block
+          class="w-full"
           :disabled="!canAfford"
           :loading="loading"
-          icon="mdi:flash"
+          icon="i-mdi-flash"
           @click="handleRevive"
         >
           INITIATE REVIVAL SEQUENCE

@@ -18,8 +18,6 @@ import DwellerCardSkeleton from '../components/cards/DwellerCardSkeleton.vue'
 import DwellerGridItemSkeleton from '../components/grid/DwellerGridItemSkeleton.vue'
 import DwellerBulkActions from '../components/DwellerBulkActions.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
-import UButton from '@/core/components/ui/UButton.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { DeadDwellerCard } from '../components/death'
@@ -294,7 +292,7 @@ const handleQuickUnassign = async (dwellerId: string) => {
           <template v-if="isDeadFilter">
             <!-- Graveyard Link -->
             <div class="w-full mb-6 flex justify-end">
-              <UButton variant="secondary" size="sm" @click="navigateToGraveyard">
+              <UButton color="secondary" variant="outline" size="sm" @click="navigateToGraveyard">
                 <Icon icon="mdi:grave-stone" class="h-4 w-4 mr-2" />
                 View Graveyard
               </UButton>

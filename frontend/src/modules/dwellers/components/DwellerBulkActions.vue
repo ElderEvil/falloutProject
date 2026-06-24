@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { Icon } from '@iconify/vue'
-import UButton from '@/core/components/ui/UButton.vue'
 import { useDwellerStore } from '../stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
@@ -43,12 +42,12 @@ const handleAutoAssignAll = async () => {
 
 <template>
   <div class="bulk-actions-toolbar">
-    <UButton variant="danger" size="sm" @click="showConfirmDialog = true" :loading="unassigningAll">
+    <UButton color="error" size="sm" @click="showConfirmDialog = true" :loading="unassigningAll">
       <Icon icon="mdi:account-remove" class="h-4 w-4 mr-2" />
       Unassign All Dwellers
     </UButton>
 
-    <UButton variant="primary" size="sm" @click="handleAutoAssignAll" :loading="autoAssigning">
+    <UButton color="primary" size="sm" @click="handleAutoAssignAll" :loading="autoAssigning">
       <Icon icon="mdi:auto-mode" class="h-4 w-4 mr-2" />
       Auto-Assign All Rooms
     </UButton>
@@ -61,8 +60,8 @@ const handleAutoAssignAll = async () => {
             <h3>Unassign All Dwellers?</h3>
             <p>This will remove all dwellers from their current room assignments.</p>
             <div class="dialog-actions">
-              <UButton variant="secondary" @click="showConfirmDialog = false">Cancel</UButton>
-              <UButton variant="danger" @click="handleUnassignAll" :loading="unassigningAll"
+              <UButton color="secondary" variant="outline" @click="showConfirmDialog = false">Cancel</UButton>
+              <UButton color="error" @click="handleUnassignAll" :loading="unassigningAll"
                 >Confirm</UButton
               >
             </div>

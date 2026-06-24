@@ -200,7 +200,7 @@ describe('DwellerCard', () => {
       })
 
       const chatButton = wrapper
-        .findAllComponents({ name: 'UButton' })
+        .findAll('button')
         .find((btn) => btn.text().includes('Chat'))
 
       expect(chatButton).toBeDefined()
@@ -217,7 +217,7 @@ describe('DwellerCard', () => {
       })
 
       const assignButton = wrapper
-        .findAllComponents({ name: 'UButton' })
+        .findAll('button')
         .find((btn) => btn.text().includes('Assign to Room'))
 
       expect(assignButton).toBeDefined()
@@ -235,7 +235,7 @@ describe('DwellerCard', () => {
       })
 
       const recallButton = wrapper
-        .findAllComponents({ name: 'UButton' })
+        .findAll('button')
         .find((btn) => btn.text().includes('Recall from Wasteland'))
 
       expect(recallButton).toBeDefined()
@@ -250,7 +250,7 @@ describe('DwellerCard', () => {
       })
 
       const recallButton = wrapper
-        .findAllComponents({ name: 'UButton' })
+        .findAll('button')
         .find((btn) => btn.text().includes('Recall from Wasteland'))
 
       expect(recallButton).toBeUndefined()
@@ -267,7 +267,7 @@ describe('DwellerCard', () => {
       })
 
       const stimpPackButton = wrapper
-        .findAllComponents({ name: 'UButton' })
+        .findAll('button')
         .find((btn) => btn.text().includes('Use Stimpack'))
 
       expect(stimpPackButton).toBeDefined()
@@ -284,7 +284,7 @@ describe('DwellerCard', () => {
       })
 
       const stimpPackButton = wrapper
-        .findAllComponents({ name: 'UButton' })
+        .findAll('button')
         .find((btn) => btn.text().includes('Use Stimpack'))
 
       expect(stimpPackButton).toBeDefined()
@@ -300,7 +300,7 @@ describe('DwellerCard', () => {
       })
 
       const radawayButton = wrapper
-        .findAllComponents({ name: 'UButton' })
+        .findAll('button')
         .find((btn) => btn.text().includes('Use RadAway'))
 
       expect(radawayButton).toBeDefined()
@@ -317,7 +317,7 @@ describe('DwellerCard', () => {
       })
 
       const radawayButton = wrapper
-        .findAllComponents({ name: 'UButton' })
+        .findAll('button')
         .find((btn) => btn.text().includes('Use RadAway'))
 
       expect(radawayButton).toBeDefined()
@@ -360,10 +360,12 @@ describe('DwellerCard', () => {
         },
       })
 
-      const tooltips = wrapper.findAllComponents({ name: 'UTooltip' })
-      const trainTooltip = tooltips.find((t) => t.props('text')?.includes('Train SPECIAL stats'))
+      const buttons = wrapper.findAll('button')
+      const trainButton = buttons.find(
+        (b) => (b.element as HTMLButtonElement).title?.includes('Train SPECIAL stats')
+      )
 
-      expect(trainTooltip).toBeDefined()
+      expect(trainButton).toBeDefined()
     })
 
     it('should have tooltip for assign pet button', () => {
@@ -374,10 +376,12 @@ describe('DwellerCard', () => {
         },
       })
 
-      const tooltips = wrapper.findAllComponents({ name: 'UTooltip' })
-      const petTooltip = tooltips.find((t) => t.props('text')?.includes('Assign a pet companion'))
+      const buttons = wrapper.findAll('button')
+      const petButton = buttons.find(
+        (b) => (b.element as HTMLButtonElement).title?.includes('Assign a pet companion')
+      )
 
-      expect(petTooltip).toBeDefined()
+      expect(petButton).toBeDefined()
     })
   })
 })

@@ -5,7 +5,6 @@
  */
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UCard, USkeleton } from '@/core/components/ui'
 import type { DeathStatistics } from '@/modules/profile/stores/profile'
 
 interface Props {
@@ -74,7 +73,7 @@ const causeData = computed(() => {
 </script>
 
 <template>
-  <UCard title="VITAL STATISTICS REGISTRY" glow crt class="life-death-stats">
+  <UCard title="VITAL STATISTICS REGISTRY" class="life-death-stats shadow-[0_0_10px_var(--color-theme-glow)] crt-screen">
     <div v-if="loading" class="space-y-4">
       <div class="grid grid-cols-3 gap-4">
         <USkeleton class="h-24 w-full" />

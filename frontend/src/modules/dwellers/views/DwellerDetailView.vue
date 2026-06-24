@@ -12,7 +12,7 @@ import DwellerPanel from '../components/DwellerPanel.vue'
 import DwellerAppearanceEditor from '../components/DwellerAppearanceEditor.vue'
 import TrainingStartModal from '../components/modals/TrainingStartModal.vue'
 import DwellerStatusBadge from '../components/stats/DwellerStatusBadge.vue'
-import UButton from '@/core/components/ui/UButton.vue'
+// @nuxt/ui UButton globally registered — no import needed
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { RevivalSection } from '../components/death'
 import type { RevivalCostResponse } from '../models/dweller'
@@ -330,7 +330,7 @@ const saveNewName = async () => {
           <div v-else-if="!dweller" class="error-container">
             <Icon icon="mdi:alert-circle" class="error-icon" />
             <p class="error-text">Dweller not found</p>
-            <UButton @click="goBack" variant="secondary">
+            <UButton @click="goBack" color="secondary" variant="outline">
               <Icon icon="mdi:arrow-left" class="mr-2" />
               Back to Dwellers
             </UButton>
@@ -368,7 +368,7 @@ const saveNewName = async () => {
                     <UButton
                       @click="saveNewName"
                       :disabled="!editedName.trim() || renamingInProgress"
-                      variant="primary"
+                      color="primary"
                       size="sm"
                     >
                       <Icon icon="mdi:check" class="h-4 w-4" />

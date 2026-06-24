@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import type { components } from '@/core/types/api.generated'
 
@@ -43,14 +41,15 @@ const isTraining = computed(() => {
 
 <template>
   <div class="actions-container">
-    <UButton variant="primary" size="md" block @click="emit('chat')">
+    <UButton color="primary" size="md" class="w-full" @click="emit('chat')">
       <Icon icon="mdi:message-text" class="h-5 w-5 mr-2" />
       Chat
     </UButton>
 
     <div class="room-actions">
       <UButton
-        variant="secondary"
+        color="secondary"
+        variant="outline"
         size="md"
         @click="emit('assign')"
         :disabled="loading || dweller.room !== null"
@@ -60,7 +59,8 @@ const isTraining = computed(() => {
       </UButton>
 
       <UButton
-        variant="secondary"
+        color="secondary"
+        variant="outline"
         size="md"
         @click="emit('unassign')"
         :disabled="loading || dweller.room === null"
@@ -72,9 +72,10 @@ const isTraining = computed(() => {
 
     <UButton
       v-if="dweller.status === 'exploring'"
-      variant="secondary"
+      color="secondary"
+      variant="outline"
       size="md"
-      block
+      class="w-full"
       @click="emit('recall')"
       :disabled="loading"
     >
@@ -84,7 +85,8 @@ const isTraining = computed(() => {
 
     <div class="item-actions">
       <UButton
-        variant="secondary"
+        color="secondary"
+        variant="outline"
         size="md"
         @click="emit('use-stimpack')"
         :disabled="!canUseStimpack || loading"
@@ -95,7 +97,8 @@ const isTraining = computed(() => {
       </UButton>
 
       <UButton
-        variant="secondary"
+        color="secondary"
+        variant="outline"
         size="md"
         @click="emit('use-radaway')"
         :disabled="!canUseRadaway || loading"
@@ -107,27 +110,25 @@ const isTraining = computed(() => {
     </div>
 
     <div class="coming-soon-section">
-      <UTooltip text="Train SPECIAL stats to improve dweller abilities">
-        <UButton
-          variant="secondary"
-          size="md"
-          block
-          @click="emit('train')"
-          :disabled="loading || isTraining"
-        >
-          <Icon icon="mdi:school" class="h-5 w-5 mr-2" />
-          {{ isTraining ? 'Training In Progress' : 'Train Stats' }}
-        </UButton>
-      </UTooltip>
+      <UButton
+        color="secondary"
+        variant="outline"
+        size="md"
+        class="w-full"
+        @click="emit('train')"
+        :disabled="loading || isTraining"
+        title="Train SPECIAL stats to improve dweller abilities"
+      >
+        <Icon icon="mdi:school" class="h-5 w-5 mr-2" />
+        {{ isTraining ? 'Training In Progress' : 'Train Stats' }}
+      </UButton>
 
-      <UTooltip text="Assign a pet companion - Coming in Phase 3 (Mar-Apr 2026)">
-        <UButton variant="secondary" size="md" block disabled class="locked-action-button">
+      <UButton color="secondary" variant="outline" size="md" disabled class="w-full locked-action-button" title="Assign a pet companion - Coming in Phase 3 (Mar-Apr 2026)">
           <Icon icon="mdi:paw" class="h-5 w-5 mr-2" />
           Assign Pet
           <Icon icon="mdi:lock" class="h-4 w-4 ml-auto opacity-50" />
         </UButton>
-      </UTooltip>
-    </div>
+      </div>
   </div>
 </template>
 

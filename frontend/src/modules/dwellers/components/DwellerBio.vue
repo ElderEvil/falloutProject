@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import DOMPurify from 'dompurify'
 import { Icon } from '@iconify/vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
 
 interface Props {
   bio?: string | null
@@ -32,35 +31,33 @@ const sanitizedBio = computed(() => {
     <div class="bio-header">
       <h3 class="bio-title">Biography</h3>
       <div class="header-buttons">
-        <UTooltip text="Generate biography with AI" position="top">
-          <button
-            @click="emit('generate-bio')"
-            class="generate-button"
-            :disabled="props.isAnyGenerating"
-          >
-            <Icon
-              :icon="generatingBio ? 'mdi:loading' : 'mdi:pencil-plus'"
-              class="h-5 w-5"
-              :class="{ 'animate-spin': generatingBio }"
-            />
-            <span>{{ bio ? 'Regen' : 'Bio' }}</span>
-          </button>
-        </UTooltip>
+        <button
+          @click="emit('generate-bio')"
+          class="generate-button"
+          :disabled="props.isAnyGenerating"
+          title="Generate biography with AI"
+        >
+          <Icon
+            :icon="generatingBio ? 'mdi:loading' : 'mdi:pencil-plus'"
+            class="h-5 w-5"
+            :class="{ 'animate-spin': generatingBio }"
+          />
+          <span>{{ bio ? 'Regen' : 'Bio' }}</span>
+        </button>
 
-        <UTooltip text="Generate portrait & biography together" position="top">
-          <button
-            @click="emit('generate-all')"
-            class="generate-button combo-button"
-            :disabled="props.isAnyGenerating"
-          >
+        <button
+          @click="emit('generate-all')"
+          class="generate-button combo-button"
+          :disabled="props.isAnyGenerating"
+          title="Generate portrait & biography together"
+        >
             <Icon
               :icon="props.isAnyGenerating ? 'mdi:loading' : 'mdi:sparkles'"
               class="h-5 w-5"
               :class="{ 'animate-spin': props.isAnyGenerating }"
             />
             <span>All</span>
-          </button>
-        </UTooltip>
+        </button>
       </div>
     </div>
     <div class="bio-content">

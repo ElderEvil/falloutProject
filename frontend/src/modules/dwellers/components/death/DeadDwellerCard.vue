@@ -5,7 +5,6 @@
  */
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UCard, UButton, UBadge } from '@/core/components/ui'
 import type { DwellerDead } from '@/modules/dwellers/models/dweller'
 
 interface Props {
@@ -84,11 +83,8 @@ const handleViewDetails = () => {
 
 <template>
   <UCard
-    class="dead-dweller-card h-full flex flex-col"
+    class="dead-dweller-card h-full flex flex-col shadow-[0_0_10px_var(--color-theme-glow)] crt-screen p-4"
     :class="{ 'border-red-500/50': isUrgent && !dweller.is_permanently_dead }"
-    glow
-    crt
-    padding="sm"
   >
     <div class="flex gap-4">
       <!-- Thumbnail Section -->
@@ -138,7 +134,7 @@ const handleViewDetails = () => {
             </h3>
 
             <div class="flex items-center gap-2 mt-1">
-              <UBadge variant="danger" size="sm" class="flex items-center gap-1">
+              <UBadge color="error" size="sm" class="flex items-center gap-1">
                 <Icon :icon="deathCauseIcon" class="w-3.5 h-3.5" />
                 <span>{{ deathCauseText }}</span>
               </UBadge>
@@ -177,18 +173,19 @@ const handleViewDetails = () => {
     <div class="mt-auto flex gap-2">
       <UButton
         v-if="!dweller.is_permanently_dead"
-        variant="primary"
+        color="primary"
         size="sm"
         class="flex-1"
         :loading="loading"
-        icon="mdi:medical-bag"
+        icon="i-mdi-medical-bag"
         @click="handleRevive"
       >
         REVIVE
       </UButton>
       <UButton
         v-else
-        variant="secondary"
+        color="secondary"
+        variant="outline"
         size="sm"
         class="flex-1 opacity-50 cursor-not-allowed"
         disabled

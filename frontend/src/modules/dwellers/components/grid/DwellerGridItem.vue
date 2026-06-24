@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import DwellerStatusBadge from '../stats/DwellerStatusBadge.vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
 import type { DwellerShort } from '../../models/dweller'
 import { normalizeImageUrl } from '@/utils/image'
 
@@ -79,20 +78,19 @@ const getStatColorClass = (value: number) => {
         </div>
 
         <!-- Generate AI Button -->
-        <UTooltip text="Generate AI portrait" position="top">
-          <button
-            @click.stop="emit('generate-ai')"
-            class="ai-generate-button"
-            :disabled="generatingAI"
-            aria-label="Generate AI portrait"
-          >
+        <button
+          @click.stop="emit('generate-ai')"
+          class="ai-generate-button"
+          :disabled="generatingAI"
+          aria-label="Generate AI portrait"
+          title="Generate AI portrait"
+        >
             <Icon
               :icon="generatingAI ? 'mdi:loading' : 'mdi:sparkles'"
               class="ai-icon"
               :class="{ 'animate-spin': generatingAI }"
             />
           </button>
-        </UTooltip>
       </template>
     </div>
 
@@ -137,12 +135,10 @@ const getStatColorClass = (value: number) => {
       <!-- Room Badge -->
       <div class="room-info">
         <template v-if="roomName">
-          <UTooltip :text="`Assigned to ${roomName}`" position="top">
-            <button @click.stop="emit('room-click')" class="room-badge">
+          <button @click.stop="emit('room-click')" class="room-badge" :title="`Assigned to ${roomName}`">
               <Icon icon="mdi:office-building" class="room-icon" />
               <span class="room-name">{{ roomName }}</span>
-            </button>
-          </UTooltip>
+          </button>
         </template>
         <template v-else>
           <div class="room-badge unassigned">

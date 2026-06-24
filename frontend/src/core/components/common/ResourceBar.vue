@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
 
 interface Props {
   current: number

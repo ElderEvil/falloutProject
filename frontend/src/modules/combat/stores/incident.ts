@@ -1,15 +1,19 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { incidentApi } from '../api/incident'
 import type { Incident, IncidentListResponse } from '../models/incident'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
+import { useSse } from '@/core/composables/useEventStream'
 
 export const useIncidentStore = defineStore('incident', () => {
   const incidents = ref<Map<string, Incident>>(new Map())
   const activeIncidentIds = ref<string[]>([])
   const isPolling = ref(false)
   const pollInterval = ref<number | null>(null)
+  const sseConnected = ref(false)
+  let sseInstance: ReturnType<typeof useSse> | null = null
+  let fallbackTimer: ReturnType<typeof setTimeout> | null = null
 
   const { success: showSuccess, error: showError } = useToast()
 
@@ -99,6 +103,88 @@ export const useIncidentStore = defineStore('incident', () => {
     }
   }
 
+  function startSseSubscription(vaultId: string, token: string): void {
+    stopSseSubscription()
+
+    const apiBase = import.meta.env.VITE_API_BASE_URL ?? ''
+    sseInstance = useSse(`${apiBase}/api/v1/stream/incidents/${vaultId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    sseInstance.start()
+
+    watch(
+      () => sseInstance?.event.value,
+      (evt) => {
+        if (!evt || evt.event !== 'incident') return
+        const data = evt.data as Record<string, unknown> | undefined
+        if (!data || typeof data.type !== 'string') return
+
+        switch (data.type) {
+          case 'incident_spawned':
+            sseConnected.value = true
+            fetchIncidents(vaultId, token).catch(() => {})
+            break
+
+          case 'incident_resolved': {
+            const resolvedId = data.incident_id as string | undefined
+            if (resolvedId) {
+              activeIncidentIds.value = activeIncidentIds.value.filter((id) => id !== resolvedId)
+              incidents.value.delete(resolvedId)
+            }
+            break
+          }
+
+          case 'incident_spreading': {
+            const spreadId = data.incident_id as string | undefined
+            if (spreadId) {
+              incidentApi.getIncident(vaultId, spreadId, token).then((incident) => {
+                incidents.value.set(spreadId, incident)
+              }).catch(() => {})
+            }
+            break
+          }
+        }
+      }
+    )
+
+    watch(
+      () => sseInstance?.status.value,
+      (status) => {
+        if (status === 'open') {
+          sseConnected.value = true
+          if (pollInterval.value) {
+            clearInterval(pollInterval.value)
+            pollInterval.value = null
+          }
+        } else if (status === 'closed') {
+          sseConnected.value = false
+          fallbackTimer = setTimeout(() => {
+            if (!sseConnected.value && !pollInterval.value) {
+              pollInterval.value = window.setInterval(() => {
+                fetchIncidents(vaultId, token).catch((err) => {
+                  handleStoreError(err, 'Error polling incidents (SSE fallback)')
+                })
+              }, 10000)
+            }
+          }, 30000)
+        }
+      }
+    )
+  }
+
+  function stopSseSubscription(): void {
+    if (sseInstance) {
+      sseInstance.stopReconnect()
+      sseInstance.close()
+      sseInstance = null
+    }
+    sseConnected.value = false
+    if (fallbackTimer) {
+      clearTimeout(fallbackTimer)
+      fallbackTimer = null
+    }
+  }
+
   function startPolling(vaultId: string, token: string, intervalMs: number = 10000): void {
     if (isPolling.value) {
       stopPolling()
@@ -106,18 +192,19 @@ export const useIncidentStore = defineStore('incident', () => {
 
     isPolling.value = true
 
-    // Initial fetch
     fetchIncidents(vaultId, token)
-
-    // Set up polling
+    startSseSubscription(vaultId, token)
     pollInterval.value = window.setInterval(() => {
-      fetchIncidents(vaultId, token).catch((err) => {
-        handleStoreError(err, 'Error polling incidents')
-      })
+      if (!sseConnected.value) {
+        fetchIncidents(vaultId, token).catch((err) => {
+          handleStoreError(err, 'Error polling incidents')
+        })
+      }
     }, intervalMs)
   }
 
   function stopPolling(): void {
+    stopSseSubscription()
     if (pollInterval.value) {
       clearInterval(pollInterval.value)
       pollInterval.value = null

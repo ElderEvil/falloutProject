@@ -24,7 +24,7 @@ const emit = defineEmits<{
   'edit-appearance': []
 }>()
 
-const activeTab = ref(0)
+const activeTab = ref('0')
 
 const tabItems = [
   { label: 'Profile', slot: 'profile' },

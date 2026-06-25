@@ -41,7 +41,7 @@ const isTraining = computed(() => {
 
 <template>
   <div class="actions-container">
-    <UButton color="primary" size="md" class="w-full" @click="emit('chat')">
+    <UButton color="primary" variant="outline" size="md" class="w-full" @click="emit('chat')">
       <Icon icon="mdi:message-text" class="h-5 w-5 mr-2" />
       Chat
     </UButton>

@@ -56,11 +56,11 @@ They all fit the theme individually, but together they feel like different UI ki
 
 **Suggestion:** create 2-3 official card variants:
 
-1. `panel-primary`  
+1. `panel-primary`
 	Main page sections, green border, subtle dark gradient.
-2. `panel-muted`  
+2. `panel-muted`
 	Secondary info blocks, less glow.
-3. `panel-warning` / `panel-wasteland`  
+3. `panel-warning` / `panel-wasteland`
 	Brown/orange wasteland/exploration-only styling.
 
 Avoid inventing a new background/border/glow recipe per screen.

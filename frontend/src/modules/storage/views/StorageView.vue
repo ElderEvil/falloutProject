@@ -347,7 +347,7 @@ const getRarityColor = (rarity?: string) => {
             class="rounded-lg border border-theme-primary/35 bg-black/80 p-4 shadow-[0_0_12px_var(--color-theme-glow)] backdrop-blur-sm"
           >
             <div
-              class="grid [grid-template-columns:repeat(auto-fill,minmax(180px,180px))] justify-start content-start gap-3"
+              class="grid [grid-template-columns:repeat(auto-fill,minmax(220px,220px))] justify-center content-start gap-5"
             >
               <StorageItemCard
                 v-for="item in activeItems"

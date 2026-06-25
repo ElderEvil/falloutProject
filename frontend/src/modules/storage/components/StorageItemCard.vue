@@ -230,7 +230,7 @@ const rarityTextClass = computed(() => {
       <div class="flex items-center gap-2.5">
         <Icon
           :icon="itemIcon"
-          class="w-9 h-9 shrink-0 text-(--color-theme-primary) drop-shadow-[0_0_4px_var(--color-theme-glow)]"
+          class="w-11 h-11 shrink-0 text-(--color-theme-primary) drop-shadow-[0_0_4px_var(--color-theme-glow)]"
         />
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-1.5">

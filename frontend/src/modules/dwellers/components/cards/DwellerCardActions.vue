@@ -48,7 +48,7 @@ const isTraining = computed(() => {
 
     <div class="room-actions">
       <UButton
-        color="secondary"
+        color="primary"
         variant="outline"
         size="md"
         @click="emit('assign')"
@@ -59,7 +59,7 @@ const isTraining = computed(() => {
       </UButton>
 
       <UButton
-        color="secondary"
+        color="primary"
         variant="outline"
         size="md"
         @click="emit('unassign')"
@@ -72,7 +72,7 @@ const isTraining = computed(() => {
 
     <UButton
       v-if="dweller.status === 'exploring'"
-      color="secondary"
+      color="primary"
       variant="outline"
       size="md"
       class="w-full"
@@ -85,7 +85,7 @@ const isTraining = computed(() => {
 
     <div class="item-actions">
       <UButton
-        color="secondary"
+        color="primary"
         variant="outline"
         size="md"
         @click="emit('use-stimpack')"
@@ -97,7 +97,7 @@ const isTraining = computed(() => {
       </UButton>
 
       <UButton
-        color="secondary"
+        color="primary"
         variant="outline"
         size="md"
         @click="emit('use-radaway')"
@@ -111,7 +111,7 @@ const isTraining = computed(() => {
 
     <div class="coming-soon-section">
       <UButton
-        color="secondary"
+        color="primary"
         variant="outline"
         size="md"
         class="w-full"
@@ -124,7 +124,7 @@ const isTraining = computed(() => {
       </UButton>
 
       <UButton
-        color="secondary"
+        color="primary"
         variant="outline"
         size="md"
         disabled

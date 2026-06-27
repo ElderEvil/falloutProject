@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import TrainingProgressCard from './TrainingProgressCard.vue'
 import { useTrainingStore } from '@/modules/progression/stores/training'
@@ -57,7 +57,16 @@ const handleCompleteTraining = async (trainingId: string) => {
 }
 
 onMounted(() => {
-  fetchTrainings()
+  // Fetch when vault becomes available (handles page reload where vault loads async)
+  watch(
+    () => vaultStore.activeVault?.id,
+    (newId) => {
+      if (newId && authStore.token) {
+        fetchTrainings()
+      }
+    },
+    { immediate: true },
+  )
 
   // Refresh trainings every 30 seconds
   refreshInterval = window.setInterval(() => {
@@ -149,7 +158,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: linear-gradient(135deg, var(--color-surface-light) 0%, var(--color-gray-800) 100%);
+  background: transparent;
   border: 2px solid var(--color-theme-primary);
   border-radius: 0.5rem;
   overflow: hidden;

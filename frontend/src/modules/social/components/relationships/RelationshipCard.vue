@@ -20,15 +20,7 @@
         <div class="text-xs mb-1" :style="{ color: 'var(--color-theme-primary)' }">
           Affinity: {{ relationship.affinity }}/100
         </div>
-        <div class="h-2 bg-gray-800 border" :style="{ borderColor: 'var(--color-theme-primary)' }">
-          <div
-            class="h-full"
-            :style="{
-              width: `${relationship.affinity}%`,
-              backgroundColor: 'var(--color-theme-primary)',
-            }"
-          ></div>
-        </div>
+        <UProgressBar :model-value="relationship.affinity" :height="10" />
       </div>
 
       <!-- Actions -->
@@ -69,6 +61,7 @@ import type { Relationship } from '../../models/relationship'
 import UCard from '@/core/components/ui/UCard.vue'
 import UBadge from '@/core/components/ui/UBadge.vue'
 import UButton from '@/core/components/ui/UButton.vue'
+import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 
 interface Props {
   relationship: Relationship
@@ -99,3 +92,5 @@ const relationshipColor = computed((): 'success' | 'warning' | 'danger' | 'info'
   }
 })
 </script>
+
+

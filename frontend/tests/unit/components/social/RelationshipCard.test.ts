@@ -30,14 +30,14 @@ function createWrapper(relationship: Record<string, unknown>) {
 }
 
 describe('RelationshipCard', () => {
-  describe('badge class per relationship type', () => {
+  describe('badge variant per relationship type', () => {
     it.each([
-      { type: 'acquaintance', expectRose: false, expectRed: false, expectAmber: false, expectGray: false },
-      { type: 'friend', expectRose: false, expectRed: false, expectAmber: true, expectGray: false },
-      { type: 'romantic', expectRose: true, expectRed: false, expectAmber: false, expectGray: false },
-      { type: 'partner', expectRose: false, expectRed: true, expectAmber: false, expectGray: false },
-      { type: 'ex', expectRose: false, expectRed: false, expectAmber: false, expectGray: true },
-    ])('$type badge should have correct color classes', async ({ type, expectRose, expectRed, expectAmber, expectGray }) => {
+      { type: 'acquaintance', expectClass: 'bg-success' },
+      { type: 'friend', expectClass: 'bg-warning' },
+      { type: 'romantic', expectClass: 'border-2' },
+      { type: 'partner', expectClass: 'bg-danger' },
+      { type: 'ex', expectClass: 'bg-gray-700' },
+    ])('$type badge should have correct variant class', async ({ type, expectClass }) => {
       const wrapper = createWrapper({
         id: '1',
         dweller_1_id: 'd1',
@@ -49,26 +49,10 @@ describe('RelationshipCard', () => {
       const badge = wrapper.find('span.mt-1')
       expect(badge.exists()).toBe(true)
       expect(badge.text()).toBe(type)
-
-      if (expectRose) {
-        expect(badge.classes().some(c => c.includes('rose'))).toBe(true)
-      }
-      if (expectRed) {
-        expect(badge.classes().some(c => c.includes('red'))).toBe(true)
-      }
-      if (expectAmber) {
-        expect(badge.classes().some(c => c.includes('amber'))).toBe(true)
-      }
-      if (expectGray) {
-        expect(badge.classes().some(c => c.includes('gray'))).toBe(true)
-      }
-
-      // None should accidentally have another type's color
-      if (!expectRose) expect(badge.classes().some(c => c.includes('rose'))).toBe(false)
-      if (!expectRed) expect(badge.classes().some(c => c.includes('red'))).toBe(false)
+      expect(badge.classes().includes(expectClass)).toBe(true)
     })
 
-    it('defaults to theme-primary classes for unknown type', () => {
+    it('defaults to success variant for unknown type', () => {
       const wrapper = createWrapper({
         id: '1',
         dweller_1_id: 'd1',
@@ -78,8 +62,7 @@ describe('RelationshipCard', () => {
       })
 
       const badge = wrapper.find('span.mt-1')
-      expect(badge.classes()).toContain('text-theme-primary')
-      expect(badge.classes()).toContain('border-theme-primary/30')
+      expect(badge.classes()).toContain('bg-success')
     })
   })
 })

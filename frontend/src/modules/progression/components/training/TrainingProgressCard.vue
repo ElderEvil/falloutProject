@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import UBadge from '@/core/components/ui/UBadge.vue'
+import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import type { components } from '@/core/types/api.generated'
 
 type TrainingRead = components['schemas']['TrainingRead']
@@ -71,6 +72,13 @@ const isReadyToComplete = computed(() => {
   return completionTime <= now.value
 })
 
+const fillGradient = computed(() => {
+  if (isReadyToComplete.value) {
+    return 'linear-gradient(to right, var(--color-theme-accent), var(--color-theme-primary), var(--color-theme-accent))'
+  }
+  return 'linear-gradient(to right, var(--color-theme-primary), rgb(0 149 255), var(--color-theme-primary))'
+})
+
 const getStatIcon = (stat: string): string => {
   const iconMap: Record<string, string> = {
     strength: 'mdi:arm-flex',
@@ -122,11 +130,13 @@ const handleComplete = () => {
     </div>
 
     <div class="training-progress">
-      <div class="progress-bar">
-        <div class="progress-fill" :style="{ width: `${progressPercentage}%` }">
-          <div class="progress-shine"></div>
-        </div>
-      </div>
+      <UProgressBar
+        :model-value="progressPercentage"
+        :height="16"
+        :color="fillGradient"
+        animation="shine"
+        :glow="false"
+      />
       <span class="progress-text">{{ progressPercentage.toFixed(1) }}%</span>
     </div>
 
@@ -158,7 +168,7 @@ const handleComplete = () => {
 
 <style scoped>
 .training-card {
-  background: linear-gradient(135deg, rgb(0 0 0 / 0.7), rgb(15 23 42 / 0.7));
+  background: transparent;
   border: 1px solid var(--color-theme-primary);
   border-radius: 0.5rem;
   padding: 1rem;
@@ -236,59 +246,6 @@ const handleComplete = () => {
   margin-bottom: 0.75rem;
 }
 
-.progress-bar {
-  flex: 1;
-  height: 1rem;
-  background: linear-gradient(to bottom, rgb(0 0 0 / 0.8), rgb(0 0 0 / 0.6));
-  border: 1px solid var(--color-theme-primary);
-  border-radius: 0.25rem;
-  overflow: hidden;
-  position: relative;
-  box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.5);
-}
-
-.training-card.ready .progress-bar {
-  border-color: var(--color-theme-accent);
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(
-    to right,
-    var(--color-theme-primary),
-    rgb(0 149 255),
-    var(--color-theme-primary)
-  );
-  transition: width 0.5s ease-out;
-  position: relative;
-  box-shadow: 0 0 8px var(--color-theme-primary);
-}
-
-.training-card.ready .progress-fill {
-  background: linear-gradient(
-    to right,
-    var(--color-theme-accent),
-    var(--color-theme-primary),
-    var(--color-theme-accent)
-  );
-  box-shadow: 0 0 8px var(--color-theme-accent);
-}
-
-.progress-shine {
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.3) 50%,
-    transparent 100%
-  );
-  animation: shine 3s ease-in-out infinite;
-}
-
 .progress-text {
   font-size: 0.75rem;
   color: var(--color-theme-primary);
@@ -331,16 +288,6 @@ const handleComplete = () => {
 .actions {
   display: flex;
   gap: 0.5rem;
-}
-
-@keyframes shine {
-  0% {
-    left: -100%;
-  }
-  50%,
-  100% {
-    left: 200%;
-  }
 }
 
 @keyframes pulse {

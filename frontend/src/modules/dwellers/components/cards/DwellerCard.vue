@@ -6,6 +6,7 @@ import UTooltip from '@/core/components/ui/UTooltip.vue'
 import XPProgressBar from '../stats/XPProgressBar.vue'
 import HappinessModifierPopover from './HappinessModifierPopover.vue'
 import DwellerCardActions from './DwellerCardActions.vue'
+import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import type { components } from '@/core/types/api.generated'
 import { normalizeImageUrl } from '@/utils/image'
 
@@ -163,9 +164,7 @@ const ageGroupIcon = computed(() => {
         <span class="stat-label">Health</span>
         <span class="stat-value">{{ dweller.health }} / {{ dweller.max_health }}</span>
       </div>
-      <div class="health-bar">
-        <div class="health-fill" :style="{ width: `${healthPercentage}%` }"></div>
-      </div>
+      <UProgressBar :model-value="healthPercentage" :height="10" />
 
       <div class="stat-row happiness-row">
         <span class="stat-label">Happiness</span>
@@ -176,12 +175,7 @@ const ageGroupIcon = computed(() => {
           <HappinessModifierPopover :dweller-id="dweller.id" />
         </div>
       </div>
-      <div class="happiness-bar">
-        <div
-          class="happiness-fill"
-          :style="{ width: `${dweller.happiness}%`, background: happinessColor }"
-        ></div>
-      </div>
+      <UProgressBar :model-value="dweller.happiness" :height="10" :color="happinessColor" />
 
       <XPProgressBar :level="dweller.level" :current-x-p="dweller.experience" />
 
@@ -337,25 +331,6 @@ const ageGroupIcon = computed(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.health-bar,
-.happiness-bar {
-  width: 100%;
-  height: 10px;
-  background: rgba(68, 68, 68, 0.8);
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 5px;
-  overflow: hidden;
-  margin-top: 0.25rem;
-}
-
-.health-fill,
-.happiness-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--color-theme-primary) 0%, var(--color-theme-accent) 100%);
-  box-shadow: 0 0 8px var(--color-theme-glow);
-  transition: width 0.3s ease;
 }
 
 .inventory-stats {

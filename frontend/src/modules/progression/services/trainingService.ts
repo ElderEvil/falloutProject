@@ -82,6 +82,19 @@ export async function cancelTraining(trainingId: string, token: string): Promise
 }
 
 /**
+ * Complete a training session, granting the stat increase to the dweller
+ * @param trainingId - UUID of the training session to complete
+ * @param token - Auth token
+ * @returns Completed training session
+ */
+export async function completeTraining(trainingId: string, token: string): Promise<TrainingRead> {
+  const response = await axios.post(`/api/v1/training/${trainingId}/complete`, null, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  return response.data
+}
+
+/**
  * Get all active training sessions in a room
  * @param roomId - UUID of the room
  * @param token - Auth token

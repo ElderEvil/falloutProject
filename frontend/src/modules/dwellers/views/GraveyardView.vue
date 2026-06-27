@@ -27,7 +27,7 @@ const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vau
 
 onMounted(async () => {
   if (authStore.isAuthenticated && vaultId.value) {
-    await dwellerStore.fetchGraveyard(vaultId.value, authStore.token as string)
+    await dwellerStore.fetchGraveyardDwellers(vaultId.value, authStore.token as string)
   }
 })
 

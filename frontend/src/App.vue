@@ -20,6 +20,7 @@ const { flickering, scanlines, glowClass, flickerOpacity } = visualEffects
 // Theme system
 const { currentTheme, setTheme, availableThemes } = useTheme()
 
+
 // Token refresh system (auto-refreshes tokens before expiry)
 useTokenRefresh()
 

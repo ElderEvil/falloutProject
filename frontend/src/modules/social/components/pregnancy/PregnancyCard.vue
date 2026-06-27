@@ -1,5 +1,5 @@
 <template>
-  <UCard class="mb-2">
+  <UCard class="mb-2 bg-black/90">
     <div class="flex items-center justify-between gap-4">
       <!-- Parent names -->
       <div class="flex-1">
@@ -25,9 +25,9 @@
           <span v-if="!pregnancy.is_due">{{ timeRemaining }}</span>
           <span v-else class="text-yellow-400 font-bold">DUE NOW!</span>
         </div>
-        <div class="h-3 bg-gray-800 border" :style="{ borderColor: 'var(--color-theme-primary)' }">
+        <div class="h-3 bg-black/80 border border-theme-primary/40 rounded-sm overflow-hidden">
           <div
-            class="h-full transition-all duration-500"
+            class="h-full rounded-sm transition-all duration-500"
             :class="pregnancy.is_due ? 'bg-yellow-500 animate-pulse' : ''"
             :style="{
               width: `${pregnancy.progress_percentage}%`,

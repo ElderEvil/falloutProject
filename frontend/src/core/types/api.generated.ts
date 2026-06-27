@@ -2692,6 +2692,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/training/{training_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete Training
+         * @description Complete an active training session and increase the dweller's SPECIAL stat.
+         *
+         *     Args:
+         *         training_id: Training session ID
+         *         user: Current authenticated user
+         *         db_session: Database session
+         *
+         *     Returns:
+         *         Completed training session
+         *
+         *     Raises:
+         *         404: Training not found
+         *         400: Training not active or already completed
+         */
+        post: operations["complete_training_api_v1_training__training_id__complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/training/{training_id}/cancel": {
         parameters: {
             query?: never;
@@ -12170,6 +12202,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TrainingProgress"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_training_api_v1_training__training_id__complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainingRead"];
                 };
             };
             /** @description Validation Error */

@@ -57,7 +57,7 @@ watch(
 
 // Process incoming SSE notification events
 watch(
-  () => sse.value?.event.value,
+  () => sse.value?.event?.value,
   (evt: SseEvent | null) => {
     if (!evt || evt.event !== 'notification') return
     const notificationData = (evt.data as any)?.notification

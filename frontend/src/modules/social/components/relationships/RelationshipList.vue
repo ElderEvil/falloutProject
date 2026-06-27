@@ -20,7 +20,7 @@
     </div>
 
     <div v-else-if="error" class="error-state text-center py-8">
-      <UCard class="shadow-[0_0_10px_var(--color-theme-glow)] crt-screen p-6">
+      <UCard class="bg-black/90 shadow-[0_0_10px_var(--color-theme-glow)] crt-screen p-6">
         <p class="text-red-400 mb-4">{{ error }}</p>
         <UButton color="error" @click="retryFetch()">Retry</UButton>
       </UCard>

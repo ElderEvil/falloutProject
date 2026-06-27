@@ -19,6 +19,9 @@ const { flickering, scanlines, glowClass, flickerOpacity } = visualEffects
 // Theme system
 const { currentTheme, setTheme, availableThemes } = useTheme()
 
+// Enable Nuxt UI dark mode (matches our terminal theme)
+document.documentElement.classList.add('dark')
+
 // Token refresh system (auto-refreshes tokens before expiry)
 useTokenRefresh()
 

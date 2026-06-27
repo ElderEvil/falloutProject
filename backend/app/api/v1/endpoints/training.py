@@ -137,6 +137,42 @@ async def get_training(
     )
 
 
+@router.post("/{training_id}/complete", response_model=TrainingRead)
+async def complete_training(
+    training_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> TrainingRead:
+    """
+    Complete an active training session and increase the dweller's SPECIAL stat.
+
+    Args:
+        training_id: Training session ID
+        user: Current authenticated user
+        db_session: Database session
+
+    Returns:
+        Completed training session
+
+    Raises:
+        404: Training not found
+        400: Training not active or already completed
+    """
+    training = await crud_training.training.get(db_session, training_id)
+    if not training:
+        raise HTTPException(status_code=404, detail="Training session not found")
+
+    # Verify training belongs to user's vault
+    await get_user_vault_or_403(training.vault_id, user, db_session)
+
+    try:
+        return await training_service.complete_training(db_session, training_id)
+    except ResourceNotFoundException as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except VaultOperationException as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
 @router.post("/{training_id}/cancel", response_model=TrainingRead)
 async def cancel_training(
     training_id: UUID4,

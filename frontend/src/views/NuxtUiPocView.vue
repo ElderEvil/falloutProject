@@ -2,11 +2,6 @@
 import { ref } from 'vue'
 import { useTheme } from '@/core/composables/useTheme'
 import { useVisualEffects } from '@/core/composables/useVisualEffects'
-import {
-  UCard as CustomCard,
-  UButton as CustomButton,
-  UBadge as CustomBadge,
-} from '@/core/components/ui'
 
 const { currentTheme, setTheme, availableThemes } = useTheme()
 const { flickering, toggleFlickering } = useVisualEffects()
@@ -35,7 +30,7 @@ function triggerLoading() {
       </div>
 
       <!-- Theme Switcher (Works with both!) -->
-      <CustomCard class="mb-8" title="Theme Switcher" glow>
+      <UCard class="mb-8 shadow-[0_0_10px_var(--color-theme-glow)]" title="Theme Switcher">
         <p class="mb-4 text-sm text-gray-400">
           Current:
           <span :style="{ color: currentTheme.colors.primary }">{{
@@ -65,7 +60,7 @@ function triggerLoading() {
         <p class="mt-4 text-xs text-gray-500">
           All components below should update when you switch themes ↑
         </p>
-      </CustomCard>
+      </UCard>
 
       <!-- Tabs -->
       <div class="flex gap-4 mb-6 border-b border-gray-800 pb-2">
@@ -96,7 +91,7 @@ function triggerLoading() {
       <!-- Side-by-Side Comparison -->
       <div v-if="activeTab === 'comparison'" class="grid md:grid-cols-2 gap-8">
         <!-- Native Nuxt UI -->
-        <CustomCard title="Native Nuxt UI" glow>
+        <UCard title="Native Nuxt UI" class="shadow-[0_0_10px_var(--color-theme-glow)]">
           <p class="text-xs text-gray-500 mb-4">
             These use Nuxt UI components directly (UButton, UBadge, UAlert)
           </p>
@@ -126,34 +121,32 @@ function triggerLoading() {
             >
               This is a native Nuxt UI alert component
             </UAlert>
-            <CustomButton v-else @click="alertVisible = true" size="sm">
-              Show Alert Again
-            </CustomButton>
+            <UButton v-else @click="alertVisible = true" size="sm"> Show Alert Again </UButton>
 
             <UButton @click="modalOpen = true" variant="outline"> Open Nuxt UI Modal </UButton>
 
             <USkeleton class="h-4 w-full" />
             <USkeleton class="h-4 w-3/4" />
           </div>
-        </CustomCard>
+        </UCard>
 
         <!-- Your Custom Components -->
-        <CustomCard title="Your Custom Components" glow>
+        <UCard title="Your Custom Components" class="shadow-[0_0_10px_var(--color-theme-glow)]">
           <p class="text-xs text-gray-500 mb-4">These use your current custom UI components</p>
 
           <div class="space-y-4">
             <div class="flex gap-2 flex-wrap">
-              <CustomButton>Default</CustomButton>
-              <CustomButton variant="primary">Primary</CustomButton>
-              <CustomButton variant="secondary">Secondary</CustomButton>
-              <CustomButton variant="ghost">Ghost</CustomButton>
+              <UButton>Default</UButton>
+              <UButton color="primary">Primary</UButton>
+              <UButton color="primary" variant="outline">Secondary</UButton>
+              <UButton variant="ghost">Ghost</UButton>
             </div>
 
             <div class="flex gap-2">
-              <CustomBadge>Default</CustomBadge>
-              <CustomBadge variant="success">Success</CustomBadge>
-              <CustomBadge variant="warning">Warning</CustomBadge>
-              <CustomBadge variant="danger">Danger</CustomBadge>
+              <UBadge>Default</UBadge>
+              <UBadge color="success">Success</UBadge>
+              <UBadge color="warning">Warning</UBadge>
+              <UBadge color="error">Danger</UBadge>
             </div>
 
             <div
@@ -166,20 +159,24 @@ function triggerLoading() {
               <strong>Custom Alert:</strong> This uses your existing alert styling
             </div>
 
-            <CustomButton @click="triggerLoading" :loading="buttonLoading">
+            <UButton @click="triggerLoading" :loading="buttonLoading">
               {{ buttonLoading ? 'Loading...' : 'Test Loading State' }}
-            </CustomButton>
+            </UButton>
 
-            <CustomButton @click="toggleFlickering" :variant="flickering ? 'primary' : 'secondary'">
+            <UButton
+              @click="toggleFlickering"
+              color="primary"
+              :variant="flickering ? 'solid' : 'outline'"
+            >
               {{ flickering ? 'Disable' : 'Enable' }} Flickering
-            </CustomButton>
+            </UButton>
           </div>
-        </CustomCard>
+        </UCard>
       </div>
 
       <!-- Native Nuxt UI Only -->
       <div v-else-if="activeTab === 'native-nuxt'" class="space-y-6">
-        <CustomCard title="Buttons" glow>
+        <UCard title="Buttons" class="shadow-[0_0_10px_var(--color-theme-glow)]">
           <div class="flex gap-2 flex-wrap">
             <UButton>Default</UButton>
             <UButton color="primary">Primary</UButton>
@@ -196,9 +193,9 @@ function triggerLoading() {
             <UButton variant="ghost">Ghost</UButton>
             <UButton variant="link">Link</UButton>
           </div>
-        </CustomCard>
+        </UCard>
 
-        <CustomCard title="Badges" glow>
+        <UCard title="Badges" class="shadow-[0_0_10px_var(--color-theme-glow)]">
           <div class="flex gap-2 flex-wrap">
             <UBadge>Default</UBadge>
             <UBadge color="primary">Primary</UBadge>
@@ -214,9 +211,9 @@ function triggerLoading() {
             <UBadge variant="soft">Soft</UBadge>
             <UBadge variant="subtle">Subtle</UBadge>
           </div>
-        </CustomCard>
+        </UCard>
 
-        <CustomCard title="Alerts" glow>
+        <UCard title="Alerts" class="shadow-[0_0_10px_var(--color-theme-glow)]">
           <UAlert title="Primary Alert" color="primary" class="mb-2">
             This is a primary colored alert
           </UAlert>
@@ -229,9 +226,9 @@ function triggerLoading() {
           <UAlert title="Error Alert" color="error" variant="soft">
             This is an error alert with soft variant
           </UAlert>
-        </CustomCard>
+        </UCard>
 
-        <CustomCard title="Skeleton Loading" glow>
+        <UCard title="Skeleton Loading" class="shadow-[0_0_10px_var(--color-theme-glow)]">
           <div class="space-y-2">
             <USkeleton class="h-4 w-full" />
             <USkeleton class="h-4 w-5/6" />
@@ -244,37 +241,43 @@ function triggerLoading() {
               </div>
             </div>
           </div>
-        </CustomCard>
+        </UCard>
       </div>
 
       <!-- Your Custom Components Only -->
       <div v-else class="space-y-6">
-        <CustomCard title="Your Current Button Components" glow>
+        <UCard
+          title="Your Current Button Components"
+          class="shadow-[0_0_10px_var(--color-theme-glow)]"
+        >
           <div class="flex gap-2 flex-wrap">
-            <CustomButton>Default</CustomButton>
-            <CustomButton variant="primary">Primary</CustomButton>
-            <CustomButton variant="secondary">Secondary</CustomButton>
-            <CustomButton variant="danger">Danger</CustomButton>
-            <CustomButton variant="ghost">Ghost</CustomButton>
+            <UButton>Default</UButton>
+            <UButton color="primary">Primary</UButton>
+            <UButton color="primary" variant="outline">Secondary</UButton>
+            <UButton color="error" variant="solid">Danger</UButton>
+            <UButton variant="ghost">Ghost</UButton>
           </div>
           <div class="flex gap-2 flex-wrap mt-4">
-            <CustomButton size="xs">XS</CustomButton>
-            <CustomButton size="sm">SM</CustomButton>
-            <CustomButton size="md">MD</CustomButton>
-            <CustomButton size="lg">LG</CustomButton>
-            <CustomButton size="xl">XL</CustomButton>
+            <UButton size="xs">XS</UButton>
+            <UButton size="sm">SM</UButton>
+            <UButton size="md">MD</UButton>
+            <UButton size="lg">LG</UButton>
+            <UButton size="xl">XL</UButton>
           </div>
-        </CustomCard>
+        </UCard>
 
-        <CustomCard title="Your Current Badge Components" glow>
+        <UCard
+          title="Your Current Badge Components"
+          class="shadow-[0_0_10px_var(--color-theme-glow)]"
+        >
           <div class="flex gap-2 flex-wrap">
-            <CustomBadge>Default</CustomBadge>
-            <CustomBadge variant="success">Success</CustomBadge>
-            <CustomBadge variant="warning">Warning</CustomBadge>
-            <CustomBadge variant="danger">Danger</CustomBadge>
-            <CustomBadge variant="info">Info</CustomBadge>
+            <UBadge>Default</UBadge>
+            <UBadge color="success">Success</UBadge>
+            <UBadge color="warning">Warning</UBadge>
+            <UBadge color="error">Danger</UBadge>
+            <UBadge color="info">Info</UBadge>
           </div>
-        </CustomCard>
+        </UCard>
       </div>
 
       <!-- Modal -->

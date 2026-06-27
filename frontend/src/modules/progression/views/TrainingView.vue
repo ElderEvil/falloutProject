@@ -7,11 +7,13 @@ import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useGoBack } from '@/core/composables/useGoBack'
 
 const route = useRoute()
 const vaultStore = useVaultStore()
 const authStore = useAuthStore()
 const { isCollapsed } = useSidePanel()
+const { goBack } = useGoBack()
 
 const vaultId = route.params.id as string
 
@@ -28,6 +30,7 @@ onMounted(async () => {
     <SidePanel />
 
     <div class="training-view" :class="{ collapsed: isCollapsed }">
+      <UButton color="primary" variant="ghost" @click="goBack" class="mb-4"> ← Back </UButton>
       <div class="training-header">
         <div class="header-content">
           <Icon icon="mdi:dumbbell" class="header-icon" />

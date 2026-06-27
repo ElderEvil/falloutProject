@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { shallowMount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import DwellersView from '@/modules/dwellers/views/DwellersView.vue'
@@ -69,7 +69,7 @@ describe('DwellersView', () => {
       vi.mocked(axios.get).mockResolvedValue({ data: [] })
 
       await router.isReady()
-      const wrapper = mount(DwellersView, {
+      const wrapper = shallowMount(DwellersView, {
         global: {
           plugins: [router],
         },
@@ -83,7 +83,7 @@ describe('DwellersView', () => {
       vi.mocked(axios.get).mockResolvedValue({ data: [] })
 
       await router.isReady()
-      mount(DwellersView, {
+      shallowMount(DwellersView, {
         global: {
           plugins: [router],
         },
@@ -101,7 +101,7 @@ describe('DwellersView', () => {
       vi.mocked(axios.get).mockResolvedValue({ data: [] })
 
       await router.isReady()
-      mount(DwellersView, {
+      shallowMount(DwellersView, {
         global: {
           plugins: [router],
         },
@@ -138,7 +138,7 @@ describe('DwellersView', () => {
         .mockResolvedValueOnce({ data: [] }) // fetchRooms
 
       await router.isReady()
-      const wrapper = mount(DwellersView, {
+      const wrapper = shallowMount(DwellersView, {
         global: {
           plugins: [router],
         },
@@ -164,7 +164,7 @@ describe('DwellersView', () => {
         .mockResolvedValueOnce({ data: [] }) // fetchRooms
 
       await router.isReady()
-      const wrapper = mount(DwellersView, {
+      const wrapper = shallowMount(DwellersView, {
         global: {
           plugins: [router],
         },

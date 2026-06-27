@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
 import type { VisualAttributes } from '../models/dweller'
 
 interface Props {
@@ -124,45 +123,43 @@ const hasAttributes = computed(() => formattedAttributes.value.length > 0)
     <div class="appearance-header">
       <h3 class="appearance-title">Appearance</h3>
       <div class="header-buttons">
-        <UTooltip
+        <button
           v-if="canGenerateAppearance"
-          text="Generate visual attributes with AI"
-          position="top"
+          @click="emit('generate-appearance')"
+          class="generate-button"
+          :disabled="props.isAnyGenerating"
+          title="Generate visual attributes with AI"
         >
-          <button
-            @click="emit('generate-appearance')"
-            class="generate-button"
-            :disabled="props.isAnyGenerating"
-          >
-            <Icon
-              :icon="generatingAppearance ? 'mdi:loading' : 'mdi:auto-fix'"
-              class="h-5 w-5"
-              :class="{ 'animate-spin': generatingAppearance }"
-            />
-            <span>{{ hasAttributes ? 'Generate' : 'Attributes' }}</span>
-          </button>
-        </UTooltip>
+          <Icon
+            :icon="generatingAppearance ? 'mdi:loading' : 'mdi:auto-fix'"
+            class="h-5 w-5"
+            :class="{ 'animate-spin': generatingAppearance }"
+          />
+          <span>{{ hasAttributes ? 'Generate' : 'Attributes' }}</span>
+        </button>
 
-        <UTooltip text="Generate AI portrait image" position="top">
-          <button
-            @click="emit('generate-portrait')"
-            class="generate-button"
-            :disabled="props.isAnyGenerating"
-          >
-            <Icon
-              :icon="generatingPortrait ? 'mdi:loading' : 'mdi:camera'"
-              class="h-5 w-5"
-              :class="{ 'animate-spin': generatingPortrait }"
-            />
-            <span>Portrait</span>
-          </button>
-        </UTooltip>
-        <UTooltip v-if="hasAttributes" text="Edit appearance manually" position="top">
-          <button @click="emit('edit')" class="generate-button">
-            <Icon icon="mdi:pencil" class="h-5 w-5" />
-            <span>Edit</span>
-          </button>
-        </UTooltip>
+        <button
+          @click="emit('generate-portrait')"
+          class="generate-button"
+          :disabled="props.isAnyGenerating"
+          title="Generate AI portrait image"
+        >
+          <Icon
+            :icon="generatingPortrait ? 'mdi:loading' : 'mdi:camera'"
+            class="h-5 w-5"
+            :class="{ 'animate-spin': generatingPortrait }"
+          />
+          <span>Portrait</span>
+        </button>
+        <button
+          v-if="hasAttributes"
+          @click="emit('edit')"
+          class="generate-button"
+          title="Edit appearance manually"
+        >
+          <Icon icon="mdi:pencil" class="h-5 w-5" />
+          <span>Edit</span>
+        </button>
       </div>
     </div>
 

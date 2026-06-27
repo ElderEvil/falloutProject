@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import UTabs from '@/core/components/ui/UTabs.vue'
 import DwellerBio from './DwellerBio.vue'
 import DwellerStats from './stats/DwellerStats.vue'
 import DwellerEquipment from './DwellerEquipment.vue'
@@ -25,23 +24,22 @@ const emit = defineEmits<{
   'edit-appearance': []
 }>()
 
-const activeTab = ref('profile')
+const activeTab = ref('0')
 
-const tabs = [
-  { key: 'profile', label: 'Profile' },
-  { key: 'appearance', label: 'Appearance' },
-  { key: 'stats', label: 'Stats' },
-  { key: 'equipment', label: 'Equipment' },
+const tabItems = [
+  { label: 'Profile', slot: 'profile' },
+  { label: 'Appearance', slot: 'appearance' },
+  { label: 'Stats', slot: 'stats' },
+  { label: 'Equipment', slot: 'equipment' },
 ]
 </script>
 
 <template>
   <div class="dweller-panel">
-    <UTabs v-model="activeTab" :tabs="tabs">
-      <template #default="{ activeTab: currentTab }">
+    <UTabs v-model="activeTab" :items="tabItems" class="w-full">
+      <template #profile>
         <div class="tab-content">
           <DwellerBio
-            v-if="currentTab === 'profile'"
             :bio="dweller.bio"
             :first-name="dweller.first_name"
             :generating-bio="generatingBio"
@@ -49,8 +47,11 @@ const tabs = [
             @generate-bio="emit('generate-bio')"
             @generate-all="emit('generate-all')"
           />
+        </div>
+      </template>
+      <template #appearance>
+        <div class="tab-content">
           <DwellerAppearance
-            v-else-if="currentTab === 'appearance'"
             :visual-attributes="dweller.visual_attributes"
             :generating-appearance="generatingAppearance"
             :generating-portrait="generatingPortrait"
@@ -59,8 +60,11 @@ const tabs = [
             @generate-portrait="emit('generate-portrait')"
             @edit="emit('edit-appearance')"
           />
+        </div>
+      </template>
+      <template #stats>
+        <div class="tab-content">
           <DwellerStats
-            v-else-if="currentTab === 'stats'"
             :S="dweller.S"
             :P="dweller.P"
             :E="dweller.E"
@@ -69,11 +73,11 @@ const tabs = [
             :A="dweller.A"
             :L="dweller.L"
           />
-          <DwellerEquipment
-            v-else-if="currentTab === 'equipment'"
-            :dweller="dweller"
-            @refresh="emit('refresh')"
-          />
+        </div>
+      </template>
+      <template #equipment>
+        <div class="tab-content">
+          <DwellerEquipment :dweller="dweller" @refresh="emit('refresh')" />
         </div>
       </template>
     </UTabs>

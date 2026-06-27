@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
-import { UButton, UCard } from '@/core/components/ui'
+import { useGoBack } from '@/core/composables/useGoBack'
 import { Icon } from '@iconify/vue'
 import DwellerChat from './DwellerChat.vue'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 import { normalizeImageUrl } from '@/utils/image'
 
 const route = useRoute()
-const router = useRouter()
 const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
 const vaultStore = useVaultStore()
+const { goBack } = useGoBack()
 
 const dwellerId = ref(route.params.id as string)
 const dweller = ref<Dweller | null>(null)
@@ -51,7 +51,7 @@ onMounted(async () => {
   <div class="dweller-chat-page">
     <!-- Loading State -->
     <div v-if="isLoading" class="loading-state">
-      <UCard glow crt padding="lg">
+      <UCard class="shadow-[0_0_10px_var(--color-theme-glow)] crt-screen p-6">
         <div class="loading-content">
           <Icon icon="mdi:loading" class="loading-spinner" />
           <p class="loading-text">Establishing connection to dweller...</p>
@@ -69,10 +69,11 @@ onMounted(async () => {
       <div class="chat-header">
         <UButton
           v-if="dweller?.vault?.id"
+          color="primary"
           variant="ghost"
           size="sm"
           class="mr-4"
-          @click="router.push(`/vault/${dweller.vault.id}/dwellers/${dwellerId}`)"
+          @click="goBack"
         >
           <Icon icon="mdi:arrow-left" class="h-5 w-5 mr-1" />
           Back to Dweller

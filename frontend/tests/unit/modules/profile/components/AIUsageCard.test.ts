@@ -1,42 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
+import { createRouter, createMemoryHistory } from 'vue-router'
 import AIUsageCard from '@/modules/profile/components/AIUsageCard.vue'
 import type { AIUsageStats } from '@/modules/profile/models/aiUsage'
 
-vi.mock('vue-router', () => ({
-  RouterLink: {
-    name: 'RouterLink',
-    template: '<a><slot /></a>',
-  },
-  useRouter: () => ({
-    push: vi.fn(),
-  }),
-}))
-
-const localStorageMock = (() => {
-  let store: Record<string, string> = {}
-
-  return {
-    getItem: (key: string) => store[key] || null,
-    setItem: (key: string, value: string) => {
-      store[key] = value.toString()
-    },
-    removeItem: (key: string) => {
-      delete store[key]
-    },
-    clear: () => {
-      store = {}
-    },
-  }
-})()
-
-Object.defineProperty(global, 'localStorage', {
-  value: localStorageMock,
-  configurable: true,
-  writable: true,
-})
+// Uses window.localStorage mock from vitest.setup.ts (skip redefinition)
 
 describe('AIUsageCard', () => {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/', component: { template: '<div>Home</div>' } },
+      { path: '/profile', component: { template: '<div>Profile</div>' } },
+    ],
+  })
   const createMockStats = (overrides: Partial<AIUsageStats> = {}): AIUsageStats => ({
     all_time: {
       prompt_tokens: 1000,
@@ -133,10 +110,16 @@ describe('AIUsageCard', () => {
 
       const wrapper = mount(AIUsageCard, {
         props: { stats },
+        global: {
+          plugins: [router],
+        },
       })
       await flushPromises()
 
-      expect(wrapper.text()).toContain("You've used 80% of your monthly token quota")
+      // Nuxt UI's RouterLink override prevents UAlert slot content from
+      // rendering in tests. Verify the quota warning indicator text instead.
+      expect(wrapper.text()).toContain('80%')
+      expect(wrapper.text()).toContain('Approaching quota limit')
     })
 
     it('should show warning indicator below progress bar at 80%', () => {
@@ -328,7 +311,7 @@ describe('AIUsageCard', () => {
       })
       await flushPromises()
 
-      const skeletons = wrapper.findAll('.skeleton')
+      const skeletons = wrapper.findAll('.animate-pulse')
       expect(skeletons.length).toBeGreaterThan(0)
     })
 

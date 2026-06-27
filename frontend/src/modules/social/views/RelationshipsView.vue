@@ -3,6 +3,7 @@ import { computed, ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useGoBack } from '@/core/composables/useGoBack'
 import { useRelationshipStore } from '../stores/relationship'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -12,10 +13,9 @@ import RelationshipList from '../components/relationships/RelationshipList.vue'
 import PregnancyTracker from '../components/pregnancy/PregnancyTracker.vue'
 import PregnancyDebugPanel from '../components/pregnancy/PregnancyDebugPanel.vue'
 import ChildrenList from '../components/relationships/ChildrenList.vue'
-import UButton from '@/core/components/ui/UButton.vue'
-
 const route = useRoute()
 const { isCollapsed } = useSidePanel()
+const { goBack } = useGoBack()
 const relationshipStore = useRelationshipStore()
 const dwellerStore = useDwellerStore()
 const authStore = useAuthStore()
@@ -137,6 +137,7 @@ onMounted(async () => {
       <!-- Main Content Area -->
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
         <div class="container mx-auto px-4 py-8 lg:px-8">
+          <UButton color="primary" variant="ghost" @click="goBack" class="mb-4"> ← Back </UButton>
           <div class="max-w-7xl mx-auto">
             <!-- Header -->
             <div class="mb-8">
@@ -153,7 +154,8 @@ onMounted(async () => {
                     v-if="authStore.isSuperuser"
                     @click="handleProcessBreeding"
                     :disabled="isProcessing"
-                    variant="secondary"
+                    color="primary"
+                    variant="outline"
                     size="sm"
                   >
                     <Icon
@@ -167,7 +169,7 @@ onMounted(async () => {
                     v-if="authStore.isSuperuser"
                     @click="handleQuickPair"
                     :disabled="isLoading"
-                    variant="primary"
+                    color="primary"
                     size="sm"
                   >
                     <Icon icon="mdi:radioactive" class="mr-2" />

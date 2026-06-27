@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Objective } from '../models/objective'
-import { UCard, UBadge } from '@/core/components/ui'
 
 interface Props {
   objective: Objective
@@ -64,9 +63,8 @@ const canClaim = computed(() => {
       <div class="objective-info">
         <h3 class="objective-title">{{ objective.challenge }}</h3>
         <UBadge
-          :variant="
-            category === 'daily' ? 'primary' : category === 'weekly' ? 'secondary' : 'outline'
-          "
+          :color="category === 'weekly' ? 'neutral' : 'primary'"
+          :variant="category === 'achievement' ? 'outline' : 'solid'"
           class="category-badge"
         >
           {{ categoryLabel }}

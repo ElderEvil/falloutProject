@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useQuestStore } from '../stores/quest'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
-import { UCard, UBadge, UButton } from '@/core/components/ui'
+import { useGoBack } from '@/core/composables/useGoBack'
 import type { VaultQuest } from '../models/quest'
 
 const route = useRoute()
-const router = useRouter()
 const questStore = useQuestStore()
 const vaultStore = useVaultStore()
 const { isCollapsed } = useSidePanel()
@@ -127,9 +126,7 @@ const handleCompleteQuest = async () => {
   }
 }
 
-const goBack = () => {
-  router.push({ name: 'quests', params: { id: vaultId.value } })
-}
+const { goBack } = useGoBack()
 </script>
 
 <template>
@@ -159,7 +156,7 @@ const goBack = () => {
           <div v-else-if="error" class="error-state">
             <Icon icon="mdi:alert-circle" class="text-6xl mb-4" />
             <h2>{{ error }}</h2>
-            <UButton variant="primary" @click="goBack">Return to Quests</UButton>
+            <UButton variant="primary" color="primary" @click="goBack">Return to Quests</UButton>
           </div>
 
           <!-- Quest Detail View -->
@@ -173,10 +170,10 @@ const goBack = () => {
                 >
                   {{ typeLabel }}
                 </UBadge>
-                <UBadge v-if="quest.quest_category" variant="secondary" class="category-badge">
+                <UBadge v-if="quest.quest_category" color="neutral" class="category-badge">
                   {{ quest.quest_category }}
                 </UBadge>
-                <UBadge v-if="isChainQuest" variant="outline" class="chain-badge">
+                <UBadge v-if="isChainQuest" variant="outline" color="primary" class="chain-badge">
                   <Icon icon="mdi:link-variant" class="inline-icon" />
                   {{ chainPosition }}
                 </UBadge>
@@ -271,7 +268,7 @@ const goBack = () => {
                 <div class="action-section">
                   <UButton
                     v-if="canStart"
-                    variant="primary"
+                    color="primary"
                     class="action-btn"
                     @click="handleStartQuest"
                   >
@@ -281,7 +278,7 @@ const goBack = () => {
 
                   <UButton
                     v-else-if="canComplete"
-                    variant="success"
+                    color="success"
                     class="action-btn"
                     @click="handleCompleteQuest"
                   >

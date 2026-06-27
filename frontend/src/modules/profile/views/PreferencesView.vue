@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { computed, inject, ref } from 'vue'
+import { Icon } from '@iconify/vue'
 import { useRouter } from 'vue-router'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useVisualEffects, type EffectIntensity } from '@/core/composables/useVisualEffects'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
 import { useRoomRendering } from '@/modules/rooms/composables/useRoomRendering'
 import SidePanel from '@/core/components/common/SidePanel.vue'
-import { UCard, UButton } from '@/core/components/ui'
-import { Icon } from '@iconify/vue'
 
 const router = useRouter()
 

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import axios from '@/core/plugins/axios'
-import { UButton, UInput } from '@/core/components/ui'
 
 const email = ref('')
 const error = ref('')
@@ -67,13 +66,14 @@ const handleSubmit = async () => {
               type="email"
               label="> EMAIL ADDRESS:"
               placeholder="overseer@vault-tec.com"
+              class="w-full"
               :disabled="loading"
             />
           </div>
 
           <UButton
-            variant="primary"
-            block
+            color="primary"
+            class="w-full"
             :loading="loading"
             :disabled="loading"
             @click.prevent="handleSubmit"

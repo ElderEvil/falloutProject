@@ -16,9 +16,9 @@ import UnassignedDwellers from '@/modules/dwellers/components/UnassignedDwellers
 import WastelandPanel from '@/modules/exploration/components/WastelandPanel.vue'
 import IncidentAlert from '@/modules/combat/components/incidents/IncidentAlert.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useGoBack } from '@/core/composables/useGoBack'
 import type { RoomTemplate } from '@/modules/rooms/models/room'
 import { Icon } from '@iconify/vue'
 
@@ -43,6 +43,7 @@ const dwellerStore = useDwellerStore()
 const explorationStore = useExplorationStore()
 const incidentStore = useIncidentStore()
 const { isCollapsed } = useSidePanel()
+const { goBack } = useGoBack()
 const scanlinesEnabled = inject('scanlines', ref(true))
 const showRoomMenu = ref(false)
 const isLoading = ref(true)
@@ -314,6 +315,9 @@ const handleIncidentResolved = async () => {
       <!-- Main Content Area -->
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
         <div class="container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8">
+          <UButton color="primary" variant="ghost" @click="goBack" class="mb-4 self-start">
+            ← Back
+          </UButton>
           <div class="mb-8 flex w-full items-center justify-between space-x-8">
             <!-- Dwellers Count and Happiness -->
             <div class="flex items-center space-x-4">

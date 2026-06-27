@@ -1,5 +1,5 @@
 <template>
-  <UCard class="mb-2">
+  <UCard class="mb-2 bg-black/90">
     <div class="flex items-center justify-between gap-4">
       <!-- Dweller names -->
       <div class="flex-1">
@@ -10,9 +10,12 @@
         </div>
 
         <!-- Relationship type badge -->
-        <UBadge :variant="relationshipColor" class="mt-1">
+        <span
+          class="mt-1 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+          :class="badgeClass"
+        >
           {{ relationship.relationship_type }}
-        </UBadge>
+        </span>
       </div>
 
       <!-- Affinity bar -->
@@ -20,9 +23,9 @@
         <div class="text-xs mb-1" :style="{ color: 'var(--color-theme-primary)' }">
           Affinity: {{ relationship.affinity }}/100
         </div>
-        <div class="h-2 bg-gray-800 border" :style="{ borderColor: 'var(--color-theme-primary)' }">
+        <div class="h-2 bg-black/80 border border-theme-primary/40 rounded-sm overflow-hidden">
           <div
-            class="h-full"
+            class="h-full rounded-sm transition-[width] duration-300"
             :style="{
               width: `${relationship.affinity}%`,
               backgroundColor: 'var(--color-theme-primary)',
@@ -53,7 +56,7 @@
             relationship.relationship_type === 'partner'
           "
           @click="$emit('break-up')"
-          variant="danger"
+          color="error"
           size="sm"
         >
           Break Up
@@ -66,9 +69,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Relationship } from '../../models/relationship'
-import UCard from '@/core/components/ui/UCard.vue'
-import UBadge from '@/core/components/ui/UBadge.vue'
-import UButton from '@/core/components/ui/UButton.vue'
 
 interface Props {
   relationship: Relationship
@@ -84,18 +84,18 @@ defineEmits<{
   'break-up': []
 }>()
 
-const relationshipColor = computed((): 'success' | 'warning' | 'danger' | 'info' | 'default' => {
+const badgeClass = computed(() => {
   switch (props.relationship.relationship_type) {
     case 'partner':
-      return 'danger' // red for committed relationships
+      return 'bg-red-500/20 text-red-400 border border-red-500/30'
     case 'romantic':
-      return 'info' // closest to pink
+      return 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
     case 'friend':
-      return 'warning' // yellow
+      return 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
     case 'ex':
-      return 'default' // gray
+      return 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
     default:
-      return 'success' // green for acquaintance
+      return 'bg-black/40 text-theme-primary border border-theme-primary/30'
   }
 })
 </script>

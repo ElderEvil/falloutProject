@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { UButton } from '@/core/components/ui'
 import { computed } from 'vue'
 
 const props = defineProps<{
@@ -16,7 +15,8 @@ const iconName = computed(() => (props.buildModeActive ? 'mdi:close' : 'mdi:hamm
 
 <template>
   <UButton
-    :variant="buildModeActive ? 'danger' : 'secondary'"
+    :color="buildModeActive ? 'error' : 'primary'"
+    :variant="buildModeActive ? 'solid' : 'outline'"
     @click="emit('toggleBuildMode')"
     :title="buildModeActive ? 'Cancel Building (Esc)' : 'Build Mode (B)'"
   >

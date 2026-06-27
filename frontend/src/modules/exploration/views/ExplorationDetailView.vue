@@ -5,6 +5,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useExplorationStore } from '../stores/exploration'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useGoBack } from '@/core/composables/useGoBack'
 import { Icon } from '@iconify/vue'
 import ExplorationRewardsModal from '../components/ExplorationRewardsModal.vue'
 import type { RewardsSummary } from '../stores/exploration'
@@ -70,9 +71,7 @@ const navigateNext = () => {
   }
 }
 
-const goBack = () => {
-  router.push(`/vault/${vaultId.value}/exploration`)
-}
+const { goBack } = useGoBack()
 
 // Progress calculation
 const progressPercentage = computed(() => {

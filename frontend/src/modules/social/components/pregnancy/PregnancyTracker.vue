@@ -5,7 +5,7 @@
         Pregnancies
       </h2>
       <div class="flex gap-2">
-        <UBadge v-if="dueCount > 0" variant="warning" class="animate-pulse">
+        <UBadge v-if="dueCount > 0" color="warning" class="animate-pulse">
           {{ dueCount }} Due!
         </UBadge>
         <UButton @click="refreshPregnancies" :disabled="isLoading" size="sm"> Refresh </UButton>
@@ -18,9 +18,9 @@
     </div>
 
     <div v-else-if="error" class="text-center py-8">
-      <UCard glow crt class="p-6">
+      <UCard class="bg-black/90 shadow-[0_0_10px_var(--color-theme-glow)] crt-screen p-6">
         <p class="text-red-400 mb-4">{{ error }}</p>
-        <UButton variant="danger" @click="retryFetch()">Retry</UButton>
+        <UButton color="error" @click="retryFetch()">Retry</UButton>
       </UCard>
     </div>
 
@@ -49,9 +49,6 @@ import { usePregnancyStore } from '../../stores/pregnancy'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import PregnancyCard from './PregnancyCard.vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import UBadge from '@/core/components/ui/UBadge.vue'
-import UCard from '@/core/components/ui/UCard.vue'
 
 interface Props {
   vaultId: string

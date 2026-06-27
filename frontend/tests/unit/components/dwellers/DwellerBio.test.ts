@@ -180,9 +180,9 @@ describe('DwellerBio', () => {
         },
       })
 
-      const tooltip = wrapper.findComponent({ name: 'UTooltip' })
-      expect(tooltip.exists()).toBe(true)
-      expect(tooltip.props('text')).toBe('Generate biography with AI')
+      const generateButton = wrapper.find('.generate-button')
+      expect(generateButton.exists()).toBe(true)
+      expect(generateButton.attributes('title')).toBe('Generate biography with AI')
     })
   })
 

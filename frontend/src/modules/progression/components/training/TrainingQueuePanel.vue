@@ -50,7 +50,9 @@ const handleCancelTraining = async (trainingId: string) => {
 }
 
 const handleCompleteTraining = async (trainingId: string) => {
-  // Training auto-completes via game loop, but we can refresh to show updated state
+  if (!authStore.token) return
+
+  await trainingStore.completeTraining(trainingId, authStore.token)
   await fetchTrainings()
 }
 

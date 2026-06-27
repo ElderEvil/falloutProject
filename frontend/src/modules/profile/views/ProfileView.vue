@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useProfileStore } from '../stores/profile'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import { UButton, UCard } from '@/core/components/ui'
 import ProfileEditor from '../components/ProfileEditor.vue'
 import { LifeDeathStatistics } from '@/modules/dwellers/components/death'
 import AIUsageCard from '../components/AIUsageCard.vue'
@@ -160,11 +159,10 @@ const formatDate = (dateString: string) => {
       <UCard
         v-else-if="profileStore.error && !profileStore.profile"
         title="ERROR: PROFILE LOAD FAILURE"
-        glow
-        crt
+        class="shadow-[0_0_10px_var(--color-theme-glow)] crt-screen"
       >
         <div class="text-red-500 mb-4">{{ profileStore.error }}</div>
-        <UButton variant="primary" @click="fetchProfile">
+        <UButton color="primary" @click="fetchProfile">
           <Icon icon="mdi:refresh" class="mr-2" />
           Retry Connection
         </UButton>
@@ -175,9 +173,13 @@ const formatDate = (dateString: string) => {
         <!-- Left Column: Personal Info -->
         <div>
           <!-- Display Mode -->
-          <UCard v-if="!isEditing" title="PERSONNEL FILE" glow crt>
+          <UCard
+            v-if="!isEditing"
+            title="PERSONNEL FILE"
+            class="shadow-[0_0_10px_var(--color-theme-glow)] crt-screen"
+          >
             <template #header>
-              <UButton variant="primary" size="sm" @click="startEditing">
+              <UButton color="primary" size="sm" @click="startEditing">
                 <Icon icon="mdi:pencil" class="mr-1" />
                 Edit
               </UButton>

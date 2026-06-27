@@ -5,6 +5,7 @@ import { useObjectivesStore } from '@/modules/progression/stores/objectives'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useGoBack } from '@/core/composables/useGoBack'
 import { Icon } from '@iconify/vue'
 import { ObjectiveCard } from '../components'
 
@@ -12,6 +13,7 @@ const route = useRoute()
 const objectivesStore = useObjectivesStore()
 const vaultStore = useVaultStore()
 const { isCollapsed } = useSidePanel()
+const { goBack } = useGoBack()
 const activeTab = ref('daily')
 
 const vaultId = computed(() => route.params.id as string)
@@ -51,6 +53,7 @@ const achievementObjectives = computed(() =>
       <!-- Main Content Area -->
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
         <div class="container mx-auto px-4 py-8">
+          <UButton color="primary" variant="ghost" @click="goBack" class="mb-4"> ← Back </UButton>
           <div class="objectives-container">
             <h1 class="title">
               {{ currentVault ? `Vault ${currentVault.number} Objectives` : 'Objectives' }}

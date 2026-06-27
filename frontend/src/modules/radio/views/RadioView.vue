@@ -10,6 +10,7 @@
       <!-- Main Content Area -->
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
         <div class="container mx-auto px-4 py-8 lg:px-8">
+          <UButton color="primary" variant="ghost" @click="goBack" class="mb-4"> ← Back </UButton>
           <div class="max-w-4xl mx-auto">
             <!-- Header -->
             <div class="mb-8">
@@ -40,6 +41,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useGoBack } from '@/core/composables/useGoBack'
 import { useRadioStore } from '../stores/radio'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -49,6 +51,7 @@ import RadioStatsPanel from '../components/RadioStatsPanel.vue'
 
 const route = useRoute()
 const { isCollapsed } = useSidePanel()
+const { goBack } = useGoBack()
 const radioStore = useRadioStore()
 const dwellerStore = useDwellerStore()
 const vaultStore = useVaultStore()

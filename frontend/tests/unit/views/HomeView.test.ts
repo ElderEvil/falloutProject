@@ -71,7 +71,7 @@ describe('HomeView', () => {
       await flushPromises()
 
       expect(wrapper.find('h2').text()).toContain('Create New Vault')
-      expect(wrapper.find('[data-testid="ui-input"]').exists()).toBe(true)
+      expect(wrapper.find('input[type="number"]').exists()).toBe(true)
       expect(findCreateButton(wrapper)).toBeDefined()
     })
 
@@ -128,14 +128,14 @@ describe('HomeView', () => {
       })
       await flushPromises()
 
-      const input = wrapper.find('[data-testid="ui-input"]')
+      const input = wrapper.find('input[type="number"]')
       const submitBtn = findCreateButton(wrapper)
 
       await input.setValue('123')
       await flushPromises()
 
       expect(submitBtn!.attributes('disabled')).toBeUndefined()
-      expect(wrapper.find('.text-danger').exists()).toBe(false)
+      expect(wrapper.find('.text-red-400').exists()).toBe(false)
     })
 
     it('should reject negative vault number on submit', async () => {
@@ -148,12 +148,12 @@ describe('HomeView', () => {
       })
       await flushPromises()
 
-      const input = wrapper.find('[data-testid="ui-input"]')
+      const input = wrapper.find('input[type="number"]')
       await input.setValue('-1')
       await flushPromises()
 
       // Check for validation error
-      expect(wrapper.find('.text-danger').exists()).toBe(true)
+      expect(wrapper.find('.text-red-400').exists()).toBe(true)
       expect(axios.post).not.toHaveBeenCalled()
     })
 
@@ -167,12 +167,12 @@ describe('HomeView', () => {
       })
       await flushPromises()
 
-      const input = wrapper.find('[data-testid="ui-input"]')
+      const input = wrapper.find('input[type="number"]')
       await input.setValue('1000')
       await flushPromises()
 
       // Check for validation error
-      expect(wrapper.find('.text-danger').exists()).toBe(true)
+      expect(wrapper.find('.text-red-400').exists()).toBe(true)
       expect(axios.post).not.toHaveBeenCalled()
     })
 
@@ -187,7 +187,7 @@ describe('HomeView', () => {
       })
       await flushPromises()
 
-      const input = wrapper.find('[data-testid="ui-input"]')
+      const input = wrapper.find('input[type="number"]')
       await input.setValue('100.5')
 
       const submitBtn = findCreateButton(wrapper)
@@ -211,7 +211,7 @@ describe('HomeView', () => {
       })
       await flushPromises()
 
-      const input = wrapper.find('[data-testid="ui-input"]')
+      const input = wrapper.find('input[type="number"]')
       const submitBtn = findCreateButton(wrapper)
 
       await input.setValue('1000')
@@ -233,7 +233,7 @@ describe('HomeView', () => {
       })
       await flushPromises()
 
-      const input = wrapper.find('[data-testid="ui-input"]')
+      const input = wrapper.find('input[type="number"]')
       await input.setValue('123')
 
       const submitBtn = findCreateButton(wrapper)
@@ -263,7 +263,7 @@ describe('HomeView', () => {
       })
       await flushPromises()
 
-      const input = wrapper.find('[data-testid="ui-input"]')
+      const input = wrapper.find('input[type="number"]')
       await input.setValue('123')
 
       const submitBtn = findCreateButton(wrapper)
@@ -285,7 +285,7 @@ describe('HomeView', () => {
       })
       await flushPromises()
 
-      const input = wrapper.find('[data-testid="ui-input"]')
+      const input = wrapper.find('input[type="number"]')
       await input.setValue('123')
 
       const submitBtn = findCreateButton(wrapper)
@@ -307,7 +307,7 @@ describe('HomeView', () => {
       })
       await flushPromises()
 
-      const input = wrapper.find('[data-testid="ui-input"]')
+      const input = wrapper.find('input[type="number"]')
       await input.setValue('123')
 
       const submitBtn = findCreateButton(wrapper)
@@ -328,7 +328,7 @@ describe('HomeView', () => {
       })
       await flushPromises()
 
-      const input = wrapper.find('[data-testid="ui-input"]')
+      const input = wrapper.find('input[type="number"]')
       await input.setValue('1000')
       await flushPromises()
 

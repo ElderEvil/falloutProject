@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { provide } from 'vue'
 import DefaultLayout from '@/core/components/layout/DefaultLayout.vue'
-import UToastContainer from '@/core/components/ui/UToastContainer.vue'
 import ChangelogModal from '@/modules/profile/components/ChangelogModal.vue'
 import GaryOverlay from '@/core/components/easter-eggs/GaryOverlay.vue'
 import FakeCrashOverlay from '@/core/components/easter-eggs/FakeCrashOverlay.vue'
@@ -19,6 +18,9 @@ const { flickering, scanlines, glowClass, flickerOpacity } = visualEffects
 
 // Theme system
 const { currentTheme, setTheme, availableThemes } = useTheme()
+
+// Enable Nuxt UI dark mode (matches our terminal theme)
+document.documentElement.classList.add('dark')
 
 // Token refresh system (auto-refreshes tokens before expiry)
 useTokenRefresh()
@@ -53,8 +55,6 @@ provide('availableThemes', availableThemes)
     <DefaultLayout :isFlickering="flickering" :flicker-opacity="flickerOpacity">
       <router-view></router-view>
     </DefaultLayout>
-    <UToastContainer />
-
     <!-- Changelog Modal -->
     <ChangelogModal
       :show="showChangelogModal"

@@ -2,9 +2,6 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRadioStore } from '../stores/radio'
 import type { RadioMode } from '@/modules/radio/models/radio'
-import UCard from '@/core/components/ui/UCard.vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import UBadge from '@/core/components/ui/UBadge.vue'
 
 interface Props {
   vaultId: string
@@ -119,7 +116,7 @@ onMounted(() => {
           <span class="text-sm font-semibold" style="color: var(--color-theme-primary)"
             >Radio Mode</span
           >
-          <UBadge :variant="isRecruitmentMode ? 'info' : 'default'">
+          <UBadge :color="isRecruitmentMode ? 'info' : 'neutral'">
             {{ isRecruitmentMode ? 'Recruitment' : 'Happiness' }}
           </UBadge>
         </div>
@@ -141,7 +138,7 @@ onMounted(() => {
           <span class="text-sm font-semibold" style="color: var(--color-theme-primary)"
             >Speedup Multiplier</span
           >
-          <UBadge variant="warning">{{ localSpeedup.toFixed(1) }}x</UBadge>
+          <UBadge color="warning">{{ localSpeedup.toFixed(1) }}x</UBadge>
         </div>
 
         <!-- Room selector if multiple radio rooms -->
@@ -202,13 +199,14 @@ onMounted(() => {
       <div class="space-y-2">
         <div class="flex justify-between items-center">
           <span class="text-gray-400">Manual Recruitment:</span>
-          <UBadge variant="warning"> {{ stats.manual_cost_caps }} caps </UBadge>
+          <UBadge color="warning"> {{ stats.manual_cost_caps }} caps </UBadge>
         </div>
 
         <UButton
           @click="$emit('manual-recruit')"
           :disabled="isRecruiting"
-          variant="primary"
+          color="primary"
+          variant="solid"
           class="w-full recruit-button"
         >
           {{ isRecruiting ? 'Recruiting...' : 'Recruit Dweller Now' }}

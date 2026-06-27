@@ -2,7 +2,6 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from '@/core/plugins/axios'
-import { UButton, UInput } from '@/core/components/ui'
 
 const route = useRoute()
 const router = useRouter()
@@ -90,6 +89,7 @@ const handleSubmit = async () => {
               type="password"
               label="> NEW PASSPHRASE:"
               placeholder="Minimum 8 characters"
+              class="w-full"
               :disabled="loading"
             />
           </div>
@@ -100,13 +100,14 @@ const handleSubmit = async () => {
               type="password"
               label="> CONFIRM PASSPHRASE:"
               placeholder="Re-enter passphrase"
+              class="w-full"
               :disabled="loading"
             />
           </div>
 
           <UButton
-            variant="primary"
-            block
+            color="primary"
+            class="w-full"
             :loading="loading"
             :disabled="loading || !token"
             @click.prevent="handleSubmit"

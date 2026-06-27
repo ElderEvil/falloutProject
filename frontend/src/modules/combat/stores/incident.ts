@@ -137,9 +137,12 @@ export const useIncidentStore = defineStore('incident', () => {
           case 'incident_spreading': {
             const spreadId = data.incident_id as string | undefined
             if (spreadId) {
-              incidentApi.getIncident(vaultId, spreadId, token).then((incident) => {
-                incidents.value.set(spreadId, incident)
-              }).catch(() => {})
+              incidentApi
+                .getIncident(vaultId, spreadId, token)
+                .then((incident) => {
+                  incidents.value.set(spreadId, incident)
+                })
+                .catch(() => {})
             }
             break
           }

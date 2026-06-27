@@ -4,10 +4,11 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useGoBack } from '@/core/composables/useGoBack'
 import { useToast } from '@/core/composables/useToast'
 import { storageService, type StorageItemsResponse } from '../services/storageService'
 import { Icon } from '@iconify/vue'
-import { UCard, UButton, UTabs } from '@/core/components/ui'
+
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import StorageItemCard from '../components/StorageItemCard.vue'
 
@@ -15,6 +16,7 @@ const route = useRoute()
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
 const { isCollapsed } = useSidePanel()
+const { goBack } = useGoBack()
 const toast = useToast()
 
 const vaultId = computed(() => route.params.id as string)
@@ -39,9 +41,9 @@ const storageItems = ref<StorageItemsResponse>({
 const activeTab = ref<'weapons' | 'outfits' | 'junk'>('weapons')
 
 const tabs = computed(() => [
-  { key: 'weapons', label: `Weapons (${weapons.value.length})` },
-  { key: 'outfits', label: `Outfits (${outfits.value.length})` },
-  { key: 'junk', label: `Junk (${junk.value.length})` },
+  { slot: 'weapons', label: `Weapons (${weapons.value.length})`, value: 'weapons' as const },
+  { slot: 'outfits', label: `Outfits (${outfits.value.length})`, value: 'outfits' as const },
+  { slot: 'junk', label: `Junk (${junk.value.length})`, value: 'junk' as const },
 ])
 
 // Fetch storage data
@@ -202,139 +204,151 @@ const getRarityColor = (rarity?: string) => {
 </script>
 
 <template>
-  <div class="flex min-h-screen bg-linear-to-br from-[#0a0a0a] to-[#1a1a1a]">
+  <div class="flex min-h-screen bg-black">
     <SidePanel />
 
     <div
-      class="flex-1 transition-[margin] duration-300 p-4 md:p-8"
+      class="flex-1 transition-[margin] duration-300 p-4 md:p-8 overflow-x-hidden max-w-full min-w-0"
       :class="isCollapsed ? 'ml-16' : 'ml-60'"
     >
-      <!-- Header -->
-      <div class="mb-8">
-        <div class="flex items-center gap-4 mb-6">
+      <UButton color="primary" variant="ghost" @click="goBack" class="mb-4"> ← Back </UButton>
+
+      <div class="mx-auto w-full max-w-screen-xl">
+        <!-- Header -->
+        <div class="flex items-center gap-3 mb-4">
           <Icon
             icon="mdi:package-variant"
-            class="w-12 h-12 text-theme-primary drop-shadow-[0_0_8px_var(--color-theme-glow)]"
+            class="w-8 h-8 text-theme-primary drop-shadow-[0_0_6px_var(--color-theme-glow)]"
           />
           <h1
-            class="text-3xl md:text-4xl font-bold text-theme-primary terminal-glow font-mono tracking-wider"
+            class="text-2xl font-bold text-theme-primary font-mono tracking-wider"
           >
             Vault Storage
           </h1>
         </div>
 
-        <!-- Storage Space Info -->
-        <UCard v-if="storageSpace" glow crt class="max-w-2xl mb-6">
-          <div class="flex items-center gap-2 mb-3 font-mono">
-            <span class="text-theme-accent text-sm font-semibold">Used:</span>
-            <span class="text-theme-primary text-lg font-bold">
-              {{ storageSpace.used_space }}/{{ storageSpace.max_space }}
-            </span>
+        <!-- Compact Storage Bar -->
+        <div
+          v-if="storageSpace"
+          class="mb-3 font-mono"
+        >
+          <div class="flex items-center justify-between text-xs text-theme-accent mb-1">
+            <span>Storage: {{ storageSpace.used_space }}/{{ storageSpace.max_space }}</span>
+            <span>{{ storageSpace.utilization_pct.toFixed(1) }}% full</span>
           </div>
-
-          <div class="h-6 bg-black/80 border border-theme-primary rounded-sm overflow-hidden mb-2">
+          <div class="h-3 bg-black/80 border border-theme-primary/40 rounded-sm overflow-hidden shadow-[0_0_6px_var(--color-theme-glow)]">
             <div
-              class="h-full bg-theme-primary transition-[width] duration-300 shadow-[0_0_10px_var(--color-theme-glow)]"
-              :style="{
-                '--progress': `${storageSpace.utilization_pct}%`,
-                width: 'var(--progress)',
-              }"
+              class="h-full bg-theme-primary transition-[width] duration-300"
+              :style="{ width: `${storageSpace.utilization_pct}%` }"
             ></div>
           </div>
-
-          <div class="text-theme-accent text-sm text-center font-mono">
-            {{ storageSpace.available_space }} slots available ({{
-              storageSpace.utilization_pct.toFixed(1)
-            }}% full)
-          </div>
-        </UCard>
+        </div>
 
         <!-- Medical Supplies -->
-        <UCard v-if="storageSpace" glow crt class="max-w-2xl mb-6">
-          <div class="font-mono mb-4">
-            <h3 class="text-theme-accent text-lg font-semibold mb-3">Medical Supplies</h3>
-            <div class="grid grid-cols-2 gap-4">
-              <!-- Stimpaks -->
-              <div
-                class="flex items-center gap-3 p-3 bg-black/40 rounded border border-theme-primary/30"
-              >
-                <Icon icon="mdi:medical-bag" class="w-8 h-8 text-green-500" />
+        <UCard
+          v-if="storageSpace"
+          class="mb-4 bg-black/90 shadow-[0_0_10px_var(--color-theme-glow)] crt-screen"
+        >
+          <div class="font-mono">
+            <h3 class="text-theme-accent text-sm font-semibold mb-2">Medical Supplies</h3>
+            <div class="flex items-center gap-6">
+              <div class="flex items-center gap-3 p-2 bg-black/40 rounded border border-theme-primary/20 flex-1">
+                <Icon icon="mdi:medical-bag" class="w-6 h-6 text-green-500 shrink-0" />
                 <div>
-                  <div class="text-theme-primary font-bold">{{ storageSpace.stimpack }}</div>
-                  <div class="text-theme-accent text-xs">Stimpaks</div>
+                  <div class="text-theme-primary text-lg font-bold leading-tight">{{ storageSpace.stimpack }}</div>
+                  <div class="text-theme-accent text-xs leading-tight">Stimpaks</div>
                 </div>
               </div>
-              <!-- Radaways -->
-              <div
-                class="flex items-center gap-3 p-3 bg-black/40 rounded border border-theme-primary/30"
-              >
-                <Icon icon="mdi:pill" class="w-8 h-8 text-purple-500" />
+              <div class="flex items-center gap-3 p-2 bg-black/40 rounded border border-theme-primary/20 flex-1">
+                <Icon icon="mdi:pill" class="w-6 h-6 text-purple-500 shrink-0" />
                 <div>
-                  <div class="text-theme-primary font-bold">{{ storageSpace.radaway }}</div>
-                  <div class="text-theme-accent text-xs">Radaways</div>
+                  <div class="text-theme-primary text-lg font-bold leading-tight">{{ storageSpace.radaway }}</div>
+                  <div class="text-theme-accent text-xs leading-tight">Radaways</div>
                 </div>
               </div>
             </div>
           </div>
         </UCard>
+
+        <!-- Tabs + Inventory Area -->
+        <div class="w-full">
+          <UTabs
+            v-model="activeTab"
+            :items="tabs"
+            :content="false"
+            class="mb-3 w-full"
+            :ui="{
+              root: 'w-full',
+              list: 'w-full bg-black/70 border border-theme-primary/35 rounded-lg p-0.5 shadow-[0_0_10px_var(--color-theme-glow)] backdrop-blur-sm',
+              indicator: 'bg-theme-primary/20 shadow-[0_0_8px_var(--color-theme-glow)]',
+              trigger:
+                'text-xs text-theme-accent data-[state=active]:text-theme-primary data-[state=active]:font-semibold font-mono px-3 py-1.5',
+            }"
+          />
+
+          <!-- Loading State -->
+          <div
+            v-if="isLoading"
+            class="flex flex-col items-center justify-center py-16 text-theme-primary font-mono"
+          >
+            <Icon icon="mdi:loading" class="w-12 h-12 mb-4 animate-spin" />
+            <p>Loading storage...</p>
+          </div>
+
+          <!-- Empty State -->
+          <div
+            v-else-if="totalItems === 0"
+            class="flex flex-col items-center justify-center py-16 text-center"
+          >
+            <Icon
+              icon="mdi:package-variant-closed"
+              class="w-24 h-24 text-theme-accent opacity-50 mb-6"
+            />
+            <h2 class="text-2xl font-bold text-theme-primary mb-2 font-mono">Storage Empty</h2>
+            <p class="text-theme-accent font-mono">
+              Your vault storage is empty. Send dwellers on explorations to find items!
+            </p>
+          </div>
+
+          <!-- No Items in Category State -->
+          <div
+            v-else-if="activeItems.length === 0"
+            class="flex flex-col items-center justify-center py-16 text-center"
+          >
+            <Icon
+              icon="mdi:package-variant-closed"
+              class="w-24 h-24 text-theme-accent opacity-50 mb-6"
+            />
+            <h2 class="text-2xl font-bold text-theme-primary mb-2 font-mono">
+              No {{ activeTab }} Found
+            </h2>
+            <p class="text-theme-accent font-mono">You don't have any {{ activeTab }} in storage.</p>
+          </div>
+
+          <!-- Item Grid Panel -->
+          <div
+            v-if="!isLoading && activeItems.length"
+            class="rounded-lg border border-theme-primary/35 bg-black/80 p-4 shadow-[0_0_12px_var(--color-theme-glow)] backdrop-blur-sm"
+          >
+            <div
+              class="grid [grid-template-columns:repeat(auto-fill,minmax(170px,1fr))] justify-center content-start gap-3"
+            >
+              <StorageItemCard
+                v-for="item in activeItems"
+                :key="activeTab === 'junk' ? item.item.id : item.id"
+                :item="activeTab === 'junk' ? item.item : item"
+                :item-type="activeTab"
+                :count="activeTab === 'junk' ? item.count : 1"
+                :ids="activeTab === 'junk' ? item.ids : [item.id]"
+                :get-rarity-color="getRarityColor"
+                @sell="handleSellItem(activeTab === 'junk' ? item.ids[0] : item.id, activeTab)"
+                @sell-all="handleSellItem(activeTab === 'junk' ? item.ids : [item.id], activeTab)"
+                @scrap="handleScrapItem(item.id, activeTab as 'weapon' | 'outfit')"
+              />
+            </div>
+          </div>
+        </div>
       </div>
-
-      <!-- Tabs -->
-      <UTabs v-model="activeTab" :tabs="tabs" class="mb-8">
-        <!-- Loading State -->
-        <div
-          v-if="isLoading"
-          class="flex flex-col items-center justify-center py-16 text-theme-primary font-mono"
-        >
-          <Icon icon="mdi:loading" class="w-12 h-12 mb-4 animate-spin" />
-          <p>Loading storage...</p>
-        </div>
-
-        <!-- Empty State -->
-        <div
-          v-else-if="totalItems === 0"
-          class="flex flex-col items-center justify-center py-16 text-center"
-        >
-          <Icon
-            icon="mdi:package-variant-closed"
-            class="w-24 h-24 text-theme-accent opacity-50 mb-6"
-          />
-          <h2 class="text-2xl font-bold text-theme-primary mb-2 font-mono">Storage Empty</h2>
-          <p class="text-theme-accent font-mono">
-            Your vault storage is empty. Send dwellers on explorations to find items!
-          </p>
-        </div>
-
-        <!-- No Items in Category State -->
-        <div
-          v-else-if="activeItems.length === 0"
-          class="flex flex-col items-center justify-center py-16 text-center"
-        >
-          <Icon
-            icon="mdi:package-variant-closed"
-            class="w-24 h-24 text-theme-accent opacity-50 mb-6"
-          />
-          <h2 class="text-2xl font-bold text-theme-primary mb-2 font-mono">
-            No {{ activeTab }} Found
-          </h2>
-          <p class="text-theme-accent font-mono">You don't have any {{ activeTab }} in storage.</p>
-        </div>
-
-        <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-8">
-          <StorageItemCard
-            v-for="item in activeItems"
-            :key="activeTab === 'junk' ? item.item.id : item.id"
-            :item="activeTab === 'junk' ? item.item : item"
-            :item-type="activeTab"
-            :count="activeTab === 'junk' ? item.count : 1"
-            :ids="activeTab === 'junk' ? item.ids : [item.id]"
-            :get-rarity-color="getRarityColor"
-            @sell="handleSellItem(activeTab === 'junk' ? item.ids[0] : item.id, activeTab)"
-            @sell-all="handleSellItem(activeTab === 'junk' ? item.ids : [item.id], activeTab)"
-            @scrap="handleScrapItem(item.id, activeTab as 'weapon' | 'outfit')"
-          />
-        </div>
-      </UTabs>
     </div>
   </div>
 </template>

@@ -16,15 +16,6 @@ vi.mock('@iconify/vue', () => ({
   },
 }))
 
-// Mock UButton
-vi.mock('@/core/components/ui/UButton.vue', () => ({
-  default: {
-    name: 'UButton',
-    template: '<button class="u-button-mock" @click="$emit(\'click\')"><slot /></button>',
-    props: ['variant', 'size', 'disabled'],
-  },
-}))
-
 // Mock the components
 vi.mock('@/core/components/common/SidePanel.vue', () => ({
   default: { template: '<div class="side-panel-mock"></div>' },
@@ -287,7 +278,7 @@ describe('RelationshipsView', () => {
       await flushPromises()
 
       const matchmakerButton = wrapper
-        .findAll('.u-button-mock')
+        .findAll('button')
         .find((btn) => btn.text().includes('Vault-Tec Matchmaker'))
 
       expect(matchmakerButton).toBeDefined()
@@ -311,7 +302,7 @@ describe('RelationshipsView', () => {
       await flushPromises()
 
       const matchmakerButton = wrapper
-        .findAll('.u-button-mock')
+        .findAll('button')
         .find((btn) => btn.text().includes('Vault-Tec Matchmaker'))
 
       await matchmakerButton!.trigger('click')
@@ -335,7 +326,7 @@ describe('RelationshipsView', () => {
       await flushPromises()
 
       const processButton = wrapper
-        .findAll('.u-button-mock')
+        .findAll('button')
         .find((btn) => btn.text().includes('Process Now'))
 
       expect(processButton).toBeDefined()
@@ -359,7 +350,7 @@ describe('RelationshipsView', () => {
       await flushPromises()
 
       const processButton = wrapper
-        .findAll('.u-button-mock')
+        .findAll('button')
         .find((btn) => btn.text().includes('Process Now'))
 
       await processButton!.trigger('click')

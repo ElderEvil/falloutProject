@@ -99,6 +99,19 @@ export default {
         900: '#1e3a8a',
         950: '#172554',
       },
+      neutral: {
+        50: '#fafafa',
+        100: '#e5e5e5',
+        200: '#d4d4d4',
+        300: '#a3a3a3',
+        400: '#808080',
+        500: '#666666',
+        600: '#525252',
+        700: '#404040',
+        800: '#262626',
+        900: '#1a1a1a',
+        950: '#0a0a0a',
+      },
     },
     // Letter spacing
     letterSpacing: {
@@ -127,7 +140,43 @@ export default {
     },
     Card: {
       default: {
+        color: 'neutral',
+      },
+    },
+    Modal: {
+      default: {
         color: 'primary',
+      },
+    },
+    Badge: {
+      default: {
+        color: 'primary',
+      },
+    },
+    Alert: {
+      default: {
+        color: 'primary',
+      },
+    },
+    Tooltip: {
+      default: {
+        color: 'neutral',
+      },
+    },
+    Skeleton: {
+      default: {
+        color: 'neutral',
+      },
+    },
+    Tabs: {
+      default: {
+        color: 'primary',
+      },
+    },
+    Select: {
+      default: {
+        color: 'primary',
+        variant: 'outline',
       },
     },
   },

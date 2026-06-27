@@ -10,8 +10,8 @@ import { useDwellerStore } from '../stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useGoBack } from '@/core/composables/useGoBack'
 import SidePanel from '@/core/components/common/SidePanel.vue'
-import { UButton, UCard } from '@/core/components/ui'
 import { DeadDwellerCard } from '../components/death'
 
 const route = useRoute()
@@ -27,13 +27,11 @@ const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vau
 
 onMounted(async () => {
   if (authStore.isAuthenticated && vaultId.value) {
-    await dwellerStore.fetchGraveyard(vaultId.value, authStore.token as string)
+    await dwellerStore.fetchGraveyardDwellers(vaultId.value, authStore.token as string)
   }
 })
 
-const goBack = () => {
-  router.push(`/vault/${vaultId.value}/dwellers`)
-}
+const { goBack } = useGoBack()
 
 const viewDwellerDetails = (dwellerId: string) => {
   router.push(`/vault/${vaultId.value}/dwellers/${dwellerId}`)
@@ -78,9 +76,7 @@ const viewDwellerDetails = (dwellerId: string) => {
           <!-- Empty State -->
           <UCard
             v-else-if="dwellerStore.graveyardDwellers.length === 0"
-            class="w-full max-w-lg text-center"
-            glow
-            crt
+            class="w-full max-w-lg text-center shadow-[0_0_10px_var(--color-theme-glow)] crt-screen"
           >
             <div class="py-8 px-4">
               <Icon

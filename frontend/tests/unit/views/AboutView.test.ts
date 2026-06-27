@@ -17,28 +17,21 @@ vi.mock('@/core/plugins/axios', () => ({
   },
 }))
 
-// Mock the UI components
-vi.mock('@/core/components/ui', () => ({
-  UCard: {
-    name: 'UCard',
-    props: ['title', 'glow', 'crt'],
-    template: '<div class="u-card"><h2>{{ title }}</h2><slot /></div>',
-  },
-  USkeleton: {
-    name: 'USkeleton',
-    template: '<div class="skeleton"></div>',
-  },
-  UButton: {
-    name: 'UButton',
-    props: ['variant', 'size'],
-    template: '<button class="u-button"><slot /></button>',
-  },
-}))
-
-// Mock vue-router
+// Mock vue-router (include useRoute for Nuxt UI Link component)
 vi.mock('vue-router', () => ({
   useRouter: () => ({
     push: vi.fn(),
+  }),
+  useRoute: () => ({
+    path: '/',
+    params: {},
+    query: {},
+    hash: '',
+    fullPath: '/',
+    matched: [],
+    name: undefined,
+    redirectedFrom: undefined,
+    meta: {},
   }),
 }))
 
@@ -90,7 +83,7 @@ describe('AboutView', () => {
     const wrapper = mount(AboutView)
 
     // Before flushPromises, should show loading state
-    const skeletons = wrapper.findAll('.skeleton')
+    const skeletons = wrapper.findAll('.animate-pulse')
     expect(skeletons.length).toBeGreaterThan(0)
   })
 

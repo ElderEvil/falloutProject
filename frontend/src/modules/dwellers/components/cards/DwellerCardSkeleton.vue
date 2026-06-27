@@ -1,31 +1,31 @@
 <script setup lang="ts">
-import USkeleton from '@/core/components/ui/USkeleton.vue'
+// @nuxt/ui USkeleton globally registered — no import needed
 </script>
 
 <template>
   <li class="dweller-card-skeleton">
     <div class="skeleton-content">
       <!-- Avatar -->
-      <USkeleton width="3rem" height="3rem" rounded="full" />
+      <USkeleton class="h-12 w-12 rounded-full" />
 
       <!-- Info section -->
       <div class="skeleton-info">
         <div class="skeleton-header">
-          <USkeleton width="150px" height="1.25rem" />
-          <USkeleton width="60px" height="1.5rem" rounded="full" />
+          <USkeleton class="h-5 w-[150px]" />
+          <USkeleton class="h-6 w-[60px] rounded-full" />
         </div>
 
         <div class="skeleton-details">
-          <USkeleton width="80px" height="0.875rem" />
-          <USkeleton width="100px" height="0.875rem" />
-          <USkeleton width="90px" height="0.875rem" />
+          <USkeleton class="h-3.5 w-[80px]" />
+          <USkeleton class="h-3.5 w-[100px]" />
+          <USkeleton class="h-3.5 w-[90px]" />
         </div>
 
         <!-- Health bar -->
-        <USkeleton width="100%" height="0.5rem" rounded="full" />
+        <USkeleton class="h-2 w-full rounded-full" />
 
         <!-- Room info -->
-        <USkeleton width="120px" height="0.875rem" />
+        <USkeleton class="h-3.5 w-[120px]" />
       </div>
     </div>
   </li>

@@ -1,5 +1,5 @@
 <template>
-  <UCard class="mb-2">
+  <UCard class="mb-2 bg-black/90">
     <div class="flex items-center justify-between gap-4">
       <!-- Parent names -->
       <div class="flex-1">
@@ -10,7 +10,7 @@
         </div>
 
         <!-- Status badge -->
-        <UBadge :variant="statusColor" class="mt-1">
+        <UBadge :color="statusColor" class="mt-1">
           {{ pregnancy.status }}
         </UBadge>
       </div>
@@ -25,9 +25,9 @@
           <span v-if="!pregnancy.is_due">{{ timeRemaining }}</span>
           <span v-else class="text-yellow-400 font-bold">DUE NOW!</span>
         </div>
-        <div class="h-3 bg-gray-800 border" :style="{ borderColor: 'var(--color-theme-primary)' }">
+        <div class="h-3 bg-black/80 border border-theme-primary/40 rounded-sm overflow-hidden">
           <div
-            class="h-full transition-all duration-500"
+            class="h-full rounded-sm transition-all duration-500"
             :class="pregnancy.is_due ? 'bg-yellow-500 animate-pulse' : ''"
             :style="{
               width: `${pregnancy.progress_percentage}%`,
@@ -54,9 +54,6 @@
 import { computed } from 'vue'
 import type { Pregnancy } from '../../models/pregnancy'
 import { usePregnancyStore } from '../../stores/pregnancy'
-import UCard from '@/core/components/ui/UCard.vue'
-import UBadge from '@/core/components/ui/UBadge.vue'
-import UButton from '@/core/components/ui/UButton.vue'
 
 interface Props {
   pregnancy: Pregnancy
@@ -75,16 +72,16 @@ defineEmits<{
 
 const pregnancyStore = usePregnancyStore()
 
-const statusColor = computed((): 'success' | 'warning' | 'danger' | 'info' | 'default' => {
+const statusColor = computed(() => {
   switch (props.pregnancy.status) {
     case 'pregnant':
       return props.pregnancy.is_due ? 'warning' : 'success'
     case 'delivered':
       return 'info'
     case 'miscarried':
-      return 'danger'
+      return 'error'
     default:
-      return 'default'
+      return 'neutral'
   }
 })
 

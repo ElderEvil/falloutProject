@@ -6,12 +6,14 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useGoBack } from '@/core/composables/useGoBack'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import HappinessDashboard from '../components/HappinessDashboard.vue'
 import { happinessService } from '@/modules/dwellers/services/happinessService'
 import { Icon } from '@iconify/vue'
 
 const { isCollapsed } = useSidePanel()
+const { goBack } = useGoBack()
 const route = useRoute()
 const router = useRouter()
 const vaultStore = useVaultStore()
@@ -104,6 +106,7 @@ onMounted(() => {
     <!-- Main Content -->
     <div class="main-content" :class="{ collapsed: isCollapsed }">
       <div class="container mx-auto px-4 py-6">
+        <UButton color="primary" variant="ghost" @click="goBack" class="mb-4"> ← Back </UButton>
         <!-- Header -->
         <div class="header-section">
           <h1 class="page-title" :style="{ color: 'var(--color-theme-primary)' }">

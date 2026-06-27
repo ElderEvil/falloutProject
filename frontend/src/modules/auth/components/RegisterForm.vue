@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { UButton, UInput } from '@/core/components/ui'
+
 import { useAuthStore } from '../stores/auth'
 import { useRouter } from 'vue-router'
 
@@ -68,6 +68,7 @@ const handleSubmit = async () => {
               type="text"
               label="> OVERSEER USERNAME:"
               placeholder="overseer_name"
+              class="w-full"
               required
             />
           </div>
@@ -78,6 +79,7 @@ const handleSubmit = async () => {
               type="email"
               label="> EMAIL ADDRESS:"
               placeholder="overseer@vault-tec.com"
+              class="w-full"
               required
             />
           </div>
@@ -88,6 +90,7 @@ const handleSubmit = async () => {
               type="password"
               label="> SECURITY PASSPHRASE:"
               placeholder="••••••••"
+              class="w-full"
               required
             />
           </div>
@@ -98,11 +101,12 @@ const handleSubmit = async () => {
               type="password"
               label="> CONFIRM PASSPHRASE:"
               placeholder="••••••••"
+              class="w-full"
               required
             />
           </div>
 
-          <UButton variant="primary" type="submit" block>
+          <UButton color="primary" type="submit" class="w-full">
             <span class="button-icon">►</span>
             REGISTER OVERSEER
             <span class="button-icon">◄</span>

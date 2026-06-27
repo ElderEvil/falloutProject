@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UBadge, UButton, UCard } from '@/core/components/ui'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { QuestPartyMember, VaultQuest } from '../models/quest'
@@ -290,14 +289,14 @@ const handleAction = () => {
         >
           {{ typeLabel }}
         </UBadge>
-        <UBadge v-if="quest.quest_category" variant="secondary" class="category-badge">
+        <UBadge v-if="quest.quest_category" color="neutral" class="category-badge">
           {{ quest.quest_category }}
         </UBadge>
-        <UBadge v-if="isChainQuest" variant="outline" class="chain-badge">
+        <UBadge v-if="isChainQuest" variant="outline" color="primary" class="chain-badge">
           <Icon icon="mdi:link-variant" class="inline-icon" />
           {{ chainPosition }}
         </UBadge>
-        <UBadge v-if="isLocked" variant="outline" class="locked-badge">
+        <UBadge v-if="isLocked" variant="outline" color="primary" class="locked-badge">
           <Icon icon="mdi:lock" class="inline-icon" />
           LOCKED
         </UBadge>
@@ -414,7 +413,8 @@ const handleAction = () => {
     <!-- Action Button -->
     <UButton
       class="quest-action-btn"
-      :variant="status === 'completed' ? 'secondary' : 'primary'"
+      :color="status === 'completed' ? 'primary' : 'primary'"
+      :variant="status === 'completed' ? 'outline' : 'solid'"
       :disabled="isButtonDisabled"
       @click="handleAction"
     >

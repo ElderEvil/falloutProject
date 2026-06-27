@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
 import XPProgressBar from '../stats/XPProgressBar.vue'
 import HappinessModifierPopover from './HappinessModifierPopover.vue'
 import DwellerCardActions from './DwellerCardActions.vue'

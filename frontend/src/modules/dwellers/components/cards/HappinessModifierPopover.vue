@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { Icon } from '@iconify/vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import { happinessService, type HappinessModifiers } from '@/modules/dwellers/services/happinessService'
+import {
+  happinessService,
+  type HappinessModifiers,
+} from '@/modules/dwellers/services/happinessService'
 
 interface Props {
   dwellerId: string

@@ -20,9 +20,8 @@ AI-powered dweller interactions.
 
 ## Up Next (Recommended)
 
-### v2.23.0 — UI Migration & Chat WebSocket Migration
+### v2.23.0 — Chat WebSocket & Axios→fetch Migration
 
-- [ ] **@nuxt/ui adoption** — Replace 11 home-grown U* components (~1093 LOC) with @nuxt/ui equivalents; fix grey dropdown background via neutral color scale in `nuxt-ui.config.ts`
 - [ ] **Axios→fetch migration** — Execute `HTTP_CLIENT_MIGRATION.md` 6-phase plan: fetch adapter, call-site migration, interceptor/token-refresh migration, drop axios dep (~14KB gzip bundle saving)
 - [ ] **Chat REST→WebSocket migration** — Replace POST-SSE chat streaming with dedicated WebSocket endpoint; remove chat SSE stub from stream.py
 
@@ -43,7 +42,6 @@ AI-powered dweller interactions.
 - ✅ **Version bump** — Backend/frontend aligned at v2.22.0
 
 **Deferred to v2.23:**
-- @nuxt/ui adoption (~1093 LOC replacement of 11 home-grown U* components, grey dropdown fix)
 - Axios→fetch migration (HTTP_CLIENT_MIGRATION.md 6-phase plan, ~14KB gzip bundle saving)
 - Chat REST→WebSocket migration (replace POST-SSE chat with dedicated WS)
 
@@ -64,7 +62,6 @@ AI-powered dweller interactions.
 - ✅ **Dead code removal** — Removed dead POST-SSE `/stream/chat/{dweller_id}` endpoint
 
 **Deferred to v2.23:**
-- @nuxt/ui adoption (~1093 LOC replacement of 11 home-grown U* components, grey dropdown fix)
 - Axios→fetch migration (HTTP_CLIENT_MIGRATION.md 6-phase plan, ~14KB gzip bundle saving)
 - Chat REST→WebSocket migration (replace POST-SSE chat with dedicated WS)
 

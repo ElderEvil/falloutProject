@@ -36,7 +36,8 @@ export function useGoBack() {
 
     const parentRoute = route.meta?.parentRoute
     if (typeof parentRoute === 'string') {
-      router.replace(interpolate(parentRoute, route.params))
+      const interpolated = interpolate(parentRoute, route.params)
+      router.replace(interpolated || '/')
       return
     }
 

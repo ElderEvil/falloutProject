@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { IconComponent } from '@/core/types/utils'
-import { useId } from 'vue'
+import { computed, useId } from 'vue'
 
 /**
  * UInput - Terminal-themed input component
@@ -24,6 +24,7 @@ interface Props {
   icon?: IconComponent
   iconRight?: IconComponent
   size?: 'sm' | 'md' | 'lg'
+  variant?: 'default' | 'terminal'
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -31,6 +32,7 @@ const props = withDefaults(defineProps<Props>(), {
   size: 'md',
   disabled: false,
   required: false,
+  variant: 'default',
 })
 
 const emit = defineEmits<{
@@ -45,20 +47,30 @@ const sizeClasses = {
   lg: 'px-5 py-3 text-lg',
 }
 
-const inputClasses = [
-  'w-full rounded bg-gray-700 text-terminalGreen',
-  'border-2 transition-colors',
-  props.error ? 'border-danger' : 'border-gray-600',
-  'focus:outline-none',
-  props.error ? 'focus:border-danger' : 'focus:border-terminalGreen',
-  'disabled:opacity-50 disabled:cursor-not-allowed',
-  'placeholder:text-gray-400',
-  sizeClasses[props.size],
-  props.icon ? 'pl-10' : '',
-  props.iconRight ? 'pr-10' : '',
-]
-  .filter(Boolean)
-  .join(' ')
+const inputClasses = computed(() => {
+  const base = [
+    'w-full rounded text-terminalGreen',
+    'border-2 transition-colors',
+    'focus:outline-none',
+    'disabled:opacity-50 disabled:cursor-not-allowed',
+    'placeholder:text-gray-400',
+    sizeClasses[props.size],
+    props.icon ? 'pl-10' : '',
+    props.iconRight ? 'pr-10' : '',
+  ].filter(Boolean)
+
+  if (props.variant === 'terminal') {
+    base.push('bg-transparent')
+    base.push(props.error ? 'border-danger' : 'border-theme-primary/50')
+    base.push(props.error ? 'focus:border-danger' : 'focus:border-theme-primary')
+  } else {
+    base.push('bg-gray-700')
+    base.push(props.error ? 'border-danger' : 'border-gray-600')
+    base.push(props.error ? 'focus:border-danger' : 'focus:border-terminalGreen')
+  }
+
+  return base.join(' ')
+})
 
 const inputId = useId()
 

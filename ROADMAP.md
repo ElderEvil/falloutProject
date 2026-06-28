@@ -11,6 +11,7 @@ AI-powered dweller interactions.
 
 **Current work:**
 
+- [x] **v2.22.0 — Terminal Background Cleanup** — Removed grey surfaces from auth forms, created VaultNumberField component
 - [x] **v2.21.0 — SSE Polish** — Incident SSE publishing, incidents SSE endpoint, incident/vault store SSE subscriptions, radio datetime fix
 - [x] **v2.20.0 — FE Simplification (YAGNI + DRY)** — Dead code purge (~1000 LOC deleted), barrel migration, dweller store split, component simplification, DRY consolidation
 - [ ] **Dramatiq async concurrency** — Fix `asyncpg InterfaceError: another operation is in progress` during game tick objective queries
@@ -19,7 +20,7 @@ AI-powered dweller interactions.
 
 ## Up Next (Recommended)
 
-### v2.22.0 — UI Migration & Chat WebSocket Migration
+### v2.23.0 — UI Migration & Chat WebSocket Migration
 
 - [ ] **@nuxt/ui adoption** — Replace 11 home-grown U* components (~1093 LOC) with @nuxt/ui equivalents; fix grey dropdown background via neutral color scale in `nuxt-ui.config.ts`
 - [ ] **Axios→fetch migration** — Execute `HTTP_CLIENT_MIGRATION.md` 6-phase plan: fetch adapter, call-site migration, interceptor/token-refresh migration, drop axios dep (~14KB gzip bundle saving)
@@ -28,6 +29,25 @@ AI-powered dweller interactions.
 ---
 
 ## Latest Release
+
+### v2.22.0 — Terminal Background Cleanup (June 28, 2026)
+
+**Focus**: Remove grey surfaces from auth forms, create reusable VaultNumberField component
+
+**Completed:**
+- ✅ **UInput `variant="terminal"` prop** — Added transparent background styling option to core UInput component (`bg-transparent`, no border on non-hover)
+- ✅ **Auth form cleanup** — Applied `variant="terminal"` to LoginFormTerminal, RegisterForm, ForgotPasswordView, and ResetPasswordView — eliminating grey `<input>` backgrounds on the CRT theme
+- ✅ **VaultNumberField component** — Extracted vault-number-input logic from HomeView into a reusable `VaultNumberField` component with `useVaultNumberField` composable; avoids duplicate ref/emit/watcher boilerplate
+- ✅ **HomeView simplification** — Replaced inline UInput with `VaultNumberField`; removed dead `vaultNumber`/`showVaultNumber` duplicates
+- ✅ **StorageView cleanup** — Removed unused `UCard` import
+- ✅ **Version bump** — Backend/frontend aligned at v2.22.0
+
+**Deferred to v2.23:**
+- @nuxt/ui adoption (~1093 LOC replacement of 11 home-grown U* components, grey dropdown fix)
+- Axios→fetch migration (HTTP_CLIENT_MIGRATION.md 6-phase plan, ~14KB gzip bundle saving)
+- Chat REST→WebSocket migration (replace POST-SSE chat with dedicated WS)
+
+---
 
 ### v2.21.0 — SSE Polish (June 24, 2026)
 
@@ -43,7 +63,7 @@ AI-powered dweller interactions.
 - ✅ **SSE heartbeat configurable** — `SSE_HEARTBEAT_INTERVAL` setting replaces hardcoded 30s
 - ✅ **Dead code removal** — Removed dead POST-SSE `/stream/chat/{dweller_id}` endpoint
 
-**Deferred to v2.22:**
+**Deferred to v2.23:**
 - @nuxt/ui adoption (~1093 LOC replacement of 11 home-grown U* components, grey dropdown fix)
 - Axios→fetch migration (HTTP_CLIENT_MIGRATION.md 6-phase plan, ~14KB gzip bundle saving)
 - Chat REST→WebSocket migration (replace POST-SSE chat with dedicated WS)
@@ -970,7 +990,7 @@ watch(() => userStore.caps, (caps) => {
 
 | Version | Release      | Highlights                                   |
 | ------- | ------------ | -------------------------------------------- |
-| v2.22.0 | TBD          | UI Migration (nuxt/ui adoption, axios→fetch), Chat WebSocket |
+| v2.22.0 | Jun 28, 2026 | Terminal Background Cleanup (auth grey surfaces, VaultNumberField) |
 | v2.21.0 | Jun 24, 2026 | SSE Polish (incident/game-tick SSE, radio datetime fix) |
 | v2.20.0 | Jun 22, 2026 | FE Simplification (YAGNI + DRY, dead code purge) |
 | v2.19.0 | Jun 21, 2026 | SSE streaming + Dict-to-Pydantic refactoring |
@@ -1053,4 +1073,4 @@ watch(() => userStore.caps, (caps) => {
 
 ---
 
-_Last updated: 2026-06-24_ (v2.21.0, SSE Polish)
+_Last updated: 2026-06-28_ (v2.22.0, Terminal Background Cleanup)

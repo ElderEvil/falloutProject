@@ -92,5 +92,3 @@ const relationshipColor = computed((): 'success' | 'warning' | 'danger' | 'info'
   }
 })
 </script>
-
-

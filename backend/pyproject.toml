@@ -52,6 +52,9 @@ dev = [
     "fakeredis[lua]>=2.36.0",
 ]
 
+[project.scripts]
+fo-cli = "app.cli.main:cli"
+
 [tool.uv]
 default-groups = ["test", "lint"]
 

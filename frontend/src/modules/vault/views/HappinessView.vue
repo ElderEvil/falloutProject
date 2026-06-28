@@ -7,6 +7,7 @@ import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import SidePanel from '@/core/components/common/SidePanel.vue'
+import PageHeader from '@/core/components/common/PageHeader.vue'
 import HappinessDashboard from '../components/HappinessDashboard.vue'
 import { happinessService } from '@/modules/dwellers/services/happinessService'
 import { Icon } from '@iconify/vue'
@@ -104,13 +105,10 @@ onMounted(() => {
     <!-- Main Content -->
     <div class="main-content" :class="{ collapsed: isCollapsed }">
       <div class="container mx-auto px-4 py-6">
-        <!-- Header -->
-        <div class="header-section">
-          <h1 class="page-title" :style="{ color: 'var(--color-theme-primary)' }">
-            <Icon icon="mdi:emoticon-happy-outline" class="title-icon" />
-            VAULT HAPPINESS
-          </h1>
-        </div>
+        <PageHeader
+          title="Vault Happiness"
+          icon="mdi:emoticon-happy-outline"
+        />
 
         <!-- Loading State -->
         <div v-if="isLoading" class="loading-state">
@@ -170,29 +168,6 @@ onMounted(() => {
 
 .container {
   max-width: 1200px;
-}
-
-/* Header */
-.header-section {
-  margin-bottom: 1.5rem;
-  text-align: center;
-}
-
-.page-title {
-  font-size: 1.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  text-shadow: 0 0 20px var(--color-theme-glow);
-}
-
-.title-icon {
-  font-size: 2rem;
-  filter: drop-shadow(0 0 10px var(--color-theme-glow));
 }
 
 /* Loading State */
@@ -275,14 +250,6 @@ onMounted(() => {
 
 /* Responsive */
 @media (max-width: 768px) {
-  .page-title {
-    font-size: 1.75rem;
-  }
-
-  .title-icon {
-    font-size: 2rem;
-  }
-
   .dashboard-container {
     gap: 1.5rem;
   }

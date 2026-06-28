@@ -90,6 +90,12 @@ const navItems = computed((): NavItem[] => {
       path: `/vault/${vaultId.value}/storage`,
       hotkey: '9',
     },
+    {
+      id: 'ui-test',
+      label: 'UI Test',
+      icon: 'mdi:monitor-dashboard',
+      path: `/vault/${vaultId.value}/ui-test`,
+    },
   ]
 })
 

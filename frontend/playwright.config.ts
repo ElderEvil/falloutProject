@@ -16,7 +16,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm run dev',
+    command: 'pnpm run dev -- --skip-types-generate',
     port: 5173,
     reuseExistingServer: true,
   },

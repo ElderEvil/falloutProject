@@ -31,7 +31,9 @@ const props = withDefaults(defineProps<Props>(), {
   animation: 'none',
 })
 
-const clampedValue = Math.min(100, Math.max(0, props.modelValue))
+import { computed } from 'vue'
+
+const clampedValue = computed(() => Math.min(100, Math.max(0, props.modelValue)))
 </script>
 
 <template>

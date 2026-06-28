@@ -29,18 +29,18 @@ export function useGoBack() {
   const route = useRoute()
 
   const goBack = (): void => {
-    if (window.history.length > 1) {
+    if (window.history.length > 1 && window.history.state?.back !== undefined) {
       router.back()
       return
     }
 
     const parentRoute = route.meta?.parentRoute
     if (typeof parentRoute === 'string') {
-      router.push(interpolate(parentRoute, route.params))
+      router.replace(interpolate(parentRoute, route.params))
       return
     }
 
-    router.push('/')
+    router.replace('/')
   }
 
   return { goBack }

@@ -100,7 +100,7 @@ jobs:
             while [ "$n" -lt "$MAX_RETRIES" ]; do
               n=$((n + 1))
               echo "  attempt $n/$MAX_RETRIES..."
-              if kubectl exec deployment/backend -n fallout -- python3 -c "import urllib.request,sys;r=urllib.request.urlopen('http://localhost:8000/healthcheck',timeout=10);b=r.read().decode();assert r.status==200;assert 'ok' in b" 2>/dev/null; then
+              if kubectl exec deployment/backend -n fallout -- python3 -c "import urllib.request,sys;r=urllib.request.urlopen('http://localhost:8000/healthcheck',timeout=10);b=r.read().decode();import json;d=json.loads(b);assert d.get('status')=='ok' or d.get('ok') is True" 2>/dev/null; then
                 echo "  Health check passed."
                 exit 0
               fi

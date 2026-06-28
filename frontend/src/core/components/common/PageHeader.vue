@@ -75,9 +75,8 @@ const { glowClass } = useVisualEffects()
         />
         <div :class="centered ? 'text-center' : ''">
           <h1
-            class="text-3xl md:text-4xl font-bold font-mono tracking-wider leading-tight"
+            class="text-3xl md:text-4xl font-bold font-mono tracking-wider leading-tight text-theme-primary"
             :class="glow ? glowClass : ''"
-            :style="{ color: 'var(--color-theme-primary)' }"
           >
             <template v-if="showVaultNumber && vaultNumber">
               <span class="text-theme-accent">Vault {{ vaultNumber }}</span>
@@ -96,7 +95,10 @@ const { glowClass } = useVisualEffects()
       </div>
 
       <!-- Right: actions slot -->
-      <div v-if="$slots.actions" :class="['flex items-center gap-2 shrink-0', centered ? 'mt-4' : '']">
+      <div
+        v-if="$slots.actions"
+        :class="['flex items-center gap-2 shrink-0', centered ? 'mt-4' : '']"
+      >
         <slot name="actions" />
       </div>
     </div>

@@ -39,8 +39,11 @@ const createVault = async () => {
 
   creatingVault.value = true
   try {
-    const number = parseInt(newVaultNumber.value, 10)
-    await vaultStore.createVault(number, boostedStart.value, authStore.token as string)
+    await vaultStore.createVault(
+      parseInt(newVaultNumber.value, 10),
+      boostedStart.value,
+      authStore.token as string
+    )
     newVaultNumber.value = ''
     boostedStart.value = false
     await vaultStore.fetchVaults(authStore.token as string)
@@ -92,15 +95,10 @@ onMounted(async () => {
       <PageHeader title="Welcome to Fallout Shelter" centered />
 
       <div class="mb-8 w-full max-w-md">
-        <h2 class="mb-4 text-2xl font-bold" :style="{ color: 'var(--color-theme-primary)' }">
-          Create New Vault
-        </h2>
+        <h2 class="mb-4 text-2xl font-bold text-theme-primary">Create New Vault</h2>
         <div class="space-y-2">
           <div class="flex items-start space-x-2">
-            <VaultNumberField
-              v-model="newVaultNumber"
-              ref="vaultNumberFieldRef"
-            />
+            <VaultNumberField v-model="newVaultNumber" ref="vaultNumberFieldRef" />
             <UButton
               variant="primary"
               :disabled="creatingVault || !newVaultNumber"

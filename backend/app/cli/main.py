@@ -51,10 +51,9 @@ def _make_async_session() -> sessionmaker:
 
 @cli.command()
 def createsuperuser(
-    username: Annotated[str | None, typer.Option(prompt=True, help="Admin username")] = None,
-    email: Annotated[str | None, typer.Option(prompt=True, help="Admin email address")] = None,
+    username: Annotated[str | None, typer.Option(help="Admin username")] = None,
+    email: Annotated[str | None, typer.Option(help="Admin email address")] = None,
     password: Annotated[str | None, typer.Option(
-        prompt=True,
         confirmation_prompt=True,
         hide_input=True,
         help="Admin password",
@@ -78,13 +77,13 @@ def createsuperuser(
             )
             raise typer.Exit(code=1)
     else:
-        # Fill in defaults from settings when user presses Enter at prompt
+        # Prompt interactively
         if not username:
-            username = settings.FIRST_SUPERUSER_USERNAME
-            typer.echo(f"  Using default username: {username}")
+            username = typer.prompt("Admin username", default=settings.FIRST_SUPERUSER_USERNAME)
         if not email:
-            email = settings.FIRST_SUPERUSER_EMAIL
-            typer.echo(f"  Using default email: {email}")
+            email = typer.prompt("Admin email address", default=settings.FIRST_SUPERUSER_EMAIL)
+        if not password:
+            password = typer.prompt("Admin password", confirmation_prompt=True, hide_input=True, default=settings.FIRST_SUPERUSER_PASSWORD)
 
     async def _create() -> None:
         async_session = _make_async_session()

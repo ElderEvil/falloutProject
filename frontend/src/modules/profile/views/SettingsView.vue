@@ -1,11 +1,9 @@
 <template>
   <div class="settings-view">
-    <div class="settings-header">
-      <h1 class="text-2xl font-bold">Game Balance Settings</h1>
-      <p class="text-sm text-gray-400 mt-2">
-        Current configuration values. These can be modified via environment variables on the server.
-      </p>
-    </div>
+    <PageHeader
+      title="Game Balance Settings"
+      subtitle="Current configuration values. These can be modified via environment variables on the server."
+    />
 
     <div v-if="loading" class="loading-state">
       <Icon icon="mdi:loading" class="loading-icon animate-spin" />
@@ -454,6 +452,7 @@ import { ref, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useToast } from '@/core/composables/useToast'
 import apiClient from '@/core/plugins/axios'
+import PageHeader from '@/core/components/common/PageHeader.vue'
 import UCard from '@/core/components/ui/UCard.vue'
 import UTabs from '@/core/components/ui/UTabs.vue'
 import SettingItem from '@/core/components/ui/SettingItem.vue'

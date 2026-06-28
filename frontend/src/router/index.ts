@@ -58,6 +58,12 @@ const router = createRouter({
       name: 'nuxt-ui-poc',
       component: () => import('@/views/NuxtUiPocView.vue'),
     },
+    {
+      path: '/vault/:id/ui-test',
+      name: 'ui-test',
+      component: () => import('@/views/UITestView.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

@@ -203,7 +203,7 @@ describe('HomeView', () => {
       )
     })
 
-    it('should disable submit button when validation fails', async () => {
+    it('should show validation error in VaultNumberField without disabling button', async () => {
       const wrapper = mount(HomeView, {
         global: {
           plugins: [router],
@@ -217,7 +217,10 @@ describe('HomeView', () => {
       await input.setValue('1000')
       await flushPromises()
 
-      expect(submitBtn!.attributes('disabled')).toBeDefined()
+      // Button stays enabled (validation is checked on click via VaultNumberField)
+      expect(submitBtn!.attributes('disabled')).toBeUndefined()
+      // Validation error shown inside VaultNumberField
+      expect(wrapper.find('.text-danger').exists()).toBe(true)
     })
   })
 

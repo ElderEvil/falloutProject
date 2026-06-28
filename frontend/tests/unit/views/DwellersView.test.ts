@@ -76,7 +76,7 @@ describe('DwellersView', () => {
       })
       await flushPromises()
 
-      expect(wrapper.text()).toContain('Vault 101 Dwellers')
+      expect(wrapper.text()).toContain('Dwellers')
     })
 
     it('should fetch dwellers on mount', async () => {

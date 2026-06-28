@@ -68,6 +68,7 @@ const handleSubmit = async () => {
               label="> EMAIL ADDRESS:"
               placeholder="overseer@vault-tec.com"
               :disabled="loading"
+              variant="terminal"
             />
           </div>
 

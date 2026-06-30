@@ -5,6 +5,7 @@ import { useObjectivesStore } from '@/modules/progression/stores/objectives'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Icon } from '@iconify/vue'
 import { ObjectiveCard } from '../components'
 
@@ -52,9 +53,10 @@ const achievementObjectives = computed(() =>
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
         <div class="container mx-auto px-4 py-8">
           <div class="objectives-container">
-            <h1 class="title">
-              {{ currentVault ? `Vault ${currentVault.number} Objectives` : 'Objectives' }}
-            </h1>
+            <PageHeader
+              title="Objectives"
+              icon="mdi:target"
+            />
             <div class="tabs">
               <button
                 @click="activeTab = 'daily'"
@@ -172,7 +174,6 @@ const achievementObjectives = computed(() =>
 .main-content h2,
 .main-content h3 {
   font-weight: 700;
-  text-shadow: 0 0 8px var(--color-theme-glow);
 }
 
 .main-content p,

@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useRelationshipStore } from '../stores/relationship'
+import PageHeader from '@/core/components/common/PageHeader.vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
@@ -139,15 +140,12 @@ onMounted(async () => {
         <div class="container mx-auto px-4 py-8 lg:px-8">
           <div class="max-w-7xl mx-auto">
             <!-- Header -->
-            <div class="mb-8">
-              <div class="flex items-center justify-between mb-2">
-                <h1
-                  class="text-4xl font-bold flex items-center gap-3"
-                  :style="{ color: 'var(--color-theme-primary)' }"
-                >
-                  <Icon icon="mdi:heart-multiple" class="text-5xl" />
-                  Relationships & Family
-                </h1>
+            <PageHeader
+              title="Relationships &amp; Family"
+              icon="mdi:heart-multiple"
+              subtitle="Manage relationships, pregnancies, and family growth in your vault"
+            >
+              <template #actions>
                 <div class="flex gap-2">
                   <UButton
                     v-if="authStore.isSuperuser"
@@ -174,11 +172,8 @@ onMounted(async () => {
                     {{ isLoading ? 'Matchmaking...' : 'Vault-Tec Matchmaker' }}
                   </UButton>
                 </div>
-              </div>
-              <p class="text-gray-400">
-                Manage relationships, pregnancies, and family growth in your vault
-              </p>
-            </div>
+              </template>
+            </PageHeader>
 
             <!-- Stats Overview -->
             <div class="stats-grid mb-8">

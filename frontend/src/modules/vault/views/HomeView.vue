@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { computed, inject, onMounted, ref, watch } from 'vue'
+import { computed, inject, onMounted, ref } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '../stores/vault'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useRouter } from 'vue-router'
-import { vaultNumberSchema } from '../schemas/vault'
 import { Icon } from '@iconify/vue'
-import { UButton, UInput } from '@/core/components/ui'
+import { UButton } from '@/core/components/ui'
+import PageHeader from '@/core/components/common/PageHeader.vue'
+import VaultNumberField from '../components/VaultNumberField.vue'
 
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
@@ -23,7 +24,7 @@ const boostedStart = ref(false)
 const selectedVaultId = ref<string | null>(null)
 const creatingVault = ref(false)
 const deletingVault = ref<string | null>(null)
-const vaultNumberError = ref<string | null>(null)
+const vaultNumberFieldRef = ref<InstanceType<typeof VaultNumberField> | null>(null)
 
 const sortedVaults = computed(() =>
   [...vaultStore.vaults].sort(
@@ -31,38 +32,20 @@ const sortedVaults = computed(() =>
   )
 )
 
-watch(newVaultNumber, () => {
-  validateVaultNumber()
-})
-
-const validateVaultNumber = () => {
-  vaultNumberError.value = null
-  if (!newVaultNumber.value) {
-    return false
-  }
-
-  try {
-    const parsed = parseInt(newVaultNumber.value, 10)
-    vaultNumberSchema.parse({ number: parsed, boosted: boostedStart.value })
-    return true
-  } catch (error: any) {
-    vaultNumberError.value = error.errors?.[0]?.message || 'Invalid vault number'
-    return false
-  }
-}
-
 const createVault = async () => {
-  if (!validateVaultNumber() || creatingVault.value) {
+  if (!vaultNumberFieldRef.value?.isValid() || creatingVault.value) {
     return
   }
 
   creatingVault.value = true
   try {
-    const number = parseInt(newVaultNumber.value, 10)
-    await vaultStore.createVault(number, boostedStart.value, authStore.token as string)
+    await vaultStore.createVault(
+      parseInt(newVaultNumber.value, 10),
+      boostedStart.value,
+      authStore.token as string
+    )
     newVaultNumber.value = ''
     boostedStart.value = false
-    vaultNumberError.value = null
     await vaultStore.fetchVaults(authStore.token as string)
   } finally {
     creatingVault.value = false
@@ -109,33 +92,16 @@ onMounted(async () => {
       class="container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8"
       :class="{ flicker: isFlickering }"
     >
-      <div class="mb-8 text-center">
-        <h1
-          class="mb-4 text-4xl font-bold"
-          :class="glowClass"
-          :style="{ color: 'var(--color-theme-primary)' }"
-        >
-          Welcome to Fallout Shelter
-        </h1>
-      </div>
+      <PageHeader title="Welcome to Fallout Shelter" centered />
 
       <div class="mb-8 w-full max-w-md">
-        <h2 class="mb-4 text-2xl font-bold" :style="{ color: 'var(--color-theme-primary)' }">
-          Create New Vault
-        </h2>
+        <h2 class="mb-4 text-2xl font-bold text-theme-primary">Create New Vault</h2>
         <div class="space-y-2">
           <div class="flex items-start space-x-2">
-            <UInput
-              v-model="newVaultNumber"
-              type="number"
-              label="Vault Number"
-              placeholder="Vault Number (1-999)"
-              :error="vaultNumberError || undefined"
-              class="flex-grow"
-            />
+            <VaultNumberField v-model="newVaultNumber" ref="vaultNumberFieldRef" />
             <UButton
               variant="primary"
-              :disabled="creatingVault || !!vaultNumberError"
+              :disabled="creatingVault || !newVaultNumber"
               @click="createVault"
               class="mt-6"
             >
@@ -263,42 +229,6 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.vault-input {
-  background: rgba(30, 30, 30, 0.8);
-  border: 2px solid rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-}
-
-.vault-input:focus {
-  border-color: var(--color-theme-primary);
-  background: rgba(40, 40, 40, 0.9);
-  box-shadow: 0 0 10px var(--color-theme-glow);
-}
-
-.vault-input::placeholder {
-  color: rgba(163, 163, 163, 0.5);
-}
-
-.create-button {
-  padding: 0.5rem 1rem;
-  font-weight: 700;
-  border-radius: 0.5rem;
-  transition: all 0.2s;
-  border: 2px solid var(--color-theme-primary);
-  background: rgba(0, 0, 0, 0.8);
-  color: var(--color-theme-primary);
-}
-
-.create-button:hover:not(:disabled) {
-  background: rgba(0, 0, 0, 0.6);
-  box-shadow: 0 0 15px var(--color-theme-glow);
-}
-
-.create-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .vault-card {
   background: rgba(0, 0, 0, 0.3);
   border: 2px solid transparent;

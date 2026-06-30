@@ -155,12 +155,9 @@ describe('DwellerCard', () => {
         },
       })
 
-      const healthBar = wrapper.find('.health-bar')
-      expect(healthBar.exists()).toBe(true)
-
-      const healthFill = wrapper.find('.health-fill')
-      expect(healthFill.exists()).toBe(true)
-      expect(healthFill.attributes('style')).toContain('width: 80%')
+      const progressBar = wrapper.findComponent({ name: 'UProgressBar' })
+      expect(progressBar.exists()).toBe(true)
+      expect(progressBar.props('modelValue')).toBe(80)
     })
   })
 

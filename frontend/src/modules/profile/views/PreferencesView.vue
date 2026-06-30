@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, inject, ref } from 'vue'
+import { Icon } from '@iconify/vue'
 import { useRouter } from 'vue-router'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useVisualEffects, type EffectIntensity } from '@/core/composables/useVisualEffects'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
 import { useRoomRendering } from '@/modules/rooms/composables/useRoomRendering'
 import SidePanel from '@/core/components/common/SidePanel.vue'
+import PageHeader from '@/core/components/common/PageHeader.vue'
 import { UCard, UButton } from '@/core/components/ui'
-import { Icon } from '@iconify/vue'
 
 const router = useRouter()
 
@@ -55,20 +56,11 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
               Back to Profile
             </UButton>
 
-            <!-- Header -->
-            <div class="mb-4">
-              <h1
-                class="text-3xl font-bold flex items-center gap-2"
-                :class="injectedGlowClass"
-                :style="{ color: 'var(--color-theme-primary)' }"
-              >
-                <Icon icon="mdi:cog" class="text-3xl" />
-                Display Preferences
-              </h1>
-              <p class="text-gray-400 mt-1 text-sm">
-                Customize the terminal visual effects and theme. All settings are saved locally.
-              </p>
-            </div>
+            <PageHeader
+              title="Display Preferences"
+              icon="mdi:cog"
+              subtitle="Customize the terminal visual effects and theme. All settings are saved locally."
+            />
 
             <!-- Theme Selection -->
             <UCard class="mb-4">

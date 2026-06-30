@@ -23,6 +23,7 @@ import UButton from '@/core/components/ui/UButton.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { DeadDwellerCard } from '../components/death'
+import PageHeader from '@/core/components/common/PageHeader.vue'
 import type { Room } from '@/modules/rooms/models/room'
 import { normalizeImageUrl } from '@/utils/image'
 
@@ -271,10 +272,11 @@ const handleQuickUnassign = async (dwellerId: string) => {
 
       <!-- Main Content Area -->
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
-        <div class="container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8">
-          <h1 class="mb-8 text-4xl font-bold">
-            {{ currentVault ? `Vault ${currentVault.number} Dwellers` : 'Dwellers' }}
-          </h1>
+        <div class="container mx-auto px-4 py-8 lg:px-8">
+          <PageHeader
+            title="Dwellers"
+            icon="mdi:account-group"
+          />
 
           <!-- Filter Panel with View Toggle -->
           <div class="w-full mb-6">
@@ -544,12 +546,6 @@ const handleQuickUnassign = async (dwellerId: string) => {
 }
 
 /* Enhanced text styles */
-.main-content h1,
-.main-content h2,
-.main-content h3 {
-  font-weight: 700;
-  text-shadow: 0 0 8px var(--color-theme-glow);
-}
 
 .main-content p,
 .main-content span,

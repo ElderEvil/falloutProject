@@ -7,8 +7,9 @@ import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
 import { storageService, type StorageItemsResponse } from '../services/storageService'
 import { Icon } from '@iconify/vue'
-import { UCard, UButton, UTabs } from '@/core/components/ui'
+import { UButton, UTabs } from '@/core/components/ui'
 import SidePanel from '@/core/components/common/SidePanel.vue'
+import PageHeader from '@/core/components/common/PageHeader.vue'
 import StorageItemCard from '../components/StorageItemCard.vue'
 
 const route = useRoute()
@@ -27,8 +28,6 @@ const storageSpace = ref<{
   stimpack: number
   radaway: number
 } | null>(null)
-
-const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
 
 const storageItems = ref<StorageItemsResponse>({
   weapons: [],
@@ -202,85 +201,67 @@ const getRarityColor = (rarity?: string) => {
 </script>
 
 <template>
-  <div class="flex min-h-screen bg-linear-to-br from-[#0a0a0a] to-[#1a1a1a]">
+  <div class="relative min-h-screen bg-terminalBackground font-mono text-theme-primary">
     <SidePanel />
 
     <div
       class="flex-1 transition-[margin] duration-300 p-4 md:p-8"
       :class="isCollapsed ? 'ml-16' : 'ml-60'"
     >
-      <!-- Header -->
-      <div class="mb-8">
-        <div class="flex items-center gap-4 mb-6">
-          <Icon
-            icon="mdi:package-variant"
-            class="w-12 h-12 text-theme-primary drop-shadow-[0_0_8px_var(--color-theme-glow)]"
-          />
-          <h1
-            class="text-3xl md:text-4xl font-bold text-theme-primary terminal-glow font-mono tracking-wider"
-          >
-            Vault Storage
-          </h1>
-        </div>
+      <PageHeader
+        title="Vault Storage"
+        icon="mdi:package-variant"
+      />
 
-        <!-- Storage Space Info -->
-        <UCard v-if="storageSpace" glow crt class="max-w-2xl mb-6">
-          <div class="flex items-center gap-2 mb-3 font-mono">
-            <span class="text-theme-accent text-sm font-semibold">Used:</span>
-            <span class="text-theme-primary text-lg font-bold">
-              {{ storageSpace.used_space }}/{{ storageSpace.max_space }}
-            </span>
-          </div>
-
-          <div class="h-6 bg-black/80 border border-theme-primary rounded-sm overflow-hidden mb-2">
-            <div
-              class="h-full bg-theme-primary transition-[width] duration-300 shadow-[0_0_10px_var(--color-theme-glow)]"
-              :style="{
-                '--progress': `${storageSpace.utilization_pct}%`,
-                width: 'var(--progress)',
-              }"
-            ></div>
-          </div>
-
-          <div class="text-theme-accent text-sm text-center font-mono">
-            {{ storageSpace.available_space }} slots available ({{
-              storageSpace.utilization_pct.toFixed(1)
-            }}% full)
-          </div>
-        </UCard>
-
-        <!-- Medical Supplies -->
-        <UCard v-if="storageSpace" glow crt class="max-w-2xl mb-6">
-          <div class="font-mono mb-4">
-            <h3 class="text-theme-accent text-lg font-semibold mb-3">Medical Supplies</h3>
-            <div class="grid grid-cols-2 gap-4">
-              <!-- Stimpaks -->
+        <!-- Storage & Medical Supplies -->
+        <div v-if="storageSpace" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div class="md:col-span-2 p-6 border-2 border-theme-primary/50 rounded-lg shadow-[0_0_10px_var(--color-theme-glow)] crt-screen">
+            <div class="flex items-center gap-3 mb-2 font-mono">
+              <Icon icon="mdi:package-variant" class="w-5 h-5 text-theme-primary" />
+              <span class="text-theme-accent text-xs font-semibold uppercase tracking-wider">
+                {{ storageSpace.used_space }}/{{ storageSpace.max_space }} slots used
+              </span>
+              <span class="ml-auto text-theme-accent text-xs">
+                {{ storageSpace.utilization_pct.toFixed(0) }}%
+              </span>
+            </div>
+            <div class="h-4 bg-black/80 border border-theme-primary/50 rounded-sm overflow-hidden">
               <div
-                class="flex items-center gap-3 p-3 bg-black/40 rounded border border-theme-primary/30"
-              >
-                <Icon icon="mdi:medical-bag" class="w-8 h-8 text-green-500" />
+                class="h-full bg-theme-primary transition-[width] duration-300 shadow-[0_0_8px_var(--color-theme-glow)]"
+                :style="{
+                  '--progress': `${storageSpace.utilization_pct}%`,
+                  width: 'var(--progress)',
+                }"
+              ></div>
+            </div>
+            <div class="text-theme-accent/60 text-xs text-right font-mono mt-1">
+              {{ storageSpace.available_space }} free
+            </div>
+          </div>
+
+          <div class="p-6 border-2 border-theme-primary/50 rounded-lg shadow-[0_0_10px_var(--color-theme-glow)] crt-screen">
+            <div class="flex items-center gap-4 h-full">
+              <div class="flex items-center gap-2 flex-1">
+                <Icon icon="mdi:medical-bag" class="w-5 h-5 text-green-500 shrink-0" />
                 <div>
-                  <div class="text-theme-primary font-bold">{{ storageSpace.stimpack }}</div>
-                  <div class="text-theme-accent text-xs">Stimpaks</div>
+                  <div class="text-theme-primary font-bold text-sm leading-tight">{{ storageSpace.stimpack }}</div>
+                  <div class="text-theme-accent/60 text-xs">Stimpaks</div>
                 </div>
               </div>
-              <!-- Radaways -->
-              <div
-                class="flex items-center gap-3 p-3 bg-black/40 rounded border border-theme-primary/30"
-              >
-                <Icon icon="mdi:pill" class="w-8 h-8 text-purple-500" />
+              <div class="w-px h-8 bg-theme-primary/20"></div>
+              <div class="flex items-center gap-2 flex-1">
+                <Icon icon="mdi:pill" class="w-5 h-5 text-purple-500 shrink-0" />
                 <div>
-                  <div class="text-theme-primary font-bold">{{ storageSpace.radaway }}</div>
-                  <div class="text-theme-accent text-xs">Radaways</div>
+                  <div class="text-theme-primary font-bold text-sm leading-tight">{{ storageSpace.radaway }}</div>
+                  <div class="text-theme-accent/60 text-xs">Radaways</div>
                 </div>
               </div>
             </div>
           </div>
-        </UCard>
-      </div>
+        </div>
 
-      <!-- Tabs -->
-      <UTabs v-model="activeTab" :tabs="tabs" class="mb-8">
+        <!-- Tabs -->
+        <UTabs v-model="activeTab" :tabs="tabs" class="mb-8">
         <!-- Loading State -->
         <div
           v-if="isLoading"

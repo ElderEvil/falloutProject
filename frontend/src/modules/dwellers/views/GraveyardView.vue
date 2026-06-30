@@ -11,6 +11,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import SidePanel from '@/core/components/common/SidePanel.vue'
+import PageHeader from '@/core/components/common/PageHeader.vue'
 import { UButton, UCard } from '@/core/components/ui'
 import { DeadDwellerCard } from '../components/death'
 
@@ -27,7 +28,7 @@ const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vau
 
 onMounted(async () => {
   if (authStore.isAuthenticated && vaultId.value) {
-    await dwellerStore.fetchGraveyard(vaultId.value, authStore.token as string)
+    await dwellerStore.fetchGraveyardDwellers(vaultId.value, authStore.token as string)
   }
 })
 
@@ -50,24 +51,19 @@ const viewDwellerDetails = (dwellerId: string) => {
 
       <!-- Main Content Area -->
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
-        <div class="container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8">
-          <!-- Header -->
-          <div class="w-full mb-8">
-            <UButton @click="goBack" variant="ghost" size="sm" class="mb-4">
-              <Icon icon="mdi:arrow-left" class="h-5 w-5 mr-2" />
-              Back to Dwellers
-            </UButton>
-
-            <div class="flex items-center gap-4">
-              <Icon icon="mdi:grave-stone" class="h-10 w-10 text-gray-500" />
-              <div>
-                <h1 class="text-4xl font-bold text-theme-primary">
-                  {{ currentVault ? `Vault ${currentVault.number}` : '' }} Graveyard
-                </h1>
-                <p class="text-gray-400 mt-1">Memorial for permanently deceased dwellers</p>
-              </div>
-            </div>
-          </div>
+        <div class="container mx-auto px-4 py-8 lg:px-8">
+          <PageHeader
+            title="Graveyard"
+            icon="mdi:grave-stone"
+            subtitle="Memorial for permanently deceased dwellers"
+          >
+            <template #back>
+              <UButton @click="goBack" variant="ghost" size="sm">
+                <Icon icon="mdi:arrow-left" class="h-5 w-5 mr-2" />
+                Back to Dwellers
+              </UButton>
+            </template>
+          </PageHeader>
 
           <!-- Loading State -->
           <div v-if="dwellerStore.isDeadLoading" class="w-full text-center py-12">

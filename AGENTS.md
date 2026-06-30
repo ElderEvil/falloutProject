@@ -278,4 +278,23 @@ Before writing any new frontend code, apply this ordering to every decision:
 
 ---
 
-_Last updated: 2026-06-18_
+_Last updated: 2026-06-28_
+
+## Dev Environment (Agent Quick-Start)
+
+When asked to "start the dev environment" or "run infra + BE + FE" — run `scripts/dev-up.sh`.
+
+This script does everything in one shot:
+1. Starts infra (PostgreSQL, Redis, etc.) via `podman-compose` or `docker compose`
+2. Waits for DB, runs Alembic migrations
+3. Starts Backend (uvicorn) in a tmux session named `fallout-be`
+4. Starts Dramatiq workers
+5. Starts Frontend (Vite) in a tmux session named `fallout-fe`
+6. Verifies both services respond
+
+To stop: `tmux kill-session -t fallout-be && tmux kill-session -t fallout-fe`
+
+Or call the script from a task:
+```
+task(category="quick", load_skills=[], prompt="Run ./scripts/dev-up.sh from the repo root")
+```

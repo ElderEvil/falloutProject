@@ -52,6 +52,7 @@ const handleSubmit = async () => {
               label="> USER IDENTIFICATION:"
               placeholder="overseer@vault-tec.com"
               required
+              variant="terminal"
             />
           </div>
 
@@ -62,6 +63,7 @@ const handleSubmit = async () => {
               label="> SECURITY PASSPHRASE:"
               placeholder="••••••••"
               required
+              variant="terminal"
             />
           </div>
 

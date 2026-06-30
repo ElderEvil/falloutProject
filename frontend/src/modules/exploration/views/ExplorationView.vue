@@ -10,6 +10,7 @@ import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { Icon } from '@iconify/vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
+import PageHeader from '@/core/components/common/PageHeader.vue'
 import ExplorerCard from '../components/ExplorerCard.vue'
 import QuestPartyCard from '../components/QuestPartyCard.vue'
 import EventTimeline from '../components/EventTimeline.vue'
@@ -209,28 +210,26 @@ const closeRewardsModal = () => {
     <SidePanel />
 
     <div class="exploration-view" :class="{ collapsed: isCollapsed }">
-      <!-- Header -->
-      <div class="view-header">
-        <div class="header-content">
-          <Icon icon="mdi:compass" class="header-icon" />
-          <div>
-            <h1 class="header-title">Wasteland Exploration</h1>
-            <p class="header-subtitle">Monitor active explorations and quest parties</p>
+      <PageHeader
+        title="Wasteland Exploration"
+        icon="mdi:compass"
+        subtitle="Monitor active explorations and quest parties"
+      >
+        <template #actions>
+          <div class="flex gap-3">
+            <div class="stat-badge">
+              <Icon icon="mdi:account-search" class="stat-icon" />
+              <span class="stat-value">{{ activeExplorationsArray.length }}</span>
+              <span class="stat-label">Explorations</span>
+            </div>
+            <div class="stat-badge">
+              <Icon icon="mdi:sword-cross" class="stat-icon" />
+              <span class="stat-value">{{ activeQuestsWithParty.length }}</span>
+              <span class="stat-label">Quests</span>
+            </div>
           </div>
-        </div>
-        <div class="header-stats">
-          <div class="stat-badge">
-            <Icon icon="mdi:account-search" class="stat-icon" />
-            <span class="stat-value">{{ activeExplorationsArray.length }}</span>
-            <span class="stat-label">Explorations</span>
-          </div>
-          <div class="stat-badge">
-            <Icon icon="mdi:sword-cross" class="stat-icon" />
-            <span class="stat-value">{{ activeQuestsWithParty.length }}</span>
-            <span class="stat-label">Quests</span>
-          </div>
-        </div>
-      </div>
+        </template>
+      </PageHeader>
 
       <!-- Main Content -->
       <div class="exploration-content">
@@ -349,47 +348,6 @@ const closeRewardsModal = () => {
 
 .exploration-view.collapsed {
   margin-left: 64px;
-}
-
-.view-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 2px solid var(--color-theme-primary);
-  box-shadow: 0 2px 0 0 var(--color-theme-glow);
-}
-
-.header-content {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.header-icon {
-  width: 3rem;
-  height: 3rem;
-  color: var(--color-theme-primary);
-  filter: drop-shadow(0 0 8px var(--color-theme-glow));
-}
-
-.header-title {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 10px var(--color-theme-glow);
-  margin-bottom: 0.25rem;
-}
-
-.header-subtitle {
-  font-size: 0.875rem;
-  color: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.7);
-}
-
-.header-stats {
-  display: flex;
-  gap: 1rem;
 }
 
 .stat-badge {

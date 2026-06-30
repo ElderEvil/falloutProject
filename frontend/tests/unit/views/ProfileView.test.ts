@@ -93,7 +93,7 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      expect(wrapper.text()).toContain('OVERSEER PROFILE')
+      expect(wrapper.text()).toContain('Overseer Profile')
     })
 
     it('should fetch profile on mount', async () => {

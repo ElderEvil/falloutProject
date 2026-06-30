@@ -1,6 +1,6 @@
 {
   "name": "frontend",
-  "version": "2.21.0",
+  "version": "2.22.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,7 +14,9 @@
     "lint:fix": "vp lint src --fix",
     "format": "vp fmt src",
     "format:check": "vp fmt src --check",
-    "typecheck": "vue-tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@iconify/vue": "5.0.1",
@@ -44,7 +46,8 @@
     "tailwindcss": "^4.3.0",
     "typescript": "^5.9.3",
     "vite": "npm:@voidzero-dev/vite-plus-core@latest",
-    "vite-plus": "latest",
+    "vite-plus": "0.1.24",
+    "@playwright/test": "1.61.0",
     "vitest": "npm:@voidzero-dev/vite-plus-test@0.1.14",
     "vue-tsc": "^3.2.6"
   },

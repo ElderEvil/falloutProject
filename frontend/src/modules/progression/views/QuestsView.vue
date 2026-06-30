@@ -9,6 +9,7 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
+import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Icon } from '@iconify/vue'
 import { QuestCard, PartySelectionModal } from '../components'
 import type { VaultQuest } from '../models/quest'
@@ -194,9 +195,10 @@ onMounted(async () => {
 
           <!-- Quests View -->
           <div v-else class="quests-container">
-            <h1 class="title">
-              {{ currentVault ? `Vault ${currentVault.number} Quests` : 'Quests' }}
-            </h1>
+            <PageHeader
+              title="Quests"
+              icon="mdi:book-open-page-variant"
+            />
 
             <!-- Tabs -->
             <div class="tabs">
@@ -336,7 +338,6 @@ onMounted(async () => {
 .main-content h2,
 .main-content h3 {
   font-weight: 700;
-  text-shadow: 0 0 8px var(--color-theme-glow);
 }
 
 .main-content p,

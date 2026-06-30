@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 
 interface Props {
   level: number
@@ -42,6 +43,12 @@ const progressPercentage = computed(() => {
 
 const isNearLevelUp = computed(() => progressPercentage.value >= 90)
 const isMaxLevel = computed(() => props.level >= props.maxLevel)
+
+const barAnimation = computed(() => {
+  if (isMaxLevel.value) return 'shimmer' as const
+  if (isNearLevelUp.value) return 'pulse' as const
+  return 'none' as const
+})
 </script>
 
 <template>
@@ -55,9 +62,7 @@ const isMaxLevel = computed(() => props.level >= props.maxLevel)
         <template v-else>MAX LEVEL</template>
       </span>
     </div>
-    <div class="xp-bar" :class="{ 'near-level-up': isNearLevelUp, 'max-level': isMaxLevel }">
-      <div class="xp-fill" :style="{ width: `${progressPercentage}%` }"></div>
-    </div>
+    <UProgressBar :model-value="progressPercentage" :height="10" :animation="barAnimation" />
   </div>
 </template>
 
@@ -90,57 +95,5 @@ const isMaxLevel = computed(() => props.level >= props.maxLevel)
 .stat-value.max-level {
   color: rgb(250 204 21);
   text-shadow: 0 0 8px rgb(250 204 21 / 0.6);
-}
-
-.xp-bar {
-  width: 100%;
-  height: 10px;
-  background: rgba(68, 68, 68, 0.8);
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 5px;
-  overflow: hidden;
-}
-
-.xp-bar.near-level-up {
-  border-color: rgb(250 204 21 / 0.8);
-  box-shadow: 0 0 8px rgb(250 204 21 / 0.4);
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-.xp-bar.max-level {
-  border-color: rgb(250 204 21);
-  box-shadow: 0 0 12px rgb(250 204 21 / 0.5);
-}
-
-.xp-fill {
-  height: 100%;
-  background: linear-gradient(90deg, rgb(250 204 21) 0%, rgb(234 179 8) 50%, rgb(250 204 21) 100%);
-  box-shadow: 0 0 8px var(--color-theme-glow);
-  transition: width 0.3s ease;
-}
-
-.xp-bar.max-level .xp-fill {
-  background: linear-gradient(90deg, rgb(250 204 21) 0%, rgb(251 191 36) 50%, rgb(250 204 21) 100%);
-  background-size: 200% 100%;
-  animation: shimmer 3s linear infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 8px rgb(250 204 21 / 0.4);
-  }
-  50% {
-    box-shadow: 0 0 16px rgb(250 204 21 / 0.8);
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
 }
 </style>

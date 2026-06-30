@@ -91,6 +91,7 @@ const handleSubmit = async () => {
               label="> NEW PASSPHRASE:"
               placeholder="Minimum 8 characters"
               :disabled="loading"
+              variant="terminal"
             />
           </div>
 
@@ -101,6 +102,7 @@ const handleSubmit = async () => {
               label="> CONFIRM PASSPHRASE:"
               placeholder="Re-enter passphrase"
               :disabled="loading"
+              variant="terminal"
             />
           </div>
 

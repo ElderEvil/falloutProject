@@ -36,6 +36,9 @@ async def test_read_vault_list(
 ):
     user = await crud.user.get_by_email(db_session=async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault_1_data, vault_2_data = create_fake_vault(), create_fake_vault()
+    # Ensure unique numbers so the disambiguation swap (number-based) is deterministic
+    while vault_2_data["number"] == vault_1_data["number"]:
+        vault_2_data = create_fake_vault()
     vault_1_data["user_id"] = vault_2_data["user_id"] = str(user.id)
     await crud.vault.create(async_session, VaultCreateWithUserID(**vault_1_data))
     await crud.vault.create(async_session, VaultCreateWithUserID(**vault_2_data))

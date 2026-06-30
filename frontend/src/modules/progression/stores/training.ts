@@ -76,6 +76,20 @@ export const useTrainingStore = defineStore('training', () => {
     }
   }
 
+  async function completeTraining(trainingId: string, token: string): Promise<boolean> {
+    try {
+      const training = await trainingService.completeTraining(trainingId, token)
+      activeTrainings.value.delete(trainingId)
+      trainingHistory.value.push(training)
+      toast.success(`Training completed! ${training.stat_being_trained} increased!`)
+      return true
+    } catch (err: unknown) {
+      console.error('Failed to complete training:', err)
+      toast.error(getErrorMessage(err))
+      return false
+    }
+  }
+
   async function fetchDwellerTraining(dwellerId: string, token: string): Promise<void> {
     try {
       const training = await trainingService.getDwellerTraining(dwellerId, token)
@@ -180,6 +194,7 @@ export const useTrainingStore = defineStore('training', () => {
     // Actions
     startTraining,
     cancelTraining,
+    completeTraining,
     fetchDwellerTraining,
     fetchVaultTrainings,
     fetchRoomTrainings,

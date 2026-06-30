@@ -11,16 +11,11 @@
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
         <div class="container mx-auto px-4 py-8 lg:px-8">
           <div class="max-w-4xl mx-auto">
-            <!-- Header -->
-            <div class="mb-8">
-              <h1 class="header-title">
-                <Icon icon="mdi:radio-tower" class="text-5xl" />
-                Radio Room
-              </h1>
-              <p class="text-gray-400">
-                Broadcast signals to attract new dwellers from the wasteland
-              </p>
-            </div>
+            <PageHeader
+              title="Radio Room"
+              icon="mdi:radio-tower"
+              subtitle="Broadcast signals to attract new dwellers from the wasteland"
+            />
 
             <!-- Radio Stats and Manual Recruitment -->
             <RadioStatsPanel
@@ -45,6 +40,7 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import SidePanel from '@/core/components/common/SidePanel.vue'
+import PageHeader from '@/core/components/common/PageHeader.vue'
 import RadioStatsPanel from '../components/RadioStatsPanel.vue'
 
 const route = useRoute()
@@ -114,13 +110,5 @@ async function handleManualRecruit() {
   }
 }
 
-.header-title {
-  font-size: 2.25rem;
-  font-weight: bold;
-  margin-bottom: 0.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  color: var(--color-theme-primary);
-}
+
 </style>

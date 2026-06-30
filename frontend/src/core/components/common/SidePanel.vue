@@ -26,7 +26,7 @@ interface NavItem {
 const navItems = computed((): NavItem[] => {
   if (!vaultId.value) return []
 
-  return [
+  const navItems: NavItem[] = [
     {
       id: 'overview',
       label: 'Overview',
@@ -91,6 +91,19 @@ const navItems = computed((): NavItem[] => {
       hotkey: '9',
     },
   ]
+  // Only show UI Test nav when __APP_VERSION__ contains 'dev' or localStorage flag is set
+  if (
+    (typeof __APP_VERSION__ !== 'undefined' && String(__APP_VERSION__).includes('dev')) ||
+    localStorage.getItem('omo_debug') === '1'
+  ) {
+    navItems.push({
+      id: 'ui-test',
+      label: 'UI Test',
+      icon: 'mdi:monitor-dashboard',
+      path: `/vault/${vaultId.value}/ui-test`,
+    })
+  }
+  return navItems
 })
 
 const comingSoonItems = computed((): NavItem[] => [

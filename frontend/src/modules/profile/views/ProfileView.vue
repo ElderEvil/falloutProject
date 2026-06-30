@@ -10,6 +10,7 @@ import { LifeDeathStatistics } from '@/modules/dwellers/components/death'
 import AIUsageCard from '../components/AIUsageCard.vue'
 import type { ProfileUpdate } from '../models/profile'
 import { useWebSocket } from '@/core/composables/useWebSocket'
+import PageHeader from '@/core/components/common/PageHeader.vue'
 
 const router = useRouter()
 const profileStore = useProfileStore()
@@ -142,13 +143,11 @@ const formatDate = (dateString: string) => {
         Back to Vault
       </UButton>
 
-      <!-- Header -->
-      <div class="mb-8">
-        <h1 class="text-4xl font-bold text-theme-primary terminal-glow-subtle">OVERSEER PROFILE</h1>
-        <p class="text-theme-primary/60 mt-2 uppercase tracking-wider text-sm">
-          Personnel File & Vital Statistics Registry
-        </p>
-      </div>
+      <PageHeader
+        title="Overseer Profile"
+        subtitle="Personnel File & Vital Statistics Registry"
+        :glow="false"
+      />
 
       <!-- Loading State -->
       <div v-if="profileStore.loading && !profileStore.profile" class="text-center py-12">

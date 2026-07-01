@@ -1,4 +1,4 @@
-import axios from '@/core/plugins/axios'
+import { apiGet, apiPost } from '@/core/plugins/httpClient'
 import type { components } from '@/core/types/api.generated'
 
 type StorageSpaceResponse = components['schemas']['StorageSpaceResponse']
@@ -17,50 +17,48 @@ export const storageService = {
    * Get storage space information for a vault
    */
   async getStorageSpace(vaultId: string): Promise<StorageSpaceResponse> {
-    const response = await axios.get<StorageSpaceResponse>(`/api/v1/storage/vault/${vaultId}/space`)
-    return response.data
+    return apiGet<StorageSpaceResponse>(`/api/v1/storage/vault/${vaultId}/space`)
   },
 
   /**
    * Get all items stored in vault storage
    */
   async getStorageItems(vaultId: string): Promise<StorageItemsResponse> {
-    const response = await axios.get<StorageItemsResponse>(`/api/v1/storage/vault/${vaultId}/items`)
-    return response.data
+    return apiGet<StorageItemsResponse>(`/api/v1/storage/vault/${vaultId}/items`)
   },
 
   /**
    * Sell a weapon from storage
    */
   async sellWeapon(weaponId: string): Promise<void> {
-    await axios.post(`/api/v1/weapons/${weaponId}/sell/`)
+    await apiPost(`/api/v1/weapons/${weaponId}/sell/`)
   },
 
   /**
    * Sell an outfit from storage
    */
   async sellOutfit(outfitId: string): Promise<void> {
-    await axios.post(`/api/v1/outfits/${outfitId}/sell/`)
+    await apiPost(`/api/v1/outfits/${outfitId}/sell/`)
   },
 
   /**
    * Sell a junk item from storage
    */
   async sellJunk(junkId: string): Promise<void> {
-    await axios.post(`/api/v1/junk/${junkId}/sell/`)
+    await apiPost(`/api/v1/junk/${junkId}/sell/`)
   },
 
   /**
    * Scrap a weapon from storage
    */
   async scrapWeapon(weaponId: string): Promise<void> {
-    await axios.post(`/api/v1/weapons/${weaponId}/scrap/`)
+    await apiPost(`/api/v1/weapons/${weaponId}/scrap/`)
   },
 
   /**
    * Scrap an outfit from storage
    */
   async scrapOutfit(outfitId: string): Promise<void> {
-    await axios.post(`/api/v1/outfits/${outfitId}/scrap/`)
+    await apiPost(`/api/v1/outfits/${outfitId}/scrap/`)
   },
 }

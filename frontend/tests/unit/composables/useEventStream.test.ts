@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
-import { useSse, usePostEventStream } from '@/core/composables/useEventStream'
+import { useSse } from '@/core/composables/useEventStream'
 
 /**
  * SSE Auto-Reconnect Bug Regression Tests
@@ -289,14 +289,6 @@ describe('useEventStream auto-reconnect', () => {
       // ASSERT: no reconnect attempted
       expect(fetchMock).toHaveBeenCalledTimes(1)
       expect(sse.status.value).toBe('closed')
-    })
-
-    it('should be exposed on usePostEventStream', () => {
-      fetchMock.mockResolvedValue(createMockResponse([]))
-
-      const sse = usePostEventStream('/test')
-      expect(sse.stopReconnect).toBeDefined()
-      expect(typeof sse.stopReconnect).toBe('function')
     })
 
     it('should be exposed on useSse', () => {

@@ -1,6 +1,7 @@
-import { defineStore } from 'pinia'
+import { defineStore, acceptHMRUpdate } from 'pinia'
 import { ref } from 'vue'
-import axios from '@/core/plugins/axios'
+import * as http from '@/core/plugins/httpClient'
+import { handleStoreError } from '@/core/utils/errorHandler'
 import type { Objective, ObjectiveCreate } from '../models/objective'
 
 export const useObjectivesStore = defineStore('objectives', () => {
@@ -10,48 +11,53 @@ export const useObjectivesStore = defineStore('objectives', () => {
   // Actions
   async function fetchObjectives(vaultId: string, skip = 0, limit = 100): Promise<void> {
     try {
-      const response = await axios.get<Objective[]>(`/api/v1/objectives/${vaultId}/`, {
-        params: { skip, limit },
-      })
-      objectives.value = response.data
+      objectives.value = await http.apiGet<Objective[]>(
+        `/api/v1/objectives/${vaultId}/?skip=${skip}&limit=${limit}`,
+        { _skipErrorNotification: true }
+      )
     } catch (error: unknown) {
-      console.error('Failed to fetch objectives:', error)
+      handleStoreError(error, 'Failed to fetch objectives')
       throw error
     }
   }
 
   async function addObjective(vaultId: string, objectiveData: ObjectiveCreate): Promise<void> {
     try {
-      await axios.post(`/api/v1/objectives/${vaultId}/`, objectiveData)
+      await http.apiPost(`/api/v1/objectives/${vaultId}/`, objectiveData, {
+        _skipErrorNotification: true,
+      })
       await fetchObjectives(vaultId)
     } catch (error: unknown) {
-      console.error('Failed to add objective:', error)
+      handleStoreError(error, 'Failed to add objective')
       throw error
     }
   }
 
   async function getObjective(vaultId: string, objectiveId: string): Promise<Objective> {
     try {
-      const response = await axios.get<Objective>(`/api/v1/objectives/${vaultId}/${objectiveId}`)
-      return response.data
+      return await http.apiGet<Objective>(`/api/v1/objectives/${vaultId}/${objectiveId}`, {
+        _skipErrorNotification: true,
+      })
     } catch (error: unknown) {
-      console.error('Failed to fetch objective:', error)
+      handleStoreError(error, 'Failed to fetch objective')
       throw error
     }
   }
 
   async function completeObjective(vaultId: string, objectiveId: string): Promise<Objective> {
     try {
-      const response = await axios.post<Objective>(
-        `/api/v1/objectives/${vaultId}/${objectiveId}/complete`
+      const updated = await http.apiPost<Objective>(
+        `/api/v1/objectives/${vaultId}/${objectiveId}/complete`,
+        undefined,
+        { _skipErrorNotification: true }
       )
       const index = objectives.value.findIndex((obj) => obj.id === objectiveId)
       if (index !== -1) {
-        objectives.value[index] = response.data
+        objectives.value[index] = updated
       }
-      return response.data
+      return updated
     } catch (error: unknown) {
-      console.error('Failed to complete objective:', error)
+      handleStoreError(error, 'Failed to complete objective')
       throw error
     }
   }
@@ -62,17 +68,18 @@ export const useObjectivesStore = defineStore('objectives', () => {
     progress: number
   ): Promise<Objective> {
     try {
-      const response = await axios.post<Objective>(
+      const updated = await http.apiPost<Objective>(
         `/api/v1/objectives/${vaultId}/${objectiveId}/progress`,
-        { progress }
+        { progress },
+        { _skipErrorNotification: true }
       )
       const index = objectives.value.findIndex((obj) => obj.id === objectiveId)
       if (index !== -1) {
-        objectives.value[index] = response.data
+        objectives.value[index] = updated
       }
-      return response.data
+      return updated
     } catch (error: unknown) {
-      console.error('Failed to update objective progress:', error)
+      handleStoreError(error, 'Failed to update objective progress')
       throw error
     }
   }
@@ -86,3 +93,7 @@ export const useObjectivesStore = defineStore('objectives', () => {
     updateProgress,
   }
 })
+
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useObjectivesStore, import.meta.hot))
+}

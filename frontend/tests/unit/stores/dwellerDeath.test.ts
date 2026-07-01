@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import axios from '@/core/plugins/axios'
+import * as http from '@/core/plugins/httpClient'
 
-vi.mock('@/core/plugins/axios')
+vi.mock('@/core/plugins/httpClient')
 vi.mock('@/core/utils/errorHandler', () => ({
   handleStoreError: vi.fn(),
 }))
@@ -45,12 +45,12 @@ describe('DwellerDeath Store', () => {
         { id: 'd1', first_name: 'John', last_name: 'Doe', level: 5, cause_of_death: 'Radiation' },
         { id: 'd2', first_name: 'Jane', last_name: 'Smith', level: 3, cause_of_death: 'Combat' },
       ]
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockDead })
+      vi.mocked(http.apiGet).mockResolvedValueOnce(mockDead)
 
       const store = useDwellerDeathStore()
       const result = await store.fetchDeadDwellers('vault-1', 'test-token')
 
-      expect(axios.get).toHaveBeenCalledWith(
+      expect(http.apiGet).toHaveBeenCalledWith(
         '/api/v1/dwellers/vault/vault-1/dead',
         expect.objectContaining({
           headers: { Authorization: 'Bearer test-token' },
@@ -62,7 +62,7 @@ describe('DwellerDeath Store', () => {
     })
 
     it('should handle errors gracefully', async () => {
-      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Network error'))
+      vi.mocked(http.apiGet).mockRejectedValueOnce(new Error('Network error'))
 
       const store = useDwellerDeathStore()
       const result = await store.fetchDeadDwellers('vault-1', 'test-token')
@@ -73,7 +73,7 @@ describe('DwellerDeath Store', () => {
     })
 
     it('should track loading count correctly with concurrent calls', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      vi.mocked(http.apiGet).mockResolvedValue([])
 
       const store = useDwellerDeathStore()
       const p1 = store.fetchDeadDwellers('vault-1', 'token')
@@ -94,12 +94,12 @@ describe('DwellerDeath Store', () => {
       const mockGraveyard = [
         { id: 'd3', first_name: 'Dead', last_name: 'Dweller', level: 10, cause_of_death: 'Old age' },
       ]
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockGraveyard })
+      vi.mocked(http.apiGet).mockResolvedValueOnce(mockGraveyard)
 
       const store = useDwellerDeathStore()
       const result = await store.fetchGraveyardDwellers('vault-1', 'test-token')
 
-      expect(axios.get).toHaveBeenCalledWith(
+      expect(http.apiGet).toHaveBeenCalledWith(
         '/api/v1/dwellers/vault/vault-1/graveyard',
         expect.objectContaining({
           headers: { Authorization: 'Bearer test-token' },
@@ -110,7 +110,7 @@ describe('DwellerDeath Store', () => {
     })
 
     it('should handle errors gracefully', async () => {
-      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Network error'))
+      vi.mocked(http.apiGet).mockRejectedValueOnce(new Error('Network error'))
 
       const store = useDwellerDeathStore()
       const result = await store.fetchGraveyardDwellers('vault-1', 'test-token')
@@ -122,12 +122,12 @@ describe('DwellerDeath Store', () => {
   describe('getRevivalCost', () => {
     it('should fetch revival cost', async () => {
       const mockCost = { caps_cost: 500, stimpak_cost: 2 }
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockCost })
+      vi.mocked(http.apiGet).mockResolvedValueOnce(mockCost)
 
       const store = useDwellerDeathStore()
       const result = await store.getRevivalCost('d1', 'test-token')
 
-      expect(axios.get).toHaveBeenCalledWith(
+      expect(http.apiGet).toHaveBeenCalledWith(
         '/api/v1/dwellers/d1/revival_cost',
         expect.objectContaining({
           headers: { Authorization: 'Bearer test-token' },
@@ -137,7 +137,7 @@ describe('DwellerDeath Store', () => {
     })
 
     it('should return null on error', async () => {
-      vi.mocked(axios.get).mockRejectedValueOnce(new Error('API error'))
+      vi.mocked(http.apiGet).mockRejectedValueOnce(new Error('API error'))
 
       const store = useDwellerDeathStore()
       const result = await store.getRevivalCost('d1', 'test-token')
@@ -153,7 +153,7 @@ describe('DwellerDeath Store', () => {
         caps_spent: 500,
         stimpaks_used: 2,
       }
-      vi.mocked(axios.post).mockResolvedValueOnce({ data: mockResponse })
+      vi.mocked(http.apiPost).mockResolvedValueOnce(mockResponse)
 
       const store = useDwellerDeathStore()
       store.deadDwellers = [
@@ -163,7 +163,7 @@ describe('DwellerDeath Store', () => {
 
       const result = await store.reviveDweller('d1', 'test-token')
 
-      expect(axios.post).toHaveBeenCalledWith(
+      expect(http.apiPost).toHaveBeenCalledWith(
         '/api/v1/dwellers/d1/revive',
         null,
         expect.objectContaining({
@@ -176,7 +176,7 @@ describe('DwellerDeath Store', () => {
     })
 
     it('should return null on error', async () => {
-      vi.mocked(axios.post).mockRejectedValueOnce(new Error('Revive failed'))
+      vi.mocked(http.apiPost).mockRejectedValueOnce(new Error('Revive failed'))
 
       const store = useDwellerDeathStore()
       const result = await store.reviveDweller('d1', 'test-token')

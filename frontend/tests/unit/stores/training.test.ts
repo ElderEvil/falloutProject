@@ -3,7 +3,6 @@ import { setActivePinia, createPinia } from 'pinia'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { getErrorMessage } from '@/core/types/utils'
 
-vi.mock('@/core/plugins/axios')
 vi.mock('@/core/types/utils', () => ({
   getErrorMessage: vi.fn((e) => (e as Error).message || 'Unknown error'),
 }))

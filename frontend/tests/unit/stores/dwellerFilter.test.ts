@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { ref } from 'vue'
-import axios from '@/core/plugins/axios'
+import * as http from '@/core/plugins/httpClient'
 
-vi.mock('@/core/plugins/axios')
+vi.mock('@/core/plugins/httpClient')
 vi.mock('@/core/utils/errorHandler', () => ({
   handleStoreError: vi.fn(),
 }))
@@ -42,12 +42,12 @@ describe('DwellerFilter Store', () => {
         { id: 'd1', first_name: 'John', last_name: 'Doe', status: 'idle', level: 5, happiness: 75 },
         { id: 'd2', first_name: 'Jane', last_name: 'Smith', status: 'working', level: 3, happiness: 80 },
       ]
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockDwellers })
+      vi.mocked(http.apiGet).mockResolvedValueOnce(mockDwellers)
 
       const store = useDwellerFilterStore()
       await store.fetchDwellersByVault('vault-1', 'test-token')
 
-      expect(axios.get).toHaveBeenCalledWith(
+      expect(http.apiGet).toHaveBeenCalledWith(
         '/api/v1/dwellers/vault/vault-1/',
         expect.objectContaining({
           headers: { Authorization: 'Bearer test-token' },
@@ -58,7 +58,7 @@ describe('DwellerFilter Store', () => {
     })
 
     it('should pass filter parameters as query string', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
+      vi.mocked(http.apiGet).mockResolvedValueOnce([])
 
       const store = useDwellerFilterStore()
       await store.fetchDwellersByVault('vault-1', 'test-token', {
@@ -68,7 +68,7 @@ describe('DwellerFilter Store', () => {
         limit: 20,
       })
 
-      const url = vi.mocked(axios.get).mock.calls[0][0] as string
+      const url = vi.mocked(http.apiGet).mock.calls[0][0] as string
       expect(url).toContain('status=working')
       expect(url).toContain('sort_by=level')
       expect(url).toContain('order=desc')
@@ -76,7 +76,7 @@ describe('DwellerFilter Store', () => {
     })
 
     it('should handle errors gracefully', async () => {
-      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Network error'))
+      vi.mocked(http.apiGet).mockRejectedValueOnce(new Error('Network error'))
 
       const store = useDwellerFilterStore()
       await store.fetchDwellersByVault('vault-1', 'test-token')
@@ -86,7 +86,7 @@ describe('DwellerFilter Store', () => {
     })
 
     it('should not pass default filter values', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
+      vi.mocked(http.apiGet).mockResolvedValueOnce([])
 
       const store = useDwellerFilterStore()
       await store.fetchDwellersByVault('vault-1', 'test-token', {
@@ -94,7 +94,7 @@ describe('DwellerFilter Store', () => {
         ageGroup: 'all',
       })
 
-      const url = vi.mocked(axios.get).mock.calls[0][0] as string
+      const url = vi.mocked(http.apiGet).mock.calls[0][0] as string
       expect(url).not.toContain('status=')
       expect(url).not.toContain('age_group=')
     })
@@ -103,7 +103,7 @@ describe('DwellerFilter Store', () => {
   describe('fetchDwellerDetails', () => {
     it('should fetch and cache dweller details', async () => {
       const mockDweller = { id: 'd1', first_name: 'John', last_name: 'Doe', strength: 5, perception: 5 }
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockDweller })
+      vi.mocked(http.apiGet).mockResolvedValueOnce(mockDweller)
 
       const store = useDwellerFilterStore()
       const result = await store.fetchDwellerDetails('550e8400-e29b-41d4-a716-446655440000', 'test-token')
@@ -114,29 +114,29 @@ describe('DwellerFilter Store', () => {
 
     it('should use cached result when available', async () => {
       const mockDweller = { id: 'd1', first_name: 'John', last_name: 'Doe' }
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockDweller })
+      vi.mocked(http.apiGet).mockResolvedValueOnce(mockDweller)
 
       const store = useDwellerFilterStore()
       await store.fetchDwellerDetails('550e8400-e29b-41d4-a716-446655440000', 'test-token')
-      vi.mocked(axios.get).mockClear()
+      vi.mocked(http.apiGet).mockClear()
 
       const result = await store.fetchDwellerDetails('550e8400-e29b-41d4-a716-446655440000', 'test-token')
 
-      expect(axios.get).not.toHaveBeenCalled()
+      expect(http.apiGet).not.toHaveBeenCalled()
       expect(result).toEqual(mockDweller)
     })
 
     it('should bypass cache when forceRefresh is true', async () => {
       const mockDweller = { id: 'd1', first_name: 'John', last_name: 'Doe' }
-      vi.mocked(axios.get).mockResolvedValue({ data: mockDweller })
+      vi.mocked(http.apiGet).mockResolvedValue(mockDweller)
 
       const store = useDwellerFilterStore()
       await store.fetchDwellerDetails('550e8400-e29b-41d4-a716-446655440000', 'test-token')
-      vi.mocked(axios.get).mockClear()
+      vi.mocked(http.apiGet).mockClear()
 
       await store.fetchDwellerDetails('550e8400-e29b-41d4-a716-446655440000', 'test-token', true)
 
-      expect(axios.get).toHaveBeenCalledTimes(1)
+      expect(http.apiGet).toHaveBeenCalledTimes(1)
     })
 
     it('should return null for invalid UUID', async () => {
@@ -144,7 +144,7 @@ describe('DwellerFilter Store', () => {
       const result = await store.fetchDwellerDetails('not-a-uuid', 'test-token')
 
       expect(result).toBeNull()
-      expect(axios.get).not.toHaveBeenCalled()
+      expect(http.apiGet).not.toHaveBeenCalled()
     })
   })
 

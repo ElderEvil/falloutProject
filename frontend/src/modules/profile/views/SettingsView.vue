@@ -451,7 +451,7 @@
 import { ref, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useToast } from '@/core/composables/useToast'
-import apiClient from '@/core/plugins/axios'
+import { apiGet } from '@/core/plugins/httpClient'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import UCard from '@/core/components/ui/UCard.vue'
 import UTabs from '@/core/components/ui/UTabs.vue'
@@ -478,8 +478,7 @@ const error = ref<string | null>(null)
 
 async function loadSettings() {
   try {
-    const response = await apiClient.get('/api/v1/game/balance')
-    settings.value = response.data
+    settings.value = await apiGet<any>('/api/v1/game/balance')
   } catch (err) {
     error.value = 'Failed to load game balance settings'
     showError('Failed to load game balance settings')

@@ -1,4 +1,5 @@
 import type { Component } from 'vue'
+import { ApiError } from '@/core/plugins/httpClient'
 
 /**
  * Generic API response wrapper
@@ -10,9 +11,9 @@ export interface ApiResponse<T> {
 }
 
 /**
- * Structured API error type
+ * Structured API error type (legacy interface — prefer `ApiError` class from httpClient)
  */
-export interface ApiError {
+export interface ApiErrorType {
   message: string
   status?: number
   detail?: string
@@ -38,22 +39,25 @@ export interface PaginatedResponse<T> {
 /**
  * Async operation result wrapper
  */
-export type AsyncResult<T, E = ApiError> = { success: true; data: T } | { success: false; error: E }
+export type AsyncResult<T, E = ApiErrorType> =
+  | { success: true; data: T }
+  | { success: false; error: E }
 
 /**
- * Type guard to check if an error is an ApiError
+ * Type guard to check if an error is an ApiErrorType (legacy interface)
  */
-export function isApiError(error: unknown): error is ApiError {
+export function isApiError(error: unknown): error is ApiErrorType {
   return (
     typeof error === 'object' &&
     error !== null &&
     'message' in error &&
-    typeof (error as ApiError).message === 'string'
+    typeof (error as ApiErrorType).message === 'string'
   )
 }
 
 /**
- * Type guard to check if an error has a response property (Axios error)
+ * Type guard to check if an error is a legacy Axios-shaped error.
+ * @deprecated Use `error instanceof ApiError` from `@/core/plugins/httpClient` instead.
  */
 export function isAxiosError(
   error: unknown
@@ -68,9 +72,13 @@ export function isAxiosError(
 }
 
 /**
- * Extract error message from unknown error type
+ * Extract error message from unknown error type.
+ * Handles httpClient ApiError, legacy Axios errors, and generic errors.
  */
 export function getErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    return typeof error.detail === 'string' ? error.detail : error.message
+  }
   if (isAxiosError(error)) {
     return error.response.data.detail || error.response.data.message || 'An error occurred'
   }
@@ -87,9 +95,16 @@ export function getErrorMessage(error: unknown): string {
 }
 
 /**
- * Convert unknown error to ApiError
+ * Convert unknown error to ApiErrorType (legacy interface)
  */
-export function toApiError(error: unknown): ApiError {
+export function toApiError(error: unknown): ApiErrorType {
+  if (error instanceof ApiError) {
+    return {
+      message: typeof error.detail === 'string' ? error.detail : error.message,
+      status: error.status,
+      detail: typeof error.detail === 'string' ? error.detail : undefined,
+    }
+  }
   if (isApiError(error)) {
     return error
   }

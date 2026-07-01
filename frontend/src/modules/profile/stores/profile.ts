@@ -1,8 +1,8 @@
-import { defineStore } from 'pinia'
+import { defineStore, acceptHMRUpdate } from 'pinia'
 import { ref, computed } from 'vue'
 import type { UserProfile, ProfileUpdate } from '../models/profile'
 import type { AIUsageStats } from '../models/aiUsage'
-import axios from '@/core/plugins/axios'
+import { apiGet, apiPut, ApiError } from '@/core/plugins/httpClient'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
 
 export interface DeathStatistics {
@@ -49,16 +49,19 @@ export const useProfileStore = defineStore('profile', () => {
     loading.value = true
     error.value = null
     try {
-      const response = await axios.get<UserProfile>('/api/v1/users/me/profile')
-      profile.value = response.data
+      profile.value = await apiGet<UserProfile>('/api/v1/users/me/profile')
 
       // Load user's preferred theme if available
       const { loadUserTheme } = useTheme()
       if (profile.value.preferences?.theme) {
         loadUserTheme(profile.value.preferences.theme as ThemeName)
       }
-    } catch (err: any) {
-      error.value = err.response?.data?.detail || 'Failed to fetch profile'
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        error.value = typeof err.detail === 'string' ? err.detail : 'Failed to fetch profile'
+      } else {
+        error.value = 'Failed to fetch profile'
+      }
       throw err
     } finally {
       loading.value = false
@@ -69,16 +72,19 @@ export const useProfileStore = defineStore('profile', () => {
     loading.value = true
     error.value = null
     try {
-      const response = await axios.put<UserProfile>('/api/v1/users/me/profile', data)
-      profile.value = response.data
+      profile.value = await apiPut<UserProfile>('/api/v1/users/me/profile', data)
 
       // Update theme if it changed
       const { loadUserTheme } = useTheme()
       if (profile.value.preferences?.theme) {
         loadUserTheme(profile.value.preferences.theme as ThemeName)
       }
-    } catch (err: any) {
-      error.value = err.response?.data?.detail || 'Failed to update profile'
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        error.value = typeof err.detail === 'string' ? err.detail : 'Failed to update profile'
+      } else {
+        error.value = 'Failed to update profile'
+      }
       throw err
     } finally {
       loading.value = false
@@ -88,11 +94,15 @@ export const useProfileStore = defineStore('profile', () => {
   async function fetchDeathStatistics(): Promise<DeathStatistics | null> {
     deathStatsLoading.value = true
     try {
-      const response = await axios.get<DeathStatistics>('/api/v1/users/me/profile/statistics')
-      deathStatistics.value = response.data
-      return response.data
-    } catch (err: any) {
-      console.error('Failed to fetch death statistics:', err)
+      const data = await apiGet<DeathStatistics>('/api/v1/users/me/profile/statistics')
+      deathStatistics.value = data
+      return data
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        console.error('Failed to fetch death statistics:', err.message)
+      } else {
+        console.error('Failed to fetch death statistics:', err)
+      }
       return null
     } finally {
       deathStatsLoading.value = false
@@ -102,11 +112,15 @@ export const useProfileStore = defineStore('profile', () => {
   async function fetchAIUsage(): Promise<AIUsageStats | null> {
     aiUsageLoading.value = true
     try {
-      const response = await axios.get<AIUsageStats>('/api/v1/users/me/profile/ai-usage')
-      aiUsageStats.value = response.data
-      return response.data
-    } catch (err: any) {
-      console.error('Failed to fetch AI usage:', err)
+      const data = await apiGet<AIUsageStats>('/api/v1/users/me/profile/ai-usage')
+      aiUsageStats.value = data
+      return data
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        console.error('Failed to fetch AI usage:', err.message)
+      } else {
+        console.error('Failed to fetch AI usage:', err)
+      }
       return null
     } finally {
       aiUsageLoading.value = false
@@ -142,3 +156,7 @@ export const useProfileStore = defineStore('profile', () => {
     clearError,
   }
 })
+
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useProfileStore, import.meta.hot))
+}

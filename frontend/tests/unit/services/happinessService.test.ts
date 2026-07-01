@@ -1,9 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { happinessService } from '@/modules/dwellers/services/happinessService'
-import type { AxiosResponse } from 'axios'
-import apiClient from '@/core/plugins/axios'
+import * as http from '@/core/plugins/httpClient'
 
-vi.mock('@/core/plugins/axios')
+vi.mock('@/core/plugins/httpClient')
 
 describe('happinessService', () => {
   beforeEach(() => {
@@ -12,33 +11,27 @@ describe('happinessService', () => {
 
   describe('getDwellerModifiers', () => {
     it('should fetch happiness modifiers for a dweller', async () => {
-      const mockResponse: AxiosResponse = {
-        data: {
-          current_happiness: 75,
-          positive: [
-            { name: 'Working', value: 2.0 },
-            { name: 'High Health', value: 1.0 },
-          ],
-          negative: [{ name: 'Base Decay', value: -0.5 }],
-        },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {} as any,
+      const mockData = {
+        current_happiness: 75,
+        positive: [
+          { name: 'Working', value: 2.0 },
+          { name: 'High Health', value: 1.0 },
+        ],
+        negative: [{ name: 'Base Decay', value: -0.5 }],
       }
 
-      vi.mocked(apiClient.get).mockResolvedValue(mockResponse)
+      vi.mocked(http.apiGet).mockResolvedValue(mockData)
 
       const result = await happinessService.getDwellerModifiers('dweller-123')
 
-      expect(apiClient.get).toHaveBeenCalledWith('/api/v1/dwellers/dweller-123/happiness_modifiers')
-      expect(result.data.current_happiness).toBe(75)
-      expect(result.data.positive).toHaveLength(2)
-      expect(result.data.negative).toHaveLength(1)
+      expect(http.apiGet).toHaveBeenCalledWith('/api/v1/dwellers/dweller-123/happiness_modifiers')
+      expect(result.current_happiness).toBe(75)
+      expect(result.positive).toHaveLength(2)
+      expect(result.negative).toHaveLength(1)
     })
 
     it('should handle API errors', async () => {
-      vi.mocked(apiClient.get).mockRejectedValue(new Error('API Error'))
+      vi.mocked(http.apiGet).mockRejectedValue(new Error('API Error'))
 
       await expect(happinessService.getDwellerModifiers('dweller-123')).rejects.toThrow('API Error')
     })

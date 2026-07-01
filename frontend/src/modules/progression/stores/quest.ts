@@ -1,9 +1,9 @@
-import { defineStore } from 'pinia'
+import { defineStore, acceptHMRUpdate } from 'pinia'
 import { computed, ref } from 'vue'
-import axios from '@/core/plugins/axios'
+import * as http from '@/core/plugins/httpClient'
+import { handleStoreError } from '@/core/utils/errorHandler'
 import type { Quest, QuestPartyMember, VaultQuest } from '../models/quest'
 import { useToast } from '@/core/composables/useToast'
-import { useAuthStore } from '@/modules/auth/stores/auth'
 
 interface QuestCompleteResponse {
   quest_id: string
@@ -20,18 +20,12 @@ interface QuestCompleteResponse {
 
 export const useQuestStore = defineStore('quest', () => {
   const toast = useToast()
-  const authStore = useAuthStore()
 
   // State
   const quests = ref<Quest[]>([])
   const vaultQuests = ref<VaultQuest[]>([])
   const isLoading = ref(false)
   const questPartyMap = ref<Record<string, QuestPartyMember[]>>({})
-
-  const getAuthHeaders = () => {
-    const token = authStore.token || localStorage.getItem('token')?.replace(/^"|"$/g, '')
-    return token ? { Authorization: `Bearer ${token}` } : {}
-  }
 
   // Computed
   // Single pass classification of all vault quests
@@ -60,10 +54,9 @@ export const useQuestStore = defineStore('quest', () => {
   async function fetchAllQuests(): Promise<void> {
     try {
       isLoading.value = true
-      const response = await axios.get<Quest[]>('/api/v1/quests/', { headers: getAuthHeaders() })
-      quests.value = response.data
+      quests.value = await http.apiGet<Quest[]>('/api/v1/quests/', { _skipErrorNotification: true })
     } catch (error: unknown) {
-      console.error('Failed to fetch quests:', error)
+      handleStoreError(error, 'Failed to fetch quests')
       toast.error('Failed to load quests')
       throw error
     } finally {
@@ -74,12 +67,11 @@ export const useQuestStore = defineStore('quest', () => {
   async function fetchVaultQuests(vaultId: string): Promise<void> {
     try {
       isLoading.value = true
-      const response = await axios.get<VaultQuest[]>(`/api/v1/quests/${vaultId}/`, {
-        headers: getAuthHeaders(),
+      vaultQuests.value = await http.apiGet<VaultQuest[]>(`/api/v1/quests/${vaultId}/`, {
+        _skipErrorNotification: true,
       })
-      vaultQuests.value = response.data
     } catch (error: unknown) {
-      console.error('Failed to fetch vault quests:', error)
+      handleStoreError(error, 'Failed to fetch vault quests')
       toast.error('Failed to load vault quests')
       throw error
     } finally {
@@ -105,10 +97,11 @@ export const useQuestStore = defineStore('quest', () => {
 
   async function getQuest(vaultId: string, questId: string): Promise<Quest> {
     try {
-      const response = await axios.get<Quest>(`/api/v1/quests/${vaultId}/${questId}`)
-      return response.data
+      return await http.apiGet<Quest>(`/api/v1/quests/${vaultId}/${questId}`, {
+        _skipErrorNotification: true,
+      })
     } catch (error: unknown) {
-      console.error('Failed to fetch quest:', error)
+      handleStoreError(error, 'Failed to fetch quest')
       toast.error('Failed to load quest details')
       throw error
     }
@@ -116,17 +109,16 @@ export const useQuestStore = defineStore('quest', () => {
 
   async function assignQuest(vaultId: string, questId: string, isVisible = true): Promise<void> {
     try {
-      await axios.post(`/api/v1/quests/${vaultId}/${questId}/assign`, null, {
-        params: { is_visible: isVisible },
-      })
+      await http.apiPost(
+        `/api/v1/quests/${vaultId}/${questId}/assign?is_visible=${isVisible}`,
+        undefined,
+        { _skipErrorNotification: true }
+      )
       toast.success('Quest assigned successfully')
       // Refresh vault quests
       await fetchVaultQuests(vaultId)
     } catch (error: unknown) {
-      const errorMessage =
-        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        'Failed to assign quest'
-      console.error('Failed to assign quest:', error)
+      const errorMessage = handleStoreError(error, 'Failed to assign quest')
       toast.error(errorMessage)
       throw error
     }
@@ -137,10 +129,11 @@ export const useQuestStore = defineStore('quest', () => {
     questId: string
   ): Promise<QuestCompleteResponse | null> {
     try {
-      const response = await axios.post<QuestCompleteResponse>(
-        `/api/v1/quests/${vaultId}/${questId}/complete`
+      const result = await http.apiPost<QuestCompleteResponse>(
+        `/api/v1/quests/${vaultId}/${questId}/complete`,
+        undefined,
+        { _skipErrorNotification: true }
       )
-      const result = response.data
 
       if (result.granted_rewards && result.granted_rewards.length > 0) {
         const rewardsText = result.granted_rewards
@@ -154,10 +147,7 @@ export const useQuestStore = defineStore('quest', () => {
       await fetchVaultQuests(vaultId)
       return result
     } catch (error: unknown) {
-      const errorMessage =
-        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        'Failed to complete quest'
-      console.error('Failed to complete quest:', error)
+      const errorMessage = handleStoreError(error, 'Failed to complete quest')
       toast.error(errorMessage)
       throw error
     }
@@ -169,16 +159,15 @@ export const useQuestStore = defineStore('quest', () => {
     dwellerIds: string[]
   ): Promise<void> {
     try {
-      await axios.post(`/api/v1/quests/${vaultId}/${questId}/assign-party`, {
-        dweller_ids: dwellerIds,
-      })
+      await http.apiPost(
+        `/api/v1/quests/${vaultId}/${questId}/assign-party`,
+        { dweller_ids: dwellerIds },
+        { _skipErrorNotification: true }
+      )
       toast.success('Party assigned successfully')
       await fetchVaultQuests(vaultId)
     } catch (error: unknown) {
-      const errorMessage =
-        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        'Failed to assign party'
-      console.error('Failed to assign party:', error)
+      const errorMessage = handleStoreError(error, 'Failed to assign party')
       toast.error(errorMessage)
       throw error
     }
@@ -186,12 +175,12 @@ export const useQuestStore = defineStore('quest', () => {
 
   async function getParty(vaultId: string, questId: string): Promise<QuestPartyMember[]> {
     try {
-      const response = await axios.get<QuestPartyMember[]>(
-        `/api/v1/quests/${vaultId}/${questId}/party`
+      return await http.apiGet<QuestPartyMember[]>(
+        `/api/v1/quests/${vaultId}/${questId}/party`,
+        { _skipErrorNotification: true }
       )
-      return response.data
     } catch (error: unknown) {
-      console.error('Failed to fetch party:', error)
+      handleStoreError(error, 'Failed to fetch party')
       throw error
     }
   }
@@ -207,24 +196,22 @@ export const useQuestStore = defineStore('quest', () => {
   async function getEligibleDwellers(vaultId: string, questId: string): Promise<EligibleDweller[]> {
     try {
       const url = `/api/v1/quests/${vaultId}/${questId}/eligible-dwellers`
-      const response = await axios.get<EligibleDweller[]>(url)
-      return response.data
+      return await http.apiGet<EligibleDweller[]>(url, { _skipErrorNotification: true })
     } catch (error: unknown) {
-      console.error('Failed to fetch eligible dwellers:', error)
+      handleStoreError(error, 'Failed to fetch eligible dwellers')
       throw error
     }
   }
 
   async function startQuest(vaultId: string, questId: string): Promise<void> {
     try {
-      await axios.post(`/api/v1/quests/${vaultId}/${questId}/start`)
+      await http.apiPost(`/api/v1/quests/${vaultId}/${questId}/start`, undefined, {
+        _skipErrorNotification: true,
+      })
       toast.success('Quest started!')
       await fetchVaultQuests(vaultId)
     } catch (error: unknown) {
-      const errorMessage =
-        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        'Failed to start quest'
-      console.error('Failed to start quest:', error)
+      const errorMessage = handleStoreError(error, 'Failed to start quest')
       toast.error(errorMessage)
       throw error
     }
@@ -248,3 +235,7 @@ export const useQuestStore = defineStore('quest', () => {
     startQuest,
   }
 })
+
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useQuestStore, import.meta.hot))
+}

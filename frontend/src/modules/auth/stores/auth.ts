@@ -1,5 +1,5 @@
 import { computed } from 'vue'
-import { defineStore } from 'pinia'
+import { defineStore, acceptHMRUpdate } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { authService } from '../services/authService'
@@ -31,8 +31,8 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await authService.login({ username, password })
 
-      token.value = response.data.access_token
-      refreshToken.value = response.data.refresh_token
+      token.value = response.access_token
+      refreshToken.value = response.refresh_token
 
       if (!token.value || !refreshToken.value) {
         return false
@@ -50,8 +50,8 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await authService.register({ username, email, password })
 
-      token.value = response.data.access_token
-      refreshToken.value = response.data.refresh_token
+      token.value = response.access_token
+      refreshToken.value = response.refresh_token
 
       if (!token.value || !refreshToken.value) {
         return false
@@ -63,7 +63,7 @@ export const useAuthStore = defineStore('auth', () => {
         refresh_token: _refresh_token,
         token_type: _token_type,
         ...userData
-      } = response.data
+      } = response
       user.value = userData
 
       return true
@@ -78,7 +78,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       const response = await authService.getCurrentUser()
-      user.value = response.data
+      user.value = response
     } catch (error) {
       handleStoreError(error, 'Failed to fetch user')
       await logout()
@@ -90,10 +90,10 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       const response = await authService.refreshToken(refreshToken.value)
-      token.value = response.data.access_token
+      token.value = response.access_token
       // Backend rotates refresh tokens, so update it
-      if (response.data.refresh_token) {
-        refreshToken.value = response.data.refresh_token
+      if (response.refresh_token) {
+        refreshToken.value = response.refresh_token
       }
     } catch (error) {
       handleStoreError(error, 'Failed to refresh token')
@@ -137,3 +137,7 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
   }
 })
+
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useAuthStore, import.meta.hot))
+}

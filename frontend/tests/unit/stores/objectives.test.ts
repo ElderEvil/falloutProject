@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useObjectivesStore } from '@/modules/progression/stores/objectives'
-import axios from '@/core/plugins/axios'
+import * as http from '@/core/plugins/httpClient'
 
-vi.mock('@/core/plugins/axios')
+vi.mock('@/core/plugins/httpClient')
 
 describe('Objectives Store', () => {
   let objectivesStore: ReturnType<typeof useObjectivesStore>
@@ -42,41 +42,41 @@ describe('Objectives Store', () => {
           },
         ]
 
-        vi.mocked(axios.get).mockResolvedValueOnce({ data: mockObjectives })
+        vi.mocked(http.apiGet).mockResolvedValueOnce(mockObjectives)
 
         await objectivesStore.fetchObjectives('vault-123')
 
-        expect(axios.get).toHaveBeenCalledWith('/api/v1/objectives/vault-123/', {
-          params: { skip: 0, limit: 100 },
-        })
+        expect(http.apiGet).toHaveBeenCalledWith(
+          '/api/v1/objectives/vault-123/?skip=0&limit=100',
+          expect.objectContaining({ _skipErrorNotification: true })
+        )
         expect(objectivesStore.objectives).toEqual(mockObjectives)
       })
 
       it('should fetch objectives with custom skip and limit', async () => {
         const mockObjectives = [{ id: '1', challenge: 'Test' }]
-        vi.mocked(axios.get).mockResolvedValueOnce({ data: mockObjectives })
+        vi.mocked(http.apiGet).mockResolvedValueOnce(mockObjectives)
 
         await objectivesStore.fetchObjectives('vault-123', 10, 50)
 
-        expect(axios.get).toHaveBeenCalledWith('/api/v1/objectives/vault-123/', {
-          params: { skip: 10, limit: 50 },
-        })
+        expect(http.apiGet).toHaveBeenCalledWith(
+          '/api/v1/objectives/vault-123/?skip=10&limit=50',
+          expect.objectContaining({ _skipErrorNotification: true })
+        )
       })
 
       it('should use correct API endpoint format (bug fix validation)', async () => {
-        // This test validates our fix: changed base path to /api/v1/objectives/${vaultId}/
-        vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
+        vi.mocked(http.apiGet).mockResolvedValueOnce([])
 
         await objectivesStore.fetchObjectives('abc-123')
 
-        const calledUrl = vi.mocked(axios.get).mock.calls[0][0]
-        expect(calledUrl).toBe('/api/v1/objectives/abc-123/')
+        const calledUrl = vi.mocked(http.apiGet).mock.calls[0][0] as string
+        expect(calledUrl.startsWith('/api/v1/objectives/abc-123/')).toBe(true)
         expect(calledUrl).toContain('/objectives/')
-        expect(calledUrl).not.toBe('/api/v1/abc-123/') // Old incorrect format
       })
 
       it('should fetch empty objectives array', async () => {
-        vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
+        vi.mocked(http.apiGet).mockResolvedValueOnce([])
 
         await objectivesStore.fetchObjectives('vault-123')
 
@@ -87,15 +87,15 @@ describe('Objectives Store', () => {
     describe('Error Handling', () => {
       it('should throw error on fetch failure', async () => {
         const error = new Error('Network error')
-        vi.mocked(axios.get).mockRejectedValueOnce(error)
+        vi.mocked(http.apiGet).mockRejectedValueOnce(error)
 
         await expect(objectivesStore.fetchObjectives('vault-123')).rejects.toThrow('Network error')
       })
 
-      it('should log error to console on fetch failure', async () => {
+      it('should log error via handleStoreError on fetch failure', async () => {
         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
         const error = new Error('Fetch failed')
-        vi.mocked(axios.get).mockRejectedValueOnce(error)
+        vi.mocked(http.apiGet).mockRejectedValueOnce(error)
 
         try {
           await objectivesStore.fetchObjectives('vault-123')
@@ -119,45 +119,49 @@ describe('Objectives Store', () => {
         }
         const updatedObjectives = [{ id: '1', ...newObjective, progress: 0, is_completed: false }]
 
-        vi.mocked(axios.post).mockResolvedValueOnce({ data: {} })
-        vi.mocked(axios.get).mockResolvedValueOnce({ data: updatedObjectives })
+        vi.mocked(http.apiPost).mockResolvedValueOnce(undefined)
+        vi.mocked(http.apiGet).mockResolvedValueOnce(updatedObjectives)
 
         await objectivesStore.addObjective('vault-123', newObjective)
 
-        expect(axios.post).toHaveBeenCalledWith('/api/v1/objectives/vault-123/', newObjective)
-        expect(axios.get).toHaveBeenCalledWith('/api/v1/objectives/vault-123/', {
-          params: { skip: 0, limit: 100 },
-        })
+        expect(http.apiPost).toHaveBeenCalledWith(
+          '/api/v1/objectives/vault-123/',
+          newObjective,
+          expect.objectContaining({ _skipErrorNotification: true })
+        )
+        expect(http.apiGet).toHaveBeenCalledWith(
+          '/api/v1/objectives/vault-123/?skip=0&limit=100',
+          expect.objectContaining({ _skipErrorNotification: true })
+        )
         expect(objectivesStore.objectives).toEqual(updatedObjectives)
       })
 
       it('should use correct API endpoint format for add (bug fix validation)', async () => {
-        vi.mocked(axios.post).mockResolvedValueOnce({ data: {} })
-        vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
+        vi.mocked(http.apiPost).mockResolvedValueOnce(undefined)
+        vi.mocked(http.apiGet).mockResolvedValueOnce([])
 
         await objectivesStore.addObjective('vault-456', { challenge: 'Test' })
 
-        const calledUrl = vi.mocked(axios.post).mock.calls[0][0]
+        const calledUrl = vi.mocked(http.apiPost).mock.calls[0][0] as string
         expect(calledUrl).toBe('/api/v1/objectives/vault-456/')
         expect(calledUrl).toContain('/objectives/')
-        expect(calledUrl).not.toBe('/api/v1/vault-456/') // Old incorrect format
       })
     })
 
     describe('Error Handling', () => {
       it('should throw error on add failure', async () => {
         const error = new Error('Add failed')
-        vi.mocked(axios.post).mockRejectedValueOnce(error)
+        vi.mocked(http.apiPost).mockRejectedValueOnce(error)
 
         await expect(
           objectivesStore.addObjective('vault-123', { challenge: 'Test' })
         ).rejects.toThrow('Add failed')
       })
 
-      it('should log error to console on add failure', async () => {
+      it('should log error via handleStoreError on add failure', async () => {
         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
         const error = new Error('Post failed')
-        vi.mocked(axios.post).mockRejectedValueOnce(error)
+        vi.mocked(http.apiPost).mockRejectedValueOnce(error)
 
         try {
           await objectivesStore.addObjective('vault-123', { challenge: 'Test' })
@@ -183,40 +187,42 @@ describe('Objectives Store', () => {
           is_completed: false,
         }
 
-        vi.mocked(axios.get).mockResolvedValueOnce({ data: mockObjective })
+        vi.mocked(http.apiGet).mockResolvedValueOnce(mockObjective)
 
         const result = await objectivesStore.getObjective('vault-123', 'obj-1')
 
-        expect(axios.get).toHaveBeenCalledWith('/api/v1/objectives/vault-123/obj-1')
+        expect(http.apiGet).toHaveBeenCalledWith(
+          '/api/v1/objectives/vault-123/obj-1',
+          expect.objectContaining({ _skipErrorNotification: true })
+        )
         expect(result).toEqual(mockObjective)
       })
 
       it('should use correct API endpoint format for get (bug fix validation)', async () => {
-        vi.mocked(axios.get).mockResolvedValueOnce({ data: {} })
+        vi.mocked(http.apiGet).mockResolvedValueOnce({} as any)
 
         await objectivesStore.getObjective('vault-789', 'obj-xyz')
 
-        const calledUrl = vi.mocked(axios.get).mock.calls[0][0]
+        const calledUrl = vi.mocked(http.apiGet).mock.calls[0][0] as string
         expect(calledUrl).toBe('/api/v1/objectives/vault-789/obj-xyz')
         expect(calledUrl).toContain('/objectives/')
-        expect(calledUrl).not.toBe('/api/v1/vault-789/obj-xyz') // Old incorrect format
       })
     })
 
     describe('Error Handling', () => {
       it('should throw error on get failure', async () => {
         const error = new Error('Not found')
-        vi.mocked(axios.get).mockRejectedValueOnce(error)
+        vi.mocked(http.apiGet).mockRejectedValueOnce(error)
 
         await expect(objectivesStore.getObjective('vault-123', 'obj-1')).rejects.toThrow(
           'Not found'
         )
       })
 
-      it('should log error to console on get failure', async () => {
+      it('should log error via handleStoreError on get failure', async () => {
         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
         const error = new Error('Get failed')
-        vi.mocked(axios.get).mockRejectedValueOnce(error)
+        vi.mocked(http.apiGet).mockRejectedValueOnce(error)
 
         try {
           await objectivesStore.getObjective('vault-123', 'obj-1')
@@ -233,22 +239,25 @@ describe('Objectives Store', () => {
   describe('Integration Scenarios', () => {
     it('should handle complete objective workflow', async () => {
       // Initial fetch
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
+      vi.mocked(http.apiGet).mockResolvedValueOnce([])
       await objectivesStore.fetchObjectives('vault-123')
       expect(objectivesStore.objectives).toEqual([])
 
       // Add objective
       const newObjective = { challenge: 'Test', total: 10, reward: '10 caps' }
-      vi.mocked(axios.post).mockResolvedValueOnce({ data: {} })
-      vi.mocked(axios.get).mockResolvedValueOnce({
-        data: [{ id: '1', ...newObjective, progress: 0, is_completed: false }],
-      })
+      vi.mocked(http.apiPost).mockResolvedValueOnce(undefined)
+      vi.mocked(http.apiGet).mockResolvedValueOnce([
+        { id: '1', ...newObjective, progress: 0, is_completed: false },
+      ])
       await objectivesStore.addObjective('vault-123', newObjective)
       expect(objectivesStore.objectives).toHaveLength(1)
 
       // Get specific objective
-      vi.mocked(axios.get).mockResolvedValueOnce({
-        data: { id: '1', ...newObjective, progress: 5, is_completed: false },
+      vi.mocked(http.apiGet).mockResolvedValueOnce({
+        id: '1',
+        ...newObjective,
+        progress: 5,
+        is_completed: false,
       })
       const objective = await objectivesStore.getObjective('vault-123', '1')
       expect(objective.progress).toBe(5)
@@ -256,16 +265,16 @@ describe('Objectives Store', () => {
 
     it('should handle multiple vaults independently', async () => {
       // Fetch for vault 1
-      vi.mocked(axios.get).mockResolvedValueOnce({
-        data: [{ id: '1', challenge: 'Vault 1 objective' }],
-      })
+      vi.mocked(http.apiGet).mockResolvedValueOnce([
+        { id: '1', challenge: 'Vault 1 objective' },
+      ])
       await objectivesStore.fetchObjectives('vault-1')
       const vault1Objectives = [...objectivesStore.objectives]
 
       // Fetch for vault 2
-      vi.mocked(axios.get).mockResolvedValueOnce({
-        data: [{ id: '2', challenge: 'Vault 2 objective' }],
-      })
+      vi.mocked(http.apiGet).mockResolvedValueOnce([
+        { id: '2', challenge: 'Vault 2 objective' },
+      ])
       await objectivesStore.fetchObjectives('vault-2')
 
       // Store should now have vault 2's objectives
@@ -288,7 +297,7 @@ describe('Objectives Store', () => {
         updated_at: '2025-01-02T00:00:00Z',
       }
 
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: [completeObjective] })
+      vi.mocked(http.apiGet).mockResolvedValueOnce([completeObjective])
       await objectivesStore.fetchObjectives('vault-123')
 
       expect(objectivesStore.objectives[0]).toEqual(completeObjective)
@@ -304,7 +313,7 @@ describe('Objectives Store', () => {
         is_completed: true,
       }
 
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: [completedObjective] })
+      vi.mocked(http.apiGet).mockResolvedValueOnce([completedObjective])
       await objectivesStore.fetchObjectives('vault-123')
 
       expect(objectivesStore.objectives[0].is_completed).toBe(true)

@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
-import apiClient from '@/core/plugins/axios'
+import * as http from '@/core/plugins/httpClient'
 import { changelogService, type ChangelogEntry } from '@/modules/profile/services/changelogService'
+
+vi.mock('@/core/plugins/httpClient')
 
 describe('ChangelogService', () => {
   beforeEach(() => {
@@ -21,7 +23,7 @@ describe('ChangelogService', () => {
         },
       ]
 
-      vi.spyOn(apiClient, 'get').mockResolvedValue({ data: mockData })
+      vi.mocked(http.apiGet).mockResolvedValue(mockData)
 
       const result = await changelogService.getChangelog({ limit: 5 })
 
@@ -34,7 +36,7 @@ describe('ChangelogService', () => {
     })
 
     it('should handle API errors gracefully', async () => {
-      vi.spyOn(apiClient, 'get').mockRejectedValue(new Error('API error'))
+      vi.mocked(http.apiGet).mockRejectedValue(new Error('API error'))
 
       const result = await changelogService.getChangelog({ limit: 1 })
 
@@ -52,7 +54,7 @@ describe('ChangelogService', () => {
         changes: [{ category: 'Added', description: 'New feature' }],
       }
 
-      vi.spyOn(apiClient, 'get').mockResolvedValue({ data: mockData })
+      vi.mocked(http.apiGet).mockResolvedValue(mockData)
 
       const result = await changelogService.getLatestChangelog()
 
@@ -63,7 +65,7 @@ describe('ChangelogService', () => {
     })
 
     it('should return null on API error', async () => {
-      vi.spyOn(apiClient, 'get').mockRejectedValue(new Error('API error'))
+      vi.mocked(http.apiGet).mockRejectedValue(new Error('API error'))
 
       const result = await changelogService.getLatestChangelog()
 
@@ -74,7 +76,7 @@ describe('ChangelogService', () => {
       const error404 = new Error('Not Found')
       ;(error404 as any).response = { status: 404 }
 
-      vi.spyOn(apiClient, 'get').mockRejectedValue(error404)
+      vi.mocked(http.apiGet).mockRejectedValue(error404)
       const consoleSpy = vi.spyOn(console, 'error')
 
       const result = await changelogService.getLatestChangelog()

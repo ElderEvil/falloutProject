@@ -1,5 +1,5 @@
-import { defineStore } from 'pinia'
-import axios from '@/core/plugins/axios'
+import { defineStore, acceptHMRUpdate } from 'pinia'
+import * as http from '@/core/plugins/httpClient'
 import type { Dweller } from '../models/dweller'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
@@ -11,12 +11,12 @@ export const useDwellerGenerationStore = defineStore('dwellerGeneration', () => 
 
   async function generateDwellerInfo(id: string, token: string): Promise<Dweller | null> {
     try {
-      const response = await axios.post(`/api/v1/dwellers/${id}/generate_with_ai/`, null, {
+      const response = await http.apiPost(`/api/v1/dwellers/${id}/generate_with_ai/`, null, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       })
-      filterStore.detailedDwellers[id] = response.data
+      filterStore.detailedDwellers[id] = response
       toast.success('Dweller info generated successfully!')
       return filterStore.detailedDwellers[id] ?? null
     } catch (error) {
@@ -28,12 +28,12 @@ export const useDwellerGenerationStore = defineStore('dwellerGeneration', () => 
 
   async function generateDwellerBio(id: string, token: string): Promise<Dweller | null> {
     try {
-      const response = await axios.post(`/api/v1/dwellers/${id}/generate_backstory/`, null, {
+      const response = await http.apiPost(`/api/v1/dwellers/${id}/generate_backstory/`, null, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       })
-      filterStore.detailedDwellers[id] = response.data
+      filterStore.detailedDwellers[id] = response
       toast.success('Biography generated successfully!')
       return filterStore.detailedDwellers[id] ?? null
     } catch (error) {
@@ -46,12 +46,12 @@ export const useDwellerGenerationStore = defineStore('dwellerGeneration', () => 
   async function generateDwellerPortrait(id: string, token: string): Promise<Dweller | null> {
     try {
       // force=true allows regeneration even if a photo already exists
-      const response = await axios.post(`/api/v1/dwellers/${id}/generate_photo/?force=true`, null, {
+      const response = await http.apiPost(`/api/v1/dwellers/${id}/generate_photo/?force=true`, null, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       })
-      filterStore.detailedDwellers[id] = response.data
+      filterStore.detailedDwellers[id] = response
       toast.success('Portrait generated successfully!')
       return filterStore.detailedDwellers[id] ?? null
     } catch (error) {
@@ -63,7 +63,7 @@ export const useDwellerGenerationStore = defineStore('dwellerGeneration', () => 
 
   async function generateDwellerAppearance(id: string, token: string): Promise<Dweller | null> {
     try {
-      const response = await axios.post(
+      const response = await http.apiPost(
         `/api/v1/dwellers/${id}/generate_visual_attributes/`,
         null,
         {
@@ -72,7 +72,7 @@ export const useDwellerGenerationStore = defineStore('dwellerGeneration', () => 
           },
         }
       )
-      filterStore.detailedDwellers[id] = response.data
+      filterStore.detailedDwellers[id] = response
       toast.success('Appearance generated successfully!')
       return filterStore.detailedDwellers[id] ?? null
     } catch (error) {
@@ -89,3 +89,7 @@ export const useDwellerGenerationStore = defineStore('dwellerGeneration', () => 
     generateDwellerAppearance,
   }
 })
+
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useDwellerGenerationStore, import.meta.hot))
+}

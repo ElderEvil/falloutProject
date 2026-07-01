@@ -1,10 +1,11 @@
-import { defineStore } from 'pinia'
+import { defineStore, acceptHMRUpdate } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { incidentApi } from '../api/incident'
 import type { Incident, IncidentListResponse } from '../models/incident'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import { useSse } from '@/core/composables/useEventStream'
+import { ApiError } from '@/core/plugins/httpClient'
 
 export const useIncidentStore = defineStore('incident', () => {
   const incidents = ref<Map<string, Incident>>(new Map())
@@ -12,7 +13,11 @@ export const useIncidentStore = defineStore('incident', () => {
   const isPolling = ref(false)
   const pollInterval = ref<number | null>(null)
   const sseConnected = ref(false)
-  let sseInstance: ReturnType<typeof useSse> | null = null
+
+  // Reactive refs for SSE lifecycle — drives watchers at store-init
+  const activeVaultId = ref<string | null>(null)
+  const authToken = ref<string>('')
+  const sseInstance = ref<ReturnType<typeof useSse> | null>(null)
   let fallbackTimer: ReturnType<typeof setTimeout> | null = null
 
   const { success: showSuccess, error: showError } = useToast()
@@ -34,10 +39,90 @@ export const useIncidentStore = defineStore('incident', () => {
     return counts
   })
 
+  // --- Top-level watchers (created ONCE at store-init) ---
+
+  // Watch activeVaultId to drive SSE connect/disconnect
+  watch(activeVaultId, (newId, oldId) => {
+    if (oldId) {
+      stopSseSubscription()
+    }
+    if (newId) {
+      startSseSubscription(newId, authToken.value)
+    }
+  })
+
+  // SSE event watcher — reactively follows sseInstance
+  watch(
+    () => sseInstance.value?.event?.value,
+    (evt) => {
+      const vaultId = activeVaultId.value
+      if (!evt || evt.event !== 'incident' || !vaultId) return
+      const data = evt.data as Record<string, unknown> | undefined
+      if (!data || typeof data.type !== 'string') return
+
+      switch (data.type) {
+        case 'incident_spawned':
+          sseConnected.value = true
+          fetchIncidents(vaultId).catch(() => {})
+          break
+
+        case 'incident_resolved': {
+          const resolvedId = data.incident_id as string | undefined
+          if (resolvedId) {
+            activeIncidentIds.value = activeIncidentIds.value.filter((id) => id !== resolvedId)
+            incidents.value.delete(resolvedId)
+          }
+          break
+        }
+
+        case 'incident_spreading': {
+          const spreadId = data.incident_id as string | undefined
+          if (spreadId) {
+            incidentApi
+              .getIncident(vaultId, spreadId)
+              .then((incident) => {
+                incidents.value.set(spreadId, incident)
+              })
+              .catch(() => {})
+          }
+          break
+        }
+      }
+    }
+  )
+
+  // SSE status watcher — handles open/closed for fallback polling
+  watch(
+    () => sseInstance.value?.status?.value,
+    (status) => {
+      const vaultId = activeVaultId.value
+      if (!vaultId) return
+
+      if (status === 'open') {
+        sseConnected.value = true
+        if (pollInterval.value) {
+          clearInterval(pollInterval.value)
+          pollInterval.value = null
+        }
+      } else if (status === 'closed') {
+        sseConnected.value = false
+        fallbackTimer = setTimeout(() => {
+          if (!sseConnected.value && !pollInterval.value) {
+            pollInterval.value = window.setInterval(() => {
+              fetchIncidents(vaultId).catch((err) => {
+                handleStoreError(err, 'Error polling incidents (SSE fallback)')
+              })
+            }, 10000)
+          }
+        }, 30000)
+      }
+    }
+  )
+
   // Actions
-  async function fetchIncidents(vaultId: string, token: string): Promise<void> {
+  async function fetchIncidents(vaultId: string, _token?: string): Promise<void> {
     try {
-      const response: IncidentListResponse = await incidentApi.getActiveIncidents(vaultId, token)
+      const response: IncidentListResponse = await incidentApi.getActiveIncidents(vaultId)
 
       // Safety check
       if (!response || !response.incidents || !Array.isArray(response.incidents)) {
@@ -66,7 +151,7 @@ export const useIncidentStore = defineStore('incident', () => {
       // Fetch full details for each incident
       await Promise.all(
         newIds.map(async (id) => {
-          const incident = await incidentApi.getIncident(vaultId, id, token)
+          const incident = await incidentApi.getIncident(vaultId, id)
           incidents.value.set(id, incident)
         })
       )
@@ -80,11 +165,11 @@ export const useIncidentStore = defineStore('incident', () => {
   async function resolveIncident(
     vaultId: string,
     incidentId: string,
-    token: string,
+    _token?: string,
     success: boolean = true
   ): Promise<void> {
     try {
-      const response = await incidentApi.resolveIncident(vaultId, incidentId, token, success)
+      const response = await incidentApi.resolveIncident(vaultId, incidentId, success)
 
       // Remove from active incidents
       activeIncidentIds.value = activeIncidentIds.value.filter((id) => id !== incidentId)
@@ -107,76 +192,18 @@ export const useIncidentStore = defineStore('incident', () => {
     stopSseSubscription()
 
     const apiBase = import.meta.env.VITE_API_BASE_URL ?? ''
-    sseInstance = useSse(`${apiBase}/api/v1/stream/incidents/${vaultId}`, {
+    const sse = useSse(`${apiBase}/api/v1/stream/incidents/${vaultId}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-    sseInstance.start()
-
-    watch(
-      () => sseInstance?.event.value,
-      (evt) => {
-        if (!evt || evt.event !== 'incident') return
-        const data = evt.data as Record<string, unknown> | undefined
-        if (!data || typeof data.type !== 'string') return
-
-        switch (data.type) {
-          case 'incident_spawned':
-            sseConnected.value = true
-            fetchIncidents(vaultId, token).catch(() => {})
-            break
-
-          case 'incident_resolved': {
-            const resolvedId = data.incident_id as string | undefined
-            if (resolvedId) {
-              activeIncidentIds.value = activeIncidentIds.value.filter((id) => id !== resolvedId)
-              incidents.value.delete(resolvedId)
-            }
-            break
-          }
-
-          case 'incident_spreading': {
-            const spreadId = data.incident_id as string | undefined
-            if (spreadId) {
-              incidentApi.getIncident(vaultId, spreadId, token).then((incident) => {
-                incidents.value.set(spreadId, incident)
-              }).catch(() => {})
-            }
-            break
-          }
-        }
-      }
-    )
-
-    watch(
-      () => sseInstance?.status.value,
-      (status) => {
-        if (status === 'open') {
-          sseConnected.value = true
-          if (pollInterval.value) {
-            clearInterval(pollInterval.value)
-            pollInterval.value = null
-          }
-        } else if (status === 'closed') {
-          sseConnected.value = false
-          fallbackTimer = setTimeout(() => {
-            if (!sseConnected.value && !pollInterval.value) {
-              pollInterval.value = window.setInterval(() => {
-                fetchIncidents(vaultId, token).catch((err) => {
-                  handleStoreError(err, 'Error polling incidents (SSE fallback)')
-                })
-              }, 10000)
-            }
-          }, 30000)
-        }
-      }
-    )
+    sseInstance.value = sse
+    sse.start()
   }
 
   function stopSseSubscription(): void {
-    if (sseInstance) {
-      sseInstance.stopReconnect()
-      sseInstance.close()
-      sseInstance = null
+    if (sseInstance.value) {
+      sseInstance.value.stopReconnect()
+      sseInstance.value.close()
+      sseInstance.value = null
     }
     sseConnected.value = false
     if (fallbackTimer) {
@@ -185,18 +212,19 @@ export const useIncidentStore = defineStore('incident', () => {
     }
   }
 
-  function startPolling(vaultId: string, token: string, intervalMs: number = 10000): void {
+  function startPolling(vaultId: string, token?: string, intervalMs: number = 10000): void {
     if (isPolling.value) {
       stopPolling()
     }
 
     isPolling.value = true
+    authToken.value = token ?? ''
 
-    fetchIncidents(vaultId, token)
-    startSseSubscription(vaultId, token)
+    fetchIncidents(vaultId)
+    activeVaultId.value = vaultId
     pollInterval.value = window.setInterval(() => {
       if (!sseConnected.value) {
-        fetchIncidents(vaultId, token).catch((err) => {
+        fetchIncidents(vaultId).catch((err) => {
           handleStoreError(err, 'Error polling incidents')
         })
       }
@@ -205,6 +233,7 @@ export const useIncidentStore = defineStore('incident', () => {
 
   function stopPolling(): void {
     stopSseSubscription()
+    activeVaultId.value = null
     if (pollInterval.value) {
       clearInterval(pollInterval.value)
       pollInterval.value = null
@@ -223,11 +252,11 @@ export const useIncidentStore = defineStore('incident', () => {
 
   async function spawnDebugIncident(
     vaultId: string,
-    token: string,
+    _token?: string,
     incidentType?: string
   ): Promise<void> {
     try {
-      const result = await incidentApi.spawnIncident(vaultId, token, incidentType)
+      const result = await incidentApi.spawnIncident(vaultId, incidentType)
 
       // Show success notification
       showSuccess(
@@ -235,14 +264,13 @@ export const useIncidentStore = defineStore('incident', () => {
       )
 
       // Immediately fetch updated incidents
-      await fetchIncidents(vaultId, token)
+      await fetchIncidents(vaultId)
     } catch (err: unknown) {
       handleStoreError(err, 'Failed to spawn incident')
 
       let errorMessage = 'Failed to spawn incident'
-      if (err && typeof err === 'object' && 'response' in err) {
-        const axiosError = err as { response?: { data?: { detail?: string } } }
-        errorMessage = axiosError.response?.data?.detail || errorMessage
+      if (err instanceof ApiError) {
+        errorMessage = typeof err.detail === 'string' ? err.detail : errorMessage
       }
 
       showError(`Spawn Failed: ${errorMessage}`)
@@ -271,3 +299,7 @@ export const useIncidentStore = defineStore('incident', () => {
     spawnDebugIncident,
   }
 })
+
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useIncidentStore, import.meta.hot))
+}

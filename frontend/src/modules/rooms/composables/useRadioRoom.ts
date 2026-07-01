@@ -6,7 +6,8 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useToast } from '@/core/composables/useToast'
-import axios from '@/core/plugins/axios'
+import * as http from '@/core/plugins/httpClient'
+import { handleStoreError } from '@/core/utils/errorHandler'
 
 export function useRadioRoom(
   room: Ref<Room | null>,
@@ -50,14 +51,14 @@ export function useRadioRoom(
     }
 
     try {
-      const response = await axios.get(`/api/v1/radio/vault/${vaultIdValue}/stats`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (response.data?.manual_cost_caps) {
-        manualRecruitCost.value = response.data.manual_cost_caps
+      const response = await http.apiGet<{ manual_cost_caps?: number }>(
+        `/api/v1/radio/vault/${vaultIdValue}/stats`
+      )
+      if (response?.manual_cost_caps) {
+        manualRecruitCost.value = response.manual_cost_caps
       }
     } catch (error) {
-      console.error('Failed to load radio stats:', error)
+      handleStoreError(error, 'Failed to load radio stats')
     }
   }
 
@@ -84,13 +85,7 @@ export function useRadioRoom(
     localRadioMode.value = mode
 
     try {
-      await axios.put(
-        `/api/v1/radio/vault/${vaultIdValue}/mode?mode=${mode}`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
+      await http.apiPut(`/api/v1/radio/vault/${vaultIdValue}/mode?mode=${mode}`, {})
 
       await vaultStore.refreshVault(vaultIdValue, token)
 
@@ -98,7 +93,7 @@ export function useRadioRoom(
     } catch (error) {
       localRadioMode.value =
         (vaultStore.activeVault?.radio_mode as 'recruitment' | 'happiness') || 'recruitment'
-      console.error('Failed to switch radio mode:', error)
+      handleStoreError(error, 'Failed to switch radio mode')
       toast.error('Failed to switch radio mode')
     }
   }
@@ -120,19 +115,20 @@ export function useRadioRoom(
 
     isRecruiting.value = true
     try {
-      const response = await axios.post(
+      const response = await http.apiPost<{ message?: string }>(
         `/api/v1/radio/vault/${vaultIdValue}/recruit`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
+        {}
       )
 
-      toast.success(response.data.message || 'Dweller recruited successfully!')
+      toast.success(response?.message || 'Dweller recruited successfully!')
 
       await vaultStore.refreshVault(vaultIdValue, token)
       await dwellerStore.fetchDwellersByVault(vaultIdValue, token)
-    } catch (error: any) {
-      console.error('Failed to recruit dweller:', error)
-      const message = error.response?.data?.detail || 'Failed to recruit dweller'
+    } catch (error) {
+      handleStoreError(error, 'Failed to recruit dweller')
+      const message = error instanceof http.ApiError && error.detail
+        ? (typeof error.detail === 'string' ? error.detail : 'Failed to recruit dweller')
+        : 'Failed to recruit dweller'
       toast.error(message)
     } finally {
       isRecruiting.value = false

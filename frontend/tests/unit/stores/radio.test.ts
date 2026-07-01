@@ -1,9 +1,24 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useRadioStore } from '@/modules/radio/stores/radio'
-import axios from '@/core/plugins/axios'
+import * as http from '@/core/plugins/httpClient'
 
-vi.mock('@/core/plugins/axios')
+vi.mock('@/core/plugins/httpClient')
+
+// Re-import ApiError from the mocked httpClient for synchronous use in tests
+const { ApiError } = vi.hoisted(() => {
+  class ApiError extends Error {
+    status: number
+    detail: unknown
+    constructor(status: number, detail: unknown) {
+      super(typeof detail === 'string' ? detail : 'Unknown error')
+      this.status = status
+      this.detail = detail
+      this.name = 'ApiError'
+    }
+  }
+  return { ApiError }
+})
 
 describe('Radio Store', () => {
   beforeEach(() => {
@@ -46,18 +61,18 @@ describe('Radio Store', () => {
 
   describe('fetchRadioStats', () => {
     it('should fetch radio stats successfully', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockRadioStats })
+      vi.mocked(http.apiGet).mockResolvedValueOnce(mockRadioStats)
 
       const store = useRadioStore()
       await store.fetchRadioStats('vault-1')
 
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/radio/vault/vault-1/stats')
+      expect(http.apiGet).toHaveBeenCalledWith('/api/v1/radio/vault/vault-1/stats')
       expect(store.radioStats).toEqual(mockRadioStats)
       expect(store.isLoading).toBe(false)
     })
 
     it('should handle fetch error', async () => {
-      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Network error'))
+      vi.mocked(http.apiGet).mockRejectedValueOnce(new Error('Network error'))
 
       const store = useRadioStore()
       await store.fetchRadioStats('vault-1')
@@ -69,20 +84,20 @@ describe('Radio Store', () => {
 
   describe('manualRecruit', () => {
     it('should recruit dweller successfully', async () => {
-      vi.mocked(axios.post).mockResolvedValueOnce({ data: mockRecruitmentResponse })
+      vi.mocked(http.apiPost).mockResolvedValueOnce(mockRecruitmentResponse)
 
       const store = useRadioStore()
       const result = await store.manualRecruit('vault-1')
 
-      expect(axios.post).toHaveBeenCalledWith('/api/v1/radio/vault/vault-1/recruit', {})
+      expect(http.apiPost).toHaveBeenCalledWith('/api/v1/radio/vault/vault-1/recruit', {})
       expect(result).toEqual(mockRecruitmentResponse)
       expect(store.isRecruiting).toBe(false)
     })
 
     it('should handle recruitment error', async () => {
-      vi.mocked(axios.post).mockRejectedValueOnce({
-        response: { data: { detail: 'Insufficient caps' } },
-      })
+      vi.mocked(http.apiPost).mockRejectedValueOnce(
+        new ApiError(400, 'Insufficient caps')
+      )
 
       const store = useRadioStore()
       const result = await store.manualRecruit('vault-1')
@@ -92,36 +107,36 @@ describe('Radio Store', () => {
     })
 
     it('should pass override parameters', async () => {
-      vi.mocked(axios.post).mockResolvedValueOnce({ data: mockRecruitmentResponse })
+      vi.mocked(http.apiPost).mockResolvedValueOnce(mockRecruitmentResponse)
 
       const store = useRadioStore()
       const override = { override: { first_name: 'Custom' } }
       await store.manualRecruit('vault-1', override)
 
-      expect(axios.post).toHaveBeenCalledWith('/api/v1/radio/vault/vault-1/recruit', override)
+      expect(http.apiPost).toHaveBeenCalledWith('/api/v1/radio/vault/vault-1/recruit', override)
     })
   })
 
   describe('setRadioMode', () => {
     it('should set radio mode successfully', async () => {
-      vi.mocked(axios.put).mockResolvedValueOnce({
-        data: { message: 'Radio mode set to happiness', radio_mode: 'happiness' },
+      vi.mocked(http.apiPut).mockResolvedValueOnce({
+        message: 'Radio mode set to happiness',
+        radio_mode: 'happiness',
       })
-      vi.mocked(axios.get).mockResolvedValueOnce({
-        data: { ...mockRadioStats, radio_mode: 'happiness' },
+      vi.mocked(http.apiGet).mockResolvedValueOnce({
+        ...mockRadioStats,
+        radio_mode: 'happiness',
       })
 
       const store = useRadioStore()
       const result = await store.setRadioMode('vault-1', 'happiness')
 
-      expect(axios.put).toHaveBeenCalledWith('/api/v1/radio/vault/vault-1/mode', null, {
-        params: { mode: 'happiness' },
-      })
+      expect(http.apiPut).toHaveBeenCalledWith('/api/v1/radio/vault/vault-1/mode?mode=happiness')
       expect(result).toBe(true)
     })
 
     it('should handle mode change error', async () => {
-      vi.mocked(axios.put).mockRejectedValueOnce(new Error('Failed'))
+      vi.mocked(http.apiPut).mockRejectedValueOnce(new Error('Failed'))
 
       const store = useRadioStore()
       const result = await store.setRadioMode('vault-1', 'happiness')
@@ -132,26 +147,26 @@ describe('Radio Store', () => {
 
   describe('setRadioSpeedup', () => {
     it('should set speedup successfully', async () => {
-      vi.mocked(axios.put).mockResolvedValueOnce({
-        data: { message: 'Speedup set', room_id: 'room-1', speedup: 5.0 },
+      vi.mocked(http.apiPut).mockResolvedValueOnce({
+        message: 'Speedup set',
+        room_id: 'room-1',
+        speedup: 5.0,
       })
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockRadioStats })
+      vi.mocked(http.apiGet).mockResolvedValueOnce(mockRadioStats)
 
       const store = useRadioStore()
       const result = await store.setRadioSpeedup('vault-1', 'room-1', 5.0)
 
-      expect(axios.put).toHaveBeenCalledWith(
-        '/api/v1/radio/vault/vault-1/room/room-1/speedup',
-        null,
-        { params: { speedup: 5.0 } }
+      expect(http.apiPut).toHaveBeenCalledWith(
+        '/api/v1/radio/vault/vault-1/room/room-1/speedup?speedup=5'
       )
       expect(result).toBe(true)
     })
 
     it('should handle speedup error', async () => {
-      vi.mocked(axios.put).mockRejectedValueOnce({
-        response: { data: { detail: 'Speedup must be between 1.0 and 10.0' } },
-      })
+      vi.mocked(http.apiPut).mockRejectedValueOnce(
+        new ApiError(400, 'Speedup must be between 1.0 and 10.0')
+      )
 
       const store = useRadioStore()
       const result = await store.setRadioSpeedup('vault-1', 'room-1', 15.0)
@@ -198,7 +213,7 @@ describe('Radio Store', () => {
 
   describe('clearRadioStats', () => {
     it('should clear radio stats', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockRadioStats })
+      vi.mocked(http.apiGet).mockResolvedValueOnce(mockRadioStats)
 
       const store = useRadioStore()
       await store.fetchRadioStats('vault-1')

@@ -1,6 +1,6 @@
 import { ref } from 'vue'
-import { defineStore } from 'pinia'
-import axios from '@/core/plugins/axios'
+import { defineStore, acceptHMRUpdate } from 'pinia'
+import { apiGet, apiPost, apiPut, ApiError } from '@/core/plugins/httpClient'
 import type {
   RadioStats,
   ManualRecruitRequest,
@@ -8,7 +8,7 @@ import type {
   RadioMode,
 } from '../models/radio'
 import { useToast } from '@/core/composables/useToast'
-import { getErrorMessage } from '@/core/types/utils'
+import { handleStoreError } from '@/core/utils/errorHandler'
 
 export const useRadioStore = defineStore('radio', () => {
   const toast = useToast()
@@ -22,11 +22,16 @@ export const useRadioStore = defineStore('radio', () => {
   async function fetchRadioStats(vaultId: string) {
     isLoading.value = true
     try {
-      const response = await axios.get(`/api/v1/radio/vault/${vaultId}/stats`)
-      radioStats.value = response.data
+      radioStats.value = await apiGet<RadioStats>(`/api/v1/radio/vault/${vaultId}/stats`)
     } catch (error: unknown) {
-      console.error('Failed to fetch radio stats:', error)
-      toast.error(getErrorMessage(error))
+      handleStoreError(error, 'Failed to fetch radio stats')
+      toast.error(
+        error instanceof ApiError
+          ? typeof error.detail === 'string'
+            ? error.detail
+            : error.message
+          : 'Failed to fetch radio stats'
+      )
     } finally {
       isLoading.value = false
     }
@@ -38,8 +43,10 @@ export const useRadioStore = defineStore('radio', () => {
   ): Promise<RecruitmentResponse | null> {
     isRecruiting.value = true
     try {
-      const response = await axios.post(`/api/v1/radio/vault/${vaultId}/recruit`, request)
-      const result: RecruitmentResponse = response.data
+      const result = await apiPost<RecruitmentResponse>(
+        `/api/v1/radio/vault/${vaultId}/recruit`,
+        request
+      )
 
       if (result.recycled) {
         toast.success(`📡 ${result.message} A familiar face answers the call from the wastes.`)
@@ -48,8 +55,14 @@ export const useRadioStore = defineStore('radio', () => {
       }
       return result
     } catch (error: unknown) {
-      console.error('Failed to recruit dweller:', error)
-      toast.error(getErrorMessage(error))
+      handleStoreError(error, 'Failed to recruit dweller')
+      toast.error(
+        error instanceof ApiError
+          ? typeof error.detail === 'string'
+            ? error.detail
+            : error.message
+          : 'Failed to recruit dweller'
+      )
       return null
     } finally {
       isRecruiting.value = false
@@ -82,9 +95,7 @@ export const useRadioStore = defineStore('radio', () => {
 
   async function setRadioMode(vaultId: string, mode: RadioMode): Promise<boolean> {
     try {
-      await axios.put(`/api/v1/radio/vault/${vaultId}/mode`, null, {
-        params: { mode },
-      })
+      await apiPut(`/api/v1/radio/vault/${vaultId}/mode?mode=${mode}`)
 
       // Refresh stats after mode change
       await fetchRadioStats(vaultId)
@@ -93,8 +104,14 @@ export const useRadioStore = defineStore('radio', () => {
       toast.success(`Radio mode set to ${modeLabel}`)
       return true
     } catch (error: unknown) {
-      console.error('Failed to set radio mode:', error)
-      toast.error(getErrorMessage(error))
+      handleStoreError(error, 'Failed to set radio mode')
+      toast.error(
+        error instanceof ApiError
+          ? typeof error.detail === 'string'
+            ? error.detail
+            : error.message
+          : 'Failed to set radio mode'
+      )
       return false
     }
   }
@@ -105,9 +122,7 @@ export const useRadioStore = defineStore('radio', () => {
     speedup: number
   ): Promise<boolean> {
     try {
-      await axios.put(`/api/v1/radio/vault/${vaultId}/room/${roomId}/speedup`, null, {
-        params: { speedup },
-      })
+      await apiPut(`/api/v1/radio/vault/${vaultId}/room/${roomId}/speedup?speedup=${speedup}`)
 
       // Refresh stats after speedup change
       await fetchRadioStats(vaultId)
@@ -115,8 +130,14 @@ export const useRadioStore = defineStore('radio', () => {
       toast.success(`Radio speedup set to ${speedup}x`)
       return true
     } catch (error: unknown) {
-      console.error('Failed to set radio speedup:', error)
-      toast.error(getErrorMessage(error))
+      handleStoreError(error, 'Failed to set radio speedup')
+      toast.error(
+        error instanceof ApiError
+          ? typeof error.detail === 'string'
+            ? error.detail
+            : error.message
+          : 'Failed to set radio speedup'
+      )
       return false
     }
   }
@@ -140,3 +161,7 @@ export const useRadioStore = defineStore('radio', () => {
     clearRadioStats,
   }
 })
+
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useRadioStore, import.meta.hot))
+}

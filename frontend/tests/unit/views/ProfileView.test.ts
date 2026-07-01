@@ -7,11 +7,22 @@ import ProfileEditor from '@/modules/profile/components/ProfileEditor.vue'
 import { LifeDeathStatistics } from '@/modules/dwellers/components/death'
 import { useProfileStore } from '@/modules/profile/stores/profile'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import axios from '@/core/plugins/axios'
+import * as http from '@/core/plugins/httpClient'
+import { ApiError } from '@/core/plugins/httpClient'
 import type { UserProfile } from '@/models/profile'
 import type { DeathStatistics } from '@/modules/profile/stores/profile'
 
-vi.mock('@/core/plugins/axios')
+// Manual mock preserves ApiError class so instanceof checks work
+vi.mock('@/core/plugins/httpClient', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/core/plugins/httpClient')>()
+  return {
+    ...actual,
+    apiGet: vi.fn(),
+    apiPut: vi.fn(),
+    apiPost: vi.fn(),
+    apiDelete: vi.fn(),
+  }
+})
 
 describe('ProfileView', () => {
   let router: any
@@ -71,12 +82,12 @@ describe('ProfileView', () => {
 
   // Helper to mock both API calls
   const mockBothApis = () => {
-    vi.mocked(axios.get).mockImplementation((url: string) => {
+    vi.mocked(http.apiGet).mockImplementation((url: string) => {
       if (url === '/api/v1/users/me/profile') {
-        return Promise.resolve({ data: mockProfile })
+        return Promise.resolve(mockProfile)
       }
       if (url === '/api/v1/users/me/profile/statistics') {
-        return Promise.resolve({ data: mockDeathStatistics })
+        return Promise.resolve(mockDeathStatistics)
       }
       return Promise.reject(new Error('Unknown URL'))
     })
@@ -106,7 +117,7 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me/profile')
+      expect(http.apiGet).toHaveBeenCalledWith('/api/v1/users/me/profile')
     })
 
     it('should fetch death statistics on mount', async () => {
@@ -119,14 +130,14 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me/profile/statistics')
+      expect(http.apiGet).toHaveBeenCalledWith('/api/v1/users/me/profile/statistics')
     })
   })
 
   describe('Loading State', () => {
     it('should show loading indicator while fetching profile', async () => {
-      vi.mocked(axios.get).mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve({ data: mockProfile }), 100))
+      vi.mocked(http.apiGet).mockImplementation(
+        () => new Promise((resolve) => setTimeout(() => resolve(mockProfile), 100))
       )
 
       const wrapper = mount(ProfileView, {
@@ -156,9 +167,7 @@ describe('ProfileView', () => {
   describe('Error State', () => {
     it('should display error message on fetch failure', async () => {
       const errorMessage = 'Failed to fetch profile'
-      vi.mocked(axios.get).mockRejectedValueOnce({
-        response: { data: { detail: errorMessage } },
-      })
+      vi.mocked(http.apiGet).mockRejectedValueOnce(new ApiError(500, errorMessage))
 
       const wrapper = mount(ProfileView, {
         global: {
@@ -172,9 +181,7 @@ describe('ProfileView', () => {
     })
 
     it('should show retry button on error', async () => {
-      vi.mocked(axios.get).mockRejectedValueOnce({
-        response: { data: { detail: 'Network error' } },
-      })
+      vi.mocked(http.apiGet).mockRejectedValueOnce(new ApiError(500, 'Network error'))
 
       const wrapper = mount(ProfileView, {
         global: {
@@ -187,14 +194,14 @@ describe('ProfileView', () => {
     })
 
     it('should retry fetching profile when retry button is clicked', async () => {
-      vi.mocked(axios.get)
-        .mockRejectedValueOnce({ response: { data: { detail: 'Network error' } } })
+      vi.mocked(http.apiGet)
+        .mockRejectedValueOnce(new ApiError(500, 'Network error'))
         .mockImplementation((url: string) => {
           if (url === '/api/v1/users/me/profile') {
-            return Promise.resolve({ data: mockProfile })
+            return Promise.resolve(mockProfile)
           }
           if (url === '/api/v1/users/me/profile/statistics') {
-            return Promise.resolve({ data: mockDeathStatistics })
+            return Promise.resolve(mockDeathStatistics)
           }
           return Promise.reject(new Error('Unknown URL'))
         })
@@ -211,7 +218,7 @@ describe('ProfileView', () => {
       await flushPromises()
 
       // Verify profile was retried and succeeded (error message should be gone)
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me/profile')
+      expect(http.apiGet).toHaveBeenCalledWith('/api/v1/users/me/profile')
       expect(wrapper.text()).not.toContain('ERROR: PROFILE LOAD FAILURE')
       expect(wrapper.text()).toContain('Personnel File')
     })
@@ -404,7 +411,7 @@ describe('ProfileView', () => {
     it('should submit profile update when editor emits submit', async () => {
       mockBothApis()
       const updatedProfile = { ...mockProfile, bio: 'Updated bio' }
-      vi.mocked(axios.put).mockResolvedValueOnce({ data: updatedProfile })
+      vi.mocked(http.apiPut).mockResolvedValueOnce(updatedProfile)
 
       const wrapper = mount(ProfileView, {
         global: {
@@ -421,13 +428,13 @@ describe('ProfileView', () => {
       editorComponent.vm.$emit('submit', { bio: 'Updated bio' })
       await flushPromises()
 
-      expect(axios.put).toHaveBeenCalledWith('/api/v1/users/me/profile', { bio: 'Updated bio' })
+      expect(http.apiPut).toHaveBeenCalledWith('/api/v1/users/me/profile', { bio: 'Updated bio' })
     })
 
     it('should exit edit mode after successful update', async () => {
       mockBothApis()
       const updatedProfile = { ...mockProfile, bio: 'Updated bio' }
-      vi.mocked(axios.put).mockResolvedValueOnce({ data: updatedProfile })
+      vi.mocked(http.apiPut).mockResolvedValueOnce(updatedProfile)
 
       const wrapper = mount(ProfileView, {
         global: {
@@ -470,9 +477,7 @@ describe('ProfileView', () => {
 
     it('should stay in edit mode if update fails', async () => {
       mockBothApis()
-      vi.mocked(axios.put).mockRejectedValueOnce({
-        response: { data: { detail: 'Validation error' } },
-      })
+      vi.mocked(http.apiPut).mockRejectedValueOnce(new ApiError(400, 'Validation error'))
 
       const wrapper = mount(ProfileView, {
         global: {
@@ -494,8 +499,8 @@ describe('ProfileView', () => {
 
     it('should pass loading state to editor', async () => {
       mockBothApis()
-      vi.mocked(axios.put).mockImplementationOnce(
-        () => new Promise((resolve) => setTimeout(() => resolve({ data: mockProfile }), 100))
+      vi.mocked(http.apiPut).mockImplementationOnce(
+        () => new Promise((resolve) => setTimeout(() => resolve(mockProfile), 100))
       )
 
       const wrapper = mount(ProfileView, {
@@ -518,9 +523,7 @@ describe('ProfileView', () => {
 
     it('should pass error state to editor', async () => {
       mockBothApis()
-      vi.mocked(axios.put).mockRejectedValueOnce({
-        response: { data: { detail: 'Validation error' } },
-      })
+      vi.mocked(http.apiPut).mockRejectedValueOnce(new ApiError(400, 'Validation error'))
 
       const wrapper = mount(ProfileView, {
         global: {
@@ -568,9 +571,7 @@ describe('ProfileView', () => {
 
     it('should clear error when canceling edit mode', async () => {
       mockBothApis()
-      vi.mocked(axios.put).mockRejectedValueOnce({
-        response: { data: { detail: 'Update error' } },
-      })
+      vi.mocked(http.apiPut).mockRejectedValueOnce(new ApiError(400, 'Update error'))
 
       const wrapper = mount(ProfileView, {
         global: {

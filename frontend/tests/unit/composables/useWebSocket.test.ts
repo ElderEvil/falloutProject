@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
-import { useChatWebSocket } from '@/core/composables/useWebSocket'
+import { useChatWebSocket, useWebSocket } from '@/core/composables/useWebSocket'
 
 /**
  * WebSocket Chat Bug Regression Tests
@@ -156,5 +156,96 @@ describe('Bug #2: WebSocket URL Construction', () => {
         ws.sendMessage('Hello')
       }).not.toThrow()
     })
+  })
+})
+
+describe('useWebSocket send() — no throw when disconnected', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should not throw when sending while not connected (ws is null)', () => {
+    // ARRANGE: Create composable with no URL (stays disconnected)
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const ws = useWebSocket()
+
+    // ACT & ASSERT: Should not throw — previously threw Error('WebSocket not connected')
+    expect(() => ws.send({ type: 'test' })).not.toThrow()
+    expect(warnSpy).toHaveBeenCalledWith('WebSocket not connected, cannot send message')
+
+    warnSpy.mockRestore()
+  })
+
+  it('should not throw when sending in CLOSED readyState', () => {
+    // ARRANGE: Mock the internal ws ref with a CLOSED socket
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const ws = useWebSocket()
+
+    // Simulate a WebSocket that has been closed
+    const mockWs = { readyState: WebSocket.CLOSED, send: vi.fn() } as unknown as WebSocket
+    ws.ws.value = mockWs
+
+    // ACT & ASSERT: Should not throw
+    expect(() => ws.send({ type: 'test' })).not.toThrow()
+    expect(warnSpy).toHaveBeenCalledWith('WebSocket not connected, cannot send message')
+
+    warnSpy.mockRestore()
+  })
+
+  it('should send JSON string when WebSocket is OPEN', async () => {
+    // ARRANGE: Mock WebSocket globally so VueUse can establish a real "connection"
+    const mockSend = vi.fn()
+    let onopenCallback: (() => void) | null = null
+
+    // Create a mock WebSocket that captures the onopen assignment
+    const mockWs: Record<string, unknown> = {
+      readyState: 0 as number,
+      send: mockSend,
+      close: vi.fn(),
+    }
+    Object.defineProperty(mockWs, 'onopen', {
+      set(fn: (() => void) | null) {
+        onopenCallback = fn
+      },
+      get() {
+        return onopenCallback
+      },
+      configurable: true,
+    })
+
+    // Stub global WebSocket with a real constructor function (must be usable with `new`)
+    function MockWebSocket(this: Record<string, unknown>) {
+      return mockWs
+    }
+    MockWebSocket.CONNECTING = 0
+    MockWebSocket.OPEN = 1
+    MockWebSocket.CLOSING = 2
+    MockWebSocket.CLOSED = 3
+
+    vi.stubGlobal('WebSocket', MockWebSocket as unknown as typeof globalThis.WebSocket)
+
+    const composable = useWebSocket('ws://localhost:8000/ws')
+
+    // ARRANGE: Trigger VueUse connection to open the WebSocket
+    composable.connect()
+
+    // Simulate the native WebSocket connecting — this sets VueUse's internal status to "OPEN"
+    mockWs.readyState = 1
+    if (onopenCallback) onopenCallback()
+
+    // Wait for Vue reactivity to settle (status computed → "connected")
+    await vi.waitFor(() => {
+      expect(composable.status.value).toBe('connected')
+    }, { timeout: 1000 })
+
+    // ACT: Send a message now that the WS is connected
+    composable.send({ type: 'test', payload: { value: 42 } })
+
+    // ASSERT: The message was JSON-stringified and sent via the native WebSocket
+    expect(mockSend).toHaveBeenCalledWith(
+      JSON.stringify({ type: 'test', payload: { value: 42 } }),
+    )
+
+    vi.unstubAllGlobals()
   })
 })

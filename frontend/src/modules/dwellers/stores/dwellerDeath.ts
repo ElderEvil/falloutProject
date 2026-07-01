@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
-import { defineStore } from 'pinia'
-import axios from '@/core/plugins/axios'
+import { defineStore, acceptHMRUpdate } from 'pinia'
+import * as http from '@/core/plugins/httpClient'
 import type { DwellerDead, DwellerReviveResponse, RevivalCostResponse } from '../models/dweller'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
@@ -21,13 +21,18 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
   async function fetchDeadDwellers(vaultId: string, token: string): Promise<DwellerDead[]> {
     deadLoadingCount.value++
     try {
-      const response = await axios.get<DwellerDead[]>(`/api/v1/dwellers/vault/${vaultId}/dead`, {
+      const response = await http.apiGet<DwellerDead[]>(`/api/v1/dwellers/vault/${vaultId}/dead`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      })
-      deadDwellers.value = response.data
-      return response.data
+})
+
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useDwellerDeathStore, import.meta.hot))
+}
+
+      deadDwellers.value = response
+      return response
     } catch (error) {
       handleStoreError(error, `Failed to fetch dead dwellers for vault ${vaultId}`)
       return []
@@ -42,7 +47,7 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
   async function fetchGraveyardDwellers(vaultId: string, token: string): Promise<DwellerDead[]> {
     deadLoadingCount.value++
     try {
-      const response = await axios.get<DwellerDead[]>(
+      const response = await http.apiGet<DwellerDead[]>(
         `/api/v1/dwellers/vault/${vaultId}/graveyard`,
         {
           headers: {
@@ -50,8 +55,8 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
           },
         }
       )
-      graveyardDwellers.value = response.data
-      return response.data
+      graveyardDwellers.value = response
+      return response
     } catch (error) {
       handleStoreError(error, `Failed to fetch graveyard for vault ${vaultId}`)
       return []
@@ -68,7 +73,7 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
     token: string
   ): Promise<RevivalCostResponse | null> {
     try {
-      const response = await axios.get<RevivalCostResponse>(
+      const response = await http.apiGet<RevivalCostResponse>(
         `/api/v1/dwellers/${dwellerId}/revival_cost`,
         {
           headers: {
@@ -76,14 +81,9 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
           },
         }
       )
-      return response.data
+      return response
     } catch (error: unknown) {
-      const errorMessage =
-        (
-          error as {
-            response?: { data?: { detail?: string } }
-          }
-        )?.response?.data?.detail || 'Failed to get revival cost'
+      const errorMessage = error instanceof Error ? error.message : 'Failed to get revival cost'
       handleStoreError(error, `Failed to get revival cost for dweller ${dwellerId}`)
       toast.error(errorMessage)
       return null
@@ -98,7 +98,7 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
     token: string
   ): Promise<DwellerReviveResponse | null> {
     try {
-      const response = await axios.post<DwellerReviveResponse>(
+      const response = await http.apiPost<DwellerReviveResponse>(
         `/api/v1/dwellers/${dwellerId}/revive`,
         null,
         {
@@ -112,7 +112,7 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
       deadDwellers.value = deadDwellers.value.filter((d) => d.id !== dwellerId)
 
       // Update or add revived dweller to main list
-      const revivedDweller = response.data.dweller
+      const revivedDweller = response.dweller
       const existingIndex = filterStore.dwellers.findIndex((d) => d.id === dwellerId)
       if (existingIndex !== -1) {
         // Replace existing stale entry with revived dweller data
@@ -132,16 +132,11 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
       }
 
       toast.success(
-        `${revivedDweller.first_name} has been revived! Caps spent: ${response.data.caps_spent}`
+        `${revivedDweller.first_name} has been revived! Caps spent: ${response.caps_spent}`
       )
-      return response.data
+      return response
     } catch (error: unknown) {
-      const errorMessage =
-        (
-          error as {
-            response?: { data?: { detail?: string } }
-          }
-        )?.response?.data?.detail || 'Failed to revive dweller'
+      const errorMessage = error instanceof Error ? error.message : 'Failed to revive dweller'
       handleStoreError(error, `Failed to revive dweller ${dwellerId}`)
       toast.error(errorMessage)
       return null

@@ -7,9 +7,9 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRoomStore } from '@/modules/rooms/stores/room'
-import axios from '@/core/plugins/axios'
+import * as http from '@/core/plugins/httpClient'
 
-vi.mock('@/core/plugins/axios')
+vi.mock('@/core/plugins/httpClient')
 
 describe('DwellersView', () => {
   let router: any
@@ -66,7 +66,7 @@ describe('DwellersView', () => {
 
   describe('Initialization', () => {
     it('should render vault title', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      vi.mocked(http.apiGet).mockResolvedValue([])
 
       await router.isReady()
       const wrapper = mount(DwellersView, {
@@ -80,7 +80,7 @@ describe('DwellersView', () => {
     })
 
     it('should fetch dwellers on mount', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      vi.mocked(http.apiGet).mockResolvedValue([])
 
       await router.isReady()
       mount(DwellersView, {
@@ -91,14 +91,14 @@ describe('DwellersView', () => {
       await flushPromises()
 
       // Should call fetchDwellersByVault with correct params
-      expect(axios.get).toHaveBeenCalledWith(
+      expect(http.apiGet).toHaveBeenCalledWith(
         expect.stringContaining('/api/v1/dwellers/vault/vault-1'),
         expect.any(Object)
       )
     })
 
     it('should fetch rooms on mount', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      vi.mocked(http.apiGet).mockResolvedValue([])
 
       await router.isReady()
       mount(DwellersView, {
@@ -108,11 +108,13 @@ describe('DwellersView', () => {
       })
       await flushPromises()
 
-      // Should fetch both dwellers and rooms
-      expect(axios.get).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/rooms/vault/vault-1'),
-        expect.any(Object)
+      // Should fetch both dwellers and rooms (rooms may be called second)
+      expect(http.apiGet).toHaveBeenCalled()
+      const calls = (http.apiGet as ReturnType<typeof vi.fn>).mock.calls
+      const roomCall = calls.find(
+        (call: unknown[]) => typeof call[0] === 'string' && call[0].includes('/api/v1/rooms/vault/vault-1')
       )
+      expect(roomCall).toBeTruthy()
     })
   })
 
@@ -133,9 +135,9 @@ describe('DwellersView', () => {
         },
       ]
 
-      vi.mocked(axios.get)
-        .mockResolvedValueOnce({ data: mockDwellers }) // fetchDwellersByVault
-        .mockResolvedValueOnce({ data: [] }) // fetchRooms
+      vi.mocked(http.apiGet)
+        .mockResolvedValueOnce(mockDwellers) // fetchDwellersByVault
+        .mockResolvedValueOnce([]) // fetchRooms
 
       await router.isReady()
       const wrapper = mount(DwellersView, {
@@ -159,9 +161,9 @@ describe('DwellersView', () => {
 
   describe('Filter Panel Integration', () => {
     it('should render filter panel', async () => {
-      vi.mocked(axios.get)
-        .mockResolvedValueOnce({ data: [] }) // fetchDwellersByVault
-        .mockResolvedValueOnce({ data: [] }) // fetchRooms
+      vi.mocked(http.apiGet)
+        .mockResolvedValueOnce([]) // fetchDwellersByVault
+        .mockResolvedValueOnce([]) // fetchRooms
 
       await router.isReady()
       const wrapper = mount(DwellersView, {

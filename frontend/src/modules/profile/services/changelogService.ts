@@ -1,4 +1,4 @@
-import apiClient from '@/core/plugins/axios'
+import { apiGet, ApiError } from '@/core/plugins/httpClient'
 
 export interface ChangelogEntry {
   version: string
@@ -16,21 +16,22 @@ class ChangelogService {
   private readonly baseUrl = '/api/v1/system/changelog'
 
   async getChangelog(options?: { limit?: number; since?: string }): Promise<ChangelogEntry[]> {
-    const params: Record<string, number | string> = {}
-
+    const params = new URLSearchParams()
     if (options?.limit !== undefined) {
-      params.limit = options.limit
+      params.set('limit', String(options.limit))
     }
-
     if (options?.since) {
-      params.since = options.since
+      params.set('since', options.since)
     }
+    const queryString = params.toString()
+    const url = queryString ? `${this.baseUrl}?${queryString}` : this.baseUrl
 
     try {
-      const response = await apiClient.get<ChangelogEntry[]>(this.baseUrl, { params })
-      return response.data
-    } catch (error) {
-      if (error instanceof Error) {
+      return await apiGet<ChangelogEntry[]>(url)
+    } catch (error: unknown) {
+      if (error instanceof ApiError) {
+        console.error('Changelog API error:', error.message)
+      } else if (error instanceof Error) {
         console.error('Changelog API error:', error.message)
       } else {
         console.error('Changelog API error:', error)
@@ -41,15 +42,15 @@ class ChangelogService {
 
   async getLatestChangelog(): Promise<ChangelogEntry | null> {
     try {
-      const response = await apiClient.get<ChangelogEntry>(`${this.baseUrl}/latest`)
-      return response.data
-    } catch (error: any) {
-      if (error?.response?.status === 404) {
+      return await apiGet<ChangelogEntry>(`${this.baseUrl}/latest`)
+    } catch (error: unknown) {
+      if (error instanceof ApiError && error.status === 404) {
         // 404 is expected when no changelog exists
         return null
       }
-      // Log other errors
-      if (error instanceof Error) {
+      if (error instanceof ApiError) {
+        console.error('Failed to fetch latest changelog:', error.message)
+      } else if (error instanceof Error) {
         console.error('Failed to fetch latest changelog:', error.message)
       } else {
         console.error('Failed to fetch latest changelog:', error)

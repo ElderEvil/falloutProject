@@ -5,9 +5,9 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import HomeView from '@/modules/vault/views/HomeView.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
-import axios from '@/core/plugins/axios'
+import * as http from '@/core/plugins/httpClient'
 
-vi.mock('@/core/plugins/axios')
+vi.mock('@/core/plugins/httpClient')
 
 describe('HomeView', () => {
   let router: any
@@ -139,7 +139,7 @@ describe('HomeView', () => {
     })
 
     it('should reject negative vault number on submit', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
+      vi.mocked(http.apiGet).mockResolvedValueOnce([])
 
       const wrapper = mount(HomeView, {
         global: {
@@ -154,11 +154,11 @@ describe('HomeView', () => {
 
       // Check for validation error
       expect(wrapper.find('.text-danger').exists()).toBe(true)
-      expect(axios.post).not.toHaveBeenCalled()
+      expect(http.apiPost).not.toHaveBeenCalled()
     })
 
     it('should reject vault number above 999 on submit', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
+      vi.mocked(http.apiGet).mockResolvedValueOnce([])
 
       const wrapper = mount(HomeView, {
         global: {
@@ -173,12 +173,12 @@ describe('HomeView', () => {
 
       // Check for validation error
       expect(wrapper.find('.text-danger').exists()).toBe(true)
-      expect(axios.post).not.toHaveBeenCalled()
+      expect(http.apiPost).not.toHaveBeenCalled()
     })
 
     it('should accept decimal numbers (parseInt converts to integer)', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
-      vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'new-vault' } })
+      vi.mocked(http.apiGet).mockResolvedValueOnce([])
+      vi.mocked(http.apiPost).mockResolvedValueOnce(undefined)
 
       const wrapper = mount(HomeView, {
         global: {
@@ -196,9 +196,9 @@ describe('HomeView', () => {
 
       // parseInt converts 100.5 to 100, which is valid
       // This documents current behavior - decimals are truncated
-      expect(axios.post).toHaveBeenCalledWith(
+      expect(http.apiPost).toHaveBeenCalledWith(
         '/api/v1/vaults/initiate',
-        { number: 100, boosted: false }, // Not 100.5
+        { number: 100, boosted: false },
         expect.anything()
       )
     })
@@ -226,8 +226,8 @@ describe('HomeView', () => {
 
   describe('Vault Creation', () => {
     it('should create vault with valid number', async () => {
-      vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'new-vault' } })
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
+      vi.mocked(http.apiPost).mockResolvedValueOnce(undefined)
+      vi.mocked(http.apiGet).mockResolvedValueOnce([])
 
       const wrapper = mount(HomeView, {
         global: {
@@ -243,20 +243,16 @@ describe('HomeView', () => {
       await submitBtn!.trigger('click')
       await flushPromises()
 
-      expect(axios.post).toHaveBeenCalledWith(
+      expect(http.apiPost).toHaveBeenCalledWith(
         '/api/v1/vaults/initiate',
         { number: 123, boosted: false },
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            Authorization: 'Bearer test-token',
-          }),
-        })
+        expect.anything()
       )
     })
 
     it('should show loading state during vault creation', async () => {
-      vi.mocked(axios.post).mockImplementationOnce(
-        () => new Promise((resolve) => setTimeout(() => resolve({ data: {} }), 100))
+      vi.mocked(http.apiPost).mockImplementationOnce(
+        () => new Promise((resolve) => setTimeout(() => resolve(undefined), 100))
       )
 
       const wrapper = mount(HomeView, {
@@ -278,8 +274,8 @@ describe('HomeView', () => {
     })
 
     it('should clear input after successful creation', async () => {
-      vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'new-vault' } })
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
+      vi.mocked(http.apiPost).mockResolvedValueOnce(undefined)
+      vi.mocked(http.apiGet).mockResolvedValueOnce([])
 
       const wrapper = mount(HomeView, {
         global: {
@@ -299,8 +295,8 @@ describe('HomeView', () => {
     })
 
     it('should prevent double submission during creation', async () => {
-      vi.mocked(axios.post).mockImplementationOnce(
-        () => new Promise((resolve) => setTimeout(() => resolve({ data: {} }), 100))
+      vi.mocked(http.apiPost).mockImplementationOnce(
+        () => new Promise((resolve) => setTimeout(() => resolve(undefined), 100))
       )
 
       const wrapper = mount(HomeView, {
@@ -320,7 +316,7 @@ describe('HomeView', () => {
       await flushPromises()
 
       // Should only be called once
-      expect(axios.post).toHaveBeenCalledTimes(1)
+      expect(http.apiPost).toHaveBeenCalledTimes(1)
     })
 
     it('should not submit with invalid vault number', async () => {
@@ -339,7 +335,7 @@ describe('HomeView', () => {
       await submitBtn!.trigger('click')
       await flushPromises()
 
-      expect(axios.post).not.toHaveBeenCalled()
+      expect(http.apiPost).not.toHaveBeenCalled()
     })
   })
 
@@ -403,13 +399,13 @@ describe('HomeView', () => {
         await flushPromises()
         expect(global.confirm).toHaveBeenCalled()
       }
-      expect(axios.delete).not.toHaveBeenCalled()
+      expect(http.apiDelete).not.toHaveBeenCalled()
     })
 
     it('should delete vault when confirmed', async () => {
       global.confirm = vi.fn(() => true)
-      vi.mocked(axios.delete).mockResolvedValueOnce({ data: {} })
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
+      vi.mocked(http.apiDelete).mockResolvedValueOnce(undefined)
+      vi.mocked(http.apiGet).mockResolvedValueOnce([])
 
       const wrapper = mount(HomeView, {
         global: {
@@ -429,13 +425,9 @@ describe('HomeView', () => {
         await deleteBtn.trigger('click')
         await flushPromises()
 
-        expect(axios.delete).toHaveBeenCalledWith(
+        expect(http.apiDelete).toHaveBeenCalledWith(
           '/api/v1/vaults/vault-1',
-          expect.objectContaining({
-            headers: expect.objectContaining({
-              Authorization: 'Bearer test-token',
-            }),
-          })
+          expect.anything()
         )
       }
     })

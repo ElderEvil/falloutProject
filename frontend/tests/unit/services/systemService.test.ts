@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import apiClient from '@/core/plugins/axios'
+import * as http from '@/core/plugins/httpClient'
 
-vi.mock('@/core/plugins/axios')
+vi.mock('@/core/plugins/httpClient')
 
 import { systemService } from '@/modules/profile/services/systemService'
 
@@ -18,17 +18,17 @@ describe('systemService', () => {
         environment: 'development',
         python_version: '3.13.0',
       }
-      vi.mocked(apiClient.get).mockResolvedValueOnce({ data: mockInfo })
+      vi.mocked(http.apiGet).mockResolvedValueOnce(mockInfo)
 
       const result = await systemService.getInfo()
 
-      expect(apiClient.get).toHaveBeenCalledWith('/api/v1/system/info')
-      expect(result.data).toEqual(mockInfo)
+      expect(http.apiGet).toHaveBeenCalledWith('/api/v1/system/info')
+      expect(result).toEqual(mockInfo)
     })
 
     it('should propagate errors', async () => {
       const error = new Error('Network error')
-      vi.mocked(apiClient.get).mockRejectedValueOnce(error)
+      vi.mocked(http.apiGet).mockRejectedValueOnce(error)
 
       await expect(systemService.getInfo()).rejects.toThrow('Network error')
     })

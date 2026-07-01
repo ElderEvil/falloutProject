@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import axios from '@/core/plugins/axios'
+import * as http from '@/core/plugins/httpClient'
 import { UButton, UInput } from '@/core/components/ui'
 
 const email = ref('')
@@ -19,13 +19,13 @@ const handleSubmit = async () => {
   loading.value = true
 
   try {
-    await axios.post('/api/v1/auth/forgot-password', {
+    await http.apiPost('/api/v1/auth/forgot-password', {
       email: email.value,
     })
 
     success.value = true
-  } catch (err: any) {
-    error.value = err.response?.data?.detail || 'Failed to send reset email'
+  } catch (err: unknown) {
+    error.value = err instanceof http.ApiError ? String(err.detail) : 'Failed to send reset email'
   } finally {
     loading.value = false
   }

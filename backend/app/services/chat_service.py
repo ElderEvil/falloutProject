@@ -24,6 +24,7 @@ from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.models import User
 from app.models.chat_message import ChatMessageCreate
 from app.models.objective import ObjectiveBase
+from app.models.vault import Vault
 from app.schemas.chat import ActionSuggestion, DwellerChatResponse, NoAction
 from app.schemas.common import ObjectiveKindEnum
 from app.schemas.dweller import DwellerReadFull
@@ -34,7 +35,7 @@ from app.services.conversation_service import conversation_service
 from app.services.open_ai import get_ai_service
 from app.services.quota_service import quota_service
 from app.services.websocket_manager import manager
-from app.utils.exceptions import QuotaExceededException
+from app.utils.exceptions import AccessDeniedException, QuotaExceededException
 
 logger = logging.getLogger(__name__)
 
@@ -130,19 +131,7 @@ class ChatService:
             raise ValueError("Dweller not found")
 
         # Check quota before running chat agent
-        quota_result = await quota_service.check_quota(user.id, db_session)
-
-        # Build headers for quota info
-        quota_headers = {
-            "X-Quota-Remaining": str(quota_result.remaining),
-        }
-        if quota_result.warning:
-            quota_headers["X-Quota-Warning"] = "true"
-
-        # If quota exceeded, raise exception with headers
-        if not quota_result.allowed:
-            detail = f"Monthly token quota exceeded. You have used {quota_result.used} of {quota_result.limit} tokens."
-            raise QuotaExceededException(detail=detail, headers=quota_headers)
+        await self._check_quota(user.id, db_session)
 
         # Run agent and get response
         (
@@ -234,25 +223,15 @@ class ChatService:
             if not dweller:
                 raise ValueError("Dweller not found")
 
-            # Ownership check: dweller must belong to the current user
-            if not dweller.vault or dweller.vault.user_id != user.id:
-                from fastapi import HTTPException
+            # Ownership check: dweller's vault must belong to the current user
+            if not dweller.vault:
+                raise AccessDeniedException(detail="Dweller does not belong to the current user")
+            vault_record = await db_session.get(Vault, dweller.vault.id)
+            if not vault_record or vault_record.user_id != user.id:
+                raise AccessDeniedException(detail="Dweller does not belong to the current user")
 
-                raise HTTPException(status_code=403, detail="Dweller does not belong to the current user")
-
-            quota_result = await quota_service.check_quota(user.id, db_session)
-
-            quota_headers = {
-                "X-Quota-Remaining": str(quota_result.remaining),
-            }
-            if quota_result.warning:
-                quota_headers["X-Quota-Warning"] = "true"
-
-            if not quota_result.allowed:
-                detail = (
-                    f"Monthly token quota exceeded. You have used {quota_result.used} of {quota_result.limit} tokens."
-                )
-                raise QuotaExceededException(detail=detail, headers=quota_headers)
+            # Check quota before running chat agent
+            await self._check_quota(user.id, db_session)
 
             deps = DwellerChatDeps(
                 db_session=db_session,
@@ -261,10 +240,8 @@ class ChatService:
             )
 
             async with dweller_chat_agent.run_stream(message_text, deps=deps) as result:
-                async for text in result.stream_text(delta=True):
-                    yield {"type": "token", "text": text}
-
                 output: DwellerChatOutput = await result.get_output()
+                response_text = output.response_text
 
                 delta = compute_happiness_delta(output.sentiment_score)
                 new_dweller_happiness, _ = await apply_chat_happiness(
@@ -327,7 +304,8 @@ class ChatService:
 
             yield {
                 "type": "done",
-                "dweller_message_id": str(dweller_message.id),
+                "message_id": str(dweller_message.id),
+                "response": response_text,
                 "happiness_impact": happiness_impact.model_dump(mode="json") if happiness_impact else None,
                 "action_suggestion": action_suggestion.model_dump(mode="json") if action_suggestion else None,
             }
@@ -338,6 +316,7 @@ class ChatService:
                 yield {"type": "error", "detail": str(e)}
             else:
                 yield {"type": "error", "detail": "An unexpected error occurred during chat"}
+            return  # prevent the original exception from re-raising on generator cleanup
 
     @staticmethod
     def _extract_usage(result: AgentRunResult[DwellerChatOutput]) -> tuple[int | None, int | None, int | None]:
@@ -352,6 +331,33 @@ class ChatService:
         except Exception:
             logger.exception("Failed to extract usage info from agent result")
             return None, None, None
+
+    async def _check_quota(self, user_id: UUID4, db_session: AsyncSession) -> dict[str, str]:
+        """Check user's monthly token quota and raise if exceeded.
+
+        Args:
+            user_id: User UUID to check quota for
+            db_session: Database session
+
+        Returns:
+            Dict of quota-related HTTP headers (X-Quota-Remaining, X-Quota-Warning)
+
+        Raises:
+            QuotaExceededException: If the user has exceeded their monthly token quota
+        """
+        quota_result = await quota_service.check_quota(user_id, db_session)
+
+        quota_headers: dict[str, str] = {
+            "X-Quota-Remaining": str(quota_result.remaining),
+        }
+        if quota_result.warning:
+            quota_headers["X-Quota-Warning"] = "true"
+
+        if not quota_result.allowed:
+            detail = f"Monthly token quota exceeded. You have used {quota_result.used} of {quota_result.limit} tokens."
+            raise QuotaExceededException(detail=detail, headers=quota_headers)
+
+        return quota_headers
 
     @staticmethod
     async def send_chat_notification(

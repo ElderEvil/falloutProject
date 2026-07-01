@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useProfileStore } from '@/modules/profile/stores/profile'
 import { Icon } from '@iconify/vue'
-import apiClient from '@/core/plugins/axios'
+import * as httpClient from '@/core/plugins/httpClient'
 import type { ActionSuggestion } from '../models/chat'
 import { useAudioRecorder } from '../composables/useAudioRecorder'
 import { useChatMessages } from '../composables/useChatMessages'
@@ -11,6 +11,7 @@ import { useChatAudio } from '../composables/useChatAudio'
 import { useTypingIndicator } from '../composables/useTypingIndicator'
 import { useChatActions } from '../composables/useChatActions'
 import { useChatWebSocket } from '@/core/composables/useWebSocket'
+import { useToast } from '@/core/composables/useToast'
 import { normalizeImageUrl } from '@/utils/image'
 import { useRouter } from 'vue-router'
 
@@ -57,7 +58,9 @@ const {
   formatDuration,
 } = useAudioRecorder()
 
-const chatWs = authStore.user?.id ? useChatWebSocket(authStore.user.id, props.dwellerId) : null
+const userId = computed(() => authStore.user?.id ?? '')
+const dwellerId = computed(() => props.dwellerId)
+const chatWs = useChatWebSocket(userId, dwellerId)
 
 const {
   messages,
@@ -70,7 +73,8 @@ const {
   latestActionSuggestionIndex,
   loadChatHistory,
   sendMessage,
-  handleKeyDown,
+  addMessage,
+  updateMessage,
   dismissAction,
   getHappinessColor,
   getHappinessIcon,
@@ -78,7 +82,8 @@ const {
   dwellerId: props.dwellerId,
   dwellerAvatar: props.dwellerAvatar,
   token: authStore.token,
-  userImageUrl: (authStore.user as any)?.image_url,
+  userImageUrl: authStore.user?.image_url,
+  chatWs,
 })
 
 const { currentlyPlayingUrl, stopAudio, playAudio } = useChatAudio()
@@ -89,6 +94,7 @@ const { isPerformingAction, handleActionConfirm } = useChatActions({
   dwellerId: props.dwellerId,
   dwellerName: props.dwellerName,
   messages,
+  updateMessage,
 })
 
 const sendAudioMessage = async () => {
@@ -100,93 +106,185 @@ const sendAudioMessage = async () => {
     formData.append('audio_file', audioBlob, 'recording.webm')
 
     const placeholderIndex = messages.value.length
-    messages.value.push({
+    addMessage({
       type: 'user',
       content: '[Transcribing audio...]',
       timestamp: new Date(),
       avatar: userAvatar.value,
     })
 
-    const response = await apiClient.post(
+    const response = await httpClient.apiPost<{
+      transcription: string
+      dweller_response: string
+      dweller_message_id: string
+      dweller_audio_url?: string
+      happiness_impact?: { delta: number; reason_text: string } | null
+      action_suggestion?: ActionSuggestion | null
+    }>(
       `/api/v1/chat/${props.dwellerId}/voice?return_audio=false`,
       formData,
       {
         headers: {
           Authorization: `Bearer ${authStore.token}`,
-          'Content-Type': 'multipart/form-data',
         },
       }
     )
 
-    const placeholderMessage = messages.value[placeholderIndex]
-    if (placeholderMessage) {
-      placeholderMessage.content = response.data.transcription
-    }
-
-    messages.value.push({
-      type: 'dweller',
-      content: response.data.dweller_response,
-      messageId: response.data.dweller_message_id,
-      timestamp: new Date(),
-      avatar: props.dwellerAvatar,
-      audioUrl: response.data.dweller_audio_url,
-      happinessImpact: response.data.happiness_impact || null,
-      actionSuggestion: response.data.action_suggestion || null,
+    updateMessage(placeholderIndex, {
+      content: response.transcription,
     })
 
-    if (response.data.dweller_audio_url) {
-      playAudio(response.data.dweller_audio_url)
+    addMessage({
+      type: 'dweller',
+      content: response.dweller_response,
+      messageId: response.dweller_message_id,
+      timestamp: new Date(),
+      avatar: props.dwellerAvatar,
+      audioUrl: response.dweller_audio_url,
+      happinessImpact: response.happiness_impact || null,
+      actionSuggestion: response.action_suggestion || null,
+    })
+
+    if (response.dweller_audio_url) {
+      playAudio(response.dweller_audio_url)
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error sending audio:', error)
-    alert(`Failed to send audio: ${error.response?.data?.detail || error.message}`)
+    let message = 'Failed to send audio'
+    if (error instanceof httpClient.ApiError) {
+      message = typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail)
+    } else if (error instanceof Error) {
+      message = error.message
+    }
+    alert(`Failed to send audio: ${message}`)
   } finally {
     isSendingAudio.value = false
   }
 }
 
+interface ChatTypingMessage {
+  sender: 'user' | 'dweller'
+  is_typing: boolean
+}
+
+interface ChatHappinessMessage {
+  message_id?: string
+  happiness_impact?: { delta: number; reason_text: string }
+}
+
+interface ChatActionSuggestionMessage {
+  message_id?: string
+  action_suggestion?: ActionSuggestion | null
+}
+
+interface ChatTokenMessage {
+  message_id?: string
+  token: string
+}
+
+interface ChatDoneMessage {
+  message_id?: string
+  response: string
+  happiness_impact?: { delta: number; reason_text: string } | null
+  action_suggestion?: ActionSuggestion | null
+}
+
+interface ChatErrorMessage {
+  message?: string
+}
+
+const toast = useToast()
+
 onMounted(() => {
   loadChatHistory()
 
-  if (chatWs) {
+  if (authStore.user?.id) {
     chatWs.connect()
-
-    chatWs.on('typing', (msg: any) => {
-      if (msg.sender === 'dweller') {
-        isTyping.value = msg.is_typing
-      }
-    })
-
-    chatWs.on('happiness_update', (msg: any) => {
-      if (msg.happiness_impact && msg.message_id) {
-        const messageIndex = messages.value.findIndex((m) => m.messageId === msg.message_id)
-        if (messageIndex !== -1) {
-          messages.value[messageIndex] = {
-            ...messages.value[messageIndex],
-            happinessImpact: msg.happiness_impact,
-          }
-        }
-      }
-    })
-
-    chatWs.on('action_suggestion', (msg: any) => {
-      if (msg.message_id && msg.action_suggestion) {
-        const messageIndex = messages.value.findIndex((m) => m.messageId === msg.message_id)
-        if (messageIndex !== -1) {
-          messages.value[messageIndex] = {
-            ...messages.value[messageIndex],
-            actionSuggestion: msg.action_suggestion,
-          }
-        }
-      }
-    })
   }
+
+  chatWs.on('typing', (msg: ChatTypingMessage) => {
+    if (msg.sender === 'dweller') {
+      isTyping.value = msg.is_typing
+    }
+  })
+
+  chatWs.on('happiness_update', (msg: ChatHappinessMessage) => {
+    if (msg.happiness_impact && msg.message_id) {
+      const messageIndex = messages.value.findIndex((m) => m.messageId === msg.message_id)
+      if (messageIndex !== -1) {
+        updateMessage(messageIndex, {
+          happinessImpact: msg.happiness_impact,
+        })
+      }
+    }
+  })
+
+  chatWs.on('action_suggestion', (msg: ChatActionSuggestionMessage) => {
+    if (msg.message_id && msg.action_suggestion) {
+      const messageIndex = messages.value.findIndex((m) => m.messageId === msg.message_id)
+      if (messageIndex !== -1) {
+        updateMessage(messageIndex, {
+          actionSuggestion: msg.action_suggestion,
+        })
+      }
+    }
+  })
+
+  chatWs.on('token', (msg: ChatTokenMessage) => {
+    if (!msg.message_id || !msg.token) return
+    const messageIndex = messages.value.findIndex((m) => m.messageId === msg.message_id)
+    if (messageIndex !== -1) {
+      const existing = messages.value[messageIndex]
+      updateMessage(messageIndex, {
+        content: (existing.content || '') + msg.token,
+      })
+    } else {
+      addMessage({
+        type: 'dweller',
+        content: msg.token,
+        messageId: msg.message_id,
+        timestamp: new Date(),
+        avatar: props.dwellerAvatar,
+        isStreaming: true,
+      })
+    }
+  })
+
+  chatWs.on('done', (msg: ChatDoneMessage) => {
+    isTyping.value = false
+    if (msg.message_id && msg.response) {
+      const messageIndex = messages.value.findIndex((m) => m.messageId === msg.message_id)
+      if (messageIndex !== -1) {
+        updateMessage(messageIndex, {
+          content: msg.response,
+          happinessImpact: msg.happiness_impact || null,
+          actionSuggestion: msg.action_suggestion || null,
+          isStreaming: false,
+        })
+      } else {
+        addMessage({
+          type: 'dweller',
+          content: msg.response,
+          messageId: msg.message_id,
+          timestamp: new Date(),
+          avatar: props.dwellerAvatar,
+          happinessImpact: msg.happiness_impact || null,
+          actionSuggestion: msg.action_suggestion || null,
+          isStreaming: false,
+        })
+      }
+    }
+  })
+
+  chatWs.on('error', (msg: ChatErrorMessage) => {
+    isTyping.value = false
+    const errorMsg = msg.message || 'An error occurred during chat'
+    toast.error(errorMsg)
+  })
 })
 
 onUnmounted(() => {
-  if (chatWs) {
-    chatWs.disconnect()
-  }
+  chatWs.disconnect()
   stopAudio()
 })
 </script>
@@ -388,7 +486,6 @@ onUnmounted(() => {
         <span class="terminal-prompt">&gt;</span>
         <input
           v-model="userMessage"
-          @keydown="handleKeyDown"
           @input="handleTyping"
           placeholder="Type your message..."
           class="chat-input-field"

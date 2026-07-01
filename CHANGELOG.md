@@ -207,6 +207,201 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.23.0] - 2026-07-01
+
+### Added
+
+- **Axios→fetch migration** — Created `frontend/src/core/plugins/httpClient.ts` typed fetch adapter with named `apiGet<T>`/`apiPost<T>`/`apiPut<T>`/`apiPatch<T>`/`apiDelete<T>` exports returning `Promise<T>` (no `.data` wrapper), `ApiError` class, 401-triggered token refresh, error→toast mapping (FastAPI 422 detail parsing, 429 Retry-After, 5xx, network error), and `_skipErrorNotification` opt-out. 30 parity tests.
+- **VueUse `useWebSocket()` adoption** — Replaced 232-LOC hand-rolled WebSocket composable with thin VueUse `useWebSocket` wrapper (~95 LOC), gaining SSR safety, exponential-backoff autoreconnect, heartbeat ping/pong, and proper effect-scope cleanup.
+- **Chat REST→WebSocket streaming** — Chat messages now stream token-by-token over `/ws/chat/{user_id}/{dweller_id}` WebSocket. Backend wires `chat_service.stream_response()` into the WS handler (token/done/error frames sent via `send_json`). 4 backend WS tests.
+- **`useChatMessages` composable refactor** — `readonly(messages)` with explicit `addMessage`/`updateMessage`/`clearMessages` methods; `watchDebounced` replaces `watch(messages)` for scroll handling (50ms debounce); VueUse `onKeyStroke('Enter')` replaces manual `handleKeyDown`.
+- **`acceptHMRUpdate` HMR support** — Added hot-reload guards to 16 Pinia stores (auth, vault, room, quest, objectives, incident, exploration, relationship, pregnancy, radio, dwellerMedical, dwellerManagement, dwellerGeneration, dwellerFilter, dwellerDeath, profile).
+- **`httpClient` parity tests** — 30 tests covering auth header injection, 401 refresh+retry, refresh failure→redirect, 422 detail parsing, 429 Retry-After, 5xx, network error, `_skipErrorNotification` suppress.
+
+### Changed
+
+- **All 31 axios call-sites migrated to httpClient** — All stores, services, composables, and views across auth, vault, rooms, dwellers, progression, social, combat, profile, storage, radio, chat, and core modules.
+- **`chat_service.py` cleanup** — Moved `from fastapi import HTTPException` to top-level, replaced inline `HTTPException(status_code=403)` with `AccessDeniedException`, extracted `_check_quota()` DRY helper for duplicate quota-check logic.
+- **`websocket.py` router compliance** — Fixed `APIRouter(prefix="/ws", tags=["WebSocket"])` per FastAPI skill rule R1.
+- **`useWebSocket.ts` and `useTypingIndicator.ts`** — Replaced `getCurrentInstance()` patterns with VueUse `tryOnUnmounted`.
+- **`NotificationBell.vue`** — Moved `useSse()` from inside watcher to top-level setup (composable-avoid-hidden-side-effects fix).
+- **Detached watcher restructure** — Moved SSE `watch()` from inside action functions to store-init time in `vault.ts` and `incident.ts`, preventing watcher accumulation.
+- **`room.ts`** — Removed P0 `import { AxiosError } from 'axios'` (would break the build).
+- **Version bump** — Backend 2.22.0 → 2.23.0, frontend 2.22.0 → 2.23.0.
+
+### Fixed
+
+- **`profile.ts` error handling** — 4× `catch (err: any)` → `catch (err: unknown)` with `ApiError` narrowing.
+- **`relationship.ts` type safety** — `ref<any[]>([])` → `ref<Pregnancy[]>([])`.
+- **`relationship.ts` dead code** — Removed unused `token` ref (declared, never set).
+- **`DwellerChat.vue` conditional composable** — `useChatWebSocket` called unconditionally at top-level instead of in ternary, fixing Vue 3 rule violation.
+- **`DwellerChat.vue` type safety** — Replaced `(authStore.user as any)?.image_url` with typed access; replaced `(msg: any)` WS callbacks with typed message interfaces.
+- **`utils.ts` type guards** — `isAxiosError` marked `@deprecated`; `getErrorMessage`/`toApiError` now handle `ApiError`.
+
+### Removed
+
+- **Deleted `frontend/src/core/plugins/axios.ts`** (234 LOC) — Axios fully decommissioned; `axios` dependency removed from `package.json` (~14KB gzip bundle saving).
+- **Deleted dead `useChatStore` stub** — Empty 20-line store (`frontend/src/modules/chat/stores/chat.ts`), self-documented as unused.
+- **Deleted `usePostEventStream`** — Dead function from `useEventStream.ts` (post-v2.20 useSseBase consolidation).
+- **Deleted deprecated `fetchDwellers`** — Wrapper in `dwellerFilter.ts` (just called `fetchDwellersByVault`).
+
+---
+
+## [2.22.0] - 2026-06-28
+
+### Added
+
+- **UInput `variant="terminal"` prop** — Added transparent background styling option (`bg-transparent`, no border on non-hover).
+- **VaultNumberField component** — Extracted vault-number-input logic from HomeView into reusable VaultNumberField component with `useVaultNumberField` composable.
+
+### Changed
+
+- **Auth form cleanup** — Applied `variant="terminal"` to LoginFormTerminal, RegisterForm, ForgotPasswordView, ResetPasswordView — eliminating grey `<input>` backgrounds on CRT theme.
+- **HomeView simplification** — Replaced inline UInput with VaultNumberField; removed dead `vaultNumber`/`showVaultNumber` duplicates.
+- **Version bump** — Backend/frontend aligned at v2.22.0.
+
+### Removed
+
+- **StorageView cleanup** — Removed unused `UCard` import.
+
+---
+
+## [2.21.0] - 2026-06-24
+
+### Added
+
+- **Incident SSE publishing** — `incident_service` publishes `incident_spawned`, `incident_resolved`, `incident_spreading` via SSE (3 TDD tests).
+- **Incidents SSE endpoint** — `GET /stream/incidents/{vault_id}` with vault ownership check and heartbeat.
+- **Incident store SSE subscription** — `incident.ts` replaces `setInterval` polling with SSE; 30s fallback to REST on disconnect.
+- **Vault store game-tick SSE** — `vault.ts` subscribes to game tick SSE for live resource updates; SSE lifecycle bound to vault load/close/play-pause.
+- **SSE heartbeat configurable** — `SSE_HEARTBEAT_INTERVAL` setting replaces hardcoded 30s.
+
+### Changed
+
+- **`useSseBase` auto-reconnect** — Exponential backoff reconnect (1s→2s→4s→...→30s max) on connection loss (10 tests).
+
+### Fixed
+
+- **Radio recruitment PostgreSQL crash** — Replaced `datetime.now(UTC)` with `datetime.utcnow()` in 3 locations in `dweller_recycling_service.py`; asyncpg no longer throws `DataError` on `TIMESTAMP WITHOUT TIME ZONE` columns.
+
+### Removed
+
+- **Dead POST-SSE `/stream/chat/{dweller_id}` endpoint** — Removed from `stream.py` (chat migration to WebSocket pending).
+
+---
+
+## [2.20.0] - 2026-06-22
+
+### Added
+
+- **6-step YAGNI heuristic** — Added to AGENTS.md governing all FE work.
+
+### Changed
+
+- **~1500 LOC reduction** — Deleted ~1000 LOC dead code across 43 files (barrel re-exports, dead composables, unused UI components, aspirational infra).
+- **DRY consolidation** — Merged useSse/usePostEventStream into useSseBase; merged WeaponCard/OutfitCard into EquipmentCard; consolidated room-destroy logic; CSS variables replace hardcoded hex colors.
+- **Barrel migration** — All legacy barrel imports migrated to `@/modules/*` paths; 8 empty directories removed.
+- **Dweller store split** — dweller.ts (796 LOC) split into 5 focused stores with backward-compat facade.
+- **Component simplification** — DwellerCard: extracted DwellerCardActions + HappinessModifierPopover sub-components, dead-CSS cleanup.
+
+### Removed
+
+- **Dead composables** — useTerminalAudio (326 LOC), useAuth, useFlickering, composables/index.ts barrel.
+- **Unused UI components** — ComingSoonBadge, UDropdown (104 LOC).
+- **Aspirational infra** — api.ts wrapper (116 LOC), core/types/index.ts barrel, api/incident.ts dead duplicate.
+
+---
+
+## [2.19.0] - 2026-06-21
+
+### Added
+
+- **SSE streaming infrastructure** — `SSEManager` singleton with per-user pub/sub queues. 4 SSE endpoints: notifications, game ticks, AI chat tokens, exploration events. Heartbeat keepalive.
+- **Streaming AI chat** — `chat_service.stream_response()` yields token-by-token via `run_stream()`. Chat SSE endpoint streams tokens with `event: token`, then `event: done`.
+- **Frontend SSE composables** — `useEventStream` (GET), `usePostEventStream` (POST), `useSse` (GET with auth headers).
+- **New response schemas** — `GameBalanceResponse`, `HappinessModifiersResponse`, `DeathStatsResponse`, `UnassignResponse`, `AutoAssignResponse`, `DwellerAssignmentItem`, `QuestPartyMemberRead`, `EligibleDwellerRead`.
+- **Stream manager tests** — 11 unit tests covering subscribe/publish, queue full, close, heartbeat.
+
+### Changed
+
+- **Dict → Pydantic schema refactoring** — Replaced `dict` return types in 8+ endpoints with typed Pydantic schemas.
+- **Service layer relocation** — Radio mode vault mutation moved from `radio.py` endpoint into `radio_service.set_radio_mode()`; exploration CRUD consolidated.
+- **Auth endpoint return types** — 5 auth endpoints wired to `MessageResponse`.
+- **Game control return type annotations** — Added `-> dict[str, Any]` to game state endpoints.
+
+### Fixed
+
+- **Duplicate SSE publish in game loop** — Fixed with TDD (3 regression tests).
+- **`usePostEventStream` SSE parsing** — Rewrote to properly parse `event:`, `data:`, `id:` fields.
+
+---
+
+## [2.18.0] - 2026-06-21
+
+### Added
+
+- **Library skills** — Added FastAPI, Typer, and Pydantic AI compliance skills from `uvx library-skills`.
+- **Router prefix/tags in APIRouter constructors** — Moved across all 22 router files.
+- **`ChatMessage` schema** — Moved request model from endpoint to `schemas/chat.py`.
+- **`ChatService.send_chat_notification()`** — Moved helper from endpoint to service layer.
+
+### Changed
+
+- **Annotated dependency style** — Standardized to `Annotated[Type, Depends()]` pattern in 12 endpoints and 6 deps.
+- **Return type annotations** — Added explicit return types to ~108 endpoint functions.
+- **Async safety** — Wrapped sync S3/storage/OpenAI calls with `asyncio.to_thread()` in 4 services.
+- **Version bump** — Backend 2.17.0 → 2.18.0, frontend 2.17.0 → 2.18.0.
+
+### Removed
+
+- **Stale documentation** — Deleted `docs/archive/` and `docs/TWELVE_FACTOR_COMPLIANCE.md`.
+- **Duplicate skills** — Removed `backend/.agents/skills/` copies.
+
+---
+
+## [2.17.0] - 2026-06-19
+
+### Added
+
+- **Storage model medical fields** — Added `stimpack` and `radaway` fields to `StorageBase`. Alembic migration copies existing data from vault to storage and drops legacy vault columns.
+- **Medical production config** — `MEDICAL_ROOM_PRODUCTION` mapping (medbay→stimpak, science lab→radaway) and `compute_medical_capacity()` to `game_config.py`.
+- **StorageView medical display** — Added stimpak/radaway fields to `StorageSpaceResponse` endpoint.
+
+### Changed
+
+- **Resource manager** — Medical production uses config mapping instead of string matching. Writes stimpaks/radaways to Storage, capped by computed capacity.
+- **Exploration service** — `send_dweller` deducts from Storage; returned supplies written to Storage, capped by capacity.
+- **Vault model** — Removed `stimpack`, `stimpack_max`, `radaway`, `radaway_max` fields.
+- **Version bump** — Backend 2.16.0 → 2.17.0, frontend 2.16.0 → 2.17.0.
+
+---
+
+## [2.16.0] - 2026-06-18
+
+### Added
+
+- **UModal focus trap** — Hand-rolled with Tab cycling, Escape close, focus restore.
+- **`role="button"`/`tabindex`/keyboard handlers** — Added to 13 clickable elements across 8 files.
+- **`aria-label` attributes** — Added to 8 icon-only buttons in dwellers and rooms modules.
+- **Module READMEs** — Added 12 `README.md` files in `frontend/src/modules/`.
+- **Nuxt UI migration plan** — Added `.omo/drafts/nuxt-ui-migration-plan.md`.
+
+### Changed
+
+- **Auth forms migrated to UButton/UInput** — LoginFormTerminal, RegisterForm, ForgotPassword, ResetPassword, VerifyEmail now use home-grown UI components.
+- **CSS variable migration** — ~45 files: hardcoded hex colors replaced with CSS variables (`--color-theme-primary`, `--color-danger`, etc.).
+- **UButton `type` prop** — Added `type` prop for form submit support.
+
+### Fixed
+
+- **12 skipped backend tests** — Fixed and now passing (quest datetime, 6 bare-skips, 3 incident assertions, 2 room session-race).
+
+### Removed
+
+- **LoginForm.vue** — Deleted (route uses `LoginFormTerminal.vue`).
+
+---
+
 ## [2.14.4] - 2026-06-17
 
 ### Security

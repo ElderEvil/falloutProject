@@ -1,9 +1,9 @@
 import { ref, computed } from 'vue'
-import { defineStore } from 'pinia'
-import axios from '@/core/plugins/axios'
+import { defineStore, acceptHMRUpdate } from 'pinia'
+import * as http from '@/core/plugins/httpClient'
 import type { Pregnancy, DeliveryResult } from '../models/pregnancy'
 import { useToast } from '@/core/composables/useToast'
-import { getErrorMessage } from '@/core/types/utils'
+import { handleStoreError } from '@/core/utils/errorHandler'
 
 export const usePregnancyStore = defineStore('pregnancy', () => {
   const toast = useToast()
@@ -31,11 +31,9 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
   async function fetchVaultPregnancies(vaultId: string) {
     isLoading.value = true
     try {
-      const response = await axios.get(`/api/v1/pregnancies/vault/${vaultId}`)
-      pregnancies.value = response.data
+      pregnancies.value = await http.apiGet<Pregnancy[]>(`/api/v1/pregnancies/vault/${vaultId}`)
     } catch (error: unknown) {
-      console.error('Failed to fetch pregnancies:', error)
-      toast.error(getErrorMessage(error))
+      toast.error(handleStoreError(error, 'Failed to fetch pregnancies'))
       throw error
     } finally {
       isLoading.value = false
@@ -44,11 +42,9 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
 
   async function getPregnancy(pregnancyId: string): Promise<Pregnancy | null> {
     try {
-      const response = await axios.get(`/api/v1/pregnancies/${pregnancyId}`)
-      return response.data
+      return await http.apiGet<Pregnancy>(`/api/v1/pregnancies/${pregnancyId}`)
     } catch (error: unknown) {
-      console.error('Failed to fetch pregnancy:', error)
-      toast.error(getErrorMessage(error))
+      toast.error(handleStoreError(error, 'Failed to fetch pregnancy'))
       return null
     }
   }
@@ -56,8 +52,7 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
   async function deliverBaby(pregnancyId: string): Promise<DeliveryResult | null> {
     isLoading.value = true
     try {
-      const response = await axios.post(`/api/v1/pregnancies/${pregnancyId}/deliver`)
-      const result: DeliveryResult = response.data
+      const result = await http.apiPost<DeliveryResult>(`/api/v1/pregnancies/${pregnancyId}/deliver`)
 
       // Update local state
       const index = pregnancies.value.findIndex((p) => p.id === pregnancyId)
@@ -68,8 +63,7 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
       toast.success(result.message)
       return result
     } catch (error: unknown) {
-      console.error('Failed to deliver baby:', error)
-      toast.error(getErrorMessage(error))
+      toast.error(handleStoreError(error, 'Failed to deliver baby'))
       return null
     } finally {
       isLoading.value = false
@@ -79,19 +73,15 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
   async function forceConception(motherId: string, fatherId: string): Promise<Pregnancy | null> {
     isLoading.value = true
     try {
-      const response = await axios.post(`/api/v1/pregnancies/debug/force-conception`, null, {
-        params: {
-          mother_id: motherId,
-          father_id: fatherId,
-        },
-      })
-      const pregnancy: Pregnancy = response.data
+      const params = new URLSearchParams({ mother_id: motherId, father_id: fatherId })
+      const pregnancy = await http.apiPost<Pregnancy>(
+        `/api/v1/pregnancies/debug/force-conception?${params}`
+      )
       pregnancies.value.push(pregnancy)
       toast.success('Force conception successful!')
       return pregnancy
     } catch (error: unknown) {
-      console.error('Failed to force conception:', error)
-      toast.error(getErrorMessage(error))
+      toast.error(handleStoreError(error, 'Failed to force conception'))
       return null
     } finally {
       isLoading.value = false
@@ -101,7 +91,7 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
   async function acceleratePregnancy(pregnancyId: string): Promise<boolean> {
     isLoading.value = true
     try {
-      await axios.post(`/api/v1/pregnancies/${pregnancyId}/debug/accelerate`)
+      await http.apiPost(`/api/v1/pregnancies/${pregnancyId}/debug/accelerate`)
 
       // Update local state to reflect changes (e.g. make it due)
       // Since backend logic is complex, best to re-fetch the pregnancy or just set is_due if we know it
@@ -116,8 +106,7 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
       toast.success('Pregnancy accelerated!')
       return true
     } catch (error: unknown) {
-      console.error('Failed to accelerate pregnancy:', error)
-      toast.error(getErrorMessage(error))
+      toast.error(handleStoreError(error, 'Failed to accelerate pregnancy'))
       return false
     } finally {
       isLoading.value = false
@@ -165,3 +154,7 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
     clearPregnancies,
   }
 })
+
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(usePregnancyStore, import.meta.hot))
+}

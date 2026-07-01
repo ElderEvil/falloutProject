@@ -1,9 +1,8 @@
-import apiClient from '@/core/plugins/axios'
-import type { AxiosResponse } from 'axios'
+import { apiGet } from '@/core/plugins/httpClient'
 import type { InfoResponse } from '../types/system'
 
 export const systemService = {
-  async getInfo(): Promise<AxiosResponse<InfoResponse>> {
-    return await apiClient.get('/api/v1/system/info')
+  async getInfo(): Promise<InfoResponse> {
+    return apiGet<InfoResponse>('/api/v1/system/info')
   },
 }

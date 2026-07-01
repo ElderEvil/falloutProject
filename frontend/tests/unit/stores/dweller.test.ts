@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
-import axios from '@/core/plugins/axios'
+import * as http from '@/core/plugins/httpClient'
 
-vi.mock('@/core/plugins/axios')
+vi.mock('@/core/plugins/httpClient')
 
 describe('Dweller Store', () => {
   beforeEach(() => {
@@ -63,20 +63,20 @@ describe('Dweller Store', () => {
         { id: '2', first_name: 'Jane', last_name: 'Smith', status: 'idle' },
       ]
 
-      vi.mocked(axios.get).mockResolvedValue({ data: mockDwellers })
+      vi.mocked(http.apiGet).mockResolvedValue(mockDwellers)
 
       const store = useDwellerStore()
       await store.fetchDwellersByVault('vault-123', 'test-token')
 
-      expect(axios.get).toHaveBeenCalled()
-      expect(axios.get).toHaveBeenCalledWith(
+      expect(http.apiGet).toHaveBeenCalled()
+      expect(http.apiGet).toHaveBeenCalledWith(
         expect.stringContaining('vault-123'),
         expect.any(Object)
       )
     })
 
     it('should include status filter in API call when status is set', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      vi.mocked(http.apiGet).mockResolvedValue([])
 
       const store = useDwellerStore()
       store.setFilterStatus('working')
@@ -85,21 +85,19 @@ describe('Dweller Store', () => {
         status: 'working',
       })
 
-      expect(axios.get).toHaveBeenCalledWith(
+      expect(http.apiGet).toHaveBeenCalledWith(
         expect.stringContaining('status=working'),
         expect.any(Object)
       )
     })
 
     it('should call assign API endpoint when assigning dweller to room', async () => {
-      vi.mocked(axios.post).mockResolvedValue({
-        data: { id: 'dweller-1', status: 'working', room_id: 'room-1' },
-      })
+      vi.mocked(http.apiPost).mockResolvedValue({ id: 'dweller-1', status: 'working', room_id: 'room-1' })
 
       const store = useDwellerStore()
       await store.assignDwellerToRoom('dweller-1', 'room-1', 'test-token')
 
-      expect(axios.post).toHaveBeenCalledWith(
+      expect(http.apiPost).toHaveBeenCalledWith(
         '/api/v1/dwellers/dweller-1/move_to/room-1',
         null,
         expect.any(Object)
@@ -107,14 +105,12 @@ describe('Dweller Store', () => {
     })
 
     it('should call update API endpoint when unassigning dweller', async () => {
-      vi.mocked(axios.put).mockResolvedValue({
-        data: { id: 'dweller-1', status: 'idle', room_id: null },
-      })
+      vi.mocked(http.apiPut).mockResolvedValue({ id: 'dweller-1', status: 'idle', room_id: null })
 
       const store = useDwellerStore()
       await store.unassignDwellerFromRoom('dweller-1', 'test-token')
 
-      expect(axios.put).toHaveBeenCalledWith(
+      expect(http.apiPut).toHaveBeenCalledWith(
         '/api/v1/dwellers/dweller-1',
         { room_id: null },
         expect.any(Object)
@@ -163,12 +159,12 @@ describe('Dweller Store', () => {
         },
       ]
 
-      vi.mocked(axios.get).mockResolvedValue({ data: mockDeadDwellers })
+      vi.mocked(http.apiGet).mockResolvedValue(mockDeadDwellers)
 
       const store = useDwellerStore()
       const result = await store.fetchDeadDwellers('vault-123', 'test-token')
 
-      expect(axios.get).toHaveBeenCalledWith(
+      expect(http.apiGet).toHaveBeenCalledWith(
         '/api/v1/dwellers/vault/vault-123/dead',
         expect.any(Object)
       )
@@ -187,12 +183,12 @@ describe('Dweller Store', () => {
         },
       ]
 
-      vi.mocked(axios.get).mockResolvedValue({ data: mockGraveyardDwellers })
+      vi.mocked(http.apiGet).mockResolvedValue(mockGraveyardDwellers)
 
       const store = useDwellerStore()
       const result = await store.fetchGraveyardDwellers('vault-123', 'test-token')
 
-      expect(axios.get).toHaveBeenCalledWith(
+      expect(http.apiGet).toHaveBeenCalledWith(
         '/api/v1/dwellers/vault/vault-123/graveyard',
         expect.any(Object)
       )
@@ -209,12 +205,12 @@ describe('Dweller Store', () => {
         days_until_permanent: 5,
       }
 
-      vi.mocked(axios.get).mockResolvedValue({ data: mockCost })
+      vi.mocked(http.apiGet).mockResolvedValue(mockCost)
 
       const store = useDwellerStore()
       const result = await store.getRevivalCost('dweller-1', 'test-token')
 
-      expect(axios.get).toHaveBeenCalledWith(
+      expect(http.apiGet).toHaveBeenCalledWith(
         '/api/v1/dwellers/dweller-1/revival_cost',
         expect.any(Object)
       )
@@ -227,7 +223,7 @@ describe('Dweller Store', () => {
         caps_spent: 250,
       }
 
-      vi.mocked(axios.post).mockResolvedValue({ data: mockResponse })
+      vi.mocked(http.apiPost).mockResolvedValue(mockResponse)
 
       const store = useDwellerStore()
       // Add initial dead dweller to the store
@@ -243,7 +239,7 @@ describe('Dweller Store', () => {
 
       const result = await store.reviveDweller('dweller-1', 'test-token')
 
-      expect(axios.post).toHaveBeenCalledWith(
+      expect(http.apiPost).toHaveBeenCalledWith(
         '/api/v1/dwellers/dweller-1/revive',
         null,
         expect.any(Object)
@@ -254,9 +250,7 @@ describe('Dweller Store', () => {
     })
 
     it('should handle error when getting revival cost fails', async () => {
-      vi.mocked(axios.get).mockRejectedValue({
-        response: { data: { detail: 'Dweller not found' } },
-      })
+      vi.mocked(http.apiGet).mockRejectedValue(new Error('Dweller not found'))
 
       const store = useDwellerStore()
       const result = await store.getRevivalCost('invalid-id', 'test-token')
@@ -265,9 +259,7 @@ describe('Dweller Store', () => {
     })
 
     it('should handle error when reviving dweller fails', async () => {
-      vi.mocked(axios.post).mockRejectedValue({
-        response: { data: { detail: 'Insufficient caps' } },
-      })
+      vi.mocked(http.apiPost).mockRejectedValue(new Error('Insufficient caps'))
 
       const store = useDwellerStore()
       const result = await store.reviveDweller('dweller-1', 'test-token')

@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSse, type SseEvent } from '@/core/composables/useEventStream'
-import axios from '@/core/plugins/axios'
+import { apiGet, apiPatch, apiPost } from '@/core/plugins/httpClient'
 
 interface Notification {
   id: string
@@ -24,31 +24,20 @@ const isLoading = ref(false)
 
 const hasUnread = computed(() => unreadCount.value > 0)
 
-// SSE connection for live notifications
+// SSE connection for live notifications — called at top level
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? ''
-const sse = ref<ReturnType<typeof useSse>>()
+const sse = useSse(`${apiBase}/api/v1/stream/notifications`, {
+  headers: { Authorization: `Bearer ${authStore.token}` },
+})
 
-const startSse = () => {
-  sse.value?.close()
-  if (!authStore.token) {
-    sse.value = undefined
-    return
-  }
-  const instance = useSse(`${apiBase}/api/v1/stream/notifications`, {
-    headers: { Authorization: `Bearer ${authStore.token}` },
-  })
-  sse.value = instance
-  instance.start()
-}
-
-// Restart SSE when the URL changes (login/logout)
+// Watch token changes to start/stop SSE
 watch(
   () => authStore.token,
   (token) => {
-    if (token) startSse()
-    else {
-      sse.value?.close()
-      sse.value = undefined
+    if (token) {
+      sse.start()
+    } else {
+      sse.close()
       notifications.value = []
       unreadCount.value = 0
     }
@@ -57,7 +46,7 @@ watch(
 
 // Process incoming SSE notification events
 watch(
-  () => sse.value?.event?.value,
+  () => sse.event.value,
   (evt: SseEvent | null) => {
     if (!evt || evt.event !== 'notification') return
     const notificationData = (evt.data as any)?.notification
@@ -83,14 +72,7 @@ const fetchNotifications = async () => {
 
   isLoading.value = true
   try {
-    const response = await axios.get('/api/v1/notifications/', {
-      params: { limit: 20 },
-      headers: {
-        Authorization: `Bearer ${authStore.token}`,
-      },
-    })
-
-    notifications.value = response.data
+    notifications.value = await apiGet<Notification[]>('/api/v1/notifications/?limit=20')
   } catch (error) {
     console.error('Failed to fetch notifications:', error)
   } finally {
@@ -102,13 +84,8 @@ const fetchUnreadCount = async () => {
   if (!authStore.token) return
 
   try {
-    const response = await axios.get('/api/v1/notifications/unread-count', {
-      headers: {
-        Authorization: `Bearer ${authStore.token}`,
-      },
-    })
-
-    unreadCount.value = response.data.count
+    const data = await apiGet<{ count: number }>('/api/v1/notifications/unread-count')
+    unreadCount.value = data.count
   } catch (error) {
     console.error('Failed to fetch unread count:', error)
   }
@@ -125,15 +102,7 @@ const markAsRead = async (notificationId: string) => {
   if (!authStore.token) return
 
   try {
-    await axios.patch(
-      `/api/v1/notifications/${notificationId}/read`,
-      {},
-      {
-        headers: {
-          Authorization: `Bearer ${authStore.token}`,
-        },
-      }
-    )
+    await apiPatch(`/api/v1/notifications/${notificationId}/read`)
 
     const notification = notifications.value.find((n) => n.id === notificationId)
     if (notification) {
@@ -149,15 +118,7 @@ const markAllAsRead = async () => {
   if (!authStore.token) return
 
   try {
-    await axios.post(
-      '/api/v1/notifications/mark-all-read',
-      {},
-      {
-        headers: {
-          Authorization: `Bearer ${authStore.token}`,
-        },
-      }
-    )
+    await apiPost('/api/v1/notifications/mark-all-read')
 
     notifications.value.forEach((n) => (n.is_read = true))
     unreadCount.value = 0
@@ -208,12 +169,12 @@ const formatTime = (timestamp: string): string => {
 onMounted(() => {
   fetchUnreadCount()
   if (authStore.token) {
-    startSse()
+    sse.start()
   }
 })
 
 onBeforeUnmount(() => {
-  sse.value?.close()
+  sse.close()
 })
 </script>
 

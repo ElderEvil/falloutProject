@@ -1,4 +1,4 @@
-import { onUnmounted, getCurrentInstance } from 'vue'
+import { tryOnUnmounted } from '@vueuse/core'
 import type { useChatWebSocket } from '@/core/composables/useWebSocket'
 
 type ChatWebSocket = ReturnType<typeof useChatWebSocket>
@@ -38,10 +38,7 @@ export function useTypingIndicator(chatWs: ChatWebSocket | null) {
     }
   }
 
-  // Only register onUnmounted if inside a Vue component
-  if (getCurrentInstance()) {
-    onUnmounted(cleanup)
-  }
+  tryOnUnmounted(cleanup)
 
   return {
     handleTyping,

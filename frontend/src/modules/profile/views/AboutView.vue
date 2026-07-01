@@ -22,8 +22,8 @@ const { handleVersionClick } = useFakeCrash()
 
 onMounted(async () => {
   try {
-    const info = await systemService.getInfo()
-    backendInfo.value = info
+    const response = await systemService.getInfo()
+    backendInfo.value = response.data
   } catch (err) {
     error.value = 'Failed to load backend info'
     console.error('Failed to fetch backend info:', err)

@@ -1,22 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import AboutView from '@/modules/profile/views/AboutView.vue'
-import * as http from '@/core/plugins/httpClient'
 
-// Mock the httpClient
-vi.mock('@/core/plugins/httpClient', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/core/plugins/httpClient')>()
-  return {
-    ...actual,
-    apiGet: vi.fn().mockResolvedValue({
-      app_version: '1.13.7',
-      api_version: 'v1',
-      environment: 'local',
-      python_version: '3.13.1',
-      build_date: '2026-01-22T00:00:00+00:00',
+// Mock the axios client
+vi.mock('@/core/plugins/axios', () => ({
+  default: {
+    get: vi.fn().mockResolvedValue({
+      data: {
+        app_version: '1.13.7',
+        api_version: 'v1',
+        environment: 'local',
+        python_version: '3.13.1',
+        build_date: '2026-01-22T00:00:00+00:00',
+      },
     }),
-  }
-})
+  },
+}))
 
 // Mock the UI components
 vi.mock('@/core/components/ui', () => ({
@@ -97,7 +96,8 @@ describe('AboutView', () => {
 
   it('handles API error gracefully', async () => {
     // Override mock for this test
-    vi.mocked(http.apiGet).mockRejectedValueOnce(new Error('Network error'))
+    const axios = await import('@/core/plugins/axios')
+    vi.mocked(axios.default.get).mockRejectedValueOnce(new Error('Network error'))
 
     const wrapper = mount(AboutView)
     await flushPromises()

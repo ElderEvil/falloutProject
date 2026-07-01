@@ -73,24 +73,13 @@ vi.mock('@/core/composables/useToast', () => ({
   }),
 }))
 
-// Mock httpClient
-vi.mock('@/core/plugins/httpClient', () => ({
-  apiGet: vi.fn().mockResolvedValue({}),
-  apiPost: vi.fn().mockResolvedValue({}),
-  apiPut: vi.fn().mockResolvedValue({}),
-  apiPatch: vi.fn().mockResolvedValue({}),
-  apiDelete: vi.fn().mockResolvedValue({}),
-  ApiError: class extends Error {
-    status: number
-    detail: unknown
-    constructor(status: number, detail: unknown) {
-      super(typeof detail === 'string' ? detail : 'Unknown error')
-      this.status = status
-      this.detail = detail
-      this.name = 'ApiError'
-    }
+// Mock axios
+vi.mock('@/core/plugins/axios', () => ({
+  default: {
+    get: vi.fn().mockResolvedValue({ data: {} }),
+    post: vi.fn().mockResolvedValue({ data: {} }),
+    put: vi.fn().mockResolvedValue({ data: {} }),
   },
-  registerAuthSyncCallback: vi.fn(),
 }))
 
 // Mock vue-router with shared mocks so we can spy on router.push

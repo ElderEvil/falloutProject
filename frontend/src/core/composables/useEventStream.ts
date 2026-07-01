@@ -202,6 +202,37 @@ function useSseBase(
   return { event, status, error, reconnected, connect, close, stopReconnect }
 }
 
+// POST-based SSE composable (for chat etc.)
+
+export interface UsePostEventStreamReturn {
+  event: Ref<SseEvent | null>
+  status: Ref<'idle' | 'connecting' | 'open' | 'closed'>
+  error: Ref<Error | null>
+  reconnected: Ref<number>
+  connect: (body: Record<string, unknown>) => Promise<void>
+  close: () => void
+  stopReconnect: () => void
+}
+
+export function usePostEventStream(
+  url: string,
+  options?: { headers?: Record<string, string> }
+): UsePostEventStreamReturn {
+  const { event, status, error, reconnected, connect, close, stopReconnect } = useSseBase(url, {
+    ...options,
+    method: 'POST',
+  })
+  return {
+    event,
+    status,
+    error,
+    reconnected,
+    connect: connect as (body: Record<string, unknown>) => Promise<void>,
+    close,
+    stopReconnect,
+  }
+}
+
 // Fetch-based GET SSE (supports Authorization headers for authenticated streams)
 
 export interface UseSseReturn {

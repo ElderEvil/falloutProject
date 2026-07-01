@@ -1,5 +1,5 @@
-import { defineStore, acceptHMRUpdate } from 'pinia'
-import * as http from '@/core/plugins/httpClient'
+import { defineStore } from 'pinia'
+import axios from '@/core/plugins/axios'
 import type { Dweller } from '../models/dweller'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
@@ -16,7 +16,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     token: string
   ): Promise<Dweller> {
     try {
-      const response = await http.apiPost(`/api/v1/dwellers/${dwellerId}/move_to/${roomId}`, null, {
+      const response = await axios.post(`/api/v1/dwellers/${dwellerId}/move_to/${roomId}`, null, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -33,10 +33,10 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
 
       // Update detailed dweller if cached
       if (filterStore.detailedDwellers[dwellerId]) {
-        filterStore.detailedDwellers[dwellerId] = response
+        filterStore.detailedDwellers[dwellerId] = response.data
       }
 
-      return response
+      return response.data
     } catch (error) {
       handleStoreError(error, `Failed to assign dweller ${dwellerId} to room ${roomId}`)
       throw error
@@ -46,7 +46,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
   async function unassignDwellerFromRoom(dwellerId: string, token: string): Promise<Dweller> {
     try {
       // Move dweller to null room (unassign)
-      const response = await http.apiPut(
+      const response = await axios.put(
         `/api/v1/dwellers/${dwellerId}`,
         { room_id: null },
         {
@@ -62,16 +62,16 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
         filterStore.dwellers[dwellerIndex] = {
           ...filterStore.dwellers[dwellerIndex]!,
           room_id: null,
-          status: response.status,
+          status: response.data.status,
         }
       }
 
       // Update detailed dweller if cached
       if (filterStore.detailedDwellers[dwellerId]) {
-        filterStore.detailedDwellers[dwellerId] = response
+        filterStore.detailedDwellers[dwellerId] = response.data
       }
 
-      return response
+      return response.data
     } catch (error) {
       handleStoreError(error, `Failed to unassign dweller ${dwellerId}`)
       throw error
@@ -80,7 +80,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
 
   async function autoAssignToRoom(dwellerId: string, token: string): Promise<Dweller | null> {
     try {
-      const response = await http.apiPost(`/api/v1/dwellers/${dwellerId}/auto_assign`, null, {
+      const response = await axios.post(`/api/v1/dwellers/${dwellerId}/auto_assign`, null, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -91,19 +91,24 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       if (dwellerIndex !== -1 && filterStore.dwellers[dwellerIndex]) {
         filterStore.dwellers[dwellerIndex] = {
           ...filterStore.dwellers[dwellerIndex]!,
-          room_id: response.room_id,
+          room_id: response.data.room_id,
         }
       }
 
       // Update detailed dweller if cached
       if (filterStore.detailedDwellers[dwellerId]) {
-        filterStore.detailedDwellers[dwellerId] = response
+        filterStore.detailedDwellers[dwellerId] = response.data
       }
 
       toast.success('Dweller auto-assigned to best matching room!')
-      return response
+      return response.data
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to auto-assign dweller'
+      const errorMessage =
+        (
+          error as {
+            response?: { data?: { detail?: string } }
+          }
+        )?.response?.data?.detail || 'Failed to auto-assign dweller'
       handleStoreError(error, `Failed to auto-assign dweller ${dwellerId}`)
       toast.error(errorMessage)
       return null
@@ -116,7 +121,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     token: string
   ): Promise<Dweller | null> {
     try {
-      const response = await http.apiPatch(
+      const response = await axios.patch(
         `/api/v1/dwellers/${dwellerId}/rename`,
         { first_name: firstName },
         {
@@ -128,7 +133,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
 
       // Update detailed dweller if cached
       if (filterStore.detailedDwellers[dwellerId]) {
-        filterStore.detailedDwellers[dwellerId] = response
+        filterStore.detailedDwellers[dwellerId] = response.data
       }
 
       // Update in list if present
@@ -136,7 +141,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       if (dwellerIndex !== -1 && filterStore.dwellers[dwellerIndex]) {
         filterStore.dwellers[dwellerIndex] = {
           ...filterStore.dwellers[dwellerIndex]!,
-          first_name: response.first_name,
+          first_name: response.data.first_name,
         }
       }
 
@@ -149,9 +154,14 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
         toast.info('VAULT 108 PROTOCOL ACTIVATED', { duration: 5000 })
       }
 
-      return response
+      return response.data
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to rename dweller'
+      const errorMessage =
+        (
+          error as {
+            response?: { data?: { detail?: string } }
+          }
+        )?.response?.data?.detail || 'Failed to rename dweller'
       handleStoreError(error, `Failed to rename dweller ${dwellerId}`)
       toast.error(errorMessage)
       return null
@@ -164,7 +174,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     token: string
   ): Promise<Dweller | null> {
     try {
-      const response = await http.apiPut(
+      const response = await axios.put(
         `/api/v1/dwellers/${dwellerId}`,
         { visual_attributes: visualAttributes },
         {
@@ -176,13 +186,18 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
 
       // Update detailed dweller if cached
       if (filterStore.detailedDwellers[dwellerId]) {
-        filterStore.detailedDwellers[dwellerId] = response
+        filterStore.detailedDwellers[dwellerId] = response.data
       }
 
       toast.success('Appearance updated successfully!')
-      return response
+      return response.data
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to update appearance'
+      const errorMessage =
+        (
+          error as {
+            response?: { data?: { detail?: string } }
+          }
+        )?.response?.data?.detail || 'Failed to update appearance'
       handleStoreError(error, `Failed to update appearance for dweller ${dwellerId}`)
       toast.error(errorMessage)
       return null
@@ -194,7 +209,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     token: string
   ): Promise<{ unassigned_count: number } | null> {
     try {
-      const response = await http.apiPost<{ unassigned_count: number }>(
+      const response = await axios.post<{ unassigned_count: number }>(
         `/api/v1/vaults/${vaultId}/dwellers/unassign-all`,
         null,
         {
@@ -207,10 +222,15 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       // Refetch dwellers to update UI
       await filterStore.fetchDwellersByVault(vaultId, token)
 
-      toast.success(`Unassigned ${response.unassigned_count} dwellers`)
-      return response
+      toast.success(`Unassigned ${response.data.unassigned_count} dwellers`)
+      return response.data
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to unassign all dwellers'
+      const errorMessage =
+        (
+          error as {
+            response?: { data?: { detail?: string } }
+          }
+        )?.response?.data?.detail || 'Failed to unassign all dwellers'
       handleStoreError(error, `Failed to unassign all dwellers for vault ${vaultId}`)
       toast.error(errorMessage)
       return null
@@ -222,7 +242,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     token: string
   ): Promise<{ assigned_count: number; assignments: any[] } | null> {
     try {
-      const response = await http.apiPost<{ assigned_count: number; assignments: any[] }>(
+      const response = await axios.post<{ assigned_count: number; assignments: any[] }>(
         `/api/v1/vaults/${vaultId}/dwellers/auto-assign-all`,
         null,
         {
@@ -235,10 +255,15 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       // Refetch dwellers to update UI
       await filterStore.fetchDwellersByVault(vaultId, token)
 
-      toast.success(`Assigned ${response.assigned_count} dwellers to rooms!`)
-      return response
+      toast.success(`Assigned ${response.data.assigned_count} dwellers to rooms!`)
+      return response.data
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to auto-assign dwellers'
+      const errorMessage =
+        (
+          error as {
+            response?: { data?: { detail?: string } }
+          }
+        )?.response?.data?.detail || 'Failed to auto-assign dwellers'
       handleStoreError(error, `Failed to auto-assign dwellers for vault ${vaultId}`)
       toast.error(errorMessage)
       return null
@@ -255,7 +280,3 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     autoAssignAllDwellers,
   }
 })
-
-if (import.meta.hot) {
-  import.meta.hot.accept(acceptHMRUpdate(useDwellerManagementStore, import.meta.hot))
-}

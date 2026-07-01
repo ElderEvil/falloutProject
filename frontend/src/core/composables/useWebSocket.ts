@@ -1,103 +1,208 @@
-import { ref, computed, watch, toValue } from 'vue'
-import type { MaybeRefOrGetter } from 'vue'
-import { useWebSocket as useVueUseWebSocket, tryOnUnmounted } from '@vueuse/core'
+import { ref, onUnmounted, getCurrentInstance } from 'vue'
 
 export type WebSocketState = 'connecting' | 'connected' | 'disconnected' | 'error'
 
 export interface WebSocketMessage {
   type: string
-  [key: string]: unknown
+  [key: string]: any
 }
 
-export function useWebSocket(url?: MaybeRefOrGetter<string | URL | undefined>) {
-  const handlers = new Map<string, ((m: WebSocketMessage) => void)[]>()
+export function useWebSocket(initialUrl?: string) {
+  const socket = ref<WebSocket | null>(null)
+  const state = ref<WebSocketState>('disconnected')
+  const lastError = ref<string | null>(null)
+  const reconnectAttempts = ref(0)
+  const maxReconnectAttempts = 5
+  const reconnectDelay = 3000
+  const currentUrl = ref<string>(initialUrl || '')
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 
-  const { status, data, send: rawSend, open, close, ws } = useVueUseWebSocket(url, {
-    autoReconnect: {
-      retries: 5,
-      delay: (retry) => Math.min(1000 * 2 ** (retry - 1), 30000),
-    },
-    heartbeat: {
-      message: 'ping',
-      interval: 30000,
-      pongTimeout: 5000,
-    },
-    immediate: false,
-  })
+  const messageHandlers = new Map<string, ((message: WebSocketMessage) => void)[]>()
 
-  const state = computed<WebSocketState>(() =>
-    status.value === 'CONNECTING'
-      ? 'connecting'
-      : status.value === 'OPEN'
-        ? 'connected'
-        : 'disconnected'
-  )
-
-  watch(data, (raw) => {
-    if (!raw) return
-    try {
-      const msg: WebSocketMessage = typeof raw === 'string' ? JSON.parse(raw) : raw
-      handlers.get(msg.type)?.forEach((h) => h(msg))
-      handlers.get('*')?.forEach((h) => h(msg))
-    } catch (e) {
-      console.error('Error parsing WebSocket message:', e)
+  const connect = (url?: string) => {
+    // Clear any pending reconnect timer
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer)
+      reconnectTimer = null
     }
-  })
+
+    // Update URL if provided
+    if (url) {
+      // If URL changed and socket is open, close it to reconnect with new URL
+      if (url !== currentUrl.value && socket.value?.readyState === WebSocket.OPEN) {
+        socket.value.close()
+      }
+      currentUrl.value = url
+    }
+
+    // Require a URL before connecting
+    if (!currentUrl.value) {
+      console.error('Cannot connect: no WebSocket URL provided')
+      return
+    }
+
+    // Prevent duplicate connections if already connecting or connected
+    if (
+      socket.value?.readyState === WebSocket.CONNECTING ||
+      socket.value?.readyState === WebSocket.OPEN
+    ) {
+      return
+    }
+
+    state.value = 'connecting'
+
+    try {
+      socket.value = new WebSocket(currentUrl.value)
+
+      socket.value.onopen = () => {
+        state.value = 'connected'
+        reconnectAttempts.value = 0
+        lastError.value = null
+      }
+
+      socket.value.onmessage = (event) => {
+        try {
+          const message: WebSocketMessage = JSON.parse(event.data)
+
+          // Call registered handlers for this message type
+          const handlers = messageHandlers.get(message.type)
+          if (handlers) {
+            handlers.forEach((handler) => handler(message))
+          }
+
+          // Also call wildcard handlers
+          const wildcardHandlers = messageHandlers.get('*')
+          if (wildcardHandlers) {
+            wildcardHandlers.forEach((handler) => handler(message))
+          }
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error)
+        }
+      }
+
+      socket.value.onerror = (error) => {
+        console.error('WebSocket error:', error)
+        state.value = 'error'
+        lastError.value = 'WebSocket connection error'
+      }
+
+      socket.value.onclose = () => {
+        state.value = 'disconnected'
+        socket.value = null
+
+        // Attempt to reconnect
+        if (reconnectAttempts.value < maxReconnectAttempts) {
+          reconnectAttempts.value++
+          reconnectTimer = setTimeout(() => {
+            connect()
+          }, reconnectDelay)
+        } else {
+          console.error('Max reconnection attempts reached')
+          lastError.value = 'Failed to reconnect after multiple attempts'
+        }
+      }
+    } catch (error) {
+      console.error('Error creating WebSocket:', error)
+      state.value = 'error'
+      lastError.value = 'Failed to create WebSocket connection'
+    }
+  }
+
+  const disconnect = () => {
+    // Clear any pending reconnect timer
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer)
+      reconnectTimer = null
+    }
+
+    if (socket.value) {
+      reconnectAttempts.value = maxReconnectAttempts // Prevent auto-reconnect
+      socket.value.close()
+      socket.value = null
+    }
+    state.value = 'disconnected'
+  }
 
   const send = (message: WebSocketMessage) => {
-    if (ws.value?.readyState === WebSocket.OPEN) {
-      rawSend(JSON.stringify(message))
+    if (socket.value?.readyState === WebSocket.OPEN) {
+      socket.value.send(JSON.stringify(message))
     } else {
-      console.warn('WebSocket not connected, cannot send message')
+      console.error('WebSocket not connected, cannot send message')
+      throw new Error('WebSocket not connected')
     }
   }
 
-  const on = <T extends WebSocketMessage = WebSocketMessage>(type: string, handler: (m: T) => void) => {
-    if (!handlers.has(type)) handlers.set(type, [])
-    handlers.get(type)!.push(handler as (m: WebSocketMessage) => void)
+  const on = (messageType: string, handler: (message: WebSocketMessage) => void) => {
+    if (!messageHandlers.has(messageType)) {
+      messageHandlers.set(messageType, [])
+    }
+    messageHandlers.get(messageType)!.push(handler)
   }
 
-  const off = <T extends WebSocketMessage = WebSocketMessage>(type: string, handler: (m: T) => void) => {
-    const list = handlers.get(type)
-    if (list) {
-      const i = list.indexOf(handler as (m: WebSocketMessage) => void)
-      if (i > -1) list.splice(i, 1)
+  const off = (messageType: string, handler: (message: WebSocketMessage) => void) => {
+    const handlers = messageHandlers.get(messageType)
+    if (handlers) {
+      const index = handlers.indexOf(handler)
+      if (index > -1) {
+        handlers.splice(index, 1)
+      }
     }
   }
 
-  const connect = () => {
-    open()
+  // Cleanup on unmount (only if inside a Vue component)
+  if (getCurrentInstance()) {
+    onUnmounted(() => {
+      // Clear reconnect timer before disconnecting
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer)
+        reconnectTimer = null
+      }
+      disconnect()
+      messageHandlers.clear()
+    })
   }
-
-  tryOnUnmounted(() => {
-    handlers.clear()
-    close()
-  })
 
   return {
+    // State
     state,
-    lastError: ref<string | null>(null),
-    reconnectAttempts: ref(0),
+    lastError,
+    reconnectAttempts,
+
+    // Methods
     connect,
-    disconnect: close,
+    disconnect,
     send,
     on,
     off,
-    close,
-    ws,
-    data,
-    status: state,
   }
 }
 
-export function useChatWebSocket(userId: MaybeRefOrGetter<string>, dwellerId: MaybeRefOrGetter<string>) {
-  const wsBase = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
-  const url = computed(() => `${wsBase}/api/v1/ws/chat/${toValue(userId)}/${toValue(dwellerId)}`)
-  const ws = useWebSocket(url)
+// Specific composable for chat WebSocket
+export function useChatWebSocket(userId: string, dwellerId: string) {
+  // Get WebSocket base URL from environment (same as axios API base URL)
+  let apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+
+  // Normalize: add default scheme if missing
+  if (!apiBaseUrl.match(/^https?:\/\//)) {
+    apiBaseUrl = `http://${apiBaseUrl}`
+  }
+
+  // Remove trailing slashes
+  apiBaseUrl = apiBaseUrl.replace(/\/+$/, '')
+
+  // Convert HTTP/HTTPS to WS/WSS protocol
+  const wsBaseUrl = apiBaseUrl.replace(/^https?/, (match) => (match === 'https' ? 'wss' : 'ws'))
+
+  // Construct WebSocket URL
+  const wsUrl = `${wsBaseUrl}/api/v1/ws/chat/${userId}/${dwellerId}`
+  const ws = useWebSocket(wsUrl)
 
   const sendTypingIndicator = (isTyping: boolean) => {
     if (ws.state.value === 'connected') {
-      ws.send({ type: 'typing', is_typing: isTyping })
+      ws.send({
+        type: 'typing',
+        is_typing: isTyping,
+      })
     } else {
       console.debug(`Cannot send typing indicator: WebSocket is ${ws.state.value}, not connected`)
     }
@@ -105,7 +210,10 @@ export function useChatWebSocket(userId: MaybeRefOrGetter<string>, dwellerId: Ma
 
   const sendMessage = (content: string) => {
     if (ws.state.value === 'connected') {
-      ws.send({ type: 'message', content })
+      ws.send({
+        type: 'message',
+        content,
+      })
     } else {
       console.debug(`Cannot send message: WebSocket is ${ws.state.value}, not connected`)
     }

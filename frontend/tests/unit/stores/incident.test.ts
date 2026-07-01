@@ -34,16 +34,14 @@ describe('Incident Store', () => {
     status: IncidentStatus.ACTIVE,
     difficulty: 5,
     start_time: '2025-01-01T00:00:00Z',
-    end_time: null,
     damage_dealt: 10,
     enemies_defeated: 2,
     spread_count: 0,
     rooms_affected: ['room-1'],
+    last_spread_time: null,
     loot: null,
+    resolved_at: null,
     duration: 60,
-    elapsed_time: 60,
-    created_at: '2025-01-01T00:00:00Z',
-    updated_at: '2025-01-01T00:00:00Z',
   }
 
   const mockIncidentList: IncidentListResponse = {
@@ -249,23 +247,11 @@ describe('Incident Store', () => {
       const store = useIncidentStore()
 
       vi.mocked(incidentApi.spawnIncident).mockResolvedValueOnce({
-        id: 'incident-1',
-        vault_id: 'vault-1',
+        message: 'Incident spawned',
+        incident_id: 'incident-1',
+        type: 'raider_attack',
         room_id: 'room-1',
-        type: IncidentType.RAIDER_ATTACK,
-        status: IncidentStatus.ACTIVE,
         difficulty: 5,
-        start_time: '2025-01-01T00:00:00Z',
-        end_time: null,
-        damage_dealt: 0,
-        enemies_defeated: 0,
-        spread_count: 0,
-        rooms_affected: ['room-1'],
-        loot: null,
-        duration: 60,
-        elapsed_time: 0,
-        created_at: '2025-01-01T00:00:00Z',
-        updated_at: '2025-01-01T00:00:00Z',
       })
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
       vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
@@ -289,30 +275,18 @@ describe('Incident Store', () => {
     it('should spawn specific incident type', async () => {
       const store = useIncidentStore()
       vi.mocked(incidentApi.spawnIncident).mockResolvedValueOnce({
-        id: 'incident-1',
-        vault_id: 'vault-1',
+        message: 'Incident spawned',
+        incident_id: 'incident-1',
+        type: 'fire',
         room_id: 'room-1',
-        type: IncidentType.FIRE,
-        status: IncidentStatus.ACTIVE,
         difficulty: 3,
-        start_time: '2025-01-01T00:00:00Z',
-        end_time: null,
-        damage_dealt: 0,
-        enemies_defeated: 0,
-        spread_count: 0,
-        rooms_affected: ['room-1'],
-        loot: null,
-        duration: 60,
-        elapsed_time: 0,
-        created_at: '2025-01-01T00:00:00Z',
-        updated_at: '2025-01-01T00:00:00Z',
       })
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
       vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
 
       await store.spawnDebugIncident('vault-1', 'token', 'fire')
 
-      expect(incidentApi.spawnIncident).toHaveBeenCalledWith('vault-1', 'fire')
+      expect(incidentApi.spawnIncident).toHaveBeenCalledWith('vault-1', 'token', 'fire')
     })
   })
 

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useQuestStore } from '@/modules/progression/stores/quest'
-import * as http from '@/core/plugins/httpClient'
+import axios from '@/core/plugins/axios'
 
-vi.mock('@/core/plugins/httpClient')
+vi.mock('@/core/plugins/axios')
 
 describe('Quest Store', () => {
   beforeEach(() => {
@@ -157,21 +157,21 @@ describe('Quest Store', () => {
         },
       ]
 
-      vi.mocked(http.apiGet).mockResolvedValueOnce(mockQuests)
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockQuests })
 
       const store = useQuestStore()
       await store.fetchAllQuests()
 
-      expect(http.apiGet).toHaveBeenCalledWith(
+      expect(axios.get).toHaveBeenCalledWith(
         '/api/v1/quests/',
-        expect.objectContaining({ _skipErrorNotification: true })
+        expect.objectContaining({ headers: expect.any(Object) })
       )
       expect(store.quests).toEqual(mockQuests)
       expect(store.isLoading).toBe(false)
     })
 
     it('should handle fetch error', async () => {
-      vi.mocked(http.apiGet).mockRejectedValueOnce(new Error('Network error'))
+      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Network error'))
 
       const store = useQuestStore()
       await expect(store.fetchAllQuests()).rejects.toThrow('Network error')
@@ -196,20 +196,20 @@ describe('Quest Store', () => {
         },
       ]
 
-      vi.mocked(http.apiGet).mockResolvedValueOnce(mockVaultQuests)
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockVaultQuests })
 
       const store = useQuestStore()
       await store.fetchVaultQuests('vault-123')
 
-      expect(http.apiGet).toHaveBeenCalledWith(
+      expect(axios.get).toHaveBeenCalledWith(
         '/api/v1/quests/vault-123/',
-        expect.objectContaining({ _skipErrorNotification: true })
+        expect.objectContaining({ headers: expect.any(Object) })
       )
       expect(store.vaultQuests).toEqual(mockVaultQuests)
     })
 
     it('should handle fetch error', async () => {
-      vi.mocked(http.apiGet).mockRejectedValueOnce(new Error('Vault not found'))
+      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Vault not found'))
 
       const store = useQuestStore()
       await expect(store.fetchVaultQuests('vault-123')).rejects.toThrow('Vault not found')
@@ -232,25 +232,23 @@ describe('Quest Store', () => {
         is_completed: false,
       }
 
-      vi.mocked(http.apiPost).mockResolvedValueOnce(mockAssignedQuest)
-      vi.mocked(http.apiGet).mockResolvedValueOnce([mockAssignedQuest])
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: mockAssignedQuest })
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: [mockAssignedQuest] })
 
       const store = useQuestStore()
       await store.assignQuest('vault-123', 'quest-1', true)
 
-      expect(http.apiPost).toHaveBeenCalledWith(
-        '/api/v1/quests/vault-123/quest-1/assign?is_visible=true',
-        undefined,
-        expect.objectContaining({ _skipErrorNotification: true })
-      )
-      expect(http.apiGet).toHaveBeenCalledWith(
+      expect(axios.post).toHaveBeenCalledWith('/api/v1/quests/vault-123/quest-1/assign', null, {
+        params: { is_visible: true },
+      })
+      expect(axios.get).toHaveBeenCalledWith(
         '/api/v1/quests/vault-123/',
-        expect.objectContaining({ _skipErrorNotification: true })
+        expect.objectContaining({ headers: expect.any(Object) })
       )
     })
 
     it('should handle assign error', async () => {
-      vi.mocked(http.apiPost).mockRejectedValueOnce(new Error('Already assigned'))
+      vi.mocked(axios.post).mockRejectedValueOnce(new Error('Already assigned'))
 
       const store = useQuestStore()
       await expect(store.assignQuest('vault-123', 'quest-1')).rejects.toThrow('Already assigned')
@@ -272,25 +270,21 @@ describe('Quest Store', () => {
         is_completed: true,
       }
 
-      vi.mocked(http.apiPost).mockResolvedValueOnce({ success: true })
-      vi.mocked(http.apiGet).mockResolvedValueOnce([completedQuest])
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: { success: true } })
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: [completedQuest] })
 
       const store = useQuestStore()
       await store.completeQuest('vault-123', 'quest-1')
 
-      expect(http.apiPost).toHaveBeenCalledWith(
-        '/api/v1/quests/vault-123/quest-1/complete',
-        undefined,
-        expect.objectContaining({ _skipErrorNotification: true })
-      )
-      expect(http.apiGet).toHaveBeenCalledWith(
+      expect(axios.post).toHaveBeenCalledWith('/api/v1/quests/vault-123/quest-1/complete')
+      expect(axios.get).toHaveBeenCalledWith(
         '/api/v1/quests/vault-123/',
-        expect.objectContaining({ _skipErrorNotification: true })
+        expect.objectContaining({ headers: expect.any(Object) })
       )
     })
 
     it('should handle complete error', async () => {
-      vi.mocked(http.apiPost).mockRejectedValueOnce(new Error('Quest not found'))
+      vi.mocked(axios.post).mockRejectedValueOnce(new Error('Quest not found'))
 
       const store = useQuestStore()
       await expect(store.completeQuest('vault-123', 'quest-1')).rejects.toThrow('Quest not found')
@@ -304,14 +298,14 @@ describe('Quest Store', () => {
         resolvePromise = resolve
       })
 
-      vi.mocked(http.apiGet).mockReturnValueOnce(promise as any)
+      vi.mocked(axios.get).mockReturnValueOnce(promise as any)
 
       const store = useQuestStore()
       const fetchPromise = store.fetchAllQuests()
 
       expect(store.isLoading).toBe(true)
 
-      resolvePromise!([])
+      resolvePromise!({ data: [] })
       await fetchPromise
 
       expect(store.isLoading).toBe(false)

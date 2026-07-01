@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
-import { defineStore, acceptHMRUpdate } from 'pinia'
+import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
-import * as http from '@/core/plugins/httpClient'
+import axios from '@/core/plugins/axios'
 import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
 import { handleStoreError } from '@/core/utils/errorHandler'
 
@@ -103,6 +103,11 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     return result
   })
 
+  async function fetchDwellers(vaultId: string, _token?: string): Promise<void> {
+    console.warn('fetchDwellers is deprecated, use fetchDwellersByVault with vaultId')
+    await fetchDwellersByVault(vaultId, _token || '')
+  }
+
   async function fetchDwellersByVault(
     vaultId: string,
     token: string,
@@ -131,12 +136,12 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
       const queryString = params.toString()
       const url = `/api/v1/dwellers/vault/${vaultId}/${queryString ? `?${queryString}` : ''}`
 
-      const response = await http.apiGet(url, {
+      const response = await axios.get(url, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       })
-      dwellers.value = response
+      dwellers.value = response.data
     } catch (error) {
       handleStoreError(error, `Failed to fetch dwellers for vault ${vaultId}`)
     } finally {
@@ -155,12 +160,12 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     }
     if (detailedDwellers.value[id] && !forceRefresh) return detailedDwellers.value[id] ?? null
     try {
-      const response = await http.apiGet(`/api/v1/dwellers/${id}`, {
+      const response = await axios.get(`/api/v1/dwellers/${id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       })
-      detailedDwellers.value[id] = response
+      detailedDwellers.value[id] = response.data
       return detailedDwellers.value[id] ?? null
     } catch (error) {
       handleStoreError(error, `Failed to fetch details for dweller ${id}`)
@@ -201,6 +206,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     getDwellerStatus,
     getDwellersByStatus,
     filteredAndSortedDwellers,
+    fetchDwellers,
     fetchDwellersByVault,
     fetchDwellerDetails,
     setFilterStatus,
@@ -210,7 +216,3 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     setViewMode,
   }
 })
-
-if (import.meta.hot) {
-  import.meta.hot.accept(acceptHMRUpdate(useDwellerFilterStore, import.meta.hot))
-}

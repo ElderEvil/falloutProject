@@ -1,7 +1,7 @@
 import { ref } from 'vue'
-import { defineStore, acceptHMRUpdate } from 'pinia'
-import * as http from '@/core/plugins/httpClient'
-import { handleStoreError } from '@/core/utils/errorHandler'
+import { defineStore } from 'pinia'
+import axios from '@/core/plugins/axios'
+import { AxiosError } from 'axios'
 import type { Room, RoomCreate, RoomTemplate } from '../models/room'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 
@@ -13,39 +13,52 @@ export const useRoomStore = defineStore('room', () => {
   const isPlacingRoom = ref(false)
 
   // Actions
-  async function fetchRooms(vaultId: string, _token: string): Promise<void> {
+  async function fetchRooms(vaultId: string, token: string): Promise<void> {
     try {
-      rooms.value = await http.apiGet<Room[]>(`/api/v1/rooms/vault/${vaultId}/`)
+      const response = await axios.get<Room[]>(`/api/v1/rooms/vault/${vaultId}/`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      rooms.value = response.data
     } catch (error) {
-      handleStoreError(error, 'Failed to fetch rooms')
+      console.error('Failed to fetch rooms', error)
       rooms.value = [] // Reset to empty array on error
     }
   }
 
-  async function fetchRoomsData(_token: string, vaultId?: string): Promise<void> {
+  async function fetchRoomsData(token: string, vaultId?: string): Promise<void> {
     try {
       // Use buildable endpoint if vault ID is provided to filter out vault door and unique rooms
       const endpoint = vaultId ? `/api/v1/rooms/buildable/${vaultId}/` : '/api/v1/rooms/read_data/'
 
-      availableRooms.value = await http.apiGet<RoomTemplate[]>(endpoint)
+      const response = await axios.get<RoomTemplate[]>(endpoint, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      availableRooms.value = response.data
     } catch (error) {
-      handleStoreError(error, 'Failed to fetch rooms data')
+      console.error('Failed to fetch rooms data', error)
     }
   }
 
   async function buildRoom(roomData: RoomCreate, token: string, vaultId: string): Promise<void> {
     try {
-      const newRoom = await http.apiPost<Room>('/api/v1/rooms/build/', roomData)
-      rooms.value.push(newRoom)
+      const response = await axios.post<Room>('/api/v1/rooms/build/', roomData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      rooms.value.push(response.data)
 
       // Refresh vault data to update caps
       const vaultStore = useVaultStore()
       await vaultStore.refreshVault(vaultId, token)
     } catch (error) {
-      handleStoreError(error, 'Failed to build room')
-      if (error instanceof http.ApiError && error.detail) {
-        const detail = typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail)
-        throw new Error(detail)
+      console.error('Failed to build room', error)
+      if (error instanceof AxiosError && error.response?.data?.detail) {
+        throw new Error(error.response.data.detail)
       }
       throw error
     }
@@ -53,17 +66,20 @@ export const useRoomStore = defineStore('room', () => {
 
   async function destroyRoom(roomId: string, token: string, vaultId: string): Promise<void> {
     try {
-      await http.apiDelete(`/api/v1/rooms/destroy/${roomId}`)
+      await axios.delete(`/api/v1/rooms/destroy/${roomId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
       rooms.value = rooms.value.filter((room) => room.id !== roomId)
 
       // Refresh vault to update caps after refund
       const vaultStore = useVaultStore()
       await vaultStore.refreshVault(vaultId, token)
     } catch (error) {
-      handleStoreError(error, 'Failed to destroy room')
-      if (error instanceof http.ApiError && error.detail) {
-        const detail = typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail)
-        throw new Error(detail)
+      console.error('Failed to destroy room', error)
+      if (error instanceof AxiosError && error.response?.data?.detail) {
+        throw new Error(error.response.data.detail)
       }
       throw error
     }
@@ -71,22 +87,29 @@ export const useRoomStore = defineStore('room', () => {
 
   async function upgradeRoom(roomId: string, token: string, vaultId: string): Promise<void> {
     try {
-      const upgraded = await http.apiPost<Room>(`/api/v1/rooms/upgrade/${roomId}`, {})
+      const response = await axios.post<Room>(
+        `/api/v1/rooms/upgrade/${roomId}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
 
       // Update the room in the local array
       const index = rooms.value.findIndex((room) => room.id === roomId)
       if (index !== -1) {
-        rooms.value[index] = upgraded
+        rooms.value[index] = response.data
       }
 
       // Refresh vault data to update caps
       const vaultStore = useVaultStore()
       await vaultStore.refreshVault(vaultId, token)
     } catch (error) {
-      handleStoreError(error, 'Failed to upgrade room')
-      if (error instanceof http.ApiError && error.detail) {
-        const detail = typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail)
-        throw new Error(detail)
+      console.error('Failed to upgrade room', error)
+      if (error instanceof AxiosError && error.response?.data?.detail) {
+        throw new Error(error.response.data.detail)
       }
       throw error
     }
@@ -118,8 +141,3 @@ export const useRoomStore = defineStore('room', () => {
     deselectRoom,
   }
 })
-
-// HMR support
-if (import.meta.hot) {
-  import.meta.hot.accept(acceptHMRUpdate(useRoomStore, import.meta.hot))
-}

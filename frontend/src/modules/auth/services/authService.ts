@@ -1,50 +1,51 @@
-import * as http from '@/core/plugins/httpClient'
+import apiClient from '@/core/plugins/axios'
+import type { AxiosResponse } from 'axios'
 import { AuthError, type Token, type UserWithTokens } from '../types/auth'
 import type { User } from '../types/user'
 import type { LoginFormData, RegisterFormData } from '../schemas/auth'
 
 export const authService = {
-  async login(form: LoginFormData): Promise<Token> {
+  async login(form: LoginFormData): Promise<AxiosResponse<Token>> {
     try {
       const formAsRecord: Record<string, string> = {
         username: form.username,
         password: form.password,
       }
-      return await http.apiPost<Token>(
-        '/api/v1/auth/login',
-        new URLSearchParams(formAsRecord).toString(),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-      )
+      return await apiClient.post('/api/v1/auth/login', new URLSearchParams(formAsRecord), {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      })
     } catch {
       throw new AuthError('Login failed')
     }
   },
-  async register(form: RegisterFormData): Promise<UserWithTokens> {
+  async register(form: RegisterFormData): Promise<AxiosResponse<UserWithTokens>> {
     try {
-      return await http.apiPost<UserWithTokens>('/api/v1/users/open', form)
+      return await apiClient.post('/api/v1/users/open', form)
     } catch {
       throw new AuthError('Registration failed')
     }
   },
-  async refreshToken(refreshToken: string): Promise<Token> {
+  async refreshToken(refreshToken: string): Promise<AxiosResponse<Token>> {
     try {
-      return await http.apiPost<Token>('/api/v1/auth/refresh', {
+      return await apiClient.post('/api/v1/auth/refresh', {
         refresh_token: refreshToken,
       })
     } catch {
       throw new AuthError('Token refresh failed')
     }
   },
-  async logout(): Promise<void> {
+  async logout(): Promise<AxiosResponse<void>> {
     try {
-      return await http.apiPost<void>('/api/v1/auth/logout', {})
+      return await apiClient.post('/api/v1/auth/logout', {})
     } catch {
       throw new AuthError('Logout failed')
     }
   },
-  async getCurrentUser(): Promise<User> {
+  async getCurrentUser(): Promise<AxiosResponse<User>> {
     try {
-      return await http.apiGet<User>('/api/v1/users/me')
+      return await apiClient.get('/api/v1/users/me')
     } catch {
       throw new AuthError('Failed to fetch current user')
     }

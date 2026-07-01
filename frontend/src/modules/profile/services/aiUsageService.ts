@@ -1,6 +1,7 @@
-import { apiGet } from '@/core/plugins/httpClient'
+import axios from '@/core/plugins/axios'
 import type { AIUsageStats } from '../models/aiUsage'
 
 export async function fetchAIUsage(): Promise<AIUsageStats> {
-  return apiGet<AIUsageStats>('/api/v1/users/me/profile/ai-usage')
+  const response = await axios.get<AIUsageStats>('/api/v1/users/me/profile/ai-usage')
+  return response.data
 }

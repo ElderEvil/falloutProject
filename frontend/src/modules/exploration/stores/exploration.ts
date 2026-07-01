@@ -1,6 +1,6 @@
-import { defineStore, acceptHMRUpdate } from 'pinia'
+import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import * as http from '@/core/plugins/httpClient'
+import axios from '@/core/plugins/axios'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 
@@ -105,23 +105,27 @@ export const useExplorationStore = defineStore('exploration', () => {
     vaultId: string,
     dwellerId: string,
     duration: number,
-    _token: string,
+    token: string,
     stimpaks: number = 0,
     radaways: number = 0
   ): Promise<Exploration> {
     isLoading.value = true
     error.value = null
     try {
-      const exploration = await http.apiPost<Exploration>(
+      const response = await axios.post(
         `/api/v1/explorations/send?vault_id=${vaultId}`,
         {
           dweller_id: dwellerId,
           duration,
           stimpaks,
           radaways,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
         }
       )
 
+      const exploration = response.data
       explorations.value.push(exploration)
       activeExplorations.value[exploration.id] = exploration
 
@@ -138,26 +142,29 @@ export const useExplorationStore = defineStore('exploration', () => {
 
   async function fetchExplorationsByVault(
     vaultId: string,
-    _token: string,
+    token: string,
     activeOnly = true
   ): Promise<Exploration[]> {
     isLoading.value = true
     error.value = null
     try {
-      const result = await http.apiGet<Exploration[]>(
-        `/api/v1/explorations/vault/${vaultId}?active_only=${activeOnly}`
+      const response = await axios.get(
+        `/api/v1/explorations/vault/${vaultId}?active_only=${activeOnly}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       )
 
-      explorations.value = result
+      explorations.value = response.data
       // Update active explorations map
       activeExplorations.value = {}
-      result
+      response.data
         .filter((e: Exploration) => e.status === 'active')
         .forEach((e: Exploration) => {
           activeExplorations.value[e.id] = e
         })
 
-      return result
+      return response.data
     } catch (err) {
       handleStoreError(err, 'Failed to fetch explorations')
       error.value = 'Failed to fetch explorations'
@@ -169,25 +176,27 @@ export const useExplorationStore = defineStore('exploration', () => {
 
   async function fetchExplorationDetails(
     explorationId: string,
-    _token: string
+    token: string
   ): Promise<Exploration> {
     try {
-      const result = await http.apiGet<Exploration>(`/api/v1/explorations/${explorationId}`)
+      const response = await axios.get(`/api/v1/explorations/${explorationId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
 
       // Update in explorations list
       const index = explorations.value.findIndex((e) => e.id === explorationId)
       if (index !== -1) {
-        explorations.value[index] = result
+        explorations.value[index] = response.data
       }
 
       // Update in active explorations
-      if (result.status === 'active') {
-        activeExplorations.value[explorationId] = result
+      if (response.data.status === 'active') {
+        activeExplorations.value[explorationId] = response.data
       } else {
         delete activeExplorations.value[explorationId]
       }
 
-      return result
+      return response.data
     } catch (err) {
       handleStoreError(err, 'Failed to fetch exploration details')
       throw err
@@ -196,28 +205,33 @@ export const useExplorationStore = defineStore('exploration', () => {
 
   async function fetchExplorationProgress(
     explorationId: string,
-    _token: string
+    token: string
   ): Promise<ExplorationProgress> {
     try {
-      return await http.apiGet<ExplorationProgress>(
-        `/api/v1/explorations/${explorationId}/progress`
-      )
+      const response = await axios.get(`/api/v1/explorations/${explorationId}/progress`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      return response.data as ExplorationProgress
     } catch (err) {
       handleStoreError(err, 'Failed to fetch exploration progress')
       throw err
     }
   }
 
-  async function recallDweller(explorationId: string, _token: string): Promise<any> {
+  async function recallDweller(explorationId: string, token: string): Promise<any> {
     isLoading.value = true
     error.value = null
     try {
-      const response = await http.apiPost<any>(
+      const response = await axios.post(
         `/api/v1/explorations/${explorationId}/recall`,
-        {}
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       )
 
-      const { exploration, rewards_summary } = response
+      const { exploration, rewards_summary } = response.data
       lastRewards.value = rewards_summary
 
       // Update exploration in state
@@ -230,7 +244,7 @@ export const useExplorationStore = defineStore('exploration', () => {
       delete activeExplorations.value[explorationId]
 
       toast.success('Dweller recalled from wasteland!')
-      return response
+      return response.data
     } catch (err) {
       handleStoreError(err, 'Failed to recall dweller')
       error.value = 'Failed to recall dweller'
@@ -241,16 +255,19 @@ export const useExplorationStore = defineStore('exploration', () => {
     }
   }
 
-  async function completeExploration(explorationId: string, _token: string): Promise<any> {
+  async function completeExploration(explorationId: string, token: string): Promise<any> {
     isLoading.value = true
     error.value = null
     try {
-      const response = await http.apiPost<any>(
+      const response = await axios.post(
         `/api/v1/explorations/${explorationId}/complete`,
-        {}
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       )
 
-      const { exploration, rewards_summary } = response
+      const { exploration, rewards_summary } = response.data
       lastRewards.value = rewards_summary
 
       // Update exploration in state
@@ -263,7 +280,7 @@ export const useExplorationStore = defineStore('exploration', () => {
       delete activeExplorations.value[explorationId]
 
       toast.success('Exploration completed successfully!')
-      return response
+      return response.data
     } catch (err) {
       handleStoreError(err, 'Failed to complete exploration')
       error.value = 'Failed to complete exploration'
@@ -304,8 +321,3 @@ export const useExplorationStore = defineStore('exploration', () => {
     clearError,
   }
 })
-
-// HMR support
-if (import.meta.hot) {
-  import.meta.hot.accept(acceptHMRUpdate(useExplorationStore, import.meta.hot))
-}

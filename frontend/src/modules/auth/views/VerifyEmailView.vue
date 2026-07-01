@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import * as http from '@/core/plugins/httpClient'
+import axios from '@/core/plugins/axios'
 import { UButton } from '@/core/components/ui'
 
 const route = useRoute()
@@ -22,14 +22,14 @@ onMounted(async () => {
   }
 
   try {
-    await http.apiPost('/api/v1/auth/verify-email', { token: token.value })
+    const response = await axios.post('/api/v1/auth/verify-email', { token: token.value })
     success.value = true
     // Redirect to login after 3 seconds
     setTimeout(() => {
       router.push('/login')
     }, 3000)
-  } catch (err: unknown) {
-    error.value = err instanceof http.ApiError ? String(err.detail) : 'Failed to verify email'
+  } catch (err: any) {
+    error.value = err.response?.data?.detail || 'Failed to verify email'
   } finally {
     loading.value = false
   }

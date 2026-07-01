@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import * as http from '@/core/plugins/httpClient'
+import axios from '@/core/plugins/axios'
 
-vi.mock('@/core/plugins/httpClient')
+vi.mock('@/core/plugins/axios')
 
 describe('Auth Store', () => {
   beforeEach(() => {
@@ -43,24 +43,26 @@ describe('Auth Store', () => {
       const mockToken = 'test-token'
       const mockRefreshToken = 'test-refresh-token'
       const mockUserResponse = {
-        id: '1',
-        username: 'testuser',
-        email: 'test@test.com',
+        data: {
+          id: '1',
+          username: 'testuser',
+          email: 'test@test.com',
+        },
       }
 
       localStorage.setItem('token', mockToken)
       localStorage.setItem('refreshToken', mockRefreshToken)
       // User is NOT in localStorage (simulating the bug)
 
-      vi.mocked(http.apiGet).mockResolvedValueOnce(mockUserResponse)
+      vi.mocked(axios.get).mockResolvedValueOnce(mockUserResponse)
 
       const store = useAuthStore()
 
       // Wait for async fetchUser to complete
       await new Promise((resolve) => setTimeout(resolve, 0))
 
-      expect(http.apiGet).toHaveBeenCalledWith('/api/v1/users/me')
-      expect(store.user).toEqual(mockUserResponse)
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me')
+      expect(store.user).toEqual(mockUserResponse.data)
     })
 
     it('should not fetch user if both token and user exist in localStorage', () => {
@@ -74,7 +76,7 @@ describe('Auth Store', () => {
 
       const store = useAuthStore()
 
-      expect(http.apiGet).not.toHaveBeenCalled()
+      expect(axios.get).not.toHaveBeenCalled()
       expect(store.user).toEqual(mockUser)
     })
   })
@@ -96,31 +98,35 @@ describe('Auth Store', () => {
     it('should login successfully with valid credentials', async () => {
       const store = useAuthStore()
       const mockResponse = {
-        access_token: 'new-access-token',
-        refresh_token: 'new-refresh-token',
+        data: {
+          access_token: 'new-access-token',
+          refresh_token: 'new-refresh-token',
+        },
       }
       const mockUserResponse = {
-        id: '1',
-        username: 'testuser',
-        email: 'test@test.com',
+        data: {
+          id: '1',
+          username: 'testuser',
+          email: 'test@test.com',
+        },
       }
 
-      vi.mocked(http.apiPost).mockResolvedValueOnce(mockResponse)
-      vi.mocked(http.apiGet).mockResolvedValueOnce(mockUserResponse)
+      vi.mocked(axios.post).mockResolvedValueOnce(mockResponse)
+      vi.mocked(axios.get).mockResolvedValueOnce(mockUserResponse)
 
       const result = await store.login('test@test.com', 'password')
 
       expect(result).toBe(true)
       expect(store.token).toBe('new-access-token')
       expect(store.refreshToken).toBe('new-refresh-token')
-      expect(store.user).toEqual(mockUserResponse)
+      expect(store.user).toEqual(mockUserResponse.data)
       expect(localStorage.getItem('token')).toBe('new-access-token')
       expect(localStorage.getItem('refreshToken')).toBe('new-refresh-token')
     })
 
     it('should return false on login failure', async () => {
       const store = useAuthStore()
-      vi.mocked(http.apiPost).mockRejectedValueOnce(new Error('Login failed'))
+      vi.mocked(axios.post).mockRejectedValueOnce(new Error('Login failed'))
 
       const result = await store.login('wrong@test.com', 'wrongpassword')
 
@@ -130,7 +136,7 @@ describe('Auth Store', () => {
 
     it('should return false when tokens are missing from response', async () => {
       const store = useAuthStore()
-      vi.mocked(http.apiPost).mockResolvedValueOnce({} as any)
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: {} })
 
       const result = await store.login('test@test.com', 'password')
 
@@ -142,19 +148,21 @@ describe('Auth Store', () => {
     it('should register successfully with valid data', async () => {
       const store = useAuthStore()
       const mockResponse = {
-        id: '1',
-        username: 'newuser',
-        email: 'new@test.com',
-        is_active: true,
-        is_superuser: false,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z',
-        access_token: 'new-access-token',
-        refresh_token: 'new-refresh-token',
-        token_type: 'bearer',
+        data: {
+          id: '1',
+          username: 'newuser',
+          email: 'new@test.com',
+          is_active: true,
+          is_superuser: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+          access_token: 'new-access-token',
+          refresh_token: 'new-refresh-token',
+          token_type: 'bearer',
+        },
       }
 
-      vi.mocked(http.apiPost).mockResolvedValueOnce(mockResponse)
+      vi.mocked(axios.post).mockResolvedValueOnce(mockResponse)
 
       const result = await store.register('newuser', 'new@test.com', 'password')
 
@@ -170,7 +178,7 @@ describe('Auth Store', () => {
 
     it('should return false on registration failure', async () => {
       const store = useAuthStore()
-      vi.mocked(http.apiPost).mockRejectedValueOnce(new Error('Registration failed'))
+      vi.mocked(axios.post).mockRejectedValueOnce(new Error('Registration failed'))
 
       const result = await store.register('newuser', 'new@test.com', 'password')
 
@@ -184,31 +192,33 @@ describe('Auth Store', () => {
       const store = useAuthStore()
       store.token = 'test-token'
       const mockUserResponse = {
-        id: '1',
-        username: 'testuser',
-        email: 'test@test.com',
+        data: {
+          id: '1',
+          username: 'testuser',
+          email: 'test@test.com',
+        },
       }
 
-      vi.mocked(http.apiGet).mockResolvedValueOnce(mockUserResponse)
+      vi.mocked(axios.get).mockResolvedValueOnce(mockUserResponse)
 
       await store.fetchUser()
 
-      expect(store.user).toEqual(mockUserResponse)
-      expect(localStorage.getItem('user')).toBe(JSON.stringify(mockUserResponse))
+      expect(store.user).toEqual(mockUserResponse.data)
+      expect(localStorage.getItem('user')).toBe(JSON.stringify(mockUserResponse.data))
     })
 
     it('should not fetch if token is missing', async () => {
       const store = useAuthStore()
       await store.fetchUser()
 
-      expect(http.apiGet).not.toHaveBeenCalled()
+      expect(axios.get).not.toHaveBeenCalled()
     })
 
     it('should logout on fetch user failure', async () => {
       const store = useAuthStore()
       store.token = 'test-token'
-      vi.mocked(http.apiGet).mockRejectedValueOnce(new Error('Fetch failed'))
-      vi.mocked(http.apiPost).mockResolvedValueOnce(undefined)
+      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Fetch failed'))
+      vi.mocked(axios.post).mockResolvedValueOnce({})
 
       await store.fetchUser()
 
@@ -222,10 +232,12 @@ describe('Auth Store', () => {
       const store = useAuthStore()
       store.refreshToken = 'old-refresh-token'
       const mockResponse = {
-        access_token: 'new-access-token',
+        data: {
+          access_token: 'new-access-token',
+        },
       }
 
-      vi.mocked(http.apiPost).mockResolvedValueOnce(mockResponse)
+      vi.mocked(axios.post).mockResolvedValueOnce(mockResponse)
 
       await store.refreshAccessToken()
 
@@ -237,7 +249,7 @@ describe('Auth Store', () => {
       const store = useAuthStore()
       await store.refreshAccessToken()
 
-      expect(http.apiPost).not.toHaveBeenCalled()
+      expect(axios.post).not.toHaveBeenCalled()
     })
 
     it('should logout on refresh failure', async () => {
@@ -245,9 +257,9 @@ describe('Auth Store', () => {
       store.refreshToken = 'old-refresh-token'
       store.token = 'old-token'
       // First mock will be called by refreshAccessToken (refresh endpoint)
-      vi.mocked(http.apiPost).mockRejectedValueOnce(new Error('Refresh failed'))
+      vi.mocked(axios.post).mockRejectedValueOnce(new Error('Refresh failed'))
       // Second mock will be called by logout (logout endpoint)
-      vi.mocked(http.apiPost).mockResolvedValueOnce(undefined)
+      vi.mocked(axios.post).mockResolvedValueOnce({})
 
       await store.refreshAccessToken()
 
@@ -266,7 +278,7 @@ describe('Auth Store', () => {
       localStorage.setItem('refreshToken', 'test-refresh-token')
       localStorage.setItem('user', JSON.stringify(store.user))
 
-      vi.mocked(http.apiPost).mockResolvedValueOnce(undefined)
+      vi.mocked(axios.post).mockResolvedValueOnce({})
 
       await store.logout()
 
@@ -281,7 +293,7 @@ describe('Auth Store', () => {
     it('should clear data even if logout API call fails', async () => {
       const store = useAuthStore()
       store.token = 'test-token'
-      vi.mocked(http.apiPost).mockRejectedValueOnce(new Error('Logout failed'))
+      vi.mocked(axios.post).mockRejectedValueOnce(new Error('Logout failed'))
 
       await store.logout()
 

@@ -1,17 +1,13 @@
-import { ref, computed, nextTick, readonly, type Ref } from 'vue'
-import { watchDebounced, onKeyStroke } from '@vueuse/core'
-import * as http from '@/core/plugins/httpClient'
+import { ref, computed, watch, nextTick, type Ref } from 'vue'
+import apiClient from '@/core/plugins/axios'
 import { normalizeImageUrl } from '@/utils/image'
 import type { ChatMessageDisplay } from '@/modules/chat/models/chat'
-import type { ChatMessageRead } from '@/core/types/api.generated'
-import type { useChatWebSocket } from '@/core/composables/useWebSocket'
 
 export interface UseChatMessagesOptions {
   dwellerId: string
   dwellerAvatar?: string
   token: Ref<string | null> | string | null
   userImageUrl?: string
-  chatWs: ReturnType<typeof useChatWebSocket> | null
 }
 
 export function useChatMessages(options: UseChatMessagesOptions) {
@@ -30,32 +26,15 @@ export function useChatMessages(options: UseChatMessagesOptions) {
 
   const canSend = computed(() => userMessage.value.trim().length > 0)
 
-  const addMessage = (msg: ChatMessageDisplay) => {
-    messages.value.push(msg)
-  }
-
-  const updateMessage = (index: number, partial: Partial<ChatMessageDisplay>) => {
-    if (messages.value[index]) {
-      messages.value[index] = { ...messages.value[index], ...partial }
-    }
-  }
-
-  const clearMessages = () => {
-    messages.value = []
-  }
-
   const loadChatHistory = async () => {
     try {
-      const history = await http.apiGet<ChatMessageRead[]>(
-        `/api/v1/chat/history/${options.dwellerId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${getToken()}`,
-          },
-        }
-      )
+      const response = await apiClient.get(`/api/v1/chat/history/${options.dwellerId}`, {
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
+      })
 
-      const mapped = history.map((msg) => ({
+      const history = response.data.map((msg: any) => ({
         type: msg.from_user_id ? 'user' : 'dweller',
         content: msg.message_text,
         messageId: msg.id || undefined,
@@ -72,37 +51,60 @@ export function useChatMessages(options: UseChatMessagesOptions) {
             : undefined,
       }))
 
-      messages.value = mapped
+      messages.value = history
     } catch (error) {
       console.error('Error loading chat history:', error)
     }
   }
 
   const sendMessage = async () => {
-    const content = userMessage.value.trim()
-    if (!content) return
+    if (userMessage.value.trim()) {
+      messages.value.push({
+        type: 'user',
+        content: userMessage.value,
+        timestamp: new Date(),
+        avatar: userAvatar.value,
+      })
 
-    const tempId = `temp-${Date.now()}`
-    addMessage({
-      type: 'user',
-      content,
-      messageId: tempId,
-      timestamp: new Date(),
-      avatar: userAvatar.value,
-    })
+      const messageToSend = userMessage.value
+      userMessage.value = ''
+      isTyping.value = true
 
-    userMessage.value = ''
-    isTyping.value = true
-
-    try {
-      if (options.chatWs) {
-        options.chatWs.sendMessage(content)
-      } else {
-        console.error('WebSocket not available for sending message')
+      try {
+        const response = await apiClient.post(
+          `/api/v1/chat/${options.dwellerId}`,
+          {
+            message: messageToSend,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${getToken()}`,
+            },
+          }
+        )
+        messages.value.push({
+          type: 'dweller',
+          content: response.data.response,
+          messageId: response.data.dweller_message_id,
+          timestamp: new Date(),
+          avatar: options.dwellerAvatar,
+          happinessImpact: response.data.happiness_impact || null,
+          actionSuggestion: response.data.action_suggestion || null,
+        })
+      } catch (error) {
+        console.error('Error sending message:', error)
+      } finally {
+        isTyping.value = false
       }
-    } catch (error) {
-      console.error('Error sending message:', error)
     }
+  }
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      sendMessage()
+    }
+    // Shift+Enter allows newline (default behavior)
   }
 
   // Find the latest actionable suggestion (most recent dweller message with a valid action)
@@ -121,7 +123,10 @@ export function useChatMessages(options: UseChatMessagesOptions) {
   })
 
   const dismissAction = (messageIndex: number) => {
-    updateMessage(messageIndex, { actionSuggestion: null })
+    const msg = messages.value[messageIndex]
+    if (msg) {
+      msg.actionSuggestion = null
+    }
   }
 
   // Get happiness impact color based on delta
@@ -139,36 +144,16 @@ export function useChatMessages(options: UseChatMessagesOptions) {
   }
 
   // Auto-scroll to bottom
-  watchDebounced(
-    messages,
-    () => {
-      nextTick(() => {
-        if (chatMessages.value) {
-          if (typeof chatMessages.value.scrollTo === 'function') {
-            chatMessages.value.scrollTo({
-              top: chatMessages.value.scrollHeight,
-              behavior: 'smooth',
-            })
-          } else {
-            chatMessages.value.scrollTop = chatMessages.value.scrollHeight
-          }
-        }
-      })
-    },
-    { debounce: 50, deep: true }
-  )
-
-  // Enter key sends message (Shift+Enter allows newline)
-  onKeyStroke('Enter', (e) => {
-    if (!e.shiftKey) {
-      e.preventDefault()
-      sendMessage()
+  watch(messages, async () => {
+    await nextTick()
+    if (chatMessages.value) {
+      chatMessages.value.scrollTop = chatMessages.value.scrollHeight
     }
   })
 
   return {
     // State
-    messages: readonly(messages),
+    messages,
     userMessage,
     chatMessages,
     isTyping,
@@ -180,9 +165,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
     // Methods
     loadChatHistory,
     sendMessage,
-    addMessage,
-    updateMessage,
-    clearMessages,
+    handleKeyDown,
     dismissAction,
     getHappinessColor,
     getHappinessIcon,

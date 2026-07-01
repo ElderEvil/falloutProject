@@ -17,7 +17,6 @@ export interface UseChatActionsOptions {
   dwellerId: string
   dwellerName: string
   messages: Ref<ChatMessageDisplay[]>
-  updateMessage: (index: number, partial: Partial<ChatMessageDisplay>) => void
 }
 
 export function useChatActions(options: UseChatActionsOptions) {
@@ -217,8 +216,8 @@ export function useChatActions(options: UseChatActionsOptions) {
       success = await handleRecallExploration(action)
     }
 
-    if (success) {
-      options.updateMessage(messageIndex, { actionSuggestion: null })
+    if (success && options.messages.value[messageIndex]) {
+      options.messages.value[messageIndex].actionSuggestion = null
     }
   }
 

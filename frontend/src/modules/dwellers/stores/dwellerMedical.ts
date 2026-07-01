@@ -1,5 +1,5 @@
-import { defineStore, acceptHMRUpdate } from 'pinia'
-import * as http from '@/core/plugins/httpClient'
+import { defineStore } from 'pinia'
+import axios from '@/core/plugins/axios'
 import type { DwellerShort } from '../models/dweller'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
@@ -11,7 +11,7 @@ export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
 
   async function useStimpack(dwellerId: string, token: string): Promise<DwellerShort | null> {
     try {
-      const response = await http.apiPost<DwellerShort>(
+      const response = await axios.post<DwellerShort>(
         `/api/v1/dwellers/${dwellerId}/use_stimpack`,
         null,
         {
@@ -25,7 +25,7 @@ export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
       if (filterStore.detailedDwellers[dwellerId]) {
         filterStore.detailedDwellers[dwellerId] = {
           ...filterStore.detailedDwellers[dwellerId],
-          ...response,
+          ...response.data,
         } as import('../models/dweller').Dweller
       }
 
@@ -34,14 +34,19 @@ export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
       if (dwellerIndex !== -1) {
         filterStore.dwellers[dwellerIndex] = {
           ...filterStore.dwellers[dwellerIndex],
-          ...response,
+          ...response.data,
         }
       }
 
       toast.success('Stimpack used! Dweller healed.')
-      return response
+      return response.data
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to use stimpack'
+      const errorMessage =
+        (
+          error as {
+            response?: { data?: { detail?: string } }
+          }
+        )?.response?.data?.detail || 'Failed to use stimpack'
       handleStoreError(error, `Failed to use stimpack for dweller ${dwellerId}`)
       toast.error(errorMessage)
       return null
@@ -50,7 +55,7 @@ export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
 
   async function useRadaway(dwellerId: string, token: string): Promise<DwellerShort | null> {
     try {
-      const response = await http.apiPost<DwellerShort>(
+      const response = await axios.post<DwellerShort>(
         `/api/v1/dwellers/${dwellerId}/use_radaway`,
         null,
         {
@@ -64,7 +69,7 @@ export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
       if (filterStore.detailedDwellers[dwellerId]) {
         filterStore.detailedDwellers[dwellerId] = {
           ...filterStore.detailedDwellers[dwellerId],
-          ...response,
+          ...response.data,
         } as import('../models/dweller').Dweller
       }
 
@@ -73,14 +78,19 @@ export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
       if (dwellerIndex !== -1) {
         filterStore.dwellers[dwellerIndex] = {
           ...filterStore.dwellers[dwellerIndex],
-          ...response,
+          ...response.data,
         }
       }
 
       toast.success('RadAway used! Radiation reduced.')
-      return response
+      return response.data
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to use RadAway'
+      const errorMessage =
+        (
+          error as {
+            response?: { data?: { detail?: string } }
+          }
+        )?.response?.data?.detail || 'Failed to use RadAway'
       handleStoreError(error, `Failed to use radaway for dweller ${dwellerId}`)
       toast.error(errorMessage)
       return null
@@ -92,7 +102,3 @@ export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
     useRadaway,
   }
 })
-
-if (import.meta.hot) {
-  import.meta.hot.accept(acceptHMRUpdate(useDwellerMedicalStore, import.meta.hot))
-}

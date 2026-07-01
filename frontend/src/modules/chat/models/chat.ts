@@ -33,7 +33,6 @@ export interface ChatMessageDisplay {
   audioUrl?: string
   transcription?: string
   isPlaying?: boolean
-  isStreaming?: boolean
   happinessImpact?: HappinessImpact | HappinessImpactDisplay | null
   actionSuggestion?: ActionSuggestion | null
 }

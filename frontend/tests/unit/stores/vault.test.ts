@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useVaultStore } from '@/modules/vault/stores/vault'
-import * as http from '@/core/plugins/httpClient'
+import axios from '@/core/plugins/axios'
 import { useRouter } from 'vue-router'
 
-vi.mock('@/core/plugins/httpClient')
+vi.mock('@/core/plugins/axios')
 vi.mock('vue-router', () => ({
   useRouter: vi.fn(),
 }))
@@ -100,21 +100,23 @@ describe('Vault Store', () => {
   describe('fetchVaults Action', () => {
     it('should fetch vaults successfully', async () => {
       const store = useVaultStore()
-      const mockVaults = [mockVault, { ...mockVault, id: 'vault-2' }]
+      const mockResponse = {
+        data: [mockVault, { ...mockVault, id: 'vault-2' }],
+      }
 
-      vi.mocked(http.apiGet).mockResolvedValueOnce(mockVaults)
+      vi.mocked(axios.get).mockResolvedValueOnce(mockResponse)
 
       await store.fetchVaults('test-token')
 
-      expect(store.vaults).toEqual(mockVaults)
-      expect(http.apiGet).toHaveBeenCalledWith('/api/v1/vaults/my', {
+      expect(store.vaults).toEqual(mockResponse.data)
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/vaults/my', {
         headers: { Authorization: 'Bearer test-token' },
       })
     })
 
     it('should handle fetch error gracefully', async () => {
       const store = useVaultStore()
-      vi.mocked(http.apiGet).mockRejectedValueOnce(new Error('Fetch failed'))
+      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Fetch failed'))
 
       await store.fetchVaults('test-token')
 
@@ -125,12 +127,12 @@ describe('Vault Store', () => {
   describe('createVault Action', () => {
     it('should create vault and refresh list', async () => {
       const store = useVaultStore()
-      vi.mocked(http.apiPost).mockResolvedValueOnce(undefined)
-      vi.mocked(http.apiGet).mockResolvedValueOnce([mockVault])
+      vi.mocked(axios.post).mockResolvedValueOnce({})
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: [mockVault] })
 
       await store.createVault(101, false, 'test-token')
 
-      expect(http.apiPost).toHaveBeenCalledWith(
+      expect(axios.post).toHaveBeenCalledWith(
         '/api/v1/vaults/initiate',
         { number: 101, boosted: false },
         { headers: { Authorization: 'Bearer test-token' } }
@@ -140,7 +142,7 @@ describe('Vault Store', () => {
 
     it('should handle creation error gracefully', async () => {
       const store = useVaultStore()
-      vi.mocked(http.apiPost).mockRejectedValueOnce(new Error('Create failed'))
+      vi.mocked(axios.post).mockRejectedValueOnce(new Error('Create failed'))
 
       await store.createVault(101, false, 'test-token')
 
@@ -155,7 +157,7 @@ describe('Vault Store', () => {
       store.loadedVaults = { 'vault-1': mockVault }
       store.activeVaultId = 'vault-1'
 
-      vi.mocked(http.apiDelete).mockResolvedValueOnce(undefined)
+      vi.mocked(axios.delete).mockResolvedValueOnce({})
 
       await store.deleteVault('vault-1', 'test-token')
 
@@ -172,7 +174,7 @@ describe('Vault Store', () => {
       store.loadedVaults = { 'vault-1': mockVault, 'vault-2': vault2 }
       store.activeVaultId = 'vault-1'
 
-      vi.mocked(http.apiDelete).mockResolvedValueOnce(undefined)
+      vi.mocked(axios.delete).mockResolvedValueOnce({})
 
       await store.deleteVault('vault-1', 'test-token')
 
@@ -182,7 +184,7 @@ describe('Vault Store', () => {
     it('should handle delete error gracefully', async () => {
       const store = useVaultStore()
       store.vaults = [mockVault]
-      vi.mocked(http.apiDelete).mockRejectedValueOnce(new Error('Delete failed'))
+      vi.mocked(axios.delete).mockRejectedValueOnce(new Error('Delete failed'))
 
       await store.deleteVault('vault-1', 'test-token')
 
@@ -193,7 +195,7 @@ describe('Vault Store', () => {
   describe('loadVault Action', () => {
     it('should load vault and set active vault', async () => {
       const store = useVaultStore()
-      vi.mocked(http.apiGet).mockResolvedValueOnce(mockVault)
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockVault })
 
       await store.loadVault('vault-1', 'test-token')
 
@@ -206,9 +208,9 @@ describe('Vault Store', () => {
       const store = useVaultStore()
       let loadingDuringFetch = false
 
-      vi.mocked(http.apiGet).mockImplementation(async () => {
+      vi.mocked(axios.get).mockImplementation(async () => {
         loadingDuringFetch = store.isLoading
-        return mockVault
+        return { data: mockVault }
       })
 
       await store.loadVault('vault-1', 'test-token')
@@ -220,7 +222,7 @@ describe('Vault Store', () => {
     it('should handle load error and rethrow', async () => {
       const store = useVaultStore()
       const error = new Error('Load failed')
-      vi.mocked(http.apiGet).mockRejectedValueOnce(error)
+      vi.mocked(axios.get).mockRejectedValueOnce(error)
 
       await expect(store.loadVault('vault-1', 'test-token')).rejects.toThrow('Load failed')
       expect(store.isLoading).toBe(false)

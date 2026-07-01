@@ -1,4 +1,4 @@
-import * as http from '@/core/plugins/httpClient'
+import axios from '@/core/plugins/axios'
 import type { components } from '@/core/types/api.generated'
 
 type TrainingRead = components['schemas']['TrainingRead']
@@ -16,11 +16,11 @@ export async function startTraining(
   roomId: string,
   token: string
 ): Promise<TrainingRead> {
-  return await http.apiPost<TrainingRead>(
-    `/api/v1/training/start?dweller_id=${dwellerId}&room_id=${roomId}`,
-    undefined,
-    { headers: { Authorization: `Bearer ${token}` } }
-  )
+  const response = await axios.post('/api/v1/training/start', null, {
+    params: { dweller_id: dwellerId, room_id: roomId },
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  return response.data
 }
 
 /**
@@ -33,9 +33,10 @@ export async function getDwellerTraining(
   dwellerId: string,
   token: string
 ): Promise<TrainingRead | null> {
-  return await http.apiGet<TrainingRead | null>(`/api/v1/training/dweller/${dwellerId}`, {
+  const response = await axios.get(`/api/v1/training/dweller/${dwellerId}`, {
     headers: { Authorization: `Bearer ${token}` },
   })
+  return response.data
 }
 
 /**
@@ -45,9 +46,10 @@ export async function getDwellerTraining(
  * @returns List of active training sessions
  */
 export async function getVaultTrainings(vaultId: string, token: string): Promise<TrainingRead[]> {
-  return await http.apiGet<TrainingRead[]>(`/api/v1/training/vault/${vaultId}`, {
+  const response = await axios.get(`/api/v1/training/vault/${vaultId}`, {
     headers: { Authorization: `Bearer ${token}` },
   })
+  return response.data
 }
 
 /**
@@ -60,9 +62,10 @@ export async function getTrainingProgress(
   trainingId: string,
   token: string
 ): Promise<TrainingProgress> {
-  return await http.apiGet<TrainingProgress>(`/api/v1/training/${trainingId}`, {
+  const response = await axios.get(`/api/v1/training/${trainingId}`, {
     headers: { Authorization: `Bearer ${token}` },
   })
+  return response.data
 }
 
 /**
@@ -72,11 +75,10 @@ export async function getTrainingProgress(
  * @returns Cancelled training session
  */
 export async function cancelTraining(trainingId: string, token: string): Promise<TrainingRead> {
-  return await http.apiPost<TrainingRead>(
-    `/api/v1/training/${trainingId}/cancel`,
-    undefined,
-    { headers: { Authorization: `Bearer ${token}` } }
-  )
+  const response = await axios.post(`/api/v1/training/${trainingId}/cancel`, null, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  return response.data
 }
 
 /**
@@ -86,11 +88,10 @@ export async function cancelTraining(trainingId: string, token: string): Promise
  * @returns Completed training session
  */
 export async function completeTraining(trainingId: string, token: string): Promise<TrainingRead> {
-  return await http.apiPost<TrainingRead>(
-    `/api/v1/training/${trainingId}/complete`,
-    undefined,
-    { headers: { Authorization: `Bearer ${token}` } }
-  )
+  const response = await axios.post(`/api/v1/training/${trainingId}/complete`, null, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  return response.data
 }
 
 /**
@@ -100,7 +101,8 @@ export async function completeTraining(trainingId: string, token: string): Promi
  * @returns List of active training sessions in the room
  */
 export async function getRoomTrainings(roomId: string, token: string): Promise<TrainingRead[]> {
-  return await http.apiGet<TrainingRead[]>(`/api/v1/training/room/${roomId}`, {
+  const response = await axios.get(`/api/v1/training/room/${roomId}`, {
     headers: { Authorization: `Bearer ${token}` },
   })
+  return response.data
 }

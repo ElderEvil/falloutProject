@@ -38,7 +38,7 @@ test = [
     "aiosqlite>=0.22.1",
     "coverage>=7.14.2",
     "factory-boy>=3.3.3",
-    "fakeredis[lua]>=2.36.0",
+    "fakeredis[lua]>=2.36.2",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.0.0",
@@ -49,7 +49,7 @@ lint = [
     "ty>=0.0.51",
 ]
 dev = [
-    "fakeredis[lua]>=2.36.0",
+    "fakeredis[lua]>=2.36.2",
 ]
 
 [project.scripts]

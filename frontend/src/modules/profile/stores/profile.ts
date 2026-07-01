@@ -1,8 +1,9 @@
-import { defineStore, acceptHMRUpdate } from 'pinia'
+import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { UserProfile, ProfileUpdate } from '../models/profile'
 import type { AIUsageStats } from '../models/aiUsage'
-import { apiGet, apiPut, ApiError } from '@/core/plugins/httpClient'
+import { handleStoreError } from '@/core/utils/errorHandler'
+import axios from '@/core/plugins/axios'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
 
 export interface DeathStatistics {
@@ -31,8 +32,8 @@ export const useProfileStore = defineStore('profile', () => {
   // Getters
   const hasProfile = computed(() => profile.value !== null)
 
-  const quotaExceeded = computed(() => aiUsageStats.value?.quota?.quota_exceeded ?? false)
-  const quotaWarning = computed(() => aiUsageStats.value?.quota?.quota_warning ?? false)
+  const quotaExceeded = computed(() => aiUsageStats.value?.quota_exceeded ?? false)
+  const quotaWarning = computed(() => aiUsageStats.value?.quota_warning ?? false)
 
   const statistics = computed(() => {
     if (!profile.value) return null
@@ -49,7 +50,8 @@ export const useProfileStore = defineStore('profile', () => {
     loading.value = true
     error.value = null
     try {
-      profile.value = await apiGet<UserProfile>('/api/v1/users/me/profile')
+      const response = await axios.get<UserProfile>('/api/v1/users/me/profile')
+      profile.value = response.data
 
       // Load user's preferred theme if available
       const { loadUserTheme } = useTheme()
@@ -57,11 +59,7 @@ export const useProfileStore = defineStore('profile', () => {
         loadUserTheme(profile.value.preferences.theme as ThemeName)
       }
     } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        error.value = typeof err.detail === 'string' ? err.detail : 'Failed to fetch profile'
-      } else {
-        error.value = 'Failed to fetch profile'
-      }
+      error.value = handleStoreError(err, 'Failed to fetch profile')
       throw err
     } finally {
       loading.value = false
@@ -72,7 +70,8 @@ export const useProfileStore = defineStore('profile', () => {
     loading.value = true
     error.value = null
     try {
-      profile.value = await apiPut<UserProfile>('/api/v1/users/me/profile', data)
+      const response = await axios.put<UserProfile>('/api/v1/users/me/profile', data)
+      profile.value = response.data
 
       // Update theme if it changed
       const { loadUserTheme } = useTheme()
@@ -80,11 +79,7 @@ export const useProfileStore = defineStore('profile', () => {
         loadUserTheme(profile.value.preferences.theme as ThemeName)
       }
     } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        error.value = typeof err.detail === 'string' ? err.detail : 'Failed to update profile'
-      } else {
-        error.value = 'Failed to update profile'
-      }
+      error.value = handleStoreError(err, 'Failed to update profile')
       throw err
     } finally {
       loading.value = false
@@ -94,15 +89,11 @@ export const useProfileStore = defineStore('profile', () => {
   async function fetchDeathStatistics(): Promise<DeathStatistics | null> {
     deathStatsLoading.value = true
     try {
-      const data = await apiGet<DeathStatistics>('/api/v1/users/me/profile/statistics')
-      deathStatistics.value = data
-      return data
+      const response = await axios.get<DeathStatistics>('/api/v1/users/me/profile/statistics')
+      deathStatistics.value = response.data
+      return response.data
     } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        console.error('Failed to fetch death statistics:', err.message)
-      } else {
-        console.error('Failed to fetch death statistics:', err)
-      }
+      handleStoreError(err, 'Failed to fetch death statistics')
       return null
     } finally {
       deathStatsLoading.value = false
@@ -112,15 +103,11 @@ export const useProfileStore = defineStore('profile', () => {
   async function fetchAIUsage(): Promise<AIUsageStats | null> {
     aiUsageLoading.value = true
     try {
-      const data = await apiGet<AIUsageStats>('/api/v1/users/me/profile/ai-usage')
-      aiUsageStats.value = data
-      return data
+      const response = await axios.get<AIUsageStats>('/api/v1/users/me/profile/ai-usage')
+      aiUsageStats.value = response.data
+      return response.data
     } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        console.error('Failed to fetch AI usage:', err.message)
-      } else {
-        console.error('Failed to fetch AI usage:', err)
-      }
+      handleStoreError(err, 'Failed to fetch AI usage')
       return null
     } finally {
       aiUsageLoading.value = false
@@ -156,7 +143,3 @@ export const useProfileStore = defineStore('profile', () => {
     clearError,
   }
 })
-
-if (import.meta.hot) {
-  import.meta.hot.accept(acceptHMRUpdate(useProfileStore, import.meta.hot))
-}

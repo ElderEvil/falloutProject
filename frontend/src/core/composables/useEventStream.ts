@@ -106,7 +106,7 @@ async function readSseStream(
 // Shared SSE base — handles both GET and POST streaming
 function useSseBase(
   url: string,
-  options?: { method?: 'GET' | 'POST'; headers?: Record<string, string> }
+  options?: { method?: 'GET' | 'POST'; headers?: Record<string, string> | (() => Record<string, string>) }
 ) {
   const event = ref<SseEvent | null>(null)
   const status = ref<'idle' | 'connecting' | 'open' | 'closed'>('idle')
@@ -163,7 +163,10 @@ function useSseBase(
 
     try {
       const isPost = (options?.method ?? 'GET') === 'POST'
-      const headers: Record<string, string> = { ...options?.headers }
+      const rawHeaders = options?.headers
+      const resolvedHeaders: Record<string, string> =
+        typeof rawHeaders === 'function' ? rawHeaders() : (rawHeaders ?? {})
+      const headers: Record<string, string> = { ...resolvedHeaders }
       if (isPost) headers['Content-Type'] = 'application/json'
       const response = await fetch(url, {
         method: options?.method ?? 'GET',
@@ -202,6 +205,37 @@ function useSseBase(
   return { event, status, error, reconnected, connect, close, stopReconnect }
 }
 
+// POST-based SSE composable (for chat etc.)
+
+export interface UsePostEventStreamReturn {
+  event: Ref<SseEvent | null>
+  status: Ref<'idle' | 'connecting' | 'open' | 'closed'>
+  error: Ref<Error | null>
+  reconnected: Ref<number>
+  connect: (body: Record<string, unknown>) => Promise<void>
+  close: () => void
+  stopReconnect: () => void
+}
+
+export function usePostEventStream(
+  url: string,
+  options?: { headers?: Record<string, string> | (() => Record<string, string>) }
+): UsePostEventStreamReturn {
+  const { event, status, error, reconnected, connect, close, stopReconnect } = useSseBase(url, {
+    ...options,
+    method: 'POST',
+  })
+  return {
+    event,
+    status,
+    error,
+    reconnected,
+    connect: connect as (body: Record<string, unknown>) => Promise<void>,
+    close,
+    stopReconnect,
+  }
+}
+
 // Fetch-based GET SSE (supports Authorization headers for authenticated streams)
 
 export interface UseSseReturn {
@@ -214,7 +248,7 @@ export interface UseSseReturn {
   stopReconnect: () => void
 }
 
-export function useSse(url: string, options?: { headers?: Record<string, string> }): UseSseReturn {
+export function useSse(url: string, options?: { headers?: Record<string, string> | (() => Record<string, string>) }): UseSseReturn {
   const { event, status, error, reconnected, connect, close, stopReconnect } = useSseBase(url, {
     ...options,
     method: 'GET',

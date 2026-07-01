@@ -1,18 +1,18 @@
 import { ref, computed } from 'vue'
-import { defineStore, acceptHMRUpdate } from 'pinia'
-import * as http from '@/core/plugins/httpClient'
-import type { Pregnancy } from '../models/pregnancy'
+import { defineStore } from 'pinia'
+import axios from '@/core/plugins/axios'
 import type { Relationship, RelationshipCreate, CompatibilityScore } from '../models/relationship'
 import { useToast } from '@/core/composables/useToast'
-import { handleStoreError } from '@/core/utils/errorHandler'
+
 
 export const useRelationshipStore = defineStore('relationship', () => {
   const toast = useToast()
 
   // State
   const relationships = ref<Relationship[]>([])
-  const pregnancies = ref<Pregnancy[]>([])
+  const pregnancies = ref<any[]>([])
   const isLoading = ref(false)
+  const token = ref<string | null>(null)
 
   // Computed
   const getRelationshipByDwellers = computed(() => {
@@ -37,9 +37,10 @@ export const useRelationshipStore = defineStore('relationship', () => {
   async function fetchVaultRelationships(vaultId: string) {
     isLoading.value = true
     try {
-      relationships.value = await http.apiGet<Relationship[]>(`/api/v1/relationships/vault/${vaultId}`)
+      const response = await axios.get(`/api/v1/relationships/vault/${vaultId}`)
+      relationships.value = response.data
     } catch (error: unknown) {
-      toast.error(handleStoreError(error, 'Failed to fetch relationships'))
+      console.error('Failed to fetch relationships:', error)
       throw error
     } finally {
       isLoading.value = false
@@ -48,18 +49,20 @@ export const useRelationshipStore = defineStore('relationship', () => {
 
   async function fetchVaultPregnancies(vaultId: string) {
     try {
-      pregnancies.value = await http.apiGet<Pregnancy[]>(`/api/v1/pregnancies/vault/${vaultId}`)
+      const response = await axios.get(`/api/v1/pregnancies/vault/${vaultId}`)
+      pregnancies.value = response.data
     } catch (error: unknown) {
-      toast.error(handleStoreError(error, 'Failed to fetch pregnancies'))
+      console.error('Failed to fetch pregnancies:', error)
       throw error
     }
   }
 
   async function getRelationship(relationshipId: string): Promise<Relationship | null> {
     try {
-      return await http.apiGet<Relationship>(`/api/v1/relationships/${relationshipId}`)
+      const response = await axios.get(`/api/v1/relationships/${relationshipId}`)
+      return response.data
     } catch (error: unknown) {
-      toast.error(handleStoreError(error, 'Failed to fetch relationship'))
+      console.error('Failed to fetch relationship:', error)
       return null
     }
   }
@@ -67,7 +70,8 @@ export const useRelationshipStore = defineStore('relationship', () => {
   async function createRelationship(data: RelationshipCreate): Promise<Relationship | null> {
     isLoading.value = true
     try {
-      const relationship = await http.apiPost<Relationship>('/api/v1/relationships/', data)
+      const response = await axios.post('/api/v1/relationships/', data)
+      const relationship = response.data
 
       // Add to local state if not already present
       const existing = relationships.value.find((r) => r.id === relationship.id)
@@ -78,7 +82,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
       toast.success('Relationship created')
       return relationship
     } catch (error: unknown) {
-      toast.error(handleStoreError(error, 'Failed to create relationship'))
+      console.error('Failed to create relationship:', error)
       return null
     } finally {
       isLoading.value = false
@@ -88,7 +92,8 @@ export const useRelationshipStore = defineStore('relationship', () => {
   async function initiateRomance(relationshipId: string): Promise<Relationship | null> {
     isLoading.value = true
     try {
-      const updated = await http.apiPut<Relationship>(`/api/v1/relationships/${relationshipId}/romance`)
+      const response = await axios.put(`/api/v1/relationships/${relationshipId}/romance`)
+      const updated = response.data
 
       // Update local state
       const index = relationships.value.findIndex((r) => r.id === relationshipId)
@@ -99,7 +104,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
       toast.success('Romance initiated!')
       return updated
     } catch (error: unknown) {
-      toast.error(handleStoreError(error, 'Failed to initiate romance'))
+      console.error('Failed to initiate romance:', error)
       return null
     } finally {
       isLoading.value = false
@@ -109,7 +114,8 @@ export const useRelationshipStore = defineStore('relationship', () => {
   async function makePartners(relationshipId: string): Promise<Relationship | null> {
     isLoading.value = true
     try {
-      const updated = await http.apiPut<Relationship>(`/api/v1/relationships/${relationshipId}/partner`)
+      const response = await axios.put(`/api/v1/relationships/${relationshipId}/partner`)
+      const updated = response.data
 
       // Update local state
       const index = relationships.value.findIndex((r) => r.id === relationshipId)
@@ -120,7 +126,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
       toast.success('Dwellers are now partners!')
       return updated
     } catch (error: unknown) {
-      toast.error(handleStoreError(error, 'Failed to make partners'))
+      console.error('Failed to make partners:', error)
       return null
     } finally {
       isLoading.value = false
@@ -130,7 +136,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
   async function breakUp(relationshipId: string): Promise<boolean> {
     isLoading.value = true
     try {
-      await http.apiDelete(`/api/v1/relationships/${relationshipId}`)
+      await axios.delete(`/api/v1/relationships/${relationshipId}`)
 
       // Update local state
       const index = relationships.value.findIndex((r) => r.id === relationshipId)
@@ -145,7 +151,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
       toast.success('Relationship ended')
       return true
     } catch (error: unknown) {
-      toast.error(handleStoreError(error, 'Failed to break up'))
+      console.error('Failed to break up:', error)
       return false
     } finally {
       isLoading.value = false
@@ -157,11 +163,12 @@ export const useRelationshipStore = defineStore('relationship', () => {
     dweller2Id: string
   ): Promise<CompatibilityScore | null> {
     try {
-      return await http.apiGet<CompatibilityScore>(
+      const response = await axios.get(
         `/api/v1/relationships/compatibility/${dweller1Id}/${dweller2Id}`
       )
+      return response.data
     } catch (error: unknown) {
-      toast.error(handleStoreError(error, 'Failed to calculate compatibility'))
+      console.error('Failed to calculate compatibility:', error)
       return null
     }
   }
@@ -169,7 +176,8 @@ export const useRelationshipStore = defineStore('relationship', () => {
   async function quickPair(vaultId: string): Promise<Relationship | null> {
     isLoading.value = true
     try {
-      const relationship = await http.apiPost<Relationship>(`/api/v1/relationships/vault/${vaultId}/quick-pair`)
+      const response = await axios.post(`/api/v1/relationships/vault/${vaultId}/quick-pair`)
+      const relationship = response.data
 
       // Add to local state
       relationships.value.push(relationship)
@@ -177,7 +185,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
       toast.success('Dwellers paired successfully!')
       return relationship
     } catch (error: unknown) {
-      toast.error(handleStoreError(error, 'Failed to quick pair'))
+      console.error('Failed to quick pair:', error)
       return null
     } finally {
       isLoading.value = false
@@ -186,9 +194,10 @@ export const useRelationshipStore = defineStore('relationship', () => {
 
   async function processVaultBreeding(vaultId: string): Promise<any | null> {
     try {
-      return await http.apiPost<any>(`/api/v1/relationships/vault/${vaultId}/process`)
+      const response = await axios.post(`/api/v1/relationships/vault/${vaultId}/process`)
+      return response.data
     } catch (error: unknown) {
-      toast.error(handleStoreError(error, 'Failed to process breeding'))
+      console.error('Failed to process breeding:', error)
       return null
     }
   }
@@ -202,6 +211,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
     relationships,
     isLoading,
     pregnancies,
+    token,
 
     // Computed
     getRelationshipByDwellers,
@@ -222,7 +232,3 @@ export const useRelationshipStore = defineStore('relationship', () => {
     clearRelationships,
   }
 })
-
-if (import.meta.hot) {
-  import.meta.hot.accept(acceptHMRUpdate(useRelationshipStore, import.meta.hot))
-}

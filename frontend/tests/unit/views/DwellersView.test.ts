@@ -17,9 +17,11 @@ describe('DwellersView', () => {
   let _dwellerStore: any
   let vaultStore: any
   let _roomStore: any
+  let pinia: ReturnType<typeof createPinia>
 
   beforeEach(() => {
-    setActivePinia(createPinia())
+    pinia = createPinia()
+    setActivePinia(pinia)
 
     // Set up auth store
     localStorage.setItem('token', 'test-token')
@@ -71,7 +73,7 @@ describe('DwellersView', () => {
       await router.isReady()
       const wrapper = mount(DwellersView, {
         global: {
-          plugins: [router],
+          plugins: [router, pinia],
         },
       })
       await flushPromises()
@@ -85,7 +87,7 @@ describe('DwellersView', () => {
       await router.isReady()
       mount(DwellersView, {
         global: {
-          plugins: [router],
+          plugins: [router, pinia],
         },
       })
       await flushPromises()
@@ -103,7 +105,7 @@ describe('DwellersView', () => {
       await router.isReady()
       mount(DwellersView, {
         global: {
-          plugins: [router],
+          plugins: [router, pinia],
         },
       })
       await flushPromises()
@@ -142,7 +144,7 @@ describe('DwellersView', () => {
       await router.isReady()
       const wrapper = mount(DwellersView, {
         global: {
-          plugins: [router],
+          plugins: [router, pinia],
         },
       })
       await flushPromises()
@@ -168,7 +170,7 @@ describe('DwellersView', () => {
       await router.isReady()
       const wrapper = mount(DwellersView, {
         global: {
-          plugins: [router],
+          plugins: [router, pinia],
         },
       })
       await flushPromises()

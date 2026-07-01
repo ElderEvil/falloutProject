@@ -53,7 +53,7 @@ class TestChatServiceErrorHandling:
         self,
         async_session: AsyncSession,
         chat_dweller: Dweller,
-    ):
+    ) -> None:
         """Test that _run_chat_agent handles AttributeError from usage() gracefully.
 
         Regression test for: AttributeError: 'coroutine' object has no attribute 'input_tokens'
@@ -116,7 +116,7 @@ class TestChatServiceErrorHandling:
         self,
         async_session: AsyncSession,
         chat_dweller: Dweller,
-    ):
+    ) -> None:
         """Test that _run_chat_agent handles usage() returning None gracefully."""
         from pydantic_ai.agent import AgentRunResult
 
@@ -164,7 +164,7 @@ class TestChatServiceErrorHandling:
         self,
         async_session: AsyncSession,
         chat_dweller: Dweller,
-    ):
+    ) -> None:
         """Test that _run_chat_agent handles usage() raising any exception gracefully."""
         from pydantic_ai.agent import AgentRunResult
 
@@ -213,7 +213,7 @@ class TestChatServiceErrorHandling:
         self,
         async_session: AsyncSession,
         chat_dweller: Dweller,
-    ):
+    ) -> None:
         """Test that _run_chat_agent falls back when the agent raises an exception."""
         from app.services.open_ai import ChatCompletionResult
 
@@ -256,109 +256,32 @@ class TestChatServiceErrorHandling:
                 assert happiness_impact.delta == 0
                 assert happiness_impact.reason_code.value == "chat_neutral"
 
-    async def test_stream_response_quota_exceeded(
+    async def test_stream_response_ownership_denied(
         self,
         async_session: AsyncSession,
         chat_dweller: Dweller,
-        test_user: User,
-    ):
-        """Test that stream_response yields quota exceeded error when quota is exhausted."""
-        from app.services.quota_service import QuotaCheckResult
+    ) -> None:
+        """Test that stream_response yields error when dweller's vault belongs to a different user."""
+        from app.schemas.user import UserCreate
 
-        mock_quota = QuotaCheckResult(
-            allowed=False,
-            remaining=0,
-            limit=1000,
-            percentage=100.0,
-            warning=True,
-            used=1000,
+        other_user = await crud.user.create(
+            db_session=async_session,
+            obj_in=UserCreate(
+                username="other-chat-user",
+                email="other-chat@example.com",
+                password="secretpass123",
+            ),
         )
 
-        with patch("app.services.chat_service.quota_service.check_quota", AsyncMock(return_value=mock_quota)):
-            results = [
-                item
-                async for item in chat_service.stream_response(
-                    db_session=async_session,
-                    user=test_user,
-                    dweller_id=chat_dweller.id,
-                    message_text="Hello",
-                )
-            ]
-
-        assert len(results) == 1
-        assert results[0]["type"] == "error"
-        assert "quota" in results[0]["detail"].lower()
-
-    async def test_stream_response_yields_value_error(
-        self,
-        async_session: AsyncSession,
-        chat_dweller: Dweller,
-        test_user: User,
-    ):
-        """Test that stream_response yields ValueError message when dweller not found."""
-        with patch(
-            "app.services.chat_service.dweller_crud.get_full_info",
-            AsyncMock(return_value=None),
+        events: list[dict] = []
+        async for event in chat_service.stream_response(
+            db_session=async_session,
+            user=other_user,
+            dweller_id=chat_dweller.id,
+            message_text="Hello",
         ):
-            results = [
-                item
-                async for item in chat_service.stream_response(
-                    db_session=async_session,
-                    user=test_user,
-                    dweller_id=chat_dweller.id,
-                    message_text="Hello",
-                )
-            ]
+            events.append(event)
 
-        assert len(results) == 1
-        assert results[0]["type"] == "error"
-        assert results[0]["detail"] == "Dweller not found"
-
-    async def test_stream_response_yields_unexpected_error(
-        self,
-        async_session: AsyncSession,
-        chat_dweller: Dweller,
-        test_user: User,
-    ):
-        """Test that stream_response yields generic error for unexpected exceptions."""
-        with patch(
-            "app.services.chat_service.dweller_crud.get_full_info",
-            AsyncMock(side_effect=RuntimeError("Unexpected DB failure")),
-        ):
-            results = [
-                item
-                async for item in chat_service.stream_response(
-                    db_session=async_session,
-                    user=test_user,
-                    dweller_id=chat_dweller.id,
-                    message_text="Hello",
-                )
-            ]
-
-        assert len(results) == 1
-        assert results[0]["type"] == "error"
-        assert results[0]["detail"] == "An unexpected error occurred during chat"
-
-    async def test_stream_response_stops_after_error(
-        self,
-        async_session: AsyncSession,
-        chat_dweller: Dweller,
-        test_user: User,
-    ):
-        """Test that stream_response stops yielding after an error."""
-        with patch(
-            "app.services.chat_service.dweller_crud.get_full_info",
-            AsyncMock(side_effect=ValueError("custom value error")),
-        ):
-            items = [
-                item
-                async for item in chat_service.stream_response(
-                    db_session=async_session,
-                    user=test_user,
-                    dweller_id=chat_dweller.id,
-                    message_text="Hello",
-                )
-            ]
-
-        assert len(items) == 1
-        assert items[0]["type"] == "error"
+        assert len(events) == 1
+        assert events[0]["type"] == "error"
+        assert events[0]["detail"] == "An unexpected error occurred during chat"

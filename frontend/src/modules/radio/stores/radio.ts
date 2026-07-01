@@ -8,7 +8,7 @@ import type {
   RadioMode,
 } from '../models/radio'
 import { useToast } from '@/core/composables/useToast'
-import { getErrorMessage } from '@/core/types/utils'
+
 
 export const useRadioStore = defineStore('radio', () => {
   const toast = useToast()
@@ -26,7 +26,6 @@ export const useRadioStore = defineStore('radio', () => {
       radioStats.value = response.data
     } catch (error: unknown) {
       console.error('Failed to fetch radio stats:', error)
-      toast.error(getErrorMessage(error))
     } finally {
       isLoading.value = false
     }
@@ -49,7 +48,6 @@ export const useRadioStore = defineStore('radio', () => {
       return result
     } catch (error: unknown) {
       console.error('Failed to recruit dweller:', error)
-      toast.error(getErrorMessage(error))
       return null
     } finally {
       isRecruiting.value = false
@@ -94,7 +92,6 @@ export const useRadioStore = defineStore('radio', () => {
       return true
     } catch (error: unknown) {
       console.error('Failed to set radio mode:', error)
-      toast.error(getErrorMessage(error))
       return false
     }
   }
@@ -116,7 +113,6 @@ export const useRadioStore = defineStore('radio', () => {
       return true
     } catch (error: unknown) {
       console.error('Failed to set radio speedup:', error)
-      toast.error(getErrorMessage(error))
       return false
     }
   }

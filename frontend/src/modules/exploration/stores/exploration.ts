@@ -133,7 +133,6 @@ export const useExplorationStore = defineStore('exploration', () => {
     } catch (err) {
       handleStoreError(err, 'Failed to send dweller to wasteland')
       error.value = 'Failed to send dweller to wasteland'
-      toast.error('Failed to send dweller to wasteland')
       throw err
     } finally {
       isLoading.value = false
@@ -248,7 +247,6 @@ export const useExplorationStore = defineStore('exploration', () => {
     } catch (err) {
       handleStoreError(err, 'Failed to recall dweller')
       error.value = 'Failed to recall dweller'
-      toast.error('Failed to recall dweller')
       throw err
     } finally {
       isLoading.value = false
@@ -284,7 +282,6 @@ export const useExplorationStore = defineStore('exploration', () => {
     } catch (err) {
       handleStoreError(err, 'Failed to complete exploration')
       error.value = 'Failed to complete exploration'
-      toast.error('Failed to complete exploration')
       throw err
     } finally {
       isLoading.value = false

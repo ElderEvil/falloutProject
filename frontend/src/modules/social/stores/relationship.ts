@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import axios from '@/core/plugins/axios'
 import type { Relationship, RelationshipCreate, CompatibilityScore } from '../models/relationship'
 import { useToast } from '@/core/composables/useToast'
-import { getErrorMessage } from '@/core/types/utils'
+
 
 export const useRelationshipStore = defineStore('relationship', () => {
   const toast = useToast()
@@ -41,7 +41,6 @@ export const useRelationshipStore = defineStore('relationship', () => {
       relationships.value = response.data
     } catch (error: unknown) {
       console.error('Failed to fetch relationships:', error)
-      toast.error(getErrorMessage(error))
       throw error
     } finally {
       isLoading.value = false
@@ -54,7 +53,6 @@ export const useRelationshipStore = defineStore('relationship', () => {
       pregnancies.value = response.data
     } catch (error: unknown) {
       console.error('Failed to fetch pregnancies:', error)
-      toast.error(getErrorMessage(error))
       throw error
     }
   }
@@ -65,7 +63,6 @@ export const useRelationshipStore = defineStore('relationship', () => {
       return response.data
     } catch (error: unknown) {
       console.error('Failed to fetch relationship:', error)
-      toast.error(getErrorMessage(error))
       return null
     }
   }
@@ -86,7 +83,6 @@ export const useRelationshipStore = defineStore('relationship', () => {
       return relationship
     } catch (error: unknown) {
       console.error('Failed to create relationship:', error)
-      toast.error(getErrorMessage(error))
       return null
     } finally {
       isLoading.value = false
@@ -109,7 +105,6 @@ export const useRelationshipStore = defineStore('relationship', () => {
       return updated
     } catch (error: unknown) {
       console.error('Failed to initiate romance:', error)
-      toast.error(getErrorMessage(error))
       return null
     } finally {
       isLoading.value = false
@@ -132,7 +127,6 @@ export const useRelationshipStore = defineStore('relationship', () => {
       return updated
     } catch (error: unknown) {
       console.error('Failed to make partners:', error)
-      toast.error(getErrorMessage(error))
       return null
     } finally {
       isLoading.value = false
@@ -158,7 +152,6 @@ export const useRelationshipStore = defineStore('relationship', () => {
       return true
     } catch (error: unknown) {
       console.error('Failed to break up:', error)
-      toast.error(getErrorMessage(error))
       return false
     } finally {
       isLoading.value = false
@@ -176,7 +169,6 @@ export const useRelationshipStore = defineStore('relationship', () => {
       return response.data
     } catch (error: unknown) {
       console.error('Failed to calculate compatibility:', error)
-      toast.error(getErrorMessage(error))
       return null
     }
   }
@@ -194,7 +186,6 @@ export const useRelationshipStore = defineStore('relationship', () => {
       return relationship
     } catch (error: unknown) {
       console.error('Failed to quick pair:', error)
-      toast.error(getErrorMessage(error))
       return null
     } finally {
       isLoading.value = false
@@ -207,7 +198,6 @@ export const useRelationshipStore = defineStore('relationship', () => {
       return response.data
     } catch (error: unknown) {
       console.error('Failed to process breeding:', error)
-      toast.error(getErrorMessage(error))
       return null
     }
   }

@@ -53,7 +53,7 @@ export function useRadioRoom(
       const response = await axios.get(`/api/v1/radio/vault/${vaultIdValue}/stats`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      if (response.data?.manual_cost_caps) {
+      if (response.data?.manual_cost_caps != null) {
         manualRecruitCost.value = response.data.manual_cost_caps
       }
     } catch (error) {
@@ -127,15 +127,25 @@ export function useRadioRoom(
       )
 
       toast.success(response.data.message || 'Dweller recruited successfully!')
-
-      await vaultStore.refreshVault(vaultIdValue, token)
-      await dwellerStore.fetchDwellersByVault(vaultIdValue, token)
     } catch (error: any) {
       console.error('Failed to recruit dweller:', error)
       const message = error.response?.data?.detail || 'Failed to recruit dweller'
       toast.error(message)
+      return // Early return so refresh only runs on successful mutation
     } finally {
       isRecruiting.value = false
+    }
+
+    // Refresh calls (non-throwing) — separate from mutation error handling
+    try {
+      await vaultStore.refreshVault(vaultIdValue, token)
+    } catch (error) {
+      console.warn('Failed to refresh vault after recruiting:', error)
+    }
+    try {
+      await dwellerStore.fetchDwellersByVault(vaultIdValue, token)
+    } catch (error) {
+      console.warn('Failed to refresh dwellers after recruiting:', error)
     }
   }
 

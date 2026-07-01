@@ -1,5 +1,7 @@
 import { ref, computed, watch, nextTick, type Ref } from 'vue'
+import { onKeyStroke } from '@vueuse/core'
 import apiClient from '@/core/plugins/axios'
+import type { useChatWebSocket } from '@/core/composables/useWebSocket'
 import { normalizeImageUrl } from '@/utils/image'
 import type { ChatMessageDisplay } from '@/modules/chat/models/chat'
 
@@ -8,6 +10,7 @@ export interface UseChatMessagesOptions {
   dwellerAvatar?: string
   token: Ref<string | null> | string | null
   userImageUrl?: string
+  chatWs?: ReturnType<typeof useChatWebSocket>
 }
 
 export function useChatMessages(options: UseChatMessagesOptions) {
@@ -59,16 +62,21 @@ export function useChatMessages(options: UseChatMessagesOptions) {
 
   const sendMessage = async () => {
     if (userMessage.value.trim()) {
-      messages.value.push({
-        type: 'user',
-        content: userMessage.value,
-        timestamp: new Date(),
-        avatar: userAvatar.value,
-      })
-
+      const isWsConnected = options.chatWs?.state.value === 'connected'
       const messageToSend = userMessage.value
-      userMessage.value = ''
-      isTyping.value = true
+
+      if (isWsConnected) {
+        messages.value.push({
+          type: 'user',
+          content: messageToSend,
+          timestamp: new Date(),
+          avatar: userAvatar.value,
+        })
+        userMessage.value = ''
+        isTyping.value = true
+      } else {
+        console.warn('WebSocket not connected, skipping optimistic update')
+      }
 
       try {
         const response = await apiClient.post(
@@ -94,7 +102,9 @@ export function useChatMessages(options: UseChatMessagesOptions) {
       } catch (error) {
         console.error('Error sending message:', error)
       } finally {
-        isTyping.value = false
+        if (isWsConnected) {
+          isTyping.value = false
+        }
       }
     }
   }
@@ -106,6 +116,20 @@ export function useChatMessages(options: UseChatMessagesOptions) {
     }
     // Shift+Enter allows newline (default behavior)
   }
+
+  const chatInputRef = ref<HTMLInputElement | null>(null)
+
+  onKeyStroke(
+    'Enter',
+    (e) => {
+      if (!e.shiftKey) {
+        e.preventDefault()
+        sendMessage()
+      }
+      // Shift+Enter allows newline (default behavior)
+    },
+    { target: chatInputRef }
+  )
 
   // Find the latest actionable suggestion (most recent dweller message with a valid action)
   const latestActionSuggestionIndex = computed(() => {
@@ -156,6 +180,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
     messages,
     userMessage,
     chatMessages,
+    chatInputRef,
     isTyping,
     userAvatar,
     dwellerAvatarUrl,

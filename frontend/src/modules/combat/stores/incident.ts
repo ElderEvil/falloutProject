@@ -139,7 +139,9 @@ export const useIncidentStore = defineStore('incident', () => {
             if (spreadId) {
               incidentApi.getIncident(vaultId, spreadId, token).then((incident) => {
                 incidents.value.set(spreadId, incident)
-              }).catch(() => {})
+              }).catch((err) => {
+                handleStoreError(err, 'Failed to fetch spread incident details')
+              })
             }
             break
           }
@@ -158,6 +160,10 @@ export const useIncidentStore = defineStore('incident', () => {
           }
         } else if (status === 'closed') {
           sseConnected.value = false
+          if (fallbackTimer) {
+            clearTimeout(fallbackTimer)
+            fallbackTimer = null
+          }
           fallbackTimer = setTimeout(() => {
             if (!sseConnected.value && !pollInterval.value) {
               pollInterval.value = window.setInterval(() => {
@@ -193,7 +199,9 @@ export const useIncidentStore = defineStore('incident', () => {
     isPolling.value = true
 
     fetchIncidents(vaultId, token)
-    startSseSubscription(vaultId, token)
+    if (token) {
+      startSseSubscription(vaultId, token)
+    }
     pollInterval.value = window.setInterval(() => {
       if (!sseConnected.value) {
         fetchIncidents(vaultId, token).catch((err) => {

@@ -106,7 +106,7 @@ async function readSseStream(
 // Shared SSE base — handles both GET and POST streaming
 function useSseBase(
   url: string,
-  options?: { method?: 'GET' | 'POST'; headers?: Record<string, string> }
+  options?: { method?: 'GET' | 'POST'; headers?: Record<string, string> | (() => Record<string, string>) }
 ) {
   const event = ref<SseEvent | null>(null)
   const status = ref<'idle' | 'connecting' | 'open' | 'closed'>('idle')
@@ -163,7 +163,10 @@ function useSseBase(
 
     try {
       const isPost = (options?.method ?? 'GET') === 'POST'
-      const headers: Record<string, string> = { ...options?.headers }
+      const rawHeaders = options?.headers
+      const resolvedHeaders: Record<string, string> =
+        typeof rawHeaders === 'function' ? rawHeaders() : (rawHeaders ?? {})
+      const headers: Record<string, string> = { ...resolvedHeaders }
       if (isPost) headers['Content-Type'] = 'application/json'
       const response = await fetch(url, {
         method: options?.method ?? 'GET',
@@ -216,7 +219,7 @@ export interface UsePostEventStreamReturn {
 
 export function usePostEventStream(
   url: string,
-  options?: { headers?: Record<string, string> }
+  options?: { headers?: Record<string, string> | (() => Record<string, string>) }
 ): UsePostEventStreamReturn {
   const { event, status, error, reconnected, connect, close, stopReconnect } = useSseBase(url, {
     ...options,
@@ -245,7 +248,7 @@ export interface UseSseReturn {
   stopReconnect: () => void
 }
 
-export function useSse(url: string, options?: { headers?: Record<string, string> }): UseSseReturn {
+export function useSse(url: string, options?: { headers?: Record<string, string> | (() => Record<string, string>) }): UseSseReturn {
   const { event, status, error, reconnected, connect, close, stopReconnect } = useSseBase(url, {
     ...options,
     method: 'GET',

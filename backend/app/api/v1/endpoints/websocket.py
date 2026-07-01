@@ -2,12 +2,22 @@ import json
 import logging
 
 from fastapi import APIRouter, WebSocket
+from jose import JWTError, jwt
 from pydantic import UUID4
 
+from app.core.config import settings
 from app.services.websocket_manager import manager
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def _decode_ws_token(token: str) -> str | None:
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        return payload.get("sub")
+    except JWTError:
+        return None
 
 
 @router.websocket("/ws/{user_id}")
@@ -79,37 +89,52 @@ async def chat_websocket_endpoint(websocket: WebSocket, user_id: UUID4, dweller_
     await manager.connect_chat(websocket, user_id, dweller_id)
     logger.info("Chat WebSocket connected: user=%s, dweller=%s", user_id, dweller_id)
 
-    # Receive messages from client using async for pattern
-    async for data in websocket.iter_text():
-        try:
-            message = json.loads(data)
-            message_type = message.get("type")
+    # WS Auth: verify token matches user_id
+    token = websocket.query_params.get("token")
+    authenticated_user_id = _decode_ws_token(token) if token else None
 
-            if message_type == "ping":
-                await websocket.send_json({"type": "pong"})
+    if not authenticated_user_id or authenticated_user_id != str(user_id):
+        await websocket.close(code=4008)
+        manager.disconnect_chat(websocket, user_id, dweller_id)
+        return
 
-            elif message_type == "typing":
-                # Broadcast typing indicator
-                is_typing = message.get("is_typing", False)
-                await manager.send_typing_indicator(
-                    user_id=user_id, dweller_id=dweller_id, is_typing=is_typing, sender="user"
-                )
+    try:
+        # Receive messages from client using async for pattern
+        async for data in websocket.iter_text():
+            try:
+                message = json.loads(data)
+                if not isinstance(message, dict):
+                    await websocket.send_json({"type": "error", "message": "Message must be a JSON object"})
+                    continue
 
-            elif message_type == "message":
-                # TODO: migrate chat from REST to WebSocket
-                # Currently text chat uses POST /api/v1/chat/{dweller_id} (REST)
-                # which returns the AI response. This WebSocket should eventually
-                # stream responses directly instead of punting to REST.
-                # See: .omo/plans/v2-21-sse-polish.md (deferred to v2.22+)
-                await websocket.send_json(
-                    {"type": "ack", "message": "Message received. Use REST API for full chat functionality."}
-                )
+                message_type = message.get("type")
 
-            else:
-                await websocket.send_json({"type": "error", "message": f"Unknown message type: {message_type}"})
+                if message_type == "ping":
+                    await websocket.send_json({"type": "pong"})
 
-        except json.JSONDecodeError:
-            await websocket.send_json({"type": "error", "message": "Invalid JSON format"})
+                elif message_type == "typing":
+                    # Broadcast typing indicator
+                    is_typing = message.get("is_typing", False)
+                    await manager.send_typing_indicator(
+                        user_id=user_id, dweller_id=dweller_id, is_typing=is_typing, sender="user"
+                    )
 
-    logger.info("Chat WebSocket disconnected: user=%s, dweller=%s", user_id, dweller_id)
-    manager.disconnect_chat(websocket, user_id, dweller_id)
+                elif message_type == "message":
+                    # TODO: migrate chat from REST to WebSocket
+                    # Currently text chat uses POST /api/v1/chat/{dweller_id} (REST)
+                    # which returns the AI response. This WebSocket should eventually
+                    # stream responses directly instead of punting to REST.
+                    # See: .omo/plans/v2-21-sse-polish.md (deferred to v2.22+)
+                    await websocket.send_json(
+                        {"type": "ack", "message": "Message received. Use REST API for full chat functionality."}
+                    )
+
+                else:
+                    await websocket.send_json({"type": "error", "message": f"Unknown message type: {message_type}"})
+
+            except json.JSONDecodeError:
+                await websocket.send_json({"type": "error", "message": "Invalid JSON format"})
+
+    finally:
+        logger.info("Chat WebSocket disconnected: user=%s, dweller=%s", user_id, dweller_id)
+        manager.disconnect_chat(websocket, user_id, dweller_id)

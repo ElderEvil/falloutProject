@@ -40,6 +40,7 @@ export const useRoomStore = defineStore('room', () => {
       availableRooms.value = response.data
     } catch (error) {
       console.error('Failed to fetch rooms data', error)
+      availableRooms.value = []
     }
   }
 
@@ -51,16 +52,19 @@ export const useRoomStore = defineStore('room', () => {
         },
       })
       rooms.value.push(response.data)
-
-      // Refresh vault data to update caps
-      const vaultStore = useVaultStore()
-      await vaultStore.refreshVault(vaultId, token)
     } catch (error) {
       console.error('Failed to build room', error)
       if (error instanceof AxiosError && error.response?.data?.detail) {
         throw new Error(error.response.data.detail)
       }
       throw error
+    }
+    // Refresh vault to update caps (non-throwing) — separate from mutation error handling
+    try {
+      const vaultStore = useVaultStore()
+      await vaultStore.refreshVault(vaultId, token)
+    } catch (error) {
+      console.warn('Failed to refresh vault after building room:', error)
     }
   }
 
@@ -72,16 +76,19 @@ export const useRoomStore = defineStore('room', () => {
         },
       })
       rooms.value = rooms.value.filter((room) => room.id !== roomId)
-
-      // Refresh vault to update caps after refund
-      const vaultStore = useVaultStore()
-      await vaultStore.refreshVault(vaultId, token)
     } catch (error) {
       console.error('Failed to destroy room', error)
       if (error instanceof AxiosError && error.response?.data?.detail) {
         throw new Error(error.response.data.detail)
       }
       throw error
+    }
+    // Refresh vault to update caps after refund (non-throwing) — separate from mutation error handling
+    try {
+      const vaultStore = useVaultStore()
+      await vaultStore.refreshVault(vaultId, token)
+    } catch (error) {
+      console.warn('Failed to refresh vault after destroying room:', error)
     }
   }
 
@@ -102,16 +109,19 @@ export const useRoomStore = defineStore('room', () => {
       if (index !== -1) {
         rooms.value[index] = response.data
       }
-
-      // Refresh vault data to update caps
-      const vaultStore = useVaultStore()
-      await vaultStore.refreshVault(vaultId, token)
     } catch (error) {
       console.error('Failed to upgrade room', error)
       if (error instanceof AxiosError && error.response?.data?.detail) {
         throw new Error(error.response.data.detail)
       }
       throw error
+    }
+    // Refresh vault to update caps (non-throwing) — separate from mutation error handling
+    try {
+      const vaultStore = useVaultStore()
+      await vaultStore.refreshVault(vaultId, token)
+    } catch (error) {
+      console.warn('Failed to refresh vault after upgrading room:', error)
     }
   }
 

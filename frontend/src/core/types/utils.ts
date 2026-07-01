@@ -90,15 +90,15 @@ export function getErrorMessage(error: unknown): string {
  * Convert unknown error to ApiError
  */
 export function toApiError(error: unknown): ApiError {
-  if (isApiError(error)) {
-    return error
-  }
   if (isAxiosError(error)) {
     return {
       message: error.response.data.detail || error.response.data.message || 'An error occurred',
       status: error.response.status,
       detail: error.response.data.detail,
     }
+  }
+  if (isApiError(error)) {
+    return error
   }
   if (error instanceof Error) {
     return {

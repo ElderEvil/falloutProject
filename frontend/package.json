@@ -1,6 +1,6 @@
 {
   "name": "frontend",
-  "version": "2.22.0",
+  "version": "2.23.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -23,7 +23,6 @@
     "@nuxt/ui": "^4.8.2",
     "@vueuse/core": "14.3.0",
     "@vueuse/motion": "3.0.3",
-    "axios": "1.17.0",
     "dompurify": "3.4.11",
     "jwt-decode": "4.0.0",
     "pinia": "^3.0.4",

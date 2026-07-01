@@ -11,6 +11,7 @@ AI-powered dweller interactions.
 
 **Current work:**
 
+- [x] **v2.23.0 — Chat WebSocket & Axios→fetch Migration** — Axios→fetch migration, Chat REST→WebSocket migration
 - [x] **v2.22.0 — Terminal Background Cleanup** — Removed grey surfaces from auth forms, created VaultNumberField component
 - [x] **v2.21.0 — SSE Polish** — Incident SSE publishing, incidents SSE endpoint, incident/vault store SSE subscriptions, radio datetime fix
 - [x] **v2.20.0 — FE Simplification (YAGNI + DRY)** — Dead code purge (~1000 LOC deleted), barrel migration, dweller store split, component simplification, DRY consolidation
@@ -18,16 +19,18 @@ AI-powered dweller interactions.
 
 ---
 
-## Up Next (Recommended)
+## Latest Release
 
-### v2.23.0 — Chat WebSocket & Axios→fetch Migration
+### v2.23.0 — Chat WebSocket & Axios→fetch Migration (July 1, 2026)
 
-- [ ] **Axios→fetch migration** — Execute `HTTP_CLIENT_MIGRATION.md` 6-phase plan: fetch adapter, call-site migration, interceptor/token-refresh migration, drop axios dep (~14KB gzip bundle saving)
-- [ ] **Chat REST→WebSocket migration** — Replace POST-SSE chat streaming with dedicated WebSocket endpoint; remove chat SSE stub from stream.py
+**Focus**: Execute HTTP client migration and chat WebSocket migration
+
+**Completed:**
+- ✅ **Axios→fetch migration** — Executed `HTTP_CLIENT_MIGRATION.md` 6-phase plan: fetch adapter, call-site migration, interceptor/token-refresh migration, dropped axios dep (~14KB gzip bundle saving)
+- ✅ **Chat REST→WebSocket migration** — Replaced POST-SSE chat streaming with dedicated WebSocket endpoint; removed chat SSE stub from stream.py
+- ✅ **Version bump** — Backend/frontend aligned at v2.23.0
 
 ---
-
-## Latest Release
 
 ### v2.22.0 — Terminal Background Cleanup (June 28, 2026)
 
@@ -40,10 +43,6 @@ AI-powered dweller interactions.
 - ✅ **HomeView simplification** — Replaced inline UInput with `VaultNumberField`; removed dead `vaultNumber`/`showVaultNumber` duplicates
 - ✅ **StorageView cleanup** — Removed unused `UCard` import
 - ✅ **Version bump** — Backend/frontend aligned at v2.22.0
-
-**Deferred to v2.23:**
-- Axios→fetch migration (HTTP_CLIENT_MIGRATION.md 6-phase plan, ~14KB gzip bundle saving)
-- Chat REST→WebSocket migration (replace POST-SSE chat with dedicated WS)
 
 ---
 
@@ -60,10 +59,6 @@ AI-powered dweller interactions.
 - ✅ **Radio recruitment fix** — 3 `datetime.now(UTC)` → `datetime.utcnow()` in `dweller_recycling_service.py` stops PostgreSQL `DataError` on `TIMESTAMP WITHOUT TIME ZONE` columns
 - ✅ **SSE heartbeat configurable** — `SSE_HEARTBEAT_INTERVAL` setting replaces hardcoded 30s
 - ✅ **Dead code removal** — Removed dead POST-SSE `/stream/chat/{dweller_id}` endpoint
-
-**Deferred to v2.23:**
-- Axios→fetch migration (HTTP_CLIENT_MIGRATION.md 6-phase plan, ~14KB gzip bundle saving)
-- Chat REST→WebSocket migration (replace POST-SSE chat with dedicated WS)
 
 ---
 
@@ -987,6 +982,7 @@ watch(() => userStore.caps, (caps) => {
 
 | Version | Release      | Highlights                                   |
 | ------- | ------------ | -------------------------------------------- |
+| v2.23.0 | Jul 01, 2026 | Chat WebSocket & Axios→fetch Migration      |
 | v2.22.0 | Jun 28, 2026 | Terminal Background Cleanup (auth grey surfaces, VaultNumberField) |
 | v2.21.0 | Jun 24, 2026 | SSE Polish (incident/game-tick SSE, radio datetime fix) |
 | v2.20.0 | Jun 22, 2026 | FE Simplification (YAGNI + DRY, dead code purge) |
@@ -1070,4 +1066,4 @@ watch(() => userStore.caps, (caps) => {
 
 ---
 
-_Last updated: 2026-06-28_ (v2.22.0, Terminal Background Cleanup)
+_Last updated: 2026-07-01_ (v2.23.0, Chat WebSocket & Axios→fetch Migration)

@@ -94,9 +94,7 @@ async def test_stream_tokens_and_done(
     mock_manager.connect_chat.assert_awaited_once_with(ws, user_id, dweller.id)
 
     # Tokens in correct order
-    token_calls = [
-        c for c in ws.send_json.call_args_list if c[0][0].get("type") == "token"
-    ]
+    token_calls = [c for c in ws.send_json.call_args_list if c[0][0].get("type") == "token"]
     assert len(token_calls) == 2
     assert token_calls[0][0][0] == {"type": "token", "content": "Hello"}
     assert token_calls[1][0][0] == {"type": "token", "content": " there!"}
@@ -144,16 +142,12 @@ async def test_service_error_frame(
     ws = _mock_ws('{"type": "message", "content": "Hello"}')
     await chat_websocket_endpoint(ws, user_id, dweller.id)
 
-    error_calls = [
-        c for c in ws.send_json.call_args_list if c[0][0].get("type") == "error"
-    ]
+    error_calls = [c for c in ws.send_json.call_args_list if c[0][0].get("type") == "error"]
     assert len(error_calls) >= 1
     assert error_calls[-1][0][0] == {"type": "error", "message": "Quota exceeded for today"}
 
     # No done frame emitted after error
-    done_calls = [
-        c for c in ws.send_json.call_args_list if c[0][0].get("type") == "done"
-    ]
+    done_calls = [c for c in ws.send_json.call_args_list if c[0][0].get("type") == "done"]
     assert len(done_calls) == 0
 
 
@@ -177,9 +171,7 @@ async def test_empty_message_error(
     ws = _mock_ws('{"type": "message", "content": ""}')
     await chat_websocket_endpoint(ws, user_id, dweller.id)
 
-    error_calls = [
-        c for c in ws.send_json.call_args_list if c[0][0].get("type") == "error"
-    ]
+    error_calls = [c for c in ws.send_json.call_args_list if c[0][0].get("type") == "error"]
     assert len(error_calls) >= 1
     assert error_calls[0][0][0] == {"type": "error", "message": "Empty message"}
 
@@ -210,9 +202,7 @@ async def test_stream_exception_sends_generic_error(
     ws = _mock_ws('{"type": "message", "content": "Hello"}')
     await chat_websocket_endpoint(ws, user_id, dweller.id)
 
-    error_calls = [
-        c for c in ws.send_json.call_args_list if c[0][0].get("type") == "error"
-    ]
+    error_calls = [c for c in ws.send_json.call_args_list if c[0][0].get("type") == "error"]
     assert len(error_calls) >= 1
     assert error_calls[-1][0][0] == {
         "type": "error",

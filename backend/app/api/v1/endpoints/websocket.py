@@ -20,6 +20,41 @@ def _decode_ws_token(token: str) -> str | None:
         return None
 
 
+async def _handle_chat_message(websocket: WebSocket, data: str, user_id: UUID4, dweller_id: UUID4) -> None:
+    """Parse and dispatch a single chat WebSocket message."""
+    try:
+        message = json.loads(data)
+        if not isinstance(message, dict):
+            await websocket.send_json({"type": "error", "message": "Message must be a JSON object"})
+            return
+
+        message_type = message.get("type")
+
+        if message_type == "ping":
+            await websocket.send_json({"type": "pong"})
+
+        elif message_type == "typing":
+            is_typing = message.get("is_typing", False)
+            await manager.send_typing_indicator(
+                user_id=user_id, dweller_id=dweller_id, is_typing=is_typing, sender="user"
+            )
+
+        elif message_type == "message":
+            # TODO: migrate chat from REST to WebSocket
+            # Currently text chat uses POST /api/v1/chat/{dweller_id} (REST)
+            # which returns the AI response. This WebSocket should eventually
+            # stream responses directly instead of punting to REST.
+            await websocket.send_json(
+                {"type": "ack", "message": "Message received. Use REST API for full chat functionality."}
+            )
+
+        else:
+            await websocket.send_json({"type": "error", "message": f"Unknown message type: {message_type}"})
+
+    except json.JSONDecodeError:
+        await websocket.send_json({"type": "error", "message": "Invalid JSON format"})
+
+
 @router.websocket("/ws/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: UUID4):
     """
@@ -100,42 +135,8 @@ async def chat_websocket_endpoint(websocket: WebSocket, user_id: UUID4, dweller_
     logger.info("Chat WebSocket connected: user=%s, dweller=%s", user_id, dweller_id)
 
     try:
-        # Receive messages from client using async for pattern
         async for data in websocket.iter_text():
-            try:
-                message = json.loads(data)
-                if not isinstance(message, dict):
-                    await websocket.send_json({"type": "error", "message": "Message must be a JSON object"})
-                    continue
-
-                message_type = message.get("type")
-
-                if message_type == "ping":
-                    await websocket.send_json({"type": "pong"})
-
-                elif message_type == "typing":
-                    # Broadcast typing indicator
-                    is_typing = message.get("is_typing", False)
-                    await manager.send_typing_indicator(
-                        user_id=user_id, dweller_id=dweller_id, is_typing=is_typing, sender="user"
-                    )
-
-                elif message_type == "message":
-                    # TODO: migrate chat from REST to WebSocket
-                    # Currently text chat uses POST /api/v1/chat/{dweller_id} (REST)
-                    # which returns the AI response. This WebSocket should eventually
-                    # stream responses directly instead of punting to REST.
-                    # See: .omo/plans/v2-21-sse-polish.md (deferred to v2.22+)
-                    await websocket.send_json(
-                        {"type": "ack", "message": "Message received. Use REST API for full chat functionality."}
-                    )
-
-                else:
-                    await websocket.send_json({"type": "error", "message": f"Unknown message type: {message_type}"})
-
-            except json.JSONDecodeError:
-                await websocket.send_json({"type": "error", "message": "Invalid JSON format"})
-
+            await _handle_chat_message(websocket, data, user_id, dweller_id)
     finally:
         logger.info("Chat WebSocket disconnected: user=%s, dweller=%s", user_id, dweller_id)
         manager.disconnect_chat(websocket, user_id, dweller_id)

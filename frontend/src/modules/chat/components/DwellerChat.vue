@@ -72,7 +72,6 @@ const {
   latestActionSuggestionIndex,
   loadChatHistory,
   sendMessage,
-  handleKeyDown,
   dismissAction,
   getHappinessColor,
   getHappinessIcon,

@@ -133,25 +133,24 @@ export function useRadioRoom(
       )
 
       toast.success(response.data.message || 'Dweller recruited successfully!')
+
+      // Refresh calls (non-throwing) — inside try so isRecruiting stays true until done
+      try {
+        await vaultStore.refreshVault(vaultIdValue, token)
+      } catch (error) {
+        console.warn('Failed to refresh vault after recruiting:', error)
+      }
+      try {
+        await dwellerStore.fetchDwellersByVault(vaultIdValue, token)
+      } catch (error) {
+        console.warn('Failed to refresh dwellers after recruiting:', error)
+      }
     } catch (error: any) {
       console.error('Failed to recruit dweller:', error)
       const message = error.response?.data?.detail || 'Failed to recruit dweller'
       toast.error(message)
-      return // Early return so refresh only runs on successful mutation
     } finally {
       isRecruiting.value = false
-    }
-
-    // Refresh calls (non-throwing) — separate from mutation error handling
-    try {
-      await vaultStore.refreshVault(vaultIdValue, token)
-    } catch (error) {
-      console.warn('Failed to refresh vault after recruiting:', error)
-    }
-    try {
-      await dwellerStore.fetchDwellersByVault(vaultIdValue, token)
-    } catch (error) {
-      console.warn('Failed to refresh dwellers after recruiting:', error)
     }
   }
 

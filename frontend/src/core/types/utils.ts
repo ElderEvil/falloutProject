@@ -97,13 +97,13 @@ export function toApiError(error: unknown): ApiError {
       detail: error.response.data.detail,
     }
   }
-  if (isApiError(error)) {
-    return error
-  }
   if (error instanceof Error) {
     return {
       message: error.message,
     }
+  }
+  if (isApiError(error)) {
+    return error
   }
   return {
     message: typeof error === 'string' ? error : 'An unknown error occurred',

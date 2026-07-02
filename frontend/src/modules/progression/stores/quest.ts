@@ -71,19 +71,20 @@ export const useQuestStore = defineStore('quest', () => {
     }
   }
 
-  async function fetchVaultQuests(vaultId: string): Promise<void> {
+  async function fetchVaultQuests(vaultId: string, options?: { silent?: boolean }): Promise<void> {
+    const silent = options?.silent ?? false
     try {
-      isLoading.value = true
+      if (!silent) isLoading.value = true
       const response = await axios.get<VaultQuest[]>(`/api/v1/quests/${vaultId}/`, {
         headers: getAuthHeaders(),
       })
       vaultQuests.value = response.data
     } catch (error: unknown) {
       console.error('Failed to fetch vault quests:', error)
-      toast.error('Failed to load vault quests')
+      if (!silent) toast.error('Failed to load vault quests')
       throw error
     } finally {
-      isLoading.value = false
+      if (!silent) isLoading.value = false
     }
   }
 
@@ -128,9 +129,9 @@ export const useQuestStore = defineStore('quest', () => {
       toast.error(errorMessage)
       throw error
     }
-    // Refresh vault quests (non-throwing) — separate from mutation error handling
+    // Refresh vault quests (silent — mutation already succeeded)
     try {
-      await fetchVaultQuests(vaultId)
+      await fetchVaultQuests(vaultId, { silent: true })
     } catch (error) {
       console.warn('Failed to refresh vault quests after assignment:', error)
     }
@@ -163,9 +164,9 @@ export const useQuestStore = defineStore('quest', () => {
       toast.error(errorMessage)
       throw error
     }
-    // Refresh vault quests (non-throwing) — separate from mutation error handling
+    // Refresh vault quests (silent — mutation already succeeded)
     try {
-      await fetchVaultQuests(vaultId)
+      await fetchVaultQuests(vaultId, { silent: true })
     } catch (error) {
       console.warn('Failed to refresh vault quests after completion:', error)
     }
@@ -190,9 +191,9 @@ export const useQuestStore = defineStore('quest', () => {
       toast.error(errorMessage)
       throw error
     }
-    // Refresh vault quests (non-throwing) — separate from mutation error handling
+    // Refresh vault quests (silent — mutation already succeeded)
     try {
-      await fetchVaultQuests(vaultId)
+      await fetchVaultQuests(vaultId, { silent: true })
     } catch (error) {
       console.warn('Failed to refresh vault quests after party assignment:', error)
     }
@@ -241,9 +242,9 @@ export const useQuestStore = defineStore('quest', () => {
       toast.error(errorMessage)
       throw error
     }
-    // Refresh vault quests (non-throwing) — separate from mutation error handling
+    // Refresh vault quests (silent — mutation already succeeded)
     try {
-      await fetchVaultQuests(vaultId)
+      await fetchVaultQuests(vaultId, { silent: true })
     } catch (error) {
       console.warn('Failed to refresh vault quests after starting:', error)
     }

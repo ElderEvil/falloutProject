@@ -65,7 +65,9 @@ export function useChatMessages(options: UseChatMessagesOptions) {
     if (userMessage.value.trim()) {
       const isWsConnected = options.chatWs?.state.value === 'connected'
       const messageToSend = userMessage.value
+      userMessage.value = ''
 
+      let pushedOptimistic = false
       if (isWsConnected) {
         messages.value.push({
           type: 'user',
@@ -73,10 +75,8 @@ export function useChatMessages(options: UseChatMessagesOptions) {
           timestamp: new Date(),
           avatar: userAvatar.value,
         })
-        userMessage.value = ''
+        pushedOptimistic = true
         isTyping.value = true
-      } else {
-        console.warn('WebSocket not connected, skipping optimistic update')
       }
 
       try {
@@ -102,8 +102,8 @@ export function useChatMessages(options: UseChatMessagesOptions) {
         })
       } catch (error) {
         handleStoreError(error, 'Error sending message')
-        // Mark the optimistic user message as failed
-        if (messages.value.length > 0) {
+        // Only mark the optimistic message as failed if we actually pushed one
+        if (pushedOptimistic && messages.value.length > 0) {
           const lastMsg = messages.value[messages.value.length - 1]
           if (lastMsg.type === 'user') {
             lastMsg.content = '[Failed to send] ' + lastMsg.content
@@ -115,14 +115,6 @@ export function useChatMessages(options: UseChatMessagesOptions) {
         }
       }
     }
-  }
-
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage()
-    }
-    // Shift+Enter allows newline (default behavior)
   }
 
   const chatInputRef = ref<HTMLInputElement | null>(null)
@@ -198,7 +190,6 @@ export function useChatMessages(options: UseChatMessagesOptions) {
     // Methods
     loadChatHistory,
     sendMessage,
-    handleKeyDown,
     dismissAction,
     getHappinessColor,
     getHappinessIcon,

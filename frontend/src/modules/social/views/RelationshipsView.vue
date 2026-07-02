@@ -105,7 +105,7 @@ async function handleProcessBreeding() {
       await Promise.all([
         relationshipStore.fetchVaultRelationships(vaultId.value),
         relationshipStore.fetchVaultPregnancies(vaultId.value),
-        dwellerStore.fetchDwellersByVault(vaultId.value, relationshipStore.token!),
+        dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token!),
       ])
     }
   } catch (error) {

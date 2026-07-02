@@ -13,6 +13,15 @@ export const useRoomStore = defineStore('room', () => {
   const selectedRoom = ref<RoomTemplate | null>(null)
   const isPlacingRoom = ref(false)
 
+  // Background vault refresh — non-throwing, warns on failure without user-facing toast
+  async function refreshVaultSafely(vaultId: string, token: string, context: string) {
+    try {
+      await useVaultStore().refreshVault(vaultId, token)
+    } catch (error) {
+      console.warn(`${context}:`, error)
+    }
+  }
+
   // Actions
   async function fetchRooms(vaultId: string, token: string): Promise<void> {
     try {
@@ -60,13 +69,8 @@ export const useRoomStore = defineStore('room', () => {
       }
       throw error
     }
-    // Refresh vault to update caps (non-throwing) — separate from mutation error handling
-    try {
-      const vaultStore = useVaultStore()
-      await vaultStore.refreshVault(vaultId, token)
-    } catch (error) {
-      console.warn('Failed to refresh vault after building room:', error)
-    }
+    // Refresh vault to update caps (non-throwing)
+    await refreshVaultSafely(vaultId, token, 'Failed to refresh vault after building room')
   }
 
   async function destroyRoom(roomId: string, token: string, vaultId: string): Promise<void> {
@@ -84,13 +88,8 @@ export const useRoomStore = defineStore('room', () => {
       }
       throw error
     }
-    // Refresh vault to update caps after refund (non-throwing) — separate from mutation error handling
-    try {
-      const vaultStore = useVaultStore()
-      await vaultStore.refreshVault(vaultId, token)
-    } catch (error) {
-      console.warn('Failed to refresh vault after destroying room:', error)
-    }
+    // Refresh vault to update caps after refund (non-throwing)
+    await refreshVaultSafely(vaultId, token, 'Failed to refresh vault after destroying room')
   }
 
   async function upgradeRoom(roomId: string, token: string, vaultId: string): Promise<void> {
@@ -117,13 +116,8 @@ export const useRoomStore = defineStore('room', () => {
       }
       throw error
     }
-    // Refresh vault to update caps (non-throwing) — separate from mutation error handling
-    try {
-      const vaultStore = useVaultStore()
-      await vaultStore.refreshVault(vaultId, token)
-    } catch (error) {
-      console.warn('Failed to refresh vault after upgrading room:', error)
-    }
+    // Refresh vault to update caps (non-throwing)
+    await refreshVaultSafely(vaultId, token, 'Failed to refresh vault after upgrading room')
   }
 
   function selectRoom(room: RoomTemplate): void {

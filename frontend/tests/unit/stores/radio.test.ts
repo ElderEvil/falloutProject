@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useRadioStore } from '@/modules/radio/stores/radio'
-import { AxiosError } from 'axios'
 import axios from '@/core/plugins/axios'
 
 vi.mock('@/core/plugins/axios', () => ({
@@ -11,7 +10,6 @@ vi.mock('@/core/plugins/axios', () => ({
     put: vi.fn(),
     delete: vi.fn(),
   },
-  AxiosError,
 }))
 
 describe('Radio Store', () => {

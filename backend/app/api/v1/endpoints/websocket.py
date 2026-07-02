@@ -86,17 +86,18 @@ async def chat_websocket_endpoint(websocket: WebSocket, user_id: UUID4, dweller_
         "message": "Error description"
     }
     """
-    await manager.connect_chat(websocket, user_id, dweller_id)
-    logger.info("Chat WebSocket connected: user=%s, dweller=%s", user_id, dweller_id)
-
-    # WS Auth: verify token matches user_id
+    # WS Auth: verify token matches user_id BEFORE accepting/registering the connection.
+    # Closing before accept() causes Starlette to reject the WebSocket handshake (HTTP 403),
+    # so an unauthenticated socket is never registered with the connection manager.
     token = websocket.query_params.get("token")
     authenticated_user_id = _decode_ws_token(token) if token else None
 
     if not authenticated_user_id or authenticated_user_id != str(user_id):
         await websocket.close(code=4008)
-        manager.disconnect_chat(websocket, user_id, dweller_id)
         return
+
+    await manager.connect_chat(websocket, user_id, dweller_id)
+    logger.info("Chat WebSocket connected: user=%s, dweller=%s", user_id, dweller_id)
 
     try:
         # Receive messages from client using async for pattern

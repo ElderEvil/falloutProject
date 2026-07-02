@@ -2,6 +2,7 @@ import { ref, computed, watch, nextTick, type Ref } from 'vue'
 import { onKeyStroke } from '@vueuse/core'
 import apiClient from '@/core/plugins/axios'
 import type { useChatWebSocket } from '@/core/composables/useWebSocket'
+import { handleStoreError } from '@/core/utils/errorHandler'
 import { normalizeImageUrl } from '@/utils/image'
 import type { ChatMessageDisplay } from '@/modules/chat/models/chat'
 
@@ -56,7 +57,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
 
       messages.value = history
     } catch (error) {
-      console.error('Error loading chat history:', error)
+      handleStoreError(error, 'Error loading chat history')
     }
   }
 
@@ -100,7 +101,14 @@ export function useChatMessages(options: UseChatMessagesOptions) {
           actionSuggestion: response.data.action_suggestion || null,
         })
       } catch (error) {
-        console.error('Error sending message:', error)
+        handleStoreError(error, 'Error sending message')
+        // Mark the optimistic user message as failed
+        if (messages.value.length > 0) {
+          const lastMsg = messages.value[messages.value.length - 1]
+          if (lastMsg.type === 'user') {
+            lastMsg.content = '[Failed to send] ' + lastMsg.content
+          }
+        }
       } finally {
         if (isWsConnected) {
           isTyping.value = false

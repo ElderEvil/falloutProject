@@ -34,7 +34,7 @@ from app.services.conversation_service import conversation_service
 from app.services.open_ai import get_ai_service
 from app.services.quota_service import quota_service
 from app.services.websocket_manager import manager
-from app.utils.exceptions import QuotaExceededException
+from app.utils.exceptions import AccessDeniedException, QuotaExceededException
 
 logger = logging.getLogger(__name__)
 
@@ -236,9 +236,7 @@ class ChatService:
 
             # Ownership check: dweller must belong to the current user
             if not dweller.vault or dweller.vault.user_id != user.id:
-                from fastapi import HTTPException
-
-                raise HTTPException(status_code=403, detail="Dweller does not belong to the current user")
+                raise AccessDeniedException(detail="Dweller does not belong to the current user")
 
             quota_result = await quota_service.check_quota(user.id, db_session)
 
@@ -332,6 +330,9 @@ class ChatService:
                 "action_suggestion": action_suggestion.model_dump(mode="json") if action_suggestion else None,
             }
 
+        except AccessDeniedException as e:
+            yield {"type": "error", "detail": str(e.detail)}
+            return
         except Exception as e:
             logger.exception("Streaming chat response failed")
             if isinstance(e, (ValueError, QuotaExceededException)):

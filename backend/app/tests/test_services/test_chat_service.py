@@ -284,4 +284,4 @@ class TestChatServiceErrorHandling:
 
         assert len(events) == 1
         assert events[0]["type"] == "error"
-        assert events[0]["detail"] == "An unexpected error occurred during chat"
+        assert events[0]["detail"] == "Dweller does not belong to the current user"

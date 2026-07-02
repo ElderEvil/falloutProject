@@ -91,16 +91,22 @@ export function useRadioRoom(
           headers: { Authorization: `Bearer ${token}` },
         }
       )
-
-      await vaultStore.refreshVault(vaultIdValue, token)
-
-      toast.success(`Radio mode set to ${mode}`)
     } catch (error) {
       localRadioMode.value =
         (vaultStore.activeVault?.radio_mode as 'recruitment' | 'happiness') || 'recruitment'
       console.error('Failed to switch radio mode:', error)
       toast.error('Failed to switch radio mode')
+      return
     }
+
+    // Refresh vault (non-throwing) — separate from mutation error handling
+    try {
+      await vaultStore.refreshVault(vaultIdValue, token)
+    } catch (error) {
+      console.warn('Failed to refresh vault after radio mode change:', error)
+    }
+
+    toast.success(`Radio mode set to ${mode}`)
   }
 
   const handleRecruitDweller = async () => {

@@ -57,8 +57,8 @@ const {
   formatDuration,
 } = useAudioRecorder()
 
-const userId = computed(() => authStore.user?.id)
-const chatWs = useChatWebSocket(userId.value || '', props.dwellerId)
+const userId = computed(() => authStore.user?.id || '')
+const chatWs = useChatWebSocket(userId.value, props.dwellerId, authStore.token)
 
 const {
   messages,

@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import axios from '@/core/plugins/axios'
 import { AxiosError } from 'axios'
 import type { Room, RoomCreate, RoomTemplate } from '../models/room'
+import { handleStoreError } from '@/core/utils/errorHandler'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 
 export const useRoomStore = defineStore('room', () => {
@@ -22,7 +23,7 @@ export const useRoomStore = defineStore('room', () => {
       })
       rooms.value = response.data
     } catch (error) {
-      console.error('Failed to fetch rooms', error)
+      handleStoreError(error, 'Failed to fetch rooms')
       rooms.value = [] // Reset to empty array on error
     }
   }
@@ -39,7 +40,7 @@ export const useRoomStore = defineStore('room', () => {
       })
       availableRooms.value = response.data
     } catch (error) {
-      console.error('Failed to fetch rooms data', error)
+      handleStoreError(error, 'Failed to fetch rooms data')
       availableRooms.value = []
     }
   }
@@ -53,7 +54,7 @@ export const useRoomStore = defineStore('room', () => {
       })
       rooms.value.push(response.data)
     } catch (error) {
-      console.error('Failed to build room', error)
+      handleStoreError(error, 'Failed to build room')
       if (error instanceof AxiosError && error.response?.data?.detail) {
         throw new Error(error.response.data.detail)
       }
@@ -77,7 +78,7 @@ export const useRoomStore = defineStore('room', () => {
       })
       rooms.value = rooms.value.filter((room) => room.id !== roomId)
     } catch (error) {
-      console.error('Failed to destroy room', error)
+      handleStoreError(error, 'Failed to destroy room')
       if (error instanceof AxiosError && error.response?.data?.detail) {
         throw new Error(error.response.data.detail)
       }
@@ -110,7 +111,7 @@ export const useRoomStore = defineStore('room', () => {
         rooms.value[index] = response.data
       }
     } catch (error) {
-      console.error('Failed to upgrade room', error)
+      handleStoreError(error, 'Failed to upgrade room')
       if (error instanceof AxiosError && error.response?.data?.detail) {
         throw new Error(error.response.data.detail)
       }

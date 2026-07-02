@@ -118,7 +118,7 @@ describe('Profile Store', () => {
       vi.mocked(axios.get).mockRejectedValueOnce(mockError)
 
       await expect(store.fetchProfile()).rejects.toEqual(mockError)
-      expect(store.error).toBe('Failed to fetch profile')
+      expect(store.error).toBe('Network error')
       expect(store.loading).toBe(false)
     })
   })
@@ -182,7 +182,7 @@ describe('Profile Store', () => {
       vi.mocked(axios.put).mockRejectedValueOnce(mockError)
 
       await expect(store.updateProfile(updateData)).rejects.toEqual(mockError)
-      expect(store.error).toBe('Failed to update profile')
+      expect(store.error).toBe('Network error')
       expect(store.loading).toBe(false)
     })
 

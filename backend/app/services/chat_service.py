@@ -21,6 +21,7 @@ from app.core.config import settings
 from app.crud.chat_message import chat_message as chat_message_crud
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
+from app.crud.vault import vault as vault_crud
 from app.models import User
 from app.models.chat_message import ChatMessageCreate
 from app.models.objective import ObjectiveBase
@@ -234,8 +235,11 @@ class ChatService:
             if not dweller:
                 raise ValueError("Dweller not found")
 
-            # Ownership check: dweller must belong to the current user
-            if not dweller.vault or dweller.vault.user_id != user.id:
+            # Ownership check: dweller's vault must belong to the current user
+            if not dweller.vault:
+                raise AccessDeniedException(detail="Dweller does not belong to the current user")
+            vault = await vault_crud.get(db_session, dweller.vault.id)
+            if not vault or vault.user_id != user.id:
                 raise AccessDeniedException(detail="Dweller does not belong to the current user")
 
             quota_result = await quota_service.check_quota(user.id, db_session)

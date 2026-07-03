@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { UserProfile, ProfileUpdate } from '../models/profile'
 import type { AIUsageStats } from '../models/aiUsage'
+import { handleStoreError } from '@/core/utils/errorHandler'
 import axios from '@/core/plugins/axios'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
 
@@ -31,8 +32,8 @@ export const useProfileStore = defineStore('profile', () => {
   // Getters
   const hasProfile = computed(() => profile.value !== null)
 
-  const quotaExceeded = computed(() => aiUsageStats.value?.quota?.quota_exceeded ?? false)
-  const quotaWarning = computed(() => aiUsageStats.value?.quota?.quota_warning ?? false)
+  const quotaExceeded = computed(() => aiUsageStats.value?.quota_exceeded ?? false)
+  const quotaWarning = computed(() => aiUsageStats.value?.quota_warning ?? false)
 
   const statistics = computed(() => {
     if (!profile.value) return null
@@ -57,8 +58,8 @@ export const useProfileStore = defineStore('profile', () => {
       if (profile.value.preferences?.theme) {
         loadUserTheme(profile.value.preferences.theme as ThemeName)
       }
-    } catch (err: any) {
-      error.value = err.response?.data?.detail || 'Failed to fetch profile'
+    } catch (err: unknown) {
+      error.value = handleStoreError(err, 'Failed to fetch profile')
       throw err
     } finally {
       loading.value = false
@@ -77,8 +78,8 @@ export const useProfileStore = defineStore('profile', () => {
       if (profile.value.preferences?.theme) {
         loadUserTheme(profile.value.preferences.theme as ThemeName)
       }
-    } catch (err: any) {
-      error.value = err.response?.data?.detail || 'Failed to update profile'
+    } catch (err: unknown) {
+      error.value = handleStoreError(err, 'Failed to update profile')
       throw err
     } finally {
       loading.value = false
@@ -91,8 +92,8 @@ export const useProfileStore = defineStore('profile', () => {
       const response = await axios.get<DeathStatistics>('/api/v1/users/me/profile/statistics')
       deathStatistics.value = response.data
       return response.data
-    } catch (err: any) {
-      console.error('Failed to fetch death statistics:', err)
+    } catch (err: unknown) {
+      handleStoreError(err, 'Failed to fetch death statistics')
       return null
     } finally {
       deathStatsLoading.value = false
@@ -105,8 +106,8 @@ export const useProfileStore = defineStore('profile', () => {
       const response = await axios.get<AIUsageStats>('/api/v1/users/me/profile/ai-usage')
       aiUsageStats.value = response.data
       return response.data
-    } catch (err: any) {
-      console.error('Failed to fetch AI usage:', err)
+    } catch (err: unknown) {
+      handleStoreError(err, 'Failed to fetch AI usage')
       return null
     } finally {
       aiUsageLoading.value = false

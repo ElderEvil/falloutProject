@@ -1,5 +1,8 @@
 import { ref, computed, watch, nextTick, type Ref } from 'vue'
+import { onKeyStroke } from '@vueuse/core'
 import apiClient from '@/core/plugins/axios'
+import type { useChatWebSocket } from '@/core/composables/useWebSocket'
+import { handleStoreError } from '@/core/utils/errorHandler'
 import { normalizeImageUrl } from '@/utils/image'
 import type { ChatMessageDisplay } from '@/modules/chat/models/chat'
 
@@ -8,6 +11,7 @@ export interface UseChatMessagesOptions {
   dwellerAvatar?: string
   token: Ref<string | null> | string | null
   userImageUrl?: string
+  chatWs?: ReturnType<typeof useChatWebSocket>
 }
 
 export function useChatMessages(options: UseChatMessagesOptions) {
@@ -53,22 +57,27 @@ export function useChatMessages(options: UseChatMessagesOptions) {
 
       messages.value = history
     } catch (error) {
-      console.error('Error loading chat history:', error)
+      handleStoreError(error, 'Error loading chat history')
     }
   }
 
   const sendMessage = async () => {
     if (userMessage.value.trim()) {
-      messages.value.push({
-        type: 'user',
-        content: userMessage.value,
-        timestamp: new Date(),
-        avatar: userAvatar.value,
-      })
-
+      const isWsConnected = options.chatWs?.state.value === 'connected'
       const messageToSend = userMessage.value
       userMessage.value = ''
-      isTyping.value = true
+
+      let pushedOptimistic = false
+      if (isWsConnected) {
+        messages.value.push({
+          type: 'user',
+          content: messageToSend,
+          timestamp: new Date(),
+          avatar: userAvatar.value,
+        })
+        pushedOptimistic = true
+        isTyping.value = true
+      }
 
       try {
         const response = await apiClient.post(
@@ -92,20 +101,35 @@ export function useChatMessages(options: UseChatMessagesOptions) {
           actionSuggestion: response.data.action_suggestion || null,
         })
       } catch (error) {
-        console.error('Error sending message:', error)
+        handleStoreError(error, 'Error sending message')
+        // Only mark the optimistic message as failed if we actually pushed one
+        if (pushedOptimistic && messages.value.length > 0) {
+          const lastMsg = messages.value[messages.value.length - 1]
+          if (lastMsg.type === 'user') {
+            lastMsg.content = '[Failed to send] ' + lastMsg.content
+          }
+        }
       } finally {
-        isTyping.value = false
+        if (isWsConnected) {
+          isTyping.value = false
+        }
       }
     }
   }
 
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage()
-    }
-    // Shift+Enter allows newline (default behavior)
-  }
+  const chatInputRef = ref<HTMLInputElement | null>(null)
+
+  onKeyStroke(
+    'Enter',
+    (e) => {
+      if (!e.shiftKey) {
+        e.preventDefault()
+        sendMessage()
+      }
+      // Shift+Enter allows newline (default behavior)
+    },
+    { target: chatInputRef }
+  )
 
   // Find the latest actionable suggestion (most recent dweller message with a valid action)
   const latestActionSuggestionIndex = computed(() => {
@@ -156,6 +180,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
     messages,
     userMessage,
     chatMessages,
+    chatInputRef,
     isTyping,
     userAvatar,
     dwellerAvatarUrl,
@@ -165,7 +190,6 @@ export function useChatMessages(options: UseChatMessagesOptions) {
     // Methods
     loadChatHistory,
     sendMessage,
-    handleKeyDown,
     dismissAction,
     getHappinessColor,
     getHappinessIcon,

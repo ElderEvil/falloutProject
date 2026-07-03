@@ -3,7 +3,14 @@ import { setActivePinia, createPinia } from 'pinia'
 import { useRadioStore } from '@/modules/radio/stores/radio'
 import axios from '@/core/plugins/axios'
 
-vi.mock('@/core/plugins/axios')
+vi.mock('@/core/plugins/axios', () => ({
+  default: {
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+  },
+}))
 
 describe('Radio Store', () => {
   beforeEach(() => {

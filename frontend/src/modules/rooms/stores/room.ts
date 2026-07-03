@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import axios from '@/core/plugins/axios'
 import { AxiosError } from 'axios'
 import type { Room, RoomCreate, RoomTemplate } from '../models/room'
+import { handleStoreError } from '@/core/utils/errorHandler'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 
 export const useRoomStore = defineStore('room', () => {
@@ -11,6 +12,15 @@ export const useRoomStore = defineStore('room', () => {
   const availableRooms = ref<RoomTemplate[]>([])
   const selectedRoom = ref<RoomTemplate | null>(null)
   const isPlacingRoom = ref(false)
+
+  // Background vault refresh — non-throwing, warns on failure without user-facing toast
+  async function refreshVaultSafely(vaultId: string, token: string, context: string) {
+    try {
+      await useVaultStore().refreshVault(vaultId, token)
+    } catch (error) {
+      console.warn(`${context}:`, error)
+    }
+  }
 
   // Actions
   async function fetchRooms(vaultId: string, token: string): Promise<void> {
@@ -22,7 +32,7 @@ export const useRoomStore = defineStore('room', () => {
       })
       rooms.value = response.data
     } catch (error) {
-      console.error('Failed to fetch rooms', error)
+      handleStoreError(error, 'Failed to fetch rooms')
       rooms.value = [] // Reset to empty array on error
     }
   }
@@ -39,7 +49,8 @@ export const useRoomStore = defineStore('room', () => {
       })
       availableRooms.value = response.data
     } catch (error) {
-      console.error('Failed to fetch rooms data', error)
+      handleStoreError(error, 'Failed to fetch rooms data')
+      availableRooms.value = []
     }
   }
 
@@ -51,17 +62,15 @@ export const useRoomStore = defineStore('room', () => {
         },
       })
       rooms.value.push(response.data)
-
-      // Refresh vault data to update caps
-      const vaultStore = useVaultStore()
-      await vaultStore.refreshVault(vaultId, token)
     } catch (error) {
-      console.error('Failed to build room', error)
+      handleStoreError(error, 'Failed to build room')
       if (error instanceof AxiosError && error.response?.data?.detail) {
         throw new Error(error.response.data.detail)
       }
       throw error
     }
+    // Refresh vault to update caps (non-throwing)
+    await refreshVaultSafely(vaultId, token, 'Failed to refresh vault after building room')
   }
 
   async function destroyRoom(roomId: string, token: string, vaultId: string): Promise<void> {
@@ -72,17 +81,15 @@ export const useRoomStore = defineStore('room', () => {
         },
       })
       rooms.value = rooms.value.filter((room) => room.id !== roomId)
-
-      // Refresh vault to update caps after refund
-      const vaultStore = useVaultStore()
-      await vaultStore.refreshVault(vaultId, token)
     } catch (error) {
-      console.error('Failed to destroy room', error)
+      handleStoreError(error, 'Failed to destroy room')
       if (error instanceof AxiosError && error.response?.data?.detail) {
         throw new Error(error.response.data.detail)
       }
       throw error
     }
+    // Refresh vault to update caps after refund (non-throwing)
+    await refreshVaultSafely(vaultId, token, 'Failed to refresh vault after destroying room')
   }
 
   async function upgradeRoom(roomId: string, token: string, vaultId: string): Promise<void> {
@@ -102,17 +109,15 @@ export const useRoomStore = defineStore('room', () => {
       if (index !== -1) {
         rooms.value[index] = response.data
       }
-
-      // Refresh vault data to update caps
-      const vaultStore = useVaultStore()
-      await vaultStore.refreshVault(vaultId, token)
     } catch (error) {
-      console.error('Failed to upgrade room', error)
+      handleStoreError(error, 'Failed to upgrade room')
       if (error instanceof AxiosError && error.response?.data?.detail) {
         throw new Error(error.response.data.detail)
       }
       throw error
     }
+    // Refresh vault to update caps (non-throwing)
+    await refreshVaultSafely(vaultId, token, 'Failed to refresh vault after upgrading room')
   }
 
   function selectRoom(room: RoomTemplate): void {

@@ -90,9 +90,6 @@ export function getErrorMessage(error: unknown): string {
  * Convert unknown error to ApiError
  */
 export function toApiError(error: unknown): ApiError {
-  if (isApiError(error)) {
-    return error
-  }
   if (isAxiosError(error)) {
     return {
       message: error.response.data.detail || error.response.data.message || 'An error occurred',
@@ -104,6 +101,9 @@ export function toApiError(error: unknown): ApiError {
     return {
       message: error.message,
     }
+  }
+  if (isApiError(error)) {
+    return error
   }
   return {
     message: typeof error === 'string' ? error : 'An unknown error occurred',

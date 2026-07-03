@@ -53,7 +53,7 @@ class TestChatServiceErrorHandling:
         self,
         async_session: AsyncSession,
         chat_dweller: Dweller,
-    ):
+    ) -> None:
         """Test that _run_chat_agent handles AttributeError from usage() gracefully.
 
         Regression test for: AttributeError: 'coroutine' object has no attribute 'input_tokens'
@@ -116,7 +116,7 @@ class TestChatServiceErrorHandling:
         self,
         async_session: AsyncSession,
         chat_dweller: Dweller,
-    ):
+    ) -> None:
         """Test that _run_chat_agent handles usage() returning None gracefully."""
         from pydantic_ai.agent import AgentRunResult
 
@@ -164,7 +164,7 @@ class TestChatServiceErrorHandling:
         self,
         async_session: AsyncSession,
         chat_dweller: Dweller,
-    ):
+    ) -> None:
         """Test that _run_chat_agent handles usage() raising any exception gracefully."""
         from pydantic_ai.agent import AgentRunResult
 
@@ -213,7 +213,7 @@ class TestChatServiceErrorHandling:
         self,
         async_session: AsyncSession,
         chat_dweller: Dweller,
-    ):
+    ) -> None:
         """Test that _run_chat_agent falls back when the agent raises an exception."""
         from app.services.open_ai import ChatCompletionResult
 
@@ -255,3 +255,33 @@ class TestChatServiceErrorHandling:
                 # Fallback should have neutral happiness
                 assert happiness_impact.delta == 0
                 assert happiness_impact.reason_code.value == "chat_neutral"
+
+    async def test_stream_response_ownership_denied(
+        self,
+        async_session: AsyncSession,
+        chat_dweller: Dweller,
+    ) -> None:
+        """Test that stream_response yields error when dweller's vault belongs to a different user."""
+        from app.schemas.user import UserCreate
+
+        other_user = await crud.user.create(
+            db_session=async_session,
+            obj_in=UserCreate(
+                username="other-chat-user",
+                email="other-chat@example.com",
+                password="secretpass123",
+            ),
+        )
+
+        events: list[dict] = []
+        async for event in chat_service.stream_response(
+            db_session=async_session,
+            user=other_user,
+            dweller_id=chat_dweller.id,
+            message_text="Hello",
+        ):
+            events.append(event)
+
+        assert len(events) == 1
+        assert events[0]["type"] == "error"
+        assert events[0]["detail"] == "Dweller does not belong to the current user"

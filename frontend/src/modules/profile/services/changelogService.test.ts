@@ -1,3 +1,4 @@
+import { AxiosError } from 'axios'
 import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 import apiClient from '@/core/plugins/axios'
 import { changelogService, type ChangelogEntry } from '@/modules/profile/services/changelogService'
@@ -71,8 +72,10 @@ describe('ChangelogService', () => {
     })
 
     it('should return null on 404 error without logging', async () => {
-      const error404 = new Error('Not Found')
-      ;(error404 as any).response = { status: 404 }
+      const error404 = new AxiosError('Not Found', undefined, undefined, undefined, {
+        status: 404,
+        data: {},
+      } as any)
 
       vi.spyOn(apiClient, 'get').mockRejectedValue(error404)
       const consoleSpy = vi.spyOn(console, 'error')

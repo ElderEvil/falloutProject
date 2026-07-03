@@ -35,7 +35,7 @@ const startSse = () => {
     return
   }
   const instance = useSse(`${apiBase}/api/v1/stream/notifications`, {
-    headers: { Authorization: `Bearer ${authStore.token}` },
+    headers: () => ({ Authorization: `Bearer ${authStore.token}` }),
   })
   sse.value = instance
   instance.start()

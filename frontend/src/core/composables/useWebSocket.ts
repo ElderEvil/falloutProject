@@ -178,7 +178,7 @@ export function useWebSocket(initialUrl?: string) {
 }
 
 // Specific composable for chat WebSocket
-export function useChatWebSocket(userId: string, dwellerId: string) {
+export function useChatWebSocket(userId: string, dwellerId: string, token?: string | null) {
   // Get WebSocket base URL from environment (same as axios API base URL)
   let apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
@@ -193,8 +193,10 @@ export function useChatWebSocket(userId: string, dwellerId: string) {
   // Convert HTTP/HTTPS to WS/WSS protocol
   const wsBaseUrl = apiBaseUrl.replace(/^https?/, (match) => (match === 'https' ? 'wss' : 'ws'))
 
-  // Construct WebSocket URL
-  const wsUrl = `${wsBaseUrl}/api/v1/ws/chat/${userId}/${dwellerId}`
+  let wsUrl = `${wsBaseUrl}/api/v1/ws/chat/${userId}/${dwellerId}`
+  if (token) {
+    wsUrl += `?token=${encodeURIComponent(token)}`
+  }
   const ws = useWebSocket(wsUrl)
 
   const sendTypingIndicator = (isTyping: boolean) => {

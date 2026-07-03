@@ -53,7 +53,7 @@ export function useRadioRoom(
       const response = await axios.get(`/api/v1/radio/vault/${vaultIdValue}/stats`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      if (response.data?.manual_cost_caps) {
+      if (response.data?.manual_cost_caps != null) {
         manualRecruitCost.value = response.data.manual_cost_caps
       }
     } catch (error) {
@@ -91,16 +91,22 @@ export function useRadioRoom(
           headers: { Authorization: `Bearer ${token}` },
         }
       )
-
-      await vaultStore.refreshVault(vaultIdValue, token)
-
-      toast.success(`Radio mode set to ${mode}`)
     } catch (error) {
       localRadioMode.value =
         (vaultStore.activeVault?.radio_mode as 'recruitment' | 'happiness') || 'recruitment'
       console.error('Failed to switch radio mode:', error)
       toast.error('Failed to switch radio mode')
+      return
     }
+
+    // Refresh vault (non-throwing) — separate from mutation error handling
+    try {
+      await vaultStore.refreshVault(vaultIdValue, token)
+    } catch (error) {
+      console.warn('Failed to refresh vault after radio mode change:', error)
+    }
+
+    toast.success(`Radio mode set to ${mode}`)
   }
 
   const handleRecruitDweller = async () => {
@@ -128,8 +134,17 @@ export function useRadioRoom(
 
       toast.success(response.data.message || 'Dweller recruited successfully!')
 
-      await vaultStore.refreshVault(vaultIdValue, token)
-      await dwellerStore.fetchDwellersByVault(vaultIdValue, token)
+      // Refresh calls (non-throwing) — inside try so isRecruiting stays true until done
+      try {
+        await vaultStore.refreshVault(vaultIdValue, token)
+      } catch (error) {
+        console.warn('Failed to refresh vault after recruiting:', error)
+      }
+      try {
+        await dwellerStore.fetchDwellersByVault(vaultIdValue, token)
+      } catch (error) {
+        console.warn('Failed to refresh dwellers after recruiting:', error)
+      }
     } catch (error: any) {
       console.error('Failed to recruit dweller:', error)
       const message = error.response?.data?.detail || 'Failed to recruit dweller'

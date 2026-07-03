@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useAuthStore } from '@/modules/auth/stores/auth'
-import { useProfileStore } from '@/modules/profile/stores/profile'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import apiClient from '@/core/plugins/axios'
+import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useProfileStore } from '@/modules/profile/stores/profile'
+import { useChatWebSocket } from '@/core/composables/useWebSocket'
+import { normalizeImageUrl } from '@/utils/image'
 import type { ActionSuggestion } from '../models/chat'
 import { useAudioRecorder } from '../composables/useAudioRecorder'
 import { useChatMessages } from '../composables/useChatMessages'
 import { useChatAudio } from '../composables/useChatAudio'
 import { useTypingIndicator } from '../composables/useTypingIndicator'
 import { useChatActions } from '../composables/useChatActions'
-import { useChatWebSocket } from '@/core/composables/useWebSocket'
-import { normalizeImageUrl } from '@/utils/image'
-import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
@@ -57,12 +57,14 @@ const {
   formatDuration,
 } = useAudioRecorder()
 
-const chatWs = authStore.user?.id ? useChatWebSocket(authStore.user.id, props.dwellerId) : null
+const userId = computed(() => authStore.user?.id || '')
+const chatWs = useChatWebSocket(userId.value, props.dwellerId, authStore.token)
 
 const {
   messages,
   userMessage,
   chatMessages,
+  chatInputRef,
   isTyping,
   userAvatar,
   dwellerAvatarUrl,
@@ -70,7 +72,6 @@ const {
   latestActionSuggestionIndex,
   loadChatHistory,
   sendMessage,
-  handleKeyDown,
   dismissAction,
   getHappinessColor,
   getHappinessIcon,
@@ -79,6 +80,7 @@ const {
   dwellerAvatar: props.dwellerAvatar,
   token: authStore.token,
   userImageUrl: (authStore.user as any)?.image_url,
+  chatWs,
 })
 
 const { currentlyPlayingUrl, stopAudio, playAudio } = useChatAudio()
@@ -90,6 +92,50 @@ const { isPerformingAction, handleActionConfirm } = useChatActions({
   dwellerName: props.dwellerName,
   messages,
 })
+
+// Register WebSocket event handlers during setup
+chatWs.on('typing', (msg: any) => {
+  if (msg.sender === 'dweller') {
+    isTyping.value = msg.is_typing
+  }
+})
+
+chatWs.on('happiness_update', (msg: any) => {
+  if (msg.happiness_impact && msg.message_id) {
+    const messageIndex = messages.value.findIndex((m) => m.messageId === msg.message_id)
+    if (messageIndex !== -1) {
+      messages.value[messageIndex] = {
+        ...messages.value[messageIndex],
+        happinessImpact: msg.happiness_impact,
+      }
+    }
+  }
+})
+
+chatWs.on('action_suggestion', (msg: any) => {
+  if (msg.message_id && msg.action_suggestion) {
+    const messageIndex = messages.value.findIndex((m) => m.messageId === msg.message_id)
+    if (messageIndex !== -1) {
+      messages.value[messageIndex] = {
+        ...messages.value[messageIndex],
+        actionSuggestion: msg.action_suggestion,
+      }
+    }
+  }
+})
+
+// Reactively connect/disconnect WebSocket when userId changes
+watch(
+  userId,
+  (id) => {
+    if (id) {
+      chatWs.connect()
+    } else {
+      chatWs.disconnect()
+    }
+  },
+  { immediate: true }
+)
 
 const sendAudioMessage = async () => {
   try {
@@ -147,40 +193,6 @@ const sendAudioMessage = async () => {
 
 onMounted(() => {
   loadChatHistory()
-
-  if (chatWs) {
-    chatWs.connect()
-
-    chatWs.on('typing', (msg: any) => {
-      if (msg.sender === 'dweller') {
-        isTyping.value = msg.is_typing
-      }
-    })
-
-    chatWs.on('happiness_update', (msg: any) => {
-      if (msg.happiness_impact && msg.message_id) {
-        const messageIndex = messages.value.findIndex((m) => m.messageId === msg.message_id)
-        if (messageIndex !== -1) {
-          messages.value[messageIndex] = {
-            ...messages.value[messageIndex],
-            happinessImpact: msg.happiness_impact,
-          }
-        }
-      }
-    })
-
-    chatWs.on('action_suggestion', (msg: any) => {
-      if (msg.message_id && msg.action_suggestion) {
-        const messageIndex = messages.value.findIndex((m) => m.messageId === msg.message_id)
-        if (messageIndex !== -1) {
-          messages.value[messageIndex] = {
-            ...messages.value[messageIndex],
-            actionSuggestion: msg.action_suggestion,
-          }
-        }
-      }
-    })
-  }
 })
 
 onUnmounted(() => {
@@ -388,7 +400,7 @@ onUnmounted(() => {
         <span class="terminal-prompt">&gt;</span>
         <input
           v-model="userMessage"
-          @keydown="handleKeyDown"
+          ref="chatInputRef"
           @input="handleTyping"
           placeholder="Type your message..."
           class="chat-input-field"

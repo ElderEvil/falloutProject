@@ -172,6 +172,38 @@ async def pause_vault(
 - Endpoints catch service exceptions (subclasses of `HTTPException`) and map them: `ValidationException` → 400,
   `ResourceNotFoundException` → 404, `ResourceConflictException` → 409, `VaultOperationException` → 400.
 
+### DB Enums & Alembic Migrations (MANDATORY CHECK)
+
+When adding, removing, or renaming members of a Python `StrEnum` / `IntEnum` that maps to a PostgreSQL enum column:
+
+1. **Check if a migration is needed.** Compare the Python enum class (e.g. `NotificationType`) against the live PG enum values:
+   ```bash
+   cd backend
+   psql "$ASYNC_DATABASE_URI" -c "SELECT enumlabel FROM pg_enum WHERE enumtypid = 'notificationtype'::regtype"
+   ```
+
+2. **Alembic autogenerate does NOT detect enum value changes by default.** Our `env.py` only sets `compare_type=True` in offline mode — the online mode (used by `--autogenerate`) omits it, so value additions/removals are invisible to autogenerate.
+
+3. **You MUST write the migration manually** when enum values change. Use `op.execute()` for the DDL:
+   ```python
+   # Adding a value
+   op.execute("ALTER TYPE notificationtype ADD VALUE 'DWELLER_DIED'")
+   ```
+
+4. **PostgreSQL enum constraints:**
+   - `ADD VALUE` can be done inside a transaction (PG 12+).
+   - There is no `ALTER TYPE ... DROP VALUE`. Removing a value requires recreating the type with a multi-step process.
+   - Renaming requires `ALTER TYPE ... RENAME VALUE` (PG 10+).
+
+5. **Verification:** After writing the migration, run it and confirm the DB enum matches the Python class:
+   ```bash
+   cd backend
+   uv run alembic upgrade head
+   ```
+   Then query `pg_enum` again to verify.
+
+**Common pitfall (like the `DWELLER_DIED` outage):** A member is added to the Python enum but never migrated to PostgreSQL. Application code starts using it → `InvalidTextRepresentationError` → poisoned connection pool → worker crash-loop. Always catch this in review.
+
 ## Frontend (Vue 3 / TypeScript)
 
 ### Setup & Dev
@@ -278,7 +310,7 @@ Before writing any new frontend code, apply this ordering to every decision:
 
 ---
 
-_Last updated: 2026-06-28_
+_Last updated: 2026-07-02_
 
 ## Dev Environment (Agent Quick-Start)
 

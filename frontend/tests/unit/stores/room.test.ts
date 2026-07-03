@@ -69,7 +69,7 @@ describe('Room Store', () => {
       await store.fetchRooms('vault-1', 'test-token')
 
       expect(store.rooms).toEqual([])
-      expect(console.error).toHaveBeenCalledWith('Failed to fetch rooms', expect.any(Error))
+      expect(console.error).toHaveBeenCalledWith('Failed to fetch rooms:', expect.any(Error))
     })
   })
 
@@ -121,7 +121,7 @@ describe('Room Store', () => {
       const store = useRoomStore()
       await store.fetchRoomsData('test-token')
 
-      expect(console.error).toHaveBeenCalledWith('Failed to fetch rooms data', expect.any(Error))
+      expect(console.error).toHaveBeenCalledWith('Failed to fetch rooms data:', expect.any(Error))
     })
   })
 
@@ -213,7 +213,7 @@ describe('Room Store', () => {
 
       await expect(store.destroyRoom('room-1', 'test-token', 'vault-1')).rejects.toThrow('Failed')
 
-      expect(console.error).toHaveBeenCalledWith('Failed to destroy room', expect.any(Error))
+      expect(console.error).toHaveBeenCalledWith('Failed to destroy room:', expect.any(Error))
       expect(store.rooms).toHaveLength(1) // Room not removed on error
     })
   })

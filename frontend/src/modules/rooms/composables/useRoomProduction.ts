@@ -1,32 +1,8 @@
 import { computed, type Ref } from 'vue'
 import type { Room } from '../models/room'
-import type { DwellerShort } from '@/modules/dwellers/models/dweller'
+import type { DwellerShort, SpecialKey } from '@/modules/dwellers/models/dweller'
+import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
 import { API_BASE_URL } from '@/core/config/api'
-
-type SpecialKey =
-  | 'strength'
-  | 'perception'
-  | 'endurance'
-  | 'charisma'
-  | 'intelligence'
-  | 'agility'
-  | 'luck'
-
-const getResourceName = (ability?: string | null) => {
-  if (!ability) return 'Resources'
-  switch (ability.toUpperCase()) {
-    case 'STRENGTH':
-      return 'Power'
-    case 'PERCEPTION':
-      return 'Water'
-    case 'AGILITY':
-      return 'Food'
-    case 'ENDURANCE':
-      return 'All Resources'
-    default:
-      return 'Resources'
-  }
-}
 
 export function useRoomProduction(
   room: Ref<Room | null>,
@@ -34,24 +10,11 @@ export function useRoomProduction(
   dwellerCapacity: Ref<number>
 ) {
   const resourceIcon = computed(() => {
-    if (!room.value?.ability) return 'mdi:home'
-    const ability = room.value.ability.toUpperCase()
-    switch (ability) {
-      case 'STRENGTH':
-        return 'mdi:lightning-bolt'
-      case 'PERCEPTION':
-        return 'mdi:water'
-      case 'AGILITY':
-        return 'mdi:food-drumstick'
-      case 'ENDURANCE':
-        return 'mdi:flash'
-      default:
-        return 'mdi:home'
-    }
+    return getAbilityConfig(room.value?.ability)?.icon ?? 'mdi:home'
   })
 
   const resourceName = computed(() => {
-    return getResourceName(room.value?.ability)
+    return getAbilityConfig(room.value?.ability)?.resourceName ?? 'Resources'
   })
 
   const roomImageUrl = computed(() => {
@@ -84,7 +47,7 @@ export function useRoomProduction(
     const productionPerSecond = (r.output || 0) * abilitySum * BASE_PRODUCTION_RATE * tierMult
     const productionPerMinute = productionPerSecond * 60
 
-    const resourceType = getResourceName(r.ability)
+    const resourceType = getAbilityConfig(r.ability)?.resourceName ?? 'Resources'
 
     const capacity = dwellerCapacity.value || 1
     const efficiency = Math.round((dwellers.length / capacity) * 100)

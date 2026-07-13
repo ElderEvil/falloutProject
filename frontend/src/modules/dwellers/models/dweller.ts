@@ -25,5 +25,38 @@ export interface Special {
   luck: number
 }
 
+/** SPECIAL attribute key names */
+export type SpecialKey =
+  | 'strength'
+  | 'perception'
+  | 'endurance'
+  | 'charisma'
+  | 'intelligence'
+  | 'agility'
+  | 'luck'
+
+export interface AbilityConfig {
+  icon: string
+  letter: string
+  label: string
+  resourceName: string
+}
+
+/** Room ability → display config — single source of truth for icons, letters, labels. */
+export const ABILITY_CONFIG: Record<SpecialKey, AbilityConfig> = {
+  strength: { icon: 'mdi:lightning-bolt', letter: 'S', label: 'Strength', resourceName: 'Power' },
+  perception: { icon: 'mdi:water', letter: 'P', label: 'Perception', resourceName: 'Water' },
+  endurance: { icon: 'mdi:flash', letter: 'E', label: 'Endurance', resourceName: 'All Resources' },
+  charisma: { icon: 'mdi:account-voice', letter: 'C', label: 'Charisma', resourceName: 'Resources' },
+  intelligence: { icon: 'mdi:brain', letter: 'I', label: 'Intelligence', resourceName: 'Resources' },
+  agility: { icon: 'mdi:food-drumstick', letter: 'A', label: 'Agility', resourceName: 'Food' },
+  luck: { icon: 'mdi:clover', letter: 'L', label: 'Luck', resourceName: 'Resources' },
+}
+
+export function getAbilityConfig(ability: string | null | undefined): AbilityConfig | null {
+  if (!ability) return null
+  return ABILITY_CONFIG[ability.toLowerCase() as SpecialKey] ?? null
+}
+
 /** Visual attributes type — generated from backend OpenAPI schema. */
 export type VisualAttributes = components['schemas']['DwellerVisualAttributes']

@@ -1,18 +1,10 @@
 import { computed, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import type { DwellerShort } from '@/modules/dwellers/models/dweller'
+import type { DwellerShort, SpecialKey } from '@/modules/dwellers/models/dweller'
+import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import type { Room } from '../models/room'
-
-type SpecialKey =
-  | 'strength'
-  | 'perception'
-  | 'endurance'
-  | 'charisma'
-  | 'intelligence'
-  | 'agility'
-  | 'luck'
 
 export function useRoomDwellers(
   room: Ref<Room | null>,
@@ -38,16 +30,8 @@ export function useRoomDwellers(
   })
 
   const getAbilityLabel = (ability: string) => {
-    const labels: Record<string, string> = {
-      STRENGTH: 'S - Strength',
-      PERCEPTION: 'P - Perception',
-      ENDURANCE: 'E - Endurance',
-      CHARISMA: 'C - Charisma',
-      INTELLIGENCE: 'I - Intelligence',
-      AGILITY: 'A - Agility',
-      LUCK: 'L - Luck',
-    }
-    return labels[ability.toUpperCase()] || ability
+    const cfg = getAbilityConfig(ability)
+    return cfg ? `${cfg.letter} - ${cfg.label}` : ability
   }
 
   const getDwellerStatValue = (dweller: DwellerShort, ability: string) => {

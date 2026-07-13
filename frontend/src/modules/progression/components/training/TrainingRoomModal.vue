@@ -8,9 +8,9 @@ import TrainingProgressCard from './TrainingProgressCard.vue'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import type { components } from '@/core/types/api.generated'
+import type { Dweller } from '@/modules/dwellers/models/dweller'
+import type { Room } from '@/modules/rooms/models/room'
 
-type Room = any // You can type this properly based on your Room type
-type Dweller = any // You can type this properly based on your Dweller type
 type TrainingRead = components['schemas']['TrainingRead']
 
 interface Props {

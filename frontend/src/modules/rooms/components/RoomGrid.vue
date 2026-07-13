@@ -245,13 +245,13 @@ const handleDrop = async (event: DragEvent, roomId: string) => {
 }
 
 // Helper to check if room can be upgraded
-const canUpgrade = (room: any) => {
+const canUpgrade = (room: Room) => {
   const maxTier = room.t2_upgrade_cost && room.t3_upgrade_cost ? 3 : room.t2_upgrade_cost ? 2 : 1
   return room.tier < maxTier
 }
 
 // Helper to get upgrade cost
-const getUpgradeCost = (room: any) => {
+const getUpgradeCost = (room: Room) => {
   if (room.tier === 1 && room.t2_upgrade_cost) return room.t2_upgrade_cost
   if (room.tier === 2 && room.t3_upgrade_cost) return room.t3_upgrade_cost
   return 0

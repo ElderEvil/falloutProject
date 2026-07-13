@@ -8,7 +8,7 @@ import HappinessModifierPopover from './HappinessModifierPopover.vue'
 import DwellerCardActions from './DwellerCardActions.vue'
 import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import type { components } from '@/core/types/api.generated'
-import { normalizeImageUrl } from '@/utils/image'
+import { normalizeImageUrl } from '@/core/utils/image'
 
 type DwellerDetailRead = components['schemas']['DwellerReadFull']
 

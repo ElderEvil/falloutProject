@@ -4,7 +4,7 @@ import { Icon } from '@iconify/vue'
 import DwellerStatusBadge from '../stats/DwellerStatusBadge.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import type { DwellerShort } from '../../models/dweller'
-import { normalizeImageUrl } from '@/utils/image'
+import { normalizeImageUrl } from '@/core/utils/image'
 
 interface Props {
   dweller: DwellerShort

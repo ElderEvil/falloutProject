@@ -24,8 +24,9 @@ import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { DeadDwellerCard } from '../components/death'
 import PageHeader from '@/core/components/common/PageHeader.vue'
+import type { Dweller } from '@/modules/dwellers/models/dweller'
 import type { Room } from '@/modules/rooms/models/room'
-import { normalizeImageUrl } from '@/utils/image'
+import { normalizeImageUrl } from '@/core/utils/image'
 
 // Lazy load room modal
 const RoomDetailModal = defineAsyncComponent({
@@ -184,7 +185,7 @@ const getRoomForDweller = computed(() => (roomId: string | null | undefined) => 
 })
 
 // Get relevant SPECIAL stat for room's required ability
-const getRelevantStatForRoom = (dweller: any, room: any) => {
+const getRelevantStatForRoom = (dweller: Dweller, room: Room) => {
   if (!room?.ability) return null
 
   const abilityMap: Record<string, { value: number; label: string; icon: string; color: string }> =

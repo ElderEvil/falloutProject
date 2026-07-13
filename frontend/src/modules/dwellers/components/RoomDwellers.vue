@@ -4,7 +4,7 @@ import { useDwellerStore } from '../stores/dweller'
 import { Icon } from '@iconify/vue'
 import type { DwellerShort } from '../models/dweller'
 import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
-import { normalizeImageUrl } from '@/utils/image'
+import { normalizeImageUrl } from '@/core/utils/image'
 
 interface Props {
   roomId: string

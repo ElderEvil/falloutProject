@@ -8,7 +8,7 @@ import { Icon } from '@iconify/vue'
 import type { DwellerShort } from '../models/dweller'
 import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
 import DwellerFilterPanel from './DwellerFilterPanel.vue'
-import { normalizeImageUrl } from '@/utils/image'
+import { normalizeImageUrl } from '@/core/utils/image'
 
 const dwellerStore = useDwellerStore()
 const explorationStore = useExplorationStore()

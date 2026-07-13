@@ -8,7 +8,7 @@ import { UButton, UCard } from '@/core/components/ui'
 import { Icon } from '@iconify/vue'
 import DwellerChat from './DwellerChat.vue'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
-import { normalizeImageUrl } from '@/utils/image'
+import { normalizeImageUrl } from '@/core/utils/image'
 
 const route = useRoute()
 const router = useRouter()

@@ -9,7 +9,9 @@ interface Props {
   L: number
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
+
+const statValue = (key: keyof Props): number => props[key] ?? 0
 
 const stats = [
   { key: 'S', label: 'Strength', description: 'Physical power and melee damage' },
@@ -29,12 +31,12 @@ const stats = [
       <div v-for="stat in stats" :key="stat.key" class="stat-item">
         <div class="stat-header">
           <span class="stat-label">{{ stat.label }}</span>
-          <span class="stat-value">{{ ($props as any)[stat.key] || 0 }}</span>
+          <span class="stat-value">{{ statValue(stat.key) }}</span>
         </div>
         <div class="stat-bar">
           <div
             class="stat-fill"
-            :style="{ width: `${(($props as any)[stat.key] || 0) * 10}%` }"
+            :style="{ width: `${statValue(stat.key) * 10}%` }"
           ></div>
         </div>
         <p class="stat-description">{{ stat.description }}</p>

@@ -235,7 +235,10 @@ const rarityTextClass = computed(() => {
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-1.5">
             <h3
-              :class="['text-sm font-bold truncate drop-shadow-[0_0_4px_currentColor]', rarityTextClass]"
+              :class="[
+                'text-sm font-bold truncate drop-shadow-[0_0_4px_currentColor]',
+                rarityTextClass,
+              ]"
             >
               {{ itemName }}
             </h3>
@@ -246,14 +249,19 @@ const rarityTextClass = computed(() => {
               ×{{ count }}
             </span>
           </div>
-          <p class="text-xs text-(--color-theme-primary) opacity-70 capitalize truncate leading-tight mt-0.5">
+          <p
+            class="text-xs text-(--color-theme-primary) opacity-70 capitalize truncate leading-tight mt-0.5"
+          >
             {{ itemTypeDisplay }}
           </p>
         </div>
       </div>
 
       <!-- Stats inline -->
-      <div v-if="itemStats.length > 0" class="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-(--color-theme-primary) leading-tight">
+      <div
+        v-if="itemStats.length > 0"
+        class="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-(--color-theme-primary) leading-tight"
+      >
         <div v-for="stat in itemStats" :key="stat.label" class="flex items-center gap-1">
           <Icon :icon="stat.icon" class="w-3.5 h-3.5 shrink-0" />
           <span class="opacity-70">{{ stat.label }}:</span>
@@ -262,7 +270,9 @@ const rarityTextClass = computed(() => {
       </div>
 
       <!-- Footer: value + compact actions -->
-      <div class="flex items-center justify-between gap-1.5 pt-2 border-t border-(--color-theme-primary)/20">
+      <div
+        class="flex items-center justify-between gap-1.5 pt-2 border-t border-(--color-theme-primary)/20"
+      >
         <div class="flex items-center gap-1 text-(--color-theme-primary) text-xs font-bold">
           <Icon icon="mdi:currency-usd" class="w-4 h-4 text-(--color-caps)" />
           <span>{{ itemValue }}</span>

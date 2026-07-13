@@ -10,7 +10,6 @@ import type {
 import { useToast } from '@/core/composables/useToast'
 import { getErrorMessage } from '@/core/utils/errorHandler'
 
-
 export const useRadioStore = defineStore('radio', () => {
   const toast = useToast()
 

@@ -195,10 +195,7 @@ onMounted(async () => {
 
           <!-- Quests View -->
           <div v-else class="quests-container">
-            <PageHeader
-              title="Quests"
-              icon="mdi:book-open-page-variant"
-            />
+            <PageHeader title="Quests" icon="mdi:book-open-page-variant" />
 
             <!-- Tabs -->
             <div class="tabs">

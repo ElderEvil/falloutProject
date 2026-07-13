@@ -22,8 +22,7 @@ import { useDwellerManagementStore } from './dwellerManagement'
 import { useDwellerMedicalStore } from './dwellerMedical'
 import { useDwellerDeathStore } from './dwellerDeath'
 
-type DwellerFacade =
-  ReturnType<typeof useDwellerFilterStore> &
+type DwellerFacade = ReturnType<typeof useDwellerFilterStore> &
   ReturnType<typeof useDwellerGenerationStore> &
   ReturnType<typeof useDwellerManagementStore> &
   ReturnType<typeof useDwellerMedicalStore> &

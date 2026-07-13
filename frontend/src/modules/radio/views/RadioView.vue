@@ -109,6 +109,4 @@ async function handleManualRecruit() {
     opacity: 0.98;
   }
 }
-
-
 </style>

@@ -273,10 +273,7 @@ const handleQuickUnassign = async (dwellerId: string) => {
       <!-- Main Content Area -->
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
         <div class="container mx-auto px-4 py-8 lg:px-8">
-          <PageHeader
-            title="Dwellers"
-            icon="mdi:account-group"
-          />
+          <PageHeader title="Dwellers" icon="mdi:account-group" />
 
           <!-- Filter Panel with View Toggle -->
           <div class="w-full mb-6">

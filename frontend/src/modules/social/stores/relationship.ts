@@ -6,7 +6,6 @@ import type { Pregnancy } from '../models/pregnancy'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 
-
 export const useRelationshipStore = defineStore('relationship', () => {
   const toast = useToast()
 

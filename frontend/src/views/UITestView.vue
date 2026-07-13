@@ -70,10 +70,7 @@ const activeQuestTab = ref('active')
     <div class="vault-layout">
       <SidePanel />
 
-      <div
-        class="main-content"
-        :class="{ collapsed: isCollapsed, flicker: flickering }"
-      >
+      <div class="main-content" :class="{ collapsed: isCollapsed, flicker: flickering }">
         <div class="container mx-auto px-4 py-6 lg:px-8">
           <!-- Back / Nav -->
           <UButton variant="ghost" size="sm" class="mb-4" @click="router.push(`/vault/${vaultId}`)">
@@ -92,14 +89,18 @@ const activeQuestTab = ref('active')
               UI Component Test Page
             </h1>
             <p class="text-theme-accent text-sm">
-              All sections below use CSS variables and effect classes. Switch themes or toggle effects to verify they propagate.
+              All sections below use CSS variables and effect classes. Switch themes or toggle
+              effects to verify they propagate.
             </p>
           </div>
 
           <!-- Preference Controls -->
           <div
             class="controls-panel"
-            :style="{ borderColor: 'var(--color-theme-primary)', boxShadow: '0 0 15px var(--color-theme-glow)' }"
+            :style="{
+              borderColor: 'var(--color-theme-primary)',
+              boxShadow: '0 0 15px var(--color-theme-glow)',
+            }"
           >
             <!-- Theme Switcher -->
             <div class="control-section">
@@ -117,7 +118,8 @@ const activeQuestTab = ref('active')
                   :style="{
                     borderColor: theme.colors.primary,
                     color: theme.colors.primary,
-                    boxShadow: currentTheme.name === theme.name ? `0 0 10px ${theme.colors.glow}` : 'none',
+                    boxShadow:
+                      currentTheme.name === theme.name ? `0 0 10px ${theme.colors.glow}` : 'none',
                   }"
                 >
                   {{ theme.displayName }}
@@ -133,7 +135,11 @@ const activeQuestTab = ref('active')
               </h3>
               <div class="effect-toggles">
                 <label class="toggle-row">
-                  <span class="toggle-label" :style="{ color: flickering ? 'var(--color-theme-primary)' : '' }">Flicker</span>
+                  <span
+                    class="toggle-label"
+                    :style="{ color: flickering ? 'var(--color-theme-primary)' : '' }"
+                    >Flicker</span
+                  >
                   <button
                     class="toggle-btn"
                     :class="{ on: flickering }"
@@ -144,7 +150,11 @@ const activeQuestTab = ref('active')
                   </button>
                 </label>
                 <label class="toggle-row">
-                  <span class="toggle-label" :style="{ color: scanlines ? 'var(--color-theme-primary)' : '' }">Scanlines</span>
+                  <span
+                    class="toggle-label"
+                    :style="{ color: scanlines ? 'var(--color-theme-primary)' : '' }"
+                    >Scanlines</span
+                  >
                   <button
                     class="toggle-btn"
                     :class="{ on: scanlines }"
@@ -179,13 +189,34 @@ const activeQuestTab = ref('active')
 
             <!-- Quick Actions -->
             <div class="control-section actions">
-              <button class="action-btn" @click="enableAllEffects" :style="{ borderColor: 'var(--color-theme-primary)', color: 'var(--color-theme-primary)' }">
+              <button
+                class="action-btn"
+                @click="enableAllEffects"
+                :style="{
+                  borderColor: 'var(--color-theme-primary)',
+                  color: 'var(--color-theme-primary)',
+                }"
+              >
                 <Icon icon="mdi:eye" /> All On
               </button>
-              <button class="action-btn" @click="disableAllEffects" :style="{ borderColor: 'var(--color-theme-accent)', color: 'var(--color-theme-accent)' }">
+              <button
+                class="action-btn"
+                @click="disableAllEffects"
+                :style="{
+                  borderColor: 'var(--color-theme-accent)',
+                  color: 'var(--color-theme-accent)',
+                }"
+              >
                 <Icon icon="mdi:eye-off" /> All Off
               </button>
-              <button class="action-btn" @click="resetToDefaults" :style="{ borderColor: 'var(--color-theme-primary)', color: 'var(--color-theme-primary)' }">
+              <button
+                class="action-btn"
+                @click="resetToDefaults"
+                :style="{
+                  borderColor: 'var(--color-theme-primary)',
+                  color: 'var(--color-theme-primary)',
+                }"
+              >
                 <Icon icon="mdi:restore" /> Reset
               </button>
             </div>
@@ -196,31 +227,53 @@ const activeQuestTab = ref('active')
             <!-- 1. EXPLORATION -->
             <section
               class="section-card"
-              :style="{ borderColor: 'var(--color-theme-primary)', boxShadow: '0 0 12px var(--color-theme-glow)' }"
+              :style="{
+                borderColor: 'var(--color-theme-primary)',
+                boxShadow: '0 0 12px var(--color-theme-glow)',
+              }"
             >
               <div class="section-header-row">
                 <div class="shrink-0">
-                  <Icon icon="mdi:compass" class="section-icon" :style="{ color: 'var(--color-theme-primary)' }" />
+                  <Icon
+                    icon="mdi:compass"
+                    class="section-icon"
+                    :style="{ color: 'var(--color-theme-primary)' }"
+                  />
                 </div>
                 <div class="section-header-text">
-                  <h2 :class="glowClass" :style="{ color: 'var(--color-theme-primary)' }">Wasteland Exploration</h2>
+                  <h2 :class="glowClass" :style="{ color: 'var(--color-theme-primary)' }">
+                    Wasteland Exploration
+                  </h2>
                   <p class="section-subtitle">Monitor active explorations and quest parties</p>
                 </div>
                 <div class="stat-badges">
-                  <div class="stat-badge" :style="{
-                    borderColor: 'var(--color-theme-primary)',
-                    background: 'rgba(0,0,0,0.3)',
-                  }">
-                    <Icon icon="mdi:account-search" :style="{ color: 'var(--color-theme-primary)' }" />
-                    <span class="stat-value" :style="{ color: 'var(--color-theme-primary)' }">{{ activeExplorationsCount }}</span>
+                  <div
+                    class="stat-badge"
+                    :style="{
+                      borderColor: 'var(--color-theme-primary)',
+                      background: 'rgba(0,0,0,0.3)',
+                    }"
+                  >
+                    <Icon
+                      icon="mdi:account-search"
+                      :style="{ color: 'var(--color-theme-primary)' }"
+                    />
+                    <span class="stat-value" :style="{ color: 'var(--color-theme-primary)' }">{{
+                      activeExplorationsCount
+                    }}</span>
                     <span class="stat-label">Explorations</span>
                   </div>
-                  <div class="stat-badge" :style="{
-                    borderColor: 'var(--color-theme-primary)',
-                    background: 'rgba(0,0,0,0.3)',
-                  }">
+                  <div
+                    class="stat-badge"
+                    :style="{
+                      borderColor: 'var(--color-theme-primary)',
+                      background: 'rgba(0,0,0,0.3)',
+                    }"
+                  >
                     <Icon icon="mdi:sword-cross" :style="{ color: 'var(--color-theme-primary)' }" />
-                    <span class="stat-value" :style="{ color: 'var(--color-theme-primary)' }">{{ activeQuestsCount }}</span>
+                    <span class="stat-value" :style="{ color: 'var(--color-theme-primary)' }">{{
+                      activeQuestsCount
+                    }}</span>
                     <span class="stat-label">Quests</span>
                   </div>
                 </div>
@@ -230,13 +283,24 @@ const activeQuestTab = ref('active')
             <!-- 2. TRAINING -->
             <section
               class="section-card"
-              :style="{ borderColor: 'var(--color-theme-primary)', boxShadow: '0 0 12px var(--color-theme-glow)' }"
+              :style="{
+                borderColor: 'var(--color-theme-primary)',
+                boxShadow: '0 0 12px var(--color-theme-glow)',
+              }"
             >
               <div class="section-header-row">
-                <Icon icon="mdi:dumbbell" class="section-icon" :style="{ color: 'var(--color-theme-primary)' }" />
+                <Icon
+                  icon="mdi:dumbbell"
+                  class="section-icon"
+                  :style="{ color: 'var(--color-theme-primary)' }"
+                />
                 <div class="section-header-text">
-                  <h2 :class="glowClass" :style="{ color: 'var(--color-theme-primary)' }">Training Center</h2>
-                  <p class="section-subtitle">Monitor and manage SPECIAL stat training across your vault</p>
+                  <h2 :class="glowClass" :style="{ color: 'var(--color-theme-primary)' }">
+                    Training Center
+                  </h2>
+                  <p class="section-subtitle">
+                    Monitor and manage SPECIAL stat training across your vault
+                  </p>
                 </div>
               </div>
             </section>
@@ -244,9 +308,16 @@ const activeQuestTab = ref('active')
             <!-- 3. OBJECTIVES -->
             <section
               class="section-card"
-              :style="{ borderColor: 'var(--color-theme-primary)', boxShadow: '0 0 12px var(--color-theme-glow)' }"
+              :style="{
+                borderColor: 'var(--color-theme-primary)',
+                boxShadow: '0 0 12px var(--color-theme-glow)',
+              }"
             >
-              <h2 class="section-title-centered" :class="glowClass" :style="{ color: 'var(--color-theme-primary)' }">
+              <h2
+                class="section-title-centered"
+                :class="glowClass"
+                :style="{ color: 'var(--color-theme-primary)' }"
+              >
                 Vault Objectives
               </h2>
               <div class="tab-bar" :style="{ borderBottomColor: 'var(--color-theme-glow)' }">
@@ -258,7 +329,8 @@ const activeQuestTab = ref('active')
                   :class="{ active: activeTab === tab }"
                   :style="{
                     color: 'var(--color-theme-primary)',
-                    borderBottomColor: activeTab === tab ? 'var(--color-theme-primary)' : 'transparent',
+                    borderBottomColor:
+                      activeTab === tab ? 'var(--color-theme-primary)' : 'transparent',
                     background: activeTab === tab ? 'var(--color-theme-glow)' : 'transparent',
                   }"
                 >
@@ -267,10 +339,13 @@ const activeQuestTab = ref('active')
               </div>
               <p class="section-hint" :style="{ color: 'var(--color-theme-accent)' }">
                 {{
-                  activeTab === 'daily' ? '3 daily objectives available' :
-                  activeTab === 'weekly' ? '2 weekly objectives available' :
-                  activeTab === 'achievement' ? '1 achievement available' :
-                  '5 completed objectives'
+                  activeTab === 'daily'
+                    ? '3 daily objectives available'
+                    : activeTab === 'weekly'
+                      ? '2 weekly objectives available'
+                      : activeTab === 'achievement'
+                        ? '1 achievement available'
+                        : '5 completed objectives'
                 }}
               </p>
             </section>
@@ -278,9 +353,16 @@ const activeQuestTab = ref('active')
             <!-- 4. QUESTS -->
             <section
               class="section-card"
-              :style="{ borderColor: 'var(--color-theme-primary)', boxShadow: '0 0 12px var(--color-theme-glow)' }"
+              :style="{
+                borderColor: 'var(--color-theme-primary)',
+                boxShadow: '0 0 12px var(--color-theme-glow)',
+              }"
             >
-              <h2 class="section-title-centered" :class="glowClass" :style="{ color: 'var(--color-theme-primary)' }">
+              <h2
+                class="section-title-centered"
+                :class="glowClass"
+                :style="{ color: 'var(--color-theme-primary)' }"
+              >
                 Vault Quests
               </h2>
               <div class="tab-bar" :style="{ borderBottomColor: 'var(--color-theme-glow)' }">
@@ -292,29 +374,48 @@ const activeQuestTab = ref('active')
                   :class="{ active: activeQuestTab === tab }"
                   :style="{
                     color: 'var(--color-theme-primary)',
-                    borderBottomColor: activeQuestTab === tab ? 'var(--color-theme-primary)' : 'transparent',
+                    borderBottomColor:
+                      activeQuestTab === tab ? 'var(--color-theme-primary)' : 'transparent',
                     background: activeQuestTab === tab ? 'var(--color-theme-glow)' : 'transparent',
                   }"
                 >
-                  <Icon :icon="tab === 'active' ? 'mdi:play-circle' : 'mdi:check-circle'" class="mr-1" />
+                  <Icon
+                    :icon="tab === 'active' ? 'mdi:play-circle' : 'mdi:check-circle'"
+                    class="mr-1"
+                  />
                   {{ tab.charAt(0).toUpperCase() + tab.slice(1) }}
                 </button>
               </div>
               <p class="section-hint" :style="{ color: 'var(--color-theme-accent)' }">
-                {{ activeQuestTab === 'active' ? '2 active quests, 4 available' : '8 completed quests' }}
+                {{
+                  activeQuestTab === 'active'
+                    ? '2 active quests, 4 available'
+                    : '8 completed quests'
+                }}
               </p>
             </section>
 
             <!-- 5. RELATIONSHIPS -->
             <section
               class="section-card"
-              :style="{ borderColor: 'var(--color-theme-primary)', boxShadow: '0 0 12px var(--color-theme-glow)' }"
+              :style="{
+                borderColor: 'var(--color-theme-primary)',
+                boxShadow: '0 0 12px var(--color-theme-glow)',
+              }"
             >
               <div class="section-header-row">
-                <Icon icon="mdi:heart-multiple" class="section-icon" :style="{ color: 'var(--color-theme-primary)' }" />
+                <Icon
+                  icon="mdi:heart-multiple"
+                  class="section-icon"
+                  :style="{ color: 'var(--color-theme-primary)' }"
+                />
                 <div class="section-header-text">
-                  <h2 :class="glowClass" :style="{ color: 'var(--color-theme-primary)' }">Relationships &amp; Family</h2>
-                  <p class="section-subtitle">Manage relationships, pregnancies, and family growth</p>
+                  <h2 :class="glowClass" :style="{ color: 'var(--color-theme-primary)' }">
+                    Relationships &amp; Family
+                  </h2>
+                  <p class="section-subtitle">
+                    Manage relationships, pregnancies, and family growth
+                  </p>
                 </div>
               </div>
 
@@ -324,10 +425,19 @@ const activeQuestTab = ref('active')
                   v-for="stage in relationshipStages"
                   :key="stage.id"
                   class="mini-stat-card"
-                  :style="{ borderColor: 'var(--color-theme-glow)', boxShadow: '0 0 8px var(--color-theme-glow)' }"
+                  :style="{
+                    borderColor: 'var(--color-theme-glow)',
+                    boxShadow: '0 0 8px var(--color-theme-glow)',
+                  }"
                 >
-                  <Icon :icon="stage.icon" class="stat-card-icon" :style="{ color: 'var(--color-theme-primary)' }" />
-                  <div class="stat-card-value" :style="{ color: 'var(--color-theme-primary)' }">{{ stage.count }}</div>
+                  <Icon
+                    :icon="stage.icon"
+                    class="stat-card-icon"
+                    :style="{ color: 'var(--color-theme-primary)' }"
+                  />
+                  <div class="stat-card-value" :style="{ color: 'var(--color-theme-primary)' }">
+                    {{ stage.count }}
+                  </div>
                   <div class="stat-card-label">{{ stage.label }}</div>
                 </div>
               </div>
@@ -344,7 +454,11 @@ const activeQuestTab = ref('active')
                   }"
                 >
                   {{ stage.label }}
-                  <span class="stage-count-badge" :style="{ background: 'var(--color-theme-primary)', color: '#000' }">{{ stage.count }}</span>
+                  <span
+                    class="stage-count-badge"
+                    :style="{ background: 'var(--color-theme-primary)', color: '#000' }"
+                    >{{ stage.count }}</span
+                  >
                 </button>
               </div>
             </section>
@@ -352,10 +466,17 @@ const activeQuestTab = ref('active')
             <!-- 6. HAPPINESS -->
             <section
               class="section-card"
-              :style="{ borderColor: 'var(--color-theme-primary)', boxShadow: '0 0 12px var(--color-theme-glow)' }"
+              :style="{
+                borderColor: 'var(--color-theme-primary)',
+                boxShadow: '0 0 12px var(--color-theme-glow)',
+              }"
             >
               <div class="section-header-row">
-                <Icon icon="mdi:emoticon-happy-outline" class="section-icon" :style="{ color: 'var(--color-theme-primary)' }" />
+                <Icon
+                  icon="mdi:emoticon-happy-outline"
+                  class="section-icon"
+                  :style="{ color: 'var(--color-theme-primary)' }"
+                />
                 <h2
                   class="section-title-glow"
                   :class="glowClass"
@@ -372,11 +493,20 @@ const activeQuestTab = ref('active')
             <!-- 7. STORAGE -->
             <section
               class="section-card"
-              :style="{ borderColor: 'var(--color-theme-primary)', boxShadow: '0 0 12px var(--color-theme-glow)' }"
+              :style="{
+                borderColor: 'var(--color-theme-primary)',
+                boxShadow: '0 0 12px var(--color-theme-glow)',
+              }"
             >
               <div class="section-header-row">
-                <Icon icon="mdi:package-variant" class="section-icon" :style="{ color: 'var(--color-theme-primary)' }" />
-                <h2 :class="glowClass" :style="{ color: 'var(--color-theme-primary)' }">Vault Storage</h2>
+                <Icon
+                  icon="mdi:package-variant"
+                  class="section-icon"
+                  :style="{ color: 'var(--color-theme-primary)' }"
+                />
+                <h2 :class="glowClass" :style="{ color: 'var(--color-theme-primary)' }">
+                  Vault Storage
+                </h2>
               </div>
 
               <!-- Storage Space Bar -->
@@ -387,9 +517,14 @@ const activeQuestTab = ref('active')
                   boxShadow: '0 0 10px var(--color-theme-glow)',
                 }"
               >
-                <div class="flex items-center gap-2 mb-2 font-mono" :style="{ color: 'var(--color-theme-accent)' }">
+                <div
+                  class="flex items-center gap-2 mb-2 font-mono"
+                  :style="{ color: 'var(--color-theme-accent)' }"
+                >
                   <span class="text-sm font-semibold">Used:</span>
-                  <span class="text-lg font-bold" :style="{ color: 'var(--color-theme-primary)' }">{{ mockStorage.used }}/{{ mockStorage.max }}</span>
+                  <span class="text-lg font-bold" :style="{ color: 'var(--color-theme-primary)' }"
+                    >{{ mockStorage.used }}/{{ mockStorage.max }}</span
+                  >
                 </div>
                 <div
                   class="progress-bar-track"
@@ -407,8 +542,12 @@ const activeQuestTab = ref('active')
                     }"
                   />
                 </div>
-                <div class="text-xs text-center mt-1" :style="{ color: 'var(--color-theme-accent)' }">
-                  {{ mockStorage.available }} slots available ({{ mockStorage.pct.toFixed(1) }}% full)
+                <div
+                  class="text-xs text-center mt-1"
+                  :style="{ color: 'var(--color-theme-accent)' }"
+                >
+                  {{ mockStorage.available }} slots available ({{ mockStorage.pct.toFixed(1) }}%
+                  full)
                 </div>
               </div>
 
@@ -420,7 +559,12 @@ const activeQuestTab = ref('active')
                   boxShadow: '0 0 10px var(--color-theme-glow)',
                 }"
               >
-                <h3 class="text-sm font-semibold mb-3" :style="{ color: 'var(--color-theme-accent)' }">Medical Supplies</h3>
+                <h3
+                  class="text-sm font-semibold mb-3"
+                  :style="{ color: 'var(--color-theme-accent)' }"
+                >
+                  Medical Supplies
+                </h3>
                 <div class="grid grid-cols-2 gap-3">
                   <div
                     class="med-item"
@@ -431,8 +575,12 @@ const activeQuestTab = ref('active')
                   >
                     <Icon icon="mdi:medical-bag" class="w-6 h-6 text-green-500" />
                     <div>
-                      <div class="font-bold" :style="{ color: 'var(--color-theme-primary)' }">{{ mockStorage.stimpack }}</div>
-                      <div class="text-xs" :style="{ color: 'var(--color-theme-accent)' }">Stimpaks</div>
+                      <div class="font-bold" :style="{ color: 'var(--color-theme-primary)' }">
+                        {{ mockStorage.stimpack }}
+                      </div>
+                      <div class="text-xs" :style="{ color: 'var(--color-theme-accent)' }">
+                        Stimpaks
+                      </div>
                     </div>
                   </div>
                   <div
@@ -444,8 +592,12 @@ const activeQuestTab = ref('active')
                   >
                     <Icon icon="mdi:pill" class="w-6 h-6 text-purple-500" />
                     <div>
-                      <div class="font-bold" :style="{ color: 'var(--color-theme-primary)' }">{{ mockStorage.radaway }}</div>
-                      <div class="text-xs" :style="{ color: 'var(--color-theme-accent)' }">Radaways</div>
+                      <div class="font-bold" :style="{ color: 'var(--color-theme-primary)' }">
+                        {{ mockStorage.radaway }}
+                      </div>
+                      <div class="text-xs" :style="{ color: 'var(--color-theme-accent)' }">
+                        Radaways
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -882,8 +1034,14 @@ const activeQuestTab = ref('active')
 }
 
 @keyframes uiTestFlicker {
-  0% { opacity: 0.98; }
-  50% { opacity: 1; }
-  100% { opacity: 0.98; }
+  0% {
+    opacity: 0.98;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.98;
+  }
 }
 </style>

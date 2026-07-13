@@ -106,7 +106,10 @@ async function readSseStream(
 // Shared SSE base — handles both GET and POST streaming
 function useSseBase(
   url: string,
-  options?: { method?: 'GET' | 'POST'; headers?: Record<string, string> | (() => Record<string, string>) }
+  options?: {
+    method?: 'GET' | 'POST'
+    headers?: Record<string, string> | (() => Record<string, string>)
+  }
 ) {
   const event = ref<SseEvent | null>(null)
   const status = ref<'idle' | 'connecting' | 'open' | 'closed'>('idle')
@@ -248,7 +251,10 @@ export interface UseSseReturn {
   stopReconnect: () => void
 }
 
-export function useSse(url: string, options?: { headers?: Record<string, string> | (() => Record<string, string>) }): UseSseReturn {
+export function useSse(
+  url: string,
+  options?: { headers?: Record<string, string> | (() => Record<string, string>) }
+): UseSseReturn {
   const { event, status, error, reconnected, connect, close, stopReconnect } = useSseBase(url, {
     ...options,
     method: 'GET',

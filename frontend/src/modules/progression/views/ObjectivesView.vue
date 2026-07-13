@@ -53,10 +53,7 @@ const achievementObjectives = computed(() =>
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
         <div class="container mx-auto px-4 py-8">
           <div class="objectives-container">
-            <PageHeader
-              title="Objectives"
-              icon="mdi:target"
-            />
+            <PageHeader title="Objectives" icon="mdi:target" />
             <div class="tabs">
               <button
                 @click="activeTab = 'daily'"

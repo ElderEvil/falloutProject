@@ -164,6 +164,4 @@ const isTraining = computed(() => {
   padding-top: 0.75rem;
   border-top: 1px solid var(--color-theme-glow);
 }
-
-
 </style>

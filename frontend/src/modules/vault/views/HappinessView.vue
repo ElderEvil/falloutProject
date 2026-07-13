@@ -105,10 +105,7 @@ onMounted(() => {
     <!-- Main Content -->
     <div class="main-content" :class="{ collapsed: isCollapsed }">
       <div class="container mx-auto px-4 py-6">
-        <PageHeader
-          title="Vault Happiness"
-          icon="mdi:emoticon-happy-outline"
-        />
+        <PageHeader title="Vault Happiness" icon="mdi:emoticon-happy-outline" />
 
         <!-- Loading State -->
         <div v-if="isLoading" class="loading-state">

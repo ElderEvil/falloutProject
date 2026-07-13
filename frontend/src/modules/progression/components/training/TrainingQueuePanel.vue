@@ -65,7 +65,7 @@ onMounted(() => {
         fetchTrainings()
       }
     },
-    { immediate: true },
+    { immediate: true }
   )
 
   // Refresh trainings every 30 seconds

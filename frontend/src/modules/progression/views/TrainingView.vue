@@ -50,11 +50,7 @@ onMounted(async () => {
             </div>
             <div class="toggle-right">
               <span class="section-count">3 sections</span>
-              <Icon
-                icon="mdi:chevron-down"
-                class="chevron"
-                :class="{ rotated: showInfo }"
-              />
+              <Icon icon="mdi:chevron-down" class="chevron" :class="{ rotated: showInfo }" />
             </div>
           </button>
 
@@ -92,7 +88,9 @@ onMounted(async () => {
                 </ul>
                 <p class="example">
                   <Icon icon="mdi:lightbulb" />
-                  <em>Example: Training from 5→6 takes 4.5 hours (or 2.7 hours in a Tier 3 room)</em>
+                  <em
+                    >Example: Training from 5→6 takes 4.5 hours (or 2.7 hours in a Tier 3 room)</em
+                  >
                 </p>
               </div>
             </div>

@@ -22,13 +22,7 @@ interface Props {
   loading?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  idleDwellerCount: 0,
-  activeIncidentCount: 0,
-  lowResourceCount: 0,
-  radioHappinessMode: false,
-  loading: false,
-})
+const { idleDwellerCount = 0, activeIncidentCount = 0, lowResourceCount = 0, radioHappinessMode = false, loading = false, distribution, dwellerCount, vaultHappiness } = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'assign-idle'): void
@@ -36,10 +30,10 @@ const emit = defineEmits<{
   (e: 'view-low-happiness'): void
 }>()
 
-const dwellerDistribution = computed<DwellerDistribution>(() => props.distribution)
+const dwellerDistribution = computed<DwellerDistribution>(() => distribution)
 
 const happinessLevel = computed(() => {
-  const h = props.vaultHappiness
+  const h = vaultHappiness
   if (h >= 75) return 'high'
   if (h >= 50) return 'medium'
   if (h >= 25) return 'low'
@@ -82,15 +76,15 @@ const IDLE_DWELLER_TREND_THRESHOLD = 3
 // Calculate trend based on current modifiers and conditions
 const happinessTrend = computed((): 'increasing' | 'decreasing' | 'stable' => {
   // Radio happiness mode takes priority when active and no critical issues
-  if (props.radioHappinessMode && props.activeIncidentCount === 0 && props.lowResourceCount === 0) {
+  if (radioHappinessMode && activeIncidentCount === 0 && lowResourceCount === 0) {
     return 'increasing'
   }
 
   // Critical issues always cause decreasing trend (idle dwellers checked separately)
   if (
-    props.activeIncidentCount > 0 ||
-    props.lowResourceCount > 0 ||
-    props.idleDwellerCount >= IDLE_DWELLER_TREND_THRESHOLD
+    activeIncidentCount > 0 ||
+    lowResourceCount > 0 ||
+    idleDwellerCount >= IDLE_DWELLER_TREND_THRESHOLD
   ) {
     return 'decreasing'
   }
@@ -125,7 +119,7 @@ const trendColor = computed(() => {
 const activeModifiers = computed(() => {
   const modifiers = []
 
-  if (props.lowResourceCount > 0) {
+  if (lowResourceCount > 0) {
     modifiers.push({
       name: 'Low Resources',
       icon: 'mdi:alert-circle',
@@ -134,25 +128,25 @@ const activeModifiers = computed(() => {
     })
   }
 
-  if (props.activeIncidentCount > 0) {
+  if (activeIncidentCount > 0) {
     modifiers.push({
-      name: `Active Incidents (${props.activeIncidentCount})`,
+      name: `Active Incidents (${activeIncidentCount})`,
       icon: 'mdi:fire',
       severity: 'negative',
       color: 'var(--color-warning)',
     })
   }
 
-  if (props.idleDwellerCount >= IDLE_DWELLER_TREND_THRESHOLD) {
+  if (idleDwellerCount >= IDLE_DWELLER_TREND_THRESHOLD) {
     modifiers.push({
-      name: `Idle Dwellers (${props.idleDwellerCount})`,
+      name: `Idle Dwellers (${idleDwellerCount})`,
       icon: 'mdi:sleep',
       severity: 'negative',
       color: '#fbbf24',
     })
   }
 
-  if (props.radioHappinessMode) {
+  if (radioHappinessMode) {
     modifiers.push({
       name: 'Radio Happiness Mode',
       icon: 'mdi:radio',
@@ -169,8 +163,8 @@ const hasNegativeModifiers = computed(() => {
 })
 
 const distributionPercentage = (count: number) => {
-  if (props.dwellerCount === 0) return 0
-  return Math.round((count / props.dwellerCount) * 100)
+  if (dwellerCount === 0) return 0
+  return Math.round((count / dwellerCount) * 100)
 }
 </script>
 

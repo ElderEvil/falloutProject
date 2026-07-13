@@ -6,12 +6,7 @@ interface Props {
   animate?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  width: '100%',
-  height: '1rem',
-  rounded: 'md',
-  animate: true,
-})
+const { width = '100%', height = '1rem', rounded = 'md', animate = true } = defineProps<Props>()
 
 const roundedClasses = {
   none: 'rounded-none',

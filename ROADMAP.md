@@ -11,6 +11,7 @@ AI-powered dweller interactions.
 
 **Current work:**
 
+- [x] **v2.23.1 — Vue 3.5 Reactive Destructure Migration** — Migrated 30 components from `withDefaults()` to reactive destructure
 - [x] **v2.23.0 — Chat WebSocket & Axios→fetch Migration** — Axios→fetch migration, Chat REST→WebSocket migration
 - [x] **v2.22.0 — Terminal Background Cleanup** — Removed grey surfaces from auth forms, created VaultNumberField component
 - [x] **v2.21.0 — SSE Polish** — Incident SSE publishing, incidents SSE endpoint, incident/vault store SSE subscriptions, radio datetime fix
@@ -20,6 +21,18 @@ AI-powered dweller interactions.
 ---
 
 ## Latest Release
+
+### v2.23.1 — Vue 3.5 Reactive Destructure Migration (July 13, 2026)
+
+**Focus**: Migrate 30 components from `withDefaults()` to Vue 3.5 reactive destructure pattern
+
+**Completed:**
+- ✅ **30 components migrated** — Replaced `const props = withDefaults(defineProps<Props>(), {...})` with `const { ... } = defineProps<Props>()` across core UI, vault, dweller, progression, social, storage, combat, profile, and rooms modules
+- ✅ **Reactive destructure defaults** — All default values moved inline in destructure; factory defaults (`() => []`) replaced with `?? []` fallbacks where needed
+- ✅ **`props.X` references cleaned** — All `props.X` references in migrated files rewritten to direct variable access for both script and template
+- ✅ **TypeScript types preserved** — All type safety maintained; `vue-tsc --noEmit` passes clean; Oxlint 0 warnings
+
+---
 
 ### v2.23.0 — Chat WebSocket & Axios→fetch Migration (July 1, 2026)
 

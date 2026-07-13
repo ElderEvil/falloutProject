@@ -16,10 +16,7 @@ interface Props {
   isLocked?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  partyMembers: () => [],
-  isLocked: false,
-})
+const { partyMembers, isLocked = false, quest, status, vaultId } = defineProps<Props>()
 
 const emit = defineEmits<{
   start: [questId: string]
@@ -32,13 +29,13 @@ const timeRemaining = ref<string | null>(null)
 let timerInterval: ReturnType<typeof setInterval> | null = null
 
 const updateTimer = () => {
-  if (!props.quest.started_at || !props.quest.duration_minutes) {
+  if (!quest.started_at || !quest.duration_minutes) {
     timeRemaining.value = null
     return
   }
 
-  const startTime = new Date(props.quest.started_at).getTime()
-  const durationMs = props.quest.duration_minutes * 60 * 1000
+  const startTime = new Date(quest.started_at).getTime()
+  const durationMs = quest.duration_minutes * 60 * 1000
   const endTime = startTime + durationMs
   const now = Date.now()
   const remaining = endTime - now
@@ -65,7 +62,7 @@ const startTimer = () => {
   if (timerInterval) {
     clearInterval(timerInterval)
   }
-  if (props.status === 'active' && props.quest.started_at && props.quest.duration_minutes) {
+  if (status === 'active' && quest.started_at && quest.duration_minutes) {
     updateTimer()
     timerInterval = setInterval(updateTimer, 1000)
   }
@@ -79,9 +76,9 @@ const stopTimer = () => {
 }
 
 watch(
-  () => [props.status, props.quest.started_at],
+  () => [status, quest.started_at],
   () => {
-    if (props.status === 'active' && props.quest.started_at && props.quest.duration_minutes) {
+    if (status === 'active' && quest.started_at && quest.duration_minutes) {
       startTimer()
     } else {
       stopTimer()
@@ -99,7 +96,7 @@ onUnmounted(() => {
 })
 
 const hasParty = computed(() => {
-  return props.partyMembers && props.partyMembers.length > 0
+  return partyMembers && partyMembers.length > 0
 })
 const isQuestReady = computed(() => hasParty.value)
 
@@ -113,30 +110,30 @@ const typeColors: Record<string, { bg: string; text: string; border: string }> =
 }
 
 const typeColor = computed(() => {
-  return typeColors[props.quest.quest_type] || typeColors.side
+  return typeColors[quest.quest_type] || typeColors.side
 })
 
 const typeLabel = computed(() => {
-  const questType = props.quest.quest_type || 'side'
+  const questType = quest.quest_type || 'side'
   return questType.charAt(0).toUpperCase() + questType.slice(1)
 })
 
 const isChainQuest = computed(() => {
-  return props.quest.chain_id !== null
+  return quest.chain_id !== null
 })
 
 const chainPosition = computed(() => {
   if (!isChainQuest.value) return null
-  return props.quest.chain_order > 0 ? `Quest ${props.quest.chain_order}` : 'Chain Quest'
+  return quest.chain_order > 0 ? `Quest ${quest.chain_order}` : 'Chain Quest'
 })
 
 // Get the previous quest name for locked quests
 const previousQuestName = computed(() => {
-  if (!props.quest.previous_quest_id) return null
+  if (!quest.previous_quest_id) return null
   // Search in vaultQuests first, then fall back to all quests
   const previousQuest =
-    questStore.vaultQuests.find((q) => q.id === props.quest.previous_quest_id) ||
-    questStore.quests.find((q) => q.id === props.quest.previous_quest_id)
+    questStore.vaultQuests.find((q) => q.id === quest.previous_quest_id) ||
+    questStore.quests.find((q) => q.id === quest.previous_quest_id)
   return previousQuest?.title || null
 })
 
@@ -208,21 +205,21 @@ const getRewardIcon = (rewardType: string) => {
 }
 
 const hasPrerequisites = computed(() => {
-  return props.quest.quest_requirements && props.quest.quest_requirements.length > 0
+  return quest.quest_requirements && quest.quest_requirements.length > 0
 })
 
 const prerequisitesMet = computed(() => {
   if (!hasPrerequisites.value) return true
   // For now, assume prerequisites are met if quest is active or completed
   // In a real implementation, this would check actual vault state
-  return props.status !== 'available'
+  return status !== 'available'
 })
 
 const actionButtonText = computed(() => {
-  if (props.isLocked) {
+  if (isLocked) {
     return 'Locked'
   }
-  switch (props.status) {
+  switch (status) {
     case 'available':
       return 'Start Quest'
     case 'active':
@@ -235,10 +232,10 @@ const actionButtonText = computed(() => {
 })
 
 const cardBorderColor = computed(() => {
-  if (props.isLocked) {
+  if (isLocked) {
     return '#ff6600'
   }
-  switch (props.status) {
+  switch (status) {
     case 'active':
       return 'var(--color-theme-accent)'
     case 'completed':
@@ -249,26 +246,26 @@ const cardBorderColor = computed(() => {
 })
 
 const isButtonDisabled = computed(() => {
-  return props.isLocked
+  return isLocked
 })
 
 const handleAction = () => {
-  if (props.isLocked) {
+  if (isLocked) {
     return // Don't do anything for locked quests
   }
-  switch (props.status) {
+  switch (status) {
     case 'available':
       if (hasParty.value) {
-        emit('start', props.quest.id)
+        emit('start', quest.id)
       } else {
-        emit('assignParty', props.quest.id)
+        emit('assignParty', quest.id)
       }
       break
     case 'active':
-      emit('complete', props.quest.id)
+      emit('complete', quest.id)
       break
     case 'completed':
-      emit('view', props.quest.id)
+      emit('view', quest.id)
       break
   }
 }
@@ -383,13 +380,13 @@ const handleAction = () => {
     </div>
 
     <!-- Party Members (for active/available quests) -->
-    <div v-if="status !== 'completed' && partyMembers.length > 0" class="quest-section">
+    <div v-if="status !== 'completed' && (partyMembers?.length ?? 0) > 0" class="quest-section">
       <div class="section-label">
         <Icon icon="mdi:account-group" class="inline-icon" />
         PARTY
       </div>
       <div class="party-members">
-        <div v-for="member in partyMembers" :key="member.id" class="party-member">
+        <div v-for="member in (partyMembers ?? [])" :key="member.id" class="party-member">
           <Icon icon="mdi:account" class="member-icon" />
           <span class="member-name">{{ member.first_name }} {{ member.last_name }}</span>
           <span class="member-level">Lv.{{ member.level || 1 }}</span>

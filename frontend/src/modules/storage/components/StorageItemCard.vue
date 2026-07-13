@@ -10,10 +10,7 @@ interface Props {
   ids?: string[]
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  count: 1,
-  ids: () => [],
-})
+const { count = 1, ids, getRarityColor, item, itemType } = defineProps<Props>()
 
 const emit = defineEmits<{
   sell: []
@@ -23,35 +20,35 @@ const emit = defineEmits<{
 
 // Normalize item type (handle plural forms)
 const normalizedItemType = computed(() => {
-  if (props.itemType === 'weapons') return 'weapon'
-  if (props.itemType === 'outfits') return 'outfit'
-  return props.itemType
+  if (itemType === 'weapons') return 'weapon'
+  if (itemType === 'outfits') return 'outfit'
+  return itemType
 })
 
 // Get item display name
 const itemName = computed(() => {
-  return props.item.name || 'Unknown Item'
+  return item.name || 'Unknown Item'
 })
 
 // Get item description
 const itemDescription = computed(() => {
-  return props.item.description || 'No description available'
+  return item.description || 'No description available'
 })
 
 // Get item value
 const itemValue = computed(() => {
-  return props.item.value || 0
+  return item.value || 0
 })
 
 // Get item rarity
 const itemRarity = computed(() => {
-  return props.item.rarity || 'common'
+  return item.rarity || 'common'
 })
 
 // Get item type badge
 const itemTypeBadge = computed(() => {
-  if (props.itemType === 'weapon' && props.item.weapon_type && props.item.weapon_subtype) {
-    return `${props.item.weapon_type} - ${props.item.weapon_subtype}`
+  if (itemType === 'weapon' && item.weapon_type && item.weapon_subtype) {
+    return `${item.weapon_type} - ${item.weapon_subtype}`
   }
   return null
 })
@@ -59,7 +56,7 @@ const itemTypeBadge = computed(() => {
 // Get detailed icon based on subtype
 const itemIcon = computed(() => {
   if (normalizedItemType.value === 'weapon') {
-    const subtype = props.item.weapon_subtype?.toString().toLowerCase()
+    const subtype = item.weapon_subtype?.toString().toLowerCase()
     switch (subtype) {
       case 'pistol':
         return 'mdi:pistol'
@@ -85,7 +82,7 @@ const itemIcon = computed(() => {
   }
 
   if (normalizedItemType.value === 'outfit') {
-    const outfitType = props.item.outfit_type?.toString().toLowerCase()
+    const outfitType = item.outfit_type?.toString().toLowerCase()
     switch (outfitType) {
       case 'power_armor':
         return 'mdi:robot'
@@ -105,9 +102,9 @@ const itemIcon = computed(() => {
 // Format weapon/outfit type for display
 const itemTypeDisplay = computed(() => {
   if (normalizedItemType.value === 'weapon') {
-    return `${props.item.weapon_subtype || ''} • ${itemRarity.value}`
+    return `${item.weapon_subtype || ''} • ${itemRarity.value}`
   } else if (normalizedItemType.value === 'outfit') {
-    return `${props.item.outfit_type || ''} • ${itemRarity.value}`
+    return `${item.outfit_type || ''} • ${itemRarity.value}`
   }
   return itemRarity.value
 })
@@ -118,50 +115,50 @@ const itemStats = computed(() => {
 
   if (normalizedItemType.value === 'weapon') {
     // Damage range
-    if (props.item.damage_min !== undefined && props.item.damage_max !== undefined) {
+    if (item.damage_min !== undefined && item.damage_max !== undefined) {
       stats.push({
         label: 'Damage',
-        value: `${props.item.damage_min}-${props.item.damage_max}`,
+        value: `${item.damage_min}-${item.damage_max}`,
         icon: 'mdi:sword-cross',
       })
     }
     // SPECIAL stat
-    if (props.item.stat) {
+    if (item.stat) {
       stats.push({
         label: 'Uses',
-        value: props.item.stat.toUpperCase(),
+        value: item.stat.toUpperCase(),
         icon: 'mdi:alphabet-latin',
       })
     }
     // Weapon type
-    if (props.item.weapon_type) {
+    if (item.weapon_type) {
       stats.push({
         label: 'Type',
-        value: props.item.weapon_type,
+        value: item.weapon_type,
         icon: 'mdi:tag',
       })
     }
     // Optional extra stats
-    if (props.item.weight !== undefined) {
-      stats.push({ label: 'Weight', value: props.item.weight, icon: 'mdi:scale' })
+    if (item.weight !== undefined) {
+      stats.push({ label: 'Weight', value: item.weight, icon: 'mdi:scale' })
     }
-    if (props.item.durability !== undefined) {
-      stats.push({ label: 'Durability', value: props.item.durability, icon: 'mdi:shield-check' })
+    if (item.durability !== undefined) {
+      stats.push({ label: 'Durability', value: item.durability, icon: 'mdi:shield-check' })
     }
   } else if (normalizedItemType.value === 'outfit') {
     // Gender restriction
-    if (props.item.gender) {
+    if (item.gender) {
       stats.push({
         label: 'Gender',
-        value: props.item.gender,
+        value: item.gender,
         icon: 'mdi:human-male-female',
       })
     }
-    if (props.item.weight !== undefined) {
-      stats.push({ label: 'Weight', value: props.item.weight, icon: 'mdi:scale' })
+    if (item.weight !== undefined) {
+      stats.push({ label: 'Weight', value: item.weight, icon: 'mdi:scale' })
     }
-    if (props.item.durability !== undefined) {
-      stats.push({ label: 'Durability', value: props.item.durability, icon: 'mdi:shield-check' })
+    if (item.durability !== undefined) {
+      stats.push({ label: 'Durability', value: item.durability, icon: 'mdi:shield-check' })
     }
   }
 
@@ -187,7 +184,7 @@ const canScrap = computed(() => {
 
 // Show sell all button only for junk items and when there are multiple copies
 const showSellAll = computed(() => {
-  return props.count > 1 && normalizedItemType.value === 'junk'
+  return count > 1 && normalizedItemType.value === 'junk'
 })
 
 // Rarity-based Tailwind classes

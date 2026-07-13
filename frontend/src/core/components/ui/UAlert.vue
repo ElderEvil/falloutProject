@@ -18,10 +18,7 @@ interface Props {
   icon?: IconComponent
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  variant: 'info',
-  dismissible: false,
-})
+const { variant = 'info', dismissible = false, icon, title } = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'close'): void
@@ -50,7 +47,7 @@ const variantClasses = {
   info: 'bg-[color:var(--color-info)]/10 border-[color:var(--color-info)] text-[color:var(--color-info)]',
 }
 
-const alertClasses = ['rounded-lg border-2 p-4', variantClasses[props.variant]].join(' ')
+const alertClasses = ['rounded-lg border-2 p-4', variantClasses[variant]].join(' ')
 </script>
 
 <template>

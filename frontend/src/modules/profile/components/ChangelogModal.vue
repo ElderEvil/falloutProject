@@ -23,10 +23,7 @@ interface Emits {
   markAsSeen: [version: string]
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  currentVersion: '2.7.5',
-  lastSeenVersion: undefined,
-})
+const { currentVersion = '2.7.5', lastSeenVersion = undefined, show } = defineProps<Props>()
 
 const emit = defineEmits<Emits>()
 
@@ -36,12 +33,12 @@ const error = ref('')
 
 // Compute entries to show (either all or just new versions)
 const entriesToShow = computed(() => {
-  if (!props.lastSeenVersion) {
+  if (!lastSeenVersion) {
     return changelog.value.slice(0, 1)
   }
 
   return changelog.value.filter((entry) => {
-    const lastSeen = props.lastSeenVersion!
+    const lastSeen = lastSeenVersion!
     const current = entry.version
 
     const [lastMajor, lastMinor, lastPatch] = lastSeen.split('.').map(Number)
@@ -58,8 +55,8 @@ const entriesToShow = computed(() => {
 const hasNewVersions = computed(() => entriesToShow.value.length > 0)
 
 const handleMarkAsSeen = () => {
-  if (props.currentVersion) {
-    emit('markAsSeen', props.currentVersion)
+  if (currentVersion) {
+    emit('markAsSeen', currentVersion)
   }
   emit('close')
 }
@@ -87,7 +84,7 @@ const handleBackdropClick = () => {
 }
 
 const handleEscape = (event: KeyboardEvent) => {
-  if (event.key === 'Escape' && props.show) {
+  if (event.key === 'Escape' && show) {
     emit('close')
   }
 }
@@ -121,7 +118,7 @@ const getCategoryInfo = (category: string) => {
 
 // Fetch changelog when modal opens (with immediate:true for initial show=true)
 watch(
-  () => props.show,
+  () => show,
   (newShow) => {
     if (newShow) {
       fetchChangelog()

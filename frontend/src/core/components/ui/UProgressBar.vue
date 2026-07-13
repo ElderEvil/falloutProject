@@ -24,16 +24,11 @@ interface Props {
   animation?: 'none' | 'pulse' | 'shimmer' | 'shine'
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  modelValue: 0,
-  height: 10,
-  glow: true,
-  animation: 'none',
-})
+const { modelValue = 0, height = 10, glow = true, animation = 'none', color } = defineProps<Props>()
 
 import { computed } from 'vue'
 
-const clampedValue = computed(() => Math.min(100, Math.max(0, props.modelValue)))
+const clampedValue = computed(() => Math.min(100, Math.max(0, modelValue)))
 </script>
 
 <template>

@@ -16,13 +16,7 @@ interface Props {
   vaultId?: string
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  showStatusFilter: true,
-  showAgeFilter: false,
-  showViewToggle: false,
-  showBulkActions: false,
-  vaultId: '',
-})
+const { showStatusFilter = true, showAgeFilter = false, showViewToggle = false, showBulkActions = false, vaultId = '' } = defineProps<Props>()
 
 defineEmits<{
   unassignAll: []

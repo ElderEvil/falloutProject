@@ -18,28 +18,26 @@ interface Emits {
   (e: 'revive', id: string): void
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  loading: false,
-})
+const { loading = false, dwellerId, revivalCost } = defineProps<Props>()
 
 const emit = defineEmits<Emits>()
 
-const canAfford = computed(() => props.revivalCost?.can_afford ?? false)
+const canAfford = computed(() => revivalCost?.can_afford ?? false)
 
 // Calculate progress percentage for days remaining (assuming 7 days max)
 const timeProgress = computed(() => {
-  if (!props.revivalCost?.days_until_permanent) return 0
-  const days = props.revivalCost.days_until_permanent
+  if (!revivalCost?.days_until_permanent) return 0
+  const days = revivalCost.days_until_permanent
   return Math.min(100, Math.max(0, (days / 7) * 100))
 })
 
 const isUrgent = computed(() => {
-  return (props.revivalCost?.days_until_permanent ?? 0) < 3
+  return (revivalCost?.days_until_permanent ?? 0) < 3
 })
 
 const handleRevive = () => {
-  if (canAfford.value && !props.loading) {
-    emit('revive', props.dwellerId)
+  if (canAfford.value && !loading) {
+    emit('revive', dwellerId)
   }
 }
 </script>

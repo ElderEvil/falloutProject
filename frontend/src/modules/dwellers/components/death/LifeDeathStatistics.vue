@@ -13,22 +13,20 @@ interface Props {
   loading?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  loading: false,
-})
+const { loading = false, statistics } = defineProps<Props>()
 
 const mortalityRate = computed(() => {
-  if (!props.statistics || props.statistics.total_dwellers_born === 0) return 0
+  if (!statistics || statistics.total_dwellers_born === 0) return 0
   return (
-    (props.statistics.total_dwellers_died / props.statistics.total_dwellers_born) *
+    (statistics.total_dwellers_died / statistics.total_dwellers_born) *
     100
   ).toFixed(1)
 })
 
 const causeData = computed(() => {
-  if (!props.statistics) return []
-  const causes = props.statistics.deaths_by_cause
-  const total = props.statistics.total_dwellers_died || 1 // Avoid division by zero
+  if (!statistics) return []
+  const causes = statistics.deaths_by_cause
+  const total = statistics.total_dwellers_died || 1 // Avoid division by zero
 
   return [
     {

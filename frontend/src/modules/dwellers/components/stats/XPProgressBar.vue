@@ -8,9 +8,7 @@ interface Props {
   maxLevel?: number
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  maxLevel: 50,
-})
+const { maxLevel = 50, currentXP, level } = defineProps<Props>()
 
 // XP formula: 100 * (level ^ 1.5)
 const calculateXPRequired = (level: number): number => {
@@ -19,16 +17,16 @@ const calculateXPRequired = (level: number): number => {
 }
 
 const requiredXP = computed(() => {
-  if (props.level >= props.maxLevel) return 0
-  return calculateXPRequired(props.level + 1)
+  if (level >= maxLevel) return 0
+  return calculateXPRequired(level + 1)
 })
 
 const previousLevelXP = computed(() => {
-  return calculateXPRequired(props.level)
+  return calculateXPRequired(level)
 })
 
 const xpInCurrentLevel = computed(() => {
-  return props.currentXP - previousLevelXP.value
+  return currentXP - previousLevelXP.value
 })
 
 const xpNeededForNextLevel = computed(() => {
@@ -36,13 +34,13 @@ const xpNeededForNextLevel = computed(() => {
 })
 
 const progressPercentage = computed(() => {
-  if (props.level >= props.maxLevel) return 100
+  if (level >= maxLevel) return 100
   if (xpNeededForNextLevel.value === 0) return 100
   return Math.min(100, (xpInCurrentLevel.value / xpNeededForNextLevel.value) * 100)
 })
 
 const isNearLevelUp = computed(() => progressPercentage.value >= 90)
-const isMaxLevel = computed(() => props.level >= props.maxLevel)
+const isMaxLevel = computed(() => level >= maxLevel)
 
 const barAnimation = computed(() => {
   if (isMaxLevel.value) return 'shimmer' as const

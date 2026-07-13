@@ -17,11 +17,7 @@ interface Props {
   dot?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  variant: 'default',
-  size: 'md',
-  dot: false,
-})
+const { variant = 'default', size = 'md', dot = false, icon } = defineProps<Props>()
 
 const variantClasses = {
   success: 'bg-success text-black',
@@ -52,8 +48,8 @@ const sizeClasses = {
 const badgeClasses = [
   'inline-flex items-center gap-1.5',
   'font-bold rounded-full border-2',
-  variantClasses[props.variant],
-  sizeClasses[props.size],
+  variantClasses[variant],
+  sizeClasses[size],
 ].join(' ')
 </script>
 

@@ -17,9 +17,7 @@ interface Props {
   maxPartySize?: number
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  maxPartySize: 3,
-})
+const { maxPartySize = 3, currentParty, dwellers, modelValue, quest, vaultId } = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
@@ -35,19 +33,19 @@ const isLoadingEligible = ref(false)
 
 // Sync with current party when modal opens
 watch(
-  () => props.modelValue,
+  () => modelValue,
   async (isOpen) => {
     if (isOpen) {
-      selectedDwellerIds.value = props.currentParty.map((d) => d.id)
+      selectedDwellerIds.value = currentParty.map((d) => d.id)
       eligibleDwellersError.value = null
       // Fetch eligible dwellers for this quest
-      if (props.quest && props.vaultId) {
+      if (quest && vaultId) {
         isLoadingEligible.value = true
         try {
-          const eligible = await questStore.getEligibleDwellers(props.vaultId, props.quest.id)
+          const eligible = await questStore.getEligibleDwellers(vaultId, quest.id)
           eligibleDwellers.value = eligible
             .map((e) => {
-              const fullDweller = props.dwellers.find((d) => d.id === e.id)
+              const fullDweller = dwellers.find((d) => d.id === e.id)
               if (fullDweller) return fullDweller
               return {
                 ...e,
@@ -84,7 +82,7 @@ const availableDwellers = computed(() => {
 
 const selectedDwellers = computed(() => {
   return selectedDwellerIds.value
-    .map((id) => props.dwellers.find((d) => d.id === id))
+    .map((id) => dwellers.find((d) => d.id === id))
     .filter((d): d is DwellerShort => d !== undefined)
 })
 
@@ -92,7 +90,7 @@ const toggleDweller = (dwellerId: string) => {
   const index = selectedDwellerIds.value.indexOf(dwellerId)
   if (index === -1) {
     // Add dweller if not at max
-    if (selectedDwellerIds.value.length < props.maxPartySize) {
+    if (selectedDwellerIds.value.length < maxPartySize) {
       selectedDwellerIds.value.push(dwellerId)
     }
   } else {

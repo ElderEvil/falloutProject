@@ -15,10 +15,7 @@ interface Props {
   delay?: number
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  position: 'top',
-  delay: 200,
-})
+const { position = 'top', delay = 200, text } = defineProps<Props>()
 
 const isVisible = ref(false)
 const triggerRef = ref<HTMLElement | null>(null)
@@ -27,7 +24,7 @@ let timeoutId: number | null = null
 const show = () => {
   timeoutId = window.setTimeout(() => {
     isVisible.value = true
-  }, props.delay)
+  }, delay)
 }
 
 const hide = () => {
@@ -45,7 +42,7 @@ const tooltipPositionStyle = computed(() => {
   let top = 0
   let left = 0
 
-  switch (props.position) {
+  switch (position) {
     case 'top':
       top = rect.top - 8
       left = rect.left + rect.width / 2
@@ -64,11 +61,11 @@ const tooltipPositionStyle = computed(() => {
       break
   }
 
-  const xTranslate = props.position === 'left' ? '-100%' : '0'
-  const yTranslate = props.position === 'top' ? '-100%' : '0'
+  const xTranslate = position === 'left' ? '-100%' : '0'
+  const yTranslate = position === 'top' ? '-100%' : '0'
 
   const transform =
-    props.position === 'top' || props.position === 'bottom'
+    position === 'top' || position === 'bottom'
       ? `translateX(-50%) translateY(${yTranslate})`
       : `translateY(-50%) translateX(${xTranslate})`
 
@@ -89,7 +86,7 @@ const arrowPositionClasses = {
 
 const arrowStyle = computed(() => {
   const borderColor = 'var(--color-theme-primary)'
-  switch (props.position) {
+  switch (position) {
     case 'top':
       return { borderTopColor: borderColor }
     case 'bottom':

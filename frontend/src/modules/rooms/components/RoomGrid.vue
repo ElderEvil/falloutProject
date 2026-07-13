@@ -31,10 +31,7 @@ interface Props {
   highlightedRoomId?: string | null
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  incidents: () => [],
-  highlightedRoomId: null,
-})
+const { incidents, highlightedRoomId } = defineProps<Props>()
 
 const emit = defineEmits<{
   incidentClicked: [incidentId: string]
@@ -262,11 +259,11 @@ const getUpgradeCost = (room: any) => {
 
 // Incident helpers
 const roomHasIncident = (roomId: string) => {
-  return props.incidents.some((incident) => incident.room_id === roomId)
+  return (incidents ?? []).some((incident) => incident.room_id === roomId)
 }
 
 const getRoomIncident = (roomId: string) => {
-  return props.incidents.find((incident) => incident.room_id === roomId)
+  return (incidents ?? []).find((incident) => incident.room_id === roomId)
 }
 
 const getIncidentIcon = (type: IncidentType) => {

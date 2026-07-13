@@ -11,9 +11,7 @@ interface Props {
   loading?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  loading: false,
-})
+const { stats, loading = false } = defineProps<Props>()
 
 const formatNumber = (num: number): string => {
   if (num >= 1000000) {
@@ -25,11 +23,11 @@ const formatNumber = (num: number): string => {
   return num.toString()
 }
 
-const allTimeTotal = computed(() => props.stats?.all_time?.total_tokens ?? 0)
-const monthlyTotal = computed(() => props.stats?.current_month?.total_tokens ?? 0)
-const monthLabel = computed(() => props.stats?.month ?? '')
+const allTimeTotal = computed(() => stats?.all_time?.total_tokens ?? 0)
+const monthlyTotal = computed(() => stats?.current_month?.total_tokens ?? 0)
+const monthLabel = computed(() => stats?.month ?? '')
 
-const quotaPercentage = computed(() => props.stats?.quota_percentage ?? 0)
+const quotaPercentage = computed(() => stats?.quota_percentage ?? 0)
 const quotaColor = computed(() => {
   const pct = quotaPercentage.value
   if (pct >= 100) return 'text-red-500'
@@ -45,14 +43,14 @@ const quotaBarColor = computed(() => {
 })
 
 const resetDateFormatted = computed(() => {
-  if (!props.stats?.reset_date) return ''
-  const date = new Date(props.stats.reset_date)
+  if (!stats?.reset_date) return ''
+  const date = new Date(stats.reset_date)
   return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
 })
 
 // Warning banner dismissal with localStorage persistence
 const storageKey = computed(() => {
-  const month = props.stats?.month ?? new Date().toISOString().slice(0, 7) // YYYY-MM
+  const month = stats?.month ?? new Date().toISOString().slice(0, 7) // YYYY-MM
   return `quota_warning_dismissed_${month}`
 })
 
@@ -69,7 +67,7 @@ const dismissBanner = () => {
 }
 
 const showWarningBanner = computed(() => {
-  return props.stats?.quota_warning && !isBannerDismissed.value
+  return stats?.quota_warning && !isBannerDismissed.value
 })
 </script>
 

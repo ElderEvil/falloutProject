@@ -22,14 +22,7 @@ interface Props {
   type?: 'button' | 'submit' | 'reset'
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  variant: 'primary',
-  size: 'md',
-  disabled: false,
-  loading: false,
-  block: false,
-  type: 'button',
-})
+const { variant = 'primary', size = 'md', disabled = false, loading = false, block = false, type = 'button', icon, iconRight } = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'click', event: MouseEvent): void
@@ -54,15 +47,15 @@ const buttonClasses = [
   'inline-flex items-center justify-center gap-2',
   'font-bold rounded transition-all duration-200',
   'focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed',
-  variantClasses[props.variant],
-  sizeClasses[props.size],
-  props.block ? 'w-full' : '',
+  variantClasses[variant],
+  sizeClasses[size],
+  block ? 'w-full' : '',
 ]
   .filter(Boolean)
   .join(' ')
 
 const handleClick = (event: MouseEvent) => {
-  if (!props.disabled && !props.loading) {
+  if (!disabled && !loading) {
     emit('click', event)
   }
 }

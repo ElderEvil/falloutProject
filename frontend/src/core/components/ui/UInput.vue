@@ -27,13 +27,7 @@ interface Props {
   variant?: 'default' | 'terminal'
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  type: 'text',
-  size: 'md',
-  disabled: false,
-  required: false,
-  variant: 'default',
-})
+const { type = 'text', size = 'md', disabled = false, required = false, variant = 'default', error, helpText, icon, iconRight, label, modelValue, placeholder } = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: string | number): void
@@ -54,19 +48,19 @@ const inputClasses = computed(() => {
     'focus:outline-none',
     'disabled:opacity-50 disabled:cursor-not-allowed',
     'placeholder:text-gray-400',
-    sizeClasses[props.size],
-    props.icon ? 'pl-10' : '',
-    props.iconRight ? 'pr-10' : '',
+    sizeClasses[size],
+    icon ? 'pl-10' : '',
+    iconRight ? 'pr-10' : '',
   ].filter(Boolean)
 
-  if (props.variant === 'terminal') {
+  if (variant === 'terminal') {
     base.push('bg-transparent')
-    base.push(props.error ? 'border-danger' : 'border-theme-primary/50')
-    base.push(props.error ? 'focus:border-danger' : 'focus:border-theme-primary')
+    base.push(error ? 'border-danger' : 'border-theme-primary/50')
+    base.push(error ? 'focus:border-danger' : 'focus:border-theme-primary')
   } else {
     base.push('bg-gray-700')
-    base.push(props.error ? 'border-danger' : 'border-gray-600')
-    base.push(props.error ? 'focus:border-danger' : 'focus:border-terminalGreen')
+    base.push(error ? 'border-danger' : 'border-gray-600')
+    base.push(error ? 'focus:border-danger' : 'focus:border-terminalGreen')
   }
 
   return base.join(' ')

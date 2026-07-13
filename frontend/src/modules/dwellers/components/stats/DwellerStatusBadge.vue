@@ -9,13 +9,10 @@ interface Props {
   showLabel?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  size: 'small',
-  showLabel: false,
-})
+const { size = 'small', showLabel = false, status } = defineProps<Props>()
 
 const statusConfig = computed(() => {
-  switch (props.status) {
+  switch (status) {
     case 'exploring':
       return {
         icon: 'mdi:compass-outline',
@@ -83,7 +80,7 @@ const statusConfig = computed(() => {
 })
 
 const sizeClasses = computed(() => {
-  switch (props.size) {
+  switch (size) {
     case 'small':
       return {
         container: 'h-5 px-1.5',

@@ -20,9 +20,7 @@ interface Props {
   size?: 'sm' | 'md' | 'lg'
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  size: 'md',
-})
+const { size = 'md', disabled, error, helpText, label, modelValue, placeholder, required } = defineProps<Props>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]

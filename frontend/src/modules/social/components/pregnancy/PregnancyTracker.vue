@@ -59,10 +59,7 @@ interface Props {
   refreshInterval?: number // seconds
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  autoRefresh: true,
-  refreshInterval: 30,
-})
+const { autoRefresh = true, refreshInterval = 30, vaultId } = defineProps<Props>()
 
 const pregnancyStore = usePregnancyStore()
 const dwellerStore = useDwellerStore()
@@ -95,7 +92,7 @@ function getDwellerName(dwellerId: string): string {
 async function refreshPregnancies() {
   error.value = null
   try {
-    await pregnancyStore.fetchVaultPregnancies(props.vaultId)
+    await pregnancyStore.fetchVaultPregnancies(vaultId)
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load pregnancies'
   }
@@ -111,7 +108,7 @@ async function deliverBaby(pregnancyId: string) {
     const result = await pregnancyStore.deliverBaby(pregnancyId)
     if (result) {
       // Refresh dwellers to show new baby
-      await dwellerStore.fetchDwellersByVault(props.vaultId, authStore.token!)
+      await dwellerStore.fetchDwellersByVault(vaultId, authStore.token!)
     }
   } finally {
     deliveringId.value = null
@@ -124,10 +121,10 @@ let refreshTimer: ReturnType<typeof setInterval> | null = null
 onMounted(() => {
   refreshPregnancies()
 
-  if (props.autoRefresh) {
+  if (autoRefresh) {
     refreshTimer = setInterval(() => {
       refreshPregnancies()
-    }, props.refreshInterval * 1000)
+    }, refreshInterval * 1000)
   }
 })
 

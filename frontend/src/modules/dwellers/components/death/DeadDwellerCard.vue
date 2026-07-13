@@ -18,17 +18,15 @@ interface Emits {
   (e: 'view-details', id: string): void
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  loading: false,
-})
+const { loading = false, dweller } = defineProps<Props>()
 
 const emit = defineEmits<Emits>()
 
 // Icon mapping for death causes
 const deathCauseIcon = computed(() => {
-  if (!props.dweller.death_cause) return 'mdi:skull'
+  if (!dweller.death_cause) return 'mdi:skull'
 
-  switch (props.dweller.death_cause) {
+  switch (dweller.death_cause) {
     case 'health':
       return 'mdi:heart-broken'
     case 'radiation':
@@ -46,18 +44,18 @@ const deathCauseIcon = computed(() => {
 
 // Formatting for death cause text
 const deathCauseText = computed(() => {
-  if (!props.dweller.death_cause) return 'Unknown'
-  return props.dweller.death_cause.charAt(0).toUpperCase() + props.dweller.death_cause.slice(1)
+  if (!dweller.death_cause) return 'Unknown'
+  return dweller.death_cause.charAt(0).toUpperCase() + dweller.death_cause.slice(1)
 })
 
 // Warning state for imminent permanent death (less than 3 days)
 const isUrgent = computed(() => {
-  return (props.dweller.days_until_permanent ?? 0) < 3 && !props.dweller.is_permanently_dead
+  return (dweller.days_until_permanent ?? 0) < 3 && !dweller.is_permanently_dead
 })
 
 // Normalize thumbnail URL to handle backend-provided relative paths
 const normalizedThumbnail = computed(() => {
-  const url = props.dweller.thumbnail_url
+  const url = dweller.thumbnail_url
   if (!url) return null
   // If already absolute URL or data URI, return as-is
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
@@ -68,17 +66,17 @@ const normalizedThumbnail = computed(() => {
 })
 
 const daysLeftText = computed(() => {
-  if (props.dweller.is_permanently_dead) return 'PERMANENTLY DEAD'
-  const days = props.dweller.days_until_permanent ?? 0
+  if (dweller.is_permanently_dead) return 'PERMANENTLY DEAD'
+  const days = dweller.days_until_permanent ?? 0
   return `${days} day${days !== 1 ? 's' : ''} remaining`
 })
 
 const handleRevive = () => {
-  emit('revive', props.dweller.id)
+  emit('revive', dweller.id)
 }
 
 const handleViewDetails = () => {
-  emit('view-details', props.dweller.id)
+  emit('view-details', dweller.id)
 }
 </script>
 

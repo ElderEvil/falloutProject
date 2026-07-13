@@ -19,9 +19,7 @@ interface Props {
   dwellers?: Dweller[]
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  dwellers: () => [],
-})
+const { dwellers, modelValue, room } = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
@@ -36,25 +34,25 @@ const loading = ref(false)
 const activeTrainings = ref<TrainingRead[]>([])
 
 const speedBonus = computed(() => {
-  if (!props.room) return 0
+  if (!room) return 0
   const tierMultipliers: Record<number, number> = { 1: 0, 2: 25, 3: 40 }
-  return tierMultipliers[props.room.tier] || 0
+  return tierMultipliers[room.tier] || 0
 })
 
 const canStartMore = computed(() => {
-  if (!props.room) return false
-  return activeTrainings.value.length < props.room.capacity
+  if (!room) return false
+  return activeTrainings.value.length < room.capacity
 })
 
 const availableDwellers = computed(() => {
-  if (!props.room || !props.dwellers) return []
+  if (!room || !dwellers) return []
 
-  const trainingStat = props.room.ability?.toLowerCase()
+  const trainingStat = room.ability?.toLowerCase()
   if (!trainingStat) return []
 
-  return props.dwellers.filter((dweller: Dweller) => {
+  return dwellers.filter((dweller: Dweller) => {
     // Check if dweller is assigned to this room
-    if (dweller.room_id !== props.room?.id) return false
+    if (dweller.room_id !== room?.id) return false
 
     // Check if dweller is already training
     if (trainingStore.isDwellerTraining(dweller.id)) return false
@@ -71,7 +69,7 @@ const availableDwellers = computed(() => {
 })
 
 const getDwellerName = (dwellerId: string): string => {
-  const dweller = props.dwellers.find((d: Dweller) => d.id === dwellerId)
+  const dweller = dwellers.find((d: Dweller) => d.id === dwellerId)
   return dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Unknown'
 }
 
@@ -81,11 +79,11 @@ const close = () => {
 }
 
 const fetchRoomTrainings = async () => {
-  if (!props.room?.id || !authStore.token) return
+  if (!room?.id || !authStore.token) return
 
   loading.value = true
   try {
-    const trainings = await trainingStore.fetchRoomTrainings(props.room.id, authStore.token)
+    const trainings = await trainingStore.fetchRoomTrainings(room.id, authStore.token)
     activeTrainings.value = trainings.filter((t) => t.status === 'active')
   } finally {
     loading.value = false
@@ -93,11 +91,11 @@ const fetchRoomTrainings = async () => {
 }
 
 const handleStartTraining = async (dwellerId: string) => {
-  if (!props.room?.id || !authStore.token) return
+  if (!room?.id || !authStore.token) return
 
   loading.value = true
   try {
-    const result = await trainingStore.startTraining(dwellerId, props.room.id, authStore.token)
+    const result = await trainingStore.startTraining(dwellerId, room.id, authStore.token)
 
     if (result) {
       await fetchRoomTrainings()
@@ -125,9 +123,9 @@ const handleCancelTraining = async (trainingId: string) => {
 
 // Fetch trainings when modal opens
 watch(
-  () => props.modelValue,
+  () => modelValue,
   (isOpen) => {
-    if (isOpen && props.room) {
+    if (isOpen && room) {
       fetchRoomTrainings()
     }
   },

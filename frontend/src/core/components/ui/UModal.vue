@@ -18,11 +18,7 @@ interface Props {
   closeOnClickOutside?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  size: 'md',
-  closeOnEscape: true,
-  closeOnClickOutside: true,
-})
+const { size = 'md', closeOnEscape = true, closeOnClickOutside = true, modelValue, title } = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
@@ -43,13 +39,13 @@ const close = () => {
 }
 
 const handleBackdropClick = () => {
-  if (props.closeOnClickOutside) {
+  if (closeOnClickOutside) {
     close()
   }
 }
 
 const handleEscape = (event: KeyboardEvent) => {
-  if (event.key === 'Escape' && props.closeOnEscape) {
+  if (event.key === 'Escape' && closeOnEscape) {
     close()
   }
 }
@@ -59,7 +55,7 @@ import { useId, onUnmounted, watch, computed, ref, nextTick } from 'vue'
 
 const modalTitleId = useId()
 const modalLabel = computed(() =>
-  props.title ? { 'aria-labelledby': modalTitleId } : { 'aria-label': 'Dialog' }
+  title ? { 'aria-labelledby': modalTitleId } : { 'aria-label': 'Dialog' }
 )
 
 // --- Focus trap ---
@@ -110,7 +106,7 @@ function handleKeydown(event: KeyboardEvent): void {
 }
 
 watch(
-  () => props.modelValue,
+  () => modelValue,
   async (isOpen) => {
     if (isOpen) {
       previousActiveElement.value = document.activeElement as HTMLElement | null

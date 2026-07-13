@@ -65,9 +65,7 @@ interface Props {
   isDelivering?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  isDelivering: false,
-})
+const { isDelivering = false, fatherName, motherName, pregnancy } = defineProps<Props>()
 
 defineEmits<{
   deliver: []
@@ -76,9 +74,9 @@ defineEmits<{
 const pregnancyStore = usePregnancyStore()
 
 const statusColor = computed((): 'success' | 'warning' | 'danger' | 'info' | 'default' => {
-  switch (props.pregnancy.status) {
+  switch (pregnancy.status) {
     case 'pregnant':
-      return props.pregnancy.is_due ? 'warning' : 'success'
+      return pregnancy.is_due ? 'warning' : 'success'
     case 'delivered':
       return 'info'
     case 'miscarried':
@@ -89,6 +87,6 @@ const statusColor = computed((): 'success' | 'warning' | 'danger' | 'info' | 'de
 })
 
 const timeRemaining = computed(() => {
-  return pregnancyStore.formatTimeRemaining(props.pregnancy.time_remaining_seconds)
+  return pregnancyStore.formatTimeRemaining(pregnancy.time_remaining_seconds)
 })
 </script>

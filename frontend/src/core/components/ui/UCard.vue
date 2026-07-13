@@ -17,12 +17,7 @@ interface Props {
   bordered?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  padding: 'md',
-  glow: false,
-  crt: false,
-  bordered: true,
-})
+const { padding = 'md', glow = false, crt = false, bordered = true, title } = defineProps<Props>()
 
 const paddingClasses = {
   none: '',
@@ -34,10 +29,10 @@ const paddingClasses = {
 
 const cardClasses = [
   'bg-surface rounded-lg',
-  props.bordered ? 'border-2 border-gray-800' : '',
-  props.glow ? 'shadow-glow-md' : '',
-  props.crt ? 'crt-screen' : '',
-  paddingClasses[props.padding],
+  bordered ? 'border-2 border-gray-800' : '',
+  glow ? 'shadow-glow-md' : '',
+  crt ? 'crt-screen' : '',
+  paddingClasses[padding],
 ]
   .filter(Boolean)
   .join(' ')

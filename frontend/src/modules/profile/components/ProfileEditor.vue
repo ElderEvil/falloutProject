@@ -126,10 +126,7 @@ interface Props {
   error?: string | null
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  loading: false,
-  error: null,
-})
+const { loading = false, error = null, avatar_url, bio, initialData, preferences } = defineProps<Props>()
 
 const emit = defineEmits<{
   submit: [data: ProfileUpdate]
@@ -139,19 +136,19 @@ const emit = defineEmits<{
 const { availableThemes, themes } = useTheme()
 
 const formData = ref<ProfileUpdate>({
-  bio: props.initialData.bio || '',
-  avatar_url: props.initialData.avatar_url || '',
-  preferences: props.initialData.preferences || {},
+  bio: initialData.bio || '',
+  avatar_url: initialData.avatar_url || '',
+  preferences: initialData.preferences || {},
 })
 
 // Extract theme from preferences or use default
-const selectedTheme = ref<ThemeName>((props.initialData.preferences?.theme as ThemeName) || 'fo4')
+const selectedTheme = ref<ThemeName>((initialData.preferences?.theme as ThemeName) || 'fo4')
 
 const currentThemeDescription = computed(() => {
   return themes[selectedTheme.value]?.description || ''
 })
 
-const preferencesJson = ref(JSON.stringify(props.initialData.preferences || {}, null, 2))
+const preferencesJson = ref(JSON.stringify(initialData.preferences || {}, null, 2))
 const jsonError = ref<string | null>(null)
 
 // Watch for theme changes and update preferences

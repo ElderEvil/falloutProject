@@ -11,21 +11,18 @@ interface Props {
   equipped?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  showActions: false,
-  equipped: false,
-})
+const { showActions = false, equipped = false, item, type } = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'equip'): void
   (e: 'unequip'): void
 }>()
 
-const rarityColor = computed(() => getRarityColor(props.item.rarity))
+const rarityColor = computed(() => getRarityColor(item.rarity))
 
 const itemIcon = computed(() => {
-  if (props.type === 'weapon') {
-    const w = props.item as Weapon
+  if (type === 'weapon') {
+    const w = item as Weapon
     switch (w.weapon_subtype) {
       case 'pistol':
         return 'mdi:pistol'
@@ -49,7 +46,7 @@ const itemIcon = computed(() => {
         return 'mdi:pistol'
     }
   }
-  const o = props.item as Outfit
+  const o = item as Outfit
   switch (o.outfit_type) {
     case 'common_outfit':
       return 'mdi:tshirt-crew'
@@ -67,17 +64,17 @@ const itemIcon = computed(() => {
 })
 
 const damageRange = computed(() =>
-  props.type === 'weapon' ? getDamageRange(props.item as Weapon) : ''
+  type === 'weapon' ? getDamageRange(item as Weapon) : ''
 )
 
 const bonuses = computed(() =>
-  props.type === 'outfit' ? getOutfitBonuses(props.item as Outfit) : []
+  type === 'outfit' ? getOutfitBonuses(item as Outfit) : []
 )
 
 const itemTypeLabel = computed(() =>
-  props.type === 'weapon'
-    ? (props.item as Weapon).weapon_subtype
-    : (props.item as Outfit).outfit_type
+  type === 'weapon'
+    ? (item as Weapon).weapon_subtype
+    : (item as Outfit).outfit_type
 )
 </script>
 

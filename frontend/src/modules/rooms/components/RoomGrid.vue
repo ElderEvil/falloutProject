@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRoomStore } from '../stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -10,13 +10,11 @@ import { useRoomInteractions } from '../composables/useRoomInteractions'
 import { useHoverPreview } from '../composables/useHoverPreview'
 import { useRoomRendering } from '../composables/useRoomRendering'
 import { useToast } from '@/core/composables/useToast'
-import { API_BASE_URL } from '@/core/config/api'
-import RoomDwellers from '@/modules/dwellers/components/RoomDwellers.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import { Icon } from '@iconify/vue'
 import type { Incident } from '@/modules/combat/models/incident'
-import { IncidentType } from '@/modules/combat/models/incident'
 import type { Room } from '../models/room'
+import RoomGridCell from './RoomGridCell.vue'
 
 // Lazy load heavy modal
 const RoomDetailModal = defineAsyncComponent({
@@ -46,55 +44,10 @@ const trainingStore = useTrainingStore()
 const toast = useToast()
 const rooms = computed(() => (Array.isArray(roomStore.rooms) ? roomStore.rooms : []))
 
-// Helper to get room image URL
-const getRoomImageUrl = (room: Room): string | null => {
-  if (!room.image_url) {
-    return null
-  }
-  const baseUrl = API_BASE_URL
-  return `${baseUrl}${room.image_url}`
-}
-
 // Power outage logic
 const isPowerOutage = computed(() => {
   return (vaultStore.activeVault?.power ?? 1) <= 0
 })
-
-const isRoomAffectedByOutage = (room: Room) => {
-  if (!isPowerOutage.value) return false
-  // Power generators (STRENGTH) continue working
-  return room.ability?.toLowerCase() !== 'strength'
-}
-
-// Get SPECIAL letter for room ability
-const getAbilityLetter = (ability: string | null | undefined): string => {
-  if (!ability) return ''
-  const abilityMap: Record<string, string> = {
-    strength: 'S',
-    perception: 'P',
-    endurance: 'E',
-    charisma: 'C',
-    intelligence: 'I',
-    agility: 'A',
-    luck: 'L',
-  }
-  return abilityMap[ability.toLowerCase()] || ''
-}
-
-// Get ability icon based on room ability
-const getAbilityIcon = (ability: string | null | undefined): string => {
-  if (!ability) return 'mdi:home'
-  const iconMap: Record<string, string> = {
-    strength: 'mdi:lightning-bolt',
-    perception: 'mdi:water',
-    agility: 'mdi:food-drumstick',
-    endurance: 'mdi:flash',
-    charisma: 'mdi:account-voice',
-    intelligence: 'mdi:brain',
-    luck: 'mdi:clover',
-  }
-  return iconMap[ability.toLowerCase()] || 'mdi:home'
-}
 
 const { selectedRoomId, toggleRoomSelection, destroyRoom } = useRoomInteractions()
 const { hoverPosition, handleHover, clearHover, previewCells, isValidPlacement } = useHoverPreview()
@@ -244,57 +197,13 @@ const handleDrop = async (event: DragEvent, roomId: string) => {
   }
 }
 
-// Helper to check if room can be upgraded
-const canUpgrade = (room: Room) => {
-  const maxTier = room.t2_upgrade_cost && room.t3_upgrade_cost ? 3 : room.t2_upgrade_cost ? 2 : 1
-  return room.tier < maxTier
-}
-
-// Helper to get upgrade cost
-const getUpgradeCost = (room: Room) => {
-  if (room.tier === 1 && room.t2_upgrade_cost) return room.t2_upgrade_cost
-  if (room.tier === 2 && room.t3_upgrade_cost) return room.t3_upgrade_cost
-  return 0
-}
-
-// Incident helpers
-const roomHasIncident = (roomId: string) => {
-  return (incidents ?? []).some((incident) => incident.room_id === roomId)
-}
-
+// Incident helper
 const getRoomIncident = (roomId: string) => {
   return (incidents ?? []).find((incident) => incident.room_id === roomId)
 }
 
-const getIncidentIcon = (type: IncidentType) => {
-  switch (type) {
-    case IncidentType.RAIDER_ATTACK:
-      return 'mdi:skull'
-    case IncidentType.RADROACH_INFESTATION:
-      return 'mdi:bug'
-    case IncidentType.FIRE:
-      return 'mdi:fire'
-    case IncidentType.MOLE_RAT_ATTACK:
-      return 'mdi:paw'
-    case IncidentType.DEATHCLAW_ATTACK:
-      return 'mdi:claw-mark'
-    case IncidentType.RADIATION_LEAK:
-      return 'mdi:radioactive'
-    case IncidentType.ELECTRICAL_FAILURE:
-      return 'mdi:lightning-bolt'
-    case IncidentType.WATER_CONTAMINATION:
-      return 'mdi:water-alert'
-    default:
-      return 'mdi:alert-octagon'
-  }
-}
-
-const handleIncidentClick = (roomId: string, event: MouseEvent) => {
-  event.stopPropagation()
-  const incident = getRoomIncident(roomId)
-  if (incident) {
-    emit('incidentClicked', incident.id)
-  }
+const handleIncidentClick = (incidentId: string) => {
+  emit('incidentClicked', incidentId)
 }
 
 // Upgrade room handler
@@ -358,98 +267,24 @@ const closeDetailModal = () => {
     />
 
     <div class="room-grid" :class="{ 'critical-power': isPowerOutage }">
-      <!-- Render built rooms -->
-      <div
+      <RoomGridCell
         v-for="room in rooms"
         :key="room.id"
-        :style="{
-          gridRow: (room.coordinate_y ?? 0) + 1,
-          gridColumn: `${(room.coordinate_x ?? 0) + 1} / span ${room.size === 1 ? 1 : Math.ceil((room.size || room.size_min) / 3)}`,
-        }"
-        class="room built-room"
-        :class="{
-          selected: selectedRoomId === room.id,
-          'drag-over': draggingOverRoomId === room.id,
-          'has-incident': roomHasIncident(room.id),
-          highlighted: highlightedRoomId === room.id,
-          'power-outage': isRoomAffectedByOutage(room),
-        }"
-        draggable="false"
-        role="button"
-        tabindex="0"
-        @click="handleRoomClick(room, $event)"
-        @keydown.enter.prevent="handleRoomClick(room, $event)"
-        @keydown.space.prevent="handleRoomClick(room, $event)"
-        @dragover="handleDragOver($event, room.id)"
+        :room="room"
+        :show-room-images="showRoomImages"
+        :is-power-outage="isPowerOutage"
+        :incident="getRoomIncident(room.id)"
+        :selected="selectedRoomId === room.id"
+        :is-dragging-over="draggingOverRoomId === room.id"
+        :highlighted="highlightedRoomId != null && highlightedRoomId === room.id"
+        @click="handleRoomClick"
+        @upgrade="handleUpgradeRoom"
+        @destroy="destroyRoom"
+        @incident-click="handleIncidentClick"
+        @dragover="handleDragOver"
         @dragleave="handleDragLeave"
-        @drop="handleDrop($event, room.id)"
-      >
-        <div class="room-content">
-          <!-- Room Image (toggleable) -->
-          <img
-            v-if="showRoomImages && getRoomImageUrl(room)"
-            :src="getRoomImageUrl(room)"
-            :alt="room.name"
-            class="room-background-image"
-            draggable="false"
-          />
-          <div class="room-info-overlay">
-            <div class="room-header">
-              <h3 class="room-name">
-                {{ room.name }}
-                <span v-if="room.ability" class="ability-letter"
-                  >({{ getAbilityLetter(room.ability) }})</span
-                >
-              </h3>
-              <Icon v-if="room.ability" :icon="getAbilityIcon(room.ability)" class="ability-icon" />
-            </div>
-            <p class="room-category">{{ room.category }}</p>
-            <div v-if="room.tier" class="room-tier">Tier {{ room.tier }}</div>
-          </div>
-          <div v-if="draggingOverRoomId === room.id" class="drop-indicator">
-            <Icon icon="mdi:account-plus" class="h-6 w-6" />
-            <span>Drop to assign</span>
-          </div>
-          <div v-if="selectedRoomId === room.id" class="room-actions">
-            <button
-              v-if="canUpgrade(room)"
-              @click="handleUpgradeRoom(room.id, $event)"
-              class="upgrade-button"
-              :title="`Upgrade to Tier ${room.tier + 1} (${getUpgradeCost(room)} caps)`"
-            >
-              <Icon icon="mdi:arrow-up-circle" class="h-5 w-5" />
-              <span class="upgrade-cost">{{ getUpgradeCost(room) }}</span>
-            </button>
-            <button
-              @click="destroyRoom(room.id, $event)"
-              class="destroy-button"
-              aria-label="Destroy room"
-              title="Destroy Room"
-            >
-              <Icon icon="mdi:delete" class="h-5 w-5" />
-            </button>
-          </div>
-
-          <!-- Display dwellers in room -->
-          <div class="room-dwellers-container">
-            <RoomDwellers :roomId="room.id" />
-          </div>
-
-          <!-- Incident overlay -->
-          <div
-            v-if="roomHasIncident(room.id)"
-            class="incident-overlay"
-            role="button"
-            tabindex="0"
-            @click="handleIncidentClick(room.id, $event)"
-            @keydown.enter.prevent="handleIncidentClick(room.id, $event)"
-            @keydown.space.prevent="handleIncidentClick(room.id, $event)"
-          >
-            <Icon :icon="getIncidentIcon(getRoomIncident(room.id)!.type)" class="incident-icon" />
-            <div class="incident-label">ALERT</div>
-          </div>
-        </div>
-      </div>
+        @drop="handleDrop"
+      />
 
       <!-- Render empty cells -->
       <div
@@ -627,149 +462,6 @@ const closeDetailModal = () => {
   }
 }
 
-.room-content {
-  padding: 0;
-  text-align: center;
-  position: relative;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-  overflow: hidden;
-  background: linear-gradient(135deg, rgba(50, 50, 50, 0.9), rgba(30, 30, 30, 0.9));
-}
-
-.room-background-image {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  z-index: 0;
-  pointer-events: none;
-  -webkit-user-drag: none;
-}
-
-.room-info-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 2;
-  background: rgba(0, 0, 0, 0.85);
-  padding: 2px 6px;
-  border-radius: 0 0 4px 4px;
-  backdrop-filter: blur(3px);
-  display: block;
-  width: 100%;
-  box-sizing: border-box;
-  margin-bottom: auto;
-}
-
-.room-name {
-  font-size: 0.75em;
-  margin-bottom: 2px;
-  color: var(--color-theme-primary);
-  font-weight: 600;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-}
-
-.room-category {
-  font-size: 0.65em;
-  color: var(--color-gray-200);
-  font-weight: 500;
-  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
-}
-
-.room-tier {
-  font-size: 0.6em;
-  color: var(--color-warning);
-  margin-top: 1px;
-  font-weight: 600;
-  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
-}
-
-.room-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-}
-
-.ability-letter {
-  color: var(--color-theme-primary);
-  font-weight: 700;
-  margin-left: 2px;
-}
-
-.ability-icon {
-  width: 16px;
-  height: 16px;
-  color: var(--color-theme-primary);
-  flex-shrink: 0;
-}
-
-.built-room {
-  background: transparent;
-  z-index: 2;
-}
-
-.room-dwellers-container {
-  position: relative;
-  margin-top: auto;
-  padding: 5px;
-  z-index: 3;
-}
-
-.drop-indicator {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-  color: var(--color-theme-primary);
-  font-size: 0.875rem;
-  font-weight: bold;
-  pointer-events: none;
-  z-index: 10;
-}
-
-.room-actions {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  z-index: 5;
-}
-
-.upgrade-button {
-  background: none;
-  border: 1px solid var(--color-warning);
-  border-radius: 4px;
-  cursor: pointer;
-  color: var(--color-warning);
-  padding: 4px 8px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.75rem;
-  transition: all 0.2s;
-}
-
-.upgrade-button:hover {
-  background: rgba(251, 191, 36, 0.1);
-  box-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
-}
-
-.upgrade-cost {
-  font-weight: bold;
-}
-
 /* Incident styles */
 .room.has-incident {
   border-color: var(--color-danger);
@@ -787,71 +479,6 @@ const closeDetailModal = () => {
     border-color: var(--color-danger);
     box-shadow: 0 0 30px rgba(255, 51, 51, 0.9);
   }
-}
-
-.incident-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 0, 0, 0.15);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  z-index: 20;
-  transition: background 0.3s ease;
-}
-
-.incident-overlay:hover {
-  background: rgba(255, 0, 0, 0.25);
-}
-
-.incident-icon {
-  width: 48px;
-  height: 48px;
-  color: var(--color-danger);
-  filter: drop-shadow(0 0 8px rgba(255, 51, 51, 0.8));
-  animation: incident-shake 0.5s ease-in-out infinite;
-}
-
-@keyframes incident-shake {
-  0%,
-  100% {
-    transform: translate(0, 0) rotate(0deg);
-  }
-  25% {
-    transform: translate(-2px, 0) rotate(-2deg);
-  }
-  75% {
-    transform: translate(2px, 0) rotate(2deg);
-  }
-}
-
-.incident-label {
-  font-family: 'Courier New', monospace;
-  font-size: 0.875rem;
-  font-weight: bold;
-  color: var(--color-danger);
-  letter-spacing: 0.1em;
-  text-shadow: 0 0 8px rgba(255, 51, 51, 0.8);
-}
-
-.destroy-button {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--color-danger);
-  padding: 4px;
-  transition: all 0.2s;
-}
-
-.destroy-button:hover {
-  color: var(--color-danger);
-  transform: scale(1.1);
 }
 
 .empty {
@@ -902,11 +529,6 @@ const closeDetailModal = () => {
   filter: brightness(0.3) grayscale(0.8);
   border-color: var(--color-surface-dark);
   pointer-events: none; /* Disable interaction with powerless rooms */
-}
-
-.room.power-outage .room-name,
-.room.power-outage .room-category {
-  color: var(--color-gray-500);
 }
 
 .critical-power {

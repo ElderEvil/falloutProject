@@ -129,10 +129,7 @@ interface Props {
 const {
   loading = false,
   error = null,
-  avatar_url,
-  bio,
   initialData,
-  preferences,
 } = defineProps<Props>()
 
 const emit = defineEmits<{

@@ -54,7 +54,7 @@ class SPECIALModel(SQLModel):
     model_config = {"populate_by_name": True}
 
     @classmethod
-    def format_special_stats(cls, dweller) -> str:
+    def format_special_stats(cls, dweller: "SPECIALModel") -> str:
         """Format SPECIAL stats as a comma-separated string for AI prompts."""
         parts: list[str] = []
         for letter in ("S", "P", "E", "C", "I", "A", "L"):
@@ -76,7 +76,7 @@ class SPECIALModel(SQLModel):
         return ", ".join(parts)
 
     @staticmethod
-    def get_stat(dweller, stat) -> int:
+    def get_stat(dweller: "SPECIALModel", stat: str) -> int:
         """Get a SPECIAL stat value by enum member or string name. Handles None → 1."""
         val = stat.value if hasattr(stat, "value") else stat
         match val:
@@ -94,10 +94,12 @@ class SPECIALModel(SQLModel):
                 result = dweller.agility
             case "L" | "luck":
                 result = dweller.luck
+            case _:
+                raise ValueError(f"Unknown SPECIAL stat: {val}")
         return 1 if result is None else result
 
     @staticmethod
-    def set_stat(dweller, stat, value: int) -> None:
+    def set_stat(dweller: "SPECIALModel", stat: str, value: int) -> None:
         """Set a SPECIAL stat value by enum member or string name."""
         val = stat.value if hasattr(stat, "value") else stat
         match val:
@@ -115,3 +117,5 @@ class SPECIALModel(SQLModel):
                 dweller.agility = value
             case "L" | "luck":
                 dweller.luck = value
+            case _:
+                raise ValueError(f"Unknown SPECIAL stat: {val}")

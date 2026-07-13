@@ -91,6 +91,7 @@ export const INCIDENT_ICON_MAP: Record<IncidentType, string> = {
   [IncidentType.RADIATION_LEAK]: 'mdi:radioactive',
   [IncidentType.ELECTRICAL_FAILURE]: 'mdi:lightning-bolt',
   [IncidentType.WATER_CONTAMINATION]: 'mdi:water-alert',
+  [IncidentType.FERAL_GHOUL_ATTACK]: 'mdi:ghost',
 }
 
 export function getIncidentIcon(type: IncidentType): string {

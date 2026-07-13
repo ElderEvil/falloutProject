@@ -19,7 +19,7 @@ interface Props {
   dwellers?: Dweller[]
 }
 
-const { dwellers, modelValue, room } = defineProps<Props>()
+const { dwellers = [], modelValue, room } = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void

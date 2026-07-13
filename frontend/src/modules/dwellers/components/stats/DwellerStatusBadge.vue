@@ -12,6 +12,7 @@ interface Props {
 
 const { size = 'small', showLabel = false, status } = defineProps<Props>()
 
+const statusConfig = computed(() => getStatusConfig(status))
 const sizeClasses = computed(() => {
   switch (size) {
     case 'small':
@@ -46,17 +47,17 @@ const sizeClasses = computed(() => {
   <div
     class="status-badge inline-flex items-center gap-1 rounded border transition-all"
     :class="[
-      getStatusConfig(status).color,
-      getStatusConfig(status).bgColor,
-      getStatusConfig(status).borderColor,
+      statusConfig.color,
+      statusConfig.bgColor,
+      statusConfig.borderColor,
       sizeClasses.container,
-      `hover:${getStatusConfig(status).glowColor}`,
+      `hover:${statusConfig.glowColor}`,
     ]"
-    :title="getStatusConfig(status).label"
+    :title="statusConfig.label"
   >
-    <Icon :icon="getStatusConfig(status).icon" :class="sizeClasses.icon" />
+    <Icon :icon="statusConfig.icon" :class="sizeClasses.icon" />
     <span v-if="showLabel" :class="[sizeClasses.text, 'font-medium']">
-      {{ getStatusConfig(status).label }}
+      {{ statusConfig.label }}
     </span>
   </div>
 </template>

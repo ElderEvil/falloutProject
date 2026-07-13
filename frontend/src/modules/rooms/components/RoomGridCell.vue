@@ -5,6 +5,7 @@ import RoomDwellers from '@/modules/dwellers/components/RoomDwellers.vue'
 import type { Incident } from '@/modules/combat/models/incident'
 import { IncidentType } from '@/modules/combat/models/incident'
 import type { Room } from '../models/room'
+import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
 import { API_BASE_URL } from '@/core/config/api'
 
 interface Props {
@@ -51,31 +52,11 @@ const isRoomAffectedByOutage = (): boolean => {
 }
 
 const getAbilityLetter = (ability: string | null | undefined): string => {
-  if (!ability) return ''
-  const abilityMap: Record<string, string> = {
-    strength: 'S',
-    perception: 'P',
-    endurance: 'E',
-    charisma: 'C',
-    intelligence: 'I',
-    agility: 'A',
-    luck: 'L',
-  }
-  return abilityMap[ability.toLowerCase()] || ''
+  return getAbilityConfig(ability)?.letter ?? ''
 }
 
 const getAbilityIcon = (ability: string | null | undefined): string => {
-  if (!ability) return 'mdi:home'
-  const iconMap: Record<string, string> = {
-    strength: 'mdi:lightning-bolt',
-    perception: 'mdi:water',
-    agility: 'mdi:food-drumstick',
-    endurance: 'mdi:flash',
-    charisma: 'mdi:account-voice',
-    intelligence: 'mdi:brain',
-    luck: 'mdi:clover',
-  }
-  return iconMap[ability.toLowerCase()] || 'mdi:home'
+  return getAbilityConfig(ability)?.icon ?? 'mdi:home'
 }
 
 const canUpgrade = (r: Room): boolean => {

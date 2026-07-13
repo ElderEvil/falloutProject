@@ -58,7 +58,7 @@ class DwellerAIService:
             raise ContentNoChangeException(detail="Dweller already has a bio")
 
         location = origin or "Wasteland"
-        special_stats = ", ".join(f"{stat}: {getattr(dweller_obj, stat)}" for stat in SPECIALModel.__annotations__)
+        special_stats = SPECIALModel.format_special_stats(dweller_obj)
 
         # Create dependencies for the agent
         deps = BackstoryDeps(

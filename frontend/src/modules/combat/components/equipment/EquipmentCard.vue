@@ -63,18 +63,12 @@ const itemIcon = computed(() => {
   }
 })
 
-const damageRange = computed(() =>
-  type === 'weapon' ? getDamageRange(item as Weapon) : ''
-)
+const damageRange = computed(() => (type === 'weapon' ? getDamageRange(item as Weapon) : ''))
 
-const bonuses = computed(() =>
-  type === 'outfit' ? getOutfitBonuses(item as Outfit) : []
-)
+const bonuses = computed(() => (type === 'outfit' ? getOutfitBonuses(item as Outfit) : []))
 
 const itemTypeLabel = computed(() =>
-  type === 'weapon'
-    ? (item as Weapon).weapon_subtype
-    : (item as Outfit).outfit_type
+  type === 'weapon' ? (item as Weapon).weapon_subtype : (item as Outfit).outfit_type
 )
 </script>
 

@@ -8,6 +8,7 @@ import { useVaultStore } from '@/modules/vault/stores/vault'
 import { Icon } from '@iconify/vue'
 import ExplorationRewardsModal from '../components/ExplorationRewardsModal.vue'
 import type { RewardsSummary } from '../stores/exploration'
+import { getEventIcon, getEventColor } from '../models/exploration'
 
 const route = useRoute()
 const router = useRouter()
@@ -112,34 +113,6 @@ const sortedEvents = computed(() => {
   }
   return [...exploration.value.events].reverse()
 })
-
-const getEventIcon = (eventType: string): string => {
-  const iconMap: Record<string, string> = {
-    combat: 'mdi:sword-cross',
-    loot: 'mdi:treasure-chest',
-    exploration: 'mdi:map-marker',
-    discovery: 'mdi:eye',
-    encounter: 'mdi:account-alert',
-    danger: 'mdi:alert',
-    rest: 'mdi:sleep',
-    default: 'mdi:circle-medium',
-  }
-  return iconMap[eventType] ?? iconMap.default!
-}
-
-const getEventColor = (eventType: string): string => {
-  const colorMap: Record<string, string> = {
-    combat: '#ff4444',
-    loot: '#FFD700',
-    exploration: 'var(--color-theme-primary)',
-    discovery: '#4169E1',
-    encounter: '#ff9900',
-    danger: '#ff0000',
-    rest: '#00ced1',
-    default: 'var(--color-theme-primary)',
-  }
-  return colorMap[eventType] ?? colorMap.default!
-}
 
 const formatEventTime = (hours: number): string => {
   const h = Math.floor(hours)

@@ -22,7 +22,16 @@ interface Props {
   loading?: boolean
 }
 
-const { idleDwellerCount = 0, activeIncidentCount = 0, lowResourceCount = 0, radioHappinessMode = false, loading = false, distribution, dwellerCount, vaultHappiness } = defineProps<Props>()
+const {
+  idleDwellerCount = 0,
+  activeIncidentCount = 0,
+  lowResourceCount = 0,
+  radioHappinessMode = false,
+  loading = false,
+  distribution,
+  dwellerCount,
+  vaultHappiness,
+} = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'assign-idle'): void

@@ -2,11 +2,11 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import RoomDwellers from '@/modules/dwellers/components/RoomDwellers.vue'
+import { getIncidentIcon } from '@/modules/combat/models/incident'
 import type { Incident } from '@/modules/combat/models/incident'
-import { IncidentType } from '@/modules/combat/models/incident'
 import type { Room } from '../models/room'
 import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
-import { API_BASE_URL } from '@/core/config/api'
+import { getRoomImageUrl } from '@/core/utils/image'
 
 interface Props {
   room: Room
@@ -41,10 +41,6 @@ const gridStyle = computed(() => {
 })
 
 // Template-bound helpers
-const getRoomImageUrl = (r: Room): string | null => {
-  if (!r.image_url) return null
-  return `${API_BASE_URL}${r.image_url}`
-}
 
 const isRoomAffectedByOutage = (): boolean => {
   if (!props.isPowerOutage) return false
@@ -68,29 +64,6 @@ const getUpgradeCost = (r: Room): number => {
   if (r.tier === 1 && r.t2_upgrade_cost) return r.t2_upgrade_cost
   if (r.tier === 2 && r.t3_upgrade_cost) return r.t3_upgrade_cost
   return 0
-}
-
-const getIncidentIcon = (type: IncidentType): string => {
-  switch (type) {
-    case IncidentType.RAIDER_ATTACK:
-      return 'mdi:skull'
-    case IncidentType.RADROACH_INFESTATION:
-      return 'mdi:bug'
-    case IncidentType.FIRE:
-      return 'mdi:fire'
-    case IncidentType.MOLE_RAT_ATTACK:
-      return 'mdi:paw'
-    case IncidentType.DEATHCLAW_ATTACK:
-      return 'mdi:claw-mark'
-    case IncidentType.RADIATION_LEAK:
-      return 'mdi:radioactive'
-    case IncidentType.ELECTRICAL_FAILURE:
-      return 'mdi:lightning-bolt'
-    case IncidentType.WATER_CONTAMINATION:
-      return 'mdi:water-alert'
-    default:
-      return 'mdi:alert-octagon'
-  }
 }
 
 const handleIncidentClick = (event: MouseEvent) => {
@@ -125,8 +98,8 @@ const handleIncidentClick = (event: MouseEvent) => {
     <div class="room-content">
       <!-- Room Image (toggleable) -->
       <img
-        v-if="showRoomImages && getRoomImageUrl(room)"
-        :src="getRoomImageUrl(room)"
+        v-if="showRoomImages && getRoomImageUrl(room.image_url)"
+        :src="getRoomImageUrl(room.image_url)"
         :alt="room.name"
         class="room-background-image"
         draggable="false"

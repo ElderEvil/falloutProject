@@ -45,3 +45,13 @@ def create_random_common_dweller(gender: GenderEnum | None = None) -> dict[str, 
         "visual_attributes": {"race": "human", "faction": "vault_dweller"},
         **stats,
     }
+
+
+def group_dwellers_by_room(dwellers: list) -> dict:
+    """Group dwellers by their room_id."""
+    room_dwellers: dict = {}
+    for dweller in dwellers:
+        if dweller.room_id not in room_dwellers:
+            room_dwellers[dweller.room_id] = []
+        room_dwellers[dweller.room_id].append(dweller)
+    return room_dwellers

@@ -17,7 +17,14 @@ interface Props {
   maxPartySize?: number
 }
 
-const { maxPartySize = 3, currentParty, dwellers, modelValue, quest, vaultId } = defineProps<Props>()
+const {
+  maxPartySize = 3,
+  currentParty,
+  dwellers,
+  modelValue,
+  quest,
+  vaultId,
+} = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void

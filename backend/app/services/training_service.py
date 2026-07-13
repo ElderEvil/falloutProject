@@ -10,6 +10,7 @@ from app.core.game_config import game_config
 from app.crud import training as training_crud
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.room import room as room_crud
+from app.models.base import SPECIALModel
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.training import Training, TrainingStatus
@@ -92,9 +93,7 @@ class TrainingService:
             return False, "Training room has no assigned SPECIAL stat"
 
         stat_to_train = room.ability
-        current_stat_value = getattr(dweller, stat_to_train.value.lower())
-        # Defensive: if stat is None (shouldn't happen), treat as 1 (minimum)
-        current_stat_value = 1 if current_stat_value is None else current_stat_value
+        current_stat_value = SPECIALModel.get_stat(dweller, stat_to_train)
 
         if current_stat_value >= game_config.training.special_stat_max:
             return False, f"{stat_to_train.value} is already at maximum ({game_config.training.special_stat_max})"
@@ -155,11 +154,7 @@ class TrainingService:
 
         # Get current stat value
         stat_to_train = room.ability
-        current_stat_value = getattr(dweller, stat_to_train.value.lower())
-        # Defensive: if stat is None (shouldn't happen), treat as 1 (minimum)
-        if current_stat_value is None:
-            self.logger.warning(f"Dweller {dweller.id} has None value for {stat_to_train.value}, using 1")
-            current_stat_value = 1
+        current_stat_value = SPECIALModel.get_stat(dweller, stat_to_train)
 
         # Calculate duration
         duration_seconds = self.calculate_training_duration(current_stat_value, room.tier)
@@ -273,10 +268,10 @@ class TrainingService:
 
         # Increase SPECIAL stat
         stat_name = training.stat_being_trained.value.lower()
-        current_value = getattr(dweller, stat_name)
+        current_value = SPECIALModel.get_stat(dweller, stat_name)
         new_value = min(current_value + 1, game_config.training.special_stat_max)
 
-        setattr(dweller, stat_name, new_value)
+        SPECIALModel.set_stat(dweller, stat_name, new_value)
         db_session.add(dweller)
 
         # Update training status

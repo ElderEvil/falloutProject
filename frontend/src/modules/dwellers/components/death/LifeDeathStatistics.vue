@@ -17,10 +17,7 @@ const { loading = false, statistics } = defineProps<Props>()
 
 const mortalityRate = computed(() => {
   if (!statistics || statistics.total_dwellers_born === 0) return 0
-  return (
-    (statistics.total_dwellers_died / statistics.total_dwellers_born) *
-    100
-  ).toFixed(1)
+  return ((statistics.total_dwellers_died / statistics.total_dwellers_born) * 100).toFixed(1)
 })
 
 const causeData = computed(() => {

@@ -2,7 +2,7 @@ import { computed, type Ref } from 'vue'
 import type { Room } from '../models/room'
 import type { DwellerShort, SpecialKey } from '@/modules/dwellers/models/dweller'
 import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
-import { API_BASE_URL } from '@/core/config/api'
+import { getRoomImageUrl } from '@/core/utils/image'
 
 export function useRoomProduction(
   room: Ref<Room | null>,
@@ -17,15 +17,7 @@ export function useRoomProduction(
     return getAbilityConfig(room.value?.ability)?.resourceName ?? 'Resources'
   })
 
-  const roomImageUrl = computed(() => {
-    if (!room.value?.image_url) return null
-    const baseUrl = API_BASE_URL
-    const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
-    const imagePath = room.value.image_url.startsWith('/')
-      ? room.value.image_url.slice(1)
-      : room.value.image_url
-    return `${normalizedBase}/${imagePath}`
-  })
+  const roomImageUrl = computed(() => getRoomImageUrl(room.value?.image_url))
 
   const productionInfo = computed(() => {
     if (!room.value || !room.value.ability || room.value.category?.toLowerCase() !== 'production') {

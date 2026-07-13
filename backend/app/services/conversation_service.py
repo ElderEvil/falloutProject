@@ -83,7 +83,7 @@ class ConversationService:
 
     @staticmethod
     def _build_dweller_prompt(dweller, *, for_audio: bool = False) -> str:
-        special_stats = ", ".join(f"{stat}: {getattr(dweller, stat)}" for stat in SPECIALModel.__annotations__)
+        special_stats = SPECIALModel.format_special_stats(dweller)
         vault_stats = (
             f" Average happiness: {dweller.vault.happiness}/100"
             f" Power: {dweller.vault.power}/{dweller.vault.power_max}"

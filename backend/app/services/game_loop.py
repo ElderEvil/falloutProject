@@ -19,6 +19,7 @@ from app.services.exploration_service import exploration_service
 from app.services.happiness_service import happiness_service
 from app.services.resource_manager import ResourceManager
 from app.services.stream_manager import sse_manager
+from app.utils.dwellers import group_dwellers_by_room
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
 
 logger = logging.getLogger(__name__)
@@ -617,12 +618,7 @@ class GameLoopService:
         :returns: Dictionary mapping room_id to list of dwellers
         :rtype: dict
         """
-        room_dwellers = {}
-        for dweller in dwellers:
-            if dweller.room_id not in room_dwellers:
-                room_dwellers[dweller.room_id] = []
-            room_dwellers[dweller.room_id].append(dweller)
-        return room_dwellers
+        return group_dwellers_by_room(dwellers)
 
     async def _fetch_existing_relationships(self, db_session: AsyncSession, dweller_ids: set) -> list:
         """

@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useRoomInteractions } from '../composables/useRoomInteractions'
-import { API_BASE_URL } from '@/core/config/api'
+import { getRoomImageUrl } from '@/core/utils/image'
 
 const props = defineProps({
   room: {
@@ -17,11 +17,7 @@ const props = defineProps({
 
 const { toggleRoomSelection, destroyRoom } = useRoomInteractions()
 
-const roomImageUrl = computed(() => {
-  if (!props.room.image_url) return null
-  const baseUrl = API_BASE_URL
-  return `${baseUrl}${props.room.image_url}`
-})
+const roomImageUrl = computed(() => getRoomImageUrl(props.room.image_url))
 
 const handleRoomClick = () => {
   toggleRoomSelection(props.room.id)

@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Exploration, ExplorationEvent } from '@/modules/exploration/stores/exploration'
 import type { Dweller } from '@/modules/dwellers/stores/dweller'
+import { getEventIcon, getEventColor } from '../models/exploration'
 
 interface Props {
   exploration: Exploration
@@ -23,34 +24,6 @@ const events = computed(() => {
   // Show events in reverse chronological order (most recent first)
   return [...props.exploration.events].reverse()
 })
-
-const getEventIcon = (eventType: string): string => {
-  const iconMap: Record<string, string> = {
-    combat: 'mdi:sword-cross',
-    loot: 'mdi:treasure-chest',
-    exploration: 'mdi:map-marker',
-    discovery: 'mdi:eye',
-    encounter: 'mdi:account-alert',
-    danger: 'mdi:alert',
-    rest: 'mdi:sleep',
-    default: 'mdi:circle-medium',
-  }
-  return iconMap[eventType] ?? iconMap.default!
-}
-
-const getEventColor = (eventType: string): string => {
-  const colorMap: Record<string, string> = {
-    combat: '#ff4444',
-    loot: '#FFD700',
-    exploration: 'var(--color-theme-primary)',
-    discovery: '#4169E1',
-    encounter: '#ff9900',
-    danger: '#ff0000',
-    rest: '#00ced1',
-    default: 'var(--color-theme-primary)',
-  }
-  return colorMap[eventType] ?? colorMap.default!
-}
 
 const formatTime = (hours: number): string => {
   const h = Math.floor(hours)

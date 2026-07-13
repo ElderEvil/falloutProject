@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import { getStatusConfig } from '../../models/dweller'
 import type { DwellerStatus } from '../../stores/dweller'
 
 interface Props {
@@ -10,74 +11,6 @@ interface Props {
 }
 
 const { size = 'small', showLabel = false, status } = defineProps<Props>()
-
-const statusConfig = computed(() => {
-  switch (status) {
-    case 'exploring':
-      return {
-        icon: 'mdi:compass-outline',
-        label: 'Exploring',
-        color: 'text-blue-400',
-        bgColor: 'bg-blue-900/30',
-        borderColor: 'border-blue-500/50',
-        glowColor: 'shadow-blue-500/30',
-      }
-    case 'questing':
-      return {
-        icon: 'mdi:sword-cross',
-        label: 'Questing',
-        color: 'text-orange-400',
-        bgColor: 'bg-orange-900/30',
-        borderColor: 'border-orange-500/50',
-        glowColor: 'shadow-orange-500/30',
-      }
-    case 'working':
-      return {
-        icon: 'mdi:hammer-wrench',
-        label: 'Working',
-        color: 'text-green-400',
-        bgColor: 'bg-green-900/30',
-        borderColor: 'border-green-500/50',
-        glowColor: 'shadow-green-500/30',
-      }
-    case 'training':
-      return {
-        icon: 'mdi:dumbbell',
-        label: 'Training',
-        color: 'text-orange-400',
-        bgColor: 'bg-orange-900/30',
-        borderColor: 'border-orange-500/50',
-        glowColor: 'shadow-orange-500/30',
-      }
-    case 'dead':
-      return {
-        icon: 'mdi:skull',
-        label: 'Dead',
-        color: 'text-red-400',
-        bgColor: 'bg-red-900/30',
-        borderColor: 'border-red-500/50',
-        glowColor: 'shadow-red-500/30',
-      }
-    case 'idle':
-      return {
-        icon: 'mdi:coffee-outline',
-        label: 'Idle',
-        color: 'text-yellow-400',
-        bgColor: 'bg-yellow-900/30',
-        borderColor: 'border-yellow-500/50',
-        glowColor: 'shadow-yellow-500/30',
-      }
-    default:
-      return {
-        icon: 'mdi:help-circle-outline',
-        label: 'Unknown',
-        color: 'text-gray-400',
-        bgColor: 'bg-gray-900/30',
-        borderColor: 'border-gray-500/50',
-        glowColor: 'shadow-gray-500/30',
-      }
-  }
-})
 
 const sizeClasses = computed(() => {
   switch (size) {
@@ -113,17 +46,17 @@ const sizeClasses = computed(() => {
   <div
     class="status-badge inline-flex items-center gap-1 rounded border transition-all"
     :class="[
-      statusConfig.color,
-      statusConfig.bgColor,
-      statusConfig.borderColor,
+      getStatusConfig(status).color,
+      getStatusConfig(status).bgColor,
+      getStatusConfig(status).borderColor,
       sizeClasses.container,
-      `hover:${statusConfig.glowColor}`,
+      `hover:${getStatusConfig(status).glowColor}`,
     ]"
-    :title="statusConfig.label"
+    :title="getStatusConfig(status).label"
   >
-    <Icon :icon="statusConfig.icon" :class="sizeClasses.icon" />
+    <Icon :icon="getStatusConfig(status).icon" :class="sizeClasses.icon" />
     <span v-if="showLabel" :class="[sizeClasses.text, 'font-medium']">
-      {{ statusConfig.label }}
+      {{ getStatusConfig(status).label }}
     </span>
   </div>
 </template>

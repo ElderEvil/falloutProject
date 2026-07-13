@@ -21,6 +21,7 @@ from app.schemas.room import RoomCreate
 from app.schemas.vault import MedicalTransferResponse, VaultNumber, VaultUpdate
 from app.services.resource_manager import ResourceManager
 from app.services.training_service import training_service
+from app.utils.dwellers import group_dwellers_by_room
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 
 
@@ -355,11 +356,7 @@ class VaultService:
             all_dwellers = [d for d in vault_dwellers if d.room_id in room_ids]
 
             # Group dwellers by room_id for processing
-            dwellers_by_room = {}
-            for dweller in all_dwellers:
-                if dweller.room_id not in dwellers_by_room:
-                    dwellers_by_room[dweller.room_id] = []
-                dwellers_by_room[dweller.room_id].append(dweller)
+            dwellers_by_room = group_dwellers_by_room(all_dwellers)
 
             # Process each training room
             for room in created_training_rooms:

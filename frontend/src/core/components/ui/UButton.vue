@@ -22,7 +22,16 @@ interface Props {
   type?: 'button' | 'submit' | 'reset'
 }
 
-const { variant = 'primary', size = 'md', disabled = false, loading = false, block = false, type = 'button', icon, iconRight } = defineProps<Props>()
+const {
+  variant = 'primary',
+  size = 'md',
+  disabled = false,
+  loading = false,
+  block = false,
+  type = 'button',
+  icon,
+  iconRight,
+} = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'click', event: MouseEvent): void

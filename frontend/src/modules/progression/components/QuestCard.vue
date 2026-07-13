@@ -386,7 +386,7 @@ const handleAction = () => {
         PARTY
       </div>
       <div class="party-members">
-        <div v-for="member in (partyMembers ?? [])" :key="member.id" class="party-member">
+        <div v-for="member in partyMembers ?? []" :key="member.id" class="party-member">
           <Icon icon="mdi:account" class="member-icon" />
           <span class="member-name">{{ member.first_name }} {{ member.last_name }}</span>
           <span class="member-level">Lv.{{ member.level || 1 }}</span>

@@ -7,6 +7,7 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { UCard, UButton, UBadge } from '@/core/components/ui'
 import type { DwellerDead } from '@/modules/dwellers/models/dweller'
+import { getDeathCauseIcon } from '@/modules/dwellers/models/dweller'
 
 interface Props {
   dweller: DwellerDead
@@ -21,26 +22,6 @@ interface Emits {
 const { loading = false, dweller } = defineProps<Props>()
 
 const emit = defineEmits<Emits>()
-
-// Icon mapping for death causes
-const deathCauseIcon = computed(() => {
-  if (!dweller.death_cause) return 'mdi:skull'
-
-  switch (dweller.death_cause) {
-    case 'health':
-      return 'mdi:heart-broken'
-    case 'radiation':
-      return 'mdi:radioactive'
-    case 'incident':
-      return 'mdi:fire'
-    case 'exploration':
-      return 'mdi:compass'
-    case 'combat':
-      return 'mdi:sword'
-    default:
-      return 'mdi:skull'
-  }
-})
 
 // Formatting for death cause text
 const deathCauseText = computed(() => {
@@ -137,7 +118,7 @@ const handleViewDetails = () => {
 
             <div class="flex items-center gap-2 mt-1">
               <UBadge variant="danger" size="sm" class="flex items-center gap-1">
-                <Icon :icon="deathCauseIcon" class="w-3.5 h-3.5" />
+                <Icon :icon="getDeathCauseIcon(dweller.death_cause)" class="w-3.5 h-3.5" />
                 <span>{{ deathCauseText }}</span>
               </UBadge>
 

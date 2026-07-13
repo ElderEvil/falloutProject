@@ -18,7 +18,13 @@ interface Props {
   closeOnClickOutside?: boolean
 }
 
-const { size = 'md', closeOnEscape = true, closeOnClickOutside = true, modelValue, title } = defineProps<Props>()
+const {
+  size = 'md',
+  closeOnEscape = true,
+  closeOnClickOutside = true,
+  modelValue,
+  title,
+} = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void

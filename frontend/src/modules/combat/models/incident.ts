@@ -81,3 +81,18 @@ export interface IncidentResolveResponse {
     quantity?: number
   }>
 }
+
+export const INCIDENT_ICON_MAP: Record<IncidentType, string> = {
+  [IncidentType.RAIDER_ATTACK]: 'mdi:skull',
+  [IncidentType.RADROACH_INFESTATION]: 'mdi:bug',
+  [IncidentType.FIRE]: 'mdi:fire',
+  [IncidentType.MOLE_RAT_ATTACK]: 'mdi:paw',
+  [IncidentType.DEATHCLAW_ATTACK]: 'mdi:claw-mark',
+  [IncidentType.RADIATION_LEAK]: 'mdi:radioactive',
+  [IncidentType.ELECTRICAL_FAILURE]: 'mdi:lightning-bolt',
+  [IncidentType.WATER_CONTAMINATION]: 'mdi:water-alert',
+}
+
+export function getIncidentIcon(type: IncidentType): string {
+  return INCIDENT_ICON_MAP[type] ?? 'mdi:alert-octagon'
+}

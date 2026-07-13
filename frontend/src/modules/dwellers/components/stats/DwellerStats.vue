@@ -34,10 +34,7 @@ const stats = [
           <span class="stat-value">{{ statValue(stat.key) }}</span>
         </div>
         <div class="stat-bar">
-          <div
-            class="stat-fill"
-            :style="{ width: `${statValue(stat.key) * 10}%` }"
-          ></div>
+          <div class="stat-fill" :style="{ width: `${statValue(stat.key) * 10}%` }"></div>
         </div>
         <p class="stat-description">{{ stat.description }}</p>
       </div>

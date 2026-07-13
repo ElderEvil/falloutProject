@@ -27,7 +27,20 @@ interface Props {
   variant?: 'default' | 'terminal'
 }
 
-const { type = 'text', size = 'md', disabled = false, required = false, variant = 'default', error, helpText, icon, iconRight, label, modelValue, placeholder } = defineProps<Props>()
+const {
+  type = 'text',
+  size = 'md',
+  disabled = false,
+  required = false,
+  variant = 'default',
+  error,
+  helpText,
+  icon,
+  iconRight,
+  label,
+  modelValue,
+  placeholder,
+} = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: string | number): void

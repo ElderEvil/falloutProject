@@ -4,7 +4,6 @@ Enables decoupled communication between game systems. Services emit events
 when actions occur, and evaluators subscribe to track objective progress.
 """
 
-import asyncio
 import logging
 from collections import defaultdict
 from collections.abc import Callable, Coroutine
@@ -60,17 +59,11 @@ class EventBus:
         logger.info(f"[EVENT] Emitting {event_type} for vault {vault_id} to {len(handlers)} handler(s): {data}")
         logger.debug(f"[EVENT] Handlers: {[h.__name__ for h in handlers]}")
 
-        results = await asyncio.gather(
-            *[self._safe_call(handler, event_type, vault_id, data) for handler in handlers],
-            return_exceptions=True,
-        )
-
-        for i, result in enumerate(results):
-            if isinstance(result, BaseException):
-                logger.exception(
-                    f"Handler '{handlers[i].__name__}' failed for {event_type}: {result}",
-                    exc_info=result,
-                )
+        for handler in handlers:
+            try:
+                await self._safe_call(handler, event_type, vault_id, data)
+            except BaseException as e:
+                logger.exception(f"Handler '{handler.__name__}' failed for {event_type}: {e}", exc_info=e)  # noqa: TRY401
 
     def unsubscribe(self, event_type: GameEvent, handler: EventHandler) -> None:
         handlers = self._handlers.get(event_type, [])

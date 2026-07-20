@@ -9,9 +9,9 @@ dependencies = [
     "asyncpg>=0.30.0,<1.0",
     "dramatiq[redis]>=2.2.0,<3",
     "periodiq>=0.2.0,<1",
-    "faker>=40.28.1",
+    "faker>=40.31.0",
     "fastapi[standard]>=0.139.0",
-    "boto3>=1.43.40,<2.0",
+    "boto3>=1.43.51,<2.0",
     "botocore>=1.34.0,<2.0",
     "passlib[bcrypt]>=1.7.4",
     "bcrypt>=4.0.0,<4.2",
@@ -30,13 +30,13 @@ dependencies = [
     "aiosmtplib>=5.1.2",
     "python-json-logger>=4.0.0",
     "uvloop>=0.21.0; sys_platform != 'win32'",
-    "fastapi-guard>=7.1.1,<8",
+    "fastapi-guard>=7.3.0,<8",
 ]
 
 [dependency-groups]
 test = [
     "aiosqlite>=0.22.1",
-    "coverage>=7.15.0",
+    "coverage>=7.15.2",
     "factory-boy>=3.3.3",
     "fakeredis[lua]>=2.36.2",
     "pytest>=9.1.1",
@@ -44,9 +44,9 @@ test = [
     "pytest-cov>=7.0.0",
 ]
 lint = [
-    "prek>=0.4.8",
-    "ruff>=0.15.20",
-    "ty>=0.0.56",
+    "prek>=0.4.10",
+    "ruff>=0.15.22",
+    "ty>=0.0.61",
 ]
 dev = [
     "fakeredis[lua]>=2.36.2",

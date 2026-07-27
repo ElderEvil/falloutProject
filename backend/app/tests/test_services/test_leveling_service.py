@@ -157,7 +157,7 @@ async def test_level_up_dweller_caps_at_max(
     assert dweller.max_health == 100 + (game_config.leveling.hp_gain_per_level * 2)
 
 
-def test_xp_for_level_range_normal():
+def test_xp_for_level_range_normal() -> None:
     """Test XP needed from level 1 to 5."""
     xp_needed = LevelingService.calculate_xp_for_level_range(1, 5)
     expected = LevelingService.calculate_xp_required(5) - LevelingService.calculate_xp_required(1)
@@ -165,13 +165,13 @@ def test_xp_for_level_range_normal():
     assert xp_needed > 0
 
 
-def test_xp_for_level_range_target_equals_current():
+def test_xp_for_level_range_target_equals_current() -> None:
     """Test XP needed when target equals current level is 0."""
     xp_needed = LevelingService.calculate_xp_for_level_range(5, 5)
     assert xp_needed == 0
 
 
-def test_xp_for_level_range_target_below_current():
+def test_xp_for_level_range_target_below_current() -> None:
     """Test XP needed when target is below current level is 0 (no regression)."""
     xp_needed = LevelingService.calculate_xp_for_level_range(10, 5)
     assert xp_needed == 0

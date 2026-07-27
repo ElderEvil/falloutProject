@@ -11,7 +11,7 @@ This test is tagged as ``slow`` — it takes ~10 s because it spins up
 a TestClient and fires 70+ requests.
 """
 
-import os
+from pathlib import Path
 
 import pytest
 
@@ -19,7 +19,7 @@ import pytest
 pytestmark = [
     pytest.mark.slow,
     pytest.mark.skipif(
-        not os.path.exists("/proc/self/status"),
+        not Path("/proc/self/status").exists(),
         reason="RSS measurement requires /proc (Linux only)",
     ),
 ]
@@ -35,23 +35,29 @@ def get_rss_mb() -> float:
 
 
 @pytest.fixture(scope="module")
-def _app_and_client():
-    """Build a FastAPI app with a large dependency graph and return a TestClient."""
+def _app_and_client() -> tuple:
+    """Build a FastAPI app with a large dependency graph and return a TestClient.
+
+    Captures RSS baseline before/after the app is built and asserts that
+    constructing the dependency graph does not balloon memory.
+    """
     from fastapi import Depends, FastAPI
     from fastapi.testclient import TestClient
+
+    rss_before = get_rss_mb()
 
     app = FastAPI(title="MemRegression", version="0.1.0")
 
     # ── 50 endpoints with 3-deep dependency chains ──────────────────
     for i in range(50):
-        # Each closure gets its own i via default arg
-        async def level_1(i=i):
+
+        async def level_1(i=i) -> dict[str, int]:
             return {"l1": i}
 
-        async def level_2(d=Depends(level_1), i=i):
+        async def level_2(d: dict[str, int] = Depends(level_1), i=i) -> dict[str, int]:
             return {"l1": d["l1"], "l2": i}
 
-        async def final_handler(d=Depends(level_2)):
+        async def final_handler(d: dict[str, int] = Depends(level_2)) -> dict[str, int]:
             return d
 
         app.get(f"/chain-{i}")(final_handler)
@@ -59,10 +65,18 @@ def _app_and_client():
     # ── 20 simple endpoints (no deps) ───────────────────────────────
     for i in range(20):
 
-        async def no_dep_handler(i=i):
+        async def no_dep_handler(i=i) -> dict[str, int]:
             return {"no_dep": i}
 
         app.get(f"/simple-{i}")(no_dep_handler)
+
+    rss_after = get_rss_mb()
+    growth = rss_after - rss_before
+    # App build should add at most 10 MB (typical overhead is <1 MB standalone,
+    # higher inside pytest because of already-loaded conftest modules).
+    assert growth < 10.0, (
+        f"App build RSS grew {growth:.1f} MB ({rss_before:.1f} → {rss_after:.1f}), exceeds 10 MB limit"
+    )
 
     return app, TestClient(app)
 
@@ -76,9 +90,9 @@ class TestMemoryRegression:
     # The growth test is the meaningful regression detector.
     RSS_GROWTH_MAX = 15.0  # MB — request handling should not balloon
 
-    def test_rss_growth_after_requests(self, _app_and_client):
+    def test_rss_growth_after_requests(self, _app_and_client):  # noqa: PT019 — value IS used below
         """RSS should not grow excessively after handling 200+ requests."""
-        app, client = _app_and_client
+        _app, client = _app_and_client
         rss_before = get_rss_mb()
 
         # Hit each endpoint 3 times = 210 requests
@@ -97,7 +111,7 @@ class TestMemoryRegression:
             f"RSS grew {growth:.1f} MB ({rss_before:.1f} → {rss_after:.1f}), exceeds limit {self.RSS_GROWTH_MAX} MB"
         )
 
-    def test_dependency_endpoints_respond_correctly(self, _app_and_client):
+    def test_dependency_endpoints_respond_correctly(self, _app_and_client):  # noqa: PT019
         """Verify dependency-chained endpoints return correct values."""
         _, client = _app_and_client
         r = client.get("/chain-0")
@@ -108,7 +122,7 @@ class TestMemoryRegression:
         assert r.status_code == 200
         assert r.json() == {"l1": 49, "l2": 49}
 
-    def test_simple_endpoints_respond_correctly(self, _app_and_client):
+    def test_simple_endpoints_respond_correctly(self, _app_and_client):  # noqa: PT019
         """Verify simple endpoints work."""
         _, client = _app_and_client
         r = client.get("/simple-0")

@@ -7,13 +7,12 @@ Focuses on the dependency graph memory that 0.140.0 optimized.
 
 import gc
 import os
-
-# ── Ensure the app package is importable ──────────────────────────────────
 import sys
 import time
 import tracemalloc
 from pathlib import Path
 
+# ── Ensure the app package is importable ──────────────────────────────────
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 os.environ["ASYNC_DATABASE_URI"] = "sqlite+aiosqlite:///./test_bench.db"
@@ -53,16 +52,16 @@ def measure_dependency_graph_memory() -> float:
     # Register endpoints with various dependency patterns
     for i in range(50):
         # Create endpoints with nested deps to expand the dependency graph
-        async def dep_a():
+        async def dep_a(i=i) -> dict[str, int]:
             return {"a": i}
 
-        async def dep_b(d=Depends(dep_a)):
+        async def dep_b(d: dict[str, int] = Depends(dep_a), i=i) -> dict[str, int]:
             return {**d, "b": i}
 
-        async def dep_c(d=Depends(dep_b)):
+        async def dep_c(d: dict[str, int] = Depends(dep_b), i=i) -> dict[str, int]:
             return {**d, "c": i}
 
-        async def handler(d=Depends(dep_c)):
+        async def handler(d: dict[str, int] = Depends(dep_c), i=i) -> dict[str, int]:
             return d
 
         app.get(f"/endpoint-{i}")(handler)
@@ -105,13 +104,13 @@ def benchmark() -> dict:
     # Register 50 endpoints with dependency chains (2-3 levels deep)
     for i in range(50):
 
-        async def level_1():
+        async def level_1(i=i) -> dict[str, int]:
             return {"l1": i}
 
-        async def level_2(d=Depends(level_1)):
+        async def level_2(d: dict[str, int] = Depends(level_1), i=i) -> dict[str, int]:
             return {"l1": d["l1"], "l2": i}
 
-        async def final_handler(d=Depends(level_2)):
+        async def final_handler(d: dict[str, int] = Depends(level_2)) -> dict[str, int]:
             return d
 
         app.get(f"/chain-{i}")(final_handler)
@@ -119,7 +118,7 @@ def benchmark() -> dict:
     # Register 20 endpoints without deps for baseline comparison
     for i in range(20):
 
-        async def no_dep_handler():
+        async def no_dep_handler(i=i) -> dict[str, int]:
             return {"no_dep": i}
 
         app.get(f"/simple-{i}")(no_dep_handler)

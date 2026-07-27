@@ -658,7 +658,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "fakeredis", extras = ["lua"], specifier = ">=2.36.2" },
+    { name = "fakeredis", extras = ["lua"], specifier = ">=2.37.0" },
     { name = "memray", specifier = ">=1.19.3" },
 ]
 lint = [
@@ -670,7 +670,7 @@ test = [
     { name = "aiosqlite", specifier = ">=0.22.1" },
     { name = "coverage", specifier = ">=7.15.2" },
     { name = "factory-boy", specifier = ">=3.3.3" },
-    { name = "fakeredis", extras = ["lua"], specifier = ">=2.36.2" },
+    { name = "fakeredis", extras = ["lua"], specifier = ">=2.37.0" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-asyncio", specifier = ">=1.4.0" },
     { name = "pytest-cov", specifier = ">=7.0.0" },

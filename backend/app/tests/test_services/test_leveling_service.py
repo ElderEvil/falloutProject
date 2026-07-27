@@ -157,6 +157,44 @@ async def test_level_up_dweller_caps_at_max(
     assert dweller.max_health == 100 + (game_config.leveling.hp_gain_per_level * 2)
 
 
+def test_xp_for_level_range_normal() -> None:
+    """Test XP needed from level 1 to 5."""
+    xp_needed = LevelingService.calculate_xp_for_level_range(1, 5)
+    expected = LevelingService.calculate_xp_required(5) - LevelingService.calculate_xp_required(1)
+    assert xp_needed == expected
+    assert xp_needed > 0
+
+
+def test_xp_for_level_range_target_equals_current() -> None:
+    """Test XP needed when target equals current level is 0."""
+    xp_needed = LevelingService.calculate_xp_for_level_range(5, 5)
+    assert xp_needed == 0
+
+
+def test_xp_for_level_range_target_below_current() -> None:
+    """Test XP needed when target is below current level is 0 (no regression)."""
+    xp_needed = LevelingService.calculate_xp_for_level_range(10, 5)
+    assert xp_needed == 0
+
+
+@pytest.mark.asyncio
+async def test_level_up_dweller_at_max_level_direct(
+    async_session: AsyncSession,
+    dweller: Dweller,
+    leveling_service: LevelingService,
+):
+    """Test direct level_up_dweller call when already at max level."""
+    dweller.level = game_config.leveling.max_level
+    dweller.max_health = 100
+    dweller.health = 50  # Not full, but shouldn't matter
+
+    result = await leveling_service.level_up_dweller(async_session, dweller, levels=5)
+
+    assert result.level == game_config.leveling.max_level
+    assert result.max_health == 100  # Unchanged
+    assert result.health == 50  # Unchanged — skipped early
+
+
 def test_xp_curve_is_exponential():
     """Test that XP curve increases exponentially."""
     xp_level_5 = LevelingService.calculate_xp_required(5)

@@ -11,7 +11,7 @@ dependencies = [
     "periodiq>=0.2.0,<1",
     "faker>=40.31.0",
     "fastapi[standard]>=0.140.0",
-    "boto3>=1.43.51,<2.0",
+    "boto3>=1.43.57,<2.0",
     "botocore>=1.34.0,<2.0",
     "passlib[bcrypt]>=1.7.4",
     "bcrypt>=4.0.0,<4.2",
@@ -46,7 +46,7 @@ test = [
 lint = [
     "prek>=0.4.10",
     "ruff>=0.15.22",
-    "ty>=0.0.61",
+    "ty>=0.0.64",
 ]
 dev = [
     "fakeredis[lua]>=2.36.2",

@@ -58,6 +58,7 @@ def _app_and_client():
 
     # ── 20 simple endpoints (no deps) ───────────────────────────────
     for i in range(20):
+
         async def no_dep_handler(i=i):
             return {"no_dep": i}
 
@@ -93,8 +94,7 @@ class TestMemoryRegression:
         growth = rss_after - rss_before
 
         assert growth < self.RSS_GROWTH_MAX, (
-            f"RSS grew {growth:.1f} MB ({rss_before:.1f} → {rss_after:.1f}), "
-            f"exceeds limit {self.RSS_GROWTH_MAX} MB"
+            f"RSS grew {growth:.1f} MB ({rss_before:.1f} → {rss_after:.1f}), exceeds limit {self.RSS_GROWTH_MAX} MB"
         )
 
     def test_dependency_endpoints_respond_correctly(self, _app_and_client):

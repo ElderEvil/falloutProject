@@ -7,12 +7,12 @@ Focuses on the dependency graph memory that 0.140.0 optimized.
 
 import gc
 import os
-import time
-import tracemalloc
-from pathlib import Path
 
 # ── Ensure the app package is importable ──────────────────────────────────
 import sys
+import time
+import tracemalloc
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -46,7 +46,7 @@ def measure_dependency_graph_memory() -> float:
 
     # Force import of the heavy dependency modules
     from fastapi import Depends, FastAPI
-    from fastapi.dependencies.models import Dependant  # noqa: F401
+    from fastapi.dependencies.models import Dependant
 
     app = FastAPI()
 
@@ -104,6 +104,7 @@ def benchmark() -> dict:
 
     # Register 50 endpoints with dependency chains (2-3 levels deep)
     for i in range(50):
+
         async def level_1():
             return {"l1": i}
 
@@ -117,6 +118,7 @@ def benchmark() -> dict:
 
     # Register 20 endpoints without deps for baseline comparison
     for i in range(20):
+
         async def no_dep_handler():
             return {"no_dep": i}
 

@@ -11,7 +11,7 @@ dependencies = [
     "periodiq>=0.2.0,<1",
     "faker>=40.31.0",
     "fastapi[standard]>=0.140.0",
-    "boto3>=1.43.57,<2.0",
+    "boto3>=1.43.61,<2.0",
     "botocore>=1.34.0,<2.0",
     "passlib[bcrypt]>=1.7.4",
     "bcrypt>=4.0.0,<4.2",
@@ -20,7 +20,7 @@ dependencies = [
     "pydantic-settings>=2.14.2,<3",
     "pydantic-extra-types>=2.11.0",
     "python-jose[cryptography]>=3.5.0",
-    "redis>=8.0.1",
+    "redis>=8.1.0",
     "sqladmin[full]>=0.29.0",
     "sqlmodel>=0.0.39,<1",
     "httpcore>=1.0.9",
@@ -30,7 +30,7 @@ dependencies = [
     "aiosmtplib>=5.1.2",
     "python-json-logger>=4.0.0",
     "uvloop>=0.21.0; sys_platform != 'win32'",
-    "fastapi-guard>=7.3.0,<8",
+    "fastapi-guard>=7.3.1,<8",
 ]
 
 [dependency-groups]
@@ -45,8 +45,8 @@ test = [
 ]
 lint = [
     "prek>=0.4.10",
-    "ruff>=0.15.22",
-    "ty>=0.0.64",
+    "ruff>=0.16.1",
+    "ty>=0.0.65",
 ]
 dev = [
     "fakeredis[lua]>=2.36.2",

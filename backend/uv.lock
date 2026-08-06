@@ -203,6 +203,15 @@ wheels = [
 ]
 
 [[package]]
+name = "babel"
+version = "2.18.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/7d/b2/51899539b6ceeeb420d40ed3cd4b7a40519404f9baf3d4ac99dc413a834b/babel-2.18.0.tar.gz", hash = "sha256:b80b99a14bd085fcacfa15c9165f651fbb3406e66cc603abf11c5750937c992d", size = 9959554, upload-time = "2026-02-01T12:30:56.078Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/77/f5/21d2de20e8b8b0408f0681956ca2c69f1320a3848ac50e6e7f39c6159675/babel-2.18.0-py3-none-any.whl", hash = "sha256:e2b422b277c2b9a9630c1d7903c2a00d0830c409c59ac8cae9081c92f1aeba35", size = 10196845, upload-time = "2026-02-01T12:30:53.445Z" },
+]
+
+[[package]]
 name = "bcrypt"
 version = "4.1.3"
 source = { registry = "https://pypi.org/simple" }
@@ -636,7 +645,7 @@ requires-dist = [
     { name = "botocore", specifier = ">=1.34.0,<2.0" },
     { name = "dramatiq", extras = ["redis"], specifier = ">=2.2.0,<3" },
     { name = "faker", specifier = ">=40.31.0" },
-    { name = "fastapi", extras = ["standard"], specifier = ">=0.140.0" },
+    { name = "fastapi", extras = ["standard"], specifier = ">=0.141.1" },
     { name = "fastapi-guard", specifier = ">=7.3.0,<8" },
     { name = "greenlet", specifier = ">=3.5.3" },
     { name = "httpcore", specifier = ">=1.0.9" },
@@ -651,7 +660,7 @@ requires-dist = [
     { name = "python-jose", extras = ["cryptography"], specifier = ">=3.5.0" },
     { name = "python-json-logger", specifier = ">=4.0.0" },
     { name = "redis", specifier = ">=8.0.1" },
-    { name = "sqladmin", extras = ["full"], specifier = ">=0.29.0" },
+    { name = "sqladmin", extras = ["full"], specifier = ">=0.30.0" },
     { name = "sqlmodel", specifier = ">=0.0.39,<1" },
     { name = "uvloop", marker = "sys_platform != 'win32'", specifier = ">=0.21.0" },
 ]
@@ -678,7 +687,7 @@ test = [
 
 [[package]]
 name = "fastapi"
-version = "0.140.0"
+version = "0.141.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "annotated-doc" },
@@ -687,9 +696,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0d/fb/fd7671137d9fa3df1d93a2f5111eb982709201724b29f211e4beb2d58688/fastapi-0.140.0.tar.gz", hash = "sha256:f338951b82fd74ca8f843163aec43ea1a1ce84d515415a50fa98fa25572a5544", size = 420968, upload-time = "2026-07-24T21:16:41.187Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8a/02/91e3416a8fdd715abb903a952a6bec7cdd8d14eed55d415fc8595524c319/fastapi-0.141.1.tar.gz", hash = "sha256:e8822fc40db1e1858054d7a949a888695bc9bdce70139178e33bd2871a453ca1", size = 425799, upload-time = "2026-07-29T17:18:05.568Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/eb/76/6d9e25ad88da9d3ff744bcdbec4736e38c2288611d43f673a5d9bfa27c07/fastapi-0.140.0-py3-none-any.whl", hash = "sha256:e951c0a0d9540bf5d9a2a9e078fd415da2ab7e312d435139e7d9e2e7fe9f0b23", size = 130863, upload-time = "2026-07-24T21:16:42.89Z" },
+    { url = "https://files.pythonhosted.org/packages/cb/03/10388a42375ee7e4ac9b94eb2c5c569c8b5795e377e701c9ac3ad63de890/fastapi-0.141.1-py3-none-any.whl", hash = "sha256:bfb91aa2d334c61cb35ba9a116fc123b3d3df31640b801cf57a7a78ec3f603b3", size = 131954, upload-time = "2026-07-29T17:18:04.364Z" },
 ]
 
 [package.optional-dependencies]
@@ -2305,7 +2314,7 @@ wheels = [
 
 [[package]]
 name = "sqladmin"
-version = "0.29.0"
+version = "0.30.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jinja2" },
@@ -2314,13 +2323,14 @@ dependencies = [
     { name = "starlette" },
     { name = "wtforms" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/17/b7/47f955c5f4cbf61b48900f2f77dcff44dec39cab4b8d557567ebf8fc404f/sqladmin-0.29.0.tar.gz", hash = "sha256:901f0c0c11ea29748b997053d77984664abc32be0ee1edcd91b300fce0dcf51c", size = 994200, upload-time = "2026-07-13T10:29:55.386Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/01/b9/3a61fcf36ce36da7cafe579b30faa1ce1ae0ec6d22c55badd101fa79d23e/sqladmin-0.30.0.tar.gz", hash = "sha256:06cdb941bce694c4679fd4ed63a70c73e81350db968d74dcc4a56cc933e9d957", size = 1006832, upload-time = "2026-07-28T00:19:50.256Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/87/d5/72dff3db2ff23ec553bcabe220d1ece0ee2d364eaf776a40e26a7c25f9d8/sqladmin-0.29.0-py3-none-any.whl", hash = "sha256:bbace5509f763e313708db01edd3053dacc878dcb09e7cace27dc355d31de41f", size = 1013301, upload-time = "2026-07-13T10:29:53.539Z" },
+    { url = "https://files.pythonhosted.org/packages/9e/1e/7aa5d568c799c23783026894edaf82b0148455703b1cb3e5a0dd0a13623d/sqladmin-0.30.0-py3-none-any.whl", hash = "sha256:eb82dd174f3292801fdbd17489a83539427ae81cc67e4332b743ba26c6f71a7e", size = 1038306, upload-time = "2026-07-28T00:19:48.815Z" },
 ]
 
 [package.optional-dependencies]
 full = [
+    { name = "babel" },
     { name = "itsdangerous" },
 ]
 

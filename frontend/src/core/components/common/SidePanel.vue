@@ -90,6 +90,12 @@ const navItems = computed((): NavItem[] => {
       path: `/vault/${vaultId.value}/storage`,
       hotkey: '9',
     },
+    {
+      id: 'map',
+      label: 'Map',
+      icon: 'mdi:map',
+      path: `/vault/${vaultId.value}/map`,
+    },
   ]
   // Only show UI Test nav when __APP_VERSION__ contains 'dev' or localStorage flag is set
   if (

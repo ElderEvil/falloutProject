@@ -19,6 +19,7 @@ import { radioRoutes } from '@/modules/radio/routes'
 import { profileRoutes } from '@/modules/profile/routes'
 import { chatRoutes } from '@/modules/chat/routes'
 import { explorationRoutes } from '@/modules/exploration/routes'
+import { mapRoutes } from '@/modules/map/routes'
 import { progressionRoutes } from '@/modules/progression/routes'
 import { socialRoutes } from '@/modules/social/routes'
 import { dwellersRoutes } from '@/modules/dwellers/routes'
@@ -35,6 +36,8 @@ const router = createRouter({
     ...chatRoutes,
     // Exploration module routes
     ...explorationRoutes,
+    // Map module routes
+    ...mapRoutes,
     // Storage module routes
     ...storageRoutes,
     // Progression module routes (training, quests, objectives)

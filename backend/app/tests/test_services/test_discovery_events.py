@@ -1,17 +1,20 @@
 """Tests for discovery event generation (procedural, no LLM)."""
 
 from datetime import datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pydantic
 import pytest
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration
+from app.models.llm_interaction import LLMInteraction
 from app.models.vault import Vault
+from app.models.wasteland_location import LocationTypeEnum, WastelandLocation
 from app.schemas.exploration_event import DiscoveryEventSchema, ExplorationEvent
 from app.services.exploration.event_generator import event_generator
 from app.services.exploration_service import exploration_service
@@ -194,3 +197,98 @@ async def test_coordinator_uses_location_name(
     assert len(result.events) == 1
     assert result.events[0]["type"] == "discovery"
     assert result.events[0]["location_name"] == "Rusty Depot"
+
+
+@pytest.mark.asyncio
+async def test_process_event_registers_discovery_location(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """Happy: process_event with discovery → DISCOVERY WastelandLocation row exists."""
+    exploration = await crud.exploration.create_with_dweller_stats(
+        async_session,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        duration=4,
+    )
+    await async_session.refresh(exploration)
+    _make_expired_exploration(exploration)
+
+    mock_event = DiscoveryEventSchema(
+        description="Your dweller has discovered Rusty Depot in the wasteland. "
+        "This location has been added to your world map.",
+        location_name="Rusty Depot",
+    )
+
+    with patch.object(event_generator, "generate_event", return_value=mock_event):
+        result = await exploration_service.process_event(async_session, exploration)
+
+    await async_session.refresh(result)
+
+    # Event persisted with location_name
+    assert result.events[0]["location_name"] == "Rusty Depot"
+
+    # DISCOVERY WastelandLocation row exists
+    location_stmt = select(WastelandLocation).where(
+        WastelandLocation.type == LocationTypeEnum.DISCOVERY,
+        WastelandLocation.vault_id == vault.id,
+    )
+    locations = (await async_session.execute(location_stmt)).scalars().all()
+    assert len(locations) == 1
+    assert locations[0].exploration_id == exploration.id
+    assert locations[0].name == "Rusty Depot"
+
+    # No LLMInteraction rows created
+    llm_count_stmt = select(LLMInteraction)
+    llm_rows = (await async_session.execute(llm_count_stmt)).scalars().all()
+    assert len(llm_rows) == 0
+
+
+@pytest.mark.asyncio
+async def test_process_event_register_discovery_failure_does_not_break_event(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """Failure: register_discovery raises → event still persisted, no exception propagates."""
+    exploration = await crud.exploration.create_with_dweller_stats(
+        async_session,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        duration=4,
+    )
+    await async_session.refresh(exploration)
+    _make_expired_exploration(exploration)
+
+    mock_event = DiscoveryEventSchema(
+        description="Discovery event that will fail map registration.",
+        location_name="Glowing Crater",
+    )
+
+    with (
+        patch.object(event_generator, "generate_event", return_value=mock_event),
+        patch(
+            "app.services.map_service.map_service.register_discovery",
+            AsyncMock(side_effect=RuntimeError("DB connection lost")),
+        ),
+    ):
+        result = await exploration_service.process_event(async_session, exploration)
+
+    # Event still persisted despite map_service failure
+    await async_session.refresh(result)
+    assert len(result.events) == 1
+    assert result.events[0]["location_name"] == "Glowing Crater"
+
+    # No DISCOVERY WastelandLocation row (register_discovery failed)
+    location_stmt = select(WastelandLocation).where(
+        WastelandLocation.type == LocationTypeEnum.DISCOVERY,
+        WastelandLocation.vault_id == vault.id,
+    )
+    locations = (await async_session.execute(location_stmt)).scalars().all()
+    assert len(locations) == 0
+
+    # No LLMInteraction rows created
+    llm_count_stmt = select(LLMInteraction)
+    llm_rows = (await async_session.execute(llm_count_stmt)).scalars().all()
+    assert len(llm_rows) == 0

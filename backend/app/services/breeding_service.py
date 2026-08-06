@@ -341,7 +341,7 @@ class BreedingService:
         return (await db_session.execute(query)).scalars().all()
 
     @staticmethod
-    async def deliver_baby(
+    async def deliver_baby(  # noqa: PLR0915
         db_session: AsyncSession,
         pregnancy_id: UUID4,
     ) -> Dweller:
@@ -429,6 +429,21 @@ class BreedingService:
         await db_session.commit()
         await db_session.refresh(child)
         logger.info(f"Baby delivered with bio: {child.bio is not None}")
+
+        # Link newborn to home vault on world map (best-effort, non-critical)
+        try:
+            from app.crud.vault import vault as vault_crud_for_map
+            from app.services.map_service import map_service
+
+            vault_for_map = await vault_crud_for_map.get(db_session, mother.vault_id)
+            if vault_for_map:
+                await map_service.link_home_origin(db_session, child, vault_for_map)
+        except Exception:
+            logger.exception(
+                "Failed to link home origin for newborn: child=%s vault=%s",
+                child.id,
+                mother.vault_id,
+            )
 
         # Update pregnancy status
         pregnancy.status = PregnancyStatusEnum.DELIVERED

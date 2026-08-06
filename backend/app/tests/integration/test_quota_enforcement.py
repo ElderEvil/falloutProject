@@ -191,7 +191,9 @@ class TestDwellerAIQuotaEnforcement:
         )
 
         with patch("app.services.dweller_ai.backstory_agent") as mock_agent:
-            mock_agent.run = AsyncMock(return_value=MagicMock(output=DwellerBackstory(bio="Generated backstory")))
+            mock_agent.run = AsyncMock(
+                return_value=MagicMock(output=DwellerBackstory(bio="Generated backstory", origin_place="Megaton"))
+            )
 
             response = await async_client.post(
                 f"dwellers/{quota_dweller.id}/generate_backstory/",

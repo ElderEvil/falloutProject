@@ -75,6 +75,7 @@ class ExplorationCoordinator:
             event_type=event.type,
             description=event.description,
             loot=loot_dict,
+            location_name=getattr(event, "location_name", None),
         )
         db_session.add(exploration)
 

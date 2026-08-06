@@ -546,6 +546,11 @@ class ExplorationConfig(BaseSettings):
     event_weight_danger: int = Field(default=20, ge=0)
     event_weight_rest: int = Field(default=10, ge=0)
 
+    # Discovery event (location discovery, independent flat roll)
+    event_discovery_chance: float = Field(
+        default=0.10, ge=0.0, le=1.0, description="10% chance per event of discovering a location"
+    )
+
     # Stat calculation formulas
     luck_multiplier_min: float = Field(default=0.5, description="Luck 1 = 0.5x", ge=0.0)
     luck_multiplier_max: float = Field(default=2.0, description="Luck 10 = 2.0x", ge=0.0)

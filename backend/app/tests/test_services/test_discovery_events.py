@@ -1,0 +1,196 @@
+"""Tests for discovery event generation (procedural, no LLM)."""
+
+from datetime import datetime, timedelta
+from unittest.mock import patch
+
+import pydantic
+import pytest
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from app import crud
+from app.core.game_config import game_config
+from app.models.dweller import Dweller
+from app.models.exploration import Exploration
+from app.models.vault import Vault
+from app.schemas.exploration_event import DiscoveryEventSchema, ExplorationEvent
+from app.services.exploration.event_generator import event_generator
+from app.services.exploration_service import exploration_service
+
+
+def _make_expired_exploration(exploration: Exploration) -> None:
+    """Set exploration start_time far enough in the past to allow event generation."""
+    exploration.start_time = datetime.utcnow() - timedelta(minutes=15)
+
+
+@pytest.mark.asyncio
+async def test_discovery_event_generated_when_chance_is_1(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """Happy: monkeypatch event_discovery_chance to 1.0 → every event is discovery."""
+    exploration = await crud.exploration.create_with_dweller_stats(
+        async_session,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        duration=4,
+    )
+    await async_session.refresh(exploration)
+    _make_expired_exploration(exploration)
+
+    with patch.object(game_config.exploration, "event_discovery_chance", 1.0):
+        for _ in range(20):
+            event = event_generator.generate_event(exploration)
+            if event is None:
+                continue
+            assert isinstance(event, DiscoveryEventSchema), f"Expected discovery, got {type(event).__name__}"
+            assert event.type == "discovery"
+            assert event.location_name
+            assert len(event.location_name) <= 64
+            assert "discovered" in event.description.lower()
+            assert event.location_name in event.description
+            # Simulate adding to exploration so next event can fire
+            exploration.add_event(
+                event_type=event.type,
+                description=event.description,
+                location_name=event.location_name,
+            )
+
+
+@pytest.mark.asyncio
+async def test_add_event_persists_location_name(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """add_event with location_name persists the key into exploration.events[-1]."""
+    exploration = await crud.exploration.create_with_dweller_stats(
+        async_session,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        duration=4,
+    )
+    await async_session.refresh(exploration)
+    _make_expired_exploration(exploration)
+
+    exploration.add_event(
+        event_type="discovery",
+        description="Discovered Rusty Depot in the wasteland.",
+        location_name="Rusty Depot",
+    )
+    assert len(exploration.events) == 1
+    persisted = exploration.events[-1]
+    assert persisted["type"] == "discovery"
+    assert persisted["location_name"] == "Rusty Depot"
+
+
+@pytest.mark.asyncio
+async def test_discovery_dict_parses_through_union():
+    """A discovery dict parses through the ExplorationEvent union."""
+    discovery_dict = {
+        "type": "discovery",
+        "description": "Your dweller has discovered Rusty Depot in the wasteland.",
+        "location_name": "Rusty Depot",
+    }
+    adapter = pydantic.TypeAdapter(ExplorationEvent)
+    parsed = adapter.validate_python(discovery_dict)
+    assert isinstance(parsed, DiscoveryEventSchema)
+    assert parsed.type == "discovery"
+    assert parsed.location_name == "Rusty Depot"
+
+
+@pytest.mark.asyncio
+async def test_no_discovery_when_chance_is_0(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """Failure: chance 0.0 → no discovery events across 200 draws."""
+    exploration = await crud.exploration.create_with_dweller_stats(
+        async_session,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        duration=4,
+    )
+    await async_session.refresh(exploration)
+    _make_expired_exploration(exploration)
+
+    with patch.object(game_config.exploration, "event_discovery_chance", 0.0):
+        for _ in range(200):
+            event = event_generator.generate_event(exploration)
+            if event is None:
+                continue
+            assert not isinstance(event, DiscoveryEventSchema), "Discovery event generated with chance 0.0"
+            # Simulate adding event so next one can fire
+            exploration.add_event(
+                event_type=event.type,
+                description=event.description,
+                loot=getattr(event, "loot", None),
+            )
+
+
+@pytest.mark.asyncio
+async def test_existing_event_weights_untouched():
+    """Failure: combat/loot/danger/rest config weights are unchanged from defaults."""
+    assert game_config.exploration.event_weight_combat == 35
+    assert game_config.exploration.event_weight_loot == 35
+    assert game_config.exploration.event_weight_danger == 20
+    assert game_config.exploration.event_weight_rest == 10
+
+
+@pytest.mark.asyncio
+async def test_event_without_location_name_persists_as_before(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """Regression: event WITHOUT location_name persists exactly as before — no new key in dict."""
+    exploration = await crud.exploration.create_with_dweller_stats(
+        async_session,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        duration=4,
+    )
+    await async_session.refresh(exploration)
+    _make_expired_exploration(exploration)
+
+    exploration.add_event(
+        event_type="combat",
+        description="Fought a raider.",
+    )
+    assert len(exploration.events) == 1
+    persisted = exploration.events[-1]
+    assert "location_name" not in persisted
+    assert persisted["type"] == "combat"
+    assert persisted["description"] == "Fought a raider."
+
+
+@pytest.mark.asyncio
+async def test_coordinator_uses_location_name(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """Happy: process_event (via exploration_service) with discovery event persists location_name."""
+    exploration = await crud.exploration.create_with_dweller_stats(
+        async_session,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        duration=4,
+    )
+    await async_session.refresh(exploration)
+    _make_expired_exploration(exploration)
+
+    mock_event = DiscoveryEventSchema(
+        description="Your dweller has discovered Rusty Depot in the wasteland. "
+        "This location has been added to your world map.",
+        location_name="Rusty Depot",
+    )
+
+    with patch.object(event_generator, "generate_event", return_value=mock_event):
+        result = await exploration_service.process_event(async_session, exploration)
+
+    await async_session.refresh(result)
+    assert len(result.events) == 1
+    assert result.events[0]["type"] == "discovery"
+    assert result.events[0]["location_name"] == "Rusty Depot"

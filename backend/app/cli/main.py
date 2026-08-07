@@ -16,6 +16,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.cli.app.dweller_bios import dweller_bios as _dweller_bios
 from app.cli.app.manage import startapp as _startapp
 from app.cli.app.pregen_dwellers import pregen_dwellers as _pregen_dwellers
 from app.cli.migrations.cli import migrations
@@ -39,6 +40,12 @@ cli.command(name="startapp", help="Scaffold a new app module (model, schema, CRU
 cli.command(name="pregen-dwellers", help="Dev/QA: seed dwellers with deterministic bios + world-map place markers")(
     _pregen_dwellers
 )
+
+# Re-register dweller-bios as a flat command
+cli.command(
+    name="dweller-bios",
+    help="Dev/QA: fill missing bios for existing dwellers + world-map place markers",
+)(_dweller_bios)
 
 logger = logging.getLogger(__name__)
 

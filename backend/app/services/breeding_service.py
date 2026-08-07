@@ -296,9 +296,9 @@ class BreedingService:
             Created pregnancy
 
         Raises:
-            ValueError: If either parent is not an adult.
+            ValueError: If either parent is not an adult, or mother is not female, or father is not male.
         """
-        from app.schemas.common import AgeGroupEnum
+        from app.schemas.common import AgeGroupEnum, GenderEnum
 
         mother_query = select(Dweller).where(Dweller.id == mother_id)
         mother = (await db_session.execute(mother_query)).scalars().first()
@@ -306,6 +306,8 @@ class BreedingService:
             raise ValueError("Mother not found")
         if mother.age_group != AgeGroupEnum.ADULT:
             raise ValueError("Mother must be an adult")
+        if mother.gender != GenderEnum.FEMALE:
+            raise ValueError("Mother must be female")
 
         father_query = select(Dweller).where(Dweller.id == father_id)
         father = (await db_session.execute(father_query)).scalars().first()
@@ -313,6 +315,8 @@ class BreedingService:
             raise ValueError("Father not found")
         if father.age_group != AgeGroupEnum.ADULT:
             raise ValueError("Father must be an adult")
+        if father.gender != GenderEnum.MALE:
+            raise ValueError("Father must be male")
 
         # NOTE: Using naive datetime to match database TIMESTAMP WITHOUT TIME ZONE
         conceived_at = datetime.now(UTC).replace(tzinfo=None)

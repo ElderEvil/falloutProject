@@ -1,6 +1,7 @@
 """Tests for pregnancy API endpoints."""
 
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
@@ -8,13 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.config import settings
+from app.models.dweller import Dweller
 from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride
 
-pytestmark = pytest.mark.asyncio(scope="module")
+pytestmark = pytest.mark.asyncio(loop_scope="module")
 
 
-async def _adult(async_session, vault_id, gender: GenderEnum):
+async def _adult(async_session: AsyncSession, vault_id: UUID, gender: GenderEnum) -> Dweller:
     return await crud.dweller.create(
         async_session,
         obj_in=DwellerCreate(

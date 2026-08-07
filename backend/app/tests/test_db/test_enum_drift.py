@@ -174,6 +174,8 @@ class TestPgEnumDrift:
 
     def test_documented_non_native_exceptions_are_still_varchar(self) -> None:
         """The documented VARCHAR exceptions must not have been converted to enums."""
+        from sqlalchemy import String
+
         for table_name, column_name in sorted(NON_NATIVE_ENUM_COLUMNS):
             table = SQLModel.metadata.tables.get(table_name)
             assert table is not None, f"Non-native exception table {table_name!r} not found"
@@ -182,6 +184,10 @@ class TestPgEnumDrift:
             assert not isinstance(column.type, SAEnum), (
                 f"{table_name}.{column_name} was a deliberate VARCHAR enum but is now an Enum type; "
                 "update NON_NATIVE_ENUM_COLUMNS if this was intentional."
+            )
+            assert isinstance(column.type, String), (
+                f"{table_name}.{column_name} is not a VARCHAR; got {column.type!r}. "
+                "Update NON_NATIVE_ENUM_COLUMNS if this was intentional."
             )
 
 

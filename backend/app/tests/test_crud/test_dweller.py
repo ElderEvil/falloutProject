@@ -108,6 +108,8 @@ async def test_create_random_common_dweller_seed_deterministic(async_session: As
     assert d1.is_adult == d2.is_adult
     assert d1.strength == d2.strength
     assert d1.luck == d2.luck
+    assert d1.age_group == d2.age_group
+    assert d1.birth_date == d2.birth_date
 
     # Different seed → different output (overwhelmingly likely across all fields)
     d3 = await crud.dweller.create_random(db_session=async_session, vault_id=vault.id, seed=43)
@@ -137,8 +139,8 @@ async def test_create_random_common_dweller_age_fields_coherent(async_session: A
 
     adult_seen = False
     child_seen = False
-    for seed in range(40):
-        data = create_random_common_dweller(seed=seed)
+    for _ in range(40):
+        data = create_random_common_dweller()
         if data["is_adult"]:
             adult_seen = True
             assert data["age_group"] == AgeGroupEnum.ADULT

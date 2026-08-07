@@ -18,6 +18,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.cli.app.manage import startapp as _startapp
+from app.cli.app.pregen_dwellers import pregen_dwellers as _pregen_dwellers
 from app.cli.migrations.cli import migrations
 from app.core.config import settings
 from app.db.session import async_engine
@@ -34,6 +35,11 @@ cli.add_typer(migrations, name="migrations", help="Alembic database migrations")
 
 # Re-register startapp as a flat command
 cli.command(name="startapp", help="Scaffold a new app module (model, schema, CRUD, API, service)")(_startapp)
+
+# Re-register pregen-dwellers as a flat command
+cli.command(name="pregen-dwellers", help="Dev/QA: seed dwellers with deterministic bios + world-map place markers")(
+    _pregen_dwellers
+)
 
 logger = logging.getLogger(__name__)
 

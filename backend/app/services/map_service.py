@@ -8,6 +8,7 @@ load-bearing because bio generation must not fail on map bookkeeping.
 from __future__ import annotations
 
 import logging
+from typing import Protocol
 
 from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError
@@ -30,6 +31,13 @@ from app.schemas.wasteland_location import (
 from app.utils.places import GENERIC_ORIGIN_SKIP, normalize_place_name, seeded_vault_specs
 
 logger = logging.getLogger(__name__)
+
+
+class _MapDwellerLike(Protocol):
+    """Structural protocol for dweller objects used by map registration methods."""
+
+    id: UUID4
+    vault_id: UUID4
 
 
 class MapService:
@@ -90,7 +98,9 @@ class MapService:
             home = await self.ensure_home_marker(db_session, vault)
             await wl_crud.link_dweller(db_session, dweller.id, home.id, DwellerLocationRelationEnum.ORIGIN)
         except Exception:
-            logger.exception("link_home_origin failed: dweller=%s vault=%s", dweller.id, vault.id)
+            logger.exception(
+                "link_home_origin failed: dweller=%s vault=%s", dweller.id, vault.id
+            )
 
     # ------------------------------------------------------------------
     # bio place registration
@@ -99,7 +109,7 @@ class MapService:
     async def register_bio_places(
         self,
         db_session: AsyncSession,
-        dweller: Dweller,
+        dweller: _MapDwellerLike,
         origin_place: str,
         visited_places: list[str],
         explicit_origin: str | None = None,
@@ -146,7 +156,9 @@ class MapService:
                     name=name,
                     type=LocationTypeEnum.VISITED,
                 )
-                await wl_crud.link_dweller(db_session, dweller.id, loc.id, DwellerLocationRelationEnum.VISITED)
+                await wl_crud.link_dweller(
+                    db_session, dweller.id, loc.id, DwellerLocationRelationEnum.VISITED
+                )
                 visited += 1
         except Exception:
             logger.exception(
@@ -188,7 +200,47 @@ class MapService:
     # map assembly
     # ------------------------------------------------------------------
 
-    async def get_vault_map(self, db_session: AsyncSession, vault: Vault) -> VaultMapResponse:
+    async def get_location_detail(
+        self,
+        db_session: AsyncSession,
+        vault: Vault,
+        location_id: UUID4,
+    ) -> WastelandLocationWithDwellers:
+        """Return a single location with its linked dweller references."""
+        location = await wl_crud.get_by_id(db_session, location_id)
+        from app.utils.exceptions import ResourceNotFoundException
+
+        if location is None or location.vault_id != vault.id:
+            raise ResourceNotFoundException(WastelandLocation, identifier=location_id)
+
+        refs_map = await wl_crud.get_dweller_refs(db_session, [location.id])
+        refs = refs_map.get(location.id, [])
+
+        return WastelandLocationWithDwellers(
+            id=location.id,
+            name=location.name,
+            normalized_name=location.normalized_name,
+            type=location.type,
+            coord_x=location.coord_x,
+            coord_y=location.coord_y,
+            description=location.description,
+            vault_id=location.vault_id,
+            exploration_id=location.exploration_id,
+            created_at=location.created_at,
+            dwellers=[
+                DwellerRef(
+                    dweller_id=r["dweller_id"],
+                    first_name=r["first_name"],
+                    last_name=r["last_name"],
+                    relation=r["relation"],
+                )
+                for r in refs
+            ],
+        )
+
+    async def get_vault_map(
+        self, db_session: AsyncSession, vault: Vault
+    ) -> VaultMapResponse:
         """Build the full world-map payload for a vault."""
         await self.ensure_home_marker(db_session, vault)
 

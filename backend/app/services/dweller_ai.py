@@ -1,6 +1,5 @@
 import asyncio
 import logging
-from contextlib import suppress
 from math import ceil
 
 from fastapi import HTTPException
@@ -49,13 +48,17 @@ class DwellerAIService:
         explicit_origin: str | None = None,
     ) -> None:
         """Register bio-extracted places on the world map — best-effort, never raises."""
-        with suppress(Exception):
+        try:
             await map_service.register_bio_places(
                 db_session,
                 dweller_obj,
                 origin_place=origin_place,
                 visited_places=visited_places,
                 explicit_origin=explicit_origin,
+            )
+        except Exception:
+            logger.exception(
+                "Failed to register map places for dweller %s", dweller_obj.id
             )
 
     async def generate_backstory(

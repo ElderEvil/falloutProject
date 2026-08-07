@@ -15,14 +15,21 @@ pytestmark = pytest.mark.asyncio(scope="module")
 
 
 async def _adult(async_session, vault_id, gender: GenderEnum):
-    return await crud.dweller.create(async_session, obj_in=DwellerCreate(
-        first_name="Test", last_name="Dweller",
-        gender=gender, rarity=RarityEnum.COMMON,
-        is_adult=True, age_group=AgeGroupEnum.ADULT,
-        birth_date=datetime(2000, 1, 1),
-        max_health=100, health=100,
-        vault_id=str(vault_id),
-    ))
+    return await crud.dweller.create(
+        async_session,
+        obj_in=DwellerCreate(
+            first_name="Test",
+            last_name="Dweller",
+            gender=gender,
+            rarity=RarityEnum.COMMON,
+            is_adult=True,
+            age_group=AgeGroupEnum.ADULT,
+            birth_date=datetime(2000, 1, 1),
+            max_health=100,
+            health=100,
+            vault_id=str(vault_id),
+        ),
+    )
 
 
 @pytest.mark.asyncio

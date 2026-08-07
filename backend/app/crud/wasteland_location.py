@@ -43,7 +43,7 @@ class CRUDWastelandLocation:
         )
         return result.scalar_one_or_none()
 
-    async def get_or_create(  # noqa: PLR0917
+    async def get_or_create(
         self,
         db_session: AsyncSession,
         vault_id: UUID4,

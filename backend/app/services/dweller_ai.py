@@ -420,7 +420,7 @@ class DwellerAIService:
 
         return await dweller_crud.get_full_info(db_session, dweller_obj.id)
 
-    async def generate_dweller_avatar(  # noqa: PLR0917
+    async def generate_dweller_avatar(
         self,
         dweller_id: UUID4,
         dweller_first_name: str,

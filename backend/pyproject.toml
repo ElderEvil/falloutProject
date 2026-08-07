@@ -42,6 +42,7 @@ test = [
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.0.0",
+    "pytest-xdist>=3.6.0",
 ]
 lint = [
     "prek>=0.4.10",
@@ -159,6 +160,12 @@ addopts = [
     "--cov-report=html",
     "--cov-report=json",
 ]
+markers = [
+    "unit: fast pure or mocked unit tests",
+    "integration: tests requiring database/redis or real service wiring",
+    "slow: tests that take >1s and should be skippable",
+    "e2e: end-to-end or full-stack tests",
+]
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::pydantic.warnings.PydanticDeprecatedSince20",
@@ -172,6 +179,11 @@ omit = [
     "*/test_*.py",
     "*/__pycache__/*",
     "*/alembic/*",
+    "app/cli/*",
+    "app/scripts/*",
+    "app/services/pregen_service.py",
+    "app/admin/auth.py",
+    "app/api/tasks.py",
 ]
 
 [tool.coverage.report]

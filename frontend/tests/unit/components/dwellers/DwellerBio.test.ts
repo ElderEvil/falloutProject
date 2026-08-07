@@ -314,6 +314,22 @@ describe('DwellerBio', () => {
       expect(wrapper.html()).toContain('R&amp;D Labs')
     })
 
+    it('should linkify place names inside entity-encoded text (e.g. R&amp;D Labs)', () => {
+      const wrapper = mount(DwellerBio, {
+        props: {
+          firstName: 'John',
+          bio: 'John visited R&amp;D Labs in the ruins.',
+          vaultId: 'v1',
+          placeLinks: [{ name: 'R&D Labs', locationId: 'loc2' }],
+        },
+      })
+
+      const link = wrapper.find('a.bio-place-link')
+      expect(link.exists()).toBe(true)
+      expect(link.text()).toBe('R&D Labs')
+      expect(link.attributes('href')).toBe('/vault/v1/map?place=loc2')
+    })
+
     it('should sanitize XSS attempts in bio text', () => {
       const wrapper = mount(DwellerBio, {
         props: {

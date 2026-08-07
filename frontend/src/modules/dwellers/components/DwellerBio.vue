@@ -30,16 +30,6 @@ const PURIFY_OPTIONS = {
   ALLOWED_ATTR: ['href', 'class'],
 }
 
-/** Escape HTML special characters to prevent XSS in text nodes. */
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
-
 /** Build a regex that matches any place name (case-insensitive). */
 function buildPlaceRegex(links: MapPlaceLink[]): RegExp | null {
   if (!links.length) return null
@@ -64,16 +54,49 @@ const sanitizedBio = computed(() => {
     lookup.set(link.name.toLowerCase(), link.locationId)
   }
 
-  // Linkify: replace each place-name occurrence with an <a> tag
-  const linkified = clean.replace(regex, (match) => {
-    const locationId = lookup.get(match.toLowerCase())
-    if (!locationId) return match
-    const href = `/vault/${props.vaultId}/map?place=${locationId}`
-    return `<a href="${escapeHtml(href)}" class="bio-place-link">${escapeHtml(match)}</a>`
-  })
+  // Linkify on a DOM fragment instead of the serialized HTML string. Matching
+  // against decoded text-node data makes entity-encoded characters (e.g.
+  // `&amp;` already parsed to `&`) resolve correctly; the browser then safely
+  // re-encodes entities when serializing the fragment back to HTML.
+  const container = document.createElement('div')
+  container.innerHTML = clean
 
-  // Belt-and-suspenders: sanitize the linkified HTML again
-  return DOMPurify.sanitize(linkified, PURIFY_OPTIONS)
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT)
+  const textNodes: Text[] = []
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    textNodes.push(node as Text)
+  }
+
+  for (const node of textNodes) {
+    const matches = [...node.data.matchAll(regex)]
+    if (!matches.length) continue
+
+    const fragment = document.createDocumentFragment()
+    let cursor = 0
+    for (const match of matches) {
+      const index = match.index ?? 0
+      if (index > cursor) {
+        fragment.appendChild(document.createTextNode(node.data.slice(cursor, index)))
+      }
+      const locationId = lookup.get(match[0].toLowerCase())
+      if (locationId) {
+        const anchor = document.createElement('a')
+        anchor.setAttribute('href', `/vault/${props.vaultId}/map?place=${locationId}`)
+        anchor.className = 'bio-place-link'
+        anchor.textContent = match[0]
+        fragment.appendChild(anchor)
+      } else {
+        fragment.appendChild(document.createTextNode(match[0]))
+      }
+      cursor = index + match[0].length
+    }
+    if (cursor < node.data.length) {
+      fragment.appendChild(document.createTextNode(node.data.slice(cursor)))
+    }
+    node.parentNode?.replaceChild(fragment, node)
+  }
+
+  return container.innerHTML
 })
 </script>
 

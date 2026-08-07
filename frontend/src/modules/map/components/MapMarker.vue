@@ -16,6 +16,13 @@ const emit = defineEmits<{
   (e: 'click'): void
 }>()
 
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    emit('click')
+  }
+}
+
 const typeIcons: Record<string, string> = {
   home_vault: 'mdi:home-city',
   origin: 'mdi:flag',
@@ -41,7 +48,15 @@ const tooltipText = computed(() => `${props.name} (${label.value})`)
 </script>
 
 <template>
-  <g :transform="`translate(${x}, ${y})`" class="map-marker cursor-pointer" @click="emit('click')">
+  <g
+    :transform="`translate(${x}, ${y})`"
+    class="map-marker cursor-pointer"
+    tabindex="0"
+    role="button"
+    :aria-label="tooltipText"
+    @click="emit('click')"
+    @keydown="handleKeydown"
+  >
     <UTooltip :text="tooltipText" position="top">
       <foreignObject x="-4" y="-4" width="8" height="8">
         <div
@@ -64,8 +79,13 @@ const tooltipText = computed(() => `${props.name} (${label.value})`)
   transition: transform 150ms ease;
 }
 
-.map-marker:hover {
+.map-marker:hover,
+.map-marker:focus-visible {
   filter: drop-shadow(0 0 3px var(--color-theme-primary));
+}
+
+.map-marker:focus-visible {
+  outline: 1px solid var(--color-theme-primary);
 }
 
 .marker-icon {

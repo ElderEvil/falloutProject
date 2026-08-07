@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, inject, onMounted, onUnmounted } from 'vue'
+import { ref, computed, inject, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useMapStore } from '../stores/map'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import USkeleton from '@/core/components/ui/USkeleton.vue'
+import { UButton } from '@/core/components/ui'
 import WorldMap from '../components/WorldMap.vue'
 import MarkerDetailModal from '../components/MarkerDetailModal.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
@@ -39,17 +40,29 @@ function handleMarkerClick(
   showModal.value = true
 }
 
-onMounted(async () => {
-  if (authStore.isAuthenticated && vaultId.value) {
-    const token = authStore.token as string
-    await mapStore.fetchMap(vaultId.value, token)
-    mapStore.startPolling(vaultId.value, token)
-  }
-})
+async function loadMap() {
+  if (!authStore.isAuthenticated || !vaultId.value) return
+  const token = authStore.token as string
+  mapStore.stopPolling()
+  await mapStore.fetchMap(vaultId.value, token)
+  mapStore.startPolling(vaultId.value, token)
+}
+
+watch(
+  vaultId,
+  () => {
+    loadMap()
+  },
+  { immediate: true }
+)
 
 onUnmounted(() => {
   mapStore.stopPolling()
 })
+
+function retry() {
+  loadMap()
+}
 
 const hasNoData = computed(
   () => !mapStore.isLoading && mapStore.locations.length === 0 && mapStore.vaultMarkers.length === 0
@@ -72,6 +85,12 @@ const hasNoData = computed(
           <!-- Loading skeleton -->
           <div v-if="mapStore.isLoading" class="map-skeleton">
             <USkeleton width="100%" height="400px" rounded="lg" />
+          </div>
+
+          <!-- Error state -->
+          <div v-else-if="mapStore.error" class="empty-state">
+            <p class="empty-text terminal-glow-subtle">{{ mapStore.error }}</p>
+            <UButton variant="secondary" size="sm" class="mt-4" @click="retry">Retry</UButton>
           </div>
 
           <!-- Empty state -->

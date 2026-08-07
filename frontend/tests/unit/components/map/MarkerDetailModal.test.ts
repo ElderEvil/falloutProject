@@ -122,6 +122,24 @@ describe('MarkerDetailModal', () => {
       expect(wrapper.text()).toContain('Jane')
       expect(wrapper.text()).toContain('Linked Dwellers')
     })
+
+    it('should render dweller entries as buttons for keyboard accessibility', () => {
+      const wrapper = mount(MarkerDetailModal, {
+        props: {
+          modelValue: true,
+          location: createLocation(),
+          vaultMarker: null,
+        },
+        global: {
+          stubs: { teleport: true },
+        },
+      })
+
+      const buttons = wrapper.findAll('button.dweller-entry')
+      expect(buttons).toHaveLength(2)
+      expect(buttons[0].text()).toContain('John Doe')
+      expect(buttons[1].text()).toContain('Jane')
+    })
   })
 
   describe('Vault marker display', () => {

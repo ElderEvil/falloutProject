@@ -20,11 +20,16 @@ export const useMapStore = defineStore('map', () => {
   } = useIntervalFn(
     async () => {
       if (_pollVaultId.value && _pollToken.value) {
+        const gen = _pollGeneration
+        const vaultId = _pollVaultId.value
+        const token = _pollToken.value
         try {
-          const data = await mapService.getVaultMap(_pollToken.value, _pollVaultId.value)
+          const data = await mapService.getVaultMap(token, vaultId)
+          if (gen !== _pollGeneration || vaultId !== _pollVaultId.value) return
           locations.value = data.locations
           vaultMarkers.value = data.vault_markers
         } catch (err) {
+          if (gen !== _pollGeneration || vaultId !== _pollVaultId.value) return
           handleStoreError(err, 'Failed to poll map')
         }
       }
@@ -36,26 +41,33 @@ export const useMapStore = defineStore('map', () => {
   // Internal refs for polling context
   const _pollVaultId = ref<string | null>(null)
   const _pollToken = ref<string | null>(null)
+  let _pollGeneration = 0
 
   // Actions
   async function fetchMap(vaultId: string, token: string): Promise<void> {
+    const gen = ++_pollGeneration
     isLoading.value = true
     error.value = null
     try {
       const data = await mapService.getVaultMap(token, vaultId)
+      if (gen !== _pollGeneration) return
       locations.value = data.locations
       vaultMarkers.value = data.vault_markers
     } catch (err) {
+      if (gen !== _pollGeneration) return
       handleStoreError(err, 'Failed to fetch map')
       error.value = 'Failed to load map'
     } finally {
-      isLoading.value = false
+      if (gen === _pollGeneration) {
+        isLoading.value = false
+      }
     }
   }
 
   function startPolling(vaultId: string, token: string): void {
     _pollVaultId.value = vaultId
     _pollToken.value = token
+    _pollGeneration += 1
     if (!isPollingActive.value) {
       resumePolling()
     }
@@ -64,6 +76,7 @@ export const useMapStore = defineStore('map', () => {
   function stopPolling(): void {
     _pollVaultId.value = null
     _pollToken.value = null
+    _pollGeneration += 1
     if (isPollingActive.value) {
       pausePolling()
     }

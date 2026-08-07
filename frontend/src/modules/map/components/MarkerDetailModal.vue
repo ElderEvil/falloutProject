@@ -89,14 +89,11 @@ function dwellerDisplayName(first: string, last: string | null) {
       <div v-if="dwellers" class="detail-dwellers">
         <h4 class="dwellers-heading">Linked Dwellers</h4>
         <ul class="dwellers-list">
-          <li
-            v-for="d in dwellers"
-            :key="d.dweller_id"
-            class="dweller-entry"
-            @click="goToDweller(d.dweller_id)"
-          >
-            <span class="dweller-name">{{ dwellerDisplayName(d.first_name, d.last_name) }}</span>
-            <span class="dweller-relation">({{ d.relation }})</span>
+          <li v-for="d in dwellers" :key="d.dweller_id">
+            <button type="button" class="dweller-entry" @click="goToDweller(d.dweller_id)">
+              <span class="dweller-name">{{ dwellerDisplayName(d.first_name, d.last_name) }}</span>
+              <span class="dweller-relation">({{ d.relation }})</span>
+            </button>
           </li>
         </ul>
       </div>
@@ -149,16 +146,26 @@ function dwellerDisplayName(first: string, last: string | null) {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  width: 100%;
   padding: 0.375rem 0.5rem;
   border: 1px solid transparent;
   border-radius: var(--border-radius-sm);
   cursor: pointer;
   transition: all var(--transition-fast);
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
 }
 
-.dweller-entry:hover {
+.dweller-entry:hover,
+.dweller-entry:focus-visible {
   border-color: var(--color-theme-primary);
   box-shadow: var(--shadow-glow-sm);
+}
+
+.dweller-entry:focus-visible {
+  outline: none;
 }
 
 .dweller-name {

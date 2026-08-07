@@ -110,6 +110,16 @@ describe('WorldMap', () => {
       const svg = wrapper.find('svg')
       expect(svg.attributes('viewBox')).toBe('0 0 100 100')
     })
+
+    it('should NOT have role="img" on the SVG (children must be accessible)', () => {
+      const wrapper = mount(WorldMap, {
+        props: { locations: [], vaultMarkers: [] },
+      })
+
+      const svg = wrapper.find('svg')
+      expect(svg.attributes('role')).toBeUndefined()
+      expect(svg.attributes('aria-label')).toBeUndefined()
+    })
   })
 
   describe('Marker click emission', () => {

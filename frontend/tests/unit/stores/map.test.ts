@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
+import { flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { useMapStore } from '@/modules/map/stores/map'
 
@@ -236,6 +237,98 @@ describe('Map Store', () => {
       await store.fetchMap('vault-1', 'test-token')
       expect(store.locations).toHaveLength(2)
       expect(store.vaultMarkers).toHaveLength(1)
+    })
+  })
+
+  describe('Stale-response guard', () => {
+    it('should drop poll response after stopPolling invalidates context', async () => {
+      vi.useFakeTimers()
+      const store = useMapStore()
+
+      let resolveFn: (value: any) => void
+      const controlled = new Promise((resolve) => {
+        resolveFn = resolve
+      })
+      vi.mocked(mapService.getVaultMap).mockReturnValueOnce(controlled as any)
+
+      store.startPolling('vault-1', 'test-token')
+      await vi.advanceTimersByTimeAsync(30000)
+      store.stopPolling()
+
+      resolveFn!(mockMapResponse)
+      await flushPromises()
+
+      expect(store.locations).toEqual([])
+      expect(store.vaultMarkers).toEqual([])
+    })
+
+    it('should drop poll response after switching vaults', async () => {
+      vi.useFakeTimers()
+      const store = useMapStore()
+
+      let resolveFn: (value: any) => void
+      const controlled = new Promise((resolve) => {
+        resolveFn = resolve
+      })
+      vi.mocked(mapService.getVaultMap).mockReturnValueOnce(controlled as any)
+
+      store.startPolling('vault-1', 'test-token')
+      await vi.advanceTimersByTimeAsync(30000)
+      store.startPolling('vault-2', 'test-token')
+
+      resolveFn!(mockMapResponse)
+      await flushPromises()
+
+      expect(store.locations).toEqual([])
+      expect(store.vaultMarkers).toEqual([])
+    })
+
+    it('should drop fetchMap response after stopPolling invalidates context', async () => {
+      const store = useMapStore()
+
+      let resolveFn: (value: any) => void
+      const controlled = new Promise((resolve) => {
+        resolveFn = resolve
+      })
+      vi.mocked(mapService.getVaultMap).mockReturnValueOnce(controlled as any)
+
+      const fetchPromise = store.fetchMap('vault-1', 'test-token')
+      store.stopPolling()
+
+      resolveFn!(mockMapResponse)
+      await fetchPromise
+
+      expect(store.locations).toEqual([])
+      expect(store.vaultMarkers).toEqual([])
+    })
+
+    it('should drop fetchMap response when a newer fetchMap is called', async () => {
+      const store = useMapStore()
+
+      let resolveOld: (value: any) => void
+      const oldPromise = new Promise((resolve) => {
+        resolveOld = resolve
+      })
+
+      const newData = {
+        locations: [mockLocation2],
+        vault_markers: [],
+      }
+
+      vi.mocked(mapService.getVaultMap)
+        .mockReturnValueOnce(oldPromise as any)
+        .mockResolvedValueOnce(newData)
+
+      const oldFetch = store.fetchMap('vault-1', 'token-old')
+      const newFetch = store.fetchMap('vault-2', 'token-new')
+
+      resolveOld!(mockMapResponse)
+      await oldFetch
+      await newFetch
+
+      expect(store.locations).toEqual([mockLocation2])
+      expect(store.vaultMarkers).toEqual([])
+      expect(store.isLoading).toBe(false)
     })
   })
 })

@@ -199,9 +199,7 @@ class TestFilterRoomsByAbilities:
         r1 = _make_room(_id=_R1, ability=SPECIALEnum.STRENGTH)
         r2 = _make_room(_id=_R2, ability=SPECIALEnum.AGILITY)
         r3 = _make_room(_id=_R3, ability=SPECIALEnum.PERCEPTION)
-        result = svc._filter_rooms_by_abilities(
-            [r1, r2, r3], [SPECIALEnum.STRENGTH, SPECIALEnum.PERCEPTION]
-        )
+        result = svc._filter_rooms_by_abilities([r1, r2, r3], [SPECIALEnum.STRENGTH, SPECIALEnum.PERCEPTION])
         assert len(result) == 2
         ids = {r.id for r in result}
         assert ids == {_R1, _R3}
@@ -214,9 +212,7 @@ class TestFilterRoomsByAbilities:
     def test_duplicate_abilities_duplicates_rooms(self, svc):
         """When same ability appears twice, rooms are duplicated."""
         r1 = _make_room(_id=_R1, ability=SPECIALEnum.STRENGTH)
-        result = svc._filter_rooms_by_abilities(
-            [r1], [SPECIALEnum.STRENGTH, SPECIALEnum.STRENGTH]
-        )
+        result = svc._filter_rooms_by_abilities([r1], [SPECIALEnum.STRENGTH, SPECIALEnum.STRENGTH])
         assert len(result) == 2
 
 
@@ -358,9 +354,7 @@ class TestAssignAbilityDwellers:
     async def test_no_ability_specific_rooms_returns_unchanged(self, svc, mock_db):
         r1 = _make_room(_id=_R1, ability=SPECIALEnum.AGILITY)
         dwellers = [_make_dweller(_id=_D1, strength=7)]
-        result = await svc._assign_ability_dwellers(
-            SPECIALEnum.STRENGTH, [r1], mock_db, dwellers, [], set(), 1
-        )
+        result = await svc._assign_ability_dwellers(SPECIALEnum.STRENGTH, [r1], mock_db, dwellers, [], set(), 1)
         assert len(result) == 1
         assert result[0].id == _D1
 
@@ -369,9 +363,7 @@ class TestAssignAbilityDwellers:
         r1 = _make_room(_id=_R1, ability=SPECIALEnum.STRENGTH, size=3)
         mock_db.execute = AsyncMock(return_value=_make_exec_result([MagicMock(), MagicMock()]))
         dwellers = [_make_dweller(_id=_D1, strength=7)]
-        result = await svc._assign_ability_dwellers(
-            SPECIALEnum.STRENGTH, [r1], mock_db, dwellers, [], set(), 1
-        )
+        result = await svc._assign_ability_dwellers(SPECIALEnum.STRENGTH, [r1], mock_db, dwellers, [], set(), 1)
         assert len(result) == 1
 
     @pytest.mark.asyncio
@@ -384,9 +376,7 @@ class TestAssignAbilityDwellers:
         mock_db.execute = AsyncMock(return_value=_make_exec_result([]))
 
         with patch("app.services.dweller_assignment_service.crud.dweller.update"):
-            result = await svc._assign_ability_dwellers(
-                SPECIALEnum.STRENGTH, [r1], mock_db, dwellers, [], set(), 2
-            )
+            result = await svc._assign_ability_dwellers(SPECIALEnum.STRENGTH, [r1], mock_db, dwellers, [], set(), 2)
 
         assert len(result) == 0  # both assigned
 
@@ -418,9 +408,7 @@ class TestAssignAbilityDwellers:
         mock_db.execute = AsyncMock(return_value=_make_exec_result([]))
 
         with patch("app.services.dweller_assignment_service.crud.dweller.update"):
-            result = await svc._assign_ability_dwellers(
-                SPECIALEnum.STRENGTH, [r1], mock_db, dwellers, [], {_D1}, 5
-            )
+            result = await svc._assign_ability_dwellers(SPECIALEnum.STRENGTH, [r1], mock_db, dwellers, [], {_D1}, 5)
         # d1 already in assigned set → filtered out from result
         assert len(result) == 0
 
@@ -436,26 +424,20 @@ class TestAssignToRoomsProportional:
     @pytest.mark.asyncio
     async def test_empty_dwellers_returns_empty(self, svc, mock_db):
         rooms = [_make_room()]
-        result = await svc._assign_to_rooms_proportional(
-            rooms, PRODUCTION_ABILITIES, mock_db, [], [], set()
-        )
+        result = await svc._assign_to_rooms_proportional(rooms, PRODUCTION_ABILITIES, mock_db, [], [], set())
         assert result == []
 
     @pytest.mark.asyncio
     async def test_empty_rooms_returns_unchanged(self, svc, mock_db):
         dwellers = [_make_dweller(_id=_D1)]
-        result = await svc._assign_to_rooms_proportional(
-            [], PRODUCTION_ABILITIES, mock_db, dwellers, [], set()
-        )
+        result = await svc._assign_to_rooms_proportional([], PRODUCTION_ABILITIES, mock_db, dwellers, [], set())
         assert len(result) == 1
 
     @pytest.mark.asyncio
     async def test_no_matching_ability_rooms_returns_unchanged(self, svc, mock_db):
         r1 = _make_room(_id=_R1, ability=SPECIALEnum.CHARISMA)
         dwellers = [_make_dweller(_id=_D1, strength=5)]
-        result = await svc._assign_to_rooms_proportional(
-            [r1], MEDSCI_ABILITIES, mock_db, dwellers, [], set()
-        )
+        result = await svc._assign_to_rooms_proportional([r1], MEDSCI_ABILITIES, mock_db, dwellers, [], set())
         assert len(result) == 1
 
     @pytest.mark.asyncio
@@ -463,9 +445,7 @@ class TestAssignToRoomsProportional:
         r1 = _make_room(_id=_R1, ability=SPECIALEnum.STRENGTH, size=3)
         dwellers = [_make_dweller(_id=_D1, strength=5)]
         mock_db.execute = AsyncMock(return_value=_make_exec_result([MagicMock(), MagicMock()]))
-        result = await svc._assign_to_rooms_proportional(
-            [r1], PRODUCTION_ABILITIES, mock_db, dwellers, [], set()
-        )
+        result = await svc._assign_to_rooms_proportional([r1], PRODUCTION_ABILITIES, mock_db, dwellers, [], set())
         assert len(result) == 1
 
     @pytest.mark.asyncio
@@ -744,7 +724,7 @@ class TestAutoAssignAllRooms:
 
         assert mock_assign.call_count == 4
         assert mock_assign.call_args_list[0][0][0] == [r_prod]  # production
-        assert mock_assign.call_args_list[1][0][0] == [r_med]    # medsci
+        assert mock_assign.call_args_list[1][0][0] == [r_med]  # medsci
         assert mock_assign.call_args_list[2][0][0] == [r_radio]  # radio
         assert mock_assign.call_args_list[3][0][0] == [r_train]  # training
 

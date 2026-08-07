@@ -303,12 +303,15 @@ async def test_get_dweller_training_success(
     """GET /training/dweller/{id} returns active training when found."""
     mock_training = _make_mock_training()
 
-    with patch(
-        "app.api.v1.endpoints.training.crud_training.training.get_active_by_dweller",
-        AsyncMock(return_value=mock_training),
-    ), patch(
-        "app.api.v1.endpoints.training.get_user_vault_or_403",
-        AsyncMock(return_value=None),
+    with (
+        patch(
+            "app.api.v1.endpoints.training.crud_training.training.get_active_by_dweller",
+            AsyncMock(return_value=mock_training),
+        ),
+        patch(
+            "app.api.v1.endpoints.training.get_user_vault_or_403",
+            AsyncMock(return_value=None),
+        ),
     ):
         response = await async_client.get(
             f"/training/dweller/{mock_training.dweller_id}",

@@ -19,7 +19,6 @@ from app.services.open_ai import (  # noqa: E402
     is_using_gateway,
 )
 
-
 # ============================================================================
 # Helpers — reset singleton state and create fresh uninitialized instances
 # ============================================================================
@@ -145,7 +144,10 @@ class TestInitializationDisabled:
 
     def test_disabled_mode_logs_warning(self) -> None:
         svc = _make_fresh_service()
-        with patch("app.services.open_ai.settings") as mock_settings, patch("app.services.open_ai.logger") as mock_logger:
+        with (
+            patch("app.services.open_ai.settings") as mock_settings,
+            patch("app.services.open_ai.logger") as mock_logger,
+        ):
             mock_settings.ai_provider_mode = "disabled"
             svc._initialize_provider()
             mock_logger.warning.assert_called_once()
@@ -337,7 +339,10 @@ class TestInitializeProviderRouting:
 
     def test_routes_to_disabled(self) -> None:
         svc = _make_fresh_service()
-        with patch("app.services.open_ai.settings") as mock_settings, patch("app.services.open_ai.logger") as mock_logger:
+        with (
+            patch("app.services.open_ai.settings") as mock_settings,
+            patch("app.services.open_ai.logger") as mock_logger,
+        ):
             mock_settings.ai_provider_mode = "disabled"
             svc._initialize_provider()
             mock_logger.warning.assert_called_once()
@@ -401,9 +406,11 @@ class TestGenerateImage:
         mock_response.data = [mock_data]
         svc._client.images.generate.return_value = mock_response
 
-        with patch("app.services.open_ai.image_url_to_bytes", return_value=None):
-            with pytest.raises(RuntimeError, match="Failed to fetch image from URL"):
-                await svc.generate_image(prompt="test", return_bytes=True)
+        with (
+            patch("app.services.open_ai.image_url_to_bytes", return_value=None),
+            pytest.raises(RuntimeError, match="Failed to fetch image from URL"),
+        ):
+            await svc.generate_image(prompt="test", return_bytes=True)
 
     async def test_generate_image_no_data_return_bytes(self, monkeypatch) -> None:
         monkeypatch.setattr("app.services.open_ai.settings.AI_IMAGE_MODEL", "gpt-image-1")
@@ -499,9 +506,11 @@ class TestGenerateAudio:
 
     async def test_generate_audio_propagates_exception(self) -> None:
         svc = self._make_svc_with_client()
-        with patch.object(svc, "_sync_generate_audio", side_effect=ValueError("TTS error")):
-            with pytest.raises(ValueError, match="TTS error"):
-                await svc.generate_audio(text="Hello")
+        with (
+            patch.object(svc, "_sync_generate_audio", side_effect=ValueError("TTS error")),
+            pytest.raises(ValueError, match="TTS error"),
+        ):
+            await svc.generate_audio(text="Hello")
 
     async def test_generate_audio_raises_without_client(self) -> None:
         svc = _make_fresh_service()
@@ -647,9 +656,7 @@ class TestGenerateSpeechFromText:
 
         result = await svc.generate_speech_from_text(text_input="Hello", speech_file_path="/tmp/speech.mp3")
         assert result == "/tmp/speech.mp3"
-        svc._client.audio.speech.create.assert_called_once_with(
-            model="tts-1", voice="echo", input="Hello"
-        )
+        svc._client.audio.speech.create.assert_called_once_with(model="tts-1", voice="echo", input="Hello")
         mock_response.stream_to_file.assert_called_once_with("/tmp/speech.mp3")
 
     async def test_generate_speech_from_text_raises_without_client(self) -> None:
@@ -801,9 +808,7 @@ class TestChatCompletion:
             mock_agent.run = AsyncMock(return_value=mock_agent_result)
             mock_agent_cls.return_value = mock_agent
 
-            result = await svc.chat_completion_with_usage(
-                messages=[{"role": "user", "content": "Hi"}]
-            )
+            result = await svc.chat_completion_with_usage(messages=[{"role": "user", "content": "Hi"}])
             assert result.text == "Response"
             assert "system_prompt" not in mock_agent_cls.call_args[1]
 
@@ -821,9 +826,7 @@ class TestChatCompletion:
             mock_agent.run = AsyncMock(return_value=mock_agent_result)
             mock_agent_cls.return_value = mock_agent
 
-            result = await svc.chat_completion_with_usage(
-                messages=[{"role": "user", "content": "Hi"}]
-            )
+            result = await svc.chat_completion_with_usage(messages=[{"role": "user", "content": "Hi"}])
             assert result.text == "Response"
             assert result.prompt_tokens is None
             assert result.completion_tokens is None

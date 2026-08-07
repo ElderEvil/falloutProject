@@ -74,7 +74,7 @@ def _make_exec_all(items: list) -> MagicMock:
     return mock_result
 
 
-def _make_exec_result_scalar_one_or_none(return_value: None | MagicMock) -> MagicMock:
+def _make_exec_result_scalar_one_or_none(return_value: MagicMock | None) -> MagicMock:
     """Build a mock DB execute result returning scalar_one_or_none()."""
     mock_result = MagicMock()
     mock_result.scalar_one_or_none.return_value = return_value

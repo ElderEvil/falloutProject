@@ -50,7 +50,6 @@ from app.tests.utils.user import authentication_token_from_email  # noqa: E402
 from app.tests.utils.utils import get_superuser_token_headers  # noqa: E402
 from main import app  # noqa: E402
 
-
 _shared_fake_redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
 
 

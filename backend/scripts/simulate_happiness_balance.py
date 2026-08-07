@@ -136,10 +136,24 @@ class VaultState:
     ticks_below_75: int = 0
     total_happiness_delta: float = 0.0
 
-    delta_breakdown: dict[str, float] = dataclasses.field(default_factory=lambda: dict.fromkeys([
-        "base_decay", "resource", "incidents", "idle", "working", "health",
-        "partner", "rooms", "combat", "training", "vault_wide",
-    ], 0.0))
+    delta_breakdown: dict[str, float] = dataclasses.field(
+        default_factory=lambda: dict.fromkeys(
+            [
+                "base_decay",
+                "resource",
+                "incidents",
+                "idle",
+                "working",
+                "health",
+                "partner",
+                "rooms",
+                "combat",
+                "training",
+                "vault_wide",
+            ],
+            0.0,
+        )
+    )
 
 
 @dataclasses.dataclass
@@ -228,8 +242,7 @@ class HappinessSimulator:
             time_below_50_pct=vault.ticks_below_50 / vault.total_ticks,
             time_below_75_pct=vault.ticks_below_75 / vault.total_ticks,
             time_above_90_pct=(
-                sum(1 for h in happiness_snapshots if h >= 90) / vault.total_ticks
-                if vault.total_ticks > 0 else 0.0
+                sum(1 for h in happiness_snapshots if h >= 90) / vault.total_ticks if vault.total_ticks > 0 else 0.0
             ),
             total_happiness_delta=vault.total_happiness_delta,
             delta_breakdown=vault.delta_breakdown,
@@ -433,8 +446,17 @@ def run_monte_carlo(config: HappinessConfig, simulation_hours: int, runs: int) -
     ag = _Aggregates()
     curves = _Curves.zeroed(simulation_hours)
     delta_keys = [
-        "base_decay", "resource", "incidents", "idle", "working",
-        "health", "partner", "rooms", "combat", "training", "vault_wide",
+        "base_decay",
+        "resource",
+        "incidents",
+        "idle",
+        "working",
+        "health",
+        "partner",
+        "rooms",
+        "combat",
+        "training",
+        "vault_wide",
     ]
     delta_totals: dict[str, list[float]] = {k: [] for k in delta_keys}
 

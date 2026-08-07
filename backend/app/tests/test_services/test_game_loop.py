@@ -128,9 +128,7 @@ class TestProcessVaultTick:
         mock_update.water = 75
 
         with (
-            patch.object(
-                game_loop_service.resource_manager, "process_vault_resources", new_callable=AsyncMock
-            ) as mr,
+            patch.object(game_loop_service.resource_manager, "process_vault_resources", new_callable=AsyncMock) as mr,
             patch.object(game_loop_service, "_process_incidents", new_callable=AsyncMock, return_value={}),
             patch.object(game_loop_service, "_process_dwellers", new_callable=AsyncMock, return_value={}),
             patch.object(game_loop_service, "_process_training", new_callable=AsyncMock, return_value={}),
@@ -170,9 +168,7 @@ class TestProcessVaultTick:
         from app.utils.exceptions import VaultOperationException
 
         with (
-            patch.object(
-                game_loop_service.resource_manager, "process_vault_resources", new_callable=AsyncMock
-            ) as mr,
+            patch.object(game_loop_service.resource_manager, "process_vault_resources", new_callable=AsyncMock) as mr,
             patch.object(game_loop_service, "_process_incidents", new_callable=AsyncMock, return_value={}),
             patch.object(game_loop_service, "_process_dwellers", new_callable=AsyncMock, return_value={}),
             patch.object(game_loop_service, "_process_training", new_callable=AsyncMock, return_value={}),
@@ -764,12 +760,13 @@ class TestProcessTraining:
 
         with patch("app.crud.training.training.get_active_by_vault", new_callable=AsyncMock) as mag:
             mag.return_value = [t1, t2]
-            with patch(
-                "app.crud.training.training.get_dwellers_for_trainings", new_callable=AsyncMock, return_value={}
-            ), patch(
-                "app.services.training_service.training_service.update_training_progress",
-                new_callable=AsyncMock,
-                side_effect=update_side,
+            with (
+                patch("app.crud.training.training.get_dwellers_for_trainings", new_callable=AsyncMock, return_value={}),
+                patch(
+                    "app.services.training_service.training_service.update_training_progress",
+                    new_callable=AsyncMock,
+                    side_effect=update_side,
+                ),
             ):
                 result = await game_loop_service._process_training(async_session, vault.id)
         assert result["active_count"] == 2
@@ -815,18 +812,20 @@ class TestProcessBreeding:
 
     @pytest.mark.asyncio
     async def test_combines_all_stats(self, async_session: AsyncSession, vault: Vault):
-        with patch.object(
-            game_loop_service,
-            "_update_room_relationships",
-            new_callable=AsyncMock,
-            return_value={"relationships_updated": 3},
-        ), patch.object(
-            game_loop_service,
-            "_process_pregnancies_and_births",
-            new_callable=AsyncMock,
-            return_value={"conceptions": 1, "births": 0},
-        ), patch.object(
-            game_loop_service, "_age_children", new_callable=AsyncMock, return_value={"children_aged": 2}
+        with (
+            patch.object(
+                game_loop_service,
+                "_update_room_relationships",
+                new_callable=AsyncMock,
+                return_value={"relationships_updated": 3},
+            ),
+            patch.object(
+                game_loop_service,
+                "_process_pregnancies_and_births",
+                new_callable=AsyncMock,
+                return_value={"conceptions": 1, "births": 0},
+            ),
+            patch.object(game_loop_service, "_age_children", new_callable=AsyncMock, return_value={"children_aged": 2}),
         ):
             result = await game_loop_service._process_breeding(async_session, vault.id)
         assert result["relationships_updated"] == 3
@@ -869,14 +868,10 @@ class TestUpdateRoomRelationships:
         with (
             patch.object(game_loop_service, "_get_dwellers_in_rooms", new_callable=AsyncMock, return_value=[d1, d2]),
             patch.object(game_loop_service, "_group_dwellers_by_room", return_value={"r-1": [d1, d2]}),
-            patch.object(
-                game_loop_service, "_fetch_existing_relationships", new_callable=AsyncMock, return_value=[]
-            ),
+            patch.object(game_loop_service, "_fetch_existing_relationships", new_callable=AsyncMock, return_value=[]),
             patch.object(game_loop_service, "_build_relationships_map", return_value={}),
             patch.object(game_loop_service, "_update_pair_affinity", new_callable=AsyncMock, return_value=0),
-            patch.object(
-                game_loop_service, "_create_new_relationships", new_callable=AsyncMock, return_value=1
-            ),
+            patch.object(game_loop_service, "_create_new_relationships", new_callable=AsyncMock, return_value=1),
         ):
             result = await game_loop_service._update_room_relationships(async_session, vault.id)
         assert result["relationships_updated"] == 1

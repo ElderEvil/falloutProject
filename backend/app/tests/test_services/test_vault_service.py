@@ -414,11 +414,14 @@ class TestCreateInitialDwellers:
                 level=1,
             )
 
-        with patch(
-            "app.services.vault_service.dweller_crud.create_random",
-            new_callable=AsyncMock,
-            side_effect=fake_create_random,
-        ), patch("app.services.vault_service.dweller_crud.update", new_callable=AsyncMock):
+        with (
+            patch(
+                "app.services.vault_service.dweller_crud.create_random",
+                new_callable=AsyncMock,
+                side_effect=fake_create_random,
+            ),
+            patch("app.services.vault_service.dweller_crud.update", new_callable=AsyncMock),
+        ):
             db_session = AsyncMock()
             db_session.commit = AsyncMock()
 
@@ -478,11 +481,14 @@ class TestCreateInitialDwellers:
                 level=1,
             )
 
-        with patch(
-            "app.services.vault_service.dweller_crud.create_random",
-            new_callable=AsyncMock,
-            side_effect=fake_create_random,
-        ), patch("app.services.vault_service.dweller_crud.update", new_callable=AsyncMock):
+        with (
+            patch(
+                "app.services.vault_service.dweller_crud.create_random",
+                new_callable=AsyncMock,
+                side_effect=fake_create_random,
+            ),
+            patch("app.services.vault_service.dweller_crud.update", new_callable=AsyncMock),
+        ):
             db_session = AsyncMock()
             db_session.commit = AsyncMock()
 
@@ -586,9 +592,14 @@ class TestStartTrainingSessions:
         db_session.refresh = fake_refresh
         db_session.execute = AsyncMock()
 
-        with patch(
-            "app.services.vault_service.dweller_crud.get_multi_by_vault", new_callable=AsyncMock, return_value=[dweller]
-        ), patch("app.services.vault_service.training_service.start_training", new_callable=AsyncMock):
+        with (
+            patch(
+                "app.services.vault_service.dweller_crud.get_multi_by_vault",
+                new_callable=AsyncMock,
+                return_value=[dweller],
+            ),
+            patch("app.services.vault_service.training_service.start_training", new_callable=AsyncMock),
+        ):
             service = VaultService()
             await service._start_training_sessions(db_session, vault_id, [train_room], is_boosted=True)
 
@@ -624,12 +635,17 @@ class TestStartTrainingSessions:
         db_session = AsyncMock()
         db_session.refresh = fake_refresh
 
-        with patch(
-            "app.services.vault_service.dweller_crud.get_multi_by_vault", new_callable=AsyncMock, return_value=[dweller]
-        ), patch(
-            "app.services.vault_service.training_service.start_training",
-            new_callable=AsyncMock,
-            side_effect=ResourceNotFoundException(Dweller, "test-id"),
+        with (
+            patch(
+                "app.services.vault_service.dweller_crud.get_multi_by_vault",
+                new_callable=AsyncMock,
+                return_value=[dweller],
+            ),
+            patch(
+                "app.services.vault_service.training_service.start_training",
+                new_callable=AsyncMock,
+                side_effect=ResourceNotFoundException(Dweller, "test-id"),
+            ),
         ):
             service = VaultService()
             await service._start_training_sessions(db_session, vault_id, [train_room], is_boosted=True)

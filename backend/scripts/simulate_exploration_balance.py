@@ -467,9 +467,7 @@ class VaultSimulator:
             happiness_delta += 0.3
         vault.happiness = max(0, min(100, vault.happiness + happiness_delta))
 
-    def _resolve_incident(
-        self, vault: VaultState, incident: Incident, now: int, deaths_ref: list[int]
-    ) -> bool:
+    def _resolve_incident(self, vault: VaultState, incident: Incident, now: int, deaths_ref: list[int]) -> bool:
         elapsed = incident.elapsed(now)
         if elapsed >= self.cfg.spread_duration:
             if incident.spread_count < self.cfg.max_spread_count:

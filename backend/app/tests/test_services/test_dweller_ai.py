@@ -110,9 +110,7 @@ async def test_generate_backstory_already_has_bio(mock_crud: MagicMock, mock_quo
     mock_crud.update = AsyncMock()
 
     with pytest.raises(ContentNoChangeException, match="already has a bio"):
-        await dweller_ai.generate_backstory(
-            user=_make_user_mock(), db_session=MagicMock(), dweller_info=mock_dweller
-        )
+        await dweller_ai.generate_backstory(user=_make_user_mock(), db_session=MagicMock(), dweller_info=mock_dweller)
 
 
 @patch("app.services.dweller_ai.llm_interaction_crud")
@@ -142,9 +140,7 @@ async def test_generate_backstory_truncates_long_bio(
     output = DwellerBackstory(bio=long_bio, origin_place="Megaton", visited_places=[])
     mock_agent.run = AsyncMock(return_value=_make_agent_result(output))
 
-    await dweller_ai.generate_backstory(
-        user=_make_user_mock(), db_session=MagicMock(), dweller_info=mock_dweller
-    )
+    await dweller_ai.generate_backstory(user=_make_user_mock(), db_session=MagicMock(), dweller_info=mock_dweller)
 
     # Verify truncation: stored bio should be <= BIO_MAX_LENGTH and end with "..."
     mock_crud.update.assert_called_once()
@@ -183,9 +179,7 @@ async def test_generate_backstory_usage_extraction_fails(
 
     user = _make_user_mock()
 
-    result = await dweller_ai.generate_backstory(
-        user=user, db_session=MagicMock(), dweller_info=mock_dweller
-    )
+    result = await dweller_ai.generate_backstory(user=user, db_session=MagicMock(), dweller_info=mock_dweller)
 
     assert result is mock_dweller
     mock_crud.update.assert_called_once()
@@ -250,9 +244,7 @@ async def test_extend_bio_usage_extraction_fails(
 
     user = _make_user_mock()
 
-    result = await dweller_ai.extend_bio(
-        db_session=MagicMock(), dweller_id=mock_dweller.id, user=user
-    )
+    result = await dweller_ai.extend_bio(db_session=MagicMock(), dweller_id=mock_dweller.id, user=user)
 
     assert result is mock_dweller
     mock_crud.update.assert_called_once()
@@ -292,9 +284,7 @@ async def test_generate_visual_usage_extraction_fails(
 
     user = _make_user_mock()
 
-    result = await dweller_ai.generate_visual_attributes(
-        user=user, db_session=MagicMock(), dweller_info=mock_dweller
-    )
+    result = await dweller_ai.generate_visual_attributes(user=user, db_session=MagicMock(), dweller_info=mock_dweller)
 
     assert result is mock_dweller
     mock_crud.update.assert_called_once()
@@ -355,9 +345,7 @@ async def test_generate_photo_no_storage_service(mock_crud: MagicMock, mock_llm:
     mock_dweller = _make_dweller_mock(image_url=None)
 
     with patch.object(dweller_ai, "storage_service", None), pytest.raises(HTTPException) as exc_info:
-        await dweller_ai.generate_photo(
-            user=_make_user_mock(), db_session=MagicMock(), dweller_info=mock_dweller
-        )
+        await dweller_ai.generate_photo(user=_make_user_mock(), db_session=MagicMock(), dweller_info=mock_dweller)
     assert exc_info.value.status_code == 503
     assert "not available" in exc_info.value.detail
 
@@ -438,9 +426,7 @@ async def test_generate_audio_already_has_voice_line(mock_crud: MagicMock, mock_
     mock_crud.update = AsyncMock()
     mock_llm.create = AsyncMock()
 
-    mock_dweller = _make_dweller_mock(
-        visual_attributes={"voice_line_url": "http://cdn.example.com/audio.mp3"}
-    )
+    mock_dweller = _make_dweller_mock(visual_attributes={"voice_line_url": "http://cdn.example.com/audio.mp3"})
 
     with pytest.raises(ContentNoChangeException, match="already has an audio line"):
         await dweller_ai.generate_audio(
@@ -477,9 +463,7 @@ async def test_generate_audio_quota_exceeded(mock_crud: MagicMock, mock_llm: Mag
     """Should raise QuotaExceededException if token estimate exceeds remaining quota."""
     from app.utils.exceptions import QuotaExceededException
 
-    mock_quota.check_quota = AsyncMock(
-        return_value=MagicMock(allowed=False, remaining=0, used=500000, limit=500000)
-    )
+    mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=False, remaining=0, used=500000, limit=500000))
     mock_crud.update = AsyncMock()
     mock_llm.create = AsyncMock()
 
@@ -554,11 +538,11 @@ async def test_generate_audio_success(mock_crud: MagicMock, mock_llm: MagicMock,
     ):
         result = await dweller_ai.generate_audio(
             text="Welcome to the vault!",
-                user=_make_user_mock(),
-                db_session=MagicMock(),
-                dweller_info=mock_dweller,
-                voice_type="alloy",
-            )
+            user=_make_user_mock(),
+            db_session=MagicMock(),
+            dweller_info=mock_dweller,
+            voice_type="alloy",
+        )
 
     assert result is mock_dweller
     mock_openai.generate_audio.assert_called_once_with(text="Welcome to the vault!", voice="alloy", model="tts-1")
@@ -606,7 +590,7 @@ async def test_generate_audio_empty_bytes_warning(
             user=_make_user_mock(),
             db_session=MagicMock(),
             dweller_info=mock_dweller,
-            )
+        )
 
     assert result is mock_dweller
     # Should still upload and store even with empty bytes
@@ -653,9 +637,9 @@ async def test_generate_avatar_updates_and_generates_photo(
             dweller_first_name="Jane",
             dweller_last_name="Doe",
             visual_attributes_input=vis_attrs,
-                    db_session=MagicMock(),
-                    user=_make_user_mock(),
-                )
+            db_session=MagicMock(),
+            user=_make_user_mock(),
+        )
 
     assert result is mock_dweller
     # First update: name + visual attributes
@@ -713,12 +697,12 @@ async def test_generate_avatar_with_voice_line(mock_crud: MagicMock) -> None:
     ):
         result = await dweller_ai.generate_dweller_avatar(
             dweller_id=mock_dweller.id,
-                        dweller_first_name="Jane",
-                        dweller_last_name="Doe",
-                        visual_attributes_input=vis_attrs,
-                        db_session=MagicMock(),
-                        user=_make_user_mock(),
-                    )
+            dweller_first_name="Jane",
+            dweller_last_name="Doe",
+            visual_attributes_input=vis_attrs,
+            db_session=MagicMock(),
+            user=_make_user_mock(),
+        )
 
     assert result is mock_dweller
     # Both image and audio generated

@@ -682,9 +682,7 @@ SWEEP_RANGES: dict[str, list[Any]] = {
 }
 
 
-def run_parameter_sweep(
-    param_name: str, baseline: RoomConfig, simulation_hours: int, runs: int
-) -> list[BatchResult]:
+def run_parameter_sweep(param_name: str, baseline: RoomConfig, simulation_hours: int, runs: int) -> list[BatchResult]:
     results: list[BatchResult] = []
     values = SWEEP_RANGES.get(param_name, [])
     if not values:

@@ -146,6 +146,7 @@ def test_check_dramatiq_healthy() -> None:
 
 def test_check_dramatiq_unhealthy() -> None:
     """Dramatiq broker.actors access raises a RedisError."""
+
     class BadBroker:
         @property
         def actors(self) -> dict:
@@ -238,7 +239,7 @@ def test_check_rustfs_healthy() -> None:
         patch.object(settings, "RUSTFS_SECRET_KEY", "fake-secret"),
         patch.object(settings, "RUSTFS_HOSTNAME", "s3.example.com"),
         patch.object(settings, "RUSTFS_PORT", "9000"),
-        patch.object(settings, "RUSTFS_USE_HTTPS", False),
+        patch.object(settings, "RUSTFS_USE_HTTPS", new=False),
     ):
         result = HealthCheckService.check_rustfs()
 
@@ -259,10 +260,11 @@ def test_check_rustfs_healthy_default_hostname() -> None:
         patch.object(settings, "RUSTFS_SECRET_KEY", "fake-secret"),
         patch.object(settings, "RUSTFS_HOSTNAME", None),
         patch.object(settings, "RUSTFS_PORT", ""),
-        patch.object(settings, "RUSTFS_USE_HTTPS", True),
+        patch.object(settings, "RUSTFS_USE_HTTPS", new=True),
     ):
         result = HealthCheckService.check_rustfs()
 
+    assert result.service == "rustfs"
     assert result.status == ServiceStatus.HEALTHY
     assert result.details is not None
     assert result.details["endpoint"] == "https://s3.evillab.dev"
@@ -282,7 +284,7 @@ def test_check_rustfs_client_error() -> None:
         patch.object(settings, "RUSTFS_SECRET_KEY", "fake-secret"),
         patch.object(settings, "RUSTFS_HOSTNAME", "s3.example.com"),
         patch.object(settings, "RUSTFS_PORT", ""),
-        patch.object(settings, "RUSTFS_USE_HTTPS", False),
+        patch.object(settings, "RUSTFS_USE_HTTPS", new=False),
     ):
         result = HealthCheckService.check_rustfs()
 
@@ -297,7 +299,7 @@ def test_check_rustfs_import_error() -> None:
         patch.object(settings, "RUSTFS_SECRET_KEY", "fake-secret"),
         patch.object(settings, "RUSTFS_HOSTNAME", "s3.example.com"),
         patch.object(settings, "RUSTFS_PORT", ""),
-        patch.object(settings, "RUSTFS_USE_HTTPS", False),
+        patch.object(settings, "RUSTFS_USE_HTTPS", new=False),
         patch.dict(sys.modules, {"boto3": None}),
     ):
         # Simulate the inline ``import boto3`` raising ImportError
@@ -323,7 +325,7 @@ def test_check_rustfs_os_error() -> None:
         patch.object(settings, "RUSTFS_SECRET_KEY", "fake-secret"),
         patch.object(settings, "RUSTFS_HOSTNAME", "s3.example.com"),
         patch.object(settings, "RUSTFS_PORT", ""),
-        patch.object(settings, "RUSTFS_USE_HTTPS", False),
+        patch.object(settings, "RUSTFS_USE_HTTPS", new=False),
     ):
         result = HealthCheckService.check_rustfs()
 
@@ -818,7 +820,5 @@ def test_health_check_result_creation() -> None:
     assert result.details == {"key": "value"}
 
     # details default to None
-    result_no_details = HealthCheckResult(
-        service="test2", status=ServiceStatus.UNHEALTHY, message="Bad"
-    )
+    result_no_details = HealthCheckResult(service="test2", status=ServiceStatus.UNHEALTHY, message="Bad")
     assert result_no_details.details is None

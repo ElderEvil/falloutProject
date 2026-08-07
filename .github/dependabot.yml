@@ -45,6 +45,13 @@ updates:
       prefix: "chore"
       prefix-development: "chore"
       include: "scope"
+    # typescript 7.x (native TS) removed the ts.factory API that
+    # openapi-typescript (peerDep ^5.x) and vue-tsc depend on, breaking
+    # types:generate/typecheck. Keep 6.x until the toolchain supports TS7.
+    ignore:
+      - dependency-name: "typescript"
+        versions:
+          - ">=7.0.0"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"

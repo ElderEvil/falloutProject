@@ -8,7 +8,6 @@ Usage:
 """
 
 import asyncio
-import getpass
 import logging
 from typing import Annotated
 

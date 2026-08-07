@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { reactive } from 'vue'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import MapView from '@/modules/map/views/MapView.vue'
@@ -10,13 +11,16 @@ vi.mock('@/modules/map/services/mapService', () => ({
 }))
 
 const mockPush = vi.fn()
-let mockQuery: Record<string, string> = {}
+
+// Reactive route mock so tests can mutate route.query.place after mount and
+// exercise the `watch(() => route.query.place, ...)` in MapView.vue.
+const mockRoute = reactive({
+  params: { id: 'vault-1' },
+  query: {} as Record<string, string>,
+})
 
 vi.mock('vue-router', () => ({
-  useRoute: () => ({
-    params: { id: 'vault-1' },
-    query: mockQuery,
-  }),
+  useRoute: () => mockRoute,
   useRouter: () => ({ push: mockPush }),
 }))
 
@@ -63,7 +67,7 @@ describe('MapView', () => {
     )
     setActivePinia(createPinia())
     mapStore = useMapStore()
-    mockQuery = {}
+    mockRoute.query = {}
     vi.clearAllMocks()
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })
@@ -108,7 +112,7 @@ describe('MapView', () => {
       mapStore.locations = [mockLocation, mockLocation2]
       mapStore.isLoading = false
 
-      mockQuery = { place: 'loc-1' }
+      mockRoute.query = { place: 'loc-1' }
       const wrapper = mountView()
       await flushPromises()
 
@@ -122,7 +126,7 @@ describe('MapView', () => {
       mapStore.locations = [mockLocation, mockLocation2]
       mapStore.isLoading = false
 
-      mockQuery = { place: 'nonexistent' }
+      mockRoute.query = { place: 'nonexistent' }
       const wrapper = mountView()
       await flushPromises()
 
@@ -135,11 +139,29 @@ describe('MapView', () => {
       mapStore.locations = [mockLocation, mockLocation2]
       mapStore.isLoading = false
 
-      mockQuery = { place: 'loc-2' }
+      mockRoute.query = { place: 'loc-2' }
       const wrapper = mountView()
       await flushPromises()
 
       const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
+      expect(modal.props('modelValue')).toBe(true)
+      expect(modal.props('location')).toEqual(mockLocation2)
+    })
+
+    it('should open modal when ?place= query param changes after mount', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation, mockLocation2]
+      mapStore.isLoading = false
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
+      expect(modal.props('modelValue')).toBe(false)
+
+      mockRoute.query = { place: 'loc-2' }
+      await flushPromises()
+
       expect(modal.props('modelValue')).toBe(true)
       expect(modal.props('location')).toEqual(mockLocation2)
     })

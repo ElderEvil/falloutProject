@@ -28,7 +28,7 @@ from app.schemas.wasteland_location import (
     VaultMarkerRead,
     WastelandLocationWithDwellers,
 )
-from app.utils.places import GENERIC_ORIGIN_SKIP, normalize_place_name, seeded_vault_specs
+from app.utils.places import GENERIC_ORIGIN_SKIP, WORLD_SCALE, normalize_place_name, seeded_vault_specs
 
 logger = logging.getLogger(__name__)
 
@@ -217,8 +217,8 @@ class MapService:
             name=location.name,
             normalized_name=location.normalized_name,
             type=location.type,
-            coord_x=location.coord_x,
-            coord_y=location.coord_y,
+            coord_x=round(location.coord_x * WORLD_SCALE, 1),
+            coord_y=round(location.coord_y * WORLD_SCALE, 1),
             description=location.description,
             vault_id=location.vault_id,
             exploration_id=location.exploration_id,
@@ -252,8 +252,8 @@ class MapService:
                     name=row.name,
                     normalized_name=row.normalized_name,
                     type=row.type,
-                    coord_x=row.coord_x,
-                    coord_y=row.coord_y,
+                    coord_x=round(row.coord_x * WORLD_SCALE, 1),
+                    coord_y=round(row.coord_y * WORLD_SCALE, 1),
                     description=row.description,
                     vault_id=row.vault_id,
                     exploration_id=row.exploration_id,
@@ -275,8 +275,8 @@ class MapService:
         vault_markers = [
             VaultMarkerRead(
                 name=s.name,
-                coord_x=s.coord_x,
-                coord_y=s.coord_y,
+                coord_x=round(s.coord_x * WORLD_SCALE, 1),
+                coord_y=round(s.coord_y * WORLD_SCALE, 1),
                 type="vault",
                 description="Unexplored vault signal — raiding available in a future update.",
             )

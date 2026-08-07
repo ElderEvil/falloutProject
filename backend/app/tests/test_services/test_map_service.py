@@ -294,3 +294,31 @@ async def test_register_bio_places_with_dweller_read_full(
     assert len(visited_links) == 2, "Expected 2 VISITED DwellerLocation links"
     for lnk in visited_links:
         assert lnk.dweller_id == dweller.id
+
+
+# ---------------------------------------------------------------------------
+# World-coordinate scaling (0-100 DB grid → 0-160 render world)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_vault_map_scales_home_marker_to_world(async_session: AsyncSession, vault: Vault) -> None:
+    """get_vault_map returns coords scaled by WORLD_SCALE: home (50,50) → (80,80)."""
+    response = await map_service.get_vault_map(async_session, vault)
+
+    home = next(loc for loc in response.locations if loc.type == LocationTypeEnum.HOME_VAULT)
+    assert home.coord_x == 80.0
+    assert home.coord_y == 80.0
+
+
+@pytest.mark.asyncio
+async def test_get_vault_map_scales_all_coords_into_world(async_session: AsyncSession, vault: Vault) -> None:
+    """Every returned location and vault marker coord lands in the 0-160 world."""
+    response = await map_service.get_vault_map(async_session, vault)
+
+    for loc in response.locations:
+        assert 0.0 <= loc.coord_x <= 160.0, loc.name
+        assert 0.0 <= loc.coord_y <= 160.0, loc.name
+    for marker in response.vault_markers:
+        assert 0.0 <= marker.coord_x <= 160.0, marker.name
+        assert 0.0 <= marker.coord_y <= 160.0, marker.name

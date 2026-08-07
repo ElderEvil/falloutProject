@@ -17,6 +17,7 @@ import { useSidePanel } from '@/core/composables/useSidePanel'
 import { RevivalSection } from '../components/death'
 import type { RevivalCostResponse } from '../models/dweller'
 import { useGaryMode } from '@/core/composables/useGaryMode'
+import { handleStoreError } from '@/core/utils/errorHandler'
 import { getVaultMap } from '@/modules/map/services/mapService'
 import type { MapPlaceLink } from '../components/DwellerBio.vue'
 
@@ -76,8 +77,9 @@ onMounted(async () => {
       placeLinks.value = mapData.locations
         .filter((loc) => loc.dwellers?.some((d) => d.dweller_id === dwellerId.value))
         .map((loc) => ({ name: loc.name, locationId: loc.id }))
-    } catch {
+    } catch (error) {
       // Graceful degradation: bio renders unlinked if map fetch fails
+      handleStoreError(error, 'Failed to load vault map for bio place links')
     }
   }
 })

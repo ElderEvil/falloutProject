@@ -51,16 +51,26 @@ from app.tests.utils.utils import get_superuser_token_headers  # noqa: E402
 from main import app  # noqa: E402
 
 
+_shared_fake_redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
+
+
 async def _fake_redis_client():
-    """Yield a fakeredis client for test dependency override."""
-    client = fakeredis.aioredis.FakeRedis(decode_responses=True)
+    """Yield the shared fakeredis client for test dependency override."""
     try:
-        yield client
+        yield _shared_fake_redis
     finally:
-        await client.aclose()
+        pass
 
 
 app.dependency_overrides[get_redis_client] = _fake_redis_client
+
+
+@pytest.fixture(autouse=True)
+async def _flush_fake_redis():
+    """Flush the shared fakeredis client before each test for isolation."""
+    await _shared_fake_redis.flushall()
+    yield
+    await _shared_fake_redis.flushall()
 
 
 @pytest.fixture(scope="session")

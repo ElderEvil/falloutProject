@@ -28,9 +28,7 @@ class CRUDWastelandLocation:
 
     async def get_by_vault(self, db_session: AsyncSession, vault_id: UUID4) -> list[WastelandLocation]:
         """List every non-VAULT location row scoped to this vault."""
-        result = await db_session.execute(
-            select(WastelandLocation).where(WastelandLocation.vault_id == vault_id)
-        )
+        result = await db_session.execute(select(WastelandLocation).where(WastelandLocation.vault_id == vault_id))
         return list(result.scalars().all())
 
     async def get_by_normalized(
@@ -112,7 +110,11 @@ class CRUDWastelandLocation:
                 # Otherwise: coordinate conflict → add collided coords and retry
                 logger.debug(
                     "Coordinate conflict on (%s, %s) for '%s' (attempt %d/%d)",
-                    coord_x, coord_y, normalized, _attempt + 1, max_retries,
+                    coord_x,
+                    coord_y,
+                    normalized,
+                    _attempt + 1,
+                    max_retries,
                 )
                 # Fall through to next iteration — occupied set is rebuilt from DB
 
@@ -161,9 +163,7 @@ class CRUDWastelandLocation:
                 return existing
             raise
 
-    async def get_dweller_refs(
-        self, db_session: AsyncSession, location_ids: list[UUID4]
-    ) -> dict[UUID4, list[dict]]:
+    async def get_dweller_refs(self, db_session: AsyncSession, location_ids: list[UUID4]) -> dict[UUID4, list[dict]]:
         """Batch-load dweller references for a list of location ids.
 
         Returns a dict mapping ``location_id`` → list of ``{dweller_id,

@@ -57,9 +57,7 @@ class DwellerAIService:
                 explicit_origin=explicit_origin,
             )
         except Exception:
-            logger.exception(
-                "Failed to register map places for dweller %s", dweller_obj.id
-            )
+            logger.exception("Failed to register map places for dweller %s", dweller_obj.id)
 
     async def generate_backstory(
         self,
@@ -422,7 +420,7 @@ class DwellerAIService:
 
         return await dweller_crud.get_full_info(db_session, dweller_obj.id)
 
-    async def generate_dweller_avatar(
+    async def generate_dweller_avatar(  # noqa: PLR0917
         self,
         dweller_id: UUID4,
         dweller_first_name: str,

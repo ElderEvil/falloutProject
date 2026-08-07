@@ -42,9 +42,7 @@ class WastelandLocation(BaseUUIDModel, WastelandLocationBase, TimeStampMixin, ta
     __tablename__ = "wastelandlocation"
 
     vault_id: UUID4 = Field(foreign_key="vault.id", index=True, ondelete="CASCADE")
-    exploration_id: UUID4 | None = Field(
-        default=None, foreign_key="exploration.id", nullable=True, ondelete="SET NULL"
-    )
+    exploration_id: UUID4 | None = Field(default=None, foreign_key="exploration.id", nullable=True, ondelete="SET NULL")
 
     __table_args__ = (
         sa.UniqueConstraint("vault_id", "normalized_name", name="uq_wasteland_location_vault_name"),

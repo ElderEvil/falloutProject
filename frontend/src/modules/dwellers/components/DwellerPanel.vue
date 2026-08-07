@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import UTabs from '@/core/components/ui/UTabs.vue'
 import DwellerBio from './DwellerBio.vue'
+import type { MapPlaceLink } from './DwellerBio.vue'
 import DwellerStats from './stats/DwellerStats.vue'
 import DwellerEquipment from './DwellerEquipment.vue'
 import DwellerAppearance from './DwellerAppearance.vue'
@@ -13,6 +14,8 @@ interface Props {
   generatingAppearance?: boolean
   generatingPortrait?: boolean
   isAnyGenerating?: boolean
+  vaultId?: string
+  placeLinks?: MapPlaceLink[]
 }
 
 const props = defineProps<Props>()
@@ -46,6 +49,8 @@ const tabs = [
             :first-name="dweller.first_name"
             :generating-bio="generatingBio"
             :is-any-generating="props.isAnyGenerating"
+            :vault-id="props.vaultId"
+            :place-links="props.placeLinks"
             @generate-bio="emit('generate-bio')"
             @generate-all="emit('generate-all')"
           />

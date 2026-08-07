@@ -46,6 +46,16 @@ async function loadMap() {
   mapStore.stopPolling()
   await mapStore.fetchMap(vaultId.value, token)
   mapStore.startPolling(vaultId.value, token)
+  tryOpenPlaceFromQuery()
+}
+
+function tryOpenPlaceFromQuery() {
+  const placeId = route.query.place
+  if (typeof placeId !== 'string' || !placeId) return
+  const loc = mapStore.locations.find((l) => l.id === placeId)
+  if (loc) {
+    handleMarkerClick({ kind: 'location', data: loc })
+  }
 }
 
 watch(
@@ -54,6 +64,14 @@ watch(
     loadMap()
   },
   { immediate: true }
+)
+
+// Open marker detail if ?place= query param changes while map is already loaded
+watch(
+  () => route.query.place,
+  () => {
+    tryOpenPlaceFromQuery()
+  }
 )
 
 onUnmounted(() => {

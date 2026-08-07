@@ -4,11 +4,18 @@ import DOMPurify from 'dompurify'
 import { Icon } from '@iconify/vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 
+export interface MapPlaceLink {
+  name: string
+  locationId: string
+}
+
 interface Props {
   bio?: string | null
   firstName: string
   generatingBio?: boolean
   isAnyGenerating?: boolean
+  vaultId?: string
+  placeLinks?: MapPlaceLink[]
 }
 
 const props = defineProps<Props>()
@@ -18,12 +25,55 @@ const emit = defineEmits<{
   (e: 'generate-all'): void
 }>()
 
+const PURIFY_OPTIONS = {
+  ALLOWED_TAGS: ['br', 'em', 'strong', 'a'],
+  ALLOWED_ATTR: ['href', 'class'],
+}
+
+/** Escape HTML special characters to prevent XSS in text nodes. */
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/** Build a regex that matches any place name (case-insensitive). */
+function buildPlaceRegex(links: MapPlaceLink[]): RegExp | null {
+  if (!links.length) return null
+  const sorted = [...links].sort((a, b) => b.name.length - a.name.length)
+  const pattern = sorted.map((l) => l.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')
+  return new RegExp(pattern, 'gi')
+}
+
 const sanitizedBio = computed(() => {
   if (!props.bio) return null
-  return DOMPurify.sanitize(props.bio, {
-    ALLOWED_TAGS: ['br', 'em', 'strong', 'a'],
-    ALLOWED_ATTR: ['href', 'class'],
+  const clean = DOMPurify.sanitize(props.bio, PURIFY_OPTIONS)
+
+  // Without placeLinks or vaultId, render as-is (backward compatible)
+  if (!props.vaultId || !props.placeLinks?.length) return clean
+
+  const regex = buildPlaceRegex(props.placeLinks)
+  if (!regex) return clean
+
+  // Build a lookup: lowercase place name → locationId
+  const lookup = new Map<string, string>()
+  for (const link of props.placeLinks) {
+    lookup.set(link.name.toLowerCase(), link.locationId)
+  }
+
+  // Linkify: replace each place-name occurrence with an <a> tag
+  const linkified = clean.replace(regex, (match) => {
+    const locationId = lookup.get(match.toLowerCase())
+    if (!locationId) return match
+    const href = `/vault/${props.vaultId}/map?place=${locationId}`
+    return `<a href="${escapeHtml(href)}" class="bio-place-link">${escapeHtml(match)}</a>`
   })
+
+  // Belt-and-suspenders: sanitize the linkified HTML again
+  return DOMPurify.sanitize(linkified, PURIFY_OPTIONS)
 })
 </script>
 
@@ -195,5 +245,17 @@ const sanitizedBio = computed(() => {
   font-style: italic;
   text-shadow: 0 0 2px var(--color-theme-glow);
   opacity: 0.5;
+}
+
+.bio-text :deep(.bio-place-link) {
+  color: var(--color-theme-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  transition: text-shadow 0.2s ease;
+}
+
+.bio-text :deep(.bio-place-link:hover) {
+  text-shadow: 0 0 6px var(--color-theme-glow);
 }
 </style>

@@ -182,7 +182,7 @@ When adding, removing, or renaming members of a Python `StrEnum` / `IntEnum` tha
    psql "$ASYNC_DATABASE_URI" -c "SELECT enumlabel FROM pg_enum WHERE enumtypid = 'notificationtype'::regtype"
    ```
 
-2. **Alembic autogenerate does NOT detect enum value changes by default.** Our `env.py` only sets `compare_type=True` in offline mode — the online mode (used by `--autogenerate`) omits it, so value additions/removals are invisible to autogenerate.
+2. **Alembic autogenerate does NOT reliably detect enum value changes.** Our `env.py` sets `compare_type=True` in both offline and online modes (commit `a252adab`), which catches *type* changes but value additions/removals are still typically invisible to autogenerate. Do not rely on autogenerate for label changes.
 
 3. **You MUST write the migration manually** when enum values change. Use `op.execute()` for the DDL:
    ```python
@@ -201,6 +201,14 @@ When adding, removing, or renaming members of a Python `StrEnum` / `IntEnum` tha
    uv run alembic upgrade head
    ```
    Then query `pg_enum` again to verify.
+
+6. **Regression guard:** Update the golden snapshot `PG_ENUM_LABELS_SNAPSHOT` in `backend/app/tests/test_db/test_enum_drift.py` in the SAME commit as the migration. The test suite then fails CI if the Python StrEnum and the live PG enum ever drift again:
+   ```bash
+   cd backend
+   uv run pytest app/tests/test_db/test_enum_drift.py
+   ```
+   - `test_metadata_enum_columns_match_snapshot` runs anywhere (no DB needed) and catches Python-side drift (member added/removed/renamed).
+   - `test_live_pg_enum_labels_match_metadata` runs only against a live PostgreSQL and catches DB-side drift (migration never applied).
 
 **Common pitfall (like the `DWELLER_DIED` outage):** A member is added to the Python enum but never migrated to PostgreSQL. Application code starts using it → `InvalidTextRepresentationError` → poisoned connection pool → worker crash-loop. Always catch this in review.
 

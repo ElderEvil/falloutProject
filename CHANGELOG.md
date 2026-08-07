@@ -13,6 +13,23 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.26.0] - 2026-08-07
+
+### Added
+
+- **PG enum drift regression tests** — `backend/app/tests/test_db/test_enum_drift.py`: CI-safe golden-snapshot test (`PG_ENUM_LABELS_SNAPSHOT` over 24 enum types) catching Python-side StrEnum member drift (added/removed/renamed), plus a live-PostgreSQL test comparing `pg_enum` catalog labels against model metadata to catch unapplied migrations (auto-skips on SQLite CI)
+
+### Changed
+
+- **AGENTS.md "DB Enums & Alembic Migrations"** — corrected the stale "offline-only `compare_type=True`" claim (commit `a252adab` enabled it in both offline and online modes); documented the manual enum-migration procedure and the regression-guard requirement (snapshot must be updated in the same commit as any enum migration)
+
+### Fixed
+
+- **Enum drift regression coverage gap** — the `DWELLER_DIED` production outage (Python enum member added without a PG migration → `InvalidTextRepresentationError` → poisoned pool) can no longer ship undetected; both drift directions (Python-side and DB-side) are now locked by tests
+- **Random common dweller age coherence** — `create_random_common_dweller` rolled `is_adult` randomly but never set `age_group` (fell back to the `ADULT` model default) or `birth_date` (stayed `NULL`), and hardcoded `max_health=50` (the model default / child-level baseline) instead of the 100 used by every other creation path; now `age_group` + `birth_date` are derived coherently from the `is_adult` roll and health matches the adult baseline (regression from Andrea Freeman, vault 444)
+
+---
+
 ## [2.25.0] - 2026-08-07
 
 ### Added

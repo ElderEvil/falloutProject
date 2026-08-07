@@ -127,49 +127,49 @@ AI-powered dweller interactions.
 
 ## Planned Features (Future)
 
-### v2.27.0 — Test Coverage & Speed Optimization (Planned)
+### v2.27.0 — Test Coverage & Speed Optimization (In Progress)
 
 **Focus**: Reach 80%+ coverage while cutting test runtime by 40%
 
-**Current State**: 70.93% coverage (933 tests), 4:24 runtime
+**Current State**: 77.53% coverage (1139 tests), ~31s runtime without coverage, ~44s with coverage
 
-#### Speed Optimizations (Target: < 2:30)
+#### Speed Optimizations ✅
 
-- **pytest-xdist parallelization** — `pytest -n auto` splits across CPU cores; expected 40% speedup
-- **Test markers** — `unit`, `integration`, `slow`, `e2e` for selective execution
-- **Session-scoped fixtures** — Engine/session scoped to session where possible
-- **Transaction rollback isolation** — `join_transaction_mode="create_savepoint"` for instant cleanup
+- **pytest-xdist parallelization** — `pytest -n auto` splits across CPU cores; runtime 4:24 → ~31s
+- **Test markers** — `unit`, `integration`, `slow`, `e2e` registered in `pyproject.toml`
+- **Coverage exclusions** — `app/cli/*`, `app/scripts/*`, `app/services/pregen_service.py`, `app/admin/auth.py`, `app/api/tasks.py`
+- **Fakeredis fix** — shared fake-Redis client across requests so refresh-token tests pass under xdist
 
 #### Coverage Improvements (Target: 82%+)
 
-**Phase 1: High-Impact Services (+5%, ~670 lines)**
-- `services/open_ai.py` (135 missing) — Mock external API calls
-- `services/health_check.py` (113 missing) — Mock DB/service checks
-- `services/dweller_assignment_service.py` (87 missing) — Unit tests with mocked DB
-- `services/objective_assignment_service.py` (80 missing) — Unit tests with mocked DB
+**Phase 1: High-Impact Services ✅ (+6.6%, 207 new tests)**
+- ✅ `services/open_ai.py` — 72 tests, 36.92% → 96.73%
+- ✅ `services/health_check.py` — 40 tests, 31.52% → 98.79%
+- ✅ `services/dweller_assignment_service.py` — 56 tests, 40.82% → 98.64%
+- ✅ `services/objective_assignment_service.py` — 39 tests, 23.81% → 100%
 
-**Phase 2: CRUD & Endpoints (+3%, ~400 lines)**
-- `crud/room.py` (103 missing) — Test all CRUD operations
-- `crud/item_base.py` (76 missing) — Test inheritance patterns
-- `endpoints/training.py` (43 missing) — API tests with mocked services
-- `endpoints/relationship.py` (41 missing) — API tests with mocked services
+**Phase 2: CRUD & Endpoints (Stretch)**
+- [ ] `crud/room.py` (103 missing) — Test all CRUD operations
+- [ ] `crud/item_base.py` (76 missing) — Test inheritance patterns
+- [ ] `api/v1/endpoints/training.py` (43 missing) — API tests with mocked services
+- [ ] `api/v1/endpoints/relationship.py` (41 missing) — API tests with mocked services
 
-**Phase 3: Remaining Gaps (+2%, ~200 lines)**
-- Fill smaller gaps across multiple files
+**Expected**: Coverage 77.53% → 80%+
 
-#### Quick Wins
+**Phase 3: Remaining Gaps (Stretch)**
+- [ ] Fill gaps in `services/vault_service.py` (98 missing)
+- [ ] Fill gaps in `services/game_loop.py` (133 missing)
+- [ ] Fill gaps in `services/dweller_ai.py` (75 missing)
 
-- **Exclude low-value files** — `app/cli/*`, `app/scripts/*`, `app/services/pregen_service.py` from coverage (+2% without tests)
-- **pytest-sugar** — Better test output formatting
+**Expected**: Coverage 80% → 82%+
 
 #### Implementation Timeline
 
-| Week | Focus | Expected Result |
+| Day | Focus | Result |
 |------|-------|-----------------|
-| 1 | Speed optimizations (xdist, markers, fixtures) | 4:24 → ~2:30 |
-| 2 | Coverage Phase 1 (high-impact services) | 70.93% → 76% |
-| 3 | Coverage Phase 2 (CRUD & endpoints) | 76% → 79% |
-| 4 | Coverage Phase 3 & polish | 79% → 82%+
+| 1 | Speed infra + exclusions + fakeredis fix | 4:24 → ~31s; 70.93% → 74.47% |
+| 2 | High-impact service tests | 74.47% → 77.53% (207 tests) |
+| 3+ | Phase 2 CRUD/endpoints + Phase 3 remaining gaps | Target 82%+ |
 
 ### Phase 1: Core Gameplay
 
@@ -209,7 +209,7 @@ AI-powered dweller interactions.
 - [x] Alembic enum sync — `compare_type=True` in online mode
 - [ ] Performance testing: Locust in nightly CI
 - [ ] Datetime consistency: Migrate all `datetime.utcnow()` to aware `datetime.now(UTC)`
-- [x] Test coverage: Target 80% — v2.27.0 plan created (70.93% → 82%+)
+- [ ] Test coverage: Target 80% — v2.27.0 in progress (70.93% → 77.53%)
 
 ### Frontend
 
@@ -227,9 +227,9 @@ AI-powered dweller interactions.
 
 ### Current Stats (Aug 2026)
 
-- **Backend**: 25+ routers, 100+ endpoints, 18+ services, ~71% coverage
+- **Backend**: 25+ routers, 100+ endpoints, 18+ services, ~78% coverage
 - **Frontend**: 60+ Vue components, 10 feature modules
-- **Tests**: Frontend 867+, Backend 933+
+- **Tests**: Frontend 867+, Backend 1139+
 - **Models**: 20+ database models
 
 ### Version Milestones
@@ -272,4 +272,4 @@ AI-powered dweller interactions.
 
 ---
 
-_Last updated: 2026-08-07_ (v2.27.0 plan, test coverage optimization)
+_Last updated: 2026-08-07_ (v2.27.0 Day 2 complete, coverage 77.53%)

@@ -11,13 +11,23 @@ AI-powered dweller interactions.
 
 **Current work:**
 
-- [ ] **v2.26.0 — Alembic enum sync & misc fixes** — Autogenerate does NOT detect PG enum value changes (additions/removals/renames); migrations for enum label changes must be written manually. Added labels: `op.execute("ALTER TYPE <type> ADD VALUE '<LABEL>'")` (PG 12+, in-transaction). Renamed labels: `ALTER TYPE ... RENAME VALUE` (PG 10+). Removed labels: PG has no DROP VALUE — recreate the type. Add regression coverage testing that Python StrEnum members match live PG enum labels (psql `pg_enum` query per AGENTS.md). Historically, missing `DWELLER_DIED` label caused a production outage (enum drift from offline-only `compare_type=True`).
 - [ ] **Dramatiq async concurrency** — Fix `asyncpg InterfaceError: another operation is in progress` during game tick objective queries
-- [ ] **Dweller data integrity (found on Andrea Freeman, vault 444)** — Verified API/DB inconsistencies in freshly-created adult dweller: (1) `is_adult=false` while `age_group=ADULT` (schema defaults are `is_adult=True` + `ADULT`, so the created row contradicts them); (2) `birth_date` is NULL for an adult; (3) `max_health=50` matches the child baseline, not the adult baseline; (4) bio places (`Rusty Creek` origin, `Necropolis`/`Brotherhood Outpost` visited) were never registered on the world map — only `HOME_VAULT` marker exists, zero `DwellerLocation` rows. `register_bio_places` is best-effort (logs-and-swallows), so the failure is silent; needs a root-cause investigation (was it never called, or did it fail?) plus regression tests.
+- [ ] **Bio places silent failure (found on Andrea Freeman, vault 444)** — bio places (`Rusty Creek` origin, `Necropolis`/`Brotherhood Outpost` visited) were never registered on the world map — only `HOME_VAULT` marker exists, zero `DwellerLocation` rows. `register_bio_places` is best-effort (logs-and-swallows), so the failure is silent. Investigation (v2.26.0) confirmed it is intentionally non-raising and double-wrapped, with the `_MapDwellerLike` protocol satisfied — no cheap bugfix; follow-up needs user-visible surfacing or retry semantics for map registration failures.
 
 ---
 
 ## Latest Release
+
+### v2.26.0 — Alembic Enum Sync & Regression Coverage (August 7, 2026)
+
+**Focus**: Close the enum-drift gap that caused the `DWELLER_DIED` production outage — verify no drift exists today, then lock it with regression tests
+
+**Completed:**
+- ✅ **Zero-drift audit** — `alembic check` clean (no pending operations); live `pg_enum` catalog matches model metadata exactly (24 enum types); `compare_type=True` confirmed active in both offline and online modes
+- ✅ **Enum regression tests** — `backend/app/tests/test_db/test_enum_drift.py`: CI-safe golden-snapshot test (`PG_ENUM_LABELS_SNAPSHOT`) catching Python-side StrEnum drift + live-PG test (auto-skips without PostgreSQL) querying `pg_enum` to catch unapplied migrations; drift-detection proven by negative test
+- ✅ **AGENTS.md docs fix** — Corrected stale "offline-only `compare_type=True`" claim (commit `a252adab` enabled it in both modes); documented the manual enum-migration procedure + regression guard requirement
+- ✅ **Dweller age-coherence fix** — `create_random_common_dweller` now derives `age_group` + `birth_date` from the `is_adult` roll (was: random `is_adult` with `age_group` falling back to `ADULT` and `birth_date` `NULL`) and uses `max_health=100` (adult baseline, matching the breeding path) instead of the hardcoded 50; regression tests in `test_crud/test_dweller.py`
+- ✅ **Version bump** — Backend/frontend aligned at v2.26.0
 
 ### v2.25.0 — Map Declutter & Dweller Data Integrity (August 7, 2026)
 
@@ -117,6 +127,16 @@ AI-powered dweller interactions.
 
 ## Planned Features (Future)
 
+### Backend Test Speed
+
+Current: 927 tests in ~4 min (254s). Target: <60s.
+
+- **Module-level asyncio scope** — Apply `pytest.mark.asyncio(scope="module")` to remaining slow test files. Already proven in `test_pregnancy.py` (13 tests, 10s). Avoids per-test DB setup/teardown where fixtures are shared across functions.
+- **pytest-xdist parallelization** — `pytest -n auto` splits across CPU cores. Works if tests are isolated (no shared mutable state). Quickest 2–3× speedup.
+- **Coverage opt-out for dev** — `--no-cov` flag for local runs; coverage-only in CI.
+- **Prune slow/low-value tests** — Identify tests >1s that assert trivia (e.g., `test_read_dweller` reads back what was just written). Merge similar setup-heavy tests into single parametrized functions.
+- **Transaction-rollback DB strategy** — Wrap each test in a SAVEPOINT, rollback after assertion. Much faster than full drop/create cycle. Needs fixture-level opt-in per AGENTS.md config.
+
 ### Phase 1: Core Gameplay
 
 - Room management improvements (optimal dweller suggestions)
@@ -182,6 +202,7 @@ AI-powered dweller interactions.
 
 | Version | Release      | Highlights                                   |
 | ------- | ------------ | -------------------------------------------- |
+| v2.26.0 | Aug 07, 2026 | Alembic enum sync + PG enum regression tests |
 | v2.25.0 | Aug 07, 2026 | Map declutter, 160-world scaling, pregen service |
 | v2.24.0 | Aug 07, 2026 | World Map (schematic map, discoveries, bio places) |
 | v2.23.1 | Jul 13, 2026 | Vue 3.5 Reactive Destructure Migration       |
@@ -216,4 +237,4 @@ AI-powered dweller interactions.
 
 ---
 
-_Last updated: 2026-08-07_ (v2.25.0, map declutter)
+_Last updated: 2026-08-07_ (v2.26.0, alembic enum sync)

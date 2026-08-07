@@ -1,11 +1,12 @@
 import random
+from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.game_config import game_config
-from app.schemas.common import RoomTypeEnum, SPECIALEnum
+from app.schemas.common import AgeGroupEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
@@ -107,6 +108,8 @@ async def test_create_random_common_dweller_seed_deterministic(async_session: As
     assert d1.is_adult == d2.is_adult
     assert d1.strength == d2.strength
     assert d1.luck == d2.luck
+    assert d1.age_group == d2.age_group
+    assert d1.birth_date == d2.birth_date
 
     # Different seed → different output (overwhelmingly likely across all fields)
     d3 = await crud.dweller.create_random(db_session=async_session, vault_id=vault.id, seed=43)
@@ -119,6 +122,65 @@ async def test_create_random_common_dweller_seed_deterministic(async_session: As
         d3.luck != d1.luck,
     ]
     assert any(differing)
+
+
+@pytest.mark.asyncio
+async def test_create_random_common_dweller_age_fields_coherent(async_session: AsyncSession):
+    """Regression: random common dwellers must have coherent age fields.
+
+    Bug (Andrea Freeman, vault 444): ``create_random_common_dweller`` rolled
+    ``is_adult`` randomly but never set ``age_group`` (fell back to the ADULT
+    model default) or ``birth_date`` (stayed NULL), so a dweller could be
+    ``is_adult=false`` while ``age_group=ADULT`` with no birth date. It also
+    hardcoded ``max_health=50`` (the model default / child-level baseline)
+    instead of the 100 used by every other creation path.
+    """
+    from app.utils.dwellers import create_random_common_dweller
+
+    adult_seen = False
+    child_seen = False
+    for _ in range(40):
+        data = create_random_common_dweller()
+        if data["is_adult"]:
+            adult_seen = True
+            assert data["age_group"] == AgeGroupEnum.ADULT
+            assert data["birth_date"] is not None
+            assert data["birth_date"] <= datetime.utcnow()
+        else:
+            child_seen = True
+            assert data["age_group"] == AgeGroupEnum.CHILD
+            assert data["birth_date"] is not None
+            # Child must be too young to be aged up on the next tick
+            growth_window = timedelta(hours=game_config.breeding.child_growth_duration_hours)
+            assert data["birth_date"] >= datetime.utcnow() - growth_window
+        assert data["max_health"] == 100
+        assert data["health"] == 100
+
+    assert adult_seen
+    assert child_seen
+
+
+@pytest.mark.asyncio
+async def test_create_random_common_dweller_persisted_age_coherent(async_session: AsyncSession):
+    """Regression (DB-level): persisted random dwellers have coherent age fields."""
+    user_data = create_fake_user()
+    user_in = UserCreate(**user_data)
+    user = await crud.user.create(async_session, obj_in=user_in)
+    vault_data = create_fake_vault()
+    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(async_session, obj_in=vault_in)
+
+    for seed in range(10):
+        dweller = await crud.dweller.create_random(db_session=async_session, vault_id=vault.id, seed=seed)
+        if dweller.is_adult:
+            assert dweller.age_group == AgeGroupEnum.ADULT
+            assert dweller.birth_date is not None
+            assert dweller.birth_date <= datetime.utcnow()
+        else:
+            assert dweller.age_group == AgeGroupEnum.CHILD
+            assert dweller.birth_date is not None
+        assert dweller.max_health == 100
+        assert dweller.health == 100
 
 
 @pytest.mark.asyncio

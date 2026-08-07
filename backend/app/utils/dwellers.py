@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import random
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from faker import Faker
 
-from app.schemas.common import GenderEnum
+from app.schemas.common import AgeGroupEnum, GenderEnum
 from app.schemas.dweller import LETTER_TO_STAT, STATS_RANGE_BY_RARITY, RarityEnum
 
 fake: Faker = Faker()
@@ -38,18 +39,22 @@ def create_random_common_dweller(gender: GenderEnum | None = None, seed: int | N
     rarity = RarityEnum.COMMON
     gender = gender or rng.choice(list(GenderEnum))
     stats = get_stats_by_rarity(rarity, rng)
-    max_health = 50
-    health = 50
+    age_group = rng.choice([AgeGroupEnum.ADULT, AgeGroupEnum.CHILD])
+    is_adult = age_group == AgeGroupEnum.ADULT
+    now = datetime.now(UTC).replace(tzinfo=None) if seed is None else datetime(2000, 1, 1)
+    birth_date = now - timedelta(days=rng.randint(18 * 365, 80 * 365)) if is_adult else now
     return {
         "first_name": get_gender_based_name(gender, faker),
         "last_name": faker.last_name(),
-        "is_adult": rng.choice([True, False]),
+        "is_adult": is_adult,
+        "age_group": age_group,
+        "birth_date": birth_date,
         "gender": gender,
         "rarity": rarity,
         "level": 1,
         "experience": 0,
-        "max_health": max_health,
-        "health": health,
+        "max_health": 100,
+        "health": 100,
         "radiation": 0,
         "happiness": 50,
         "stimpack": 0,

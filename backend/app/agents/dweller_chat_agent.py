@@ -167,7 +167,7 @@ def chat_system_prompt(ctx: RunContext[DwellerChatDeps]) -> str:
         f"Water: {dweller.vault.water}/{dweller.vault.water_max}"
     )
 
-    age_group = "Adult" if dweller.is_adult else "Child"
+    age_group = dweller.age_group.value.title()
     gender = dweller.gender.value
     room_name = dweller.room.name if dweller.room else "no assigned room"
     outfit_name = dweller.outfit.name if dweller.outfit else "Vault Suit"

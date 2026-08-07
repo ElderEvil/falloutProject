@@ -129,6 +129,92 @@ async def test_create_pregnancy(
 
 
 @pytest.mark.asyncio
+async def test_create_pregnancy_missing_mother(
+    async_session: AsyncSession,
+    male_dweller: Dweller,
+):
+    """create_pregnancy raises ValueError when mother not found."""
+    from uuid import uuid4
+
+    with pytest.raises(ValueError, match="Mother not found"):
+        await BreedingService.create_pregnancy(async_session, uuid4(), male_dweller.id)
+
+
+@pytest.mark.asyncio
+async def test_create_pregnancy_missing_father(
+    async_session: AsyncSession,
+    female_dweller: Dweller,
+):
+    """create_pregnancy raises ValueError when father not found."""
+    from uuid import uuid4
+
+    with pytest.raises(ValueError, match="Father not found"):
+        await BreedingService.create_pregnancy(async_session, female_dweller.id, uuid4())
+
+
+@pytest.mark.asyncio
+async def test_create_pregnancy_mother_not_adult(
+    async_session: AsyncSession,
+    vault: Vault,
+    male_dweller: Dweller,
+):
+    """create_pregnancy raises ValueError when mother is not an adult."""
+    child_in = DwellerCreate(
+        first_name="Kid",
+        last_name="Test",
+        gender=GenderEnum.FEMALE,
+        rarity=RarityEnum.COMMON,
+        age_group=AgeGroupEnum.CHILD,
+        birth_date=datetime.utcnow(),
+        vault_id=vault.id,
+    )
+    child = await crud.dweller.create(db_session=async_session, obj_in=child_in)
+    with pytest.raises(ValueError, match="Mother must be an adult"):
+        await BreedingService.create_pregnancy(async_session, child.id, male_dweller.id)
+
+
+@pytest.mark.asyncio
+async def test_create_pregnancy_father_not_adult(
+    async_session: AsyncSession,
+    vault: Vault,
+    female_dweller: Dweller,
+):
+    """create_pregnancy raises ValueError when father is not an adult."""
+    child_in = DwellerCreate(
+        first_name="Kid",
+        last_name="Test",
+        gender=GenderEnum.MALE,
+        rarity=RarityEnum.COMMON,
+        age_group=AgeGroupEnum.CHILD,
+        birth_date=datetime.utcnow(),
+        vault_id=vault.id,
+    )
+    child = await crud.dweller.create(db_session=async_session, obj_in=child_in)
+    with pytest.raises(ValueError, match="Father must be an adult"):
+        await BreedingService.create_pregnancy(async_session, female_dweller.id, child.id)
+
+
+@pytest.mark.asyncio
+async def test_create_pregnancy_mother_not_female(
+    async_session: AsyncSession,
+    male_dweller: Dweller,
+):
+    """create_pregnancy raises ValueError when mother is not female."""
+    with pytest.raises(ValueError, match="Mother must be female"):
+        await BreedingService.create_pregnancy(async_session, male_dweller.id, male_dweller.id)
+
+
+@pytest.mark.asyncio
+async def test_create_pregnancy_father_not_male(
+    async_session: AsyncSession,
+    female_dweller: Dweller,
+):
+    """create_pregnancy raises ValueError when father is not male."""
+    with pytest.raises(ValueError, match="Father must be male"):
+        await BreedingService.create_pregnancy(async_session, female_dweller.id, female_dweller.id)
+
+
+@pytest.mark.asyncio
 async def test_check_for_conception_no_partners(
     async_session: AsyncSession,
     vault: Vault,

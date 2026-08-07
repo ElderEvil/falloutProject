@@ -184,6 +184,7 @@ class DwellerReadWithRoomID(DwellerRead):
 
 
 class DwellerReadFull(DwellerRead):
+    vault_id: UUID4
     vault: VaultRead
     room: RoomRead | None
     weapon: WeaponRead | None

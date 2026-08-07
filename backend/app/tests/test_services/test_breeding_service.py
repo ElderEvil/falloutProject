@@ -159,9 +159,15 @@ async def test_create_pregnancy_mother_not_adult(
     male_dweller: Dweller,
 ):
     """create_pregnancy raises ValueError when mother is not an adult."""
-    child_in = DwellerCreate(first_name="Kid", last_name="Test", gender=GenderEnum.FEMALE,
-                             rarity=RarityEnum.COMMON, age_group=AgeGroupEnum.CHILD,
-                             birth_date=datetime.utcnow(), vault_id=vault.id)
+    child_in = DwellerCreate(
+        first_name="Kid",
+        last_name="Test",
+        gender=GenderEnum.FEMALE,
+        rarity=RarityEnum.COMMON,
+        age_group=AgeGroupEnum.CHILD,
+        birth_date=datetime.utcnow(),
+        vault_id=vault.id,
+    )
     child = await crud.dweller.create(db_session=async_session, obj_in=child_in)
     with pytest.raises(ValueError, match="Mother must be an adult"):
         await BreedingService.create_pregnancy(async_session, child.id, male_dweller.id)
@@ -174,9 +180,15 @@ async def test_create_pregnancy_father_not_adult(
     female_dweller: Dweller,
 ):
     """create_pregnancy raises ValueError when father is not an adult."""
-    child_in = DwellerCreate(first_name="Kid", last_name="Test", gender=GenderEnum.MALE,
-                             rarity=RarityEnum.COMMON, age_group=AgeGroupEnum.CHILD,
-                             birth_date=datetime.utcnow(), vault_id=vault.id)
+    child_in = DwellerCreate(
+        first_name="Kid",
+        last_name="Test",
+        gender=GenderEnum.MALE,
+        rarity=RarityEnum.COMMON,
+        age_group=AgeGroupEnum.CHILD,
+        birth_date=datetime.utcnow(),
+        vault_id=vault.id,
+    )
     child = await crud.dweller.create(db_session=async_session, obj_in=child_in)
     with pytest.raises(ValueError, match="Father must be an adult"):
         await BreedingService.create_pregnancy(async_session, female_dweller.id, child.id)

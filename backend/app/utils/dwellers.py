@@ -11,29 +11,39 @@ from app.schemas.dweller import LETTER_TO_STAT, STATS_RANGE_BY_RARITY, RarityEnu
 fake: Faker = Faker()
 
 
-def get_gender_based_name(gender: GenderEnum) -> str:
+def get_gender_based_name(gender: GenderEnum, faker: Faker | None = None) -> str:
     """Generate a gender-based first name for production use."""
-    return fake.first_name_male() if gender == GenderEnum.MALE else fake.first_name_female()
+    source = faker if faker is not None else fake
+    return source.first_name_male() if gender == GenderEnum.MALE else source.first_name_female()
 
 
-def get_stats_by_rarity(rarity: RarityEnum) -> dict[str, int]:
+def get_stats_by_rarity(rarity: RarityEnum, rng: random.Random | None = None) -> dict[str, int]:
     """Generate stats based on rarity for production use."""
+    source = rng if rng is not None else random
     stats_range: tuple[int, int] = STATS_RANGE_BY_RARITY[rarity]
-    return {stat_name: random.randint(stats_range[0], stats_range[1]) for stat_name in LETTER_TO_STAT.values()}
+    return {stat_name: source.randint(stats_range[0], stats_range[1]) for stat_name in LETTER_TO_STAT.values()}
 
 
-def create_random_common_dweller(gender: GenderEnum | None = None) -> dict[str, Any]:
-    """Create a random common dweller for production use."""
+def create_random_common_dweller(gender: GenderEnum | None = None, seed: int | None = None) -> dict[str, Any]:
+    """Create a random common dweller for production use.
+
+    When ``seed`` is provided the RNG and the Faker instance are seeded so the
+    same call reproduces the same dweller (used by the pregen CLI ``--seed``).
+    """
+    rng: random.Random = random.Random(seed) if seed is not None else random
+    faker: Faker = Faker() if seed is not None else fake
+    if seed is not None:
+        faker.seed_instance(seed)
 
     rarity = RarityEnum.COMMON
-    gender = gender or random.choice(list(GenderEnum))
-    stats = get_stats_by_rarity(rarity)
+    gender = gender or rng.choice(list(GenderEnum))
+    stats = get_stats_by_rarity(rarity, rng)
     max_health = 50
     health = 50
     return {
-        "first_name": get_gender_based_name(gender),
-        "last_name": fake.last_name(),
-        "is_adult": random.choice([True, False]),
+        "first_name": get_gender_based_name(gender, faker),
+        "last_name": faker.last_name(),
+        "is_adult": rng.choice([True, False]),
         "gender": gender,
         "rarity": rarity,
         "level": 1,

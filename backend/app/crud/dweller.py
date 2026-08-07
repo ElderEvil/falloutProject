@@ -141,10 +141,16 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
 
     @staticmethod
     async def create_random(
-        db_session: AsyncSession, vault_id: UUID4, obj_in: DwellerCreateCommonOverride | None = None
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        obj_in: DwellerCreateCommonOverride | None = None,
+        seed: int | None = None,
     ) -> Dweller:
-        """Create a random common dweller."""
-        dweller_data = create_random_common_dweller()
+        """Create a random common dweller.
+
+        Pass ``seed`` through for deterministic output (used by dev/QA seeding).
+        """
+        dweller_data = create_random_common_dweller(seed=seed)
         if obj_in:
             new_dweller_data = obj_in.model_dump(exclude_unset=True)
             if stat := new_dweller_data.get("special_boost"):

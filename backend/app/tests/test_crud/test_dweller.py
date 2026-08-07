@@ -90,6 +90,38 @@ async def test_create_random_common_dweller(async_session: AsyncSession):
 
 
 @pytest.mark.asyncio
+async def test_create_random_common_dweller_seed_deterministic(async_session: AsyncSession):
+    user_data = create_fake_user()
+    user_in = UserCreate(**user_data)
+    user = await crud.user.create(async_session, obj_in=user_in)
+    vault_data = create_fake_vault()
+    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(async_session, obj_in=vault_in)
+
+    # Same seed → identical dweller fields
+    d1 = await crud.dweller.create_random(db_session=async_session, vault_id=vault.id, seed=42)
+    d2 = await crud.dweller.create_random(db_session=async_session, vault_id=vault.id, seed=42)
+    assert d1.first_name == d2.first_name
+    assert d1.last_name == d2.last_name
+    assert d1.gender == d2.gender
+    assert d1.is_adult == d2.is_adult
+    assert d1.strength == d2.strength
+    assert d1.luck == d2.luck
+
+    # Different seed → different output (overwhelmingly likely across all fields)
+    d3 = await crud.dweller.create_random(db_session=async_session, vault_id=vault.id, seed=43)
+    differing = [
+        d3.first_name != d1.first_name,
+        d3.last_name != d1.last_name,
+        d3.gender != d1.gender,
+        d3.is_adult != d1.is_adult,
+        d3.strength != d1.strength,
+        d3.luck != d1.luck,
+    ]
+    assert any(differing)
+
+
+@pytest.mark.asyncio
 async def test_dweller_add_exp(async_session: AsyncSession):
     user_data = create_fake_user()
     user_in = UserCreate(**user_data)

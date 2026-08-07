@@ -14,6 +14,17 @@ from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride
 pytestmark = pytest.mark.asyncio(scope="module")
 
 
+async def _adult(async_session, vault_id, gender: GenderEnum):
+    return await crud.dweller.create(async_session, obj_in=DwellerCreate(
+        first_name="Test", last_name="Dweller",
+        gender=gender, rarity=RarityEnum.COMMON,
+        is_adult=True, age_group=AgeGroupEnum.ADULT,
+        birth_date=datetime(2000, 1, 1),
+        max_health=100, health=100,
+        vault_id=str(vault_id),
+    ))
+
+
 @pytest.mark.asyncio
 async def test_get_vault_pregnancies_empty(
     async_client: AsyncClient,
@@ -53,16 +64,8 @@ async def test_get_vault_pregnancies_with_active(
     )
 
     # Create couple
-    mother = await crud.dweller.create_random(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="female"),
-    )
-    father = await crud.dweller.create_random(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="male"),
-    )
+    mother = await _adult(async_session, vault.id, GenderEnum.FEMALE)
+    father = await _adult(async_session, vault.id, GenderEnum.MALE)
 
     # Create pregnancy
     from app.services.breeding_service import breeding_service
@@ -102,16 +105,8 @@ async def test_get_pregnancy_details(
     )
 
     # Create couple and pregnancy
-    mother = await crud.dweller.create_random(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="female"),
-    )
-    father = await crud.dweller.create_random(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="male"),
-    )
+    mother = await _adult(async_session, vault.id, GenderEnum.FEMALE)
+    father = await _adult(async_session, vault.id, GenderEnum.MALE)
 
     from app.services.breeding_service import breeding_service
 
@@ -147,16 +142,8 @@ async def test_deliver_baby_not_due(
     )
 
     # Create pregnancy (not due yet)
-    mother = await crud.dweller.create_random(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="female"),
-    )
-    father = await crud.dweller.create_random(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="male"),
-    )
+    mother = await _adult(async_session, vault.id, GenderEnum.FEMALE)
+    father = await _adult(async_session, vault.id, GenderEnum.MALE)
 
     from app.services.breeding_service import breeding_service
 
@@ -189,16 +176,8 @@ async def test_deliver_baby_success(
     )
 
     # Create pregnancy and set it to be due
-    mother = await crud.dweller.create_random(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="female"),
-    )
-    father = await crud.dweller.create_random(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="male"),
-    )
+    mother = await _adult(async_session, vault.id, GenderEnum.FEMALE)
+    father = await _adult(async_session, vault.id, GenderEnum.MALE)
 
     from app.services.breeding_service import breeding_service
 
@@ -244,16 +223,8 @@ async def test_pregnancy_progress_calculation(
     )
 
     # Create pregnancy
-    mother = await crud.dweller.create_random(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="female"),
-    )
-    father = await crud.dweller.create_random(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="male"),
-    )
+    mother = await _adult(async_session, vault.id, GenderEnum.FEMALE)
+    father = await _adult(async_session, vault.id, GenderEnum.MALE)
 
     from app.services.breeding_service import breeding_service
 
@@ -371,16 +342,8 @@ async def test_force_conception_wrong_gender(
         user_id=user.id,
     )
 
-    male1 = await crud.dweller.create_random(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="male"),
-    )
-    male2 = await crud.dweller.create_random(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="male"),
-    )
+    male1 = await _adult(async_session, vault.id, GenderEnum.MALE)
+    male2 = await _adult(async_session, vault.id, GenderEnum.MALE)
 
     response = await async_client.post(
         "/pregnancies/debug/force-conception",
@@ -408,11 +371,7 @@ async def test_force_conception_missing_mother(
         user_id=user.id,
     )
 
-    father = await crud.dweller.create_random(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="male"),
-    )
+    father = await _adult(async_session, vault.id, GenderEnum.MALE)
 
     fake_mother_id = uuid4()
 
@@ -442,11 +401,7 @@ async def test_force_conception_missing_father(
         user_id=user.id,
     )
 
-    mother = await crud.dweller.create_random(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="female"),
-    )
+    mother = await _adult(async_session, vault.id, GenderEnum.FEMALE)
 
     fake_father_id = uuid4()
 
@@ -474,16 +429,8 @@ async def test_accelerate_pregnancy_success(
         user_id=user.id,
     )
 
-    mother = await crud.dweller.create_random(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="female"),
-    )
-    father = await crud.dweller.create_random(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="male"),
-    )
+    mother = await _adult(async_session, vault.id, GenderEnum.FEMALE)
+    father = await _adult(async_session, vault.id, GenderEnum.MALE)
 
     from app.services.breeding_service import breeding_service
 

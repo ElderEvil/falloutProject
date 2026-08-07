@@ -127,6 +127,16 @@ AI-powered dweller interactions.
 
 ## Planned Features (Future)
 
+### Backend Test Speed
+
+Current: 927 tests in ~4 min (254s). Target: <60s.
+
+- **Module-level asyncio scope** — Apply `pytest.mark.asyncio(scope="module")` to remaining slow test files. Already proven in `test_pregnancy.py` (13 tests, 10s). Avoids per-test DB setup/teardown where fixtures are shared across functions.
+- **pytest-xdist parallelization** — `pytest -n auto` splits across CPU cores. Works if tests are isolated (no shared mutable state). Quickest 2–3× speedup.
+- **Coverage opt-out for dev** — `--no-cov` flag for local runs; coverage-only in CI.
+- **Prune slow/low-value tests** — Identify tests >1s that assert trivia (e.g., `test_read_dweller` reads back what was just written). Merge similar setup-heavy tests into single parametrized functions.
+- **Transaction-rollback DB strategy** — Wrap each test in a SAVEPOINT, rollback after assertion. Much faster than full drop/create cycle. Needs fixture-level opt-in per AGENTS.md config.
+
 ### Phase 1: Core Gameplay
 
 - Room management improvements (optimal dweller suggestions)

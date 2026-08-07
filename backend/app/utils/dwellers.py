@@ -39,8 +39,8 @@ def create_random_common_dweller(gender: GenderEnum | None = None, seed: int | N
     rarity = RarityEnum.COMMON
     gender = gender or rng.choice(list(GenderEnum))
     stats = get_stats_by_rarity(rarity, rng)
-    is_adult = rng.choice([True, False])
-    age_group = AgeGroupEnum.ADULT if is_adult else AgeGroupEnum.CHILD
+    age_group = rng.choice([AgeGroupEnum.ADULT, AgeGroupEnum.CHILD])
+    is_adult = age_group == AgeGroupEnum.ADULT
     now = datetime.now(UTC).replace(tzinfo=None)
     birth_date = now - timedelta(days=rng.randint(18 * 365, 80 * 365)) if is_adult else now
     return {

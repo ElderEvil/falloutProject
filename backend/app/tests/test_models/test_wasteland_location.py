@@ -126,6 +126,60 @@ class TestWastelandLocationModel:
         with pytest.raises(IntegrityError):
             await async_session.commit()
 
+    async def test_coord_x_below_zero_rejected_at_db(self, async_session: AsyncSession) -> None:
+        """DB CHECK constraint rejects coord_x < 0 at commit time."""
+        location = WastelandLocation(
+            vault_id=uuid4(),
+            name="Out of Bounds",
+            normalized_name="out_of_bounds",
+            type=LocationTypeEnum.DISCOVERY,
+            coord_x=-1.0,
+            coord_y=50.0,
+        )
+        async_session.add(location)
+        with pytest.raises(IntegrityError):
+            await async_session.commit()
+
+    async def test_coord_y_above_hundred_rejected_at_db(self, async_session: AsyncSession) -> None:
+        """DB CHECK constraint rejects coord_y > 100 at commit time."""
+        location = WastelandLocation(
+            vault_id=uuid4(),
+            name="Out of Bounds",
+            normalized_name="out_of_bounds_2",
+            type=LocationTypeEnum.DISCOVERY,
+            coord_x=50.0,
+            coord_y=101.0,
+        )
+        async_session.add(location)
+        with pytest.raises(IntegrityError):
+            await async_session.commit()
+
+    async def test_unique_vault_coords(self, async_session: AsyncSession) -> None:
+        """Duplicate (vault_id, coord_x, coord_y) raises IntegrityError."""
+        vault_id = uuid4()
+        loc1 = WastelandLocation(
+            vault_id=vault_id,
+            name="First Location",
+            normalized_name="first_location",
+            type=LocationTypeEnum.ORIGIN,
+            coord_x=42.0,
+            coord_y=73.0,
+        )
+        async_session.add(loc1)
+        await async_session.commit()
+
+        loc2 = WastelandLocation(
+            vault_id=vault_id,
+            name="Second Location",
+            normalized_name="second_location",
+            type=LocationTypeEnum.VISITED,
+            coord_x=42.0,
+            coord_y=73.0,  # same vault_id + same coords
+        )
+        async_session.add(loc2)
+        with pytest.raises(IntegrityError):
+            await async_session.commit()
+
 
 class TestDwellerLocationModel:
     """Happy-path and constraint tests for DwellerLocation."""

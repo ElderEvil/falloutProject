@@ -42,9 +42,16 @@ class WastelandLocation(BaseUUIDModel, WastelandLocationBase, TimeStampMixin, ta
     __tablename__ = "wastelandlocation"
 
     vault_id: UUID4 = Field(foreign_key="vault.id", index=True, ondelete="CASCADE")
-    exploration_id: UUID4 | None = Field(default=None, foreign_key="exploration.id", nullable=True, ondelete="SET NULL")
+    exploration_id: UUID4 | None = Field(
+        default=None, foreign_key="exploration.id", nullable=True, ondelete="SET NULL"
+    )
 
-    __table_args__ = (sa.UniqueConstraint("vault_id", "normalized_name", name="uq_wasteland_location_vault_name"),)
+    __table_args__ = (
+        sa.UniqueConstraint("vault_id", "normalized_name", name="uq_wasteland_location_vault_name"),
+        sa.CheckConstraint("coord_x >= 0 AND coord_x <= 100", name="ck_wasteland_location_coord_x_range"),
+        sa.CheckConstraint("coord_y >= 0 AND coord_y <= 100", name="ck_wasteland_location_coord_y_range"),
+        sa.UniqueConstraint("vault_id", "coord_x", "coord_y", name="uq_wasteland_location_vault_coords"),
+    )
 
 
 class DwellerLocationBase(SQLModel):

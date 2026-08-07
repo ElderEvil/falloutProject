@@ -28,7 +28,9 @@ class CRUDWastelandLocation:
 
     async def get_by_vault(self, db_session: AsyncSession, vault_id: UUID4) -> list[WastelandLocation]:
         """List every non-VAULT location row scoped to this vault."""
-        result = await db_session.execute(select(WastelandLocation).where(WastelandLocation.vault_id == vault_id))
+        result = await db_session.execute(
+            select(WastelandLocation).where(WastelandLocation.vault_id == vault_id)
+        )
         return list(result.scalars().all())
 
     async def get_by_normalized(
@@ -43,7 +45,7 @@ class CRUDWastelandLocation:
         )
         return result.scalar_one_or_none()
 
-    async def get_or_create(
+    async def get_or_create(  # noqa: PLR0917
         self,
         db_session: AsyncSession,
         vault_id: UUID4,
@@ -58,6 +60,9 @@ class CRUDWastelandLocation:
         nudges against occupied coords, then INSERTs.  On IntegrityError
         (concurrent insert) we roll back and re-SELECT the existing row —
         the exact documented pattern from ``CRUDUserProfile.create_for_user``.
+
+        Distinguishes name conflicts (return existing row) from coordinate
+        conflicts (re-derive fresh coords, bounded retry).
         """
         normalized = normalize_place_name(name)
 
@@ -66,41 +71,57 @@ class CRUDWastelandLocation:
         if existing is not None:
             return existing
 
-        # Derive coordinates
+        # Derive base coordinates
         base_x, base_y = schematic_coords(normalized)
 
-        # Gather occupied coordinates for this vault
-        occupied_result = await db_session.execute(
-            select(WastelandLocation.coord_x, WastelandLocation.coord_y).where(WastelandLocation.vault_id == vault_id)
-        )
-        occupied: set[tuple[float, float]] = {(rx, ry) for rx, ry in occupied_result.all()}
+        # Bounded retry loop — on coordinate conflict, re-derive fresh coords
+        max_retries = 3
+        for _attempt in range(max_retries):
+            # Gather occupied coordinates for this vault
+            occupied_result = await db_session.execute(
+                select(WastelandLocation.coord_x, WastelandLocation.coord_y).where(
+                    WastelandLocation.vault_id == vault_id
+                )
+            )
+            occupied: set[tuple[float, float]] = {(rx, ry) for rx, ry in occupied_result.all()}
 
-        coord_x, coord_y = collision_nudge((base_x, base_y), occupied)
+            coord_x, coord_y = collision_nudge((base_x, base_y), occupied)
 
-        obj = WastelandLocation(
-            name=name[:64],
-            normalized_name=normalized,
-            type=type,
-            coord_x=coord_x,
-            coord_y=coord_y,
-            description=description,
-            vault_id=vault_id,
-            exploration_id=exploration_id,
+            obj = WastelandLocation(
+                name=name[:64],
+                normalized_name=normalized,
+                type=type,
+                coord_x=coord_x,
+                coord_y=coord_y,
+                description=description,
+                vault_id=vault_id,
+                exploration_id=exploration_id,
+            )
+            db_session.add(obj)
+            try:
+                await db_session.commit()
+                await db_session.refresh(obj)
+                return obj
+            except IntegrityError:
+                # Race: another request already inserted this name
+                await db_session.rollback()
+                # Re-fetch the existing row
+                existing = await self.get_by_normalized(db_session, vault_id, normalized)
+                if existing is not None:
+                    return existing
+                # Otherwise: coordinate conflict → add collided coords and retry
+                logger.debug(
+                    "Coordinate conflict on (%s, %s) for '%s' (attempt %d/%d)",
+                    coord_x, coord_y, normalized, _attempt + 1, max_retries,
+                )
+                # Fall through to next iteration — occupied set is rebuilt from DB
+
+        # Exhausted all retries
+        raise IntegrityError(
+            f"Could not insert location '{normalized}' after {max_retries} coordinate retries",
+            orig=None,
+            params=None,
         )
-        db_session.add(obj)
-        try:
-            await db_session.commit()
-            await db_session.refresh(obj)
-            return obj
-        except IntegrityError:
-            # Race: another request already inserted this name
-            await db_session.rollback()
-            # Re-fetch the existing row
-            existing = await self.get_by_normalized(db_session, vault_id, normalized)
-            if existing is not None:
-                return existing
-            # Should not happen — re-raise if we still can't find it
-            raise
 
     # -- DwellerLocation helpers ---------------------------------------------------
 
@@ -140,7 +161,9 @@ class CRUDWastelandLocation:
                 return existing
             raise
 
-    async def get_dweller_refs(self, db_session: AsyncSession, location_ids: list[UUID4]) -> dict[UUID4, list[dict]]:
+    async def get_dweller_refs(
+        self, db_session: AsyncSession, location_ids: list[UUID4]
+    ) -> dict[UUID4, list[dict]]:
         """Batch-load dweller references for a list of location ids.
 
         Returns a dict mapping ``location_id`` → list of ``{dweller_id,

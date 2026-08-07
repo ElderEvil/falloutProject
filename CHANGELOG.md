@@ -13,6 +13,96 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.24.0] - 2026-08-07
+
+### Added
+
+- **World Map** — new `src/modules/map/` schematic map view (`GET /vault/:id/map`): SVG wasteland map with dweller bio-derived origin/visited markers, procedural exploration "discovery" markers, seeded "other vault" markers, marker detail modal, 30s polling store, SidePanel nav entry
+- **Wasteland location domain** — `wasteland_location` + `dweller_location` tables, `locationtype` + `dwellerlocationrelation` PG enums, race-safe location CRUD (`crud/wasteland_location.py`), hand-written Alembic migration `edb924d8dbeb`
+- **Map service** — `services/map_service.py`: bio place registration (origin + up to 5 visited), discovery registration, idempotent home marker at (50.0, 50.0), computed 3–7 seeded other-vault markers, `GET /api/v1/map/vault/{id}` + `GET /api/v1/map/locations/{id}` endpoints
+- **Dweller bio places** — `DwellerBackstory`/`ExtendedBio` schemas now expose `origin_place` + `visited_places`; `dweller_ai.py` extracts them from generated bios; newborn dwellers get origin places on creation
+- **Procedural discovery event** — new `discovery` exploration event type (flat 10% independent roll in `EventGenerator`, `discovery_names.json` data, existing event weights untouched)
+
+### Changed
+
+- **`exploration_event.py`** — `Exploration.add_event()` and coordinator `process_event()` accept optional `location_name`
+- **`breeding_service.py`** — newborn dwellers linked to origin place markers
+- **`api.generated.ts`** — regenerated with new map endpoints and types
+
+### Fixed
+
+- **API changelog staleness** — `CHANGELOG.md` restored as the source of truth for `GET /api/v1/system/changelog[/latest]` (it had lagged at 2.21.0 while the app was at 2.23.3; backfilled 2.22.0, 2.23.0, 2.23.1, 2.23.2, 2.23.3 sections from `ROADMAP.md` and git history)
+
+---
+
+## [2.23.3] - 2026-07-13
+
+### Changed
+
+- **ABILITY_CONFIG reuse** — `RoomGridCell.vue` now imports shared `ABILITY_CONFIG` map (DRY consolidation; previously duplicated ability lookups in-grid and in-detail)
+- **Dependency updates** — routine production dependency bumps across backend and frontend
+
+---
+
+## [2.23.2] - 2026-07-13
+
+### Added
+
+- **Shared `SpecialKey` type** — extracted `SpecialKey` union type and `ABILITY_CONFIG` constant map into a shared location, enabling reuse across `RoomGridCell`, `RoomGrid`, and dweller stats components
+
+### Changed
+
+- **RoomGridCell extraction** — `RoomGridCell.vue` extracted from `RoomGrid.vue` (928→548 lines), standalone component with typed props
+- **`utils/image.ts` relocation** — moved from module-local to `core/utils/`, fixed 3 `any`-type violations
+
+### Fixed
+
+- **`DwellerStats.vue` type safety** — eliminated `as any` cast with typed `statValue` accessor
+
+---
+
+## [2.23.1] - 2026-07-13
+
+### Changed
+
+- **Vue 3.5 reactive destructure migration** — 30 components migrated from `withDefaults()` to Vue 3.5 reactive destructure pattern across core UI, vault, dweller, progression, social, storage, combat, profile, and rooms modules
+- **Inline defaults** — all default values moved inline in destructure; factory defaults (`() => []`) replaced with `?? []` fallbacks
+- **`props.X` references cleaned** — all `props.X` references in migrated files rewritten to direct variable access
+
+---
+
+## [2.23.0] - 2026-07-01
+
+### Added
+
+- **Chat WebSocket endpoint** — dedicated WebSocket endpoint for real-time dweller chat, replacing the previous POST-SSE streaming approach
+
+### Changed
+
+- **Axios→fetch migration** — executed 6-phase HTTP client migration from `HTTP_CLIENT_MIGRATION.md`: fetch adapter, call-site migration, interceptor/token-refresh migration, dropped axios dependency (~14KB gzip bundle saving)
+- **Version bump** — backend/frontend aligned at v2.23.0
+
+### Removed
+
+- **Chat SSE stub** — removed POST-SSE chat streaming endpoint from `stream.py` (superseded by WebSocket)
+
+---
+
+## [2.22.0] - 2026-06-28
+
+### Added
+
+- **UInput `variant="terminal"` prop** — transparent background styling option (`bg-transparent`, no border on non-hover) added to core UInput component
+- **VaultNumberField component** — extracted vault-number-input logic from HomeView into a reusable component
+
+### Changed
+
+- **Auth form cleanup** — applied `variant="terminal"` to `LoginFormTerminal`, `RegisterForm`, `ForgotPasswordView`, and `ResetPasswordView` (removed grey surface backgrounds from auth forms)
+- **HomeView simplification** — replaced inline UInput with `VaultNumberField`; removed dead duplicates
+- **Version bump** — backend/frontend aligned at v2.22.0
+
+---
+
 ## [2.21.0] - 2026-06-24
 
 ### Added

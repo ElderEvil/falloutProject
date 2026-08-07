@@ -28,6 +28,32 @@ class TestChangelogEndpoint:
         assert "date" in data
         assert "changes" in data
 
+        # The latest changelog entry MUST match the current app version
+        assert data["version"] == "2.24.0", (
+            f"Latest changelog version {data['version']!r} does not match app version. "
+            "CHANGELOG.md must be updated when the app version bumps."
+        )
+        assert isinstance(data["changes"], list), "changes must be a list"
+        assert len(data["changes"]) > 0, "latest changelog entry must have changes"
+
+    async def test_get_changelog_latest_matches_app_version(self) -> None:
+        """Test invariant: latest changelog entry version == app version.
+
+        This test runs WITHOUT an HTTP client — it directly invokes the
+        changelog service and version utility.  It locks the invariant that
+        the API can never serve a changelog older than the running app.
+        """
+        from app.services.changelog_service import changelog_service
+        from app.utils.version import get_app_version
+
+        latest = changelog_service.get_latest()
+        app_version = get_app_version()
+
+        assert latest["version"] == app_version, (
+            f"Changelog latest version {latest['version']!r} != app version {app_version!r}. "
+            "CHANGELOG.md must be updated when pyproject.toml version bumps."
+        )
+
     async def test_get_latest_changelog_empty(self, async_client: AsyncClient, monkeypatch) -> None:
         """Test latest changelog returns 404 when no entries available."""
         from app.services.changelog_service import changelog_service

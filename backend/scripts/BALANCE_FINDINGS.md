@@ -78,7 +78,7 @@ Even sweeping `base_raider_power` from 5 → 25 changed nothing because the gap 
 
 **Implication**: Players will never lose dwellers to incidents unless the vault is severely understaffed or underleveled. The incident system becomes a free caps dispenser (reward = 50 + difficulty×20).
 
-**Recommendation**: 
+**Recommendation**:
 - Increase `base_raider_power` to 25–40, or
 - Reduce level bonus multiplier from 2 to 0.5–1.0, or
 - Make incidents spawn in waves (multiple simultaneous), or

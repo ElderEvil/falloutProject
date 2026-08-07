@@ -39,7 +39,7 @@ OTHER_DWELLER_ID = UUID4("82345678-1234-4abc-9def-8234567890ab")
 # ---------------------------------------------------------------------------
 
 
-def _make_room_create(  # noqa: PLR0917
+def _make_room_create(
     name: str,
     category: RoomTypeEnum = RoomTypeEnum.PRODUCTION,
     ability: SPECIALEnum | None = None,
@@ -74,7 +74,7 @@ def _dweller_id(idx: int) -> str:
     return f"{idx:08x}-5678-4abc-9def-{idx:012x}"
 
 
-def _make_room(  # noqa: PLR0917
+def _make_room(
     room_id: str | None = None,
     name: str = "Test Room",
     category: RoomTypeEnum = RoomTypeEnum.PRODUCTION,

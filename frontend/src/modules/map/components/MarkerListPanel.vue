@@ -139,7 +139,7 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(17, 17, 17, 0.9);
+  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
   border: 1px solid var(--color-theme-primary);
   border-radius: 2px;
   color: var(--color-theme-primary);
@@ -161,7 +161,7 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
 .marker-list-panel {
   width: 200px;
   max-height: calc(100% - 16px);
-  background: rgba(17, 17, 17, 0.92);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
   border: 1px solid var(--color-theme-primary);
   border-radius: 2px;
   box-shadow: 0 0 10px var(--color-theme-glow);

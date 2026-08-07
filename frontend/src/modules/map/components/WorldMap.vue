@@ -308,7 +308,7 @@ function onPanelMarkerSelect(payload: {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(17, 17, 17, 0.9);
+  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
   border: 1px solid var(--color-theme-primary) !important;
   border-radius: 2px;
   min-height: 0 !important;

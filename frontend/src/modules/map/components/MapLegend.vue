@@ -51,7 +51,7 @@ const legendItems: LegendItem[] = [
   left: 8px;
   z-index: 10;
   padding: 6px 8px;
-  background-color: rgba(17, 17, 17, 0.85);
+  background-color: color-mix(in srgb, var(--color-surface) 85%, transparent);
   border: 1px solid var(--color-theme-primary);
   border-radius: 2px;
   box-shadow: 0 0 6px var(--color-theme-glow);

@@ -17,6 +17,7 @@ from app.utils.places import normalize_place_name, seeded_vault_specs
 # register_bio_places
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_register_bio_places_creates_origin_and_visited(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -53,9 +54,7 @@ async def test_register_bio_places_second_call_reuses(
 ) -> None:
     """Second call with differently-cased origin reuses the same row (1 total)."""
     await map_service.register_bio_places(async_session, dweller, origin_place="Megaton", visited_places=[])
-    await map_service.register_bio_places(
-        async_session, dweller, origin_place=" MEGATON ", visited_places=[]
-    )
+    await map_service.register_bio_places(async_session, dweller, origin_place=" MEGATON ", visited_places=[])
 
     rows = (await async_session.execute(select(WastelandLocation))).scalars().all()
     origin_rows = [r for r in rows if r.type == LocationTypeEnum.ORIGIN]
@@ -63,13 +62,9 @@ async def test_register_bio_places_second_call_reuses(
 
 
 @pytest.mark.asyncio
-async def test_register_bio_places_skips_wasteland(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
-) -> None:
+async def test_register_bio_places_skips_wasteland(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     """origin_place="Wasteland" normalises into GENERIC_ORIGIN_SKIP → creates nothing."""
-    await map_service.register_bio_places(
-        async_session, dweller, origin_place="Wasteland", visited_places=[]
-    )
+    await map_service.register_bio_places(async_session, dweller, origin_place="Wasteland", visited_places=[])
 
     rows = (await async_session.execute(select(WastelandLocation))).scalars().all()
     assert len(rows) == 0
@@ -94,19 +89,16 @@ async def test_register_bio_places_skips_visited_wasteland(
 # register_discovery
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
-async def test_register_discovery_sets_exploration_id(
-    async_session: AsyncSession, vault: Vault
-) -> None:
+async def test_register_discovery_sets_exploration_id(async_session: AsyncSession, vault: Vault) -> None:
     """register_discovery upserts a DISCOVERY row with exploration_id."""
     from uuid import uuid4
 
     exploration_id = uuid4()
     await map_service.register_discovery(async_session, vault.id, exploration_id, "Abandoned Bunker")
 
-    result = await async_session.execute(
-        select(WastelandLocation).where(WastelandLocation.vault_id == vault.id)
-    )
+    result = await async_session.execute(select(WastelandLocation).where(WastelandLocation.vault_id == vault.id))
     rows = result.scalars().all()
     assert len(rows) == 1
     assert rows[0].type == LocationTypeEnum.DISCOVERY
@@ -127,9 +119,7 @@ async def test_register_discovery_forced_db_error_logged_not_raised(
         side_effect=SQLAlchemyError("forced"),
     ):
         # Must NOT raise
-        await map_service.register_discovery(
-            async_session, vault.id, uuid4(), "Crash Site"
-        )
+        await map_service.register_discovery(async_session, vault.id, uuid4(), "Crash Site")
 
     # The exception should have been logged
     assert any("register_discovery failed" in record.message for record in caplog.records)
@@ -139,10 +129,9 @@ async def test_register_discovery_forced_db_error_logged_not_raised(
 # ensure_home_marker  /  link_home_origin
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
-async def test_ensure_home_marker_idempotent(
-    async_session: AsyncSession, vault: Vault
-) -> None:
+async def test_ensure_home_marker_idempotent(async_session: AsyncSession, vault: Vault) -> None:
     """Calling ensure_home_marker twice yields exactly one HOME_VAULT row."""
     await map_service.ensure_home_marker(async_session, vault)
     await map_service.ensure_home_marker(async_session, vault)
@@ -156,9 +145,7 @@ async def test_ensure_home_marker_idempotent(
 
 
 @pytest.mark.asyncio
-async def test_link_home_origin_best_effort(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
-) -> None:
+async def test_link_home_origin_best_effort(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     """link_home_origin creates the home marker and links dweller."""
     await map_service.link_home_origin(async_session, dweller, vault)
 
@@ -176,10 +163,9 @@ async def test_link_home_origin_best_effort(
 # get_vault_map
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
-async def test_get_vault_map_seeds_home_marker_once(
-    async_session: AsyncSession, vault: Vault
-) -> None:
+async def test_get_vault_map_seeds_home_marker_once(async_session: AsyncSession, vault: Vault) -> None:
     """Repeated get_vault_map calls seed the home marker exactly once."""
     await map_service.get_vault_map(async_session, vault)
     await map_service.get_vault_map(async_session, vault)
@@ -190,9 +176,7 @@ async def test_get_vault_map_seeds_home_marker_once(
 
 
 @pytest.mark.asyncio
-async def test_get_vault_map_returns_vault_markers(
-    async_session: AsyncSession, vault: Vault
-) -> None:
+async def test_get_vault_map_returns_vault_markers(async_session: AsyncSession, vault: Vault) -> None:
     """get_vault_map returns computed VaultMarkerRead items (3-7, excluding home)."""
     response = await map_service.get_vault_map(async_session, vault)
 
@@ -213,9 +197,7 @@ async def test_get_vault_map_returns_vault_markers(
 
 
 @pytest.mark.asyncio
-async def test_get_vault_map_includes_dweller_refs(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
-) -> None:
+async def test_get_vault_map_includes_dweller_refs(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     """get_vault_map includes dweller references on location rows."""
     # Register bio places first so dweller is linked to locations
     await map_service.register_bio_places(

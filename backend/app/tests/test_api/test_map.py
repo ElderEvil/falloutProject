@@ -270,6 +270,4 @@ async def test_openapi_schema_includes_map_schemas(
     # into WastelandLocationWithDwellers rather than exposing it as a separate
     # component.  Assert the schemas actually returned by the map endpoints.
     for required_schema in ("VaultMapResponse", "WastelandLocationWithDwellers", "VaultMarkerRead", "DwellerRef"):
-        assert required_schema in schemas, (
-            f"{required_schema} missing from OpenAPI schemas"
-        )
+        assert required_schema in schemas, f"{required_schema} missing from OpenAPI schemas"

@@ -58,9 +58,7 @@ def _clamp_to_grid(coord: float) -> float:
     return min(max(round(coord, 1), 0.0), 100.0)
 
 
-def collision_nudge(
-    base: tuple[float, float], occupied: set[tuple[float, float]]
-) -> tuple[float, float]:
+def collision_nudge(base: tuple[float, float], occupied: set[tuple[float, float]]) -> tuple[float, float]:
     """Return ``base`` if free, else the first free spiral offset.
 
     Candidates are clamped into the 0..100 grid; when every candidate is

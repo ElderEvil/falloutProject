@@ -59,9 +59,7 @@ async def test_get_or_create_simulated_race(async_session: AsyncSession, vault: 
 
 
 @pytest.mark.asyncio
-async def test_link_dweller_idempotent(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
-) -> None:
+async def test_link_dweller_idempotent(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     """Linking the same dweller to the same location twice yields 1 link row."""
     loc = await wl_crud.get_or_create(async_session, vault.id, "Megaton", "origin")
 
@@ -84,9 +82,7 @@ async def test_link_dweller_idempotent(
 
 
 @pytest.mark.asyncio
-async def test_get_dweller_refs_batch(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
-) -> None:
+async def test_get_dweller_refs_batch(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     """Batch query returns dweller refs for multiple location ids in one query."""
     loc1 = await wl_crud.get_or_create(async_session, vault.id, "Rivet City", "visited")
     loc2 = await wl_crud.get_or_create(async_session, vault.id, "Megaton", "visited")

@@ -28,9 +28,7 @@ class CRUDWastelandLocation:
 
     async def get_by_vault(self, db_session: AsyncSession, vault_id: UUID4) -> list[WastelandLocation]:
         """List every non-VAULT location row scoped to this vault."""
-        result = await db_session.execute(
-            select(WastelandLocation).where(WastelandLocation.vault_id == vault_id)
-        )
+        result = await db_session.execute(select(WastelandLocation).where(WastelandLocation.vault_id == vault_id))
         return list(result.scalars().all())
 
     async def get_by_normalized(
@@ -45,7 +43,7 @@ class CRUDWastelandLocation:
         )
         return result.scalar_one_or_none()
 
-    async def get_or_create(  # noqa: PLR0917
+    async def get_or_create(
         self,
         db_session: AsyncSession,
         vault_id: UUID4,
@@ -73,9 +71,7 @@ class CRUDWastelandLocation:
 
         # Gather occupied coordinates for this vault
         occupied_result = await db_session.execute(
-            select(WastelandLocation.coord_x, WastelandLocation.coord_y).where(
-                WastelandLocation.vault_id == vault_id
-            )
+            select(WastelandLocation.coord_x, WastelandLocation.coord_y).where(WastelandLocation.vault_id == vault_id)
         )
         occupied: set[tuple[float, float]] = {(rx, ry) for rx, ry in occupied_result.all()}
 
@@ -144,9 +140,7 @@ class CRUDWastelandLocation:
                 return existing
             raise
 
-    async def get_dweller_refs(
-        self, db_session: AsyncSession, location_ids: list[UUID4]
-    ) -> dict[UUID4, list[dict]]:
+    async def get_dweller_refs(self, db_session: AsyncSession, location_ids: list[UUID4]) -> dict[UUID4, list[dict]]:
         """Batch-load dweller references for a list of location ids.
 
         Returns a dict mapping ``location_id`` → list of ``{dweller_id,

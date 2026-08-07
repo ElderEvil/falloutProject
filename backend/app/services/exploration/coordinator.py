@@ -110,9 +110,7 @@ class ExplorationCoordinator:
             try:
                 from app.services.map_service import map_service
 
-                await map_service.register_discovery(
-                    db_session, exploration.vault_id, exploration.id, location_name
-                )
+                await map_service.register_discovery(db_session, exploration.vault_id, exploration.id, location_name)
             except Exception:
                 logger.exception(
                     "Failed to register discovery: vault=%s exploration=%s location=%r",

@@ -90,9 +90,7 @@ class MapService:
             home = await self.ensure_home_marker(db_session, vault)
             await wl_crud.link_dweller(db_session, dweller.id, home.id, DwellerLocationRelationEnum.ORIGIN)
         except Exception:
-            logger.exception(
-                "link_home_origin failed: dweller=%s vault=%s", dweller.id, vault.id
-            )
+            logger.exception("link_home_origin failed: dweller=%s vault=%s", dweller.id, vault.id)
 
     # ------------------------------------------------------------------
     # bio place registration
@@ -148,9 +146,7 @@ class MapService:
                     name=name,
                     type=LocationTypeEnum.VISITED,
                 )
-                await wl_crud.link_dweller(
-                    db_session, dweller.id, loc.id, DwellerLocationRelationEnum.VISITED
-                )
+                await wl_crud.link_dweller(db_session, dweller.id, loc.id, DwellerLocationRelationEnum.VISITED)
                 visited += 1
         except Exception:
             logger.exception(
@@ -192,9 +188,7 @@ class MapService:
     # map assembly
     # ------------------------------------------------------------------
 
-    async def get_vault_map(
-        self, db_session: AsyncSession, vault: Vault
-    ) -> VaultMapResponse:
+    async def get_vault_map(self, db_session: AsyncSession, vault: Vault) -> VaultMapResponse:
         """Build the full world-map payload for a vault."""
         await self.ensure_home_marker(db_session, vault)
 

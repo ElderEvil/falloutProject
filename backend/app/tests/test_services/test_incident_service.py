@@ -381,7 +381,7 @@ async def test_one_incident_per_room(async_session: AsyncSession, vault: Vault, 
     from app.schemas.room import RoomCreate
 
     # Create one room with dwellers
-    room_data = create_fake_room()
+    room_data = create_test_room()
     room_data["category"] = "Production"  # Ensure it's a production room
     room_in = RoomCreate(**room_data, vault_id=vault.id, coordinate_x=1, coordinate_y=1)
     room = await crud.room.create(db_session=async_session, obj_in=room_in)

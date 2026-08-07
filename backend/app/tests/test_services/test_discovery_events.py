@@ -42,10 +42,12 @@ async def test_discovery_event_generated_when_chance_is_1(
     _make_expired_exploration(exploration)
 
     with patch.object(game_config.exploration, "event_discovery_chance", 1.0):
+        generated = 0
         for _ in range(20):
             event = event_generator.generate_event(exploration)
             if event is None:
                 continue
+            generated += 1
             assert isinstance(event, DiscoveryEventSchema), f"Expected discovery, got {type(event).__name__}"
             assert event.type == "discovery"
             assert event.location_name
@@ -58,6 +60,7 @@ async def test_discovery_event_generated_when_chance_is_1(
                 description=event.description,
                 location_name=event.location_name,
             )
+        assert generated > 0, "expected at least one discovery event with chance 1.0"
 
 
 @pytest.mark.asyncio
@@ -119,10 +122,12 @@ async def test_no_discovery_when_chance_is_0(
     _make_expired_exploration(exploration)
 
     with patch.object(game_config.exploration, "event_discovery_chance", 0.0):
+        generated = 0
         for _ in range(200):
             event = event_generator.generate_event(exploration)
             if event is None:
                 continue
+            generated += 1
             assert not isinstance(event, DiscoveryEventSchema), "Discovery event generated with chance 0.0"
             # Simulate adding event so next one can fire
             exploration.add_event(
@@ -130,6 +135,7 @@ async def test_no_discovery_when_chance_is_0(
                 description=event.description,
                 loot=getattr(event, "loot", None),
             )
+        assert generated > 0, "expected at least one non-discovery event with chance 0.0"
 
 
 @pytest.mark.asyncio

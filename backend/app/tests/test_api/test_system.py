@@ -20,6 +20,8 @@ class TestChangelogEndpoint:
 
     async def test_get_latest_changelog_success(self, async_client: AsyncClient) -> None:
         """Test successful latest changelog retrieval."""
+        from app.utils.version import get_app_version
+
         response = await async_client.get("/system/changelog/latest")
 
         assert response.status_code == 200
@@ -29,8 +31,8 @@ class TestChangelogEndpoint:
         assert "changes" in data
 
         # The latest changelog entry MUST match the current app version
-        assert data["version"] == "2.24.0", (
-            f"Latest changelog version {data['version']!r} does not match app version. "
+        assert data["version"] == get_app_version(), (
+            f"Latest changelog version {data['version']!r} does not match get_app_version(). "
             "CHANGELOG.md must be updated when the app version bumps."
         )
         assert isinstance(data["changes"], list), "changes must be a list"

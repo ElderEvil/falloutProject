@@ -5,12 +5,14 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
+from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.models.dweller import Dweller
 from app.models.llm_interaction import LLMInteraction
+from app.models.pregnancy import Pregnancy
 from app.models.vault import Vault
 from app.models.wasteland_location import (
     DwellerLocation,
@@ -77,9 +79,9 @@ async def female_dweller_fixture(async_session: AsyncSession, vault: Vault) -> D
 
 async def _create_due_pregnancy(
     async_session: AsyncSession,
-    mother_id,
-    father_id,
-):
+    mother_id: UUID4,
+    father_id: UUID4,
+) -> Pregnancy:
     pregnancy = await BreedingService.create_pregnancy(async_session, mother_id, father_id)
     pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
     await async_session.commit()
@@ -91,7 +93,7 @@ async def test_deliver_baby_links_child_to_home_origin(
     async_session: AsyncSession,
     male_dweller: Dweller,
     female_dweller: Dweller,
-):
+) -> None:
     """Happy: deliver_baby → child has ORIGIN DwellerLocation link to HOME_VAULT row."""
     pregnancy = await _create_due_pregnancy(async_session, female_dweller.id, male_dweller.id)
 
@@ -132,7 +134,7 @@ async def test_deliver_baby_link_home_origin_failure_does_not_break_delivery(
     async_session: AsyncSession,
     male_dweller: Dweller,
     female_dweller: Dweller,
-):
+) -> None:
     """Failure: link_home_origin raises → delivery still completes, no exception propagates."""
     pregnancy = await _create_due_pregnancy(async_session, female_dweller.id, male_dweller.id)
 

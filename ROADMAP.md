@@ -11,7 +11,7 @@ AI-powered dweller interactions.
 
 **Current work:**
 
-- [ ] **v2.25.0 — Alembic enum sync & misc fixes** — Enable `compare_type=True` in online Alembic mode so autogenerate detects PostgreSQL native enum value changes (additions/removals) matching Python `StrEnum` members. Previously only enabled in offline mode, allowing enum drift like the `DWELLER_DIED` outage.
+- [ ] **v2.25.0 — Alembic enum sync & misc fixes** — Autogenerate does NOT detect PG enum value changes (additions/removals/renames); migrations for enum label changes must be written manually. Added labels: `op.execute("ALTER TYPE <type> ADD VALUE '<LABEL>'")` (PG 12+, in-transaction). Renamed labels: `ALTER TYPE ... RENAME VALUE` (PG 10+). Removed labels: PG has no DROP VALUE — recreate the type. Add regression coverage testing that Python StrEnum members match live PG enum labels (psql `pg_enum` query per AGENTS.md). Historically, missing `DWELLER_DIED` label caused a production outage (enum drift from offline-only `compare_type=True`).
 - [ ] **Dramatiq async concurrency** — Fix `asyncpg InterfaceError: another operation is in progress` during game tick objective queries
 
 ---

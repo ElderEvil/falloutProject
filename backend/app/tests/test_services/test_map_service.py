@@ -232,3 +232,93 @@ async def test_register_bio_places_forced_db_error_logged_not_raised(
         )
 
     assert any("register_bio_places failed" in record.message for record in caplog.records)
+
+
+# ---------------------------------------------------------------------------
+# Regression — DwellerReadFull has vault_id (production path)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_register_bio_places_with_dweller_read_full(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """register_bio_places works with a real DwellerReadFull schema object.
+
+    The production caller (dweller_ai._register_map_places_best_effort) passes a
+    DwellerReadFull, which historically lacked ``vault_id`` — causing the
+    best-effort body to silently swallow AttributeError.  This test proves the
+    schema now carries vault_id and the full registration pipeline works end-to-end.
+    """
+    from app import crud
+    from app.models.wasteland_location import DwellerLocation, DwellerLocationRelationEnum
+    from app.schemas.dweller import DwellerReadFull
+
+    # Build a real DwellerReadFull from the ORM dweller — must use get_full_info
+    # (or eager-load) because weapon/outfit are lazy relationships and
+    # model_validate with from_attributes=True on a bare Dweller trips
+    # MissingGreenlet in async context.
+    dweller_read = await crud.dweller.get_full_info(async_session, dweller.id)
+
+    # The schema MUST carry vault_id — this assertion alone fails before the fix
+    assert dweller_read.vault_id == vault.id
+
+    # Register bio places through the full pipeline
+    await map_service.register_bio_places(
+        async_session,
+        dweller_read,
+        origin_place="Megaton",
+        visited_places=["Rivet City", "Goodneighbor"],
+    )
+
+    # Assert WastelandLocation rows were created
+    locations = (await async_session.execute(select(WastelandLocation))).scalars().all()
+    origin_rows = [r for r in locations if r.type == LocationTypeEnum.ORIGIN]
+    visited_rows = [r for r in locations if r.type == LocationTypeEnum.VISITED]
+
+    assert len(origin_rows) == 1, "Expected 1 ORIGIN location"
+    assert origin_rows[0].name == "Megaton"
+    assert len(visited_rows) == 2, "Expected 2 VISITED locations"
+    visited_names = {r.name for r in visited_rows}
+    assert "Rivet City" in visited_names
+    assert "Goodneighbor" in visited_names
+
+    # Assert DwellerLocation junction rows link the dweller
+    links = (await async_session.execute(select(DwellerLocation))).scalars().all()
+    origin_links = [lnk for lnk in links if lnk.relation == DwellerLocationRelationEnum.ORIGIN]
+    visited_links = [lnk for lnk in links if lnk.relation == DwellerLocationRelationEnum.VISITED]
+
+    assert len(origin_links) == 1, "Expected 1 ORIGIN DwellerLocation link"
+    assert origin_links[0].dweller_id == dweller.id
+
+    assert len(visited_links) == 2, "Expected 2 VISITED DwellerLocation links"
+    for lnk in visited_links:
+        assert lnk.dweller_id == dweller.id
+
+
+# ---------------------------------------------------------------------------
+# World-coordinate scaling (0-100 DB grid → 0-160 render world)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_vault_map_scales_home_marker_to_world(async_session: AsyncSession, vault: Vault) -> None:
+    """get_vault_map returns coords scaled by WORLD_SCALE: home (50,50) → (80,80)."""
+    response = await map_service.get_vault_map(async_session, vault)
+
+    home = next(loc for loc in response.locations if loc.type == LocationTypeEnum.HOME_VAULT)
+    assert home.coord_x == 80.0
+    assert home.coord_y == 80.0
+
+
+@pytest.mark.asyncio
+async def test_get_vault_map_scales_all_coords_into_world(async_session: AsyncSession, vault: Vault) -> None:
+    """Every returned location and vault marker coord lands in the 0-160 world."""
+    response = await map_service.get_vault_map(async_session, vault)
+
+    for loc in response.locations:
+        assert 0.0 <= loc.coord_x <= 160.0, loc.name
+        assert 0.0 <= loc.coord_y <= 160.0, loc.name
+    for marker in response.vault_markers:
+        assert 0.0 <= marker.coord_x <= 160.0, marker.name
+        assert 0.0 <= marker.coord_y <= 160.0, marker.name

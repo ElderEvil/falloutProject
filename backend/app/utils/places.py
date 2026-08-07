@@ -14,6 +14,11 @@ from uuid import UUID
 #: Place origins that should never produce a map marker.
 GENERIC_ORIGIN_SKIP: frozenset[str] = frozenset({"", "wasteland", "the wasteland", "unknown"})
 
+#: Scale factor from the persisted 0-100 DB grid to the 0-160 render world.
+#: Rows (and collision_nudge) stay on the 0-100 grid; the map API multiplies
+#: coordinates by this at read time so markers spread across a wider map.
+WORLD_SCALE = 1.6
+
 
 def normalize_place_name(name: str) -> str:
     """Normalize a place name for stable matching and deduplication.

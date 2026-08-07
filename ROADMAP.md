@@ -11,12 +11,24 @@ AI-powered dweller interactions.
 
 **Current work:**
 
-- [ ] **v2.25.0 — Alembic enum sync & misc fixes** — Autogenerate does NOT detect PG enum value changes (additions/removals/renames); migrations for enum label changes must be written manually. Added labels: `op.execute("ALTER TYPE <type> ADD VALUE '<LABEL>'")` (PG 12+, in-transaction). Renamed labels: `ALTER TYPE ... RENAME VALUE` (PG 10+). Removed labels: PG has no DROP VALUE — recreate the type. Add regression coverage testing that Python StrEnum members match live PG enum labels (psql `pg_enum` query per AGENTS.md). Historically, missing `DWELLER_DIED` label caused a production outage (enum drift from offline-only `compare_type=True`).
+- [ ] **v2.26.0 — Alembic enum sync & misc fixes** — Autogenerate does NOT detect PG enum value changes (additions/removals/renames); migrations for enum label changes must be written manually. Added labels: `op.execute("ALTER TYPE <type> ADD VALUE '<LABEL>'")` (PG 12+, in-transaction). Renamed labels: `ALTER TYPE ... RENAME VALUE` (PG 10+). Removed labels: PG has no DROP VALUE — recreate the type. Add regression coverage testing that Python StrEnum members match live PG enum labels (psql `pg_enum` query per AGENTS.md). Historically, missing `DWELLER_DIED` label caused a production outage (enum drift from offline-only `compare_type=True`).
 - [ ] **Dramatiq async concurrency** — Fix `asyncpg InterfaceError: another operation is in progress` during game tick objective queries
+- [ ] **Dweller data integrity (found on Andrea Freeman, vault 444)** — Verified API/DB inconsistencies in freshly-created adult dweller: (1) `is_adult=false` while `age_group=ADULT` (schema defaults are `is_adult=True` + `ADULT`, so the created row contradicts them); (2) `birth_date` is NULL for an adult; (3) `max_health=50` matches the child baseline, not the adult baseline; (4) bio places (`Rusty Creek` origin, `Necropolis`/`Brotherhood Outpost` visited) were never registered on the world map — only `HOME_VAULT` marker exists, zero `DwellerLocation` rows. `register_bio_places` is best-effort (logs-and-swallows), so the failure is silent; needs a root-cause investigation (was it never called, or did it fail?) plus regression tests.
 
 ---
 
 ## Latest Release
+
+### v2.25.0 — Map Declutter & Dweller Data Integrity (August 7, 2026)
+
+**Focus**: Hide low-value single-dweller visited markers from the wasteland map, widen the render world to 160×160 via read-time scaling, and harden dweller bio/map seeding
+
+**Completed:**
+- ✅ **Map declutter** — Low-value single-dweller `VISITED` locations hidden from the SVG map (kept in the new marker list panel + detail modal); `MarkerListPanel`, `MapLegend`, `TerrainLayer` components, marker spread/zoom-pan/terrain utilities
+- ✅ **160-world read-time scaling** — `WORLD_SCALE = 1.6` applied in backend map read paths (`map_service`), no DB migration; frontend world grid 0–160 with matching `viewBox`
+- ✅ **Pregen service extraction** — Bio/map seeding moved from CLI into `PregenService` (service layer); `fo-cli pregen-dwellers` + `fo-cli dweller-bios` are thin wrappers; deterministic `seed` threaded through `crud.dweller.create_random` / `create_random_common_dweller` (`random.Random` + `Faker.seed_instance`)
+- ✅ **DwellerBio linkify fix** — Place-name linkification now works on entity-encoded text (e.g. `R&amp;D Labs`); DOM-fragment TreeWalker linkifier, 27 tests
+- ✅ **Review fixes** — DwellerDetailView routes map-fetch errors through `handleStoreError`; MapView `?place=` watcher covered by a reactive route-mock test
 
 ### v2.24.0 — World Map (August 7, 2026)
 
@@ -170,6 +182,7 @@ AI-powered dweller interactions.
 
 | Version | Release      | Highlights                                   |
 | ------- | ------------ | -------------------------------------------- |
+| v2.25.0 | Aug 07, 2026 | Map declutter, 160-world scaling, pregen service |
 | v2.24.0 | Aug 07, 2026 | World Map (schematic map, discoveries, bio places) |
 | v2.23.1 | Jul 13, 2026 | Vue 3.5 Reactive Destructure Migration       |
 | v2.23.0 | Jul 01, 2026 | Chat WebSocket & Axios→fetch Migration       |
@@ -203,4 +216,4 @@ AI-powered dweller interactions.
 
 ---
 
-_Last updated: 2026-07-14_ (v2.23.1+, alembic enum sync)
+_Last updated: 2026-08-07_ (v2.25.0, map declutter)

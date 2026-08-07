@@ -243,4 +243,162 @@ describe('DwellerBio', () => {
       expect(wrapper.emitted('generate-all')?.length).toBe(1)
     })
   })
+
+  describe('Place Links', () => {
+    it('should render anchor for matching place name', () => {
+      const wrapper = mount(DwellerBio, {
+        props: {
+          firstName: 'John',
+          bio: 'John grew up in Megaton before wandering the wasteland.',
+          vaultId: 'v1',
+          placeLinks: [{ name: 'Megaton', locationId: 'loc1' }],
+        },
+      })
+
+      const link = wrapper.find('a.bio-place-link')
+      expect(link.exists()).toBe(true)
+      expect(link.attributes('href')).toBe('/vault/v1/map?place=loc1')
+      expect(link.text()).toBe('Megaton')
+    })
+
+    it('should NOT render anchor when placeLinks is absent', () => {
+      const wrapper = mount(DwellerBio, {
+        props: {
+          firstName: 'John',
+          bio: 'John grew up in Megaton.',
+        },
+      })
+
+      expect(wrapper.find('a.bio-place-link').exists()).toBe(false)
+      expect(wrapper.text()).toContain('Megaton')
+    })
+
+    it('should NOT render anchor when vaultId is absent', () => {
+      const wrapper = mount(DwellerBio, {
+        props: {
+          firstName: 'John',
+          bio: 'John grew up in Megaton.',
+          placeLinks: [{ name: 'Megaton', locationId: 'loc1' }],
+        },
+      })
+
+      expect(wrapper.find('a.bio-place-link').exists()).toBe(false)
+    })
+
+    it('should NOT render anchor when placeLinks is empty', () => {
+      const wrapper = mount(DwellerBio, {
+        props: {
+          firstName: 'John',
+          bio: 'John grew up in Megaton.',
+          vaultId: 'v1',
+          placeLinks: [],
+        },
+      })
+
+      expect(wrapper.find('a.bio-place-link').exists()).toBe(false)
+    })
+
+    it('should escape special characters in place names', () => {
+      const wrapper = mount(DwellerBio, {
+        props: {
+          firstName: 'John',
+          bio: 'John visited R&D Labs in the ruins.',
+          vaultId: 'v1',
+          placeLinks: [{ name: 'R&D Labs', locationId: 'loc2' }],
+        },
+      })
+
+      const link = wrapper.find('a.bio-place-link')
+      expect(link.exists()).toBe(true)
+      expect(link.text()).toBe('R&D Labs')
+      expect(wrapper.html()).toContain('R&amp;D Labs')
+    })
+
+    it('should linkify place names inside entity-encoded text (e.g. R&amp;D Labs)', () => {
+      const wrapper = mount(DwellerBio, {
+        props: {
+          firstName: 'John',
+          bio: 'John visited R&amp;D Labs in the ruins.',
+          vaultId: 'v1',
+          placeLinks: [{ name: 'R&D Labs', locationId: 'loc2' }],
+        },
+      })
+
+      const link = wrapper.find('a.bio-place-link')
+      expect(link.exists()).toBe(true)
+      expect(link.text()).toBe('R&D Labs')
+      expect(link.attributes('href')).toBe('/vault/v1/map?place=loc2')
+    })
+
+    it('should sanitize XSS attempts in bio text', () => {
+      const wrapper = mount(DwellerBio, {
+        props: {
+          firstName: 'John',
+          bio: '<img src=x onerror=alert(1)>John lived in Megaton.',
+          vaultId: 'v1',
+          placeLinks: [{ name: 'Megaton', locationId: 'loc1' }],
+        },
+      })
+
+      expect(wrapper.html()).not.toContain('<img')
+      expect(wrapper.find('a.bio-place-link').exists()).toBe(true)
+    })
+
+    it('should linkify multiple places', () => {
+      const wrapper = mount(DwellerBio, {
+        props: {
+          firstName: 'John',
+          bio: 'John traveled from Megaton to Rivet City.',
+          vaultId: 'v1',
+          placeLinks: [
+            { name: 'Megaton', locationId: 'loc1' },
+            { name: 'Rivet City', locationId: 'loc2' },
+          ],
+        },
+      })
+
+      const links = wrapper.findAll('a.bio-place-link')
+      expect(links).toHaveLength(2)
+      expect(links[0].text()).toBe('Megaton')
+      expect(links[0].attributes('href')).toBe('/vault/v1/map?place=loc1')
+      expect(links[1].text()).toBe('Rivet City')
+      expect(links[1].attributes('href')).toBe('/vault/v1/map?place=loc2')
+    })
+
+    it('should match longest name first to avoid partial matches', () => {
+      const wrapper = mount(DwellerBio, {
+        props: {
+          firstName: 'John',
+          bio: 'John visited Rivet City and the old City ruins.',
+          vaultId: 'v1',
+          placeLinks: [
+            { name: 'City', locationId: 'loc-city' },
+            { name: 'Rivet City', locationId: 'loc-rivet' },
+          ],
+        },
+      })
+
+      const links = wrapper.findAll('a.bio-place-link')
+      expect(links).toHaveLength(2)
+      expect(links[0].text()).toBe('Rivet City')
+      expect(links[0].attributes('href')).toBe('/vault/v1/map?place=loc-rivet')
+      expect(links[1].text()).toBe('City')
+      expect(links[1].attributes('href')).toBe('/vault/v1/map?place=loc-city')
+    })
+
+    it('should preserve original bio casing in link text', () => {
+      const wrapper = mount(DwellerBio, {
+        props: {
+          firstName: 'John',
+          bio: 'John lived in MEGATON for years.',
+          vaultId: 'v1',
+          placeLinks: [{ name: 'Megaton', locationId: 'loc1' }],
+        },
+      })
+
+      const link = wrapper.find('a.bio-place-link')
+      expect(link.exists()).toBe(true)
+      expect(link.text()).toBe('MEGATON')
+    })
+  })
 })

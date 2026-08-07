@@ -4304,6 +4304,11 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /**
+             * Vault Id
+             * Format: uuid4
+             */
+            vault_id: string;
             vault: components["schemas"]["VaultRead"];
             room: components["schemas"]["RoomRead"] | null;
             weapon: components["schemas"]["WeaponRead"] | null;

@@ -13,6 +13,28 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.25.0] - 2026-08-07
+
+### Added
+
+- **Marker list panel** — `MarkerListPanel` component with grouped marker list (home vault, origin, visited, discovery, vault signals), toggle button, total count, selected-row highlight
+- **Map legend & terrain** — `MapLegend` (5 marker types), `TerrainLayer` procedural terrain (seeded `feTurbulence`), `spreadMarkers` deterministic layout utility
+- **Map interactions** — `useMapZoomPan` zoom/pan composable with clamp + focus-pan, zoom controls overlay in `WorldMap`
+
+### Changed
+
+- **World map declutter** — low-value single-dweller `VISITED` locations hidden from the SVG map (kept in marker list panel + detail modal)
+- **160×160 render world** — `WORLD_SCALE = 1.6` applied read-time in backend map paths (`map_service.py`), no DB migration; frontend world grid 0–160 with matching `viewBox`
+- **Pregen service extraction** — bio/map seeding moved from CLI into `PregenService` (service layer); `fo-cli pregen-dwellers` + `fo-cli dweller-bios` are thin wrappers; deterministic `seed` threaded through `crud.dweller.create_random` / `create_random_common_dweller`
+- **Map overlay tokens** — translucent overlay backgrounds use the `--color-surface` design token via `color-mix` instead of hardcoded `rgba(17,17,17,*)`
+
+### Fixed
+
+- **DwellerBio linkify** — place-name linkification now works on entity-encoded text (e.g. `R&amp;D Labs`); DOM-fragment TreeWalker linkifier, 27 tests
+- **Map error handling** — DwellerDetailView routes map-fetch errors through `handleStoreError`; MapView `?place=` watcher covered by a reactive route-mock test
+
+---
+
 ## [2.24.0] - 2026-08-07
 
 ### Added

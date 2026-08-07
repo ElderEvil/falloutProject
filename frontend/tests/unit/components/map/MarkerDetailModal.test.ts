@@ -11,7 +11,9 @@ vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { id: 'vault-1' } }),
 }))
 
-function createLocation(overrides: Partial<WastelandLocationWithDwellers> = {}): WastelandLocationWithDwellers {
+function createLocation(
+  overrides: Partial<WastelandLocationWithDwellers> = {}
+): WastelandLocationWithDwellers {
   return {
     id: 'loc-1',
     name: 'Megaton',

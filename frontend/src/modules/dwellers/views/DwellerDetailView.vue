@@ -17,6 +17,9 @@ import { useSidePanel } from '@/core/composables/useSidePanel'
 import { RevivalSection } from '../components/death'
 import type { RevivalCostResponse } from '../models/dweller'
 import { useGaryMode } from '@/core/composables/useGaryMode'
+import { handleStoreError } from '@/core/utils/errorHandler'
+import { getVaultMap } from '@/modules/map/services/mapService'
+import type { MapPlaceLink } from '../components/DwellerBio.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -52,6 +55,7 @@ const dweller = computed(() => dwellerStore.detailedDwellers[dwellerId.value])
 const revivalCost = ref<RevivalCostResponse | null>(null)
 const revivalLoading = ref(false)
 const isDead = computed(() => dweller.value?.is_dead === true)
+const placeLinks = ref<MapPlaceLink[]>([])
 
 onMounted(async () => {
   if (authStore.isAuthenticated && dwellerId.value) {
@@ -65,6 +69,17 @@ onMounted(async () => {
         dwellerId.value,
         authStore.token as string
       )
+    }
+
+    // Fetch vault map to compute place links for bio linkification
+    try {
+      const mapData = await getVaultMap(authStore.token as string, vaultId.value)
+      placeLinks.value = mapData.locations
+        .filter((loc) => loc.dwellers?.some((d) => d.dweller_id === dwellerId.value))
+        .map((loc) => ({ name: loc.name, locationId: loc.id }))
+    } catch (error) {
+      // Graceful degradation: bio renders unlinked if map fetch fails
+      handleStoreError(error, 'Failed to load vault map for bio place links')
     }
   }
 })
@@ -442,6 +457,8 @@ const saveNewName = async () => {
                 :generating-appearance="generatingAppearance"
                 :generating-portrait="generatingPortrait"
                 :is-any-generating="isAnyGenerating"
+                :vault-id="vaultId"
+                :place-links="placeLinks"
                 @refresh="handleRefresh"
                 @generate-bio="generateDwellerBio"
                 @generate-appearance="generateDwellerAppearance"

@@ -15,6 +15,7 @@ from app.models.base import SPECIALModel
 from app.schemas.common import GenderEnum
 from app.schemas.dweller import DwellerReadFull, DwellerUpdate, DwellerVisualAttributes
 from app.schemas.llm_interaction import LLMInteractionCreate
+from app.services.map_service import map_service
 from app.services.open_ai import get_ai_service
 from app.services.quota_service import quota_service
 from app.services.storage import get_storage_client
@@ -29,12 +30,34 @@ GENDER_PRONOUNS_MAP = {
 }
 
 BIO_MAX_LENGTH = 1_000
+BIO_DB_MAX_LENGTH = 1_024  # matches Dweller.bio Field(max_length=1024)
 
 
 class DwellerAIService:
     def __init__(self):
         self.storage_service = get_storage_client()
         self.open_ai_service = get_ai_service()
+
+    async def _register_map_places_best_effort(
+        self,
+        db_session: AsyncSession,
+        dweller_obj: DwellerReadFull,
+        *,
+        origin_place: str,
+        visited_places: list[str],
+        explicit_origin: str | None = None,
+    ) -> None:
+        """Register bio-extracted places on the world map — best-effort, never raises."""
+        try:
+            await map_service.register_bio_places(
+                db_session,
+                dweller_obj,
+                origin_place=origin_place,
+                visited_places=visited_places,
+                explicit_origin=explicit_origin,
+            )
+        except Exception:
+            logger.exception("Failed to register map places for dweller %s", dweller_obj.id)
 
     async def generate_backstory(
         self,
@@ -79,6 +102,15 @@ class DwellerAIService:
             logger.warning(msg)
 
         await dweller_crud.update(db_session, dweller_obj.id, DwellerUpdate(bio=backstory))
+
+        # Register bio-extracted places on the world map (best-effort; after bio commit)
+        await self._register_map_places_best_effort(
+            db_session,
+            dweller_obj,
+            origin_place=result.output.origin_place,
+            visited_places=result.output.visited_places,
+            explicit_origin=origin,
+        )
 
         try:
             usage = result.usage()
@@ -129,7 +161,21 @@ class DwellerAIService:
 
         full_bio = f"{dweller_obj.bio}\n\n{extended_bio}"
 
+        # Length guard (D15): ensure the combined bio fits within the model's max_length=1024
+        if len(full_bio) > BIO_DB_MAX_LENGTH:
+            full_bio = full_bio[: BIO_DB_MAX_LENGTH - 3] + "..."
+            msg = f"Extended bio exceeded max length, truncated to {BIO_DB_MAX_LENGTH} characters"
+            logger.warning(msg)
+
         await dweller_crud.update(db_session, dweller_id, DwellerUpdate(bio=full_bio))
+
+        # Register bio-extracted places on the world map (best-effort; after bio commit)
+        await self._register_map_places_best_effort(
+            db_session,
+            dweller_obj,
+            origin_place="",
+            visited_places=result.output.visited_places,
+        )
 
         try:
             usage = result.usage()

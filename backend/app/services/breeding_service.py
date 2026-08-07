@@ -341,6 +341,44 @@ class BreedingService:
         return (await db_session.execute(query)).scalars().all()
 
     @staticmethod
+    async def _link_newborn_to_home(db_session: AsyncSession, child: Dweller, vault_id: UUID4) -> None:
+        """Best-effort: link newborn to home-vault marker on the world map."""
+        try:
+            from app.crud.vault import vault as vault_crud
+            from app.services.map_service import map_service
+
+            vault = await vault_crud.get(db_session, vault_id)
+            if vault:
+                await map_service.link_home_origin(db_session, child, vault)
+        except Exception:
+            logger.exception("Failed to link home origin for newborn: child=%s vault=%s", child.id, vault_id)
+
+    @staticmethod
+    async def _increment_birth_statistics(
+        db_session: AsyncSession, mother: Dweller, child: Dweller, vault_id: UUID4
+    ) -> None:
+        """Best-effort: increment birth statistics for the vault owner."""
+        try:
+            from app.crud.user_profile import profile_crud
+            from app.crud.vault import vault as vault_crud
+
+            vault = await vault_crud.get(db_session, vault_id)
+            if vault and vault.user_id:
+                await profile_crud.increment_statistic(db_session, vault.user_id, "total_dwellers_born")
+
+                await notification_service.notify_baby_born(
+                    db_session,
+                    user_id=vault.user_id,
+                    vault_id=vault_id,
+                    mother_id=mother.id,
+                    mother_name=f"{mother.first_name} {mother.last_name or ''}".strip(),
+                    baby_name=f"{child.first_name} {child.last_name or ''}".strip(),
+                    meta_data={"child_id": str(child.id), "mother_id": str(mother.id)},
+                )
+        except Exception:
+            logger.exception("Failed to increment birth statistics for vault %s", vault_id)
+
+    @staticmethod
     async def deliver_baby(
         db_session: AsyncSession,
         pregnancy_id: UUID4,
@@ -430,6 +468,11 @@ class BreedingService:
         await db_session.refresh(child)
         logger.info(f"Baby delivered with bio: {child.bio is not None}")
 
+        vault_id = mother.vault_id
+
+        # Link newborn to home vault on world map (best-effort, non-critical)
+        await BreedingService._link_newborn_to_home(db_session, child, vault_id)
+
         # Update pregnancy status
         pregnancy.status = PregnancyStatusEnum.DELIVERED
         pregnancy.updated_at = datetime.now(UTC).replace(tzinfo=None)
@@ -439,26 +482,7 @@ class BreedingService:
         logger.info(f"Baby delivered: {child.first_name} {child.last_name}, Mother={mother.id}, Father={father.id}")
 
         # Increment birth statistics for the vault owner (best-effort, don't fail birth on stats error)
-        try:
-            from app.crud.user_profile import profile_crud
-            from app.crud.vault import vault as vault_crud
-
-            vault = await vault_crud.get(db_session, mother.vault_id)
-            if vault and vault.user_id:
-                await profile_crud.increment_statistic(db_session, vault.user_id, "total_dwellers_born")
-
-                # Broadcast via standard notification system
-                await notification_service.notify_baby_born(
-                    db_session,
-                    user_id=vault.user_id,
-                    vault_id=mother.vault_id,
-                    mother_id=mother.id,
-                    mother_name=f"{mother.first_name} {mother.last_name or ''}".strip(),
-                    baby_name=f"{child.first_name} {child.last_name or ''}".strip(),
-                    meta_data={"child_id": str(child.id), "mother_id": str(mother.id)},
-                )
-        except Exception:
-            logger.exception("Failed to increment birth statistics for vault %s", mother.vault_id)
+        await BreedingService._increment_birth_statistics(db_session, mother, child, vault_id)
 
         return child
 

@@ -98,7 +98,7 @@ async def test_generate_event_with_loot(
     assert len(events_generated) > 0
 
     # Check that event types are valid (updated for new system)
-    valid_types = ["combat", "loot", "danger", "rest"]
+    valid_types = ["combat", "loot", "danger", "rest", "discovery"]
     for event in events_generated:
         assert event.type in valid_types
         assert hasattr(event, "description")

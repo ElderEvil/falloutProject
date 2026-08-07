@@ -75,6 +75,7 @@ class ExplorationCoordinator:
             event_type=event.type,
             description=event.description,
             loot=loot_dict,
+            location_name=getattr(event, "location_name", None),
         )
         db_session.add(exploration)
 
@@ -102,6 +103,21 @@ class ExplorationCoordinator:
         db_session.add(exploration)
         await db_session.commit()
         await db_session.refresh(exploration)
+
+        # Register discovery on the world map (best-effort, non-critical)
+        location_name = getattr(event, "location_name", None)
+        if location_name:
+            try:
+                from app.services.map_service import map_service
+
+                await map_service.register_discovery(db_session, exploration.vault_id, exploration.id, location_name)
+            except Exception:
+                logger.exception(
+                    "Failed to register discovery: vault=%s exploration=%s location=%r",
+                    exploration.vault_id,
+                    exploration.id,
+                    location_name,
+                )
 
         await self._publish_sse(
             db_session,

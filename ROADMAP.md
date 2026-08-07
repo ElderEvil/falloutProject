@@ -11,12 +11,29 @@ AI-powered dweller interactions.
 
 **Current work:**
 
-- [ ] **v2.24.0 — Alembic enum sync & misc fixes** — Enable `compare_type=True` in online Alembic mode so autogenerate detects PostgreSQL native enum value changes (additions/removals) matching Python `StrEnum` members. Previously only enabled in offline mode, allowing enum drift like the `DWELLER_DIED` outage.
+- [ ] **v2.25.0 — Alembic enum sync & misc fixes** — Autogenerate does NOT detect PG enum value changes (additions/removals/renames); migrations for enum label changes must be written manually. Added labels: `op.execute("ALTER TYPE <type> ADD VALUE '<LABEL>'")` (PG 12+, in-transaction). Renamed labels: `ALTER TYPE ... RENAME VALUE` (PG 10+). Removed labels: PG has no DROP VALUE — recreate the type. Add regression coverage testing that Python StrEnum members match live PG enum labels (psql `pg_enum` query per AGENTS.md). Historically, missing `DWELLER_DIED` label caused a production outage (enum drift from offline-only `compare_type=True`).
 - [ ] **Dramatiq async concurrency** — Fix `asyncpg InterfaceError: another operation is in progress` during game tick objective queries
 
 ---
 
 ## Latest Release
+
+### v2.24.0 — World Map (August 7, 2026)
+
+**Focus**: Schematic wasteland map with dweller bio-derived markers, procedural exploration discoveries, and seeded vault locations
+
+**Completed:**
+- ✅ **Map domain models** — `WastelandLocation` + `DwellerLocation` tables, `locationtype` + `dwellerlocationrelation` PG enums, hand-written Alembic migration `edb924d8dbeb`
+- ✅ **Place utilities** — `places.py`: name normalization, deterministic coordinate hashing, collision nudge, vault seed generation (pure stdlib, no DB/RNG)
+- ✅ **Discovery event** — new `discovery` exploration event type at 10% independent roll, `discovery_names.json` data
+- ✅ **Race-safe CRUD** — `wasteland_location.py` with get-or-create (IntegrityError rollback pattern), idempotent dweller linking, batched dweller refs
+- ✅ **Map service** — bio place registration (origin + up to 5 visited), discovery registration, idempotent home marker, computed vault markers
+- ✅ **Bio place extraction** — `DwellerBackstory`/`ExtendedBio` schemas expose `origin_place`/`visited_places`; `dweller_ai.py` extracts from generated bios
+- ✅ **Server-side hooks** — discovery registration in exploration coordinator, newborn origin link in breeding service (best-effort, non-blocking)
+- ✅ **Map API endpoints** — `GET /api/v1/map/vault/{id}` + `GET /api/v1/map/locations/{id}` with vault ownership checks
+- ✅ **Frontend data layer** — `map.ts` models, `mapService.ts`, `useMapStore` (30s polling), regenerated `api.generated.ts`
+- ✅ **Frontend map UI** — `WorldMap.vue` (SVG 100×100 grid), `MapMarker.vue` (type-color-coded), `MarkerDetailModal.vue`, `MapView.vue` (vault-shell layout)
+- ✅ **Frontend wiring** — route registration (`/vault/:id/map`), SidePanel nav entry (icon: `mdi:map`), module README
 
 ### v2.23.1 — Vue 3.5 Reactive Destructure Migration (July 13, 2026)
 
@@ -153,6 +170,7 @@ AI-powered dweller interactions.
 
 | Version | Release      | Highlights                                   |
 | ------- | ------------ | -------------------------------------------- |
+| v2.24.0 | Aug 07, 2026 | World Map (schematic map, discoveries, bio places) |
 | v2.23.1 | Jul 13, 2026 | Vue 3.5 Reactive Destructure Migration       |
 | v2.23.0 | Jul 01, 2026 | Chat WebSocket & Axios→fetch Migration       |
 | v2.22.0 | Jun 28, 2026 | Terminal Background Cleanup                  |

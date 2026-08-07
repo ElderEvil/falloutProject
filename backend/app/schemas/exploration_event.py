@@ -112,5 +112,13 @@ class RewardsSchema(BaseModel):
     radaways: int = Field(default=0, ge=0, description="Remaining Radaways returned")
 
 
+class DiscoveryEventSchema(BaseModel):
+    """Schema for location discovery event data."""
+
+    type: Literal["discovery"] = Field(default="discovery", description="Event type")
+    description: str = Field(..., description="Event description")
+    location_name: str = Field(..., max_length=64, description="Name of the discovered location")
+
+
 # Union type for all event types
-ExplorationEvent = CombatEventSchema | LootEventSchema | DangerEventSchema | RestEventSchema
+ExplorationEvent = CombatEventSchema | LootEventSchema | DangerEventSchema | RestEventSchema | DiscoveryEventSchema

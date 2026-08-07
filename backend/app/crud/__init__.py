@@ -15,6 +15,7 @@ from .quest import quest_crud
 from .room import room
 from .user import user
 from .vault import vault
+from .wasteland_location import wasteland_location
 
 # Create CRUD instances directly using CRUDItem
 weapon = CRUDItem(Weapon)

@@ -73,6 +73,22 @@ def load_outfits() -> list[dict]:
     return outfits
 
 
+@lru_cache(maxsize=1)
+def load_discovery_names() -> dict[str, list[str]]:
+    """Load discovery location name pools from JSON."""
+    names_file = EXPLORATION_DIR / "discovery_names.json"
+    if not names_file.exists():
+        return _get_fallback_discovery_names()
+
+    with open(names_file) as f:
+        return json.load(f)
+
+
+def _get_fallback_discovery_names() -> dict[str, list[str]]:
+    """Return fallback discovery name pools if JSON file is missing."""
+    return {"prefixes": ["Old", "Abandoned", "Ruined"], "suffixes": ["Shack", "Depot", "Bunker"]}
+
+
 def _get_fallback_enemies() -> list[dict]:
     """Return fallback enemy data if JSON file is missing."""
     return [

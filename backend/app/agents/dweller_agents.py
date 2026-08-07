@@ -29,7 +29,12 @@ backstory_agent = Agent(
         "Generate immersive, lore-accurate backstories for vault dwellers in the post-apocalyptic world. "
         "Use the dweller's SPECIAL attributes to inform their skills and personality traits. "
         "IMPORTANT: Keep biographies between 600-900 characters (not words). Be concise and focused. "
-        "Focus on their background, survival skills, and how they relate to their environment."
+        "Focus on their background, survival skills, and how they relate to their environment. "
+        "You MUST also specify origin_place: a specific settlement/place the dweller comes from. "
+        "Invent a proper-noun Fallout-style name (e.g. 'Megaton', 'Shady Sands', 'Goodneighbor'). "
+        "NEVER use generic names like 'Wasteland', 'the wastes', 'Unknown', or 'Vault'. "
+        "Also list 0-5 visited_places: other notable named places the dweller has travelled to, "
+        "each a proper-noun Fallout-style location name (max 64 chars each)."
     ),
 )
 
@@ -44,7 +49,13 @@ def backstory_system_prompt(ctx: RunContext[BackstoryDeps]) -> str:
         f"as they relate to surviving in the post-apocalyptic world. "
         f"Their SPECIAL stats are: {ctx.deps.special_stats}. "
         f"Use these stats to create a unique backstory that reflects their strengths and weaknesses. "
-        f"CRITICAL: The biography must be between 600-900 characters. Count carefully and stay within this limit."
+        f"CRITICAL: The biography must be between 600-900 characters. Count carefully and stay within this limit. "
+        f"Set origin_place to a SPECIFIC named Fallout settlement (e.g. a town, outpost, or vault). "
+        f"Do NOT use generic descriptors like 'Wasteland'. "
+        f"Also set visited_places to 0-5 other named places the character has visited, "
+        f"each a proper-noun Fallout-style location. "
+        f"The location contextual hint is '{ctx.deps.location}' — "
+        f"use this as inspiration for the region the dweller comes from."
     )
 
 
@@ -57,7 +68,11 @@ bio_extension_agent = Agent(
         "You are a creative writer helping to extend character biographies in the Fallout universe. "
         "Given an existing bio, add meaningful details that expand on the character's backstory, "
         "experiences, relationships, or personality. Maintain consistency with the original bio "
-        "and keep the tone consistent with the Fallout game series."
+        "and keep the tone consistent with the Fallout game series. "
+        "While extending, if you mention any NEW named Fallout-style locations "
+        "(settlements, outposts, vaults, landmarks), list them in visited_places "
+        "(0-3 proper-noun names, max 64 chars each). "
+        "Only include places you introduce in the extension — do NOT repeat places from the original bio."
     ),
 )
 
@@ -69,7 +84,10 @@ def bio_extension_system_prompt(ctx: RunContext[ExtendBioDeps]) -> str:
         f"Here is the current biography:\n\n{ctx.deps.current_bio}\n\n"
         "Extend this biography with additional meaningful details. "
         "Add new information about their experiences, relationships, or character development. "
-        "Maintain the same writing style and tone."
+        "Maintain the same writing style and tone. "
+        "If you mention any NEW named Fallout locations in the extension, "
+        "list them in visited_places (0-3 proper-noun names, max 64 chars each). "
+        "Only include places introduced in the extension, not from the original bio."
     )
 
 

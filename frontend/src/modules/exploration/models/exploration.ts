@@ -2,7 +2,7 @@ export const EVENT_ICON_MAP: Record<string, string> = {
   combat: 'mdi:sword-cross',
   loot: 'mdi:treasure-chest',
   exploration: 'mdi:map-marker',
-  discovery: 'mdi:eye',
+  discovery: 'mdi:compass',
   encounter: 'mdi:account-alert',
   danger: 'mdi:alert',
   rest: 'mdi:sleep',

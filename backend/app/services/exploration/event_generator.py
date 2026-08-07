@@ -8,6 +8,7 @@ from app.models.exploration import Exploration
 from app.schemas.exploration_event import (
     CombatEventSchema,
     DangerEventSchema,
+    DiscoveryEventSchema,
     ExplorationEvent,
     LootEventSchema,
     LootSchema,
@@ -64,8 +65,22 @@ class EventGenerator:
         if not self.can_generate_event(exploration):
             return None
 
-        # Determine event type with weighted probabilities
         cfg = game_config.exploration
+
+        # Discovery event: independent flat roll before the weighted draw
+        rng_value = random.random()
+        if rng_value < cfg.event_discovery_chance:
+            names = data_loader.load_discovery_names()
+            prefix = random.choice(names["prefixes"])
+            suffix = random.choice(names["suffixes"])
+            location_name = f"{prefix} {suffix}"
+            description = (
+                f"Your dweller has discovered {location_name} in the wasteland. "
+                "This location has been added to your world map."
+            )
+            return DiscoveryEventSchema(location_name=location_name, description=description)
+
+        # Determine event type with weighted probabilities
         event_weights = {
             "combat": cfg.event_weight_combat,
             "loot": cfg.event_weight_loot,

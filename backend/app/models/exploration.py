@@ -114,7 +114,9 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         self.status = ExplorationStatus.RECALLED
         self.end_time = datetime.utcnow()
 
-    def add_event(self, event_type: str, description: str, loot: dict | None = None) -> None:
+    def add_event(
+        self, event_type: str, description: str, loot: dict | None = None, location_name: str | None = None
+    ) -> None:
         """Add an event to the journey log."""
         event = {
             "type": event_type,
@@ -124,6 +126,8 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         }
         if loot:
             event["loot"] = loot
+        if location_name:
+            event["location_name"] = location_name
         self.events.append(event)
         # Flag the field as modified so SQLAlchemy tracks the change
         orm.attributes.flag_modified(self, "events")

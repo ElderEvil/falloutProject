@@ -1432,6 +1432,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/map/vault/{vault_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Vault Map
+         * @description Return the full world-map for a vault.
+         */
+        get: operations["get_vault_map_api_v1_map_vault__vault_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/map/vault/{vault_id}/locations/{location_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Location Detail
+         * @description Return a single location with its linked dweller references.
+         */
+        get: operations["get_location_detail_api_v1_map_vault__vault_id__locations__location_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications/": {
         parameters: {
             query?: never;
@@ -3989,6 +4029,12 @@ export interface components {
             /** Days Until Permanent */
             days_until_permanent?: number | null;
         };
+        /**
+         * DwellerLocationRelationEnum
+         * @description How a dweller relates to a wasteland location.
+         * @enum {string}
+         */
+        DwellerLocationRelationEnum: "origin" | "visited";
         /** DwellerRead */
         DwellerRead: {
             /**
@@ -4455,6 +4501,22 @@ export interface components {
              * Format: uuid4
              */
             room_id: string;
+        };
+        /**
+         * DwellerRef
+         * @description Lightweight dweller reference for a location's dweller list.
+         */
+        DwellerRef: {
+            /**
+             * Dweller Id
+             * Format: uuid4
+             */
+            dweller_id: string;
+            /** First Name */
+            first_name: string;
+            /** Last Name */
+            last_name: string | null;
+            relation: components["schemas"]["DwellerLocationRelationEnum"];
         };
         /**
          * DwellerRename
@@ -5214,6 +5276,12 @@ export interface components {
             /** Storage Id */
             storage_id?: string | null;
         };
+        /**
+         * LocationTypeEnum
+         * @description Type of wasteland location — row-level classification.
+         * @enum {string}
+         */
+        LocationTypeEnum: "origin" | "visited" | "discovery" | "home_vault";
         /**
          * ManualRecruitRequest
          * @description Request to manually recruit a dweller for caps.
@@ -6970,6 +7038,35 @@ export interface components {
              */
             radio_mode: string;
         };
+        /**
+         * VaultMapResponse
+         * @description Full world-map payload: persisted locations + computed vault markers.
+         */
+        VaultMapResponse: {
+            /** Locations */
+            locations: components["schemas"]["WastelandLocationWithDwellers"][];
+            /** Vault Markers */
+            vault_markers: components["schemas"]["VaultMarkerRead"][];
+        };
+        /**
+         * VaultMarkerRead
+         * @description A computed vault marker for the world map (never persisted).
+         */
+        VaultMarkerRead: {
+            /** Name */
+            name: string;
+            /** Coord X */
+            coord_x: number;
+            /** Coord Y */
+            coord_y: number;
+            /**
+             * Type
+             * @constant
+             */
+            type: "vault";
+            /** Description */
+            description: string;
+        };
         /** VaultNumber */
         VaultNumber: {
             /** Number */
@@ -7235,6 +7332,39 @@ export interface components {
             population_max?: number | null;
             /** Radio Mode */
             radio_mode?: string | null;
+        };
+        /**
+         * WastelandLocationWithDwellers
+         * @description A location row with its linked dweller references.
+         */
+        WastelandLocationWithDwellers: {
+            /**
+             * Id
+             * Format: uuid4
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Normalized Name */
+            normalized_name: string;
+            type: components["schemas"]["LocationTypeEnum"];
+            /** Coord X */
+            coord_x: number;
+            /** Coord Y */
+            coord_y: number;
+            /** Description */
+            description: string | null;
+            /**
+             * Vault Id
+             * Format: uuid4
+             */
+            vault_id: string;
+            /** Exploration Id */
+            exploration_id: string | null;
+            /** Created At */
+            created_at: string | null;
+            /** Dwellers */
+            dwellers: components["schemas"]["DwellerRef"][];
         };
         /** WeaponCreate */
         WeaponCreate: {
@@ -9823,6 +9953,69 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_vault_map_api_v1_map_vault__vault_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VaultMapResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_location_detail_api_v1_map_vault__vault_id__locations__location_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                location_id: string;
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WastelandLocationWithDwellers"];
                 };
             };
             /** @description Validation Error */

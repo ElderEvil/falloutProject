@@ -13,6 +13,7 @@ AI-powered dweller interactions.
 
 - [ ] **v2.25.0 — Alembic enum sync & misc fixes** — Autogenerate does NOT detect PG enum value changes (additions/removals/renames); migrations for enum label changes must be written manually. Added labels: `op.execute("ALTER TYPE <type> ADD VALUE '<LABEL>'")` (PG 12+, in-transaction). Renamed labels: `ALTER TYPE ... RENAME VALUE` (PG 10+). Removed labels: PG has no DROP VALUE — recreate the type. Add regression coverage testing that Python StrEnum members match live PG enum labels (psql `pg_enum` query per AGENTS.md). Historically, missing `DWELLER_DIED` label caused a production outage (enum drift from offline-only `compare_type=True`).
 - [ ] **Dramatiq async concurrency** — Fix `asyncpg InterfaceError: another operation is in progress` during game tick objective queries
+- [ ] **Dweller data integrity (found on Andrea Freeman, vault 444)** — Verified API/DB inconsistencies in freshly-created adult dweller: (1) `is_adult=false` while `age_group=ADULT` (schema defaults are `is_adult=True` + `ADULT`, so the created row contradicts them); (2) `birth_date` is NULL for an adult; (3) `max_health=50` matches the child baseline, not the adult baseline; (4) bio places (`Rusty Creek` origin, `Necropolis`/`Brotherhood Outpost` visited) were never registered on the world map — only `HOME_VAULT` marker exists, zero `DwellerLocation` rows. `register_bio_places` is best-effort (logs-and-swallows), so the failure is silent; needs a root-cause investigation (was it never called, or did it fail?) plus regression tests.
 
 ---
 

@@ -109,7 +109,7 @@ base_decay = -0.5/tick
 net_from_work = +11.5/tick
 ```
 
-Add 16 healthy (+8.0), 6 partnered (+6.0), 1 training (+0.5), rooms (+3.0), vault-wide (+0.8) = **+29.3/tick net**. Even with 3 incidents (-9.0) and critical resources (-15.0), the net is still **+5.3/tick**.
+Add 16 healthy (+8.0), 6 partnered (+6.0), 1 training (+0.5), rooms (+3.0), vault-wide (+0.8) = **+29.8/tick net** (after base decay). Even with 3 incidents (-9.0) and critical resources (-15.0), the net is still **+5.8/tick**.
 
 **Implication**: Happiness is effectively a non-mechanic. It will always be at 100% unless the vault is catastrophically mismanaged (0% working, 100% incidents, 0% resources). The productivity multiplier (0.5 + happiness/200) will always be near 1.0.
 
@@ -176,7 +176,7 @@ Use soft scaling (Option B) as the primary pressure, with a short per-mother coo
 - Late game: crawl (cap_ratio ~0.9 → 10% effective chance)
 - Emergency: if population exceeds cap by >10%, hard stop to 0%
 
-**Simulator update needed**: Add `population_cap` to `ExplorationConfig` and `RoomConfig`, model `VaultState.population_cap()`, and scale `conception_chance` in `_process_breeding()` using Option B or D.
+**Simulator update status**: `VaultState.population_cap()` is already modeled in the room simulator (derived from Living-room capacity, base 10) and already gates Living-room construction (`_build_rooms`). No config field is needed — the cap derives from rooms, not a config value. The remaining gap is scaling `conception_chance` in `_process_breeding()` (both simulators currently roll `conception_chance_per_tick` per tick with no cap pressure) using Option B or D.
 
 **Expected outcome with Option B**:
 - Starting from 10 dwellers, cap ~14 (4 rooms), growth would slow naturally around hour 2–3

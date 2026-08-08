@@ -445,6 +445,11 @@ class RadioConfig(BaseSettings):
         default=7, description="Minimum days since deletion before a dweller is eligible for radio recycling", ge=1
     )
 
+    # Rarity chances for freshly recruited dwellers (recycled dwellers keep their original rarity)
+    rare_chance: float = Field(
+        default=0.04, description="Probability a radio recruit is RARE instead of COMMON", ge=0.0, le=1.0
+    )
+
     def get_tier_multiplier(self, tier: int) -> float:
         """Get radio effectiveness multiplier for room tier."""
         multipliers = {
@@ -453,6 +458,23 @@ class RadioConfig(BaseSettings):
             3: self.tier_3_multiplier,
         }
         return multipliers.get(tier, 1.0)
+
+
+class BioConfig(BaseSettings):
+    """Procedural dweller bio and map-uncovering configuration."""
+
+    model_config = SettingsConfigDict(env_prefix="BIO_")
+
+    # Max visited places registered to the world map from a dweller bio, by rarity.
+    # Keyed by RarityEnum value string so env overrides stay JSON-friendly.
+    visited_by_rarity: dict[str, int] = Field(
+        default={"common": 2, "rare": 4, "legendary": 5},
+        description="Max visited map places per rarity (common/rare/legendary)",
+    )
+
+    def max_visited(self, rarity: str) -> int:
+        """Resolve max visited places for a rarity value string (falls back to common)."""
+        return self.visited_by_rarity.get(rarity, self.visited_by_rarity.get("common", 2))
 
 
 class DeathConfig(BaseSettings):
@@ -647,6 +669,7 @@ class GameConfig(BaseSettings):
     radio: RadioConfig = Field(default_factory=RadioConfig)
     death: DeathConfig = Field(default_factory=DeathConfig)
     dweller: DwellerConfig = Field(default_factory=DwellerConfig)
+    bio: BioConfig = Field(default_factory=BioConfig)
     exploration: ExplorationConfig = Field(default_factory=ExplorationConfig)
 
 

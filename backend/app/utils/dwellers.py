@@ -6,10 +6,53 @@ from typing import Any
 
 from faker import Faker
 
+from app.core.game_config import game_config
 from app.schemas.common import AgeGroupEnum, GenderEnum
 from app.schemas.dweller import LETTER_TO_STAT, STATS_RANGE_BY_RARITY, RarityEnum
 
 fake: Faker = Faker()
+
+#: Deterministic pool of wasteland place names used in procedural bios. Kept out
+#: of ``GENERIC_ORIGIN_SKIP`` (no "", "wasteland", "unknown") so every picked
+#: origin/visited name is registrable on the world map.
+_PLACE_POOL: tuple[str, ...] = (
+    "Megaton",
+    "Rivet City",
+    "Tenpenny Tower",
+    "Paradise Falls",
+    "Canterbury Commons",
+    "Big Town",
+    "Little Lamplight",
+    "Goodneighbor",
+    "Diamond City",
+    "The Slog",
+    "Bunker Hill",
+    "Republic of Dave",
+    "Arefu",
+    "Nuka-Cola Plant",
+)
+
+
+def _procedural_bio_places(rng: random.Random, rarity: RarityEnum) -> tuple[str, list[str]]:
+    """Pick a deterministic origin + rarity-scaled visited places for a bio.
+
+    The visited count follows ``game_config.bio.max_visited`` so common dwellers
+    mention fewer places than legendaries; the same ``rng`` stream makes the
+    result reproducible for a given seed.
+    """
+    origin = rng.choice(_PLACE_POOL)
+    visited_count = game_config.bio.max_visited(rarity.value)
+    remaining = [place for place in _PLACE_POOL if place != origin]
+    visited = rng.sample(remaining, min(visited_count, len(remaining)))
+    return origin, visited
+
+
+def _render_template_bio(origin: str, visited: list[str]) -> str:
+    if not visited:
+        return f"Born in {origin}. Before the vault, I wandered the wastes alone."
+    if len(visited) == 1:
+        return f"Born in {origin}. Before the vault, I wandered through {visited[0]}."
+    return f"Born in {origin}. Before the vault, I wandered through {', '.join(visited[:-1])}, and {visited[-1]}."
 
 
 def get_gender_based_name(gender: GenderEnum, faker: Faker | None = None) -> str:
@@ -25,7 +68,9 @@ def get_stats_by_rarity(rarity: RarityEnum, rng: random.Random | None = None) ->
     return {stat_name: source.randint(stats_range[0], stats_range[1]) for stat_name in LETTER_TO_STAT.values()}
 
 
-def create_random_common_dweller(gender: GenderEnum | None = None, seed: int | None = None) -> dict[str, Any]:
+def create_random_common_dweller(
+    gender: GenderEnum | None = None, seed: int | None = None, rarity: RarityEnum = RarityEnum.COMMON
+) -> dict[str, Any]:
     """Create a random common dweller for production use.
 
     When ``seed`` is provided the RNG and the Faker instance are seeded so the
@@ -36,13 +81,13 @@ def create_random_common_dweller(gender: GenderEnum | None = None, seed: int | N
     if seed is not None:
         faker.seed_instance(seed)
 
-    rarity = RarityEnum.COMMON
     gender = gender or rng.choice(list(GenderEnum))
     stats = get_stats_by_rarity(rarity, rng)
     age_group = rng.choice([AgeGroupEnum.ADULT, AgeGroupEnum.CHILD])
     is_adult = age_group == AgeGroupEnum.ADULT
     now = datetime.now(UTC).replace(tzinfo=None) if seed is None else datetime(2000, 1, 1)
     birth_date = now - timedelta(days=rng.randint(18 * 365, 80 * 365)) if is_adult else now
+    origin, visited = _procedural_bio_places(rng, rarity)
     return {
         "first_name": get_gender_based_name(gender, faker),
         "last_name": faker.last_name(),
@@ -60,6 +105,10 @@ def create_random_common_dweller(gender: GenderEnum | None = None, seed: int | N
         "stimpack": 0,
         "radaway": 0,
         "visual_attributes": {"race": "human", "faction": "vault_dweller"},
+        "bio": _render_template_bio(origin, visited),
+        # Reserved for the caller (crud.create_random) to register map places;
+        # never a Dweller column, so it must be popped before model construction.
+        "_bio_places": (origin, visited),
         **stats,
     }
 

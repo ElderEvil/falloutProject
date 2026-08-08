@@ -140,7 +140,9 @@ class PregenService:
 
         results: list[PregenResult] = []
         for _ in range(count):
-            dweller = await crud.dweller.create_random(db_session, vault_id=vault_id, seed=seed)
+            dweller = await crud.dweller.create_random(
+                db_session, vault_id=vault_id, seed=seed, register_bio_places=False
+            )
 
             origin_place = _clean_name(origin) if origin else _pick_place(rng, prefixes, suffixes)
             visited_count = rng.randint(0, 3)

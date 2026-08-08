@@ -14,6 +14,7 @@ from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.game_config import game_config
 from app.crud.wasteland_location import wasteland_location as wl_crud
 from app.models.dweller import Dweller
 from app.models.vault import Vault
@@ -22,6 +23,7 @@ from app.models.wasteland_location import (
     LocationTypeEnum,
     WastelandLocation,
 )
+from app.schemas.common import RarityEnum
 from app.schemas.wasteland_location import (
     DwellerRef,
     VaultMapResponse,
@@ -38,6 +40,7 @@ class _MapDwellerLike(Protocol):
 
     id: UUID4
     vault_id: UUID4
+    rarity: RarityEnum
 
 
 class MapService:
@@ -112,11 +115,12 @@ class MapService:
         visited_places: list[str],
         explicit_origin: str | None = None,
     ) -> None:
-        """Upsert bio origin + up to 5 visited location rows — best-effort.
+        """Upsert bio origin + rarity-scaled visited location rows — best-effort.
 
         *effective origin* = *explicit_origin* when truthy, else *origin_place*.
         If the effective origin normalises to a generic skip token we suppress it.
-        Every visited name (1-5, max 64 chars, skip-list applied) is upserted.
+        Every visited name (max 64 chars, skip-list applied) is upserted, capped
+        at ``game_config.bio.max_visited`` for the dweller's rarity.
 
         The entire body is wrapped so failures are logged and never raised.
         """
@@ -135,11 +139,12 @@ class MapService:
                     db_session, dweller.id, origin_location.id, DwellerLocationRelationEnum.ORIGIN
                 )
 
-            # --- visited (cap at 5, de-dupe against origin, apply skip-list) ---
+            # --- visited (rarity-scaled cap, de-dupe against origin, apply skip-list) ---
             origin_normalized = normalize_place_name(effective_origin)
             visited = 0
+            max_visited = game_config.bio.max_visited(dweller.rarity.value)
             for raw_name in visited_places:
-                if visited >= 5:
+                if visited >= max_visited:
                     break
                 if not raw_name or self._should_skip(raw_name):
                     continue

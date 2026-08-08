@@ -5,6 +5,14 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.28.0] - 2026-08-09
+
+### Added
+
+- **Template-based dweller bio filler** — `backend/scripts/fill_dweller_bios_templates.py`: one-off local script that fills empty dweller bios using SPECIAL-stat-driven templates, mentions an origin place and visited places in each bio, and registers those places on the vault world map via `map_service.register_bio_places`
+
+---
+
 ## [2.27.0] - 2026-08-08
 
 ### Added

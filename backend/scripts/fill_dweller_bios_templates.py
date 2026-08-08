@@ -239,4 +239,5 @@ async def main() -> None:
     print(f"Filled {filled} bios for vault {VAULT_ID}")
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())

@@ -40,7 +40,14 @@ describe('DwellerFilter Store', () => {
     it('should fetch dwellers and update state', async () => {
       const mockDwellers = [
         { id: 'd1', first_name: 'John', last_name: 'Doe', status: 'idle', level: 5, happiness: 75 },
-        { id: 'd2', first_name: 'Jane', last_name: 'Smith', status: 'working', level: 3, happiness: 80 },
+        {
+          id: 'd2',
+          first_name: 'Jane',
+          last_name: 'Smith',
+          status: 'working',
+          level: 3,
+          happiness: 80,
+        },
       ]
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockDwellers })
 
@@ -102,11 +109,20 @@ describe('DwellerFilter Store', () => {
 
   describe('fetchDwellerDetails', () => {
     it('should fetch and cache dweller details', async () => {
-      const mockDweller = { id: 'd1', first_name: 'John', last_name: 'Doe', strength: 5, perception: 5 }
+      const mockDweller = {
+        id: 'd1',
+        first_name: 'John',
+        last_name: 'Doe',
+        strength: 5,
+        perception: 5,
+      }
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockDweller })
 
       const store = useDwellerFilterStore()
-      const result = await store.fetchDwellerDetails('550e8400-e29b-41d4-a716-446655440000', 'test-token')
+      const result = await store.fetchDwellerDetails(
+        '550e8400-e29b-41d4-a716-446655440000',
+        'test-token'
+      )
 
       expect(result).toEqual(mockDweller)
       expect(store.detailedDwellers['550e8400-e29b-41d4-a716-446655440000']).toEqual(mockDweller)
@@ -120,7 +136,10 @@ describe('DwellerFilter Store', () => {
       await store.fetchDwellerDetails('550e8400-e29b-41d4-a716-446655440000', 'test-token')
       vi.mocked(axios.get).mockClear()
 
-      const result = await store.fetchDwellerDetails('550e8400-e29b-41d4-a716-446655440000', 'test-token')
+      const result = await store.fetchDwellerDetails(
+        '550e8400-e29b-41d4-a716-446655440000',
+        'test-token'
+      )
 
       expect(axios.get).not.toHaveBeenCalled()
       expect(result).toEqual(mockDweller)
@@ -152,8 +171,22 @@ describe('DwellerFilter Store', () => {
     it('should return all dwellers when filterStatus is all', () => {
       const store = useDwellerFilterStore()
       store.dwellers = [
-        { id: 'd1', first_name: 'A', last_name: 'Z', status: 'idle', level: 1, happiness: 50 } as any,
-        { id: 'd2', first_name: 'B', last_name: 'Y', status: 'working', level: 2, happiness: 60 } as any,
+        {
+          id: 'd1',
+          first_name: 'A',
+          last_name: 'Z',
+          status: 'idle',
+          level: 1,
+          happiness: 50,
+        } as any,
+        {
+          id: 'd2',
+          first_name: 'B',
+          last_name: 'Y',
+          status: 'working',
+          level: 2,
+          happiness: 60,
+        } as any,
       ]
 
       expect(store.filteredAndSortedDwellers).toHaveLength(2)
@@ -162,8 +195,22 @@ describe('DwellerFilter Store', () => {
     it('should filter by status', () => {
       const store = useDwellerFilterStore()
       store.dwellers = [
-        { id: 'd1', first_name: 'A', last_name: 'Z', status: 'idle', level: 1, happiness: 50 } as any,
-        { id: 'd2', first_name: 'B', last_name: 'Y', status: 'working', level: 2, happiness: 60 } as any,
+        {
+          id: 'd1',
+          first_name: 'A',
+          last_name: 'Z',
+          status: 'idle',
+          level: 1,
+          happiness: 50,
+        } as any,
+        {
+          id: 'd2',
+          first_name: 'B',
+          last_name: 'Y',
+          status: 'working',
+          level: 2,
+          happiness: 60,
+        } as any,
       ]
       store.filterStatus = 'working'
 
@@ -175,8 +222,22 @@ describe('DwellerFilter Store', () => {
     it('should sort by name ascending', () => {
       const store = useDwellerFilterStore()
       store.dwellers = [
-        { id: 'd1', first_name: 'B', last_name: 'A', status: 'idle', level: 1, happiness: 50 } as any,
-        { id: 'd2', first_name: 'A', last_name: 'A', status: 'idle', level: 2, happiness: 60 } as any,
+        {
+          id: 'd1',
+          first_name: 'B',
+          last_name: 'A',
+          status: 'idle',
+          level: 1,
+          happiness: 50,
+        } as any,
+        {
+          id: 'd2',
+          first_name: 'A',
+          last_name: 'A',
+          status: 'idle',
+          level: 2,
+          happiness: 60,
+        } as any,
       ]
       store.sortBy = 'name'
       store.sortDirection = 'asc'
@@ -189,8 +250,22 @@ describe('DwellerFilter Store', () => {
     it('should sort by name descending', () => {
       const store = useDwellerFilterStore()
       store.dwellers = [
-        { id: 'd1', first_name: 'A', last_name: 'A', status: 'idle', level: 1, happiness: 50 } as any,
-        { id: 'd2', first_name: 'B', last_name: 'A', status: 'idle', level: 2, happiness: 60 } as any,
+        {
+          id: 'd1',
+          first_name: 'A',
+          last_name: 'A',
+          status: 'idle',
+          level: 1,
+          happiness: 50,
+        } as any,
+        {
+          id: 'd2',
+          first_name: 'B',
+          last_name: 'A',
+          status: 'idle',
+          level: 2,
+          happiness: 60,
+        } as any,
       ]
       store.sortBy = 'name'
       store.sortDirection = 'desc'
@@ -203,8 +278,22 @@ describe('DwellerFilter Store', () => {
     it('should sort by level numerically', () => {
       const store = useDwellerFilterStore()
       store.dwellers = [
-        { id: 'd1', first_name: 'A', last_name: 'A', status: 'idle', level: 10, happiness: 50 } as any,
-        { id: 'd2', first_name: 'B', last_name: 'A', status: 'idle', level: 1, happiness: 60 } as any,
+        {
+          id: 'd1',
+          first_name: 'A',
+          last_name: 'A',
+          status: 'idle',
+          level: 10,
+          happiness: 50,
+        } as any,
+        {
+          id: 'd2',
+          first_name: 'B',
+          last_name: 'A',
+          status: 'idle',
+          level: 1,
+          happiness: 60,
+        } as any,
       ]
       store.sortBy = 'level'
       store.sortDirection = 'asc'
@@ -217,8 +306,22 @@ describe('DwellerFilter Store', () => {
     it('should sort by happiness', () => {
       const store = useDwellerFilterStore()
       store.dwellers = [
-        { id: 'd1', first_name: 'A', last_name: 'A', status: 'idle', level: 1, happiness: 50 } as any,
-        { id: 'd2', first_name: 'B', last_name: 'A', status: 'idle', level: 1, happiness: 80 } as any,
+        {
+          id: 'd1',
+          first_name: 'A',
+          last_name: 'A',
+          status: 'idle',
+          level: 1,
+          happiness: 50,
+        } as any,
+        {
+          id: 'd2',
+          first_name: 'B',
+          last_name: 'A',
+          status: 'idle',
+          level: 1,
+          happiness: 80,
+        } as any,
       ]
       store.sortBy = 'happiness'
       store.sortDirection = 'asc'

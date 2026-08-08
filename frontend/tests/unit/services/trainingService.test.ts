@@ -19,7 +19,12 @@ describe('trainingService', () => {
 
   describe('startTraining', () => {
     it('should POST to start training endpoint with params', async () => {
-      const mockTraining = { id: 't1', dweller_id: 'd1', status: 'active', stat_being_trained: 'strength' }
+      const mockTraining = {
+        id: 't1',
+        dweller_id: 'd1',
+        status: 'active',
+        stat_being_trained: 'strength',
+      }
       vi.mocked(axios.post).mockResolvedValueOnce({ data: mockTraining })
 
       const result = await startTraining('d1', 'r1', 'test-token')

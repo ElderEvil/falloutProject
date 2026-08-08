@@ -23,7 +23,12 @@ async function loginAndGo(page: Page, url: string) {
     localStorage.setItem('token', token)
     localStorage.setItem(
       'user',
-      JSON.stringify({ id: 'test-user-id', email: 'test@example.com', is_active: true, is_superuser: true })
+      JSON.stringify({
+        id: 'test-user-id',
+        email: 'test@example.com',
+        is_active: true,
+        is_superuser: true,
+      })
     )
   }, TEST_TOKEN)
   await page.goto(url)
@@ -168,7 +173,14 @@ test.describe('Error handling / edge cases', () => {
 
   test('back-to-back rapid navigation does not cause errors', async ({ page }) => {
     await loginAndGo(page, '/login')
-    const urls = ['/', '/vault/fake-id', '/vault/fake-id/dwellers', '/vault/fake-id/storage', '/settings', '/login']
+    const urls = [
+      '/',
+      '/vault/fake-id',
+      '/vault/fake-id/dwellers',
+      '/vault/fake-id/storage',
+      '/settings',
+      '/login',
+    ]
     for (const url of urls) {
       await page.goto(url)
       await page.waitForTimeout(200)

@@ -93,7 +93,7 @@ describe('useGoBack', () => {
 
   it('falls back to router.replace("/") when interpolated path is empty due to missing params', () => {
     setHistoryLength(1)
-    mocks.route.meta = { parentRoute: ':id' }  // fully param-based, becomes '' when id is missing
+    mocks.route.meta = { parentRoute: ':id' } // fully param-based, becomes '' when id is missing
     mocks.route.params = {}
 
     const { goBack } = useGoBack()

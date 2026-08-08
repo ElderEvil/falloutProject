@@ -126,11 +126,7 @@ interface Props {
   error?: string | null
 }
 
-const {
-  loading = false,
-  error = null,
-  initialData,
-} = defineProps<Props>()
+const { loading = false, error = null, initialData } = defineProps<Props>()
 
 const emit = defineEmits<{
   submit: [data: ProfileUpdate]

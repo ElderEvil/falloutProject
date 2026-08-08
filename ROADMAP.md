@@ -127,15 +127,49 @@ AI-powered dweller interactions.
 
 ## Planned Features (Future)
 
-### Backend Test Speed
+### v2.27.0 — Test Coverage & Speed Optimization (In Progress)
 
-Current: 927 tests in ~4 min (254s). Target: <60s.
+**Focus**: Reach 80%+ coverage while cutting test runtime by 40%
 
-- **Module-level asyncio scope** — Apply `pytest.mark.asyncio(scope="module")` to remaining slow test files. Already proven in `test_pregnancy.py` (13 tests, 10s). Avoids per-test DB setup/teardown where fixtures are shared across functions.
-- **pytest-xdist parallelization** — `pytest -n auto` splits across CPU cores. Works if tests are isolated (no shared mutable state). Quickest 2–3× speedup.
-- **Coverage opt-out for dev** — `--no-cov` flag for local runs; coverage-only in CI.
-- **Prune slow/low-value tests** — Identify tests >1s that assert trivia (e.g., `test_read_dweller` reads back what was just written). Merge similar setup-heavy tests into single parametrized functions.
-- **Transaction-rollback DB strategy** — Wrap each test in a SAVEPOINT, rollback after assertion. Much faster than full drop/create cycle. Needs fixture-level opt-in per AGENTS.md config.
+**Current State**: 77.53% coverage (1139 tests), ~31s runtime without coverage, ~44s with coverage
+
+#### Speed Optimizations ✅
+
+- **pytest-xdist parallelization** — `pytest -n auto` splits across CPU cores; runtime 4:24 → ~31s
+- **Test markers** — `unit`, `integration`, `slow`, `e2e` registered in `pyproject.toml`
+- **Coverage exclusions** — `app/cli/*`, `app/scripts/*`, `app/services/pregen_service.py`, `app/admin/auth.py`, `app/api/tasks.py`
+- **Fakeredis fix** — shared fake-Redis client across requests so refresh-token tests pass under xdist
+
+#### Coverage Improvements (Target: 82%+)
+
+**Phase 1: High-Impact Services ✅ (+6.6%, 207 new tests)**
+- ✅ `services/open_ai.py` — 72 tests, 36.92% → 96.73%
+- ✅ `services/health_check.py` — 40 tests, 31.52% → 98.79%
+- ✅ `services/dweller_assignment_service.py` — 56 tests, 40.82% → 98.64%
+- ✅ `services/objective_assignment_service.py` — 39 tests, 23.81% → 100%
+
+**Phase 2: CRUD & Endpoints (Stretch)**
+- [ ] `crud/room.py` (103 missing) — Test all CRUD operations
+- [ ] `crud/item_base.py` (76 missing) — Test inheritance patterns
+- [ ] `api/v1/endpoints/training.py` (43 missing) — API tests with mocked services
+- [ ] `api/v1/endpoints/relationship.py` (41 missing) — API tests with mocked services
+
+**Expected**: Coverage 77.53% → 80%+
+
+**Phase 3: Remaining Gaps (Stretch)**
+- [ ] Fill gaps in `services/vault_service.py` (98 missing)
+- [ ] Fill gaps in `services/game_loop.py` (133 missing)
+- [ ] Fill gaps in `services/dweller_ai.py` (75 missing)
+
+**Expected**: Coverage 80% → 82%+
+
+#### Implementation Timeline
+
+| Day | Focus | Result |
+|------|-------|-----------------|
+| 1 | Speed infra + exclusions + fakeredis fix | 4:24 → ~31s; 70.93% → 74.47% |
+| 2 | High-impact service tests | 74.47% → 77.53% (207 tests) |
+| 3+ | Phase 2 CRUD/endpoints + Phase 3 remaining gaps | Target 82%+ |
 
 ### Phase 1: Core Gameplay
 
@@ -175,7 +209,7 @@ Current: 927 tests in ~4 min (254s). Target: <60s.
 - [x] Alembic enum sync — `compare_type=True` in online mode
 - [ ] Performance testing: Locust in nightly CI
 - [ ] Datetime consistency: Migrate all `datetime.utcnow()` to aware `datetime.now(UTC)`
-- [ ] Test coverage: Target 80% (both FE/BE)
+- [ ] Test coverage: Target 80% — v2.27.0 in progress (70.93% → 77.53%)
 
 ### Frontend
 
@@ -191,17 +225,18 @@ Current: 927 tests in ~4 min (254s). Target: <60s.
 
 ## Progress Metrics
 
-### Current Stats (Jul 2026)
+### Current Stats (Aug 2026)
 
-- **Backend**: 25+ routers, 100+ endpoints, 18+ services, ~70% coverage
+- **Backend**: 25+ routers, 100+ endpoints, 18+ services, ~78% coverage
 - **Frontend**: 60+ Vue components, 10 feature modules
-- **Tests**: Frontend 867+, Backend 825+
+- **Tests**: Frontend 867+, Backend 1139+
 - **Models**: 20+ database models
 
 ### Version Milestones
 
 | Version | Release      | Highlights                                   |
 | ------- | ------------ | -------------------------------------------- |
+| v2.27.0 | Aug 2026     | Test coverage 80%+, speed 40% faster         |
 | v2.26.0 | Aug 07, 2026 | Alembic enum sync + PG enum regression tests |
 | v2.25.0 | Aug 07, 2026 | Map declutter, 160-world scaling, pregen service |
 | v2.24.0 | Aug 07, 2026 | World Map (schematic map, discoveries, bio places) |
@@ -237,4 +272,4 @@ Current: 927 tests in ~4 min (254s). Target: <60s.
 
 ---
 
-_Last updated: 2026-08-07_ (v2.26.0, alembic enum sync)
+_Last updated: 2026-08-07_ (v2.27.0 Day 2 complete, coverage 77.53%)

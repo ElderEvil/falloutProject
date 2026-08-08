@@ -5,11 +5,40 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.27.0] - 2026-08-08
+
+### Added
+
+- **Balance simulator scripts** — exploration, happiness, and room balance simulation scripts for tuning game parameters
+- **AI usage service tests** — full coverage for `AIUsageService` token aggregation, quota reporting, and edge cases (default/custom/zero/exceeded quotas, error logging)
+- **Game loop tests** — expanded coverage for game tick processing, pause/resume, and tick orchestration
+- **Vault service tests** — coverage for vault initialization, resource updates, and medical transfers
+- **Dweller AI service tests** — comprehensive coverage for dweller AI decision-making and map interactions
+- **Room CRUD tests** — coverage for room creation, validation, coordinate constraints, and vault attribute recalculation
+- **Item base CRUD tests** — coverage for item listing, filtering, and CRUD operations
+- **Relationship endpoint tests** — coverage for relationship CRUD and compatibility checks
+- **Training endpoint tests** — coverage for training lifecycle endpoints
+- **Objective assignment service tests** — coverage for objective assignment logic
+- **Dweller assignment service tests** — coverage for room-based dweller assignment
+- **Health check service tests** — expanded coverage for RustFS, Ollama, and infrastructure health checks
+- **OpenAI service tests** — coverage for provider initialization (gateway/direct/ollama/disabled), image generation, and audio generation
+- **pytest-xdist** — parallel test execution support with test markers and coverage exclusions
+
+### Changed
+
+- **Shared fakeredis client** — tests now share a single fakeredis instance across requests, reducing setup overhead and improving test reliability
+
+### Fixed
+
+- **Lint compliance in test files** — fixed FBT003 (boolean positional args in `patch.object`), SIM117 (nested `with` statements), RUF036 (`None` union ordering), E501 (line length), and I001 (import sorting) across test files
+
+---
+
 ## [Unreleased]
 
 ### Planned
 
-- v2.22.0 — @nuxt/ui adoption (11 home-grown U* components → @nuxt/ui), Axios→fetch migration, chat REST→WebSocket migration
+- v2.22.0 — @nuxt/ui adoption (11 home-grown U\* components → @nuxt/ui), Axios→fetch migration, chat REST→WebSocket migration
 
 ---
 
@@ -183,7 +212,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 - **FE LOC reduction ~1500+ lines** — Deleted ~1000 LOC dead code (43 files: barrel re-exports, dead composables, unused UI components, aspirational infra)
 - **DRY consolidation** — Merged useSse/usePostEventStream into useSseBase; merged WeaponCard/OutfitCard into EquipmentCard; consolidated room-destroy logic; CSS variables replace hardcoded hex colors
-- **Barrel migration** — All legacy barrel imports (@/stores/*, @/models/*) migrated to @/modules/* paths; 8 empty directories removed
+- **Barrel migration** — All legacy barrel imports (@/stores/_, @/models/_) migrated to @/modules/\* paths; 8 empty directories removed
 - **Dweller store split** — dweller.ts (796 LOC) split into 5 focused stores (filter, generation, management, medical, death) with backward-compat facade
 - **Component simplification** — DwellerCard: extracted DwellerCardActions + HappinessModifierPopover sub-components, dead-CSS cleanup
 

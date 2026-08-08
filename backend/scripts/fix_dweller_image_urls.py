@@ -1,4 +1,3 @@
-# ruff: noqa: INP001
 """Fix dweller image URLs - convert filenames to full URLs."""
 
 import asyncio

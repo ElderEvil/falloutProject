@@ -1,4 +1,3 @@
-# ruff: noqa: INP001
 """Set public policies on RustFS buckets."""
 
 import json

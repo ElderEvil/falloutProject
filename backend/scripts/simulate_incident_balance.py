@@ -191,7 +191,7 @@ class IncidentSimulator:
         duration_seconds = simulation_hours * 3600
         ticks = duration_seconds // self.cfg.tick_interval + 1
 
-        vault = VaultState()
+        vault = VaultState(population=self.cfg.starting_dwellers, adults=self.cfg.starting_adults)
         last_spawn_time = -self.cfg.spawn_cooldown_seconds
         max_concurrent = 0
         resolution_times: list[int] = []
@@ -208,19 +208,17 @@ class IncidentSimulator:
             now = tick * self.cfg.tick_interval
             hour_idx = min(now // 3600, simulation_hours - 1)
 
-            active_before = len([i for i in vault.incidents if not i.resolved])
             self._resolve_incidents(vault, now, resolution_times)
-            self._spawn_incidents(vault, now, last_spawn_time)
+            spawned = self._spawn_incidents(vault, now, last_spawn_time)
             active_after = len([i for i in vault.incidents if not i.resolved])
             max_concurrent = max(max_concurrent, active_after)
 
             if active_after > 0:
                 self._apply_incident_pressure(vault)
 
-            new_incidents = max(0, active_after - active_before)
-            if new_incidents > 0:
+            if spawned:
                 last_spawn_time = now
-                incidents_curve[hour_idx] += new_incidents
+                incidents_curve[hour_idx] += 1
 
             pop_curve[hour_idx] = vault.population
             deaths_curve[hour_idx] = vault.total_deaths
@@ -295,22 +293,22 @@ class IncidentSimulator:
                 incident.deaths += 1
                 vault.deaths_by_type[incident.incident_type] += 1
 
-    def _spawn_incidents(self, vault: VaultState, now: int, last_spawn_time: int) -> None:
+    def _spawn_incidents(self, vault: VaultState, now: int, last_spawn_time: int) -> bool:
         if vault.population < self.cfg.min_vault_population:
-            return
+            return False
 
         active = len([i for i in vault.incidents if not i.resolved])
         if active >= self.cfg.max_active_incidents:
-            return
+            return False
 
         seconds_since_last = now - last_spawn_time
         if seconds_since_last < self.cfg.spawn_cooldown_seconds:
-            return
+            return False
 
         hours_passed = min(self.cfg.tick_interval / 3600, 2.0)
         spawn_chance = self.cfg.spawn_chance_per_hour * hours_passed
         if random.random() >= spawn_chance:
-            return
+            return False
 
         weights = self.cfg.get_spawn_weights()
         incident_type = random.choices(list(weights.keys()), weights=list(weights.values()), k=1)[0]
@@ -324,6 +322,7 @@ class IncidentSimulator:
         vault.incidents.append(incident)
         vault.incidents_by_type[incident_type] += 1
         vault.happiness -= self.cfg.happiness_penalty_active
+        return True
 
     def _calculate_dweller_power(self, vault: VaultState) -> float:
         if vault.adults <= 0:
@@ -591,7 +590,10 @@ def _print_balance(batch: BatchResult, hours: int) -> None:
         print("  Survival rate 50-80% — challenging but manageable.")
     else:
         print("  Survival rate above 80% — incidents are too easy.")
-    print(f"  Deaths per incident={mean_deaths / mean_incidents:.2f} over {hours}h")
+    if mean_incidents > 0:
+        print(f"  Deaths per incident={mean_deaths / mean_incidents:.2f} over {hours}h")
+    else:
+        print(f"  Deaths per incident=n/a (no incidents spawned) over {hours}h")
     print(f"  Population survived={mean_pop:.0f} from {DEFAULT_STARTING_DWELLERS}")
     print()
 

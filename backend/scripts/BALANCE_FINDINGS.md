@@ -46,7 +46,7 @@ With defaults (500 caps, 10 dwellers, build interval 2h):
 
 **Implication**: Players would hit a "soft wall" where resources stay at 100% (production outpaces consumption due to simplified scaling) but no new rooms can be built, making the room-building mechanic irrelevant after hour 2.
 
-**Recommendation**: Either increase starting caps to 2,000–5,000, reduce room costs by 50–70%, or make caps regenerate from incident rewards / exploration loot.
+**Recommendation**: Simulator-only — raise `starting_caps` to 2,000–5,000 to explore a caps-rich early game. This is not a game change: objectives, quests, and exploration provide additional caps income not modeled in the standalone simulator (see Accepted design decisions below).
 
 ---
 

@@ -313,6 +313,7 @@ async def pg_session(postgres_engine: AsyncEngine):
             text(f'SET search_path TO "{schema}"')
         )
         await conn.run_sync(SQLModel.metadata.create_all)
+        await conn.commit()
 
         transaction = await conn.begin()
         async with AsyncSession(bind=conn) as session:
@@ -320,6 +321,7 @@ async def pg_session(postgres_engine: AsyncEngine):
         await transaction.rollback()
 
         await conn.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
+        await conn.commit()
 ```
 
 ### Enum Inspection
@@ -329,7 +331,11 @@ from sqlalchemy import inspect
 
 
 async def test_pg_enum_labels(engine: AsyncEngine):
-    with inspect(engine.sync_engine) as inspector:
+    def _check_status_enum(sync_conn) -> None:
+        inspector = inspect(sync_conn)
         enums = inspector.get_enums()
         assert any(e["name"] == "status" for e in enums)
+
+    async with engine.connect() as conn:
+        await conn.run_sync(_check_status_enum)
 ```

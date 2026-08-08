@@ -51,6 +51,9 @@ addopts = [
     "--strict-markers",
     "--strict-config",
 ]
+markers = [
+    "integration: tests requiring database/redis or real service wiring",
+]
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::UserWarning",

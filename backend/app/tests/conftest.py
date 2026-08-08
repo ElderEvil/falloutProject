@@ -50,22 +50,23 @@ from app.tests.utils.user import authentication_token_from_email  # noqa: E402
 from app.tests.utils.utils import get_superuser_token_headers  # noqa: E402
 from main import app  # noqa: E402
 
-_shared_fake_redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
+
+@pytest_asyncio.fixture
+async def _shared_fake_redis() -> AsyncGenerator[Any]:
+    """Function-scoped fakeredis client bound to the test's event loop."""
+    yield fakeredis.aioredis.FakeRedis(decode_responses=True)
 
 
-async def _fake_redis_client():
-    """Yield the shared fakeredis client for test dependency override."""
-    try:
-        yield _shared_fake_redis
-    finally:
-        pass
-
-
-app.dependency_overrides[get_redis_client] = _fake_redis_client
+@pytest_asyncio.fixture(autouse=True)
+async def _fake_redis_client(_shared_fake_redis: Any) -> AsyncGenerator[Any]:
+    """Install the shared fakeredis client as the get_redis_client dependency override."""
+    app.dependency_overrides[get_redis_client] = lambda: _shared_fake_redis
+    yield _shared_fake_redis
+    app.dependency_overrides.pop(get_redis_client, None)
 
 
 @pytest.fixture(autouse=True)
-async def _flush_fake_redis():
+async def _flush_fake_redis(_shared_fake_redis: Any) -> AsyncGenerator[Any]:
     """Flush the shared fakeredis client before each test for isolation."""
     await _shared_fake_redis.flushall()
     yield

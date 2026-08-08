@@ -316,7 +316,13 @@ class RoomSimulator:
         duration_seconds = simulation_hours * 3600
         ticks = duration_seconds // self.cfg.tick_interval + 1
 
-        vault = VaultState()
+        vault = VaultState(
+            caps=self.cfg.starting_caps,
+            population=self.cfg.starting_dwellers,
+            adults=self.cfg.starting_dwellers,
+            last_build_time=-self.cfg.room_build_interval_hours * 3600,
+            last_upgrade_time=-self.cfg.room_upgrade_interval_hours * 3600,
+        )
         self._init_starting_rooms(vault)
         resource_warnings = 0
         room_builds = 0
@@ -346,13 +352,9 @@ class RoomSimulator:
             births = self._process_breeding(vault, now)
             vault.total_births += births
 
-            rooms_before = len(vault.room_instances)
-            tiers_before = sum(r.tier for r in vault.room_instances)
-            self._process_rooms(vault, now)
-            rooms_after = len(vault.room_instances)
-            tiers_after = sum(r.tier for r in vault.room_instances)
-            room_builds += rooms_after - rooms_before
-            room_upgrades += tiers_after - tiers_before
+            builds, upgrades = self._process_rooms(vault, now)
+            room_builds += builds
+            room_upgrades += upgrades
 
             self._process_resources(vault)
 
@@ -401,10 +403,11 @@ class RoomSimulator:
             SimulatedRoom(template=ROOM_TEMPLATES["Living room"], tier=1),
         ]
 
-    def _process_rooms(self, vault: VaultState, now: int) -> None:
+    def _process_rooms(self, vault: VaultState, now: int) -> tuple[int, int]:
         self._assign_dwellers(vault)
-        self._build_rooms(vault, now)
-        self._upgrade_rooms(vault, now)
+        builds = self._build_rooms(vault, now)
+        upgrades = self._upgrade_rooms(vault, now)
+        return builds, upgrades
 
     def _assign_dwellers(self, vault: VaultState) -> None:
         prod_rooms = [r for r in vault.room_instances if r.category == "production" and r.output > 0]
@@ -415,12 +418,11 @@ class RoomSimulator:
         for i, room in enumerate(prod_rooms):
             room.assigned_dwellers = per_room + (1 if i < rem else 0)
 
-    def _build_rooms(self, vault: VaultState, now: int) -> None:
+    def _build_rooms(self, vault: VaultState, now: int) -> int:
         if now - vault.last_build_time < self.cfg.room_build_interval_hours * 3600:
-            return
-        if vault.population >= vault.population_cap() - 2:
-            self._try_build(vault, "Living room", now)
-            return
+            return 0
+        if vault.population >= vault.population_cap() - 2 and self._try_build(vault, "Living room", now):
+            return 1
         checks = [
             (vault.power, vault.power_max, "Power Generator"),
             (vault.food, vault.food_max, "Diner"),
@@ -429,7 +431,8 @@ class RoomSimulator:
         checks.sort(key=lambda x: x[0] / x[1] if x[1] > 0 else 1.0)
         for current, max_val, room_name in checks:
             if current < max_val * 0.2 and self._try_build(vault, room_name, now):
-                return
+                return 1
+        return 0
 
     def _try_build(self, vault: VaultState, room_name: str, now: int) -> bool:
         template = ROOM_TEMPLATES.get(room_name)
@@ -446,16 +449,17 @@ class RoomSimulator:
             return True
         return False
 
-    def _upgrade_rooms(self, vault: VaultState, now: int) -> None:
+    def _upgrade_rooms(self, vault: VaultState, now: int) -> int:
         if now - vault.last_upgrade_time < self.cfg.room_upgrade_interval_hours * 3600:
-            return
+            return 0
         for room in vault.room_instances:
             cost = room.upgrade_cost()
             if cost is not None and vault.caps >= cost and room.tier < 3:
                 vault.caps -= cost
                 room.tier += 1
                 vault.last_upgrade_time = now
-                return
+                return 1
+        return 0
 
     def _calculate_production(self, vault: VaultState, seconds: int) -> dict[str, float]:
         production = {"power": 0.0, "food": 0.0, "water": 0.0}

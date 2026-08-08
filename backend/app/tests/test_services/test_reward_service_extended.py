@@ -182,22 +182,21 @@ async def test_grant_dweller_success(async_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_grant_dweller_invalid_rarity_defaults_common(async_session: AsyncSession) -> None:
-    """Test granting dweller with invalid rarity defaults to common."""
+    """Test granting dweller with invalid rarity raises instead of silently defaulting to common."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
-    result = await reward_service.grant_dweller(
-        async_session,
-        vault.id,
-        {
-            "first_name": "Test",
-            "rarity": "mythical",
-        },
-    )
-
-    assert result["reward_type"] == RewardType.DWELLER
+    with pytest.raises(ValueError, match="not a valid RarityEnum"):
+        await reward_service.grant_dweller(
+            async_session,
+            vault.id,
+            {
+                "first_name": "Test",
+                "rarity": "mythical",
+            },
+        )
 
 
 @pytest.mark.asyncio
@@ -351,14 +350,14 @@ async def test_grant_experience_level_up(async_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_grant_experience_invalid_dweller(async_session: AsyncSession) -> None:
-    """Test granting experience to non-existent dweller is handled gracefully."""
+    """Test granting experience to non-existent dweller raises instead of silently skipping."""
     import uuid
 
-    fake_id = uuid.uuid4()
-    result = await reward_service.grant_experience(async_session, [fake_id], 50)
+    from app.utils.exceptions import ResourceNotFoundException
 
-    assert result["reward_type"] == RewardType.EXPERIENCE
-    assert str(fake_id) not in result["dweller_ids"]
+    fake_id = uuid.uuid4()
+    with pytest.raises(ResourceNotFoundException):
+        await reward_service.grant_experience(async_session, [fake_id], 50)
 
 
 @pytest.mark.asyncio
@@ -766,8 +765,8 @@ async def test_process_objective_reward_outfit(async_session: AsyncSession) -> N
     async_session.add(link)
     await async_session.commit()
 
-    result = await reward_service.process_objective_reward(async_session, vault.id, link)
-    assert result is None
+    with pytest.raises(LookupError):
+        await reward_service.process_objective_reward(async_session, vault.id, link)
 
 
 @pytest.mark.asyncio

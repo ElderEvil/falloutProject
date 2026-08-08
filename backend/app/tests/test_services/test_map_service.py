@@ -10,6 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.models.dweller import Dweller
 from app.models.vault import Vault
 from app.models.wasteland_location import LocationTypeEnum, WastelandLocation
+from app.schemas.common import RarityEnum
 from app.services.map_service import map_service
 from app.utils.places import normalize_place_name, seeded_vault_specs
 
@@ -23,6 +24,8 @@ async def test_register_bio_places_creates_origin_and_visited(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
     """origin "Megaton" + 6 visited names → 1 ORIGIN + exactly 5 VISITED rows."""
+    # Cap scales with rarity; pin to LEGENDARY (max 5) so the 5-row assertion is deterministic.
+    dweller.rarity = RarityEnum.LEGENDARY
     visited_names = [
         "Rivet City",
         "Tenpenny Tower",
@@ -46,6 +49,41 @@ async def test_register_bio_places_creates_origin_and_visited(
     assert len(visited_rows) == 5
 
     assert origin_rows[0].normalized_name == normalize_place_name("Megaton")
+
+
+@pytest.mark.asyncio
+async def test_register_bio_places_rarity_scaled(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """VISITED cap follows rarity: COMMON→2, LEGENDARY→5 for 6 provided names each."""
+    common_names = [
+        "Megaton",
+        "Rivet City",
+        "Tenpenny Tower",
+        "Paradise Falls",
+        "Canterbury Commons",
+        "Big Town",
+    ]
+    legendary_names = [
+        "Little Lamplight",
+        "Goodneighbor",
+        "Diamond City",
+        "The Slog",
+        "Bunker Hill",
+        "Republic of Dave",
+    ]
+    # get_or_create dedupes on (vault_id, normalized_name), so the two calls
+    # must use disjoint name sets for the totals below to hold.
+    dweller.rarity = RarityEnum.COMMON
+    await map_service.register_bio_places(async_session, dweller, origin_place="Arefu", visited_places=common_names)
+    dweller.rarity = RarityEnum.LEGENDARY
+    await map_service.register_bio_places(async_session, dweller, origin_place="Arefu", visited_places=legendary_names)
+
+    rows = (await async_session.execute(select(WastelandLocation))).scalars().all()
+    origin_rows = [r for r in rows if r.type == LocationTypeEnum.ORIGIN]
+    visited_rows = [r for r in rows if r.type == LocationTypeEnum.VISITED]
+    assert len(origin_rows) == 1
+    assert len(visited_rows) == 7
 
 
 @pytest.mark.asyncio

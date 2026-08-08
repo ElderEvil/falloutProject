@@ -12,6 +12,7 @@ from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.vault import Vault
+from app.schemas.common import RarityEnum
 from app.schemas.dweller import DwellerCreateCommonOverride
 from app.services.notification_service import notification_service
 
@@ -205,10 +206,12 @@ class RadioService:
                     dweller = None
 
         if dweller is None:
+            rarity = RarityEnum.RARE if random.random() < game_config.radio.rare_chance else RarityEnum.COMMON
             dweller = await crud.dweller.create_random(
                 db_session=db_session,
                 obj_in=override,
                 vault_id=vault_id,
+                rarity=rarity,
             )
 
         logger.info(
@@ -219,22 +222,15 @@ class RadioService:
             recycled,
         )
 
-        # Send notification (non-critical, don't break recruitment on failure)
-        try:
-            from app.crud.vault import vault as vault_crud
-
-            vault = await vault_crud.get(db_session, vault_id)
-            if vault and vault.user_id:
-                await notification_service.notify_radio_new_dweller(
-                    db_session,
-                    user_id=vault.user_id,
-                    vault_id=vault_id,
-                    dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
-                    meta_data={"dweller_id": str(dweller.id), "recycled": recycled},
-                )
-        except Exception:
-            logger.exception(
-                "Failed to send radio recruitment notification: vault_id=%s, dweller_id=%s", vault_id, dweller.id
+        # Notification failures propagate (fail-fast, consistent with reward_service)
+        vault = await crud.vault.get(db_session, vault_id)
+        if vault and vault.user_id:
+            await notification_service.notify_radio_new_dweller(
+                db_session,
+                user_id=vault.user_id,
+                vault_id=vault_id,
+                dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
+                meta_data={"dweller_id": str(dweller.id), "recycled": recycled},
             )
 
         return dweller, recycled

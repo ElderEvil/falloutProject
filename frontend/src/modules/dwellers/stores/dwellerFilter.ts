@@ -3,7 +3,15 @@ import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import axios from '@/core/plugins/axios'
 import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
+import { getDwellersByVault } from '@/modules/dwellers/services/dwellerService'
 import { handleStoreError } from '@/core/utils/errorHandler'
+
+/**
+ * Non-null limit for complete-fetch requests (fetchAllDwellers). The backend
+ * default limit is 100; this ensures ALL dwellers are returned for dashboard
+ * aggregates regardless of vault population.
+ */
+export const ALL_DWELLERS_FETCH_LIMIT = 1000
 
 export type DwellerStatus = 'idle' | 'working' | 'exploring' | 'questing' | 'training' | 'dead'
 export type DwellerAgeGroup = 'child' | 'teen' | 'adult' | 'all'
@@ -31,6 +39,11 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   const allDwellers = ref<DwellerShort[]>([])
   const detailedDwellers = ref<Record<string, Dweller | null>>({})
   const isLoading = ref(false)
+
+  // Vault-scoped request tracking for fetchAllDwellers: results are applied
+  // only when they still match the active vault and the latest request.
+  let allDwellersVaultId: string | null = null
+  let allDwellersRequestSeq = 0
 
   // Filter and sort state (persisted in localStorage)
   const filterStatus = useLocalStorage<DwellerStatus | 'all'>('dwellerFilterStatus', 'all')
@@ -155,13 +168,18 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
    * Populates the allDwellers ref without touching the filtered dwellers list.
    */
   async function fetchAllDwellers(vaultId: string, token: string): Promise<void> {
+    allDwellers.value = []
+    allDwellersVaultId = vaultId
+    const requestSeq = ++allDwellersRequestSeq
+
     try {
-      const response = await axios.get(`/api/v1/dwellers/vault/${vaultId}/`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const data = await getDwellersByVault(vaultId, token, {
+        skip: 0,
+        limit: ALL_DWELLERS_FETCH_LIMIT,
       })
-      allDwellers.value = response.data
+      if (requestSeq === allDwellersRequestSeq && allDwellersVaultId === vaultId) {
+        allDwellers.value = data
+      }
     } catch (error) {
       handleStoreError(error, `Failed to fetch all dwellers for vault ${vaultId}`)
     }

@@ -92,8 +92,6 @@ async def throwaway_engine() -> AsyncGenerator:
         connect_args={"check_same_thread": False},
     )
 
-    # SQLite has no JSONB; swap JSONB columns to JSON for table creation
-    # (same pattern as conftest.db_connection).
     @event.listens_for(SQLModel.metadata, "before_create")
     def _replace_jsonb_with_json(target, connection, **kw):
         for table in target.tables.values():
@@ -107,6 +105,7 @@ async def throwaway_engine() -> AsyncGenerator:
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.drop_all)
     await engine.dispose()
+    event.remove(SQLModel.metadata, "before_create", _replace_jsonb_with_json)
 
 
 def _make_shared_session_maker(shared_conn: AsyncConnection) -> Any:

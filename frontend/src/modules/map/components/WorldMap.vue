@@ -90,7 +90,11 @@ const gridLines = computed(() => {
 // ── Spread markers ─────────────────────────────────────────────────────
 const spreadMap = computed(() => {
   const allInputs = [
-    ...visibleLocations.value.map((loc) => ({ id: `loc-${loc.id}`, x: loc.coord_x, y: loc.coord_y })),
+    ...visibleLocations.value.map((loc) => ({
+      id: `loc-${loc.id}`,
+      x: loc.coord_x,
+      y: loc.coord_y,
+    })),
     ...props.vaultMarkers.map((vm, idx) => ({
       id: `vault-${idx}`,
       x: vm.coord_x,

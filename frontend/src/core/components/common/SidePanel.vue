@@ -77,10 +77,10 @@ const navItems = computed((): NavItem[] => {
       hotkey: '7',
     },
     {
-      id: 'happiness',
-      label: 'Happiness',
-      icon: 'mdi:emoticon-happy-outline',
-      path: `/vault/${vaultId.value}/happiness`,
+      id: 'map',
+      label: 'Map',
+      icon: 'mdi:map',
+      path: `/vault/${vaultId.value}/map`,
       hotkey: '8',
     },
     {
@@ -89,12 +89,6 @@ const navItems = computed((): NavItem[] => {
       icon: 'mdi:package-variant',
       path: `/vault/${vaultId.value}/storage`,
       hotkey: '9',
-    },
-    {
-      id: 'map',
-      label: 'Map',
-      icon: 'mdi:map',
-      path: `/vault/${vaultId.value}/map`,
     },
   ]
   // Only show UI Test nav when __APP_VERSION__ contains 'dev' or localStorage flag is set

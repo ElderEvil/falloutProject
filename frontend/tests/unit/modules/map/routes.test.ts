@@ -79,7 +79,7 @@ describe('Map route', () => {
       expect(mapItem!.label).toBe('Map')
       expect(mapItem!.icon).toBe('mdi:map')
       expect(mapItem!.path).toBe('/vault/vault-1/map')
-      expect(mapItem!.hotkey).toBeUndefined()
+      expect(mapItem!.hotkey).toBe('8')
     })
   })
 })

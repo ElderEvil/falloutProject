@@ -138,6 +138,7 @@ describe('DwellersView', () => {
       vi.mocked(axios.get)
         .mockResolvedValueOnce({ data: mockDwellers }) // fetchDwellersByVault
         .mockResolvedValueOnce({ data: [] }) // fetchRooms
+        .mockResolvedValueOnce({ data: [] }) // fetchIncidents
 
       await router.isReady()
       const wrapper = mount(DwellersView, {
@@ -164,6 +165,7 @@ describe('DwellersView', () => {
       vi.mocked(axios.get)
         .mockResolvedValueOnce({ data: [] }) // fetchDwellersByVault
         .mockResolvedValueOnce({ data: [] }) // fetchRooms
+        .mockResolvedValueOnce({ data: [] }) // fetchIncidents
 
       await router.isReady()
       const wrapper = mount(DwellersView, {

@@ -656,7 +656,7 @@ app = typer.Typer(help="Simulate incident balance for the Fallout Shelter game."
 
 
 @app.command()
-def simulate(
+def simulate(  # noqa: PLR0917 - Typer command with many CLI options
     days: Annotated[int, typer.Option(help="Simulation length in days")] = DEFAULT_SIMULATION_DAYS,
     runs: Annotated[int, typer.Option(help="Monte Carlo runs (higher = smoother)")] = DEFAULT_RUNS,
     sweep: Annotated[str | None, typer.Option(help="Parameter to sweep")] = None,

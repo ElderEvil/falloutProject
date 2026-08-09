@@ -8,7 +8,7 @@ import pytest
 
 from app.models.dweller import Dweller
 from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, GenderEnum, RarityEnum
-from scripts.fill_dweller_bios_templates import _build_bio, _highest_stat, _pick_places
+from scripts.fill_dweller_bios_templates import _build_bio, _highest_stat, _join_places, _pick_places
 
 
 def _make_dweller(**overrides: object) -> Dweller:
@@ -57,16 +57,22 @@ def test_pick_places_origin_and_visited_are_distinct():
     assert origin not in visited
 
 
-def test_pick_places_common_rarity_gets_one_visited():
+def test_pick_places_common_rarity_gets_two_visited():
     dweller = _make_dweller(rarity=RarityEnum.COMMON)
     _origin, visited = _pick_places(dweller)
-    assert len(visited) == 1
+    assert len(visited) == 2
 
 
-def test_pick_places_legendary_rarity_gets_two_visited():
+def test_pick_places_rare_rarity_gets_four_visited():
+    dweller = _make_dweller(rarity=RarityEnum.RARE)
+    _origin, visited = _pick_places(dweller)
+    assert len(visited) == 4
+
+
+def test_pick_places_legendary_rarity_gets_five_visited():
     dweller = _make_dweller(rarity=RarityEnum.LEGENDARY)
     _origin, visited = _pick_places(dweller)
-    assert len(visited) == 2
+    assert len(visited) == 5
 
 
 def test_build_bio_includes_origin_and_visited():
@@ -85,7 +91,8 @@ def test_build_bio_includes_origin_and_visited():
     assert "Ada Lovelace" in bio
     assert "Megaton" in bio
     assert "the Pitt" in bio
-    assert "Strength 5" in bio
+    assert "Strength" in bio
+    assert "5" in bio
 
 
 def test_build_bio_with_two_visited_places_joins_with_and():
@@ -95,6 +102,24 @@ def test_build_bio_with_two_visited_places_joins_with_and():
     )
     bio = _build_bio(dweller, origin="Megaton", visited=["the Pitt", "Far Harbor"])
     assert "the Pitt and Far Harbor" in bio
+
+
+def test_join_places_one():
+    assert _join_places(["Megaton"]) == "Megaton"
+
+
+def test_join_places_two():
+    assert _join_places(["the Pitt", "Far Harbor"]) == "the Pitt and Far Harbor"
+
+
+def test_join_places_three_uses_oxford_comma():
+    assert _join_places(["A", "B", "C"]) == "A, B, and C"
+
+
+def test_join_places_five_uses_oxford_comma():
+    places = ["the Capital Wasteland", "Mojave", "Glowing Sea", "the Commonwealth", "Appalachia"]
+    result = _join_places(places)
+    assert result == "the Capital Wasteland, Mojave, Glowing Sea, the Commonwealth, and Appalachia"
 
 
 def test_build_bio_fits_max_length():

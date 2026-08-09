@@ -2,7 +2,8 @@
 
 Run locally against a single vault:
     cd backend
-    uv run python scripts/fill_dweller_bios_templates.py
+    uv run python scripts/fill_dweller_bios_templates.py --vault <uuid> --max-to-fill 10
+    uv run python scripts/fill_dweller_bios_templates.py --help
 
 Requires ASYNC_DATABASE_URI in backend/.env (no LLM needed).
 """
@@ -11,9 +12,13 @@ from __future__ import annotations
 
 import asyncio
 import random
+from typing import Annotated
 from uuid import UUID
 
+import typer
+
 from app import crud
+from app.core.game_config import game_config
 from app.db.session import async_session_maker
 from app.models.dweller import Dweller
 from app.services.map_service import map_service
@@ -172,13 +177,24 @@ def _highest_stat(dweller: Dweller) -> str:
 
 
 def _pick_places(dweller: Dweller) -> tuple[str, list[str]]:
-    """Return an origin place and 1-2 visited places for a dweller."""
+    """Return an origin place and rarity-scaled visited places for a dweller."""
     # Seed per dweller so the same dweller always gets the same places if rerun.
     rng = random.Random(str(dweller.id))
     origin = rng.choice(_ORIGIN_PLACES)
-    visited_count = min(2, 1 if dweller.rarity.value == "common" else 2)
+    desired = game_config.bio.max_visited(dweller.rarity.value)
+    visited_count = min(desired, len(_VISITED_PLACES))
     visited = rng.sample(_VISITED_PLACES, k=visited_count)
     return origin, visited
+
+
+def _join_places(places: list[str]) -> str:
+    """Join place names with natural English list formatting (Oxford comma for 3+)."""
+    if len(places) == 1:
+        return places[0]
+    if len(places) == 2:
+        return f"{places[0]} and {places[1]}"
+    *rest, last = places
+    return f"{', '.join(rest)}, and {last}"
 
 
 def _build_bio(dweller: Dweller, origin: str, visited: list[str]) -> str:
@@ -203,22 +219,27 @@ def _build_bio(dweller: Dweller, origin: str, visited: list[str]) -> str:
         agility=dweller.agility,
         luck=dweller.luck,
         origin=origin,
-        visited=visited[0] if len(visited) == 1 else f"{visited[0]} and {visited[1]}",
+        visited=_join_places(visited),
     )
 
 
-async def main() -> None:
+async def main(
+    vault_id: str = VAULT_ID,
+    max_to_fill: int = MAX_TO_FILL,
+    skip_dead: bool = SKIP_DEAD,
+    force_regenerate: bool = FORCE_REGENERATE,
+) -> None:
     filled = 0
     async with async_session_maker() as session:
-        vault = await crud.vault.get(session, UUID(VAULT_ID))
+        vault = await crud.vault.get(session, UUID(vault_id))
         if vault is None:
-            print(f"Vault {VAULT_ID} not found")
+            print(f"Vault {vault_id} not found")
             return
 
         dwellers = await crud.dweller.get_multi_by_vault(session, vault.id, limit=1000)
-        candidates = [d for d in dwellers if (FORCE_REGENERATE or not d.bio) and (not SKIP_DEAD or not d.is_dead)]
-        if MAX_TO_FILL:
-            candidates = candidates[:MAX_TO_FILL]
+        candidates = [d for d in dwellers if (force_regenerate or not d.bio) and (not skip_dead or not d.is_dead)]
+        if max_to_fill:
+            candidates = candidates[:max_to_fill]
 
         for dweller in candidates:
             origin, visited = _pick_places(dweller)
@@ -236,8 +257,28 @@ async def main() -> None:
 
         await session.commit()
 
-    print(f"Filled {filled} bios for vault {VAULT_ID}")
+    print(f"Filled {filled} bios for vault {vault_id}")
+
+
+app = typer.Typer(help="Fill dweller bios with template-generated backstories and map locations.")
+
+
+@app.command()
+def fill(
+    vault: Annotated[str, typer.Option(help="Vault UUID")] = VAULT_ID,
+    max_to_fill: Annotated[int, typer.Option(help="Max dwellers to fill (0 = unlimited)")] = MAX_TO_FILL,
+    skip_dead: Annotated[bool, typer.Option(help="Skip dead dwellers")] = SKIP_DEAD,
+    force_regenerate: Annotated[
+        bool, typer.Option(help="Overwrite existing bios and re-register places")
+    ] = FORCE_REGENERATE,
+) -> None:
+    """Fill dweller bios with template-generated backstories and map locations."""
+    asyncio.run(main(vault_id=vault, max_to_fill=max_to_fill, skip_dead=skip_dead, force_regenerate=force_regenerate))
+
+
+def main_cli() -> None:
+    app()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main_cli()

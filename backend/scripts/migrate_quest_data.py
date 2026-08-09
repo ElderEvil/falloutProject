@@ -6,17 +6,18 @@ structured QuestRequirement and QuestReward records.
 
 Usage:
     cd backend
-    uv run python -m app.scripts.migrate_quest_data
+    uv run python scripts/migrate_quest_data.py
 """
 
 import asyncio
 import logging
 import re
 
-from app.core.db import async_session_maker
+import typer
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud import quest as quest_crud
+from app.db.session import async_session_maker
 from app.models.quest import QuestType
 from app.models.quest_requirement import QuestRequirement
 from app.models.quest_reward import QuestReward
@@ -220,8 +221,8 @@ async def migrate_quest_data(db: AsyncSession) -> dict:
     return stats
 
 
-async def main():
-    """Main entry point."""
+async def run_migration():
+    """Run the quest data migration."""
     async with async_session_maker() as db:
         stats = await migrate_quest_data(db)
         print("\\nMigration Summary:")
@@ -230,5 +231,18 @@ async def main():
         print(f"  Rewards created: {stats['rewards_created']}")
 
 
+app = typer.Typer(help="Data migration: convert existing quest strings to structured format.")
+
+
+@app.command()
+def migrate() -> None:
+    """Parse existing quest requirements and rewards into structured DB records."""
+    asyncio.run(run_migration())
+
+
+def main() -> None:
+    app()
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

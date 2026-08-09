@@ -1,13 +1,16 @@
 # /// script
 # dependencies = [
 #   "beautifulsoup4",
+#   "typer",
 # ]
 # ///
 
-import os
-import urllib.request
-import urllib.parse
 import subprocess
+import urllib.parse
+from pathlib import Path
+from typing import Annotated
+
+import typer
 from bs4 import BeautifulSoup
 
 # Configuration
@@ -15,8 +18,15 @@ BASE_URL = "https://fallout-archive.fandom.com"
 CATEGORY_URL = "/wiki/Category:Fallout_Shelter_room_images"
 DOWNLOAD_DIR = "assets/room_images"
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    ),
+    "Accept": (
+        "text/html,application/xhtml+xml,application/xml;q=0.9,"
+        "image/avif,image/webp,image/apng,*/*;q=0.8,"
+        "application/signed-exchange;v=b3;q=0.7"
+    ),
     "Accept-Language": "en-US,en;q=0.9",
     "Accept-Encoding": "gzip, deflate, br",
     "DNT": "1",
@@ -26,38 +36,35 @@ HEADERS = {
 
 
 def download_image(url, filename):
-    path = os.path.join(DOWNLOAD_DIR, filename)
-    temp_path = path + ".tmp"
+    path = Path(DOWNLOAD_DIR) / filename
+    temp_path = path.with_suffix(path.suffix + ".tmp")
 
     # Skip if file exists and has content
-    if os.path.exists(path):
-        file_size = os.path.getsize(path)
+    if path.exists():
+        file_size = path.stat().st_size
         if file_size > 0:
             print(f"Skipping {filename}, already exists ({file_size} bytes).")
             return
-        else:
-            print(f"Re-downloading {filename}, previous file was empty.")
+        print(f"Re-downloading {filename}, previous file was empty.")
 
     try:
         # Download to temporary file first
         subprocess.run(["curl", "-s", url, "-o", temp_path], check=True)
 
         # Verify download succeeded and has content
-        if os.path.exists(temp_path) and os.path.getsize(temp_path) > 0:
+        if temp_path.exists() and temp_path.stat().st_size > 0:
             # Atomic rename
-            os.replace(temp_path, path)
-            print(f"Downloaded: {filename} ({os.path.getsize(path)} bytes)")
+            temp_path.replace(path)
+            print(f"Downloaded: {filename} ({path.stat().st_size} bytes)")
         else:
             print(f"Failed to download {filename}: empty file")
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-    except Exception as e:
+            temp_path.unlink(missing_ok=True)
+    except (subprocess.CalledProcessError, OSError) as e:
         print(f"Failed to download {url}: {e}")
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+        temp_path.unlink(missing_ok=True)
 
 
-def get_images_from_page(url):
+def get_images_from_page(url):  # noqa: C901, PLR0912
     print(f"Fetching page: {url}")
     try:
         result = subprocess.run(
@@ -66,9 +73,10 @@ def get_images_from_page(url):
             text=True,
             encoding="utf-8",
             errors="ignore",
+            check=True,
         )
         html = result.stdout
-    except Exception as e:
+    except (subprocess.CalledProcessError, OSError) as e:
         print(f"Failed to fetch {url} using curl: {e}")
         return None, 0
 
@@ -117,28 +125,17 @@ def get_images_from_page(url):
 
         if not filename:
             parts = img_url.split("/")
-            if "revision" in parts:
-                filename = parts[parts.index("revision") - 1]
-            else:
-                filename = parts[-1].split("?")[0]
+            filename = parts[parts.index("revision") - 1] if "revision" in parts else parts[-1].split("?")[0]
 
         filename = urllib.parse.unquote(filename)
 
-        # Filter for images and avoid global assets
-        if any(
-            filename.lower().endswith(ext)
-            for ext in [".png", ".jpg", ".jpeg", ".gif", ".svg"]
-        ):
-            # Skip logos and banners
-            if filename.lower() not in [
-                "site-logo.png",
-                "site-favicon.ico",
-                "crossover_banner.jpg",
-                "site-background-light",
-            ]:
-                download_image(img_url, filename)
-                downloaded_urls.add(img_url)
-                images_found += 1
+        # Filter for images and avoid global assets (skip logos and banners)
+        is_image = any(filename.lower().endswith(ext) for ext in [".png", ".jpg", ".jpeg", ".gif", ".svg"])
+        skip_list = ["site-logo.png", "site-favicon.ico", "crossover_banner.jpg", "site-background-light"]
+        if is_image and filename.lower() not in skip_list:
+            download_image(img_url, filename)
+            downloaded_urls.add(img_url)
+            images_found += 1
 
     # Look for the next page link
     next_page = soup.select_one(
@@ -161,9 +158,10 @@ def get_images_from_page(url):
     return next_url, images_found
 
 
-def main():
-    if not os.path.exists(DOWNLOAD_DIR):
-        os.makedirs(DOWNLOAD_DIR)
+def run_download():
+    download_dir = Path(DOWNLOAD_DIR)
+    if not download_dir.exists():
+        download_dir.mkdir(parents=True)
         print(f"Created directory: {DOWNLOAD_DIR}")
 
     current_url = BASE_URL + CATEGORY_URL
@@ -180,6 +178,25 @@ def main():
             print("No more pages.")
 
     print(f"Finished! Total images downloaded: {total_images}")
+
+
+app = typer.Typer(help="Download Fallout Shelter room images from the Fandom wiki.")
+
+
+@app.command()
+def download(
+    download_dir: Annotated[str, typer.Option("--download-dir")] = "assets/room_images",
+    base_url: Annotated[str, typer.Option("--base-url")] = BASE_URL,
+) -> None:
+    """Download Fallout Shelter room images from the Fandom wiki."""
+    global DOWNLOAD_DIR, BASE_URL  # noqa: PLW0603
+    DOWNLOAD_DIR = download_dir
+    BASE_URL = base_url
+    run_download()
+
+
+def main() -> None:
+    app()
 
 
 if __name__ == "__main__":

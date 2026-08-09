@@ -62,8 +62,8 @@ class EventBus:
         for handler in handlers:
             try:
                 await self._safe_call(handler, event_type, vault_id, data)
-            except BaseException as e:
-                logger.exception(f"Handler '{handler.__name__}' failed for {event_type}: {e}", exc_info=e)  # noqa: TRY401
+            except Exception:
+                logger.exception(f"Handler '{handler.__name__}' failed for {event_type}")
 
     def unsubscribe(self, event_type: GameEvent, handler: EventHandler) -> None:
         handlers = self._handlers.get(event_type, [])

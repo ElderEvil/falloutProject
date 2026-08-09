@@ -22,7 +22,7 @@ def hash_password(password: str) -> str:
     return hashed.decode()
 
 
-async def create_admin(  # noqa: PLR0917 - called with keyword args from the CLI wrapper
+async def create_admin(
     db_url: str,
     email: str,
     username: str,

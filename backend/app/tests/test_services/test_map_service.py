@@ -52,9 +52,7 @@ async def test_register_bio_places_creates_origin_and_visited(
 
 
 @pytest.mark.asyncio
-async def test_register_bio_places_rarity_scaled(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
-) -> None:
+async def test_register_bio_places_rarity_scaled(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     """VISITED cap follows rarity: COMMON→2, LEGENDARY→5 for 6 provided names each."""
     common_names = [
         "Megaton",

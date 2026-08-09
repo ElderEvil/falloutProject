@@ -66,7 +66,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             raise ResourceNotFoundException(self.model, identifier=id)
         return db_obj
 
-    async def get_multi_by_vault(  # noqa: PLR0917
+    async def get_multi_by_vault(
         self,
         db_session: AsyncSession,
         vault_id: UUID4,
@@ -119,7 +119,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         response = await db_session.execute(query)
         return response.scalars().all()
 
-    async def get_by_status(  # noqa: PLR0917
+    async def get_by_status(
         self,
         db_session: AsyncSession,
         vault_id: UUID4,
@@ -140,7 +140,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         return response.scalars().all()
 
     @staticmethod
-    async def create_random(  # noqa: PLR0917
+    async def create_random(
         db_session: AsyncSession,
         vault_id: UUID4,
         obj_in: DwellerCreateCommonOverride | None = None,

@@ -96,11 +96,7 @@ def get_images_from_page(url):  # noqa: C901, PLR0912
         img_tag = item.find("img")
 
         img_url = None
-        if (
-            link_tag
-            and link_tag.get("href")
-            and "static.wikia.nocookie.net" in link_tag.get("href")
-        ):
+        if link_tag and link_tag.get("href") and "static.wikia.nocookie.net" in link_tag.get("href"):
             img_url = link_tag["href"]
         elif img_tag:
             img_url = img_tag.get("data-src") or img_tag.get("src")
@@ -138,9 +134,7 @@ def get_images_from_page(url):  # noqa: C901, PLR0912
             images_found += 1
 
     # Look for the next page link
-    next_page = soup.select_one(
-        ".category-page__pagination-next, a.category-page__pagination-next"
-    )
+    next_page = soup.select_one(".category-page__pagination-next, a.category-page__pagination-next")
 
     if not next_page:
         # Try finding by text "next page"

@@ -79,18 +79,14 @@ def test_extract_bio_with_no_known_places():
 
 def test_extract_origin_place_from_bio():
     """Bio containing a known origin place name is extracted."""
-    origin, visited = _extract_places_from_bio(
-        "Originally from Megaton, this dweller learned to survive early."
-    )
+    origin, visited = _extract_places_from_bio("Originally from Megaton, this dweller learned to survive early.")
     assert origin == "Megaton"
     assert visited == []
 
 
 def test_extract_visited_place_from_bio():
     """Bio containing a known visited place name is extracted."""
-    origin, visited = _extract_places_from_bio(
-        "They once scavenged the Capital Wasteland and lived to tell the tale."
-    )
+    origin, visited = _extract_places_from_bio("They once scavenged the Capital Wasteland and lived to tell the tale.")
     assert origin is None
     assert "the Capital Wasteland" in visited
 
@@ -98,8 +94,7 @@ def test_extract_visited_place_from_bio():
 def test_extract_origin_and_visited_from_bio():
     """Bio with both origin and visited places -> both extracted."""
     origin, visited = _extract_places_from_bio(
-        "Hailing from Diamond City, this dweller wandered through the Commonwealth "
-        "and survived a trip to Far Harbor."
+        "Hailing from Diamond City, this dweller wandered through the Commonwealth and survived a trip to Far Harbor."
     )
     assert origin == "Diamond City"
     assert "the Commonwealth" in visited
@@ -117,9 +112,7 @@ def test_extract_multi_word_place():
 
 def test_extract_case_insensitive():
     """Place matching is case-insensitive."""
-    origin, visited = _extract_places_from_bio(
-        "born in megaton, travelled to the commonwealth."
-    )
+    origin, visited = _extract_places_from_bio("born in megaton, travelled to the commonwealth.")
     assert origin == "Megaton"
     assert "the Commonwealth" in visited
 
@@ -135,9 +128,7 @@ def test_extract_does_not_match_partial_words():
 
 def test_extract_visited_with_leading_space_in_list():
     """Places like ' Zion Canyon' (with leading space in _VISITED_PLACES) match in bio text."""
-    origin, visited = _extract_places_from_bio(
-        "They survived Zion Canyon and brought back useful herbs."
-    )
+    origin, visited = _extract_places_from_bio("They survived Zion Canyon and brought back useful herbs.")
     assert origin is None
     assert "Zion Canyon" in visited
 
@@ -153,9 +144,7 @@ def test_extract_place_in_both_lists_treated_as_origin():
 
 def test_extract_multiple_visited_deduped():
     """Repeated place mentions -> deduplicated in visited list."""
-    origin, visited = _extract_places_from_bio(
-        "They went to Far Harbor, then Far Harbor again, and also Far Harbor."
-    )
+    origin, visited = _extract_places_from_bio("They went to Far Harbor, then Far Harbor again, and also Far Harbor.")
     assert origin is None
     assert visited == ["Far Harbor"]
 

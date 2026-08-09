@@ -10,6 +10,13 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ### Added
 
 - **Template-based dweller bio filler** — `backend/scripts/fill_dweller_bios_templates.py`: one-off local script that fills empty dweller bios using SPECIAL-stat-driven templates, mentions an origin place and visited places in each bio, and registers those places on the vault world map via `map_service.register_bio_places`
+- **Retro-active bio place backfill** — `backend/scripts/backfill_dweller_bio_places.py`: local script that scans dwellers whose bios contain place names but who have no map locations yet, extracts origin/visited places via word-boundary regex against the known place lists, and registers them via `map_service.register_bio_places`; supports `--vault` and `--max-dwellers` CLI args
+
+### Changed
+
+- **Rarity-scaled visited counts** — `backend/scripts/fill_dweller_bios_templates.py` now reads visited counts from `game_config.bio.visited_by_rarity` (common=2, rare=4, legendary=5) instead of hardcoded 1–2, and joins 3+ visited places with an Oxford comma
+- **Sidebar consolidation** — Happiness nav item removed from `SidePanel.vue`; the aggregate `HappinessDashboard` now renders inside the Dwellers view above the filter panel, and the Map nav item gained hotkey `8`; the `/vault/:id/happiness` route is retained for deep links
+- **Script layout & Typer standardization** — all backend Python scripts now live in `backend/scripts/` and are Typer CLIs (create_admin, backfill, bio filler, fix image URLs, set RustFS policies, quest migration, room-image downloader); `backend/initial_data.py` and `app/scripts/` were removed, `backend/scripts/README.md` documents each tool, and root `scripts/` is now shell-only (`dev-up.sh`, `backup-db.sh`, `redeploy-truenas.sh`)
 
 ---
 

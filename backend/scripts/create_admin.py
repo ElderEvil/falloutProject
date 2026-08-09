@@ -5,12 +5,13 @@ Usage:
   uv run python scripts/create_admin.py --email admin@test.com --username admin --password test1234
 """
 
-import argparse
 import asyncio
 import uuid
 from datetime import datetime
+from typing import Annotated
 
 import bcrypt
+import typer
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -73,27 +74,41 @@ async def create_admin(
             },
         )
         await session.commit()
-        print(f"Superuser created:\n  Email: {email}\n  Username: {username}\n  Password: {password}")
+        print(f"Superuser created:\n  Email: {email}\n  Username: {username}")
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Create a superuser for testing")
-    parser.add_argument("--email", default="admin@test.com")
-    parser.add_argument("--username", default="admin")
-    parser.add_argument("--password", default="admin123")
-    parser.add_argument(
-        "--db-url",
-        default="postgresql+asyncpg://postgres:postgres@localhost:5432/fallout_db",
-    )
-    args = parser.parse_args()
+app = typer.Typer(help="Create a superuser (admin) account for testing.")
+
+
+@app.command()
+def create_admin_cli(
+    email: Annotated[str, typer.Option(help="Admin email address")],
+    username: Annotated[str, typer.Option(help="Admin username")],
+    password: Annotated[
+        str,
+        typer.Option(
+            help="Admin password",
+            prompt=True,
+            hide_input=True,
+            confirmation_prompt=True,
+        ),
+    ],
+    db_url: Annotated[
+        str, typer.Option(help="Async SQLAlchemy database URL")
+    ] = "postgresql+asyncpg://postgres:postgres@localhost:5432/fallout_db",
+) -> None:
     asyncio.run(
         create_admin(
-            db_url=args.db_url,
-            email=args.email,
-            username=args.username,
-            password=args.password,
+            db_url=db_url,
+            email=email,
+            username=username,
+            password=password,
         )
     )
+
+
+def main() -> None:
+    app()
 
 
 if __name__ == "__main__":

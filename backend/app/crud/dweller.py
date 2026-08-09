@@ -12,7 +12,7 @@ from app.crud.base import CRUDBase
 from app.crud.room import room as room_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
-from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, RoomTypeEnum
+from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, RarityEnum, RoomTypeEnum
 from app.schemas.dweller import (
     DwellerCreate,
     DwellerCreateCommonOverride,
@@ -145,12 +145,22 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         vault_id: UUID4,
         obj_in: DwellerCreateCommonOverride | None = None,
         seed: int | None = None,
+        rarity: RarityEnum = RarityEnum.COMMON,
+        register_bio_places: bool = True,
     ) -> Dweller:
-        """Create a random common dweller.
+        """Create a random dweller.
 
         Pass ``seed`` through for deterministic output (used by dev/QA seeding).
+        ``rarity`` is threaded to the generator — the radio service rolls RARE
+        on a rare_chance and passes it here.
+
+        When ``register_bio_places`` is True (default) the procedural bio places
+        are registered on the world map. Callers that compose their OWN bio and
+        register their own places (e.g. pregen_service) pass False to avoid
+        double registration.
         """
-        dweller_data = create_random_common_dweller(seed=seed)
+        dweller_data = create_random_common_dweller(seed=seed, rarity=rarity)
+        bio_places = dweller_data.pop("_bio_places", None)
         if obj_in:
             new_dweller_data = obj_in.model_dump(exclude_unset=True)
             if stat := new_dweller_data.get("special_boost"):
@@ -162,6 +172,16 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         db_session.add(db_obj)
         await db_session.commit()
         await db_session.refresh(db_obj)
+        if bio_places and register_bio_places:
+            from app.services.map_service import map_service
+
+            origin, visited = bio_places
+            await map_service.register_bio_places(
+                db_session,
+                db_obj,
+                origin_place=origin,
+                visited_places=visited,
+            )
         return db_obj
 
     @staticmethod

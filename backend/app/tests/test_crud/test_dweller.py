@@ -184,6 +184,54 @@ async def test_create_random_common_dweller_persisted_age_coherent(async_session
 
 
 @pytest.mark.asyncio
+async def test_create_random_registers_bio_places(async_session: AsyncSession) -> None:
+    """create_random registers the bio origin + visited places on the world map."""
+    from sqlmodel import select
+
+    from app.models.wasteland_location import LocationTypeEnum, WastelandLocation
+
+    user_data = create_fake_user()
+    user_in = UserCreate(**user_data)
+    user = await crud.user.create(async_session, obj_in=user_in)
+    vault_data = create_fake_vault()
+    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(async_session, obj_in=vault_in)
+
+    dweller = await crud.dweller.create_random(db_session=async_session, vault_id=vault.id, seed=1)
+    assert dweller.bio
+
+    rows = (await async_session.execute(select(WastelandLocation))).scalars().all()
+    origin_rows = [r for r in rows if r.type == LocationTypeEnum.ORIGIN]
+    visited_rows = [r for r in rows if r.type == LocationTypeEnum.VISITED]
+    # seed=1 → rarity COMMON → max_visited 2
+    assert len(origin_rows) == 1
+    assert len(visited_rows) == 2
+
+
+@pytest.mark.asyncio
+async def test_create_random_skip_bio_places(async_session: AsyncSession) -> None:
+    """register_bio_places=False creates the dweller but registers no map rows."""
+    from sqlmodel import select
+
+    from app.models.wasteland_location import WastelandLocation
+
+    user_data = create_fake_user()
+    user_in = UserCreate(**user_data)
+    user = await crud.user.create(async_session, obj_in=user_in)
+    vault_data = create_fake_vault()
+    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(async_session, obj_in=vault_in)
+
+    dweller = await crud.dweller.create_random(
+        db_session=async_session, vault_id=vault.id, seed=1, register_bio_places=False
+    )
+    assert dweller.bio
+
+    rows = (await async_session.execute(select(WastelandLocation))).scalars().all()
+    assert len(rows) == 0
+
+
+@pytest.mark.asyncio
 async def test_dweller_add_exp(async_session: AsyncSession):
     user_data = create_fake_user()
     user_in = UserCreate(**user_data)

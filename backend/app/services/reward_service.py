@@ -108,10 +108,7 @@ class RewardService:
         level = dweller_template.get("level", 1)
         gender = dweller_template.get("gender", "male")
 
-        try:
-            rarity_enum = RarityEnum(rarity)
-        except ValueError:
-            rarity_enum = RarityEnum.COMMON
+        rarity_enum = RarityEnum(rarity)
 
         stat_range = STATS_RANGE_BY_RARITY.get(rarity_enum, (1, 3))
         default_stat = random.randint(stat_range[0], stat_range[1])
@@ -133,6 +130,7 @@ class RewardService:
             intelligence=dweller_template.get("intelligence", default_stat),
             agility=dweller_template.get("agility", default_stat),
             luck=dweller_template.get("luck", default_stat),
+            bio=dweller_template.get("bio"),
             vault_id=vault_id,
         )
         db_session.add(new_dweller)
@@ -176,18 +174,16 @@ class RewardService:
         leveled_up: list[str] = []
         granted_to: list[str] = []
 
-        for dweller_id in dweller_ids:
-            try:
-                dweller_obj = await dweller_crud.get(db_session, id=dweller_id)
-                old_level = dweller_obj.level
-                await dweller_crud.add_experience(db_session, dweller_obj, amount)
-                granted_to.append(str(dweller_id))
+        for raw_id in dweller_ids:
+            dweller_id = UUID4(raw_id) if isinstance(raw_id, str) else raw_id
+            dweller_obj = await dweller_crud.get(db_session, id=dweller_id)
+            old_level = dweller_obj.level
+            await dweller_crud.add_experience(db_session, dweller_obj, amount)
+            granted_to.append(str(dweller_id))
 
-                await db_session.refresh(dweller_obj)
-                if dweller_obj.level > old_level:
-                    leveled_up.append(str(dweller_id))
-            except Exception:
-                logger.exception(f"Failed to grant {amount} XP to dweller {dweller_id}")
+            await db_session.refresh(dweller_obj)
+            if dweller_obj.level > old_level:
+                leveled_up.append(str(dweller_id))
 
         logger.info(f"Granted {amount} XP to {len(granted_to)} dweller(s), {len(leveled_up)} leveled up")
         return {
@@ -351,33 +347,24 @@ class RewardService:
                 logger.debug(f"Reward roll failed for quest '{quest.title}' (chance={reward.reward_chance:.3f})")
                 continue
 
-            try:
-                result = await self._process_single_reward(db_session, vault_id, reward.reward_type, reward.reward_data)
-                granted_rewards.append(result)
-            except Exception:
-                logger.exception(
-                    f"Failed to process {reward.reward_type} reward for quest '{quest.title}' in vault {vault_id}"
-                )
+            result = await self._process_single_reward(db_session, vault_id, reward.reward_type, reward.reward_data)
+            granted_rewards.append(result)
 
         logger.info(f"Processed {len(granted_rewards)}/{len(rewards)} rewards for quest '{quest.title}'")
         return granted_rewards
 
     async def process_objective_reward(
         self, db_session: AsyncSession, vault_id: UUID4, objective: VaultObjectiveProgressLink
-    ) -> dict[str, Any] | None:
+    ) -> dict[str, Any]:
         from app.crud.objective import objective_crud
 
         objective_obj = await objective_crud.get(db_session, id=objective.objective_id)
         reward_str = objective_obj.reward
 
-        try:
-            reward_type, reward_data = self._parse_objective_reward(reward_str)
-            result = await self._process_single_reward(db_session, vault_id, reward_type, reward_data)
-            logger.info(f"Processed objective reward '{reward_str}' for vault {vault_id}")
-            return result
-        except Exception:
-            logger.exception(f"Failed to process objective reward '{reward_str}' for vault {vault_id}")
-            return None
+        reward_type, reward_data = self._parse_objective_reward(reward_str)
+        result = await self._process_single_reward(db_session, vault_id, reward_type, reward_data)
+        logger.info(f"Processed objective reward '{reward_str}' for vault {vault_id}")
+        return result
 
     async def _process_single_reward(  # noqa: PLR0911
         self,
@@ -422,19 +409,16 @@ class RewardService:
         reward_str = reward_str.strip()
 
         parts = reward_str.split(maxsplit=1)
-        if len(parts) == 2:
-            try:
-                amount = int(parts[0])
-                reward_name = parts[1].lower().strip()
+        if len(parts) == 2 and parts[0].isdigit():
+            amount = int(parts[0])
+            reward_name = parts[1].lower().strip()
 
-                if reward_name == "caps":
-                    return RewardType.CAPS, {"amount": amount}
-                if reward_name in ("food", "water", "power"):
-                    return RewardType.RESOURCE, {"resource_type": reward_name, "amount": amount}
-                if reward_name in ("xp", "experience"):
-                    return RewardType.EXPERIENCE, {"amount": amount, "dweller_ids": []}
-            except ValueError:
-                pass
+            if reward_name == "caps":
+                return RewardType.CAPS, {"amount": amount}
+            if reward_name in ("food", "water", "power"):
+                return RewardType.RESOURCE, {"resource_type": reward_name, "amount": amount}
+            if reward_name in ("xp", "experience"):
+                return RewardType.EXPERIENCE, {"amount": amount, "dweller_ids": []}
 
         if ":" in reward_str:
             prefix, value = reward_str.split(":", 1)

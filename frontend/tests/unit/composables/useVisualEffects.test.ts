@@ -76,7 +76,8 @@ describe('useVisualEffects', () => {
   })
 
   it('disableAllEffects sets all to disabled', () => {
-    const { flickering, scanlines, glowIntensity, isGlowEnabled, disableAllEffects } = useVisualEffects()
+    const { flickering, scanlines, glowIntensity, isGlowEnabled, disableAllEffects } =
+      useVisualEffects()
 
     disableAllEffects()
 
@@ -87,7 +88,8 @@ describe('useVisualEffects', () => {
   })
 
   it('resetToDefaults reverts to initial defaults', () => {
-    const { flickering, scanlines, glowIntensity, resetToDefaults, enableAllEffects } = useVisualEffects()
+    const { flickering, scanlines, glowIntensity, resetToDefaults, enableAllEffects } =
+      useVisualEffects()
 
     enableAllEffects()
     resetToDefaults()

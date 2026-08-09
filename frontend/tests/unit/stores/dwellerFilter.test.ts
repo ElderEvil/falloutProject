@@ -12,7 +12,7 @@ vi.mock('@vueuse/core', () => ({
   createSharedComposable: <T>(fn: () => T) => fn,
 }))
 
-import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
+import { useDwellerFilterStore, ALL_DWELLERS_FETCH_LIMIT } from '@/modules/dwellers/stores/dwellerFilter'
 
 describe('DwellerFilter Store', () => {
   beforeEach(() => {
@@ -40,7 +40,14 @@ describe('DwellerFilter Store', () => {
     it('should fetch dwellers and update state', async () => {
       const mockDwellers = [
         { id: 'd1', first_name: 'John', last_name: 'Doe', status: 'idle', level: 5, happiness: 75 },
-        { id: 'd2', first_name: 'Jane', last_name: 'Smith', status: 'working', level: 3, happiness: 80 },
+        {
+          id: 'd2',
+          first_name: 'Jane',
+          last_name: 'Smith',
+          status: 'working',
+          level: 3,
+          happiness: 80,
+        },
       ]
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockDwellers })
 
@@ -100,13 +107,154 @@ describe('DwellerFilter Store', () => {
     })
   })
 
+  describe('fetchAllDwellers', () => {
+    it('should request a complete fetch with skip=0 and a large limit', async () => {
+      const mockDwellers = [
+        { id: 'd1', first_name: 'John', last_name: 'Doe', status: 'idle', level: 5, happiness: 75 },
+      ]
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockDwellers })
+
+      const store = useDwellerFilterStore()
+      await store.fetchAllDwellers('vault-1', 'test-token')
+
+      const url = vi.mocked(axios.get).mock.calls[0][0] as string
+      expect(url).toContain('/api/v1/dwellers/vault/vault-1/')
+      expect(url).toContain('skip=0')
+      expect(url).toContain(`limit=${ALL_DWELLERS_FETCH_LIMIT}`)
+      expect(vi.mocked(axios.get).mock.calls[0][1]).toEqual(
+        expect.objectContaining({
+          headers: { Authorization: 'Bearer test-token' },
+        })
+      )
+      expect(store.allDwellers).toEqual(mockDwellers)
+    })
+
+    it('should clear allDwellers before loading', async () => {
+      let resolveRequest!: (value: unknown) => void
+      vi.mocked(axios.get).mockImplementationOnce(
+        () => new Promise((resolve) => {
+          resolveRequest = resolve
+        })
+      )
+
+      const store = useDwellerFilterStore()
+      // Seed with stale data from a previous vault
+      store.allDwellers = [
+        {
+          id: 'old',
+          first_name: 'Old',
+          last_name: 'Data',
+          status: 'idle',
+          level: 1,
+          happiness: 50,
+        },
+      ]
+
+      const promise = store.fetchAllDwellers('vault-1', 'test-token')
+
+      // Cleared before the response resolves
+      expect(store.allDwellers).toEqual([])
+
+      resolveRequest({
+        data: [
+          { id: 'new', first_name: 'New', last_name: 'Data', status: 'idle', level: 1, happiness: 50 },
+        ],
+      })
+      await promise
+      expect(store.allDwellers).toHaveLength(1)
+      expect(store.allDwellers[0].id).toBe('new')
+    })
+
+    it('should ignore a stale response from an older request', async () => {
+      let resolveFirst!: (value: unknown) => void
+      const freshData = [
+        { id: 'fresh', first_name: 'Fresh', last_name: 'Data', status: 'idle', level: 1, happiness: 50 },
+      ]
+      const staleData = [
+        { id: 'stale', first_name: 'Stale', last_name: 'Data', status: 'idle', level: 1, happiness: 50 },
+      ]
+
+      vi.mocked(axios.get)
+        .mockImplementationOnce(() => new Promise((resolve) => {
+          resolveFirst = resolve
+        }))
+        .mockResolvedValueOnce({ data: freshData })
+
+      const store = useDwellerFilterStore()
+      const firstPromise = store.fetchAllDwellers('vault-1', 'test-token')
+      const secondPromise = store.fetchAllDwellers('vault-1', 'test-token')
+
+      await secondPromise
+      expect(store.allDwellers).toEqual(freshData)
+
+      // Resolve the stale first request after the second
+      resolveFirst({ data: staleData })
+      await firstPromise
+
+      // Stale response must not overwrite the fresh one
+      expect(store.allDwellers).toEqual(freshData)
+    })
+
+    it('should ignore a response for a different vault than the current one', async () => {
+      let resolveVault1!: (value: unknown) => void
+      const vault2Data = [
+        { id: 'v2', first_name: 'Vault2', last_name: 'Data', status: 'idle', level: 1, happiness: 50 },
+      ]
+      const vault1Data = [
+        { id: 'v1', first_name: 'Vault1', last_name: 'Data', status: 'idle', level: 1, happiness: 50 },
+      ]
+
+      vi.mocked(axios.get)
+        .mockImplementationOnce(() => new Promise((resolve) => {
+          resolveVault1 = resolve
+        }))
+        .mockResolvedValueOnce({ data: vault2Data })
+
+      const store = useDwellerFilterStore()
+      const vault1Promise = store.fetchAllDwellers('vault-1', 'test-token')
+      const vault2Promise = store.fetchAllDwellers('vault-2', 'test-token')
+
+      await vault2Promise
+      expect(store.allDwellers).toEqual(vault2Data)
+
+      // Vault-1 response arrives late; must not overwrite vault-2 data
+      resolveVault1({ data: vault1Data })
+      await vault1Promise
+
+      expect(store.allDwellers).toEqual(vault2Data)
+    })
+
+    it('should preserve cleared state when the request fails', async () => {
+      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Network error'))
+
+      const store = useDwellerFilterStore()
+      store.allDwellers = [
+        { id: 'old', first_name: 'Old', last_name: 'Data', status: 'idle', level: 1, happiness: 50 },
+      ]
+
+      await store.fetchAllDwellers('vault-1', 'test-token')
+
+      // Cleared state preserved — stale data not restored on failure
+      expect(store.allDwellers).toEqual([])
+    })
+  })
+
   describe('fetchDwellerDetails', () => {
     it('should fetch and cache dweller details', async () => {
-      const mockDweller = { id: 'd1', first_name: 'John', last_name: 'Doe', strength: 5, perception: 5 }
+      const mockDweller = {
+        id: 'd1',
+        first_name: 'John',
+        last_name: 'Doe',
+        strength: 5,
+        perception: 5,
+      }
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockDweller })
 
       const store = useDwellerFilterStore()
-      const result = await store.fetchDwellerDetails('550e8400-e29b-41d4-a716-446655440000', 'test-token')
+      const result = await store.fetchDwellerDetails(
+        '550e8400-e29b-41d4-a716-446655440000',
+        'test-token'
+      )
 
       expect(result).toEqual(mockDweller)
       expect(store.detailedDwellers['550e8400-e29b-41d4-a716-446655440000']).toEqual(mockDweller)
@@ -120,7 +268,10 @@ describe('DwellerFilter Store', () => {
       await store.fetchDwellerDetails('550e8400-e29b-41d4-a716-446655440000', 'test-token')
       vi.mocked(axios.get).mockClear()
 
-      const result = await store.fetchDwellerDetails('550e8400-e29b-41d4-a716-446655440000', 'test-token')
+      const result = await store.fetchDwellerDetails(
+        '550e8400-e29b-41d4-a716-446655440000',
+        'test-token'
+      )
 
       expect(axios.get).not.toHaveBeenCalled()
       expect(result).toEqual(mockDweller)
@@ -152,8 +303,22 @@ describe('DwellerFilter Store', () => {
     it('should return all dwellers when filterStatus is all', () => {
       const store = useDwellerFilterStore()
       store.dwellers = [
-        { id: 'd1', first_name: 'A', last_name: 'Z', status: 'idle', level: 1, happiness: 50 } as any,
-        { id: 'd2', first_name: 'B', last_name: 'Y', status: 'working', level: 2, happiness: 60 } as any,
+        {
+          id: 'd1',
+          first_name: 'A',
+          last_name: 'Z',
+          status: 'idle',
+          level: 1,
+          happiness: 50,
+        } as any,
+        {
+          id: 'd2',
+          first_name: 'B',
+          last_name: 'Y',
+          status: 'working',
+          level: 2,
+          happiness: 60,
+        } as any,
       ]
 
       expect(store.filteredAndSortedDwellers).toHaveLength(2)
@@ -162,8 +327,22 @@ describe('DwellerFilter Store', () => {
     it('should filter by status', () => {
       const store = useDwellerFilterStore()
       store.dwellers = [
-        { id: 'd1', first_name: 'A', last_name: 'Z', status: 'idle', level: 1, happiness: 50 } as any,
-        { id: 'd2', first_name: 'B', last_name: 'Y', status: 'working', level: 2, happiness: 60 } as any,
+        {
+          id: 'd1',
+          first_name: 'A',
+          last_name: 'Z',
+          status: 'idle',
+          level: 1,
+          happiness: 50,
+        } as any,
+        {
+          id: 'd2',
+          first_name: 'B',
+          last_name: 'Y',
+          status: 'working',
+          level: 2,
+          happiness: 60,
+        } as any,
       ]
       store.filterStatus = 'working'
 
@@ -175,8 +354,22 @@ describe('DwellerFilter Store', () => {
     it('should sort by name ascending', () => {
       const store = useDwellerFilterStore()
       store.dwellers = [
-        { id: 'd1', first_name: 'B', last_name: 'A', status: 'idle', level: 1, happiness: 50 } as any,
-        { id: 'd2', first_name: 'A', last_name: 'A', status: 'idle', level: 2, happiness: 60 } as any,
+        {
+          id: 'd1',
+          first_name: 'B',
+          last_name: 'A',
+          status: 'idle',
+          level: 1,
+          happiness: 50,
+        } as any,
+        {
+          id: 'd2',
+          first_name: 'A',
+          last_name: 'A',
+          status: 'idle',
+          level: 2,
+          happiness: 60,
+        } as any,
       ]
       store.sortBy = 'name'
       store.sortDirection = 'asc'
@@ -189,8 +382,22 @@ describe('DwellerFilter Store', () => {
     it('should sort by name descending', () => {
       const store = useDwellerFilterStore()
       store.dwellers = [
-        { id: 'd1', first_name: 'A', last_name: 'A', status: 'idle', level: 1, happiness: 50 } as any,
-        { id: 'd2', first_name: 'B', last_name: 'A', status: 'idle', level: 2, happiness: 60 } as any,
+        {
+          id: 'd1',
+          first_name: 'A',
+          last_name: 'A',
+          status: 'idle',
+          level: 1,
+          happiness: 50,
+        } as any,
+        {
+          id: 'd2',
+          first_name: 'B',
+          last_name: 'A',
+          status: 'idle',
+          level: 2,
+          happiness: 60,
+        } as any,
       ]
       store.sortBy = 'name'
       store.sortDirection = 'desc'
@@ -203,8 +410,22 @@ describe('DwellerFilter Store', () => {
     it('should sort by level numerically', () => {
       const store = useDwellerFilterStore()
       store.dwellers = [
-        { id: 'd1', first_name: 'A', last_name: 'A', status: 'idle', level: 10, happiness: 50 } as any,
-        { id: 'd2', first_name: 'B', last_name: 'A', status: 'idle', level: 1, happiness: 60 } as any,
+        {
+          id: 'd1',
+          first_name: 'A',
+          last_name: 'A',
+          status: 'idle',
+          level: 10,
+          happiness: 50,
+        } as any,
+        {
+          id: 'd2',
+          first_name: 'B',
+          last_name: 'A',
+          status: 'idle',
+          level: 1,
+          happiness: 60,
+        } as any,
       ]
       store.sortBy = 'level'
       store.sortDirection = 'asc'
@@ -217,8 +438,22 @@ describe('DwellerFilter Store', () => {
     it('should sort by happiness', () => {
       const store = useDwellerFilterStore()
       store.dwellers = [
-        { id: 'd1', first_name: 'A', last_name: 'A', status: 'idle', level: 1, happiness: 50 } as any,
-        { id: 'd2', first_name: 'B', last_name: 'A', status: 'idle', level: 1, happiness: 80 } as any,
+        {
+          id: 'd1',
+          first_name: 'A',
+          last_name: 'A',
+          status: 'idle',
+          level: 1,
+          happiness: 50,
+        } as any,
+        {
+          id: 'd2',
+          first_name: 'B',
+          last_name: 'A',
+          status: 'idle',
+          level: 1,
+          happiness: 80,
+        } as any,
       ]
       store.sortBy = 'happiness'
       store.sortDirection = 'asc'

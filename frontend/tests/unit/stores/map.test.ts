@@ -222,7 +222,10 @@ describe('Map Store', () => {
       const store = useMapStore()
 
       const fetchResponse = { locations: [mockLocation], vault_markers: [] }
-      const pollResponse = { locations: [mockLocation, mockLocation2], vault_markers: [mockVaultMarker] }
+      const pollResponse = {
+        locations: [mockLocation, mockLocation2],
+        vault_markers: [mockVaultMarker],
+      }
 
       vi.mocked(mapService.getVaultMap)
         .mockResolvedValueOnce(fetchResponse)

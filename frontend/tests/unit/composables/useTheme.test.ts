@@ -4,7 +4,7 @@ import { ref } from 'vue'
 let mockThemeValue: string = 'fo4'
 vi.mock('@vueuse/core', () => ({
   useLocalStorage: <T>(_key: string, defaultValue: T) => {
-    const r = ref<T>(mockThemeValue as any || defaultValue)
+    const r = ref<T>((mockThemeValue as any) || defaultValue)
     return r
   },
 }))

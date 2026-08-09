@@ -60,7 +60,9 @@ test.describe('NavBar structure', () => {
     await expect(page.locator('[role="menuitem"][aria-label="View profile"]')).toBeVisible()
     await expect(page.locator('[role="menuitem"][aria-label="Display preferences"]')).toBeVisible()
     await expect(page.locator('[role="menuitem"][aria-label="Settings"]')).toBeVisible()
-    await expect(page.locator('[role="menuitem"][aria-label="About this application"]')).toBeVisible()
+    await expect(
+      page.locator('[role="menuitem"][aria-label="About this application"]')
+    ).toBeVisible()
     await expect(page.locator('[role="menuitem"][aria-label="View changelog"]')).toBeVisible()
 
     // Logout button should also be visible

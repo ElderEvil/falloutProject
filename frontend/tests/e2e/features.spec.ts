@@ -12,7 +12,15 @@ async function loginAndGoTo(page: any, url: string, token = 'test-token-12345') 
   await page.evaluate(
     ({ token }) => {
       localStorage.setItem('token', token)
-      localStorage.setItem('user', JSON.stringify({ id: 'test-user-id', email: 'test@example.com', is_active: true, is_superuser: true }))
+      localStorage.setItem(
+        'user',
+        JSON.stringify({
+          id: 'test-user-id',
+          email: 'test@example.com',
+          is_active: true,
+          is_superuser: true,
+        })
+      )
     },
     { token }
   )

@@ -1,32 +1,35 @@
 <script setup lang="ts">
+import { computed, defineAsyncComponent, inject, onMounted, ref, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { Icon } from '@iconify/vue'
+import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useRoomStore } from '@/modules/rooms/stores/room'
+import { useIncidentStore } from '@/modules/combat/stores/incident'
+import { useSidePanel } from '@/core/composables/useSidePanel'
+import { normalizeImageUrl } from '@/core/utils/image'
+import { happinessService } from '@/modules/dwellers/services/happinessService'
+import type { Dweller } from '@/modules/dwellers/models/dweller'
+import type { Room } from '@/modules/rooms/models/room'
+import SidePanel from '@/core/components/common/SidePanel.vue'
+import PageHeader from '@/core/components/common/PageHeader.vue'
+import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
+import UTooltip from '@/core/components/ui/UTooltip.vue'
+import UButton from '@/core/components/ui/UButton.vue'
+import HappinessDashboard from '@/modules/vault/components/HappinessDashboard.vue'
 import {
   useDwellerStore,
   type DwellerSortBy,
   type DwellerStatus,
   type SortDirection,
 } from '../stores/dweller'
-import { useAuthStore } from '@/modules/auth/stores/auth'
-import { useVaultStore } from '@/modules/vault/stores/vault'
-import { useRoomStore } from '@/modules/rooms/stores/room'
-import { computed, defineAsyncComponent, inject, onMounted, ref, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { Icon } from '@iconify/vue'
 import DwellerStatusBadge from '../components/stats/DwellerStatusBadge.vue'
 import DwellerFilterPanel from '../components/DwellerFilterPanel.vue'
 import DwellerGridItem from '../components/grid/DwellerGridItem.vue'
 import DwellerCardSkeleton from '../components/cards/DwellerCardSkeleton.vue'
 import DwellerGridItemSkeleton from '../components/grid/DwellerGridItemSkeleton.vue'
 import DwellerBulkActions from '../components/DwellerBulkActions.vue'
-import SidePanel from '@/core/components/common/SidePanel.vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
-import { useSidePanel } from '@/core/composables/useSidePanel'
 import { DeadDwellerCard } from '../components/death'
-import PageHeader from '@/core/components/common/PageHeader.vue'
-import type { Dweller } from '@/modules/dwellers/models/dweller'
-import type { Room } from '@/modules/rooms/models/room'
-import { normalizeImageUrl } from '@/core/utils/image'
 
 // Lazy load room modal
 const RoomDetailModal = defineAsyncComponent({
@@ -40,6 +43,7 @@ const authStore = useAuthStore()
 const dwellerStore = useDwellerStore()
 const vaultStore = useVaultStore()
 const roomStore = useRoomStore()
+const incidentStore = useIncidentStore()
 const { isCollapsed } = useSidePanel()
 const scanlinesEnabled = inject('scanlines', ref(true))
 const router = useRouter()
@@ -54,6 +58,34 @@ const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
 const revivingDwellers = ref<Record<string, boolean>>({})
 const isDeadFilter = computed(() => dwellerStore.filterStatus === 'dead')
+
+const happinessDashboardData = computed(() => {
+  if (!currentVault.value) return null
+
+  const population = dwellerStore.allDwellers
+  const distribution = happinessService.calculateDistribution(population)
+  const activeIncidents = incidentStore.activeIncidents
+
+  // Count idle dwellers
+  const idleDwellers = population.filter((d) => d.status === 'idle')
+
+  // Count low resource types
+  const lowResourceCount = [
+    currentVault.value.power / currentVault.value.power_max < 0.3,
+    currentVault.value.food / currentVault.value.food_max < 0.3,
+    currentVault.value.water / currentVault.value.water_max < 0.3,
+  ].filter(Boolean).length
+
+  return {
+    vaultHappiness: currentVault.value.happiness || 0,
+    dwellerCount: currentVault.value.dweller_count || 0,
+    distribution,
+    idleDwellerCount: idleDwellers.length,
+    activeIncidentCount: activeIncidents.length,
+    lowResourceCount,
+    radioHappinessMode: currentVault.value.radio_mode === 'happiness',
+  }
+})
 
 const fetchDwellers = async () => {
   if (authStore.isAuthenticated && vaultId.value) {
@@ -104,9 +136,20 @@ onMounted(async () => {
   }
 
   await fetchDwellers()
+
+  // Fetch all dwellers (unfiltered) for happiness dashboard aggregates
+  if (authStore.isAuthenticated && vaultId.value) {
+    await dwellerStore.fetchAllDwellers(vaultId.value, authStore.token as string)
+  }
+
   // Fetch rooms to show room assignments
   if (authStore.isAuthenticated && vaultId.value) {
     await roomStore.fetchRooms(vaultId.value, authStore.token as string)
+  }
+
+  // Fetch incidents for happiness dashboard
+  if (authStore.isAuthenticated && vaultId.value) {
+    await incidentStore.fetchIncidents(vaultId.value, authStore.token as string)
   }
 })
 
@@ -261,6 +304,20 @@ const handleQuickUnassign = async (dwellerId: string) => {
     console.error('Error unassigning dweller:', error)
   }
 }
+
+// Happiness dashboard event handlers
+const handleAssignIdle = () => {
+  dwellerStore.setFilterStatus('idle')
+}
+
+const handleActivateRadio = () => {
+  router.push(`/vault/${vaultId.value}/radio`)
+}
+
+const handleViewLowHappiness = () => {
+  dwellerStore.setSortBy('happiness')
+  dwellerStore.setSortDirection('asc')
+}
 </script>
 
 <template>
@@ -275,6 +332,22 @@ const handleQuickUnassign = async (dwellerId: string) => {
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
         <div class="container mx-auto px-4 py-8 lg:px-8">
           <PageHeader title="Dwellers" icon="mdi:account-group" />
+
+          <!-- Happiness Dashboard -->
+          <div v-if="happinessDashboardData" class="mb-6">
+            <HappinessDashboard
+              :vaultHappiness="happinessDashboardData.vaultHappiness"
+              :dwellerCount="happinessDashboardData.dwellerCount"
+              :distribution="happinessDashboardData.distribution"
+              :idleDwellerCount="happinessDashboardData.idleDwellerCount"
+              :activeIncidentCount="happinessDashboardData.activeIncidentCount"
+              :lowResourceCount="happinessDashboardData.lowResourceCount"
+              :radioHappinessMode="happinessDashboardData.radioHappinessMode"
+              @assign-idle="handleAssignIdle"
+              @activate-radio="handleActivateRadio"
+              @view-low-happiness="handleViewLowHappiness"
+            />
+          </div>
 
           <!-- Filter Panel with View Toggle -->
           <div class="w-full mb-6">

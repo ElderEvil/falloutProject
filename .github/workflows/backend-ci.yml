@@ -56,7 +56,7 @@ jobs:
 
       - name: Run tests with coverage
         working-directory: backend
-        run: uv run pytest app/tests -v --tb=short
+        run: uv run pytest app/tests -n auto -v --tb=short --cov=app --cov-report=term-missing --cov-report=html --cov-report=json
 
       - name: Generate coverage badge
         working-directory: backend

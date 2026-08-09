@@ -13,7 +13,9 @@ test.describe('Smoke tests', () => {
   test('login page has email and password fields', async ({ page }) => {
     await page.goto('/login')
     // Check for email input — might be type="email" or name="email"
-    const emailInput = page.locator('input[type="email"], input[name="email"], input[placeholder*="email" i]')
+    const emailInput = page.locator(
+      'input[type="email"], input[name="email"], input[placeholder*="email" i]'
+    )
     const passwordInput = page.locator('input[type="password"]')
 
     await expect(emailInput.first()).toBeVisible({ timeout: 5000 })

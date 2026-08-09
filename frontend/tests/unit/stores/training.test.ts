@@ -40,8 +40,22 @@ describe('Training Store', () => {
   describe('fetchVaultTrainings', () => {
     it('should fetch vault trainings and populate activeTrainings', async () => {
       const mockTrainings = [
-        { id: 't1', dweller_id: 'd1', room_id: 'r1', status: 'active', stat_being_trained: 'strength', estimated_completion_at: new Date(Date.now() + 3600000).toISOString() },
-        { id: 't2', dweller_id: 'd2', room_id: 'r2', status: 'active', stat_being_trained: 'endurance', estimated_completion_at: new Date(Date.now() + 7200000).toISOString() },
+        {
+          id: 't1',
+          dweller_id: 'd1',
+          room_id: 'r1',
+          status: 'active',
+          stat_being_trained: 'strength',
+          estimated_completion_at: new Date(Date.now() + 3600000).toISOString(),
+        },
+        {
+          id: 't2',
+          dweller_id: 'd2',
+          room_id: 'r2',
+          status: 'active',
+          stat_being_trained: 'endurance',
+          estimated_completion_at: new Date(Date.now() + 7200000).toISOString(),
+        },
       ]
       vi.mocked(trainingService.getVaultTrainings).mockResolvedValueOnce(mockTrainings)
 
@@ -67,8 +81,22 @@ describe('Training Store', () => {
 
     it('should skip trainings with status other than active', async () => {
       const mockTrainings = [
-        { id: 't1', dweller_id: 'd1', room_id: 'r1', status: 'completed', stat_being_trained: 'strength', estimated_completion_at: new Date().toISOString() },
-        { id: 't2', dweller_id: 'd2', room_id: 'r2', status: 'cancelled', stat_being_trained: 'endurance', estimated_completion_at: new Date().toISOString() },
+        {
+          id: 't1',
+          dweller_id: 'd1',
+          room_id: 'r1',
+          status: 'completed',
+          stat_being_trained: 'strength',
+          estimated_completion_at: new Date().toISOString(),
+        },
+        {
+          id: 't2',
+          dweller_id: 'd2',
+          room_id: 'r2',
+          status: 'cancelled',
+          stat_being_trained: 'endurance',
+          estimated_completion_at: new Date().toISOString(),
+        },
       ]
       vi.mocked(trainingService.getVaultTrainings).mockResolvedValueOnce(mockTrainings)
 
@@ -81,7 +109,14 @@ describe('Training Store', () => {
 
   describe('startTraining', () => {
     it('should start training and add to activeTrainings', async () => {
-      const mockTraining = { id: 't1', dweller_id: 'd1', room_id: 'r1', status: 'active', stat_being_trained: 'strength', estimated_completion_at: new Date(Date.now() + 3600000).toISOString() }
+      const mockTraining = {
+        id: 't1',
+        dweller_id: 'd1',
+        room_id: 'r1',
+        status: 'active',
+        stat_being_trained: 'strength',
+        estimated_completion_at: new Date(Date.now() + 3600000).toISOString(),
+      }
       vi.mocked(trainingService.startTraining).mockResolvedValueOnce(mockTraining)
 
       const store = useTrainingStore()
@@ -105,7 +140,14 @@ describe('Training Store', () => {
 
   describe('cancelTraining', () => {
     it('should cancel training and move to history', async () => {
-      const mockCancelled = { id: 't1', dweller_id: 'd1', room_id: 'r1', status: 'cancelled', stat_being_trained: 'strength', estimated_completion_at: new Date().toISOString() }
+      const mockCancelled = {
+        id: 't1',
+        dweller_id: 'd1',
+        room_id: 'r1',
+        status: 'cancelled',
+        stat_being_trained: 'strength',
+        estimated_completion_at: new Date().toISOString(),
+      }
       vi.mocked(trainingService.cancelTraining).mockResolvedValueOnce(mockCancelled)
 
       const store = useTrainingStore()
@@ -115,123 +157,195 @@ describe('Training Store', () => {
 
       expect(trainingService.cancelTraining).toHaveBeenCalledWith('t1', 'test-token')
       expect(result).toBe(true)
-       expect(store.activeTrainings.has('t1')).toBe(false)
-       expect(store.trainingHistory).toContainEqual(mockCancelled)
-     })
+      expect(store.activeTrainings.has('t1')).toBe(false)
+      expect(store.trainingHistory).toContainEqual(mockCancelled)
+    })
 
-     it('should return false on error', async () => {
-       vi.mocked(trainingService.cancelTraining).mockRejectedValueOnce(new Error('API error'))
+    it('should return false on error', async () => {
+      vi.mocked(trainingService.cancelTraining).mockRejectedValueOnce(new Error('API error'))
 
-       const store = useTrainingStore()
-       const result = await store.cancelTraining('t1', 'test-token')
+      const store = useTrainingStore()
+      const result = await store.cancelTraining('t1', 'test-token')
 
-       expect(result).toBe(false)
-     })
-   })
+      expect(result).toBe(false)
+    })
+  })
 
-   describe('completeTraining', () => {
-     it('should complete training and move to history', async () => {
-       const mockCompleted = { id: 't1', dweller_id: 'd1', room_id: 'r1', status: 'completed', stat_being_trained: 'strength', estimated_completion_at: new Date().toISOString(), progress: 1.0, completed_at: new Date().toISOString() }
-       vi.mocked(trainingService.completeTraining).mockResolvedValueOnce(mockCompleted)
+  describe('completeTraining', () => {
+    it('should complete training and move to history', async () => {
+      const mockCompleted = {
+        id: 't1',
+        dweller_id: 'd1',
+        room_id: 'r1',
+        status: 'completed',
+        stat_being_trained: 'strength',
+        estimated_completion_at: new Date().toISOString(),
+        progress: 1.0,
+        completed_at: new Date().toISOString(),
+      }
+      vi.mocked(trainingService.completeTraining).mockResolvedValueOnce(mockCompleted)
 
-       const store = useTrainingStore()
-       store.activeTrainings.set('t1', { ...mockCompleted, status: 'active', progress: 0.5, completed_at: undefined })
+      const store = useTrainingStore()
+      store.activeTrainings.set('t1', {
+        ...mockCompleted,
+        status: 'active',
+        progress: 0.5,
+        completed_at: undefined,
+      })
 
-       const result = await store.completeTraining('t1', 'test-token')
+      const result = await store.completeTraining('t1', 'test-token')
 
-       expect(trainingService.completeTraining).toHaveBeenCalledWith('t1', 'test-token')
-       expect(result).toBe(true)
-       expect(store.activeTrainings.has('t1')).toBe(false)
-       expect(store.trainingHistory).toContainEqual(mockCompleted)
-     })
+      expect(trainingService.completeTraining).toHaveBeenCalledWith('t1', 'test-token')
+      expect(result).toBe(true)
+      expect(store.activeTrainings.has('t1')).toBe(false)
+      expect(store.trainingHistory).toContainEqual(mockCompleted)
+    })
 
-     it('should return false on error', async () => {
-       vi.mocked(trainingService.completeTraining).mockRejectedValueOnce(new Error('API error'))
+    it('should return false on error', async () => {
+      vi.mocked(trainingService.completeTraining).mockRejectedValueOnce(new Error('API error'))
 
-       const store = useTrainingStore()
-       const result = await store.completeTraining('t1', 'test-token')
+      const store = useTrainingStore()
+      const result = await store.completeTraining('t1', 'test-token')
 
-       expect(result).toBe(false)
-     })
-   })
+      expect(result).toBe(false)
+    })
+  })
 
-   describe('fetchDwellerTraining', () => {
-     it('should add active training to map', async () => {
-       const mockTraining = { id: 't1', dweller_id: 'd1', room_id: 'r1', status: 'active', stat_being_trained: 'strength', estimated_completion_at: new Date(Date.now() + 3600000).toISOString() }
-       vi.mocked(trainingService.getDwellerTraining).mockResolvedValueOnce(mockTraining)
+  describe('fetchDwellerTraining', () => {
+    it('should add active training to map', async () => {
+      const mockTraining = {
+        id: 't1',
+        dweller_id: 'd1',
+        room_id: 'r1',
+        status: 'active',
+        stat_being_trained: 'strength',
+        estimated_completion_at: new Date(Date.now() + 3600000).toISOString(),
+      }
+      vi.mocked(trainingService.getDwellerTraining).mockResolvedValueOnce(mockTraining)
 
-       const store = useTrainingStore()
-       await store.fetchDwellerTraining('d1', 'test-token')
+      const store = useTrainingStore()
+      await store.fetchDwellerTraining('d1', 'test-token')
 
-       expect(store.activeTrainings.get('t1')).toEqual(mockTraining)
-     })
+      expect(store.activeTrainings.get('t1')).toEqual(mockTraining)
+    })
 
-     it('should remove completed training from map', async () => {
-       const mockTraining = { id: 't1', dweller_id: 'd1', room_id: 'r1', status: 'completed', stat_being_trained: 'strength', estimated_completion_at: new Date().toISOString() }
-       vi.mocked(trainingService.getDwellerTraining).mockResolvedValueOnce(mockTraining)
+    it('should remove completed training from map', async () => {
+      const mockTraining = {
+        id: 't1',
+        dweller_id: 'd1',
+        room_id: 'r1',
+        status: 'completed',
+        stat_being_trained: 'strength',
+        estimated_completion_at: new Date().toISOString(),
+      }
+      vi.mocked(trainingService.getDwellerTraining).mockResolvedValueOnce(mockTraining)
 
-       const store = useTrainingStore()
-       store.activeTrainings.set('t1', { ...mockTraining, status: 'active' })
+      const store = useTrainingStore()
+      store.activeTrainings.set('t1', { ...mockTraining, status: 'active' })
 
-       await store.fetchDwellerTraining('d1', 'test-token')
+      await store.fetchDwellerTraining('d1', 'test-token')
 
-       expect(store.activeTrainings.has('t1')).toBe(false)
-     })
-   })
+      expect(store.activeTrainings.has('t1')).toBe(false)
+    })
+  })
 
-   describe('fetchRoomTrainings', () => {
-     it('should fetch room trainings and update map', async () => {
-       const mockTrainings = [
-         { id: 't1', dweller_id: 'd1', room_id: 'r1', status: 'active', stat_being_trained: 'agility', estimated_completion_at: new Date(Date.now() + 3600000).toISOString() },
-       ]
-       vi.mocked(trainingService.getRoomTrainings).mockResolvedValueOnce(mockTrainings)
+  describe('fetchRoomTrainings', () => {
+    it('should fetch room trainings and update map', async () => {
+      const mockTrainings = [
+        {
+          id: 't1',
+          dweller_id: 'd1',
+          room_id: 'r1',
+          status: 'active',
+          stat_being_trained: 'agility',
+          estimated_completion_at: new Date(Date.now() + 3600000).toISOString(),
+        },
+      ]
+      vi.mocked(trainingService.getRoomTrainings).mockResolvedValueOnce(mockTrainings)
 
-       const store = useTrainingStore()
-       const result = await store.fetchRoomTrainings('r1', 'test-token')
+      const store = useTrainingStore()
+      const result = await store.fetchRoomTrainings('r1', 'test-token')
 
-       expect(trainingService.getRoomTrainings).toHaveBeenCalledWith('r1', 'test-token')
-       expect(result).toEqual(mockTrainings)
-       expect(store.activeTrainings.get('t1')).toEqual(mockTrainings[0])
-     })
+      expect(trainingService.getRoomTrainings).toHaveBeenCalledWith('r1', 'test-token')
+      expect(result).toEqual(mockTrainings)
+      expect(store.activeTrainings.get('t1')).toEqual(mockTrainings[0])
+    })
 
-     it('should return empty array on error', async () => {
-       vi.mocked(trainingService.getRoomTrainings).mockRejectedValueOnce(new Error('Error'))
+    it('should return empty array on error', async () => {
+      vi.mocked(trainingService.getRoomTrainings).mockRejectedValueOnce(new Error('Error'))
 
-       const store = useTrainingStore()
-       const result = await store.fetchRoomTrainings('r1', 'test-token')
+      const store = useTrainingStore()
+      const result = await store.fetchRoomTrainings('r1', 'test-token')
 
-       expect(result).toEqual([])
-     })
-   })
+      expect(result).toEqual([])
+    })
+  })
 
-   describe('updateTrainingProgress', () => {
-     it('should update active training in map', async () => {
-       const mockProgress = { id: 't1', dweller_id: 'd1', room_id: 'r1', status: 'active', stat_being_trained: 'strength', estimated_completion_at: new Date(Date.now() + 3600000).toISOString(), progress: 50 }
-       vi.mocked(trainingService.getTrainingProgress).mockResolvedValueOnce(mockProgress)
+  describe('updateTrainingProgress', () => {
+    it('should update active training in map', async () => {
+      const mockProgress = {
+        id: 't1',
+        dweller_id: 'd1',
+        room_id: 'r1',
+        status: 'active',
+        stat_being_trained: 'strength',
+        estimated_completion_at: new Date(Date.now() + 3600000).toISOString(),
+        progress: 50,
+      }
+      vi.mocked(trainingService.getTrainingProgress).mockResolvedValueOnce(mockProgress)
 
-       const store = useTrainingStore()
-       store.activeTrainings.set('t1', { id: 't1', dweller_id: 'd1', room_id: 'r1', status: 'active', stat_being_trained: 'strength', estimated_completion_at: new Date(Date.now() + 3600000).toISOString() })
+      const store = useTrainingStore()
+      store.activeTrainings.set('t1', {
+        id: 't1',
+        dweller_id: 'd1',
+        room_id: 'r1',
+        status: 'active',
+        stat_being_trained: 'strength',
+        estimated_completion_at: new Date(Date.now() + 3600000).toISOString(),
+      })
 
-       await store.updateTrainingProgress('t1', 'test-token')
+      await store.updateTrainingProgress('t1', 'test-token')
 
-       expect(store.activeTrainings.get('t1')).toEqual(mockProgress)
-     })
+      expect(store.activeTrainings.get('t1')).toEqual(mockProgress)
+    })
 
-     it('should move completed training to history', async () => {
-       const mockCompleted = { id: 't1', dweller_id: 'd1', room_id: 'r1', status: 'completed', stat_being_trained: 'strength', estimated_completion_at: new Date().toISOString(), progress: 100 }
-       vi.mocked(trainingService.getTrainingProgress).mockResolvedValueOnce(mockCompleted)
+    it('should move completed training to history', async () => {
+      const mockCompleted = {
+        id: 't1',
+        dweller_id: 'd1',
+        room_id: 'r1',
+        status: 'completed',
+        stat_being_trained: 'strength',
+        estimated_completion_at: new Date().toISOString(),
+        progress: 100,
+      }
+      vi.mocked(trainingService.getTrainingProgress).mockResolvedValueOnce(mockCompleted)
 
-       const store = useTrainingStore()
-       store.activeTrainings.set('t1', { id: 't1', dweller_id: 'd1', room_id: 'r1', status: 'active', stat_being_trained: 'strength', estimated_completion_at: new Date().toISOString() })
+      const store = useTrainingStore()
+      store.activeTrainings.set('t1', {
+        id: 't1',
+        dweller_id: 'd1',
+        room_id: 'r1',
+        status: 'active',
+        stat_being_trained: 'strength',
+        estimated_completion_at: new Date().toISOString(),
+      })
 
-       await store.updateTrainingProgress('t1', 'test-token')
+      await store.updateTrainingProgress('t1', 'test-token')
 
-       expect(store.activeTrainings.has('t1')).toBe(false)
-       expect(store.trainingHistory).toContainEqual(mockCompleted)
+      expect(store.activeTrainings.has('t1')).toBe(false)
+      expect(store.trainingHistory).toContainEqual(mockCompleted)
     })
 
     it('should remove cancelled training', async () => {
-      const mockCancelled = { id: 't1', dweller_id: 'd1', room_id: 'r1', status: 'cancelled', stat_being_trained: 'strength', estimated_completion_at: new Date().toISOString() }
+      const mockCancelled = {
+        id: 't1',
+        dweller_id: 'd1',
+        room_id: 'r1',
+        status: 'cancelled',
+        stat_being_trained: 'strength',
+        estimated_completion_at: new Date().toISOString(),
+      }
       vi.mocked(trainingService.getTrainingProgress).mockResolvedValueOnce(mockCancelled)
 
       const store = useTrainingStore()
@@ -246,7 +360,14 @@ describe('Training Store', () => {
   describe('Getters', () => {
     it('allActiveTrainings returns array from map', () => {
       const store = useTrainingStore()
-      const training = { id: 't1', dweller_id: 'd1', room_id: 'r1', status: 'active', stat_being_trained: 'strength', estimated_completion_at: new Date().toISOString() }
+      const training = {
+        id: 't1',
+        dweller_id: 'd1',
+        room_id: 'r1',
+        status: 'active',
+        stat_being_trained: 'strength',
+        estimated_completion_at: new Date().toISOString(),
+      }
       store.activeTrainings.set('t1', training)
 
       expect(store.allActiveTrainings).toHaveLength(1)
@@ -255,7 +376,14 @@ describe('Training Store', () => {
 
     it('getTrainingByDweller returns training for dweller', () => {
       const store = useTrainingStore()
-      store.activeTrainings.set('t1', { id: 't1', dweller_id: 'd1', room_id: 'r1', status: 'active', stat_being_trained: 'agility', estimated_completion_at: new Date().toISOString() })
+      store.activeTrainings.set('t1', {
+        id: 't1',
+        dweller_id: 'd1',
+        room_id: 'r1',
+        status: 'active',
+        stat_being_trained: 'agility',
+        estimated_completion_at: new Date().toISOString(),
+      })
 
       expect(store.getTrainingByDweller('d1')).toBeTruthy()
       expect(store.getTrainingByDweller('nonexistent')).toBeUndefined()
@@ -263,9 +391,30 @@ describe('Training Store', () => {
 
     it('getTrainingsByRoom returns trainings for room', () => {
       const store = useTrainingStore()
-      store.activeTrainings.set('t1', { id: 't1', dweller_id: 'd1', room_id: 'r1', status: 'active', stat_being_trained: 'agility', estimated_completion_at: new Date().toISOString() })
-      store.activeTrainings.set('t2', { id: 't2', dweller_id: 'd2', room_id: 'r1', status: 'active', stat_being_trained: 'luck', estimated_completion_at: new Date().toISOString() })
-      store.activeTrainings.set('t3', { id: 't3', dweller_id: 'd3', room_id: 'r2', status: 'active', stat_being_trained: 'perception', estimated_completion_at: new Date().toISOString() })
+      store.activeTrainings.set('t1', {
+        id: 't1',
+        dweller_id: 'd1',
+        room_id: 'r1',
+        status: 'active',
+        stat_being_trained: 'agility',
+        estimated_completion_at: new Date().toISOString(),
+      })
+      store.activeTrainings.set('t2', {
+        id: 't2',
+        dweller_id: 'd2',
+        room_id: 'r1',
+        status: 'active',
+        stat_being_trained: 'luck',
+        estimated_completion_at: new Date().toISOString(),
+      })
+      store.activeTrainings.set('t3', {
+        id: 't3',
+        dweller_id: 'd3',
+        room_id: 'r2',
+        status: 'active',
+        stat_being_trained: 'perception',
+        estimated_completion_at: new Date().toISOString(),
+      })
 
       const roomTrainings = store.getTrainingsByRoom('r1')
       expect(roomTrainings).toHaveLength(2)
@@ -273,7 +422,14 @@ describe('Training Store', () => {
 
     it('isDwellerTraining returns true for active training', () => {
       const store = useTrainingStore()
-      store.activeTrainings.set('t1', { id: 't1', dweller_id: 'd1', room_id: 'r1', status: 'active', stat_being_trained: 'strength', estimated_completion_at: new Date().toISOString() })
+      store.activeTrainings.set('t1', {
+        id: 't1',
+        dweller_id: 'd1',
+        room_id: 'r1',
+        status: 'active',
+        stat_being_trained: 'strength',
+        estimated_completion_at: new Date().toISOString(),
+      })
 
       expect(store.isDwellerTraining('d1')).toBe(true)
       expect(store.isDwellerTraining('nonexistent')).toBe(false)
@@ -283,8 +439,22 @@ describe('Training Store', () => {
       const store = useTrainingStore()
       const soon = new Date(Date.now() + 300000).toISOString()
       const later = new Date(Date.now() + 86400000).toISOString()
-      store.activeTrainings.set('t1', { id: 't1', dweller_id: 'd1', room_id: 'r1', status: 'active', stat_being_trained: 'strength', estimated_completion_at: soon })
-      store.activeTrainings.set('t2', { id: 't2', dweller_id: 'd2', room_id: 'r2', status: 'active', stat_being_trained: 'endurance', estimated_completion_at: later })
+      store.activeTrainings.set('t1', {
+        id: 't1',
+        dweller_id: 'd1',
+        room_id: 'r1',
+        status: 'active',
+        stat_being_trained: 'strength',
+        estimated_completion_at: soon,
+      })
+      store.activeTrainings.set('t2', {
+        id: 't2',
+        dweller_id: 'd2',
+        room_id: 'r2',
+        status: 'active',
+        stat_being_trained: 'endurance',
+        estimated_completion_at: later,
+      })
 
       expect(store.completingSoon).toHaveLength(1)
       expect(store.completingSoon[0].id).toBe('t1')
@@ -293,7 +463,14 @@ describe('Training Store', () => {
     it('completingSoon excludes non-active trainings', () => {
       const store = useTrainingStore()
       const soon = new Date(Date.now() + 300000).toISOString()
-      store.activeTrainings.set('t1', { id: 't1', dweller_id: 'd1', room_id: 'r1', status: 'completed', stat_being_trained: 'strength', estimated_completion_at: soon })
+      store.activeTrainings.set('t1', {
+        id: 't1',
+        dweller_id: 'd1',
+        room_id: 'r1',
+        status: 'completed',
+        stat_being_trained: 'strength',
+        estimated_completion_at: soon,
+      })
 
       expect(store.completingSoon).toHaveLength(0)
     })

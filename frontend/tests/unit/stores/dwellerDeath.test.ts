@@ -92,7 +92,13 @@ describe('DwellerDeath Store', () => {
   describe('fetchGraveyardDwellers', () => {
     it('should fetch graveyard dwellers and update state', async () => {
       const mockGraveyard = [
-        { id: 'd3', first_name: 'Dead', last_name: 'Dweller', level: 10, cause_of_death: 'Old age' },
+        {
+          id: 'd3',
+          first_name: 'Dead',
+          last_name: 'Dweller',
+          level: 10,
+          cause_of_death: 'Old age',
+        },
       ]
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockGraveyard })
 

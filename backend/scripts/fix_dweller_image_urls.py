@@ -1,8 +1,16 @@
-"""Fix dweller image URLs - convert filenames to full URLs."""
+"""
+Fix dweller image URLs - convert filenames to full URLs.
+
+Usage:
+    cd backend
+    uv run python scripts/fix_dweller_image_urls.py
+"""
 
 import asyncio
 import sys
 from pathlib import Path
+
+import typer
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -55,5 +63,18 @@ async def fix_dweller_image_urls():
             raise
 
 
-if __name__ == "__main__":
+app = typer.Typer(help="Fix dweller image URLs - convert filenames to full URLs.")
+
+
+@app.command()
+def fix() -> None:
+    """Fix dweller image URLs - convert filenames to full URLs."""
     asyncio.run(fix_dweller_image_urls())
+
+
+def main() -> None:
+    app()
+
+
+if __name__ == "__main__":
+    main()

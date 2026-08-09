@@ -67,7 +67,17 @@ test.describe('Side panel', () => {
     await loginAndGo(page, '/vault/fake-id/dwellers')
     const panel = page.locator('aside[aria-label="Game navigation panel"]')
     await expect(panel).toBeVisible({ timeout: 5000 })
-    for (const label of ['Overview', 'Dwellers', 'Exploration', 'Objectives', 'Quests', 'Relationships', 'Training', 'Happiness', 'Storage']) {
+    for (const label of [
+      'Overview',
+      'Dwellers',
+      'Exploration',
+      'Objectives',
+      'Quests',
+      'Relationships',
+      'Training',
+      'Happiness',
+      'Storage',
+    ]) {
       await expect(panel).toContainText(label)
     }
   })
@@ -83,12 +93,14 @@ test.describe('Side panel', () => {
 
   test('collapse toggle button exists and toggles', async ({ page }) => {
     await loginAndGo(page, '/vault/fake-id/dwellers')
-    const toggleBtn = page.locator('aside button[aria-label*="Collapse"], aside button[aria-label*="Expand"]')
+    const toggleBtn = page.locator(
+      'aside button[aria-label*="Collapse"], aside button[aria-label*="Expand"]'
+    )
     await expect(toggleBtn.first()).toBeVisible()
-    const initialLabel = await toggleBtn.first().getAttribute('aria-label') || ''
+    const initialLabel = (await toggleBtn.first().getAttribute('aria-label')) || ''
     await toggleBtn.first().click()
     await page.waitForTimeout(400)
-    const afterLabel = await toggleBtn.first().getAttribute('aria-label') || ''
+    const afterLabel = (await toggleBtn.first().getAttribute('aria-label')) || ''
     expect(initialLabel).not.toEqual(afterLabel)
   })
 
@@ -111,11 +123,11 @@ test.describe('Keyboard shortcuts', () => {
     await loginAndGo(page, '/vault/fake-id/dwellers')
     await page.waitForTimeout(500)
     const aside = page.locator('aside[aria-label="Game navigation panel"]')
-    const initialClass = await aside.getAttribute('class') || ''
+    const initialClass = (await aside.getAttribute('class')) || ''
     const initialCollapsed = initialClass.includes('collapsed')
     await page.keyboard.press('Control+b')
     await page.waitForTimeout(400)
-    const afterClass = await aside.getAttribute('class') || ''
+    const afterClass = (await aside.getAttribute('class')) || ''
     const afterCollapsed = afterClass.includes('collapsed')
     expect(initialCollapsed).not.toEqual(afterCollapsed)
   })
@@ -403,7 +415,13 @@ test.describe('Navigation flows', () => {
 
   test('rapid navigation does not cause crash', async ({ page }) => {
     await loginAndGo(page, '/login')
-    const urls = ['/', '/vault/fake-id', '/vault/fake-id/dwellers', '/vault/fake-id/storage', '/settings']
+    const urls = [
+      '/',
+      '/vault/fake-id',
+      '/vault/fake-id/dwellers',
+      '/vault/fake-id/storage',
+      '/settings',
+    ]
     for (const url of urls) {
       await page.goto(url)
       await page.waitForTimeout(200)
@@ -567,7 +585,13 @@ test.describe('NavBar user dropdown', () => {
     const userButton = page.locator('nav button[aria-haspopup="true"]')
     await userButton.click()
     await page.waitForTimeout(300)
-    for (const label of ['View profile', 'Display preferences', 'Settings', 'About this application', 'View changelog']) {
+    for (const label of [
+      'View profile',
+      'Display preferences',
+      'Settings',
+      'About this application',
+      'View changelog',
+    ]) {
       await expect(page.locator(`[aria-label="${label}"]`).first()).toBeVisible()
     }
   })
@@ -597,7 +621,9 @@ test.describe('NotificationBell', () => {
   test('bell icon renders without crash when authenticated', async ({ page }) => {
     await loginAndGo(page, '/')
     // NotificationBell uses mdi:bell icon
-    const bellIcon = page.locator('nav .notification-bell, nav [aria-label*="notification" i], nav svg')
+    const bellIcon = page.locator(
+      'nav .notification-bell, nav [aria-label*="notification" i], nav svg'
+    )
     await expect(page.locator('body')).toBeVisible()
   })
 })

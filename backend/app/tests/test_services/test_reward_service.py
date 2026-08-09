@@ -88,7 +88,7 @@ async def test_process_objective_reward_caps(async_session: AsyncSession) -> Non
 
 @pytest.mark.asyncio
 async def test_process_objective_reward_invalid(async_session: AsyncSession) -> None:
-    """Test handling invalid reward string."""
+    """Test invalid reward string raises instead of being silently swallowed."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -107,8 +107,8 @@ async def test_process_objective_reward_invalid(async_session: AsyncSession) -> 
     async_session.add(link)
     await async_session.commit()
 
-    result = await reward_service.process_objective_reward(async_session, vault.id, link)
-    assert result is None  # Should fail gracefully
+    with pytest.raises(ValueError, match="Cannot parse objective reward string"):
+        await reward_service.process_objective_reward(async_session, vault.id, link)
 
 
 @pytest.mark.asyncio

@@ -219,9 +219,9 @@ async def test_check_for_recruitment_success(
     radio_room: Room,
 ):
     """Test successful recruitment via radio."""
-    # Mock random to always succeed both the rate roll and the recycle probability roll.
-    # The pool is empty in this test so the service falls back to create_random.
-    with patch("random.random", return_value=0.0):
+    # Mock random to always succeed the rate roll; pin rare_chance=0 so the
+    # rare roll (0.0 < 0.04 default) cannot flip the fresh dweller to RARE.
+    with patch("random.random", return_value=0.0), patch.object(game_config.radio, "rare_chance", new=0.0):
         dweller = await RadioService.check_for_recruitment(async_session, vault.id)
 
     assert dweller is not None
@@ -264,7 +264,8 @@ async def test_recruit_dweller_fresh_when_pool_empty(
     vault: Vault,
 ):
     """When no recyclable dwellers exist the service creates a fresh random dweller."""
-    with patch("random.random", return_value=0.0):
+    # rare_chance=0 pins the rarity roll to COMMON (default 0.04 would give RARE at random=0.0)
+    with patch("random.random", return_value=0.0), patch.object(game_config.radio, "rare_chance", new=0.0):
         dweller, recycled = await RadioService.recruit_dweller(async_session, vault.id)
 
     assert recycled is False
@@ -531,11 +532,31 @@ async def test_recruit_dweller_skips_recycling_when_disabled(
     deleted_dweller: Dweller,
 ):
     """When recycle_enabled=False the service always creates a fresh dweller."""
-    with patch.object(game_config.radio, "recycle_enabled", new=False), patch("random.random", return_value=0.0):
+    # rare_chance=0 pins the rarity roll to COMMON (default 0.04 would give RARE at random=0.0)
+    with (
+        patch.object(game_config.radio, "recycle_enabled", new=False),
+        patch.object(game_config.radio, "rare_chance", new=0.0),
+        patch("random.random", return_value=0.0),
+    ):
         dweller, recycled = await RadioService.recruit_dweller(async_session, vault.id)
 
     assert recycled is False
     assert dweller.id != deleted_dweller.id
+    assert dweller.rarity == RarityEnum.COMMON
+
+
+@pytest.mark.asyncio
+async def test_recruit_dweller_rare_chance_rolls_rare(async_session: AsyncSession, vault: Vault) -> None:
+    """rare_chance=1.0 makes fresh recruits RARE; 0.0 keeps them COMMON."""
+    # 0.5 < 1.0 → RARE; 0.5 < 0.0 is False → COMMON. Both rolls use the same mocked value.
+    with patch.object(game_config.radio, "rare_chance", new=1.0), patch("random.random", return_value=0.5):
+        dweller, recycled = await RadioService.recruit_dweller(async_session, vault.id)
+    assert recycled is False
+    assert dweller.rarity == RarityEnum.RARE
+
+    with patch.object(game_config.radio, "rare_chance", new=0.0), patch("random.random", return_value=0.5):
+        dweller, recycled = await RadioService.recruit_dweller(async_session, vault.id)
+    assert recycled is False
     assert dweller.rarity == RarityEnum.COMMON
 
 

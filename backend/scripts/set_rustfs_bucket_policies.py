@@ -1,8 +1,16 @@
-"""Set public policies on RustFS buckets."""
+"""
+Set public policies on RustFS buckets.
+
+Usage:
+    cd backend
+    uv run python scripts/set_rustfs_bucket_policies.py
+"""
 
 import json
 import sys
 from pathlib import Path
+
+import typer
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -48,5 +56,18 @@ def set_bucket_policies():
             print(f"Failed to set policy for {bucket}: {e}")
 
 
-if __name__ == "__main__":
+app = typer.Typer(help="Set public policies on RustFS buckets.")
+
+
+@app.command()
+def set_policies() -> None:
+    """Set public read policies on all whitelisted buckets."""
     set_bucket_policies()
+
+
+def main() -> None:
+    app()
+
+
+if __name__ == "__main__":
+    main()

@@ -5,6 +5,7 @@
 # ]
 # ///
 
+import os
 import subprocess
 import urllib.parse
 from pathlib import Path
@@ -64,7 +65,7 @@ def download_image(url, filename):
         temp_path.unlink(missing_ok=True)
 
 
-def get_images_from_page(url):  # noqa: C901, PLR0912
+def get_images_from_page(url):  # noqa: C901, PLR0912, PLR0915
     print(f"Fetching page: {url}")
     try:
         result = subprocess.run(
@@ -123,7 +124,10 @@ def get_images_from_page(url):  # noqa: C901, PLR0912
             parts = img_url.split("/")
             filename = parts[parts.index("revision") - 1] if "revision" in parts else parts[-1].split("?")[0]
 
-        filename = urllib.parse.unquote(filename)
+        filename = os.path.basename(urllib.parse.unquote(filename))  # noqa: PTH119
+
+        if filename in ("", ".", ".."):
+            continue
 
         # Filter for images and avoid global assets (skip logos and banners)
         is_image = any(filename.lower().endswith(ext) for ext in [".png", ".jpg", ".jpeg", ".gif", ".svg"])
@@ -152,7 +156,7 @@ def get_images_from_page(url):  # noqa: C901, PLR0912
     return next_url, images_found
 
 
-def run_download():
+def run_download() -> None:
     download_dir = Path(DOWNLOAD_DIR)
     if not download_dir.exists():
         download_dir.mkdir(parents=True)

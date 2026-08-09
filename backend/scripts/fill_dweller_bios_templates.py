@@ -11,6 +11,7 @@ Requires ASYNC_DATABASE_URI in backend/.env (no LLM needed).
 from __future__ import annotations
 
 import asyncio
+import logging
 import random
 from typing import Annotated
 from uuid import UUID
@@ -22,6 +23,8 @@ from app.core.game_config import game_config
 from app.db.session import async_session_maker
 from app.models.dweller import Dweller
 from app.services.map_service import map_service
+
+logger = logging.getLogger(__name__)
 
 VAULT_ID = "f7a4d013-6252-4c19-b2ba-0bd499fe6133"
 MAX_TO_FILL = 10  # safety limit — adjust or remove
@@ -60,13 +63,12 @@ _VISITED_PLACES: list[str] = [
     "Far Harbor",
     "Point Lookout",
     "the Pitt",
-    " Zion Canyon",
+    "Zion Canyon",
     "Big MT",
     "the Divide",
     "Vault-Tec HQ",
     "Red Rocket",
     "Starlight Drive-In",
-    "Sanctuary Hills",
     "Museum of Freedom",
     "Bunker Hill",
     "Mass Pike Tunnel",
@@ -242,18 +244,21 @@ async def main(
             candidates = candidates[:max_to_fill]
 
         for dweller in candidates:
-            origin, visited = _pick_places(dweller)
-            bio = _build_bio(dweller, origin, visited)
-            dweller.bio = bio
-            session.add(dweller)
-            await map_service.register_bio_places(
-                session,
-                dweller,
-                origin_place=origin,
-                visited_places=visited,
-            )
-            filled += 1
-            print(f"[{filled}] {dweller.first_name}: {bio[:80]}...")
+            try:
+                origin, visited = _pick_places(dweller)
+                bio = _build_bio(dweller, origin, visited)
+                dweller.bio = bio
+                session.add(dweller)
+                await map_service.register_bio_places(
+                    session,
+                    dweller,
+                    origin_place=origin,
+                    visited_places=visited,
+                )
+                filled += 1
+                print(f"[{filled}] {dweller.first_name}: {bio[:80]}...")
+            except Exception:
+                logger.exception("Failed to fill bio for dweller %s", dweller.id)
 
         await session.commit()
 
@@ -273,6 +278,10 @@ def fill(
     ] = FORCE_REGENERATE,
 ) -> None:
     """Fill dweller bios with template-generated backstories and map locations."""
+    try:
+        UUID(vault)
+    except ValueError:
+        raise typer.BadParameter(f"Invalid vault UUID: {vault!r}") from None
     asyncio.run(main(vault_id=vault, max_to_fill=max_to_fill, skip_dead=skip_dead, force_regenerate=force_regenerate))
 
 

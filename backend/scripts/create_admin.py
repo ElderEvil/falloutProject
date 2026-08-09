@@ -74,7 +74,7 @@ async def create_admin(
             },
         )
         await session.commit()
-        print(f"Superuser created:\n  Email: {email}\n  Username: {username}\n  Password: {password}")
+        print(f"Superuser created:\n  Email: {email}\n  Username: {username}")
 
 
 app = typer.Typer(help="Create a superuser (admin) account for testing.")
@@ -82,9 +82,17 @@ app = typer.Typer(help="Create a superuser (admin) account for testing.")
 
 @app.command()
 def create_admin_cli(
-    email: Annotated[str, typer.Option(help="Admin email address")] = "admin@test.com",
-    username: Annotated[str, typer.Option(help="Admin username")] = "admin",
-    password: Annotated[str, typer.Option(help="Admin password")] = "admin123",
+    email: Annotated[str, typer.Option(help="Admin email address")],
+    username: Annotated[str, typer.Option(help="Admin username")],
+    password: Annotated[
+        str,
+        typer.Option(
+            help="Admin password",
+            prompt=True,
+            hide_input=True,
+            confirmation_prompt=True,
+        ),
+    ],
     db_url: Annotated[
         str, typer.Option(help="Async SQLAlchemy database URL")
     ] = "postgresql+asyncpg://postgres:postgres@localhost:5432/fallout_db",

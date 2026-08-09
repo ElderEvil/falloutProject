@@ -28,6 +28,7 @@ export type SortDirection = 'asc' | 'desc'
 export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   // State
   const dwellers = ref<DwellerShort[]>([])
+  const allDwellers = ref<DwellerShort[]>([])
   const detailedDwellers = ref<Record<string, Dweller | null>>({})
   const isLoading = ref(false)
 
@@ -149,6 +150,23 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     }
   }
 
+  /**
+   * Fetch ALL dwellers for a vault without any filters (for dashboard aggregates).
+   * Populates the allDwellers ref without touching the filtered dwellers list.
+   */
+  async function fetchAllDwellers(vaultId: string, token: string): Promise<void> {
+    try {
+      const response = await axios.get(`/api/v1/dwellers/vault/${vaultId}/`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      allDwellers.value = response.data
+    } catch (error) {
+      handleStoreError(error, `Failed to fetch all dwellers for vault ${vaultId}`)
+    }
+  }
+
   async function fetchDwellerDetails(
     id: string,
     token: string,
@@ -195,6 +213,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
 
   return {
     dwellers,
+    allDwellers,
     dwellersWithStatus,
     detailedDwellers,
     isLoading,
@@ -208,6 +227,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     filteredAndSortedDwellers,
     fetchDwellers,
     fetchDwellersByVault,
+    fetchAllDwellers,
     fetchDwellerDetails,
     setFilterStatus,
     setFilterAgeGroup,

@@ -238,6 +238,10 @@ def backfill(
     max_dwellers: Annotated[int, typer.Option(help="Maximum dwellers to process")] = MAX_DWELLERS,
 ) -> None:
     """Extract origin/visited places from dweller bios and register them on the world map."""
+    try:
+        UUID(vault)
+    except ValueError:
+        raise typer.BadParameter(f"Invalid vault UUID: {vault!r}") from None
     count = asyncio.run(main(vault_uuid=vault, max_dwellers=max_dwellers))
     print(f"Backfill complete: {count} dweller bio places registered.")
 

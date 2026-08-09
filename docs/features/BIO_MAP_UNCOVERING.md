@@ -1,6 +1,6 @@
 # Dweller Bio → World Map Uncovering (Rarity-Scaled)
 
-> Status: Proposed design (2026-08-08). Validated against existing systems.
+> Status: Implemented and shipped in v2.28 (2026-08-09). Template-bio filler (`fill_dweller_bios_templates.py`), rarity-scaled visited caps, retro-active backfill script (`backfill_dweller_bio_places.py`), and bio-place registration on dweller creation are live. Radio rare-chance, quest unique-dweller bios, and `register_bio_places` failure surfacing remain deferred.
 > Predecessor docs: `docs/EXPLORATION_SYSTEM.md`, `docs/features/SOFT_DELETE.md`.
 
 ## Goal

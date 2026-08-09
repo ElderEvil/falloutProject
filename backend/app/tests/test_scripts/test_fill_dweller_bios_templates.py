@@ -33,17 +33,17 @@ def _make_dweller(**overrides: object) -> Dweller:
     return Dweller(**defaults)
 
 
-def test_highest_stat_picks_single_max():
+def test_highest_stat_picks_single_max() -> None:
     dweller = _make_dweller(strength=3, perception=1, endurance=5, charisma=2)
     assert _highest_stat(dweller) == "endurance"
 
 
-def test_highest_stat_tie_breaks_to_one_of_top():
+def test_highest_stat_tie_breaks_to_one_of_top() -> None:
     dweller = _make_dweller(strength=5, perception=5, endurance=1, charisma=1)
     assert _highest_stat(dweller) in {"strength", "perception"}
 
 
-def test_pick_places_is_deterministic_per_dweller_id():
+def test_pick_places_is_deterministic_per_dweller_id() -> None:
     dweller = _make_dweller(id=UUID("12345678-1234-5678-1234-567812345678"))
     origin1, visited1 = _pick_places(dweller)
     origin2, visited2 = _pick_places(dweller)
@@ -51,31 +51,31 @@ def test_pick_places_is_deterministic_per_dweller_id():
     assert visited1 == visited2
 
 
-def test_pick_places_origin_and_visited_are_distinct():
+def test_pick_places_origin_and_visited_are_distinct() -> None:
     dweller = _make_dweller(id=UUID("12345678-1234-5678-1234-567812345678"))
     origin, visited = _pick_places(dweller)
     assert origin not in visited
 
 
-def test_pick_places_common_rarity_gets_two_visited():
+def test_pick_places_common_rarity_gets_two_visited() -> None:
     dweller = _make_dweller(rarity=RarityEnum.COMMON)
     _origin, visited = _pick_places(dweller)
     assert len(visited) == 2
 
 
-def test_pick_places_rare_rarity_gets_four_visited():
+def test_pick_places_rare_rarity_gets_four_visited() -> None:
     dweller = _make_dweller(rarity=RarityEnum.RARE)
     _origin, visited = _pick_places(dweller)
     assert len(visited) == 4
 
 
-def test_pick_places_legendary_rarity_gets_five_visited():
+def test_pick_places_legendary_rarity_gets_five_visited() -> None:
     dweller = _make_dweller(rarity=RarityEnum.LEGENDARY)
     _origin, visited = _pick_places(dweller)
     assert len(visited) == 5
 
 
-def test_build_bio_includes_origin_and_visited():
+def test_build_bio_includes_origin_and_visited() -> None:
     dweller = _make_dweller(
         first_name="Ada",
         last_name="Lovelace",
@@ -95,7 +95,7 @@ def test_build_bio_includes_origin_and_visited():
     assert "5" in bio
 
 
-def test_build_bio_with_two_visited_places_joins_with_and():
+def test_build_bio_with_two_visited_places_joins_with_and() -> None:
     dweller = _make_dweller(
         first_name="Ada",
         strength=5,
@@ -104,25 +104,25 @@ def test_build_bio_with_two_visited_places_joins_with_and():
     assert "the Pitt and Far Harbor" in bio
 
 
-def test_join_places_one():
+def test_join_places_one() -> None:
     assert _join_places(["Megaton"]) == "Megaton"
 
 
-def test_join_places_two():
+def test_join_places_two() -> None:
     assert _join_places(["the Pitt", "Far Harbor"]) == "the Pitt and Far Harbor"
 
 
-def test_join_places_three_uses_oxford_comma():
+def test_join_places_three_uses_oxford_comma() -> None:
     assert _join_places(["A", "B", "C"]) == "A, B, and C"
 
 
-def test_join_places_five_uses_oxford_comma():
+def test_join_places_five_uses_oxford_comma() -> None:
     places = ["the Capital Wasteland", "Mojave", "Glowing Sea", "the Commonwealth", "Appalachia"]
     result = _join_places(places)
     assert result == "the Capital Wasteland, Mojave, Glowing Sea, the Commonwealth, and Appalachia"
 
 
-def test_build_bio_fits_max_length():
+def test_build_bio_fits_max_length() -> None:
     dweller = _make_dweller(
         first_name="Christopher",
         last_name="Maximilian",
@@ -150,7 +150,7 @@ def test_build_bio_fits_max_length():
         ("luck", 7),
     ],
 )
-def test_build_bio_for_every_stat_branch(stat: str, value: int):
+def test_build_bio_for_every_stat_branch(stat: str, value: int) -> None:
     dweller = _make_dweller(**{stat: value})
     bio = _build_bio(dweller, origin="Vault 101", visited=["Rivet City"])
     assert bio

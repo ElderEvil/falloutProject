@@ -137,8 +137,9 @@ describe('DwellersView', () => {
 
       vi.mocked(axios.get)
         .mockResolvedValueOnce({ data: mockDwellers }) // fetchDwellersByVault
+        .mockResolvedValueOnce({ data: [] }) // fetchAllDwellers
         .mockResolvedValueOnce({ data: [] }) // fetchRooms
-        .mockResolvedValueOnce({ data: [] }) // fetchIncidents
+        .mockResolvedValueOnce({ data: { vault_id: 'vault-1', incident_count: 0, incidents: [] } }) // fetchIncidents
 
       await router.isReady()
       const wrapper = mount(DwellersView, {
@@ -164,8 +165,9 @@ describe('DwellersView', () => {
     it('should render filter panel', async () => {
       vi.mocked(axios.get)
         .mockResolvedValueOnce({ data: [] }) // fetchDwellersByVault
+        .mockResolvedValueOnce({ data: [] }) // fetchAllDwellers
         .mockResolvedValueOnce({ data: [] }) // fetchRooms
-        .mockResolvedValueOnce({ data: [] }) // fetchIncidents
+        .mockResolvedValueOnce({ data: { vault_id: 'vault-1', incident_count: 0, incidents: [] } }) // fetchIncidents
 
       await router.isReady()
       const wrapper = mount(DwellersView, {

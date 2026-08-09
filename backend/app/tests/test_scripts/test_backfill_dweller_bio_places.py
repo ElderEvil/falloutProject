@@ -54,21 +54,21 @@ def _config_has_existing_locations(mock_session: AsyncMock) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_extract_no_bio_returns_none_empty():
+def test_extract_no_bio_returns_none_empty() -> None:
     """No bio -> no origin, no visited."""
     origin, visited = _extract_places_from_bio(None)
     assert origin is None
     assert visited == []
 
 
-def test_extract_empty_bio_returns_none_empty():
+def test_extract_empty_bio_returns_none_empty() -> None:
     """Empty bio string -> no matches."""
     origin, visited = _extract_places_from_bio("")
     assert origin is None
     assert visited == []
 
 
-def test_extract_bio_with_no_known_places():
+def test_extract_bio_with_no_known_places() -> None:
     """Bio text without any known place mentions -> skipped, no crash."""
     origin, visited = _extract_places_from_bio(
         "This dweller came from a small outpost and never went anywhere notable."
@@ -77,21 +77,21 @@ def test_extract_bio_with_no_known_places():
     assert visited == []
 
 
-def test_extract_origin_place_from_bio():
+def test_extract_origin_place_from_bio() -> None:
     """Bio containing a known origin place name is extracted."""
     origin, visited = _extract_places_from_bio("Originally from Megaton, this dweller learned to survive early.")
     assert origin == "Megaton"
     assert visited == []
 
 
-def test_extract_visited_place_from_bio():
+def test_extract_visited_place_from_bio() -> None:
     """Bio containing a known visited place name is extracted."""
     origin, visited = _extract_places_from_bio("They once scavenged the Capital Wasteland and lived to tell the tale.")
     assert origin is None
     assert "the Capital Wasteland" in visited
 
 
-def test_extract_origin_and_visited_from_bio():
+def test_extract_origin_and_visited_from_bio() -> None:
     """Bio with both origin and visited places -> both extracted."""
     origin, visited = _extract_places_from_bio(
         "Hailing from Diamond City, this dweller wandered through the Commonwealth and survived a trip to Far Harbor."
@@ -101,7 +101,7 @@ def test_extract_origin_and_visited_from_bio():
     assert "Far Harbor" in visited
 
 
-def test_extract_multi_word_place():
+def test_extract_multi_word_place() -> None:
     """Multi-word places like Starlight Drive-In are matched correctly."""
     origin, visited = _extract_places_from_bio(
         "They set up a trading post near Starlight Drive-In after leaving Sanctuary Hills."
@@ -110,14 +110,14 @@ def test_extract_multi_word_place():
     assert "Starlight Drive-In" in visited
 
 
-def test_extract_case_insensitive():
+def test_extract_case_insensitive() -> None:
     """Place matching is case-insensitive."""
     origin, visited = _extract_places_from_bio("born in megaton, travelled to the commonwealth.")
     assert origin == "Megaton"
     assert "the Commonwealth" in visited
 
 
-def test_extract_does_not_match_partial_words():
+def test_extract_does_not_match_partial_words() -> None:
     """Regex word-boundary: 'Megaton' does NOT match inside 'Megatonia'."""
     origin, visited = _extract_places_from_bio(
         "The Megatonia settlement was prosperous but nothing like Megaton itself."
@@ -126,14 +126,14 @@ def test_extract_does_not_match_partial_words():
     assert visited == []
 
 
-def test_extract_visited_with_leading_space_in_list():
+def test_extract_visited_with_leading_space_in_list() -> None:
     """Places like ' Zion Canyon' (with leading space in _VISITED_PLACES) match in bio text."""
     origin, visited = _extract_places_from_bio("They survived Zion Canyon and brought back useful herbs.")
     assert origin is None
     assert "Zion Canyon" in visited
 
 
-def test_extract_place_in_both_lists_treated_as_origin():
+def test_extract_place_in_both_lists_treated_as_origin() -> None:
     """Places in both origin and visited lists -> treated as origin, not duplicated."""
     origin, visited = _extract_places_from_bio(
         "From Sanctuary Hills, they dreamed of returning to Sanctuary Hills one day."
@@ -142,7 +142,7 @@ def test_extract_place_in_both_lists_treated_as_origin():
     assert "Sanctuary Hills" not in visited
 
 
-def test_extract_multiple_visited_deduped():
+def test_extract_multiple_visited_deduped() -> None:
     """Repeated place mentions -> deduplicated in visited list."""
     origin, visited = _extract_places_from_bio("They went to Far Harbor, then Far Harbor again, and also Far Harbor.")
     assert origin is None
@@ -155,7 +155,7 @@ def test_extract_multiple_visited_deduped():
 
 
 @pytest.mark.asyncio
-async def test_main_no_bio_dweller_skipped():
+async def test_main_no_bio_dweller_skipped() -> None:
     """Dweller with no bio is skipped entirely."""
     vault_id = uuid4()
     dweller_obj = _make_dweller(vault_id=vault_id, bio=None)
@@ -183,7 +183,7 @@ async def test_main_no_bio_dweller_skipped():
 
 
 @pytest.mark.asyncio
-async def test_main_calls_register_bio_places_with_extracted_places():
+async def test_main_calls_register_bio_places_with_extracted_places() -> None:
     """Dweller with bio containing known places -> register_bio_places called correctly."""
     vault_id = uuid4()
     dweller_obj = _make_dweller(
@@ -221,7 +221,7 @@ async def test_main_calls_register_bio_places_with_extracted_places():
 
 
 @pytest.mark.asyncio
-async def test_main_register_bio_places_failure_is_swallowed():
+async def test_main_register_bio_places_failure_is_swallowed() -> None:
     """When register_bio_places raises, the script continues and does NOT crash."""
     vault_id = uuid4()
     dweller_bad = _make_dweller(
@@ -259,7 +259,7 @@ async def test_main_register_bio_places_failure_is_swallowed():
 
 
 @pytest.mark.asyncio
-async def test_main_vault_not_found_graceful():
+async def test_main_vault_not_found_graceful() -> None:
     """Non-existent vault UUID -> exits gracefully, no crash."""
     mock_session = AsyncMock()
     mock_session.__aenter__.return_value = mock_session
@@ -280,7 +280,7 @@ async def test_main_vault_not_found_graceful():
 
 
 @pytest.mark.asyncio
-async def test_main_vault_filter_restricts_scope():
+async def test_main_vault_filter_restricts_scope() -> None:
     """Only dwellers in the specified vault are processed."""
     vault_a = uuid4()
     dweller_a = _make_dweller(vault_id=vault_a, bio="From Megaton.")
@@ -311,7 +311,7 @@ async def test_main_vault_filter_restricts_scope():
 
 
 @pytest.mark.asyncio
-async def test_main_skips_dwellers_with_existing_locations():
+async def test_main_skips_dwellers_with_existing_locations() -> None:
     """Dwellers that already have DwellerLocation rows are skipped."""
     vault_id = uuid4()
     dweller_obj = _make_dweller(

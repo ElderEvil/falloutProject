@@ -1,35 +1,35 @@
 <script setup lang="ts">
+import { computed, defineAsyncComponent, inject, onMounted, ref, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { Icon } from '@iconify/vue'
+import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useRoomStore } from '@/modules/rooms/stores/room'
+import { useIncidentStore } from '@/modules/combat/stores/incident'
+import { useSidePanel } from '@/core/composables/useSidePanel'
+import { normalizeImageUrl } from '@/core/utils/image'
+import { happinessService } from '@/modules/dwellers/services/happinessService'
+import type { Dweller } from '@/modules/dwellers/models/dweller'
+import type { Room } from '@/modules/rooms/models/room'
+import SidePanel from '@/core/components/common/SidePanel.vue'
+import PageHeader from '@/core/components/common/PageHeader.vue'
+import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
+import UTooltip from '@/core/components/ui/UTooltip.vue'
+import UButton from '@/core/components/ui/UButton.vue'
+import HappinessDashboard from '@/modules/vault/components/HappinessDashboard.vue'
 import {
   useDwellerStore,
   type DwellerSortBy,
   type DwellerStatus,
   type SortDirection,
 } from '../stores/dweller'
-import { useAuthStore } from '@/modules/auth/stores/auth'
-import { useVaultStore } from '@/modules/vault/stores/vault'
-import { useRoomStore } from '@/modules/rooms/stores/room'
-import { useIncidentStore } from '@/modules/combat/stores/incident'
-import { computed, defineAsyncComponent, inject, onMounted, ref, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { Icon } from '@iconify/vue'
 import DwellerStatusBadge from '../components/stats/DwellerStatusBadge.vue'
 import DwellerFilterPanel from '../components/DwellerFilterPanel.vue'
 import DwellerGridItem from '../components/grid/DwellerGridItem.vue'
 import DwellerCardSkeleton from '../components/cards/DwellerCardSkeleton.vue'
 import DwellerGridItemSkeleton from '../components/grid/DwellerGridItemSkeleton.vue'
 import DwellerBulkActions from '../components/DwellerBulkActions.vue'
-import SidePanel from '@/core/components/common/SidePanel.vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
-import { useSidePanel } from '@/core/composables/useSidePanel'
 import { DeadDwellerCard } from '../components/death'
-import PageHeader from '@/core/components/common/PageHeader.vue'
-import HappinessDashboard from '@/modules/vault/components/HappinessDashboard.vue'
-import { happinessService } from '@/modules/dwellers/services/happinessService'
-import type { Dweller } from '@/modules/dwellers/models/dweller'
-import type { Room } from '@/modules/rooms/models/room'
-import { normalizeImageUrl } from '@/core/utils/image'
 
 // Lazy load room modal
 const RoomDetailModal = defineAsyncComponent({
@@ -62,12 +62,12 @@ const isDeadFilter = computed(() => dwellerStore.filterStatus === 'dead')
 const happinessDashboardData = computed(() => {
   if (!currentVault.value) return null
 
-  const allDwellers = dwellerStore.dwellers
-  const distribution = happinessService.calculateDistribution(allDwellers)
+  const population = dwellerStore.allDwellers
+  const distribution = happinessService.calculateDistribution(population)
   const activeIncidents = incidentStore.activeIncidents
 
   // Count idle dwellers
-  const idleDwellers = allDwellers.filter((d) => d.status === 'idle')
+  const idleDwellers = population.filter((d) => d.status === 'idle')
 
   // Count low resource types
   const lowResourceCount = [
@@ -136,6 +136,12 @@ onMounted(async () => {
   }
 
   await fetchDwellers()
+
+  // Fetch all dwellers (unfiltered) for happiness dashboard aggregates
+  if (authStore.isAuthenticated && vaultId.value) {
+    await dwellerStore.fetchAllDwellers(vaultId.value, authStore.token as string)
+  }
+
   // Fetch rooms to show room assignments
   if (authStore.isAuthenticated && vaultId.value) {
     await roomStore.fetchRooms(vaultId.value, authStore.token as string)

@@ -472,6 +472,14 @@ class BioConfig(BaseSettings):
         description="Max visited map places per rarity (common/rare/legendary)",
     )
 
+    @field_validator("visited_by_rarity")
+    @classmethod
+    def validate_visited_by_rarity(cls, v: dict[str, int]) -> dict[str, int]:
+        """Reject negative visited-place caps (would break rng.sample in the filler)."""
+        if any(count < 0 for count in v.values()):
+            raise ValueError("visited_by_rarity values must be non-negative")
+        return v
+
     def max_visited(self, rarity: str) -> int:
         """Resolve max visited places for a rarity value string (falls back to common)."""
         return self.visited_by_rarity.get(rarity, self.visited_by_rarity.get("common", 2))

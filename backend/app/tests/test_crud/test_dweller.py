@@ -184,7 +184,7 @@ async def test_create_random_common_dweller_persisted_age_coherent(async_session
 
 
 @pytest.mark.asyncio
-async def test_create_random_registers_bio_places(async_session: AsyncSession):
+async def test_create_random_registers_bio_places(async_session: AsyncSession) -> None:
     """create_random registers the bio origin + visited places on the world map."""
     from sqlmodel import select
 
@@ -209,7 +209,7 @@ async def test_create_random_registers_bio_places(async_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_create_random_skip_bio_places(async_session: AsyncSession):
+async def test_create_random_skip_bio_places(async_session: AsyncSession) -> None:
     """register_bio_places=False creates the dweller but registers no map rows."""
     from sqlmodel import select
 

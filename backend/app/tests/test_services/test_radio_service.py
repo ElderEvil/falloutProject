@@ -546,7 +546,7 @@ async def test_recruit_dweller_skips_recycling_when_disabled(
 
 
 @pytest.mark.asyncio
-async def test_recruit_dweller_rare_chance_rolls_rare(async_session: AsyncSession, vault: Vault):
+async def test_recruit_dweller_rare_chance_rolls_rare(async_session: AsyncSession, vault: Vault) -> None:
     """rare_chance=1.0 makes fresh recruits RARE; 0.0 keeps them COMMON."""
     # 0.5 < 1.0 → RARE; 0.5 < 0.0 is False → COMMON. Both rolls use the same mocked value.
     with patch.object(game_config.radio, "rare_chance", new=1.0), patch("random.random", return_value=0.5):

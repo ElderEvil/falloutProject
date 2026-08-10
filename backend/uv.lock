@@ -670,7 +670,7 @@ requires-dist = [
     { name = "python-jose", extras = ["cryptography"], specifier = ">=3.5.0" },
     { name = "python-json-logger", specifier = ">=4.0.0" },
     { name = "redis", specifier = ">=8.1.0" },
-    { name = "sqladmin", extras = ["full"], specifier = ">=0.30.0" },
+    { name = "sqladmin", extras = ["full"], specifier = ">=0.31.0" },
     { name = "sqlmodel", specifier = ">=0.0.39,<1" },
     { name = "uvloop", marker = "sys_platform != 'win32'", specifier = ">=0.21.0" },
 ]
@@ -2338,7 +2338,7 @@ wheels = [
 
 [[package]]
 name = "sqladmin"
-version = "0.30.0"
+version = "0.31.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jinja2" },
@@ -2347,9 +2347,9 @@ dependencies = [
     { name = "starlette" },
     { name = "wtforms" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/01/b9/3a61fcf36ce36da7cafe579b30faa1ce1ae0ec6d22c55badd101fa79d23e/sqladmin-0.30.0.tar.gz", hash = "sha256:06cdb941bce694c4679fd4ed63a70c73e81350db968d74dcc4a56cc933e9d957", size = 1006832, upload-time = "2026-07-28T00:19:50.256Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c9/68/8d333eefb54cfb531cf485026465abda62ecf0da86866dd0cef5d0c87a79/sqladmin-0.31.0.tar.gz", hash = "sha256:1b125cbdaf1aac75b13504a0bc7e6b4a1b2d6ffdc5e34272ac2a0c8b729c3e1b", size = 1012720, upload-time = "2026-08-06T08:50:36.976Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9e/1e/7aa5d568c799c23783026894edaf82b0148455703b1cb3e5a0dd0a13623d/sqladmin-0.30.0-py3-none-any.whl", hash = "sha256:eb82dd174f3292801fdbd17489a83539427ae81cc67e4332b743ba26c6f71a7e", size = 1038306, upload-time = "2026-07-28T00:19:48.815Z" },
+    { url = "https://files.pythonhosted.org/packages/66/1a/882f69b61c218e10ce454a3122747a959621bc60321ae96b8d59adedb3e7/sqladmin-0.31.0-py3-none-any.whl", hash = "sha256:28e980d048d88f372e552fb7b2770e510aab78872e8bf1b6adf19dcaea0716b7", size = 1045133, upload-time = "2026-08-06T08:50:35.79Z" },
 ]
 
 [package.optional-dependencies]

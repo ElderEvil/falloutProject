@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { Icon } from '@iconify/vue'
 import UModal from '@/core/components/ui/UModal.vue'
 import UBadge from '@/core/components/ui/UBadge.vue'
 import type { WastelandLocationWithDwellers, VaultMarkerRead } from '../models/map'
@@ -65,6 +66,8 @@ const badgeVariant = computed(() => {
   return map[placeType.value] ?? 'default'
 })
 
+const isLocked = computed(() => props.location !== null && !props.location.is_unlocked)
+
 function goToDweller(dwellerId: string) {
   isOpen.value = false
   router.push(`/vault/${vaultId.value}/dwellers/${dwellerId}`)
@@ -77,7 +80,14 @@ function dwellerDisplayName(first: string, last: string | null) {
 
 <template>
   <UModal v-model="isOpen" :title="placeName" size="lg">
-    <div class="marker-detail">
+    <div v-if="isLocked" class="locked-placeholder">
+      <Icon icon="mdi:lock-question" class="locked-icon" />
+      <h3 class="locked-heading">Unknown Location</h3>
+      <p class="locked-description">
+        Chat with a dweller who has been here to uncover this place.
+      </p>
+    </div>
+    <div v-else class="marker-detail">
       <div class="detail-header">
         <UBadge :variant="badgeVariant" size="md">
           {{ placeType }}
@@ -179,5 +189,34 @@ function dwellerDisplayName(first: string, last: string | null) {
   color: var(--color-theme-primary);
   font-size: var(--font-size-xs);
   opacity: 0.6;
+}
+
+.locked-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 1.5rem 0;
+}
+
+.locked-icon {
+  width: 4rem;
+  height: 4rem;
+  color: var(--color-theme-primary);
+  opacity: 0.4;
+}
+
+.locked-heading {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-theme-primary);
+  margin-top: 1rem;
+}
+
+.locked-description {
+  color: var(--color-theme-primary);
+  font-size: var(--font-size-sm);
+  opacity: 0.6;
+  margin-top: 0.5rem;
 }
 </style>

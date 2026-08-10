@@ -13,6 +13,8 @@ import { useChatMessages } from '../composables/useChatMessages'
 import { useChatAudio } from '../composables/useChatAudio'
 import { useTypingIndicator } from '../composables/useTypingIndicator'
 import { useChatActions } from '../composables/useChatActions'
+import { useMapStore } from '@/modules/map/stores/map'
+import { useToast } from '@/core/composables/useToast'
 
 const router = useRouter()
 
@@ -21,6 +23,7 @@ const props = defineProps<{
   dwellerName: string
   username: string
   dwellerAvatar?: string
+  vaultId?: string | null
 }>()
 
 const authStore = useAuthStore()
@@ -87,11 +90,29 @@ const { currentlyPlayingUrl, stopAudio, playAudio } = useChatAudio()
 
 const { handleTyping } = useTypingIndicator(chatWs)
 
-const { isPerformingAction, handleActionConfirm } = useChatActions({
+const { isPerformingAction, handleActionConfirm, refreshAfterChat } = useChatActions({
   dwellerId: props.dwellerId,
   dwellerName: props.dwellerName,
   messages,
+  vaultId: props.vaultId,
 })
+
+const mapStore = useMapStore()
+const toast = useToast()
+
+watch(
+  () => mapStore.unlockedPlacesCount,
+  (newCount, oldCount) => {
+    if (oldCount !== undefined && newCount > oldCount) {
+      toast.success(`New location uncovered! (${newCount - oldCount} place${newCount - oldCount > 1 ? 's' : ''})`)
+    }
+  }
+)
+
+const handleSendMessage = async () => {
+  await sendMessage()
+  refreshAfterChat()
+}
 
 // Register WebSocket event handlers during setup
 chatWs.on('typing', (msg: any) => {
@@ -406,7 +427,7 @@ onUnmounted(() => {
           class="chat-input-field"
         />
         <button
-          @click="sendMessage"
+          @click="handleSendMessage"
           :disabled="!canSend"
           class="chat-send-btn"
           :class="{ disabled: !canSend }"

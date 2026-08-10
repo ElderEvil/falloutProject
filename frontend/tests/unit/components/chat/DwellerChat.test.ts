@@ -116,6 +116,15 @@ vi.mock('@/modules/exploration/stores/exploration', () => ({
   }),
 }))
 
+const mockRefreshMap = vi.fn()
+vi.mock('@/modules/map/stores/map', () => ({
+  useMapStore: () => ({
+    locations: ref([]),
+    unlockedPlacesCount: ref(0),
+    refreshMap: mockRefreshMap,
+  }),
+}))
+
 describe('DwellerChat', () => {
   const defaultProps = {
     dwellerId: 'dweller-123',

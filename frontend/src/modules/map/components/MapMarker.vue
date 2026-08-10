@@ -7,12 +7,13 @@ interface Props {
   y: number
   name: string
   type: 'home_vault' | 'origin' | 'visited' | 'discovery' | 'vault'
-  /** Show the name label even when not hovered/focused. Default false. */
   selected?: boolean
+  is_unlocked?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   selected: false,
+  is_unlocked: true,
 })
 
 const emit = defineEmits<{
@@ -47,7 +48,13 @@ const label = computed(() => typeLabels[props.type] ?? props.type)
 const isDiscovery = computed(() => props.type === 'discovery')
 const isVault = computed(() => props.type === 'vault')
 
-const tooltipText = computed(() => `${props.name} (${label.value})`)
+const isLocked = computed(
+  () => !props.is_unlocked && props.type !== 'home_vault' && props.type !== 'vault'
+)
+const displayIcon = computed(() => (isLocked.value ? 'mdi:lock-question' : icon.value))
+const displayLabel = computed(() => (isLocked.value ? 'Unknown Location' : props.name))
+
+const tooltipText = computed(() => `${displayLabel.value} (${label.value})`)
 </script>
 
 <template>
@@ -57,6 +64,7 @@ const tooltipText = computed(() => `${props.name} (${label.value})`)
     :class="{
       'marker-selected': selected,
       'marker-type-vault': isVault,
+      'marker-locked': isLocked,
     }"
     tabindex="0"
     role="button"
@@ -77,12 +85,12 @@ const tooltipText = computed(() => `${props.name} (${label.value})`)
           'marker-vault': isVault,
         }"
       >
-        <Icon :icon="icon" class="h-full w-full" />
+        <Icon :icon="displayIcon" class="h-full w-full" />
       </div>
     </foreignObject>
     <!-- Label: hidden by default, shown on hover/focus/selected via CSS -->
     <text class="marker-label" x="0" y="-4.2" text-anchor="middle" aria-hidden="true">{{
-      name
+      displayLabel
     }}</text>
   </g>
 </template>
@@ -119,6 +127,14 @@ const tooltipText = computed(() => `${props.name} (${label.value})`)
   opacity: 0.7;
 }
 
+.marker-locked {
+  opacity: 0.5;
+}
+
+.marker-locked .marker-icon {
+  stroke-dasharray: 4 2;
+}
+
 /* Label: hidden by default, visible on hover/focus/selected */
 .marker-label {
   fill: var(--color-theme-primary);
@@ -135,7 +151,8 @@ const tooltipText = computed(() => `${props.name} (${label.value})`)
 
 .map-marker:hover .marker-label,
 .map-marker:focus-visible .marker-label,
-.map-marker.marker-selected .marker-label {
+.map-marker.marker-selected .marker-label,
+.map-marker.marker-locked .marker-label {
   opacity: 1;
 }
 

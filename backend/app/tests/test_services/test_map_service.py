@@ -419,16 +419,6 @@ async def test_get_vault_map_unlocked_only_keeps_unlocked(
     from app.models.wasteland_location import DwellerLocation, LocationTypeEnum, WastelandLocation
 
     await map_service.register_bio_places(async_session, dweller, origin_place="Megaton", visited_places=["Rivet City"])
-
-    # Unlock one of the locations
-    megaton_row = (
-        await async_session.execute(
-            select(WastelandLocation).where(
-                WastelandLocation.vault_id == vault.id,
-                WastelandLocation.name == "Megaton",
-            )
-        )
-    ).scalar_one()
     await wl_crud.unlock_places_for_dweller(async_session, dweller_id=dweller.id)
 
     filtered = await map_service.get_vault_map(async_session, vault, unlocked_only=True)

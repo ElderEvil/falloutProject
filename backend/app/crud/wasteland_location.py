@@ -204,7 +204,14 @@ class CRUDWastelandLocation:
 
     async def unlock_places_for_dweller(self, db_session: AsyncSession, *, dweller_id: UUID) -> int:
         """Unlock all places linked to the given dweller. Returns number of rows updated."""
-        stmt = sa_update(DwellerLocation).where(DwellerLocation.dweller_id == dweller_id).values(is_unlocked=True)
+        stmt = (
+            sa_update(DwellerLocation)
+            .where(
+                DwellerLocation.dweller_id == dweller_id,
+                DwellerLocation.is_unlocked.is_(False),
+            )
+            .values(is_unlocked=True)
+        )
         result = await db_session.execute(stmt)
         await db_session.commit()
         return result.rowcount

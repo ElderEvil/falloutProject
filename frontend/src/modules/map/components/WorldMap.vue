@@ -297,7 +297,7 @@ function onPanelMarkerSelect(payload: {
 .zoom-controls {
   position: absolute;
   top: 8px;
-  left: 8px;
+  right: 8px;
   z-index: 10;
   display: flex;
   flex-direction: column;

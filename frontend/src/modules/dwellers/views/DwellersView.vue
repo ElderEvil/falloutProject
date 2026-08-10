@@ -16,6 +16,7 @@ import PageHeader from '@/core/components/common/PageHeader.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import UButton from '@/core/components/ui/UButton.vue'
+import USkeleton from '@/core/components/ui/USkeleton.vue'
 import HappinessDashboard from '@/modules/vault/components/HappinessDashboard.vue'
 import {
   useDwellerStore,
@@ -334,8 +335,11 @@ const handleViewLowHappiness = () => {
           <PageHeader title="Dwellers" icon="mdi:account-group" />
 
           <!-- Happiness Dashboard -->
-          <div v-if="happinessDashboardData" class="mb-6">
+          <div class="mb-6">
+            <USkeleton v-if="!currentVault" width="100%" height="120px" rounded="lg" />
             <HappinessDashboard
+              v-else-if="happinessDashboardData"
+              :loading="false"
               :vaultHappiness="happinessDashboardData.vaultHappiness"
               :dwellerCount="happinessDashboardData.dwellerCount"
               :distribution="happinessDashboardData.distribution"
@@ -350,7 +354,7 @@ const handleViewLowHappiness = () => {
           </div>
 
           <!-- Filter Panel with View Toggle -->
-          <div class="w-full mb-6">
+          <div class="w-full mb-4">
             <DwellerFilterPanel
               :show-view-toggle="true"
               :show-bulk-actions="false"
@@ -684,6 +688,12 @@ const handleViewLowHappiness = () => {
   .dweller-grid {
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .dweller-grid {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -92,9 +92,9 @@ const tooltipText = computed(() => `${props.name} (${label.value})`)
   transition: transform 150ms ease;
 }
 
-.map-marker:hover,
-.map-marker:focus-visible {
-  filter: drop-shadow(0 0 3px var(--color-theme-primary));
+.map-marker:hover .marker-icon,
+.map-marker:focus-visible .marker-icon {
+  filter: drop-shadow(0 0 6px var(--color-theme-primary));
 }
 
 .map-marker:focus-visible {

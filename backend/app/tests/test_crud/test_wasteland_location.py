@@ -15,7 +15,7 @@ async def test_unlock_places_for_dweller_updates_rows(
 ) -> None:
     """unlock_places_for_dweller sets is_unlocked=True on all DwellerLocation rows for the dweller."""
     # Create a location and link it to the dweller
-    from app.models.wasteland_location import WastelandLocation, LocationTypeEnum
+    from app.models.wasteland_location import LocationTypeEnum, WastelandLocation
 
     loc = WastelandLocation(
         name="Megaton",
@@ -64,7 +64,7 @@ async def test_get_dweller_refs_includes_is_unlocked(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
     """get_dweller_refs returns is_unlocked in each dweller ref dict."""
-    from app.models.wasteland_location import WastelandLocation, LocationTypeEnum
+    from app.models.wasteland_location import LocationTypeEnum, WastelandLocation
 
     loc = WastelandLocation(
         name="Rivet City",

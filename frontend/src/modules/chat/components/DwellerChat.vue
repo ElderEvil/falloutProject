@@ -99,13 +99,22 @@ const { isPerformingAction, handleActionConfirm, refreshAfterChat } = useChatAct
 
 const mapStore = useMapStore()
 const toast = useToast()
+const initialUnlockedCount = ref<number | null>(null)
 
 watch(
   () => mapStore.unlockedPlacesCount,
-  (newCount, oldCount) => {
-    if (oldCount !== undefined && newCount > oldCount) {
-      toast.success(`New location uncovered! (${newCount - oldCount} place${newCount - oldCount > 1 ? 's' : ''})`)
+  (newCount) => {
+    if (initialUnlockedCount.value === null) {
+      initialUnlockedCount.value = newCount
+      return
     }
+    const previousCount = initialUnlockedCount.value
+    if (newCount > previousCount) {
+      const unlockedDelta = newCount - previousCount
+      const pluralSuffix = unlockedDelta > 1 ? 's' : ''
+      toast.success(`New location uncovered! (${unlockedDelta} place${pluralSuffix})`)
+    }
+    initialUnlockedCount.value = newCount
   }
 )
 
@@ -204,6 +213,8 @@ const sendAudioMessage = async () => {
     if (response.data.dweller_audio_url) {
       playAudio(response.data.dweller_audio_url)
     }
+
+    refreshAfterChat()
   } catch (error: any) {
     console.error('Error sending audio:', error)
     alert(`Failed to send audio: ${error.response?.data?.detail || error.message}`)

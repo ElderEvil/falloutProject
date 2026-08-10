@@ -66,7 +66,15 @@ const badgeVariant = computed(() => {
   return map[placeType.value] ?? 'default'
 })
 
-const isLocked = computed(() => props.location !== null && !props.location.is_unlocked)
+const isLocked = computed(
+  () =>
+    props.location !== null && props.location.type !== 'home_vault' && !props.location.is_unlocked
+)
+
+const modalTitle = computed(() => {
+  if (isLocked.value) return 'Unknown Location'
+  return placeName.value
+})
 
 function goToDweller(dwellerId: string) {
   isOpen.value = false
@@ -79,13 +87,11 @@ function dwellerDisplayName(first: string, last: string | null) {
 </script>
 
 <template>
-  <UModal v-model="isOpen" :title="placeName" size="lg">
+  <UModal v-model="isOpen" :title="modalTitle" size="lg">
     <div v-if="isLocked" class="locked-placeholder">
       <Icon icon="mdi:lock-question" class="locked-icon" />
       <h3 class="locked-heading">Unknown Location</h3>
-      <p class="locked-description">
-        Chat with a dweller who has been here to uncover this place.
-      </p>
+      <p class="locked-description">Chat with a dweller who has been here to uncover this place.</p>
     </div>
     <div v-else class="marker-detail">
       <div class="detail-header">

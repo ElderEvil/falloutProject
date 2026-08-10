@@ -44,7 +44,9 @@ export const useMapStore = defineStore('map', () => {
   let _pollGeneration = 0
 
   // Getters
-  const unlockedPlacesCount = computed(() => locations.value.filter((loc) => loc.is_unlocked).length)
+  const unlockedPlacesCount = computed(
+    () => locations.value.filter((loc) => loc.is_unlocked).length
+  )
 
   // Actions
   async function fetchMap(vaultId: string, token: string): Promise<void> {
@@ -94,8 +96,9 @@ export const useMapStore = defineStore('map', () => {
       if (gen !== _pollGeneration) return
       locations.value = data.locations
       vaultMarkers.value = data.vault_markers
-    } catch {
+    } catch (err) {
       if (gen !== _pollGeneration) return
+      error.value = handleStoreError(err, 'Failed to refresh map after chat')
     }
   }
 

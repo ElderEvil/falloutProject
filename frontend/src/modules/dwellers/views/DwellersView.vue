@@ -59,6 +59,16 @@ const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
 const revivingDwellers = ref<Record<string, boolean>>({})
 const isDeadFilter = computed(() => dwellerStore.filterStatus === 'dead')
+const isAllDwellersLoading = ref(false)
+const isIncidentsLoading = ref(false)
+
+const isDashboardLoading = computed(
+  () =>
+    vaultStore.isLoading ||
+    isAllDwellersLoading.value ||
+    isIncidentsLoading.value ||
+    !currentVault.value
+)
 
 const happinessDashboardData = computed(() => {
   if (!currentVault.value) return null
@@ -140,7 +150,12 @@ onMounted(async () => {
 
   // Fetch all dwellers (unfiltered) for happiness dashboard aggregates
   if (authStore.isAuthenticated && vaultId.value) {
-    await dwellerStore.fetchAllDwellers(vaultId.value, authStore.token as string)
+    isAllDwellersLoading.value = true
+    try {
+      await dwellerStore.fetchAllDwellers(vaultId.value, authStore.token as string)
+    } finally {
+      isAllDwellersLoading.value = false
+    }
   }
 
   // Fetch rooms to show room assignments
@@ -150,7 +165,12 @@ onMounted(async () => {
 
   // Fetch incidents for happiness dashboard
   if (authStore.isAuthenticated && vaultId.value) {
-    await incidentStore.fetchIncidents(vaultId.value, authStore.token as string)
+    isIncidentsLoading.value = true
+    try {
+      await incidentStore.fetchIncidents(vaultId.value, authStore.token as string)
+    } finally {
+      isIncidentsLoading.value = false
+    }
   }
 })
 
@@ -339,7 +359,7 @@ const handleViewLowHappiness = () => {
             <USkeleton v-if="!currentVault" width="100%" height="120px" rounded="lg" />
             <HappinessDashboard
               v-else-if="happinessDashboardData"
-              :loading="false"
+              :loading="isDashboardLoading"
               :vaultHappiness="happinessDashboardData.vaultHappiness"
               :dwellerCount="happinessDashboardData.dwellerCount"
               :distribution="happinessDashboardData.distribution"

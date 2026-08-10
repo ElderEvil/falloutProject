@@ -11,7 +11,7 @@ dependencies = [
     "periodiq>=0.2.0,<1",
     "faker>=40.31.0",
     "fastapi[standard]>=0.141.1",
-    "boto3>=1.43.64,<2.0",
+    "boto3>=1.43.66,<2.0",
     "botocore>=1.34.0,<2.0",
     "passlib[bcrypt]>=1.7.4",
     "bcrypt>=4.0.0,<4.2",
@@ -36,7 +36,7 @@ dependencies = [
 [dependency-groups]
 test = [
     "aiosqlite>=0.22.1",
-    "coverage>=7.15.3",
+    "coverage>=7.15.4",
     "factory-boy>=3.3.3",
     "fakeredis[lua]>=2.36.2",
     "pytest>=9.1.1",
@@ -47,7 +47,7 @@ test = [
 lint = [
     "prek>=0.4.12",
     "ruff>=0.16.1",
-    "ty>=0.0.66",
+    "ty>=0.0.69",
 ]
 dev = [
     "fakeredis[lua]>=2.36.2",

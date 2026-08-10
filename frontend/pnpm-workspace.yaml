@@ -4,6 +4,11 @@ minimumReleaseAgeExclude:
   - dompurify
   - form-data
   - js-yaml
+  - esbuild@0.28.1
+  - '@vitest/browser@4.1.10'
+  - postcss@8.5.18 || 8.5.23
+  - undici@7.29.0
+  - nanoid@3.3.17
 
 # === BUILD PERMISSIONS ===
 # allowBuilds replaces pnpm 10's onlyBuiltDependencies
@@ -24,6 +29,15 @@ overrides:
   minimatch: 5.1.8
   defu: 6.1.5
   fast-uri: 3.1.2
+  '@vitest/browser@>=4.0.0 <4.1.10': ^4.1.10
+  dompurify@<=3.4.12: ^3.4.13
+  esbuild@>=0.27.3 <0.28.1: ^0.28.1
+  js-yaml@>=4.0.0 <4.3.0: ^4.3.0
+  js-yaml@>=4.0.0 <4.3.1: ^4.3.1
+  nanoid@<3.3.17: ^3.3.17
+  postcss@<=8.5.17: ^8.5.18
+  postcss@<=8.5.22: ^8.5.23
+  undici@>=7.0.0 <7.29.0: ^7.29.0
 
 # === PACKAGE MANAGER SETTINGS ===
 engineStrict: true

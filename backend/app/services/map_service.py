@@ -217,6 +217,17 @@ class MapService:
         refs_map = await wl_crud.get_dweller_refs(db_session, [location.id])
         refs = refs_map.get(location.id, [])
 
+        dweller_refs = [
+            DwellerRef(
+                dweller_id=r["dweller_id"],
+                first_name=r["first_name"],
+                last_name=r["last_name"],
+                relation=r["relation"],
+                is_unlocked=r.get("is_unlocked", False),
+            )
+            for r in refs
+        ]
+
         return WastelandLocationWithDwellers(
             id=location.id,
             name=location.name,
@@ -228,19 +239,18 @@ class MapService:
             vault_id=location.vault_id,
             exploration_id=location.exploration_id,
             created_at=location.created_at,
-            dwellers=[
-                DwellerRef(
-                    dweller_id=r["dweller_id"],
-                    first_name=r["first_name"],
-                    last_name=r["last_name"],
-                    relation=r["relation"],
-                )
-                for r in refs
-            ],
+            dwellers=dweller_refs,
+            is_unlocked=any(r.is_unlocked for r in dweller_refs),
         )
 
-    async def get_vault_map(self, db_session: AsyncSession, vault: Vault) -> VaultMapResponse:
-        """Build the full world-map payload for a vault."""
+    async def get_vault_map(
+        self, db_session: AsyncSession, vault: Vault, *, unlocked_only: bool = False
+    ) -> VaultMapResponse:
+        """Build the full world-map payload for a vault.
+
+        When *unlocked_only* is True, non-VAULT locations without any unlocked
+        DwellerLocation link are excluded.  HOME_VAULT is always retained.
+        """
         await self.ensure_home_marker(db_session, vault)
 
         # --- persisted locations ---
@@ -251,6 +261,22 @@ class MapService:
         locations: list[WastelandLocationWithDwellers] = []
         for row in rows:
             refs = dweller_refs_map.get(row.id, [])
+            dweller_refs = [
+                DwellerRef(
+                    dweller_id=r["dweller_id"],
+                    first_name=r["first_name"],
+                    last_name=r["last_name"],
+                    relation=r["relation"],
+                    is_unlocked=r.get("is_unlocked", False),
+                )
+                for r in refs
+            ]
+            location_unlocked = any(r.is_unlocked for r in dweller_refs)
+
+            # When filtering, keep HOME_VAULT and unlocked locations; drop locked ones
+            if unlocked_only and row.type != LocationTypeEnum.HOME_VAULT and not location_unlocked:
+                continue
+
             locations.append(
                 WastelandLocationWithDwellers(
                     id=row.id,
@@ -263,15 +289,8 @@ class MapService:
                     vault_id=row.vault_id,
                     exploration_id=row.exploration_id,
                     created_at=row.created_at,
-                    dwellers=[
-                        DwellerRef(
-                            dweller_id=r["dweller_id"],
-                            first_name=r["first_name"],
-                            last_name=r["last_name"],
-                            relation=r["relation"],
-                        )
-                        for r in refs
-                    ],
+                    dwellers=dweller_refs,
+                    is_unlocked=location_unlocked,
                 )
             )
 

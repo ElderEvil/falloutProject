@@ -285,3 +285,160 @@ class TestChatServiceErrorHandling:
         assert len(events) == 1
         assert events[0]["type"] == "error"
         assert events[0]["detail"] == "Dweller does not belong to the current user"
+
+
+@pytest.mark.asyncio
+class TestMaybeUnlockPlaces:
+    """Tests for the _maybe_unlock_places side-effect."""
+
+    async def test_unlocks_after_three_messages(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+        chat_dweller: Dweller,
+    ) -> None:
+        """After 3 user messages to a dweller, their linked places get unlocked."""
+        from app.crud.chat_message import chat_message as chat_crud
+        from app.crud.wasteland_location import wasteland_location as wl_crud
+        from app.models.chat_message import ChatMessageCreate
+        from app.models.wasteland_location import (
+            DwellerLocation,
+            DwellerLocationRelationEnum,
+            LocationTypeEnum,
+            WastelandLocation,
+        )
+
+        # Create a location and link it to the chat_dweller
+        loc = WastelandLocation(
+            name="Megaton",
+            normalized_name="megaton",
+            type=LocationTypeEnum.ORIGIN,
+            coord_x=30.0,
+            coord_y=40.0,
+            description="Test",
+            vault_id=vault.id,
+        )
+        async_session.add(loc)
+        await async_session.flush()
+
+        link = DwellerLocation(
+            dweller_id=chat_dweller.id,
+            location_id=loc.id,
+            relation=DwellerLocationRelationEnum.ORIGIN,
+        )
+        async_session.add(link)
+        await async_session.commit()
+
+        # Create 2 messages — should NOT unlock yet
+        for i in range(2):
+            await chat_crud.create_message(
+                async_session,
+                obj_in=ChatMessageCreate(
+                    vault_id=vault.id,
+                    from_user_id=vault.user_id,
+                    to_dweller_id=chat_dweller.id,
+                    message_text=f"Hello {i}",
+                ),
+            )
+
+        await chat_service._maybe_unlock_places(async_session, chat_dweller)
+
+        await async_session.refresh(link)
+        assert link.is_unlocked is False, "Should NOT unlock after only 2 messages"
+
+        # Create 3rd message — should unlock now
+        await chat_crud.create_message(
+            async_session,
+            obj_in=ChatMessageCreate(
+                vault_id=vault.id,
+                from_user_id=vault.user_id,
+                to_dweller_id=chat_dweller.id,
+                message_text="Hello 2",
+            ),
+        )
+
+        await chat_service._maybe_unlock_places(async_session, chat_dweller)
+
+        await async_session.refresh(link)
+        assert link.is_unlocked is True, "Should unlock after 3 messages"
+
+    async def test_no_unlock_when_no_places(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+        chat_dweller: Dweller,
+    ) -> None:
+        """_maybe_unlock_places does not raise when the dweller has no linked places."""
+        from app.crud.chat_message import chat_message as chat_crud
+        from app.models.chat_message import ChatMessageCreate
+
+        for i in range(3):
+            await chat_crud.create_message(
+                async_session,
+                obj_in=ChatMessageCreate(
+                    vault_id=vault.id,
+                    from_user_id=vault.user_id,
+                    to_dweller_id=chat_dweller.id,
+                    message_text=f"Hello {i}",
+                ),
+            )
+
+        # Must not raise even though dweller has no DwellerLocation rows
+        await chat_service._maybe_unlock_places(async_session, chat_dweller)
+
+    async def test_already_unlocked_is_idempotent(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+        chat_dweller: Dweller,
+    ) -> None:
+        """Calling _maybe_unlock_places when places are already unlocked is safe."""
+        from app.crud.chat_message import chat_message as chat_crud
+        from app.crud.wasteland_location import wasteland_location as wl_crud
+        from app.models.chat_message import ChatMessageCreate
+        from app.models.wasteland_location import (
+            DwellerLocation,
+            DwellerLocationRelationEnum,
+            LocationTypeEnum,
+            WastelandLocation,
+        )
+
+        loc = WastelandLocation(
+            name="Megaton",
+            normalized_name="megaton2",
+            type=LocationTypeEnum.ORIGIN,
+            coord_x=35.0,
+            coord_y=45.0,
+            description="Test",
+            vault_id=vault.id,
+        )
+        async_session.add(loc)
+        await async_session.flush()
+
+        link = DwellerLocation(
+            dweller_id=chat_dweller.id,
+            location_id=loc.id,
+            relation=DwellerLocationRelationEnum.ORIGIN,
+        )
+        async_session.add(link)
+        await async_session.commit()
+
+        # Pre-unlock
+        await wl_crud.unlock_places_for_dweller(async_session, dweller_id=chat_dweller.id)
+
+        for i in range(5):
+            await chat_crud.create_message(
+                async_session,
+                obj_in=ChatMessageCreate(
+                    vault_id=vault.id,
+                    from_user_id=vault.user_id,
+                    to_dweller_id=chat_dweller.id,
+                    message_text=f"Hello {i}",
+                ),
+            )
+
+        # Must not raise; places stay unlocked
+        await chat_service._maybe_unlock_places(async_session, chat_dweller)
+
+        await async_session.refresh(link)
+        assert link.is_unlocked is True

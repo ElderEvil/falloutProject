@@ -33,12 +33,14 @@ class DwellerRef(SQLModel):
     first_name: str
     last_name: str | None
     relation: DwellerLocationRelationEnum
+    is_unlocked: bool = False
 
 
 class WastelandLocationWithDwellers(WastelandLocationRead):
     """A location row with its linked dweller references."""
 
     dwellers: list[DwellerRef]
+    is_unlocked: bool = False
 
 
 class VaultMarkerRead(SQLModel):

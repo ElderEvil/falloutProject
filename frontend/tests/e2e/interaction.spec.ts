@@ -75,7 +75,7 @@ test.describe('Side panel', () => {
       'Quests',
       'Relationships',
       'Training',
-      'Happiness',
+      'Map',
       'Storage',
     ]) {
       await expect(panel).toContainText(label)

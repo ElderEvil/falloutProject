@@ -121,4 +121,23 @@ const legendItems: LegendItem[] = [
     opacity: 1;
   }
 }
+
+@media (max-width: 768px) {
+  .map-legend {
+    font-size: 8px;
+    padding: 4px 6px;
+    bottom: 4px;
+    left: 4px;
+  }
+
+  .legend-icon-wrapper {
+    width: 10px;
+    height: 10px;
+  }
+
+  .legend-icon {
+    width: 8px;
+    height: 8px;
+  }
+}
 </style>

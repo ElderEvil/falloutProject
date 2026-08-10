@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
@@ -20,6 +20,7 @@ const dwellerId = ref(route.params.id as string)
 const dweller = ref<Dweller | null>(null)
 const isLoading = ref(false)
 const username = ref(authStore.user?.username || 'User')
+const vaultId = computed(() => dweller.value?.vault?.id ?? null)
 
 onMounted(async () => {
   isLoading.value = true
@@ -92,6 +93,7 @@ onMounted(async () => {
           :dweller-name="dweller.first_name"
           :username="username"
           :dweller-avatar="dweller.thumbnail_url ?? undefined"
+          :vault-id="vaultId"
         />
       </div>
     </template>

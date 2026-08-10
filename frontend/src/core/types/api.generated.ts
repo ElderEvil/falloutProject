@@ -1442,6 +1442,10 @@ export interface paths {
         /**
          * Get Vault Map
          * @description Return the full world-map for a vault.
+         *
+         *     Pass *unlocked_only=True* to hide non-VAULT locations that have no unlocked
+         *     dweller links.  The default (False) returns every location regardless of
+         *     unlock state so the frontend can style locked markers.
          */
         get: operations["get_vault_map_api_v1_map_vault__vault_id__get"];
         put?: never;
@@ -4522,6 +4526,11 @@ export interface components {
             /** Last Name */
             last_name: string | null;
             relation: components["schemas"]["DwellerLocationRelationEnum"];
+            /**
+             * Is Unlocked
+             * @default false
+             */
+            is_unlocked: boolean;
         };
         /**
          * DwellerRename
@@ -7370,6 +7379,11 @@ export interface components {
             created_at: string | null;
             /** Dwellers */
             dwellers: components["schemas"]["DwellerRef"][];
+            /**
+             * Is Unlocked
+             * @default false
+             */
+            is_unlocked: boolean;
         };
         /** WeaponCreate */
         WeaponCreate: {
@@ -9973,7 +9987,9 @@ export interface operations {
     };
     get_vault_map_api_v1_map_vault__vault_id__get: {
         parameters: {
-            query?: never;
+            query?: {
+                unlocked_only?: boolean;
+            };
             header?: never;
             path: {
                 vault_id: string;

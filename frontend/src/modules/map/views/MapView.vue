@@ -116,6 +116,14 @@ const hasNoData = computed(
             <p class="empty-text terminal-glow-subtle">
               The wasteland is uncharted. Recruit dwellers and send explorers to fill the map.
             </p>
+            <UButton
+              variant="secondary"
+              size="sm"
+              class="mt-4"
+              @click="$router.push(`/vault/${vaultId}/radio`)"
+            >
+              Recruit Dwellers
+            </UButton>
           </div>
 
           <!-- Map -->

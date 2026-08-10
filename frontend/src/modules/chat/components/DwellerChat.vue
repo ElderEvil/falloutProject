@@ -13,6 +13,8 @@ import { useChatMessages } from '../composables/useChatMessages'
 import { useChatAudio } from '../composables/useChatAudio'
 import { useTypingIndicator } from '../composables/useTypingIndicator'
 import { useChatActions } from '../composables/useChatActions'
+import { useMapStore } from '@/modules/map/stores/map'
+import { useToast } from '@/core/composables/useToast'
 
 const router = useRouter()
 
@@ -21,6 +23,7 @@ const props = defineProps<{
   dwellerName: string
   username: string
   dwellerAvatar?: string
+  vaultId?: string | null
 }>()
 
 const authStore = useAuthStore()
@@ -87,11 +90,38 @@ const { currentlyPlayingUrl, stopAudio, playAudio } = useChatAudio()
 
 const { handleTyping } = useTypingIndicator(chatWs)
 
-const { isPerformingAction, handleActionConfirm } = useChatActions({
+const { isPerformingAction, handleActionConfirm, refreshAfterChat } = useChatActions({
   dwellerId: props.dwellerId,
   dwellerName: props.dwellerName,
   messages,
+  vaultId: props.vaultId,
 })
+
+const mapStore = useMapStore()
+const toast = useToast()
+const initialUnlockedCount = ref<number | null>(null)
+
+watch(
+  () => mapStore.unlockedPlacesCount,
+  (newCount) => {
+    if (initialUnlockedCount.value === null) {
+      initialUnlockedCount.value = newCount
+      return
+    }
+    const previousCount = initialUnlockedCount.value
+    if (newCount > previousCount) {
+      const unlockedDelta = newCount - previousCount
+      const pluralSuffix = unlockedDelta > 1 ? 's' : ''
+      toast.success(`New location uncovered! (${unlockedDelta} place${pluralSuffix})`)
+    }
+    initialUnlockedCount.value = newCount
+  }
+)
+
+const handleSendMessage = async () => {
+  await sendMessage()
+  refreshAfterChat()
+}
 
 // Register WebSocket event handlers during setup
 chatWs.on('typing', (msg: any) => {
@@ -183,6 +213,8 @@ const sendAudioMessage = async () => {
     if (response.data.dweller_audio_url) {
       playAudio(response.data.dweller_audio_url)
     }
+
+    refreshAfterChat()
   } catch (error: any) {
     console.error('Error sending audio:', error)
     alert(`Failed to send audio: ${error.response?.data?.detail || error.message}`)
@@ -406,7 +438,7 @@ onUnmounted(() => {
           class="chat-input-field"
         />
         <button
-          @click="sendMessage"
+          @click="handleSendMessage"
           :disabled="!canSend"
           class="chat-send-btn"
           :class="{ disabled: !canSend }"

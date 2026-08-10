@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import UCard from '@/core/components/ui/UCard.vue'
 import UButton from '@/core/components/ui/UButton.vue'
+import USkeleton from '@/core/components/ui/USkeleton.vue'
 
 interface DwellerDistribution {
   high: number // 75-100
@@ -178,7 +179,10 @@ const distributionPercentage = (count: number) => {
 </script>
 
 <template>
-  <UCard class="happiness-dashboard">
+  <UCard v-if="loading" class="happiness-dashboard">
+    <USkeleton width="100%" height="120px" rounded="lg" />
+  </UCard>
+  <UCard v-else class="happiness-dashboard">
     <div class="dashboard-content">
       <!-- Main Happiness Gauge -->
       <div class="happiness-gauge">

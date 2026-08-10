@@ -12,11 +12,13 @@ import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { startTraining } from '@/modules/progression/services/trainingService'
 import { useToast } from '@/core/composables/useToast'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useMapStore } from '@/modules/map/stores/map'
 
 export interface UseChatActionsOptions {
   dwellerId: string
   dwellerName: string
   messages: Ref<ChatMessageDisplay[]>
+  vaultId?: string | null
 }
 
 export function useChatActions(options: UseChatActionsOptions) {
@@ -25,6 +27,7 @@ export function useChatActions(options: UseChatActionsOptions) {
   const vaultStore = useVaultStore()
   const roomStore = useRoomStore()
   const explorationStore = useExplorationStore()
+  const mapStore = useMapStore()
   const toast = useToast()
 
   const isPerformingAction = ref(false)
@@ -221,10 +224,17 @@ export function useChatActions(options: UseChatActionsOptions) {
     }
   }
 
+  const refreshAfterChat = async () => {
+    const vaultId = options.vaultId ?? vaultStore.activeVaultId
+    if (!vaultId || !authStore.token) return
+    await mapStore.refreshMap(vaultId, authStore.token)
+  }
+
   return {
     isPerformingAction,
     showStatSelector,
     pendingTrainingAction,
     handleActionConfirm,
+    refreshAfterChat,
   }
 }

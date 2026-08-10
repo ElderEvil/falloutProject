@@ -49,9 +49,11 @@ vi.mock('@/core/composables/useWebSocket', () => ({
 }))
 
 // Mock useToast
-const mockToastSuccess = vi.fn()
-const mockToastError = vi.fn()
-const mockToastInfo = vi.fn()
+const { mockToastSuccess, mockToastError, mockToastInfo } = vi.hoisted(() => ({
+  mockToastSuccess: vi.fn(),
+  mockToastError: vi.fn(),
+  mockToastInfo: vi.fn(),
+}))
 
 vi.mock('@/core/composables/useToast', () => ({
   useToast: () => ({
@@ -91,7 +93,9 @@ const mockRooms = ref([
     max_capacity: 3,
   },
 ])
-const mockFetchRooms = vi.fn()
+const { mockFetchRooms } = vi.hoisted(() => ({
+  mockFetchRooms: vi.fn(),
+}))
 
 vi.mock('@/modules/rooms/stores/room', () => ({
   useRoomStore: () => ({
@@ -102,10 +106,17 @@ vi.mock('@/modules/rooms/stores/room', () => ({
   }),
 }))
 
-const mockSendDwellerToWasteland = vi.fn()
-const mockRecallDweller = vi.fn()
-const mockCompleteExploration = vi.fn()
-const mockFetchExplorationProgress = vi.fn()
+const {
+  mockSendDwellerToWasteland,
+  mockRecallDweller,
+  mockCompleteExploration,
+  mockFetchExplorationProgress,
+} = vi.hoisted(() => ({
+  mockSendDwellerToWasteland: vi.fn(),
+  mockRecallDweller: vi.fn(),
+  mockCompleteExploration: vi.fn(),
+  mockFetchExplorationProgress: vi.fn(),
+}))
 
 vi.mock('@/modules/exploration/stores/exploration', () => ({
   useExplorationStore: () => ({
@@ -113,6 +124,18 @@ vi.mock('@/modules/exploration/stores/exploration', () => ({
     recallDweller: mockRecallDweller,
     completeExploration: mockCompleteExploration,
     fetchExplorationProgress: mockFetchExplorationProgress,
+  }),
+}))
+
+const { mockRefreshMap } = vi.hoisted(() => ({
+  mockRefreshMap: vi.fn(),
+}))
+
+vi.mock('@/modules/map/stores/map', () => ({
+  useMapStore: () => ({
+    locations: ref([]),
+    unlockedPlacesCount: ref(0),
+    refreshMap: mockRefreshMap,
   }),
 }))
 

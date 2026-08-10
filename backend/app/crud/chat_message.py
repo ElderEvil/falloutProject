@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlmodel import or_, select
+from sqlmodel import func, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
@@ -79,6 +79,19 @@ class CRUDChatMessage(CRUDBase[ChatMessage, ChatMessageCreate, ChatMessageRead])
     ) -> ChatMessage:
         """Create a new chat message"""
         return await self.create(db, obj_in=obj_in)
+
+    async def count_user_messages_to_dweller(self, db: AsyncSession, *, dweller_id: UUID) -> int:
+        """Count messages from any user to a specific dweller."""
+        stmt = (
+            select(func.count())
+            .select_from(ChatMessage)
+            .where(
+                ChatMessage.from_user_id.isnot(None),
+                ChatMessage.to_dweller_id == dweller_id,
+            )
+        )
+        result = await db.execute(stmt)
+        return result.scalar_one()
 
 
 chat_message = CRUDChatMessage(ChatMessage)

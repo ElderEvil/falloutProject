@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -19,9 +19,15 @@ router = APIRouter(prefix="/map", tags=["Map"])
 async def get_vault_map(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    unlocked_only: Annotated[bool, Query()] = False,
 ) -> VaultMapResponse:
-    """Return the full world-map for a vault."""
-    return await map_service.get_vault_map(db_session, vault)
+    """Return the full world-map for a vault.
+
+    Pass *unlocked_only=True* to hide non-VAULT locations that have no unlocked
+    dweller links.  The default (False) returns every location regardless of
+    unlock state so the frontend can style locked markers.
+    """
+    return await map_service.get_vault_map(db_session, vault, unlocked_only=unlocked_only)
 
 
 @router.get("/vault/{vault_id}/locations/{location_id}", response_model=WastelandLocationWithDwellers)

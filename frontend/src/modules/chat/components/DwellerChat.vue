@@ -15,6 +15,7 @@ import { useTypingIndicator } from '../composables/useTypingIndicator'
 import { useChatActions } from '../composables/useChatActions'
 import { useMapStore } from '@/modules/map/stores/map'
 import { useToast } from '@/core/composables/useToast'
+import ChatMessageList from './ChatMessageList.vue'
 
 const router = useRouter()
 
@@ -239,6 +240,114 @@ onUnmounted(() => {
 })
 </script>
 
-<template src="./DwellerChat.template.html"></template>
+<template>
+  <div class="chat-container">
+    <div class="scanlines"></div>
+    <div class="chat-identity-header">
+      <div class="identity-avatar">
+        <img
+          v-if="dwellerAvatarUrl"
+          :src="dwellerAvatarUrl"
+          alt="Dweller"
+          class="header-avatar-image"
+        />
+        <Icon v-else icon="mdi:robot" class="header-avatar-icon" />
+      </div>
+      <div class="identity-info">
+        <span class="identity-name">{{ dwellerName }}</span>
+        <span class="identity-status">Online</span>
+      </div>
+    </div>
 
-<style src="./DwellerChat.css" scoped></style>
+    <div ref="chatMessages" class="chat-messages">
+      <ChatMessageList
+        :messages="messages"
+        :dweller-name="dwellerName"
+        :username="username"
+        :dweller-avatar-url="dwellerAvatarUrl"
+        :is-typing="isTyping"
+        :currently-playing-url="currentlyPlayingUrl"
+        :latest-action-suggestion-index="latestActionSuggestionIndex"
+        :is-performing-action="isPerformingAction"
+        :get-happiness-color="getHappinessColor"
+        :get-happiness-icon="getHappinessIcon"
+        @play-audio="playAudio"
+        @stop-audio="stopAudio"
+        @confirm-action="handleActionConfirm"
+        @dismiss-action="dismissAction"
+      />
+    </div>
+
+    <div v-if="isQuotaExceeded" class="chat-input quota-exceeded">
+      <div class="quota-blocked-message">
+        <Icon icon="mdi:alert-circle" class="quota-icon" />
+        <div class="quota-text">
+          <span class="quota-title">Monthly quota exceeded</span>
+          <span class="quota-reset">Resets on {{ resetDate }}</span>
+        </div>
+        <button class="quota-profile-btn" @click="goToProfile">View Profile</button>
+      </div>
+    </div>
+
+    <div v-else class="chat-input">
+      <button
+        class="mode-toggle-btn"
+        :title="audioMode ? 'Switch to text' : 'Switch to voice'"
+        @click="audioMode = !audioMode"
+      >
+        <Icon :icon="audioMode ? 'mdi:keyboard' : 'mdi:microphone'" class="h-5 w-5" />
+      </button>
+      <template v-if="!audioMode">
+        <span class="terminal-prompt">&gt;</span>
+        <input
+          ref="chatInputRef"
+          v-model="userMessage"
+          class="chat-input-field"
+          placeholder="Type your message..."
+          @input="handleTyping"
+        />
+        <button
+          class="chat-send-btn"
+          :class="{ disabled: !canSend }"
+          :disabled="!canSend"
+          @click="handleSendMessage"
+        >
+          <Icon icon="mdi:send" class="h-5 w-5" />
+        </button>
+      </template>
+      <template v-else>
+        <div v-if="isRecording" class="recording-indicator">
+          <span class="recording-dot"></span>
+          Recording: {{ formatDuration(recordingDuration) }}
+        </div>
+        <div v-else-if="isSendingAudio" class="processing-indicator">
+          <Icon icon="mdi:loading" class="spinning h-5 w-5" />
+          Processing audio...
+        </div>
+        <div v-else class="ready-indicator">
+          <Icon icon="mdi:microphone" class="h-5 w-5" />
+          Ready to record
+        </div>
+        <button
+          v-if="!isRecording"
+          class="record-btn"
+          title="Start recording"
+          :disabled="isSendingAudio"
+          @click="startRecording"
+        >
+          <Icon icon="mdi:microphone" class="h-6 w-6" />
+        </button>
+        <template v-else>
+          <button class="cancel-btn" title="Cancel" @click="cancelRecording">
+            <Icon icon="mdi:close" class="h-5 w-5" />
+          </button>
+          <button class="send-audio-btn" title="Send" @click="sendAudioMessage">
+            <Icon icon="mdi:send" class="h-5 w-5" />
+          </button>
+        </template>
+      </template>
+    </div>
+  </div>
+</template>
+
+<style src="./DwellerChat.css"></style>

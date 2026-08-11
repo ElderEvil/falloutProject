@@ -18,6 +18,17 @@ AI-powered dweller interactions.
 
 ## Latest Release
 
+### v2.30.0 — Frontend Refactor (August 11, 2026)
+
+**Focus**: Simplify and harden the Vue frontend without changing backend runtime behavior.
+
+**Completed:**
+- ✅ **Truthful frontend checks** — typecheck and module-boundary checks are enforced in CI
+- ✅ **Shared async behavior** — polling and async actions centralize loading and error handling
+- ✅ **View simplification** — major dweller, chat, exploration, and room views use focused components
+- ✅ **UX polish** — user-facing errors surface through toasts; loading and empty states are consistent
+- ✅ **Version bump** — backend/frontend aligned at v2.30.0
+
 ### v2.26.0 — Alembic Enum Sync & Regression Coverage (August 7, 2026)
 
 **Focus**: Close the enum-drift gap that caused the `DWELLER_DIED` production outage — verify no drift exists today, then lock it with regression tests

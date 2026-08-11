@@ -2,6 +2,10 @@ import { computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import { handleStoreError } from '@/core/utils/errorHandler'
+import {
+  AUTH_TOKENS_REFRESHED_EVENT,
+  type RefreshedAuthTokens,
+} from '@/core/utils/authSessionEvents'
 import { authService } from '../services/authService'
 import type { User } from '../types/user'
 
@@ -21,6 +25,16 @@ export const useAuthStore = defineStore('auth', () => {
       write: (v: User | null) => JSON.stringify(v),
     },
   })
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener(AUTH_TOKENS_REFRESHED_EVENT, (event) => {
+      const { token: refreshedToken, refreshToken: refreshedRefreshToken } = (
+        event as CustomEvent<RefreshedAuthTokens>
+      ).detail
+      token.value = refreshedToken
+      if (refreshedRefreshToken) refreshToken.value = refreshedRefreshToken
+    })
+  }
 
   // Getters
   const isAuthenticated = computed(() => !!token.value)

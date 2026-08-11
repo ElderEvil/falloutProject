@@ -7242,6 +7242,10 @@ export interface components {
             room_count: number;
             /** Dweller Count */
             dweller_count: number;
+            /** Stimpack */
+            stimpack: number;
+            /** Radaway */
+            radaway: number;
         };
         /** VaultReadWithUser */
         VaultReadWithUser: {

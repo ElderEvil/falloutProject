@@ -533,7 +533,7 @@ onMounted(async () => {
 
 /* Quest Card */
 .quest-card {
-  background: linear-gradient(135deg, var(--color-surface-light) 0%, var(--color-gray-800) 100%);
+  background: var(--color-surface-warm-dark);
   border: 2px solid var(--color-theme-primary);
   border-radius: 6px;
   padding: 16px;
@@ -560,7 +560,7 @@ onMounted(async () => {
 
 .active-quest {
   border-color: var(--color-theme-accent);
-  background: linear-gradient(135deg, var(--color-surface-light) 0%, var(--color-gray-800) 100%);
+  background: var(--color-surface-warm-dark);
 }
 
 .active-quest::before {
@@ -574,7 +574,7 @@ onMounted(async () => {
 .completed-quest {
   border-color: var(--color-gray-500);
   opacity: 0.75;
-  background: linear-gradient(135deg, var(--color-surface-light) 0%, var(--color-gray-800) 100%);
+  background: var(--color-surface-warm-dark);
 }
 
 .completed-quest::before {

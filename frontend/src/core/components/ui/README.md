@@ -236,7 +236,7 @@ All components use Tailwind v4 design tokens from `src/assets/tailwind.css`. To 
 
 1. Edit the @theme section in `tailwind.css`
 2. Components will automatically pick up the new values
-3. See `STYLEGUIDE.md` for complete design token reference
+3. See `../../../../../docs/frontend/STYLEGUIDE.md` for complete design token reference
 
 ## Accessibility
 
@@ -249,4 +249,4 @@ All components follow WCAG 2.1 AA standards:
 
 ## Examples
 
-See `frontend/STYLEGUIDE.md` for comprehensive examples and best practices.
+See `../../../../../docs/frontend/STYLEGUIDE.md` for comprehensive examples and best practices.

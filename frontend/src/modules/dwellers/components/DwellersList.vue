@@ -73,7 +73,7 @@ const getStatColorClass = (value: number) => {
       v-for="dweller in dwellers"
       v-else
       :key="dweller.id"
-      class="flex items-center gap-3 rounded border border-gray-700 bg-gray-800/50 p-3 transition-all hover:bg-gray-800 cursor-pointer"
+      class="flex cursor-pointer items-center gap-3 rounded border border-gray-700 bg-surface-warm-dark p-3 transition-all hover:bg-surface-warm-hover"
       role="button"
       tabindex="0"
       @click="emit('view-details', dweller.id)"

@@ -277,7 +277,7 @@ pnpm run test -- --coverage
 - Prefer the repo UI components (see `frontend/src/core/components/ui/`): `UButton`, `UCard`, `UInput`, `UModal`, etc.
 - Tailwind utilities only; avoid inline styles.
 - Use CRT effects classes where appropriate: `.flicker`, `.terminal-glow`, `.crt-screen`.
-- Design token source of truth: `frontend/src/assets/tailwind.css` and `frontend/STYLEGUIDE.md`.
+- Design token source of truth: `frontend/src/assets/tailwind.css` and `docs/frontend/STYLEGUIDE.md`.
 
 ## Bug Fix Workflow (MANDATORY)
 

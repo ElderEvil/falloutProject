@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, shallowRef, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSse, type SseEvent } from '@/core/composables/useEventStream'
@@ -70,7 +70,8 @@ const hasUnread = computed(() => unreadCount.value > 0)
 
 // SSE connection for live notifications
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? ''
-const sse = ref<ReturnType<typeof useSse>>()
+// Keep the composable return value shallow so its nested event Ref is not unwrapped.
+const sse = shallowRef<ReturnType<typeof useSse>>()
 
 const startSse = () => {
   sse.value?.close()
@@ -201,8 +202,8 @@ onBeforeUnmount(() => {
     <!-- Bell Button -->
     <button
       @click="togglePopup"
-      class="relative flex items-center justify-center rounded p-2 transition-all duration-200 hover:bg-gray-800/50"
-      :class="{ 'bg-gray-800/50': showPopup }"
+      class="relative flex items-center justify-center rounded p-2 transition-all duration-200 hover:bg-surface-warm-hover"
+      :class="{ 'bg-surface-warm-dark': showPopup }"
       title="Notifications"
     >
       <Icon
@@ -224,13 +225,13 @@ onBeforeUnmount(() => {
     <Transition name="fade">
       <div
         v-if="showPopup"
-        class="absolute right-0 top-12 z-50 w-96 rounded border bg-gray-900 shadow-2xl"
+        class="absolute right-0 top-12 z-50 w-96 rounded border border-surface-warm-hover bg-surface-warm shadow-2xl"
         :style="{
           borderColor: 'rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3)',
         }"
       >
         <!-- Header -->
-        <div class="flex items-center justify-between border-b border-gray-800 px-4 py-3">
+        <div class="flex items-center justify-between border-b border-surface-warm-hover px-4 py-3">
           <h3 class="font-semibold" :style="{ color: 'var(--color-theme-primary)' }">
             Notifications
           </h3>
@@ -255,15 +256,15 @@ onBeforeUnmount(() => {
             <p class="text-sm">No notifications yet</p>
           </div>
 
-          <div v-else class="divide-y divide-gray-800">
+          <div v-else class="divide-y divide-surface-warm-hover">
             <div
               v-for="notification in notifications"
               :key="notification.id"
               @click="!notification.is_read && markAsRead(notification.id)"
               class="p-4 transition-colors cursor-pointer"
               :class="{
-                'bg-gray-800/30': !notification.is_read,
-                'hover:bg-gray-800/50': true,
+                'bg-surface-warm-dark': !notification.is_read,
+                'hover:bg-surface-warm-hover': true,
               }"
             >
               <div class="flex items-start space-x-3">
@@ -291,8 +292,8 @@ onBeforeUnmount(() => {
                     {{ notification.message }}
                   </p>
                   <div v-if="!notification.is_read" class="mt-2 flex items-center">
-                    <div class="h-2 w-2 rounded-full bg-blue-500"></div>
-                    <span class="ml-2 text-xs text-blue-400">New</span>
+                    <div class="h-2 w-2 rounded-full bg-theme-primary"></div>
+                    <span class="ml-2 text-xs text-theme-primary">New</span>
                   </div>
                 </div>
               </div>

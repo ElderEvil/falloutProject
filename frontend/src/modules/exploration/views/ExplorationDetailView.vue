@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useExplorationStore } from '../stores/exploration'
 import { useVaultStore } from '@/modules/vault/stores/vault'
-import { Icon } from '@iconify/vue'
 import ExplorationRewardsModal from '../components/ExplorationRewardsModal.vue'
+import ExplorerNavbar from '../components/ExplorerNavbar.vue'
+import ExplorerSummaryCard from '../components/ExplorerSummaryCard.vue'
+import ExplorerStatsGrid from '../components/ExplorerStatsGrid.vue'
+import ExplorationEventLog from '../components/ExplorationEventLog.vue'
+import ExplorerEquipmentSlots from '../components/ExplorerEquipmentSlots.vue'
+import ExplorerActions from '../components/ExplorerActions.vue'
 import type { RewardsSummary } from '../stores/exploration'
-import { getEventIcon, getEventColor } from '../models/exploration'
 import { usePolling } from '@/core/composables/usePolling'
 import { useToast } from '@/core/composables/useToast'
 
@@ -117,11 +122,9 @@ const sortedEvents = computed(() => {
   return [...exploration.value.events].reverse()
 })
 
-const formatEventTime = (hours: number): string => {
-  const h = Math.floor(hours)
-  const m = Math.floor((hours - h) * 60)
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
-}
+// Equipment computed
+const weaponName = computed(() => detailedDweller.value?.weapon?.name ?? null)
+const outfitName = computed(() => detailedDweller.value?.outfit?.name ?? null)
 
 // Actions
 const handleCompleteExploration = async () => {
@@ -142,7 +145,7 @@ const handleCompleteExploration = async () => {
     }
 
     // Don't auto-navigate - let user close modal first
-  } catch (error) {
+  } catch (_error) {
     toast.error('Failed to complete exploration')
   }
 }
@@ -165,7 +168,7 @@ const handleRecallExploration = async () => {
     }
 
     // Don't auto-navigate - let user close modal first
-  } catch (error) {
+  } catch (_error) {
     toast.error('Failed to recall dweller')
   }
 }
@@ -196,7 +199,6 @@ onMounted(async () => {
       await dwellerStore.fetchDwellerDetails(exploration.value.dweller_id, authStore.token)
     }
   }
-
 })
 
 // Watch for exploration completion
@@ -211,6 +213,64 @@ watch(
 )
 </script>
 
-<template src="./ExplorationDetailView.template.html"></template>
+<template>
+  <div class="min-h-screen bg-black pb-8 font-mono">
+    <!-- Navigation Bar -->
+    <ExplorerNavbar
+      :current-index="currentIndex"
+      :total="allExplorations.length"
+      :has-previous="hasPrevious"
+      :has-next="hasNext"
+      @back="goBack"
+      @previous="navigatePrevious"
+      @next="navigateNext"
+    />
 
-<style src="./ExplorationDetailView.css" scoped></style>
+    <!-- Main Content -->
+    <div v-if="exploration && dweller" class="mx-auto max-w-[1200px] p-4">
+      <!-- Top Section: Dweller Info & Progress + Stats Grid -->
+      <ExplorerSummaryCard
+        :dweller-name="dwellerName"
+        :dweller-level="dweller.level"
+        :health="dweller.health"
+        :max-health="dweller.max_health"
+        :progress-percentage="progressPercentage"
+        :time-remaining="timeRemaining"
+        :exploration-duration="exploration.duration"
+        :dweller="dweller"
+      />
+
+      <ExplorerStatsGrid v-if="exploration" :exploration="exploration" />
+
+      <!-- Event Log Section -->
+      <ExplorationEventLog :events="sortedEvents" />
+
+      <!-- Equipment Section -->
+      <ExplorerEquipmentSlots
+        :weapon-name="weaponName"
+        :outfit-name="outfitName"
+      />
+
+      <!-- Action Buttons -->
+      <ExplorerActions
+        :can-complete="progressPercentage >= 100"
+        @complete="handleCompleteExploration"
+        @recall="handleRecallExploration"
+      />
+    </div>
+
+    <!-- Loading/Error State -->
+    <div v-else class="loading-state flex min-h-[60vh] flex-col items-center justify-center gap-6 text-theme-primary">
+      <Icon icon="mdi:loading" class="loading-icon h-20 w-20 animate-spin" />
+      <p>Loading exploration data...</p>
+    </div>
+
+    <!-- Rewards Modal -->
+    <ExplorationRewardsModal
+      :show="showRewardsModal"
+      :rewards="completedExplorationRewards"
+      :dweller-name="completedDwellerName"
+      @close="closeRewardsModal"
+    />
+  </div>
+</template>

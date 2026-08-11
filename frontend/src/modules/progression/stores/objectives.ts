@@ -14,30 +14,21 @@ export const useObjectivesStore = defineStore('objectives', () => {
         params: { skip, limit },
       })
       objectives.value = response.data
-    } catch (error: unknown) {
-      console.error('Failed to fetch objectives:', error)
-      throw error
-    }
+    } catch (error: unknown) { throw error }
   }
 
   async function addObjective(vaultId: string, objectiveData: ObjectiveCreate): Promise<void> {
     try {
       await axios.post(`/api/v1/objectives/${vaultId}/`, objectiveData)
       await fetchObjectives(vaultId)
-    } catch (error: unknown) {
-      console.error('Failed to add objective:', error)
-      throw error
-    }
+    } catch (error: unknown) { throw error }
   }
 
   async function getObjective(vaultId: string, objectiveId: string): Promise<Objective> {
     try {
       const response = await axios.get<Objective>(`/api/v1/objectives/${vaultId}/${objectiveId}`)
       return response.data
-    } catch (error: unknown) {
-      console.error('Failed to fetch objective:', error)
-      throw error
-    }
+    } catch (error: unknown) { throw error }
   }
 
   async function completeObjective(vaultId: string, objectiveId: string): Promise<Objective> {
@@ -50,10 +41,7 @@ export const useObjectivesStore = defineStore('objectives', () => {
         objectives.value[index] = response.data
       }
       return response.data
-    } catch (error: unknown) {
-      console.error('Failed to complete objective:', error)
-      throw error
-    }
+    } catch (error: unknown) { throw error }
   }
 
   async function updateProgress(
@@ -71,10 +59,7 @@ export const useObjectivesStore = defineStore('objectives', () => {
         objectives.value[index] = response.data
       }
       return response.data
-    } catch (error: unknown) {
-      console.error('Failed to update objective progress:', error)
-      throw error
-    }
+    } catch (error: unknown) { throw error }
   }
 
   return {

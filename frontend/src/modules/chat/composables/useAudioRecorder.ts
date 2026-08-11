@@ -1,8 +1,10 @@
 import { ref, computed } from 'vue'
+import { useToast } from '@/core/composables/useToast'
 
 export type RecordingState = 'idle' | 'recording' | 'paused' | 'processing'
 
 export function useAudioRecorder() {
+  const toast = useToast()
   const mediaRecorder = ref<MediaRecorder | null>(null)
   const audioChunks = ref<Blob[]>([])
   const recordingState = ref<RecordingState>('idle')
@@ -24,7 +26,7 @@ export function useAudioRecorder() {
 
       // Fallback for browsers that don't support webm
       if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-        console.warn('WebM not supported, trying mp4')
+        toast.info('WebM is unavailable; recording as MP4 instead')
         options.mimeType = 'audio/mp4'
       }
 
@@ -47,8 +49,8 @@ export function useAudioRecorder() {
       recordingTimer.value = window.setInterval(() => {
         recordingDuration.value += 1
       }, 1000)
-    } catch (error) {
-      console.error('Error starting recording:', error)
+    } catch {
+      toast.error('Failed to access microphone')
       throw new Error('Failed to access microphone. Please grant permission.')
     }
   }
@@ -82,7 +84,7 @@ export function useAudioRecorder() {
       }
 
       mediaRecorder.value.onerror = (error) => {
-        console.error('MediaRecorder error:', error)
+        toast.error('Audio recording failed')
         recordingState.value = 'idle'
         reject(error)
       }

@@ -5,15 +5,16 @@ import type { Incident, IncidentListResponse } from '../models/incident'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import { useSse } from '@/core/composables/useEventStream'
+import { usePolling } from '@/core/composables/usePolling'
 
 export const useIncidentStore = defineStore('incident', () => {
   const incidents = ref<Map<string, Incident>>(new Map())
   const activeIncidentIds = ref<string[]>([])
   const isPolling = ref(false)
-  const pollInterval = ref<number | null>(null)
   const sseConnected = ref(false)
   let sseInstance: ReturnType<typeof useSse> | null = null
   let fallbackTimer: ReturnType<typeof setTimeout> | null = null
+  let incidentPolling: ReturnType<typeof usePolling> | null = null
 
   const { success: showSuccess, error: showError } = useToast()
 
@@ -103,6 +104,17 @@ export const useIncidentStore = defineStore('incident', () => {
     }
   }
 
+  function startIncidentPolling(vaultId: string, token: string, intervalMs: number): void {
+    incidentPolling?.pause()
+    incidentPolling = usePolling(
+      async () => {
+        if (!sseConnected.value) await fetchIncidents(vaultId, token)
+      },
+      { interval: intervalMs, immediate: false }
+    )
+    incidentPolling.resume()
+  }
+
   function startSseSubscription(vaultId: string, token: string): void {
     stopSseSubscription()
 
@@ -157,10 +169,7 @@ export const useIncidentStore = defineStore('incident', () => {
       (status) => {
         if (status === 'open') {
           sseConnected.value = true
-          if (pollInterval.value) {
-            clearInterval(pollInterval.value)
-            pollInterval.value = null
-          }
+          incidentPolling?.pause()
         } else if (status === 'closed') {
           sseConnected.value = false
           if (fallbackTimer) {
@@ -168,12 +177,8 @@ export const useIncidentStore = defineStore('incident', () => {
             fallbackTimer = null
           }
           fallbackTimer = setTimeout(() => {
-            if (!sseConnected.value && !pollInterval.value) {
-              pollInterval.value = window.setInterval(() => {
-                fetchIncidents(vaultId, token).catch((err) => {
-                  handleStoreError(err, 'Error polling incidents (SSE fallback)')
-                })
-              }, 10000)
+            if (!sseConnected.value && isPolling.value) {
+              startIncidentPolling(vaultId, token, 10000)
             }
           }, 30000)
         }
@@ -205,21 +210,13 @@ export const useIncidentStore = defineStore('incident', () => {
     if (token) {
       startSseSubscription(vaultId, token)
     }
-    pollInterval.value = window.setInterval(() => {
-      if (!sseConnected.value) {
-        fetchIncidents(vaultId, token).catch((err) => {
-          handleStoreError(err, 'Error polling incidents')
-        })
-      }
-    }, intervalMs)
+    startIncidentPolling(vaultId, token, intervalMs)
   }
 
   function stopPolling(): void {
     stopSseSubscription()
-    if (pollInterval.value) {
-      clearInterval(pollInterval.value)
-      pollInterval.value = null
-    }
+    incidentPolling?.pause()
+    incidentPolling = null
     isPolling.value = false
   }
 

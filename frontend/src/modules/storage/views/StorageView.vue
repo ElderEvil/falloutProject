@@ -5,6 +5,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
+import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { storageService, type StorageItemsResponse } from '../services/storageService'
 import { Icon } from '@iconify/vue'
 import { UButton, UTabs } from '@/core/components/ui'
@@ -19,7 +20,6 @@ const { isCollapsed } = useSidePanel()
 const toast = useToast()
 
 const vaultId = computed(() => route.params.id as string)
-const isLoading = ref(false)
 const storageSpace = ref<{
   used_space: number
   max_space: number
@@ -35,9 +35,35 @@ const storageItems = ref<StorageItemsResponse>({
   junk: [],
 })
 
-const activeTab = ref<'weapons' | 'outfits' | 'junk'>('weapons')
+const { run: runFetchStorageData, isLoading } = useAsyncAction(
+  async (currentVaultId: string) => {
+    const [spaceData, itemsData] = await Promise.all([
+      storageService.getStorageSpace(currentVaultId),
+      storageService.getStorageItems(currentVaultId),
+    ])
 
-const tabs = computed(() => [
+    storageSpace.value = spaceData
+    storageItems.value = itemsData
+    return true
+  },
+  { context: 'Failed to load storage data', showToast: false }
+)
+
+const activeTab = ref<'weapons' | 'outfits' | 'junk'>('weapons')
+type StorageTab = typeof activeTab.value
+type StorageItem = StorageItemsResponse[StorageTab][number]
+interface DisplayStorageItem {
+  id: string
+  item: StorageItem
+  count: number
+  ids: string[]
+}
+
+const selectTab = (tab: string) => {
+  if (tab === 'weapons' || tab === 'outfits' || tab === 'junk') activeTab.value = tab
+}
+
+const tabs = computed<Array<{ key: StorageTab; label: string }>>(() => [
   { key: 'weapons', label: `Weapons (${weapons.value.length})` },
   { key: 'outfits', label: `Outfits (${outfits.value.length})` },
   { key: 'junk', label: `Junk (${junk.value.length})` },
@@ -47,20 +73,9 @@ const tabs = computed(() => [
 const fetchStorageData = async () => {
   if (!vaultId.value || !authStore.token) return
 
-  isLoading.value = true
-  try {
-    const [spaceData, itemsData] = await Promise.all([
-      storageService.getStorageSpace(vaultId.value),
-      storageService.getStorageItems(vaultId.value),
-    ])
-
-    storageSpace.value = spaceData
-    storageItems.value = itemsData
-  } catch (error) {
-    console.error('Failed to load storage data:', error)
+  const result = await runFetchStorageData(vaultId.value)
+  if (!result) {
     toast.error('Failed to load storage data')
-  } finally {
-    isLoading.value = false
   }
 }
 
@@ -81,7 +96,7 @@ const totalItems = computed(() => weapons.value.length + outfits.value.length + 
 
 // Group junk items by name and add count
 const groupedJunk = computed(() => {
-  const grouped = new Map<string, { item: any; count: number; ids: string[] }>()
+  const grouped = new Map<string, DisplayStorageItem>()
 
   junk.value.forEach((junkItem) => {
     const key = `${junkItem.name}-${junkItem.rarity}`
@@ -91,6 +106,7 @@ const groupedJunk = computed(() => {
       group.ids.push(junkItem.id)
     } else {
       grouped.set(key, {
+        id: junkItem.id,
         item: junkItem,
         count: 1,
         ids: [junkItem.id],
@@ -102,12 +118,12 @@ const groupedJunk = computed(() => {
 })
 
 // Active items based on tab
-const activeItems = computed(() => {
+const activeItems = computed<DisplayStorageItem[]>(() => {
   switch (activeTab.value) {
     case 'weapons':
-      return weapons.value
+      return weapons.value.map((item) => ({ id: item.id, item, count: 1, ids: [item.id] }))
     case 'outfits':
-      return outfits.value
+      return outfits.value.map((item) => ({ id: item.id, item, count: 1, ids: [item.id] }))
     case 'junk':
       return groupedJunk.value
     default:
@@ -150,8 +166,7 @@ const handleSellItem = async (
     if (vaultId.value && authStore.token) {
       await vaultStore.refreshVault(vaultId.value, authStore.token)
     }
-  } catch (error) {
-    console.error('Failed to sell item:', error)
+  } catch {
     toast.error('Failed to sell item')
   }
 }
@@ -182,8 +197,7 @@ const handleScrapItem = async (
     if (vaultId.value && authStore.token) {
       await vaultStore.refreshVault(vaultId.value, authStore.token)
     }
-  } catch (error) {
-    console.error('Failed to scrap item:', error)
+  } catch {
     toast.error('Failed to scrap item')
   }
 }
@@ -266,7 +280,7 @@ const getRarityColor = (rarity?: string) => {
       </div>
 
       <!-- Tabs -->
-      <UTabs v-model="activeTab" :tabs="tabs" class="mb-8">
+      <UTabs :model-value="activeTab" :tabs="tabs" class="mb-8" @update:model-value="selectTab">
         <!-- Loading State -->
         <div
           v-if="isLoading"
@@ -309,14 +323,14 @@ const getRarityColor = (rarity?: string) => {
         <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-8">
           <StorageItemCard
             v-for="item in activeItems"
-            :key="activeTab === 'junk' ? item.item.id : item.id"
-            :item="activeTab === 'junk' ? item.item : item"
+            :key="item.id"
+            :item="item.item"
             :item-type="activeTab"
-            :count="activeTab === 'junk' ? item.count : 1"
-            :ids="activeTab === 'junk' ? item.ids : [item.id]"
+            :count="item.count"
+            :ids="item.ids"
             :get-rarity-color="getRarityColor"
-            @sell="handleSellItem(activeTab === 'junk' ? item.ids[0] : item.id, activeTab)"
-            @sell-all="handleSellItem(activeTab === 'junk' ? item.ids : [item.id], activeTab)"
+            @sell="handleSellItem(item.ids[0], activeTab)"
+            @sell-all="handleSellItem(item.ids, activeTab)"
             @scrap="handleScrapItem(item.id, activeTab as 'weapon' | 'outfit')"
           />
         </div>

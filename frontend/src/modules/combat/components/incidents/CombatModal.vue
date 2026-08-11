@@ -123,12 +123,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import { useIncidentStore } from '../../stores/incident'
 import UModal from '@/core/components/ui/UModal.vue'
 import UButton from '@/core/components/ui/UButton.vue'
+import { usePolling } from '@/core/composables/usePolling'
+import { useToast } from '@/core/composables/useToast'
+import { useIncidentStore } from '../../stores/incident'
 import type { Incident } from '../../models/incident'
 import { IncidentType } from '../../models/incident'
 
@@ -146,21 +148,14 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore()
 const incidentStore = useIncidentStore()
+const toast = useToast()
 
 const incident = ref<Incident | null>(null)
 const isLoading = ref(true)
 const isResolving = ref(false)
-let refreshInterval: number | null = null
-
 // Lifecycle
 onMounted(async () => {
   await loadIncident()
-  // Auto-refresh every 5 seconds
-  refreshInterval = window.setInterval(loadIncident, 5000)
-})
-
-onUnmounted(() => {
-  if (refreshInterval) clearInterval(refreshInterval)
 })
 
 // Methods
@@ -171,10 +166,13 @@ async function loadIncident() {
     const data = await incidentStore.fetchIncidents(props.vaultId, authStore.token)
     incident.value = incidentStore.getIncidentById(props.incidentId) || null
     isLoading.value = false
-  } catch (error) {
-    console.error('Failed to load incident:', error)
+  } catch {
+    toast.error('Failed to load incident')
   }
 }
+
+// Auto-refresh every 5 seconds while the modal is mounted.
+usePolling(loadIncident, { interval: 5_000, immediate: false })
 
 async function handleResolve(success: boolean) {
   if (!authStore.token || isResolving.value) return
@@ -185,8 +183,8 @@ async function handleResolve(success: boolean) {
     await incidentStore.resolveIncident(props.vaultId, props.incidentId, authStore.token, success)
     emit('resolved')
     emit('close')
-  } catch (error) {
-    console.error('Failed to resolve incident:', error)
+  } catch {
+    toast.error('Failed to resolve incident')
   } finally {
     isResolving.value = false
   }

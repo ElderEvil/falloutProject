@@ -21,7 +21,7 @@ interface Props {
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  click: [room: Room, event: MouseEvent]
+  click: [room: Room, event: MouseEvent | KeyboardEvent]
   upgrade: [roomId: string, event: MouseEvent]
   destroy: [roomId: string, event: MouseEvent]
   'incident-click': [incidentId: string]
@@ -66,7 +66,7 @@ const getUpgradeCost = (r: Room): number => {
   return 0
 }
 
-const handleIncidentClick = (event: MouseEvent) => {
+const handleIncidentClick = (event: MouseEvent | KeyboardEvent) => {
   if (props.incident) {
     event.stopPropagation()
     emit('incident-click', props.incident.id)
@@ -98,8 +98,8 @@ const handleIncidentClick = (event: MouseEvent) => {
     <div class="room-content">
       <!-- Room Image (toggleable) -->
       <img
-        v-if="showRoomImages && getRoomImageUrl(room.image_url)"
-        :src="getRoomImageUrl(room.image_url)"
+        v-if="showRoomImages && getRoomImageUrl(room.image_url ?? undefined)"
+        :src="getRoomImageUrl(room.image_url ?? undefined) ?? undefined"
         :alt="room.name"
         class="room-background-image"
         draggable="false"

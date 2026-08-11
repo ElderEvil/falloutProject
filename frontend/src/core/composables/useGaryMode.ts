@@ -7,7 +7,7 @@ const STORAGE_KEY = 'fallout_gary_unlocked'
 const isGaryMode = ref(false)
 const garyUnlocked = useLocalStorage(STORAGE_KEY, false)
 
-let garyTimer: NodeJS.Timeout | null = null
+let garyTimer: ReturnType<typeof setTimeout> | null = null
 
 export function useGaryMode() {
   const triggerGaryMode = () => {

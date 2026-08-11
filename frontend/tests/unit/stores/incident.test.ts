@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
+import { nextTick, ref } from 'vue'
 import { setActivePinia, createPinia } from 'pinia'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { incidentApi } from '@/modules/combat/api/incident'
@@ -6,6 +7,12 @@ import type { IncidentListResponse, Incident } from '@/modules/combat/models/inc
 import { IncidentType, IncidentStatus } from '@/modules/combat/models/incident'
 
 vi.mock('@/modules/combat/api/incident')
+const sseMock = vi.hoisted(() => ({ instance: null as any }))
+
+vi.mock('@/core/composables/useEventStream', () => ({
+  useSse: () => sseMock.instance,
+}))
+
 vi.mock('@/core/composables/useToast', () => ({
   useToast: () => ({
     success: vi.fn(),
@@ -20,6 +27,13 @@ describe('Incident Store', () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     vi.useFakeTimers()
+    sseMock.instance = {
+      event: ref(null),
+      status: ref<'idle' | 'connecting' | 'open' | 'closed'>('idle'),
+      start: vi.fn(),
+      close: vi.fn(),
+      stopReconnect: vi.fn(),
+    }
   })
 
   afterEach(() => {
@@ -221,6 +235,36 @@ describe('Incident Store', () => {
 
       store.stopPolling()
       expect(store.isPolling).toBe(false)
+    })
+
+    it('pauses polling while the SSE connection is open', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValue(mockIncident)
+
+      store.startPolling('vault-1', 'token', 1000)
+      sseMock.instance.status.value = 'open'
+      await nextTick()
+      await vi.advanceTimersByTimeAsync(1000)
+
+      expect(incidentApi.getActiveIncidents).toHaveBeenCalledTimes(1)
+    })
+
+    it('resumes polling after a closed SSE connection fallback', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValue(mockIncident)
+
+      store.startPolling('vault-1', 'token', 10000)
+      sseMock.instance.status.value = 'open'
+      await nextTick()
+      sseMock.instance.status.value = 'closed'
+      await nextTick()
+
+      await vi.advanceTimersByTimeAsync(30000)
+      await vi.advanceTimersByTimeAsync(10000)
+
+      expect(incidentApi.getActiveIncidents).toHaveBeenCalledTimes(2)
     })
 
     // TODO: Fix timing issue with polling interval references

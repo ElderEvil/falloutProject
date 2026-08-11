@@ -123,7 +123,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useIncidentStore } from '../../stores/incident'
@@ -131,6 +131,7 @@ import UModal from '@/core/components/ui/UModal.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import type { Incident } from '../../models/incident'
 import { IncidentType } from '../../models/incident'
+import { usePolling } from '@/core/composables/usePolling'
 
 interface Props {
   incidentId: string
@@ -150,17 +151,9 @@ const incidentStore = useIncidentStore()
 const incident = ref<Incident | null>(null)
 const isLoading = ref(true)
 const isResolving = ref(false)
-let refreshInterval: number | null = null
-
 // Lifecycle
 onMounted(async () => {
   await loadIncident()
-  // Auto-refresh every 5 seconds
-  refreshInterval = window.setInterval(loadIncident, 5000)
-})
-
-onUnmounted(() => {
-  if (refreshInterval) clearInterval(refreshInterval)
 })
 
 // Methods
@@ -175,6 +168,9 @@ async function loadIncident() {
     console.error('Failed to load incident:', error)
   }
 }
+
+// Auto-refresh every 5 seconds while the modal is mounted.
+usePolling(loadIncident, { interval: 5_000, immediate: false })
 
 async function handleResolve(success: boolean) {
   if (!authStore.token || isResolving.value) return

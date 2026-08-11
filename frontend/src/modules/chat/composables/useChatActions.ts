@@ -86,14 +86,18 @@ export function useChatActions(options: UseChatActionsOptions) {
         const matchingStatRooms = trainingRooms.filter(
           (r) => r.ability?.toLowerCase() === stat.toLowerCase()
         )
+        const hasCapacity = (room: (typeof trainingRooms)[number], occupancy: number) => {
+          const capacity = room.capacity ?? (room as { max_capacity?: number }).max_capacity
+          return !capacity || occupancy < capacity
+        }
         let availableTrainingRoom = matchingStatRooms.find((r) => {
           const occupancy = dwellerStore.dwellers.filter((d) => d.room_id === r.id).length
-          return !r.capacity || occupancy < r.capacity
+          return hasCapacity(r, occupancy)
         })
         if (!availableTrainingRoom) {
           availableTrainingRoom = trainingRooms.find((r) => {
             const occupancy = dwellerStore.dwellers.filter((d) => d.room_id === r.id).length
-            return !r.capacity || occupancy < r.capacity
+            return hasCapacity(r, occupancy)
           })
         }
 

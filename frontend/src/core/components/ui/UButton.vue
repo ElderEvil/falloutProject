@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { ButtonHTMLAttributes } from 'vue'
 import type { IconComponent } from '@/core/types/utils'
 
 /**
@@ -12,7 +11,7 @@ import type { IconComponent } from '@/core/types/utils'
  * - ghost: Transparent with hover effect
  */
 
-interface Props extends Omit<ButtonHTMLAttributes, 'disabled' | 'type'> {
+interface Props {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost'
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
   disabled?: boolean
@@ -22,6 +21,7 @@ interface Props extends Omit<ButtonHTMLAttributes, 'disabled' | 'type'> {
   block?: boolean
   type?: 'button' | 'submit' | 'reset'
   title?: string
+  ariaLabel?: string
 }
 
 const {
@@ -32,6 +32,7 @@ const {
   block = false,
   type = 'button',
   title,
+  ariaLabel,
   icon,
   iconRight,
 } = defineProps<Props>()
@@ -81,6 +82,7 @@ const handleClick = (event: MouseEvent) => {
     @click="handleClick"
     :type="type"
     :title="title"
+    :aria-label="ariaLabel"
   >
     <component v-if="icon && !loading" :is="icon" class="h-5 w-5" />
     <span v-if="loading" class="animate-spin">⚙</span>

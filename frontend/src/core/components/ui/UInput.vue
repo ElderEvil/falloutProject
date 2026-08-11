@@ -43,7 +43,9 @@ const {
 } = defineProps<Props>()
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', value: string | number): void
+  // Native inputs always produce strings. Consumers that need a numeric value
+  // opt into Vue's `v-model.number` modifier at the call site.
+  (e: 'update:modelValue', value: string): void
   (e: 'blur'): void
   (e: 'focus'): void
 }>()
@@ -105,7 +107,7 @@ const handleInput = (event: InputEvent) => {
       <!-- Input Field -->
       <input
         :id="inputId"
-        data-testid="ui-input"
+        v-bind="{ 'data-testid': 'ui-input' }"
         :type="type"
         :value="modelValue"
         :placeholder="placeholder"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -18,6 +18,7 @@ import ExplorationRewardsModal from '../components/ExplorationRewardsModal.vue'
 import UCard from '@/core/components/ui/UCard.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import type { RewardsSummary } from '../stores/exploration'
+import { usePolling } from '@/core/composables/usePolling'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -63,25 +64,17 @@ onMounted(async () => {
   await loadData()
 })
 
-// Poll for updates every 15 seconds
-let pollInterval: ReturnType<typeof setInterval> | null = null
-onMounted(() => {
-  pollInterval = setInterval(async () => {
-    if (vaultId.value && authStore.token) {
-      try {
-        await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
-      } catch (error) {
-        console.error('Failed to poll explorations:', error)
-      }
-    }
-  }, 15000)
-})
+const pollExplorations = async () => {
+  if (!vaultId.value || !authStore.token) return
 
-onUnmounted(() => {
-  if (pollInterval) {
-    clearInterval(pollInterval)
+  try {
+    await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
+  } catch (error) {
+    console.error('Failed to poll explorations:', error)
   }
-})
+}
+
+usePolling(pollExplorations, { interval: 15_000, immediate: false })
 
 const activeExplorationsArray = computed(() => {
   return Object.values(explorationStore.activeExplorations)

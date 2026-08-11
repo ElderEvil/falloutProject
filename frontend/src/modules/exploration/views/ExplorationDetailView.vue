@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
@@ -9,6 +9,7 @@ import { Icon } from '@iconify/vue'
 import ExplorationRewardsModal from '../components/ExplorationRewardsModal.vue'
 import type { RewardsSummary } from '../stores/exploration'
 import { getEventIcon, getEventColor } from '../models/exploration'
+import { usePolling } from '@/core/composables/usePolling'
 
 const route = useRoute()
 const router = useRouter()
@@ -175,8 +176,15 @@ const closeRewardsModal = () => {
   completedDwellerName.value = ''
 }
 
-// Auto-refresh every 10 seconds
-let pollInterval: ReturnType<typeof setInterval> | null = null
+const refreshExploration = async () => {
+  if (explorationId.value && authStore.token) {
+    await explorationStore.fetchExplorationDetails(explorationId.value, authStore.token)
+  }
+}
+
+// Auto-refresh every 10 seconds. usePolling cleans up with this view scope.
+usePolling(refreshExploration, { interval: 10_000, immediate: false })
+
 onMounted(async () => {
   if (vaultId.value && authStore.token) {
     await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
@@ -187,18 +195,6 @@ onMounted(async () => {
     }
   }
 
-  pollInterval = setInterval(async () => {
-    if (explorationId.value && authStore.token) {
-      // Fetch detailed exploration data to update loot_collected
-      await explorationStore.fetchExplorationDetails(explorationId.value, authStore.token)
-    }
-  }, 10000)
-})
-
-onUnmounted(() => {
-  if (pollInterval) {
-    clearInterval(pollInterval)
-  }
 })
 
 // Watch for exploration completion

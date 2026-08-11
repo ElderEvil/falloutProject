@@ -1,5 +1,7 @@
 /// <reference types="vite-plus/client" />
 
+export {}
+
 // Global constants injected by Vite define
 declare global {
   const __APP_VERSION__: string

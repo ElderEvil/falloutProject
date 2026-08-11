@@ -1,9 +1,10 @@
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { Weapon, Outfit } from '../models/equipment'
 import * as equipmentService from '../services/equipment'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
+import { useAsyncAction } from '@/core/composables/useAsyncAction'
 
 export const useEquipmentStore = defineStore('equipment', () => {
   const toast = useToast()
@@ -11,35 +12,37 @@ export const useEquipmentStore = defineStore('equipment', () => {
   // State
   const weapons = ref<Weapon[]>([])
   const outfits = ref<Outfit[]>([])
-  const isLoading = ref(false)
   const error = ref<string | null>(null)
+  const { run: runFetchWeapons, isLoading: isWeaponsLoading } = useAsyncAction(
+    (token: string, vaultId?: string) => equipmentService.fetchWeapons(token, vaultId),
+    { context: 'Failed to fetch weapons', showToast: false }
+  )
+  const { run: runFetchOutfits, isLoading: isOutfitsLoading } = useAsyncAction(
+    (token: string, vaultId?: string) => equipmentService.fetchOutfits(token, vaultId),
+    { context: 'Failed to fetch outfits', showToast: false }
+  )
+  const isLoading = computed(() => isWeaponsLoading.value || isOutfitsLoading.value)
 
   // Actions
   async function fetchWeapons(token: string, vaultId?: string): Promise<void> {
-    isLoading.value = true
     error.value = null
-    try {
-      weapons.value = await equipmentService.fetchWeapons(token, vaultId)
-    } catch (err) {
-      handleStoreError(err, 'Failed to fetch weapons')
+    const result = await runFetchWeapons(token, vaultId)
+    if (result) {
+      weapons.value = result
+    } else {
       error.value = 'Failed to load weapons'
       toast.error('Failed to load weapons')
-    } finally {
-      isLoading.value = false
     }
   }
 
   async function fetchOutfits(token: string, vaultId?: string): Promise<void> {
-    isLoading.value = true
     error.value = null
-    try {
-      outfits.value = await equipmentService.fetchOutfits(token, vaultId)
-    } catch (err) {
-      handleStoreError(err, 'Failed to fetch outfits')
+    const result = await runFetchOutfits(token, vaultId)
+    if (result) {
+      outfits.value = result
+    } else {
       error.value = 'Failed to load outfits'
       toast.error('Failed to load outfits')
-    } finally {
-      isLoading.value = false
     }
   }
 

@@ -8,7 +8,6 @@ import type {
   RadioMode,
 } from '../models/radio'
 import { useToast } from '@/core/composables/useToast'
-import { getErrorMessage } from '@/core/utils/errorHandler'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 
 export const useRadioStore = defineStore('radio', () => {
@@ -36,6 +35,27 @@ export const useRadioStore = defineStore('radio', () => {
       return result
     },
     { context: 'Failed to recruit dweller' }
+  )
+  const { run: runSetRadioMode } = useAsyncAction(
+    async (vaultId: string, mode: RadioMode) => {
+      await axios.put(`/api/v1/radio/vault/${vaultId}/mode`, null, { params: { mode } })
+      await fetchRadioStats(vaultId)
+      const modeLabel = mode === 'recruitment' ? 'Recruitment' : 'Happiness Boost'
+      toast.success(`Radio mode set to ${modeLabel}`)
+      return true
+    },
+    { context: 'Failed to set radio mode' }
+  )
+  const { run: runSetRadioSpeedup } = useAsyncAction(
+    async (vaultId: string, roomId: string, speedup: number) => {
+      await axios.put(`/api/v1/radio/vault/${vaultId}/room/${roomId}/speedup`, null, {
+        params: { speedup },
+      })
+      await fetchRadioStats(vaultId)
+      toast.success(`Radio speedup set to ${speedup}x`)
+      return true
+    },
+    { context: 'Failed to set radio speedup' }
   )
 
   // Actions
@@ -75,22 +95,7 @@ export const useRadioStore = defineStore('radio', () => {
   }
 
   async function setRadioMode(vaultId: string, mode: RadioMode): Promise<boolean> {
-    try {
-      await axios.put(`/api/v1/radio/vault/${vaultId}/mode`, null, {
-        params: { mode },
-      })
-
-      // Refresh stats after mode change
-      await fetchRadioStats(vaultId)
-
-      const modeLabel = mode === 'recruitment' ? 'Recruitment' : 'Happiness Boost'
-      toast.success(`Radio mode set to ${modeLabel}`)
-      return true
-    } catch (error: unknown) {
-      console.error('Failed to set radio mode:', error)
-      toast.error(getErrorMessage(error))
-      return false
-    }
+    return (await runSetRadioMode(vaultId, mode)) ?? false
   }
 
   async function setRadioSpeedup(
@@ -98,21 +103,7 @@ export const useRadioStore = defineStore('radio', () => {
     roomId: string,
     speedup: number
   ): Promise<boolean> {
-    try {
-      await axios.put(`/api/v1/radio/vault/${vaultId}/room/${roomId}/speedup`, null, {
-        params: { speedup },
-      })
-
-      // Refresh stats after speedup change
-      await fetchRadioStats(vaultId)
-
-      toast.success(`Radio speedup set to ${speedup}x`)
-      return true
-    } catch (error: unknown) {
-      console.error('Failed to set radio speedup:', error)
-      toast.error(getErrorMessage(error))
-      return false
-    }
+    return (await runSetRadioSpeedup(vaultId, roomId, speedup)) ?? false
   }
 
   function clearRadioStats() {

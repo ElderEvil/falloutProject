@@ -2,16 +2,16 @@
 import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import { useProfileStore } from '../stores/profile'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { UButton, UCard } from '@/core/components/ui'
-import ProfileEditor from '../components/ProfileEditor.vue'
 import { LifeDeathStatistics } from '@/modules/dwellers/components/death'
-import AIUsageCard from '../components/AIUsageCard.vue'
-import type { ProfileUpdate } from '../models/profile'
 import { useWebSocket } from '@/core/composables/useWebSocket'
 import { usePolling } from '@/core/composables/usePolling'
 import PageHeader from '@/core/components/common/PageHeader.vue'
+import { useProfileStore } from '../stores/profile'
+import ProfileEditor from '../components/ProfileEditor.vue'
+import AIUsageCard from '../components/AIUsageCard.vue'
+import type { ProfileUpdate } from '../models/profile'
 
 const router = useRouter()
 const profileStore = useProfileStore()

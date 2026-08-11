@@ -11,7 +11,15 @@ import type { IconComponent } from '@/core/types/utils'
  */
 
 interface Props {
-  variant?: 'success' | 'warning' | 'danger' | 'info' | 'default' | 'primary' | 'secondary' | 'outline'
+  variant?:
+    | 'success'
+    | 'warning'
+    | 'danger'
+    | 'info'
+    | 'default'
+    | 'primary'
+    | 'secondary'
+    | 'outline'
   size?: 'sm' | 'md' | 'lg'
   icon?: IconComponent
   dot?: boolean
@@ -25,8 +33,8 @@ const variantClasses = {
   danger: 'bg-danger text-white border-danger',
   info: 'border-2',
   default: 'bg-gray-700 border-gray-600',
-  primary: 'bg-success text-black',
-  secondary: 'bg-gray-700 border-gray-600',
+  primary: 'bg-success text-terminal-background border-theme-primary',
+  secondary: 'bg-gray-700 text-theme-primary border-gray-600',
   outline: 'bg-transparent border-gray-500 text-gray-300',
 }
 
@@ -40,8 +48,8 @@ const variantStyles = {
     borderColor: 'var(--color-theme-primary)',
   },
   default: { color: 'var(--color-theme-primary)' },
-  primary: { color: 'var(--color-terminal-background)', borderColor: 'var(--color-theme-primary)' },
-  secondary: { color: 'var(--color-theme-primary)' },
+  primary: {},
+  secondary: {},
   outline: {},
 }
 

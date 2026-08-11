@@ -18,6 +18,21 @@ AI-powered dweller interactions.
 
 ## Latest Release
 
+### Measurable Release Policy (v2.31.0+)
+
+Each release has one or two focused improvement areas and publishes the measured result. A release must improve at
+least one of the following without regressing features, readability, accessibility, or correctness:
+
+- startup/load time, endpoint latency, throughput, or test runtime;
+- memory footprint or bundle size;
+- code quality, including meaningful LOC reduction, complexity reduction, coverage, or static-analysis findings;
+- security, such as a remediated vulnerability, a hardened trust boundary, or new automated security coverage.
+
+Release notes must state the baseline, the after value, the measurement method/environment, and the absolute and
+percentage change. Claims must be reproducible from committed commands or CI artifacts. Do not report LOC reduction
+as an improvement unless the release retains equivalent behaviour and test coverage. If the release is primarily a
+feature delivery, record its measurable non-functional impact rather than inventing an optimization claim.
+
 ### v2.30.0 — Frontend Refactor (August 11, 2026)
 
 **Focus**: Simplify and harden the Vue frontend without changing backend runtime behavior.
@@ -229,7 +244,12 @@ AI-powered dweller interactions.
 ### DevOps
 
 - [x] Docker build automation → COMPLETED
-- [ ] Full CI/CD: smoke tests, DB dry-run, notifications, backup automation
+- [ ] Deploy immutable images: build and promote commit-SHA tags; production deployments select an explicit tested tag,
+  never `latest`
+- [ ] Run database migrations as a dedicated, pre-rollout Kubernetes Job and abort deployment if it fails
+- [ ] Add migration safety checks to backend CI (`alembic check` and `alembic current --check-heads` against PostgreSQL)
+- [ ] Add deterministic seed data and critical Playwright journeys, including stable visual regression baselines
+- [ ] Test the rollback workflow against a known image tag; automate staging while retaining manual production approval
 
 ---
 

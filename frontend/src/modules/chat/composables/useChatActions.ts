@@ -86,8 +86,9 @@ export function useChatActions(options: UseChatActionsOptions) {
           (r) => r.ability?.toLowerCase() === stat.toLowerCase()
         )
         const hasCapacity = (room: (typeof trainingRooms)[number], occupancy: number) => {
-          const capacity = room.capacity ?? (room as { max_capacity?: number }).max_capacity
-          return !capacity || occupancy < capacity
+          const roomSize = room.size ?? room.size_min ?? 3
+          const capacity = Math.ceil(roomSize / 3) * 2
+          return occupancy < capacity
         }
         let availableTrainingRoom = matchingStatRooms.find((r) => {
           const occupancy = dwellerStore.dwellers.filter((d) => d.room_id === r.id).length

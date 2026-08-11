@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import UButton from '@/core/components/ui/UButton.vue'
+import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import {
   happinessService,
   type HappinessModifiers,
@@ -15,7 +16,10 @@ const props = defineProps<Props>()
 
 const showModifiers = ref(false)
 const happinessModifiers = ref<HappinessModifiers | null>(null)
-const loadingModifiers = ref(false)
+const { run: runLoadModifiers, isLoading: loadingModifiers } = useAsyncAction(
+  (dwellerId: string) => happinessService.getDwellerModifiers(dwellerId),
+  { context: 'Failed to load happiness modifiers' }
+)
 
 const loadHappinessModifiers = async () => {
   if (happinessModifiers.value) {
@@ -23,15 +27,10 @@ const loadHappinessModifiers = async () => {
     return
   }
 
-  loadingModifiers.value = true
-  try {
-    const response = await happinessService.getDwellerModifiers(props.dwellerId)
+  const response = await runLoadModifiers(props.dwellerId)
+  if (response) {
     happinessModifiers.value = response.data
     showModifiers.value = true
-  } catch (error) {
-    console.error('Failed to load happiness modifiers:', error)
-  } finally {
-    loadingModifiers.value = false
   }
 }
 </script>

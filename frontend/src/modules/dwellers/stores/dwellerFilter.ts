@@ -13,7 +13,7 @@ import { handleStoreError } from '@/core/utils/errorHandler'
  */
 export const ALL_DWELLERS_FETCH_LIMIT = 1000
 
-export type DwellerStatus = 'idle' | 'working' | 'exploring' | 'questing' | 'training' | 'dead'
+export type DwellerStatus = 'idle' | 'working' | 'exploring' | 'questing' | 'training' | 'resting' | 'dead'
 export type DwellerAgeGroup = 'child' | 'teen' | 'adult' | 'all'
 
 export interface DwellerWithStatus extends DwellerShort {

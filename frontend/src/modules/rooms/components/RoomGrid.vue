@@ -225,7 +225,7 @@ const handleUpgradeRoom = async (roomId: string, event: MouseEvent) => {
 }
 
 // Handle room click to open detail modal
-const handleRoomClick = (room: Room, event: MouseEvent) => {
+const handleRoomClick = (room: Room, event: MouseEvent | KeyboardEvent) => {
   // Don't open detail modal if clicking on action buttons or incident overlay
   const target = event.target as HTMLElement
   if (

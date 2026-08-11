@@ -10,7 +10,7 @@ import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
 import DwellerFilterPanel from './DwellerFilterPanel.vue'
 import { normalizeImageUrl } from '@/core/utils/image'
 
-const dwellerStore = useDwellerStore()
+const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
 const authStore = useAuthStore()
 const toast = useToast()
@@ -105,7 +105,7 @@ const handleDropZoneDrop = async (event: DragEvent) => {
       return
     }
 
-    await dwellerStore.unassignDwellerFromRoom(dwellerId, authStore.token as string)
+    await dwellerManagementStore.unassignDwellerFromRoom(dwellerId, authStore.token as string)
 
     toast.success(`${firstName} ${lastName} unassigned from room`)
   } catch (error) {

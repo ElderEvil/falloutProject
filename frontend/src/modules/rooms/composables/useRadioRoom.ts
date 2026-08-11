@@ -16,7 +16,7 @@ export function useRadioRoom(
   const route = useRoute()
   const authStore = useAuthStore()
   const vaultStore = useVaultStore()
-  const dwellerStore = useDwellerStore()
+  const { filter: dwellerStore } = useDwellerStore()
   const toast = useToast()
 
   const isRecruiting = ref(false)

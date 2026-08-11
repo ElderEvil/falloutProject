@@ -10,8 +10,8 @@ import { useIncidentStore } from '@/modules/combat/stores/incident'
 import RoomGrid from '@/modules/rooms/components/RoomGrid.vue'
 import BuildModeButton from '@/core/components/common/BuildModeButton.vue'
 import RoomMenu from '@/modules/rooms/components/RoomMenu.vue'
-import ResourceBar from '@/core/components/common/ResourceBar.vue'
-import GameControlPanel from '@/core/components/common/GameControlPanel.vue'
+import ResourceBar from '@/modules/vault/components/shell/ResourceBar.vue'
+import GameControlPanel from '@/modules/vault/components/shell/GameControlPanel.vue'
 import UnassignedDwellers from '@/modules/dwellers/components/UnassignedDwellers.vue'
 import WastelandPanel from '@/modules/exploration/components/WastelandPanel.vue'
 import IncidentAlert from '@/modules/combat/components/incidents/IncidentAlert.vue'
@@ -39,7 +39,7 @@ const route = useRoute()
 const authStore = useAuthStore()
 const roomStore = useRoomStore()
 const vaultStore = useVaultStore()
-const dwellerStore = useDwellerStore()
+const { filter: dwellerStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
 const incidentStore = useIncidentStore()
 const { isCollapsed } = useSidePanel()

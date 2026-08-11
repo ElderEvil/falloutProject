@@ -56,17 +56,6 @@ const router = createRouter({
       // Lazy-load the AboutView component
       component: () => import('@/modules/profile/views/AboutView.vue'),
     },
-    {
-      path: '/nuxt-ui-poc',
-      name: 'nuxt-ui-poc',
-      component: () => import('@/views/NuxtUiPocView.vue'),
-    },
-    {
-      path: '/vault/:id/ui-test',
-      name: 'ui-test',
-      component: () => import('@/views/UITestView.vue'),
-      meta: { requiresAuth: true },
-    },
   ],
 })
 

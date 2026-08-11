@@ -18,7 +18,7 @@ import { DeadDwellerCard } from '../components/death'
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
-const dwellerStore = useDwellerStore()
+const { death: dwellerStore } = useDwellerStore()
 const vaultStore = useVaultStore()
 const { isCollapsed } = useSidePanel()
 const scanlinesEnabled = inject('scanlines', ref(true))

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import ResourceBar from '@/core/components/common/ResourceBar.vue'
+import ResourceBar from '@/modules/vault/components/shell/ResourceBar.vue'
 
 // Mock @iconify/vue
 vi.mock('@iconify/vue', () => ({
@@ -157,7 +157,7 @@ describe('ResourceBar', () => {
       })
 
       const barContainer = wrapper.find(
-        '.h-6.w-40.rounded-full.border-2.border-gray-600.bg-gray-800'
+        '.h-6.w-40.rounded-full.border-2.border-\\[var\\(--color-surface-border\\)\\].bg-\\[var\\(--color-surface-raised\\)\\]'
       )
       expect(barContainer.exists()).toBe(true)
     })
@@ -188,7 +188,7 @@ describe('ResourceBar', () => {
       })
 
       const progressBar = wrapper.find('.transition-all')
-      expect(progressBar.attributes('style')).toContain('background-color: var(--color-danger)')
+      expect(progressBar.classes()).toContain('bg-danger')
     })
 
     it('should show orange color for low status (<=20%)', () => {
@@ -201,7 +201,7 @@ describe('ResourceBar', () => {
       })
 
       const progressBar = wrapper.find('.transition-all')
-      expect(progressBar.attributes('style')).toContain('background-color: var(--color-warning)')
+      expect(progressBar.classes()).toContain('bg-warning')
     })
 
     it('should show yellow color for medium status (<=50%)', () => {
@@ -214,7 +214,7 @@ describe('ResourceBar', () => {
       })
 
       const progressBar = wrapper.find('.transition-all')
-      expect(progressBar.attributes('style')).toContain('background-color: var(--color-yellow-500)')
+      expect(progressBar.classes()).toContain('bg-yellow-500')
     })
 
     it('should show green color for healthy status (>50%)', () => {
@@ -227,9 +227,7 @@ describe('ResourceBar', () => {
       })
 
       const progressBar = wrapper.find('.transition-all')
-      expect(progressBar.attributes('style')).toContain(
-        'background-color: var(--color-theme-primary)'
-      )
+      expect(progressBar.classes()).toContain('bg-theme-primary')
     })
   })
 

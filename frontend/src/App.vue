@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { provide } from 'vue'
-import DefaultLayout from '@/core/components/layout/DefaultLayout.vue'
+import DefaultLayout from '@/modules/vault/components/shell/DefaultLayout.vue'
 import UToastContainer from '@/core/components/ui/UToastContainer.vue'
 import ChangelogModal from '@/modules/profile/components/ChangelogModal.vue'
 import GaryOverlay from '@/core/components/easter-eggs/GaryOverlay.vue'
@@ -12,6 +12,7 @@ import { useResourceWarnings } from '@/modules/vault/composables/useResourceWarn
 import { useVersionDetection } from '@/core/composables/useVersionDetection'
 import { useGaryMode } from '@/core/composables/useGaryMode'
 import { useFakeCrash } from '@/core/composables/useFakeCrash'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 
 // Visual effects (replaces old useFlickering)
 const visualEffects = useVisualEffects()
@@ -21,13 +22,22 @@ const { flickering, scanlines, glowClass, flickerOpacity } = visualEffects
 const { currentTheme, setTheme, availableThemes } = useTheme()
 
 // Token refresh system (auto-refreshes tokens before expiry)
-useTokenRefresh()
+const authStore = useAuthStore()
+useTokenRefresh({
+  getToken: () => authStore.token,
+  getRefreshToken: () => authStore.refreshToken,
+  isAuthenticated: () => authStore.isAuthenticated,
+  refreshAccessToken: () => authStore.refreshAccessToken(),
+  logout: () => authStore.logout(),
+})
 
 // Resource warnings system
 useResourceWarnings()
 
 // Version detection and changelog system
-const { showChangelogModal, versionInfo, markVersionAsSeen, hideChangelog } = useVersionDetection()
+const { showChangelogModal, versionInfo, markVersionAsSeen, hideChangelog } = useVersionDetection({
+  isAuthenticated: () => authStore.isAuthenticated,
+})
 
 // Easter eggs
 const { isGaryMode } = useGaryMode()
@@ -49,7 +59,7 @@ provide('availableThemes', availableThemes)
 </script>
 
 <template>
-  <UApp>
+  <div>
     <DefaultLayout :isFlickering="flickering" :flicker-opacity="flickerOpacity">
       <router-view></router-view>
     </DefaultLayout>
@@ -59,7 +69,7 @@ provide('availableThemes', availableThemes)
     <ChangelogModal
       :show="showChangelogModal"
       :current-version="versionInfo.current"
-      :last-seen-version="versionInfo.lastSeen"
+      :last-seen-version="versionInfo.lastSeen ?? undefined"
       @close="hideChangelog"
       @mark-as-seen="markVersionAsSeen"
     />
@@ -67,5 +77,5 @@ provide('availableThemes', availableThemes)
     <!-- Easter Egg Overlays -->
     <GaryOverlay :show="isGaryMode" />
     <FakeCrashOverlay :show="isCrashing" @complete="resetCrash" />
-  </UApp>
+  </div>
 </template>

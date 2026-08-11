@@ -1,18 +1,19 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useToast } from '@/core/composables/useToast'
+import { usePolling } from '@/core/composables/usePolling'
 import { Icon } from '@iconify/vue'
 import ExplorationRewardsModal from '@/modules/exploration/components/ExplorationRewardsModal.vue'
 import type { RewardsSummary } from '@/modules/exploration/stores/exploration'
 
 const route = useRoute()
 const authStore = useAuthStore()
-const dwellerStore = useDwellerStore()
+const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
 const vaultStore = useVaultStore()
 const toast = useToast()
@@ -68,44 +69,36 @@ onMounted(async () => {
   }
 })
 
-// Poll for exploration updates every 30 seconds and check for completion
-let pollInterval: ReturnType<typeof setInterval> | null = null
-onMounted(() => {
-  pollInterval = setInterval(async () => {
-    if (vaultId.value && authStore.token && explorationStore.activeExplorations) {
-      try {
-        await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
+// Poll for exploration updates every 30 seconds. usePolling owns cleanup when
+// this component's scope is disposed and prevents overlapping refreshes.
+const pollExplorations = async () => {
+  if (!vaultId.value || !authStore.token || !explorationStore.activeExplorations) return
 
-        // Check for completed explorations and fetch detailed data for new explorers
-        for (const exploration of activeExplorationsArray.value) {
-          const progress = getProgressPercentage(exploration.id)
+  try {
+    await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
 
-          // Fetch full dweller data if not already loaded
-          if (!dwellerStore.detailedDwellers[exploration.dweller_id]) {
-            await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
-          }
+    // Check for completed explorations and fetch detailed data for new explorers
+    for (const exploration of activeExplorationsArray.value) {
+      const progress = getProgressPercentage(exploration.id)
 
-          if (
-            progress >= 100 &&
-            exploration.status === 'active' &&
-            !completingExplorations.value.has(exploration.id)
-          ) {
-            // Auto-complete exploration
-            await handleCompleteExploration(exploration.id)
-          }
-        }
-      } catch (error) {
-        console.error('Failed to poll explorations:', error)
+      if (!dwellerStore.detailedDwellers[exploration.dweller_id]) {
+        await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
+      }
+
+      if (
+        progress >= 100 &&
+        exploration.status === 'active' &&
+        !completingExplorations.value.has(exploration.id)
+      ) {
+        await handleCompleteExploration(exploration.id)
       }
     }
-  }, 30000)
-})
-
-onUnmounted(() => {
-  if (pollInterval) {
-    clearInterval(pollInterval)
+  } catch (error) {
+    console.error('Failed to poll explorations:', error)
   }
-})
+}
+
+usePolling(pollExplorations, { interval: 30_000, immediate: false })
 
 const activeExplorationsArray = computed(() => {
   return Object.values(explorationStore.activeExplorations)
@@ -189,7 +182,7 @@ const confirmSendToWasteland = async () => {
 
     // If dweller is assigned to a room, unassign them first
     if (currentRoomId) {
-      await dwellerStore.unassignDwellerFromRoom(dwellerId, authStore.token)
+      await dwellerManagementStore.unassignDwellerFromRoom(dwellerId, authStore.token)
     }
 
     // Send to wasteland
@@ -281,10 +274,7 @@ const recallDweller = async (explorationId: string) => {
     }
   } catch (error) {
     console.error('Failed to recall dweller:', error)
-    sendError.value = 'Failed to recall dweller'
-    setTimeout(() => {
-      sendError.value = null
-    }, 3000)
+    toast.error('Failed to recall dweller')
   }
 }
 
@@ -329,10 +319,7 @@ const handleCompleteExploration = async (explorationId: string) => {
     }
   } catch (error) {
     console.error('Failed to complete exploration:', error)
-    sendError.value = 'Failed to complete exploration'
-    setTimeout(() => {
-      sendError.value = null
-    }, 3000)
+    toast.error('Failed to complete exploration')
   } finally {
     completingExplorations.value.delete(explorationId)
   }

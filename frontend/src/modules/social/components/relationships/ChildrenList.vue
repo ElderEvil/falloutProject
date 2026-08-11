@@ -93,7 +93,7 @@ interface Props {
 
 defineProps<Props>()
 
-const dwellerStore = useDwellerStore()
+const { filter: dwellerStore } = useDwellerStore()
 
 const children = computed(() => dwellerStore.dwellers.filter((d) => d.age_group === 'child'))
 </script>

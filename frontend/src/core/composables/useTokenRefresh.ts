@@ -1,5 +1,4 @@
 import { onMounted, onUnmounted, ref, watch, getCurrentInstance } from 'vue'
-import { useAuthStore } from '@/modules/auth/stores/auth'
 import { jwtDecode } from 'jwt-decode'
 
 interface JWTPayload {
@@ -10,8 +9,15 @@ interface JWTPayload {
 const REFRESH_BEFORE_EXPIRY_MS = 5 * 60 * 1000 // 5 minutes before expiry
 const CHECK_INTERVAL_MS = 60 * 1000 // Check every minute
 
-export function useTokenRefresh() {
-  const authStore = useAuthStore()
+export interface TokenRefreshDependencies {
+  getToken: () => string | null
+  getRefreshToken: () => string | null
+  isAuthenticated: () => boolean
+  refreshAccessToken: () => Promise<void>
+  logout: () => Promise<void>
+}
+
+export function useTokenRefresh(dependencies: TokenRefreshDependencies) {
   const refreshTimer = ref<ReturnType<typeof setInterval> | null>(null)
   const isRefreshing = ref(false)
   let authWatcherStop: (() => void) | null = null
@@ -68,8 +74,8 @@ export function useTokenRefresh() {
       return
     }
 
-    const currentToken = authStore.token
-    const currentRefreshToken = authStore.refreshToken
+    const currentToken = dependencies.getToken()
+    const currentRefreshToken = dependencies.getRefreshToken()
 
     if (!currentToken || !currentRefreshToken) {
       console.debug('No tokens available, skipping refresh')
@@ -85,7 +91,7 @@ export function useTokenRefresh() {
     // Check if refresh token is expired
     if (isTokenExpired(currentRefreshToken)) {
       console.warn('Refresh token expired, logging out')
-      await authStore.logout()
+      await dependencies.logout()
       return
     }
 
@@ -93,12 +99,12 @@ export function useTokenRefresh() {
 
     try {
       console.debug('Refreshing access token proactively')
-      await authStore.refreshAccessToken()
+      await dependencies.refreshAccessToken()
       console.debug('Access token refreshed successfully')
     } catch (error) {
       console.error('Failed to refresh token:', error)
       // If refresh fails, log out the user
-      await authStore.logout()
+      await dependencies.logout()
     } finally {
       isRefreshing.value = false
     }
@@ -145,7 +151,7 @@ export function useTokenRefresh() {
     } else {
       console.debug('Tab visible, checking auth state before resuming token refresh')
       // Only resume if user is authenticated
-      if (authStore.isAuthenticated) {
+      if (dependencies.isAuthenticated()) {
         console.debug('User authenticated, resuming token refresh')
         // When tab becomes visible, check immediately and restart timer
         refreshToken()
@@ -166,7 +172,7 @@ export function useTokenRefresh() {
     // Always register visibility listener regardless of auth state
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
-    if (!authStore.isAuthenticated) {
+    if (!dependencies.isAuthenticated()) {
       console.debug('User not authenticated, skipping token refresh setup')
       return
     }
@@ -196,7 +202,7 @@ export function useTokenRefresh() {
 
       // Watch auth state and start/stop refresh based on authentication
       authWatcherStop = watch(
-        () => authStore.isAuthenticated,
+        dependencies.isAuthenticated,
         (isAuthenticated) => {
           if (isAuthenticated) {
             console.debug('User authenticated, starting token refresh')

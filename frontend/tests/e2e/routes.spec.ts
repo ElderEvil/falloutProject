@@ -128,7 +128,6 @@ test.describe('Auth page coverage — no page errors (403 console tolerated)', (
     { url: '/settings', name: 'settings' },
     { url: '/preferences', name: 'preferences' },
     { url: '/changelog', name: 'changelog' },
-    { url: '/nuxt-ui-poc', name: 'nuxt-ui-poc' },
     { url: '/vault/fake-id/storage', name: 'storage-repeat' },
   ]
 

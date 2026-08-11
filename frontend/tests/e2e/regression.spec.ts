@@ -148,11 +148,6 @@ test.describe('UI component rendering', () => {
     expect(count).toBeGreaterThanOrEqual(2)
   })
 
-  test('app does not render NuxtUiPocView as default', async ({ page }) => {
-    await page.goto('/nuxt-ui-poc')
-    await page.waitForLoadState('networkidle')
-    await expect(page.locator('body')).toBeVisible()
-  })
 })
 
 test.describe('Error handling / edge cases', () => {

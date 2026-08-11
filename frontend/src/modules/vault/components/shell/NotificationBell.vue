@@ -222,8 +222,8 @@ onBeforeUnmount(() => {
     <!-- Bell Button -->
     <button
       @click="togglePopup"
-      class="relative flex items-center justify-center rounded p-2 transition-all duration-200 hover:bg-gray-800/50"
-      :class="{ 'bg-gray-800/50': showPopup }"
+      class="relative flex items-center justify-center rounded p-2 transition-all duration-200 hover:bg-[var(--color-surface-raised)]/50"
+      :class="{ 'bg-[var(--color-surface-raised)]/50': showPopup }"
       title="Notifications"
     >
       <Icon
@@ -245,14 +245,11 @@ onBeforeUnmount(() => {
     <Transition name="fade">
       <div
         v-if="showPopup"
-        class="absolute right-0 top-12 z-50 w-96 rounded border bg-gray-900 shadow-2xl"
-        :style="{
-          borderColor: 'rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3)',
-        }"
+        class="absolute right-0 top-12 z-50 w-96 rounded border border-theme-primary/30 bg-[var(--color-surface-warm)] shadow-2xl"
       >
         <!-- Header -->
-        <div class="flex items-center justify-between border-b border-gray-800 px-4 py-3">
-          <h3 class="font-semibold" :style="{ color: 'var(--color-theme-primary)' }">
+        <div class="flex items-center justify-between border-b border-[var(--color-surface-border)] px-4 py-3">
+          <h3 class="font-semibold text-theme-primary">
             Notifications
           </h3>
           <button
@@ -276,15 +273,16 @@ onBeforeUnmount(() => {
             <p class="text-sm">No notifications yet</p>
           </div>
 
-          <div v-else class="divide-y divide-gray-800">
-            <div
+          <div v-else class="divide-y divide-[var(--color-surface-border)]">
+            <button
               v-for="notification in notifications"
               :key="notification.id"
+              type="button"
               @click="!notification.is_read && markAsRead(notification.id)"
-              class="p-4 transition-colors cursor-pointer"
+              class="w-full border-0 p-4 text-left transition-colors cursor-pointer"
               :class="{
-                'bg-gray-800/30': !notification.is_read,
-                'hover:bg-gray-800/50': true,
+                'bg-[var(--color-surface-raised)]/30': !notification.is_read,
+                'hover:bg-[var(--color-surface-raised)]/50': true,
               }"
             >
               <div class="flex items-start space-x-3">
@@ -317,7 +315,7 @@ onBeforeUnmount(() => {
                   </div>
                 </div>
               </div>
-            </div>
+            </button>
           </div>
         </div>
       </div>

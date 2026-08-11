@@ -54,17 +54,17 @@ const status = computed(() => {
   return 'healthy'
 })
 
-const barColorStyle = computed(() => {
+const barColorClass = computed(() => {
   // Bar fill color changes based on resource status
   switch (status.value) {
     case 'critical':
-      return 'var(--color-danger)'
+      return 'bg-danger'
     case 'low':
-      return 'var(--color-warning)'
+      return 'bg-warning'
     case 'medium':
-      return 'var(--color-yellow-500)'
+      return 'bg-yellow-500'
     default:
-      return 'var(--color-theme-primary)' // Theme-aware
+      return 'bg-theme-primary'
   }
 })
 
@@ -127,14 +127,14 @@ const ariaLabel = computed(
 
       <div class="relative">
         <div
-          class="relative h-6 w-40 rounded-full border-2 border-gray-600 bg-gray-800 overflow-hidden"
+          class="relative h-6 w-40 rounded-full border-2 border-[var(--color-surface-border)] bg-[var(--color-surface-raised)] overflow-hidden"
         >
           <!-- Filled part of the bar with smooth transition -->
           <div
-            class="absolute top-0 left-0 h-full rounded-full transition-all duration-500 ease-out z-0"
+            class="absolute top-0 left-0 z-0 h-full rounded-full transition-all duration-500 ease-out"
+            :class="barColorClass"
             :style="{
               width: `${percentage}%`,
-              backgroundColor: barColorStyle,
             }"
             aria-hidden="true"
           ></div>
@@ -145,13 +145,7 @@ const ariaLabel = computed(
             aria-hidden="true"
           >
             <span
-              class="text-gray-900 drop-shadow-[0_2px_4px_rgba(255,255,255,0.9)]"
-              style="
-                text-shadow:
-                  0 0 8px rgba(255, 255, 255, 0.9),
-                  0 0 4px rgba(255, 255, 255, 0.8),
-                  0 1px 2px rgba(0, 0, 0, 0.8);
-              "
+              class="resource-value text-gray-900 drop-shadow-[0_2px_4px_rgba(255,255,255,0.9)]"
             >
               {{ props.current }}/{{ props.max }}
             </span>
@@ -184,5 +178,10 @@ const ariaLabel = computed(
 </template>
 
 <style scoped>
-/* Additional styles if needed */
+.resource-value {
+  text-shadow:
+    0 0 8px rgba(255, 255, 255, 0.9),
+    0 0 4px rgba(255, 255, 255, 0.8),
+    0 1px 2px rgba(0, 0, 0, 0.8);
+}
 </style>

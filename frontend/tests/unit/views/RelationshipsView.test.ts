@@ -69,7 +69,7 @@ describe('RelationshipsView', () => {
   beforeEach(async () => {
     setActivePinia(createPinia())
     relationshipStore = useRelationshipStore()
-    dwellerStore = useDwellerStore()
+    dwellerStore = useDwellerStore().filter
     authStore = useAuthStore()
 
     // Mock store methods

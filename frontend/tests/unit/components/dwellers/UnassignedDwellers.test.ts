@@ -71,6 +71,7 @@ function createDropEvent(
 
 describe('UnassignedDwellers', () => {
   let dwellerStore: any
+  let dwellerManagementStore: any
   let explorationStore: any
   let authStore: any
 
@@ -92,7 +93,9 @@ describe('UnassignedDwellers', () => {
 
   beforeEach(() => {
     setActivePinia(createPinia())
-    dwellerStore = useDwellerStore()
+    const stores = useDwellerStore()
+    dwellerStore = stores.filter
+    dwellerManagementStore = stores.management
     explorationStore = useExplorationStore()
     authStore = useAuthStore()
 
@@ -100,7 +103,7 @@ describe('UnassignedDwellers', () => {
     dwellerStore.dwellers = []
 
     // Mock the unassignDwellerFromRoom action
-    dwellerStore.unassignDwellerFromRoom = vi.fn().mockResolvedValue(undefined)
+    dwellerManagementStore.unassignDwellerFromRoom = vi.fn().mockResolvedValue(undefined)
     authStore.token = 'mock-token'
     vi.clearAllMocks()
   })
@@ -268,7 +271,10 @@ describe('UnassignedDwellers', () => {
 
       await flushPromises()
 
-      expect(dwellerStore.unassignDwellerFromRoom).toHaveBeenCalledWith('dweller-1', 'mock-token')
+      expect(dwellerManagementStore.unassignDwellerFromRoom).toHaveBeenCalledWith(
+        'dweller-1',
+        'mock-token'
+      )
     })
 
     it('should show success message after unassigning', async () => {
@@ -281,7 +287,10 @@ describe('UnassignedDwellers', () => {
 
       await flushPromises()
 
-      expect(dwellerStore.unassignDwellerFromRoom).toHaveBeenCalledWith('dweller-1', 'mock-token')
+      expect(dwellerManagementStore.unassignDwellerFromRoom).toHaveBeenCalledWith(
+        'dweller-1',
+        'mock-token'
+      )
       expect(mockToast.success).toHaveBeenCalledWith('John Doe unassigned from room')
     })
 
@@ -295,7 +304,7 @@ describe('UnassignedDwellers', () => {
 
       await flushPromises()
 
-      expect(dwellerStore.unassignDwellerFromRoom).not.toHaveBeenCalled()
+      expect(dwellerManagementStore.unassignDwellerFromRoom).not.toHaveBeenCalled()
     })
   })
 
@@ -330,7 +339,9 @@ describe('UnassignedDwellers', () => {
 
   describe('Error Handling', () => {
     it('should show error message on unassign failure', async () => {
-      dwellerStore.unassignDwellerFromRoom = vi.fn().mockRejectedValue(new Error('Unassign failed'))
+      dwellerManagementStore.unassignDwellerFromRoom = vi
+        .fn()
+        .mockRejectedValue(new Error('Unassign failed'))
       dwellerStore.dwellers = []
 
       const wrapper = mount(UnassignedDwellers)
@@ -340,7 +351,10 @@ describe('UnassignedDwellers', () => {
 
       await flushPromises()
 
-      expect(dwellerStore.unassignDwellerFromRoom).toHaveBeenCalledWith('dweller-1', 'mock-token')
+      expect(dwellerManagementStore.unassignDwellerFromRoom).toHaveBeenCalledWith(
+        'dweller-1',
+        'mock-token'
+      )
       expect(mockToast.error).toHaveBeenCalledWith('Failed to unassign dweller')
     })
   })

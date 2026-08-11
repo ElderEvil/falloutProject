@@ -18,6 +18,17 @@ AI-powered dweller interactions.
 
 ## Latest Release
 
+### v2.30.0 — Frontend Refactor (August 11, 2026)
+
+**Focus**: Simplify and harden the Vue frontend without changing backend runtime behavior.
+
+**Completed:**
+- ✅ **Truthful frontend checks** — typecheck and module-boundary checks are enforced in CI
+- ✅ **Shared async behavior** — polling and async actions centralize loading and error handling
+- ✅ **View simplification** — major dweller, chat, exploration, and room views use focused components
+- ✅ **UX polish** — user-facing errors surface through toasts; loading and empty states are consistent
+- ✅ **Version bump** — backend/frontend aligned at v2.30.0
+
 ### v2.26.0 — Alembic Enum Sync & Regression Coverage (August 7, 2026)
 
 **Focus**: Close the enum-drift gap that caused the `DWELLER_DIED` production outage — verify no drift exists today, then lock it with regression tests
@@ -69,12 +80,11 @@ AI-powered dweller interactions.
 
 ---
 
-### v2.23.0 — Chat WebSocket & Axios→fetch Migration (July 1, 2026)
+### v2.23.0 — Chat WebSocket Migration (July 1, 2026)
 
-**Focus**: Execute HTTP client migration and chat WebSocket migration
+**Focus**: Chat WebSocket migration
 
 **Completed:**
-- ✅ **Axios→fetch migration** — Executed `HTTP_CLIENT_MIGRATION.md` 6-phase plan: fetch adapter, call-site migration, interceptor/token-refresh migration, dropped axios dep (~14KB gzip bundle saving)
 - ✅ **Chat REST→WebSocket migration** — Replaced POST-SSE chat streaming with dedicated WebSocket endpoint; removed chat SSE stub from stream.py
 - ✅ **Version bump** — Backend/frontend aligned at v2.23.0
 
@@ -241,7 +251,7 @@ AI-powered dweller interactions.
 | v2.25.0 | Aug 07, 2026 | Map declutter, 160-world scaling, pregen service |
 | v2.24.0 | Aug 07, 2026 | World Map (schematic map, discoveries, bio places) |
 | v2.23.1 | Jul 13, 2026 | Vue 3.5 Reactive Destructure Migration       |
-| v2.23.0 | Jul 01, 2026 | Chat WebSocket & Axios→fetch Migration       |
+| v2.23.0 | Jul 01, 2026 | Chat WebSocket migration                     |
 | v2.22.0 | Jun 28, 2026 | Terminal Background Cleanup                  |
 | v2.21.0 | Jun 24, 2026 | SSE Polish (incident/game-tick SSE)          |
 | v2.20.0 | Jun 22, 2026 | FE Simplification (YAGNI + DRY)              |

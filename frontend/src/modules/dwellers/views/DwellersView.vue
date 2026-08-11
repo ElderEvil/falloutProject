@@ -41,7 +41,12 @@ const RoomDetailModal = defineAsyncComponent({
 })
 
 const authStore = useAuthStore()
-const dwellerStore = useDwellerStore()
+const {
+  filter: dwellerStore,
+  generation: dwellerGenerationStore,
+  management: dwellerManagementStore,
+  death: dwellerDeathStore,
+} = useDwellerStore()
 const vaultStore = useVaultStore()
 const roomStore = useRoomStore()
 const incidentStore = useIncidentStore()
@@ -187,7 +192,7 @@ watch(
       // Fetch dead dwellers when dead filter is active
       // Guard: ensure vaultId and token are present before fetching
       if (vaultId.value && authStore.token) {
-        await dwellerStore.fetchDeadDwellers(vaultId.value, authStore.token)
+        await dwellerDeathStore.fetchDeadDwellers(vaultId.value, authStore.token)
       }
     } else {
       await fetchDwellers()
@@ -201,9 +206,9 @@ const handleRevive = async (dwellerId: string) => {
 
   revivingDwellers.value[dwellerId] = true
   try {
-    await dwellerStore.reviveDweller(dwellerId, authStore.token)
+    await dwellerDeathStore.reviveDweller(dwellerId, authStore.token)
     // Refresh dead dwellers list
-    await dwellerStore.fetchDeadDwellers(vaultId.value, authStore.token)
+    await dwellerDeathStore.fetchDeadDwellers(vaultId.value, authStore.token)
   } finally {
     revivingDwellers.value[dwellerId] = false
   }
@@ -228,7 +233,7 @@ const navigateToChatPage = (dwellerId: string) => {
 const generateDwellerInfo = async (dwellerId: string) => {
   generatingAI.value[dwellerId] = true
   try {
-    const result = await dwellerStore.generateDwellerInfo(dwellerId, authStore.token as string)
+    const result = await dwellerGenerationStore.generateDwellerInfo(dwellerId, authStore.token as string)
     if (result) {
       // Refresh the dweller list to get the updated thumbnail_url
       await fetchDwellers()
@@ -320,7 +325,7 @@ const closeRoomModal = () => {
 const handleQuickUnassign = async (dwellerId: string) => {
   if (!authStore.token) return
   try {
-    await dwellerStore.unassignDwellerFromRoom(dwellerId, authStore.token)
+    await dwellerManagementStore.unassignDwellerFromRoom(dwellerId, authStore.token)
   } catch (error) {
     console.error('Error unassigning dweller:', error)
   }

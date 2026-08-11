@@ -1,16 +1,21 @@
 /// <reference types="vite-plus/client" />
 
 // Global constants injected by Vite define
-declare const __APP_VERSION__: string
+declare global {
+  const __APP_VERSION__: string
 
-interface ImportMetaEnv {
-  readonly __APP_VERSION__: string
-  readonly VITE_API_BASE_URL: string
+  interface ImportMetaEnv {
+    readonly __APP_VERSION__: string
+    readonly VITE_API_BASE_URL?: string
+  }
+
+  interface ImportMeta {
+    readonly env: ImportMetaEnv
+  }
 }
 
-interface ImportMeta {
-  readonly env: ImportMetaEnv
-}
+// Augment Vue's existing runtime-core declarations instead of replacing them.
+import '@vue/runtime-core'
 
 // Declare vMotion directive from @vueuse/motion
 declare module '@vue/runtime-core' {

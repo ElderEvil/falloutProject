@@ -25,7 +25,7 @@ describe('DwellerFilterPanel', () => {
 
     it('should update store when status filter is clicked', async () => {
       const wrapper = mount(DwellerFilterPanel)
-      const store = useDwellerStore()
+      const store = useDwellerStore().filter
 
       // Find and click the "Working" filter button
       const buttons = wrapper.findAll('.filter-button')
@@ -39,7 +39,7 @@ describe('DwellerFilterPanel', () => {
 
     it('should highlight active filter with active class', async () => {
       const wrapper = mount(DwellerFilterPanel)
-      const store = useDwellerStore()
+      const store = useDwellerStore().filter
 
       store.setFilterStatus('working')
       await wrapper.vm.$nextTick()
@@ -61,7 +61,7 @@ describe('DwellerFilterPanel', () => {
 
     it('should update store when sort option is changed', async () => {
       const wrapper = mount(DwellerFilterPanel)
-      const store = useDwellerStore()
+      const store = useDwellerStore().filter
 
       const sortSelect = wrapper.find('.sort-select')
       await sortSelect.setValue('level')

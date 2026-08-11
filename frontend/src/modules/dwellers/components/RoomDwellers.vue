@@ -11,7 +11,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-const dwellerStore = useDwellerStore()
+const { filter: dwellerStore } = useDwellerStore()
 
 const emit = defineEmits<{
   dragStart: [dweller: DwellerShort]

@@ -46,7 +46,7 @@ import RadioStatsPanel from '../components/RadioStatsPanel.vue'
 const route = useRoute()
 const { isCollapsed } = useSidePanel()
 const radioStore = useRadioStore()
-const dwellerStore = useDwellerStore()
+const { filter: dwellerStore } = useDwellerStore()
 const vaultStore = useVaultStore()
 const authStore = useAuthStore()
 

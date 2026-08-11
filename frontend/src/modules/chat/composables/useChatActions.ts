@@ -23,7 +23,7 @@ export interface UseChatActionsOptions {
 
 export function useChatActions(options: UseChatActionsOptions) {
   const authStore = useAuthStore()
-  const dwellerStore = useDwellerStore()
+  const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
   const vaultStore = useVaultStore()
   const roomStore = useRoomStore()
   const explorationStore = useExplorationStore()
@@ -39,7 +39,7 @@ export function useChatActions(options: UseChatActionsOptions) {
 
     isPerformingAction.value = true
     try {
-      await dwellerStore.assignDwellerToRoom(options.dwellerId, roomId, authStore.token)
+      await dwellerManagementStore.assignDwellerToRoom(options.dwellerId, roomId, authStore.token)
       toast.success(`${options.dwellerName} assigned to ${roomName}`)
       return true
     } catch (error) {
@@ -103,7 +103,7 @@ export function useChatActions(options: UseChatActionsOptions) {
         }
 
         toast.info(`Moving ${options.dwellerName} to training room...`)
-        await dwellerStore.assignDwellerToRoom(
+        await dwellerManagementStore.assignDwellerToRoom(
           options.dwellerId,
           availableTrainingRoom.id,
           authStore.token
@@ -143,7 +143,7 @@ export function useChatActions(options: UseChatActionsOptions) {
       }
 
       if (dweller.room_id) {
-        await dwellerStore.unassignDwellerFromRoom(options.dwellerId, authStore.token)
+        await dwellerManagementStore.unassignDwellerFromRoom(options.dwellerId, authStore.token)
       }
 
       toast.info(`Sending ${options.dwellerName} to wasteland...`)

@@ -62,7 +62,7 @@ interface Props {
 const { autoRefresh = true, refreshInterval = 30, vaultId } = defineProps<Props>()
 
 const pregnancyStore = usePregnancyStore()
-const dwellerStore = useDwellerStore()
+const { filter: dwellerStore } = useDwellerStore()
 const authStore = useAuthStore()
 
 const pregnancies = computed(() => pregnancyStore.activePregnancies)

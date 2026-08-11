@@ -1,9 +1,13 @@
 import { AxiosError } from 'axios'
-import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import apiClient from '@/core/plugins/axios'
 import { changelogService, type ChangelogEntry } from '@/modules/profile/services/changelogService'
 
 describe('ChangelogService', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
   })

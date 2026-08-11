@@ -18,6 +18,9 @@ interface Props {
 }
 
 const { padding = 'md', glow = false, crt = false, bordered = true, title } = defineProps<Props>()
+const emit = defineEmits<{
+  click: [event: MouseEvent]
+}>()
 
 const paddingClasses = {
   none: '',
@@ -39,7 +42,7 @@ const cardClasses = [
 </script>
 
 <template>
-  <div :class="cardClasses">
+  <div :class="cardClasses" @click="emit('click', $event)">
     <!-- Header Slot -->
     <div v-if="$slots.header || title" class="mb-4 border-b border-gray-700 pb-4">
       <slot name="header">

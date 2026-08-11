@@ -78,7 +78,7 @@ const tooltipText = computed(() => `${displayLabel.value} (${label.value})`)
     <title>{{ tooltipText }}</title>
     <foreignObject x="-3" y="-3" width="6" height="6">
       <div
-        xmlns="http://www.w3.org/1999/xhtml"
+        v-bind="{ xmlns: 'http://www.w3.org/1999/xhtml' }"
         class="marker-icon"
         :class="{
           'marker-discovery': isDiscovery,

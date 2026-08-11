@@ -146,10 +146,13 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
                 self.model,
                 func.count(Room.id.distinct()).label("room_count"),
                 func.count(Dweller.id.distinct()).label("dweller_count"),
+                func.coalesce(func.max(Storage.stimpack), 0).label("stimpack"),
+                func.coalesce(func.max(Storage.radaway), 0).label("radaway"),
             )
             .select_from(Vault)
             .join(Room, Room.vault_id == self.model.id, isouter=True)
             .join(Dweller, Dweller.vault_id == self.model.id, isouter=True)
+            .join(Storage, Storage.vault_id == self.model.id, isouter=True)
             .where(Vault.user_id == user_id)
             .where(Vault.deleted_at.is_(None))
             .group_by(Vault.id)
@@ -161,6 +164,8 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
                 **vault_obj.model_dump(),
                 room_count=room_count,
                 dweller_count=dweller_count,
+                stimpack=stimpack,
+                radaway=radaway,
                 resource_warnings=ResourceManager._check_resource_warnings(
                     vault_obj,
                     {
@@ -170,7 +175,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
                     },
                 ),
             )
-            for vault_obj, room_count, dweller_count in vaults
+            for vault_obj, room_count, dweller_count, stimpack, radaway in vaults
         ]
 
     async def get_vault_with_room_and_dweller_count(
@@ -181,20 +186,25 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
                 self.model,
                 func.count(Room.id.distinct()).label("room_count"),
                 func.count(Dweller.id.distinct()).label("dweller_count"),
+                func.coalesce(func.max(Storage.stimpack), 0).label("stimpack"),
+                func.coalesce(func.max(Storage.radaway), 0).label("radaway"),
             )
             .select_from(Vault)
             .join(Room, Room.vault_id == self.model.id, isouter=True)
             .join(Dweller, Dweller.vault_id == self.model.id, isouter=True)
+            .join(Storage, Storage.vault_id == self.model.id, isouter=True)
             .where(Vault.id == vault_id)
             .group_by(Vault.id)
         )
 
         vault_data = result.one()
-        vault_obj, room_count, dweller_count = vault_data
+        vault_obj, room_count, dweller_count, stimpack, radaway = vault_data
         return VaultReadWithNumbers(
             **vault_obj.model_dump(),
             room_count=room_count,
             dweller_count=dweller_count,
+            stimpack=stimpack,
+            radaway=radaway,
             resource_warnings=ResourceManager._check_resource_warnings(
                 vault_obj,
                 {

@@ -53,9 +53,8 @@ onMounted(async () => {
         error.value = 'Quest not found'
       }
     }
-  } catch (err) {
+  } catch {
     error.value = 'Failed to load quest details'
-    console.error(err)
   } finally {
     isLoading.value = false
   }

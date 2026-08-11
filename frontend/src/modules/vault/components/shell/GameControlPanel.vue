@@ -4,10 +4,12 @@ import { Icon } from '@iconify/vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
+import { useToast } from '@/core/composables/useToast'
 
 const vaultStore = useVaultStore()
 const authStore = useAuthStore()
 const incidentStore = useIncidentStore()
+const toast = useToast()
 
 const isSuperuser = computed(() => authStore.user?.is_superuser ?? false)
 
@@ -40,8 +42,8 @@ const togglePause = async () => {
     } else {
       await vaultStore.pauseVault(props.vaultId, authStore.token)
     }
-  } catch (error) {
-    console.error('Failed to toggle pause', error)
+  } catch {
+    toast.error('Failed to update vault pause state')
   }
 }
 
@@ -50,8 +52,8 @@ const spawnIncident = async () => {
 
   try {
     await incidentStore.spawnDebugIncident(props.vaultId, authStore.token)
-  } catch (error) {
-    console.error('Failed to spawn incident', error)
+  } catch {
+    toast.error('Failed to spawn incident')
   }
 }
 

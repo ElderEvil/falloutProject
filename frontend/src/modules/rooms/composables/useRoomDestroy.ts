@@ -49,7 +49,6 @@ export function useRoomDestroy() {
       toast.success(`${options?.roomName || 'Room'} destroyed. Caps refunded (50%).`)
       options?.onSuccess?.()
     } catch (error) {
-      console.error('Failed to destroy room:', error)
       const message = error instanceof Error ? error.message : 'Failed to destroy room'
       if (options?.actionError) options.actionError.value = message
       toast.error(message, 5000)

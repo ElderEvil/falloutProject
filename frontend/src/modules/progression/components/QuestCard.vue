@@ -215,6 +215,11 @@ const prerequisitesMet = computed(() => {
   return status !== 'available'
 })
 
+const getRequirementCount = (requirementData: Record<string, unknown>): number => {
+  const count = requirementData.count
+  return typeof count === 'number' ? count : 0
+}
+
 const actionButtonText = computed(() => {
   if (isLocked) {
     return 'Locked'
@@ -339,11 +344,15 @@ const handleAction = () => {
           <span class="prerequisite-text">
             <template v-if="req.requirement_type === 'level' && req.requirement_data">
               Requires Level {{ req.requirement_data.level || 1 }}+ dweller
-              <span v-if="req.requirement_data.count > 1">(x{{ req.requirement_data.count }})</span>
+              <span v-if="getRequirementCount(req.requirement_data) > 1">
+                (x{{ getRequirementCount(req.requirement_data) }})
+              </span>
             </template>
             <template v-else-if="req.requirement_type === 'item' && req.requirement_data">
               Requires {{ req.requirement_data.name || req.requirement_data.item_id }}
-              <span v-if="req.requirement_data.count > 1">(x{{ req.requirement_data.count }})</span>
+              <span v-if="getRequirementCount(req.requirement_data) > 1">
+                (x{{ getRequirementCount(req.requirement_data) }})
+              </span>
             </template>
             <template
               v-else-if="req.requirement_type === 'quest_completed' && req.requirement_data"

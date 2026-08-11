@@ -274,7 +274,7 @@ const closeRewardsModal = () => {
               v-for="exploration in activeExplorationsArray"
               :key="exploration.id"
               :exploration="exploration"
-              :dweller="getDetailedDweller(exploration.dweller_id)"
+              :dweller="getDetailedDweller(exploration.dweller_id) ?? undefined"
               :selected="selectedExplorerId === exploration.id"
               @select="selectedExplorerId = exploration.id"
               @complete="handleCompleteExploration"
@@ -305,7 +305,7 @@ const closeRewardsModal = () => {
           </div>
           <EventTimeline
             :exploration="selectedExploration"
-            :dweller="getDetailedDweller(selectedExploration.dweller_id)"
+            :dweller="getDetailedDweller(selectedExploration.dweller_id) ?? undefined"
           />
         </div>
       </div>

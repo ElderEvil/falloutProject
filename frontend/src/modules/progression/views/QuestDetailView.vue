@@ -42,7 +42,13 @@ onMounted(async () => {
       await questStore.fetchAllQuests()
       const generalQuest = questStore.quests.find((q) => q.id === questId.value)
       if (generalQuest) {
-        quest.value = { ...generalQuest, is_visible: false, is_completed: false }
+        quest.value = {
+          ...generalQuest,
+          is_visible: false,
+          is_completed: false,
+          started_at: null,
+          duration_minutes: null,
+        }
       } else {
         error.value = 'Quest not found'
       }

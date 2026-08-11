@@ -127,7 +127,7 @@ const ariaLabel = computed(
 
       <div class="relative">
         <div
-          class="relative h-6 w-40 rounded-full border-2 border-gray-600 bg-gray-800 overflow-hidden"
+          class="relative h-6 w-40 rounded-full border-2 border-[#57534e] bg-[#292524] overflow-hidden"
         >
           <!-- Filled part of the bar with smooth transition -->
           <div

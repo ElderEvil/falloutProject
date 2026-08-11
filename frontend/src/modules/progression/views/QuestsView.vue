@@ -493,7 +493,7 @@ onMounted(async () => {
   appearance: none;
   width: 40px;
   height: 20px;
-  background: var(--color-gray-800);
+  background: var(--color-surface-raised);
   border-radius: 10px;
   position: relative;
   cursor: pointer;

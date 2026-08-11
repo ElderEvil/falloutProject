@@ -11,8 +11,9 @@ AI-powered dweller interactions.
 
 **Current work:**
 
-- [ ] **Dramatiq async concurrency** — Fix `asyncpg InterfaceError: another operation is in progress` during game tick objective queries
-- [ ] **Bio places silent failure (found on Andrea Freeman, vault 444)** — bio places (`Rusty Creek` origin, `Necropolis`/`Brotherhood Outpost` visited) were never registered on the world map — only `HOME_VAULT` marker exists, zero `DwellerLocation` rows. `register_bio_places` is best-effort (logs-and-swallows), so the failure is silent. Investigation (v2.26.0) confirmed it is intentionally non-raising and double-wrapped, with the `_MapDwellerLike` protocol satisfied — no cheap bugfix; follow-up needs user-visible surfacing or retry semantics for map registration failures.
+- [ ] **v2.31.0: Bio-to-map registration reliability** — Replace silent loss of a dweller's bio places with an
+  observable, recoverable registration flow. This is the sole v2.31 focus area; no unrelated feature work belongs in
+  the release.
 
 ---
 
@@ -32,6 +33,35 @@ Release notes must state the baseline, the after value, the measurement method/e
 percentage change. Claims must be reproducible from committed commands or CI artifacts. Do not report LOC reduction
 as an improvement unless the release retains equivalent behaviour and test coverage. If the release is primarily a
 feature delivery, record its measurable non-functional impact rather than inventing an optimization claim.
+
+### v2.31.0 — Bio-to-Map Registration Reliability (Planned)
+
+**Focus**: Ensure a dweller's bio places are never silently absent from the world map after a registration failure.
+
+**Verified baseline (master, 2026-08-12):** `map_service.register_bio_places` catches every exception and returns no
+result. A forced failure while registering the reported three-place fixture (`Rusty Creek`, `Necropolis`, and
+`Brotherhood Outpost`) leaves **0 / 3** expected `DwellerLocation` links, records **0 / 1** durable failure or retry
+signals, and gives the caller no actionable outcome. The previous game-tick `asyncpg.InterfaceError` is not part of
+this release: it was fixed by `deb5646f` and is covered by
+`app/tests/test_services/test_game_tick_concurrency.py` on master.
+
+**Release acceptance targets:**
+
+- A one-shot injected registration failure recovers to **3 / 3** expected links for the fixture, without an operator
+  backfill.
+- An exhausted registration failure produces **1 / 1** durable, actionable failure/retry signal; it must never be
+  log-only.
+- A successful first attempt remains **3 / 3** links and creates **0** retry/failure records.
+- The release notes publish the actual baseline and after timings for the committed fixture, including the absolute
+  milliseconds and percentage change. The normal successful path may not regress by more than **10%** at p95.
+
+**Evidence required before release:**
+
+- A deterministic service-level probe covering success, one-shot failure recovery, and exhausted failure, with the
+  three named places above; its committed test reports the exact link and signal counts.
+- A repeatable timing command and environment description for the same fixture, run before and after the change.
+- The focused map-service tests and the full backend suite are green. The implementation may use a retry/outbox or an
+  equivalent durable mechanism, but it must preserve the existing map API and avoid duplicate location links.
 
 ### v2.30.0 — Frontend Refactor (August 11, 2026)
 

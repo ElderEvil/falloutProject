@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import { useToast } from '@/core/composables/useToast'
 
 interface DwellerDropData {
   dwellerId: string
@@ -16,6 +17,7 @@ const emit = defineEmits<{
   drop: [data: DwellerDropData]
   dragLeave: []
 }>()
+const toast = useToast()
 
 const handleDragOver = (event: DragEvent) => {
   event.preventDefault()
@@ -34,7 +36,7 @@ const handleDrop = (event: DragEvent) => {
     const data = JSON.parse(event.dataTransfer!.getData('application/json')) as DwellerDropData
     emit('drop', data)
   } catch {
-    console.error('Failed to parse dweller data')
+    toast.error('Failed to read dweller data')
   }
 }
 </script>

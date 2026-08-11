@@ -4,6 +4,7 @@ import type { components } from '@/core/types/api.generated'
 import * as trainingService from '../services/trainingService'
 import { useToast } from '@/core/composables/useToast'
 import { getErrorMessage } from '@/core/types/utils'
+import { useAsyncAction } from '@/core/composables/useAsyncAction'
 
 type TrainingRead = components['schemas']['TrainingRead']
 type TrainingProgress = components['schemas']['TrainingProgress']
@@ -14,8 +15,22 @@ export const useTrainingStore = defineStore('training', () => {
   // State
   const activeTrainings = ref<Map<string, TrainingRead | TrainingProgress>>(new Map())
   const trainingHistory = ref<(TrainingRead | TrainingProgress)[]>([])
-  const isLoading = ref(false)
   const error = ref<string | null>(null)
+  const {
+    run: runFetchVaultTrainings,
+    isLoading,
+    error: fetchVaultTrainingsError,
+  } = useAsyncAction(
+    async (vaultId: string, token: string) => {
+      const trainings = await trainingService.getVaultTrainings(vaultId, token)
+      activeTrainings.value.clear()
+      trainings.forEach((training) => {
+        if (training.id && training.status === 'active') activeTrainings.value.set(training.id, training)
+      })
+      return true
+    },
+    { context: 'Failed to fetch vault trainings', showToast: false }
+  )
 
   // Getters
   const allActiveTrainings = computed(() => Array.from(activeTrainings.value.values()))
@@ -106,24 +121,9 @@ export const useTrainingStore = defineStore('training', () => {
   }
 
   async function fetchVaultTrainings(vaultId: string, token: string): Promise<void> {
-    isLoading.value = true
     error.value = null
-    try {
-      const trainings = await trainingService.getVaultTrainings(vaultId, token)
-
-      // Clear and rebuild active trainings map
-      activeTrainings.value.clear()
-      trainings.forEach((training) => {
-        if (training.id && training.status === 'active') {
-          activeTrainings.value.set(training.id, training)
-        }
-      })
-    } catch (err: unknown) {
-      console.error('Failed to fetch vault trainings:', err)
-      error.value = getErrorMessage(err)
-    } finally {
-      isLoading.value = false
-    }
+    const result = await runFetchVaultTrainings(vaultId, token)
+    if (!result) error.value = fetchVaultTrainingsError.value
   }
 
   async function fetchRoomTrainings(roomId: string, token: string): Promise<TrainingRead[]> {

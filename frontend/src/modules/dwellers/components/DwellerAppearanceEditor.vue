@@ -212,18 +212,60 @@ const BACKGROUND_OPTIONS = [
 ] as const
 
 // --- Form state ---
-const form = reactive<VisualAttributes>({})
+// Form controls use strings (and a numeric age), while the API model allows
+// null values and represents distinguishing features as an array. Keep that
+// transport shape at the save/load boundary rather than leaking it into inputs.
+interface AppearanceForm {
+  race?: string
+  faction?: string
+  height?: string
+  build?: string
+  skin_tone?: string
+  eye_color?: string
+  age?: number
+  state_of_being?: string
+  appearance?: string
+  hair_style?: string
+  hair_color?: string
+  facial_hair?: string
+  makeup?: string
+  expression?: string
+  headgear?: string
+  distinguishing_features?: string
+  clothing_style?: string
+  accessory?: string
+  object_held?: string
+  pose?: string
+  background?: string
+  voice_line_text?: string
+}
+
+const form = reactive<AppearanceForm>({})
+const ageInput = computed({
+  get: () => (form.age === undefined ? '' : String(form.age)),
+  set: (value: string) => {
+    const parsed = Number(value)
+    form.age = Number.isFinite(parsed) ? parsed : undefined
+  },
+})
 
 // Initialize form from dweller's current visual_attributes
 watch(
   () => props.dweller,
   (dweller) => {
     // Clear any stale keys from previous dweller
-    for (const key in form) {
+    for (const key of Object.keys(form) as Array<keyof AppearanceForm>) {
       delete form[key]
     }
     if (dweller.visual_attributes) {
-      Object.assign(form, dweller.visual_attributes)
+      for (const [key, value] of Object.entries(dweller.visual_attributes)) {
+        if (value === null || value === undefined) continue
+        if (key === 'distinguishing_features' && Array.isArray(value)) {
+          form.distinguishing_features = value.join(', ')
+        } else {
+          ;(form as Record<string, string | number | undefined>)[key] = value as string | number
+        }
+      }
     } else {
       // Set defaults
       form.race = 'human'
@@ -313,7 +355,13 @@ function handleSave() {
   const cleaned: VisualAttributes = {}
   for (const [key, value] of Object.entries(form)) {
     if (value !== null && value !== undefined && value !== '') {
-      ;(cleaned as Record<string, unknown>)[key] = value
+      ;(cleaned as Record<string, unknown>)[key] =
+        key === 'distinguishing_features' && typeof value === 'string'
+          ? value
+              .split(',')
+              .map((feature) => feature.trim())
+              .filter(Boolean)
+          : value
     }
   }
   // Parent closes the modal after successful save (avoids losing context on failure)
@@ -400,7 +448,7 @@ function handleCancel() {
             </USelect>
           </div>
           <div class="form-field">
-            <UInput v-model.number="form.age" type="number" label="Age" placeholder="18-80" />
+            <UInput v-model="ageInput" type="number" label="Age" placeholder="18-80" />
           </div>
         </div>
       </div>

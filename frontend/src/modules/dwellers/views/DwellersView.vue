@@ -9,7 +9,7 @@ import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { normalizeImageUrl } from '@/core/utils/image'
 import { happinessService } from '@/modules/dwellers/services/happinessService'
-import type { Dweller } from '@/modules/dwellers/models/dweller'
+import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { Room } from '@/modules/rooms/models/room'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
@@ -254,48 +254,53 @@ const getRoomForDweller = computed(() => (roomId: string | null | undefined) => 
 })
 
 // Get relevant SPECIAL stat for room's required ability
-const getRelevantStatForRoom = (dweller: Dweller, room: Room) => {
+type DwellerWithSpecialStats = DwellerShort & Partial<Pick<Dweller, 'S' | 'P' | 'E' | 'C' | 'I' | 'A' | 'L'>>
+
+const getRelevantStatForRoom = (
+  dweller: DwellerWithSpecialStats,
+  room: Room | null | undefined
+) => {
   if (!room?.ability) return null
 
   const abilityMap: Record<string, { value: number; label: string; icon: string; color: string }> =
     {
       strength: {
-        value: dweller.strength,
+        value: dweller.S ?? 0,
         label: 'STR',
         icon: 'mdi:arm-flex',
         color: 'text-red-400',
       },
       perception: {
-        value: dweller.perception,
+        value: dweller.P ?? 0,
         label: 'PER',
         icon: 'mdi:eye',
         color: 'text-blue-400',
       },
       endurance: {
-        value: dweller.endurance,
+        value: dweller.E ?? 0,
         label: 'END',
         icon: 'mdi:shield',
         color: 'text-orange-400',
       },
       charisma: {
-        value: dweller.charisma,
+        value: dweller.C ?? 0,
         label: 'CHA',
         icon: 'mdi:account-voice',
         color: 'text-pink-400',
       },
       intelligence: {
-        value: dweller.intelligence,
+        value: dweller.I ?? 0,
         label: 'INT',
         icon: 'mdi:brain',
         color: 'text-purple-400',
       },
       agility: {
-        value: dweller.agility,
+        value: dweller.A ?? 0,
         label: 'AGI',
         icon: 'mdi:run-fast',
         color: 'text-cyan-400',
       },
-      luck: { value: dweller.luck, label: 'LCK', icon: 'mdi:clover', color: 'text-green-400' },
+      luck: { value: dweller.L ?? 0, label: 'LCK', icon: 'mdi:clover', color: 'text-green-400' },
     }
 
   return abilityMap[room.ability.toLowerCase()] || null
@@ -403,14 +408,14 @@ const handleViewLowHappiness = () => {
             </div>
 
             <!-- Loading State for Dead Dwellers -->
-            <div v-if="dwellerStore.isDeadLoading" class="w-full text-center py-12">
+            <div v-if="dwellerDeathStore.isDeadLoading" class="w-full text-center py-12">
               <Icon icon="mdi:loading" class="h-12 w-12 animate-spin text-theme-primary mx-auto" />
               <p class="mt-4 text-theme-primary/60">Loading deceased dwellers...</p>
             </div>
 
             <!-- Empty Dead Dwellers State -->
             <div
-              v-else-if="dwellerStore.deadDwellers.length === 0"
+              v-else-if="dwellerDeathStore.deadDwellers.length === 0"
               class="w-full text-center py-12 bg-gray-800/30 rounded-lg border border-gray-700"
             >
               <Icon
@@ -430,7 +435,7 @@ const handleViewLowHappiness = () => {
             <!-- Dead Dwellers Grid -->
             <div v-else class="w-full dead-dweller-grid">
               <DeadDwellerCard
-                v-for="dweller in dwellerStore.deadDwellers"
+              v-for="dweller in dwellerDeathStore.deadDwellers"
                 :key="dweller.id"
                 :dweller="dweller"
                 :loading="revivingDwellers[dweller.id]"

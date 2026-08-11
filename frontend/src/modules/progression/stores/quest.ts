@@ -18,6 +18,14 @@ interface QuestCompleteResponse {
   }>
 }
 
+export interface EligibleDweller {
+  id: string
+  first_name: string
+  last_name: string | null
+  level: number
+  rarity: string
+}
+
 export const useQuestStore = defineStore('quest', () => {
   const toast = useToast()
   const authStore = useAuthStore()
@@ -209,14 +217,6 @@ export const useQuestStore = defineStore('quest', () => {
       console.error('Failed to fetch party:', error)
       throw error
     }
-  }
-
-  interface EligibleDweller {
-    id: string
-    first_name: string
-    last_name: string | null
-    level: number
-    rarity: string
   }
 
   async function getEligibleDwellers(vaultId: string, questId: string): Promise<EligibleDweller[]> {

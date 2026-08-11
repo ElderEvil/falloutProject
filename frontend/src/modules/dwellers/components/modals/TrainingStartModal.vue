@@ -111,7 +111,6 @@ const handleStart = async () => {
     }
   } catch (error: any) {
     errorMessage.value = error?.message || 'An unexpected error occurred while starting training.'
-    console.error('Training start failed:', error)
   } finally {
     loading.value = false
   }

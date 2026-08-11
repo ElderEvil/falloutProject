@@ -94,9 +94,7 @@ on('notification', (message) => {
 const fetchProfile = async () => {
   try {
     await profileStore.fetchProfile()
-  } catch (error) {
-    console.error('Failed to fetch profile:', error)
-  }
+  } catch {}
 }
 
 const startEditing = () => {
@@ -113,9 +111,7 @@ const handleProfileUpdate = async (data: ProfileUpdate) => {
   try {
     await profileStore.updateProfile(data)
     isEditing.value = false
-  } catch (error) {
-    console.error('Failed to update profile:', error)
-  }
+  } catch {}
 }
 
 const handleAvatarError = (event: Event) => {

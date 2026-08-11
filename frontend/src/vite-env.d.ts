@@ -15,15 +15,6 @@ declare global {
 }
 
 // Augment Vue's existing runtime-core declarations instead of replacing them.
-import '@vue/runtime-core'
-
-// Declare vMotion directive from @vueuse/motion
-declare module '@vue/runtime-core' {
-  export interface GlobalDirectives {
-    vMotion: any
-  }
-}
-
 // Vue component shim for TypeScript and lint tools
 declare module '*.vue' {
   import type { DefineComponent } from 'vue'

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ButtonHTMLAttributes } from 'vue'
 import type { IconComponent } from '@/core/types/utils'
 
 /**
@@ -11,7 +12,7 @@ import type { IconComponent } from '@/core/types/utils'
  * - ghost: Transparent with hover effect
  */
 
-interface Props {
+interface Props extends Omit<ButtonHTMLAttributes, 'disabled' | 'type'> {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost'
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
   disabled?: boolean
@@ -74,6 +75,7 @@ const handleClick = (event: MouseEvent) => {
 
 <template>
   <button
+    v-bind="$attrs"
     :class="buttonClasses"
     :disabled="disabled || loading"
     @click="handleClick"

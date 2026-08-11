@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, inject, onMounted, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
+import { MotionDirective } from '@vueuse/motion'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRouter, useRoute } from 'vue-router'
@@ -11,6 +12,9 @@ const authStore = useAuthStore()
 const vaultStore = useVaultStore()
 const router = useRouter()
 const route = useRoute()
+// Keep the directive local so Vue's template type checker sees the same
+// directive instance that MotionPlugin registers globally in main.ts.
+const vMotion = MotionDirective()
 const { versionBadgeVisible, showChangelog } = useVersionDetection({
   isAuthenticated: () => authStore.isAuthenticated,
 })

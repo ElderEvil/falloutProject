@@ -9,35 +9,22 @@ import type {
 } from '../models/radio'
 import { useToast } from '@/core/composables/useToast'
 import { getErrorMessage } from '@/core/utils/errorHandler'
+import { useAsyncAction } from '@/core/composables/useAsyncAction'
 
 export const useRadioStore = defineStore('radio', () => {
   const toast = useToast()
 
   // State
   const radioStats = ref<RadioStats | null>(null)
-  const isLoading = ref(false)
-  const isRecruiting = ref(false)
-
-  // Actions
-  async function fetchRadioStats(vaultId: string) {
-    isLoading.value = true
-    try {
+  const { run: runFetchRadioStats, isLoading } = useAsyncAction(
+    async (vaultId: string) => {
       const response = await axios.get(`/api/v1/radio/vault/${vaultId}/stats`)
       radioStats.value = response.data
-    } catch (error: unknown) {
-      console.error('Failed to fetch radio stats:', error)
-      toast.error(getErrorMessage(error))
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  async function manualRecruit(
-    vaultId: string,
-    request: ManualRecruitRequest = {}
-  ): Promise<RecruitmentResponse | null> {
-    isRecruiting.value = true
-    try {
+    },
+    { context: 'Failed to fetch radio stats' }
+  )
+  const { run: runManualRecruit, isLoading: isRecruiting } = useAsyncAction(
+    async (vaultId: string, request: ManualRecruitRequest = {}) => {
       const response = await axios.post(`/api/v1/radio/vault/${vaultId}/recruit`, request)
       const result: RecruitmentResponse = response.data
 
@@ -47,13 +34,20 @@ export const useRadioStore = defineStore('radio', () => {
         toast.success(result.message)
       }
       return result
-    } catch (error: unknown) {
-      console.error('Failed to recruit dweller:', error)
-      toast.error(getErrorMessage(error))
-      return null
-    } finally {
-      isRecruiting.value = false
-    }
+    },
+    { context: 'Failed to recruit dweller' }
+  )
+
+  // Actions
+  async function fetchRadioStats(vaultId: string): Promise<void> {
+    await runFetchRadioStats(vaultId)
+  }
+
+  async function manualRecruit(
+    vaultId: string,
+    request: ManualRecruitRequest = {}
+  ): Promise<RecruitmentResponse | null> {
+    return runManualRecruit(vaultId, request)
   }
 
   /**

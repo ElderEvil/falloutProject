@@ -302,7 +302,7 @@ const achievementObjectives = computed(() =>
 .completed-objective {
   border-color: var(--color-gray-500);
   opacity: 0.75;
-  background: linear-gradient(135deg, var(--color-surface-light) 0%, var(--color-gray-800) 100%);
+  background: linear-gradient(135deg, var(--color-surface-raised) 0%, var(--color-surface-warm) 100%);
 }
 
 .completed-objective::before {

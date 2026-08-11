@@ -6,6 +6,7 @@ import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useToast } from '@/core/composables/useToast'
 import { happinessService } from '@/modules/dwellers/services/happinessService'
 import type { Room } from '@/modules/rooms/models/room'
 import SidePanel from '@/core/components/common/SidePanel.vue'
@@ -43,6 +44,7 @@ const vaultStore = useVaultStore()
 const roomStore = useRoomStore()
 const incidentStore = useIncidentStore()
 const { isCollapsed } = useSidePanel()
+const toast = useToast()
 const scanlinesEnabled = inject('scanlines', ref(true))
 const router = useRouter()
 const route = useRoute()
@@ -224,8 +226,8 @@ const generateDwellerInfo = async (dwellerId: string) => {
       // Force refresh the detailed dweller data
       await dwellerStore.fetchDwellerDetails(dwellerId, authStore.token as string, true)
     }
-  } catch (error) {
-    console.error('Error generating info with AI:', error)
+  } catch {
+    toast.error('Failed to generate dweller information')
   } finally {
     generatingAI.value[dwellerId] = false
   }
@@ -249,8 +251,8 @@ const handleQuickUnassign = async (dwellerId: string) => {
   if (!authStore.token) return
   try {
     await dwellerManagementStore.unassignDwellerFromRoom(dwellerId, authStore.token)
-  } catch (error) {
-    console.error('Error unassigning dweller:', error)
+  } catch {
+    toast.error('Failed to unassign dweller from room')
   }
 }
 

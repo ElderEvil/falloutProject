@@ -9,13 +9,7 @@ import type { components } from '@/core/types/api.generated'
 // Use generated API types
 type VaultReadWithNumbers = components['schemas']['VaultReadWithNumbers']
 
-// Use the generated type directly without overriding resource_warnings
-export interface VaultWithNumbers extends VaultReadWithNumbers {
-  // Medical supplies are returned by the vault resource endpoint but are not
-  // represented in the generated summary schema yet.
-  stimpack?: number
-  radaway?: number
-}
+export type VaultWithNumbers = VaultReadWithNumbers
 
 // GameState type (not yet in API schemas)
 interface GameState {

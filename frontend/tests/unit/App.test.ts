@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import { mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
@@ -36,6 +36,10 @@ vi.mock('@/core/composables/useFakeCrash', () => ({
 }))
 
 describe('App', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('mounts without unresolved-component warnings after Nuxt UI removal', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
@@ -55,6 +59,5 @@ describe('App', () => {
 
     expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('Failed to resolve component'))
     expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('UApp'))
-    warn.mockRestore()
   })
 })

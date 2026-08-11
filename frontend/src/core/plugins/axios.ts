@@ -1,5 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { useToast } from '@/core/composables/useToast'
+import { dispatchRefreshedAuthTokens } from '@/core/utils/authSessionEvents'
 
 interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean
@@ -40,6 +41,14 @@ function updateStoredToken(token: string): void {
     localStorage.setItem('token', JSON.stringify(token))
   } catch {
     console.error('Failed to update token in localStorage')
+  }
+}
+
+function updateStoredRefreshToken(refreshToken: string): void {
+  try {
+    localStorage.setItem('refreshToken', JSON.stringify(refreshToken))
+  } catch {
+    console.error('Failed to update refresh token in localStorage')
   }
 }
 
@@ -115,14 +124,10 @@ apiClient.interceptors.response.use(
           const newRefreshToken = response.data.refresh_token
           if (newToken) {
             updateStoredToken(newToken)
-            // Update refresh token through store to keep Pinia state in sync
             if (newRefreshToken) {
-              // Import dynamically to avoid circular dependency
-              import('@/modules/auth/stores/auth').then(({ useAuthStore }) => {
-                const authStore = useAuthStore()
-                authStore.refreshToken = newRefreshToken
-              })
+              updateStoredRefreshToken(newRefreshToken)
             }
+            dispatchRefreshedAuthTokens({ token: newToken, refreshToken: newRefreshToken })
             originalRequest.headers.Authorization = `Bearer ${newToken}`
             return apiClient(originalRequest)
           }

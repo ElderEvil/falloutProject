@@ -81,6 +81,8 @@ class VaultReadWithUser(VaultRead):
 class VaultReadWithNumbers(VaultRead):
     room_count: int
     dweller_count: int
+    stimpack: int
+    radaway: int
 
 
 @optional()

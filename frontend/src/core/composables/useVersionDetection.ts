@@ -13,7 +13,9 @@ export interface VersionDetectionOptions {
   isAuthenticated?: () => boolean
 }
 
-export function useVersionDetection({ isAuthenticated = () => false }: VersionDetectionOptions = {}) {
+export function useVersionDetection(
+  { isAuthenticated = () => false }: VersionDetectionOptions = {}
+) {
 
   // Get current version from package.json (injected at build time)
   const currentVersion = ref(__APP_VERSION__ || '2.7.0')

@@ -2,15 +2,12 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { normalizeImageUrl } from '@/core/utils/image'
-import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
+import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { Room } from '@/modules/rooms/models/room'
 import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
 import DwellerGridItem from './grid/DwellerGridItem.vue'
 import DwellerCardSkeleton from './cards/DwellerCardSkeleton.vue'
 import DwellerGridItemSkeleton from './grid/DwellerGridItemSkeleton.vue'
-
-type DwellerWithSpecialStats = DwellerShort &
-  Partial<Pick<Dweller, 'S' | 'P' | 'E' | 'C' | 'I' | 'A' | 'L'>>
 
 interface Props {
   dwellers: DwellerShort[]
@@ -38,19 +35,19 @@ const getRoomForDweller = (roomId: string | null | undefined) =>
 const getImageUrl = (imagePath: string) => normalizeImageUrl(imagePath)
 
 const getRelevantStatForRoom = (
-  dweller: DwellerWithSpecialStats,
+  dweller: DwellerShort,
   room: Room | null | undefined
 ) => {
   if (!room?.ability) return null
 
   const abilityMap: Record<string, { value: number; label: string; icon: string; color: string }> = {
-    strength: { value: dweller.S ?? 0, label: 'STR', icon: 'mdi:arm-flex', color: 'text-red-400' },
-    perception: { value: dweller.P ?? 0, label: 'PER', icon: 'mdi:eye', color: 'text-blue-400' },
-    endurance: { value: dweller.E ?? 0, label: 'END', icon: 'mdi:shield', color: 'text-orange-400' },
-    charisma: { value: dweller.C ?? 0, label: 'CHA', icon: 'mdi:account-voice', color: 'text-pink-400' },
-    intelligence: { value: dweller.I ?? 0, label: 'INT', icon: 'mdi:brain', color: 'text-purple-400' },
-    agility: { value: dweller.A ?? 0, label: 'AGI', icon: 'mdi:run-fast', color: 'text-cyan-400' },
-    luck: { value: dweller.L ?? 0, label: 'LCK', icon: 'mdi:clover', color: 'text-green-400' },
+    strength: { value: dweller.strength, label: 'STR', icon: 'mdi:arm-flex', color: 'text-red-400' },
+    perception: { value: dweller.perception, label: 'PER', icon: 'mdi:eye', color: 'text-blue-400' },
+    endurance: { value: dweller.endurance, label: 'END', icon: 'mdi:shield', color: 'text-orange-400' },
+    charisma: { value: dweller.charisma, label: 'CHA', icon: 'mdi:account-voice', color: 'text-pink-400' },
+    intelligence: { value: dweller.intelligence, label: 'INT', icon: 'mdi:brain', color: 'text-purple-400' },
+    agility: { value: dweller.agility, label: 'AGI', icon: 'mdi:run-fast', color: 'text-cyan-400' },
+    luck: { value: dweller.luck, label: 'LCK', icon: 'mdi:clover', color: 'text-green-400' },
   }
 
   return abilityMap[room.ability.toLowerCase()] ?? null

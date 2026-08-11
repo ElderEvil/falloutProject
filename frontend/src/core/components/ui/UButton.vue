@@ -12,7 +12,7 @@ import type { IconComponent } from '@/core/types/utils'
  */
 
 interface Props {
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost'
+  variant?: 'primary' | 'secondary' | 'success' | 'danger' | 'ghost'
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
   disabled?: boolean
   loading?: boolean
@@ -44,6 +44,7 @@ const emit = defineEmits<{
 const variantClasses = {
   primary: 'btn-primary',
   secondary: 'btn-secondary',
+  success: 'btn-primary',
   danger: 'btn-danger',
   ghost: 'btn-ghost',
 }

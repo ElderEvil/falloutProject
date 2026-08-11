@@ -202,8 +202,8 @@ onBeforeUnmount(() => {
     <!-- Bell Button -->
     <button
       @click="togglePopup"
-      class="relative flex items-center justify-center rounded p-2 transition-all duration-200 hover:bg-surface-warm-hover"
-      :class="{ 'bg-surface-warm-dark': showPopup }"
+      class="relative flex items-center justify-center rounded p-2 transition-all duration-200 hover:bg-[#211e1b]"
+      :class="{ 'bg-[#141210]': showPopup }"
       title="Notifications"
     >
       <Icon
@@ -225,13 +225,13 @@ onBeforeUnmount(() => {
     <Transition name="fade">
       <div
         v-if="showPopup"
-        class="absolute right-0 top-12 z-50 w-96 rounded border border-surface-warm-hover bg-surface-warm shadow-2xl"
+        class="absolute right-0 top-12 z-50 w-96 rounded border border-[#211e1b] bg-[#1c1917] shadow-2xl"
         :style="{
           borderColor: 'rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3)',
         }"
       >
         <!-- Header -->
-        <div class="flex items-center justify-between border-b border-surface-warm-hover px-4 py-3">
+        <div class="flex items-center justify-between border-b border-[#211e1b] px-4 py-3">
           <h3 class="font-semibold" :style="{ color: 'var(--color-theme-primary)' }">
             Notifications
           </h3>
@@ -256,15 +256,15 @@ onBeforeUnmount(() => {
             <p class="text-sm">No notifications yet</p>
           </div>
 
-          <div v-else class="divide-y divide-surface-warm-hover">
+          <div v-else class="divide-y divide-[#211e1b]">
             <div
               v-for="notification in notifications"
               :key="notification.id"
               @click="!notification.is_read && markAsRead(notification.id)"
               class="p-4 transition-colors cursor-pointer"
               :class="{
-                'bg-surface-warm-dark': !notification.is_read,
-                'hover:bg-surface-warm-hover': true,
+                'bg-[#141210]': !notification.is_read,
+                'hover:bg-[#211e1b]': true,
               }"
             >
               <div class="flex items-start space-x-3">

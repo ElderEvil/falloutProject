@@ -100,10 +100,13 @@ watch(
   }
 )
 
+const currentSseEvent = computed<SseEvent | null>(() => {
+  const instance = sse.value
+  return instance?.event.value ?? null
+})
+
 // Process incoming SSE notification events
-watch(
-  () => sse.value?.event.value ?? null,
-  (evt: SseEvent | null) => {
+watch(currentSseEvent, (evt) => {
     if (!evt || evt.event !== 'notification') return
     const notificationData = (evt.data as any)?.notification
     if (!notificationData) return
@@ -120,8 +123,7 @@ watch(
     }
     notifications.value.unshift(newNotif)
     unreadCount.value++
-  }
-)
+})
 
 const fetchNotifications = async () => {
   if (authStore.token) await runFetchNotifications(authStore.token)
@@ -225,14 +227,11 @@ onBeforeUnmount(() => {
     <Transition name="fade">
       <div
         v-if="showPopup"
-        class="absolute right-0 top-12 z-50 w-96 rounded border border-[#211e1b] bg-[#1c1917] shadow-2xl"
-        :style="{
-          borderColor: 'rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3)',
-        }"
+        class="absolute right-0 top-12 z-50 w-96 rounded border border-theme-primary/30 bg-[#1c1917] shadow-2xl"
       >
         <!-- Header -->
         <div class="flex items-center justify-between border-b border-[#211e1b] px-4 py-3">
-          <h3 class="font-semibold" :style="{ color: 'var(--color-theme-primary)' }">
+          <h3 class="font-semibold text-theme-primary">
             Notifications
           </h3>
           <button
@@ -257,11 +256,12 @@ onBeforeUnmount(() => {
           </div>
 
           <div v-else class="divide-y divide-[#211e1b]">
-            <div
+            <button
               v-for="notification in notifications"
               :key="notification.id"
+              type="button"
               @click="!notification.is_read && markAsRead(notification.id)"
-              class="p-4 transition-colors cursor-pointer"
+              class="w-full border-0 p-4 text-left transition-colors cursor-pointer"
               :class="{
                 'bg-[#141210]': !notification.is_read,
                 'hover:bg-[#211e1b]': true,
@@ -297,7 +297,7 @@ onBeforeUnmount(() => {
                   </div>
                 </div>
               </div>
-            </div>
+            </button>
           </div>
         </div>
       </div>

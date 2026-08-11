@@ -4,12 +4,11 @@ import { Icon } from '@iconify/vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
-import { useToast } from '@/core/composables/useToast'
+import { handleStoreError } from '@/core/utils/errorHandler'
 
 const vaultStore = useVaultStore()
 const authStore = useAuthStore()
 const incidentStore = useIncidentStore()
-const toast = useToast()
 
 const isSuperuser = computed(() => authStore.user?.is_superuser ?? false)
 
@@ -42,8 +41,8 @@ const togglePause = async () => {
     } else {
       await vaultStore.pauseVault(props.vaultId, authStore.token)
     }
-  } catch {
-    toast.error('Failed to update vault pause state')
+  } catch (error) {
+    handleStoreError(error, 'Failed to update vault pause state')
   }
 }
 
@@ -52,21 +51,27 @@ const spawnIncident = async () => {
 
   try {
     await incidentStore.spawnDebugIncident(props.vaultId, authStore.token)
-  } catch {
-    toast.error('Failed to spawn incident')
+  } catch (error) {
+    handleStoreError(error, 'Failed to spawn incident')
   }
 }
 
-onMounted(async () => {
+const initializeGameState = async () => {
   if (authStore.token) {
-    // Fetch initial game state
-    await vaultStore.fetchGameState(props.vaultId, authStore.token)
+    try {
+      await vaultStore.fetchGameState(props.vaultId, authStore.token)
 
-    // Start resource polling if not paused
-    if (!isPaused.value) {
-      vaultStore.startResourcePolling()
+      if (!isPaused.value) {
+        vaultStore.startResourcePolling()
+      }
+    } catch (error) {
+      handleStoreError(error, 'Failed to load game state')
     }
   }
+}
+
+onMounted(() => {
+  void initializeGameState()
 })
 
 onUnmounted(() => {
@@ -77,13 +82,10 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="flex items-center space-x-4 rounded bg-gray-900/50 px-4 py-2 shadow-lg border"
-    :style="{
-      borderColor: 'rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3)',
-    }"
+    class="flex items-center space-x-4 rounded border border-theme-primary/30 bg-gray-900/50 px-4 py-2 shadow-lg"
   >
     <!-- Game Time -->
-    <div class="flex items-center space-x-2" :style="{ color: 'var(--color-theme-primary)' }">
+    <div class="flex items-center space-x-2 text-theme-primary">
       <Icon icon="mdi:clock-outline" class="h-5 w-5" />
       <span class="font-mono text-sm">{{ totalGameTime }}</span>
     </div>

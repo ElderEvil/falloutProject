@@ -1,5 +1,6 @@
 import { getCurrentScope, onScopeDispose, ref } from 'vue'
 import { useIntervalFn } from '@vueuse/core'
+import { handleStoreError } from '@/core/utils/errorHandler'
 
 export interface PollingOptions {
   interval?: number
@@ -30,7 +31,11 @@ export function usePolling(
     }
   }
 
-  const { pause, resume, isActive } = useIntervalFn(run, interval, {
+  const runScheduledRefresh = () => {
+    void run().catch((error) => handleStoreError(error, 'Failed to refresh polled data'))
+  }
+
+  const { pause, resume, isActive } = useIntervalFn(runScheduledRefresh, interval, {
     immediate: true,
     immediateCallback: immediate,
   })

@@ -71,7 +71,6 @@ export const useTrainingStore = defineStore('training', () => {
       activeTrainings.value.set(training.id!, training)
       return training
     } catch (err: unknown) {
-      console.error('Failed to start training:', err)
       toast.error(getErrorMessage(err))
       return null
     }
@@ -85,7 +84,6 @@ export const useTrainingStore = defineStore('training', () => {
       toast.success('Training cancelled')
       return true
     } catch (err: unknown) {
-      console.error('Failed to cancel training:', err)
       toast.error(getErrorMessage(err))
       return false
     }
@@ -99,7 +97,6 @@ export const useTrainingStore = defineStore('training', () => {
       toast.success(`Training completed! ${training.stat_being_trained} increased!`)
       return true
     } catch (err: unknown) {
-      console.error('Failed to complete training:', err)
       toast.error(getErrorMessage(err))
       return false
     }
@@ -116,7 +113,7 @@ export const useTrainingStore = defineStore('training', () => {
         }
       }
     } catch (err: unknown) {
-      console.error('Failed to fetch dweller training:', err)
+      toast.error(getErrorMessage(err))
     }
   }
 
@@ -139,7 +136,7 @@ export const useTrainingStore = defineStore('training', () => {
 
       return trainings
     } catch (err: unknown) {
-      console.error('Failed to fetch room trainings:', err)
+      toast.error(getErrorMessage(err))
       return []
     }
   }
@@ -163,7 +160,7 @@ export const useTrainingStore = defineStore('training', () => {
         }
       }
     } catch (err: unknown) {
-      console.error('Failed to update training progress:', err)
+      toast.error(getErrorMessage(err))
     }
   }
 

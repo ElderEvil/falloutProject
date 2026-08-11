@@ -82,7 +82,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="flex items-center space-x-4 rounded border border-theme-primary/30 bg-gray-900/50 px-4 py-2 shadow-lg"
+    class="flex items-center space-x-4 rounded border border-theme-primary/30 bg-[var(--color-surface-warm)]/90 px-4 py-2 shadow-lg"
   >
     <!-- Game Time -->
     <div class="flex items-center space-x-2 text-theme-primary">

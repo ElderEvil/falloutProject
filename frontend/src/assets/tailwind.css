@@ -1,5 +1,11 @@
 @import 'tailwindcss';
 
+:root {
+  --color-surface-warm: #1c1917;
+  --color-surface-raised: #292524;
+  --color-surface-border: #57534e;
+}
+
 @theme {
   /* ============================================
      FALLOUT SHELTER DESIGN SYSTEM

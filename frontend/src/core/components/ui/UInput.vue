@@ -43,7 +43,8 @@ const {
 } = defineProps<Props>()
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', value: string | number): void
+  // Native inputs always produce strings.
+  (e: 'update:modelValue', value: string): void
   (e: 'blur'): void
   (e: 'focus'): void
 }>()
@@ -105,7 +106,7 @@ const handleInput = (event: InputEvent) => {
       <!-- Input Field -->
       <input
         :id="inputId"
-        data-testid="ui-input"
+        v-bind="{ 'data-testid': 'ui-input' }"
         :type="type"
         :value="modelValue"
         :placeholder="placeholder"

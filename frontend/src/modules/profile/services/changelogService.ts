@@ -1,4 +1,5 @@
 import apiClient from '@/core/plugins/axios'
+import { useToast } from '@/core/composables/useToast'
 
 export interface ChangelogEntry {
   version: string
@@ -29,12 +30,8 @@ class ChangelogService {
     try {
       const response = await apiClient.get<ChangelogEntry[]>(this.baseUrl, { params })
       return response.data
-    } catch (error) {
-      if (error instanceof Error) {
-        console.error('Changelog API error:', error.message)
-      } else {
-        console.error('Changelog API error:', error)
-      }
+    } catch {
+      useToast().error('Failed to load changelog')
       return []
     }
   }
@@ -48,12 +45,7 @@ class ChangelogService {
         // 404 is expected when no changelog exists
         return null
       }
-      // Log other errors
-      if (error instanceof Error) {
-        console.error('Failed to fetch latest changelog:', error.message)
-      } else {
-        console.error('Failed to fetch latest changelog:', error)
-      }
+      useToast().error('Failed to load the latest changelog')
       return null
     }
   }

@@ -65,11 +65,9 @@ export function useRoomDwellers(
 
       const rejected = results.filter((result) => result.status === 'rejected')
       if (rejected.length > 0) {
-        console.error('Failed to unassign dwellers:', rejected)
         actionError.value = 'Failed to unassign some dwellers'
       }
     } catch (error) {
-      console.error('Failed to unassign dwellers:', error)
       actionError.value = error instanceof Error ? error.message : 'Failed to unassign dwellers'
     } finally {
       emitRoomUpdated()

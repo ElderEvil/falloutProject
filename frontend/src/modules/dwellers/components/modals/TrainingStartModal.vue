@@ -111,7 +111,6 @@ const handleStart = async () => {
     }
   } catch (error: any) {
     errorMessage.value = error?.message || 'An unexpected error occurred while starting training.'
-    console.error('Training start failed:', error)
   } finally {
     loading.value = false
   }
@@ -139,7 +138,7 @@ const close = () => {
         >.
       </p>
 
-      <UAlert v-if="errorMessage" variant="error" class="error-alert">
+      <UAlert v-if="errorMessage" variant="danger" class="error-alert">
         <Icon icon="mdi:alert-circle" class="h-5 w-5" />
         {{ errorMessage }}
       </UAlert>
@@ -174,7 +173,7 @@ const close = () => {
           </div>
         </template>
         <template v-else>
-          <UAlert variant="error" class="no-room-alert">
+          <UAlert variant="danger" class="no-room-alert">
             <Icon icon="mdi:alert-circle" class="h-5 w-5" />
             No training room available for {{ selectedStat }}. Build one first!
           </UAlert>

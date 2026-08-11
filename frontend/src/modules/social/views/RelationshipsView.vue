@@ -8,6 +8,7 @@ import PageHeader from '@/core/components/common/PageHeader.vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
+import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import RelationshipList from '../components/relationships/RelationshipList.vue'
 import PregnancyTracker from '../components/pregnancy/PregnancyTracker.vue'
@@ -23,9 +24,15 @@ const authStore = useAuthStore()
 const toast = useToast()
 
 const vaultId = computed(() => route.params.id as string)
-const isLoading = ref(false)
-const isProcessing = ref(false)
 const activeStage = ref<'forming' | 'partners' | 'pregnancies' | 'children'>('forming')
+const { run: runQuickPair, isLoading } = useAsyncAction(
+  (currentVaultId: string) => relationshipStore.quickPair(currentVaultId),
+  { context: 'Failed to pair dwellers', showToast: false }
+)
+const { run: runProcessBreeding, isLoading: isProcessing } = useAsyncAction(
+  (currentVaultId: string) => relationshipStore.processVaultBreeding(currentVaultId),
+  { context: 'Failed to process breeding', showToast: false }
+)
 
 // Stats
 const totalRelationships = computed(() => relationshipStore.relationships.length)
@@ -68,9 +75,7 @@ const stages = computed(() => [
 async function handleQuickPair() {
   if (!vaultId.value) return
 
-  isLoading.value = true
-  const result = await relationshipStore.quickPair(vaultId.value)
-  isLoading.value = false
+  const result = await runQuickPair(vaultId.value)
 
   if (result) {
     // Refresh relationships list
@@ -81,37 +86,29 @@ async function handleQuickPair() {
 async function handleProcessBreeding() {
   if (!vaultId.value) return
 
-  isProcessing.value = true
-  try {
-    const result = await relationshipStore.processVaultBreeding(vaultId.value)
+  const result = await runProcessBreeding(vaultId.value)
+  if (result) {
+    // Show results toast
+    const stats = result.stats
+    const messages = []
+    if (stats.relationships_updated > 0)
+      messages.push(`${stats.relationships_updated} relationships updated`)
+    if (stats.conceptions > 0) messages.push(`${stats.conceptions} new pregnancy!`)
+    if (stats.births > 0) messages.push(`${stats.births} baby born!`)
+    if (stats.children_aged > 0) messages.push(`${stats.children_aged} children became adults!`)
 
-    if (result) {
-      // Show results toast
-      const stats = result.stats
-      const messages = []
-      if (stats.relationships_updated > 0)
-        messages.push(`${stats.relationships_updated} relationships updated`)
-      if (stats.conceptions > 0) messages.push(`${stats.conceptions} new pregnancy!`)
-      if (stats.births > 0) messages.push(`${stats.births} baby born!`)
-      if (stats.children_aged > 0) messages.push(`${stats.children_aged} children became adults!`)
-
-      if (messages.length > 0) {
-        toast.success(`Processed: ${messages.join(', ')}`)
-      } else {
-        toast.info('No changes this cycle')
-      }
-
-      // Refresh all data
-      await Promise.all([
-        relationshipStore.fetchVaultRelationships(vaultId.value),
-        relationshipStore.fetchVaultPregnancies(vaultId.value),
-        dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token!),
-      ])
+    if (messages.length > 0) {
+      toast.success(`Processed: ${messages.join(', ')}`)
+    } else {
+      toast.info('No changes this cycle')
     }
-  } catch (error) {
-    console.error('Error processing breeding:', error)
-  } finally {
-    isProcessing.value = false
+
+    // Refresh all data
+    await Promise.all([
+      relationshipStore.fetchVaultRelationships(vaultId.value),
+      relationshipStore.fetchVaultPregnancies(vaultId.value),
+      dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token!),
+    ])
   }
 }
 

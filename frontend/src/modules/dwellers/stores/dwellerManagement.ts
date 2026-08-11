@@ -151,7 +151,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       if (firstName.toLowerCase() === 'gary') {
         const { triggerGaryMode } = useGaryMode()
         triggerGaryMode()
-        toast.info('VAULT 108 PROTOCOL ACTIVATED', { duration: 5000 })
+        toast.info('VAULT 108 PROTOCOL ACTIVATED', 5000)
       }
 
       return response.data

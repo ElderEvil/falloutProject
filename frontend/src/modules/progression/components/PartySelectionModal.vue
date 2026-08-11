@@ -57,7 +57,7 @@ watch(
               return {
                 ...e,
                 status: (e as { status?: string }).status || 'idle',
-              } as DwellerShort
+              } as unknown as DwellerShort
             })
             .filter((d): d is DwellerShort => d !== undefined)
         } catch (error) {

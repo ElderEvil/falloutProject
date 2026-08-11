@@ -13,12 +13,12 @@ export const useRoomStore = defineStore('room', () => {
   const selectedRoom = ref<RoomTemplate | null>(null)
   const isPlacingRoom = ref(false)
 
-  // Background vault refresh — non-throwing, warns on failure without user-facing toast
+  // Background vault refresh — non-throwing, while still surfacing failures consistently.
   async function refreshVaultSafely(vaultId: string, token: string, context: string) {
     try {
       await useVaultStore().refreshVault(vaultId, token)
     } catch (error) {
-      console.warn(`${context}:`, error)
+      handleStoreError(error, context)
     }
   }
 

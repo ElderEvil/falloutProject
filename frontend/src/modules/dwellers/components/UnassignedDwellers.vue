@@ -31,7 +31,7 @@ const unassignedDwellers = computed(() => {
     if (isExploring) return false
 
     // Must not be dead (unless we want to see dead bodies to unassign? No, dead dwellers are handled elsewhere usually)
-    if (dweller.is_dead) return false
+    if (dweller.status === 'dead') return false
 
     return true
   })
@@ -108,8 +108,7 @@ const handleDropZoneDrop = async (event: DragEvent) => {
     await dwellerManagementStore.unassignDwellerFromRoom(dwellerId, authStore.token as string)
 
     toast.success(`${firstName} ${lastName} unassigned from room`)
-  } catch (error) {
-    console.error('Failed to unassign dweller:', error)
+  } catch {
     toast.error('Failed to unassign dweller')
   }
 }

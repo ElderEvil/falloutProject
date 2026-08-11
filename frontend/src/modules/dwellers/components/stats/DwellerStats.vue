@@ -13,7 +13,7 @@ const props = defineProps<Props>()
 
 const statValue = (key: keyof Props): number => props[key] ?? 0
 
-const stats = [
+const stats: Array<{ key: keyof Props; label: string; description: string }> = [
   { key: 'S', label: 'Strength', description: 'Physical power and melee damage' },
   { key: 'P', label: 'Perception', description: 'Accuracy and awareness' },
   { key: 'E', label: 'Endurance', description: 'Health and radiation resistance' },

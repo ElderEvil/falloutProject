@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
+import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
-import { useExplorationStore } from '../stores/exploration'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useSidePanel } from '@/core/composables/useSidePanel'
-import { Icon } from '@iconify/vue'
+import { usePolling } from '@/core/composables/usePolling'
+import { useToast } from '@/core/composables/useToast'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import ExplorerCard from '../components/ExplorerCard.vue'
@@ -17,6 +18,7 @@ import EventTimeline from '../components/EventTimeline.vue'
 import ExplorationRewardsModal from '../components/ExplorationRewardsModal.vue'
 import UCard from '@/core/components/ui/UCard.vue'
 import UButton from '@/core/components/ui/UButton.vue'
+import { useExplorationStore } from '../stores/exploration'
 import type { RewardsSummary } from '../stores/exploration'
 
 const route = useRoute()
@@ -26,6 +28,7 @@ const { filter: dwellerStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
 const vaultStore = useVaultStore()
 const questStore = useQuestStore()
+const toast = useToast()
 
 const vaultId = computed(() => route.params.id as string)
 const selectedExplorerId = ref<string | null>(null)
@@ -54,7 +57,7 @@ const loadData = async () => {
       await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
     }
   } catch (error) {
-    console.error('Failed to load exploration data:', error)
+    toast.error('Failed to load exploration data')
   }
 }
 
@@ -63,25 +66,17 @@ onMounted(async () => {
   await loadData()
 })
 
-// Poll for updates every 15 seconds
-let pollInterval: ReturnType<typeof setInterval> | null = null
-onMounted(() => {
-  pollInterval = setInterval(async () => {
-    if (vaultId.value && authStore.token) {
-      try {
-        await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
-      } catch (error) {
-        console.error('Failed to poll explorations:', error)
-      }
-    }
-  }, 15000)
-})
+const pollExplorations = async () => {
+  if (!vaultId.value || !authStore.token) return
 
-onUnmounted(() => {
-  if (pollInterval) {
-    clearInterval(pollInterval)
+  try {
+    await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
+  } catch (error) {
+    toast.error('Failed to refresh explorations')
   }
-})
+}
+
+usePolling(pollExplorations, { interval: 15_000, immediate: false })
 
 const activeExplorationsArray = computed(() => {
   return Object.values(explorationStore.activeExplorations)
@@ -126,7 +121,7 @@ const handleCompleteQuest = async (questId: string) => {
       selectedQuestPartyId.value = null
     }
   } catch (error) {
-    console.error('Failed to complete quest:', error)
+    toast.error('Failed to complete quest')
   }
 }
 
@@ -160,7 +155,7 @@ const handleCompleteExploration = async (explorationId: string) => {
       selectedExplorerId.value = null
     }
   } catch (error) {
-    console.error('Failed to complete exploration:', error)
+    toast.error('Failed to complete exploration')
   }
 }
 
@@ -194,7 +189,7 @@ const handleRecallExploration = async (explorationId: string) => {
       selectedExplorerId.value = null
     }
   } catch (error) {
-    console.error('Failed to recall dweller:', error)
+    toast.error('Failed to recall dweller')
   }
 }
 
@@ -281,7 +276,7 @@ const closeRewardsModal = () => {
               v-for="exploration in activeExplorationsArray"
               :key="exploration.id"
               :exploration="exploration"
-              :dweller="getDetailedDweller(exploration.dweller_id)"
+              :dweller="getDetailedDweller(exploration.dweller_id) ?? undefined"
               :selected="selectedExplorerId === exploration.id"
               @select="selectedExplorerId = exploration.id"
               @complete="handleCompleteExploration"
@@ -312,7 +307,7 @@ const closeRewardsModal = () => {
           </div>
           <EventTimeline
             :exploration="selectedExploration"
-            :dweller="getDetailedDweller(selectedExploration.dweller_id)"
+            :dweller="getDetailedDweller(selectedExploration.dweller_id) ?? undefined"
           />
         </div>
       </div>

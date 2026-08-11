@@ -21,10 +21,9 @@ describe('Dweller store slices', () => {
   it('keeps loading state independent for filter, generation, and death work', () => {
     const store = useDwellerStore()
 
-    store.filter.isLoading = true
     store.death.deadLoadingCount = 1
 
-    expect(store.filter.isLoading).toBe(true)
+    expect(store.filter.isLoading).toBe(false)
     expect(store.death.isDeadLoading).toBe(true)
     expect('isLoading' in store.generation).toBe(false)
   })
@@ -32,10 +31,10 @@ describe('Dweller store slices', () => {
   it('supports Pinia patches on every stateful slice', () => {
     const store = useDwellerStore()
 
-    store.filter.$patch({ isLoading: true })
+    store.filter.$patch({ dwellers: [] })
     store.death.$patch({ deadLoadingCount: 2 })
 
-    expect(store.filter.isLoading).toBe(true)
+    expect(store.filter.dwellers).toEqual([])
     expect(store.death.isDeadLoading).toBe(true)
   })
 

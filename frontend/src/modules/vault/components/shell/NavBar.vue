@@ -11,7 +11,9 @@ const authStore = useAuthStore()
 const vaultStore = useVaultStore()
 const router = useRouter()
 const route = useRoute()
-const { versionBadgeVisible, showChangelog } = useVersionDetection()
+const { versionBadgeVisible, showChangelog } = useVersionDetection({
+  isAuthenticated: () => authStore.isAuthenticated,
+})
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const user = computed(() => authStore.user)
 const currentVaultId = computed(() => {

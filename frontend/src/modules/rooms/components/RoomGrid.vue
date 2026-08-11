@@ -8,7 +8,7 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useRoomInteractions } from '../composables/useRoomInteractions'
 import { useHoverPreview } from '../composables/useHoverPreview'
-import { useRoomRendering } from '../composables/useRoomRendering'
+import { useRoomRendering } from '@/core/composables/useRoomRendering'
 import { useToast } from '@/core/composables/useToast'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import { Icon } from '@iconify/vue'
@@ -39,7 +39,7 @@ const route = useRoute()
 const roomStore = useRoomStore()
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
-const dwellerStore = useDwellerStore()
+const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
 const trainingStore = useTrainingStore()
 const toast = useToast()
 const rooms = computed(() => (Array.isArray(roomStore.rooms) ? roomStore.rooms : []))
@@ -183,7 +183,7 @@ const handleDrop = async (event: DragEvent, roomId: string) => {
     }
 
     // Assign dweller to room
-    await dwellerStore.assignDwellerToRoom(dwellerId, roomId, authStore.token as string)
+    await dwellerManagementStore.assignDwellerToRoom(dwellerId, roomId, authStore.token as string)
 
     // If it's a training room, start a training session
     if (targetRoom?.category?.toLowerCase() === 'training') {

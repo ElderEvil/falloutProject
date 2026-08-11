@@ -6,7 +6,7 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { UCard, USkeleton } from '@/core/components/ui'
-import type { DeathStatistics } from '@/modules/profile/stores/profile'
+import type { DeathStatistics } from '@/core/types/death'
 
 interface Props {
   statistics: DeathStatistics | null

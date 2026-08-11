@@ -20,6 +20,7 @@ interface Props {
   iconRight?: IconComponent
   block?: boolean
   type?: 'button' | 'submit' | 'reset'
+  title?: string
 }
 
 const {
@@ -29,6 +30,7 @@ const {
   loading = false,
   block = false,
   type = 'button',
+  title,
   icon,
   iconRight,
 } = defineProps<Props>()
@@ -71,7 +73,13 @@ const handleClick = (event: MouseEvent) => {
 </script>
 
 <template>
-  <button :class="buttonClasses" :disabled="disabled || loading" @click="handleClick" :type="type">
+  <button
+    :class="buttonClasses"
+    :disabled="disabled || loading"
+    @click="handleClick"
+    :type="type"
+    :title="title"
+  >
     <component v-if="icon && !loading" :is="icon" class="h-5 w-5" />
     <span v-if="loading" class="animate-spin">⚙</span>
     <slot></slot>

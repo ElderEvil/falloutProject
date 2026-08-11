@@ -13,7 +13,7 @@ import { getEventIcon, getEventColor } from '../models/exploration'
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
-const dwellerStore = useDwellerStore()
+const { filter: dwellerStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
 const vaultStore = useVaultStore()
 

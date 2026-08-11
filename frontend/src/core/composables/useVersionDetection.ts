@@ -1,5 +1,4 @@
 import { ref, computed, watch, readonly } from 'vue'
-import { useAuthStore } from '@/modules/auth/stores/auth'
 
 interface VersionInfo {
   current: string
@@ -10,8 +9,11 @@ interface VersionInfo {
 
 const STORAGE_KEY = 'fallout_changelog_last_seen'
 
-export function useVersionDetection() {
-  const authStore = useAuthStore()
+export interface VersionDetectionOptions {
+  isAuthenticated?: () => boolean
+}
+
+export function useVersionDetection({ isAuthenticated = () => false }: VersionDetectionOptions = {}) {
 
   // Get current version from package.json (injected at build time)
   const currentVersion = ref(__APP_VERSION__ || '2.7.0')
@@ -66,7 +68,7 @@ export function useVersionDetection() {
   }
 
   watch(
-    [currentVersion, () => authStore.isAuthenticated],
+    [currentVersion, isAuthenticated],
     async ([newVersion, isAuthenticated]) => {
       if (isAuthenticated && newVersion && hasVersionUpdate.value) {
         setTimeout(() => {

@@ -39,6 +39,14 @@ jobs:
         working-directory: frontend
         run: pnpm run lint
 
+      - name: Run typecheck
+        working-directory: frontend
+        run: pnpm run typecheck
+
+      - name: Check module boundaries
+        working-directory: frontend
+        run: node scripts/check-boundaries.mjs
+
       - name: Run tests
         working-directory: frontend
         run: pnpm run test -- --run

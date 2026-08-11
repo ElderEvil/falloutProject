@@ -35,7 +35,7 @@ const audioMode = ref(false)
 // Quota exceeded state
 const isQuotaExceeded = computed(() => profileStore.quotaExceeded)
 const resetDate = computed(() => {
-  const resetDateStr = profileStore.aiUsageStats?.quota?.reset_date || ''
+  const resetDateStr = profileStore.aiUsageStats?.reset_date || ''
   if (!resetDateStr) return 'soon'
   const [year, month, day] = resetDateStr.split('-')
   const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
@@ -215,9 +215,13 @@ const sendAudioMessage = async () => {
     }
 
     refreshAfterChat()
-  } catch (error: any) {
-    console.error('Error sending audio:', error)
-    alert(`Failed to send audio: ${error.response?.data?.detail || error.message}`)
+  } catch (error: unknown) {
+    const message =
+      (error as { response?: { data?: { detail?: string } }; message?: string }).response?.data
+        ?.detail ??
+      (error as { message?: string }).message ??
+      'Unable to send audio message'
+    toast.error(`Failed to send audio: ${message}`)
   } finally {
     isSendingAudio.value = false
   }

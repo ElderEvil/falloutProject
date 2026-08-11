@@ -18,7 +18,7 @@ import UButton from '@/core/components/ui/UButton.vue'
 const route = useRoute()
 const { isCollapsed } = useSidePanel()
 const relationshipStore = useRelationshipStore()
-const dwellerStore = useDwellerStore()
+const { filter: dwellerStore } = useDwellerStore()
 const authStore = useAuthStore()
 const toast = useToast()
 

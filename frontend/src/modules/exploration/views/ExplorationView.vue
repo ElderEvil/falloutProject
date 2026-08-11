@@ -22,7 +22,7 @@ import type { RewardsSummary } from '../stores/exploration'
 const route = useRoute()
 const authStore = useAuthStore()
 const { isCollapsed } = useSidePanel()
-const dwellerStore = useDwellerStore()
+const { filter: dwellerStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
 const vaultStore = useVaultStore()
 const questStore = useQuestStore()

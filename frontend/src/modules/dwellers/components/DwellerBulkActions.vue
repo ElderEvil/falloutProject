@@ -10,7 +10,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-const dwellerStore = useDwellerStore()
+const { management: dwellerStore } = useDwellerStore()
 const authStore = useAuthStore()
 
 const unassigningAll = ref(false)

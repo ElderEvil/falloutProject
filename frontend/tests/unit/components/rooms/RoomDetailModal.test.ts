@@ -208,7 +208,7 @@ describe('RoomDetailModal', () => {
 
   describe('Room Information', () => {
     it('should display capacity information', () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
       const wrapper = mount(RoomDetailModal, {
@@ -261,7 +261,7 @@ describe('RoomDetailModal', () => {
 
   describe('Production Statistics', () => {
     it('should show production stats for production rooms', () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
       const wrapper = mount(RoomDetailModal, {
@@ -277,7 +277,7 @@ describe('RoomDetailModal', () => {
     })
 
     it('should calculate production rate correctly', () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
       const wrapper = mount(RoomDetailModal, {
@@ -296,7 +296,7 @@ describe('RoomDetailModal', () => {
     })
 
     it('should calculate efficiency correctly', () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
       const wrapper = mount(RoomDetailModal, {
@@ -312,7 +312,7 @@ describe('RoomDetailModal', () => {
     })
 
     it('should show 100% efficiency when fully staffed', () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
       const wrapper = mount(RoomDetailModal, {
@@ -348,7 +348,7 @@ describe('RoomDetailModal', () => {
         ability: 'AGILITY',
       }
 
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
       const wrapper = mount(RoomDetailModal, {
@@ -367,7 +367,7 @@ describe('RoomDetailModal', () => {
         ability: 'PERCEPTION',
       }
 
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
       const wrapper = mount(RoomDetailModal, {
@@ -383,7 +383,7 @@ describe('RoomDetailModal', () => {
 
   describe('Assigned Dwellers', () => {
     it('should display assigned dwellers', () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
       const wrapper = mount(RoomDetailModal, {
@@ -400,7 +400,7 @@ describe('RoomDetailModal', () => {
     })
 
     it('should show dweller count in header', () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
       const wrapper = mount(RoomDetailModal, {
@@ -414,7 +414,7 @@ describe('RoomDetailModal', () => {
     })
 
     it('should show empty state when no dwellers assigned', () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = []
 
       const wrapper = mount(RoomDetailModal, {
@@ -429,7 +429,7 @@ describe('RoomDetailModal', () => {
     })
 
     it('should display relevant SPECIAL stat for each dweller', () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
       const wrapper = mount(RoomDetailModal, {
@@ -493,7 +493,7 @@ describe('RoomDetailModal', () => {
     })
 
     it('should show unassign all button', () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
       const wrapper = mount(RoomDetailModal, {
@@ -584,7 +584,7 @@ describe('RoomDetailModal', () => {
         tier: 2,
       }
 
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
       const wrapper = mount(RoomDetailModal, {
@@ -604,7 +604,7 @@ describe('RoomDetailModal', () => {
         tier: 3,
       }
 
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
       const wrapper = mount(RoomDetailModal, {
@@ -628,7 +628,7 @@ describe('RoomDetailModal', () => {
     }
 
     it('should show radio controls for radio rooms', () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers.map((d) => ({
         ...d,
         room_id: mockRadioRoom.id,
@@ -651,7 +651,7 @@ describe('RoomDetailModal', () => {
     })
 
     it('should render recruitment and happiness mode buttons', () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers.map((d) => ({
         ...d,
         room_id: mockRadioRoom.id,
@@ -668,7 +668,7 @@ describe('RoomDetailModal', () => {
     })
 
     it('should show active state on recruitment mode by default', () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers.map((d) => ({
         ...d,
         room_id: mockRadioRoom.id,
@@ -684,7 +684,7 @@ describe('RoomDetailModal', () => {
     })
 
     it('should display radio status text', () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers.map((d) => ({
         ...d,
         room_id: mockRadioRoom.id,
@@ -698,7 +698,7 @@ describe('RoomDetailModal', () => {
     })
 
     it('should show staffing warning when no dwellers assigned to radio room', () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = []
 
       const wrapper = mount(RoomDetailModal, {
@@ -719,7 +719,7 @@ describe('RoomDetailModal', () => {
     }
 
     it('should disable recruit button when no dwellers assigned', () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = []
 
       const wrapper = mount(RoomDetailModal, {
@@ -732,7 +732,7 @@ describe('RoomDetailModal', () => {
     })
 
     it('should enable recruit button when dwellers assigned and in recruitment mode', () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers.map((d) => ({
         ...d,
         room_id: mockRadioRoom.id,
@@ -748,7 +748,7 @@ describe('RoomDetailModal', () => {
     })
 
     it('should show recruit cost in button text', () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers.map((d) => ({
         ...d,
         room_id: mockRadioRoom.id,
@@ -765,7 +765,7 @@ describe('RoomDetailModal', () => {
 
   describe('Dweller Click Navigation', () => {
     it('should call router.push when dweller card is clicked', async () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
       const wrapper = mount(RoomDetailModal, {
@@ -784,7 +784,7 @@ describe('RoomDetailModal', () => {
     })
 
     it('should navigate to correct dweller when second dweller is clicked', async () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
       const wrapper = mount(RoomDetailModal, {
@@ -801,7 +801,7 @@ describe('RoomDetailModal', () => {
     })
 
     it('should have clickable class on dweller cards', () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
       const wrapper = mount(RoomDetailModal, {

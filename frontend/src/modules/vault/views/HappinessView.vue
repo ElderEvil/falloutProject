@@ -16,7 +16,7 @@ const { isCollapsed } = useSidePanel()
 const route = useRoute()
 const router = useRouter()
 const vaultStore = useVaultStore()
-const dwellerStore = useDwellerStore()
+const { filter: dwellerStore } = useDwellerStore()
 const incidentStore = useIncidentStore()
 const authStore = useAuthStore()
 

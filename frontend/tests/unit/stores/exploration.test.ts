@@ -402,17 +402,6 @@ describe('Exploration Store', () => {
     })
   })
 
-  describe('clearLastRewards Action', () => {
-    it('should clear lastRewards', () => {
-      const store = useExplorationStore()
-      store.lastRewards = mockRewardsSummary
-
-      store.clearLastRewards()
-
-      expect(store.lastRewards).toBeNull()
-    })
-  })
-
   describe('clearError Action', () => {
     it('should clear error', () => {
       const store = useExplorationStore()

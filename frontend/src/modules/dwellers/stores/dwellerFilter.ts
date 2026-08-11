@@ -117,11 +117,6 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     return result
   })
 
-  async function fetchDwellers(vaultId: string, _token?: string): Promise<void> {
-    console.warn('fetchDwellers is deprecated, use fetchDwellersByVault with vaultId')
-    await fetchDwellersByVault(vaultId, _token || '')
-  }
-
   async function fetchDwellersByVault(
     vaultId: string,
     token: string,
@@ -243,7 +238,6 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     getDwellerStatus,
     getDwellersByStatus,
     filteredAndSortedDwellers,
-    fetchDwellers,
     fetchDwellersByVault,
     fetchAllDwellers,
     fetchDwellerDetails,

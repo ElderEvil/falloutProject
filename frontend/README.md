@@ -10,7 +10,7 @@ and cutting-edge JavaScript tooling.
 ### Core Framework
 
 - **Vue 3.5.29** - Composition API with `<script setup>`
-- **TypeScript 5.9** - Full type safety
+- **TypeScript 6.0** - Full type safety
 - **Vite+** - Unified toolchain (Vite 8 + Vitest 4.1 + Rolldown bundler)
 - **Pinia 3.0** - State management
 - **Vue Router 4.6** - Client-side routing
@@ -19,8 +19,7 @@ and cutting-edge JavaScript tooling.
 
 - **TailwindCSS v4** - With custom `@theme` design system
 - **@tailwindcss/vite** - Native Vite integration
-- **Custom UI Components** - 8 terminal-themed wrapper components
-- **Nuxt UI 4.5** - Component library (optional integration)
+- **Custom UI Components** - 11 terminal-themed components
 - **Heroicons** - Icon library
 
 ### Development Tools
@@ -137,13 +136,13 @@ The 7-day delay can slow urgent security patches. When a verified fix must ship 
 
 We plan to deprecate `axios` through a staged migration, but this is not active in the current release.
 The migration plan, phases, risks, and done criteria are tracked in [`HTTP_CLIENT_MIGRATION.md`](./HTTP_CLIENT_MIGRATION.md).
-Today, `src/core/utils/api.ts` is an optional/aspirational wrapper (used by ~2 files) while many files still import
-from `@/core/plugins/axios`; the preference for the shared boundary will become enforced during the staged migration.
+Today, `src/core/utils/api.ts` does not exist. Axios remains the active HTTP client via
+`@/core/plugins/axios`; any shared HTTP boundary is deferred to the staged migration.
 
 Current policy during planning/migration:
 
 - Avoid introducing new direct `axios` imports in new code.
-- Prefer the shared API boundary in `src/core/utils/api.ts`.
+- Do not introduce a new HTTP boundary until the migration is approved.
 
 ## 🚀 Quick Start
 
@@ -193,7 +192,7 @@ pnpm run typecheck    # TypeScript check (vue-tsc)
 
 ## 🎨 UI Component Library
 
-We've built 8 custom terminal-themed UI components in `src/components/ui/`:
+We've built 11 custom terminal-themed UI components in `src/core/components/ui/`:
 
 | Component     | Description                                   |
 | ------------- | --------------------------------------------- |
@@ -204,13 +203,16 @@ We've built 8 custom terminal-themed UI components in `src/components/ui/`:
 | **UBadge**    | Badge/tag with semantic colors                |
 | **UAlert**    | Alert/notification with dismissible option    |
 | **UTooltip**  | Tooltip with 4 positioning options            |
-| **UDropdown** | Dropdown menu with click-outside support      |
+| **USkeleton** | Content placeholder for loading states        |
+| **UTabs** | Accessible tab navigation                     |
+| **USelect** | Styled select input                           |
+| **UProgressBar** | Progress indicator                         |
 
 **Usage Example:**
 
 ```vue
 <script setup lang="ts">
-import { UButton, UInput, UCard } from '@/components/ui'
+import { UButton, UInput, UCard } from '@/core/components/ui'
 import { PlusIcon } from '@heroicons/vue/24/solid'
 </script>
 
@@ -222,7 +224,7 @@ import { PlusIcon } from '@heroicons/vue/24/solid'
 </template>
 ```
 
-See [`src/components/ui/README.md`](./src/components/ui/README.md) for complete component documentation.
+See [`src/core/components/ui/`](./src/core/components/ui/) for component implementations.
 
 ## 📐 Design System
 

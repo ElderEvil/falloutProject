@@ -11,7 +11,10 @@ type VaultReadWithNumbers = components['schemas']['VaultReadWithNumbers']
 
 // Use the generated type directly without overriding resource_warnings
 export interface VaultWithNumbers extends VaultReadWithNumbers {
-  // resource_warnings is already defined in VaultReadWithNumbers as { [key: string]: string }[]
+  // Medical supplies are returned by the vault resource endpoint but are not
+  // represented in the generated summary schema yet.
+  stimpack?: number
+  radaway?: number
 }
 
 // GameState type (not yet in API schemas)

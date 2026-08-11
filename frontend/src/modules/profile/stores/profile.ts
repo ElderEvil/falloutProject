@@ -5,20 +5,9 @@ import type { AIUsageStats } from '../models/aiUsage'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import axios from '@/core/plugins/axios'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
+import type { DeathStatistics } from '@/core/types/death'
 
-export interface DeathStatistics {
-  total_dwellers_born: number
-  total_dwellers_died: number
-  deaths_by_cause: {
-    health: number
-    radiation: number
-    incident: number
-    exploration: number
-    combat: number
-  }
-  revivable_count: number
-  permanently_dead_count: number
-}
+export type { DeathStatistics } from '@/core/types/death'
 
 export const useProfileStore = defineStore('profile', () => {
   const profile = ref<UserProfile | null>(null)

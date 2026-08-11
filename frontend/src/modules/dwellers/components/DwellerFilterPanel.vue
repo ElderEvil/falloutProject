@@ -29,7 +29,7 @@ defineEmits<{
   autoAssignAll: []
 }>()
 
-const dwellerStore = useDwellerStore()
+const { filter: dwellerStore } = useDwellerStore()
 
 const statusOptions = [
   { value: 'all', label: 'All', icon: 'mdi:account-multiple' },

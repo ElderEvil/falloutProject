@@ -13,7 +13,7 @@ import { normalizeImageUrl } from '@/core/utils/image'
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
-const dwellerStore = useDwellerStore()
+const { filter: dwellerStore } = useDwellerStore()
 const vaultStore = useVaultStore()
 
 const dwellerId = ref(route.params.id as string)

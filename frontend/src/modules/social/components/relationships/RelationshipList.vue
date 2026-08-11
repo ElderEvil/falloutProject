@@ -64,7 +64,7 @@ interface Props {
 const props = defineProps<Props>()
 
 const relationshipStore = useRelationshipStore()
-const dwellerStore = useDwellerStore()
+const { filter: dwellerStore } = useDwellerStore()
 
 const relationships = computed(() => relationshipStore.relationships)
 const isLoading = computed(() => relationshipStore.isLoading)

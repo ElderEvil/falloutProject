@@ -349,7 +349,7 @@ describe('DwellerChat', () => {
     })
 
     it('should trigger assignDwellerToRoom when confirm button is clicked for assign_to_room', async () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().management
       const assignSpy = vi.spyOn(dwellerStore, 'assignDwellerToRoom').mockResolvedValue({} as any)
 
       const wrapper = mountComponent()
@@ -422,7 +422,7 @@ describe('DwellerChat', () => {
     })
 
     it('should trigger startTraining when confirm button is clicked for start_training', async () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       // Add dweller with room_id to the store
       dwellerStore.$patch({
         dwellers: [
@@ -844,8 +844,10 @@ describe('DwellerChat', () => {
 
   describe('Bug #4: Training Room Auto-Assignment', () => {
     it('should auto-assign dweller to training room before starting training', async () => {
-      const dwellerStore = useDwellerStore()
-      const assignSpy = vi.spyOn(dwellerStore, 'assignDwellerToRoom').mockResolvedValue({} as any)
+      const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
+      const assignSpy = vi
+        .spyOn(dwellerManagementStore, 'assignDwellerToRoom')
+        .mockResolvedValue({} as any)
 
       dwellerStore.$patch({
         dwellers: [
@@ -925,8 +927,10 @@ describe('DwellerChat', () => {
         },
       ]
 
-      const dwellerStore = useDwellerStore()
-      const assignSpy = vi.spyOn(dwellerStore, 'assignDwellerToRoom').mockResolvedValue({} as any)
+      const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
+      const assignSpy = vi
+        .spyOn(dwellerManagementStore, 'assignDwellerToRoom')
+        .mockResolvedValue({} as any)
 
       dwellerStore.$patch({
         dwellers: [
@@ -992,8 +996,10 @@ describe('DwellerChat', () => {
         },
       ]
 
-      const dwellerStore = useDwellerStore()
-      const assignSpy = vi.spyOn(dwellerStore, 'assignDwellerToRoom').mockResolvedValue({} as any)
+      const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
+      const assignSpy = vi
+        .spyOn(dwellerManagementStore, 'assignDwellerToRoom')
+        .mockResolvedValue({} as any)
 
       dwellerStore.$patch({
         dwellers: [
@@ -1059,7 +1065,7 @@ describe('DwellerChat', () => {
         },
       ]
 
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
 
       dwellerStore.$patch({
         dwellers: [
@@ -1127,7 +1133,7 @@ describe('DwellerChat', () => {
         },
       ]
 
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
 
       // Fill all training rooms to capacity
       const strengthFillers = Array.from({ length: 5 }, (_, i) => ({
@@ -1230,8 +1236,10 @@ describe('DwellerChat', () => {
         return Promise.resolve()
       })
 
-      const dwellerStore = useDwellerStore()
-      const assignSpy = vi.spyOn(dwellerStore, 'assignDwellerToRoom').mockResolvedValue({} as any)
+      const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
+      const assignSpy = vi
+        .spyOn(dwellerManagementStore, 'assignDwellerToRoom')
+        .mockResolvedValue({} as any)
 
       dwellerStore.$patch({
         dwellers: [
@@ -1671,7 +1679,7 @@ describe('DwellerChat', () => {
     })
 
     it('should call sendDwellerToWasteland when confirm clicked for start_exploration', async () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue({} as any)
       mockSendDwellerToWasteland.mockResolvedValue({})
 
@@ -1736,9 +1744,9 @@ describe('DwellerChat', () => {
     })
 
     it('should unassign dweller from room before starting exploration', async () => {
-      const dwellerStore = useDwellerStore()
+      const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
       const unassignSpy = vi
-        .spyOn(dwellerStore, 'unassignDwellerFromRoom')
+        .spyOn(dwellerManagementStore, 'unassignDwellerFromRoom')
         .mockResolvedValue({} as any)
       vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue({} as any)
       mockSendDwellerToWasteland.mockResolvedValue({})
@@ -1822,7 +1830,7 @@ describe('DwellerChat', () => {
     })
 
     it('should call recallDweller when confirm clicked for recall with progress < 100', async () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue({} as any)
       mockFetchExplorationProgress.mockResolvedValue({ progress_percentage: 50 })
       mockRecallDweller.mockResolvedValue({})
@@ -1860,7 +1868,7 @@ describe('DwellerChat', () => {
     })
 
     it('should call completeExploration when confirm clicked for recall with progress >= 100', async () => {
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().filter
       vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue({} as any)
       mockFetchExplorationProgress.mockResolvedValue({ progress_percentage: 100 })
       mockCompleteExploration.mockResolvedValue({})

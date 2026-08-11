@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Exploration, ExplorationEvent } from '@/modules/exploration/stores/exploration'
-import type { Dweller } from '@/modules/dwellers/stores/dweller'
+import type { Dweller } from '@/modules/dwellers/models/dweller'
 import { getEventIcon, getEventColor } from '../models/exploration'
 
 interface Props {

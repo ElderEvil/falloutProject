@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
-import type { Dweller, DetailedDweller } from '@/modules/dwellers/types'
+import type { Dweller, DetailedDweller } from '@/modules/dwellers/models/dweller'
 
 interface Props {
   explorations: Exploration[]

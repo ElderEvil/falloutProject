@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import TrainingProgressCard from './TrainingProgressCard.vue'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { usePolling } from '@/core/composables/usePolling'
 
 const trainingStore = useTrainingStore()
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
 
 const loading = ref(false)
-let refreshInterval: number | null = null
 
 const activeTrainings = computed(() => trainingStore.allActiveTrainings)
 
@@ -42,6 +42,9 @@ const fetchTrainings = async () => {
   }
 }
 
+// Refresh trainings every 30 seconds while this panel is mounted.
+usePolling(fetchTrainings, { interval: 30_000, immediate: false })
+
 const handleCancelTraining = async (trainingId: string) => {
   if (!authStore.token) return
 
@@ -67,17 +70,6 @@ onMounted(() => {
     },
     { immediate: true }
   )
-
-  // Refresh trainings every 30 seconds
-  refreshInterval = window.setInterval(() => {
-    fetchTrainings()
-  }, 30000)
-})
-
-onUnmounted(() => {
-  if (refreshInterval) {
-    clearInterval(refreshInterval)
-  }
 })
 </script>
 

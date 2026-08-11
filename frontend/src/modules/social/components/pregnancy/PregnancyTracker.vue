@@ -44,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, onUnmounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { usePregnancyStore } from '../../stores/pregnancy'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -52,6 +52,7 @@ import PregnancyCard from './PregnancyCard.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import UBadge from '@/core/components/ui/UBadge.vue'
 import UCard from '@/core/components/ui/UCard.vue'
+import { usePolling } from '@/core/composables/usePolling'
 
 interface Props {
   vaultId: string
@@ -115,22 +116,16 @@ async function deliverBaby(pregnancyId: string) {
   }
 }
 
-// Auto-refresh
-let refreshTimer: ReturnType<typeof setInterval> | null = null
+// Keep the refresh tied to this component's scope. Disabled auto-refresh
+// retains the initial load without leaving an inactive browser timer behind.
+const { pause: pausePolling } = usePolling(refreshPregnancies, {
+  interval: refreshInterval * 1000,
+  immediate: false,
+})
+
+if (!autoRefresh) pausePolling()
 
 onMounted(() => {
   refreshPregnancies()
-
-  if (autoRefresh) {
-    refreshTimer = setInterval(() => {
-      refreshPregnancies()
-    }, refreshInterval * 1000)
-  }
-})
-
-onUnmounted(() => {
-  if (refreshTimer) {
-    clearInterval(refreshTimer)
-  }
 })
 </script>

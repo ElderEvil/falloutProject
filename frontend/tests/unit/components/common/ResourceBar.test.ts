@@ -188,7 +188,7 @@ describe('ResourceBar', () => {
       })
 
       const progressBar = wrapper.find('.transition-all')
-      expect(progressBar.attributes('style')).toContain('background-color: var(--color-danger)')
+      expect(progressBar.classes()).toContain('bg-danger')
     })
 
     it('should show orange color for low status (<=20%)', () => {
@@ -201,7 +201,7 @@ describe('ResourceBar', () => {
       })
 
       const progressBar = wrapper.find('.transition-all')
-      expect(progressBar.attributes('style')).toContain('background-color: var(--color-warning)')
+      expect(progressBar.classes()).toContain('bg-warning')
     })
 
     it('should show yellow color for medium status (<=50%)', () => {
@@ -214,7 +214,7 @@ describe('ResourceBar', () => {
       })
 
       const progressBar = wrapper.find('.transition-all')
-      expect(progressBar.attributes('style')).toContain('background-color: var(--color-yellow-500)')
+      expect(progressBar.classes()).toContain('bg-yellow-500')
     })
 
     it('should show green color for healthy status (>50%)', () => {
@@ -227,9 +227,7 @@ describe('ResourceBar', () => {
       })
 
       const progressBar = wrapper.find('.transition-all')
-      expect(progressBar.attributes('style')).toContain(
-        'background-color: var(--color-theme-primary)'
-      )
+      expect(progressBar.classes()).toContain('bg-theme-primary')
     })
   })
 

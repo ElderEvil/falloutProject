@@ -6,6 +6,7 @@ import apiClient from '@/core/plugins/axios'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useProfileStore } from '@/modules/profile/stores/profile'
 import { useChatWebSocket } from '@/core/composables/useWebSocket'
+import { getErrorMessage } from '@/core/types/utils'
 import { normalizeImageUrl } from '@/core/utils/image'
 import type { ActionSuggestion } from '../models/chat'
 import { useAudioRecorder } from '../composables/useAudioRecorder'
@@ -217,11 +218,7 @@ const sendAudioMessage = async () => {
 
     refreshAfterChat()
   } catch (error: unknown) {
-    const message =
-      (error as { response?: { data?: { detail?: string } }; message?: string }).response?.data
-        ?.detail ??
-      (error as { message?: string }).message ??
-      'Unable to send audio message'
+    const message = getErrorMessage(error, 'Unable to send audio message')
     toast.error(`Failed to send audio: ${message}`)
   } finally {
     isSendingAudio.value = false

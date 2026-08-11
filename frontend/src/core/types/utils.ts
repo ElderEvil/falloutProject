@@ -10,7 +10,7 @@ export type IconComponent = Component | string
  */
 export function isAxiosError(
   error: unknown
-): error is { response: { data: { detail?: string; message?: string }; status: number } } {
+): error is { response: { data?: { detail?: string; message?: string }; status: number } } {
   return (
     typeof error === 'object' &&
     error !== null &&
@@ -23,15 +23,15 @@ export function isAxiosError(
 /**
  * Extract error message from unknown error type
  */
-export function getErrorMessage(error: unknown): string {
+export function getErrorMessage(error: unknown, fallback = 'An unknown error occurred'): string {
   if (isAxiosError(error)) {
-    return error.response.data.detail || error.response.data.message || 'An error occurred'
+    return error.response.data?.detail || error.response.data?.message || fallback
   }
   if (error instanceof Error) {
-    return error.message
+    return error.message || fallback
   }
   if (typeof error === 'string') {
-    return error
+    return error || fallback
   }
-  return 'An unknown error occurred'
+  return fallback
 }

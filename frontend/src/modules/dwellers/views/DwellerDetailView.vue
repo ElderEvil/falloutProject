@@ -170,7 +170,10 @@ const generateDwellerInfo = async () => {
 const generateDwellerBio = async () => {
   generatingBio.value = true
   try {
-    const result = await dwellerGenerationStore.generateDwellerBio(dwellerId.value, authStore.token as string)
+    const result = await dwellerGenerationStore.generateDwellerBio(
+      dwellerId.value,
+      authStore.token as string
+    )
     if (result) {
       await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
     }

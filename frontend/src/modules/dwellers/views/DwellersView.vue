@@ -219,7 +219,10 @@ const viewDwellerDetails = (dwellerId: string) => {
 const generateDwellerInfo = async (dwellerId: string) => {
   generatingAI.value[dwellerId] = true
   try {
-    const result = await dwellerGenerationStore.generateDwellerInfo(dwellerId, authStore.token as string)
+    const result = await dwellerGenerationStore.generateDwellerInfo(
+      dwellerId,
+      authStore.token as string
+    )
     if (result) {
       // Refresh the dweller list to get the updated thumbnail_url
       await fetchDwellers()

@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSse, type SseEvent } from '@/core/composables/useEventStream'
+import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import axios from '@/core/plugins/axios'
 
 interface Notification {
@@ -20,7 +21,50 @@ const authStore = useAuthStore()
 const showPopup = ref(false)
 const notifications = ref<Notification[]>([])
 const unreadCount = ref(0)
-const isLoading = ref(false)
+const { run: runFetchNotifications, isLoading } = useAsyncAction(
+  async (token: string) => {
+    const response = await axios.get('/api/v1/notifications/', {
+      params: { limit: 20 },
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    notifications.value = response.data
+  },
+  { context: 'Failed to fetch notifications' }
+)
+const { run: runFetchUnreadCount } = useAsyncAction(
+  async (token: string) => {
+    const response = await axios.get('/api/v1/notifications/unread-count', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    unreadCount.value = response.data.count
+  },
+  { context: 'Failed to fetch unread count' }
+)
+const { run: runMarkAsRead } = useAsyncAction(
+  async (notificationId: string, token: string) => {
+    await axios.patch(
+      `/api/v1/notifications/${notificationId}/read`,
+      {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    const notification = notifications.value.find((item) => item.id === notificationId)
+    if (notification) notification.is_read = true
+    await runFetchUnreadCount(token)
+  },
+  { context: 'Failed to mark notification as read' }
+)
+const { run: runMarkAllAsRead } = useAsyncAction(
+  async (token: string) => {
+    await axios.post(
+      '/api/v1/notifications/mark-all-read',
+      {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    notifications.value.forEach((notification) => (notification.is_read = true))
+    unreadCount.value = 0
+  },
+  { context: 'Failed to mark all notifications as read' }
+)
 
 const hasUnread = computed(() => unreadCount.value > 0)
 
@@ -79,39 +123,11 @@ watch(
 )
 
 const fetchNotifications = async () => {
-  if (!authStore.token) return
-
-  isLoading.value = true
-  try {
-    const response = await axios.get('/api/v1/notifications/', {
-      params: { limit: 20 },
-      headers: {
-        Authorization: `Bearer ${authStore.token}`,
-      },
-    })
-
-    notifications.value = response.data
-  } catch (error) {
-    console.error('Failed to fetch notifications:', error)
-  } finally {
-    isLoading.value = false
-  }
+  if (authStore.token) await runFetchNotifications(authStore.token)
 }
 
 const fetchUnreadCount = async () => {
-  if (!authStore.token) return
-
-  try {
-    const response = await axios.get('/api/v1/notifications/unread-count', {
-      headers: {
-        Authorization: `Bearer ${authStore.token}`,
-      },
-    })
-
-    unreadCount.value = response.data.count
-  } catch (error) {
-    console.error('Failed to fetch unread count:', error)
-  }
+  if (authStore.token) await runFetchUnreadCount(authStore.token)
 }
 
 const togglePopup = async () => {
@@ -122,48 +138,11 @@ const togglePopup = async () => {
 }
 
 const markAsRead = async (notificationId: string) => {
-  if (!authStore.token) return
-
-  try {
-    await axios.patch(
-      `/api/v1/notifications/${notificationId}/read`,
-      {},
-      {
-        headers: {
-          Authorization: `Bearer ${authStore.token}`,
-        },
-      }
-    )
-
-    const notification = notifications.value.find((n) => n.id === notificationId)
-    if (notification) {
-      notification.is_read = true
-    }
-    await fetchUnreadCount()
-  } catch (error) {
-    console.error('Failed to mark notification as read:', error)
-  }
+  if (authStore.token) await runMarkAsRead(notificationId, authStore.token)
 }
 
 const markAllAsRead = async () => {
-  if (!authStore.token) return
-
-  try {
-    await axios.post(
-      '/api/v1/notifications/mark-all-read',
-      {},
-      {
-        headers: {
-          Authorization: `Bearer ${authStore.token}`,
-        },
-      }
-    )
-
-    notifications.value.forEach((n) => (n.is_read = true))
-    unreadCount.value = 0
-  } catch (error) {
-    console.error('Failed to mark all as read:', error)
-  }
+  if (authStore.token) await runMarkAllAsRead(authStore.token)
 }
 
 const getNotificationIcon = (type: string): string => {

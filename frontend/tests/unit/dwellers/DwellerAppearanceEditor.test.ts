@@ -111,6 +111,23 @@ describe('DwellerAppearanceEditor', () => {
     expect(saved.height).toBe('average')
   })
 
+  it('omits age when the age input is cleared', async () => {
+    const dwellerWithAge = {
+      ...baseDweller,
+      visual_attributes: { age: 25 },
+    } as unknown as Dweller
+
+    const wrapper = await createWrapper(dwellerWithAge)
+    await wrapper.find('[data-testid="ui-input"]').setValue('')
+    await wrapper
+      .findAll('button')
+      .filter((b) => b.text().includes('Save Changes'))[0]!
+      .trigger('click')
+
+    const saved = wrapper.emitted('saved')![0][0] as Record<string, unknown>
+    expect(saved).not.toHaveProperty('age')
+  })
+
   it('shows state_of_being for non-human races', async () => {
     const dwellerWithGhoul = {
       ...baseDweller,

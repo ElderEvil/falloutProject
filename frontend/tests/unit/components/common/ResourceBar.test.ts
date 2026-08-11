@@ -157,7 +157,7 @@ describe('ResourceBar', () => {
       })
 
       const barContainer = wrapper.find(
-        '.h-6.w-40.rounded-full.border-2.border-\\[var\\(--color-surface-border\\)\\].bg-\\[var\\(--color-surface-raised\\)\\]'
+        '.h-6.w-40.rounded-full.border-2.border-\\[\\#57534e\\].bg-\\[\\#292524\\]'
       )
       expect(barContainer.exists()).toBe(true)
     })

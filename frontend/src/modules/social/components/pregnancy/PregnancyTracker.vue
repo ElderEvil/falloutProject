@@ -45,14 +45,14 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { usePregnancyStore } from '../../stores/pregnancy'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import PregnancyCard from './PregnancyCard.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import UBadge from '@/core/components/ui/UBadge.vue'
 import UCard from '@/core/components/ui/UCard.vue'
 import { usePolling } from '@/core/composables/usePolling'
+import { usePregnancyStore } from '@/modules/social/stores/pregnancy'
+import PregnancyCard from './PregnancyCard.vue'
 
 interface Props {
   vaultId: string

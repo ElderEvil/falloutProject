@@ -9,7 +9,7 @@ vault thriving. Built with modern Python tooling.
 [![Vue 3.5](https://img.shields.io/badge/vue-3.5-00ff00.svg)](https://vuejs.org/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.9-00ff00.svg)](https://www.typescriptlang.org/)
 
-See [ROADMAP.md](./ROADMAP.md) for recent updates and upcoming features.
+See [docs/ROADMAP.md](./docs/ROADMAP.md) for recent updates and upcoming features.
 
 **Keywords:** fallout shelter, vault management, simulation game, python, fastapi, vue, typescript, postgresql, redis
 
@@ -134,7 +134,7 @@ pnpm run lint                   # Lint
 pnpm run build                  # Build for production
 ```
 
-See [`frontend/README.md`](./frontend/README.md) and [`frontend/STYLEGUIDE.md`](./frontend/STYLEGUIDE.md) for details.
+See [`docs/frontend/README.md`](./docs/frontend/README.md) and [`docs/frontend/STYLEGUIDE.md`](./docs/frontend/STYLEGUIDE.md) for details.
 
 ## 🐳 Deployment
 
@@ -297,11 +297,11 @@ docker compose ps fastapi  # Should show 0.0.0.0:8000->8000/tcp
 
 ## 📚 Documentation
 
-- [ROADMAP.md](./ROADMAP.md) - Changelog and upcoming features
+- [docs/ROADMAP.md](./docs/ROADMAP.md) - Changelog and upcoming features
 - [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) - Deployment guide
 - [docs/deployment/TRUENAS_SETUP.md](./docs/deployment/TRUENAS_SETUP.md) - TrueNAS staging setup
-- [frontend/README.md](./frontend/README.md) - Frontend architecture
-- [frontend/STYLEGUIDE.md](./frontend/STYLEGUIDE.md) - Design system
+- [docs/frontend/README.md](./docs/frontend/README.md) - Frontend architecture
+- [docs/frontend/STYLEGUIDE.md](./docs/frontend/STYLEGUIDE.md) - Design system
 
 ## 📄 License
 

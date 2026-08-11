@@ -18,6 +18,7 @@ import { RevivalSection } from '../components/death'
 import type { RevivalCostResponse } from '../models/dweller'
 import { useGaryMode } from '@/core/composables/useGaryMode'
 import { handleStoreError } from '@/core/utils/errorHandler'
+import { useToast } from '@/core/composables/useToast'
 import { getVaultMap } from '@/modules/map/services/mapService'
 import type { MapPlaceLink } from '../components/DwellerBio.vue'
 
@@ -33,6 +34,7 @@ const {
 } = useDwellerStore()
 const vaultStore = useVaultStore()
 const explorationStore = useExplorationStore()
+const toast = useToast()
 const { isCollapsed } = useSidePanel()
 const { triggerGaryMode } = useGaryMode()
 
@@ -121,7 +123,7 @@ const handleAssign = async () => {
     // Refresh dweller details to show updated room assignment
     await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
   } catch (error) {
-    console.error('Error auto-assigning dweller:', error)
+    toast.error('Failed to assign dweller automatically')
   } finally {
     assigning.value = false
   }
@@ -134,7 +136,7 @@ const handleRecall = async () => {
   const exploration = explorationStore.getExplorationByDwellerId(dwellerId.value)
 
   if (!exploration) {
-    console.error('No active exploration found for dweller')
+    toast.error('No active exploration found for this dweller')
     return
   }
 
@@ -143,7 +145,7 @@ const handleRecall = async () => {
     // Refresh dweller details to update status
     await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token, true)
   } catch (error) {
-    console.error('Error recalling dweller:', error)
+    toast.error('Failed to recall dweller')
   }
 }
 
@@ -159,7 +161,7 @@ const generateDwellerInfo = async () => {
       await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
     }
   } catch (error) {
-    console.error('Error generating info with AI:', error)
+    toast.error('Failed to generate dweller information')
   } finally {
     generatingAI.value = false
   }
@@ -168,12 +170,15 @@ const generateDwellerInfo = async () => {
 const generateDwellerBio = async () => {
   generatingBio.value = true
   try {
-    const result = await dwellerGenerationStore.generateDwellerBio(dwellerId.value, authStore.token as string)
+    const result = await dwellerGenerationStore.generateDwellerBio(
+      dwellerId.value,
+      authStore.token as string
+    )
     if (result) {
       await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
     }
   } catch (error) {
-    console.error('Error generating bio with AI:', error)
+    toast.error('Failed to generate dweller biography')
   } finally {
     generatingBio.value = false
   }
@@ -190,7 +195,7 @@ const generateDwellerPortrait = async () => {
       await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
     }
   } catch (error) {
-    console.error('Error generating portrait with AI:', error)
+    toast.error('Failed to generate dweller portrait')
   } finally {
     generatingPortrait.value = false
   }
@@ -207,7 +212,7 @@ const generateDwellerAppearance = async () => {
       await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
     }
   } catch (error) {
-    console.error('Error generating appearance with AI:', error)
+    toast.error('Failed to generate dweller appearance')
   } finally {
     generatingAppearance.value = false
   }
@@ -261,7 +266,7 @@ const handleUseStimpack = async () => {
     await dwellerMedicalStore.useStimpack(dwellerId.value, authStore.token as string)
     await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
   } catch (error) {
-    console.error('Error using stimpack:', error)
+    toast.error('Failed to use Stimpack')
   } finally {
     usingStimpack.value = false
   }
@@ -275,7 +280,7 @@ const handleUseRadaway = async () => {
     await dwellerMedicalStore.useRadaway(dwellerId.value, authStore.token as string)
     await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
   } catch (error) {
-    console.error('Error using radaway:', error)
+    toast.error('Failed to use RadAway')
   } finally {
     usingRadaway.value = false
   }
@@ -289,7 +294,7 @@ const handleUnassign = async () => {
     await dwellerManagementStore.unassignDwellerFromRoom(dwellerId.value, authStore.token as string)
     await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
   } catch (error) {
-    console.error('Error unassigning dweller:', error)
+    toast.error('Failed to unassign dweller')
   } finally {
     unassigning.value = false
   }

@@ -94,7 +94,6 @@ export function useRoomUpgrade(
         emitClose()
       }, 800)
     } catch (error) {
-      console.error('Failed to upgrade room:', error)
       actionError.value = error instanceof Error ? error.message : 'Failed to upgrade room'
       toast.error(error instanceof Error ? error.message : 'Failed to upgrade room', 5000)
     } finally {

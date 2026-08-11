@@ -15,11 +15,3 @@ declare global {
     readonly env: ImportMetaEnv
   }
 }
-
-// Augment Vue's existing runtime-core declarations instead of replacing them.
-// Vue component shim for TypeScript and lint tools
-declare module '*.vue' {
-  import type { DefineComponent } from 'vue'
-  const component: DefineComponent<object, object, unknown>
-  export default component
-}

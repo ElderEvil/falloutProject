@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { UButton, UInput } from '@/core/components/ui'
 import { useAuthStore } from '../stores/auth'
 import { useRouter } from 'vue-router'
+import { useAsyncAction } from '@/core/composables/useAsyncAction'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -10,20 +11,18 @@ const router = useRouter()
 const username = ref('')
 const password = ref('')
 const error = ref('')
-const isLoading = ref(false)
+const { run: runLogin, isLoading } = useAsyncAction(
+  (email: string, currentPassword: string) => authStore.login(email, currentPassword),
+  { context: 'Unable to authenticate', showToast: false }
+)
 
 const handleSubmit = async () => {
   error.value = ''
-  isLoading.value = true
-  try {
-    const success = await authStore.login(username.value, password.value)
-    if (success) {
-      await router.push('/')
-    } else {
-      error.value = 'Invalid username or password'
-    }
-  } finally {
-    isLoading.value = false
+  const success = await runLogin(username.value, password.value)
+  if (success) {
+    await router.push('/')
+  } else {
+    error.value = 'Invalid username or password'
   }
 }
 </script>

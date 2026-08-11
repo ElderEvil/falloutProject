@@ -115,7 +115,7 @@ const canClaim = computed(() => {
 
 <style scoped>
 .objective-card {
-  background: linear-gradient(135deg, var(--color-surface-raised) 0%, var(--color-surface-warm) 100%);
+  background: var(--color-surface-warm-dark);
   border: 2px solid var(--color-theme-primary);
   border-radius: 6px;
   padding: 16px;
@@ -143,7 +143,7 @@ const canClaim = computed(() => {
 .completed-card {
   border-color: var(--color-gray-500);
   opacity: 0.9;
-  background: linear-gradient(135deg, var(--color-surface-raised) 0%, var(--color-surface-warm) 100%);
+  background: var(--color-surface-warm-dark);
 }
 
 .completed-card::before {

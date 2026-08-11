@@ -42,8 +42,7 @@ export function useChatActions(options: UseChatActionsOptions) {
       await dwellerManagementStore.assignDwellerToRoom(options.dwellerId, roomId, authStore.token)
       toast.success(`${options.dwellerName} assigned to ${roomName}`)
       return true
-    } catch (error) {
-      console.error('Failed to assign dweller to room:', error)
+    } catch {
       toast.error('Failed to assign dweller to room')
       return false
     } finally {
@@ -86,14 +85,19 @@ export function useChatActions(options: UseChatActionsOptions) {
         const matchingStatRooms = trainingRooms.filter(
           (r) => r.ability?.toLowerCase() === stat.toLowerCase()
         )
+        const hasCapacity = (room: (typeof trainingRooms)[number], occupancy: number) => {
+          const roomSize = room.size ?? room.size_min ?? 3
+          const capacity = Math.ceil(roomSize / 3) * 2
+          return occupancy < capacity
+        }
         let availableTrainingRoom = matchingStatRooms.find((r) => {
           const occupancy = dwellerStore.dwellers.filter((d) => d.room_id === r.id).length
-          return !r.capacity || occupancy < r.capacity
+          return hasCapacity(r, occupancy)
         })
         if (!availableTrainingRoom) {
           availableTrainingRoom = trainingRooms.find((r) => {
             const occupancy = dwellerStore.dwellers.filter((d) => d.room_id === r.id).length
-            return !r.capacity || occupancy < r.capacity
+            return hasCapacity(r, occupancy)
           })
         }
 
@@ -119,8 +123,7 @@ export function useChatActions(options: UseChatActionsOptions) {
       await startTraining(options.dwellerId, trainingRoomId, authStore.token)
       toast.success(`${options.dwellerName} started ${stat} training`)
       return true
-    } catch (error) {
-      console.error('Failed to start training:', error)
+    } catch {
       toast.error('Failed to start training')
       return false
     } finally {
@@ -164,8 +167,7 @@ export function useChatActions(options: UseChatActionsOptions) {
 
       await dwellerStore.fetchDwellerDetails(options.dwellerId, authStore.token, true)
       return true
-    } catch (error) {
-      console.error('Failed to start exploration:', error)
+    } catch {
       toast.error('Failed to send dweller to wasteland')
       return false
     } finally {
@@ -199,8 +201,7 @@ export function useChatActions(options: UseChatActionsOptions) {
 
       await dwellerStore.fetchDwellerDetails(options.dwellerId, authStore.token, true)
       return true
-    } catch (error) {
-      console.error('Failed to recall exploration:', error)
+    } catch {
       toast.error('Failed to recall dweller from wasteland')
       return false
     } finally {

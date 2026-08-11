@@ -43,8 +43,7 @@ const {
 } = defineProps<Props>()
 
 const emit = defineEmits<{
-  // Native inputs always produce strings. Consumers that need a numeric value
-  // opt into Vue's `v-model.number` modifier at the call site.
+  // Native inputs always produce strings.
   (e: 'update:modelValue', value: string): void
   (e: 'blur'): void
   (e: 'focus'): void

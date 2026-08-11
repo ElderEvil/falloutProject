@@ -1054,6 +1054,90 @@ describe('DwellerChat', () => {
       )
     })
 
+    it('should skip a full stat-matching room based on its size and use an available fallback', async () => {
+      mockRooms.value = [
+        {
+          id: 'strength-training',
+          name: 'Strength Training',
+          category: 'training',
+          ability: 'STRENGTH',
+          size: 3,
+        },
+        {
+          id: 'endurance-training',
+          name: 'Endurance Training',
+          category: 'training',
+          ability: 'ENDURANCE',
+          size_min: 6,
+        },
+      ]
+
+      const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
+      const assignSpy = vi
+        .spyOn(dwellerManagementStore, 'assignDwellerToRoom')
+        .mockResolvedValue({} as any)
+
+      dwellerStore.$patch({
+        dwellers: [
+          ...Array.from({ length: 2 }, (_, index) => ({
+            id: `strength-dweller-${index}`,
+            first_name: 'Strength',
+            last_name: `Dweller${index}`,
+            room_id: 'strength-training',
+            level: 1,
+            happiness: 50,
+            strength: 5,
+            perception: 5,
+            endurance: 5,
+            charisma: 5,
+            intelligence: 5,
+            agility: 5,
+            luck: 5,
+            status: 'idle',
+          })),
+          {
+            id: 'dweller-123',
+            first_name: 'Test',
+            last_name: 'Dweller',
+            room_id: null,
+            level: 1,
+            happiness: 50,
+            strength: 5,
+            perception: 5,
+            endurance: 5,
+            charisma: 5,
+            intelligence: 5,
+            agility: 5,
+            luck: 5,
+            status: 'idle',
+          },
+        ],
+      })
+
+      const wrapper = mountComponent()
+      await flushPromises()
+
+      ;(apiClient.post as Mock).mockResolvedValueOnce({
+        data: {
+          response: 'I want to get stronger!',
+          happiness_impact: { delta: 3, reason_text: 'Motivated' },
+          action_suggestion: {
+            action_type: 'start_training',
+            stat: 'strength',
+            reason: 'Low strength, needs improvement',
+          },
+        },
+      })
+
+      await wrapper.find('.chat-input-field').setValue('Train strength')
+      await wrapper.find('.chat-send-btn').trigger('click')
+      await flushPromises()
+      await wrapper.find('.action-confirm-btn').trigger('click')
+      await flushPromises()
+
+      expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'endurance-training', 'test-token')
+    })
+
     it('should show error when no training rooms available', async () => {
       mockRooms.value = [
         {

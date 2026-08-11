@@ -112,8 +112,8 @@ watch(
 
       <RoomPreviewSection
         :room-name="room.name"
-        :image-url="room.image_url"
-        :room-image-url="roomImageUrl"
+        :image-url="room.image_url ?? null"
+        :room-image-url="roomImageUrl ?? null"
         :dweller-capacity="dwellerCapacity"
         :assigned-dwellers="assignedDwellers"
       />

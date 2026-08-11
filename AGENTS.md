@@ -277,7 +277,7 @@ pnpm run test -- --coverage
 - Prefer the repo UI components (see `frontend/src/core/components/ui/`): `UButton`, `UCard`, `UInput`, `UModal`, etc.
 - Tailwind utilities only; avoid inline styles.
 - Use CRT effects classes where appropriate: `.flicker`, `.terminal-glow`, `.crt-screen`.
-- Design token source of truth: `frontend/src/assets/tailwind.css` and `frontend/STYLEGUIDE.md`.
+- Design token source of truth: `frontend/src/assets/tailwind.css` and `docs/frontend/STYLEGUIDE.md`.
 
 ## Bug Fix Workflow (MANDATORY)
 
@@ -291,12 +291,17 @@ When a bug is reported:
 
 When cutting a release branch or version bump:
 
-1. Update backend version in `backend/pyproject.toml`.
-2. Regenerate the backend lockfile: `cd backend && uv lock`.
-3. Update frontend version in `frontend/package.json`.
-4. Sync frontend lockfile when needed: `cd frontend && pnpm install`.
-5. Commit backend and frontend version changes separately (backend `pyproject.toml` + `uv.lock`, frontend `package.json`).
-6. Push the release branch and keep unrelated files untracked.
+1. Define no more than two focused improvement areas and capture a reproducible baseline before implementation.
+2. Measure the final result using the same command, dataset, and environment. Record the baseline, after value,
+   absolute and percentage change, and command or CI artifact in the release notes.
+3. For code-quality or LOC claims, demonstrate retained behaviour with relevant tests and preserve readability; do not
+   count generated code, lockfiles, formatting-only changes, or feature removal as an improvement.
+4. Update backend version in `backend/pyproject.toml`.
+5. Regenerate the backend lockfile: `cd backend && uv lock`.
+6. Update frontend version in `frontend/package.json`.
+7. Sync frontend lockfile when needed: `cd frontend && pnpm install`.
+8. Commit backend and frontend version changes separately (backend `pyproject.toml` + `uv.lock`, frontend `package.json`).
+9. Push the release branch and keep unrelated files untracked.
 
 ## Repo Guardrails
 

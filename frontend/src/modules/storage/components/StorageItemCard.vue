@@ -62,11 +62,11 @@ const itemIcon = computed(() => {
       case 'pistol':
         return 'mdi:pistol'
       case 'rifle':
-        return 'mdi:rifle'
+        return 'game-icons:rifle'
       case 'shotgun':
-        return 'mdi:shotgun'
+        return 'game-icons:shotgun'
       case 'automatic':
-        return 'mdi:rifle'
+        return 'game-icons:machine-gun'
       case 'explosive':
         return 'mdi:bomb'
       case 'flamer':

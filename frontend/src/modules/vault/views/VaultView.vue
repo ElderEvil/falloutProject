@@ -19,6 +19,7 @@ import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useToast } from '@/core/composables/useToast'
 import type { RoomTemplate } from '@/modules/rooms/models/room'
 import { Icon } from '@iconify/vue'
 
@@ -39,6 +40,7 @@ const route = useRoute()
 const authStore = useAuthStore()
 const roomStore = useRoomStore()
 const vaultStore = useVaultStore()
+const toast = useToast()
 const { filter: dwellerStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
 const incidentStore = useIncidentStore()
@@ -145,7 +147,7 @@ const loadVaultData = async (id: string) => {
     try {
       await explorationStore.fetchExplorationsByVault(id, authStore.token)
     } catch (error) {
-      console.error('[VaultView] Failed to load explorations:', error)
+      toast.warning('Vault loaded, but explorations could not be loaded')
       // Don't fail the whole page load if explorations fail
     }
 
@@ -164,7 +166,7 @@ const loadVaultData = async (id: string) => {
 
     isLoading.value = false
   } catch (error) {
-    console.error('Failed to load vault:', error)
+    toast.error('Failed to load vault')
     errorMessage.value = error instanceof Error ? error.message : 'Failed to load vault data'
     isLoading.value = false
   }

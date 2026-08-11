@@ -5,6 +5,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
+import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { storageService, type StorageItemsResponse } from '../services/storageService'
 import { Icon } from '@iconify/vue'
 import { UButton, UTabs } from '@/core/components/ui'
@@ -19,7 +20,6 @@ const { isCollapsed } = useSidePanel()
 const toast = useToast()
 
 const vaultId = computed(() => route.params.id as string)
-const isLoading = ref(false)
 const storageSpace = ref<{
   used_space: number
   max_space: number
@@ -34,6 +34,20 @@ const storageItems = ref<StorageItemsResponse>({
   outfits: [],
   junk: [],
 })
+
+const { run: runFetchStorageData, isLoading } = useAsyncAction(
+  async (currentVaultId: string) => {
+    const [spaceData, itemsData] = await Promise.all([
+      storageService.getStorageSpace(currentVaultId),
+      storageService.getStorageItems(currentVaultId),
+    ])
+
+    storageSpace.value = spaceData
+    storageItems.value = itemsData
+    return true
+  },
+  { context: 'Failed to load storage data', showToast: false }
+)
 
 const activeTab = ref<'weapons' | 'outfits' | 'junk'>('weapons')
 type StorageTab = typeof activeTab.value
@@ -59,20 +73,9 @@ const tabs = computed<Array<{ key: StorageTab; label: string }>>(() => [
 const fetchStorageData = async () => {
   if (!vaultId.value || !authStore.token) return
 
-  isLoading.value = true
-  try {
-    const [spaceData, itemsData] = await Promise.all([
-      storageService.getStorageSpace(vaultId.value),
-      storageService.getStorageItems(vaultId.value),
-    ])
-
-    storageSpace.value = spaceData
-    storageItems.value = itemsData
-  } catch (error) {
-    console.error('Failed to load storage data:', error)
+  const result = await runFetchStorageData(vaultId.value)
+  if (!result) {
     toast.error('Failed to load storage data')
-  } finally {
-    isLoading.value = false
   }
 }
 
@@ -163,8 +166,7 @@ const handleSellItem = async (
     if (vaultId.value && authStore.token) {
       await vaultStore.refreshVault(vaultId.value, authStore.token)
     }
-  } catch (error) {
-    console.error('Failed to sell item:', error)
+  } catch {
     toast.error('Failed to sell item')
   }
 }
@@ -195,8 +197,7 @@ const handleScrapItem = async (
     if (vaultId.value && authStore.token) {
       await vaultStore.refreshVault(vaultId.value, authStore.token)
     }
-  } catch (error) {
-    console.error('Failed to scrap item:', error)
+  } catch {
     toast.error('Failed to scrap item')
   }
 }

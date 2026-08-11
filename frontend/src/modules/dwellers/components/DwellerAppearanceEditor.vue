@@ -244,6 +244,10 @@ const form = reactive<AppearanceForm>({})
 const ageInput = computed({
   get: () => (form.age === undefined ? '' : String(form.age)),
   set: (value: string) => {
+    if (value === '') {
+      form.age = undefined
+      return
+    }
     const parsed = Number(value)
     form.age = Number.isFinite(parsed) ? parsed : undefined
   },

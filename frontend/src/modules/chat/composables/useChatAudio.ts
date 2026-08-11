@@ -1,6 +1,8 @@
 import { ref } from 'vue'
+import { useToast } from '@/core/composables/useToast'
 
 export function useChatAudio() {
+  const toast = useToast()
   const currentlyPlayingAudio = ref<HTMLAudioElement | null>(null)
   const currentlyPlayingUrl = ref<string | null>(null)
 
@@ -23,8 +25,8 @@ export function useChatAudio() {
     currentlyPlayingAudio.value = audio
     currentlyPlayingUrl.value = url
 
-    audio.play().catch((err) => {
-      console.error('Error playing audio:', err)
+    audio.play().catch(() => {
+      toast.error('Unable to play audio')
       currentlyPlayingAudio.value = null
       currentlyPlayingUrl.value = null
     })

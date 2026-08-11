@@ -77,7 +77,6 @@ const handleClick = (event: MouseEvent) => {
 
 <template>
   <button
-    v-bind="$attrs"
     :class="buttonClasses"
     :disabled="disabled || loading"
     @click="handleClick"

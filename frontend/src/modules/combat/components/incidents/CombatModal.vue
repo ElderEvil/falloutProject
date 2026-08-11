@@ -126,12 +126,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import { useIncidentStore } from '../../stores/incident'
 import UModal from '@/core/components/ui/UModal.vue'
 import UButton from '@/core/components/ui/UButton.vue'
+import { usePolling } from '@/core/composables/usePolling'
+import { useToast } from '@/core/composables/useToast'
+import { useIncidentStore } from '../../stores/incident'
 import type { Incident } from '../../models/incident'
 import { IncidentType } from '../../models/incident'
-import { usePolling } from '@/core/composables/usePolling'
 
 interface Props {
   incidentId: string
@@ -147,6 +148,7 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore()
 const incidentStore = useIncidentStore()
+const toast = useToast()
 
 const incident = ref<Incident | null>(null)
 const isLoading = ref(true)
@@ -164,8 +166,8 @@ async function loadIncident() {
     const data = await incidentStore.fetchIncidents(props.vaultId, authStore.token)
     incident.value = incidentStore.getIncidentById(props.incidentId) || null
     isLoading.value = false
-  } catch (error) {
-    console.error('Failed to load incident:', error)
+  } catch {
+    toast.error('Failed to load incident')
   }
 }
 
@@ -181,8 +183,8 @@ async function handleResolve(success: boolean) {
     await incidentStore.resolveIncident(props.vaultId, props.incidentId, authStore.token, success)
     emit('resolved')
     emit('close')
-  } catch (error) {
-    console.error('Failed to resolve incident:', error)
+  } catch {
+    toast.error('Failed to resolve incident')
   } finally {
     isResolving.value = false
   }

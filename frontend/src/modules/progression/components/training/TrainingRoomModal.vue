@@ -12,11 +12,22 @@ import type { Dweller } from '@/modules/dwellers/models/dweller'
 import type { Room } from '@/modules/rooms/models/room'
 
 type TrainingRead = components['schemas']['TrainingRead']
+type TrainingDweller = Dweller & { room_id?: string | null }
+
+const SPECIAL_STAT_KEYS = {
+  strength: 'S',
+  perception: 'P',
+  endurance: 'E',
+  charisma: 'C',
+  intelligence: 'I',
+  agility: 'A',
+  luck: 'L',
+} as const
 
 interface Props {
   modelValue: boolean
   room: Room | null
-  dwellers?: Dweller[]
+  dwellers?: TrainingDweller[]
 }
 
 const { dwellers = [], modelValue, room } = defineProps<Props>()
@@ -41,7 +52,7 @@ const speedBonus = computed(() => {
 
 const canStartMore = computed(() => {
   if (!room) return false
-  return activeTrainings.value.length < room.capacity
+  return activeTrainings.value.length < (room.capacity ?? 0)
 })
 
 const availableDwellers = computed(() => {
@@ -50,7 +61,7 @@ const availableDwellers = computed(() => {
   const trainingStat = room.ability?.toLowerCase()
   if (!trainingStat) return []
 
-  return dwellers.filter((dweller: Dweller) => {
+  return dwellers.filter((dweller) => {
     // Check if dweller is assigned to this room
     if (dweller.room_id !== room?.id) return false
 
@@ -58,7 +69,9 @@ const availableDwellers = computed(() => {
     if (trainingStore.isDwellerTraining(dweller.id)) return false
 
     // Check if stat is not maxed (assuming 10 is max)
-    const statValue = dweller[trainingStat]
+    const statKey = SPECIAL_STAT_KEYS[trainingStat as keyof typeof SPECIAL_STAT_KEYS]
+    if (!statKey) return false
+    const statValue = dweller[statKey]
     if (statValue >= 10) return false
 
     // Check dweller status (must be idle or working)
@@ -69,13 +82,18 @@ const availableDwellers = computed(() => {
 })
 
 const getDwellerName = (dwellerId: string): string => {
-  const dweller = dwellers.find((d: Dweller) => d.id === dwellerId)
+  const dweller = dwellers.find((d) => d.id === dwellerId)
   return dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Unknown'
 }
 
 const close = () => {
   emit('update:modelValue', false)
   emit('close')
+}
+
+const getTrainingStatValue = (dweller: TrainingDweller, ability: string | null | undefined) => {
+  const statKey = SPECIAL_STAT_KEYS[ability?.toLowerCase() as keyof typeof SPECIAL_STAT_KEYS]
+  return statKey ? dweller[statKey] : 0
 }
 
 const fetchRoomTrainings = async () => {
@@ -218,7 +236,7 @@ watch(
             </div>
             <div class="dweller-stat">
               <span class="stat-label">{{ room.ability?.toUpperCase() }}</span>
-              <span class="stat-value">{{ dweller[room.ability?.toLowerCase()] }}</span>
+              <span class="stat-value">{{ getTrainingStatValue(dweller, room.ability) }}</span>
             </div>
           </button>
         </div>

@@ -34,7 +34,6 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
       const response = await axios.get(`/api/v1/pregnancies/vault/${vaultId}`)
       pregnancies.value = response.data
     } catch (error: unknown) {
-      console.error('Failed to fetch pregnancies:', error)
       toast.error(getErrorMessage(error))
       throw error
     } finally {
@@ -47,7 +46,6 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
       const response = await axios.get(`/api/v1/pregnancies/${pregnancyId}`)
       return response.data
     } catch (error: unknown) {
-      console.error('Failed to fetch pregnancy:', error)
       toast.error(getErrorMessage(error))
       return null
     }
@@ -68,7 +66,6 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
       toast.success(result.message)
       return result
     } catch (error: unknown) {
-      console.error('Failed to deliver baby:', error)
       toast.error(getErrorMessage(error))
       return null
     } finally {
@@ -90,7 +87,6 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
       toast.success('Force conception successful!')
       return pregnancy
     } catch (error: unknown) {
-      console.error('Failed to force conception:', error)
       toast.error(getErrorMessage(error))
       return null
     } finally {
@@ -116,7 +112,6 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
       toast.success('Pregnancy accelerated!')
       return true
     } catch (error: unknown) {
-      console.error('Failed to accelerate pregnancy:', error)
       toast.error(getErrorMessage(error))
       return false
     } finally {

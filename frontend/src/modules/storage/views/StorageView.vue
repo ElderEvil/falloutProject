@@ -166,8 +166,7 @@ const handleSellItem = async (
     if (vaultId.value && authStore.token) {
       await vaultStore.refreshVault(vaultId.value, authStore.token)
     }
-  } catch (error) {
-    console.error('Failed to sell item:', error)
+  } catch {
     toast.error('Failed to sell item')
   }
 }
@@ -198,8 +197,7 @@ const handleScrapItem = async (
     if (vaultId.value && authStore.token) {
       await vaultStore.refreshVault(vaultId.value, authStore.token)
     }
-  } catch (error) {
-    console.error('Failed to scrap item:', error)
+  } catch {
     toast.error('Failed to scrap item')
   }
 }

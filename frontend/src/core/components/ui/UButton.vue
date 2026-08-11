@@ -21,7 +21,7 @@ interface Props {
   block?: boolean
   type?: 'button' | 'submit' | 'reset'
   title?: string
-  ariaLabel?: string
+  'aria-label'?: string
 }
 
 const {
@@ -32,7 +32,7 @@ const {
   block = false,
   type = 'button',
   title,
-  ariaLabel,
+  'aria-label': ariaLabel,
   icon,
   iconRight,
 } = defineProps<Props>()

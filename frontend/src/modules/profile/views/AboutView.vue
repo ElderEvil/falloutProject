@@ -24,9 +24,8 @@ onMounted(async () => {
   try {
     const response = await systemService.getInfo()
     backendInfo.value = response.data
-  } catch (err) {
+  } catch {
     error.value = 'Failed to load backend info'
-    console.error('Failed to fetch backend info:', err)
   } finally {
     isLoading.value = false
   }

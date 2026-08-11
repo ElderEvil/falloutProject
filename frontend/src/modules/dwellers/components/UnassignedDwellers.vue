@@ -108,8 +108,7 @@ const handleDropZoneDrop = async (event: DragEvent) => {
     await dwellerManagementStore.unassignDwellerFromRoom(dwellerId, authStore.token as string)
 
     toast.success(`${firstName} ${lastName} unassigned from room`)
-  } catch (error) {
-    console.error('Failed to unassign dweller:', error)
+  } catch {
     toast.error('Failed to unassign dweller')
   }
 }

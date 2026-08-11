@@ -19,6 +19,7 @@ import UCard from '@/core/components/ui/UCard.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import type { RewardsSummary } from '../stores/exploration'
 import { usePolling } from '@/core/composables/usePolling'
+import { useToast } from '@/core/composables/useToast'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -27,6 +28,7 @@ const { filter: dwellerStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
 const vaultStore = useVaultStore()
 const questStore = useQuestStore()
+const toast = useToast()
 
 const vaultId = computed(() => route.params.id as string)
 const selectedExplorerId = ref<string | null>(null)
@@ -55,7 +57,7 @@ const loadData = async () => {
       await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
     }
   } catch (error) {
-    console.error('Failed to load exploration data:', error)
+    toast.error('Failed to load exploration data')
   }
 }
 
@@ -70,7 +72,7 @@ const pollExplorations = async () => {
   try {
     await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
   } catch (error) {
-    console.error('Failed to poll explorations:', error)
+    toast.error('Failed to refresh explorations')
   }
 }
 
@@ -119,7 +121,7 @@ const handleCompleteQuest = async (questId: string) => {
       selectedQuestPartyId.value = null
     }
   } catch (error) {
-    console.error('Failed to complete quest:', error)
+    toast.error('Failed to complete quest')
   }
 }
 
@@ -153,7 +155,7 @@ const handleCompleteExploration = async (explorationId: string) => {
       selectedExplorerId.value = null
     }
   } catch (error) {
-    console.error('Failed to complete exploration:', error)
+    toast.error('Failed to complete exploration')
   }
 }
 
@@ -187,7 +189,7 @@ const handleRecallExploration = async (explorationId: string) => {
       selectedExplorerId.value = null
     }
   } catch (error) {
-    console.error('Failed to recall dweller:', error)
+    toast.error('Failed to recall dweller')
   }
 }
 

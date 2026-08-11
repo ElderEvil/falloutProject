@@ -11,6 +11,7 @@ import {
   type ChangeEntry,
 } from '@/modules/profile/services/changelogService'
 import FormattedChangeDescription from '@/modules/profile/components/FormattedChangeDescription.vue'
+import { useToast } from '@/core/composables/useToast'
 
 interface Props {
   show: boolean
@@ -30,6 +31,7 @@ const emit = defineEmits<Emits>()
 const changelog = ref<ChangelogEntry[]>([])
 const loading = ref(false)
 const error = ref('')
+const toast = useToast()
 
 // Compute entries to show (either all or just new versions)
 const entriesToShow = computed(() => {
@@ -69,7 +71,7 @@ const fetchChangelog = async () => {
     changelog.value = await changelogService.getChangelog({ limit: 10 })
   } catch (err) {
     error.value = 'Failed to load changelog'
-    console.error('Changelog fetch error:', err)
+    toast.error('Failed to load changelog')
   } finally {
     loading.value = false
   }

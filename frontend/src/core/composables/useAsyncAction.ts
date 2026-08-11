@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { useToast } from './useToast'
-import { getErrorMessage, handleStoreError } from '@/core/utils/errorHandler'
+import { getErrorMessage } from '@/core/types/utils'
+import { handleStoreError } from '@/core/utils/errorHandler'
 
 export interface AsyncActionOptions {
   /** Re-throw after the error has been recorded and surfaced. */
@@ -35,7 +36,7 @@ export function useAsyncAction<Args extends unknown[], Result>(
     } catch (caught: unknown) {
       const message = getErrorMessage(caught)
       error.value = message
-      handleStoreError(caught, context)
+      handleStoreError(caught, context, !showToast)
       if (showToast) toast.error(message)
       if (rethrow) throw caught
       return null

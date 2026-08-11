@@ -1,0 +1,218 @@
+  <div class="wasteland-panel">
+    <div
+      class="wasteland-dropzone"
+      :class="{ 'drag-over': isDraggingOver }"
+      @dragover="handleDragOver"
+      @dragleave="handleDragLeave"
+      @drop="handleDrop"
+    >
+      <div class="dropzone-content">
+        <div class="dropzone-header">
+          <Icon icon="mdi:map-marker-radius" class="dropzone-icon" />
+          <div>
+            <h3 class="dropzone-title">The Wasteland</h3>
+            <p class="dropzone-subtitle">Drag dwellers here to send them exploring</p>
+          </div>
+        </div>
+        <div v-if="isDraggingOver" class="drop-indicator">
+          <Icon icon="mdi:arrow-down-bold" class="h-8 w-8 animate-bounce" />
+          <span>Release to send!</span>
+        </div>
+      </div>
+
+      <!-- Active Explorations -->
+      <div v-if="activeExplorationsArray.length > 0" class="exploring-dwellers">
+        <div class="explorers-header">
+          <h4 class="text-sm font-bold text-wasteland">
+            <Icon icon="mdi:account-search" class="inline h-5 w-5" />
+            Active Explorers ({{ activeExplorationsArray.length }})
+          </h4>
+          <router-link
+            :to="`/vault/${vaultId}/exploration`"
+            class="view-all-btn"
+            title="View full exploration dashboard"
+          >
+            <Icon icon="mdi:arrow-right" class="h-4 w-4" />
+            View All
+          </router-link>
+        </div>
+        <div class="explorer-list">
+          <div
+            v-for="exploration in activeExplorationsArray"
+            :key="exploration.id"
+            class="explorer-card"
+          >
+            <div class="explorer-info">
+              <div class="flex items-center gap-2 mb-1">
+                <Icon icon="mdi:account" class="h-5 w-5 text-wasteland" />
+                <span class="font-bold text-sm"
+                  >{{ getDwellerById(exploration.dweller_id)?.first_name }}
+                  {{ getDwellerById(exploration.dweller_id)?.last_name }}</span
+                >
+              </div>
+              <div class="explorer-stats">
+                <div class="stat-item">
+                  <Icon icon="mdi:map-marker-distance" class="h-4 w-4" />
+                  <span>{{ exploration.total_distance || 0 }} miles</span>
+                </div>
+                <div class="stat-item">
+                  <Icon icon="mdi:treasure-chest" class="h-4 w-4" />
+                  <span>{{ exploration.loot_collected?.length || 0 }} items</span>
+                </div>
+                <div class="stat-item">
+                  <Icon icon="mdi:currency-usd" class="h-4 w-4" />
+                  <span>{{ exploration.total_caps_found || 0 }} caps</span>
+                </div>
+              </div>
+              <!-- Equipped Items -->
+              <div
+                v-if="
+                  getDwellerWeapon(exploration.dweller_id) ||
+                  getDwellerOutfit(exploration.dweller_id)
+                "
+                class="equipped-items mt-2"
+              >
+                <div
+                  v-if="getDwellerWeapon(exploration.dweller_id)"
+                  class="stat-item text-amber-400"
+                >
+                  <Icon icon="mdi:sword" class="h-4 w-4" />
+                  <span class="text-xs">{{ getDwellerWeapon(exploration.dweller_id)?.name }}</span>
+                </div>
+                <div
+                  v-if="getDwellerOutfit(exploration.dweller_id)"
+                  class="stat-item text-blue-400"
+                >
+                  <Icon icon="mdi:tshirt-crew" class="h-4 w-4" />
+                  <span class="text-xs">{{ getDwellerOutfit(exploration.dweller_id)?.name }}</span>
+                </div>
+              </div>
+              <!-- Progress Bar -->
+              <div class="progress-bar-container">
+                <div
+                  class="progress-bar"
+                  :style="{
+                    width: `${getProgressPercentage(exploration.id)}%`,
+                  }"
+                ></div>
+              </div>
+              <div class="text-xs text-wasteland-dim mt-1">
+                {{ Math.round(getProgressPercentage(exploration.id)) }}% complete
+              </div>
+            </div>
+            <div class="explorer-actions">
+              <button
+                v-if="getProgressPercentage(exploration.id) >= 100"
+                @click="handleCompleteExploration(exploration.id)"
+                class="complete-button"
+                title="Complete Exploration"
+              >
+                <Icon icon="mdi:check-circle" class="h-5 w-5" />
+                Complete
+              </button>
+              <button
+                @click="recallDweller(exploration.id)"
+                class="recall-button"
+                title="Recall Dweller"
+              >
+                <Icon icon="mdi:arrow-u-left-top" class="h-5 w-5" />
+                Recall
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-else class="exploring-dwellers">
+        <p class="text-xs text-gray-500">
+          <Icon icon="mdi:information" class="inline h-4 w-4" />
+          No active explorers. Drag dwellers here to send them to the wasteland!
+        </p>
+      </div>
+    </div>
+
+    <!-- Duration Selection Modal -->
+    <div v-if="showDurationModal" class="modal-overlay" @click="cancelSend">
+      <div class="modal-content" @click.stop>
+        <h3 class="modal-title">
+          <Icon icon="mdi:clock-outline" class="inline h-6 w-6" />
+          Select Exploration Duration
+        </h3>
+        <p class="modal-subtitle">How long should {{ pendingDweller?.firstName }} explore?</p>
+        <div class="duration-options">
+          <button
+            v-for="duration in [1, 2, 4, 8, 12, 24]"
+            :key="duration"
+            @click="selectedDuration = duration"
+            class="duration-button"
+            :class="{ active: selectedDuration === duration }"
+          >
+            {{ duration }}h
+          </button>
+        </div>
+
+        <div class="medical-supplies">
+          <h4 class="supply-title">
+            <Icon icon="mdi:medical-bag" class="inline h-5 w-5" />
+            Medical Supplies
+          </h4>
+          <div class="supply-inputs">
+            <div class="supply-item">
+              <div class="flex items-center justify-between mb-1">
+                <label class="text-xs">Stimpaks (Heals HP)</label>
+                <span class="text-xs font-bold"
+                  >{{ selectedStimpaks }} / {{ vaultMedicalSupplies.stimpaks }}</span
+                >
+              </div>
+              <input
+                type="range"
+                v-model.number="selectedStimpaks"
+                min="0"
+                :max="Math.min(vaultMedicalSupplies.stimpaks, 15)"
+                class="supply-slider stimpak-slider"
+              />
+            </div>
+            <div class="supply-item">
+              <div class="flex items-center justify-between mb-1">
+                <label class="text-xs">RadAway (Removes Rads)</label>
+                <span class="text-xs font-bold"
+                  >{{ selectedRadaways }} / {{ vaultMedicalSupplies.radaways }}</span
+                >
+              </div>
+              <input
+                type="range"
+                v-model.number="selectedRadaways"
+                min="0"
+                :max="Math.min(vaultMedicalSupplies.radaways, 15)"
+                class="supply-slider radaway-slider"
+              />
+            </div>
+          </div>
+          <p class="text-[10px] text-orange-400 mt-2">
+            * Selected items will be removed from vault storage and used automatically in the
+            wasteland.
+          </p>
+        </div>
+
+        <div class="modal-actions">
+          <button @click="cancelSend" class="modal-button cancel">
+            <Icon icon="mdi:close" class="h-5 w-5" />
+            Cancel
+          </button>
+          <button @click="confirmSendToWasteland" class="modal-button confirm">
+            <Icon icon="mdi:check" class="h-5 w-5" />
+            Send to Wasteland
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rewards Modal -->
+    <ExplorationRewardsModal
+      :show="showRewardsModal"
+      :rewards="completedExplorationRewards"
+      :dweller-name="completedDwellerName"
+      @close="closeRewardsModal"
+    />
+  </div>
+
+

@@ -4,6 +4,7 @@ import { ref, computed, watch } from 'vue'
 import axios from '@/core/plugins/axios'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useSse } from '@/core/composables/useEventStream'
+import { useToast } from '@/core/composables/useToast'
 import type { components } from '@/core/types/api.generated'
 
 // Use generated API types
@@ -26,6 +27,7 @@ interface GameState {
 }
 
 export const useVaultStore = defineStore('vault', () => {
+  const toast = useToast()
   // State
   const vaults = ref<VaultWithNumbers[]>([])
   const selectedVaultId = useLocalStorage<string | null>('selectedVaultId', null)
@@ -117,7 +119,7 @@ export const useVaultStore = defineStore('vault', () => {
 
       // Show appropriate notification
       if (hardDelete) {
-        console.warn('Vault permanently deleted')
+        toast.warning('Vault permanently deleted')
       } else {
         console.info('Vault soft deleted - Data preserved for potential recovery')
       }

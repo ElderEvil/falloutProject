@@ -71,7 +71,6 @@ export const useQuestStore = defineStore('quest', () => {
       const response = await axios.get<Quest[]>('/api/v1/quests/', { headers: getAuthHeaders() })
       quests.value = response.data
     } catch (error: unknown) {
-      console.error('Failed to fetch quests:', error)
       toast.error('Failed to load quests')
       throw error
     } finally {
@@ -88,7 +87,6 @@ export const useQuestStore = defineStore('quest', () => {
       })
       vaultQuests.value = response.data
     } catch (error: unknown) {
-      console.error('Failed to fetch vault quests:', error)
       if (!silent) toast.error('Failed to load vault quests')
       throw error
     } finally {
@@ -117,7 +115,6 @@ export const useQuestStore = defineStore('quest', () => {
       const response = await axios.get<Quest>(`/api/v1/quests/${vaultId}/${questId}`)
       return response.data
     } catch (error: unknown) {
-      console.error('Failed to fetch quest:', error)
       toast.error('Failed to load quest details')
       throw error
     }
@@ -133,15 +130,14 @@ export const useQuestStore = defineStore('quest', () => {
       const errorMessage =
         (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
         'Failed to assign quest'
-      console.error('Failed to assign quest:', error)
       toast.error(errorMessage)
       throw error
     }
     // Refresh vault quests (silent — mutation already succeeded)
     try {
       await fetchVaultQuests(vaultId, { silent: true })
-    } catch (error) {
-      console.warn('Failed to refresh vault quests after assignment:', error)
+    } catch {
+      toast.warning('Quest was assigned, but the quest list could not refresh')
     }
   }
 
@@ -168,15 +164,14 @@ export const useQuestStore = defineStore('quest', () => {
       const errorMessage =
         (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
         'Failed to complete quest'
-      console.error('Failed to complete quest:', error)
       toast.error(errorMessage)
       throw error
     }
     // Refresh vault quests (silent — mutation already succeeded)
     try {
       await fetchVaultQuests(vaultId, { silent: true })
-    } catch (error) {
-      console.warn('Failed to refresh vault quests after completion:', error)
+    } catch {
+      toast.warning('Quest was completed, but the quest list could not refresh')
     }
     return result
   }
@@ -195,15 +190,14 @@ export const useQuestStore = defineStore('quest', () => {
       const errorMessage =
         (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
         'Failed to assign party'
-      console.error('Failed to assign party:', error)
       toast.error(errorMessage)
       throw error
     }
     // Refresh vault quests (silent — mutation already succeeded)
     try {
       await fetchVaultQuests(vaultId, { silent: true })
-    } catch (error) {
-      console.warn('Failed to refresh vault quests after party assignment:', error)
+    } catch {
+      toast.warning('Party was assigned, but the quest list could not refresh')
     }
   }
 
@@ -214,7 +208,7 @@ export const useQuestStore = defineStore('quest', () => {
       )
       return response.data
     } catch (error: unknown) {
-      console.error('Failed to fetch party:', error)
+      toast.error('Failed to load quest party')
       throw error
     }
   }
@@ -225,7 +219,7 @@ export const useQuestStore = defineStore('quest', () => {
       const response = await axios.get<EligibleDweller[]>(url)
       return response.data
     } catch (error: unknown) {
-      console.error('Failed to fetch eligible dwellers:', error)
+      toast.error('Failed to load eligible dwellers')
       throw error
     }
   }
@@ -238,15 +232,14 @@ export const useQuestStore = defineStore('quest', () => {
       const errorMessage =
         (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
         'Failed to start quest'
-      console.error('Failed to start quest:', error)
       toast.error(errorMessage)
       throw error
     }
     // Refresh vault quests (silent — mutation already succeeded)
     try {
       await fetchVaultQuests(vaultId, { silent: true })
-    } catch (error) {
-      console.warn('Failed to refresh vault quests after starting:', error)
+    } catch {
+      toast.warning('Quest was started, but the quest list could not refresh')
     }
   }
 

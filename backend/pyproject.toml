@@ -1,6 +1,6 @@
 [project]
 name = "fallout-shelter-fast-api"
-version = "2.30.0"
+version = "2.31.0"
 authors = [{ name = "ElderEvil", email = "elder.evil.dev@proton.me" }, ]
 description = "Fallout Shelter FastAPI Game is a web-based simulation game where the player manages a vault full of dwellers, balancing their needs and resources to keep the vault thriving."
 requires-python = ">=3.12,<3.14"
@@ -37,6 +37,7 @@ dependencies = [
 test = [
     "aiosqlite>=0.22.1",
     "coverage>=7.15.3",
+    "coverage-badge>=1.1.0",
     "factory-boy>=3.3.3",
     "fakeredis[lua]>=2.36.2",
     "pytest>=9.1.1",
@@ -140,6 +141,7 @@ lint.ignore = [
     "EM102",   # Exception must not use f-string literal
     "TRY003",  # Avoid specifying long messages outside exception class
     "PLR0913", # Too many arguments in function definition
+    "PLR0917", # Too many positional arguments
     "FAST001", # Allow response_model alongside return type annotations
 ]
 

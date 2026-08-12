@@ -5,6 +5,36 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.31.0] - 2026-08-12
+
+### Added
+
+- **Bio-to-map registration reliability** — `map_service.register_bio_places` now retries once after a transient
+  failure; if both attempts fail, it emits a durable `MAP_REGISTRATION_FAILED` notification instead of logging
+  silently
+- **Active-vault bio place backfill** — new `BioPlaceBackfillService` with
+  `backfill_bio_places_for_vault` and `backfill_bio_places_for_active_vaults`; CLI script
+  `scripts/backfill_dweller_bio_places.py` gained `--all-active`, `--max-dwellers`, and `--max-vaults` flags
+- **Coverage threshold** — backend coverage is now 82.44%; new `--cov-fail-under=80` guard prevents regression
+- **Frontend coverage reporting** — added Vitest coverage config via `@vitest/coverage-v8`; run with
+  `pnpm run test:coverage` (current baseline: ~50% lines, ~49.5% statements)
+
+### Changed
+
+- **Service separation** — backfill logic and bio place extraction moved out of `map_service.py` into
+  `app/services/bio_place_backfill_service.py`, keeping `MapService` focused on runtime registration and map
+  assembly
+- **CI/coverage split** — PR/push CI runs tests without coverage for speed; coverage reporting, badge generation,
+  and the 80% floor now live in a separate nightly/master `backend-coverage.yml` workflow
+- **Version bump** — backend/frontend aligned at v2.31.0
+
+### Fixed
+
+- **Per-dweller backfill isolation** — each dweller is committed independently during backfill so one
+  registration failure cannot roll back earlier successful registrations in the same vault
+
+---
+
 ## [2.30.0] - 2026-08-11
 
 ### Changed

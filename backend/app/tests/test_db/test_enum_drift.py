@@ -79,6 +79,7 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
         "QUEST_COMPLETE",
         "ACHIEVEMENT_UNLOCKED",
         "RADIO_NEW_DWELLER",
+        "MAP_REGISTRATION_FAILED",
     },
     "outfittypeenum": {"COMMON", "RARE", "LEGENDARY", "POWER_ARMOR", "TIERED"},
     "pregnancystatusenum": {"PREGNANT", "DELIVERED", "MISCARRIED"},

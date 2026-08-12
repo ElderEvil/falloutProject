@@ -11,8 +11,7 @@ AI-powered dweller interactions.
 
 **Current work:**
 
-- [ ] **Dramatiq async concurrency** — Fix `asyncpg InterfaceError: another operation is in progress` during game tick objective queries
-- [ ] **Bio places silent failure (found on Andrea Freeman, vault 444)** — bio places (`Rusty Creek` origin, `Necropolis`/`Brotherhood Outpost` visited) were never registered on the world map — only `HOME_VAULT` marker exists, zero `DwellerLocation` rows. `register_bio_places` is best-effort (logs-and-swallows), so the failure is silent. Investigation (v2.26.0) confirmed it is intentionally non-raising and double-wrapped, with the `_MapDwellerLike` protocol satisfied — no cheap bugfix; follow-up needs user-visible surfacing or retry semantics for map registration failures.
+- [ ] **v2.32.0 planning** — Next focused improvement area is TBD after v2.31.0 is closed out.
 
 ---
 
@@ -32,6 +31,24 @@ Release notes must state the baseline, the after value, the measurement method/e
 percentage change. Claims must be reproducible from committed commands or CI artifacts. Do not report LOC reduction
 as an improvement unless the release retains equivalent behaviour and test coverage. If the release is primarily a
 feature delivery, record its measurable non-functional impact rather than inventing an optimization claim.
+
+### v2.31.0 — Bio-to-Map Registration Reliability (Released 2026-08-12)
+
+**Focus**: Ensure a dweller's bio places are never silently absent from the world map after a registration failure, and
+provide a way to retroactively fill gaps for existing active vaults.
+
+**Completed:**
+- ✅ **Retry + durable failure signal** — `map_service.register_bio_places` now retries once and emits a
+  `MAP_REGISTRATION_FAILED` notification when both attempts fail; no longer log-only.
+- ✅ **Retroactive active-vault backfill** — New `BioPlaceBackfillService` with
+  `backfill_bio_places_for_vault` and `backfill_bio_places_for_active_vaults`; CLI script supports
+  `--all-active`, `--max-dwellers`, and `--max-vaults`.
+- ✅ **Service separation** — Backfill logic lives in its own service so `map_service.py` remains focused on
+  runtime registration and map assembly.
+- ✅ **Tests** — `test_bio_place_backfill_service.py` covers place extraction, single-vault backfill,
+  max-dwellers limit, and deleted-vault exclusion; script CLI tests updated.
+- ✅ **Coverage 80%+ achieved and enforced** — Current backend coverage is 82.44%. The fast PR/push CI
+  no longer runs coverage; a separate nightly/master coverage workflow runs with `--cov-fail-under=80`.
 
 ### v2.30.0 — Frontend Refactor (August 11, 2026)
 
@@ -152,50 +169,6 @@ feature delivery, record its measurable non-functional impact rather than invent
 
 ## Planned Features (Future)
 
-### v2.27.0 — Test Coverage & Speed Optimization (In Progress)
-
-**Focus**: Reach 80%+ coverage while cutting test runtime by 40%
-
-**Current State**: 77.53% coverage (1139 tests), ~31s runtime without coverage, ~44s with coverage
-
-#### Speed Optimizations ✅
-
-- **pytest-xdist parallelization** — `pytest -n auto` splits across CPU cores; runtime 4:24 → ~31s
-- **Test markers** — `unit`, `integration`, `slow`, `e2e` registered in `pyproject.toml`
-- **Coverage exclusions** — `app/cli/*`, `app/scripts/*`, `app/services/pregen_service.py`, `app/admin/auth.py`, `app/api/tasks.py`
-- **Fakeredis fix** — shared fake-Redis client across requests so refresh-token tests pass under xdist
-
-#### Coverage Improvements (Target: 82%+)
-
-**Phase 1: High-Impact Services ✅ (+6.6%, 207 new tests)**
-- ✅ `services/open_ai.py` — 72 tests, 36.92% → 96.73%
-- ✅ `services/health_check.py` — 40 tests, 31.52% → 98.79%
-- ✅ `services/dweller_assignment_service.py` — 56 tests, 40.82% → 98.64%
-- ✅ `services/objective_assignment_service.py` — 39 tests, 23.81% → 100%
-
-**Phase 2: CRUD & Endpoints (Stretch)**
-- [ ] `crud/room.py` (103 missing) — Test all CRUD operations
-- [ ] `crud/item_base.py` (76 missing) — Test inheritance patterns
-- [ ] `api/v1/endpoints/training.py` (43 missing) — API tests with mocked services
-- [ ] `api/v1/endpoints/relationship.py` (41 missing) — API tests with mocked services
-
-**Expected**: Coverage 77.53% → 80%+
-
-**Phase 3: Remaining Gaps (Stretch)**
-- [ ] Fill gaps in `services/vault_service.py` (98 missing)
-- [ ] Fill gaps in `services/game_loop.py` (133 missing)
-- [ ] Fill gaps in `services/dweller_ai.py` (75 missing)
-
-**Expected**: Coverage 80% → 82%+
-
-#### Implementation Timeline
-
-| Day | Focus | Result |
-|------|-------|-----------------|
-| 1 | Speed infra + exclusions + fakeredis fix | 4:24 → ~31s; 70.93% → 74.47% |
-| 2 | High-impact service tests | 74.47% → 77.53% (207 tests) |
-| 3+ | Phase 2 CRUD/endpoints + Phase 3 remaining gaps | Target 82%+ |
-
 ### Phase 1: Core Gameplay
 
 - Room management improvements (optimal dweller suggestions)
@@ -234,7 +207,7 @@ feature delivery, record its measurable non-functional impact rather than invent
 - [x] Alembic enum sync — `compare_type=True` in online mode
 - [ ] Performance testing: Locust in nightly CI
 - [ ] Datetime consistency: Migrate all `datetime.utcnow()` to aware `datetime.now(UTC)`
-- [ ] Test coverage: Target 80% — v2.27.0 in progress (70.93% → 77.53%)
+- [x] Test coverage target 80% — achieved 82.44%; enforced via nightly/master coverage workflow with `--cov-fail-under=80`
 
 ### Frontend
 
@@ -257,16 +230,20 @@ feature delivery, record its measurable non-functional impact rather than invent
 
 ### Current Stats (Aug 2026)
 
-- **Backend**: 25+ routers, 100+ endpoints, 18+ services, ~78% coverage
+- **Backend**: 25+ routers, 100+ endpoints, 19+ services, **82.44% coverage**
 - **Frontend**: 60+ Vue components, 10 feature modules
-- **Tests**: Frontend 867+, Backend 1139+
+- **Tests**: Frontend 867+, Backend 1500+
 - **Models**: 20+ database models
 
 ### Version Milestones
 
 | Version | Release      | Highlights                                   |
 | ------- | ------------ | -------------------------------------------- |
-| v2.27.0 | Aug 2026     | Test coverage 80%+, speed 40% faster         |
+| v2.31.0 | Aug 12, 2026 | Map registration retry + failure notification, bio backfill fixes |
+| v2.30.0 | Aug 11, 2026 | Frontend refactor (async actions, SSE fallback, typecheck) |
+| v2.29.0 | Aug 10, 2026 | Map unlock on chat, dweller-location `is_unlocked`, UI polish |
+| v2.28.0 | Aug 09, 2026 | Template-based bio filler + retroactive bio place backfill |
+| v2.27.0 | Aug 2026     | Test coverage push, pytest-xdist speed-up    |
 | v2.26.0 | Aug 07, 2026 | Alembic enum sync + PG enum regression tests |
 | v2.25.0 | Aug 07, 2026 | Map declutter, 160-world scaling, pregen service |
 | v2.24.0 | Aug 07, 2026 | World Map (schematic map, discoveries, bio places) |
@@ -302,4 +279,4 @@ feature delivery, record its measurable non-functional impact rather than invent
 
 ---
 
-_Last updated: 2026-08-07_ (v2.27.0 Day 2 complete, coverage 77.53%)
+_Last updated: 2026-08-12_ (v2.31.0)

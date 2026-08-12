@@ -65,7 +65,7 @@ export function useRadioRoom(
     () => modelValue.value,
     (newValue) => {
       if (newValue && isRadioRoom.value) {
-        loadRadioStats()
+        void loadRadioStats()
       }
     },
     { immediate: true }

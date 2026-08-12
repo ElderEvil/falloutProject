@@ -40,6 +40,9 @@ export interface paths {
         /**
          * Get Info
          * @description Get application version and environment information.
+         *
+         *     Returns:
+         *         Application info including version, environment, and build details.
          */
         get: operations["get_info_api_v1_system_info_get"];
         put?: never;
@@ -60,6 +63,9 @@ export interface paths {
         /**
          * Get Changelog
          * @description Get changelog entries with optional version filtering.
+         *
+         *     Returns:
+         *         List of changelog entries.
          */
         get: operations["get_changelog_api_v1_system_changelog_get"];
         put?: never;
@@ -80,6 +86,9 @@ export interface paths {
         /**
          * Get Latest Changelog
          * @description Get the most recent changelog entry.
+         *
+         *     Returns:
+         *         The latest changelog entry.
          */
         get: operations["get_latest_changelog_api_v1_system_changelog_latest_get"];
         put?: never;
@@ -102,6 +111,12 @@ export interface paths {
         /**
          * Login Access Token
          * @description OAuth2 compatible token login, get an access token for future requests.
+         *
+         *     Returns:
+         *         Token: Access and refresh tokens.
+         *
+         *     Raises:
+         *         HTTPException: 400 if credentials are invalid.
          */
         post: operations["login_access_token_api_v1_auth_login_post"];
         delete?: never;
@@ -122,6 +137,12 @@ export interface paths {
         /**
          * Refresh Access Token
          * @description Refresh access token using refresh token.
+         *
+         *     Returns:
+         *         Token: New access and refresh tokens.
+         *
+         *     Raises:
+         *         HTTPException: 400 if refresh token is invalid. 404 if token not found.
          */
         post: operations["refresh_access_token_api_v1_auth_refresh_post"];
         delete?: never;
@@ -142,6 +163,9 @@ export interface paths {
         /**
          * Logout
          * @description Invalidate the current user's refresh token.
+         *
+         *     Returns:
+         *         MessageResponse: Confirmation message.
          */
         post: operations["logout_api_v1_auth_logout_post"];
         delete?: never;
@@ -162,6 +186,9 @@ export interface paths {
         /**
          * Forgot Password
          * @description Request password reset email.
+         *
+         *     Returns:
+         *         MessageResponse: Confirmation message.
          */
         post: operations["forgot_password_api_v1_auth_forgot_password_post"];
         delete?: never;
@@ -182,6 +209,12 @@ export interface paths {
         /**
          * Reset Password
          * @description Reset password using token from email.
+         *
+         *     Returns:
+         *         MessageResponse: Confirmation message.
+         *
+         *     Raises:
+         *         HTTPException: 400 if token is invalid. 404 if token not found.
          */
         post: operations["reset_password_api_v1_auth_reset_password_post"];
         delete?: never;
@@ -201,6 +234,12 @@ export interface paths {
         /**
          * Change Password
          * @description Change password for authenticated user.
+         *
+         *     Returns:
+         *         MessageResponse: Confirmation message.
+         *
+         *     Raises:
+         *         HTTPException: 400 if current password is incorrect.
          */
         put: operations["change_password_api_v1_auth_change_password_put"];
         post?: never;
@@ -222,6 +261,12 @@ export interface paths {
         /**
          * Verify Email
          * @description Verify user email using token from email.
+         *
+         *     Returns:
+         *         MessageResponse: Confirmation message.
+         *
+         *     Raises:
+         *         HTTPException: 400 if token is invalid. 404 if token not found.
          */
         post: operations["verify_email_api_v1_auth_verify_email_post"];
         delete?: never;
@@ -242,6 +287,12 @@ export interface paths {
         /**
          * Resend Verification Email
          * @description Resend verification email to current user.
+         *
+         *     Returns:
+         *         MessageResponse: Confirmation message.
+         *
+         *     Raises:
+         *         HTTPException: 400 if verification cannot be resent.
          */
         post: operations["resend_verification_email_api_v1_auth_resend_verification_post"];
         delete?: never;
@@ -262,6 +313,12 @@ export interface paths {
         /**
          * Chat With Dweller
          * @description Send a text message to a dweller and get a response.
+         *
+         *     Returns:
+         *         DwellerChatResponse: Dweller's text response with metadata.
+         *
+         *     Raises:
+         *         HTTPException: 404 if dweller not found.
          */
         post: operations["chat_with_dweller_api_v1_chat__dweller_id__post"];
         delete?: never;
@@ -279,7 +336,13 @@ export interface paths {
         };
         /**
          * Get Chat History
-         * @description Get conversation history between user and dweller
+         * @description Get conversation history between user and dweller.
+         *
+         *     Returns:
+         *         list[ChatMessageRead]: List of chat messages.
+         *
+         *     Raises:
+         *         HTTPException: 404 if dweller not found.
          */
         get: operations["get_chat_history_api_v1_chat_history__dweller_id__get"];
         put?: never;
@@ -310,14 +373,18 @@ export interface paths {
          *     4. Saved to chat history
          *
          *     Args:
-         *         dweller_id: UUID of the dweller to chat with
-         *         user: Current authenticated user
-         *         db_session: Database session
-         *         audio_file: Audio file upload (WebM, MP3, WAV, etc.)
-         *         return_audio: If True, returns audio bytes; if False, returns JSON with URLs
+         *         dweller_id: UUID of the dweller to chat with.
+         *         user: Current authenticated user.
+         *         db_session: Database session.
+         *         audio_file: Audio file upload (WebM, MP3, WAV, etc.).
+         *         return_audio: If True, returns audio bytes; if False, returns JSON with URLs.
          *
          *     Returns:
-         *         Audio response (MP3) or JSON with transcription and audio URL
+         *         Audio response (MP3) or JSON with transcription and audio URL.
+         *
+         *     Raises:
+         *         HTTPException: 400 if the audio file is empty, 404 if dweller not found, or 500 if audio processing fails.
+         *         QuotaExceededException: If AI usage quota is exceeded.
          */
         post: operations["voice_chat_with_dweller_api_v1_chat__dweller_id__voice_post"];
         delete?: never;
@@ -338,6 +405,9 @@ export interface paths {
         /**
          * Emit Test Event
          * @description Emit a test event to the EventBus for debugging objectives.
+         *
+         *     Returns:
+         *         dict: Status, event type, vault ID, and emitted data.
          */
         post: operations["emit_test_event_api_v1_debug_emit__vault_id__post"];
         delete?: never;
@@ -356,6 +426,9 @@ export interface paths {
         /**
          * List Subscribed Events
          * @description List all currently subscribed events and their handlers.
+         *
+         *     Returns:
+         *         dict: Event handlers mapping and total handler count.
          */
         get: operations["list_subscribed_events_api_v1_debug_events_get"];
         put?: never;
@@ -376,6 +449,9 @@ export interface paths {
         /**
          * Debug Objectives
          * @description Debug endpoint to inspect objectives and their progress for a vault.
+         *
+         *     Returns:
+         *         dict: All seeded objectives, vault objectives with progress, and incomplete objectives.
          */
         get: operations["debug_objectives_api_v1_debug_objectives__vault_id__get"];
         put?: never;
@@ -398,6 +474,9 @@ export interface paths {
         /**
          * Test Collect Objective
          * @description Test RESOURCE_COLLECTED event and check if objective progress updates.
+         *
+         *     Returns:
+         *         dict: Vault ID, emitted event data, and before/after objective progress.
          */
         post: operations["test_collect_objective_api_v1_debug_objectives__vault_id__test_collect_post"];
         delete?: never;
@@ -416,6 +495,9 @@ export interface paths {
         /**
          * Debug Evaluators
          * @description Check which evaluators are subscribed to which events.
+         *
+         *     Returns:
+         *         dict: Manager initialization status and event subscriptions.
          */
         get: operations["debug_evaluators_api_v1_debug_evaluators_get"];
         put?: never;
@@ -438,6 +520,12 @@ export interface paths {
         /**
          * Test Build Living Room
          * @description Debug endpoint to test building a living room and check population_max update.
+         *
+         *     Returns:
+         *         dict: Vault population before/after, built room details, and all rooms.
+         *
+         *     Raises:
+         *         ResourceNotFoundException: If vault or living room data not found.
          */
         post: operations["test_build_living_room_api_v1_debug_test_build_living_room__vault_id__post"];
         delete?: never;
@@ -458,6 +546,9 @@ export interface paths {
         /**
          * Test Build Event
          * @description Emit a ROOM_BUILT event for testing build objectives.
+         *
+         *     Returns:
+         *         dict: Status, event name, vault ID, and event data.
          */
         post: operations["test_build_event_api_v1_debug_objectives__vault_id__test_build_post"];
         delete?: never;
@@ -478,6 +569,9 @@ export interface paths {
         /**
          * Test Train Event
          * @description Emit a DWELLER_TRAINED event for testing train objectives.
+         *
+         *     Returns:
+         *         dict: Status, event name, vault ID, and event data.
          */
         post: operations["test_train_event_api_v1_debug_objectives__vault_id__test_train_post"];
         delete?: never;
@@ -498,6 +592,9 @@ export interface paths {
         /**
          * Test Assign Event
          * @description Emit a DWELLER_ASSIGNED event for testing assign objectives.
+         *
+         *     Returns:
+         *         dict: Status, event name, vault ID, and event data.
          */
         post: operations["test_assign_event_api_v1_debug_objectives__vault_id__test_assign_post"];
         delete?: never;
@@ -518,6 +615,9 @@ export interface paths {
         /**
          * Test Reach Event
          * @description Emit a DWELLER_LEVEL_UP event for testing reach objectives.
+         *
+         *     Returns:
+         *         dict: Status, event name, vault ID, and event data.
          */
         post: operations["test_reach_event_api_v1_debug_objectives__vault_id__test_reach_post"];
         delete?: never;
@@ -538,6 +638,9 @@ export interface paths {
         /**
          * Test Collect Resource Event
          * @description Emit a RESOURCE_COLLECTED event for testing collect objectives.
+         *
+         *     Returns:
+         *         dict: Status, event name, vault ID, and event data.
          */
         post: operations["test_collect_resource_event_api_v1_debug_objectives__vault_id__test_collect_resource_post"];
         delete?: never;
@@ -558,6 +661,9 @@ export interface paths {
         /**
          * Test Collect Item Event
          * @description Emit an ITEM_COLLECTED event for testing collect objectives.
+         *
+         *     Returns:
+         *         dict: Status, event name, vault ID, and event data.
          */
         post: operations["test_collect_item_event_api_v1_debug_objectives__vault_id__test_collect_item_post"];
         delete?: never;
@@ -573,10 +679,22 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Dweller List */
+        /**
+         * Read Dweller List
+         * @description Retrieve a paginated list of dwellers.
+         *
+         *     Returns:
+         *         list[DwellerReadLess]: List of dwellers.
+         */
         get: operations["read_dweller_list_api_v1_dwellers__get"];
         put?: never;
-        /** Create Dweller */
+        /**
+         * Create Dweller
+         * @description Create a new dweller.
+         *
+         *     Returns:
+         *         DwellerRead: The created dweller.
+         */
         post: operations["create_dweller_api_v1_dwellers__post"];
         delete?: never;
         options?: never;
@@ -591,14 +709,28 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Dweller */
+        /**
+         * Read Dweller
+         * @description Get full details for a specific dweller.
+         *
+         *     Returns:
+         *         DwellerReadFull: Full dweller details.
+         */
         get: operations["read_dweller_api_v1_dwellers__dweller_id__get"];
-        /** Update Dweller */
+        /**
+         * Update Dweller
+         * @description Update a dweller's data.
+         *
+         *     Returns:
+         *         DwellerRead: The updated dweller.
+         */
         put: operations["update_dweller_api_v1_dwellers__dweller_id__put"];
         post?: never;
         /**
          * Delete Dweller
-         * @description Delete a dweller. By default performs soft delete to preserve AI-generated content for recycling.
+         * @description Delete a dweller.
+         *
+         *     By default performs soft delete to preserve AI-generated content for recycling.
          *     Use hard_delete=True to permanently remove the dweller.
          */
         delete: operations["delete_dweller_api_v1_dwellers__dweller_id__delete"];
@@ -623,6 +755,9 @@ export interface paths {
         /**
          * Rename Dweller
          * @description Rename a dweller (first name only).
+         *
+         *     Returns:
+         *         DwellerRead: The renamed dweller.
          */
         patch: operations["rename_dweller_api_v1_dwellers__dweller_id__rename_patch"];
         trace?: never;
@@ -636,7 +771,10 @@ export interface paths {
         };
         /**
          * Read Dwellers By Vault
-         * @description Get dwellers by vault with optional filtering by status, age group, search by name, and sorting.
+         * @description Get dwellers by vault with optional filtering and sorting.
+         *
+         *     Returns:
+         *         list[DwellerReadLess]: Filtered list of dwellers.
          */
         get: operations["read_dwellers_by_vault_api_v1_dwellers_vault__vault_id___get"];
         put?: never;
@@ -656,7 +794,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Move Dweller To Room */
+        /**
+         * Move Dweller To Room
+         * @description Move a dweller to a specific room.
+         *
+         *     Returns:
+         *         DwellerReadWithRoomID: The dweller with updated room assignment.
+         */
         post: operations["move_dweller_to_room_api_v1_dwellers__dweller_id__move_to__room_id__post"];
         delete?: never;
         options?: never;
@@ -673,7 +817,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create Random Common Dweller */
+        /**
+         * Create Random Common Dweller
+         * @description Create a random common dweller for a vault.
+         *
+         *     Returns:
+         *         DwellerRead: The newly created random dweller.
+         */
         post: operations["create_random_common_dweller_api_v1_dwellers_create_random__post"];
         delete?: never;
         options?: never;
@@ -690,7 +840,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Generate Backstory */
+        /**
+         * Generate Backstory
+         * @description Generate a backstory for a dweller using AI.
+         *
+         *     Returns:
+         *         DwellerReadFull: The dweller with generated backstory.
+         */
         post: operations["generate_backstory_api_v1_dwellers__dweller_id__generate_backstory__post"];
         delete?: never;
         options?: never;
@@ -707,7 +863,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Generate Visual Attributes */
+        /**
+         * Generate Visual Attributes
+         * @description Generate visual attributes for a dweller using AI.
+         *
+         *     Returns:
+         *         DwellerReadFull: The dweller with generated visual attributes.
+         */
         post: operations["generate_visual_attributes_api_v1_dwellers__dweller_id__generate_visual_attributes__post"];
         delete?: never;
         options?: never;
@@ -724,7 +886,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Generate Photo */
+        /**
+         * Generate Photo
+         * @description Generate a photo for a dweller using AI.
+         *
+         *     Returns:
+         *         DwellerReadFull: The dweller with generated photo.
+         */
         post: operations["generate_photo_api_v1_dwellers__dweller_id__generate_photo__post"];
         delete?: never;
         options?: never;
@@ -741,7 +909,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Generate Audio */
+        /**
+         * Generate Audio
+         * @description Generate audio for a dweller using AI.
+         *
+         *     Returns:
+         *         DwellerReadFull: The dweller with generated audio.
+         */
         post: operations["generate_audio_api_v1_dwellers__dweller_id__generate_audio__post"];
         delete?: never;
         options?: never;
@@ -758,7 +932,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Generate Data With Ai */
+        /**
+         * Generate Data With Ai
+         * @description Run the full AI generation pipeline for a dweller.
+         *
+         *     Returns:
+         *         DwellerReadFull: The dweller with all AI-generated data.
+         */
         post: operations["generate_data_with_ai_api_v1_dwellers__dweller_id__generate_with_ai__post"];
         delete?: never;
         options?: never;
@@ -775,7 +955,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Generate Dweller Avatar */
+        /**
+         * Generate Dweller Avatar
+         * @description Generate an avatar for a dweller using AI.
+         *
+         *     Returns:
+         *         DwellerReadFull: The dweller with generated avatar.
+         */
         post: operations["generate_dweller_avatar_api_v1_dwellers__dweller_id__generate_avatar_post"];
         delete?: never;
         options?: never;
@@ -790,7 +976,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Dwellers Data */
+        /**
+         * Read Dwellers Data
+         * @description Get static dweller creation data.
+         *
+         *     Returns:
+         *         list[DwellerCreateWithoutVaultID]: List of dweller templates.
+         */
         get: operations["read_dwellers_data_api_v1_dwellers_read_data__get"];
         put?: never;
         post?: never;
@@ -812,6 +1004,9 @@ export interface paths {
         /**
          * Use Stimpack
          * @description Use a stimpack to heal the dweller (restores 40% of max health).
+         *
+         *     Returns:
+         *         DwellerRead: The healed dweller.
          */
         post: operations["use_stimpack_api_v1_dwellers__dweller_id__use_stimpack_post"];
         delete?: never;
@@ -832,6 +1027,9 @@ export interface paths {
         /**
          * Use Radaway
          * @description Use a radaway to remove radiation from the dweller (removes 50% of radiation).
+         *
+         *     Returns:
+         *         DwellerRead: The dweller with reduced radiation.
          */
         post: operations["use_radaway_api_v1_dwellers__dweller_id__use_radaway_post"];
         delete?: never;
@@ -850,6 +1048,9 @@ export interface paths {
         /**
          * Get Happiness Modifiers
          * @description Get detailed breakdown of happiness modifiers for a dweller.
+         *
+         *     Returns:
+         *         HappinessModifiersResponse: Happiness modifier breakdown.
          */
         get: operations["get_happiness_modifiers_api_v1_dwellers__dweller_id__happiness_modifiers_get"];
         put?: never;
@@ -872,6 +1073,9 @@ export interface paths {
         /**
          * Auto Assign To Room
          * @description Auto-assign dweller to the best matching production room based on their highest SPECIAL stat.
+         *
+         *     Returns:
+         *         DwellerReadWithRoomID: The dweller with assigned room.
          */
         post: operations["auto_assign_to_room_api_v1_dwellers__dweller_id__auto_assign_post"];
         delete?: never;
@@ -890,6 +1094,9 @@ export interface paths {
         /**
          * Get Dead Dwellers
          * @description Get all dead dwellers (revivable) for a vault.
+         *
+         *     Returns:
+         *         list[DwellerDeadRead]: List of revivable dead dwellers with days until permanent death.
          */
         get: operations["get_dead_dwellers_api_v1_dwellers_vault__vault_id__dead_get"];
         put?: never;
@@ -910,6 +1117,9 @@ export interface paths {
         /**
          * Get Graveyard
          * @description Get permanently dead dwellers (graveyard) for a vault.
+         *
+         *     Returns:
+         *         list[DwellerDeadRead]: List of permanently dead dwellers.
          */
         get: operations["get_graveyard_api_v1_dwellers_vault__vault_id__graveyard_get"];
         put?: never;
@@ -930,6 +1140,12 @@ export interface paths {
         /**
          * Get Revival Cost
          * @description Get the revival cost for a dead dweller.
+         *
+         *     Returns:
+         *         RevivalCostResponse: Revival cost details and affordability.
+         *
+         *     Raises:
+         *         ContentNoChangeException: If the dweller is not dead.
          */
         get: operations["get_revival_cost_api_v1_dwellers__dweller_id__revival_cost_get"];
         put?: never;
@@ -952,6 +1168,9 @@ export interface paths {
         /**
          * Revive Dweller
          * @description Revive a dead dweller by paying the revival cost in caps.
+         *
+         *     Returns:
+         *         DwellerReviveResponse: Revived dweller, caps spent, and remaining caps.
          */
         post: operations["revive_dweller_api_v1_dwellers__dweller_id__revive_post"];
         delete?: never;
@@ -972,6 +1191,9 @@ export interface paths {
         /**
          * Soft Delete Dweller
          * @description Soft delete a dweller, preserving their data for future use.
+         *
+         *     Returns:
+         *         DwellerRead: The soft-deleted dweller.
          */
         post: operations["soft_delete_dweller_api_v1_dwellers__dweller_id__soft_delete_post"];
         delete?: never;
@@ -992,6 +1214,9 @@ export interface paths {
         /**
          * Restore Dweller
          * @description Restore a soft-deleted dweller.
+         *
+         *     Returns:
+         *         DwellerRead: The restored dweller.
          */
         post: operations["restore_dweller_api_v1_dwellers__dweller_id__restore_post"];
         delete?: never;
@@ -1010,6 +1235,9 @@ export interface paths {
         /**
          * Read Deleted Dwellers By Vault
          * @description Get soft-deleted dwellers for a specific vault.
+         *
+         *     Returns:
+         *         list[DwellerReadLess]: List of soft-deleted dwellers.
          */
         get: operations["read_deleted_dwellers_by_vault_api_v1_dwellers_vault__vault_id__deleted_get"];
         put?: never;
@@ -1032,6 +1260,12 @@ export interface paths {
         /**
          * Send Dweller To Wasteland
          * @description Send a dweller to the wasteland for exploration.
+         *
+         *     Returns:
+         *         ExplorationRead: The created exploration.
+         *
+         *     Raises:
+         *         ValidationException: If the dweller cannot be sent.
          */
         post: operations["send_dweller_to_wasteland_api_v1_explorations_send_post"];
         delete?: never;
@@ -1050,6 +1284,9 @@ export interface paths {
         /**
          * List Explorations By Vault
          * @description List all explorations for a vault.
+         *
+         *     Returns:
+         *         list[ExplorationReadShort]: List of explorations.
          */
         get: operations["list_explorations_by_vault_api_v1_explorations_vault__vault_id__get"];
         put?: never;
@@ -1070,6 +1307,9 @@ export interface paths {
         /**
          * Get Exploration
          * @description Get detailed information about an exploration.
+         *
+         *     Returns:
+         *         ExplorationRead: Exploration details.
          */
         get: operations["get_exploration_api_v1_explorations__exploration_id__get"];
         put?: never;
@@ -1090,6 +1330,9 @@ export interface paths {
         /**
          * Get Exploration Progress
          * @description Get current progress of an exploration.
+         *
+         *     Returns:
+         *         ExplorationProgress: Current exploration progress.
          */
         get: operations["get_exploration_progress_api_v1_explorations__exploration_id__progress_get"];
         put?: never;
@@ -1112,6 +1355,12 @@ export interface paths {
         /**
          * Recall Dweller
          * @description Recall a dweller early from exploration.
+         *
+         *     Returns:
+         *         ExplorationCompleteResponse: Exploration data and partial rewards.
+         *
+         *     Raises:
+         *         ValidationException: If the exploration cannot be recalled.
          */
         post: operations["recall_dweller_api_v1_explorations__exploration_id__recall_post"];
         delete?: never;
@@ -1132,6 +1381,12 @@ export interface paths {
         /**
          * Complete Exploration
          * @description Complete an exploration and collect rewards.
+         *
+         *     Returns:
+         *         ExplorationCompleteResponse: Exploration data and full rewards.
+         *
+         *     Raises:
+         *         ValidationException: If the exploration cannot be completed.
          */
         post: operations["complete_exploration_api_v1_explorations__exploration_id__complete_post"];
         delete?: never;
@@ -1152,6 +1407,12 @@ export interface paths {
         /**
          * Generate Event
          * @description Manually trigger event generation for an exploration (for testing/debugging).
+         *
+         *     Returns:
+         *         ExplorationRead: Updated exploration with generated event.
+         *
+         *     Raises:
+         *         ValidationException: If event generation fails.
          */
         post: operations["generate_event_api_v1_explorations__exploration_id__generate_event_post"];
         delete?: never;
@@ -1173,6 +1434,9 @@ export interface paths {
          *
          *     This endpoint exposes all game balance constants that can be tuned via
          *     environment variables. Useful for debugging and future admin panels.
+         *
+         *     Returns:
+         *         GameBalanceResponse: All game balance settings.
          */
         get: operations["get_game_balance_settings_api_v1_game_balance_get"];
         put?: never;
@@ -1195,6 +1459,9 @@ export interface paths {
         /**
          * Pause Vault
          * @description Pause the game loop for a vault.
+         *
+         *     Returns:
+         *         PauseResumeResponse: Pause confirmation with vault state.
          */
         post: operations["pause_vault_api_v1_game_vaults__vault_id__pause_post"];
         delete?: never;
@@ -1215,6 +1482,9 @@ export interface paths {
         /**
          * Resume Vault
          * @description Resume the game loop for a vault.
+         *
+         *     Returns:
+         *         PauseResumeResponse: Resume confirmation with vault state.
          */
         post: operations["resume_vault_api_v1_game_vaults__vault_id__resume_post"];
         delete?: never;
@@ -1233,6 +1503,9 @@ export interface paths {
         /**
          * Get Game State
          * @description Get current game state for a vault.
+         *
+         *     Returns:
+         *         dict[str, Any]: Current game state details.
          */
         get: operations["get_game_state_api_v1_game_vaults__vault_id__game_state_get"];
         put?: never;
@@ -1253,6 +1526,9 @@ export interface paths {
         /**
          * List Incidents
          * @description List all active incidents in a vault.
+         *
+         *     Returns:
+         *         IncidentListResponse: List of active incidents.
          */
         get: operations["list_incidents_api_v1_game_vaults__vault_id__incidents_get"];
         put?: never;
@@ -1260,6 +1536,9 @@ export interface paths {
         /**
          * Delete All Incidents
          * @description Delete all incidents for a vault.
+         *
+         *     Returns:
+         *         DeleteIncidentsResponse: Deletion confirmation with count.
          */
         delete: operations["delete_all_incidents_api_v1_game_vaults__vault_id__incidents_delete"];
         options?: never;
@@ -1277,6 +1556,12 @@ export interface paths {
         /**
          * Get Incident
          * @description Get details of a specific incident.
+         *
+         *     Returns:
+         *         IncidentRead: Incident details.
+         *
+         *     Raises:
+         *         HTTPException: 404 if incident not found.
          */
         get: operations["get_incident_api_v1_game_vaults__vault_id__incidents__incident_id__get"];
         put?: never;
@@ -1284,6 +1569,12 @@ export interface paths {
         /**
          * Delete Incident
          * @description Delete a specific incident.
+         *
+         *     Returns:
+         *         DeleteIncidentsResponse: Deletion confirmation.
+         *
+         *     Raises:
+         *         HTTPException: 404 if incident not found. 400 if deletion fails.
          */
         delete: operations["delete_incident_api_v1_game_vaults__vault_id__incidents__incident_id__delete"];
         options?: never;
@@ -1308,6 +1599,9 @@ export interface paths {
          *     - Testing resource production/consumption
          *     - Triggering catch-up after pause
          *     - Development and debugging
+         *
+         *     Returns:
+         *         dict[str, Any]: Tick processing result.
          */
         post: operations["manual_tick_api_v1_game_vaults__vault_id__tick_post"];
         delete?: never;
@@ -1331,6 +1625,12 @@ export interface paths {
          *
          *     This endpoint allows players to mark an incident as resolved,
          *     triggering loot generation and cleanup.
+         *
+         *     Returns:
+         *         dict[str, Any]: Resolution result with loot details.
+         *
+         *     Raises:
+         *         HTTPException: 404 if incident not found. 400 if resolution fails.
          */
         post: operations["resolve_incident_api_v1_game_vaults__vault_id__incidents__incident_id__resolve_post"];
         delete?: never;
@@ -1353,6 +1653,12 @@ export interface paths {
          * @description [DEBUG] Manually spawn an incident for testing purposes.
          *
          *     If incident_type is not provided, a random type will be chosen.
+         *
+         *     Returns:
+         *         IncidentSpawnResponse: Spawned incident details.
+         *
+         *     Raises:
+         *         HTTPException: 400 if no occupied rooms available.
          */
         post: operations["spawn_debug_incident_api_v1_game_vaults__vault_id__incidents_spawn_post"];
         delete?: never;
@@ -1368,10 +1674,22 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Junk List */
+        /**
+         * Read Junk List
+         * @description Retrieve a paginated list of junk items.
+         *
+         *     Returns:
+         *         List of junk items.
+         */
         get: operations["read_junk_list_api_v1_junk__get"];
         put?: never;
-        /** Create Junk */
+        /**
+         * Create Junk
+         * @description Create a new junk item.
+         *
+         *     Returns:
+         *         The created junk item.
+         */
         post: operations["create_junk_api_v1_junk__post"];
         delete?: never;
         options?: never;
@@ -1386,12 +1704,27 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Junk */
+        /**
+         * Read Junk
+         * @description Retrieve a junk item by ID.
+         *
+         *     Returns:
+         *         The requested junk item.
+         */
         get: operations["read_junk_api_v1_junk__junk_id__get"];
-        /** Update Junk */
+        /**
+         * Update Junk
+         * @description Update a junk item.
+         *
+         *     Returns:
+         *         The updated junk item.
+         */
         put: operations["update_junk_api_v1_junk__junk_id__put"];
         post?: never;
-        /** Delete Junk */
+        /**
+         * Delete Junk
+         * @description Delete a junk item.
+         */
         delete: operations["delete_junk_api_v1_junk__junk_id__delete"];
         options?: never;
         head?: never;
@@ -1405,7 +1738,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Junk Data */
+        /**
+         * Read Junk Data
+         * @description Retrieve static junk item data.
+         *
+         *     Returns:
+         *         List of static junk item definitions.
+         */
         get: operations["read_junk_data_api_v1_junk_read_data__get"];
         put?: never;
         post?: never;
@@ -1424,7 +1763,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Sell Junk */
+        /**
+         * Sell Junk
+         * @description Sell a junk item for caps.
+         */
         post: operations["sell_junk_api_v1_junk__junk_id__sell__post"];
         delete?: never;
         options?: never;
@@ -1485,13 +1827,19 @@ export interface paths {
         };
         /**
          * Get Notifications
-         * @description Get notifications for the current user
+         * @description Get notifications for the current user.
+         *
+         *     Returns:
+         *         List of notifications for the user.
          */
         get: operations["get_notifications_api_v1_notifications__get"];
         put?: never;
         /**
          * Create Notification
-         * @description Create a new notification (admin/system use)
+         * @description Create a new notification (admin/system use).
+         *
+         *     Returns:
+         *         The created notification.
          */
         post: operations["create_notification_api_v1_notifications__post"];
         delete?: never;
@@ -1509,7 +1857,10 @@ export interface paths {
         };
         /**
          * Get Unread Count
-         * @description Get count of unread notifications
+         * @description Get count of unread notifications.
+         *
+         *     Returns:
+         *         Count of unread notifications.
          */
         get: operations["get_unread_count_api_v1_notifications_unread_count_get"];
         put?: never;
@@ -1535,7 +1886,13 @@ export interface paths {
         head?: never;
         /**
          * Mark Notification As Read
-         * @description Mark a notification as read
+         * @description Mark a notification as read.
+         *
+         *     Returns:
+         *         The updated notification.
+         *
+         *     Raises:
+         *         HTTPException: 404 if notification not found.
          */
         patch: operations["mark_notification_as_read_api_v1_notifications__notification_id__read_patch"];
         trace?: never;
@@ -1551,7 +1908,10 @@ export interface paths {
         put?: never;
         /**
          * Mark All Notifications As Read
-         * @description Mark all notifications as read for the current user
+         * @description Mark all notifications as read for the current user.
+         *
+         *     Returns:
+         *         Response with count of notifications marked as read.
          */
         post: operations["mark_all_notifications_as_read_api_v1_notifications_mark_all_read_post"];
         delete?: never;
@@ -1572,7 +1932,13 @@ export interface paths {
         post?: never;
         /**
          * Dismiss Notification
-         * @description Dismiss (soft delete) a notification
+         * @description Dismiss (soft delete) a notification.
+         *
+         *     Returns:
+         *         The dismissed notification.
+         *
+         *     Raises:
+         *         HTTPException: 404 if notification not found.
          */
         delete: operations["dismiss_notification_api_v1_notifications__notification_id__delete"];
         options?: never;
@@ -1590,6 +1956,12 @@ export interface paths {
         /**
          * Generate Objectives
          * @description Generate game objectives using AI.
+         *
+         *     Returns:
+         *         List of generated objective templates.
+         *
+         *     Raises:
+         *         HTTPException: 400 if objective generation fails.
          */
         get: operations["generate_objectives_api_v1_objectives_generate_get"];
         put?: never;
@@ -1607,10 +1979,22 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Objective List */
+        /**
+         * Read Objective List
+         * @description Retrieve objectives for a vault.
+         *
+         *     Returns:
+         *         List of objectives for the vault.
+         */
         get: operations["read_objective_list_api_v1_objectives__vault_id___get"];
         put?: never;
-        /** Create Objective */
+        /**
+         * Create Objective
+         * @description Create an objective for a vault.
+         *
+         *     Returns:
+         *         The created objective.
+         */
         post: operations["create_objective_api_v1_objectives__vault_id___post"];
         delete?: never;
         options?: never;
@@ -1625,7 +2009,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Objective */
+        /**
+         * Read Objective
+         * @description Retrieve an objective by ID.
+         *
+         *     Returns:
+         *         The requested objective.
+         */
         get: operations["read_objective_api_v1_objectives__objective_id__get"];
         put?: never;
         post?: never;
@@ -1647,6 +2037,9 @@ export interface paths {
         /**
          * Complete Objective
          * @description Mark an objective as completed for a vault.
+         *
+         *     Returns:
+         *         The completed objective.
          */
         post: operations["complete_objective_api_v1_objectives__vault_id___objective_id__complete_post"];
         delete?: never;
@@ -1667,6 +2060,9 @@ export interface paths {
         /**
          * Update Objective Progress
          * @description Update the progress of an objective for a vault.
+         *
+         *     Returns:
+         *         The updated objective.
          */
         post: operations["update_objective_progress_api_v1_objectives__vault_id___objective_id__progress_post"];
         delete?: never;
@@ -1687,6 +2083,12 @@ export interface paths {
         /**
          * Assign Random Objectives
          * @description Assign random available objectives to a vault (for testing/debugging).
+         *
+         *     Returns:
+         *         Response with count of assigned objectives.
+         *
+         *     Raises:
+         *         HTTPException: 404 if vault not found.
          */
         post: operations["assign_random_objectives_api_v1_objectives__vault_id__assign_random_post"];
         delete?: never;
@@ -1702,10 +2104,22 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Outfit List */
+        /**
+         * Read Outfit List
+         * @description Retrieve a paginated list of outfits, optionally filtered by vault.
+         *
+         *     Returns:
+         *         List of outfits.
+         */
         get: operations["read_outfit_list_api_v1_outfits__get"];
         put?: never;
-        /** Create Outfit */
+        /**
+         * Create Outfit
+         * @description Create a new outfit.
+         *
+         *     Returns:
+         *         The created outfit.
+         */
         post: operations["create_outfit_api_v1_outfits__post"];
         delete?: never;
         options?: never;
@@ -1720,12 +2134,27 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Outfit */
+        /**
+         * Read Outfit
+         * @description Retrieve an outfit by ID.
+         *
+         *     Returns:
+         *         The requested outfit.
+         */
         get: operations["read_outfit_api_v1_outfits__outfit_id__get"];
-        /** Update Outfit */
+        /**
+         * Update Outfit
+         * @description Update an outfit.
+         *
+         *     Returns:
+         *         The updated outfit.
+         */
         put: operations["update_outfit_api_v1_outfits__outfit_id__put"];
         post?: never;
-        /** Delete Outfit */
+        /**
+         * Delete Outfit
+         * @description Delete an outfit.
+         */
         delete: operations["delete_outfit_api_v1_outfits__outfit_id__delete"];
         options?: never;
         head?: never;
@@ -1741,7 +2170,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Equip Outfit */
+        /**
+         * Equip Outfit
+         * @description Equip an outfit on a dweller.
+         *
+         *     Returns:
+         *         The equipped outfit.
+         */
         post: operations["equip_outfit_api_v1_outfits__dweller_id__equip__outfit_id__post"];
         delete?: never;
         options?: never;
@@ -1758,7 +2193,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Unequip Outfit */
+        /**
+         * Unequip Outfit
+         * @description Unequip an outfit from a dweller.
+         */
         post: operations["unequip_outfit_api_v1_outfits__outfit_id__unequip__post"];
         delete?: never;
         options?: never;
@@ -1775,7 +2213,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Scrap Outfit */
+        /**
+         * Scrap Outfit
+         * @description Scrap an outfit into junk items.
+         *
+         *     Returns:
+         *         List of junk items produced from scrapping.
+         */
         post: operations["scrap_outfit_api_v1_outfits__outfit_id__scrap__post"];
         delete?: never;
         options?: never;
@@ -1792,7 +2236,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Sell Outfit */
+        /**
+         * Sell Outfit
+         * @description Sell an outfit for caps.
+         */
         post: operations["sell_outfit_api_v1_outfits__outfit_id__sell__post"];
         delete?: never;
         options?: never;
@@ -1807,7 +2254,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Outfits Data */
+        /**
+         * Read Outfits Data
+         * @description Retrieve static outfit data definitions.
+         *
+         *     Returns:
+         *         List of static outfit definitions.
+         */
         get: operations["read_outfits_data_api_v1_outfits_read_data__get"];
         put?: never;
         post?: never;
@@ -1827,6 +2280,9 @@ export interface paths {
         /**
          * Get Vault Pregnancies
          * @description Get all active pregnancies in a vault.
+         *
+         *     Returns:
+         *         List of active pregnancies in the vault.
          */
         get: operations["get_vault_pregnancies_api_v1_pregnancies_vault__vault_id__get"];
         put?: never;
@@ -1847,6 +2303,12 @@ export interface paths {
         /**
          * Get Pregnancy
          * @description Get a specific pregnancy.
+         *
+         *     Returns:
+         *         The requested pregnancy.
+         *
+         *     Raises:
+         *         HTTPException: 404 if pregnancy not found or access denied.
          */
         get: operations["get_pregnancy_api_v1_pregnancies__pregnancy_id__get"];
         put?: never;
@@ -1869,6 +2331,13 @@ export interface paths {
         /**
          * Deliver Baby
          * @description Manually trigger delivery of a baby (must be due).
+         *
+         *     Returns:
+         *         Delivery result with child details.
+         *
+         *     Raises:
+         *         HTTPException: 404 if pregnancy not found or access denied.
+         *         HTTPException: 400 if delivery conditions not met.
          */
         post: operations["deliver_baby_api_v1_pregnancies__pregnancy_id__deliver_post"];
         delete?: never;
@@ -1886,7 +2355,17 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Force Conception */
+        /**
+         * Force Conception
+         * @description Force conception between two dwellers (debug only).
+         *
+         *     Returns:
+         *         The created pregnancy.
+         *
+         *     Raises:
+         *         ResourceNotFoundException: If dweller not found.
+         *         ValidationException: If conception conditions not met.
+         */
         post: operations["force_conception_api_v1_pregnancies_debug_force_conception_post"];
         delete?: never;
         options?: never;
@@ -1903,7 +2382,17 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Accelerate Pregnancy */
+        /**
+         * Accelerate Pregnancy
+         * @description Accelerate a pregnancy to completion (debug only).
+         *
+         *     Returns:
+         *         The accelerated pregnancy.
+         *
+         *     Raises:
+         *         HTTPException: 404 if pregnancy not found.
+         *         HTTPException: 400 if acceleration conditions not met.
+         */
         post: operations["accelerate_pregnancy_api_v1_pregnancies__pregnancy_id__debug_accelerate_post"];
         delete?: never;
         options?: never;
@@ -1921,6 +2410,9 @@ export interface paths {
         /**
          * Read All Quests
          * @description Get all available quests (not vault-specific).
+         *
+         *     Returns:
+         *         List of quests.
          */
         get: operations["read_all_quests_api_v1_quests__get"];
         put?: never;
@@ -1941,10 +2433,19 @@ export interface paths {
         /**
          * Read Vault Quests
          * @description Get all quests assigned to a specific vault.
+         *
+         *     Returns:
+         *         List of quests for the vault.
          */
         get: operations["read_vault_quests_api_v1_quests__vault_id___get"];
         put?: never;
-        /** Create Quest */
+        /**
+         * Create Quest
+         * @description Create a new quest.
+         *
+         *     Returns:
+         *         The created quest.
+         */
         post: operations["create_quest_api_v1_quests__vault_id___post"];
         delete?: never;
         options?: never;
@@ -1962,6 +2463,9 @@ export interface paths {
         /**
          * Get Available Quests
          * @description Get available quests for a vault (respects quest chain unlocks).
+         *
+         *     Returns:
+         *         List of available quests.
          */
         get: operations["get_available_quests_api_v1_quests__vault_id__available_get"];
         put?: never;
@@ -1979,12 +2483,27 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Quest */
+        /**
+         * Read Quest
+         * @description Retrieve a quest by ID within a vault.
+         *
+         *     Returns:
+         *         The requested quest.
+         */
         get: operations["read_quest_api_v1_quests__vault_id___quest_id__get"];
-        /** Update Quest */
+        /**
+         * Update Quest
+         * @description Update a quest.
+         *
+         *     Returns:
+         *         The updated quest.
+         */
         put: operations["update_quest_api_v1_quests__vault_id___quest_id__put"];
         post?: never;
-        /** Delete Quest */
+        /**
+         * Delete Quest
+         * @description Delete a quest.
+         */
         delete: operations["delete_quest_api_v1_quests__vault_id___quest_id__delete"];
         options?: never;
         head?: never;
@@ -2003,6 +2522,9 @@ export interface paths {
         /**
          * Assign Quest To Vault
          * @description Assign a quest to a vault, making it available for completion.
+         *
+         *     Returns:
+         *         The vault-quest assignment.
          */
         post: operations["assign_quest_to_vault_api_v1_quests__vault_id___quest_id__assign_post"];
         delete?: never;
@@ -2023,6 +2545,9 @@ export interface paths {
         /**
          * Complete Quest
          * @description Mark a quest as completed for a vault.
+         *
+         *     Returns:
+         *         Completion response with granted rewards.
          */
         post: operations["complete_quest_api_v1_quests__vault_id___quest_id__complete_post"];
         delete?: never;
@@ -2043,6 +2568,12 @@ export interface paths {
         /**
          * Assign Party To Quest
          * @description Assign dwellers to a quest party (1-3 dwellers).
+         *
+         *     Returns:
+         *         The assigned party members.
+         *
+         *     Raises:
+         *         ValidationException: If party size is invalid or assignment fails.
          */
         post: operations["assign_party_to_quest_api_v1_quests__vault_id___quest_id__assign_party_post"];
         delete?: never;
@@ -2061,6 +2592,9 @@ export interface paths {
         /**
          * Get Quest Party
          * @description Get party members assigned to a quest.
+         *
+         *     Returns:
+         *         List of party members.
          */
         get: operations["get_quest_party_api_v1_quests__vault_id___quest_id__party_get"];
         put?: never;
@@ -2083,6 +2617,13 @@ export interface paths {
         /**
          * Start Quest
          * @description Start a quest (starts the timer).
+         *
+         *     Returns:
+         *         The started quest.
+         *
+         *     Raises:
+         *         ResourceNotFoundException: If quest not found.
+         *         ValidationException: If requirements not met or quest cannot be started.
          */
         post: operations["start_quest_api_v1_quests__vault_id___quest_id__start_post"];
         delete?: never;
@@ -2101,6 +2642,9 @@ export interface paths {
         /**
          * Get Eligible Dwellers
          * @description Get dwellers eligible for a quest based on requirements.
+         *
+         *     Returns:
+         *         List of eligible dwellers.
          */
         get: operations["get_eligible_dwellers_api_v1_quests__vault_id___quest_id__eligible_dwellers_get"];
         put?: never;
@@ -2121,6 +2665,9 @@ export interface paths {
         /**
          * Get Radio Stats
          * @description Get recruitment statistics for a vault.
+         *
+         *     Returns:
+         *         Radio recruitment statistics.
          */
         get: operations["get_radio_stats_api_v1_radio_vault__vault_id__stats_get"];
         put?: never;
@@ -2143,6 +2690,12 @@ export interface paths {
         /**
          * Manual Recruit Dweller
          * @description Manually recruit a dweller for caps.
+         *
+         *     Returns:
+         *         Recruitment response with new dweller details.
+         *
+         *     Raises:
+         *         ValidationException: If recruitment fails.
          */
         post: operations["manual_recruit_dweller_api_v1_radio_vault__vault_id__recruit_post"];
         delete?: never;
@@ -2162,6 +2715,9 @@ export interface paths {
         /**
          * Set Radio Mode
          * @description Set radio mode (recruitment or happiness).
+         *
+         *     Returns:
+         *         Response confirming the new radio mode.
          */
         put: operations["set_radio_mode_api_v1_radio_vault__vault_id__mode_put"];
         post?: never;
@@ -2179,7 +2735,16 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Set Radio Speedup */
+        /**
+         * Set Radio Speedup
+         * @description Set the speedup multiplier for a radio room.
+         *
+         *     Returns:
+         *         Response confirming the speedup setting.
+         *
+         *     Raises:
+         *         ValidationException: If speedup value is out of range or room not found.
+         */
         put: operations["set_radio_speedup_api_v1_radio_vault__vault_id__room__room_id__speedup_put"];
         post?: never;
         delete?: never;
@@ -2195,7 +2760,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Vault Relationships */
+        /**
+         * Get Vault Relationships
+         * @description Get all relationships in a vault.
+         *
+         *     Returns:
+         *         List of relationships in the vault.
+         */
         get: operations["get_vault_relationships_api_v1_relationships_vault__vault_id__get"];
         put?: never;
         post?: never;
@@ -2212,11 +2783,32 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Relationship */
+        /**
+         * Get Relationship
+         * @description Retrieve a relationship by ID.
+         *
+         *     Returns:
+         *         The requested relationship.
+         *
+         *     Raises:
+         *         HTTPException: 404 if relationship not found.
+         *         HTTPException: 403 if user doesn't have access.
+         */
         get: operations["get_relationship_api_v1_relationships__relationship_id__get"];
         put?: never;
         post?: never;
-        /** Break Up Relationship */
+        /**
+         * Break Up Relationship
+         * @description Break up a relationship between two dwellers.
+         *
+         *     Returns:
+         *         Confirmation message.
+         *
+         *     Raises:
+         *         HTTPException: 404 if relationship not found.
+         *         HTTPException: 400 if breakup cannot be performed.
+         *         HTTPException: 403 if user doesn't have access.
+         */
         delete: operations["break_up_relationship_api_v1_relationships__relationship_id__delete"];
         options?: never;
         head?: never;
@@ -2235,6 +2827,9 @@ export interface paths {
         /**
          * Create Relationship
          * @description Create or get a relationship between two dwellers.
+         *
+         *     Returns:
+         *         The created or existing relationship.
          */
         post: operations["create_relationship_api_v1_relationships__post"];
         delete?: never;
@@ -2251,7 +2846,18 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Initiate Romance */
+        /**
+         * Initiate Romance
+         * @description Initiate romance between two dwellers in a relationship.
+         *
+         *     Returns:
+         *         The updated relationship.
+         *
+         *     Raises:
+         *         HTTPException: 404 if relationship not found.
+         *         HTTPException: 400 if romance cannot be initiated.
+         *         HTTPException: 403 if user doesn't have access.
+         */
         put: operations["initiate_romance_api_v1_relationships__relationship_id__romance_put"];
         post?: never;
         delete?: never;
@@ -2268,7 +2874,18 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Make Partners */
+        /**
+         * Make Partners
+         * @description Make two dwellers in a relationship romantic partners.
+         *
+         *     Returns:
+         *         The updated relationship.
+         *
+         *     Raises:
+         *         HTTPException: 404 if relationship not found.
+         *         HTTPException: 400 if partnership cannot be established.
+         *         HTTPException: 403 if user doesn't have access.
+         */
         put: operations["make_partners_api_v1_relationships__relationship_id__partner_put"];
         post?: never;
         delete?: never;
@@ -2288,7 +2905,7 @@ export interface paths {
         put?: never;
         /**
          * Quick Pair Dwellers
-         * @description ☢️ Irradiated Cupid ☢️
+         * @description ☢️ Irradiated Cupid ☢️.
          *
          *     Instantly pairs two random compatible dwellers for testing/fun.
          *     - Finds one male and one female without partners
@@ -2296,6 +2913,13 @@ export interface paths {
          *     - Makes them romantic partners
          *     - Moves them to a private living quarters (kicks out any third wheels!)
          *     - Ready to breed immediately with 90% conception chance per tick
+         *
+         *     Returns:
+         *         The created relationship.
+         *
+         *     Raises:
+         *         HTTPException: 403 if user doesn't own the vault.
+         *         HTTPException: 400 if no compatible dwellers found.
          */
         post: operations["quick_pair_dwellers_api_v1_relationships_vault__vault_id__quick_pair_post"];
         delete?: never;
@@ -2314,6 +2938,9 @@ export interface paths {
         /**
          * Calculate Compatibility
          * @description Calculate compatibility score between two dwellers.
+         *
+         *     Returns:
+         *         Compatibility score between the two dwellers.
          */
         get: operations["calculate_compatibility_api_v1_relationships_compatibility__dweller_1_id___dweller_2_id__get"];
         put?: never;
@@ -2333,7 +2960,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Process Vault Breeding */
+        /**
+         * Process Vault Breeding
+         * @description Process breeding and relationships for a vault.
+         *
+         *     Returns:
+         *         Breeding processing statistics.
+         */
         post: operations["process_vault_breeding_api_v1_relationships_vault__vault_id__process_post"];
         delete?: never;
         options?: never;
@@ -2348,10 +2981,22 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Room List */
+        /**
+         * Read Room List
+         * @description Retrieve a paginated list of rooms.
+         *
+         *     Returns:
+         *         List of rooms.
+         */
         get: operations["read_room_list_api_v1_rooms__get"];
         put?: never;
-        /** Create Room */
+        /**
+         * Create Room
+         * @description Create a new room.
+         *
+         *     Returns:
+         *         The created room.
+         */
         post: operations["create_room_api_v1_rooms__post"];
         delete?: never;
         options?: never;
@@ -2366,7 +3011,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Rooms By Vault */
+        /**
+         * Read Rooms By Vault
+         * @description Retrieve rooms for a specific vault.
+         *
+         *     Returns:
+         *         List of rooms in the vault.
+         */
         get: operations["read_rooms_by_vault_api_v1_rooms_vault__vault_id___get"];
         put?: never;
         post?: never;
@@ -2383,12 +3034,27 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Room */
+        /**
+         * Read Room
+         * @description Retrieve a room by ID.
+         *
+         *     Returns:
+         *         The requested room.
+         */
         get: operations["read_room_api_v1_rooms__room_id__get"];
-        /** Update Room */
+        /**
+         * Update Room
+         * @description Update a room.
+         *
+         *     Returns:
+         *         The updated room.
+         */
         put: operations["update_room_api_v1_rooms__room_id__put"];
         post?: never;
-        /** Delete Room */
+        /**
+         * Delete Room
+         * @description Delete a room.
+         */
         delete: operations["delete_room_api_v1_rooms__room_id__delete"];
         options?: never;
         head?: never;
@@ -2402,7 +3068,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Room Data */
+        /**
+         * Read Room Data
+         * @description Retrieve static room data definitions.
+         *
+         *     Returns:
+         *         List of static room definitions.
+         */
         get: operations["read_room_data_api_v1_rooms_read_data__get"];
         put?: never;
         post?: never;
@@ -2426,6 +3098,9 @@ export interface paths {
          *     Filters out:
          *     - Vault door (never buildable by user)
          *     - Unique rooms that are already built in this vault
+         *
+         *     Returns:
+         *         List of buildable room definitions.
          */
         get: operations["get_buildable_rooms_api_v1_rooms_buildable__vault_id___get"];
         put?: never;
@@ -2445,7 +3120,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Build Room */
+        /**
+         * Build Room
+         * @description Build a new room in a vault.
+         *
+         *     Returns:
+         *         The built room.
+         */
         post: operations["build_room_api_v1_rooms_build__post"];
         delete?: never;
         options?: never;
@@ -2463,7 +3144,10 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Destroy Room */
+        /**
+         * Destroy Room
+         * @description Destroy a room in a vault.
+         */
         delete: operations["destroy_room_api_v1_rooms_destroy__room_id__delete"];
         options?: never;
         head?: never;
@@ -2479,7 +3163,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Upgrade Room */
+        /**
+         * Upgrade Room
+         * @description Upgrade a room to the next level.
+         *
+         *     Returns:
+         *         The upgraded room.
+         */
         post: operations["upgrade_room_api_v1_rooms_upgrade__room_id__post"];
         delete?: never;
         options?: never;
@@ -2499,7 +3189,14 @@ export interface paths {
          * @description Get storage space information for a vault.
          *
          *     Returns current used space, maximum space, available space, and utilization percentage.
-         *     Requires ownership of the vault.
+         *     Requires vault ownership or superuser privileges.
+         *
+         *     Returns:
+         *         Storage space details including stimpack and radaway counts.
+         *
+         *     Raises:
+         *         HTTPException: 403 if user lacks access to the vault.
+         *         HTTPException: 404 if storage not found for vault.
          */
         get: operations["get_storage_space_api_v1_storage_vault__vault_id__space_get"];
         put?: never;
@@ -2517,7 +3214,17 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Storage Items */
+        /**
+         * Get Storage Items
+         * @description Get all items in a vault's storage.
+         *
+         *     Returns:
+         *         Lists of weapons, outfits, and junk items in storage.
+         *
+         *     Raises:
+         *         HTTPException: 403 if user lacks access to the vault.
+         *         HTTPException: 404 if storage not found for vault.
+         */
         get: operations["get_storage_items_api_v1_storage_vault__vault_id__items_get"];
         put?: never;
         post?: never;
@@ -2541,7 +3248,13 @@ export interface paths {
          * @description Transfer medical supplies from vault storage to a dweller's inventory.
          *
          *     Dwellers can carry max 15 stimpaks and 15 radaways each.
-         *     Requires ownership of the vault.
+         *     Requires vault ownership or superuser privileges.
+         *
+         *     Returns:
+         *         Transfer result with updated quantities.
+         *
+         *     Raises:
+         *         HTTPException: 403 if user lacks access to the vault.
          */
         post: operations["transfer_medical_supplies_api_v1_storage_vault__vault_id__medical_transfer_post"];
         delete?: never;
@@ -2557,7 +3270,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Stream Notifications */
+        /**
+         * Stream Notifications
+         * @description SSE endpoint for real-time notification events.
+         *
+         *     Yields:
+         *         Server-sent events with notification data or heartbeat comments.
+         */
         get: operations["stream_notifications_api_v1_stream_notifications_get"];
         put?: never;
         post?: never;
@@ -2574,7 +3293,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Stream Game Ticks */
+        /**
+         * Stream Game Ticks
+         * @description SSE endpoint for real-time game tick events.
+         *
+         *     Yields:
+         *         Server-sent events with game tick data or heartbeat comments.
+         */
         get: operations["stream_game_ticks_api_v1_stream_game__vault_id__ticks_get"];
         put?: never;
         post?: never;
@@ -2591,7 +3316,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Stream Exploration */
+        /**
+         * Stream Exploration
+         * @description SSE endpoint for real-time exploration events.
+         *
+         *     Yields:
+         *         Server-sent events with exploration data or heartbeat comments.
+         */
         get: operations["stream_exploration_api_v1_stream_exploration__vault_id__get"];
         put?: never;
         post?: never;
@@ -2608,7 +3339,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Stream Incidents */
+        /**
+         * Stream Incidents
+         * @description SSE endpoint for real-time incident events.
+         *
+         *     Yields:
+         *         Server-sent events with incident data or heartbeat comments.
+         */
         get: operations["stream_incidents_api_v1_stream_incidents__vault_id__get"];
         put?: never;
         post?: never;
@@ -2631,19 +3368,13 @@ export interface paths {
          * Start Training
          * @description Start training a dweller in a training room.
          *
-         *     Args:
-         *         dweller_id: Dweller to train
-         *         room_id: Training room ID
-         *         user: Current authenticated user
-         *         db_session: Database session
-         *
          *     Returns:
-         *         Created training session
+         *         Created training session.
          *
          *     Raises:
-         *         404: Dweller or room not found
-         *         400: Training cannot be started (invalid room, stat maxed, etc.)
-         *         409: Dweller already training
+         *         HTTPException: 404 if dweller or room not found.
+         *         HTTPException: 400 if training cannot be started.
+         *         HTTPException: 409 if dweller already training.
          */
         post: operations["start_training_api_v1_training_start_post"];
         delete?: never;
@@ -2663,13 +3394,8 @@ export interface paths {
          * Get Dweller Training
          * @description Get current active training for a dweller.
          *
-         *     Args:
-         *         dweller_id: Dweller ID
-         *         user: Current authenticated user
-         *         db_session: Database session
-         *
          *     Returns:
-         *         Active training session or None
+         *         Active training session or None.
          */
         get: operations["get_dweller_training_api_v1_training_dweller__dweller_id__get"];
         put?: never;
@@ -2691,13 +3417,8 @@ export interface paths {
          * List Vault Training
          * @description List all active training sessions in a vault.
          *
-         *     Args:
-         *         vault_id: Vault ID
-         *         user: Current authenticated user
-         *         db_session: Database session
-         *
          *     Returns:
-         *         List of active training sessions
+         *         List of active training sessions.
          */
         get: operations["list_vault_training_api_v1_training_vault__vault_id__get"];
         put?: never;
@@ -2719,13 +3440,11 @@ export interface paths {
          * Get Training
          * @description Get training details with current progress.
          *
-         *     Args:
-         *         training_id: Training session ID
-         *         user: Current authenticated user
-         *         db_session: Database session
-         *
          *     Returns:
-         *         Training session with progress information
+         *         Training session with progress information.
+         *
+         *     Raises:
+         *         HTTPException: 404 if training session not found.
          */
         get: operations["get_training_api_v1_training__training_id__get"];
         put?: never;
@@ -2749,17 +3468,12 @@ export interface paths {
          * Complete Training
          * @description Complete an active training session and increase the dweller's SPECIAL stat.
          *
-         *     Args:
-         *         training_id: Training session ID
-         *         user: Current authenticated user
-         *         db_session: Database session
-         *
          *     Returns:
-         *         Completed training session
+         *         Completed training session.
          *
          *     Raises:
-         *         404: Training not found
-         *         400: Training not active or already completed
+         *         HTTPException: 404 if training not found.
+         *         HTTPException: 400 if training not active or already completed.
          */
         post: operations["complete_training_api_v1_training__training_id__complete_post"];
         delete?: never;
@@ -2781,17 +3495,12 @@ export interface paths {
          * Cancel Training
          * @description Cancel an active training session.
          *
-         *     Args:
-         *         training_id: Training session ID
-         *         user: Current authenticated user
-         *         db_session: Database session
-         *
          *     Returns:
-         *         Cancelled training session
+         *         Cancelled training session.
          *
          *     Raises:
-         *         404: Training not found
-         *         400: Training not active
+         *         HTTPException: 404 if training not found.
+         *         HTTPException: 400 if training not active.
          */
         post: operations["cancel_training_api_v1_training__training_id__cancel_post"];
         delete?: never;
@@ -2811,13 +3520,8 @@ export interface paths {
          * List Room Training
          * @description List all active training sessions in a room.
          *
-         *     Args:
-         *         room_id: Room ID
-         *         user: Current authenticated user
-         *         db_session: Database session
-         *
          *     Returns:
-         *         List of active training sessions in the room
+         *         List of active training sessions in the room.
          */
         get: operations["list_room_training_api_v1_training_room__room_id__get"];
         put?: never;
@@ -2838,12 +3542,21 @@ export interface paths {
         /**
          * Read Users
          * @description Retrieve users.
+         *
+         *     Returns:
+         *         List of users.
          */
         get: operations["read_users_api_v1_users__get"];
         put?: never;
         /**
          * Create User
          * @description Admin route to create new user.
+         *
+         *     Returns:
+         *         The created user.
+         *
+         *     Raises:
+         *         HTTPException: 409 if user with this email already exists.
          */
         post: operations["create_user_api_v1_users__post"];
         delete?: never;
@@ -2862,11 +3575,17 @@ export interface paths {
         /**
          * Read User Me
          * @description Get current user.
+         *
+         *     Returns:
+         *         The current authenticated user.
          */
         get: operations["read_user_me_api_v1_users_me_get"];
         /**
          * Update User Me
          * @description Update current user.
+         *
+         *     Returns:
+         *         The updated user.
          */
         put: operations["update_user_me_api_v1_users_me_put"];
         post?: never;
@@ -2888,6 +3607,9 @@ export interface paths {
         /**
          * Create User Open
          * @description Create new user and log them in automatically.
+         *
+         *     Returns:
+         *         New user with authentication tokens.
          */
         post: operations["create_user_open_api_v1_users_open_post"];
         delete?: never;
@@ -2906,11 +3628,23 @@ export interface paths {
         /**
          * Read User By Id
          * @description Get a specific user by id.
+         *
+         *     Returns:
+         *         The requested user.
+         *
+         *     Raises:
+         *         HTTPException: 400 if user lacks privileges to view other users.
          */
         get: operations["read_user_by_id_api_v1_users__user_id__get"];
         /**
          * Update User
          * @description Update a user.
+         *
+         *     Returns:
+         *         The updated user.
+         *
+         *     Raises:
+         *         HTTPException: 404 if user not found.
          */
         put: operations["update_user_api_v1_users__user_id__put"];
         post?: never;
@@ -2935,13 +3669,11 @@ export interface paths {
          *     This handles race conditions gracefully - if two concurrent requests try to
          *     create a profile, only one will succeed and both will return the profile.
          *
-         *     :param db_session: Database session
-         *     :type db_session: AsyncSession
-         *     :param user: Current authenticated active user
-         *     :type user: CurrentActiveUser
-         *     :returns: User's profile with statistics and preferences
-         *     :rtype: ProfileRead
-         *     :raises HTTPException: 500 if profile retrieval/creation fails unexpectedly
+         *     Returns:
+         *         User's profile with statistics and preferences.
+         *
+         *     Raises:
+         *         HTTPException: 500 if profile retrieval/creation fails unexpectedly.
          */
         get: operations["get_my_profile_api_v1_users_me_profile_get"];
         /**
@@ -2952,16 +3684,12 @@ export interface paths {
          *     Statistics fields (total_dwellers_created, total_caps_earned, etc.) are
          *     managed internally by the game and cannot be modified directly.
          *
-         *     :param db_session: Database session
-         *     :type db_session: AsyncSession
-         *     :param profile_data: Profile update data (bio, avatar_url, preferences)
-         *     :type profile_data: ProfileUpdate
-         *     :param user: Current authenticated active user
-         *     :type user: CurrentActiveUser
-         *     :returns: Updated profile
-         *     :rtype: ProfileRead
-         *     :raises HTTPException: 404 if profile not found
-         *     :raises HTTPException: 500 if profile update fails unexpectedly
+         *     Returns:
+         *         Updated profile.
+         *
+         *     Raises:
+         *         HTTPException: 404 if profile not found.
+         *         HTTPException: 500 if profile update fails unexpectedly.
          */
         put: operations["update_my_profile_api_v1_users_me_profile_put"];
         post?: never;
@@ -2984,6 +3712,9 @@ export interface paths {
          *
          *     Returns statistics about dwellers born, died, and breakdown by cause of death,
          *     as well as counts of currently revivable and permanently dead dwellers.
+         *
+         *     Returns:
+         *         Death statistics for the current user.
          */
         get: operations["get_death_statistics_api_v1_users_me_profile_statistics_get"];
         put?: never;
@@ -3001,7 +3732,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Ai Usage */
+        /**
+         * Get Ai Usage
+         * @description Get AI usage statistics for the current user.
+         *
+         *     Returns:
+         *         AI usage statistics including token counts and rate limits.
+         */
         get: operations["get_ai_usage_api_v1_users_me_profile_ai_usage_get"];
         put?: never;
         post?: never;
@@ -3018,10 +3755,22 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Vault List */
+        /**
+         * Read Vault List
+         * @description Retrieve a paginated list of all vaults (admin only).
+         *
+         *     Returns:
+         *         List of vaults with user details.
+         */
         get: operations["read_vault_list_api_v1_vaults__get"];
         put?: never;
-        /** Create Vault */
+        /**
+         * Create Vault
+         * @description Create a new vault.
+         *
+         *     Returns:
+         *         The created vault.
+         */
         post: operations["create_vault_api_v1_vaults__post"];
         delete?: never;
         options?: never;
@@ -3036,7 +3785,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read My Vaults */
+        /**
+         * Read My Vaults
+         * @description Retrieve vaults owned by the current user.
+         *
+         *     Returns:
+         *         List of the user's vaults with room and dweller counts.
+         */
         get: operations["read_my_vaults_api_v1_vaults_my_get"];
         put?: never;
         post?: never;
@@ -3053,14 +3808,27 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Vault */
+        /**
+         * Read Vault
+         * @description Retrieve a vault by ID with room and dweller counts.
+         *
+         *     Returns:
+         *         Vault details with room and dweller counts.
+         */
         get: operations["read_vault_api_v1_vaults__vault_id__get"];
-        /** Update Vault */
+        /**
+         * Update Vault
+         * @description Update a vault.
+         *
+         *     Returns:
+         *         The updated vault.
+         */
         put: operations["update_vault_api_v1_vaults__vault_id__put"];
         post?: never;
         /**
          * Delete Vault
          * @description Delete a vault. By default performs soft delete to preserve data.
+         *
          *     Use hard_delete=True to permanently remove the vault.
          */
         delete: operations["delete_vault_api_v1_vaults__vault_id__delete"];
@@ -3078,7 +3846,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Toggle Game State */
+        /**
+         * Toggle Game State
+         * @description Toggle the game paused/running state for a vault.
+         *
+         *     Returns:
+         *         The updated vault with new game state.
+         */
         post: operations["toggle_game_state_api_v1_vaults__vault_id__toggle_game_state_post"];
         delete?: never;
         options?: never;
@@ -3095,7 +3869,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Start Vault */
+        /**
+         * Start Vault
+         * @description Initiate a new vault for the current user.
+         *
+         *     Returns:
+         *         The newly initiated vault.
+         */
         post: operations["start_vault_api_v1_vaults_initiate_post"];
         delete?: never;
         options?: never;
@@ -3112,7 +3892,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Update Vault Resources */
+        /**
+         * Update Vault Resources
+         * @description Update vault resources (admin only).
+         *
+         *     Returns:
+         *         Updated vault resource data.
+         */
         post: operations["update_vault_resources_api_v1_vaults_update_resources_post"];
         delete?: never;
         options?: never;
@@ -3132,6 +3918,9 @@ export interface paths {
         /**
          * Unassign All Dwellers
          * @description Unassign all dwellers from their rooms in the specified vault.
+         *
+         *     Returns:
+         *         Response with count of unassigned dwellers.
          */
         post: operations["unassign_all_dwellers_api_v1_vaults__vault_id__dwellers_unassign_all_post"];
         delete?: never;
@@ -3155,6 +3944,9 @@ export interface paths {
          *
          *     Priority order: Power Plant (Strength) → Diner (Agility) → Water Treatment (Perception)
          *     Dwellers are matched to rooms based on their relevant SPECIAL stat (highest stat dwellers assigned first).
+         *
+         *     Returns:
+         *         Response with count of assigned dwellers.
          */
         post: operations["auto_assign_production_rooms_api_v1_vaults__vault_id__dwellers_auto_assign_production_post"];
         delete?: never;
@@ -3184,6 +3976,9 @@ export interface paths {
          *
          *     Within each tier, dwellers are distributed proportionally to room capacities.
          *     Dwellers are matched to rooms based on their relevant SPECIAL stat (highest stat dwellers assigned first).
+         *
+         *     Returns:
+         *         Response with count of assigned dwellers.
          */
         post: operations["auto_assign_all_rooms_api_v1_vaults__vault_id__dwellers_auto_assign_all_post"];
         delete?: never;
@@ -3199,10 +3994,22 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Weapon List */
+        /**
+         * Read Weapon List
+         * @description Retrieve a paginated list of weapons, optionally filtered by vault.
+         *
+         *     Returns:
+         *         List of weapons.
+         */
         get: operations["read_weapon_list_api_v1_weapons__get"];
         put?: never;
-        /** Create Weapon */
+        /**
+         * Create Weapon
+         * @description Create a new weapon.
+         *
+         *     Returns:
+         *         The created weapon.
+         */
         post: operations["create_weapon_api_v1_weapons__post"];
         delete?: never;
         options?: never;
@@ -3217,12 +4024,27 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Weapon */
+        /**
+         * Read Weapon
+         * @description Retrieve a weapon by ID.
+         *
+         *     Returns:
+         *         The requested weapon.
+         */
         get: operations["read_weapon_api_v1_weapons__weapon_id__get"];
-        /** Update Weapon */
+        /**
+         * Update Weapon
+         * @description Update a weapon.
+         *
+         *     Returns:
+         *         The updated weapon.
+         */
         put: operations["update_weapon_api_v1_weapons__weapon_id__put"];
         post?: never;
-        /** Delete Weapon */
+        /**
+         * Delete Weapon
+         * @description Delete a weapon.
+         */
         delete: operations["delete_weapon_api_v1_weapons__weapon_id__delete"];
         options?: never;
         head?: never;
@@ -3238,7 +4060,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Equip Weapon */
+        /**
+         * Equip Weapon
+         * @description Equip a weapon on a dweller.
+         *
+         *     Returns:
+         *         The equipped weapon.
+         */
         post: operations["equip_weapon_api_v1_weapons__dweller_id__equip__weapon_id__post"];
         delete?: never;
         options?: never;
@@ -3255,7 +4083,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Unequip Weapon */
+        /**
+         * Unequip Weapon
+         * @description Unequip a weapon from a dweller.
+         */
         post: operations["unequip_weapon_api_v1_weapons__weapon_id__unequip__post"];
         delete?: never;
         options?: never;
@@ -3272,7 +4103,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Scrap Weapon */
+        /**
+         * Scrap Weapon
+         * @description Scrap a weapon into junk items.
+         *
+         *     Returns:
+         *         List of junk items produced from scrapping.
+         */
         post: operations["scrap_weapon_api_v1_weapons__weapon_id__scrap__post"];
         delete?: never;
         options?: never;
@@ -3289,7 +4126,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Sell Weapon */
+        /**
+         * Sell Weapon
+         * @description Sell a weapon for caps.
+         */
         post: operations["sell_weapon_api_v1_weapons__weapon_id__sell__post"];
         delete?: never;
         options?: never;
@@ -3304,7 +4144,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Weapons Data */
+        /**
+         * Read Weapons Data
+         * @description Retrieve static weapon data definitions.
+         *
+         *     Returns:
+         *         List of static weapon definitions.
+         */
         get: operations["read_weapons_data_api_v1_weapons_read_data__get"];
         put?: never;
         post?: never;
@@ -5459,7 +6305,7 @@ export interface components {
          * @description Types of notifications
          * @enum {string}
          */
-        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "dweller_injured" | "dweller_died" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "achievement_unlocked" | "radio_new_dweller";
+        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "dweller_injured" | "dweller_died" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "achievement_unlocked" | "radio_new_dweller" | "map_registration_failed";
         /** Objective */
         Objective: {
             /** Challenge */
@@ -7923,6 +8769,13 @@ export interface operations {
                     "application/json": components["schemas"]["DwellerVoiceChatResponse"];
                 };
             };
+            /** @description Empty audio file */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -9951,9 +10804,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["JunkCreate"][];
                 };
             };
         };

@@ -77,7 +77,7 @@ export function useRoomDwellers(
   const openDwellerDetails = (dwellerId: string) => {
     const vaultId = route.params.id as string
     if (vaultId) {
-      router.push({
+      void router.push({
         name: 'dwellerDetail',
         params: { id: vaultId, dwellerId },
       })

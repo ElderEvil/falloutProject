@@ -38,7 +38,13 @@ vi.mock('@/core/composables/useToast', () => ({
 
 // Mock usePolling - call immediate fn once, no interval
 vi.mock('@/core/composables/usePolling', () => ({
-  usePolling: (fn: () => unknown) => ({ run: vi.fn(), pause: vi.fn(), resume: vi.fn(), isActive: { value: false }, isRefreshing: { value: false } }),
+  usePolling: (fn: () => unknown) => ({
+    run: vi.fn(),
+    pause: vi.fn(),
+    resume: vi.fn(),
+    isActive: { value: false },
+    isRefreshing: { value: false },
+  }),
 }))
 
 describe('ExplorationDetailView', () => {
@@ -166,7 +172,19 @@ describe('ExplorationDetailView', () => {
       await flushPromises()
 
       expect(wrapper.text()).toContain('1 / 1')
-      expect(wrapper.text()).toContain('Back')
+      expect(wrapper.text()).toContain('Back to Exploration')
+    })
+
+    it('renders the shared vault sidebar', async () => {
+      const wrapper = mount(ExplorationDetailView, {
+        global: {
+          plugins: [router],
+        },
+      })
+
+      await flushPromises()
+
+      expect(wrapper.findComponent({ name: 'SidePanel' }).exists()).toBe(true)
     })
 
     it('renders dweller name in summary card', async () => {

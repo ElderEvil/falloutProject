@@ -97,13 +97,14 @@ const happinessDashboardData = computed(() => {
   }
 })
 
-const fetchDwellers = async () => {
+const fetchDwellers = async (signal?: AbortSignal) => {
   if (authStore.isAuthenticated && vaultId.value) {
     await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token as string, {
       status: dwellerStore.filterStatus !== 'all' ? dwellerStore.filterStatus : undefined,
       ageGroup: dwellerStore.filterAgeGroup !== 'all' ? dwellerStore.filterAgeGroup : undefined,
       sortBy: dwellerStore.sortBy,
       order: dwellerStore.sortDirection,
+      signal,
     })
   }
 }
@@ -181,7 +182,10 @@ watch(
     dwellerStore.sortBy,
     dwellerStore.sortDirection,
   ],
-  async () => {
+  async (_, __, onCleanup) => {
+    const controller = new AbortController()
+    onCleanup(() => controller.abort())
+
     if (dwellerStore.filterStatus === 'dead') {
       // Fetch dead dwellers when dead filter is active
       // Guard: ensure vaultId and token are present before fetching
@@ -189,7 +193,7 @@ watch(
         await dwellerDeathStore.fetchDeadDwellers(vaultId.value, authStore.token)
       }
     } else {
-      await fetchDwellers()
+      await fetchDwellers(controller.signal)
     }
   }
 )
@@ -397,5 +401,4 @@ const handleViewLowHappiness = () => {
   background-size: 100% 2px;
   pointer-events: none;
 }
-
 </style>

@@ -22,6 +22,7 @@ interface Props {
   type?: 'button' | 'submit' | 'reset'
   title?: string
   'aria-label'?: string
+  ariaLabel?: string
 }
 
 const {
@@ -32,10 +33,13 @@ const {
   block = false,
   type = 'button',
   title,
-  'aria-label': ariaLabel,
+  'aria-label': kebabCaseAriaLabel,
+  ariaLabel,
   icon,
   iconRight,
 } = defineProps<Props>()
+
+const resolvedAriaLabel = ariaLabel ?? kebabCaseAriaLabel
 
 const emit = defineEmits<{
   (e: 'click', event: MouseEvent): void
@@ -82,7 +86,7 @@ const handleClick = (event: MouseEvent) => {
     @click="handleClick"
     :type="type"
     :title="title"
-    :aria-label="ariaLabel"
+    :aria-label="resolvedAriaLabel"
   >
     <component v-if="icon && !loading" :is="icon" class="h-5 w-5" />
     <span v-if="loading" class="animate-spin">⚙</span>

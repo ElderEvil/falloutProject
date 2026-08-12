@@ -43,7 +43,12 @@ const handleRevive = () => {
 </script>
 
 <template>
-  <UCard title="EMERGENCY MEDICAL PROTOCOL" glow crt class="revival-section">
+  <UCard
+    title="EMERGENCY MEDICAL PROTOCOL"
+    glow
+    crt
+    class="revival-section !border-theme-primary/40 !bg-terminal-background"
+  >
     <div v-if="revivalCost" class="flex flex-col gap-4">
       <!-- Cost Analysis -->
       <div class="grid grid-cols-2 gap-4">
@@ -88,7 +93,7 @@ const handleRevive = () => {
           <span class="font-mono">{{ revivalCost.days_until_permanent }} days</span>
         </div>
 
-        <div class="h-2 bg-gray-900 border border-theme-primary/30 rounded overflow-hidden">
+        <div class="h-2 bg-black/40 border border-theme-primary/30 rounded overflow-hidden">
           <div
             class="h-full transition-all duration-500 shadow-[0_0_8px_currentColor]"
             :class="isUrgent ? 'bg-red-500 text-red-500' : 'bg-theme-primary text-theme-primary'"

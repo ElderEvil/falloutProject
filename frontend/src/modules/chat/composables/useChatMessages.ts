@@ -124,7 +124,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
     (e) => {
       if (!e.shiftKey) {
         e.preventDefault()
-        sendMessage()
+        void sendMessage()
       }
       // Shift+Enter allows newline (default behavior)
     },

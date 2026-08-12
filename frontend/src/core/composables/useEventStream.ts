@@ -149,7 +149,7 @@ function useSseBase(
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null
       attempt++
-      connect(undefined, true)
+      void connect(undefined, true)
     }, delay)
   }
 

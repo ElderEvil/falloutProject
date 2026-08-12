@@ -70,6 +70,33 @@ describe('Room Store', () => {
 
       expect(store.rooms).toEqual([])
     })
+
+    it('should ignore a stale room response after a newer modal request', async () => {
+      let resolveFirst!: (value: unknown) => void
+      const freshRooms = [{ id: 'fresh', name: 'New Gym' }]
+      const staleRooms = [{ id: 'stale', name: 'Old Gym' }]
+
+      vi.mocked(axios.get)
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveFirst = resolve
+            })
+        )
+        .mockResolvedValueOnce({ data: freshRooms })
+
+      const store = useRoomStore()
+      const firstRequest = store.fetchRooms('vault-1', 'test-token')
+      const secondRequest = store.fetchRooms('vault-1', 'test-token')
+
+      await secondRequest
+      expect(store.rooms).toEqual(freshRooms)
+
+      resolveFirst({ data: staleRooms })
+      await firstRequest
+
+      expect(store.rooms).toEqual(freshRooms)
+    })
   })
 
   describe('fetchRoomsData', () => {

@@ -69,7 +69,12 @@ const causeData = computed(() => {
 </script>
 
 <template>
-  <UCard title="VITAL STATISTICS REGISTRY" glow crt class="life-death-stats">
+  <UCard
+    title="VITAL STATISTICS REGISTRY"
+    glow
+    crt
+    class="life-death-stats !border-theme-primary/40 !bg-terminal-background"
+  >
     <div v-if="loading" class="space-y-4">
       <div class="grid grid-cols-3 gap-4">
         <USkeleton class="h-24 w-full" />

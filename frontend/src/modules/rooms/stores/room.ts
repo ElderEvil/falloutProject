@@ -12,6 +12,7 @@ export const useRoomStore = defineStore('room', () => {
   const availableRooms = ref<RoomTemplate[]>([])
   const selectedRoom = ref<RoomTemplate | null>(null)
   const isPlacingRoom = ref(false)
+  let fetchRoomsRequestSequence = 0
 
   // Background vault refresh — non-throwing, while still surfacing failures consistently.
   async function refreshVaultSafely(vaultId: string, token: string, context: string) {
@@ -24,16 +25,22 @@ export const useRoomStore = defineStore('room', () => {
 
   // Actions
   async function fetchRooms(vaultId: string, token: string): Promise<void> {
+    const requestSequence = ++fetchRoomsRequestSequence
+
     try {
       const response = await axios.get<Room[]>(`/api/v1/rooms/vault/${vaultId}/`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       })
-      rooms.value = response.data
+      if (requestSequence === fetchRoomsRequestSequence) {
+        rooms.value = response.data
+      }
     } catch (error) {
       handleStoreError(error, 'Failed to fetch rooms')
-      rooms.value = [] // Reset to empty array on error
+      if (requestSequence === fetchRoomsRequestSequence) {
+        rooms.value = [] // Reset to empty array on error
+      }
     }
   }
 

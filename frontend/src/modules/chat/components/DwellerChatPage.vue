@@ -10,6 +10,7 @@ import DwellerChat from './DwellerChat.vue'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 import { normalizeImageUrl } from '@/core/utils/image'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
+import BackButton from '@/core/components/common/BackButton.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -60,17 +61,13 @@ onMounted(async () => {
 
     <!-- Content -->
     <template v-else-if="dweller">
+      <BackButton
+        v-if="dweller?.vault?.id"
+        class="mb-4"
+        label="Back to Dweller"
+        @click="router.push(`/vault/${dweller.vault.id}/dwellers/${dwellerId}`)"
+      />
       <div class="chat-header">
-        <UButton
-          v-if="dweller?.vault?.id"
-          variant="ghost"
-          size="sm"
-          class="mr-4"
-          @click="router.push(`/vault/${dweller.vault.id}/dwellers/${dwellerId}`)"
-        >
-          <Icon icon="mdi:arrow-left" class="h-5 w-5 mr-1" />
-          Back to Dweller
-        </UButton>
         <div class="dweller-info">
           <img
             :src="normalizeImageUrl(dweller.thumbnail_url)"

@@ -6,7 +6,10 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { usePolling } from '@/core/composables/usePolling'
+import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
+import BackButton from '@/core/components/common/BackButton.vue'
+import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useExplorationStore } from '../stores/exploration'
 import ExplorationRewardsModal from '../components/ExplorationRewardsModal.vue'
 import ExplorerNavbar from '../components/ExplorerNavbar.vue'
@@ -24,6 +27,7 @@ const { filter: dwellerStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
 const vaultStore = useVaultStore()
 const toast = useToast()
+const { isCollapsed } = useSidePanel()
 
 const vaultId = computed(() => route.params.id as string)
 const explorationId = computed(() => route.params.explorationId as string)
@@ -214,63 +218,74 @@ watch(
 </script>
 
 <template>
-  <div class="min-h-screen bg-black pb-8 font-mono">
-    <!-- Navigation Bar -->
-    <ExplorerNavbar
-      :current-index="currentIndex"
-      :total="allExplorations.length"
-      :has-previous="hasPrevious"
-      :has-next="hasNext"
-      @back="goBack"
-      @previous="navigatePrevious"
-      @next="navigateNext"
-    />
+  <div class="relative min-h-screen bg-terminalBackground font-mono text-terminalGreen">
+    <div class="scanlines"></div>
 
-    <!-- Main Content -->
-    <div v-if="exploration && dweller" class="mx-auto max-w-[1200px] p-4">
-      <!-- Top Section: Dweller Info & Progress + Stats Grid -->
-      <ExplorerSummaryCard
-        :dweller-name="dwellerName"
-        :dweller-level="dweller.level"
-        :health="dweller.health"
-        :max-health="dweller.max_health"
-        :progress-percentage="progressPercentage"
-        :time-remaining="timeRemaining"
-        :exploration-duration="exploration.duration"
-        :dweller="dweller"
-      />
+    <div class="vault-layout">
+      <SidePanel />
 
-      <ExplorerStatsGrid v-if="exploration" :exploration="exploration" />
+      <div class="main-content flicker pb-8" :class="{ collapsed: isCollapsed }">
+        <div class="mx-auto max-w-[1200px] px-4 pt-4">
+          <BackButton label="Back to Exploration" @click="goBack" />
+        </div>
 
-      <!-- Event Log Section -->
-      <ExplorationEventLog :events="sortedEvents" />
+        <!-- Explorer paging controls -->
+        <ExplorerNavbar
+          :current-index="currentIndex"
+          :total="allExplorations.length"
+          :has-previous="hasPrevious"
+          :has-next="hasNext"
+          @previous="navigatePrevious"
+          @next="navigateNext"
+        />
 
-      <!-- Equipment Section -->
-      <ExplorerEquipmentSlots
-        :weapon-name="weaponName"
-        :outfit-name="outfitName"
-      />
+        <!-- Main Content -->
+        <div v-if="exploration && dweller" class="mx-auto max-w-[1200px] p-4">
+          <!-- Top Section: Dweller Info & Progress + Stats Grid -->
+          <ExplorerSummaryCard
+            :dweller-name="dwellerName"
+            :dweller-level="dweller.level"
+            :health="dweller.health"
+            :max-health="dweller.max_health"
+            :progress-percentage="progressPercentage"
+            :time-remaining="timeRemaining"
+            :exploration-duration="exploration.duration"
+            :dweller="dweller"
+          />
 
-      <!-- Action Buttons -->
-      <ExplorerActions
-        :can-complete="progressPercentage >= 100"
-        @complete="handleCompleteExploration"
-        @recall="handleRecallExploration"
-      />
+          <ExplorerStatsGrid v-if="exploration" :exploration="exploration" />
+
+          <!-- Event Log Section -->
+          <ExplorationEventLog :events="sortedEvents" />
+
+          <!-- Equipment Section -->
+          <ExplorerEquipmentSlots :weapon-name="weaponName" :outfit-name="outfitName" />
+
+          <!-- Action Buttons -->
+          <ExplorerActions
+            :can-complete="progressPercentage >= 100"
+            @complete="handleCompleteExploration"
+            @recall="handleRecallExploration"
+          />
+        </div>
+
+        <!-- Loading/Error State -->
+        <div
+          v-else
+          class="loading-state flex min-h-[60vh] flex-col items-center justify-center gap-6 text-theme-primary"
+        >
+          <Icon icon="mdi:loading" class="loading-icon h-20 w-20 animate-spin" />
+          <p>Loading exploration data...</p>
+        </div>
+
+        <!-- Rewards Modal -->
+        <ExplorationRewardsModal
+          :show="showRewardsModal"
+          :rewards="completedExplorationRewards"
+          :dweller-name="completedDwellerName"
+          @close="closeRewardsModal"
+        />
+      </div>
     </div>
-
-    <!-- Loading/Error State -->
-    <div v-else class="loading-state flex min-h-[60vh] flex-col items-center justify-center gap-6 text-theme-primary">
-      <Icon icon="mdi:loading" class="loading-icon h-20 w-20 animate-spin" />
-      <p>Loading exploration data...</p>
-    </div>
-
-    <!-- Rewards Modal -->
-    <ExplorationRewardsModal
-      :show="showRewardsModal"
-      :rewards="completedExplorationRewards"
-      :dweller-name="completedDwellerName"
-      @close="closeRewardsModal"
-    />
   </div>
 </template>

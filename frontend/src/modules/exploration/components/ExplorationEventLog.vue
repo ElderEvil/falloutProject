@@ -15,13 +15,22 @@ const formatEventTime = (hours: number): string => {
 </script>
 
 <template>
-  <div class="mb-4 rounded-lg border-2 border-theme-primary bg-surface-warm-dark p-4 shadow-[0_0_20px_var(--color-theme-glow)]">
-    <h3 class="section-title mb-2 flex items-center text-base font-bold text-theme-primary [text-shadow:0_0_8px_var(--color-theme-glow)]">
+  <div
+    class="mb-4 rounded-lg border-2 border-theme-primary bg-terminal-background p-4 shadow-[0_0_20px_var(--color-theme-glow)]"
+  >
+    <h3
+      class="section-title mb-2 flex items-center text-base font-bold text-theme-primary [text-shadow:0_0_8px_var(--color-theme-glow)]"
+    >
       <Icon icon="mdi:timeline-text" class="mr-2" />
       Event Log
     </h3>
-    <div class="max-h-[250px] overflow-y-auto rounded-md border border-theme-primary/30 bg-surface-warm-dark p-4">
-      <div v-if="events.length === 0" class="no-events flex flex-col items-center gap-2 p-8 text-theme-primary/50">
+    <div
+      class="max-h-[250px] overflow-y-auto rounded-md border border-theme-primary/30 bg-terminal-background p-4"
+    >
+      <div
+        v-if="events.length === 0"
+        class="no-events flex flex-col items-center gap-2 p-8 text-theme-primary/50"
+      >
         <Icon icon="mdi:clock-outline" class="h-10 w-10" />
         <p>No events yet. Adventure is just beginning...</p>
       </div>
@@ -29,12 +38,15 @@ const formatEventTime = (hours: number): string => {
         <div
           v-for="(event, index) in events"
           :key="index"
-          class="event-row grid grid-cols-[55px_28px_1fr] items-start gap-2 rounded border-l-[3px] bg-surface-warm-dark p-2.5 transition-all duration-200 hover:translate-x-[3px] hover:bg-surface-warm-hover hover:shadow-[0_0_12px_rgba(var(--color-theme-primary-rgb),0.2)] md:grid-cols-[60px_30px_1fr] md:p-3"
+          class="event-row grid grid-cols-[55px_28px_1fr] items-start gap-2 rounded border-l-[3px] bg-terminal-background p-2.5 transition-all duration-200 hover:translate-x-[3px] hover:bg-theme-primary/10 hover:shadow-[0_0_12px_rgba(var(--color-theme-primary-rgb),0.2)] md:grid-cols-[60px_30px_1fr] md:p-3"
           :style="{
             borderLeftColor: getEventColor(event.type),
           }"
         >
-          <span class="event-time pt-0.5 text-sm font-bold tabular-nums text-theme-primary [text-shadow:0_0_5px_var(--color-theme-glow)]">{{ formatEventTime(event.time_elapsed_hours) }}</span>
+          <span
+            class="event-time pt-0.5 text-sm font-bold tabular-nums text-theme-primary [text-shadow:0_0_5px_var(--color-theme-glow)]"
+            >{{ formatEventTime(event.time_elapsed_hours) }}</span
+          >
           <Icon
             :icon="getEventIcon(event.type)"
             class="mt-0.5 h-5 w-5 drop-shadow-[0_0_3px_currentColor]"
@@ -53,7 +65,9 @@ const formatEventTime = (hours: number): string => {
                 {{ event.type.toUpperCase() }}
               </span>
             </div>
-            <span class="text-[0.8125rem] leading-[1.4] text-theme-primary/90">{{ event.description }}</span>
+            <span class="text-[0.8125rem] leading-[1.4] text-theme-primary/90">{{
+              event.description
+            }}</span>
           </div>
         </div>
       </div>

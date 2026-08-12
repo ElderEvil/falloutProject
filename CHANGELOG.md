@@ -5,6 +5,36 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.33.0] - 2026-08-13
+
+### Changed
+
+- **Type-aware frontend linting** — enabled Vite+/Oxlint type-aware analysis while retaining the existing `vue-tsc`
+  typecheck gate; fixed all 15 newly reported promise-safety and redundant-type findings without adding standalone Oxc
+  dependencies or upgrading TypeScript/Pinia
+- **Stale async requests** — dweller filters, modal room loads, and dead-dweller queries now only apply their latest
+  response; regression tests protect against obsolete responses overwriting current state
+- **Consistent back navigation** — active in-app routes now share one labelled terminal back control in a standard
+  top-left page position; Profile returns to the active vault rather than the vault list
+- **Exploration Detail shell** — added the shared vault sidebar and corrected the explorer toolbar stacking order so
+  the global navbar remains above route-level controls
+- **Terminal surface consistency** — Profile, Exploration Detail, and dweller revival panels now use terminal-black
+  surfaces instead of competing grey/warm-grey backgrounds
+- **Profile, Training, and Dweller Detail layouts** — Profile prioritizes the personnel file over secondary statistics;
+  Training now uses the shared vault shell with a full-width queue and collapsible reference; Dweller Detail has a
+  responsive profile rail and stacks before its record panel becomes cramped
+- **UI regression coverage** — added focused tests for shared back navigation, Profile’s vault return, Exploration
+  Detail sidebar, full-width Training layout/reference disclosure, and the revival card’s terminal surface
+- **Version bump** — backend/frontend aligned at v2.33.0
+
+### Measurement
+
+- `env -C frontend ./node_modules/.bin/vp lint src` increased checked rules from **95** to **110** (**+15; 15.8%**)
+  while retaining **0 warnings and 0 errors**. The baseline and final commands ran with Vite+ 0.2.7 on the locked
+  frontend environment; final lint wall time was **0.84s**.
+
+---
+
 ## [2.32.1] - 2026-08-12
 
 ### Fixed

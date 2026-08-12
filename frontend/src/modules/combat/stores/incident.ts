@@ -122,7 +122,7 @@ export const useIncidentStore = defineStore('incident', () => {
     sseInstance = useSse(`${apiBase}/api/v1/stream/incidents/${vaultId}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-    sseInstance.start()
+    void sseInstance.start()
 
     watch(
       () => sseInstance?.event.value,
@@ -206,7 +206,7 @@ export const useIncidentStore = defineStore('incident', () => {
 
     isPolling.value = true
 
-    fetchIncidents(vaultId, token)
+    void fetchIncidents(vaultId, token)
     if (token) {
       startSseSubscription(vaultId, token)
     }

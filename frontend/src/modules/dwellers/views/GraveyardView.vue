@@ -10,6 +10,7 @@ import { useDwellerStore } from '../stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import BackButton from '@/core/components/common/BackButton.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { UButton, UCard } from '@/core/components/ui'
@@ -58,10 +59,7 @@ const viewDwellerDetails = (dwellerId: string) => {
             subtitle="Memorial for permanently deceased dwellers"
           >
             <template #back>
-              <UButton @click="goBack" variant="ghost" size="sm">
-                <Icon icon="mdi:arrow-left" class="h-5 w-5 mr-2" />
-                Back to Dwellers
-              </UButton>
+              <BackButton label="Back to Dwellers" @click="goBack" />
             </template>
           </PageHeader>
 

@@ -132,7 +132,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Initialize: fetch user if we have a token but no user data
   if (token.value && !user.value) {
-    fetchUser()
+    void fetchUser()
   }
 
   return {

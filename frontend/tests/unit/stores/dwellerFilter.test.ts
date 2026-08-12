@@ -105,6 +105,37 @@ describe('DwellerFilter Store', () => {
       expect(url).not.toContain('status=')
       expect(url).not.toContain('age_group=')
     })
+
+    it('should ignore a stale response after filter inputs change', async () => {
+      let resolveFirst!: (value: unknown) => void
+      const freshData = [
+        { id: 'working', first_name: 'Fresh', last_name: 'Data', status: 'working', level: 1, happiness: 50 },
+      ]
+      const staleData = [
+        { id: 'idle', first_name: 'Stale', last_name: 'Data', status: 'idle', level: 1, happiness: 50 },
+      ]
+
+      vi.mocked(axios.get)
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveFirst = resolve
+            })
+        )
+        .mockResolvedValueOnce({ data: freshData })
+
+      const store = useDwellerFilterStore()
+      const firstRequest = store.fetchDwellersByVault('vault-1', 'test-token', { status: 'idle' })
+      const secondRequest = store.fetchDwellersByVault('vault-1', 'test-token', { status: 'working' })
+
+      await secondRequest
+      expect(store.dwellers).toEqual(freshData)
+
+      resolveFirst({ data: staleData })
+      await firstRequest
+
+      expect(store.dwellers).toEqual(freshData)
+    })
   })
 
   describe('fetchAllDwellers', () => {

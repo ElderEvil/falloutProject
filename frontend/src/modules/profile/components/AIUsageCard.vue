@@ -72,7 +72,12 @@ const showWarningBanner = computed(() => {
 </script>
 
 <template>
-  <UCard title="AI USAGE STATISTICS" glow crt>
+  <UCard
+    title="AI USAGE STATISTICS"
+    glow
+    crt
+    class="!border-theme-primary/40 !bg-terminal-background"
+  >
     <div v-if="loading" class="space-y-4">
       <USkeleton class="h-8 w-full" />
       <USkeleton class="h-16 w-full" />

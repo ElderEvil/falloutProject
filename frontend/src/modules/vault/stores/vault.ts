@@ -230,7 +230,7 @@ export const useVaultStore = defineStore('vault', () => {
     gameTickSse = useSse(`${apiBase}/api/v1/stream/game/${vaultId}/ticks`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-    gameTickSse.start()
+    void gameTickSse.start()
 
     watch(
       () => gameTickSse?.event.value,

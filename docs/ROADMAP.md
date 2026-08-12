@@ -12,42 +12,12 @@ AI-powered dweller interactions.
 **Current work:**
 
 - [x] **v2.32.0 planning** — Ruff lint cleanup + Google-style docstring convention enforcement.
-- [x] **v2.33.0 planning** — Frontend type-aware linting and stale-request safety.
+- [x] **v2.33.0 released** — Frontend type-aware linting and stale-request safety.
 - [x] **v2.34.0 planning** — Pydantic AI observability and structured-output reliability.
 
 ---
 
 ## Planned
-
-### v2.33.0 — Frontend Type Safety & Async Correctness (Target: TBD)
-
-**Focus**: Turn on the type-aware capability already bundled with Vite+/Oxlint where compatible, and prevent stale
-async responses from winning after a user changes a view's inputs. This combines two small frontend DX/correctness
-improvements into one release without changing product behaviour.
-
-**Planned:**
-- 🔄 **Type-aware Oxc linting feasibility spike and rollout**
-  - Establish the baseline with `pnpm run lint`, `pnpm run typecheck`, and their CI durations.
-  - Enable the Vite+-integrated type-aware linting path in a branch; do **not** add standalone `oxlint` or
-    `oxlint-tsgolint` dependencies.
-  - Confirm compatibility with the pinned TypeScript 6.x toolchain before enabling it in CI. If the bundled version
-    requires TypeScript 7, retain the existing `vue-tsc` check and defer the lint rollout rather than upgrading
-    TypeScript/Pinia as incidental release work.
-  - Start with high-signal promise-safety rules (for example, unhandled/floating promises); fix or explicitly justify
-    every new finding before raising severity.
-- 🔄 **Vue 3.5 async watcher cleanup**
-  - Use `onWatcherCleanup()`/watcher cleanup callbacks with `AbortController` for fetches driven by filters, route
-    parameters, and modal state, starting with dweller filtering and modal data loads.
-  - Add regression tests proving a slower obsolete request cannot overwrite the response for the latest input.
-  - Simplify selected base controls with `defineModel` where the model type is unambiguous; begin with boolean modal
-    state, not a broad component rewrite.
-- 🔄 **Measure before/after**
-  - Record lint/typecheck wall time, new type-aware findings by rule, and the number of stale-response regressions
-    covered by tests.
-  - Guardrails: retain `vue-tsc`, no direct Oxc tool installation, no TypeScript or Pinia major upgrade, and no
-    frontend test/typecheck regression.
-
----
 
 ### v2.34.0 — Pydantic AI Reliability & Observability (Target: TBD)
 
@@ -55,6 +25,7 @@ improvements into one release without changing product behaviour.
 output and gameplay actions. Keep this as one backend/AI release instead of splitting several small library adoptions.
 
 **Planned:**
+
 - 🔄 **Trace Pydantic AI runs in Logfire**
   - When Logfire is configured, instrument Pydantic AI in addition to the existing application setup so agent runs,
     tool calls, retry counts, latency, and token usage are visible in one trace.
@@ -101,11 +72,33 @@ percentage change. Claims must be reproducible from committed commands or CI art
 as an improvement unless the release retains equivalent behaviour and test coverage. If the release is primarily a
 feature delivery, record its measurable non-functional impact rather than inventing an optimization claim.
 
+### v2.33.0 — Frontend Type Safety & Async Correctness (Released 2026-08-13)
+
+**Focus**: Enable compatible type-aware frontend linting and make filter-driven dweller requests safe against stale
+responses without changing gameplay behaviour.
+
+**Completed:**
+
+- ✅ **Type-aware Vite+/Oxlint** — enabled bundled type-aware linting with the pinned TypeScript 6.x toolchain;
+  retained the independent `vue-tsc` gate and added no standalone Oxc dependencies or TypeScript/Pinia upgrades.
+- ✅ **Promise-safety cleanup** — resolved all 15 type-aware findings (13 `no-floating-promises` and 2
+  `no-redundant-type-constituents`), leaving the type-aware lint gate at zero warnings/errors.
+- ✅ **Async watcher cleanup** — dweller filter/sort watcher requests now use `AbortController` cleanup; filtered,
+  modal-room, and dead-dweller stores accept only the most recent response. Regression coverage proves late obsolete
+  responses cannot replace newer results.
+- ✅ **Navigation consistency** — Profile, Dweller Detail, and exploration navigation share one labelled terminal
+  back control.
+- ✅ **Measurement** — `env -C frontend ./node_modules/.bin/vp lint src` increased active rules from **95** to
+  **110** (**+15; 15.8%**) while retaining **0 warnings and 0 errors**. Final lint wall time was **0.84s** with
+  Vite+ 0.2.7 in the locked frontend environment. `vue-tsc` and the frontend suite passed (93 files; 1,180 passed,
+  1 skipped).
+
 ### v2.32.0 — Ruff Lint Cleanup & Google-Style Docstrings (Released 2026-08-12)
 
 **Focus**: Strengthen backend static analysis while adopting Google-style docstrings for the public API surface.
 
 **Completed:**
+
 - ✅ **Higher-signal Ruff coverage** — enabled `PERF`, `ERA`, `FURB`, `TC`, `S`, and `D`; removed no-longer-needed
   suppressions and fixed the newly actionable findings while retaining explicit, documented project exceptions.
 - ✅ **Google-style docstrings** — configured Ruff's Google convention and documented public API interfaces; code areas
@@ -125,6 +118,7 @@ feature delivery, record its measurable non-functional impact rather than invent
 provide a way to retroactively fill gaps for existing active vaults.
 
 **Completed:**
+
 - ✅ **Retry + durable failure signal** — `map_service.register_bio_places` now retries once and emits a
   `MAP_REGISTRATION_FAILED` notification when both attempts fail; no longer log-only.
 - ✅ **Retroactive active-vault backfill** — New `BioPlaceBackfillService` with
@@ -142,6 +136,7 @@ provide a way to retroactively fill gaps for existing active vaults.
 **Focus**: Simplify and harden the Vue frontend without changing backend runtime behavior.
 
 **Completed:**
+
 - ✅ **Truthful frontend checks** — typecheck and module-boundary checks are enforced in CI
 - ✅ **Shared async behavior** — polling and async actions centralize loading and error handling
 - ✅ **View simplification** — major dweller, chat, exploration, and room views use focused components
@@ -153,6 +148,7 @@ provide a way to retroactively fill gaps for existing active vaults.
 **Focus**: Close the enum-drift gap that caused the `DWELLER_DIED` production outage — verify no drift exists today, then lock it with regression tests
 
 **Completed:**
+
 - ✅ **Zero-drift audit** — `alembic check` clean (no pending operations); live `pg_enum` catalog matches model metadata exactly (24 enum types); `compare_type=True` confirmed active in both offline and online modes
 - ✅ **Enum regression tests** — `backend/app/tests/test_db/test_enum_drift.py`: CI-safe golden-snapshot test (`PG_ENUM_LABELS_SNAPSHOT`) catching Python-side StrEnum drift + live-PG test (auto-skips without PostgreSQL) querying `pg_enum` to catch unapplied migrations; drift-detection proven by negative test
 - ✅ **AGENTS.md docs fix** — Corrected stale "offline-only `compare_type=True`" claim (commit `a252adab` enabled it in both modes); documented the manual enum-migration procedure + regression guard requirement
@@ -164,6 +160,7 @@ provide a way to retroactively fill gaps for existing active vaults.
 **Focus**: Hide low-value single-dweller visited markers from the wasteland map, widen the render world to 160×160 via read-time scaling, and harden dweller bio/map seeding
 
 **Completed:**
+
 - ✅ **Map declutter** — Low-value single-dweller `VISITED` locations hidden from the SVG map (kept in the new marker list panel + detail modal); `MarkerListPanel`, `MapLegend`, `TerrainLayer` components, marker spread/zoom-pan/terrain utilities
 - ✅ **160-world read-time scaling** — `WORLD_SCALE = 1.6` applied in backend map read paths (`map_service`), no DB migration; frontend world grid 0–160 with matching `viewBox`
 - ✅ **Pregen service extraction** — Bio/map seeding moved from CLI into `PregenService` (service layer); `fo-cli pregen-dwellers` + `fo-cli dweller-bios` are thin wrappers; deterministic `seed` threaded through `crud.dweller.create_random` / `create_random_common_dweller` (`random.Random` + `Faker.seed_instance`)
@@ -175,6 +172,7 @@ provide a way to retroactively fill gaps for existing active vaults.
 **Focus**: Schematic wasteland map with dweller bio-derived markers, procedural exploration discoveries, and seeded vault locations
 
 **Completed:**
+
 - ✅ **Map domain models** — `WastelandLocation` + `DwellerLocation` tables, `locationtype` + `dwellerlocationrelation` PG enums, hand-written Alembic migration `edb924d8dbeb`
 - ✅ **Place utilities** — `places.py`: name normalization, deterministic coordinate hashing, collision nudge, vault seed generation (pure stdlib, no DB/RNG)
 - ✅ **Discovery event** — new `discovery` exploration event type at 10% independent roll, `discovery_names.json` data
@@ -192,6 +190,7 @@ provide a way to retroactively fill gaps for existing active vaults.
 **Focus**: Migrate 30 components from `withDefaults()` to Vue 3.5 reactive destructure pattern
 
 **Completed:**
+
 - ✅ **30 components migrated** — Replaced `const props = withDefaults(defineProps<Props>(), {...})` with `const { ... } = defineProps<Props>()` across core UI, vault, dweller, progression, social, storage, combat, profile, and rooms modules
 - ✅ **Reactive destructure defaults** — All default values moved inline in destructure; factory defaults (`() => []`) replaced with `?? []` fallbacks where needed
 - ✅ **`props.X` references cleaned** — All `props.X` references in migrated files rewritten to direct variable access for both script and template
@@ -204,6 +203,7 @@ provide a way to retroactively fill gaps for existing active vaults.
 **Focus**: Chat WebSocket migration
 
 **Completed:**
+
 - ✅ **Chat REST→WebSocket migration** — Replaced POST-SSE chat streaming with dedicated WebSocket endpoint; removed chat SSE stub from stream.py
 - ✅ **Version bump** — Backend/frontend aligned at v2.23.0
 
@@ -214,6 +214,7 @@ provide a way to retroactively fill gaps for existing active vaults.
 **Focus**: Remove grey surfaces from auth forms, create reusable VaultNumberField component
 
 **Completed:**
+
 - ✅ **UInput `variant="terminal"` prop** — Added transparent background styling option to core UInput component (`bg-transparent`, no border on non-hover)
 - ✅ **Auth form cleanup** — Applied `variant="terminal"` to LoginFormTerminal, RegisterForm, ForgotPasswordView, and ResetPasswordView
 - ✅ **VaultNumberField component** — Extracted vault-number-input logic from HomeView into a reusable component
@@ -227,6 +228,7 @@ provide a way to retroactively fill gaps for existing active vaults.
 **Focus**: Real-time SSE for incidents and game ticks, radio recruitment PostgreSQL fix
 
 **Completed:**
+
 - ✅ **Incident SSE publishing** — Incident service publishes via SSE (3 TDD tests)
 - ✅ **Incidents SSE endpoint** — `GET /stream/incidents/{vault_id}` with vault ownership check
 - ✅ **Incident store SSE subscription** — Replaced `setInterval` polling with SSE; 30s fallback on disconnect
@@ -243,10 +245,11 @@ provide a way to retroactively fill gaps for existing active vaults.
 **Focus**: Reduce frontend complexity, remove dead code, consolidate DRY violations, migrate barrel imports
 
 **Completed:**
+
 - ✅ **6-step YAGNI heuristic** — Added to AGENTS.md governing all FE work
 - ✅ **~1500 LOC reduction** — Deleted ~1000 LOC dead code across 43 files
 - ✅ **DRY consolidation** — Merged useSse/usePostEventStream into useSseBase; merged WeaponCard/OutfitCard into EquipmentCard
-- ✅ **Barrel migration** — All legacy barrel imports migrated to @/modules/* paths
+- ✅ **Barrel migration** — All legacy barrel imports migrated to @/modules/\* paths
 - ✅ **Dweller store split** — dweller.ts (796 LOC) split into 5 focused stores
 - ✅ **Dead composables removed** — useTerminalAudio (326 LOC), useAuth, useFlickering, composables/index.ts barrel
 - ✅ **Unused UI removed** — ComingSoonBadge, UDropdown (104 LOC)
@@ -305,7 +308,7 @@ provide a way to retroactively fill gaps for existing active vaults.
 
 - [x] Docker build automation → COMPLETED
 - [ ] Deploy immutable images: build and promote commit-SHA tags; production deployments select an explicit tested tag,
-  never `latest`
+      never `latest`
 - [ ] Run database migrations as a dedicated, pre-rollout Kubernetes Job and abort deployment if it fails
 - [ ] Add migration safety checks to backend CI (`alembic check` and `alembic current --check-heads` against PostgreSQL)
 - [ ] Add deterministic seed data and critical Playwright journeys, including stable visual regression baselines
@@ -324,36 +327,36 @@ provide a way to retroactively fill gaps for existing active vaults.
 
 ### Version Milestones
 
-| Version | Release      | Highlights                                   |
-| ------- | ------------ | -------------------------------------------- |
-| v2.32.0 | Aug 12, 2026 | Ruff rule cleanup + Google-style docstrings  |
+| Version | Release      | Highlights                                                        |
+| ------- | ------------ | ----------------------------------------------------------------- |
+| v2.32.0 | Aug 12, 2026 | Ruff rule cleanup + Google-style docstrings                       |
 | v2.31.0 | Aug 12, 2026 | Map registration retry + failure notification, bio backfill fixes |
-| v2.30.0 | Aug 11, 2026 | Frontend refactor (async actions, SSE fallback, typecheck) |
-| v2.29.0 | Aug 10, 2026 | Map unlock on chat, dweller-location `is_unlocked`, UI polish |
-| v2.28.0 | Aug 09, 2026 | Template-based bio filler + retroactive bio place backfill |
-| v2.27.0 | Aug 2026     | Test coverage push, pytest-xdist speed-up    |
-| v2.26.0 | Aug 07, 2026 | Alembic enum sync + PG enum regression tests |
-| v2.25.0 | Aug 07, 2026 | Map declutter, 160-world scaling, pregen service |
-| v2.24.0 | Aug 07, 2026 | World Map (schematic map, discoveries, bio places) |
-| v2.23.1 | Jul 13, 2026 | Vue 3.5 Reactive Destructure Migration       |
-| v2.23.0 | Jul 01, 2026 | Chat WebSocket migration                     |
-| v2.22.0 | Jun 28, 2026 | Terminal Background Cleanup                  |
-| v2.21.0 | Jun 24, 2026 | SSE Polish (incident/game-tick SSE)          |
-| v2.20.0 | Jun 22, 2026 | FE Simplification (YAGNI + DRY)              |
-| v2.19.0 | Jun 21, 2026 | SSE streaming + Dict-to-Pydantic refactoring |
-| v2.18.0 | Jun 21, 2026 | Library skills audit                         |
-| v2.17.0 | Jun 19, 2026 | Medical storage refactor                     |
-| v2.16.0 | Jun 18, 2026 | Accessibility, CRT theme, test fixes         |
-| v2.15.0 | Jun 18, 2026 | Dweller visual unification                   |
-| v2.14.4 | Jun 17, 2026 | Security dep bumps                           |
-| v2.13.1 | May 19, 2026 | Security hardening                           |
-| v2.13.0 | May 01, 2026 | Dramatiq migration                           |
-| v2.12.0 | Apr 23, 2026 | Test suite green, MinIO removed              |
-| v2.11.0 | Mar 19, 2026 | Vite+ toolchain                              |
-| v2.10.9 | Mar 13, 2026 | AI quota system                              |
-| v2.10.0 | Feb 10, 2026 | Quest & Objective system                     |
-| v2.9.0  | Feb 07, 2026 | Chat exploration actions                     |
-| v2.8.0  | Jan 29, 2026 | Easter eggs, changelog system                |
+| v2.30.0 | Aug 11, 2026 | Frontend refactor (async actions, SSE fallback, typecheck)        |
+| v2.29.0 | Aug 10, 2026 | Map unlock on chat, dweller-location `is_unlocked`, UI polish     |
+| v2.28.0 | Aug 09, 2026 | Template-based bio filler + retroactive bio place backfill        |
+| v2.27.0 | Aug 2026     | Test coverage push, pytest-xdist speed-up                         |
+| v2.26.0 | Aug 07, 2026 | Alembic enum sync + PG enum regression tests                      |
+| v2.25.0 | Aug 07, 2026 | Map declutter, 160-world scaling, pregen service                  |
+| v2.24.0 | Aug 07, 2026 | World Map (schematic map, discoveries, bio places)                |
+| v2.23.1 | Jul 13, 2026 | Vue 3.5 Reactive Destructure Migration                            |
+| v2.23.0 | Jul 01, 2026 | Chat WebSocket migration                                          |
+| v2.22.0 | Jun 28, 2026 | Terminal Background Cleanup                                       |
+| v2.21.0 | Jun 24, 2026 | SSE Polish (incident/game-tick SSE)                               |
+| v2.20.0 | Jun 22, 2026 | FE Simplification (YAGNI + DRY)                                   |
+| v2.19.0 | Jun 21, 2026 | SSE streaming + Dict-to-Pydantic refactoring                      |
+| v2.18.0 | Jun 21, 2026 | Library skills audit                                              |
+| v2.17.0 | Jun 19, 2026 | Medical storage refactor                                          |
+| v2.16.0 | Jun 18, 2026 | Accessibility, CRT theme, test fixes                              |
+| v2.15.0 | Jun 18, 2026 | Dweller visual unification                                        |
+| v2.14.4 | Jun 17, 2026 | Security dep bumps                                                |
+| v2.13.1 | May 19, 2026 | Security hardening                                                |
+| v2.13.0 | May 01, 2026 | Dramatiq migration                                                |
+| v2.12.0 | Apr 23, 2026 | Test suite green, MinIO removed                                   |
+| v2.11.0 | Mar 19, 2026 | Vite+ toolchain                                                   |
+| v2.10.9 | Mar 13, 2026 | AI quota system                                                   |
+| v2.10.0 | Feb 10, 2026 | Quest & Objective system                                          |
+| v2.9.0  | Feb 07, 2026 | Chat exploration actions                                          |
+| v2.8.0  | Jan 29, 2026 | Easter eggs, changelog system                                     |
 
 ---
 

@@ -87,6 +87,33 @@ describe('DwellerDeath Store', () => {
       expect(store.deadLoadingCount).toBe(0)
       expect(store.isDeadLoading).toBe(false)
     })
+
+    it('should ignore a stale dead-dweller response after a newer request', async () => {
+      let resolveFirst!: (value: unknown) => void
+      const freshDead = [{ id: 'fresh', first_name: 'Fresh', last_name: 'Dweller' }]
+      const staleDead = [{ id: 'stale', first_name: 'Stale', last_name: 'Dweller' }]
+
+      vi.mocked(axios.get)
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveFirst = resolve
+            })
+        )
+        .mockResolvedValueOnce({ data: freshDead })
+
+      const store = useDwellerDeathStore()
+      const firstRequest = store.fetchDeadDwellers('vault-1', 'test-token')
+      const secondRequest = store.fetchDeadDwellers('vault-1', 'test-token')
+
+      await secondRequest
+      expect(store.deadDwellers).toEqual(freshDead)
+
+      resolveFirst({ data: staleDead })
+      await firstRequest
+
+      expect(store.deadDwellers).toEqual(freshDead)
+    })
   })
 
   describe('fetchGraveyardDwellers', () => {

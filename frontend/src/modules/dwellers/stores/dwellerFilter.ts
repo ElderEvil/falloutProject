@@ -14,7 +14,14 @@ import { useAsyncAction } from '@/core/composables/useAsyncAction'
  */
 export const ALL_DWELLERS_FETCH_LIMIT = 1000
 
-export type DwellerStatus = 'idle' | 'working' | 'exploring' | 'questing' | 'training' | 'resting' | 'dead'
+export type DwellerStatus =
+  | 'idle'
+  | 'working'
+  | 'exploring'
+  | 'questing'
+  | 'training'
+  | 'resting'
+  | 'dead'
 export type DwellerAgeGroup = 'child' | 'teen' | 'adult' | 'all'
 
 export interface DwellerWithStatus extends DwellerShort {
@@ -41,6 +48,7 @@ type DwellerFetchOptions = {
   order?: 'asc' | 'desc'
   skip?: number
   limit?: number
+  signal?: AbortSignal
 }
 
 export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
@@ -48,8 +56,11 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   const dwellers = ref<DwellerShort[]>([])
   const allDwellers = ref<DwellerShort[]>([])
   const detailedDwellers = ref<Record<string, Dweller | null>>({})
+  let dwellersRequestSeq = 0
+
   const { run: runFetchDwellers, isLoading } = useAsyncAction(
     async (vaultId: string, token: string, options?: DwellerFetchOptions) => {
+      const requestSeq = ++dwellersRequestSeq
       const params = new URLSearchParams()
       if (options?.status && options.status !== 'all') params.append('status', options.status)
       if (options?.ageGroup && options.ageGroup !== 'all')
@@ -63,9 +74,11 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
       const queryString = params.toString()
       const response = await axios.get(
         `/api/v1/dwellers/vault/${vaultId}/${queryString ? `?${queryString}` : ''}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` }, signal: options?.signal }
       )
-      dwellers.value = response.data
+      if (requestSeq === dwellersRequestSeq) {
+        dwellers.value = response.data
+      }
     },
     { context: 'Failed to fetch dwellers', showToast: false }
   )

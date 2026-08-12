@@ -10,6 +10,7 @@ import { Icon } from '@iconify/vue'
 import { systemService } from '../services/systemService'
 import type { InfoResponse } from '../types/system'
 import { useFakeCrash } from '@/core/composables/useFakeCrash'
+import BackButton from '@/core/components/common/BackButton.vue'
 
 const router = useRouter()
 
@@ -35,10 +36,7 @@ onMounted(async () => {
 <template>
   <div class="flex min-h-screen flex-col items-center justify-center p-4">
     <div class="w-full max-w-2xl">
-      <UButton variant="ghost" size="sm" class="mb-4" @click="router.push('/')">
-        <Icon icon="mdi:arrow-left" class="h-5 w-5 mr-1" />
-        Back to Home
-      </UButton>
+      <BackButton class="mb-4" label="Back to Home" @click="router.push('/')" />
     </div>
     <UCard title="System Information" glow crt class="w-full max-w-2xl">
       <div v-if="isLoading" class="space-y-4">

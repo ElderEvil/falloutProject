@@ -14,11 +14,13 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
   const graveyardDwellers = ref<DwellerDead[]>([])
   const deadLoadingCount = ref(0)
   const isDeadLoading = computed(() => deadLoadingCount.value > 0)
+  let fetchDeadDwellersRequestSequence = 0
 
   /**
    * Fetch dead dwellers (revivable) for a vault
    */
   async function fetchDeadDwellers(vaultId: string, token: string): Promise<DwellerDead[]> {
+    const requestSequence = ++fetchDeadDwellersRequestSequence
     deadLoadingCount.value++
     try {
       const response = await axios.get<DwellerDead[]>(`/api/v1/dwellers/vault/${vaultId}/dead`, {
@@ -26,7 +28,9 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
           Authorization: `Bearer ${token}`,
         },
       })
-      deadDwellers.value = response.data
+      if (requestSequence === fetchDeadDwellersRequestSequence) {
+        deadDwellers.value = response.data
+      }
       return response.data
     } catch (error) {
       handleStoreError(error, `Failed to fetch dead dwellers for vault ${vaultId}`)

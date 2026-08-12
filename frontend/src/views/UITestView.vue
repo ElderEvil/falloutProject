@@ -5,6 +5,7 @@ import { Icon } from '@iconify/vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useTheme } from '@/core/composables/useTheme'
 import { useVisualEffects, type EffectIntensity } from '@/core/composables/useVisualEffects'
+import BackButton from '@/core/components/common/BackButton.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 
@@ -73,10 +74,11 @@ const activeQuestTab = ref('active')
       <div class="main-content" :class="{ collapsed: isCollapsed, flicker: flickering }">
         <div class="container mx-auto px-4 py-6 lg:px-8">
           <!-- Back / Nav -->
-          <UButton variant="ghost" size="sm" class="mb-4" @click="router.push(`/vault/${vaultId}`)">
-            <Icon icon="mdi:arrow-left" class="h-5 w-5 mr-1" />
-            Back to Vault
-          </UButton>
+          <BackButton
+            class="mb-4"
+            label="Back to Vault"
+            @click="router.push(`/vault/${vaultId}`)"
+          />
 
           <!-- Page Header -->
           <div class="mb-8">

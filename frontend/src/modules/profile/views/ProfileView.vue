@@ -3,10 +3,12 @@ import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import { UButton, UCard } from '@/core/components/ui'
 import { LifeDeathStatistics } from '@/modules/dwellers/components/death'
 import { useWebSocket } from '@/core/composables/useWebSocket'
 import { usePolling } from '@/core/composables/usePolling'
+import BackButton from '@/core/components/common/BackButton.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { useProfileStore } from '../stores/profile'
 import ProfileEditor from '../components/ProfileEditor.vue'
@@ -16,6 +18,7 @@ import type { ProfileUpdate } from '../models/profile'
 const router = useRouter()
 const profileStore = useProfileStore()
 const authStore = useAuthStore()
+const vaultStore = useVaultStore()
 const isEditing = ref(false)
 
 // WebSocket for real-time statistical updates
@@ -47,7 +50,6 @@ onMounted(async () => {
   if (wsUrl.value) {
     connect(wsUrl.value)
   }
-
 })
 
 onUnmounted(() => {
@@ -97,6 +99,10 @@ const fetchProfile = async () => {
   } catch {}
 }
 
+const returnToVault = () => {
+  void router.push(vaultStore.activeVaultId ? `/vault/${vaultStore.activeVaultId}` : '/')
+}
+
 const startEditing = () => {
   isEditing.value = true
   profileStore.clearError()
@@ -131,13 +137,9 @@ const formatDate = (dateString: string) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-black py-8 px-4 font-mono">
+  <div class="min-h-screen bg-terminal-background px-4 py-8 font-mono">
     <div class="max-w-7xl mx-auto">
-      <!-- Back Button -->
-      <UButton variant="ghost" size="sm" class="mb-4" @click="router.push('/')">
-        <Icon icon="mdi:arrow-left" class="h-5 w-5 mr-1" />
-        Back to Vault
-      </UButton>
+      <BackButton class="mb-4" label="Back to Vault" @click="returnToVault" />
 
       <PageHeader
         title="Overseer Profile"
@@ -166,11 +168,17 @@ const formatDate = (dateString: string) => {
       </UCard>
 
       <!-- Profile Content -->
-      <div v-else-if="profileStore.profile" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Left Column: Personal Info -->
-        <div>
+      <div v-else-if="profileStore.profile" class="space-y-6">
+        <!-- Primary: Personal Info -->
+        <div class="max-w-3xl">
           <!-- Display Mode -->
-          <UCard v-if="!isEditing" title="PERSONNEL FILE" glow crt>
+          <UCard
+            v-if="!isEditing"
+            title="PERSONNEL FILE"
+            glow
+            crt
+            class="!border-theme-primary/40 !bg-terminal-background"
+          >
             <template #header>
               <UButton variant="primary" size="sm" @click="startEditing">
                 <Icon icon="mdi:pencil" class="mr-1" />
@@ -269,8 +277,7 @@ const formatDate = (dateString: string) => {
               >
               <pre
                 class="bg-black/40 p-3 rounded text-sm text-theme-primary/70 overflow-x-auto border border-theme-primary/20"
-                >{{ JSON.stringify(profileStore.profile.preferences || {}, null, 2) }}</pre
-              >
+                >{{ JSON.stringify(profileStore.profile.preferences || {}, null, 2) }}</pre>
             </div>
 
             <!-- Timestamps -->
@@ -299,13 +306,13 @@ const formatDate = (dateString: string) => {
           />
         </div>
 
-        <!-- Right Column: Statistics -->
-        <div class="space-y-6">
+        <!-- Secondary: account activity and vault statistics -->
+        <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <AIUsageCard :stats="profileStore.aiUsageStats" :loading="profileStore.aiUsageLoading" />
           <LifeDeathStatistics
             :statistics="profileStore.deathStatistics"
             :loading="profileStore.deathStatsLoading"
           />
-          <AIUsageCard :stats="profileStore.aiUsageStats" :loading="profileStore.aiUsageLoading" />
         </div>
       </div>
     </div>

@@ -122,11 +122,11 @@ export function useTokenRefresh(dependencies: TokenRefreshDependencies) {
     console.debug('Starting token refresh timer')
 
     // Check immediately on start
-    refreshToken()
+    void refreshToken()
 
     // Then check every minute
     refreshTimer.value = setInterval(() => {
-      refreshToken()
+      void refreshToken()
     }, CHECK_INTERVAL_MS)
   }
 
@@ -154,7 +154,7 @@ export function useTokenRefresh(dependencies: TokenRefreshDependencies) {
       if (dependencies.isAuthenticated()) {
         console.debug('User authenticated, resuming token refresh')
         // When tab becomes visible, check immediately and restart timer
-        refreshToken()
+        void refreshToken()
         startTokenRefreshTimer()
       } else {
         console.debug('User not authenticated, skipping token refresh')
@@ -201,18 +201,15 @@ export function useTokenRefresh(dependencies: TokenRefreshDependencies) {
       initialize()
 
       // Watch auth state and start/stop refresh based on authentication
-      authWatcherStop = watch(
-        dependencies.isAuthenticated,
-        (isAuthenticated) => {
-          if (isAuthenticated) {
-            console.debug('User authenticated, starting token refresh')
-            startTokenRefreshTimer()
-          } else {
-            console.debug('User logged out, stopping token refresh')
-            stopTokenRefreshTimer()
-          }
+      authWatcherStop = watch(dependencies.isAuthenticated, (isAuthenticated) => {
+        if (isAuthenticated) {
+          console.debug('User authenticated, starting token refresh')
+          startTokenRefreshTimer()
+        } else {
+          console.debug('User logged out, stopping token refresh')
+          stopTokenRefreshTimer()
         }
-      )
+      })
     })
 
     onUnmounted(() => {

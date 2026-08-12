@@ -6,6 +6,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { Icon } from '@iconify/vue'
+import BackButton from '@/core/components/common/BackButton.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import DwellerCard from '../components/cards/DwellerCard.vue'
 import DwellerPanel from '../components/DwellerPanel.vue'
@@ -356,20 +357,14 @@ const saveNewName = async () => {
           <div v-else-if="!dweller" class="error-container">
             <Icon icon="mdi:alert-circle" class="error-icon" />
             <p class="error-text">Dweller not found</p>
-            <UButton @click="goBack" variant="secondary">
-              <Icon icon="mdi:arrow-left" class="mr-2" />
-              Back to Dwellers
-            </UButton>
+            <BackButton label="Back to Dwellers" @click="goBack" />
           </div>
 
           <!-- Dweller Detail -->
           <div v-else class="dweller-detail">
             <!-- Header -->
             <div class="detail-header">
-              <UButton @click="goBack" variant="ghost" size="sm">
-                <Icon icon="mdi:arrow-left" class="h-5 w-5 mr-2" />
-                Back to Dwellers
-              </UButton>
+              <BackButton label="Back to Dwellers" @click="goBack" />
 
               <div class="header-info">
                 <div class="name-section">
@@ -591,7 +586,6 @@ const saveNewName = async () => {
   font-weight: 700;
   color: var(--color-theme-primary);
   text-shadow: 0 0 10px var(--color-theme-glow);
-  margin-bottom: 1rem;
   letter-spacing: -0.5px;
 }
 
@@ -599,7 +593,6 @@ const saveNewName = async () => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 1rem;
 }
 
 .name-input {
@@ -631,12 +624,12 @@ const saveNewName = async () => {
 
 .detail-layout {
   display: grid;
-  grid-template-columns: 350px 1fr;
+  grid-template-columns: minmax(340px, 400px) minmax(0, 1fr);
   gap: 2rem;
   align-items: start;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1280px) {
   .detail-layout {
     grid-template-columns: 1fr;
   }

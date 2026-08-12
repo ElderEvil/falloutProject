@@ -6,6 +6,7 @@ import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useVisualEffects, type EffectIntensity } from '@/core/composables/useVisualEffects'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
 import { useRoomRendering } from '@/core/composables/useRoomRendering'
+import BackButton from '@/core/components/common/BackButton.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { UCard, UButton } from '@/core/components/ui'
@@ -51,10 +52,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
         <div class="container mx-auto px-4 py-6 lg:px-8">
           <div class="max-w-4xl mx-auto">
             <!-- Back Button -->
-            <UButton variant="ghost" size="sm" class="mb-4" @click="router.push('/profile')">
-              <Icon icon="mdi:arrow-left" class="h-5 w-5 mr-1" />
-              Back to Profile
-            </UButton>
+            <BackButton class="mb-4" label="Back to Profile" @click="router.push('/profile')" />
 
             <PageHeader
               title="Display Preferences"

@@ -11,7 +11,7 @@ const appVersion = packageJson.version
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  lint: { options: { typeAware: false, typeCheck: false } },
+  lint: { options: { typeAware: true, typeCheck: false } },
   fmt: {
     printWidth: 100,
     tabWidth: 2,

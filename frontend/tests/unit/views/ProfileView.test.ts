@@ -7,6 +7,7 @@ import ProfileEditor from '@/modules/profile/components/ProfileEditor.vue'
 import { LifeDeathStatistics } from '@/modules/dwellers/components/death'
 import { useProfileStore } from '@/modules/profile/stores/profile'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import axios from '@/core/plugins/axios'
 import type { UserProfile } from '@/models/profile'
 import type { DeathStatistics } from '@/modules/profile/stores/profile'
@@ -17,6 +18,7 @@ describe('ProfileView', () => {
   let router: any
   let authStore: any
   let profileStore: any
+  let vaultStore: any
 
   const mockProfile: UserProfile = {
     id: 'profile-123',
@@ -53,6 +55,7 @@ describe('ProfileView', () => {
 
     authStore = useAuthStore()
     profileStore = useProfileStore()
+    vaultStore = useVaultStore()
 
     authStore.token = 'test-token'
     authStore.user = {
@@ -63,7 +66,10 @@ describe('ProfileView', () => {
 
     router = createRouter({
       history: createMemoryHistory(),
-      routes: [{ path: '/profile', component: ProfileView }],
+      routes: [
+        { path: '/profile', component: ProfileView },
+        { path: '/vault/:id', component: { template: '<div>Vault</div>' } },
+      ],
     })
 
     vi.clearAllMocks()
@@ -81,6 +87,27 @@ describe('ProfileView', () => {
       return Promise.reject(new Error('Unknown URL'))
     })
   }
+
+  describe('Navigation', () => {
+    it('returns to the active vault from the profile back button', async () => {
+      mockBothApis()
+      vaultStore.activeVaultId = 'vault-1'
+      await router.push('/profile')
+      await router.isReady()
+
+      const wrapper = mount(ProfileView, {
+        global: {
+          plugins: [router],
+        },
+      })
+      await flushPromises()
+
+      await wrapper.find('button[aria-label="Back to Vault"]').trigger('click')
+      await flushPromises()
+
+      expect(router.currentRoute.value.path).toBe('/vault/vault-1')
+    })
+  })
 
   describe('Component Mounting', () => {
     it('should render profile view', async () => {

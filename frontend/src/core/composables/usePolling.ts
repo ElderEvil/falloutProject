@@ -12,7 +12,7 @@ export interface PollingOptions {
  * The interval is disposed with the current Vue effect scope when one exists.
  */
 export function usePolling(
-  refresh: () => Promise<unknown> | unknown,
+  refresh: () => unknown,
   { interval = 30_000, immediate = true }: PollingOptions = {}
 ) {
   const isRefreshing = ref(false)

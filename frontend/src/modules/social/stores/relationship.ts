@@ -6,6 +6,17 @@ import type { Pregnancy } from '../models/pregnancy'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 
+interface VaultBreedingStats {
+  relationships_updated: number
+  conceptions: number
+  births: number
+  children_aged: number
+}
+
+interface ProcessVaultBreedingResponse {
+  stats: VaultBreedingStats
+}
+
 export const useRelationshipStore = defineStore('relationship', () => {
   const toast = useToast()
 
@@ -192,9 +203,13 @@ export const useRelationshipStore = defineStore('relationship', () => {
     }
   }
 
-  async function processVaultBreeding(vaultId: string): Promise<any | null> {
+  async function processVaultBreeding(
+    vaultId: string
+  ): Promise<ProcessVaultBreedingResponse | null> {
     try {
-      const response = await axios.post(`/api/v1/relationships/vault/${vaultId}/process`)
+      const response = await axios.post<ProcessVaultBreedingResponse>(
+        `/api/v1/relationships/vault/${vaultId}/process`
+      )
       return response.data
     } catch (error: unknown) {
       handleStoreError(error, 'Failed to process breeding')

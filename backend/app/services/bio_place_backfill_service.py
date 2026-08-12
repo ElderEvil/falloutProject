@@ -158,12 +158,15 @@ class BioPlaceBackfillService:
             if not origin and not visited:
                 continue
 
-            await map_service.register_bio_places(
+            registered = await map_service.register_bio_places(
                 db_session,
                 dweller,
                 origin_place=origin or "",
                 visited_places=visited,
             )
+            if not registered:
+                continue
+
             try:
                 await db_session.commit()
                 processed += 1
@@ -196,8 +199,9 @@ class BioPlaceBackfillService:
         Returns a mapping of ``vault_id`` → number of dwellers processed.
         Vaults are ordered by creation date for deterministic runs.
         """
+<<<<<<< HEAD
         stmt = select(Vault).where(Vault.is_deleted == False).order_by(Vault.created_at)
-        if max_vaults:
+        if max_vaults is not None:
             stmt = stmt.limit(max_vaults)
         result = await db_session.execute(stmt)
         vaults = result.scalars().all()
@@ -229,7 +233,7 @@ class BioPlaceBackfillService:
             .where(~exists().where(DwellerLocation.dweller_id == Dweller.id))
             .order_by(Dweller.created_at)
         )
-        if max_dwellers:
+        if max_dwellers is not None:
             stmt = stmt.limit(max_dwellers)
         response = await db_session.execute(stmt)
         return response.scalars().all()

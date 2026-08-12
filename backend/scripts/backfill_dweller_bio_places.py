@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import sys
 from typing import Annotated
 from uuid import UUID
 
@@ -23,10 +24,10 @@ import typer
 from app import crud
 from app.db.session import async_session_maker
 from app.services.bio_place_backfill_service import bio_place_backfill_service
+from app.utils.exceptions import ResourceNotFoundException
 
 logger = logging.getLogger(__name__)
 
-VAULT_ID = "f7a4d013-6252-4c19-b2ba-0bd499fe6133"
 MAX_DWELLERS = 100  # safety limit per vault
 MAX_VAULTS = 100  # safety limit for --all-active
 
@@ -47,9 +48,12 @@ async def main(
     When *all_active* is True, every non-deleted vault is processed and a mapping
     of ``vault_id`` → processed dweller count is returned.
 
-    When *all_active* is False, *vault_uuid* defaults to ``VAULT_ID`` and a
-    single integer count is returned.
+    When *all_active* is False, *vault_uuid* must be provided and a single integer
+    count is returned.
     """
+    if not vault_uuid and not all_active:
+        raise ValueError("Either --vault or --all-active must be provided")
+
     async with async_session_maker() as session:
         if all_active:
             return await bio_place_backfill_service.backfill_bio_places_for_active_vaults(
@@ -58,11 +62,10 @@ async def main(
                 max_vaults=max_vaults,
             )
 
-        effective_uuid = vault_uuid or VAULT_ID
-        vault = await crud.vault.get(session, UUID(effective_uuid))
-        if vault is None:
-            logger.warning("Vault %s not found", effective_uuid)
-            return 0
+        try:
+            vault = await crud.vault.get(session, UUID(vault_uuid))
+        except ResourceNotFoundException as exc:
+            raise ValueError(f"Vault {vault_uuid} not found") from exc
 
         return await bio_place_backfill_service.backfill_bio_places_for_vault(
             session,
@@ -96,9 +99,13 @@ def backfill(
         except ValueError as exc:
             raise typer.BadParameter(f"Invalid vault UUID: {vault!r}") from exc
 
-    result = asyncio.run(
-        main(vault_uuid=vault, max_dwellers=max_dwellers, all_active=all_active, max_vaults=max_vaults)
-    )
+    try:
+        result = asyncio.run(
+            main(vault_uuid=vault, max_dwellers=max_dwellers, all_active=all_active, max_vaults=max_vaults)
+        )
+    except ValueError as exc:
+        print(f"Backfill failed: {exc}", file=sys.stderr)
+        raise typer.Exit(code=1) from exc
 
     if isinstance(result, dict):
         total = sum(result.values())

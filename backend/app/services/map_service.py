@@ -126,7 +126,7 @@ class MapService:
         origin_place: str,
         visited_places: list[str],
         explicit_origin: str | None = None,
-    ) -> None:
+    ) -> bool:
         """Upsert bio origin + rarity-scaled visited location rows — best-effort.
 
         *effective origin* = *explicit_origin* when truthy, else *origin_place*.
@@ -137,6 +137,9 @@ class MapService:
         A transient failure is retried once after rolling back the session. If
         both attempts fail, a durable notification makes the incomplete map
         registration visible without disrupting bio generation.
+
+        Returns ``True`` when the registration succeeded (or nothing needed to be
+        done), and ``False`` when it failed after the internal retry.
         """
         map_dweller = _MapDwellerSnapshot(
             id=dweller.id,
@@ -152,7 +155,7 @@ class MapService:
                     visited_places,
                     explicit_origin,
                 )
-                return
+                return True
             except Exception:
                 await db_session.rollback()
                 if attempt == 0:
@@ -173,6 +176,7 @@ class MapService:
                 )
 
         await self._notify_bio_registration_failure(db_session, map_dweller)
+        return False
 
     async def _register_bio_places_once(
         self,

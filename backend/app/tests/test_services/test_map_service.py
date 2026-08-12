@@ -276,6 +276,7 @@ async def test_register_bio_places_retries_a_transient_failure(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
     """One transient write error still creates all three fixture links."""
+    dweller.rarity = RarityEnum.LEGENDARY
     from app.crud.wasteland_location import wasteland_location
 
     original_get_or_create = wasteland_location.get_or_create

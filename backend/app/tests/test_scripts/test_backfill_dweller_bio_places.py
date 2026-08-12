@@ -7,7 +7,9 @@ from uuid import uuid4
 
 import pytest
 
-from scripts.backfill_dweller_bio_places import MAX_DWELLERS, MAX_VAULTS, VAULT_ID
+from app.models.vault import Vault
+from app.utils.exceptions import ResourceNotFoundException
+from scripts.backfill_dweller_bio_places import MAX_DWELLERS, MAX_VAULTS
 from scripts.backfill_dweller_bio_places import main as backfill_main
 
 # ---------------------------------------------------------------------------
@@ -16,30 +18,10 @@ from scripts.backfill_dweller_bio_places import main as backfill_main
 
 
 @pytest.mark.asyncio
-async def test_main_defaults_to_project_vault() -> None:
-    """When no vault is supplied, the script looks up the default project vault."""
-    mock_session = AsyncMock()
-    mock_session.__aenter__.return_value = mock_session
-
-    with (
-        patch("scripts.backfill_dweller_bio_places.async_session_maker", return_value=mock_session),
-        patch("scripts.backfill_dweller_bio_places.crud.vault.get", new_callable=AsyncMock) as mock_vault_get,
-        patch(
-            "scripts.backfill_dweller_bio_places.bio_place_backfill_service.backfill_bio_places_for_vault",
-            new_callable=AsyncMock,
-        ) as mock_backfill_vault,
-    ):
-        vault_id = uuid4()
-        mock_vault_get.return_value = type("Vault", (), {"id": vault_id})()
-        mock_backfill_vault.return_value = 3
-
-        result = await backfill_main()
-
-        mock_vault_get.assert_awaited_once()
-        call_args = mock_vault_get.call_args
-        assert str(call_args[0][1]) == VAULT_ID
-        mock_backfill_vault.assert_awaited_once_with(mock_session, vault_id, max_dwellers=MAX_DWELLERS)
-        assert result == 3
+async def test_main_requires_vault_or_all_active() -> None:
+    """When no vault is supplied and --all-active is not set, the script raises an error."""
+    with pytest.raises(ValueError, match="Either --vault or --all-active"):
+        await backfill_main()
 
 
 @pytest.mark.asyncio
@@ -99,8 +81,8 @@ async def test_main_all_active_delegates_to_service() -> None:
 
 
 @pytest.mark.asyncio
-async def test_main_vault_not_found_graceful() -> None:
-    """Non-existent vault UUID -> exits gracefully, no crash."""
+async def test_main_vault_not_found_raises() -> None:
+    """Non-existent vault UUID -> raises a ValueError so the CLI exits non-zero."""
     mock_session = AsyncMock()
     mock_session.__aenter__.return_value = mock_session
 
@@ -112,9 +94,10 @@ async def test_main_vault_not_found_graceful() -> None:
             new_callable=AsyncMock,
         ) as mock_backfill_vault,
     ):
-        mock_vault_get.return_value = None
+        vault_uuid = uuid4()
+        mock_vault_get.side_effect = ResourceNotFoundException(Vault, vault_uuid)
 
-        result = await backfill_main(vault_uuid=str(uuid4()), max_dwellers=MAX_DWELLERS)
+        with pytest.raises(ValueError, match=r"Vault .* not found"):
+            await backfill_main(vault_uuid=str(vault_uuid), max_dwellers=MAX_DWELLERS)
 
         mock_backfill_vault.assert_not_awaited()
-        assert result == 0

@@ -1,6 +1,7 @@
+"""System information endpoints."""
+
 import logging
 from datetime import UTC, datetime
-from typing import Optional
 
 from fastapi import APIRouter
 
@@ -15,7 +16,11 @@ router = APIRouter(prefix="/system", tags=["System"])
 
 @router.get("/info", status_code=200)
 async def get_info() -> InfoResponse:
-    """Get application version and environment information."""
+    """Get application version and environment information.
+
+    Returns:
+        Application info including version, environment, and build details.
+    """
     return InfoResponse(
         app_version=get_app_version(),
         api_version=settings.API_VERSION,
@@ -26,12 +31,20 @@ async def get_info() -> InfoResponse:
 
 
 @router.get("/changelog", response_model=list[ChangelogEntry])
-async def get_changelog(limit: Optional[int] = 10, since: Optional[str] = None) -> list[ChangelogEntry]:
-    """Get changelog entries with optional version filtering."""
+async def get_changelog(limit: int | None = 10, since: str | None = None) -> list[ChangelogEntry]:
+    """Get changelog entries with optional version filtering.
+
+    Returns:
+        List of changelog entries.
+    """
     return changelog_service.get_entries(limit=limit, since=since)
 
 
 @router.get("/changelog/latest", response_model=ChangelogEntry)
 async def get_latest_changelog() -> ChangelogEntry:
-    """Get the most recent changelog entry."""
+    """Get the most recent changelog entry.
+
+    Returns:
+        The latest changelog entry.
+    """
     return changelog_service.get_latest()

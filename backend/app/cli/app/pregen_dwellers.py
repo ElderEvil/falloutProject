@@ -26,13 +26,9 @@ logger = logging.getLogger(__name__)
 
 def pregen_dwellers(
     vault_id: Annotated[UUID4, typer.Option("--vault-id", help="Target vault UUID")],
-    count: Annotated[
-        int, typer.Option("--count", "-c", min=1, max=50, help="Dwellers to generate (1-50)")
-    ] = 5,
+    count: Annotated[int, typer.Option("--count", "-c", min=1, max=50, help="Dwellers to generate (1-50)")] = 5,
     seed: Annotated[int | None, typer.Option("--seed", "-s", help="Deterministic RNG seed")] = None,
-    origin: Annotated[
-        str | None, typer.Option("--origin", "-o", help="Override origin for all dwellers")
-    ] = None,
+    origin: Annotated[str | None, typer.Option("--origin", "-o", help="Override origin for all dwellers")] = None,
 ) -> None:
     """Pre-generate dwellers with deterministic bios and world-map place markers.
 
@@ -43,6 +39,7 @@ def pregen_dwellers(
 
     Intended for dev/QA seeding — no LLM calls, no quota consumption, cheap.
     """
+
     async def _run() -> None:
         from app.cli.main import _make_async_session
 

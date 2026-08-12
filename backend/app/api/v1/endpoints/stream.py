@@ -1,3 +1,5 @@
+"""SSE stream endpoints."""
+
 import asyncio
 import contextlib
 import logging
@@ -27,6 +29,9 @@ async def _with_heartbeat(
     Uses ``asyncio.wait`` instead of ``asyncio.wait_for`` so the
     underlying ``__anext__`` task is **never cancelled** — the subscriber
     stays alive across heartbeat timeouts.
+
+    Yields:
+        Event data dicts from the stream, or None sentinel for heartbeat intervals.
     """
     it = stream.__aiter__()
     task: asyncio.Task | None = None
@@ -56,6 +61,11 @@ async def stream_notifications(
     current_user: CurrentUser,
     request: Request,
 ) -> AsyncIterable[ServerSentEvent]:
+    """SSE endpoint for real-time notification events.
+
+    Yields:
+        Server-sent events with notification data or heartbeat comments.
+    """
     async for data in _with_heartbeat(sse_manager.subscribe(current_user.id, "notifications")):
         if await request.is_disconnected():
             break
@@ -70,6 +80,11 @@ async def stream_game_ticks(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     request: Request,
 ) -> AsyncIterable[ServerSentEvent]:
+    """SSE endpoint for real-time game tick events.
+
+    Yields:
+        Server-sent events with game tick data or heartbeat comments.
+    """
     # Use game tick interval as heartbeat — no point heartbeating faster
     # than the actual data cadence.
     stream = sse_manager.subscribe(vault.id, "game_ticks")
@@ -87,6 +102,11 @@ async def stream_exploration(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     request: Request,
 ) -> AsyncIterable[ServerSentEvent]:
+    """SSE endpoint for real-time exploration events.
+
+    Yields:
+        Server-sent events with exploration data or heartbeat comments.
+    """
     async for data in _with_heartbeat(sse_manager.subscribe(vault.id, "exploration")):
         if await request.is_disconnected():
             break
@@ -101,6 +121,11 @@ async def stream_incidents(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     request: Request,
 ) -> AsyncIterable[ServerSentEvent]:
+    """SSE endpoint for real-time incident events.
+
+    Yields:
+        Server-sent events with incident data or heartbeat comments.
+    """
     async for data in _with_heartbeat(sse_manager.subscribe(vault.id, "incidents")):
         if await request.is_disconnected():
             break

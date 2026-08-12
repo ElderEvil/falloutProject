@@ -1,5 +1,4 @@
-"""
-Incident Balance Simulator — focused combat and incident system simulation.
+"""Incident Balance Simulator — focused combat and incident system simulation.
 
 Simulates incident spawning, combat resolution, spread mechanics, deaths,
 and resource impact to help balance vault defenses and incident difficulty.
@@ -390,7 +389,7 @@ class _Curves:
     happiness: list[float] = dataclasses.field(default_factory=list)
 
     @classmethod
-    def zeroed(cls, hours: int) -> "_Curves":
+    def zeroed(cls, hours: int) -> _Curves:
         return cls(**{k: [0.0] * hours for k in dataclasses.asdict(cls())})
 
     def add_result(self, result: SimulationResult, hours: int) -> None:

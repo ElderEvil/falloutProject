@@ -1,5 +1,4 @@
-"""
-Fix dweller image URLs - convert filenames to full URLs.
+"""Fix dweller image URLs - convert filenames to full URLs.
 
 Usage:
     cd backend

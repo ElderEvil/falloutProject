@@ -1,3 +1,5 @@
+"""API v1 router configuration."""
+
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
@@ -8,7 +10,7 @@ from app.api.v1.endpoints import (
     exploration,
     game_control,
     junk,
-    map,  # noqa: A004
+    map,
     notifications,
     objective,
     outfit,

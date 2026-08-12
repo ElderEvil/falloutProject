@@ -53,7 +53,6 @@ def create_security_config() -> SecurityConfig:
         enable_redis=settings.ENVIRONMENT == "production",
         redis_url=settings.redis_url if settings.ENVIRONMENT == "production" else None,
         redis_prefix="fastapi_guard:",
-        # Geolocation (optional)
         geo_ip_handler=geo_ip_handler,
         # Block cloud providers (optional - can enable in production)
         block_cloud_providers=None,  # Set to {'AWS', 'GCP', 'Azure'} to block

@@ -1,3 +1,5 @@
+"""FastAPI application entry point and lifespan configuration."""
+
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -65,8 +67,7 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
-    """
-    Lifespan context manager for FastAPI startup and shutdown events.
+    """Lifespan context manager for FastAPI startup and shutdown events.
 
     Performs health checks on startup and cleanup on shutdown.
     """
@@ -158,8 +159,7 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 @app.get("/healthcheck", status_code=status.HTTP_200_OK)
 async def perform_healthcheck(*, detailed: bool = False):
-    """
-    Health check endpoint.
+    """Health check endpoint.
 
     Args:
         detailed: If True, return detailed health information for all services

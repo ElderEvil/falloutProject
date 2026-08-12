@@ -1,4 +1,4 @@
-"""API endpoints for wasteland exploration."""
+"""Exploration endpoints."""
 
 from typing import Annotated
 
@@ -29,7 +29,14 @@ async def send_dweller_to_wasteland(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> ExplorationRead:
-    """Send a dweller to the wasteland for exploration."""
+    """Send a dweller to the wasteland for exploration.
+
+    Returns:
+        ExplorationRead: The created exploration.
+
+    Raises:
+        ValidationException: If the dweller cannot be sent.
+    """
     await get_user_vault_or_403(vault_id, user, db_session)
     try:
         return await exploration_service.send_dweller(
@@ -51,7 +58,11 @@ async def list_explorations_by_vault(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     active_only: bool = True,
 ) -> list[ExplorationReadShort]:
-    """List all explorations for a vault."""
+    """List all explorations for a vault.
+
+    Returns:
+        list[ExplorationReadShort]: List of explorations.
+    """
     await get_user_vault_or_403(vault_id, user, db_session)
     return await crud_exploration.get_by_vault(
         db_session,
@@ -66,7 +77,11 @@ async def get_exploration(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> ExplorationRead:
-    """Get detailed information about an exploration."""
+    """Get detailed information about an exploration.
+
+    Returns:
+        ExplorationRead: Exploration details.
+    """
     await verify_exploration_access(exploration_id, user, db_session)
     return await crud_exploration.get(db_session, exploration_id)
 
@@ -77,7 +92,11 @@ async def get_exploration_progress(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> ExplorationProgress:
-    """Get current progress of an exploration."""
+    """Get current progress of an exploration.
+
+    Returns:
+        ExplorationProgress: Current exploration progress.
+    """
     await verify_exploration_access(exploration_id, user, db_session)
     return await exploration_service.get_exploration_progress(db_session, exploration_id)
 
@@ -88,7 +107,14 @@ async def recall_dweller(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> ExplorationCompleteResponse:
-    """Recall a dweller early from exploration."""
+    """Recall a dweller early from exploration.
+
+    Returns:
+        ExplorationCompleteResponse: Exploration data and partial rewards.
+
+    Raises:
+        ValidationException: If the exploration cannot be recalled.
+    """
     await verify_exploration_access(exploration_id, user, db_session)
     try:
         exploration, rewards = await exploration_service.recall_exploration_with_data(db_session, exploration_id)
@@ -106,7 +132,14 @@ async def complete_exploration(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> ExplorationCompleteResponse:
-    """Complete an exploration and collect rewards."""
+    """Complete an exploration and collect rewards.
+
+    Returns:
+        ExplorationCompleteResponse: Exploration data and full rewards.
+
+    Raises:
+        ValidationException: If the exploration cannot be completed.
+    """
     await verify_exploration_access(exploration_id, user, db_session)
     try:
         exploration, rewards = await exploration_service.complete_exploration_with_data(db_session, exploration_id)
@@ -124,7 +157,14 @@ async def generate_event(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> ExplorationRead:
-    """Manually trigger event generation for an exploration (for testing/debugging)."""
+    """Manually trigger event generation for an exploration (for testing/debugging).
+
+    Returns:
+        ExplorationRead: Updated exploration with generated event.
+
+    Raises:
+        ValidationException: If event generation fails.
+    """
     await verify_exploration_access(exploration_id, user, db_session)
     try:
         return await exploration_service.process_event_for_exploration(db_session, exploration_id)

@@ -11,9 +11,125 @@ AI-powered dweller interactions.
 
 **Current work:**
 
-- [ ] **v2.32.0 planning** — Next focused improvement area is TBD after v2.31.0 is closed out.
+- [x] **v2.32.0 planning** — Ruff lint cleanup + Google-style docstring convention enforcement.
+- [x] **v2.33.0 planning** — Frontend type-aware linting and stale-request safety.
+- [x] **v2.34.0 planning** — Pydantic AI observability and structured-output reliability.
 
 ---
+
+## Planned
+
+### v2.32.0 — Lint Cleanup & Google-Style Docstring Convention (Target: TBD)
+
+**Focus**: Reduce ignored ruff rules that catch real bugs or modernization opportunities, and establish a
+unified Google-style docstring convention for the backend.
+
+**Planned:**
+- 🔄 **Dependency updates**
+  - Merge passing backend dependency PRs into the release branch:
+    - #419 — backend production group (pydantic-settings, coverage, ruff 0.16.2, ty, memray).
+    - #411 — pydantic-ai-slim `>=2.26.0`.
+    - #410 — sqladmin `>=0.31.0`.
+  - Rebase and re-run #403 (jsdom 30.0.1) before including it.
+  - **Skip for v2.32**: Pinia 4.0.2 (#395) because frontend tests did not complete and TypeScript 7 is not
+    currently viable; stay on TypeScript 6.x / Pinia 3.x for this release.
+- 🔄 **Ruff rule cleanup**
+  - Enable currently ignored, high-value rules: `E712`, `B008`, `RUF012`, `UP037`, `UP045`, `UP046`, `N805`,
+    `TRY300`, `TRY301`, `PTH123`.
+  - Add low-volume, high-value categories: `PERF`, `ERA`, `FURB`, `TC`.
+  - Evaluate `S` (Bandit) with `S101` ignored in `app/tests/**` to keep security checks on production code.
+  - Drop redundant ignore `S311` (`S` is not selected).
+- 🔄 **Google-style docstring convention (phased rollout)**
+  - Adopt Google-style sections (`Args:`, `Returns:`, `Raises:`, `Yields:`, `Examples:`) as the backend house style.
+  - Enable ruff `D` (pydocstyle) with `convention = "google"` only where it adds value:
+    - Phase 1: `app/api/**` (public HTTP endpoint interfaces).
+    - Phase 2: `app/services/**` (public business-service interfaces).
+    - Phase 3: `app/crud/**`, `app/models/**`, `app/schemas/**`, and remaining modules only after Phases 1–2 are green.
+  - Exclude by default: `app/tests/**`, `app/cli/**`, `alembic/**`, and any file not yet migrated via
+    `[tool.ruff.lint.per-file-ignores]`.
+  - Add `DOC` (pydoclint) rules in Phase 1 once the team agrees on section ordering and parameter coverage.
+  - Keep Sphinx optional: Napoleon can render Google-style docstrings to reST if docs are ever published.
+- 🔄 **Measure before/after**
+  - Baseline: `ruff check . --select ALL --statistics` counts at start of branch.
+  - Final: same command after cleanup; report absolute and percentage change.
+  - Guardrails: no test coverage regression, no CI time regression, no behavior change.
+  - **Completion metrics to report:**
+    - Net LoC change (`git diff --stat` summary, excluding lockfiles).
+    - Rules enabled: count of codes removed from `lint.ignore` + categories added to `lint.select`.
+    - Rules dropped: count of redundant/no-op ignores removed.
+    - Total `ruff check . --select ALL` violations before vs. after.
+    - Bugs/patterns fixed: count of `B008`, `RUF012`, `E712` and similar real-issue fixes.
+    - Security findings: Bandit (`S`) violations resolved in production code.
+    - Docstring migration: files touched per phase and remaining `D`/`DOC` violations.
+    - Test coverage: baseline % vs. final % (must not drop).
+    - CI lint job duration: baseline vs. final.
+
+---
+
+### v2.33.0 — Frontend Type Safety & Async Correctness (Target: TBD)
+
+**Focus**: Turn on the type-aware capability already bundled with Vite+/Oxlint where compatible, and prevent stale
+async responses from winning after a user changes a view's inputs. This combines two small frontend DX/correctness
+improvements into one release without changing product behaviour.
+
+**Planned:**
+- 🔄 **Type-aware Oxc linting feasibility spike and rollout**
+  - Establish the baseline with `pnpm run lint`, `pnpm run typecheck`, and their CI durations.
+  - Enable the Vite+-integrated type-aware linting path in a branch; do **not** add standalone `oxlint` or
+    `oxlint-tsgolint` dependencies.
+  - Confirm compatibility with the pinned TypeScript 6.x toolchain before enabling it in CI. If the bundled version
+    requires TypeScript 7, retain the existing `vue-tsc` check and defer the lint rollout rather than upgrading
+    TypeScript/Pinia as incidental release work.
+  - Start with high-signal promise-safety rules (for example, unhandled/floating promises); fix or explicitly justify
+    every new finding before raising severity.
+- 🔄 **Vue 3.5 async watcher cleanup**
+  - Use `onWatcherCleanup()`/watcher cleanup callbacks with `AbortController` for fetches driven by filters, route
+    parameters, and modal state, starting with dweller filtering and modal data loads.
+  - Add regression tests proving a slower obsolete request cannot overwrite the response for the latest input.
+  - Simplify selected base controls with `defineModel` where the model type is unambiguous; begin with boolean modal
+    state, not a broad component rewrite.
+- 🔄 **Measure before/after**
+  - Record lint/typecheck wall time, new type-aware findings by rule, and the number of stale-response regressions
+    covered by tests.
+  - Guardrails: retain `vue-tsc`, no direct Oxc tool installation, no TypeScript or Pinia major upgrade, and no
+    frontend test/typecheck regression.
+
+---
+
+### v2.34.0 — Pydantic AI Reliability & Observability (Target: TBD)
+
+**Focus**: Make existing dweller agents easier to debug and more reliable at the boundary between structured model
+output and gameplay actions. Keep this as one backend/AI release instead of splitting several small library adoptions.
+
+**Planned:**
+- 🔄 **Trace Pydantic AI runs in Logfire**
+  - When Logfire is configured, instrument Pydantic AI in addition to the existing application setup so agent runs,
+    tool calls, retry counts, latency, and token usage are visible in one trace.
+  - Verify the disabled/no-token path remains a no-op and no prompt content or secrets are logged beyond the approved
+    observability configuration.
+- 🔄 **Harden the dweller chat output contract**
+  - Migrate agents that do not pass message history from `system_prompt` to static/dynamic `instructions`; preserve
+    `system_prompt` only where history retention is intentional.
+  - Add output validation/retry rules for action-field combinations before gameplay code consumes them (for example,
+    required room data for room assignment and no action payload for `no_action`).
+  - Extend deterministic `TestModel` coverage for instructions, tool selection, invalid structured output retries,
+    fallback behaviour, and recorded token usage.
+- 🔄 **Measure before/after**
+  - Baseline and report deterministic agent-contract test count, output-validation retry coverage, and Logfire trace
+    completeness for one normal chat and one tool-using chat.
+  - Guardrails: no agent framework major-version migration, no gameplay-rule change, and no real-provider calls in the
+    unit test suite.
+
+---
+
+### Deferred Library Adoption (Reassess During a Related Feature)
+
+- **FastAPI** — native SSE is already used; do not introduce `app.frontend()` for the separately deployed Vue SPA.
+- **Pydantic / SQLModel** — the current PATCH flow already uses `exclude_unset=True`; consider `MISSING` only when an
+  API genuinely needs to distinguish omitted values from explicit `null`, and use `sqlmodel_update()` only when
+  touching the shared CRUD update path for another reason.
+- **Tailwind CSS** — use newer semantic utilities such as native text shadows, safe alignment, pointer variants, or
+  `@source inline()` only in the component that needs them. Avoid a formatting-only CRT-style rewrite.
 
 ## Latest Release
 
@@ -31,6 +147,20 @@ Release notes must state the baseline, the after value, the measurement method/e
 percentage change. Claims must be reproducible from committed commands or CI artifacts. Do not report LOC reduction
 as an improvement unless the release retains equivalent behaviour and test coverage. If the release is primarily a
 feature delivery, record its measurable non-functional impact rather than inventing an optimization claim.
+
+### v2.32.0 — Ruff Lint Cleanup & Google-Style Docstrings (Released 2026-08-12)
+
+**Focus**: Strengthen backend static analysis while adopting Google-style docstrings for the public API surface.
+
+**Completed:**
+- ✅ **Higher-signal Ruff coverage** — enabled `PERF`, `ERA`, `FURB`, `TC`, `S`, and `D`; removed no-longer-needed
+  suppressions and fixed the newly actionable findings while retaining explicit, documented project exceptions.
+- ✅ **Google-style docstrings** — configured Ruff's Google convention and documented public API interfaces; code areas
+  not yet migrated are explicitly excluded through scoped per-file ignores.
+- ✅ **Release alignment** — backend/frontend versions and the changelog are aligned at v2.32.0.
+- ✅ **Measurement** — `cd backend && uv run ruff check . --select ALL --statistics` reduced findings from **11,081**
+  (baseline: `origin/master`, same installed Ruff 0.16.2) to **6,416**: **4,665 fewer findings (42.1%)**. The final
+  configured gate, `cd backend && uv run ruff check .`, passes.
 
 ### v2.31.0 — Bio-to-Map Registration Reliability (Released 2026-08-12)
 
@@ -239,6 +369,7 @@ provide a way to retroactively fill gaps for existing active vaults.
 
 | Version | Release      | Highlights                                   |
 | ------- | ------------ | -------------------------------------------- |
+| v2.32.0 | Aug 12, 2026 | Ruff rule cleanup + Google-style docstrings  |
 | v2.31.0 | Aug 12, 2026 | Map registration retry + failure notification, bio backfill fixes |
 | v2.30.0 | Aug 11, 2026 | Frontend refactor (async actions, SSE fallback, typecheck) |
 | v2.29.0 | Aug 10, 2026 | Map unlock on chat, dweller-location `is_unlocked`, UI polish |
@@ -279,4 +410,4 @@ provide a way to retroactively fill gaps for existing active vaults.
 
 ---
 
-_Last updated: 2026-08-12_ (v2.31.0)
+_Last updated: 2026-08-12_ (v2.32.0)

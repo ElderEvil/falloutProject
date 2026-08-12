@@ -1,3 +1,5 @@
+"""Room endpoints."""
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -19,6 +21,11 @@ router = APIRouter(prefix="/rooms", tags=["Room"])
 async def create_room(
     room_data: RoomCreate, db_session: Annotated[AsyncSession, Depends(get_async_session)]
 ) -> RoomRead:
+    """Create a new room.
+
+    Returns:
+        The created room.
+    """
     return await crud.room.create(db_session=db_session, obj_in=room_data)
 
 
@@ -26,6 +33,11 @@ async def create_room(
 async def read_room_list(
     db_session: Annotated[AsyncSession, Depends(get_async_session)], skip: int = 0, limit: int = 100
 ) -> list[RoomRead]:
+    """Retrieve a paginated list of rooms.
+
+    Returns:
+        List of rooms.
+    """
     return await crud.room.get_multi(db_session, skip=skip, limit=limit)
 
 
@@ -37,6 +49,11 @@ async def read_rooms_by_vault(
     skip: int = 0,
     limit: int = 100,
 ) -> list[RoomRead]:
+    """Retrieve rooms for a specific vault.
+
+    Returns:
+        List of rooms in the vault.
+    """
     await get_user_vault_or_403(vault_id, user, db_session)
     return await crud.room.get_multy_by_vault(db_session=db_session, skip=skip, limit=limit, vault_id=vault_id)
 
@@ -45,6 +62,11 @@ async def read_rooms_by_vault(
 async def read_room(
     room_id: UUID4, user: CurrentActiveUser, db_session: Annotated[AsyncSession, Depends(get_async_session)]
 ) -> RoomRead:
+    """Retrieve a room by ID.
+
+    Returns:
+        The requested room.
+    """
     await verify_room_access(room_id, user, db_session)
     return await crud.room.get(db_session, room_id)
 
@@ -56,6 +78,11 @@ async def update_room(
     room_data: RoomUpdate,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RoomRead:
+    """Update a room.
+
+    Returns:
+        The updated room.
+    """
     await verify_room_access(room_id, user, db_session)
     return await crud.room.update(db_session, room_id, room_data)
 
@@ -64,6 +91,7 @@ async def update_room(
 async def delete_room(
     room_id: UUID4, user: CurrentActiveUser, db_session: Annotated[AsyncSession, Depends(get_async_session)]
 ) -> None:
+    """Delete a room."""
     await verify_room_access(room_id, user, db_session)
     return await crud.room.delete(db_session, room_id)
 
@@ -72,6 +100,11 @@ async def delete_room(
 async def read_room_data(
     data_store: Annotated[StaticGameData, Depends(get_static_game_data)],
 ) -> list[RoomCreateWithoutVaultID]:
+    """Retrieve static room data definitions.
+
+    Returns:
+        List of static room definitions.
+    """
     return data_store.rooms
 
 
@@ -81,12 +114,14 @@ async def get_buildable_rooms(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> list[RoomCreateWithoutVaultID]:
-    """
-    Get list of rooms that can be built in a vault.
+    """Get list of rooms that can be built in a vault.
 
     Filters out:
     - Vault door (never buildable by user)
     - Unique rooms that are already built in this vault
+
+    Returns:
+        List of buildable room definitions.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
     return await room_service.get_buildable_rooms(db_session, vault_id)
@@ -98,6 +133,11 @@ async def build_room(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RoomRead:
+    """Build a new room in a vault.
+
+    Returns:
+        The built room.
+    """
     await get_user_vault_or_403(room_data.vault_id, user, db_session)
     return await room_service.build_room(db_session, room_data)
 
@@ -108,6 +148,7 @@ async def destroy_room(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> None:
+    """Destroy a room in a vault."""
     await verify_room_access(room_id, user, db_session)
     return await room_service.destroy_room(db_session, room_id)
 
@@ -118,5 +159,10 @@ async def upgrade_room(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RoomRead:
+    """Upgrade a room to the next level.
+
+    Returns:
+        The upgraded room.
+    """
     await verify_room_access(room_id, user, db_session)
     return await room_service.upgrade_room(db_session, room_id)

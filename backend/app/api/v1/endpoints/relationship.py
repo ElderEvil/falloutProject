@@ -1,3 +1,5 @@
+"""Relationship endpoints."""
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -24,6 +26,11 @@ async def get_vault_relationships(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> list[RelationshipRead]:
+    """Get all relationships in a vault.
+
+    Returns:
+        List of relationships in the vault.
+    """
     await get_user_vault_or_403(vault_id, user, db_session)
     return await relationship_crud.get_by_vault(db_session, vault_id)
 
@@ -34,6 +41,15 @@ async def get_relationship(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RelationshipRead:
+    """Retrieve a relationship by ID.
+
+    Returns:
+        The requested relationship.
+
+    Raises:
+        HTTPException: 404 if relationship not found.
+        HTTPException: 403 if user doesn't have access.
+    """
     relationship = await relationship_crud.get(db_session, relationship_id)
     if not relationship:
         raise HTTPException(status_code=404, detail="Relationship not found")
@@ -48,7 +64,11 @@ async def create_relationship(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RelationshipRead:
-    """Create or get a relationship between two dwellers."""
+    """Create or get a relationship between two dwellers.
+
+    Returns:
+        The created or existing relationship.
+    """
     # Verify access to both dwellers
     await verify_dweller_access(relationship_data.dweller_1_id, user, db_session)
     await verify_dweller_access(relationship_data.dweller_2_id, user, db_session)
@@ -65,6 +85,16 @@ async def initiate_romance(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RelationshipRead:
+    """Initiate romance between two dwellers in a relationship.
+
+    Returns:
+        The updated relationship.
+
+    Raises:
+        HTTPException: 404 if relationship not found.
+        HTTPException: 400 if romance cannot be initiated.
+        HTTPException: 403 if user doesn't have access.
+    """
     relationship = await relationship_crud.get(db_session, relationship_id)
     if not relationship:
         raise HTTPException(status_code=404, detail="Relationship not found")
@@ -87,6 +117,16 @@ async def make_partners(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RelationshipRead:
+    """Make two dwellers in a relationship romantic partners.
+
+    Returns:
+        The updated relationship.
+
+    Raises:
+        HTTPException: 404 if relationship not found.
+        HTTPException: 400 if partnership cannot be established.
+        HTTPException: 403 if user doesn't have access.
+    """
     relationship = await relationship_crud.get(db_session, relationship_id)
     if not relationship:
         raise HTTPException(status_code=404, detail="Relationship not found")
@@ -109,6 +149,16 @@ async def break_up_relationship(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RelationshipActionResponse:
+    """Break up a relationship between two dwellers.
+
+    Returns:
+        Confirmation message.
+
+    Raises:
+        HTTPException: 404 if relationship not found.
+        HTTPException: 400 if breakup cannot be performed.
+        HTTPException: 403 if user doesn't have access.
+    """
     relationship = await relationship_crud.get(db_session, relationship_id)
     if not relationship:
         raise HTTPException(status_code=404, detail="Relationship not found")
@@ -128,8 +178,7 @@ async def quick_pair_dwellers(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RelationshipRead:
-    """
-    ☢️ Irradiated Cupid ☢️
+    """☢️ Irradiated Cupid ☢️.
 
     Instantly pairs two random compatible dwellers for testing/fun.
     - Finds one male and one female without partners
@@ -137,6 +186,13 @@ async def quick_pair_dwellers(
     - Makes them romantic partners
     - Moves them to a private living quarters (kicks out any third wheels!)
     - Ready to breed immediately with 90% conception chance per tick
+
+    Returns:
+        The created relationship.
+
+    Raises:
+        HTTPException: 403 if user doesn't own the vault.
+        HTTPException: 400 if no compatible dwellers found.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
 
@@ -156,7 +212,11 @@ async def calculate_compatibility(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> CompatibilityScore:
-    """Calculate compatibility score between two dwellers."""
+    """Calculate compatibility score between two dwellers.
+
+    Returns:
+        Compatibility score between the two dwellers.
+    """
     # Verify access to both dwellers
     await verify_dweller_access(dweller_1_id, user, db_session)
     await verify_dweller_access(dweller_2_id, user, db_session)
@@ -173,6 +233,11 @@ async def process_vault_breeding(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> BreedStatsResponse:
+    """Process breeding and relationships for a vault.
+
+    Returns:
+        Breeding processing statistics.
+    """
     await get_user_vault_or_403(vault_id, user, db_session)
 
     from app.services.game_loop import game_loop_service

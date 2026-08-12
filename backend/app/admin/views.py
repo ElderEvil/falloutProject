@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from sqladmin import ModelView
 
 from app.models import LLMInteraction, Objective, Storage
@@ -23,7 +25,7 @@ TRUNCATE_LENGTH = 50
 
 
 class UserAdmin(ModelView, model=User):
-    column_list = [
+    column_list: ClassVar[list] = [
         User.id,
         User.username,
         User.email,
@@ -32,7 +34,7 @@ class UserAdmin(ModelView, model=User):
         User.created_at,
         User.updated_at,
     ]
-    column_details_exclude_list = [User.hashed_password]
+    column_details_exclude_list: ClassVar[list] = [User.hashed_password]
 
     icon = "fa-solid fa-user"
 
@@ -43,7 +45,7 @@ class UserAdmin(ModelView, model=User):
 
 
 class UserProfileAdmin(ModelView, model=UserProfile):
-    column_list = [
+    column_list: ClassVar[list] = [
         UserProfile.id,
         UserProfile.user,
         UserProfile.bio,
@@ -66,7 +68,7 @@ class UserProfileAdmin(ModelView, model=UserProfile):
 
 
 class VaultAdmin(ModelView, model=Vault):
-    column_list = [
+    column_list: ClassVar[list] = [
         Vault.id,
         Vault.number,
         Vault.bottle_caps,
@@ -88,7 +90,7 @@ class VaultAdmin(ModelView, model=Vault):
 
 
 class StorageAdmin(ModelView, model=Storage):
-    column_list = [
+    column_list: ClassVar[list] = [
         Storage.id,
         Storage.vault,
         Storage.used_space,
@@ -99,7 +101,7 @@ class StorageAdmin(ModelView, model=Storage):
 
 
 class DwellerAdmin(ModelView, model=Dweller):
-    column_list = [
+    column_list: ClassVar[list] = [
         Dweller.id,
         Dweller.first_name,
         Dweller.last_name,
@@ -123,8 +125,8 @@ class DwellerAdmin(ModelView, model=Dweller):
         Dweller.updated_at,
     ]
 
-    column_formatters = {
-        Dweller.bio: lambda m, a: (  # noqa: ARG005
+    column_formatters: ClassVar[dict] = {
+        Dweller.bio: lambda m, a: (
             (m.bio[:TRUNCATE_LENGTH] + "...") if m.bio and len(m.bio) > TRUNCATE_LENGTH else m.bio
         ),
     }
@@ -133,7 +135,7 @@ class DwellerAdmin(ModelView, model=Dweller):
 
 
 class JunkAdmin(ModelView, model=Junk):
-    column_list = [Junk.id, Junk.name, Junk.rarity, Junk.value, Junk.junk_type, Junk.description]
+    column_list: ClassVar[list] = [Junk.id, Junk.name, Junk.rarity, Junk.value, Junk.junk_type, Junk.description]
 
     name = "Junk item"
     name_plural = "Junk"
@@ -142,7 +144,7 @@ class JunkAdmin(ModelView, model=Junk):
 
 
 class OutfitAdmin(ModelView, model=Outfit):
-    column_list = [
+    column_list: ClassVar[list] = [
         Outfit.id,
         Outfit.name,
         Outfit.rarity,
@@ -155,7 +157,7 @@ class OutfitAdmin(ModelView, model=Outfit):
 
 
 class QuestAdmin(ModelView, model=Quest):
-    column_list = [
+    column_list: ClassVar[list] = [
         Quest.id,
         Quest.title,
         Quest.short_description,
@@ -164,9 +166,9 @@ class QuestAdmin(ModelView, model=Quest):
         Quest.created_at,
         Quest.updated_at,
     ]
-    column_searchable_list = [Quest.title, Quest.short_description]
-    column_sortable_list = [Quest.title, Quest.created_at]
-    column_default_sort = [(Quest.created_at, True)]
+    column_searchable_list: ClassVar[list] = [Quest.title, Quest.short_description]
+    column_sortable_list: ClassVar[list] = [Quest.title, Quest.created_at]
+    column_default_sort: ClassVar[list] = [(Quest.created_at, True)]
 
     icon = "fa-solid fa-book-open"
 
@@ -177,13 +179,13 @@ class QuestAdmin(ModelView, model=Quest):
 
 
 class ObjectiveAdmin(ModelView, model=Objective):
-    column_list = [
+    column_list: ClassVar[list] = [
         Objective.id,
         Objective.challenge,
         Objective.reward,
     ]
-    column_searchable_list = [Objective.challenge, Objective.reward]
-    column_sortable_list = [Objective.challenge]
+    column_searchable_list: ClassVar[list] = [Objective.challenge, Objective.reward]
+    column_sortable_list: ClassVar[list] = [Objective.challenge]
 
     icon = "fa-solid fa-bullseye"
 
@@ -194,7 +196,7 @@ class ObjectiveAdmin(ModelView, model=Objective):
 
 
 class RoomAdmin(ModelView, model=Room):
-    column_list = [
+    column_list: ClassVar[list] = [
         Room.id,
         Room.name,
         Room.category,
@@ -214,7 +216,7 @@ class RoomAdmin(ModelView, model=Room):
 
 
 class WeaponAdmin(ModelView, model=Weapon):
-    column_list = [
+    column_list: ClassVar[list] = [
         Weapon.id,
         Weapon.name,
         Weapon.rarity,
@@ -230,7 +232,7 @@ class WeaponAdmin(ModelView, model=Weapon):
 
 
 class PromptAdmin(ModelView, model=Prompt):
-    column_list = [
+    column_list: ClassVar[list] = [
         Prompt.id,
         Prompt.prompt_name,
         # Prompt.ai_model_type,
@@ -242,7 +244,7 @@ class PromptAdmin(ModelView, model=Prompt):
 class LLInteractionAdmin(ModelView, model=LLMInteraction):
     name = "LLM Interaction"
     name_plural = "LLM Interactions"
-    column_list = [
+    column_list: ClassVar[list] = [
         LLMInteraction.id,
         # LLMInteraction.ai_model_type,
         LLMInteraction.usage,
@@ -254,7 +256,7 @@ class LLInteractionAdmin(ModelView, model=LLMInteraction):
 
 
 class RelationshipAdmin(ModelView, model=Relationship):
-    column_list = [
+    column_list: ClassVar[list] = [
         Relationship.id,
         Relationship.dweller_1_id,
         Relationship.dweller_2_id,
@@ -273,7 +275,7 @@ class RelationshipAdmin(ModelView, model=Relationship):
 
 
 class PregnancyAdmin(ModelView, model=Pregnancy):
-    column_list = [
+    column_list: ClassVar[list] = [
         Pregnancy.id,
         Pregnancy.mother_id,
         Pregnancy.father_id,
@@ -293,7 +295,7 @@ class PregnancyAdmin(ModelView, model=Pregnancy):
 
 
 class TrainingAdmin(ModelView, model=Training):
-    column_list = [
+    column_list: ClassVar[list] = [
         Training.id,
         Training.dweller_id,
         Training.room_id,
@@ -320,7 +322,7 @@ class TrainingAdmin(ModelView, model=Training):
 
 
 class IncidentAdmin(ModelView, model=Incident):
-    column_list = [
+    column_list: ClassVar[list] = [
         Incident.id,
         Incident.vault_id,
         Incident.room_id,
@@ -345,7 +347,7 @@ class IncidentAdmin(ModelView, model=Incident):
 
 
 class ExplorationAdmin(ModelView, model=Exploration):
-    column_list = [
+    column_list: ClassVar[list] = [
         Exploration.id,
         Exploration.vault_id,
         Exploration.dweller_id,
@@ -370,7 +372,7 @@ class ExplorationAdmin(ModelView, model=Exploration):
 
 
 class ChatMessageAdmin(ModelView, model=ChatMessage):
-    column_list = [
+    column_list: ClassVar[list] = [
         ChatMessage.id,
         ChatMessage.vault_id,
         ChatMessage.from_user_id,
@@ -385,17 +387,17 @@ class ChatMessageAdmin(ModelView, model=ChatMessage):
         ChatMessage.llm_interaction_id,
         ChatMessage.created_at,
     ]
-    column_searchable_list = [ChatMessage.message_text, ChatMessage.happiness_reason]
-    column_sortable_list = [ChatMessage.created_at, ChatMessage.happiness_delta]
-    column_default_sort = [(ChatMessage.created_at, True)]
+    column_searchable_list: ClassVar[list] = [ChatMessage.message_text, ChatMessage.happiness_reason]
+    column_sortable_list: ClassVar[list] = [ChatMessage.created_at, ChatMessage.happiness_delta]
+    column_default_sort: ClassVar[list] = [(ChatMessage.created_at, True)]
 
-    column_formatters = {
-        ChatMessage.message_text: lambda m, a: (  # noqa: ARG005
+    column_formatters: ClassVar[dict] = {
+        ChatMessage.message_text: lambda m, a: (
             m.message_text[:TRUNCATE_LENGTH] + "..."
             if m.message_text and len(m.message_text) > TRUNCATE_LENGTH
             else m.message_text
         ),
-        ChatMessage.happiness_reason: lambda m, a: (  # noqa: ARG005
+        ChatMessage.happiness_reason: lambda m, a: (
             m.happiness_reason[:TRUNCATE_LENGTH] + "..."
             if m.happiness_reason and len(m.happiness_reason) > TRUNCATE_LENGTH
             else m.happiness_reason
@@ -412,7 +414,7 @@ class ChatMessageAdmin(ModelView, model=ChatMessage):
 
 
 class NotificationAdmin(ModelView, model=Notification):
-    column_list = [
+    column_list: ClassVar[list] = [
         Notification.id,
         Notification.user_id,
         Notification.vault_id,
@@ -426,12 +428,16 @@ class NotificationAdmin(ModelView, model=Notification):
         Notification.created_at,
         Notification.read_at,
     ]
-    column_searchable_list = [Notification.title, Notification.message]
-    column_sortable_list = [Notification.created_at, Notification.priority, Notification.notification_type]
-    column_default_sort = [(Notification.created_at, True)]
+    column_searchable_list: ClassVar[list] = [Notification.title, Notification.message]
+    column_sortable_list: ClassVar[list] = [
+        Notification.created_at,
+        Notification.priority,
+        Notification.notification_type,
+    ]
+    column_default_sort: ClassVar[list] = [(Notification.created_at, True)]
 
-    column_formatters = {
-        Notification.message: lambda m, a: (  # noqa: ARG005
+    column_formatters: ClassVar[dict] = {
+        Notification.message: lambda m, a: (
             m.message[:TRUNCATE_LENGTH] + "..." if m.message and len(m.message) > TRUNCATE_LENGTH else m.message
         ),
     }

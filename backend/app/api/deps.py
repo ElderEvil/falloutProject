@@ -1,3 +1,5 @@
+"""FastAPI dependency injection providers."""
+
 from typing import Annotated
 from uuid import UUID
 
@@ -21,6 +23,11 @@ reusable_oauth2 = OAuth2PasswordBearer(
 
 
 async def get_redis_client():
+    """Provide a Redis client as a FastAPI dependency.
+
+    Yields:
+        Redis: Connected Redis client instance.
+    """
     redis_client = Redis.from_url(settings.redis_url, decode_responses=True)
     try:
         yield redis_client
@@ -32,6 +39,15 @@ async def get_current_user(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     token: Annotated[str, Depends(reusable_oauth2)],
 ) -> User:
+    """Validate the OAuth2 token and return the current user.
+
+    Returns:
+        The authenticated user.
+
+    Raises:
+        HTTPException: 403 if credentials cannot be validated.
+        HTTPException: 404 if user not found.
+    """
     try:
         payload = jwt.decode(
             token,
@@ -55,6 +71,14 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 async def get_current_active_user(current_user: CurrentUser) -> User:
+    """Verify the current user is active.
+
+    Returns:
+        The active user.
+
+    Raises:
+        HTTPException: 400 if user is inactive.
+    """
     if not crud.user.is_active(current_user):
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
@@ -64,6 +88,14 @@ CurrentActiveUser = Annotated[User, Depends(get_current_active_user)]
 
 
 async def get_current_active_superuser(current_user: CurrentActiveUser) -> User:
+    """Verify the current user is a superuser.
+
+    Returns:
+        The superuser.
+
+    Raises:
+        HTTPException: 400 if user lacks superuser privileges.
+    """
     if not crud.user.is_superuser(current_user):
         raise HTTPException(
             status_code=400,
@@ -80,11 +112,14 @@ async def get_user_vault_or_403(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Vault:
-    """
-    Verify that the user has access to the specified vault.
+    """Verify that the user has access to the specified vault.
 
-    Returns the vault if user owns it or is a superuser.
-    Raises 403 HTTPException if user doesn't have access.
+    Returns:
+        The vault if user owns it or is a superuser.
+
+    Raises:
+        HTTPException: 404 if vault not found.
+        HTTPException: 403 if user doesn't have access.
     """
     vault = await crud.vault.get(db_session, vault_id)
     if not vault:
@@ -105,7 +140,12 @@ async def verify_dweller_access(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> None:
-    """Verify user has access to the vault containing the dweller."""
+    """Verify user has access to the vault containing the dweller.
+
+    Raises:
+        HTTPException: 404 if dweller not found.
+        HTTPException: 403 if user doesn't have access to the vault.
+    """
     dweller = await crud.dweller.get(db_session, dweller_id)
     if not dweller:
         raise HTTPException(status_code=404, detail="Dweller not found")
@@ -118,7 +158,12 @@ async def verify_room_access(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> None:
-    """Verify user has access to the vault containing the room."""
+    """Verify user has access to the vault containing the room.
+
+    Raises:
+        HTTPException: 404 if room not found.
+        HTTPException: 403 if user doesn't have access to the vault.
+    """
     room = await crud.room.get(db_session, room_id)
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
@@ -131,7 +176,12 @@ async def verify_exploration_access(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> None:
-    """Verify user has access to the vault containing the exploring dweller."""
+    """Verify user has access to the vault containing the exploring dweller.
+
+    Raises:
+        HTTPException: 404 if exploration or dweller not found.
+        HTTPException: 403 if user doesn't have access to the vault.
+    """
     from app.crud import exploration as crud_exploration
 
     exploration = await crud_exploration.get(db_session, exploration_id)

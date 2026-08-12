@@ -52,7 +52,7 @@ from main import app
 
 
 @pytest_asyncio.fixture
-async def _shared_fake_redis() -> AsyncGenerator[Any]:
+async def _shared_fake_redis() -> Any:
     """Function-scoped fakeredis client bound to the test's event loop."""
     return fakeredis.aioredis.FakeRedis(decode_responses=True)
 
@@ -106,7 +106,7 @@ async def db_connection() -> AsyncConnection:
     await _test_async_engine.dispose()
 
 
-@pytest_asyncio.fixture(scope="function")
+@pytest_asyncio.fixture
 async def async_session(db_connection: AsyncConnection) -> AsyncSession:  # type: ignore[override]
     session = sessionmaker(
         bind=db_connection,
@@ -131,7 +131,7 @@ async def async_session(db_connection: AsyncConnection) -> AsyncSession:  # type
         await conn.commit()
 
 
-@pytest_asyncio.fixture(name="superuser", scope="function")
+@pytest_asyncio.fixture(name="superuser")
 async def _superuser(async_session: AsyncSession):
     # Check if superuser already exists to avoid integrity errors on repeated fixture usage
     existing_user = await crud.user.get_by_email(
@@ -150,7 +150,7 @@ async def _superuser(async_session: AsyncSession):
     return await crud.user.create(db_session=async_session, obj_in=user_in)
 
 
-@pytest_asyncio.fixture(scope="function")
+@pytest_asyncio.fixture
 async def async_client(async_session: AsyncSession, superuser: Any) -> AsyncGenerator[AsyncClient]:
     app.dependency_overrides[get_async_session] = lambda: async_session
 

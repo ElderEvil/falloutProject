@@ -124,12 +124,12 @@ def metadata_enum_map() -> dict[str, set[str]]:
 
 def metadata_enum_columns() -> list[tuple[str, str, Any]]:
     """Return (table, column, type) for every Enum-typed column in the metadata."""
-    columns: list[tuple[str, str, Any]] = []
-    for table in SQLModel.metadata.tables.values():
-        for column in table.c:
-            if isinstance(column.type, SAEnum):
-                columns.append((table.name, column.name, column.type))
-    return columns
+    return [
+        (table.name, column.name, column.type)
+        for table in SQLModel.metadata.tables.values()
+        for column in table.c
+        if isinstance(column.type, SAEnum)
+    ]
 
 
 class TestPgEnumDrift:

@@ -1,4 +1,4 @@
-"""Game control endpoints for managing vault game loop."""
+"""Game control endpoints."""
 
 from typing import Annotated, Any
 
@@ -29,11 +29,13 @@ router = APIRouter(prefix="/game", tags=["Game"])
 
 @router.get("/balance", response_model=GameBalanceResponse)
 async def get_game_balance_settings() -> GameBalanceResponse:
-    """
-    Get current game balance configuration (read-only).
+    """Get current game balance configuration (read-only).
 
     This endpoint exposes all game balance constants that can be tuned via
     environment variables. Useful for debugging and future admin panels.
+
+    Returns:
+        GameBalanceResponse: All game balance settings.
     """
     return GameBalanceResponse(
         game_loop=game_config.game_loop.model_dump(),
@@ -78,7 +80,11 @@ async def pause_vault(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> PauseResumeResponse:
-    """Pause the game loop for a vault."""
+    """Pause the game loop for a vault.
+
+    Returns:
+        PauseResumeResponse: Pause confirmation with vault state.
+    """
     game_state = await game_loop_service.pause_vault(db_session, vault.id)
 
     return PauseResumeResponse(
@@ -95,7 +101,11 @@ async def resume_vault(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> PauseResumeResponse:
-    """Resume the game loop for a vault."""
+    """Resume the game loop for a vault.
+
+    Returns:
+        PauseResumeResponse: Resume confirmation with vault state.
+    """
     game_state = await game_loop_service.resume_vault(db_session, vault.id)
 
     return PauseResumeResponse(
@@ -112,7 +122,11 @@ async def get_game_state(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> dict[str, Any]:
-    """Get current game state for a vault."""
+    """Get current game state for a vault.
+
+    Returns:
+        dict[str, Any]: Current game state details.
+    """
     return await game_loop_service.get_vault_status(db_session, vault.id)
 
 
@@ -122,7 +136,11 @@ async def list_incidents(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> IncidentListResponse:
-    """List all active incidents in a vault."""
+    """List all active incidents in a vault.
+
+    Returns:
+        IncidentListResponse: List of active incidents.
+    """
     incidents = await crud.incident_crud.get_active_by_vault(db_session, vault.id)
 
     return IncidentListResponse(
@@ -152,7 +170,14 @@ async def get_incident(
     incident_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> IncidentRead:
-    """Get details of a specific incident."""
+    """Get details of a specific incident.
+
+    Returns:
+        IncidentRead: Incident details.
+
+    Raises:
+        HTTPException: 404 if incident not found.
+    """
     incident = await crud.incident_crud.get(db_session, incident_id)
     if not incident or incident.vault_id != vault.id:
         raise HTTPException(status_code=404, detail="Incident not found")
@@ -182,13 +207,15 @@ async def manual_tick(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> dict[str, Any]:
-    """
-    Manually trigger a game tick for a vault (for testing/debugging).
+    """Manually trigger a game tick for a vault (for testing/debugging).
 
     This endpoint is useful for:
     - Testing resource production/consumption
     - Triggering catch-up after pause
     - Development and debugging
+
+    Returns:
+        dict[str, Any]: Tick processing result.
     """
     result = await game_loop_service.process_vault_tick(db_session, vault.id)
 
@@ -206,11 +233,16 @@ async def resolve_incident(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     success: bool = True,
 ) -> dict[str, Any]:
-    """
-    Manually resolve an active incident.
+    """Manually resolve an active incident.
 
     This endpoint allows players to mark an incident as resolved,
     triggering loot generation and cleanup.
+
+    Returns:
+        dict[str, Any]: Resolution result with loot details.
+
+    Raises:
+        HTTPException: 404 if incident not found. 400 if resolution fails.
     """
     # Verify incident belongs to vault
     incident = await crud.incident_crud.get(db_session, incident_id)
@@ -230,10 +262,15 @@ async def spawn_debug_incident(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     incident_type: IncidentType | None = None,
 ) -> IncidentSpawnResponse:
-    """
-    [DEBUG] Manually spawn an incident for testing purposes.
+    """[DEBUG] Manually spawn an incident for testing purposes.
 
     If incident_type is not provided, a random type will be chosen.
+
+    Returns:
+        IncidentSpawnResponse: Spawned incident details.
+
+    Raises:
+        HTTPException: 400 if no occupied rooms available.
     """
     incident = await incident_service.spawn_incident(db_session, vault.id, incident_type)
 
@@ -257,7 +294,11 @@ async def delete_all_incidents(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _user: CurrentSuperuser,
 ) -> DeleteIncidentsResponse:
-    """Delete all incidents for a vault."""
+    """Delete all incidents for a vault.
+
+    Returns:
+        DeleteIncidentsResponse: Deletion confirmation with count.
+    """
     count = await crud.incident_crud.remove_all_by_vault(db_session, vault.id)
 
     return DeleteIncidentsResponse(
@@ -275,7 +316,14 @@ async def delete_incident(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _user: CurrentSuperuser,
 ) -> DeleteIncidentsResponse:
-    """Delete a specific incident."""
+    """Delete a specific incident.
+
+    Returns:
+        DeleteIncidentsResponse: Deletion confirmation.
+
+    Raises:
+        HTTPException: 404 if incident not found. 400 if deletion fails.
+    """
     # Verify incident belongs to vault
     incident = await crud.incident_crud.get(db_session, incident_id)
     if not incident or incident.vault_id != vault.id:

@@ -1,3 +1,5 @@
+"""Pregnancy endpoints."""
+
 import logging
 from typing import Annotated
 
@@ -23,7 +25,11 @@ async def get_vault_pregnancies(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> list[PregnancyRead]:
-    """Get all active pregnancies in a vault."""
+    """Get all active pregnancies in a vault.
+
+    Returns:
+        List of active pregnancies in the vault.
+    """
     await get_user_vault_or_403(vault_id, user, db_session)
 
     pregnancies = await breeding_service.get_active_pregnancies(
@@ -40,7 +46,14 @@ async def get_pregnancy(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> PregnancyRead:
-    """Get a specific pregnancy."""
+    """Get a specific pregnancy.
+
+    Returns:
+        The requested pregnancy.
+
+    Raises:
+        HTTPException: 404 if pregnancy not found or access denied.
+    """
     try:
         pregnancy, _ = await crud.pregnancy.get_with_vault_access(db_session, pregnancy_id, user)
     except ResourceNotFoundException as exc:
@@ -55,7 +68,15 @@ async def deliver_baby(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> DeliveryResult:
-    """Manually trigger delivery of a baby (must be due)."""
+    """Manually trigger delivery of a baby (must be due).
+
+    Returns:
+        Delivery result with child details.
+
+    Raises:
+        HTTPException: 404 if pregnancy not found or access denied.
+        HTTPException: 400 if delivery conditions not met.
+    """
     try:
         _, _mother = await crud.pregnancy.get_with_vault_access(db_session, pregnancy_id, user)
     except ResourceNotFoundException as exc:
@@ -88,6 +109,15 @@ async def force_conception(
     user: CurrentSuperuser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> PregnancyRead:
+    """Force conception between two dwellers (debug only).
+
+    Returns:
+        The created pregnancy.
+
+    Raises:
+        ResourceNotFoundException: If dweller not found.
+        ValidationException: If conception conditions not met.
+    """
     logger.info(
         "DEBUG force-conception triggered",
         extra={
@@ -115,6 +145,15 @@ async def accelerate_pregnancy(
     user: CurrentSuperuser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> PregnancyRead:
+    """Accelerate a pregnancy to completion (debug only).
+
+    Returns:
+        The accelerated pregnancy.
+
+    Raises:
+        HTTPException: 404 if pregnancy not found.
+        HTTPException: 400 if acceleration conditions not met.
+    """
     try:
         pregnancy = await breeding_service.accelerate_pregnancy(db_session, pregnancy_id)
     except ValueError as e:

@@ -1,3 +1,5 @@
+"""Quest endpoints."""
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -25,11 +27,15 @@ router = APIRouter(prefix="/quests", tags=["Quest"])
 @router.get("/", response_model=list[QuestRead])
 async def read_all_quests(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    user: CurrentActiveUser,  # noqa: ARG001
+    user: CurrentActiveUser,  # ruff: ignore[unused-function-argument]
     skip: int = 0,
     limit: int = 100,
 ) -> list[QuestRead]:
-    """Get all available quests (not vault-specific)."""
+    """Get all available quests (not vault-specific).
+
+    Returns:
+        List of quests.
+    """
     return await crud.quest_crud.get_multi(db_session, skip=skip, limit=limit)
 
 
@@ -39,6 +45,11 @@ async def create_quest(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: CurrentSuperuser,
 ) -> QuestRead:
+    """Create a new quest.
+
+    Returns:
+        The created quest.
+    """
     return await crud.quest_crud.create(db_session, quest_data)
 
 
@@ -46,11 +57,15 @@ async def create_quest(
 async def read_vault_quests(
     vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    user: CurrentActiveUser,  # noqa: ARG001
+    user: CurrentActiveUser,  # ruff: ignore[unused-function-argument]
     skip: int = 0,
     limit: int = 100,
 ) -> list[QuestRead]:
-    """Get all quests assigned to a specific vault."""
+    """Get all quests assigned to a specific vault.
+
+    Returns:
+        List of quests for the vault.
+    """
     return await crud.quest_crud.get_multi_for_vault(db_session=db_session, vault_id=vault_id, skip=skip, limit=limit)
 
 
@@ -58,11 +73,15 @@ async def read_vault_quests(
 async def get_available_quests(
     vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    user: CurrentActiveUser,  # noqa: ARG001
+    user: CurrentActiveUser,  # ruff: ignore[unused-function-argument]
     skip: int = 0,
     limit: int = 100,
 ) -> list[QuestRead]:
-    """Get available quests for a vault (respects quest chain unlocks)."""
+    """Get available quests for a vault (respects quest chain unlocks).
+
+    Returns:
+        List of available quests.
+    """
     return await quest_service.get_available_for_vault(db_session, vault_id, skip, limit)
 
 
@@ -73,6 +92,11 @@ async def read_quest(
     vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> QuestRead:
+    """Retrieve a quest by ID within a vault.
+
+    Returns:
+        The requested quest.
+    """
     return await crud.quest_crud.get_for_vault(db_session=db_session, quest_id=quest_id, vault_id=vault_id, user=user)
 
 
@@ -82,6 +106,11 @@ async def update_quest(
     quest_data: QuestUpdate,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> QuestRead:
+    """Update a quest.
+
+    Returns:
+        The updated quest.
+    """
     return await crud.quest_crud.update(db_session, quest_id, quest_data)
 
 
@@ -92,6 +121,7 @@ async def delete_quest(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ) -> None:
+    """Delete a quest."""
     await get_user_vault_or_403(vault_id, user, db_session)
     return await crud.quest_crud.delete(db_session, quest_id)
 
@@ -100,13 +130,15 @@ async def delete_quest(
 async def assign_quest_to_vault(
     vault_id: UUID4,
     quest_id: UUID4,
-    user: CurrentActiveUser,  # noqa: ARG001
+    user: CurrentActiveUser,  # ruff: ignore[unused-function-argument]
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     *,
     is_visible: bool = True,
 ):
-    """
-    Assign a quest to a vault, making it available for completion.
+    """Assign a quest to a vault, making it available for completion.
+
+    Returns:
+        The vault-quest assignment.
     """
     return await crud.quest_crud.assign_to_vault(
         db_session=db_session, quest_id=quest_id, vault_id=vault_id, is_visible=is_visible
@@ -117,11 +149,13 @@ async def assign_quest_to_vault(
 async def complete_quest(
     vault_id: UUID4,
     quest_id: UUID4,
-    user: CurrentActiveUser,  # noqa: ARG001
+    user: CurrentActiveUser,  # ruff: ignore[unused-function-argument]
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> QuestCompleteResponse:
-    """
-    Mark a quest as completed for a vault.
+    """Mark a quest as completed for a vault.
+
+    Returns:
+        Completion response with granted rewards.
     """
     quest, granted_rewards = await quest_service.complete_quest_and_free_party(db_session, quest_id, vault_id)
     return QuestCompleteResponse(
@@ -140,8 +174,13 @@ async def assign_party_to_quest(
     _user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
-    """
-    Assign dwellers to a quest party (1-3 dwellers).
+    """Assign dwellers to a quest party (1-3 dwellers).
+
+    Returns:
+        The assigned party members.
+
+    Raises:
+        ValidationException: If party size is invalid or assignment fails.
     """
     from app.crud.quest_party import quest_party_crud
     from app.utils.exceptions import ValidationException
@@ -164,7 +203,11 @@ async def get_quest_party(
     _user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> list[QuestPartyMemberRead]:
-    """Get party members assigned to a quest."""
+    """Get party members assigned to a quest.
+
+    Returns:
+        List of party members.
+    """
     from app.crud.quest_party import quest_party_crud
 
     party = await quest_party_crud.get_party_for_quest(db_session, quest_id, vault_id)
@@ -191,7 +234,15 @@ async def start_quest(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     duration_minutes: int | None = None,
 ) -> QuestRead:
-    """Start a quest (starts the timer)."""
+    """Start a quest (starts the timer).
+
+    Returns:
+        The started quest.
+
+    Raises:
+        ResourceNotFoundException: If quest not found.
+        ValidationException: If requirements not met or quest cannot be started.
+    """
     from app.services.prerequisite_service import prerequisite_service
     from app.utils.exceptions import ValidationException
 
@@ -209,10 +260,11 @@ async def start_quest(
 
     try:
         await quest_service.start_quest(db_session, quest_id, vault_id, duration_minutes)
-        await db_session.refresh(quest, ["quest_requirements", "quest_rewards"])
-        return quest
     except ValueError as e:
         raise ValidationException(str(e)) from e
+    else:
+        await db_session.refresh(quest, ["quest_requirements", "quest_rewards"])
+        return quest
 
 
 @router.get("/{vault_id}/{quest_id}/eligible-dwellers", response_model=list[EligibleDwellerRead])
@@ -222,6 +274,10 @@ async def get_eligible_dwellers(
     _user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> list[EligibleDwellerRead]:
-    """Get dwellers eligible for a quest based on requirements."""
+    """Get dwellers eligible for a quest based on requirements.
+
+    Returns:
+        List of eligible dwellers.
+    """
     result = await quest_service.get_eligible_dwellers(db_session, vault_id, quest_id)
     return [EligibleDwellerRead(**d) for d in result]

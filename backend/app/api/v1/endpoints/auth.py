@@ -1,3 +1,5 @@
+"""Authentication endpoints."""
+
 import logging
 from typing import Annotated
 
@@ -25,8 +27,13 @@ async def login_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     redis_client: Annotated[Redis, Depends(get_redis_client)],
 ) -> Token:
-    """
-    OAuth2 compatible token login, get an access token for future requests.
+    """OAuth2 compatible token login, get an access token for future requests.
+
+    Returns:
+        Token: Access and refresh tokens.
+
+    Raises:
+        HTTPException: 400 if credentials are invalid.
     """
     try:
         return await auth_service.login(
@@ -45,8 +52,13 @@ async def refresh_access_token(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     redis_client: Annotated[Redis, Depends(get_redis_client)],
 ) -> Token:
-    """
-    Refresh access token using refresh token.
+    """Refresh access token using refresh token.
+
+    Returns:
+        Token: New access and refresh tokens.
+
+    Raises:
+        HTTPException: 400 if refresh token is invalid. 404 if token not found.
     """
     try:
         return await auth_service.refresh_token(
@@ -65,8 +77,10 @@ async def logout(
     current_user: CurrentUser,
     redis_client: Annotated[Redis, Depends(get_redis_client)],
 ) -> MessageResponse:
-    """
-    Invalidate the current user's refresh token.
+    """Invalidate the current user's refresh token.
+
+    Returns:
+        MessageResponse: Confirmation message.
     """
     await auth_service.logout(redis_client=redis_client, user_id=current_user.id)
     return MessageResponse(msg="Successfully logged out")
@@ -77,8 +91,10 @@ async def forgot_password(
     email: Annotated[EmailStr, Body(embed=True)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> MessageResponse:
-    """
-    Request password reset email.
+    """Request password reset email.
+
+    Returns:
+        MessageResponse: Confirmation message.
     """
     result = await auth_service.forgot_password(db_session=db_session, email=email)
     return MessageResponse(msg=result["msg"])
@@ -91,8 +107,13 @@ async def reset_password(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     redis_client: Annotated[Redis, Depends(get_redis_client)],
 ) -> MessageResponse:
-    """
-    Reset password using token from email.
+    """Reset password using token from email.
+
+    Returns:
+        MessageResponse: Confirmation message.
+
+    Raises:
+        HTTPException: 400 if token is invalid. 404 if token not found.
     """
     try:
         result = await auth_service.reset_password(
@@ -116,8 +137,13 @@ async def change_password(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     redis_client: Annotated[Redis, Depends(get_redis_client)],
 ) -> MessageResponse:
-    """
-    Change password for authenticated user.
+    """Change password for authenticated user.
+
+    Returns:
+        MessageResponse: Confirmation message.
+
+    Raises:
+        HTTPException: 400 if current password is incorrect.
     """
     try:
         result = await auth_service.change_password(
@@ -137,8 +163,13 @@ async def verify_email(
     token: Annotated[str, Body(embed=True)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> MessageResponse:
-    """
-    Verify user email using token from email.
+    """Verify user email using token from email.
+
+    Returns:
+        MessageResponse: Confirmation message.
+
+    Raises:
+        HTTPException: 400 if token is invalid. 404 if token not found.
     """
     try:
         result = await auth_service.verify_email(db_session=db_session, token=token)
@@ -154,8 +185,13 @@ async def resend_verification_email(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> MessageResponse:
-    """
-    Resend verification email to current user.
+    """Resend verification email to current user.
+
+    Returns:
+        MessageResponse: Confirmation message.
+
+    Raises:
+        HTTPException: 400 if verification cannot be resent.
     """
     try:
         result = await auth_service.resend_verification_email(db_session=db_session, user=user)

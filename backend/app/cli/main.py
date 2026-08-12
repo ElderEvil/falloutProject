@@ -65,15 +65,21 @@ def _make_async_session() -> sessionmaker:
 def createsuperuser(
     username: Annotated[str | None, typer.Option(help="Admin username")] = None,
     email: Annotated[str | None, typer.Option(help="Admin email address")] = None,
-    password: Annotated[str | None, typer.Option(
-        confirmation_prompt=True,
-        hide_input=True,
-        help="Admin password",
-    )] = None,
-    no_input: Annotated[bool, typer.Option(
-        "--no-input",
-        help="Skip prompts and use settings defaults (FIRST_SUPERUSER_*). Requires --username, --email, --password.",
-    )] = False,
+    password: Annotated[
+        str | None,
+        typer.Option(
+            confirmation_prompt=True,
+            hide_input=True,
+            help="Admin password",
+        ),
+    ] = None,
+    no_input: Annotated[
+        bool,
+        typer.Option(
+            "--no-input",
+            help="Skip prompts and use settings defaults (FIRST_SUPERUSER_*). Requires --username, --email, --password.",
+        ),
+    ] = False,
 ) -> None:
     """Create an admin superuser interactively or via flags.
 
@@ -95,7 +101,9 @@ def createsuperuser(
         if not email:
             email = typer.prompt("Admin email address", default=settings.FIRST_SUPERUSER_EMAIL)
         if not password:
-            password = typer.prompt("Admin password", confirmation_prompt=True, hide_input=True, default=settings.FIRST_SUPERUSER_PASSWORD)
+            password = typer.prompt(
+                "Admin password", confirmation_prompt=True, hide_input=True, default=settings.FIRST_SUPERUSER_PASSWORD
+            )
 
     async def _create() -> None:
         async_session = _make_async_session()

@@ -5,6 +5,17 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.32.0] - 2026-08-12
+
+### Changed
+
+- **Backend lint quality** — expanded Ruff coverage for performance, eradicated-comment, modernisation,
+  type-checking, security, and Google-style docstring rules; resolved the newly enabled findings while preserving
+  intentional project-specific exceptions
+- **Version bump** — backend/frontend aligned at v2.32.0
+
+---
+
 ## [2.31.0] - 2026-08-12
 
 ### Added

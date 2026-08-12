@@ -41,7 +41,7 @@ def init(
         updated_config = configparser.ConfigParser()
         updated_config.read(_config_file)
         updated_config["alembic"].update({"target_metadata": target_metadata})
-        with open(_config_file, "w") as configfile:
+        with Path(_config_file).open("w") as configfile:
             updated_config.write(configfile)
         logger.debug("Alembic defaults overwritten")
 
@@ -68,7 +68,6 @@ def revision(
         sql=sql,
         head=head,
         splice=splice,
-        # branch_label=branch_label,
         version_path=version_path,
         rev_id=rev_id,
         depends_on=depends_on,
@@ -80,7 +79,7 @@ def show(module: Path = Path(), config_file: Path = Path("alembic.ini"), rev: st
     """Show the revision"""
     config = Config(module / config_file)
     # Untyped function in Alembic
-    command.show(config, rev)  # type: ignore  # noqa: PGH003
+    command.show(config, rev)  # type: ignore
 
 
 def merge(
@@ -107,8 +106,8 @@ def upgrade(
     revision: str = "head",
     module: Path = Path(),
     config_file: Path = Path("alembic.ini"),
-    sql: bool = False,  # noqa: ARG001
-    tag: Annotated[str | None, typer.Argument()] = None,  # noqa: ARG001
+    sql: bool = False,  # ruff: ignore[unused-function-argument]
+    tag: Annotated[str | None, typer.Argument()] = None,  # ruff: ignore[unused-function-argument]
 ) -> None:
     """Upgrade to the given revision"""
     config = Config(module / config_file)
@@ -120,8 +119,8 @@ def downgrade(
     revision: str = "head",
     module: Path = Path(),
     config_file: Path = Path("alembic.ini"),
-    sql: bool = False,  # noqa: ARG001
-    tag: Annotated[str | None, typer.Argument()] = None,  # noqa: ARG001
+    sql: bool = False,  # ruff: ignore[unused-function-argument]
+    tag: Annotated[str | None, typer.Argument()] = None,  # ruff: ignore[unused-function-argument]
 ) -> None:
     """Downgrade to the given revision"""
     config = Config(module / config_file)

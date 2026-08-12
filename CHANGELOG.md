@@ -5,6 +5,17 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.32.1] - 2026-08-12
+
+### Fixed
+
+- **AI chat availability** — exhausted OpenAI provider credits now return a clear HTTP 503 response without a
+  redundant fallback request
+- **Game ticks** — corrected high-SPECIAL production XP configuration and serialized overlapping same-vault event
+  handling to prevent async database-operation collisions
+
+---
+
 ## [2.32.0] - 2026-08-12
 
 ### Changed

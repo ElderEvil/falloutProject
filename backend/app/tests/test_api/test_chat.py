@@ -13,6 +13,7 @@ import pytest_asyncio
 from fastapi import HTTPException
 from httpx import AsyncClient
 from pydantic_ai.agent import AgentRunResult
+from pydantic_ai.exceptions import ModelHTTPError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -248,6 +249,37 @@ class TestTextChat:
 
         # Verify no_action suggestion on fallback
         assert data["action_suggestion"]["action_type"] == "no_action"
+
+    @patch("app.services.chat_service.dweller_chat_agent")
+    @patch("app.services.chat_service.get_ai_service")
+    async def test_chat_reports_exhausted_provider_credits(
+        self,
+        mock_ai_service_func: MagicMock,
+        mock_agent: MagicMock,
+        async_client: AsyncClient,
+        normal_user_token_headers: dict[str, str],
+        chat_dweller: Dweller,
+    ) -> None:
+        """Return an actionable response when OpenAI reports exhausted credits."""
+        provider_error = ModelHTTPError(
+            status_code=429,
+            model_name="gpt-4o-mini",
+            body={"code": "credit_balance_exhausted", "message": "You have no credits remaining."},
+        )
+        mock_agent.run = AsyncMock(side_effect=provider_error)
+        mock_ai = MagicMock()
+        mock_ai.chat_completion_with_usage = AsyncMock(side_effect=provider_error)
+        mock_ai_service_func.return_value = mock_ai
+
+        response = await async_client.post(
+            f"chat/{chat_dweller.id}",
+            headers=normal_user_token_headers,
+            json={"message": "Can you help me?"},
+        )
+
+        assert response.status_code == 503
+        assert response.json()["detail"] == "AI provider credits are exhausted. Please try again later."
+        mock_ai.chat_completion_with_usage.assert_not_awaited()
 
     @patch("app.services.chat_service.dweller_chat_agent")
     @patch("app.services.chat_service.manager")

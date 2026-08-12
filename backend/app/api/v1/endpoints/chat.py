@@ -16,7 +16,12 @@ from app.models.chat_message import ChatMessageRead
 from app.schemas.chat import ChatMessage, DwellerChatResponse, DwellerVoiceChatResponse
 from app.services.chat_service import chat_service
 from app.services.conversation_service import conversation_service
-from app.utils.exceptions import QuotaExceededException, ResourceNotFoundException, ValidationException
+from app.utils.exceptions import (
+    AIProviderCreditsExhaustedException,
+    QuotaExceededException,
+    ResourceNotFoundException,
+    ValidationException,
+)
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 logger = logging.getLogger(__name__)
@@ -47,6 +52,8 @@ async def chat_with_dweller(
 
     except ResourceNotFoundException as e:
         raise HTTPException(status_code=404, detail=e.detail) from e
+    except AIProviderCreditsExhaustedException as e:
+        raise HTTPException(status_code=503, detail=e.detail) from e
 
     else:
         # Emit WebSocket notifications after REST response is ready (non-fatal)

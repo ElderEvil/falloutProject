@@ -24,7 +24,7 @@ class QuestService:
             select(VaultQuestCompletionLink)
             .join(Quest)
             .where(
-                VaultQuestCompletionLink.is_completed == False,
+                ~VaultQuestCompletionLink.is_completed,
                 VaultQuestCompletionLink.started_at.isnot(None),
             )
         )
@@ -87,7 +87,7 @@ class QuestService:
             select(VaultQuestCompletionLink.quest_id).where(
                 and_(
                     VaultQuestCompletionLink.vault_id == vault_id,
-                    VaultQuestCompletionLink.is_completed == True,
+                    VaultQuestCompletionLink.is_completed,
                 )
             )
         )
@@ -100,14 +100,15 @@ class QuestService:
                 VaultQuestCompletionLink,
                 and_(Quest.id == VaultQuestCompletionLink.quest_id, VaultQuestCompletionLink.vault_id == vault_id),
             )
-            .where(VaultQuestCompletionLink.is_visible == True)
+            .where(VaultQuestCompletionLink.is_visible)
         )
         all_quests = result.scalars().all()
 
-        available = []
-        for quest in all_quests:
-            if quest.previous_quest_id is None or quest.previous_quest_id in completed_quest_ids:
-                available.append(quest)
+        available = [
+            quest
+            for quest in all_quests
+            if quest.previous_quest_id is None or quest.previous_quest_id in completed_quest_ids
+        ]
 
         return available[skip : skip + limit]
 
@@ -142,9 +143,7 @@ class QuestService:
 
         await db_session.refresh(quest, ["quest_requirements"])
 
-        result = await db_session.execute(
-            select(Dweller).where(Dweller.vault_id == vault_id, Dweller.is_deleted == False)
-        )
+        result = await db_session.execute(select(Dweller).where(Dweller.vault_id == vault_id, ~Dweller.is_deleted))
         dwellers = result.scalars().all()
 
         vault_level_req_types = {"item", "room", "dweller_count", "quest_completed"}

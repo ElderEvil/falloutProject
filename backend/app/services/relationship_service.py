@@ -28,8 +28,7 @@ class RelationshipService:
         dweller_1_id: UUID4,
         dweller_2_id: UUID4,
     ) -> Relationship | None:
-        """
-        Get existing relationship between two dwellers.
+        """Get existing relationship between two dwellers.
 
         Args:
             db_session: Database session
@@ -47,8 +46,7 @@ class RelationshipService:
         dweller_1_id: UUID4,
         dweller_2_id: UUID4,
     ) -> Relationship:
-        """
-        Create a new relationship or get existing one.
+        """Create a new relationship or get existing one.
 
         Args:
             db_session: Database session
@@ -78,8 +76,7 @@ class RelationshipService:
         dweller_2_id: UUID4,
         amount: int = 1,
     ) -> Relationship:
-        """
-        Increase affinity between two dwellers.
+        """Increase affinity between two dwellers.
 
         Args:
             db_session: Database session
@@ -121,8 +118,7 @@ class RelationshipService:
         dweller_1_id: UUID4,
         dweller_2_id: UUID4,
     ) -> Relationship:
-        """
-        Initiate romantic relationship between two dwellers.
+        """Initiate romantic relationship between two dwellers.
 
         Args:
             db_session: Database session
@@ -160,8 +156,7 @@ class RelationshipService:
         dweller_1_id: UUID4,
         dweller_2_id: UUID4,
     ) -> Relationship:
-        """
-        Make two dwellers partners (committed relationship).
+        """Make two dwellers partners (committed relationship).
 
         Args:
             db_session: Database session
@@ -218,8 +213,7 @@ class RelationshipService:
         db_session: AsyncSession,
         relationship_id: UUID4,
     ) -> None:
-        """
-        Break up a relationship.
+        """Break up a relationship.
 
         Args:
             db_session: Database session
@@ -271,8 +265,7 @@ class RelationshipService:
         db_session: AsyncSession,
         vault_id: UUID4,
     ) -> Relationship:
-        """
-        Irradiated Cupid
+        """Irradiated Cupid.
 
         Instantly pairs two random compatible dwellers for testing/fun.
         - Finds one male and one female without partners
@@ -352,8 +345,7 @@ class RelationshipService:
         dweller_1_id: UUID4,
         dweller_2_id: UUID4,
     ) -> CompatibilityScore:
-        """
-        Calculate compatibility score between two dwellers.
+        """Calculate compatibility score between two dwellers.
 
         Raises:
             ResourceNotFoundException: If either dweller is not found (propagates as HTTP 404)
@@ -404,8 +396,7 @@ class RelationshipService:
         dweller_1: Dweller,
         dweller_2: Dweller,
     ) -> float:
-        """
-        Backward-compatible wrapper for calculate_compatibility_score.
+        """Backward-compatible wrapper for calculate_compatibility_score.
 
         Args:
             db_session: Database session

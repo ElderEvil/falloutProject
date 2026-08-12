@@ -12,8 +12,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.game_config import game_config
 from app.crud.base import CreateSchemaType, CRUDBase, ModelType, UpdateSchemaType
 from app.crud.vault import vault as vault_crud
-
-# from app.crud.mixins import SellItemMixin
 from app.models import Outfit, Storage, Vault, Weapon
 from app.models.dweller import Dweller
 from app.models.junk import Junk
@@ -90,7 +88,6 @@ async def get_items_list(
 
 class CRUDItem(
     CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType],
-    # SellItemMixin[ModelType]
 ):
     async def create(self, db_session: AsyncSession, obj_in: CreateSchemaType | dict) -> ModelType:
         obj_in = obj_in if isinstance(obj_in, dict) else obj_in.model_dump()
@@ -160,10 +157,10 @@ class CRUDItem(
     async def _fetch_unequip_data(
         db_session: AsyncSession, item_id: UUID4
     ) -> tuple[Dweller, UUID4, str] | tuple[None, None, None]:
-        WeaponAlias, OutfitAlias = aliased(Weapon), aliased(Outfit)  # noqa: N806
+        WeaponAlias, OutfitAlias = aliased(Weapon), aliased(Outfit)
 
         query = (
-            select(Dweller, Storage.id.label("storage_id"), (WeaponAlias.id != None).label("is_weapon"))  # noqa: E711
+            select(Dweller, Storage.id.label("storage_id"), (WeaponAlias.id != None).label("is_weapon"))
             .select_from(Dweller)
             .join(Vault, Dweller.vault_id == Vault.id)
             .join(Storage, Vault.id == Storage.vault_id)

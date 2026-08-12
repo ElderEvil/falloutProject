@@ -235,11 +235,9 @@ class TestGetActiveVaults:
 # ═════════════════════════════════════════════════════════════════════
 #
 # incident_service is imported LOCALLY inside _process_incidents:
-#   from app.services.incident_service import incident_service
 # So we patch app.services.incident_service.incident_service
 #
 # incident_crud is imported at MODULE level:
-#   from app.crud.incident import incident_crud
 # So we patch app.services.game_loop.incident_crud
 # ═════════════════════════════════════════════════════════════════════
 
@@ -379,7 +377,6 @@ class TestProcessIncidents:
 # ═════════════════════════════════════════════════════════════════════
 #
 # local imports: leveling_service, game_config
-# patches: app.services.leveling_service.leveling_service
 # ═════════════════════════════════════════════════════════════════════
 
 
@@ -536,7 +533,6 @@ class TestAwardWorkXp:
 # ═════════════════════════════════════════════════════════════════════
 #
 # local imports: death_service
-# patch: app.services.death_service.death_service
 # ═════════════════════════════════════════════════════════════════════
 
 
@@ -681,7 +677,6 @@ class TestProcessDwellers:
 #
 # local imports: training_crud (from app.crud import training as training_crud)
 #                training_service (from app.services.training_service import)
-# patches: app.crud.training.training
 #          app.services.training_service.training_service
 # ═════════════════════════════════════════════════════════════════════
 
@@ -921,7 +916,6 @@ class TestGetDwellersInRooms:
 #
 # _update_pair_affinity:   local import relationship_service
 # _create_new_relationships: local import relationship_service
-# patches: app.services.relationship_service.relationship_service
 # ═════════════════════════════════════════════════════════════════════
 
 
@@ -1037,7 +1031,6 @@ class TestRelationshipHelpers:
 # ═════════════════════════════════════════════════════════════════════
 #
 # local import: breeding_service
-# patch: app.services.breeding_service.breeding_service
 # ═════════════════════════════════════════════════════════════════════
 
 
@@ -1146,7 +1139,6 @@ class TestProcessPregnancies:
 # ═════════════════════════════════════════════════════════════════════
 #
 # local import: breeding_service
-# patch: app.services.breeding_service.breeding_service
 # ═════════════════════════════════════════════════════════════════════
 
 

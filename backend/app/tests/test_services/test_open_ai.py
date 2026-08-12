@@ -10,7 +10,7 @@ import pytest
 
 pytestmark = pytest.mark.asyncio(scope="module")
 
-from app.services.open_ai import (  # noqa: E402
+from app.services.open_ai import (
     AIService,
     ChatCompletionResult,
     get_ai_service,

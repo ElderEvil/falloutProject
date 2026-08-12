@@ -11,8 +11,7 @@ class LootCalculator:
     """Handles loot selection and caps rewards."""
 
     def calculate_luck_multiplier(self, luck: int) -> float:
-        """
-        Calculate loot quality multiplier based on luck stat.
+        """Calculate loot quality multiplier based on luck stat.
 
         Args:
             luck: Luck stat (1-10)
@@ -25,8 +24,7 @@ class LootCalculator:
         return cfg.luck_multiplier_min + (luck - 1) * ((cfg.luck_multiplier_max - cfg.luck_multiplier_min) / 9)
 
     def get_rarity_weights(self, luck: int) -> dict[str, float]:
-        """
-        Get rarity weights adjusted by luck stat.
+        """Get rarity weights adjusted by luck stat.
 
         Args:
             luck: Luck stat (1-10)
@@ -122,8 +120,7 @@ class LootCalculator:
         return (ItemSchema(name="RadAway", value=50, rarity="Common"), "radaway")
 
     def select_random_loot(self, luck: int) -> tuple[ItemSchema, str]:
-        """
-        Select a random loot item based on luck.
+        """Select a random loot item based on luck.
 
         Args:
             luck: Luck stat (1-10)
@@ -162,8 +159,7 @@ class LootCalculator:
         return (self.select_random_junk(luck), "junk")
 
     def calculate_caps_found(self, perception: int, luck: int) -> int:
-        """
-        Calculate caps found based on perception and luck.
+        """Calculate caps found based on perception and luck.
 
         Args:
             perception: Perception stat (1-10)

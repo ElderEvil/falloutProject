@@ -2,7 +2,6 @@
 
 import logging
 from functools import lru_cache
-from typing import Optional
 
 from .base import StorageService
 from .rustfs_adapter import RustFSAdapter
@@ -10,7 +9,7 @@ from .rustfs_adapter import RustFSAdapter
 logger = logging.getLogger(__name__)
 
 
-def create_storage_service() -> Optional[StorageService]:
+def create_storage_service() -> StorageService | None:
     """Factory function to create the storage service.
 
     Returns:
@@ -25,7 +24,7 @@ def create_storage_service() -> Optional[StorageService]:
 
 
 @lru_cache
-def get_storage_client() -> Optional[StorageService]:
+def get_storage_client() -> StorageService | None:
     """Get cached storage service instance.
 
     Returns:

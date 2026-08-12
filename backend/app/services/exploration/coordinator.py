@@ -38,8 +38,7 @@ class ExplorationCoordinator:
 
     @staticmethod
     def _normalize_outfit_type(outfit_type_str: str) -> str:
-        """
-        Normalize outfit_type string to match OutfitTypeEnum values.
+        """Normalize outfit_type string to match OutfitTypeEnum values.
 
         Maps data values like 'tiered_outfit' to enum values like 'TIERED'.
         """
@@ -50,8 +49,7 @@ class ExplorationCoordinator:
         return normalized
 
     async def process_event(self, db_session: AsyncSession, exploration: Exploration) -> Exploration:
-        """
-        Generate and process an event for an active exploration.
+        """Generate and process an event for an active exploration.
 
         Args:
             db_session: Database session
@@ -171,8 +169,7 @@ class ExplorationCoordinator:
             await self._handle_auto_equip(db_session, exploration, item, item_type)
 
     async def _apply_health_loss(self, db_session: AsyncSession, exploration: Exploration, damage: int) -> None:
-        """
-        Apply health loss to dweller.
+        """Apply health loss to dweller.
 
         If damage would be fatal (health <= 0), the dweller dies from exploration.
         """
@@ -268,7 +265,7 @@ class ExplorationCoordinator:
                 # Real implementation should probably create the item in DB and link it to dweller.
                 exploration.add_event(
                     event_type="equip",
-                    description=f"Found better weapon: {item_schema.name}. Using temporarily for better survival (not permanently equipped).",  # noqa: E501
+                    description=f"Found better weapon: {item_schema.name}. Using temporarily for better survival (not permanently equipped).",
                 )
                 db_session.add(exploration)
                 # Note: To really affect combat, we'd need to update dweller_obj.weapon_id
@@ -284,8 +281,7 @@ class ExplorationCoordinator:
             db_session.add(exploration)
 
     async def complete_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> RewardsSchema:
-        """
-        Complete an exploration and return rewards summary.
+        """Complete an exploration and return rewards summary.
 
         Args:
             db_session: Database session
@@ -346,8 +342,7 @@ class ExplorationCoordinator:
         return rewards
 
     async def recall_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> RewardsSchema:
-        """
-        Recall a dweller early from exploration.
+        """Recall a dweller early from exploration.
 
         Args:
             db_session: Database session
@@ -487,8 +482,7 @@ class ExplorationCoordinator:
 
     @staticmethod
     def _parse_rarity_to_enum(rarity_str: str) -> RarityEnum:
-        """
-        Convert rarity string to RarityEnum with fallback to COMMON.
+        """Convert rarity string to RarityEnum with fallback to COMMON.
 
         :param rarity_str: Rarity string (e.g., "Legendary", "COMMON")
         :returns: RarityEnum value, defaults to COMMON if invalid
@@ -499,8 +493,7 @@ class ExplorationCoordinator:
             return RarityEnum.COMMON
 
     def _create_weapon_from_loot(self, weapon_data: dict, rarity: RarityEnum, storage_id: UUID4) -> Weapon | None:
-        """
-        Create a Weapon model from loot data.
+        """Create a Weapon model from loot data.
 
         :param weapon_data: Weapon data dict from data_loader
         :param rarity: RarityEnum value
@@ -533,8 +526,7 @@ class ExplorationCoordinator:
             return None
 
     def _create_outfit_from_loot(self, outfit_data: dict, rarity: RarityEnum, storage_id: UUID4) -> Outfit | None:
-        """
-        Create an Outfit model from loot data.
+        """Create an Outfit model from loot data.
 
         :param outfit_data: Outfit data dict from data_loader
         :param rarity: RarityEnum value
@@ -564,8 +556,7 @@ class ExplorationCoordinator:
             return None
 
     def _create_junk_from_loot(self, item_name: str, rarity: RarityEnum, storage_id: UUID4) -> Junk:
-        """
-        Create a Junk model from loot data.
+        """Create a Junk model from loot data.
 
         :param item_name: Name of the junk item
         :param rarity: RarityEnum value
@@ -581,9 +572,8 @@ class ExplorationCoordinator:
             storage_id=storage_id,
         )
 
-    async def _transfer_loot_to_storage(self, db_session: AsyncSession, exploration: Exploration) -> dict[str, list]:  # noqa: PLR0912, PLR0915
-        """
-        Transfer loot items from exploration to vault storage with space validation.
+    async def _transfer_loot_to_storage(self, db_session: AsyncSession, exploration: Exploration) -> dict[str, list]:
+        """Transfer loot items from exploration to vault storage with space validation.
 
         Items are sorted by rarity (legendary > rare > uncommon > common) and
         transferred in priority order. If storage is full, remaining items are

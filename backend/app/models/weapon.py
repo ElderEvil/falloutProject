@@ -9,7 +9,6 @@ from app.models.item import ItemBase
 from app.schemas.common import WeaponSubtypeEnum, WeaponTypeEnum
 
 if TYPE_CHECKING:
-    from app.models.dweller import Dweller
     from app.models.storage import Storage
 
 

@@ -856,7 +856,6 @@ class TestDestroy:
             result = await room_crud.destroy(db_session=mock_session, id=room.id)
 
             assert result is room
-            # Refund: 50% of (100 + 25) = 62
             mock_vault_crud.deposit_caps.assert_called_once()
             call_args = mock_vault_crud.deposit_caps.call_args
             assert call_args.kwargs["amount"] == 62
@@ -918,7 +917,6 @@ class TestDestroy:
 
             await room_crud.destroy(db_session=mock_session, id=room.id)
 
-            # Refund: 50% of (200 + 50 + 500 + 1500) = 1125
             mock_vault_crud.deposit_caps.assert_called_once()
             call_args = mock_vault_crud.deposit_caps.call_args
             assert call_args.kwargs["amount"] == 1125

@@ -58,7 +58,6 @@ class DwellerBaseWithoutStats(SQLModel):
     epitaph: str | None = Field(default=None, max_length=255)
 
     # TBD
-    # job: str | None
 
 
 class DwellerBase(DwellerBaseWithoutStats, SPECIALModel):

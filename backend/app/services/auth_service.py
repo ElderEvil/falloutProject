@@ -70,7 +70,7 @@ class AuthService:
                 expires_delta=refresh_token_expires,
                 redis_client=redis_client,
             ),
-            token_type="bearer",
+            token_type="bearer",  # ruff: ignore[hardcoded-password-func-arg]
         )
 
     async def refresh_token(
@@ -115,7 +115,7 @@ class AuthService:
         return Token(
             access_token=new_access_token,
             refresh_token=new_refresh_token,
-            token_type="bearer",
+            token_type="bearer",  # ruff: ignore[hardcoded-password-func-arg]
         )
 
     async def logout(self, redis_client: Redis, user_id: str) -> None:

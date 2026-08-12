@@ -30,8 +30,7 @@ class DeathService:
         cause: DeathCauseEnum,
         epitaph: str | None = None,
     ) -> Dweller:
-        """
-        Mark a dweller as dead.
+        """Mark a dweller as dead.
 
         :param db_session: Database session
         :type db_session: AsyncSession
@@ -107,8 +106,7 @@ class DeathService:
         dweller_id: UUID4,
         user_id: UUID4,
     ) -> Dweller:
-        """
-        Revive a dead dweller by paying the revival cost.
+        """Revive a dead dweller by paying the revival cost.
 
         :param db_session: Database session
         :type db_session: AsyncSession
@@ -182,8 +180,7 @@ class DeathService:
         return revived_dweller
 
     def get_revival_cost(self, level: int) -> int:
-        """
-        Calculate the revival cost for a dweller based on their level.
+        """Calculate the revival cost for a dweller based on their level.
 
         Tiered pricing:
         - Levels 1-5: level x 50 (50-250 caps)
@@ -198,8 +195,7 @@ class DeathService:
         return game_config.death.calculate_revival_cost(level)
 
     def get_days_until_permanent(self, dweller: Dweller) -> int | None:
-        """
-        Calculate days until dweller's death becomes permanent.
+        """Calculate days until dweller's death becomes permanent.
 
         :param dweller: Dead dweller to check
         :type dweller: Dweller
@@ -218,8 +214,7 @@ class DeathService:
         return (permanent_date - now).days
 
     async def check_and_mark_permanent_deaths(self, db_session: AsyncSession) -> int:
-        """
-        Check all dead dwellers and mark those past the threshold as permanently dead.
+        """Check all dead dwellers and mark those past the threshold as permanently dead.
 
         This should be called by a scheduled task (cron job).
 
@@ -233,8 +228,8 @@ class DeathService:
         # Find dead dwellers past the threshold
         query = (
             select(Dweller)
-            .where(Dweller.is_dead == True)
-            .where(Dweller.is_permanently_dead == False)
+            .where(Dweller.is_dead)
+            .where(~Dweller.is_permanently_dead)
             .where(Dweller.death_timestamp <= cutoff_date)
         )
 
@@ -259,8 +254,7 @@ class DeathService:
         return count
 
     async def get_death_statistics(self, db_session: AsyncSession, user_id: UUID4) -> dict:
-        """
-        Get life/death statistics for a user.
+        """Get life/death statistics for a user.
 
         :param db_session: Database session
         :type db_session: AsyncSession
@@ -318,16 +312,14 @@ class DeathService:
         revivable_query = (
             select(Dweller)
             .where(Dweller.vault_id.in_(vault_ids))
-            .where(Dweller.is_dead == True)
-            .where(Dweller.is_permanently_dead == False)
+            .where(Dweller.is_dead)
+            .where(~Dweller.is_permanently_dead)
         )
         revivable_result = await db_session.execute(revivable_query)
         revivable_count = len(revivable_result.scalars().all())
 
         # Count permanently dead
-        permanent_query = (
-            select(Dweller).where(Dweller.vault_id.in_(vault_ids)).where(Dweller.is_permanently_dead == True)
-        )
+        permanent_query = select(Dweller).where(Dweller.vault_id.in_(vault_ids)).where(Dweller.is_permanently_dead)
         permanent_result = await db_session.execute(permanent_query)
         permanent_count = len(permanent_result.scalars().all())
 

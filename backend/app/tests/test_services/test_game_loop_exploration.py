@@ -126,10 +126,10 @@ async def test_process_explorations_multiple_active(
 
     dweller3_data = create_fake_dweller()
     dweller3_data["vault_id"] = vault.id
-    dweller3 = await crud.dweller.create(async_session, DwellerCreate(**dweller3_data))  # noqa: F841
+    dweller3 = await crud.dweller.create(async_session, DwellerCreate(**dweller3_data))
 
     # Create explorations
-    exploration1 = await crud.exploration.create_with_dweller_stats(  # noqa: F841
+    exploration1 = await crud.exploration.create_with_dweller_stats(
         async_session,
         vault_id=vault.id,
         dweller_id=dweller.id,

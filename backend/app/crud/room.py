@@ -36,7 +36,9 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
     @staticmethod
     def evaluate_capacity_formula(formula: str, level: int, size: int) -> int:
         try:
-            result = eval(formula, {"L": level, "S": size})
+            result = eval(  # ruff: ignore[suspicious-eval-usage] - trusted, repository-owned game formula
+                formula, {"L": level, "S": size}
+            )
             return int(result)
         except (ValueError, SyntaxError) as e:
             logger.exception("Error evaluating capacity formula.", exc_info=e)
@@ -45,7 +47,9 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
     @staticmethod
     def evaluate_output_formula(formula: str, level: int, size: int) -> int:
         try:
-            result = eval(formula, {"L": level, "S": size})
+            result = eval(  # ruff: ignore[suspicious-eval-usage] - trusted, repository-owned game formula
+                formula, {"L": level, "S": size}
+            )
             return int(result)
         except (ValueError, SyntaxError) as e:
             logger.exception("Error evaluating output formula.", exc_info=e)
@@ -115,7 +119,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             room_obj.category == RoomTypeEnum.PRODUCTION and room_obj.name != "Radio studio"
         )
 
-    async def build(self, *, db_session: AsyncSession, obj_in: RoomCreate) -> Room:  # noqa: C901, PLR0912, PLR0915
+    async def build(self, *, db_session: AsyncSession, obj_in: RoomCreate) -> Room:
         """Implements the objectives to build a room checking for business logic constraints."""
         vault = await vault_crud.get(db_session, id=obj_in.vault_id)
 

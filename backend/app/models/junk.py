@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from pydantic import UUID4, model_validator
 from sqlmodel import Field, Relationship
@@ -15,7 +15,7 @@ class JunkBase(ItemBase):
     junk_type: JunkTypeEnum
     description: str = Field(min_length=3, max_length=255)
 
-    _value_by_rarity = {
+    _value_by_rarity: ClassVar[dict[RarityEnum, int]] = {
         RarityEnum.COMMON: 2,
         RarityEnum.RARE: 50,
         RarityEnum.LEGENDARY: 200,

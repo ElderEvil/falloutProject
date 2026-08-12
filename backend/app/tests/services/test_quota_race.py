@@ -91,10 +91,10 @@ async def check_and_record_quota(
         db_session.add(interaction)
         await db_session.flush()
 
-        return True
-
     except SQLAlchemyError:
         return False
+    else:
+        return True
 
 
 @pytest.mark.asyncio

@@ -1,7 +1,5 @@
 """CRUD operations for relationships."""
 
-from typing import TYPE_CHECKING
-
 from pydantic import UUID4
 from sqlalchemy import and_
 from sqlmodel import select
@@ -10,9 +8,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.crud.base import CRUDBase
 from app.models.relationship import Relationship
 from app.schemas.relationship import RelationshipCreate, RelationshipUpdate
-
-if TYPE_CHECKING:
-    pass
 
 
 class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUpdate]):

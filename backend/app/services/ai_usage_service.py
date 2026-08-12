@@ -1,5 +1,4 @@
-"""
-AI Usage Service - Token aggregation for user quotas.
+"""AI Usage Service - Token aggregation for user quotas.
 
 IMPORTANT - Caching Strategy for Quota Enforcement:
 - The AIUsageResponse now includes quota fields (quota_limit, quota_used, etc.)

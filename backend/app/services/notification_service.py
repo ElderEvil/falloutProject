@@ -13,11 +13,11 @@ logger = logging.getLogger(__name__)
 
 
 class NotificationService:
-    """Service for creating and sending notifications"""
+    """Service for creating and sending notifications."""
 
     @staticmethod
     async def _get_vault_prefix(db: AsyncSession, vault_id: UUID | None) -> str:
-        """Get vault number prefix for notification messages"""
+        """Get vault number prefix for notification messages."""
         if not vault_id:
             return ""
 
@@ -41,7 +41,7 @@ class NotificationService:
         priority: NotificationPriority = NotificationPriority.NORMAL,
         meta_data: dict[str, Any] | None = None,
     ):
-        """Create a notification and send it via WebSocket"""
+        """Create a notification and send it via WebSocket."""
         vault_prefix = await NotificationService._get_vault_prefix(db, vault_id)
         prefixed_message = f"{vault_prefix}{message}"
 
@@ -120,7 +120,7 @@ class NotificationService:
         event_description: str,
         meta_data: dict[str, Any] | None = None,
     ):
-        """Notify user about exploration event"""
+        """Notify user about exploration event."""
         return await NotificationService.create_and_send(
             db,
             user_id=user_id,
@@ -142,7 +142,7 @@ class NotificationService:
         dweller_name: str,
         meta_data: dict[str, Any] | None = None,
     ):
-        """Notify user that exploration is complete"""
+        """Notify user that exploration is complete."""
         return await NotificationService.create_and_send(
             db,
             user_id=user_id,
@@ -165,7 +165,7 @@ class NotificationService:
         new_level: int,
         meta_data: dict[str, Any] | None = None,
     ):
-        """Notify user that a dweller leveled up"""
+        """Notify user that a dweller leveled up."""
         return await NotificationService.create_and_send(
             db,
             user_id=user_id,
@@ -188,7 +188,7 @@ class NotificationService:
         stat_name: str,
         meta_data: dict[str, Any] | None = None,
     ):
-        """Notify user that training is complete"""
+        """Notify user that training is complete."""
         return await NotificationService.create_and_send(
             db,
             user_id=user_id,
@@ -211,7 +211,7 @@ class NotificationService:
         baby_name: str,
         meta_data: dict[str, Any] | None = None,
     ):
-        """Notify user that a baby was born"""
+        """Notify user that a baby was born."""
         return await NotificationService.create_and_send(
             db,
             user_id=user_id,
@@ -234,7 +234,7 @@ class NotificationService:
         max_amount: int,
         meta_data: dict[str, Any] | None = None,
     ):
-        """Notify user that a resource is running low"""
+        """Notify user that a resource is running low."""
         return await NotificationService.create_and_send(
             db,
             user_id=user_id,
@@ -256,7 +256,7 @@ class NotificationService:
         enemy_name: str,
         meta_data: dict[str, Any] | None = None,
     ):
-        """Notify user about combat victory"""
+        """Notify user about combat victory."""
         return await NotificationService.create_and_send(
             db,
             user_id=user_id,
@@ -277,7 +277,7 @@ class NotificationService:
         dweller_name: str,
         meta_data: dict[str, Any] | None = None,
     ):
-        """Notify user that a new dweller arrived via radio"""
+        """Notify user that a new dweller arrived via radio."""
         return await NotificationService.create_and_send(
             db,
             user_id=user_id,
@@ -299,7 +299,7 @@ class NotificationService:
         cause: str,
         meta_data: dict[str, Any] | None = None,
     ):
-        """Notify user that a dweller has died"""
+        """Notify user that a dweller has died."""
         return await NotificationService.create_and_send(
             db,
             user_id=user_id,
@@ -321,7 +321,7 @@ class NotificationService:
         rewards: str,
         meta_data: dict[str, Any] | None = None,
     ):
-        """Notify user that a quest has been completed"""
+        """Notify user that a quest has been completed."""
         return await NotificationService.create_and_send(
             db,
             user_id=user_id,
@@ -342,7 +342,7 @@ class NotificationService:
         reward: str,
         meta_data: dict[str, Any] | None = None,
     ):
-        """Notify user that an objective has been completed"""
+        """Notify user that an objective has been completed."""
         return await NotificationService.create_and_send(
             db,
             user_id=user_id,
@@ -364,7 +364,7 @@ class NotificationService:
         total: int,
         meta_data: dict[str, Any] | None = None,
     ):
-        """Notify user about objective progress milestone (50% or 90%)"""
+        """Notify user about objective progress milestone (50% or 90%)."""
         percent = int((progress / total) * 100)
         return await NotificationService.create_and_send(
             db,

@@ -58,7 +58,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
 
         # Filter out soft-deleted dwellers by default
         if not include_deleted:
-            query = query.where(self.model.is_deleted == False)
+            query = query.where(~self.model.is_deleted)
 
         response = await db_session.execute(query)
         db_obj = response.scalar_one_or_none()
@@ -84,7 +84,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
 
         # Filter out soft-deleted dwellers by default
         if not include_deleted:
-            query = query.where(self.model.is_deleted == False)
+            query = query.where(~self.model.is_deleted)
 
         # Filter by status
         if status:
@@ -110,7 +110,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
                 query = query.order_by(self.model.first_name.desc(), self.model.last_name.desc())
         elif hasattr(self.model, sort_by):
             sort_column = getattr(self.model, sort_by)
-            if order.lower() == "asc":  # noqa: SIM108
+            if order.lower() == "asc":
                 query = query.order_by(sort_column.asc())
             else:
                 query = query.order_by(sort_column.desc())
@@ -133,7 +133,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
 
         # Filter out soft-deleted dwellers by default
         if not include_deleted:
-            query = query.where(self.model.is_deleted == False)
+            query = query.where(~self.model.is_deleted)
 
         query = query.offset(skip).limit(limit)
         response = await db_session.execute(query)
@@ -410,7 +410,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         query = (
             select(self.model)
             .where(self.model.vault_id == vault_id)
-            .where(self.model.is_deleted == True)
+            .where(self.model.is_deleted)
             .order_by(self.model.deleted_at.desc())
             .offset(skip)
             .limit(limit)

@@ -54,7 +54,7 @@ async def test_generate_event_timing(
     await async_session.refresh(exploration)
 
     # Immediately after creation, should not generate event (needs 5 minutes)
-    event = exploration_service.generate_event(exploration)  # noqa: F841
+    event = exploration_service.generate_event(exploration)
     # This is probabilistic but timing check should prevent generation
     # We can't assert None because it might have been 5+ minutes in test
 

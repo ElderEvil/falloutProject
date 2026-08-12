@@ -81,8 +81,7 @@ class BreedingService:
         db_session: AsyncSession,
         vault_id: UUID4,
     ) -> list[Room]:
-        """
-        Find all living quarters rooms for a vault.
+        """Find all living quarters rooms for a vault.
 
         :param db_session: Database session
         :type db_session: AsyncSession
@@ -100,8 +99,7 @@ class BreedingService:
         vault_id: UUID4,
         living_quarters_ids: list[UUID4],
     ) -> list[Dweller]:
-        """
-        Find all adult dwellers with partners in living quarters.
+        """Find all adult dwellers with partners in living quarters.
 
         :param db_session: Database session
         :type db_session: AsyncSession
@@ -123,8 +121,7 @@ class BreedingService:
 
     @staticmethod
     async def _get_pregnant_mother_ids(db_session: AsyncSession) -> set[UUID4]:
-        """
-        Get set of currently pregnant mother IDs.
+        """Get set of currently pregnant mother IDs.
 
         :param db_session: Database session
         :type db_session: AsyncSession
@@ -140,8 +137,7 @@ class BreedingService:
         pregnant_mother_ids: set[UUID4],
         checked_pairs: set[tuple[str, str]],
     ) -> bool:
-        """
-        Check if a dweller-partner pair is eligible for conception check.
+        """Check if a dweller-partner pair is eligible for conception check.
 
         :param dweller: Dweller to check
         :type dweller: Dweller
@@ -170,8 +166,7 @@ class BreedingService:
         dweller: Dweller,
         partner: Dweller,
     ) -> float:
-        """
-        Get relationship affinity and calculate conception chance.
+        """Get relationship affinity and calculate conception chance.
 
         :param db_session: Database session
         :type db_session: AsyncSession
@@ -203,8 +198,7 @@ class BreedingService:
         partner: Dweller,
         conception_chance: float,
     ) -> Pregnancy | None:
-        """
-        Roll random chance and create pregnancy if successful.
+        """Roll random chance and create pregnancy if successful.
 
         :param db_session: Database session
         :type db_session: AsyncSession
@@ -239,8 +233,7 @@ class BreedingService:
         db_session: AsyncSession,
         vault_id: UUID4,
     ) -> list[Pregnancy]:
-        """
-        Check all partner pairs in living quarters and roll for conception.
+        """Check all partner pairs in living quarters and roll for conception.
 
         :param db_session: Database session
         :param vault_id: Vault ID to check
@@ -284,8 +277,7 @@ class BreedingService:
         mother_id: UUID4,
         father_id: UUID4,
     ) -> Pregnancy:
-        """
-        Create a new pregnancy record.
+        """Create a new pregnancy record.
 
         Args:
             db_session: Database session
@@ -343,8 +335,7 @@ class BreedingService:
         db_session: AsyncSession,
         vault_id: UUID4,
     ) -> list[Pregnancy]:
-        """
-        Find all pregnancies that are due for delivery.
+        """Find all pregnancies that are due for delivery.
 
         Args:
             db_session: Database session
@@ -406,8 +397,7 @@ class BreedingService:
         db_session: AsyncSession,
         pregnancy_id: UUID4,
     ) -> Dweller:
-        """
-        Deliver a baby from a pregnancy.
+        """Deliver a baby from a pregnancy.
 
         Args:
             db_session: Database session
@@ -511,8 +501,7 @@ class BreedingService:
 
     @staticmethod
     def _calculate_inherited_stats(mother: Dweller, father: Dweller) -> dict:
-        """
-        Calculate child's inherited SPECIAL stats.
+        """Calculate child's inherited SPECIAL stats.
 
         Args:
             mother: Mother dweller
@@ -547,8 +536,7 @@ class BreedingService:
 
     @staticmethod
     def _calculate_inherited_rarity(mother: Dweller, father: Dweller) -> RarityEnum:
-        """
-        Calculate child's inherited rarity.
+        """Calculate child's inherited rarity.
 
         Args:
             mother: Mother dweller
@@ -576,8 +564,7 @@ class BreedingService:
         db_session: AsyncSession,
         vault_id: UUID4,
     ) -> list[Dweller]:
-        """
-        Age children to adults if they've reached the growth duration.
+        """Age children to adults if they've reached the growth duration.
 
         Args:
             db_session: Database session
@@ -630,8 +617,7 @@ class BreedingService:
         db_session: AsyncSession,
         vault_id: UUID4,
     ) -> list[Pregnancy]:
-        """
-        Get all active pregnancies for a vault.
+        """Get all active pregnancies for a vault.
 
         Args:
             db_session: Database session

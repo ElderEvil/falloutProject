@@ -24,7 +24,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
     ) -> Sequence[Vault]:
         query = select(self.model).where(self.model.user_id == user_id)
         if not include_deleted:
-            query = query.where(self.model.is_deleted == False)
+            query = query.where(~self.model.is_deleted)
         response = await db_session.execute(query)
         return response.scalars().all()
 

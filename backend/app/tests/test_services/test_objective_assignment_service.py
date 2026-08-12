@@ -380,8 +380,6 @@ class TestAssignAllObjectives:
         weekly_obj = _make_objective(_id=_O2, category=ObjectiveCategoryEnum.WEEKLY)
         ach_obj = _make_objective(_id=_OACH1, category=ObjectiveCategoryEnum.ACHIEVEMENT)
 
-        # assign_daily: query + assigned_ids
-        # assign_weekly: query + assigned_ids
         # assign_achievement: query achievements + check each
         responses = [
             _make_exec_result([daily_obj]),

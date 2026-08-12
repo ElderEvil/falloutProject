@@ -16,8 +16,7 @@ class LevelingService:
 
     @staticmethod
     def calculate_xp_required(level: int) -> int:
-        """
-        Calculate total XP required to reach a specific level.
+        """Calculate total XP required to reach a specific level.
 
         Uses exponential curve: BASE_XP * (level ^ EXPONENT)
 
@@ -40,8 +39,7 @@ class LevelingService:
 
     @staticmethod
     def calculate_xp_for_level_range(current_level: int, target_level: int) -> int:
-        """
-        Calculate XP needed to go from current_level to target_level.
+        """Calculate XP needed to go from current_level to target_level.
 
         Args:
             current_level: Starting level
@@ -57,8 +55,7 @@ class LevelingService:
         )
 
     async def check_level_up(self, db_session: AsyncSession, dweller: Dweller) -> tuple[bool, int]:
-        """
-        Check if dweller has enough XP to level up.
+        """Check if dweller has enough XP to level up.
 
         Args:
             db_session: Database session
@@ -94,8 +91,7 @@ class LevelingService:
         return False, 0
 
     async def level_up_dweller(self, db_session: AsyncSession, dweller: Dweller, levels: int = 1) -> Dweller:
-        """
-        Level up a dweller.
+        """Level up a dweller.
 
         Increases:
         - Level

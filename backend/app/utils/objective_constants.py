@@ -268,5 +268,5 @@ def validate_target_entity(
         "reach": lambda: _validate_reach_type(target_entity.get("reach_type")),
     }
 
-    validator = validators.get(objective_type if objective_type else "")
+    validator = validators.get(objective_type or "")
     return validator() if validator else []

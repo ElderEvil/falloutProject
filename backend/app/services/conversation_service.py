@@ -139,10 +139,11 @@ class ConversationService:
         """
         try:
             usage = result.usage()
-            return usage.input_tokens, usage.output_tokens, usage.total_tokens
         except Exception:
             logger.exception("Failed to extract usage info from voice chat agent result")
             return None, None, None
+        else:
+            return usage.input_tokens, usage.output_tokens, usage.total_tokens
 
     async def _generate_response_with_agent(
         self, db_session: AsyncSession, dweller, transcribed_text: str

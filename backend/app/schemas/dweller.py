@@ -91,8 +91,6 @@ class DwellerVisualAttributes(BaseModel):
     accessory: str | None = None
     object_held: str | None = None
     # TODO: Choose from inventory
-    # outfit: str | None = None
-    # weapon: str | None = None
 
     # Scene & Action
     pose: str | None = None
@@ -164,7 +162,6 @@ class DwellerReadLess(SQLModel):
     parent_2_id: UUID4 | None = None
 
     # TBD
-    # job: str | None
 
 
 class DwellerRead(DwellerBase):

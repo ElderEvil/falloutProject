@@ -60,7 +60,7 @@ class UserService:
             **user.model_dump(),
             access_token=access_token,
             refresh_token=refresh_token,
-            token_type="bearer",
+            token_type="bearer",  # ruff: ignore[hardcoded-password-func-arg]
         )
 
     async def get_ai_usage(

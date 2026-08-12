@@ -24,7 +24,7 @@ def get_app_version() -> str:
     pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
 
     try:
-        with open(pyproject_path, "rb") as f:
+        with pyproject_path.open("rb") as f:
             data = tomllib.load(f)
             return data["project"]["version"]
     except (FileNotFoundError, KeyError):
@@ -54,7 +54,7 @@ def parse_changelog(changelog_path: Path) -> list[dict]:
     if not changelog_path.exists():
         return []
 
-    with open(changelog_path, encoding="utf-8") as f:
+    with changelog_path.open(encoding="utf-8") as f:
         content = f.read()
 
     sections = re.split(r"\n---\n", content)

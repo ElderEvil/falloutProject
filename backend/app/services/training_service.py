@@ -27,8 +27,7 @@ class TrainingService:
 
     @staticmethod
     def calculate_training_duration(current_stat: int, room_tier: int = 1) -> int:
-        """
-        Calculate training duration in seconds.
+        """Calculate training duration in seconds.
 
         Base: 2 hours (7200 seconds)
         Scaling: +30 minutes per current stat level
@@ -58,14 +57,13 @@ class TrainingService:
 
         return int(duration)
 
-    async def can_start_training(  # noqa: PLR0911
+    async def can_start_training(
         self,
         db_session: AsyncSession,
         dweller: Dweller,
         room: Room,
     ) -> tuple[bool, str]:
-        """
-        Check if dweller can start training in the given room.
+        """Check if dweller can start training in the given room.
 
         Args:
             db_session: Database session
@@ -117,8 +115,7 @@ class TrainingService:
         dweller_id: UUID4,
         room_id: UUID4,
     ) -> Training:
-        """
-        Start training a dweller in a training room.
+        """Start training a dweller in a training room.
 
         Args:
             db_session: Database session
@@ -198,8 +195,7 @@ class TrainingService:
         training: Training,
         dweller: Dweller | None = None,
     ) -> Training:
-        """
-        Update training progress based on elapsed time.
+        """Update training progress based on elapsed time.
         Auto-completes training if duration has elapsed.
 
         Args:
@@ -238,8 +234,7 @@ class TrainingService:
         training_id: UUID4,
         dweller: Dweller | None = None,
     ) -> Training:
-        """
-        Complete a training session and increase the dweller's SPECIAL stat.
+        """Complete a training session and increase the dweller's SPECIAL stat.
 
         Args:
             db_session: Database session
@@ -312,8 +307,7 @@ class TrainingService:
         training_id: UUID4,
         dweller: Dweller | None = None,
     ) -> Training:
-        """
-        Cancel an active training session.
+        """Cancel an active training session.
         Dweller does not gain the stat increase.
 
         Args:

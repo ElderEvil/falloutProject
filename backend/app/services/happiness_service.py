@@ -29,8 +29,7 @@ class HappinessService:
         vault_id: UUID4,
         seconds_passed: int = 60,
     ) -> dict:
-        """
-        Update happiness for all dwellers in a vault based on conditions.
+        """Update happiness for all dwellers in a vault based on conditions.
 
         Args:
             db_session: Database session
@@ -122,8 +121,7 @@ class HappinessService:
 
     @staticmethod
     async def _calculate_vault_factors(vault: Vault, active_incidents: list[Incident], radio_rooms: list[Room]) -> dict:
-        """
-        Calculate vault-wide factors affecting happiness.
+        """Calculate vault-wide factors affecting happiness.
 
         Args:
             vault: Vault object
@@ -168,14 +166,13 @@ class HappinessService:
         }
 
     @staticmethod
-    async def _calculate_happiness_change(  # noqa: C901, PLR0912
+    async def _calculate_happiness_change(
         db_session: AsyncSession,
         dweller: Dweller,
         vault_factors: dict,
         seconds_passed: int,
     ) -> float:
-        """
-        Calculate happiness change for a single dweller.
+        """Calculate happiness change for a single dweller.
 
         Args:
             db_session: Database session
@@ -280,12 +277,11 @@ class HappinessService:
         return round(change, 2)
 
     @staticmethod
-    async def get_happiness_modifiers(  # noqa: C901, PLR0912
+    async def get_happiness_modifiers(
         db_session: AsyncSession,
         dweller_id: UUID4,
     ) -> dict:
-        """
-        Get detailed breakdown of happiness modifiers for a dweller.
+        """Get detailed breakdown of happiness modifiers for a dweller.
 
         Args:
             db_session: Database session

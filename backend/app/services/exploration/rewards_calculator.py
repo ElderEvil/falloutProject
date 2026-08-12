@@ -8,8 +8,7 @@ class RewardsCalculator:
     """Handles XP and rewards calculations."""
 
     def calculate_exploration_xp(self, exploration: Exploration, dweller) -> int:
-        """
-        Calculate total XP from exploration with all bonuses.
+        """Calculate total XP from exploration with all bonuses.
 
         Includes:
         - Base XP from distance, enemies, and events

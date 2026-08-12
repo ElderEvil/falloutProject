@@ -42,7 +42,7 @@ class ObjectiveEvaluator(abc.ABC):
     """
 
     objective_type: str
-    subscribed_events: list[GameEvent]
+    subscribed_events: tuple[GameEvent, ...]
 
     def __init__(self, event_bus: EventBus) -> None:
         self._event_bus = event_bus
@@ -156,7 +156,7 @@ class CollectEvaluator(ObjectiveEvaluator):
     """
 
     objective_type = "collect"
-    subscribed_events = [GameEvent.RESOURCE_COLLECTED, GameEvent.ITEM_COLLECTED]
+    subscribed_events = (GameEvent.RESOURCE_COLLECTED, GameEvent.ITEM_COLLECTED)
 
     def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:
         target = objective.target_entity or {}
@@ -195,9 +195,9 @@ class BuildEvaluator(ObjectiveEvaluator):
     """
 
     objective_type = "build"
-    subscribed_events = [GameEvent.ROOM_BUILT, GameEvent.ROOM_UPGRADED]
+    subscribed_events = (GameEvent.ROOM_BUILT, GameEvent.ROOM_UPGRADED)
 
-    def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:  # noqa: ARG002
+    def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:
         target = objective.target_entity or {}
         target_room_type = target.get("room_type")
 
@@ -211,7 +211,7 @@ class BuildEvaluator(ObjectiveEvaluator):
 
         return event_room_type == target_normalized
 
-    def _extract_amount(self, data: dict[str, Any]) -> int:  # noqa: ARG002
+    def _extract_amount(self, data: dict[str, Any]) -> int:
         return 1
 
 
@@ -223,9 +223,9 @@ class TrainEvaluator(ObjectiveEvaluator):
     """
 
     objective_type = "train"
-    subscribed_events = [GameEvent.DWELLER_TRAINED]
+    subscribed_events = (GameEvent.DWELLER_TRAINED,)
 
-    def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:  # noqa: ARG002
+    def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:
         target = objective.target_entity or {}
         target_stat = target.get("stat")
 
@@ -234,7 +234,7 @@ class TrainEvaluator(ObjectiveEvaluator):
 
         return data.get("stat_trained") == target_stat
 
-    def _extract_amount(self, data: dict[str, Any]) -> int:  # noqa: ARG002
+    def _extract_amount(self, data: dict[str, Any]) -> int:
         return 1
 
 
@@ -246,9 +246,9 @@ class AssignEvaluator(ObjectiveEvaluator):
     """
 
     objective_type = "assign"
-    subscribed_events = [GameEvent.DWELLER_ASSIGNED]
+    subscribed_events = (GameEvent.DWELLER_ASSIGNED,)
 
-    def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:  # noqa: ARG002
+    def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:
         target = objective.target_entity or {}
         target_room_type = target.get("room_type")
 
@@ -259,7 +259,7 @@ class AssignEvaluator(ObjectiveEvaluator):
         target_normalized = normalize_room_type(target_room_type)
         return event_room_type == target_normalized
 
-    def _extract_amount(self, data: dict[str, Any]) -> int:  # noqa: ARG002
+    def _extract_amount(self, data: dict[str, Any]) -> int:
         return 1
 
 
@@ -273,12 +273,12 @@ class AssignCorrectEvaluator(ObjectiveEvaluator):
     """
 
     objective_type = "assign_correct"
-    subscribed_events = [GameEvent.DWELLER_ASSIGNED_CORRECTLY]
+    subscribed_events = (GameEvent.DWELLER_ASSIGNED_CORRECTLY,)
 
-    def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:  # noqa: ARG002
+    def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:
         return data.get("is_correct", False)
 
-    def _extract_amount(self, data: dict[str, Any]) -> int:  # noqa: ARG002
+    def _extract_amount(self, data: dict[str, Any]) -> int:
         return 1
 
 
@@ -294,9 +294,9 @@ class ReachEvaluator(ObjectiveEvaluator):
     """
 
     objective_type = "reach"
-    subscribed_events = [GameEvent.DWELLER_LEVEL_UP, GameEvent.DWELLER_ASSIGNED]
+    subscribed_events = (GameEvent.DWELLER_LEVEL_UP, GameEvent.DWELLER_ASSIGNED)
 
-    def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:  # noqa: ARG002
+    def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:
         target = objective.target_entity or {}
         target_type = target.get("reach_type") or target.get("target")
 
@@ -369,9 +369,9 @@ class ExpeditionEvaluator(ObjectiveEvaluator):
     """
 
     objective_type = "expedition"
-    subscribed_events = [GameEvent.QUEST_COMPLETED]
+    subscribed_events = (GameEvent.QUEST_COMPLETED,)
 
-    def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:  # noqa: ARG002
+    def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:
         target = objective.target_entity or {}
         target_quest_type = target.get("quest_type")
 
@@ -381,7 +381,7 @@ class ExpeditionEvaluator(ObjectiveEvaluator):
         event_quest_type = data.get("quest_type", "")
         return event_quest_type.lower() == target_quest_type.lower()
 
-    def _extract_amount(self, data: dict[str, Any]) -> int:  # noqa: ARG002
+    def _extract_amount(self, data: dict[str, Any]) -> int:
         return 1
 
 
@@ -394,9 +394,9 @@ class LevelUpEvaluator(ObjectiveEvaluator):
     """
 
     objective_type = "level_up"
-    subscribed_events = [GameEvent.DWELLER_LEVEL_UP]
+    subscribed_events = (GameEvent.DWELLER_LEVEL_UP,)
 
-    def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:  # noqa: ARG002
+    def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:
         target = objective.target_entity or {}
         raw_min_level = target.get("min_level", 1)
         try:
@@ -407,7 +407,7 @@ class LevelUpEvaluator(ObjectiveEvaluator):
         new_level = data.get("new_level", data.get("level", 1))
         return new_level >= min_level
 
-    def _extract_amount(self, data: dict[str, Any]) -> int:  # noqa: ARG002
+    def _extract_amount(self, data: dict[str, Any]) -> int:
         return 1
 
 

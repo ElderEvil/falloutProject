@@ -17,7 +17,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     async def get_by_email(self, db_session: AsyncSession, email: str, include_deleted: bool = False) -> User | None:
         query = select(self.model).where(self.model.email == email)
         if not include_deleted:
-            query = query.where(self.model.is_deleted == False)
+            query = query.where(~self.model.is_deleted)
         response = await db_session.execute(query)
         return response.scalar_one_or_none()
 
@@ -26,7 +26,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     ) -> User | None:
         query = select(self.model).where(self.model.username == username)
         if not include_deleted:
-            query = query.where(self.model.is_deleted == False)
+            query = query.where(~self.model.is_deleted)
         response = await db_session.execute(query)
         return response.scalar_one_or_none()
 

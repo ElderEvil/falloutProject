@@ -46,8 +46,7 @@ class HealthCheckService:
 
     @staticmethod
     async def check_postgres(engine: AsyncEngine) -> HealthCheckResult:
-        """
-        Check PostgreSQL database connectivity.
+        """Check PostgreSQL database connectivity.
 
         Args:
             engine: AsyncEngine instance
@@ -75,8 +74,7 @@ class HealthCheckService:
 
     @staticmethod
     async def check_redis() -> HealthCheckResult:
-        """
-        Check Redis connectivity.
+        """Check Redis connectivity.
 
         Returns:
             HealthCheckResult with connection status
@@ -204,8 +202,7 @@ class HealthCheckService:
 
     @staticmethod
     async def check_ollama() -> HealthCheckResult:
-        """
-        Check Ollama service connectivity when using ollama provider.
+        """Check Ollama service connectivity when using ollama provider.
 
         Returns:
             HealthCheckResult with connection status
@@ -295,8 +292,7 @@ class HealthCheckService:
 
     @staticmethod
     async def check_smtp() -> HealthCheckResult:
-        """
-        Check SMTP email service connectivity.
+        """Check SMTP email service connectivity.
 
         Returns:
             HealthCheckResult with connection status
@@ -399,8 +395,7 @@ class HealthCheckService:
 
     @staticmethod
     def log_health_check_results(results: dict[str, HealthCheckResult]) -> bool:
-        """
-        Log health check results and return overall health status.
+        """Log health check results and return overall health status.
 
         Args:
             results: Dictionary of health check results
@@ -414,7 +409,7 @@ class HealthCheckService:
         logger.info("SERVICE HEALTH CHECK RESULTS")
         logger.info("==================================================")
 
-        for _service_name, result in results.items():
+        for result in results.values():
             status_emoji = "✓" if result.status == ServiceStatus.HEALTHY else "✗"
             log_level = logging.INFO if result.status == ServiceStatus.HEALTHY else logging.WARNING
 

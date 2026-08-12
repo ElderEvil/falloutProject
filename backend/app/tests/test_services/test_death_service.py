@@ -97,7 +97,7 @@ class TestDeathService:
     async def test_mark_as_dead_success(
         self,
         async_session: AsyncSession,
-        vault: Vault,  # noqa: ARG002 - fixture needed for dweller setup
+        vault: Vault,
         alive_dweller: Dweller,
     ):
         """Test marking a living dweller as dead."""
@@ -118,7 +118,7 @@ class TestDeathService:
     async def test_mark_as_dead_with_custom_epitaph(
         self,
         async_session: AsyncSession,
-        vault: Vault,  # noqa: ARG002 - fixture needed for dweller setup
+        vault: Vault,
         alive_dweller: Dweller,
     ):
         """Test marking dweller as dead with custom epitaph."""
@@ -380,8 +380,8 @@ class TestDeathService:
         self,
         async_session: AsyncSession,
         vault: Vault,
-        dead_dweller: Dweller,  # noqa: ARG002 - fixture creates dweller in DB
-        permanently_dead_dweller: Dweller,  # noqa: ARG002 - fixture creates dweller in DB
+        dead_dweller: Dweller,
+        permanently_dead_dweller: Dweller,
     ):
         """Test getting death statistics for a user."""
         # First create profile for user if not exists
@@ -462,8 +462,8 @@ class TestDeathCRUD:
         async_session: AsyncSession,
         vault: Vault,
         dead_dweller: Dweller,
-        permanently_dead_dweller: Dweller,  # noqa: ARG002 - fixture creates dweller in DB
-        alive_dweller: Dweller,  # noqa: ARG002 - fixture creates dweller in DB
+        permanently_dead_dweller: Dweller,
+        alive_dweller: Dweller,
     ):
         """Test fetching dead (revivable) dwellers."""
         result = await crud.dweller.get_dead_dwellers(async_session, vault.id)
@@ -477,7 +477,7 @@ class TestDeathCRUD:
         async_session: AsyncSession,
         vault: Vault,
         dead_dweller: Dweller,
-        permanently_dead_dweller: Dweller,  # noqa: ARG002 - fixture creates dweller in DB
+        permanently_dead_dweller: Dweller,
     ):
         """Test fetching revivable dwellers."""
         result = await crud.dweller.get_revivable_dwellers(async_session, vault.id)
@@ -492,7 +492,7 @@ class TestDeathCRUD:
         self,
         async_session: AsyncSession,
         vault: Vault,
-        dead_dweller: Dweller,  # noqa: ARG002 - fixture creates dweller in DB
+        dead_dweller: Dweller,
         permanently_dead_dweller: Dweller,
     ):
         """Test fetching graveyard (permanently dead) dwellers."""

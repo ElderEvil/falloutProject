@@ -30,8 +30,7 @@ class IncidentService:
     async def should_spawn_incident(
         self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int, game_state: GameState | None = None
     ) -> bool:
-        """
-        Determine if an incident should spawn based on vault state and time.
+        """Determine if an incident should spawn based on vault state and time.
 
         Args:
             db_session: Database session
@@ -84,8 +83,7 @@ class IncidentService:
     async def spawn_incident(
         self, db_session: AsyncSession, vault_id: UUID4, incident_type: IncidentType | None = None
     ) -> Incident | None:
-        """
-        Spawn a new incident in a random occupied room.
+        """Spawn a new incident in a random occupied room.
         Raiders and Deathclaws spawn at vault door (0,0) and spread inward.
 
         Rules enforced:
@@ -256,11 +254,10 @@ class IncidentService:
 
         return incident
 
-    async def process_incident(  # noqa: PLR0915
+    async def process_incident(
         self, db_session: AsyncSession, incident: Incident, seconds_passed: int
     ) -> dict[str, int | float]:
-        """
-        Process an active incident (apply damage, check victory conditions).
+        """Process an active incident (apply damage, check victory conditions).
 
         Args:
             db_session: Database session
@@ -420,8 +417,7 @@ class IncidentService:
         incident_id: UUID4,
         success: bool = True,
     ) -> dict:
-        """
-        Manually resolve an incident (player intervention).
+        """Manually resolve an incident (player intervention).
 
         Args:
             db_session: Database session
@@ -608,8 +604,7 @@ class IncidentService:
         return damage_per_second * seconds
 
     async def _award_combat_xp(self, db_session: AsyncSession, incident: "Incident", dwellers: list["Dweller"]) -> None:
-        """
-        Award experience to dwellers who participated in combat.
+        """Award experience to dwellers who participated in combat.
 
         Args:
             db_session: Database session

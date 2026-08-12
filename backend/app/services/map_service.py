@@ -9,15 +9,13 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
-from pydantic import UUID4
+from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
 from sqlalchemy.exc import IntegrityError
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
 from app.crud.wasteland_location import wasteland_location as wl_crud
-from app.models.dweller import Dweller
 from app.models.notification import NotificationPriority, NotificationType
 from app.models.vault import Vault
 from app.models.wasteland_location import (
@@ -25,7 +23,7 @@ from app.models.wasteland_location import (
     LocationTypeEnum,
     WastelandLocation,
 )
-from app.schemas.common import RarityEnum
+from app.schemas.common import RarityEnum  # ruff: ignore[typing-only-first-party-import]
 from app.schemas.wasteland_location import (
     DwellerRef,
     VaultMapResponse,
@@ -34,6 +32,11 @@ from app.schemas.wasteland_location import (
 )
 from app.services.notification_service import notification_service
 from app.utils.places import GENERIC_ORIGIN_SKIP, WORLD_SCALE, normalize_place_name, seeded_vault_specs
+
+if TYPE_CHECKING:
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from app.models.dweller import Dweller
 
 logger = logging.getLogger(__name__)
 
@@ -98,14 +101,15 @@ class MapService:
         db_session.add(obj)
         try:
             await db_session.commit()
-            await db_session.refresh(obj)
-            return obj
         except IntegrityError:
             await db_session.rollback()
             existing = await wl_crud.get_by_normalized(db_session, vault.id, normalized)
             if existing is not None:
                 return existing
             raise
+        else:
+            await db_session.refresh(obj)
+            return obj
 
     async def link_home_origin(self, db_session: AsyncSession, dweller: Dweller, vault: Vault) -> None:
         """Ensure the home marker exists and link *dweller* to it as ORIGIN — best-effort."""
@@ -155,7 +159,6 @@ class MapService:
                     visited_places,
                     explicit_origin,
                 )
-                return True
             except Exception:
                 await db_session.rollback()
                 if attempt == 0:
@@ -174,6 +177,8 @@ class MapService:
                     map_dweller.vault_id,
                     origin_place,
                 )
+            else:
+                return True
 
         await self._notify_bio_registration_failure(db_session, map_dweller)
         return False
@@ -187,7 +192,7 @@ class MapService:
         explicit_origin: str | None,
     ) -> None:
         """Register bio places once; callers handle best-effort recovery."""
-        effective_origin = explicit_origin if explicit_origin else origin_place
+        effective_origin = explicit_origin or origin_place
 
         # --- origin ---
         if not self._should_skip(effective_origin):

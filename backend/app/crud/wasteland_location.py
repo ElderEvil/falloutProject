@@ -3,17 +3,21 @@
 from __future__ import annotations
 
 import logging
-from uuid import UUID
+from typing import TYPE_CHECKING
 
-from pydantic import UUID4
 from sqlalchemy import update as sa_update
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.dweller import Dweller
 from app.models.wasteland_location import DwellerLocation, DwellerLocationRelationEnum, WastelandLocation
 from app.utils.places import collision_nudge, normalize_place_name, schematic_coords
+
+if TYPE_CHECKING:
+    from uuid import UUID
+
+    from pydantic import UUID4
+    from sqlmodel.ext.asyncio.session import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +54,7 @@ class CRUDWastelandLocation:
         db_session: AsyncSession,
         vault_id: UUID4,
         name: str,
-        type: str,  # noqa: A002  — LocationTypeEnum pass-through
+        type: str,
         description: str | None = None,
         exploration_id: UUID4 | None = None,
     ) -> WastelandLocation:
@@ -100,8 +104,6 @@ class CRUDWastelandLocation:
             db_session.add(obj)
             try:
                 await db_session.commit()
-                await db_session.refresh(obj)
-                return obj
             except IntegrityError:
                 # Race: another request already inserted this name
                 await db_session.rollback()
@@ -119,6 +121,9 @@ class CRUDWastelandLocation:
                     max_retries,
                 )
                 # Fall through to next iteration — occupied set is rebuilt from DB
+            else:
+                await db_session.refresh(obj)
+                return obj
 
         # Exhausted all retries
         raise IntegrityError(
@@ -155,8 +160,6 @@ class CRUDWastelandLocation:
         db_session.add(link)
         try:
             await db_session.commit()
-            await db_session.refresh(link)
-            return link
         except IntegrityError:
             await db_session.rollback()
             result = await db_session.execute(stmt)
@@ -164,6 +167,9 @@ class CRUDWastelandLocation:
             if existing is not None:
                 return existing
             raise
+        else:
+            await db_session.refresh(link)
+            return link
 
     async def get_dweller_refs(self, db_session: AsyncSession, location_ids: list[UUID4]) -> dict[UUID4, list[dict]]:
         """Batch-load dweller references for a list of location ids.

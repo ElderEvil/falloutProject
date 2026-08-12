@@ -48,7 +48,7 @@ class UserWithTokens(UserRead):
 
 
 class UserReadWithVaults(UserRead):
-    vaults: list["VaultRead"] = []
+    vaults: list["VaultRead"] = Field(default_factory=list)
 
 
 @optional()

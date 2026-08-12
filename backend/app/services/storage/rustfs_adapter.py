@@ -71,7 +71,8 @@ class RustFSAdapter:
         if not self.enabled:
             return
         client = self._client
-        assert client is not None
+        if client is None:
+            raise RuntimeError("S3 client is not initialized")
         bucket_created = False
         try:
             client.head_bucket(Bucket=bucket_name)

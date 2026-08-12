@@ -11,7 +11,6 @@ if TYPE_CHECKING:
 
 
 class PromptBase(SQLModel):
-    # ai_model_type: AIModelType = Field(default=AIModelType.CHATGPT)
     prompt_name: str = Field(min_length=3, max_length=32, index=True)
     description: str = Field(min_length=3, max_length=1000)
     prompt_template: str = Field()

@@ -21,10 +21,10 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
         """Get notifications for a user"""
         from sqlalchemy import desc
 
-        query = select(Notification).where(Notification.user_id == user_id).where(Notification.is_dismissed == False)
+        query = select(Notification).where(Notification.user_id == user_id).where(~Notification.is_dismissed)
 
         if unread_only:
-            query = query.where(Notification.is_read == False)
+            query = query.where(~Notification.is_read)
 
         query = query.order_by(desc(Notification.created_at)).offset(offset).limit(limit)
         result = await db.execute(query)
@@ -35,8 +35,8 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
         query = (
             select(Notification)
             .where(Notification.user_id == user_id)
-            .where(Notification.is_read == False)
-            .where(Notification.is_dismissed == False)
+            .where(~Notification.is_read)
+            .where(~Notification.is_dismissed)
         )
         result = await db.execute(query)
         return len(list(result.scalars().all()))
@@ -55,7 +55,7 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
 
     async def mark_all_as_read(self, db: AsyncSession, user_id: UUID) -> int:
         """Mark all notifications as read for a user"""
-        query = select(Notification).where(Notification.user_id == user_id).where(Notification.is_read == False)
+        query = select(Notification).where(Notification.user_id == user_id).where(~Notification.is_read)
         result = await db.execute(query)
         notifications = result.scalars().all()
 

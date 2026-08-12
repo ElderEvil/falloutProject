@@ -601,7 +601,7 @@ async def test_check_all_services_all_enabled() -> None:
         patch.object(HealthCheckService, "check_dramatiq", staticmethod(fake_dramatiq)),
         patch.object(HealthCheckService, "check_smtp", staticmethod(fake_smtp)),
     ):
-        engine = cast(AsyncEngine, object())
+        engine = cast("AsyncEngine", object())
         results = await service.check_all_services(
             engine=engine, include_dramatiq=True, include_smtp=True, include_ollama=False
         )
@@ -638,7 +638,7 @@ async def test_check_all_services_with_ollama() -> None:
         patch.object(HealthCheckService, "check_smtp", _sm),
         patch.object(HealthCheckService, "check_ollama", _ol),
     ):
-        engine = cast(AsyncEngine, object())
+        engine = cast("AsyncEngine", object())
         results = await service.check_all_services(
             engine=engine, include_dramatiq=True, include_smtp=True, include_ollama=True
         )
@@ -662,7 +662,7 @@ async def test_check_all_services_dramatiq_disabled() -> None:
         patch.object(HealthCheckService, "check_rustfs", _rf),
         patch.object(HealthCheckService, "check_smtp", _sm),
     ):
-        engine = cast(AsyncEngine, object())
+        engine = cast("AsyncEngine", object())
         results = await service.check_all_services(
             engine=engine, include_dramatiq=False, include_smtp=True, include_ollama=False
         )
@@ -685,7 +685,7 @@ async def test_check_all_services_smtp_disabled() -> None:
         patch.object(HealthCheckService, "check_rustfs", _rf),
         patch.object(HealthCheckService, "check_dramatiq", _dq),
     ):
-        engine = cast(AsyncEngine, object())
+        engine = cast("AsyncEngine", object())
         results = await service.check_all_services(
             engine=engine, include_dramatiq=True, include_smtp=False, include_ollama=False
         )
@@ -714,7 +714,7 @@ async def test_check_all_services_mixed_health() -> None:
         patch.object(HealthCheckService, "check_dramatiq", _dq),
         patch.object(HealthCheckService, "check_smtp", _sm),
     ):
-        engine = cast(AsyncEngine, object())
+        engine = cast("AsyncEngine", object())
         results = await service.check_all_services(
             engine=engine, include_dramatiq=True, include_smtp=True, include_ollama=False
         )

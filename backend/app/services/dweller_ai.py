@@ -117,7 +117,7 @@ class DwellerAIService:
             prompt_tokens = usage.input_tokens
             completion_tokens = usage.output_tokens
             total_tokens = usage.total_tokens
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.warning("Failed to extract usage info from backstory agent result")
             prompt_tokens = None
             completion_tokens = None
@@ -182,7 +182,7 @@ class DwellerAIService:
             prompt_tokens = usage.input_tokens
             completion_tokens = usage.output_tokens
             total_tokens = usage.total_tokens
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.warning("Failed to extract usage info from bio extension agent result")
             prompt_tokens = None
             completion_tokens = None
@@ -262,7 +262,7 @@ class DwellerAIService:
             prompt_tokens = usage.input_tokens
             completion_tokens = usage.output_tokens
             total_tokens = usage.total_tokens
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.warning("Failed to extract usage info from visual attributes agent result")
             prompt_tokens = None
             completion_tokens = None
@@ -353,9 +353,7 @@ class DwellerAIService:
         dweller_info: DwellerReadFull | None = None,
         voice_type: str = "echo",
     ) -> DwellerReadFull:
-        """
-        Generates a voice line for a dweller, uploads it to storage, and updates dweller info.
-        """
+        """Generates a voice line for a dweller, uploads it to storage, and updates dweller info."""
         # Estimate TTS tokens using character count approximation (~4 chars per token)
         # TTS doesn't return token counts from API, so we estimate based on input text
         estimated_tokens = ceil(len(text) / 4)

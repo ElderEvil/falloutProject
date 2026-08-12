@@ -34,7 +34,7 @@ class PrerequisiteService:
                 and_(
                     Dweller.vault_id == vault_id,
                     Dweller.level >= required_level,
-                    Dweller.is_deleted == False,
+                    ~Dweller.is_deleted,
                 )
             )
         )
@@ -101,7 +101,7 @@ class PrerequisiteService:
             select(func.count(Dweller.id)).where(
                 and_(
                     Dweller.vault_id == vault_id,
-                    Dweller.is_deleted == False,
+                    ~Dweller.is_deleted,
                 )
             )
         )
@@ -121,7 +121,7 @@ class PrerequisiteService:
                 and_(
                     VaultQuestCompletionLink.vault_id == vault_id,
                     VaultQuestCompletionLink.quest_id == quest_id,
-                    VaultQuestCompletionLink.is_completed == True,
+                    VaultQuestCompletionLink.is_completed,
                 )
             )
         )

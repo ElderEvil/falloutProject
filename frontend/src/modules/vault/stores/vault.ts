@@ -4,15 +4,13 @@ import { ref, computed, watch } from 'vue'
 import axios from '@/core/plugins/axios'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useSse } from '@/core/composables/useEventStream'
+import { useToast } from '@/core/composables/useToast'
 import type { components } from '@/core/types/api.generated'
 
 // Use generated API types
 type VaultReadWithNumbers = components['schemas']['VaultReadWithNumbers']
 
-// Use the generated type directly without overriding resource_warnings
-export interface VaultWithNumbers extends VaultReadWithNumbers {
-  // resource_warnings is already defined in VaultReadWithNumbers as { [key: string]: string }[]
-}
+export type VaultWithNumbers = VaultReadWithNumbers
 
 // GameState type (not yet in API schemas)
 interface GameState {
@@ -23,6 +21,7 @@ interface GameState {
 }
 
 export const useVaultStore = defineStore('vault', () => {
+  const toast = useToast()
   // State
   const vaults = ref<VaultWithNumbers[]>([])
   const selectedVaultId = useLocalStorage<string | null>('selectedVaultId', null)
@@ -114,7 +113,7 @@ export const useVaultStore = defineStore('vault', () => {
 
       // Show appropriate notification
       if (hardDelete) {
-        console.warn('Vault permanently deleted')
+        toast.warning('Vault permanently deleted')
       } else {
         console.info('Vault soft deleted - Data preserved for potential recovery')
       }

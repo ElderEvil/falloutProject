@@ -1,6 +1,3 @@
-import { reactive } from 'vue'
-import { getActivePinia } from 'pinia'
-
 export type {
   DwellerStatus,
   DwellerAgeGroup,
@@ -22,62 +19,23 @@ import { useDwellerManagementStore } from './dwellerManagement'
 import { useDwellerMedicalStore } from './dwellerMedical'
 import { useDwellerDeathStore } from './dwellerDeath'
 
-type DwellerFacade = ReturnType<typeof useDwellerFilterStore> &
-  ReturnType<typeof useDwellerGenerationStore> &
-  ReturnType<typeof useDwellerManagementStore> &
-  ReturnType<typeof useDwellerMedicalStore> &
-  ReturnType<typeof useDwellerDeathStore>
-
-let cachedFacade: DwellerFacade | null = null
-let cachedPinia: ReturnType<typeof getActivePinia> = null
-
-function buildDwellerFacade(): DwellerFacade {
-  const filter = useDwellerFilterStore()
-  const generation = useDwellerGenerationStore()
-  const management = useDwellerManagementStore()
-  const medical = useDwellerMedicalStore()
-  const death = useDwellerDeathStore()
-
-  const stores = [filter, generation, management, medical, death]
-  const keyToStore = new Map<string, unknown>()
-
-  for (const store of stores) {
-    for (const key of Object.keys(store)) {
-      if (!keyToStore.has(key)) {
-        keyToStore.set(key, store)
-      }
-    }
-  }
-
-  const target: Record<string, unknown> = {}
-
-  for (const [key, store] of keyToStore.entries()) {
-    Object.defineProperty(target, key, {
-      get() {
-        return (store as Record<string, unknown>)[key]
-      },
-      set(value) {
-        ;(store as Record<string, unknown>)[key] = value
-      },
-      enumerable: true,
-      configurable: true,
-    })
-  }
-
-  return reactive(target)
+export interface DwellerStoreSlices {
+  filter: ReturnType<typeof useDwellerFilterStore>
+  generation: ReturnType<typeof useDwellerGenerationStore>
+  management: ReturnType<typeof useDwellerManagementStore>
+  medical: ReturnType<typeof useDwellerMedicalStore>
+  death: ReturnType<typeof useDwellerDeathStore>
 }
 
 /**
- * Backward-compatible facade that composes all 5 dweller sub-stores.
- * Consumers can continue using `useDwellerStore()` exactly as before.
+ * Groups the dweller domain's independent Pinia stores without flattening their
+ * state. Consumers retain each slice's native Pinia API (`$id`, `$patch`, and
+ * `storeToRefs`) and loading state can no longer collide across concerns.
  */
-export const useDwellerStore = () => {
-  const pinia = getActivePinia()
-  if (cachedFacade && cachedPinia === pinia) {
-    return cachedFacade
-  }
-
-  cachedPinia = pinia
-  cachedFacade = buildDwellerFacade()
-  return cachedFacade
-}
+export const useDwellerStore = (): DwellerStoreSlices => ({
+  filter: useDwellerFilterStore(),
+  generation: useDwellerGenerationStore(),
+  management: useDwellerManagementStore(),
+  medical: useDwellerMedicalStore(),
+  death: useDwellerDeathStore(),
+})

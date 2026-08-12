@@ -15,11 +15,18 @@ export default defineConfig({
       },
     },
   ],
-  webServer: {
-    command: 'pnpm run dev -- --skip-types-generate',
-    port: 5173,
-    reuseExistingServer: true,
-  },
+  webServer: [
+    {
+      command: 'cd ../backend && uv run fastapi dev main.py',
+      url: 'http://localhost:8000/healthcheck',
+      reuseExistingServer: true,
+    },
+    {
+      command: 'pnpm run dev',
+      port: 5173,
+      reuseExistingServer: true,
+    },
+  ],
   use: {
     baseURL: 'http://localhost:5173',
   },

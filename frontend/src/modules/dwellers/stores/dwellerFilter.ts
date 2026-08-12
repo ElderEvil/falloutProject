@@ -5,6 +5,7 @@ import axios from '@/core/plugins/axios'
 import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
 import { getDwellersByVault } from '@/modules/dwellers/services/dwellerService'
 import { handleStoreError } from '@/core/utils/errorHandler'
+import { useAsyncAction } from '@/core/composables/useAsyncAction'
 
 /**
  * Non-null limit for complete-fetch requests (fetchAllDwellers). The backend
@@ -13,7 +14,7 @@ import { handleStoreError } from '@/core/utils/errorHandler'
  */
 export const ALL_DWELLERS_FETCH_LIMIT = 1000
 
-export type DwellerStatus = 'idle' | 'working' | 'exploring' | 'questing' | 'training' | 'dead'
+export type DwellerStatus = 'idle' | 'working' | 'exploring' | 'questing' | 'training' | 'resting' | 'dead'
 export type DwellerAgeGroup = 'child' | 'teen' | 'adult' | 'all'
 
 export interface DwellerWithStatus extends DwellerShort {
@@ -32,13 +33,42 @@ export type DwellerSortBy =
   | 'agility'
   | 'luck'
 export type SortDirection = 'asc' | 'desc'
+type DwellerFetchOptions = {
+  status?: DwellerStatus | 'all'
+  ageGroup?: DwellerAgeGroup
+  search?: string
+  sortBy?: string
+  order?: 'asc' | 'desc'
+  skip?: number
+  limit?: number
+}
 
 export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   // State
   const dwellers = ref<DwellerShort[]>([])
   const allDwellers = ref<DwellerShort[]>([])
   const detailedDwellers = ref<Record<string, Dweller | null>>({})
-  const isLoading = ref(false)
+  const { run: runFetchDwellers, isLoading } = useAsyncAction(
+    async (vaultId: string, token: string, options?: DwellerFetchOptions) => {
+      const params = new URLSearchParams()
+      if (options?.status && options.status !== 'all') params.append('status', options.status)
+      if (options?.ageGroup && options.ageGroup !== 'all')
+        params.append('age_group', options.ageGroup)
+      if (options?.search) params.append('search', options.search)
+      if (options?.sortBy) params.append('sort_by', options.sortBy)
+      if (options?.order) params.append('order', options.order)
+      if (options?.skip !== undefined) params.append('skip', options.skip.toString())
+      if (options?.limit !== undefined) params.append('limit', options.limit.toString())
+
+      const queryString = params.toString()
+      const response = await axios.get(
+        `/api/v1/dwellers/vault/${vaultId}/${queryString ? `?${queryString}` : ''}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      dwellers.value = response.data
+    },
+    { context: 'Failed to fetch dwellers', showToast: false }
+  )
 
   // Vault-scoped request tracking for fetchAllDwellers: results are applied
   // only when they still match the active vault and the latest request.
@@ -117,50 +147,12 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     return result
   })
 
-  async function fetchDwellers(vaultId: string, _token?: string): Promise<void> {
-    console.warn('fetchDwellers is deprecated, use fetchDwellersByVault with vaultId')
-    await fetchDwellersByVault(vaultId, _token || '')
-  }
-
   async function fetchDwellersByVault(
     vaultId: string,
     token: string,
-    options?: {
-      status?: DwellerStatus | 'all'
-      ageGroup?: DwellerAgeGroup
-      search?: string
-      sortBy?: string
-      order?: 'asc' | 'desc'
-      skip?: number
-      limit?: number
-    }
+    options?: DwellerFetchOptions
   ): Promise<void> {
-    isLoading.value = true
-    try {
-      const params = new URLSearchParams()
-      if (options?.status && options.status !== 'all') params.append('status', options.status)
-      if (options?.ageGroup && options.ageGroup !== 'all')
-        params.append('age_group', options.ageGroup)
-      if (options?.search) params.append('search', options.search)
-      if (options?.sortBy) params.append('sort_by', options.sortBy)
-      if (options?.order) params.append('order', options.order)
-      if (options?.skip !== undefined) params.append('skip', options.skip.toString())
-      if (options?.limit !== undefined) params.append('limit', options.limit.toString())
-
-      const queryString = params.toString()
-      const url = `/api/v1/dwellers/vault/${vaultId}/${queryString ? `?${queryString}` : ''}`
-
-      const response = await axios.get(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-      dwellers.value = response.data
-    } catch (error) {
-      handleStoreError(error, `Failed to fetch dwellers for vault ${vaultId}`)
-    } finally {
-      isLoading.value = false
-    }
+    await runFetchDwellers(vaultId, token, options)
   }
 
   /**
@@ -243,7 +235,6 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     getDwellerStatus,
     getDwellersByStatus,
     filteredAndSortedDwellers,
-    fetchDwellers,
     fetchDwellersByVault,
     fetchAllDwellers,
     fetchDwellerDetails,

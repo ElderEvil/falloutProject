@@ -204,6 +204,7 @@ function onPanelMarkerSelect(payload: {
         :y="getSpread(`loc-${loc.id}`, loc.coord_x, loc.coord_y).renderY"
         :name="loc.name"
         :type="loc.type"
+        :is_unlocked="loc.is_unlocked"
         :selected="selectedMarkerId === `loc-${loc.id}`"
         @click="onLocationClick(loc)"
       />
@@ -297,7 +298,7 @@ function onPanelMarkerSelect(payload: {
 .zoom-controls {
   position: absolute;
   top: 8px;
-  left: 8px;
+  right: 8px;
   z-index: 10;
   display: flex;
   flex-direction: column;

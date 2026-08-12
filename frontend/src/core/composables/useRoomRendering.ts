@@ -1,34 +1,22 @@
 import { computed } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
 
-// Module-scoped room images preference (shared across all consumers)
+// This is a global display preference, not room-domain state. Keeping it in
+// core lets settings and room views share the same value without a profile →
+// rooms dependency.
 const showRoomImages = useLocalStorage('room-rendering:show-images', true)
 
-/**
- * Composable for room rendering preferences
- *
- * Allows users to toggle room image display for performance or aesthetic preferences
- */
 export function useRoomRendering() {
-  /**
-   * Toggle room images on/off
-   */
   function toggleRoomImages() {
     showRoomImages.value = !showRoomImages.value
   }
 
-  /**
-   * Set room images visibility
-   */
   function setRoomImagesVisible(visible: boolean) {
     showRoomImages.value = visible
   }
 
   return {
-    // State
     showRoomImages: computed(() => showRoomImages.value),
-
-    // Actions
     toggleRoomImages,
     setRoomImagesVisible,
   }

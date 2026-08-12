@@ -1,17 +1,19 @@
 import { onUnmounted, getCurrentInstance } from 'vue'
 import type { useChatWebSocket } from '@/core/composables/useWebSocket'
+import { useToast } from '@/core/composables/useToast'
 
 type ChatWebSocket = ReturnType<typeof useChatWebSocket>
 
 export function useTypingIndicator(chatWs: ChatWebSocket | null) {
+  const toast = useToast()
   let typingTimeout: number | null = null
 
   const handleTyping = () => {
     if (chatWs) {
       try {
         chatWs.sendTypingIndicator(true)
-      } catch (error) {
-        console.error('Error sending typing indicator:', error)
+      } catch {
+        toast.warning('Typing status could not be sent')
       }
 
       if (typingTimeout) clearTimeout(typingTimeout)
@@ -19,8 +21,8 @@ export function useTypingIndicator(chatWs: ChatWebSocket | null) {
       typingTimeout = window.setTimeout(() => {
         try {
           chatWs.sendTypingIndicator(false)
-        } catch (error) {
-          console.error('Error clearing typing indicator:', error)
+        } catch {
+          toast.warning('Typing status could not be updated')
         }
       }, 2000)
     }
@@ -30,8 +32,8 @@ export function useTypingIndicator(chatWs: ChatWebSocket | null) {
     if (typingTimeout) {
       try {
         chatWs?.sendTypingIndicator(false)
-      } catch (error) {
-        console.error('Error clearing typing indicator:', error)
+      } catch {
+        toast.warning('Typing status could not be updated')
       }
       clearTimeout(typingTimeout)
       typingTimeout = null

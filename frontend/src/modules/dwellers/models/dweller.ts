@@ -4,6 +4,8 @@ import type { components } from '@/core/types/api.generated'
 // Dweller is the full type with all relations (vault, room, weapon, outfit)
 export type Dweller = components['schemas']['DwellerReadFull']
 export type DwellerFull = components['schemas']['DwellerReadFull']
+/** Full dweller details used by exploration cards and timelines. */
+export type DetailedDweller = DwellerFull
 export type DwellerShort = components['schemas']['DwellerReadLess']
 export type DwellerCreate = components['schemas']['DwellerCreate']
 export type DwellerUpdate = components['schemas']['DwellerUpdate']

@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { UButton, UInput } from '@/core/components/ui'
 import { useAuthStore } from '../stores/auth'
 import { useRouter } from 'vue-router'
+import { useAsyncAction } from '@/core/composables/useAsyncAction'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -10,10 +11,14 @@ const router = useRouter()
 const username = ref('')
 const password = ref('')
 const error = ref('')
+const { run: runLogin, isLoading } = useAsyncAction(
+  (email: string, currentPassword: string) => authStore.login(email, currentPassword),
+  { context: 'Unable to authenticate', showToast: false }
+)
 
 const handleSubmit = async () => {
   error.value = ''
-  const success = await authStore.login(username.value, password.value)
+  const success = await runLogin(username.value, password.value)
   if (success) {
     await router.push('/')
   } else {
@@ -67,10 +72,10 @@ const handleSubmit = async () => {
             />
           </div>
 
-          <UButton variant="primary" type="submit" block>
-            <span class="button-icon">►</span>
-            AUTHENTICATE
-            <span class="button-icon">◄</span>
+          <UButton variant="primary" type="submit" block :disabled="isLoading">
+            <span v-if="!isLoading" class="button-icon">►</span>
+            {{ isLoading ? 'AUTHENTICATING...' : 'AUTHENTICATE' }}
+            <span v-if="!isLoading" class="button-icon">◄</span>
           </UButton>
         </form>
 
@@ -209,7 +214,7 @@ const handleSubmit = async () => {
 }
 
 .form-group {
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
 }
 
 .button-icon {
@@ -223,6 +228,18 @@ const handleSubmit = async () => {
   padding: 1rem;
   margin-bottom: 1rem;
   box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+  animation: error-pulse 0.5s ease-in-out;
+}
+
+@keyframes error-pulse {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .error-message p {
@@ -235,9 +252,10 @@ const handleSubmit = async () => {
 /* Register Link */
 .register-link {
   text-align: center;
-  padding: 1rem;
-  border-top: 1px solid var(--color-theme-primary, #00ff00);
-  border-bottom: 1px solid var(--color-theme-primary, #00ff00);
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  padding-bottom: 1rem;
+  border-top: 1px dashed var(--color-theme-primary, #00ff00);
   margin-bottom: 1rem;
 }
 

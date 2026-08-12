@@ -6,6 +6,7 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import HappinessDashboard from '../components/HappinessDashboard.vue'
@@ -16,14 +17,24 @@ const { isCollapsed } = useSidePanel()
 const route = useRoute()
 const router = useRouter()
 const vaultStore = useVaultStore()
-const dwellerStore = useDwellerStore()
+const { filter: dwellerStore } = useDwellerStore()
 const incidentStore = useIncidentStore()
 const authStore = useAuthStore()
 
 const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
-const isLoading = ref(true)
+const isInitialLoad = ref(true)
 const errorMessage = ref<string | null>(null)
+const { run: runLoadData, isLoading: isLoadingRequest } = useAsyncAction(
+  async (currentVaultId: string, token: string) => {
+    await vaultStore.refreshVault(currentVaultId, token)
+    await dwellerStore.fetchDwellersByVault(currentVaultId, token)
+    await incidentStore.fetchIncidents(currentVaultId, token)
+    return true
+  },
+  { context: 'Failed to load happiness data', showToast: false }
+)
+const isLoading = computed(() => isInitialLoad.value || isLoadingRequest.value)
 
 const happinessDashboardData = computed(() => {
   if (!currentVault.value) return null
@@ -56,28 +67,16 @@ const happinessDashboardData = computed(() => {
 const loadData = async () => {
   if (!vaultId.value || !authStore.token) {
     errorMessage.value = 'No vault ID or authentication token'
-    isLoading.value = false
+    isInitialLoad.value = false
     return
   }
 
-  try {
-    isLoading.value = true
-    errorMessage.value = null
-
-    // Load vault data
-    await vaultStore.refreshVault(vaultId.value, authStore.token)
-
-    // Load dwellers for this specific vault
-    await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
-
-    // Load incidents
-    await incidentStore.fetchIncidents(vaultId.value, authStore.token)
-  } catch (error) {
-    console.error('Failed to load happiness data:', error)
+  errorMessage.value = null
+  const result = await runLoadData(vaultId.value, authStore.token)
+  if (!result) {
     errorMessage.value = 'Failed to load vault happiness data'
-  } finally {
-    isLoading.value = false
   }
+  isInitialLoad.value = false
 }
 
 const handleAssignIdle = () => {

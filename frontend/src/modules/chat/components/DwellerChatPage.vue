@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
@@ -9,41 +9,35 @@ import { Icon } from '@iconify/vue'
 import DwellerChat from './DwellerChat.vue'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 import { normalizeImageUrl } from '@/core/utils/image'
+import { useAsyncAction } from '@/core/composables/useAsyncAction'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
-const dwellerStore = useDwellerStore()
+const { filter: dwellerStore } = useDwellerStore()
 const vaultStore = useVaultStore()
 
 const dwellerId = ref(route.params.id as string)
 const dweller = ref<Dweller | null>(null)
-const isLoading = ref(false)
 const username = ref(authStore.user?.username || 'User')
+const vaultId = computed(() => dweller.value?.vault?.id ?? null)
+const { run: runLoadDweller, isLoading } = useAsyncAction(
+  async (currentDwellerId: string, token: string) => {
+    const result = await dwellerStore.fetchDwellerDetails(currentDwellerId, token)
+    if (!result) throw new Error('Failed to fetch dweller data')
 
-onMounted(async () => {
-  isLoading.value = true
-  try {
-    if (!authStore.token) {
-      throw new Error('No authentication token available')
-    }
-    const result = await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token)
-    if (!result) {
-      throw new Error('Failed to fetch dweller data')
-    }
     dweller.value = result
-
-    // Set active vault ID from dweller's vault for navigation
     if (result.vault?.id) {
       vaultStore.activeVaultId = result.vault.id
-      await vaultStore.loadVault(result.vault.id, authStore.token)
+      await vaultStore.loadVault(result.vault.id, token)
     }
-  } catch (error) {
-    console.error('Error fetching dweller data:', error)
-    // Handle error (e.g., show error message to user, redirect to error page)
-  } finally {
-    isLoading.value = false
-  }
+    return result
+  },
+  { context: 'Error fetching dweller data', showToast: false }
+)
+
+onMounted(async () => {
+  if (authStore.token) await runLoadDweller(dwellerId.value, authStore.token)
 })
 </script>
 
@@ -92,6 +86,7 @@ onMounted(async () => {
           :dweller-name="dweller.first_name"
           :username="username"
           :dweller-avatar="dweller.thumbnail_url ?? undefined"
+          :vault-id="vaultId"
         />
       </div>
     </template>

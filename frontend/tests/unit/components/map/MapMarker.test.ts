@@ -60,4 +60,44 @@ describe('MapMarker', () => {
     expect(g.attributes('aria-label')).toBe('Sunken Church (Origin)')
     expect(g.find('title').text()).toBe('Sunken Church (Origin)')
   })
+
+  it('applies marker-locked class and shows "Unknown Location" when is_unlocked is false', () => {
+    const wrapper = mount(MapMarker, {
+      props: {
+        x: 50,
+        y: 60,
+        name: 'Hidden Place',
+        type: 'discovery',
+        is_unlocked: false,
+      },
+      global: {
+        stubs: { Icon: true },
+      },
+    })
+
+    const g = wrapper.find('g.map-marker')
+    expect(g.classes()).toContain('marker-locked')
+    expect(g.attributes('aria-label')).toBe('Unknown Location (Discovery)')
+    expect(g.find('title').text()).toBe('Unknown Location (Discovery)')
+    expect(g.find('.marker-label').text()).toBe('Unknown Location')
+  })
+
+  it('does not apply marker-locked to vault types even when is_unlocked is false', () => {
+    const wrapper = mount(MapMarker, {
+      props: {
+        x: 50,
+        y: 60,
+        name: 'Vault 101',
+        type: 'vault',
+        is_unlocked: false,
+      },
+      global: {
+        stubs: { Icon: true },
+      },
+    })
+
+    const g = wrapper.find('g.map-marker')
+    expect(g.classes()).not.toContain('marker-locked')
+    expect(g.find('.marker-label').text()).toBe('Vault 101')
+  })
 })

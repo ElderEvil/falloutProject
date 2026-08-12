@@ -1,0 +1,77 @@
+name: Backend Coverage
+
+on:
+  schedule:
+    # Run nightly at 02:00 UTC
+    - cron: '0 2 * * *'
+  push:
+    branches: [ master ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-coverage.yml'
+  workflow_dispatch:
+
+jobs:
+  backend-coverage:
+    name: Backend Tests with Coverage
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+
+    services:
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "backend/uv.lock"
+
+      - name: Set up Python
+        working-directory: backend
+        run: uv python install
+
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --group test --locked
+
+      - name: Set up test environment
+        working-directory: backend
+        run: cp .env.example .env
+
+      - name: Run tests with coverage
+        working-directory: backend
+        run: uv run pytest app/tests -n auto -v --tb=short --cov=app --cov-report=term-missing --cov-report=html --cov-report=json --cov-fail-under=80
+
+      - name: Generate coverage badge
+        working-directory: backend
+        run: uv run coverage-badge -o coverage.svg -f
+
+      - name: Upload coverage badge to Gist
+        uses: exuanbo/actions-deploy-gist@47697fceaeea2006a90594ee24eb9cd0a1121ef8 # v1.1.4
+        with:
+          token: ${{ secrets.GIST_TOKEN }}
+          gist_id: 7cc382e5dbf89fbe5bc026b6d8a0ab88
+          file_path: backend/coverage.svg
+          file_type: text
+
+      - name: Upload coverage HTML report
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: coverage-report
+          path: backend/htmlcov

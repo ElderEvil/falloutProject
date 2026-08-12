@@ -12,7 +12,7 @@ import type { IconComponent } from '@/core/types/utils'
  */
 
 interface Props {
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost'
+  variant?: 'primary' | 'secondary' | 'success' | 'danger' | 'ghost'
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
   disabled?: boolean
   loading?: boolean
@@ -20,6 +20,8 @@ interface Props {
   iconRight?: IconComponent
   block?: boolean
   type?: 'button' | 'submit' | 'reset'
+  title?: string
+  'aria-label'?: string
 }
 
 const {
@@ -29,6 +31,8 @@ const {
   loading = false,
   block = false,
   type = 'button',
+  title,
+  'aria-label': ariaLabel,
   icon,
   iconRight,
 } = defineProps<Props>()
@@ -40,6 +44,7 @@ const emit = defineEmits<{
 const variantClasses = {
   primary: 'btn-primary',
   secondary: 'btn-secondary',
+  success: 'btn-primary',
   danger: 'btn-danger',
   ghost: 'btn-ghost',
 }
@@ -71,7 +76,14 @@ const handleClick = (event: MouseEvent) => {
 </script>
 
 <template>
-  <button :class="buttonClasses" :disabled="disabled || loading" @click="handleClick" :type="type">
+  <button
+    :class="buttonClasses"
+    :disabled="disabled || loading"
+    @click="handleClick"
+    :type="type"
+    :title="title"
+    :aria-label="ariaLabel"
+  >
     <component v-if="icon && !loading" :is="icon" class="h-5 w-5" />
     <span v-if="loading" class="animate-spin">⚙</span>
     <slot></slot>

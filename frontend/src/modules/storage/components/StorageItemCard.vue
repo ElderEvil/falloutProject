@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import { UButton, UCard } from '@/core/components/ui'
 
 interface Props {
   item: any
@@ -61,11 +62,11 @@ const itemIcon = computed(() => {
       case 'pistol':
         return 'mdi:pistol'
       case 'rifle':
-        return 'mdi:rifle'
+        return 'game-icons:rifle'
       case 'shotgun':
-        return 'mdi:shotgun'
+        return 'game-icons:shotgun'
       case 'automatic':
-        return 'mdi:rifle'
+        return 'game-icons:machine-gun'
       case 'explosive':
         return 'mdi:bomb'
       case 'flamer':
@@ -213,10 +214,7 @@ const rarityTextClass = computed(() => {
 
 <template>
   <UCard
-    :ui="{
-      root: 'bg-black/90 ring-1 ring-(--color-theme-primary)/20',
-      body: 'p-3 sm:p-3',
-    }"
+    padding="sm"
     :class="[
       'w-full transition-all duration-200 hover:bg-black/50 hover:-translate-y-0.5 hover:shadow-glow-md font-mono overflow-hidden',
       rarityBorderClass,
@@ -277,9 +275,8 @@ const rarityTextClass = computed(() => {
         <div class="flex items-center gap-1">
           <UButton
             v-if="canScrap"
-            color="error"
-            variant="solid"
-            size="2xs"
+            variant="danger"
+            size="xs"
             @click="handleScrap"
             title="Scrap"
             class="font-mono !px-1.5 !py-0.5 !text-[11px] !h-auto !min-h-0"
@@ -287,9 +284,8 @@ const rarityTextClass = computed(() => {
             <Icon icon="mdi:hammer-wrench" class="w-3.5 h-3.5" />
           </UButton>
           <UButton
-            color="primary"
-            variant="outline"
-            size="2xs"
+            variant="secondary"
+            size="xs"
             @click="handleSell"
             :title="count > 1 ? 'Sell one' : 'Sell'"
             class="font-mono !px-1.5 !py-0.5 !text-[11px] !h-auto !min-h-0 !text-(--color-caps) !border-(--color-caps) hover:!bg-(--color-caps)/20"
@@ -298,9 +294,8 @@ const rarityTextClass = computed(() => {
           </UButton>
           <UButton
             v-if="showSellAll"
-            color="primary"
-            variant="solid"
-            size="2xs"
+            variant="primary"
+            size="xs"
             @click="handleSellAll"
             title="Sell all ({{ count }})"
             class="font-mono !px-1.5 !py-0.5 !text-[11px] !h-auto !min-h-0 !bg-(--color-caps)/20 !text-(--color-caps) !border-(--color-caps) hover:!bg-(--color-caps)/30"

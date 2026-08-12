@@ -92,20 +92,6 @@ describe('Objectives Store', () => {
         await expect(objectivesStore.fetchObjectives('vault-123')).rejects.toThrow('Network error')
       })
 
-      it('should log error to console on fetch failure', async () => {
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-        const error = new Error('Fetch failed')
-        vi.mocked(axios.get).mockRejectedValueOnce(error)
-
-        try {
-          await objectivesStore.fetchObjectives('vault-123')
-        } catch {
-          // Expected to throw
-        }
-
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to fetch objectives:', error)
-        consoleSpy.mockRestore()
-      })
     })
   })
 
@@ -154,20 +140,6 @@ describe('Objectives Store', () => {
         ).rejects.toThrow('Add failed')
       })
 
-      it('should log error to console on add failure', async () => {
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-        const error = new Error('Post failed')
-        vi.mocked(axios.post).mockRejectedValueOnce(error)
-
-        try {
-          await objectivesStore.addObjective('vault-123', { challenge: 'Test' })
-        } catch {
-          // Expected to throw
-        }
-
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to add objective:', error)
-        consoleSpy.mockRestore()
-      })
     })
   })
 
@@ -213,20 +185,6 @@ describe('Objectives Store', () => {
         )
       })
 
-      it('should log error to console on get failure', async () => {
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-        const error = new Error('Get failed')
-        vi.mocked(axios.get).mockRejectedValueOnce(error)
-
-        try {
-          await objectivesStore.getObjective('vault-123', 'obj-1')
-        } catch {
-          // Expected to throw
-        }
-
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to fetch objective:', error)
-        consoleSpy.mockRestore()
-      })
     })
   })
 

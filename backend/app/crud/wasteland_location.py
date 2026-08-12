@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import logging
+from uuid import UUID
 
 from pydantic import UUID4
+from sqlalchemy import update as sa_update
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -179,6 +181,7 @@ class CRUDWastelandLocation:
                 Dweller.first_name,
                 Dweller.last_name,
                 DwellerLocation.relation,
+                DwellerLocation.is_unlocked,
             )
             .join(Dweller, Dweller.id == DwellerLocation.dweller_id)
             .where(DwellerLocation.location_id.in_(location_ids))
@@ -194,9 +197,24 @@ class CRUDWastelandLocation:
                     "first_name": row.first_name,
                     "last_name": row.last_name,
                     "relation": row.relation,
+                    "is_unlocked": row.is_unlocked,
                 }
             )
         return mapping
+
+    async def unlock_places_for_dweller(self, db_session: AsyncSession, *, dweller_id: UUID) -> int:
+        """Unlock all places linked to the given dweller. Returns number of rows updated."""
+        stmt = (
+            sa_update(DwellerLocation)
+            .where(
+                DwellerLocation.dweller_id == dweller_id,
+                DwellerLocation.is_unlocked.is_(False),
+            )
+            .values(is_unlocked=True)
+        )
+        result = await db_session.execute(stmt)
+        await db_session.commit()
+        return result.rowcount
 
 
 # Module-level singleton — matches the convention used by other crud modules.

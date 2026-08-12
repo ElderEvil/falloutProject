@@ -2,15 +2,16 @@
 import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import { useProfileStore } from '../stores/profile'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { UButton, UCard } from '@/core/components/ui'
-import ProfileEditor from '../components/ProfileEditor.vue'
 import { LifeDeathStatistics } from '@/modules/dwellers/components/death'
+import { useWebSocket } from '@/core/composables/useWebSocket'
+import { usePolling } from '@/core/composables/usePolling'
+import PageHeader from '@/core/components/common/PageHeader.vue'
+import { useProfileStore } from '../stores/profile'
+import ProfileEditor from '../components/ProfileEditor.vue'
 import AIUsageCard from '../components/AIUsageCard.vue'
 import type { ProfileUpdate } from '../models/profile'
-import { useWebSocket } from '@/core/composables/useWebSocket'
-import PageHeader from '@/core/components/common/PageHeader.vue'
 
 const router = useRouter()
 const profileStore = useProfileStore()
@@ -29,8 +30,14 @@ const wsUrl = computed(() => {
 // Register WebSocket composable at setup top-level to avoid lifecycle warning
 const { connect, on, disconnect } = useWebSocket()
 
-// Poll statistics every 30 seconds as a fallback
-let statsInterval: ReturnType<typeof setInterval> | null = null
+// Poll statistics every 30 seconds as a fallback. The polling composable
+// automatically pauses when this view's scope is disposed.
+usePolling(
+  async () => {
+    await Promise.all([profileStore.fetchDeathStatistics(), profileStore.fetchAIUsage()])
+  },
+  { interval: 30_000, immediate: false }
+)
 
 onMounted(async () => {
   await fetchProfile()
@@ -41,16 +48,9 @@ onMounted(async () => {
     connect(wsUrl.value)
   }
 
-  statsInterval = setInterval(() => {
-    profileStore.fetchDeathStatistics()
-    profileStore.fetchAIUsage()
-  }, 30000)
 })
 
 onUnmounted(() => {
-  if (statsInterval) {
-    clearInterval(statsInterval)
-  }
   // Properly close WebSocket connection
   disconnect()
 })
@@ -94,9 +94,7 @@ on('notification', (message) => {
 const fetchProfile = async () => {
   try {
     await profileStore.fetchProfile()
-  } catch (error) {
-    console.error('Failed to fetch profile:', error)
-  }
+  } catch {}
 }
 
 const startEditing = () => {
@@ -113,9 +111,7 @@ const handleProfileUpdate = async (data: ProfileUpdate) => {
   try {
     await profileStore.updateProfile(data)
     isEditing.value = false
-  } catch (error) {
-    console.error('Failed to update profile:', error)
-  }
+  } catch {}
 }
 
 const handleAvatarError = (event: Event) => {

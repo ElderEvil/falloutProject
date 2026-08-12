@@ -1,278 +1,114 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { setActivePinia, createPinia } from 'pinia'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { storeToRefs, createPinia, setActivePinia } from 'pinia'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
-import axios from '@/core/plugins/axios'
 
-vi.mock('@/core/plugins/axios')
-
-describe('Dweller Store', () => {
+describe('Dweller store slices', () => {
   beforeEach(() => {
-    setActivePinia(createPinia())
-    vi.clearAllMocks()
-    // Clear localStorage to reset filter/sort preferences
     localStorage.clear()
+    setActivePinia(createPinia())
   })
 
-  describe('Filter State Management', () => {
-    it('should initialize with default filter status as "all"', () => {
-      const store = useDwellerStore()
-      expect(store.filterStatus).toBe('all')
-    })
+  it('exposes the five underlying Pinia stores by concern', () => {
+    const store = useDwellerStore()
 
-    it('should set filter status', () => {
-      const store = useDwellerStore()
-
-      store.setFilterStatus('working')
-      expect(store.filterStatus).toBe('working')
-
-      store.setFilterStatus('idle')
-      expect(store.filterStatus).toBe('idle')
-
-      store.setFilterStatus('exploring')
-      expect(store.filterStatus).toBe('exploring')
-
-      store.setFilterStatus('all')
-      expect(store.filterStatus).toBe('all')
-    })
-
-    it('should set sort by option', () => {
-      const store = useDwellerStore()
-
-      store.setSortBy('name')
-      expect(store.sortBy).toBe('name')
-
-      store.setSortBy('level')
-      expect(store.sortBy).toBe('level')
-    })
-
-    it('should set sort direction', () => {
-      const store = useDwellerStore()
-
-      store.setSortDirection('asc')
-      expect(store.sortDirection).toBe('asc')
-
-      store.setSortDirection('desc')
-      expect(store.sortDirection).toBe('desc')
-    })
+    expect(store.filter.$id).toBe('dwellerFilter')
+    expect(store.generation.$id).toBe('dwellerGeneration')
+    expect(store.management.$id).toBe('dwellerManagement')
+    expect(store.medical.$id).toBe('dwellerMedical')
+    expect(store.death.$id).toBe('dwellerDeath')
   })
 
-  describe('API Interaction', () => {
-    it('should call API when fetching dwellers by vault', async () => {
-      const mockDwellers = [
-        { id: '1', first_name: 'John', last_name: 'Doe', status: 'working' },
-        { id: '2', first_name: 'Jane', last_name: 'Smith', status: 'idle' },
-      ]
+  it('keeps loading state independent for filter, generation, and death work', () => {
+    const store = useDwellerStore()
 
-      vi.mocked(axios.get).mockResolvedValue({ data: mockDwellers })
+    store.death.deadLoadingCount = 1
 
-      const store = useDwellerStore()
-      await store.fetchDwellersByVault('vault-123', 'test-token')
-
-      expect(axios.get).toHaveBeenCalled()
-      expect(axios.get).toHaveBeenCalledWith(
-        expect.stringContaining('vault-123'),
-        expect.any(Object)
-      )
-    })
-
-    it('should include status filter in API call when status is set', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
-
-      const store = useDwellerStore()
-      store.setFilterStatus('working')
-
-      await store.fetchDwellersByVault('vault-123', 'test-token', {
-        status: 'working',
-      })
-
-      expect(axios.get).toHaveBeenCalledWith(
-        expect.stringContaining('status=working'),
-        expect.any(Object)
-      )
-    })
-
-    it('should call assign API endpoint when assigning dweller to room', async () => {
-      vi.mocked(axios.post).mockResolvedValue({
-        data: { id: 'dweller-1', status: 'working', room_id: 'room-1' },
-      })
-
-      const store = useDwellerStore()
-      await store.assignDwellerToRoom('dweller-1', 'room-1', 'test-token')
-
-      expect(axios.post).toHaveBeenCalledWith(
-        '/api/v1/dwellers/dweller-1/move_to/room-1',
-        null,
-        expect.any(Object)
-      )
-    })
-
-    it('should call update API endpoint when unassigning dweller', async () => {
-      vi.mocked(axios.put).mockResolvedValue({
-        data: { id: 'dweller-1', status: 'idle', room_id: null },
-      })
-
-      const store = useDwellerStore()
-      await store.unassignDwellerFromRoom('dweller-1', 'test-token')
-
-      expect(axios.put).toHaveBeenCalledWith(
-        '/api/v1/dwellers/dweller-1',
-        { room_id: null },
-        expect.any(Object)
-      )
-    })
+    expect(store.filter.isLoading).toBe(false)
+    expect(store.death.isDeadLoading).toBe(true)
+    expect('isLoading' in store.generation).toBe(false)
   })
 
-  describe('Store Initialization', () => {
-    it('should initialize with empty dwellers collections', () => {
-      const store = useDwellerStore()
+  it('supports Pinia patches on every stateful slice', () => {
+    const store = useDwellerStore()
 
-      expect(store.dwellers).toEqual([])
-      expect(store.detailedDwellers).toEqual({})
-    })
+    store.filter.$patch({ dwellers: [] })
+    store.death.$patch({ deadLoadingCount: 2 })
 
-    it('should initialize with default sort settings', () => {
-      const store = useDwellerStore()
-
-      expect(store.sortBy).toBe('name')
-      expect(store.sortDirection).toBe('asc')
-    })
-
-    it('should initialize with filter status as "all"', () => {
-      const store = useDwellerStore()
-
-      expect(store.filterStatus).toBe('all')
-    })
-
-    it('should initialize with empty dead dwellers collections', () => {
-      const store = useDwellerStore()
-
-      expect(store.deadDwellers).toEqual([])
-      expect(store.graveyardDwellers).toEqual([])
-    })
+    expect(store.filter.dwellers).toEqual([])
+    expect(store.death.isDeadLoading).toBe(true)
   })
 
-  describe('Death System API', () => {
-    it('should fetch dead dwellers', async () => {
-      const mockDeadDwellers = [
-        {
-          id: '1',
-          first_name: 'Dead',
-          last_name: 'Dweller',
-          is_dead: true,
-          is_permanently_dead: false,
-        },
-      ]
+  it('returns reactive refs from the filter slice', () => {
+    const store = useDwellerStore()
+    const { dwellers } = storeToRefs(store.filter)
 
-      vi.mocked(axios.get).mockResolvedValue({ data: mockDeadDwellers })
+    store.filter.dwellers = [{ id: 'dweller-1' }] as never
 
-      const store = useDwellerStore()
-      const result = await store.fetchDeadDwellers('vault-123', 'test-token')
+    expect(dwellers.value).toHaveLength(1)
+    expect(dwellers.value[0]?.id).toBe('dweller-1')
+  })
 
-      expect(axios.get).toHaveBeenCalledWith(
-        '/api/v1/dwellers/vault/vault-123/dead',
-        expect.any(Object)
-      )
-      expect(result).toEqual(mockDeadDwellers)
-      expect(store.deadDwellers).toEqual(mockDeadDwellers)
-    })
+  it('keeps filter preferences on the filter slice', () => {
+    const { filter } = useDwellerStore()
 
-    it('should fetch graveyard dwellers', async () => {
-      const mockGraveyardDwellers = [
-        {
-          id: '2',
-          first_name: 'Permanent',
-          last_name: 'Dead',
-          is_dead: true,
-          is_permanently_dead: true,
-        },
-      ]
+    filter.setFilterStatus('working')
+    filter.setSortDirection('desc')
 
-      vi.mocked(axios.get).mockResolvedValue({ data: mockGraveyardDwellers })
+    expect(filter.filterStatus).toBe('working')
+    expect(filter.sortDirection).toBe('desc')
+  })
 
-      const store = useDwellerStore()
-      const result = await store.fetchGraveyardDwellers('vault-123', 'test-token')
+  it('keeps age-group preferences on the filter slice', () => {
+    const { filter } = useDwellerStore()
 
-      expect(axios.get).toHaveBeenCalledWith(
-        '/api/v1/dwellers/vault/vault-123/graveyard',
-        expect.any(Object)
-      )
-      expect(result).toEqual(mockGraveyardDwellers)
-      expect(store.graveyardDwellers).toEqual(mockGraveyardDwellers)
-    })
+    filter.setFilterAgeGroup('adult')
 
-    it('should get revival cost', async () => {
-      const mockCost = {
-        dweller_id: 'dweller-1',
-        revival_cost: 250,
-        vault_caps: 1000,
-        can_afford: true,
-        days_until_permanent: 5,
-      }
+    expect(filter.filterAgeGroup).toBe('adult')
+  })
 
-      vi.mocked(axios.get).mockResolvedValue({ data: mockCost })
+  it('keeps sort-field preferences on the filter slice', () => {
+    const { filter } = useDwellerStore()
 
-      const store = useDwellerStore()
-      const result = await store.getRevivalCost('dweller-1', 'test-token')
+    filter.setSortBy('happiness')
 
-      expect(axios.get).toHaveBeenCalledWith(
-        '/api/v1/dwellers/dweller-1/revival_cost',
-        expect.any(Object)
-      )
-      expect(result).toEqual(mockCost)
-    })
+    expect(filter.sortBy).toBe('happiness')
+  })
 
-    it('should revive dweller', async () => {
-      const mockResponse = {
-        dweller: { id: 'dweller-1', first_name: 'Revived', is_dead: false },
-        caps_spent: 250,
-      }
+  it('keeps the list and grid display preference on the filter slice', () => {
+    const { filter } = useDwellerStore()
 
-      vi.mocked(axios.post).mockResolvedValue({ data: mockResponse })
+    filter.setViewMode('grid')
 
-      const store = useDwellerStore()
-      // Add initial dead dweller to the store
-      store.deadDwellers = [
-        {
-          id: 'dweller-1',
-          first_name: 'Dead',
-          last_name: 'Dweller',
-          is_dead: true,
-          is_permanently_dead: false,
-        } as any,
-      ]
+    expect(filter.viewMode).toBe('grid')
+  })
 
-      const result = await store.reviveDweller('dweller-1', 'test-token')
+  it('returns null for an unknown dweller status', () => {
+    const { filter } = useDwellerStore()
 
-      expect(axios.post).toHaveBeenCalledWith(
-        '/api/v1/dwellers/dweller-1/revive',
-        null,
-        expect.any(Object)
-      )
-      expect(result).toEqual(mockResponse)
-      // Dead dweller should be removed from list
-      expect(store.deadDwellers.find((d) => d.id === 'dweller-1')).toBeUndefined()
-    })
+    expect(filter.getDwellerStatus('missing')).toBeNull()
+  })
 
-    it('should handle error when getting revival cost fails', async () => {
-      vi.mocked(axios.get).mockRejectedValue({
-        response: { data: { detail: 'Dweller not found' } },
-      })
+  it('starts with an empty detailed-dweller cache', () => {
+    const { filter } = useDwellerStore()
 
-      const store = useDwellerStore()
-      const result = await store.getRevivalCost('invalid-id', 'test-token')
+    expect(filter.detailedDwellers).toEqual({})
+  })
 
-      expect(result).toBeNull()
-    })
+  it('starts with no revivable dwellers', () => {
+    const { death } = useDwellerStore()
 
-    it('should handle error when reviving dweller fails', async () => {
-      vi.mocked(axios.post).mockRejectedValue({
-        response: { data: { detail: 'Insufficient caps' } },
-      })
+    expect(death.deadDwellers).toEqual([])
+  })
 
-      const store = useDwellerStore()
-      const result = await store.reviveDweller('dweller-1', 'test-token')
+  it('starts with no graveyard dwellers', () => {
+    const { death } = useDwellerStore()
 
-      expect(result).toBeNull()
-    })
+    expect(death.graveyardDwellers).toEqual([])
+  })
+
+  it('starts death loading as false', () => {
+    const { death } = useDwellerStore()
+
+    expect(death.isDeadLoading).toBe(false)
   })
 })

@@ -81,6 +81,19 @@ async def test_read_vault(
     # user_id is not included in VaultReadWithNumbers response (GET /vaults/{id})
     assert "room_count" in response_data
     assert "dweller_count" in response_data
+    # Older vaults may not have a storage record yet.
+    assert response_data["stimpack"] == 0
+    assert response_data["radaway"] == 0
+
+    storage = await crud.vault.create_storage(db_session=async_session, vault_id=created_vault.id)
+    storage.stimpack = 12
+    storage.radaway = 4
+    await async_session.commit()
+
+    response = await async_client.get(f"/vaults/{created_vault.id}", headers=superuser_token_headers)
+    assert response.status_code == 200
+    assert response.json()["stimpack"] == 12
+    assert response.json()["radaway"] == 4
 
 
 @pytest.mark.asyncio

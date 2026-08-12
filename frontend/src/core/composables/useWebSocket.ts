@@ -191,7 +191,9 @@ export function useChatWebSocket(userId: string, dwellerId: string, token?: stri
   apiBaseUrl = apiBaseUrl.replace(/\/+$/, '')
 
   // Convert HTTP/HTTPS to WS/WSS protocol
-  const wsBaseUrl = apiBaseUrl.replace(/^https?/, (match) => (match === 'https' ? 'wss' : 'ws'))
+  const wsBaseUrl = apiBaseUrl.replace(/^https?/, (match: string) =>
+    match === 'https' ? 'wss' : 'ws'
+  )
 
   let wsUrl = `${wsBaseUrl}/api/v1/ws/chat/${userId}/${dwellerId}`
   if (token) {

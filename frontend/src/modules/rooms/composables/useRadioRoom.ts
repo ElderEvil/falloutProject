@@ -16,7 +16,7 @@ export function useRadioRoom(
   const route = useRoute()
   const authStore = useAuthStore()
   const vaultStore = useVaultStore()
-  const dwellerStore = useDwellerStore()
+  const { filter: dwellerStore } = useDwellerStore()
   const toast = useToast()
 
   const isRecruiting = ref(false)
@@ -45,7 +45,7 @@ export function useRadioRoom(
 
     const token = authStore.token
     if (!token || typeof token !== 'string') {
-      console.error('Missing auth token for radio stats')
+      toast.error('Sign in is required to load radio stats')
       return
     }
 
@@ -56,8 +56,8 @@ export function useRadioRoom(
       if (response.data?.manual_cost_caps != null) {
         manualRecruitCost.value = response.data.manual_cost_caps
       }
-    } catch (error) {
-      console.error('Failed to load radio stats:', error)
+    } catch {
+      toast.error('Failed to load radio stats')
     }
   }
 
@@ -77,7 +77,7 @@ export function useRadioRoom(
 
     const token = authStore.token
     if (!token || typeof token !== 'string') {
-      console.error('Missing auth token for radio mode change')
+      toast.error('Sign in is required to change radio mode')
       return
     }
 
@@ -91,10 +91,9 @@ export function useRadioRoom(
           headers: { Authorization: `Bearer ${token}` },
         }
       )
-    } catch (error) {
+    } catch {
       localRadioMode.value =
         (vaultStore.activeVault?.radio_mode as 'recruitment' | 'happiness') || 'recruitment'
-      console.error('Failed to switch radio mode:', error)
       toast.error('Failed to switch radio mode')
       return
     }
@@ -102,8 +101,8 @@ export function useRadioRoom(
     // Refresh vault (non-throwing) — separate from mutation error handling
     try {
       await vaultStore.refreshVault(vaultIdValue, token)
-    } catch (error) {
-      console.warn('Failed to refresh vault after radio mode change:', error)
+    } catch {
+      toast.warning('Radio mode changed, but vault details could not refresh')
     }
 
     toast.success(`Radio mode set to ${mode}`)
@@ -115,7 +114,7 @@ export function useRadioRoom(
 
     const token = authStore.token
     if (!token || typeof token !== 'string') {
-      console.error('Missing auth token for dweller recruitment')
+      toast.error('Sign in is required to recruit dwellers')
       return
     }
 
@@ -137,16 +136,15 @@ export function useRadioRoom(
       // Refresh calls (non-throwing) — inside try so isRecruiting stays true until done
       try {
         await vaultStore.refreshVault(vaultIdValue, token)
-      } catch (error) {
-        console.warn('Failed to refresh vault after recruiting:', error)
+      } catch {
+        toast.warning('Dweller recruited, but vault details could not refresh')
       }
       try {
         await dwellerStore.fetchDwellersByVault(vaultIdValue, token)
-      } catch (error) {
-        console.warn('Failed to refresh dwellers after recruiting:', error)
+      } catch {
+        toast.warning('Dweller recruited, but the dweller list could not refresh')
       }
     } catch (error: any) {
-      console.error('Failed to recruit dweller:', error)
       const message = error.response?.data?.detail || 'Failed to recruit dweller'
       toast.error(message)
     } finally {

@@ -5,6 +5,74 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.31.0] - 2026-08-12
+
+### Added
+
+- **Bio-to-map registration reliability** — `map_service.register_bio_places` now retries once after a transient
+  failure; if both attempts fail, it emits a durable `MAP_REGISTRATION_FAILED` notification instead of logging
+  silently
+- **Active-vault bio place backfill** — new `BioPlaceBackfillService` with
+  `backfill_bio_places_for_vault` and `backfill_bio_places_for_active_vaults`; CLI script
+  `scripts/backfill_dweller_bio_places.py` gained `--all-active`, `--max-dwellers`, and `--max-vaults` flags
+- **Coverage threshold** — backend coverage is now 82.44%; new `--cov-fail-under=80` guard prevents regression
+- **Frontend coverage reporting** — added Vitest coverage config via `@vitest/coverage-v8`; run with
+  `pnpm run test:coverage` (current baseline: ~50% lines, ~49.5% statements)
+
+### Changed
+
+- **Service separation** — backfill logic and bio place extraction moved out of `map_service.py` into
+  `app/services/bio_place_backfill_service.py`, keeping `MapService` focused on runtime registration and map
+  assembly
+- **CI/coverage split** — PR/push CI runs tests without coverage for speed; coverage reporting, badge generation,
+  and the 80% floor now live in a separate nightly/master `backend-coverage.yml` workflow
+- **Version bump** — backend/frontend aligned at v2.31.0
+
+### Fixed
+
+- **Per-dweller backfill isolation** — each dweller is committed independently during backfill so one
+  registration failure cannot roll back earlier successful registrations in the same vault
+
+---
+
+## [2.30.0] - 2026-08-11
+
+### Changed
+
+- **Async action migration** — `docs/frontend/ASYNC_ACTION_MIGRATION.md` executed: loading and error actions centralized into Pinia stores for radio, notifications, chat, happiness, storage, equipment, relationships, dweller filter, training, and login; view-local loading duplication removed
+- **Error surfacing** — replaced silent `console` diagnostics with surfaced store errors for room, vault, training, storage, unassign, profile, incident, and objective request failures
+- **Polling → SSE fallback migrations** — exploration, combat modal, profile statistics, social/training, and incident polling migrated to SSE fallback patterns
+- **Frontend type contract alignment** — shared UI variant contracts (`UButton`/`UInput`), accessibility attributes, dweller/room status contracts, exploration/quest views, room training/grid interactions, card clicks, map SVG attributes, chat and room actions, storage tab rendering, dweller appearance form, and vault contracts typed to pass truthful `vue-tsc` typecheck
+- **View decomposition** — dwellers view decomposed into focused sub-components; chat message presentation split from chat logic
+- **Exploration view refactor** — `WastelandPanel`/`ExplorationDetailView` split into `ExplorerNavbar`, `ExplorerSummaryCard`, `ExplorerStatsGrid`, `ExplorerEquipmentSlots`, `ExplorerActions`, `WastelandDropzone`, `ExplorationDurationModal`, and `ExplorationEventLog` components
+- **Docs reorganization** — project docs moved under `docs/` (frontend README/STYLEGUIDE, ROADMAP, EXPLORATION_SYSTEM, TEST_COVERAGE_ANALYSIS, migration guides); added `docs/DEVELOPMENT.md`; repo guidance updated for the new layout
+- **Version bump** — backend/frontend aligned at v2.30.0
+
+### Fixed
+
+- **NotificationBell reactivity** — fixed stale `shallowRef` ticking from the notification store; added regression test
+
+---
+
+## [2.29.0] - 2026-08-10
+
+### Added
+
+- **Dweller-location `is_unlocked` schema** — `DwellerLocationBase` gained `is_unlocked` boolean with Alembic migration and index; propagated through `DwellerRef`/`WastelandLocationWithDwellers` schemas and `map_service` with an optional `unlocked_only` filter plus a matching map endpoint query param
+- **Unlock places on chat** — `chat_service` unlocks a dweller's wasteland places after 3+ user messages (new `unlock_places_for_dweller` CRUD and `count_user_messages_to_dweller` helper), applied in both `process_text_message` and `stream_response`
+- **Frontend map unlock UI** — `MapMarker` locked state (lock icon, dashed outline, 50% opacity, "Unknown Location" label), `MarkerDetailModal` locked placeholder with chat hint, map store `unlockedPlacesCount` getter + `refreshMap` action, and chat-to-map refresh on send with a toast on newly unlocked locations
+- **Phase 1 UI polish** — Login loading state (disabled button, AUTHENTICATING text, error-pulse animation), Dwellers `HappinessDashboard` loading skeleton + 480px single-column grid, Map marker hover glow, top-right zoom controls, responsive legend, and empty-state Recruit CTA
+
+### Changed
+
+- **Frontend dependency audit** — `pnpm-workspace.yaml` gained audit overrides for transitive CVEs (nanoid, undici, js-yaml, postcss, brace-expansion, esbuild, dompurify)
+
+### Fixed
+
+- **Playwright e2e config** — removed unsupported `--skip-types-generate` flag from the `webServer` command; updated side-panel nav expectations in `interaction.spec.ts` (Happiness removed, Map added)
+
+---
+
 ## [2.28.0] - 2026-08-09
 
 ### Added
@@ -46,14 +114,6 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ### Fixed
 
 - **Lint compliance in test files** — fixed FBT003 (boolean positional args in `patch.object`), SIM117 (nested `with` statements), RUF036 (`None` union ordering), E501 (line length), and I001 (import sorting) across test files
-
----
-
-## [Unreleased]
-
-### Planned
-
-- v2.22.0 — @nuxt/ui adoption (11 home-grown U\* components → @nuxt/ui), Axios→fetch migration, chat REST→WebSocket migration
 
 ---
 
@@ -114,7 +174,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ### Fixed
 
-- **API changelog staleness** — `CHANGELOG.md` restored as the source of truth for `GET /api/v1/system/changelog[/latest]` (it had lagged at 2.21.0 while the app was at 2.23.3; backfilled 2.22.0, 2.23.0, 2.23.1, 2.23.2, 2.23.3 sections from `ROADMAP.md` and git history)
+- **API changelog staleness** — `CHANGELOG.md` restored as the source of truth for `GET /api/v1/system/changelog[/latest]` (it had lagged at 2.21.0 while the app was at 2.23.3; backfilled 2.22.0, 2.23.0, 2.23.1, 2.23.2, 2.23.3 sections from `docs/ROADMAP.md` and git history)
 
 ---
 
@@ -162,7 +222,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ### Changed
 
-- **Axios→fetch migration** — executed 6-phase HTTP client migration from `HTTP_CLIENT_MIGRATION.md`: fetch adapter, call-site migration, interceptor/token-refresh migration, dropped axios dependency (~14KB gzip bundle saving)
+- **Axios→fetch migration** — executed 6-phase HTTP client migration from `docs/frontend/HTTP_CLIENT_MIGRATION.md`: fetch adapter, call-site migration, interceptor/token-refresh migration, dropped axios dependency (~14KB gzip bundle saving)
 - **Version bump** — backend/frontend aligned at v2.23.0
 
 ### Removed

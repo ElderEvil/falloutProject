@@ -443,7 +443,6 @@ from app.services.exploration.coordinator import exploration_coordinator
 
 ### Planned Features
 - [ ] Combat defeat scenarios (dweller can lose)
-- [ ] Equipment durability and breakage
 - [ ] Special encounters (rare events)
 - [ ] Exploration difficulty levels
 - [ ] Team explorations (multiple dwellers)

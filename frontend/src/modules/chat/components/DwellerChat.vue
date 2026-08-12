@@ -6,6 +6,7 @@ import apiClient from '@/core/plugins/axios'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useProfileStore } from '@/modules/profile/stores/profile'
 import { useChatWebSocket } from '@/core/composables/useWebSocket'
+import { getErrorMessage } from '@/core/types/utils'
 import { normalizeImageUrl } from '@/core/utils/image'
 import type { ActionSuggestion } from '../models/chat'
 import { useAudioRecorder } from '../composables/useAudioRecorder'
@@ -13,6 +14,9 @@ import { useChatMessages } from '../composables/useChatMessages'
 import { useChatAudio } from '../composables/useChatAudio'
 import { useTypingIndicator } from '../composables/useTypingIndicator'
 import { useChatActions } from '../composables/useChatActions'
+import { useMapStore } from '@/modules/map/stores/map'
+import { useToast } from '@/core/composables/useToast'
+import ChatMessageList from './ChatMessageList.vue'
 
 const router = useRouter()
 
@@ -21,6 +25,7 @@ const props = defineProps<{
   dwellerName: string
   username: string
   dwellerAvatar?: string
+  vaultId?: string | null
 }>()
 
 const authStore = useAuthStore()
@@ -32,7 +37,7 @@ const audioMode = ref(false)
 // Quota exceeded state
 const isQuotaExceeded = computed(() => profileStore.quotaExceeded)
 const resetDate = computed(() => {
-  const resetDateStr = profileStore.aiUsageStats?.quota?.reset_date || ''
+  const resetDateStr = profileStore.aiUsageStats?.reset_date || ''
   if (!resetDateStr) return 'soon'
   const [year, month, day] = resetDateStr.split('-')
   const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
@@ -87,11 +92,38 @@ const { currentlyPlayingUrl, stopAudio, playAudio } = useChatAudio()
 
 const { handleTyping } = useTypingIndicator(chatWs)
 
-const { isPerformingAction, handleActionConfirm } = useChatActions({
+const { isPerformingAction, handleActionConfirm, refreshAfterChat } = useChatActions({
   dwellerId: props.dwellerId,
   dwellerName: props.dwellerName,
   messages,
+  vaultId: props.vaultId,
 })
+
+const mapStore = useMapStore()
+const toast = useToast()
+const initialUnlockedCount = ref<number | null>(null)
+
+watch(
+  () => mapStore.unlockedPlacesCount,
+  (newCount) => {
+    if (initialUnlockedCount.value === null) {
+      initialUnlockedCount.value = newCount
+      return
+    }
+    const previousCount = initialUnlockedCount.value
+    if (newCount > previousCount) {
+      const unlockedDelta = newCount - previousCount
+      const pluralSuffix = unlockedDelta > 1 ? 's' : ''
+      toast.success(`New location uncovered! (${unlockedDelta} place${pluralSuffix})`)
+    }
+    initialUnlockedCount.value = newCount
+  }
+)
+
+const handleSendMessage = async () => {
+  await sendMessage()
+  refreshAfterChat()
+}
 
 // Register WebSocket event handlers during setup
 chatWs.on('typing', (msg: any) => {
@@ -183,9 +215,11 @@ const sendAudioMessage = async () => {
     if (response.data.dweller_audio_url) {
       playAudio(response.data.dweller_audio_url)
     }
-  } catch (error: any) {
-    console.error('Error sending audio:', error)
-    alert(`Failed to send audio: ${error.response?.data?.detail || error.message}`)
+
+    refreshAfterChat()
+  } catch (error: unknown) {
+    const message = getErrorMessage(error, 'Unable to send audio message')
+    toast.error(`Failed to send audio: ${message}`)
   } finally {
     isSendingAudio.value = false
   }
@@ -205,18 +239,16 @@ onUnmounted(() => {
 
 <template>
   <div class="chat-container">
-    <!-- Scanline overlay -->
     <div class="scanlines"></div>
-
-    <!-- Identity header - anchors chat to dweller -->
     <div class="chat-identity-header">
       <div class="identity-avatar">
-        <template v-if="dwellerAvatarUrl">
-          <img :src="dwellerAvatarUrl" alt="Dweller" class="header-avatar-image" />
-        </template>
-        <template v-else>
-          <Icon icon="mdi:robot" class="header-avatar-icon" />
-        </template>
+        <img
+          v-if="dwellerAvatarUrl"
+          :src="dwellerAvatarUrl"
+          alt="Dweller"
+          class="header-avatar-image"
+        />
+        <Icon v-else icon="mdi:robot" class="header-avatar-icon" />
       </div>
       <div class="identity-info">
         <span class="identity-name">{{ dwellerName }}</span>
@@ -224,155 +256,25 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- Chat messages area with max height -->
-    <div class="chat-messages" ref="chatMessages">
-      <div
-        v-for="(message, index) in messages"
-        :key="message.messageId ?? index"
-        class="message-wrapper"
-        :class="message.type"
-      >
-        <!-- Avatar -->
-        <div class="message-avatar">
-          <template v-if="message.type === 'dweller' && dwellerAvatarUrl">
-            <img :src="dwellerAvatarUrl" alt="Dweller" class="avatar-image" />
-          </template>
-          <template v-else-if="message.type === 'user' && message.avatar">
-            <img :src="normalizeImageUrl(message.avatar)" alt="User" class="avatar-image" />
-          </template>
-
-          <template v-else>
-            <Icon
-              :icon="message.type === 'user' ? 'mdi:account-circle' : 'mdi:robot'"
-              class="avatar-icon"
-            />
-          </template>
-        </div>
-
-        <!-- Message bubble -->
-        <div class="message-bubble">
-          <div class="message-header">
-            <span class="message-sender">
-              <span class="terminal-prefix">{{ message.type === 'user' ? '>' : '<' }}</span>
-              {{ message.type === 'user' ? username : dwellerName }}
-            </span>
-            <div class="flex items-center gap-2">
-              <!-- Happiness impact indicator -->
-              <span
-                v-if="message.type === 'dweller' && message.happinessImpact"
-                class="happiness-indicator"
-                :class="getHappinessColor(message.happinessImpact.delta)"
-                :title="message.happinessImpact.reason_text"
-              >
-                <Icon :icon="getHappinessIcon(message.happinessImpact.delta)" class="h-4 w-4" />
-                <span class="text-xs">
-                  {{ message.happinessImpact.delta > 0 ? '+' : ''
-                  }}{{ message.happinessImpact.delta }}
-                </span>
-              </span>
-              <!-- Audio play/stop button for messages with audio -->
-              <button
-                v-if="message.audioUrl"
-                @click="
-                  currentlyPlayingUrl === message.audioUrl
-                    ? stopAudio()
-                    : playAudio(message.audioUrl)
-                "
-                class="audio-replay-btn"
-                :class="{ 'is-playing': currentlyPlayingUrl === message.audioUrl }"
-                :title="
-                  currentlyPlayingUrl === message.audioUrl
-                    ? 'Stop audio'
-                    : `Play ${message.type === 'user' ? 'your' : 'dweller'} audio`
-                "
-              >
-                <Icon
-                  :icon="currentlyPlayingUrl === message.audioUrl ? 'mdi:stop' : 'mdi:volume-high'"
-                  class="h-4 w-4"
-                />
-              </button>
-            </div>
-          </div>
-          <div class="message-content">
-            {{ message.content }}
-          </div>
-
-          <!-- Action suggestion card (only show for latest actionable suggestion) -->
-          <div
-            v-if="
-              message.type === 'dweller' &&
-              message.actionSuggestion &&
-              message.actionSuggestion.action_type !== 'no_action' &&
-              index === latestActionSuggestionIndex
-            "
-            class="action-suggestion-card"
-          >
-            <div class="action-suggestion-header">
-              <Icon
-                :icon="
-                  message.actionSuggestion.action_type === 'assign_to_room'
-                    ? 'mdi:door-open'
-                    : message.actionSuggestion.action_type === 'start_training'
-                      ? 'mdi:dumbbell'
-                      : message.actionSuggestion.action_type === 'start_exploration'
-                        ? 'mdi:map-marker-radius'
-                        : 'mdi:arrow-u-left-top'
-                "
-                class="h-4 w-4"
-              />
-              <span class="text-xs font-bold uppercase tracking-wider">Suggested Action</span>
-            </div>
-            <div class="action-suggestion-body">
-              <p class="action-suggestion-text">
-                {{
-                  message.actionSuggestion.action_type === 'assign_to_room'
-                    ? `Assign to ${message.actionSuggestion.room_name}`
-                    : message.actionSuggestion.action_type === 'start_training'
-                      ? `Train ${message.actionSuggestion.stat}`
-                      : message.actionSuggestion.action_type === 'start_exploration'
-                        ? `Explore wasteland for ${message.actionSuggestion.duration_hours}h`
-                        : 'Recall from wasteland'
-                }}
-              </p>
-              <p class="action-suggestion-reason">{{ message.actionSuggestion.reason }}</p>
-            </div>
-            <div class="action-suggestion-actions">
-              <button
-                @click="handleActionConfirm(message.actionSuggestion!, index)"
-                :disabled="isPerformingAction"
-                class="action-confirm-btn"
-              >
-                <Icon v-if="isPerformingAction" icon="mdi:loading" class="h-4 w-4 spinning" />
-                <Icon v-else icon="mdi:check" class="h-4 w-4" />
-                <span>{{ isPerformingAction ? 'Processing...' : 'Confirm' }}</span>
-              </button>
-              <button @click="dismissAction(index)" class="action-dismiss-btn">
-                <Icon icon="mdi:close" class="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Typing indicator -->
-      <div v-if="isTyping" class="typing-wrapper dweller">
-        <div class="message-avatar">
-          <template v-if="dwellerAvatarUrl">
-            <img :src="dwellerAvatarUrl" alt="Dweller" class="avatar-image" />
-          </template>
-          <template v-else>
-            <Icon icon="mdi:robot" class="avatar-icon" />
-          </template>
-        </div>
-        <div class="typing-indicator">
-          <span class="terminal-cursor">_</span>
-          {{ dwellerName }} is typing...
-        </div>
-      </div>
+    <div ref="chatMessages" class="chat-messages">
+      <ChatMessageList
+        :messages="messages"
+        :dweller-name="dwellerName"
+        :username="username"
+        :dweller-avatar-url="dwellerAvatarUrl"
+        :is-typing="isTyping"
+        :currently-playing-url="currentlyPlayingUrl"
+        :latest-action-suggestion-index="latestActionSuggestionIndex"
+        :is-performing-action="isPerformingAction"
+        :get-happiness-color="getHappinessColor"
+        :get-happiness-icon="getHappinessIcon"
+        @play-audio="playAudio"
+        @stop-audio="stopAudio"
+        @confirm-action="handleActionConfirm"
+        @dismiss-action="dismissAction"
+      />
     </div>
 
-    <!-- Chat input - always visible -->
-    <!-- Quota exceeded message -->
     <div v-if="isQuotaExceeded" class="chat-input quota-exceeded">
       <div class="quota-blocked-message">
         <Icon icon="mdi:alert-circle" class="quota-icon" />
@@ -380,78 +282,63 @@ onUnmounted(() => {
           <span class="quota-title">Monthly quota exceeded</span>
           <span class="quota-reset">Resets on {{ resetDate }}</span>
         </div>
-        <button @click="goToProfile" class="quota-profile-btn">View Profile</button>
+        <button class="quota-profile-btn" @click="goToProfile">View Profile</button>
       </div>
     </div>
 
-    <!-- Normal chat input -->
     <div v-else class="chat-input">
-      <!-- Mode toggle button -->
       <button
-        @click="audioMode = !audioMode"
         class="mode-toggle-btn"
         :title="audioMode ? 'Switch to text' : 'Switch to voice'"
+        @click="audioMode = !audioMode"
       >
         <Icon :icon="audioMode ? 'mdi:keyboard' : 'mdi:microphone'" class="h-5 w-5" />
       </button>
-
-      <!-- Text input mode -->
       <template v-if="!audioMode">
         <span class="terminal-prompt">&gt;</span>
         <input
-          v-model="userMessage"
           ref="chatInputRef"
-          @input="handleTyping"
-          placeholder="Type your message..."
+          v-model="userMessage"
           class="chat-input-field"
+          placeholder="Type your message..."
+          @input="handleTyping"
         />
         <button
-          @click="sendMessage"
-          :disabled="!canSend"
           class="chat-send-btn"
           :class="{ disabled: !canSend }"
+          :disabled="!canSend"
+          @click="handleSendMessage"
         >
           <Icon icon="mdi:send" class="h-5 w-5" />
         </button>
       </template>
-
-      <!-- Voice input mode -->
       <template v-else>
-        <!-- Recording indicator -->
         <div v-if="isRecording" class="recording-indicator">
           <span class="recording-dot"></span>
           Recording: {{ formatDuration(recordingDuration) }}
         </div>
-
-        <!-- Sending indicator -->
         <div v-else-if="isSendingAudio" class="processing-indicator">
           <Icon icon="mdi:loading" class="spinning h-5 w-5" />
           Processing audio...
         </div>
-
-        <!-- Ready to record -->
         <div v-else class="ready-indicator">
           <Icon icon="mdi:microphone" class="h-5 w-5" />
           Ready to record
         </div>
-
-        <!-- Record button -->
         <button
           v-if="!isRecording"
-          @click="startRecording"
-          :disabled="isSendingAudio"
           class="record-btn"
           title="Start recording"
+          :disabled="isSendingAudio"
+          @click="startRecording"
         >
           <Icon icon="mdi:microphone" class="h-6 w-6" />
         </button>
-
-        <!-- Stop/Cancel buttons when recording -->
         <template v-else>
-          <button @click="cancelRecording" class="cancel-btn" title="Cancel">
+          <button class="cancel-btn" title="Cancel" @click="cancelRecording">
             <Icon icon="mdi:close" class="h-5 w-5" />
           </button>
-          <button @click="sendAudioMessage" class="send-audio-btn" title="Send">
+          <button class="send-audio-btn" title="Send" @click="sendAudioMessage">
             <Icon icon="mdi:send" class="h-5 w-5" />
           </button>
         </template>
@@ -460,646 +347,4 @@ onUnmounted(() => {
   </div>
 </template>
 
-<style scoped>
-.chat-container {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  max-height: 600px;
-  height: 100%;
-  font-family: 'Courier New', monospace;
-  background-color: var(--color-surface-dark);
-  color: var(--color-theme-primary);
-  border: 2px solid var(--color-theme-primary);
-  border-radius: 8px;
-  box-shadow: 0 0 20px var(--color-theme-glow);
-  overflow: hidden;
-}
-
-/* Scanline overlay */
-.scanlines {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(var(--color-theme-primary-rgb), 0.03) 0px,
-    transparent 1px,
-    transparent 2px,
-    rgba(var(--color-theme-primary-rgb), 0.03) 3px
-  );
-  pointer-events: none;
-  z-index: 1;
-}
-
-/* Identity header */
-.chat-identity-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  background-color: rgba(0, 0, 0, 0.8);
-  border-bottom: 1px solid var(--color-theme-glow);
-  flex-shrink: 0;
-  z-index: 2;
-}
-
-.identity-avatar {
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-}
-
-.header-avatar-image {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  border: 2px solid var(--color-theme-primary);
-  box-shadow: 0 0 8px var(--color-theme-glow);
-  object-fit: cover;
-}
-
-.header-avatar-icon {
-  width: 32px;
-  height: 32px;
-  color: var(--color-theme-primary);
-  filter: drop-shadow(0 0 4px var(--color-theme-glow));
-}
-
-.identity-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.identity-name {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 6px var(--color-theme-glow);
-}
-
-.identity-status {
-  font-size: 0.65rem;
-  color: var(--color-theme-primary);
-  opacity: 0.5;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  text-shadow: none; /* Remove glow from status */
-}
-
-.chat-messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1rem;
-  background-color: rgba(0, 0, 0, 0.5);
-  max-height: 440px;
-  min-height: 300px;
-}
-
-.message-wrapper {
-  display: flex;
-  gap: 0.75rem;
-  margin-bottom: 1.25rem;
-  align-items: flex-start;
-}
-
-.message-wrapper.user {
-  flex-direction: row-reverse;
-}
-
-.message-avatar {
-  flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-}
-
-.avatar-image {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  border: 2px solid var(--color-theme-primary);
-  box-shadow: 0 0 10px var(--color-theme-glow);
-  object-fit: cover;
-}
-
-.avatar-icon {
-  width: 40px;
-  height: 40px;
-  color: var(--color-theme-primary);
-  filter: drop-shadow(0 0 5px var(--color-theme-glow));
-}
-
-/* Message bubble */
-.message-bubble {
-  flex: 1;
-  max-width: 65ch;
-  background-color: rgba(var(--color-theme-primary-rgb), 0.05);
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 12px;
-  padding: 0.5rem 0.85rem;
-  box-shadow: 0 0 10px rgba(var(--color-theme-primary-rgb), 0.2);
-}
-
-.user .message-bubble {
-  background-color: rgba(var(--color-theme-primary-rgb), 0.1);
-  border-color: rgba(var(--color-theme-primary-rgb), 0.5);
-  border-radius: 2px;
-  padding: 0.5rem 0.75rem;
-  max-width: 60ch;
-}
-
-.message-header {
-  margin-bottom: 0.5rem;
-  font-size: 0.85rem;
-  opacity: 0.8;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.audio-replay-btn {
-  padding: 0.25rem;
-  border-radius: 4px;
-  border: 1px solid var(--color-theme-primary);
-  background-color: rgba(var(--color-theme-primary-rgb), 0.05);
-  color: var(--color-theme-primary);
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.6;
-}
-
-.audio-replay-btn:hover {
-  opacity: 1;
-  background-color: rgba(var(--color-theme-primary-rgb), 0.2);
-  box-shadow: 0 0 8px var(--color-theme-glow);
-  transform: scale(1.1);
-}
-
-.audio-replay-btn.is-playing {
-  opacity: 1;
-  border-color: var(--color-danger);
-  background-color: rgba(255, 68, 68, 0.1);
-  color: var(--color-danger);
-  animation: audio-pulse 1.5s ease-in-out infinite;
-}
-
-.audio-replay-btn.is-playing:hover {
-  background-color: rgba(255, 68, 68, 0.2);
-  box-shadow: 0 0 8px rgba(255, 68, 68, 0.3);
-  animation: none;
-}
-
-@keyframes audio-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 4px rgba(255, 68, 68, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 12px rgba(255, 68, 68, 0.6);
-  }
-}
-
-.message-sender {
-  font-weight: 600;
-  text-shadow: 0 0 4px var(--color-theme-glow);
-}
-
-.terminal-prefix {
-  color: var(--color-theme-primary);
-  font-weight: 700;
-  margin-right: 0.25rem;
-  text-shadow: 0 0 6px var(--color-theme-glow);
-}
-
-.message-content {
-  color: var(--color-theme-primary);
-  font-size: 0.95rem;
-  line-height: 1.75;
-  word-wrap: break-word;
-  text-shadow: 0 0 2px rgba(var(--color-theme-primary-rgb), 0.2);
-  max-width: 65ch;
-}
-
-.user .message-content {
-  line-height: 1.7;
-  text-shadow: 0 0 1px rgba(var(--color-theme-primary-rgb), 0.15);
-}
-
-.typing-wrapper {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.typing-indicator {
-  font-style: italic;
-  color: var(--color-theme-primary);
-  opacity: 0.8;
-  font-size: 0.9rem;
-}
-
-.terminal-cursor {
-  display: inline-block;
-  animation: blink 1s infinite;
-  font-weight: 700;
-}
-
-@keyframes blink {
-  0%,
-  49% {
-    opacity: 1;
-  }
-  50%,
-  100% {
-    opacity: 0;
-  }
-}
-
-.chat-input {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 1rem;
-  background-color: rgba(0, 0, 0, 0.8);
-  border-top: 1px solid var(--color-theme-glow);
-  flex-shrink: 0;
-}
-
-.terminal-prompt {
-  color: var(--color-theme-primary);
-  font-size: 1.2rem;
-  font-weight: 700;
-  text-shadow: 0 0 6px var(--color-theme-glow);
-  flex-shrink: 0;
-  margin-right: 0.25rem;
-}
-
-.chat-input-field {
-  flex: 1;
-  padding: 0.75rem;
-  border-radius: 6px;
-  border: 1px solid var(--color-theme-primary);
-  background-color: rgba(0, 0, 0, 0.7);
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-  font-size: 0.95rem;
-  transition: all 0.2s;
-  box-shadow: inset 0 0 10px rgba(var(--color-theme-primary-rgb), 0.1);
-}
-
-.chat-input-field:focus {
-  outline: none;
-  border-color: var(--color-theme-primary);
-  box-shadow:
-    inset 0 0 10px rgba(var(--color-theme-primary-rgb), 0.2),
-    0 0 15px var(--color-theme-glow);
-}
-
-.chat-input-field::placeholder {
-  color: var(--color-theme-primary);
-  opacity: 0.5;
-}
-
-.chat-send-btn {
-  padding: 0.75rem 1.25rem;
-  border-radius: 6px;
-  border: 1px solid var(--color-theme-primary);
-  background-color: rgba(var(--color-theme-primary-rgb), 0.1);
-  color: var(--color-theme-primary);
-  cursor: pointer;
-  font-family: 'Courier New', monospace;
-  font-size: 1rem;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.chat-send-btn:hover {
-  background-color: var(--color-theme-primary);
-  color: var(--color-terminal-background);
-  box-shadow: 0 0 20px var(--color-theme-glow);
-}
-
-.chat-send-btn:active {
-  transform: scale(0.95);
-}
-
-.chat-send-btn.disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  background-color: rgba(var(--color-theme-primary-rgb), 0.05);
-}
-
-.chat-send-btn.disabled:hover {
-  background-color: rgba(var(--color-theme-primary-rgb), 0.05);
-  color: var(--color-theme-primary);
-  box-shadow: none;
-}
-
-.chat-messages::-webkit-scrollbar {
-  width: 8px;
-}
-
-.chat-messages::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.5);
-}
-
-.chat-messages::-webkit-scrollbar-thumb {
-  background: var(--color-theme-glow);
-  border-radius: 4px;
-}
-
-.chat-messages::-webkit-scrollbar-thumb:hover {
-  background: var(--color-theme-primary);
-}
-
-/* Mode toggle button */
-.mode-toggle-btn {
-  padding: 0.5rem;
-  border-radius: 6px;
-  border: 1px solid var(--color-theme-primary);
-  background-color: rgba(var(--color-theme-primary-rgb), 0.1);
-  color: var(--color-theme-primary);
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.mode-toggle-btn:hover {
-  background-color: rgba(var(--color-theme-primary-rgb), 0.2);
-  box-shadow: 0 0 10px var(--color-theme-glow);
-}
-
-/* Voice mode indicators */
-.recording-indicator,
-.processing-indicator,
-.ready-indicator {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--color-theme-primary);
-  font-size: 0.9rem;
-  padding: 0 0.5rem;
-}
-
-.recording-dot {
-  width: 12px;
-  height: 12px;
-  background-color: var(--color-danger);
-  border-radius: 50%;
-  animation: pulse 1.5s infinite;
-  flex-shrink: 0;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.3;
-    transform: scale(1.1);
-  }
-}
-
-.spinning {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* Audio control buttons */
-.record-btn,
-.send-audio-btn,
-.cancel-btn {
-  padding: 0.75rem 1.25rem;
-  border-radius: 6px;
-  border: 1px solid var(--color-theme-primary);
-  background-color: rgba(var(--color-theme-primary-rgb), 0.1);
-  color: var(--color-theme-primary);
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.record-btn:hover,
-.send-audio-btn:hover {
-  background-color: var(--color-theme-primary);
-  color: var(--color-terminal-background);
-  box-shadow: 0 0 20px var(--color-theme-glow);
-}
-
-.cancel-btn {
-  background-color: rgba(255, 68, 68, 0.1);
-  border-color: rgba(255, 68, 68, 0.5);
-}
-
-.cancel-btn:hover {
-  background-color: rgba(255, 68, 68, 0.3);
-  border-color: var(--color-danger);
-  color: var(--color-danger);
-  box-shadow: 0 0 15px rgba(255, 68, 68, 0.3);
-}
-
-.record-btn:disabled,
-.send-audio-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.record-btn:disabled:hover,
-.send-audio-btn:disabled:hover {
-  background-color: rgba(var(--color-theme-primary-rgb), 0.1);
-  color: var(--color-theme-primary);
-  box-shadow: none;
-}
-
-/* Happiness indicator */
-.happiness-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.125rem 0.375rem;
-  border-radius: 4px;
-  background-color: rgba(0, 0, 0, 0.3);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-/* Action suggestion card */
-.action-suggestion-card {
-  margin-top: 0.75rem;
-  padding: 0.75rem;
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 8px;
-  background-color: rgba(var(--color-theme-primary-rgb), 0.05);
-  box-shadow: 0 0 8px rgba(var(--color-theme-primary-rgb), 0.15);
-}
-
-.action-suggestion-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--color-theme-primary);
-  margin-bottom: 0.5rem;
-  opacity: 0.8;
-}
-
-.action-suggestion-body {
-  margin-bottom: 0.75rem;
-}
-
-.action-suggestion-text {
-  color: var(--color-theme-primary);
-  font-weight: 600;
-  font-size: 0.9rem;
-  margin-bottom: 0.25rem;
-  text-shadow: 0 0 4px var(--color-theme-glow);
-}
-
-.action-suggestion-reason {
-  color: var(--color-theme-primary);
-  font-size: 0.8rem;
-  opacity: 0.7;
-}
-
-.action-suggestion-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.action-confirm-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.75rem;
-  border-radius: 4px;
-  border: 1px solid var(--color-theme-primary);
-  background-color: rgba(var(--color-theme-primary-rgb), 0.15);
-  color: var(--color-theme-primary);
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.action-confirm-btn:hover:not(:disabled) {
-  background-color: var(--color-theme-primary);
-  color: var(--color-terminal-background);
-  box-shadow: 0 0 10px var(--color-theme-glow);
-}
-
-.action-confirm-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.action-dismiss-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.375rem;
-  border-radius: 4px;
-  border: 1px solid rgba(var(--color-theme-primary-rgb), 0.3);
-  background-color: transparent;
-  color: var(--color-theme-primary);
-  cursor: pointer;
-  transition: all 0.2s;
-  opacity: 0.6;
-}
-
-.action-dismiss-btn:hover {
-  opacity: 1;
-  background-color: rgba(255, 68, 68, 0.1);
-  border-color: rgba(255, 68, 68, 0.5);
-  color: var(--color-danger);
-}
-
-/* Quota exceeded state */
-.chat-input.quota-exceeded {
-  justify-content: center;
-  padding: 0.75rem 1rem;
-}
-
-.quota-blocked-message {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-  max-width: 500px;
-  padding: 0.75rem 1rem;
-  background-color: rgba(255, 68, 68, 0.1);
-  border: 1px solid rgba(255, 68, 68, 0.4);
-  border-radius: 8px;
-}
-
-.quota-icon {
-  width: 24px;
-  height: 24px;
-  color: var(--color-danger);
-  flex-shrink: 0;
-}
-
-.quota-text {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-}
-
-.quota-title {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--color-danger);
-}
-
-.quota-reset {
-  font-size: 0.75rem;
-  color: var(--color-danger);
-  opacity: 0.8;
-}
-
-.quota-profile-btn {
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  border: 1px solid var(--color-danger);
-  background-color: rgba(255, 68, 68, 0.15);
-  color: var(--color-danger);
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.quota-profile-btn:hover {
-  background-color: var(--color-danger);
-  color: var(--color-terminal-background);
-  box-shadow: 0 0 10px rgba(255, 68, 68, 0.4);
-}
-</style>
+<style src="./DwellerChat.css"></style>

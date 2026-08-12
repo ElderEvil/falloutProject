@@ -10,7 +10,7 @@ import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
 import DwellerFilterPanel from './DwellerFilterPanel.vue'
 import { normalizeImageUrl } from '@/core/utils/image'
 
-const dwellerStore = useDwellerStore()
+const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
 const authStore = useAuthStore()
 const toast = useToast()
@@ -31,7 +31,7 @@ const unassignedDwellers = computed(() => {
     if (isExploring) return false
 
     // Must not be dead (unless we want to see dead bodies to unassign? No, dead dwellers are handled elsewhere usually)
-    if (dweller.is_dead) return false
+    if (dweller.status === 'dead') return false
 
     return true
   })
@@ -105,11 +105,10 @@ const handleDropZoneDrop = async (event: DragEvent) => {
       return
     }
 
-    await dwellerStore.unassignDwellerFromRoom(dwellerId, authStore.token as string)
+    await dwellerManagementStore.unassignDwellerFromRoom(dwellerId, authStore.token as string)
 
     toast.success(`${firstName} ${lastName} unassigned from room`)
-  } catch (error) {
-    console.error('Failed to unassign dweller:', error)
+  } catch {
     toast.error('Failed to unassign dweller')
   }
 }

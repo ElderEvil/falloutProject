@@ -288,10 +288,6 @@ export const useExplorationStore = defineStore('exploration', () => {
     }
   }
 
-  function clearLastRewards(): void {
-    lastRewards.value = null
-  }
-
   function clearError(): void {
     error.value = null
   }
@@ -314,7 +310,6 @@ export const useExplorationStore = defineStore('exploration', () => {
     fetchExplorationProgress,
     recallDweller,
     completeExploration,
-    clearLastRewards,
     clearError,
   }
 })

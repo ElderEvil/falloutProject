@@ -20,8 +20,7 @@ const terrain = computed(() => generateTerrain())
       <filter id="terrain-noise" x="-20%" y="-20%" width="140%" height="140%">
         <feTurbulence
           type="fractalNoise"
-          base-frequency="0.65"
-          num-octaves="3"
+          v-bind="{ baseFrequency: '0.65', numOctaves: '3' }"
           seed="42"
           result="noise"
         />

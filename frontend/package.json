@@ -1,6 +1,6 @@
 {
   "name": "frontend",
-  "version": "2.28.0",
+  "version": "2.31.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,17 +10,17 @@
     "preview": "vp preview",
     "test": "vp test",
     "test:run": "vp test run",
+    "test:coverage": "vp test run --coverage",
     "lint": "vp lint src",
     "lint:fix": "vp lint src --fix",
     "format": "vp fmt src",
     "format:check": "vp fmt src --check",
-    "typecheck": "vue-tsc --noEmit",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.app.json",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@iconify/vue": "5.0.1",
-    "@nuxt/ui": "^4.10.0",
     "@vueuse/core": "14.4.0",
     "@vueuse/motion": "3.0.3",
     "axios": "1.19.0",
@@ -38,6 +38,7 @@
     "@types/jsdom": "28.0.3",
     "@types/node": "^26.1.2",
     "@vitejs/plugin-vue": "^6.0.8",
+    "@vitest/coverage-v8": "4.1.10",
     "@vitest/ui": "4.1.10",
     "@vue/test-utils": "^2.4.11",
     "@vue/tsconfig": "^0.9.1",

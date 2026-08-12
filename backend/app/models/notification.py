@@ -43,6 +43,7 @@ class NotificationType(StrEnum):
     QUEST_COMPLETE = "quest_complete"
     ACHIEVEMENT_UNLOCKED = "achievement_unlocked"
     RADIO_NEW_DWELLER = "radio_new_dweller"
+    MAP_REGISTRATION_FAILED = "map_registration_failed"
 
 
 class NotificationPriority(StrEnum):

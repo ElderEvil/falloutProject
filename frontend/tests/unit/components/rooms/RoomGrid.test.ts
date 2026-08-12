@@ -187,7 +187,7 @@ describe('RoomGrid', () => {
   describe('Training Assignment on Drop', () => {
     it('should start training session when dweller is dropped into training room', async () => {
       const roomStore = useRoomStore()
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().management
       const trainingStore = useTrainingStore()
       const authStore = useAuthStore()
 
@@ -273,7 +273,7 @@ describe('RoomGrid', () => {
 
     it('should not start training session when dropped into non-training room', async () => {
       const roomStore = useRoomStore()
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().management
       const trainingStore = useTrainingStore()
       const authStore = useAuthStore()
 
@@ -341,7 +341,7 @@ describe('RoomGrid', () => {
 
     it('should handle training start failure gracefully', async () => {
       const roomStore = useRoomStore()
-      const dwellerStore = useDwellerStore()
+      const dwellerStore = useDwellerStore().management
       const trainingStore = useTrainingStore()
       const authStore = useAuthStore()
 

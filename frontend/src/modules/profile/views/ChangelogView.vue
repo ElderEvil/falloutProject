@@ -99,9 +99,8 @@ const fetchChangelog = async () => {
 
   try {
     changelog.value = await changelogService.getChangelog({ limit: 50 })
-  } catch (err) {
+  } catch {
     error.value = 'Failed to load changelog'
-    console.error('Changelog fetch error:', err)
   } finally {
     loading.value = false
   }

@@ -18,15 +18,23 @@ import { RevivalSection } from '../components/death'
 import type { RevivalCostResponse } from '../models/dweller'
 import { useGaryMode } from '@/core/composables/useGaryMode'
 import { handleStoreError } from '@/core/utils/errorHandler'
+import { useToast } from '@/core/composables/useToast'
 import { getVaultMap } from '@/modules/map/services/mapService'
 import type { MapPlaceLink } from '../components/DwellerBio.vue'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
-const dwellerStore = useDwellerStore()
+const {
+  filter: dwellerStore,
+  generation: dwellerGenerationStore,
+  management: dwellerManagementStore,
+  medical: dwellerMedicalStore,
+  death: dwellerDeathStore,
+} = useDwellerStore()
 const vaultStore = useVaultStore()
 const explorationStore = useExplorationStore()
+const toast = useToast()
 const { isCollapsed } = useSidePanel()
 const { triggerGaryMode } = useGaryMode()
 
@@ -65,7 +73,7 @@ onMounted(async () => {
 
     // Fetch revival cost if dweller is dead
     if (dweller.value?.is_dead && !dweller.value?.is_permanently_dead) {
-      revivalCost.value = await dwellerStore.getRevivalCost(
+      revivalCost.value = await dwellerDeathStore.getRevivalCost(
         dwellerId.value,
         authStore.token as string
       )
@@ -87,7 +95,7 @@ onMounted(async () => {
 // Watch for changes in dweller's dead status to fetch/clear revival cost
 watch(isDead, async (newIsDead) => {
   if (newIsDead && !dweller.value?.is_permanently_dead && authStore.isAuthenticated) {
-    revivalCost.value = await dwellerStore.getRevivalCost(
+    revivalCost.value = await dwellerDeathStore.getRevivalCost(
       dwellerId.value,
       authStore.token as string
     )
@@ -111,11 +119,11 @@ const handleAssign = async () => {
 
   assigning.value = true
   try {
-    await dwellerStore.autoAssignToRoom(dwellerId.value, authStore.token as string)
+    await dwellerManagementStore.autoAssignToRoom(dwellerId.value, authStore.token as string)
     // Refresh dweller details to show updated room assignment
     await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
   } catch (error) {
-    console.error('Error auto-assigning dweller:', error)
+    toast.error('Failed to assign dweller automatically')
   } finally {
     assigning.value = false
   }
@@ -128,7 +136,7 @@ const handleRecall = async () => {
   const exploration = explorationStore.getExplorationByDwellerId(dwellerId.value)
 
   if (!exploration) {
-    console.error('No active exploration found for dweller')
+    toast.error('No active exploration found for this dweller')
     return
   }
 
@@ -137,14 +145,14 @@ const handleRecall = async () => {
     // Refresh dweller details to update status
     await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token, true)
   } catch (error) {
-    console.error('Error recalling dweller:', error)
+    toast.error('Failed to recall dweller')
   }
 }
 
 const generateDwellerInfo = async () => {
   generatingAI.value = true
   try {
-    const result = await dwellerStore.generateDwellerInfo(
+    const result = await dwellerGenerationStore.generateDwellerInfo(
       dwellerId.value,
       authStore.token as string
     )
@@ -153,7 +161,7 @@ const generateDwellerInfo = async () => {
       await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
     }
   } catch (error) {
-    console.error('Error generating info with AI:', error)
+    toast.error('Failed to generate dweller information')
   } finally {
     generatingAI.value = false
   }
@@ -162,12 +170,15 @@ const generateDwellerInfo = async () => {
 const generateDwellerBio = async () => {
   generatingBio.value = true
   try {
-    const result = await dwellerStore.generateDwellerBio(dwellerId.value, authStore.token as string)
+    const result = await dwellerGenerationStore.generateDwellerBio(
+      dwellerId.value,
+      authStore.token as string
+    )
     if (result) {
       await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
     }
   } catch (error) {
-    console.error('Error generating bio with AI:', error)
+    toast.error('Failed to generate dweller biography')
   } finally {
     generatingBio.value = false
   }
@@ -176,7 +187,7 @@ const generateDwellerBio = async () => {
 const generateDwellerPortrait = async () => {
   generatingPortrait.value = true
   try {
-    const result = await dwellerStore.generateDwellerPortrait(
+    const result = await dwellerGenerationStore.generateDwellerPortrait(
       dwellerId.value,
       authStore.token as string
     )
@@ -184,7 +195,7 @@ const generateDwellerPortrait = async () => {
       await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
     }
   } catch (error) {
-    console.error('Error generating portrait with AI:', error)
+    toast.error('Failed to generate dweller portrait')
   } finally {
     generatingPortrait.value = false
   }
@@ -193,7 +204,7 @@ const generateDwellerPortrait = async () => {
 const generateDwellerAppearance = async () => {
   generatingAppearance.value = true
   try {
-    const result = await dwellerStore.generateDwellerAppearance(
+    const result = await dwellerGenerationStore.generateDwellerAppearance(
       dwellerId.value,
       authStore.token as string
     )
@@ -201,7 +212,7 @@ const generateDwellerAppearance = async () => {
       await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
     }
   } catch (error) {
-    console.error('Error generating appearance with AI:', error)
+    toast.error('Failed to generate dweller appearance')
   } finally {
     generatingAppearance.value = false
   }
@@ -213,7 +224,7 @@ const handleRefresh = async () => {
 
 const handleAppearanceSaved = async (attributes: Record<string, unknown>) => {
   if (!dweller.value) return
-  const result = await dwellerStore.updateVisualAttributes(
+  const result = await dwellerManagementStore.updateVisualAttributes(
     dwellerId.value,
     attributes,
     authStore.token as string
@@ -229,7 +240,7 @@ const handleRevive = async () => {
 
   revivalLoading.value = true
   try {
-    const result = await dwellerStore.reviveDweller(dwellerId.value, authStore.token)
+    const result = await dwellerDeathStore.reviveDweller(dwellerId.value, authStore.token)
     // Only clear revival cost and refresh on successful revival
     if (result) {
       revivalCost.value = null
@@ -252,10 +263,10 @@ const handleUseStimpack = async () => {
 
   usingStimpack.value = true
   try {
-    await dwellerStore.useStimpack(dwellerId.value, authStore.token as string)
+    await dwellerMedicalStore.useStimpack(dwellerId.value, authStore.token as string)
     await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
   } catch (error) {
-    console.error('Error using stimpack:', error)
+    toast.error('Failed to use Stimpack')
   } finally {
     usingStimpack.value = false
   }
@@ -266,10 +277,10 @@ const handleUseRadaway = async () => {
 
   usingRadaway.value = true
   try {
-    await dwellerStore.useRadaway(dwellerId.value, authStore.token as string)
+    await dwellerMedicalStore.useRadaway(dwellerId.value, authStore.token as string)
     await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
   } catch (error) {
-    console.error('Error using radaway:', error)
+    toast.error('Failed to use RadAway')
   } finally {
     usingRadaway.value = false
   }
@@ -280,10 +291,10 @@ const handleUnassign = async () => {
 
   unassigning.value = true
   try {
-    await dwellerStore.unassignDwellerFromRoom(dwellerId.value, authStore.token as string)
+    await dwellerManagementStore.unassignDwellerFromRoom(dwellerId.value, authStore.token as string)
     await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
   } catch (error) {
-    console.error('Error unassigning dweller:', error)
+    toast.error('Failed to unassign dweller')
   } finally {
     unassigning.value = false
   }
@@ -309,7 +320,7 @@ const saveNewName = async () => {
 
   renamingInProgress.value = true
   try {
-    const result = await dwellerStore.renameDweller(
+    const result = await dwellerManagementStore.renameDweller(
       dwellerId.value,
       editedName.value.trim(),
       authStore.token as string

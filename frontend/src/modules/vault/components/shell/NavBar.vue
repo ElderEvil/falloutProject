@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, inject, onMounted, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
+import { MotionDirective } from '@vueuse/motion'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRouter, useRoute } from 'vue-router'
@@ -11,7 +12,12 @@ const authStore = useAuthStore()
 const vaultStore = useVaultStore()
 const router = useRouter()
 const route = useRoute()
-const { versionBadgeVisible, showChangelog } = useVersionDetection()
+// Keep the directive local so Vue's template type checker sees the same
+// directive instance that MotionPlugin registers globally in main.ts.
+const vMotion = MotionDirective()
+const { versionBadgeVisible, showChangelog } = useVersionDetection({
+  isAuthenticated: () => authStore.isAuthenticated,
+})
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const user = computed(() => authStore.user)
 const currentVaultId = computed(() => {
@@ -61,7 +67,7 @@ onUnmounted(() => {
 
 <template>
   <nav
-    class="bg-gray-800 p-4 shadow-lg fixed top-0 left-0 right-0 z-50"
+    class="fixed left-0 right-0 top-0 z-50 bg-[#1c1917] p-4 shadow-lg"
     role="navigation"
     aria-label="Main navigation"
   >
@@ -78,7 +84,7 @@ onUnmounted(() => {
         <!-- Vault List Button (main navigation) -->
         <router-link
           to="/"
-          class="text-[var(--color-theme-primary)] hover:underline font-bold focus:outline-none focus:ring-2 focus:ring-[var(--color-theme-primary)] focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1"
+          class="text-[var(--color-theme-primary)] hover:underline font-bold focus:outline-none focus:ring-2 focus:ring-[var(--color-theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--color-surface-warm)] rounded px-2 py-1"
           role="menuitem"
           aria-label="Navigate to vaults list"
         >
@@ -129,7 +135,7 @@ onUnmounted(() => {
           <button
             @click="toggleDropdown"
             @keydown.escape="closeDropdown"
-            class="text-[var(--color-theme-primary)] hover:underline hover:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-theme-primary)] focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1 border-2 border-[var(--color-theme-primary)]/30"
+            class="text-[var(--color-theme-primary)] hover:underline hover:bg-[var(--color-surface-raised)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--color-surface-warm)] rounded px-2 py-1 border-2 border-[var(--color-theme-primary)]/30"
             :aria-expanded="isDropdownOpen"
             aria-haspopup="true"
             :aria-label="`User menu for ${user?.username || 'user'}`"

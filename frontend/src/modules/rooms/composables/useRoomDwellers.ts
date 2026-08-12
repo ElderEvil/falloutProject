@@ -13,7 +13,7 @@ export function useRoomDwellers(
 ) {
   const route = useRoute()
   const router = useRouter()
-  const dwellerStore = useDwellerStore()
+  const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
   const authStore = useAuthStore()
 
   const assignedDwellers = computed<DwellerShort[]>(() => {
@@ -58,16 +58,16 @@ export function useRoomDwellers(
 
     try {
       const results = await Promise.allSettled(
-        dwellersToUnassign.map((dweller) => dwellerStore.unassignDwellerFromRoom(dweller.id, token))
+        dwellersToUnassign.map((dweller) =>
+          dwellerManagementStore.unassignDwellerFromRoom(dweller.id, token)
+        )
       )
 
       const rejected = results.filter((result) => result.status === 'rejected')
       if (rejected.length > 0) {
-        console.error('Failed to unassign dwellers:', rejected)
         actionError.value = 'Failed to unassign some dwellers'
       }
     } catch (error) {
-      console.error('Failed to unassign dwellers:', error)
       actionError.value = error instanceof Error ? error.message : 'Failed to unassign dwellers'
     } finally {
       emitRoomUpdated()

@@ -9,7 +9,7 @@ const isCrashing = ref(false)
 const crashUnlocked = useLocalStorage(STORAGE_KEY, false)
 
 let clickCount = ref(0)
-let clickTimer: NodeJS.Timeout | null = null
+let clickTimer: ReturnType<typeof setTimeout> | null = null
 
 export function useFakeCrash() {
   const handleVersionClick = () => {

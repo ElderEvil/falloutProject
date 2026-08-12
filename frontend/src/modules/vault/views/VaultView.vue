@@ -10,8 +10,8 @@ import { useIncidentStore } from '@/modules/combat/stores/incident'
 import RoomGrid from '@/modules/rooms/components/RoomGrid.vue'
 import BuildModeButton from '@/core/components/common/BuildModeButton.vue'
 import RoomMenu from '@/modules/rooms/components/RoomMenu.vue'
-import ResourceBar from '@/core/components/common/ResourceBar.vue'
-import GameControlPanel from '@/core/components/common/GameControlPanel.vue'
+import ResourceBar from '@/modules/vault/components/shell/ResourceBar.vue'
+import GameControlPanel from '@/modules/vault/components/shell/GameControlPanel.vue'
 import UnassignedDwellers from '@/modules/dwellers/components/UnassignedDwellers.vue'
 import WastelandPanel from '@/modules/exploration/components/WastelandPanel.vue'
 import IncidentAlert from '@/modules/combat/components/incidents/IncidentAlert.vue'
@@ -19,6 +19,7 @@ import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useToast } from '@/core/composables/useToast'
 import type { RoomTemplate } from '@/modules/rooms/models/room'
 import { Icon } from '@iconify/vue'
 
@@ -39,7 +40,8 @@ const route = useRoute()
 const authStore = useAuthStore()
 const roomStore = useRoomStore()
 const vaultStore = useVaultStore()
-const dwellerStore = useDwellerStore()
+const toast = useToast()
+const { filter: dwellerStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
 const incidentStore = useIncidentStore()
 const { isCollapsed } = useSidePanel()
@@ -145,7 +147,7 @@ const loadVaultData = async (id: string) => {
     try {
       await explorationStore.fetchExplorationsByVault(id, authStore.token)
     } catch (error) {
-      console.error('[VaultView] Failed to load explorations:', error)
+      toast.warning('Vault loaded, but explorations could not be loaded')
       // Don't fail the whole page load if explorations fail
     }
 
@@ -164,7 +166,7 @@ const loadVaultData = async (id: string) => {
 
     isLoading.value = false
   } catch (error) {
-    console.error('Failed to load vault:', error)
+    toast.error('Failed to load vault')
     errorMessage.value = error instanceof Error ? error.message : 'Failed to load vault data'
     isLoading.value = false
   }

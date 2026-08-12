@@ -31,14 +31,17 @@ function createLocation(
         first_name: 'John',
         last_name: 'Doe',
         relation: 'origin',
+        is_unlocked: true,
       },
       {
         dweller_id: 'dweller-2',
         first_name: 'Jane',
         last_name: null,
         relation: 'visited',
+        is_unlocked: true,
       },
     ],
+    is_unlocked: true,
     ...overrides,
   }
 }
@@ -280,8 +283,42 @@ describe('MarkerDetailModal', () => {
         },
       })
 
-      // Modal content should not be visible when closed
       expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    })
+  })
+
+  describe('Locked location placeholder', () => {
+    it('should show locked placeholder when location is not unlocked', () => {
+      const wrapper = mount(MarkerDetailModal, {
+        props: {
+          modelValue: true,
+          location: createLocation({ is_unlocked: false }),
+          vaultMarker: null,
+        },
+        global: {
+          stubs: { teleport: true },
+        },
+      })
+
+      expect(wrapper.text()).toContain('Unknown Location')
+      expect(wrapper.text()).toContain('Chat with a dweller who has been here to uncover this place.')
+      expect(wrapper.text()).not.toContain('origin')
+    })
+
+    it('should NOT show locked placeholder when location is unlocked', () => {
+      const wrapper = mount(MarkerDetailModal, {
+        props: {
+          modelValue: true,
+          location: createLocation({ is_unlocked: true }),
+          vaultMarker: null,
+        },
+        global: {
+          stubs: { teleport: true },
+        },
+      })
+
+      expect(wrapper.text()).not.toContain('Unknown Location')
+      expect(wrapper.text()).toContain('origin')
     })
   })
 })

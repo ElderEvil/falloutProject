@@ -13,11 +13,11 @@ interface Props {
 const props = defineProps<Props>()
 
 const pregnancyStore = usePregnancyStore()
-const dwellerStore = useDwellerStore()
+const { filter: dwellerStore } = useDwellerStore()
 const authStore = useAuthStore()
 
 const { activePregnancies } = storeToRefs(pregnancyStore)
-const { dwellers } = storeToRefs(dwellerStore)
+const { dwellers } = storeToRefs(useDwellerStore().filter)
 const { isSuperuser, token } = storeToRefs(authStore)
 
 const selectedMother = ref('')

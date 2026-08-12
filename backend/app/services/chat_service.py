@@ -203,6 +203,9 @@ class ChatService:
             obj_in=chat_create_data,
         )
 
+        # Unlock the dweller's map places after 3+ user messages (best-effort)
+        await self._maybe_unlock_places(db_session, dweller)
+
         # Build and return response
         return DwellerChatResponse(
             response=response_message,
@@ -326,6 +329,9 @@ class ChatService:
                 db_session,
                 obj_in=chat_create_data,
             )
+
+            # Unlock the dweller's map places after 3+ user messages (best-effort)
+            await self._maybe_unlock_places(db_session, dweller)
 
             yield {
                 "type": "done",
@@ -476,6 +482,21 @@ class ChatService:
                 result.completion_tokens,
                 result.total_tokens,
             )
+
+    async def _maybe_unlock_places(self, db_session: AsyncSession, dweller: DwellerReadFull) -> None:
+        """Unlock the dweller's associated places after 3+ user messages (best-effort)."""
+        from app.crud.chat_message import chat_message as chat_crud
+        from app.crud.wasteland_location import wasteland_location as wl_crud
+
+        try:
+            user_msg_count = await chat_crud.count_user_messages_to_dweller(db_session, dweller_id=dweller.id)
+            if user_msg_count >= 3:
+                updated = await wl_crud.unlock_places_for_dweller(db_session, dweller_id=dweller.id)
+                if updated:
+                    logger.info("Unlocked places for dweller %s after %d user messages", dweller.id, user_msg_count)
+        except Exception:
+            await db_session.rollback()
+            logger.exception("Failed to unlock places for dweller %s, continuing", dweller.id)
 
 
 # Singleton instance

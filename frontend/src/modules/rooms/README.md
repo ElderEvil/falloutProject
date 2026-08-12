@@ -17,7 +17,7 @@ Room management module. Handles vault room grid layout, construction, production
 - `components/RoomInfoGrid.vue` — room information grid
 - `components/DwellerList.vue` — assigned dwellers list
 - `components/EmptyCell.vue` — empty grid cell placeholder
-- `composables/useRoomRendering.ts` — room grid rendering logic
+- `@/core/composables/useRoomRendering.ts` — shared room-image display preference
 - `composables/useRoomUpgrade.ts` — room upgrade flow
 - `composables/useRoomProduction.ts` — production calculation
 - `composables/useRoomDwellers.ts` — dweller assignment logic

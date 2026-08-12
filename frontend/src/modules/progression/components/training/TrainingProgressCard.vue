@@ -76,7 +76,7 @@ const fillGradient = computed(() => {
   if (isReadyToComplete.value) {
     return 'linear-gradient(to right, var(--color-theme-accent), var(--color-theme-primary), var(--color-theme-accent))'
   }
-  return 'linear-gradient(to right, var(--color-theme-primary), rgb(0 149 255), var(--color-theme-primary))'
+  return 'linear-gradient(to right, var(--color-theme-primary), var(--color-theme-accent), var(--color-theme-primary))'
 })
 
 const getStatIcon = (stat: string): string => {

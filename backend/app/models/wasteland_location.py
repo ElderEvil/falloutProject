@@ -56,6 +56,7 @@ class DwellerLocationBase(SQLModel):
     """Shared fields for DwellerLocation."""
 
     relation: DwellerLocationRelationEnum
+    is_unlocked: bool = Field(default=False)
 
 
 class DwellerLocation(BaseUUIDModel, DwellerLocationBase, TimeStampMixin, table=True):

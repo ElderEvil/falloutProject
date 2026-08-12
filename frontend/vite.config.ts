@@ -4,7 +4,6 @@ import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vite-plus'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
-import ui from '@nuxt/ui/vite'
 
 // Read version from package.json
 const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'))
@@ -30,7 +29,7 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
   },
-  plugins: [vue(), ui(), tailwindcss()],
+  plugins: [vue(), tailwindcss()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -80,11 +79,6 @@ export default defineConfig({
           // Icons
           if (id.includes('node_modules/@iconify')) {
             return 'iconify'
-          }
-
-          // UI library
-          if (id.includes('node_modules/@nuxt/ui')) {
-            return 'nuxt-ui'
           }
 
           // Tailwind

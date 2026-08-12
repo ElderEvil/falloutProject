@@ -12,19 +12,22 @@ import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { startTraining } from '@/modules/progression/services/trainingService'
 import { useToast } from '@/core/composables/useToast'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useMapStore } from '@/modules/map/stores/map'
 
 export interface UseChatActionsOptions {
   dwellerId: string
   dwellerName: string
   messages: Ref<ChatMessageDisplay[]>
+  vaultId?: string | null
 }
 
 export function useChatActions(options: UseChatActionsOptions) {
   const authStore = useAuthStore()
-  const dwellerStore = useDwellerStore()
+  const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
   const vaultStore = useVaultStore()
   const roomStore = useRoomStore()
   const explorationStore = useExplorationStore()
+  const mapStore = useMapStore()
   const toast = useToast()
 
   const isPerformingAction = ref(false)
@@ -36,11 +39,10 @@ export function useChatActions(options: UseChatActionsOptions) {
 
     isPerformingAction.value = true
     try {
-      await dwellerStore.assignDwellerToRoom(options.dwellerId, roomId, authStore.token)
+      await dwellerManagementStore.assignDwellerToRoom(options.dwellerId, roomId, authStore.token)
       toast.success(`${options.dwellerName} assigned to ${roomName}`)
       return true
-    } catch (error) {
-      console.error('Failed to assign dweller to room:', error)
+    } catch {
       toast.error('Failed to assign dweller to room')
       return false
     } finally {
@@ -83,14 +85,19 @@ export function useChatActions(options: UseChatActionsOptions) {
         const matchingStatRooms = trainingRooms.filter(
           (r) => r.ability?.toLowerCase() === stat.toLowerCase()
         )
+        const hasCapacity = (room: (typeof trainingRooms)[number], occupancy: number) => {
+          const roomSize = room.size ?? room.size_min ?? 3
+          const capacity = Math.ceil(roomSize / 3) * 2
+          return occupancy < capacity
+        }
         let availableTrainingRoom = matchingStatRooms.find((r) => {
           const occupancy = dwellerStore.dwellers.filter((d) => d.room_id === r.id).length
-          return !r.max_capacity || occupancy < r.max_capacity
+          return hasCapacity(r, occupancy)
         })
         if (!availableTrainingRoom) {
           availableTrainingRoom = trainingRooms.find((r) => {
             const occupancy = dwellerStore.dwellers.filter((d) => d.room_id === r.id).length
-            return !r.max_capacity || occupancy < r.max_capacity
+            return hasCapacity(r, occupancy)
           })
         }
 
@@ -100,7 +107,7 @@ export function useChatActions(options: UseChatActionsOptions) {
         }
 
         toast.info(`Moving ${options.dwellerName} to training room...`)
-        await dwellerStore.assignDwellerToRoom(
+        await dwellerManagementStore.assignDwellerToRoom(
           options.dwellerId,
           availableTrainingRoom.id,
           authStore.token
@@ -108,11 +115,15 @@ export function useChatActions(options: UseChatActionsOptions) {
         trainingRoomId = availableTrainingRoom.id
       }
 
+      if (!trainingRoomId) {
+        toast.error('Unable to determine a training room')
+        return false
+      }
+
       await startTraining(options.dwellerId, trainingRoomId, authStore.token)
       toast.success(`${options.dwellerName} started ${stat} training`)
       return true
-    } catch (error) {
-      console.error('Failed to start training:', error)
+    } catch {
       toast.error('Failed to start training')
       return false
     } finally {
@@ -140,7 +151,7 @@ export function useChatActions(options: UseChatActionsOptions) {
       }
 
       if (dweller.room_id) {
-        await dwellerStore.unassignDwellerFromRoom(options.dwellerId, authStore.token)
+        await dwellerManagementStore.unassignDwellerFromRoom(options.dwellerId, authStore.token)
       }
 
       toast.info(`Sending ${options.dwellerName} to wasteland...`)
@@ -156,8 +167,7 @@ export function useChatActions(options: UseChatActionsOptions) {
 
       await dwellerStore.fetchDwellerDetails(options.dwellerId, authStore.token, true)
       return true
-    } catch (error) {
-      console.error('Failed to start exploration:', error)
+    } catch {
       toast.error('Failed to send dweller to wasteland')
       return false
     } finally {
@@ -191,8 +201,7 @@ export function useChatActions(options: UseChatActionsOptions) {
 
       await dwellerStore.fetchDwellerDetails(options.dwellerId, authStore.token, true)
       return true
-    } catch (error) {
-      console.error('Failed to recall exploration:', error)
+    } catch {
       toast.error('Failed to recall dweller from wasteland')
       return false
     } finally {
@@ -221,10 +230,17 @@ export function useChatActions(options: UseChatActionsOptions) {
     }
   }
 
+  const refreshAfterChat = async () => {
+    const vaultId = options.vaultId ?? vaultStore.activeVaultId
+    if (!vaultId || !authStore.token) return
+    await mapStore.refreshMap(vaultId, authStore.token)
+  }
+
   return {
     isPerformingAction,
     showStatSelector,
     pendingTrainingAction,
     handleActionConfirm,
+    refreshAfterChat,
   }
 }

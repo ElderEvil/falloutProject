@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, shallowRef, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSse, type SseEvent } from '@/core/composables/useEventStream'
+import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import axios from '@/core/plugins/axios'
 
 interface Notification {
@@ -20,13 +21,57 @@ const authStore = useAuthStore()
 const showPopup = ref(false)
 const notifications = ref<Notification[]>([])
 const unreadCount = ref(0)
-const isLoading = ref(false)
+const { run: runFetchNotifications, isLoading } = useAsyncAction(
+  async (token: string) => {
+    const response = await axios.get('/api/v1/notifications/', {
+      params: { limit: 20 },
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    notifications.value = response.data
+  },
+  { context: 'Failed to fetch notifications' }
+)
+const { run: runFetchUnreadCount } = useAsyncAction(
+  async (token: string) => {
+    const response = await axios.get('/api/v1/notifications/unread-count', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    unreadCount.value = response.data.count
+  },
+  { context: 'Failed to fetch unread count' }
+)
+const { run: runMarkAsRead } = useAsyncAction(
+  async (notificationId: string, token: string) => {
+    await axios.patch(
+      `/api/v1/notifications/${notificationId}/read`,
+      {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    const notification = notifications.value.find((item) => item.id === notificationId)
+    if (notification) notification.is_read = true
+    await runFetchUnreadCount(token)
+  },
+  { context: 'Failed to mark notification as read' }
+)
+const { run: runMarkAllAsRead } = useAsyncAction(
+  async (token: string) => {
+    await axios.post(
+      '/api/v1/notifications/mark-all-read',
+      {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    notifications.value.forEach((notification) => (notification.is_read = true))
+    unreadCount.value = 0
+  },
+  { context: 'Failed to mark all notifications as read' }
+)
 
 const hasUnread = computed(() => unreadCount.value > 0)
 
 // SSE connection for live notifications
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? ''
-const sse = ref<ReturnType<typeof useSse>>()
+// Keep the composable return value shallow so its nested event Ref is not unwrapped.
+const sse = shallowRef<ReturnType<typeof useSse>>()
 
 const startSse = () => {
   sse.value?.close()
@@ -55,10 +100,13 @@ watch(
   }
 )
 
+const currentSseEvent = computed<SseEvent | null>(() => {
+  const instance = sse.value
+  return instance?.event.value ?? null
+})
+
 // Process incoming SSE notification events
-watch(
-  () => sse.value?.event?.value,
-  (evt: SseEvent | null) => {
+watch(currentSseEvent, (evt) => {
     if (!evt || evt.event !== 'notification') return
     const notificationData = (evt.data as any)?.notification
     if (!notificationData) return
@@ -75,43 +123,14 @@ watch(
     }
     notifications.value.unshift(newNotif)
     unreadCount.value++
-  }
-)
+})
 
 const fetchNotifications = async () => {
-  if (!authStore.token) return
-
-  isLoading.value = true
-  try {
-    const response = await axios.get('/api/v1/notifications/', {
-      params: { limit: 20 },
-      headers: {
-        Authorization: `Bearer ${authStore.token}`,
-      },
-    })
-
-    notifications.value = response.data
-  } catch (error) {
-    console.error('Failed to fetch notifications:', error)
-  } finally {
-    isLoading.value = false
-  }
+  if (authStore.token) await runFetchNotifications(authStore.token)
 }
 
 const fetchUnreadCount = async () => {
-  if (!authStore.token) return
-
-  try {
-    const response = await axios.get('/api/v1/notifications/unread-count', {
-      headers: {
-        Authorization: `Bearer ${authStore.token}`,
-      },
-    })
-
-    unreadCount.value = response.data.count
-  } catch (error) {
-    console.error('Failed to fetch unread count:', error)
-  }
+  if (authStore.token) await runFetchUnreadCount(authStore.token)
 }
 
 const togglePopup = async () => {
@@ -122,48 +141,11 @@ const togglePopup = async () => {
 }
 
 const markAsRead = async (notificationId: string) => {
-  if (!authStore.token) return
-
-  try {
-    await axios.patch(
-      `/api/v1/notifications/${notificationId}/read`,
-      {},
-      {
-        headers: {
-          Authorization: `Bearer ${authStore.token}`,
-        },
-      }
-    )
-
-    const notification = notifications.value.find((n) => n.id === notificationId)
-    if (notification) {
-      notification.is_read = true
-    }
-    await fetchUnreadCount()
-  } catch (error) {
-    console.error('Failed to mark notification as read:', error)
-  }
+  if (authStore.token) await runMarkAsRead(notificationId, authStore.token)
 }
 
 const markAllAsRead = async () => {
-  if (!authStore.token) return
-
-  try {
-    await axios.post(
-      '/api/v1/notifications/mark-all-read',
-      {},
-      {
-        headers: {
-          Authorization: `Bearer ${authStore.token}`,
-        },
-      }
-    )
-
-    notifications.value.forEach((n) => (n.is_read = true))
-    unreadCount.value = 0
-  } catch (error) {
-    console.error('Failed to mark all as read:', error)
-  }
+  if (authStore.token) await runMarkAllAsRead(authStore.token)
 }
 
 const getNotificationIcon = (type: string): string => {
@@ -222,8 +204,8 @@ onBeforeUnmount(() => {
     <!-- Bell Button -->
     <button
       @click="togglePopup"
-      class="relative flex items-center justify-center rounded p-2 transition-all duration-200 hover:bg-gray-800/50"
-      :class="{ 'bg-gray-800/50': showPopup }"
+      class="relative flex items-center justify-center rounded p-2 transition-all duration-200 hover:bg-[#211e1b]"
+      :class="{ 'bg-[#141210]': showPopup }"
       title="Notifications"
     >
       <Icon
@@ -245,14 +227,11 @@ onBeforeUnmount(() => {
     <Transition name="fade">
       <div
         v-if="showPopup"
-        class="absolute right-0 top-12 z-50 w-96 rounded border bg-gray-900 shadow-2xl"
-        :style="{
-          borderColor: 'rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3)',
-        }"
+        class="absolute right-0 top-12 z-50 w-96 rounded border border-theme-primary/30 bg-[#1c1917] shadow-2xl"
       >
         <!-- Header -->
-        <div class="flex items-center justify-between border-b border-gray-800 px-4 py-3">
-          <h3 class="font-semibold" :style="{ color: 'var(--color-theme-primary)' }">
+        <div class="flex items-center justify-between border-b border-[#211e1b] px-4 py-3">
+          <h3 class="font-semibold text-theme-primary">
             Notifications
           </h3>
           <button
@@ -276,15 +255,16 @@ onBeforeUnmount(() => {
             <p class="text-sm">No notifications yet</p>
           </div>
 
-          <div v-else class="divide-y divide-gray-800">
-            <div
+          <div v-else class="divide-y divide-[#211e1b]">
+            <button
               v-for="notification in notifications"
               :key="notification.id"
+              type="button"
               @click="!notification.is_read && markAsRead(notification.id)"
-              class="p-4 transition-colors cursor-pointer"
+              class="w-full border-0 p-4 text-left transition-colors cursor-pointer"
               :class="{
-                'bg-gray-800/30': !notification.is_read,
-                'hover:bg-gray-800/50': true,
+                'bg-[#141210]': !notification.is_read,
+                'hover:bg-[#211e1b]': true,
               }"
             >
               <div class="flex items-start space-x-3">
@@ -312,12 +292,12 @@ onBeforeUnmount(() => {
                     {{ notification.message }}
                   </p>
                   <div v-if="!notification.is_read" class="mt-2 flex items-center">
-                    <div class="h-2 w-2 rounded-full bg-blue-500"></div>
-                    <span class="ml-2 text-xs text-blue-400">New</span>
+                    <div class="h-2 w-2 rounded-full bg-theme-primary"></div>
+                    <span class="ml-2 text-xs text-theme-primary">New</span>
                   </div>
                 </div>
               </div>
-            </div>
+            </button>
           </div>
         </div>
       </div>

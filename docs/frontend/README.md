@@ -1,6 +1,6 @@
 # Fallout Shelter Frontend 🎮
 
-> **Terminal-themed Vue 3 application with modern tooling - v2.18.0**
+> **Terminal-themed Vue 3 application with modern tooling - v2.30.0**
 
 A retro-futuristic frontend for the Fallout Shelter management game, featuring terminal aesthetics, CRT effects,
 and cutting-edge JavaScript tooling.
@@ -10,7 +10,7 @@ and cutting-edge JavaScript tooling.
 ### Core Framework
 
 - **Vue 3.5.29** - Composition API with `<script setup>`
-- **TypeScript 5.9** - Full type safety
+- **TypeScript 6.0** - Full type safety
 - **Vite+** - Unified toolchain (Vite 8 + Vitest 4.1 + Rolldown bundler)
 - **Pinia 3.0** - State management
 - **Vue Router 4.6** - Client-side routing
@@ -19,9 +19,8 @@ and cutting-edge JavaScript tooling.
 
 - **TailwindCSS v4** - With custom `@theme` design system
 - **@tailwindcss/vite** - Native Vite integration
-- **Custom UI Components** - 8 terminal-themed wrapper components
-- **Nuxt UI 4.5** - Component library (optional integration)
-- **Heroicons** - Icon library
+- **Custom UI Components** - 11 terminal-themed components
+- **Iconify** - Icon library
 
 ### Development Tools
 
@@ -137,13 +136,13 @@ The 7-day delay can slow urgent security patches. When a verified fix must ship 
 
 We plan to deprecate `axios` through a staged migration, but this is not active in the current release.
 The migration plan, phases, risks, and done criteria are tracked in [`HTTP_CLIENT_MIGRATION.md`](./HTTP_CLIENT_MIGRATION.md).
-Today, `src/core/utils/api.ts` is an optional/aspirational wrapper (used by ~2 files) while many files still import
-from `@/core/plugins/axios`; the preference for the shared boundary will become enforced during the staged migration.
+Today, `src/core/utils/api.ts` does not exist. Axios remains the active HTTP client via
+`@/core/plugins/axios`; any shared HTTP boundary is deferred to the staged migration.
 
 Current policy during planning/migration:
 
 - Avoid introducing new direct `axios` imports in new code.
-- Prefer the shared API boundary in `src/core/utils/api.ts`.
+- Do not introduce a new HTTP boundary until the migration is approved.
 
 ## 🚀 Quick Start
 
@@ -193,7 +192,7 @@ pnpm run typecheck    # TypeScript check (vue-tsc)
 
 ## 🎨 UI Component Library
 
-We've built 8 custom terminal-themed UI components in `src/components/ui/`:
+We've built 11 custom terminal-themed UI components in `src/core/components/ui/`:
 
 | Component     | Description                                   |
 | ------------- | --------------------------------------------- |
@@ -204,13 +203,16 @@ We've built 8 custom terminal-themed UI components in `src/components/ui/`:
 | **UBadge**    | Badge/tag with semantic colors                |
 | **UAlert**    | Alert/notification with dismissible option    |
 | **UTooltip**  | Tooltip with 4 positioning options            |
-| **UDropdown** | Dropdown menu with click-outside support      |
+| **USkeleton** | Content placeholder for loading states        |
+| **UTabs** | Accessible tab navigation                     |
+| **USelect** | Styled select input                           |
+| **UProgressBar** | Progress indicator                         |
 
 **Usage Example:**
 
 ```vue
 <script setup lang="ts">
-import { UButton, UInput, UCard } from '@/components/ui'
+import { UButton, UInput, UCard } from '@/core/components/ui'
 import { PlusIcon } from '@heroicons/vue/24/solid'
 </script>
 
@@ -222,7 +224,7 @@ import { PlusIcon } from '@heroicons/vue/24/solid'
 </template>
 ```
 
-See [`src/components/ui/README.md`](./src/components/ui/README.md) for complete component documentation.
+See [`src/core/components/ui/`](./src/core/components/ui/) for component implementations.
 
 ## 📐 Design System
 
@@ -249,43 +251,37 @@ frontend/
 │   │   ├── tailwind.css    # TailwindCSS with @theme tokens
 │   │   ├── main.css        # Global styles
 │   │   └── base.css        # CSS resets
-│   ├── components/
-│   │   ├── ui/             # Reusable UI components (8 components)
-│   │   ├── common/         # Shared app components
-│   │   ├── layout/         # Layout components
-│   │   ├── auth/           # Authentication components
-│   │   ├── vault/          # Vault management components
-│   │   ├── rooms/          # Room building components
-│   │   └── chat/           # Dweller chat components
-│   ├── composables/        # Vue composables (hooks)
-│   ├── models/             # TypeScript models
-│   ├── plugins/            # Vue plugins (axios)
+│   ├── core/               # Cross-cutting app infrastructure
+│   │   ├── components/ui/  # Reusable terminal UI components (11 components)
+│   │   ├── composables/    # Shared Vue composables
+│   │   ├── plugins/        # Axios and other integrations
+│   │   ├── types/          # Generated and shared TypeScript types
+│   │   └── utils/          # Framework-neutral utilities
+│   ├── modules/            # Feature modules
+│   │   ├── auth/           # Authentication
+│   │   ├── dwellers/       # Dweller management
+│   │   ├── exploration/    # Wasteland exploration
+│   │   ├── rooms/          # Room building and management
+│   │   └── vault/          # Vault shell and resources
 │   ├── router/             # Vue Router configuration
-│   ├── services/           # API services
-│   ├── stores/             # Pinia stores (state management)
-│   ├── types/              # TypeScript type definitions
-│   ├── views/              # Page components
 │   ├── App.vue             # Root component
 │   └── main.ts             # Application entry point
 ├── tests/
-│   └── unit/               # Unit tests (843 tests)
+│   └── unit/               # Unit tests
 ├── public/                 # Static files
-├── STYLEGUIDE.md          # Design system documentation
 ├── package.json           # Dependencies
 ├── pnpm-lock.yaml        # Lockfile
 ├── vite.config.ts        # Vite+ configuration (lint + fmt source of truth)
-├── vitest.config.ts      # Vitest configuration
-├── oxlint.json           # Oxlint lint rules and ignore patterns
 ├── pnpm-workspace.yaml   # pnpm workspace settings (release-age policy)
 ├── tsconfig.json         # TypeScript configuration
-└── nuxt-ui.config.ts     # Nuxt UI configuration
+└── tsconfig.app.json     # Application typecheck configuration
 ```
 
 ## 🧪 Testing
 
 **Current Status:**
 
-- ✅ **843 tests passing**
+- ✅ **1,171 tests passing** (1 skipped)
 - ✅ AuthStore tests (21)
 - ✅ VaultStore tests (20)
 - ✅ Component tests (17)
@@ -323,13 +319,14 @@ pnpm run test tests/unit/stores/auth.test.ts
 TypeScript is fully configured with strict mode. Use `vue-tsc` for type checking:
 
 ```bash
-pnpm run build  # Runs type-check before build
+pnpm run typecheck  # Run the TypeScript check
+pnpm run build      # Build for production
 ```
 
 ### Adding New Components
 
 1. Create component in appropriate directory
-2. Use UI components from `@/components/ui`
+2. Use UI components from `@/core/components/ui`
 3. Follow design tokens from `@theme`
 4. Add tests in `tests/unit/components/`
 5. Document in component file with JSDoc
@@ -342,7 +339,7 @@ pnpm run build  # Runs type-check before build
  * VaultCard - Displays vault statistics
  * @component
  */
-import { UCard } from '@/components/ui'
+import { UCard } from '@/core/components/ui'
 
 interface Props {
   vaultNumber: number
@@ -415,13 +412,13 @@ VITE_WS_URL=ws://localhost:8000
 Access in code:
 
 ```ts
-const apiUrl = import.meta.env.VITE_API_URL
+const apiUrl = import.meta.env.VITE_API_BASE_URL
 ```
 
 ## 📚 Documentation
 
 - **[STYLEGUIDE.md](./STYLEGUIDE.md)** - Complete design system guide
-- **[src/components/ui/README.md](./src/components/ui/README.md)** - UI component API
+- **[src/core/components/ui/README.md](./src/core/components/ui/README.md)** - UI component API
 - **[HTTP_CLIENT_MIGRATION.md](./HTTP_CLIENT_MIGRATION.md)** - Axios deprecation and migration plan
 
 ## 🔧 Troubleshooting
@@ -461,7 +458,7 @@ pnpm run dev -- --port 3000
 
 - ✨ **Vite+ Toolchain** - Unified dev, build, test, lint in one CLI
 - 🎨 **Design System** - 100+ tokens, comprehensive styleguide
-- 🧩 **Component Library** - 8 custom terminal-themed components
+- 🧩 **Component Library** - 11 custom terminal-themed components
 - ♿ **Accessible** - WCAG 2.1 AA compliant
 - 🧪 **Tested** - 843 unit tests with high coverage
 - ⚡ **Fast** - Rolldown bundler, instant HMR

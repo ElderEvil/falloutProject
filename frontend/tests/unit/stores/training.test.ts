@@ -76,7 +76,6 @@ describe('Training Store', () => {
 
       expect(store.isLoading).toBe(false)
       expect(store.error).toBeTruthy()
-      expect(console.error).toHaveBeenCalled()
     })
 
     it('should skip trainings with status other than active', async () => {

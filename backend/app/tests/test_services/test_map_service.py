@@ -8,8 +8,9 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.dweller import Dweller
+from app.models.notification import Notification
 from app.models.vault import Vault
-from app.models.wasteland_location import LocationTypeEnum, WastelandLocation
+from app.models.wasteland_location import DwellerLocation, LocationTypeEnum, WastelandLocation
 from app.schemas.common import RarityEnum
 from app.services.map_service import map_service
 from app.utils.places import normalize_place_name, seeded_vault_specs
@@ -270,6 +271,59 @@ async def test_register_bio_places_forced_db_error_logged_not_raised(
     assert any("register_bio_places failed" in record.message for record in caplog.records)
 
 
+@pytest.mark.asyncio
+async def test_register_bio_places_retries_a_transient_failure(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """One transient write error still creates all three fixture links."""
+    dweller.rarity = RarityEnum.LEGENDARY
+    from app.crud.wasteland_location import wasteland_location
+
+    original_get_or_create = wasteland_location.get_or_create
+    attempts = 0
+
+    async def fail_once(*args, **kwargs):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise SQLAlchemyError("transient")
+        return await original_get_or_create(*args, **kwargs)
+
+    with patch.object(wasteland_location, "get_or_create", side_effect=fail_once):
+        await map_service.register_bio_places(
+            async_session,
+            dweller,
+            origin_place="Rusty Creek",
+            visited_places=["Necropolis", "Brotherhood Outpost"],
+        )
+
+    links = (await async_session.execute(select(DwellerLocation))).scalars().all()
+    assert len(links) == 3
+
+
+@pytest.mark.asyncio
+async def test_register_bio_places_persists_failure_notification(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """An exhausted retry leaves one durable, actionable notification."""
+    dweller_id = dweller.id
+    with patch(
+        "app.crud.wasteland_location.wasteland_location.get_or_create",
+        side_effect=SQLAlchemyError("persistent"),
+    ):
+        await map_service.register_bio_places(
+            async_session,
+            dweller,
+            origin_place="Rusty Creek",
+            visited_places=["Necropolis", "Brotherhood Outpost"],
+        )
+
+    notifications = (await async_session.execute(select(Notification))).scalars().all()
+    assert len(notifications) == 1
+    assert notifications[0].notification_type.value == "map_registration_failed"
+    assert notifications[0].from_dweller_id == dweller_id
+
+
 # ---------------------------------------------------------------------------
 # Regression — DwellerReadFull has vault_id (production path)
 # ---------------------------------------------------------------------------
@@ -358,3 +412,100 @@ async def test_get_vault_map_scales_all_coords_into_world(async_session: AsyncSe
     for marker in response.vault_markers:
         assert 0.0 <= marker.coord_x <= 160.0, marker.name
         assert 0.0 <= marker.coord_y <= 160.0, marker.name
+
+
+# ---------------------------------------------------------------------------
+# is_unlocked — includes unlock state in responses
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_vault_map_includes_is_unlocked_on_locations(async_session: AsyncSession, vault: Vault) -> None:
+    """Every location in get_vault_map carries an is_unlocked field."""
+    response = await map_service.get_vault_map(async_session, vault)
+
+    for loc in response.locations:
+        assert hasattr(loc, "is_unlocked")
+        # By default nothing is unlocked
+        assert loc.is_unlocked is False
+
+
+@pytest.mark.asyncio
+async def test_get_vault_map_includes_is_unlocked_on_dweller_refs(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """DwellerRef objects in the map response carry is_unlocked."""
+    await map_service.register_bio_places(async_session, dweller, origin_place="Megaton", visited_places=["Rivet City"])
+
+    response = await map_service.get_vault_map(async_session, vault)
+
+    megaton = next((loc for loc in response.locations if loc.name == "Megaton"), None)
+    assert megaton is not None
+    assert len(megaton.dwellers) == 1
+    assert megaton.dwellers[0].is_unlocked is False
+
+
+@pytest.mark.asyncio
+async def test_get_vault_map_unlocked_only_hides_locked(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """unlocked_only=True excludes non-VAULT locations that are locked."""
+    await map_service.register_bio_places(async_session, dweller, origin_place="Megaton", visited_places=["Rivet City"])
+
+    full = await map_service.get_vault_map(async_session, vault)
+    filtered = await map_service.get_vault_map(async_session, vault, unlocked_only=True)
+
+    # Full response has 1 HOME_VAULT + 2 bio locations = at least 3
+    assert len(full.locations) >= 3
+
+    # Filtered response should only have HOME_VAULT (1) since nothing is unlocked yet
+    non_home = [loc for loc in filtered.locations if loc.type != LocationTypeEnum.HOME_VAULT]
+    assert len(non_home) == 0, "No non-VAULT locations should appear when unlocked_only=True and nothing is unlocked"
+    assert any(loc.type == LocationTypeEnum.HOME_VAULT for loc in filtered.locations)
+
+
+@pytest.mark.asyncio
+async def test_get_vault_map_unlocked_only_keeps_unlocked(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """unlocked_only=True keeps non-VAULT locations whose DwellerLocation is unlocked."""
+    from app.crud.wasteland_location import wasteland_location as wl_crud
+    from app.models.wasteland_location import DwellerLocation, LocationTypeEnum, WastelandLocation
+
+    await map_service.register_bio_places(async_session, dweller, origin_place="Megaton", visited_places=["Rivet City"])
+    await wl_crud.unlock_places_for_dweller(async_session, dweller_id=dweller.id)
+
+    filtered = await map_service.get_vault_map(async_session, vault, unlocked_only=True)
+
+    megaton = next((loc for loc in filtered.locations if loc.name == "Megaton"), None)
+    assert megaton is not None, "Unlocked Megaton should appear when unlocked_only=True"
+    assert megaton.is_unlocked is True
+
+    rivet_city = next((loc for loc in filtered.locations if loc.name == "Rivet City"), None)
+    assert rivet_city is not None, "Rivet City linked to same dweller should also appear (unlock affects ALL places)"
+
+
+@pytest.mark.asyncio
+async def test_get_location_detail_includes_is_unlocked(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """get_location_detail returns is_unlocked on location and dweller refs."""
+    await map_service.register_bio_places(async_session, dweller, origin_place="Megaton", visited_places=[])
+
+    from app.models.wasteland_location import WastelandLocation
+
+    loc_row = (
+        await async_session.execute(
+            select(WastelandLocation).where(
+                WastelandLocation.vault_id == vault.id,
+                WastelandLocation.name == "Megaton",
+            )
+        )
+    ).scalar_one()
+
+    detail = await map_service.get_location_detail(async_session, vault, loc_row.id)
+
+    assert hasattr(detail, "is_unlocked")
+    assert detail.is_unlocked is False
+    assert len(detail.dwellers) == 1
+    assert detail.dwellers[0].is_unlocked is False

@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useIntervalFn } from '@vueuse/core'
 import type { WastelandLocationWithDwellers, VaultMarkerRead } from '../models/map'
@@ -43,6 +43,11 @@ export const useMapStore = defineStore('map', () => {
   const _pollToken = ref<string | null>(null)
   let _pollGeneration = 0
 
+  // Getters
+  const unlockedPlacesCount = computed(
+    () => locations.value.filter((loc) => loc.is_unlocked).length
+  )
+
   // Actions
   async function fetchMap(vaultId: string, token: string): Promise<void> {
     const gen = ++_pollGeneration
@@ -82,14 +87,32 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
+  async function refreshMap(vaultId: string, token?: string): Promise<void> {
+    const effectiveToken = token ?? _pollToken.value
+    if (!effectiveToken) return
+    const gen = _pollGeneration
+    try {
+      const data = await mapService.getVaultMap(effectiveToken, vaultId)
+      if (gen !== _pollGeneration) return
+      locations.value = data.locations
+      vaultMarkers.value = data.vault_markers
+    } catch (err) {
+      if (gen !== _pollGeneration) return
+      error.value = handleStoreError(err, 'Failed to refresh map after chat')
+    }
+  }
+
   return {
     // State
     locations,
     vaultMarkers,
     isLoading,
     error,
+    // Getters
+    unlockedPlacesCount,
     // Actions
     fetchMap,
+    refreshMap,
     startPolling,
     stopPolling,
   }

@@ -141,6 +141,7 @@ lint.ignore = [
     "EM102",   # Exception must not use f-string literal
     "TRY003",  # Avoid specifying long messages outside exception class
     "PLR0913", # Too many arguments in function definition
+    "PLR0917", # Too many positional arguments
     "FAST001", # Allow response_model alongside return type annotations
 ]
 

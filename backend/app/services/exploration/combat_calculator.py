@@ -12,8 +12,7 @@ class CombatCalculator:
     """Handles combat outcome calculations."""
 
     def select_enemy(self, progress: float) -> EnemySchema:
-        """
-        Select enemy based on exploration progress.
+        """Select enemy based on exploration progress.
 
         Args:
             progress: Progress percentage (0-100)
@@ -35,8 +34,7 @@ class CombatCalculator:
         return EnemySchema(**random.choice(available_enemies))
 
     def calculate_combat_outcome(self, exploration: Exploration, enemy: EnemySchema) -> CombatOutcomeSchema:
-        """
-        Calculate combat outcome based on dweller stats.
+        """Calculate combat outcome based on dweller stats.
 
         Args:
             exploration: Active exploration

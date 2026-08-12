@@ -1,5 +1,4 @@
-"""
-Dweller Recycling Service
+"""Dweller Recycling Service.
 
 Manages the recycling of soft-deleted dwellers, allowing their
 AI-generated content (names, bios, visual attributes) to be reused in new vaults.

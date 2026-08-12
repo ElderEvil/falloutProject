@@ -1,4 +1,6 @@
+import ast
 import logging
+import operator
 
 from pydantic import UUID4
 from sqlalchemy import func
@@ -7,17 +9,54 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.constants import GRID_X_MAX, GRID_X_MIN, GRID_Y_MAX, GRID_Y_MIN
 from app.core.game_config import game_config
-from app.crud.base import CRUDBase, ModelType
+from app.crud.base import CRUDBase
 from app.crud.vault import vault as vault_crud
 from app.models.room import Room
 from app.schemas.common import RoomActionEnum, RoomTypeEnum
 from app.schemas.room import RoomCreate, RoomUpdate
 from app.services.event_bus import GameEvent, event_bus
-from app.utils.exceptions import InsufficientResourcesException, NoSpaceAvailableException, UniqueRoomViolationException
+from app.utils.exceptions import (
+    InsufficientResourcesException,
+    NoSpaceAvailableException,
+    UniqueRoomViolationException,
+    VaultOperationException,
+)
 from app.utils.room_assets import get_room_image_url
 from app.utils.static_data import game_data_store
 
 logger = logging.getLogger(__name__)
+
+_ROOM_FORMULA_OPERATORS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.FloorDiv: operator.floordiv,
+    ast.Mod: operator.mod,
+    ast.Pow: operator.pow,
+}
+_ROOM_FORMULA_UNARY_OPERATORS = {ast.UAdd: operator.pos, ast.USub: operator.neg}
+
+
+def _evaluate_room_formula(formula: str, level: int, size: int) -> int:
+    """Evaluate a backend-owned room formula containing only arithmetic over L and S."""
+
+    def evaluate(node: ast.AST) -> int | float:
+        if isinstance(node, ast.Constant) and isinstance(node.value, int | float):
+            return node.value
+        if isinstance(node, ast.Name) and node.id in {"L", "S"}:
+            return {"L": level, "S": size}[node.id]
+        if isinstance(node, ast.BinOp) and type(node.op) in _ROOM_FORMULA_OPERATORS:
+            return _ROOM_FORMULA_OPERATORS[type(node.op)](evaluate(node.left), evaluate(node.right))
+        if isinstance(node, ast.UnaryOp) and type(node.op) in _ROOM_FORMULA_UNARY_OPERATORS:
+            return _ROOM_FORMULA_UNARY_OPERATORS[type(node.op)](evaluate(node.operand))
+        raise ValueError(f"Unsupported room formula: {formula!r}")
+
+    try:
+        expression = ast.parse(formula, mode="eval")
+        return int(evaluate(expression.body))
+    except (ArithmeticError, SyntaxError, ValueError) as exc:
+        raise ValueError(f"Invalid room formula: {formula!r}") from exc
 
 
 class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
@@ -36,7 +75,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
     @staticmethod
     def evaluate_capacity_formula(formula: str, level: int, size: int) -> int:
         try:
-            result = eval(formula, {"L": level, "S": size})
+            result = _evaluate_room_formula(formula, level, size)
             return int(result)
         except (ValueError, SyntaxError) as e:
             logger.exception("Error evaluating capacity formula.", exc_info=e)
@@ -45,7 +84,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
     @staticmethod
     def evaluate_output_formula(formula: str, level: int, size: int) -> int:
         try:
-            result = eval(formula, {"L": level, "S": size})
+            result = _evaluate_room_formula(formula, level, size)
             return int(result)
         except (ValueError, SyntaxError) as e:
             logger.exception("Error evaluating output formula.", exc_info=e)
@@ -115,7 +154,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             room_obj.category == RoomTypeEnum.PRODUCTION and room_obj.name != "Radio studio"
         )
 
-    async def build(self, *, db_session: AsyncSession, obj_in: RoomCreate) -> Room:  # noqa: C901, PLR0912, PLR0915
+    async def build(self, *, db_session: AsyncSession, obj_in: RoomCreate) -> Room:
         """Implements the objectives to build a room checking for business logic constraints."""
         vault = await vault_crud.get(db_session, id=obj_in.vault_id)
 
@@ -178,7 +217,13 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             if room_spec.output_formula:
                 obj_in.output_formula = room_spec.output_formula
         else:
-            logger.warning("No room spec found for '%s', using client-sent formulas", obj_in.name)
+            raise VaultOperationException(detail=f"Unknown room specification: {obj_in.name}")
+
+        if obj_in.capacity_formula and not room_spec.capacity_formula:
+            raise VaultOperationException(detail=f"Room specification has no capacity formula: {obj_in.name}")
+
+        if obj_in.output_formula and not room_spec.output_formula:
+            raise VaultOperationException(detail=f"Room specification has no output formula: {obj_in.name}")
 
         if obj_in.capacity_formula:
             # Use actual size if provided, otherwise fall back to size_min
@@ -257,7 +302,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
                 )
                 raise ValueError(msg)
 
-    async def destroy(self, db_session: AsyncSession, id: int | UUID4) -> ModelType:
+    async def destroy(self, db_session: AsyncSession, id: int | UUID4) -> Room:
         # Get room before deletion to check if it's a vault door
         room_to_delete = await self.get(db_session, id)
 

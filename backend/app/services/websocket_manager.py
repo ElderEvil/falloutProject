@@ -181,7 +181,7 @@ class ConnectionManager:
     async def broadcast_to_vault(
         self,
         message: dict[str, Any],
-        vault_id: UUID,  # noqa: ARG002
+        vault_id: UUID,
         user_ids: list[UUID],
     ):
         """Broadcast message to all users in a vault.

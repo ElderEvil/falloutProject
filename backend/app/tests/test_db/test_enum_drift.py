@@ -207,7 +207,7 @@ async def live_pg_engine() -> AsyncEngine:
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
-    except Exception as exc:  # noqa: BLE001 — DB down/unreachable is a skip, not a failure
+    except Exception as exc:
         await engine.dispose()
         pytest.skip(f"PostgreSQL unavailable: {exc}")
     return engine

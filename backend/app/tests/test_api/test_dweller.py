@@ -152,7 +152,7 @@ async def test_filter_dwellers_by_status(
     dweller_2_in = DwellerCreate(**dweller_2_data)
 
     dweller_1 = await crud.dweller.create(async_session, dweller_1_in)
-    dweller_2 = await crud.dweller.create(async_session, dweller_2_in)  # noqa: F841
+    dweller_2 = await crud.dweller.create(async_session, dweller_2_in)
 
     # Update dweller_1 to WORKING status
     await crud.dweller.update(async_session, dweller_1.id, DwellerUpdate(status=DwellerStatusEnum.WORKING))

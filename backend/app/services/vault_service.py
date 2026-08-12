@@ -129,7 +129,7 @@ class VaultService:
 
         return infrastructure_rooms, capacity_rooms, production_rooms, misc_rooms, training_rooms
 
-    async def _create_initial_rooms(  # noqa: C901, PLR0912
+    async def _create_initial_rooms(
         self,
         db_session: AsyncSession,
         vault: Vault,
@@ -215,7 +215,6 @@ class VaultService:
         is_boosted: bool,
     ) -> None:
         """Create and assign initial dwellers to production and training rooms."""
-
         try:
             # Production dwellers (always created) - all should be WORKING
             production_assignments = [
@@ -385,8 +384,8 @@ class VaultService:
                     except (ResourceNotFoundException, ResourceConflictException, ValueError) as e:
                         # Log error but continue with other dwellers
                         self.logger.warning(f"Failed to start training for dweller {dweller.id} in room {room.id}: {e}")
-        except Exception as e:
-            self.logger.error(f"Failed to start training sessions: {e}", exc_info=True)  # noqa: G201
+        except Exception:
+            self.logger.exception("Failed to start training sessions")
             raise
 
     async def _create_initial_items(self, db_session: AsyncSession, vault_id: UUID4) -> None:
@@ -582,8 +581,7 @@ class VaultService:
         user_id: UUID4,
         is_boosted: bool = False,
     ) -> Vault:
-        """
-        Create a new vault for a user and initialize it with essential rooms and dwellers.
+        """Create a new vault for a user and initialize it with essential rooms and dwellers.
 
         Standard vault includes:
         - Vault door and elevators (infrastructure)
@@ -704,8 +702,7 @@ class VaultService:
         stimpaks: int,
         radaways: int,
     ) -> dict:
-        """
-        Transfer medical supplies from vault storage to a dweller's inventory.
+        """Transfer medical supplies from vault storage to a dweller's inventory.
 
         Dwellers can carry max 15 stimpaks and 15 radaways each.
         """

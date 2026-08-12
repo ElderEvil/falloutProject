@@ -211,9 +211,8 @@ class DwellerAssignmentService:
         db_session: AsyncSession,
         vault_id: UUID4,
     ) -> dict[str, int | list[dict[str, str]]]:
-        """
-        Intelligently assign unassigned dwellers to production rooms based on SPECIAL stats.
-        Priority order: Power Plant (Strength) -> Diner (Agility) -> Water Treatment (Perception)
+        """Intelligently assign unassigned dwellers to production rooms based on SPECIAL stats.
+        Priority order: Power Plant (Strength) -> Diner (Agility) -> Water Treatment (Perception).
         """
         rooms_query = (
             select(Room)
@@ -228,8 +227,8 @@ class DwellerAssignmentService:
             select(Dweller)
             .where(Dweller.vault_id == vault_id)
             .where(Dweller.room_id.is_(None))
-            .where(Dweller.is_deleted == False)
-            .where(Dweller.is_dead == False)
+            .where(~Dweller.is_deleted)
+            .where(~Dweller.is_dead)
         )
         unassigned_result = await db_session.execute(unassigned_query)
         unassigned_dwellers = list(unassigned_result.scalars().all())
@@ -289,9 +288,8 @@ class DwellerAssignmentService:
         db_session: AsyncSession,
         vault_id: UUID4,
     ) -> dict[str, int | list[dict[str, str]]]:
-        """
-        Intelligently assign unassigned dwellers to ALL room types based on SPECIAL stats.
-        Priority: Production -> Med/Science -> Radio -> Training
+        """Intelligently assign unassigned dwellers to ALL room types based on SPECIAL stats.
+        Priority: Production -> Med/Science -> Radio -> Training.
         """
         rooms_query = (
             select(Room)
@@ -312,8 +310,8 @@ class DwellerAssignmentService:
             select(Dweller)
             .where(Dweller.vault_id == vault_id)
             .where(Dweller.room_id.is_(None))
-            .where(Dweller.is_deleted == False)
-            .where(Dweller.is_dead == False)
+            .where(~Dweller.is_deleted)
+            .where(~Dweller.is_dead)
         )
         unassigned_result = await db_session.execute(unassigned_query)
         unassigned_dwellers = list(unassigned_result.scalars().all())

@@ -186,9 +186,7 @@ class _Stream:
 async def test_heartbeat_yields_items_unchanged():
     """_with_heartbeat passes through items from the underlying stream."""
     stream = _Stream([{"a": 1}, {"a": 2}])
-    results = []
-    async for item in _with_heartbeat(stream, interval=60):
-        results.append(item)
+    results = [item async for item in _with_heartbeat(stream, interval=60)]
     assert results == [{"a": 1}, {"a": 2}]
 
 
@@ -197,14 +195,15 @@ async def test_heartbeat_yields_none_on_timeout():
     results: list[int | None] = []
     call_count = 0
 
-    async def _fake_wait_for(coro, timeout, **kw):  # noqa: ASYNC109
+    async def _fake_wait(tasks, timeout=None):
         nonlocal call_count
         call_count += 1
         if call_count == 1:
-            return await coro
-        raise TimeoutError
+            await asyncio.sleep(0)
+            return set(tasks), set()
+        return set(), set()
 
-    with patch("asyncio.wait_for", _fake_wait_for):
+    with patch("asyncio.wait", _fake_wait):
         async for item in _with_heartbeat(_Stream([1]), interval=999):
             results.append(item)
             if len(results) >= 4:

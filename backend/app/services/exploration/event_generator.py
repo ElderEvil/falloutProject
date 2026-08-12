@@ -23,8 +23,7 @@ class EventGenerator:
     """Generates exploration events."""
 
     def can_generate_event(self, exploration: Exploration) -> bool:
-        """
-        Check if enough time has passed to generate a new event.
+        """Check if enough time has passed to generate a new event.
 
         Args:
             exploration: Active exploration
@@ -53,8 +52,7 @@ class EventGenerator:
         return time_since_last_event >= cfg.event_interval_seconds
 
     def generate_event(self, exploration: Exploration) -> ExplorationEvent | None:
-        """
-        Generate a random wasteland event.
+        """Generate a random wasteland event.
 
         Args:
             exploration: Active exploration

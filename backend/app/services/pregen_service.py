@@ -11,15 +11,18 @@ from __future__ import annotations
 import logging
 import random as std_random
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from pydantic import UUID4
-from sqlmodel.ext.asyncio.session import AsyncSession
+from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
 
 from app import crud
 from app.schemas.dweller import DwellerUpdate
 from app.services.exploration.data_loader import load_discovery_names
 from app.services.map_service import map_service
 from app.utils.places import GENERIC_ORIGIN_SKIP, normalize_place_name
+
+if TYPE_CHECKING:
+    from sqlmodel.ext.asyncio.session import AsyncSession
 
 logger = logging.getLogger(__name__)
 

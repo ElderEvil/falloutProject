@@ -169,7 +169,7 @@ async def test_verify_email_token_mismatch(
     assert user.email_verification_token == stored_token
 
     # Wait a moment to ensure different timestamp
-    time.sleep(1)  # noqa: ASYNC251
+    time.sleep(1)
 
     # Create token with different expiry (8 days instead of 7)
     expire = datetime.now(tz=UTC) + timedelta(days=8)
@@ -223,7 +223,7 @@ async def test_resend_verification_email(
     from app.api.deps import get_redis_client
     from main import app
 
-    user, old_token, password = unverified_user  # noqa: RUF059
+    user, old_token, password = unverified_user
 
     # Override Redis client
     app.dependency_overrides[get_redis_client] = mock_redis_client
@@ -477,7 +477,7 @@ async def test_reset_password_token_mismatch(
     await async_session.commit()
 
     # Wait to ensure different timestamp
-    time.sleep(1)  # noqa: ASYNC251
+    time.sleep(1)
 
     # Create token with different expiry to ensure it's different
     expire = datetime.now(tz=UTC) + timedelta(hours=2)

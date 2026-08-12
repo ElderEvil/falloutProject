@@ -8,9 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-pytestmark = pytest.mark.asyncio(scope="module")
-
-from app.services.open_ai import (  # noqa: E402
+from app.services.open_ai import (
     AIService,
     ChatCompletionResult,
     get_ai_service,
@@ -18,6 +16,8 @@ from app.services.open_ai import (  # noqa: E402
     is_ai_available,
     is_using_gateway,
 )
+
+pytestmark = pytest.mark.asyncio(scope="module")
 
 # ============================================================================
 # Helpers — reset singleton state and create fresh uninitialized instances

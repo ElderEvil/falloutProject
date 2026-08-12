@@ -11,7 +11,12 @@ from app.crud.room import CRUDRoom
 from app.models.room import Room
 from app.schemas.common import RoomActionEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomCreate, RoomUpdate
-from app.utils.exceptions import InsufficientResourcesException, NoSpaceAvailableException, UniqueRoomViolationException
+from app.utils.exceptions import (
+    InsufficientResourcesException,
+    NoSpaceAvailableException,
+    UniqueRoomViolationException,
+    VaultOperationException,
+)
 
 
 @pytest.fixture
@@ -114,10 +119,13 @@ class TestEvaluateCapacityFormula:
         result = room_crud.evaluate_capacity_formula("L * ", level=3, size=5)
         assert result == 0
 
-    def test_name_error_during_eval(self, room_crud):
-        """Using an undefined variable triggers NameError which is not caught, so it propagates."""
-        with pytest.raises(NameError):
-            room_crud.evaluate_capacity_formula("S / unknown_var", level=3, size=5)
+    def test_unknown_name_is_rejected(self, room_crud):
+        """Formulas may only refer to the backend-owned L and S variables."""
+        assert room_crud.evaluate_capacity_formula("S / unknown_var", level=3, size=5) == 0
+
+    def test_function_call_is_rejected(self, room_crud):
+        """Formula expressions cannot call arbitrary Python functions."""
+        assert room_crud.evaluate_capacity_formula("__import__('os')", level=3, size=5) == 0
 
     def test_negative_result(self, room_crud):
         result = room_crud.evaluate_capacity_formula("L - 100", level=3, size=1)
@@ -405,6 +413,19 @@ class TestCheckElevatorDependencies:
 
 
 class TestBuild:
+    @pytest.mark.asyncio
+    async def test_unknown_room_rejects_client_formula(self, room_crud, mock_session):
+        room_in = _make_room_create(name="Unknown Room", capacity_formula="__import__('os')")
+        vault_mock = MagicMock(id=room_in.vault_id)
+
+        with patch("app.crud.room.vault_crud") as mock_vault_crud:
+            mock_vault_crud.get = AsyncMock(return_value=vault_mock)
+            mock_vault_crud.is_enough_dwellers = AsyncMock(return_value=True)
+            mock_session.execute.return_value = _make_mock_execute_result(scalars_first=None)
+
+            with pytest.raises(VaultOperationException, match="Unknown room specification"):
+                await room_crud.build(db_session=mock_session, obj_in=room_in)
+
     @pytest.mark.asyncio
     async def test_invalid_size_min_below_1(self, room_crud, mock_session):
         base = _make_room_create()
@@ -856,7 +877,6 @@ class TestDestroy:
             result = await room_crud.destroy(db_session=mock_session, id=room.id)
 
             assert result is room
-            # Refund: 50% of (100 + 25) = 62
             mock_vault_crud.deposit_caps.assert_called_once()
             call_args = mock_vault_crud.deposit_caps.call_args
             assert call_args.kwargs["amount"] == 62
@@ -918,7 +938,6 @@ class TestDestroy:
 
             await room_crud.destroy(db_session=mock_session, id=room.id)
 
-            # Refund: 50% of (200 + 50 + 500 + 1500) = 1125
             mock_vault_crud.deposit_caps.assert_called_once()
             call_args = mock_vault_crud.deposit_caps.call_args
             assert call_args.kwargs["amount"] == 1125
@@ -1185,7 +1204,7 @@ class TestBuildWithGameDataStore:
             size_min=1,
             size_max=6,
             capacity_formula="L*1",
-            output_formula="S*1",
+            output_formula=None,
             capacity=None,
             output=None,
         )
@@ -1231,12 +1250,11 @@ class TestBuildWithGameDataStore:
 
             # Client capacity_formula should be overridden by backend spec
             assert room_in.capacity_formula == "2*S/3*(L+4)-2"
-            # output_formula in spec is None, so client's stays
-            assert room_in.output_formula == "S*1"
+            assert room_in.output_formula is None
 
     @pytest.mark.asyncio
-    async def test_room_spec_not_found_uses_client_formulas(self, room_crud, mock_session):
-        """When room spec is not in game_data_store, client formulas are used."""
+    async def test_room_spec_not_found_rejects_client_formulas(self, room_crud, mock_session):
+        """Client formulas cannot create a room without a backend specification."""
         vault_id = uuid4()
         room_in = _make_room_create(
             name="Custom Room",
@@ -1282,10 +1300,5 @@ class TestBuildWithGameDataStore:
             room_crud.check_is_unique_room = AsyncMock()
             room_crud.get_room_build_price = AsyncMock(return_value=100)
 
-            await room_crud.build(db_session=mock_session, obj_in=room_in)
-
-            # Client formulas should be preserved
-            assert room_in.capacity_formula == "L+5"
-            assert room_in.output_formula == "S*10"
-            assert room_in.capacity == 6
-            assert room_in.output == 20
+            with pytest.raises(VaultOperationException, match="Unknown room specification"):
+                await room_crud.build(db_session=mock_session, obj_in=room_in)

@@ -27,8 +27,7 @@ class RadioService:
         db_session: AsyncSession,
         vault_id: UUID4,
     ) -> list[Room]:
-        """
-        Get all radio studio rooms for a vault.
+        """Get all radio studio rooms for a vault.
 
         Args:
             db_session: Database session
@@ -49,8 +48,7 @@ class RadioService:
         vault: Vault,
         radio_rooms: list[Room] | None = None,
     ) -> float:
-        """
-        Calculate recruitment rate based on radio rooms, charisma, and happiness.
+        """Calculate recruitment rate based on radio rooms, charisma, and happiness.
 
         Args:
             db_session: Database session
@@ -97,8 +95,7 @@ class RadioService:
         db_session: AsyncSession,
         vault_id: UUID4,
     ) -> Dweller | None:
-        """
-        Check if a new dweller should be recruited via radio.
+        """Check if a new dweller should be recruited via radio.
 
         Args:
             db_session: Database session
@@ -146,8 +143,7 @@ class RadioService:
         vault_id: UUID4,
         override: DwellerCreateCommonOverride | None = None,
     ) -> tuple[Dweller, bool]:
-        """
-        Recruit a new dweller to the vault.
+        """Recruit a new dweller to the vault.
 
         Prefers restoring a soft-deleted dweller (reusing their S3 assets) when the
         recycling pool has eligible candidates and the config allows it. Falls back to
@@ -242,8 +238,7 @@ class RadioService:
         caps_cost: int | None = None,
         override: DwellerCreateCommonOverride | None = None,
     ) -> tuple[Dweller, bool]:
-        """
-        Manually recruit a dweller for caps.
+        """Manually recruit a dweller for caps.
 
         Args:
             db_session: Database session
@@ -277,7 +272,7 @@ class RadioService:
 
         radio_room_ids = [room.id for room in radio_rooms]
         dwellers_query = select(Dweller).where(
-            Dweller.room_id.in_(radio_room_ids), Dweller.vault_id == vault_id, Dweller.is_deleted == False
+            Dweller.room_id.in_(radio_room_ids), Dweller.vault_id == vault_id, ~Dweller.is_deleted
         )
         assigned_dwellers = (await db_session.execute(dwellers_query)).scalars().all()
 
@@ -309,8 +304,7 @@ class RadioService:
         db_session: AsyncSession,
         vault_id: UUID4,
     ) -> dict:
-        """
-        Get recruitment statistics for a vault.
+        """Get recruitment statistics for a vault.
 
         Args:
             db_session: Database session

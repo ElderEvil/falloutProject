@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
-from uuid import UUID
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from uuid import UUID
 
 #: Place origins that should never produce a map marker.
 GENERIC_ORIGIN_SKIP: frozenset[str] = frozenset({"", "wasteland", "the wasteland", "unknown"})

@@ -8,11 +8,12 @@ from typing import TYPE_CHECKING, Annotated
 from uuid import UUID
 from uuid import uuid7 as _uuid7_gen
 
+from pydantic import GetCoreSchemaHandler, GetJsonSchemaHandler
+from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import core_schema
 
 if TYPE_CHECKING:
-    from pydantic import GetCoreSchemaHandler, GetJsonSchemaHandler
-    from pydantic.json_schema import JsonSchemaValue
+    pass
 
 
 class UUID7(UUID):

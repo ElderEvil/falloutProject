@@ -16,7 +16,6 @@ class UserProfileBase(SQLModel):
     avatar_url: str | None = Field(default=None, max_length=255)
     preferences: dict | None = Field(default=None, sa_column=sa.Column(JSONB))
 
-    # Statistics (calculated, not user-editable)
     total_dwellers_created: int = Field(default=0, ge=0)
     total_caps_earned: int = Field(default=0, ge=0)
     total_explorations: int = Field(default=0, ge=0)

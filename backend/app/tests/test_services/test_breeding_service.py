@@ -352,7 +352,7 @@ async def test_check_due_pregnancies_none_due(
 ):
     """Test checking for due pregnancies when none are due."""
     # Create pregnancy that's not due yet
-    pregnancy = await BreedingService.create_pregnancy(  # noqa: F841
+    pregnancy = await BreedingService.create_pregnancy(
         async_session,
         female_dweller.id,
         male_dweller.id,

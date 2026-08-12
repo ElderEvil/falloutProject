@@ -366,7 +366,7 @@ class RewardService:
         logger.info(f"Processed objective reward '{reward_str}' for vault {vault_id}")
         return result
 
-    async def _process_single_reward(  # noqa: PLR0911
+    async def _process_single_reward(
         self,
         db_session: AsyncSession,
         vault_id: UUID4,

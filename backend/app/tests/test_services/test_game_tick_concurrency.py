@@ -137,9 +137,9 @@ class _CollectLikeEvaluator(ObjectiveEvaluator):
     """
 
     objective_type = "collect"
-    subscribed_events = [GameEvent.RESOURCE_COLLECTED]
+    subscribed_events = (GameEvent.RESOURCE_COLLECTED,)
 
-    def _matches(self, objective: Any, event_type: str, data: dict[str, Any]) -> bool:  # noqa: ARG002
+    def _matches(self, objective: Any, event_type: str, data: dict[str, Any]) -> bool:
         return True
 
 

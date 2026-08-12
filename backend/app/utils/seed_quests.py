@@ -29,7 +29,7 @@ def generate_rewards_string(quest_json: QuestJSON) -> str:
     if not quest_json.quest_rewards:
         return quest_json.rewards or ""
 
-    def format_reward(reward: QuestRewardJSON) -> str:  # noqa: PLR0911
+    def format_reward(reward: QuestRewardJSON) -> str:
         rtype, data = reward.reward_type.upper(), reward.reward_data
         qty = data.get("quantity", data.get("amount", 1))
 
@@ -54,9 +54,7 @@ def generate_rewards_string(quest_json: QuestJSON) -> str:
     return ", ".join(format_reward(r) for r in quest_json.quest_rewards)
 
 
-async def seed_quests_from_json(  # noqa: C901, PLR0912, PLR0915
-    db_session: AsyncSession, quest_dir: Path | None = None
-) -> int:
+async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None = None) -> int:
     """Seed quests from JSON files into database if they don't already exist.
 
     Args:
@@ -221,8 +219,9 @@ async def seed_quests_from_json(  # noqa: C901, PLR0912, PLR0915
             logger.info("Seeded %d new quests with requirements and rewards", seeded_count)
         else:
             logger.info("No new quests to seed, all quests already exist in database")
-        return seeded_count
     except Exception:
         logger.exception("Failed to seed quests from JSON files")
         await db_session.rollback()
         return 0
+    else:
+        return seeded_count

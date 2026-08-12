@@ -33,8 +33,7 @@ class GameLoopService:
         self.logger = logging.getLogger(__name__)
 
     async def process_game_tick(self, db_session: AsyncSession) -> dict:
-        """
-        Process a single game tick for all active vaults.
+        """Process a single game tick for all active vaults.
 
         Returns:
             dict: Statistics about the tick processing
@@ -58,7 +57,7 @@ class GameLoopService:
                 await self.process_vault_tick(db_session, vault.id)
                 stats["vaults_processed"] += 1
             except (SQLAlchemyError, ResourceNotFoundException, VaultOperationException, ValueError, RuntimeError) as e:
-                self.logger.error(f"Error processing vault {vault.id}: {e}", exc_info=True)  # noqa: G201
+                self.logger.error(f"Error processing vault {vault.id}: {e}", exc_info=True)
                 stats["errors"] += 1
 
         stats["total_time"] = (datetime.utcnow() - start_time).total_seconds()
@@ -71,8 +70,7 @@ class GameLoopService:
         return stats
 
     async def process_vault_tick(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
-        """
-        Process a single tick for a specific vault.
+        """Process a single tick for a specific vault.
 
         Args:
             db_session: Database session
@@ -95,7 +93,8 @@ class GameLoopService:
         # Cap catch-up time to prevent abuse
         if seconds_passed > game_config.game_loop.max_offline_catchup:
             self.logger.warning(
-                f"Vault {vault_id} offline time ({seconds_passed}s) exceeds max catch-up, capping to {game_config.game_loop.max_offline_catchup}s"  # noqa: E501
+                f"Vault {vault_id} offline time ({seconds_passed}s) exceeds max catch-up, "
+                f"capping to {game_config.game_loop.max_offline_catchup}s"
             )
             seconds_passed = game_config.game_loop.max_offline_catchup
 
@@ -141,7 +140,7 @@ class GameLoopService:
             }
 
         except (SQLAlchemyError, ResourceNotFoundException, VaultOperationException) as e:
-            self.logger.error(f"Error updating resources for vault {vault_id}: {e}", exc_info=True)  # noqa: G201
+            self.logger.error(f"Error updating resources for vault {vault_id}: {e}", exc_info=True)
             results["updates"]["resources"] = {"error": str(e)}
 
         # === PHASE 2: Incident Management ===
@@ -231,7 +230,7 @@ class GameLoopService:
     async def _get_active_vaults(self, db_session: AsyncSession) -> list[Vault]:
         """Get all vaults that should be processed this tick."""
         # First get all active game states
-        game_state_query = select(GameState).where((GameState.is_active == True) & (GameState.is_paused == False))
+        game_state_query = select(GameState).where(GameState.is_active & ~GameState.is_paused)
         result = await db_session.execute(game_state_query)
         active_game_states = list(result.scalars().all())
 
@@ -260,8 +259,7 @@ class GameLoopService:
         return game_state
 
     async def _process_explorations(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
-        """
-        Process all active explorations for a vault.
+        """Process all active explorations for a vault.
 
         - Generate events for explorations that are due
         - Auto-complete explorations that have reached their duration
@@ -306,17 +304,16 @@ class GameLoopService:
 
                 except (SQLAlchemyError, ValueError, RuntimeError) as e:
                     # Keep broad exception for individual exploration processing
-                    self.logger.error(f"Error processing exploration {exploration.id}: {e}", exc_info=True)  # noqa: G201
+                    self.logger.error(f"Error processing exploration {exploration.id}: {e}", exc_info=True)
 
         except (SQLAlchemyError, ResourceNotFoundException) as e:
-            self.logger.error(f"Error loading explorations for vault {vault_id}: {e}", exc_info=True)  # noqa: G201
+            self.logger.error(f"Error loading explorations for vault {vault_id}: {e}", exc_info=True)
             stats["error"] = str(e)
 
         return stats
 
     async def _award_work_xp(self, db_session: AsyncSession, dweller, room) -> dict:
-        """
-        Award work XP to a dweller and check for level-up.
+        """Award work XP to a dweller and check for level-up.
 
         Args:
             db_session: Database session
@@ -371,8 +368,7 @@ class GameLoopService:
         return stats
 
     async def _process_dwellers(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
-        """
-        Process dweller updates for a vault.
+        """Process dweller updates for a vault.
 
         - Award work XP to dwellers in production rooms
         - Check for level-ups
@@ -439,16 +435,15 @@ class GameLoopService:
 
                 except (SQLAlchemyError, ValueError, RuntimeError) as e:
                     # Keep broad exception for individual dweller processing to prevent one failure from stopping all
-                    self.logger.error(f"Error processing dweller {dweller.id}: {e}", exc_info=True)  # noqa: G201
+                    self.logger.error(f"Error processing dweller {dweller.id}: {e}", exc_info=True)
 
         except SQLAlchemyError as e:
-            self.logger.error(f"Database error processing dwellers for vault {vault_id}: {e}", exc_info=True)  # noqa: G201
+            self.logger.error(f"Database error processing dwellers for vault {vault_id}: {e}", exc_info=True)
 
         return stats
 
     async def _process_training(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
-        """
-        Process all active training sessions for a vault.
+        """Process all active training sessions for a vault.
 
         - Update training progress
         - Auto-complete trainings that have finished
@@ -496,17 +491,16 @@ class GameLoopService:
 
                 except (SQLAlchemyError, ValueError, RuntimeError) as e:
                     # Keep broad exception for individual training processing
-                    self.logger.error(f"Error processing training {training.id}: {e}", exc_info=True)  # noqa: G201
+                    self.logger.error(f"Error processing training {training.id}: {e}", exc_info=True)
 
         except (SQLAlchemyError, ResourceNotFoundException, ResourceConflictException, VaultOperationException) as e:
-            self.logger.error(f"Error loading training sessions for vault {vault_id}: {e}", exc_info=True)  # noqa: G201
+            self.logger.error(f"Error loading training sessions for vault {vault_id}: {e}", exc_info=True)
             stats["error"] = str(e)
 
         return stats
 
     async def _process_happiness(self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int) -> dict:
-        """
-        Process happiness updates for all dwellers in a vault.
+        """Process happiness updates for all dwellers in a vault.
 
         - Calculate happiness changes based on vault conditions
         - Update individual dweller happiness
@@ -516,8 +510,7 @@ class GameLoopService:
         return await happiness_service.update_vault_happiness(db_session, vault_id, seconds_passed)
 
     async def _process_incidents(self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int) -> dict:
-        """
-        Process all active incidents for a vault.
+        """Process all active incidents for a vault.
 
         - Check if new incident should spawn
         - Process existing active incidents (combat, damage, resolution)
@@ -576,7 +569,7 @@ class GameLoopService:
 
                 except (SQLAlchemyError, ValueError, RuntimeError) as e:
                     # Keep broad exception for individual incident processing
-                    self.logger.error(f"Error processing incident {incident.id}: {e}", exc_info=True)  # noqa: G201
+                    self.logger.error(f"Error processing incident {incident.id}: {e}", exc_info=True)
 
             # Batch update vault caps and emit event for objectives
             if total_caps_earned > 0:
@@ -587,14 +580,13 @@ class GameLoopService:
                     self.logger.info(f"Awarded {total_caps_earned} caps to vault {vault_id} from incidents")
 
         except (SQLAlchemyError, ResourceNotFoundException) as e:
-            self.logger.error(f"Error managing incidents for vault {vault_id}: {e}", exc_info=True)  # noqa: G201
+            self.logger.error(f"Error managing incidents for vault {vault_id}: {e}", exc_info=True)
             stats["error"] = str(e)
 
         return stats
 
     async def _get_dwellers_in_rooms(self, db_session: AsyncSession, vault_id: UUID4) -> list:
-        """
-        Get all dwellers in a vault that are assigned to rooms.
+        """Get all dwellers in a vault that are assigned to rooms.
 
         :param db_session: Database session
         :type db_session: AsyncSession
@@ -610,8 +602,7 @@ class GameLoopService:
         return dwellers_result.scalars().all()
 
     def _group_dwellers_by_room(self, dwellers: list) -> dict:
-        """
-        Group dwellers by their room_id.
+        """Group dwellers by their room_id.
 
         :param dwellers: List of dwellers to group
         :type dwellers: list
@@ -621,8 +612,7 @@ class GameLoopService:
         return group_dwellers_by_room(dwellers)
 
     async def _fetch_existing_relationships(self, db_session: AsyncSession, dweller_ids: set) -> list:
-        """
-        Batch fetch all relationships for a set of dweller IDs.
+        """Batch fetch all relationships for a set of dweller IDs.
 
         :param db_session: Database session
         :type db_session: AsyncSession
@@ -640,8 +630,7 @@ class GameLoopService:
         return relationships_result.scalars().all()
 
     def _build_relationships_map(self, relationships: list) -> dict:
-        """
-        Build a bidirectional lookup map for relationships.
+        """Build a bidirectional lookup map for relationships.
 
         :param relationships: List of relationships to map
         :type relationships: list
@@ -664,8 +653,7 @@ class GameLoopService:
         relationships_map: dict,
         new_relationships: list,
     ) -> int:
-        """
-        Update affinity for a pair of dwellers, creating relationship if needed.
+        """Update affinity for a pair of dwellers, creating relationship if needed.
 
         :param db_session: Database session
         :type db_session: AsyncSession
@@ -711,8 +699,7 @@ class GameLoopService:
         return 0
 
     async def _create_new_relationships(self, db_session: AsyncSession, new_relationships: list) -> int:
-        """
-        Bulk create new relationships and update their affinity.
+        """Bulk create new relationships and update their affinity.
 
         :param db_session: Database session
         :type db_session: AsyncSession
@@ -743,8 +730,7 @@ class GameLoopService:
         return count
 
     async def _update_room_relationships(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
-        """
-        Update relationship affinity for dwellers in the same room.
+        """Update relationship affinity for dwellers in the same room.
 
         :param db_session: Database session
         :type db_session: AsyncSession
@@ -774,7 +760,7 @@ class GameLoopService:
 
             # Update affinity for dwellers in the same room
             new_relationships = []
-            for _room_id, room_dweller_list in room_dwellers.items():
+            for room_dweller_list in room_dwellers.values():
                 if len(room_dweller_list) < 2:
                     continue
 
@@ -790,15 +776,14 @@ class GameLoopService:
             stats["relationships_updated"] += await self._create_new_relationships(db_session, new_relationships)
 
         except SQLAlchemyError as e:
-            self.logger.error(f"Database error updating relationships for vault {vault_id}: {e}", exc_info=True)  # noqa: G201
+            self.logger.error(f"Database error updating relationships for vault {vault_id}: {e}", exc_info=True)
         except ValueError as e:
-            self.logger.error(f"Validation error updating relationships for vault {vault_id}: {e}", exc_info=True)  # noqa: G201
+            self.logger.error(f"Validation error updating relationships for vault {vault_id}: {e}", exc_info=True)
 
         return stats
 
     async def _process_pregnancies_and_births(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
-        """
-        Check for conception and process due pregnancies.
+        """Check for conception and process due pregnancies.
 
         Args:
             db_session: Database session
@@ -820,9 +805,9 @@ class GameLoopService:
             if new_pregnancies:
                 self.logger.info(f"New pregnancies in vault {vault_id}: {len(new_pregnancies)}")
         except SQLAlchemyError as e:
-            self.logger.error(f"Database error checking for conception in vault {vault_id}: {e}", exc_info=True)  # noqa: G201
+            self.logger.error(f"Database error checking for conception in vault {vault_id}: {e}", exc_info=True)
         except ValueError as e:
-            self.logger.error(f"Validation error checking for conception in vault {vault_id}: {e}", exc_info=True)  # noqa: G201
+            self.logger.error(f"Validation error checking for conception in vault {vault_id}: {e}", exc_info=True)
 
         # Check for due pregnancies and deliver babies
         try:
@@ -834,15 +819,14 @@ class GameLoopService:
                         stats["births"] += 1
                         self.logger.info(f"Baby born in vault {vault_id}: {baby.first_name} {baby.last_name}")
                 except (SQLAlchemyError, ValueError) as e:
-                    self.logger.error(f"Error delivering baby for pregnancy {pregnancy.id}: {e}", exc_info=True)  # noqa: G201
+                    self.logger.error(f"Error delivering baby for pregnancy {pregnancy.id}: {e}", exc_info=True)
         except SQLAlchemyError as e:
-            self.logger.error(f"Database error checking due pregnancies in vault {vault_id}: {e}", exc_info=True)  # noqa: G201
+            self.logger.error(f"Database error checking due pregnancies in vault {vault_id}: {e}", exc_info=True)
 
         return stats
 
     async def _age_children(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
-        """
-        Age children to adults if they're ready.
+        """Age children to adults if they're ready.
 
         Args:
             db_session: Database session
@@ -863,15 +847,14 @@ class GameLoopService:
             if aged_children:
                 self.logger.info(f"Children aged to adults in vault {vault_id}: {len(aged_children)}")
         except SQLAlchemyError as e:
-            self.logger.error(f"Database error aging children in vault {vault_id}: {e}", exc_info=True)  # noqa: G201
+            self.logger.error(f"Database error aging children in vault {vault_id}: {e}", exc_info=True)
         except ValueError as e:
-            self.logger.error(f"Validation error aging children in vault {vault_id}: {e}", exc_info=True)  # noqa: G201
+            self.logger.error(f"Validation error aging children in vault {vault_id}: {e}", exc_info=True)
 
         return stats
 
     async def _process_breeding(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
-        """
-        Process relationships and breeding for a vault.
+        """Process relationships and breeding for a vault.
 
         - Update relationship affinity for dwellers in the same room
         - Check for conception in living quarters

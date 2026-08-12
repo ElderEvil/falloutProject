@@ -61,8 +61,8 @@ class AIService:
         if getattr(self, "_initialized", False):
             return
 
-        self._model: Optional[Any] = None
-        self._client: Optional[openai.Client] = None
+        self._model: Any | None = None
+        self._client: openai.Client | None = None
         self._using_gateway: bool = False
 
         self._initialize_provider()
@@ -153,17 +153,17 @@ class AIService:
             logger.info(f"AI initialized with Ollama ({settings.AI_MODEL}) at {settings.OLLAMA_BASE_URL}")
 
     @property
-    def model(self) -> Optional[Any]:
+    def model(self) -> Any | None:
         """Get the AI model, or None if not configured."""
         return self._model
 
     @classmethod
-    def get_model(cls) -> Optional[Any]:
+    def get_model(cls) -> Any | None:
         """Get the AI model class method (for backward compatibility)."""
         return cls().model
 
     @property
-    def client(self) -> Optional[openai.Client]:
+    def client(self) -> openai.Client | None:
         """Get the OpenAI client, or None if not configured."""
         return self._client
 
@@ -363,7 +363,7 @@ class AIService:
             prompt_tokens = usage.input_tokens
             completion_tokens = usage.output_tokens
             total_tokens = usage.total_tokens
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.warning("Failed to extract usage info from AI service result")
             prompt_tokens = None
             completion_tokens = None

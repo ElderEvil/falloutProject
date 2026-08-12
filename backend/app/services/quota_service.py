@@ -1,5 +1,4 @@
-"""
-Quota Service - Token quota management with atomic checks and cache invalidation.
+"""Quota Service - Token quota management with atomic checks and cache invalidation.
 
 This service provides atomic quota checking using SELECT FOR UPDATE to prevent race
 conditions when multiple requests check quota simultaneously. Admin users bypass quotas.
@@ -10,7 +9,6 @@ Cache invalidation happens in record_usage() to ensure fresh quota data.
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING
 from uuid import UUID
 
 from redis.asyncio import Redis
@@ -21,9 +19,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import settings
 from app.models.llm_interaction import LLMInteraction
 from app.models.user import User
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -62,8 +57,7 @@ class QuotaService:
         user_id: UUID,
         db_session: AsyncSession,
     ) -> QuotaCheckResult:
-        """
-        Check if user has quota available using SELECT FOR UPDATE for atomicity.
+        """Check if user has quota available using SELECT FOR UPDATE for atomicity.
 
         Uses row-level locking on the user record to prevent race conditions
         when multiple requests check quota simultaneously.
@@ -142,8 +136,7 @@ class QuotaService:
         db_session: AsyncSession,
         redis_client: Redis,
     ) -> None:
-        """
-        Record token usage and invalidate Redis cache.
+        """Record token usage and invalidate Redis cache.
 
         This method creates an LLMInteraction record for the token usage
         and invalidates the cached AI usage data to ensure fresh quota checks.

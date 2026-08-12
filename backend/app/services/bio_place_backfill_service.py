@@ -9,16 +9,20 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
-from pydantic import UUID4
 from sqlalchemy import exists, select
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.dweller import Dweller
 from app.models.vault import Vault
 from app.models.wasteland_location import DwellerLocation
 from app.services.map_service import map_service
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from pydantic import UUID4
+    from sqlmodel.ext.asyncio.session import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -199,7 +203,7 @@ class BioPlaceBackfillService:
         Returns a mapping of ``vault_id`` → number of dwellers processed.
         Vaults are ordered by creation date for deterministic runs.
         """
-        stmt = select(Vault).where(Vault.is_deleted == False).order_by(Vault.created_at)
+        stmt = select(Vault).where(~Vault.is_deleted).order_by(Vault.created_at)
         if max_vaults is not None:
             stmt = stmt.limit(max_vaults)
         result = await db_session.execute(stmt)
@@ -226,7 +230,7 @@ class BioPlaceBackfillService:
         stmt = (
             select(Dweller)
             .where(Dweller.vault_id == vault_id)
-            .where(Dweller.is_deleted == False)
+            .where(~Dweller.is_deleted)
             .where(Dweller.bio.is_not(None))
             .where(Dweller.bio != "")
             .where(~exists().where(DwellerLocation.dweller_id == Dweller.id))

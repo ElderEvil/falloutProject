@@ -27,7 +27,7 @@ pytestmark = [
 
 def get_rss_mb() -> float:
     """Return RSS in MB from /proc/self/status."""
-    with open("/proc/self/status") as f:
+    with Path("/proc/self/status").open() as f:
         for line in f:
             if line.startswith("VmRSS:"):
                 return int(line.split()[1]) / 1024  # kB → MB
@@ -90,7 +90,7 @@ class TestMemoryRegression:
     # The growth test is the meaningful regression detector.
     RSS_GROWTH_MAX = 15.0  # MB — request handling should not balloon
 
-    def test_rss_growth_after_requests(self, _app_and_client):  # noqa: PT019 — value IS used below
+    def test_rss_growth_after_requests(self, _app_and_client):
         """RSS should not grow excessively after handling 200+ requests."""
         _app, client = _app_and_client
         rss_before = get_rss_mb()
@@ -111,7 +111,7 @@ class TestMemoryRegression:
             f"RSS grew {growth:.1f} MB ({rss_before:.1f} → {rss_after:.1f}), exceeds limit {self.RSS_GROWTH_MAX} MB"
         )
 
-    def test_dependency_endpoints_respond_correctly(self, _app_and_client):  # noqa: PT019
+    def test_dependency_endpoints_respond_correctly(self, _app_and_client):
         """Verify dependency-chained endpoints return correct values."""
         _, client = _app_and_client
         r = client.get("/chain-0")
@@ -122,7 +122,7 @@ class TestMemoryRegression:
         assert r.status_code == 200
         assert r.json() == {"l1": 49, "l2": 49}
 
-    def test_simple_endpoints_respond_correctly(self, _app_and_client):  # noqa: PT019
+    def test_simple_endpoints_respond_correctly(self, _app_and_client):
         """Verify simple endpoints work."""
         _, client = _app_and_client
         r = client.get("/simple-0")

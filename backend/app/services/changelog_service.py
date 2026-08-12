@@ -1,11 +1,15 @@
 """Changelog parsing and querying service."""
 
+from __future__ import annotations
+
 import logging
-from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from app.core.config import settings
 from app.utils.version import parse_changelog, version_tuple
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +21,7 @@ class ChangelogService:
         changelog_path: Path = settings.project_root / "CHANGELOG.md"
         return parse_changelog(changelog_path)
 
-    def get_entries(self, limit: Optional[int] = 10, since: Optional[str] = None) -> list[dict]:
+    def get_entries(self, limit: int | None = 10, since: str | None = None) -> list[dict]:
         """Get changelog entries, optionally filtered by version."""
         versions = self._get_versions()
 

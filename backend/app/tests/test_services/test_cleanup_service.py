@@ -19,7 +19,7 @@ async def test_cleanup_old_incidents(
     async_session: AsyncSession,
     room_with_dwellers: dict[str, object],
 ) -> None:
-    room = cast(Room, room_with_dwellers["room"])
+    room = cast("Room", room_with_dwellers["room"])
 
     old_incident = await crud.incident_crud.create(
         async_session,

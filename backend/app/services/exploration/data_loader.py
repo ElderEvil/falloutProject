@@ -19,7 +19,7 @@ def load_enemies() -> list[dict]:
     if not enemies_file.exists():
         return _get_fallback_enemies()
 
-    with open(enemies_file) as f:
+    with enemies_file.open() as f:
         enemies_data = json.load(f)
         # Validate with Pydantic
         return [EnemySchema(**enemy).model_dump() for enemy in enemies_data]
@@ -32,7 +32,7 @@ def load_event_templates() -> dict:
     if not templates_file.exists():
         return _get_fallback_templates()
 
-    with open(templates_file) as f:
+    with templates_file.open() as f:
         return json.load(f)
 
 
@@ -43,7 +43,7 @@ def load_junk_items() -> list[dict]:
     if not junk_file.exists():
         return []
 
-    with open(junk_file) as f:
+    with junk_file.open() as f:
         return json.load(f)
 
 
@@ -54,7 +54,7 @@ def load_weapons() -> list[dict]:
     if not weapons_file.exists():
         return []
 
-    with open(weapons_file) as f:
+    with weapons_file.open() as f:
         return json.load(f)
 
 
@@ -67,7 +67,7 @@ def load_outfits() -> list[dict]:
 
     outfits = []
     for outfit_file in outfits_dir.glob("*.json"):
-        with open(outfit_file) as f:
+        with outfit_file.open() as f:
             outfits.extend(json.load(f))
 
     return outfits
@@ -80,7 +80,7 @@ def load_discovery_names() -> dict[str, list[str]]:
     if not names_file.exists():
         return _get_fallback_discovery_names()
 
-    with open(names_file) as f:
+    with names_file.open() as f:
         return json.load(f)
 
 

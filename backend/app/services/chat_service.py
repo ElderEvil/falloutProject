@@ -22,7 +22,7 @@ from app.crud.chat_message import chat_message as chat_message_crud
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.crud.vault import vault as vault_crud
-from app.models import User
+from app.models import User, Vault
 from app.models.chat_message import ChatMessageCreate
 from app.models.objective import ObjectiveBase
 from app.schemas.chat import ActionSuggestion, DwellerChatResponse, NoAction
@@ -33,7 +33,7 @@ from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.chat_happiness_service import apply_chat_happiness
 from app.services.conversation_service import conversation_service
 from app.services.open_ai import get_ai_service
-from app.services.quota_service import quota_service
+from app.services.quota_service import QuotaCheckResult, quota_service
 from app.services.websocket_manager import manager
 from app.utils.exceptions import AccessDeniedException, QuotaExceededException
 
@@ -235,15 +235,12 @@ class ChatService:
         """
         try:
             dweller = await dweller_crud.get_full_info(db_session, dweller_id)
-            if not dweller:
-                raise ValueError("Dweller not found")
+            self._validate_dweller_exists(dweller, dweller_id)
 
             # Ownership check: dweller's vault must belong to the current user
-            if not dweller.vault:
-                raise AccessDeniedException(detail="Dweller does not belong to the current user")
+            self._ensure_dweller_has_vault(dweller)
             vault = await vault_crud.get(db_session, dweller.vault.id)
-            if not vault or vault.user_id != user.id:
-                raise AccessDeniedException(detail="Dweller does not belong to the current user")
+            self._validate_dweller_ownership(dweller, vault, user)
 
             quota_result = await quota_service.check_quota(user.id, db_session)
 
@@ -253,11 +250,7 @@ class ChatService:
             if quota_result.warning:
                 quota_headers["X-Quota-Warning"] = "true"
 
-            if not quota_result.allowed:
-                detail = (
-                    f"Monthly token quota exceeded. You have used {quota_result.used} of {quota_result.limit} tokens."
-                )
-                raise QuotaExceededException(detail=detail, headers=quota_headers)
+            self._validate_quota_allowed(quota_result, quota_headers)
 
             deps = DwellerChatDeps(
                 db_session=db_session,
@@ -359,10 +352,12 @@ class ChatService:
         """
         try:
             usage = result.usage()
-            return usage.input_tokens, usage.output_tokens, usage.total_tokens
+            token_counts = usage.input_tokens, usage.output_tokens, usage.total_tokens
         except Exception:
             logger.exception("Failed to extract usage info from agent result")
             return None, None, None
+        else:
+            return token_counts
 
     @staticmethod
     async def send_chat_notification(
@@ -452,8 +447,6 @@ class ChatService:
             # Parse action suggestion from agent output
             action_suggestion = await parse_action_suggestion(output, db_session, dweller)
 
-            return response_message, happiness_impact, action_suggestion, prompt_tokens, completion_tokens, total_tokens
-
         except Exception:
             logger.exception("Dweller chat agent failed, using fallback")
 
@@ -482,6 +475,8 @@ class ChatService:
                 result.completion_tokens,
                 result.total_tokens,
             )
+        else:
+            return response_message, happiness_impact, action_suggestion, prompt_tokens, completion_tokens, total_tokens
 
     async def _maybe_unlock_places(self, db_session: AsyncSession, dweller: DwellerReadFull) -> None:
         """Unlock the dweller's associated places after 3+ user messages (best-effort)."""
@@ -497,6 +492,33 @@ class ChatService:
         except Exception:
             await db_session.rollback()
             logger.exception("Failed to unlock places for dweller %s, continuing", dweller.id)
+
+    @staticmethod
+    def _validate_dweller_exists(dweller: "DwellerReadFull | None", _dweller_id: UUID4) -> None:
+        """Validate that a dweller exists, raising ValueError if not."""
+        if not dweller:
+            raise ValueError(f"Dweller {_dweller_id} not found")
+
+    @staticmethod
+    def _ensure_dweller_has_vault(dweller: "DwellerReadFull") -> None:
+        """Ensure the dweller has a vault, raising AccessDeniedException if not."""
+        if not dweller.vault:
+            raise AccessDeniedException(detail="Dweller does not belong to the current user")
+
+    @staticmethod
+    def _validate_dweller_ownership(dweller: "DwellerReadFull", vault: "Vault | None", user: "User") -> None:
+        """Validate that a dweller belongs to the given user, raising AccessDeniedException if not."""
+        if not dweller.vault:
+            raise AccessDeniedException(detail="Dweller does not belong to the current user")
+        if not vault or vault.user_id != user.id:
+            raise AccessDeniedException(detail="Dweller does not belong to the current user")
+
+    @staticmethod
+    def _validate_quota_allowed(quota_result: "QuotaCheckResult", quota_headers: dict[str, str]) -> None:
+        """Validate that the user has remaining quota, raising QuotaExceededException if not."""
+        if not quota_result.allowed:
+            detail = f"Monthly token quota exceeded. You have used {quota_result.used} of {quota_result.limit} tokens."
+            raise QuotaExceededException(detail=detail, headers=quota_headers)
 
 
 # Singleton instance

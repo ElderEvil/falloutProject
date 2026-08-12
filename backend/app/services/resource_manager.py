@@ -25,8 +25,7 @@ class ResourceManager:
     async def process_vault_resources(
         self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int
     ) -> tuple[VaultUpdate, dict]:
-        """
-        Process resource changes for a vault over the given time period.
+        """Process resource changes for a vault over the given time period.
 
         Returns:
             tuple: (VaultUpdate with new resource levels, dict with warnings/events)
@@ -58,8 +57,7 @@ class ResourceManager:
         rooms_with_dwellers: list[tuple[Room, list[Dweller]]],
         seconds_passed: int,
     ) -> tuple[VaultUpdate, dict]:
-        """
-        Calculate net resource change considering production, consumption, and efficiency.
+        """Calculate net resource change considering production, consumption, and efficiency.
 
         Returns:
             tuple: (VaultUpdate with new resource levels, dict with events/warnings)
@@ -233,8 +231,7 @@ class ResourceManager:
         return vault, storage, rooms, dweller_count or 0, list(rooms_with_dwellers_dict.values())
 
     async def check_resource_availability(self, vault: Vault) -> dict[str, bool]:
-        """
-        Check if vault has sufficient resources for basic operations.
+        """Check if vault has sufficient resources for basic operations.
 
         Returns:
             dict: Resource availability status

@@ -43,7 +43,6 @@ class VaultBase(SQLModel):
     radio_mode: str = Field(default="recruitment", sa_column=Column(String(50)))
 
     # Game state
-    # game_state: GameStatusEnum = Field(default=GameStatusEnum.ACTIVE)
 
     def __str__(self):
         return f"Vault {self.number:03}"

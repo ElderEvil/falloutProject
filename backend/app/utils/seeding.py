@@ -17,9 +17,7 @@ T = TypeVar("T", bound=BaseModel)
 M = TypeVar("M")
 
 
-async def _load_json_files(  # noqa: UP047
-    directory: Path, file_pattern: str, schema_class: type[T]
-) -> list[T]:
+async def _load_json_files(directory: Path, file_pattern: str, schema_class: type[T]) -> list[T]:
     """Load and validate data from JSON files."""
     all_data: list[T] = []
     anyio_path = anyio.Path(directory)
@@ -50,9 +48,7 @@ async def _load_json_files(  # noqa: UP047
     return all_data
 
 
-async def _get_existing_values(  # noqa: UP047
-    db_session: AsyncSession, model_class: type[M], unique_field: str
-) -> set:
+async def _get_existing_values(db_session: AsyncSession, model_class: type[M], unique_field: str) -> set:
     """Get existing unique field values from database."""
     result = await db_session.execute(select(getattr(model_class, unique_field)))
     return set(result.scalars().all())
@@ -138,9 +134,9 @@ async def seed_from_json[T, M](
             logger.info("Seeded %d new records into database", seeded_count)
         else:
             logger.info("No new records to seed, all records already exist in database")
-
-        return seeded_count
     except Exception:
         logger.exception("Failed to seed records from JSON files")
         await db_session.rollback()
         return 0
+    else:
+        return seeded_count

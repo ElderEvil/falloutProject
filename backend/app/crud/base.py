@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import Any, Generic, TypeVar
+from typing import Any
 
 from pydantic import UUID4
 from sqlalchemy import Row, RowMapping
@@ -9,12 +9,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.utils.exceptions import ResourceAlreadyExistsException, ResourceNotFoundException
 
-ModelType = TypeVar("ModelType", bound=SQLModel)
-CreateSchemaType = TypeVar("CreateSchemaType", bound=SQLModel)
-UpdateSchemaType = TypeVar("UpdateSchemaType", bound=SQLModel)
 
-
-class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
+class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateSchemaType: (SQLModel | None)]:
     """
     Base class for CRUD (Create, Read, Update, Delete) operations on a SQLModel in a database session.
 
@@ -38,7 +34,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         # Filter out soft-deleted items if the model has is_deleted attribute
         if not include_deleted and hasattr(self.model, "is_deleted"):
-            query = query.where(col(self.model.is_deleted) == False)
+            query = query.where(~col(self.model.is_deleted))
 
         response = await db_session.execute(query)
         db_obj = response.scalar_one_or_none()
@@ -61,7 +57,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         # Filter out soft-deleted items if the model has is_deleted attribute
         if not include_deleted and hasattr(self.model, "is_deleted"):
-            query = query.where(col(self.model.is_deleted) == False)
+            query = query.where(~col(self.model.is_deleted))
 
         response = await db_session.execute(query)
         return response.scalars().all()
@@ -78,7 +74,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         # Filter out soft-deleted items if the model has is_deleted attribute
         if not include_deleted and hasattr(self.model, "is_deleted"):
-            query = query.where(col(self.model.is_deleted) == False)
+            query = query.where(~col(self.model.is_deleted))
 
         response = await db_session.execute(query)
         return response.scalar_one()
@@ -100,7 +96,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         # Filter out soft-deleted items if the model has is_deleted attribute
         if not include_deleted and hasattr(self.model, "is_deleted"):
-            query = query.where(col(self.model.is_deleted) == False)
+            query = query.where(~col(self.model.is_deleted))
 
         response = await db_session.execute(query)
         return response.scalars().all()
@@ -301,7 +297,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         query = (
             select(self.model)
-            .where(col(self.model.is_deleted) == True)
+            .where(col(self.model.is_deleted))
             .offset(skip)
             .limit(limit)
             .order_by(col(self.model.deleted_at).desc())

@@ -12,7 +12,6 @@ if TYPE_CHECKING:
 
 
 class LLMInteractionBase(SQLModel):
-    # ai_model_type: AIModelType = Field(default=AIModelType.CHATGPT)
     parameters: str | None
     response: str | None
     usage: str | None  # Legacy field - stores operation type (kept for backward compatibility)
@@ -27,7 +26,7 @@ class LLMInteractionBase(SQLModel):
 
 
 class LLMInteraction(BaseUUIDModel, LLMInteractionBase, table=True):
-    created_at: datetime | None = Field(default_factory=lambda: datetime.utcnow())  # noqa: PLW0108
+    created_at: datetime | None = Field(default_factory=lambda: datetime.utcnow())
 
     prompt: "Prompt" = Relationship(back_populates="llm_interactions")
     user: "User" = Relationship(back_populates="llm_interactions")

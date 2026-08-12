@@ -1,7 +1,5 @@
 """Tests for RustFS storage adapter."""
 
-# ruff: noqa: E402, ARG002, ARG005
-
 import sys
 from unittest.mock import MagicMock, patch
 

@@ -39,7 +39,7 @@ async def test_spawn_incident_publishes_sse(async_session: AsyncSession, room_wi
 
 
 @pytest.mark.asyncio
-async def test_process_incident_publishes_only_on_transition(async_session: AsyncSession, vault: "Vault"):  # noqa: F821
+async def test_process_incident_publishes_only_on_transition(async_session: AsyncSession, vault: "Vault"):
     """Verify process_incident publishes SSE only on state transitions, not on damage-only ticks."""
     from app.schemas.dweller import DwellerCreate
     from app.schemas.room import RoomCreate

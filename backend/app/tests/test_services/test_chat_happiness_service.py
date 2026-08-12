@@ -88,7 +88,7 @@ class TestApplyChatHappiness:
     async def test_negative_delta(
         self,
         async_session: AsyncSession,
-        vault: Vault,  # noqa: ARG002 - fixture needed to create dweller
+        vault: Vault,
         test_dweller: Dweller,
     ):
         """Test applying a negative happiness delta."""
@@ -109,7 +109,7 @@ class TestApplyChatHappiness:
     async def test_zero_delta(
         self,
         async_session: AsyncSession,
-        vault: Vault,  # noqa: ARG002 - fixture needed to create dweller
+        vault: Vault,
         test_dweller: Dweller,
     ):
         """Test applying a zero (neutral) delta."""
@@ -127,7 +127,7 @@ class TestApplyChatHappiness:
     async def test_clamp_upper_bound(
         self,
         async_session: AsyncSession,
-        vault: Vault,  # noqa: ARG002 - fixture needed to create dweller
+        vault: Vault,
         test_dweller: Dweller,
     ):
         """Test that happiness is clamped to 100."""
@@ -149,7 +149,7 @@ class TestApplyChatHappiness:
     async def test_clamp_lower_bound(
         self,
         async_session: AsyncSession,
-        vault: Vault,  # noqa: ARG002 - fixture needed to create dweller
+        vault: Vault,
         test_dweller: Dweller,
     ):
         """Test that happiness is clamped to 10 (not 0)."""
@@ -173,7 +173,7 @@ class TestApplyChatHappiness:
         async_session: AsyncSession,
         vault: Vault,
         test_dweller: Dweller,
-        second_dweller: Dweller,  # noqa: ARG002 - fixture needed for vault average calc
+        second_dweller: Dweller,
     ):
         """Test that vault happiness is calculated as average of all dwellers."""
         # test_dweller: 50, second_dweller: 70
@@ -195,9 +195,9 @@ class TestApplyChatHappiness:
     async def test_vault_happiness_truncation(
         self,
         async_session: AsyncSession,
-        vault: Vault,  # noqa: ARG002 - fixture needed for vault context
+        vault: Vault,
         test_dweller: Dweller,
-        second_dweller: Dweller,  # noqa: ARG002 - fixture needed for vault average calc
+        second_dweller: Dweller,
     ):
         """Test that vault happiness uses truncation (int), not rounding."""
         # test_dweller: 50, second_dweller: 70
@@ -216,7 +216,7 @@ class TestApplyChatHappiness:
     async def test_dweller_not_found(
         self,
         async_session: AsyncSession,
-        vault: Vault,  # noqa: ARG002 - fixture needed for session context
+        vault: Vault,
     ):
         """Test that ResourceNotFoundException is raised for invalid dweller."""
         fake_dweller_id = UUID4("00000000-0000-0000-0000-000000000000")
@@ -231,7 +231,7 @@ class TestApplyChatHappiness:
     async def test_large_positive_delta(
         self,
         async_session: AsyncSession,
-        vault: Vault,  # noqa: ARG002 - fixture needed to create dweller
+        vault: Vault,
         test_dweller: Dweller,
     ):
         """Test applying a delta larger than typical range."""
@@ -247,7 +247,7 @@ class TestApplyChatHappiness:
     async def test_large_negative_delta(
         self,
         async_session: AsyncSession,
-        vault: Vault,  # noqa: ARG002 - fixture needed to create dweller
+        vault: Vault,
         test_dweller: Dweller,
     ):
         """Test applying a large negative delta."""

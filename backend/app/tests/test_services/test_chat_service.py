@@ -273,14 +273,15 @@ class TestChatServiceErrorHandling:
             ),
         )
 
-        events: list[dict] = []
-        async for event in chat_service.stream_response(
-            db_session=async_session,
-            user=other_user,
-            dweller_id=chat_dweller.id,
-            message_text="Hello",
-        ):
-            events.append(event)
+        events = [
+            event
+            async for event in chat_service.stream_response(
+                db_session=async_session,
+                user=other_user,
+                dweller_id=chat_dweller.id,
+                message_text="Hello",
+            )
+        ]
 
         assert len(events) == 1
         assert events[0]["type"] == "error"

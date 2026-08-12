@@ -203,7 +203,6 @@ class TestPrepareInitialRooms:
         # misc: radio studio only
         assert len(misc) == 1
         assert misc[0].name == "radio studio"
-        # training: none
         assert len(training) == 0
 
     def test_boosted_rooms(self) -> None:

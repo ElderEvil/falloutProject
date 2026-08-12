@@ -59,7 +59,7 @@ async def test_send_dweller_already_exploring(
 ) -> None:
     """Test error when dweller is already on an exploration."""
     # Create an active exploration for the dweller
-    exploration_in = ExplorationCreate(  # noqa: F841
+    exploration_in = ExplorationCreate(
         vault_id=vault.id,
         dweller_id=dweller.id,
         duration=4,

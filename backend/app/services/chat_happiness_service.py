@@ -23,8 +23,7 @@ async def apply_chat_happiness(
     dweller_id: UUID4,
     delta: int,
 ) -> tuple[int, int]:
-    """
-    Apply an immediate happiness delta from a chat interaction.
+    """Apply an immediate happiness delta from a chat interaction.
 
     Loads the dweller and vault, applies the delta (clamped 10..100),
     and recomputes vault happiness as the average of all dwellers.
@@ -95,8 +94,7 @@ async def apply_chat_happiness(
 
 
 def compute_neutral_delta() -> int:
-    """
-    Return a neutral delta when happiness change cannot be computed.
+    """Return a neutral delta when happiness change cannot be computed.
 
     Used as fallback when AI analysis fails or returns invalid data.
     """

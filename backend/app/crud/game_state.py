@@ -63,7 +63,7 @@ class CRUDGameState:
     @staticmethod
     async def get_all_active(db_session: AsyncSession) -> list[GameState]:
         """Get all active (not paused) game states."""
-        query = select(GameState).where((GameState.is_active == True) & (GameState.is_paused == False))
+        query = select(GameState).where(GameState.is_active & ~GameState.is_paused)
         result = await db_session.exec(query)
         return list(result.all())
 

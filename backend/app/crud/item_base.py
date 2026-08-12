@@ -6,14 +6,12 @@ from pydantic import UUID4
 from sqlalchemy import update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import aliased
-from sqlmodel import select
+from sqlmodel import SQLModel, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
-from app.crud.base import CreateSchemaType, CRUDBase, ModelType, UpdateSchemaType
+from app.crud.base import CRUDBase
 from app.crud.vault import vault as vault_crud
-
-# from app.crud.mixins import SellItemMixin
 from app.models import Outfit, Storage, Vault, Weapon
 from app.models.dweller import Dweller
 from app.models.junk import Junk
@@ -88,9 +86,8 @@ async def get_items_list(
     return await crud_instance.get_multi(db_session, skip=skip, limit=limit)
 
 
-class CRUDItem(
-    CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType],
-    # SellItemMixin[ModelType]
+class CRUDItem[ModelType: Weapon | Outfit, CreateSchemaType: SQLModel, UpdateSchemaType: SQLModel](
+    CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType]
 ):
     async def create(self, db_session: AsyncSession, obj_in: CreateSchemaType | dict) -> ModelType:
         obj_in = obj_in if isinstance(obj_in, dict) else obj_in.model_dump()
@@ -160,16 +157,16 @@ class CRUDItem(
     async def _fetch_unequip_data(
         db_session: AsyncSession, item_id: UUID4
     ) -> tuple[Dweller, UUID4, str] | tuple[None, None, None]:
-        WeaponAlias, OutfitAlias = aliased(Weapon), aliased(Outfit)  # noqa: N806
+        weapon_alias, outfit_alias = aliased(Weapon), aliased(Outfit)
 
         query = (
-            select(Dweller, Storage.id.label("storage_id"), (WeaponAlias.id != None).label("is_weapon"))  # noqa: E711
+            select(Dweller, Storage.id.label("storage_id"), weapon_alias.id.is_not(None).label("is_weapon"))
             .select_from(Dweller)
             .join(Vault, Dweller.vault_id == Vault.id)
             .join(Storage, Vault.id == Storage.vault_id)
-            .outerjoin(WeaponAlias, (Dweller.id == WeaponAlias.dweller_id) & (WeaponAlias.id == item_id))
-            .outerjoin(OutfitAlias, (Dweller.id == OutfitAlias.dweller_id) & (OutfitAlias.id == item_id))
-            .where((WeaponAlias.id == item_id) | (OutfitAlias.id == item_id))
+            .outerjoin(weapon_alias, (Dweller.id == weapon_alias.dweller_id) & (weapon_alias.id == item_id))
+            .outerjoin(outfit_alias, (Dweller.id == outfit_alias.dweller_id) & (outfit_alias.id == item_id))
+            .where((weapon_alias.id == item_id) | (outfit_alias.id == item_id))
         )
 
         result = await db_session.execute(query)

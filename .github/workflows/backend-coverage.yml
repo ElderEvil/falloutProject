@@ -1,0 +1,74 @@
+name: Backend Coverage
+
+on:
+  schedule:
+    # Run nightly at 02:00 UTC
+    - cron: '0 2 * * *'
+  push:
+    branches: [ master ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-coverage.yml'
+  workflow_dispatch:
+
+jobs:
+  backend-coverage:
+    name: Backend Tests with Coverage
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "backend/uv.lock"
+
+      - name: Set up Python
+        working-directory: backend
+        run: uv python install
+
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --locked
+
+      - name: Set up test environment
+        working-directory: backend
+        run: cp .env.example .env
+
+      - name: Run tests with coverage
+        working-directory: backend
+        run: uv run pytest app/tests -n auto -v --tb=short --cov=app --cov-report=term-missing --cov-report=html --cov-report=json --cov-fail-under=80
+
+      - name: Generate coverage badge
+        working-directory: backend
+        run: |
+          uv pip install coverage-badge
+          uv run coverage-badge -o coverage.svg -f
+
+      - name: Upload coverage badge to Gist
+        uses: exuanbo/actions-deploy-gist@v1
+        with:
+          token: ${{ secrets.GIST_TOKEN }}
+          gist_id: 7cc382e5dbf89fbe5bc026b6d8a0ab88
+          file_path: backend/coverage.svg
+          file_type: text
+
+      - name: Upload coverage HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: backend/htmlcov

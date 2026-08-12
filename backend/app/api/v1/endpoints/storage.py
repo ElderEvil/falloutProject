@@ -29,13 +29,13 @@ async def get_storage_space(
     """Get storage space information for a vault.
 
     Returns current used space, maximum space, available space, and utilization percentage.
-    Requires ownership of the vault.
+    Requires vault ownership or superuser privileges.
 
     Returns:
         Storage space details including stimpack and radaway counts.
 
     Raises:
-        HTTPException: 403 if user doesn't own the vault.
+        HTTPException: 403 if user lacks access to the vault.
         HTTPException: 404 if storage not found for vault.
     """
     # Verify ownership
@@ -78,7 +78,7 @@ async def get_storage_items(
         Lists of weapons, outfits, and junk items in storage.
 
     Raises:
-        HTTPException: 403 if user doesn't own the vault.
+        HTTPException: 403 if user lacks access to the vault.
         HTTPException: 404 if storage not found for vault.
     """
     vault = await get_user_vault_or_403(vault_id, current_user, db_session)
@@ -117,10 +117,13 @@ async def transfer_medical_supplies(
     """Transfer medical supplies from vault storage to a dweller's inventory.
 
     Dwellers can carry max 15 stimpaks and 15 radaways each.
-    Requires ownership of the vault.
+    Requires vault ownership or superuser privileges.
 
     Returns:
         Transfer result with updated quantities.
+
+    Raises:
+        HTTPException: 403 if user lacks access to the vault.
     """
     from app.services.vault_service import vault_service
 

@@ -22,7 +22,7 @@ from app.crud.chat_message import chat_message as chat_message_crud
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.crud.vault import vault as vault_crud
-from app.models import User, Vault
+from app.models import Dweller, User, Vault
 from app.models.chat_message import ChatMessageCreate
 from app.models.objective import ObjectiveBase
 from app.schemas.chat import ActionSuggestion, DwellerChatResponse, NoAction
@@ -35,7 +35,7 @@ from app.services.conversation_service import conversation_service
 from app.services.open_ai import get_ai_service
 from app.services.quota_service import QuotaCheckResult, quota_service
 from app.services.websocket_manager import manager
-from app.utils.exceptions import AccessDeniedException, QuotaExceededException
+from app.utils.exceptions import AccessDeniedException, QuotaExceededException, ResourceNotFoundException
 
 logger = logging.getLogger(__name__)
 
@@ -123,12 +123,12 @@ class ChatService:
             Chat response with dweller's reply, happiness impact, and action suggestion
 
         Raises:
-            ValueError: If dweller not found
+            ResourceNotFoundException: If dweller not found
         """
         # Get dweller with full info
         dweller = await dweller_crud.get_full_info(db_session, dweller_id)
         if not dweller:
-            raise ValueError("Dweller not found")
+            raise ResourceNotFoundException(model=Dweller, identifier=dweller_id)
 
         # Check quota before running chat agent
         quota_result = await quota_service.check_quota(user.id, db_session)

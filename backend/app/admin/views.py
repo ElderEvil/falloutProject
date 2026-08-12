@@ -126,7 +126,7 @@ class DwellerAdmin(ModelView, model=Dweller):
     ]
 
     column_formatters: ClassVar[dict] = {
-        Dweller.bio: lambda m, a: (
+        Dweller.bio: lambda m, _attribute: (
             (m.bio[:TRUNCATE_LENGTH] + "...") if m.bio and len(m.bio) > TRUNCATE_LENGTH else m.bio
         ),
     }
@@ -392,12 +392,12 @@ class ChatMessageAdmin(ModelView, model=ChatMessage):
     column_default_sort: ClassVar[list] = [(ChatMessage.created_at, True)]
 
     column_formatters: ClassVar[dict] = {
-        ChatMessage.message_text: lambda m, a: (
+        ChatMessage.message_text: lambda m, _attribute: (
             m.message_text[:TRUNCATE_LENGTH] + "..."
             if m.message_text and len(m.message_text) > TRUNCATE_LENGTH
             else m.message_text
         ),
-        ChatMessage.happiness_reason: lambda m, a: (
+        ChatMessage.happiness_reason: lambda m, _attribute: (
             m.happiness_reason[:TRUNCATE_LENGTH] + "..."
             if m.happiness_reason and len(m.happiness_reason) > TRUNCATE_LENGTH
             else m.happiness_reason
@@ -437,7 +437,7 @@ class NotificationAdmin(ModelView, model=Notification):
     column_default_sort: ClassVar[list] = [(Notification.created_at, True)]
 
     column_formatters: ClassVar[dict] = {
-        Notification.message: lambda m, a: (
+        Notification.message: lambda m, _attribute: (
             m.message[:TRUNCATE_LENGTH] + "..." if m.message and len(m.message) > TRUNCATE_LENGTH else m.message
         ),
     }

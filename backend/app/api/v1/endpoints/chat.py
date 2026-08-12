@@ -16,7 +16,7 @@ from app.models.chat_message import ChatMessageRead
 from app.schemas.chat import ChatMessage, DwellerChatResponse, DwellerVoiceChatResponse
 from app.services.chat_service import chat_service
 from app.services.conversation_service import conversation_service
-from app.utils.exceptions import QuotaExceededException, ValidationException
+from app.utils.exceptions import QuotaExceededException, ResourceNotFoundException, ValidationException
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 logger = logging.getLogger(__name__)
@@ -45,8 +45,8 @@ async def chat_with_dweller(
             message_text=message.message,
         )
 
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
+    except ResourceNotFoundException as e:
+        raise HTTPException(status_code=404, detail=e.detail) from e
 
     else:
         # Emit WebSocket notifications after REST response is ready (non-fatal)
@@ -100,7 +100,11 @@ def _validate_audio_not_empty(audio_bytes: bytes) -> None:
         raise ValidationException(detail="Empty audio file")
 
 
-@router.post("/{dweller_id}/voice", response_model=DwellerVoiceChatResponse)
+@router.post(
+    "/{dweller_id}/voice",
+    response_model=DwellerVoiceChatResponse,
+    responses={400: {"description": "Empty audio file"}},
+)
 async def voice_chat_with_dweller(
     dweller_id: UUID4,
     user: CurrentActiveUser,
@@ -128,14 +132,14 @@ async def voice_chat_with_dweller(
         Audio response (MP3) or JSON with transcription and audio URL.
 
     Raises:
-        HTTPException: 404 if dweller not found. 500 if audio processing fails.
+        HTTPException: 400 if the audio file is empty, 404 if dweller not found, or 500 if audio processing fails.
         QuotaExceededException: If AI usage quota is exceeded.
     """
-    try:
-        # Read audio file
-        audio_bytes = await audio_file.read()
-        _validate_audio_not_empty(audio_bytes)
+    # Read and validate audio before the processing exception boundary.
+    audio_bytes = await audio_file.read()
+    _validate_audio_not_empty(audio_bytes)
 
+    try:
         # Get filename for format detection
         filename = audio_file.filename or "audio.webm"
 

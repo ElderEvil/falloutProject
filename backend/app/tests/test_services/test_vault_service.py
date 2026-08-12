@@ -1265,7 +1265,11 @@ class TestInitiateVault:
                 return_value=storage_obj,
             ),
             patch("app.services.vault_service.vault_crud.update", new_callable=AsyncMock, return_value=vault),
-            patch("app.services.vault_service.get_static_game_data", return_value=mock_game_data),
+            patch(
+                "app.services.vault_service.get_static_game_data",
+                new_callable=AsyncMock,
+                return_value=mock_game_data,
+            ),
             patch("app.services.vault_service.room_crud.evaluate_capacity_formula", return_value=4),
             patch(
                 "app.services.vault_service.compute_medical_capacity",
@@ -1368,7 +1372,11 @@ class TestInitiateVault:
                 return_value=storage_obj,
             ),
             patch("app.services.vault_service.vault_crud.update", new_callable=AsyncMock, return_value=vault),
-            patch("app.services.vault_service.get_static_game_data", return_value=mock_game_data),
+            patch(
+                "app.services.vault_service.get_static_game_data",
+                new_callable=AsyncMock,
+                return_value=mock_game_data,
+            ),
             patch("app.services.vault_service.room_crud.evaluate_capacity_formula", return_value=4),
             patch(
                 "app.services.vault_service.compute_medical_capacity",

@@ -1,3 +1,6 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +11,7 @@ from app.models.vault import Vault
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultUpdate
+from app.services.room_service import room_service
 from app.tests.factory.rooms import create_fake_room
 
 
@@ -34,6 +38,25 @@ async def test_read_room_list(async_client: AsyncClient, async_session: AsyncSes
         assert "output" in r
         assert "size_min" in r
         assert "size_max" in r
+
+
+@pytest.mark.asyncio
+async def test_get_buildable_rooms_awaits_static_game_data() -> None:
+    """The room service awaits the async static-data provider."""
+    game_data = MagicMock()
+    game_data.get_buildable_rooms.return_value = ["power generator"]
+
+    with (
+        patch("app.api.game_data_deps.get_static_game_data", new_callable=AsyncMock, return_value=game_data),
+        patch(
+            "app.services.room_service.crud.room.get_existing_room_names",
+            new_callable=AsyncMock,
+            return_value=["vault door"],
+        ),
+    ):
+        buildable_rooms = await room_service.get_buildable_rooms(MagicMock(), uuid4())
+
+    assert buildable_rooms == ["power generator"]
 
 
 @pytest.mark.asyncio

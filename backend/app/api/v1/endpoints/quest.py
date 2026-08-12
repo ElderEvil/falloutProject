@@ -27,7 +27,7 @@ router = APIRouter(prefix="/quests", tags=["Quest"])
 @router.get("/", response_model=list[QuestRead])
 async def read_all_quests(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    user: CurrentActiveUser,  # ruff: ignore[unused-function-argument]
+    _user: CurrentActiveUser,
     skip: int = 0,
     limit: int = 100,
 ) -> list[QuestRead]:
@@ -57,7 +57,7 @@ async def create_quest(
 async def read_vault_quests(
     vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    user: CurrentActiveUser,  # ruff: ignore[unused-function-argument]
+    user: CurrentActiveUser,
     skip: int = 0,
     limit: int = 100,
 ) -> list[QuestRead]:
@@ -66,6 +66,7 @@ async def read_vault_quests(
     Returns:
         List of quests for the vault.
     """
+    await get_user_vault_or_403(vault_id, user, db_session)
     return await crud.quest_crud.get_multi_for_vault(db_session=db_session, vault_id=vault_id, skip=skip, limit=limit)
 
 
@@ -73,7 +74,7 @@ async def read_vault_quests(
 async def get_available_quests(
     vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    user: CurrentActiveUser,  # ruff: ignore[unused-function-argument]
+    user: CurrentActiveUser,
     skip: int = 0,
     limit: int = 100,
 ) -> list[QuestRead]:
@@ -82,6 +83,7 @@ async def get_available_quests(
     Returns:
         List of available quests.
     """
+    await get_user_vault_or_403(vault_id, user, db_session)
     return await quest_service.get_available_for_vault(db_session, vault_id, skip, limit)
 
 
@@ -130,7 +132,7 @@ async def delete_quest(
 async def assign_quest_to_vault(
     vault_id: UUID4,
     quest_id: UUID4,
-    user: CurrentActiveUser,  # ruff: ignore[unused-function-argument]
+    user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     *,
     is_visible: bool = True,
@@ -140,6 +142,7 @@ async def assign_quest_to_vault(
     Returns:
         The vault-quest assignment.
     """
+    await get_user_vault_or_403(vault_id, user, db_session)
     return await crud.quest_crud.assign_to_vault(
         db_session=db_session, quest_id=quest_id, vault_id=vault_id, is_visible=is_visible
     )
@@ -149,7 +152,7 @@ async def assign_quest_to_vault(
 async def complete_quest(
     vault_id: UUID4,
     quest_id: UUID4,
-    user: CurrentActiveUser,  # ruff: ignore[unused-function-argument]
+    user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> QuestCompleteResponse:
     """Mark a quest as completed for a vault.
@@ -157,6 +160,7 @@ async def complete_quest(
     Returns:
         Completion response with granted rewards.
     """
+    await get_user_vault_or_403(vault_id, user, db_session)
     quest, granted_rewards = await quest_service.complete_quest_and_free_party(db_session, quest_id, vault_id)
     return QuestCompleteResponse(
         quest_id=quest.id,
@@ -171,7 +175,7 @@ async def assign_party_to_quest(
     vault_id: UUID4,
     quest_id: UUID4,
     party_data: QuestPartyAssign,
-    _user: CurrentActiveUser,
+    user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """Assign dwellers to a quest party (1-3 dwellers).
@@ -184,6 +188,8 @@ async def assign_party_to_quest(
     """
     from app.crud.quest_party import quest_party_crud
     from app.utils.exceptions import ValidationException
+
+    await get_user_vault_or_403(vault_id, user, db_session)
 
     if len(party_data.dweller_ids) > 3:
         raise ValidationException("Maximum 3 dwellers per quest")
@@ -200,7 +206,7 @@ async def assign_party_to_quest(
 async def get_quest_party(
     vault_id: UUID4,
     quest_id: UUID4,
-    _user: CurrentActiveUser,
+    user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> list[QuestPartyMemberRead]:
     """Get party members assigned to a quest.
@@ -210,6 +216,7 @@ async def get_quest_party(
     """
     from app.crud.quest_party import quest_party_crud
 
+    await get_user_vault_or_403(vault_id, user, db_session)
     party = await quest_party_crud.get_party_for_quest(db_session, quest_id, vault_id)
     return [
         QuestPartyMemberRead(
@@ -230,7 +237,7 @@ async def get_quest_party(
 async def start_quest(
     vault_id: UUID4,
     quest_id: UUID4,
-    _user: CurrentActiveUser,
+    user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     duration_minutes: int | None = None,
 ) -> QuestRead:
@@ -246,6 +253,7 @@ async def start_quest(
     from app.services.prerequisite_service import prerequisite_service
     from app.utils.exceptions import ValidationException
 
+    await get_user_vault_or_403(vault_id, user, db_session)
     quest = await db_session.get(Quest, quest_id)
     if quest is None:
         from app.utils.exceptions import ResourceNotFoundException
@@ -271,7 +279,7 @@ async def start_quest(
 async def get_eligible_dwellers(
     vault_id: UUID4,
     quest_id: UUID4,
-    _user: CurrentActiveUser,
+    user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> list[EligibleDwellerRead]:
     """Get dwellers eligible for a quest based on requirements.
@@ -279,5 +287,6 @@ async def get_eligible_dwellers(
     Returns:
         List of eligible dwellers.
     """
+    await get_user_vault_or_403(vault_id, user, db_session)
     result = await quest_service.get_eligible_dwellers(db_session, vault_id, quest_id)
     return [EligibleDwellerRead(**d) for d in result]

@@ -19,53 +19,6 @@ AI-powered dweller interactions.
 
 ## Planned
 
-### v2.32.0 — Lint Cleanup & Google-Style Docstring Convention (Target: TBD)
-
-**Focus**: Reduce ignored ruff rules that catch real bugs or modernization opportunities, and establish a
-unified Google-style docstring convention for the backend.
-
-**Planned:**
-- 🔄 **Dependency updates**
-  - Merge passing backend dependency PRs into the release branch:
-    - #419 — backend production group (pydantic-settings, coverage, ruff 0.16.2, ty, memray).
-    - #411 — pydantic-ai-slim `>=2.26.0`.
-    - #410 — sqladmin `>=0.31.0`.
-  - Rebase and re-run #403 (jsdom 30.0.1) before including it.
-  - **Skip for v2.32**: Pinia 4.0.2 (#395) because frontend tests did not complete and TypeScript 7 is not
-    currently viable; stay on TypeScript 6.x / Pinia 3.x for this release.
-- 🔄 **Ruff rule cleanup**
-  - Enable currently ignored, high-value rules: `E712`, `B008`, `RUF012`, `UP037`, `UP045`, `UP046`, `N805`,
-    `TRY300`, `TRY301`, `PTH123`.
-  - Add low-volume, high-value categories: `PERF`, `ERA`, `FURB`, `TC`.
-  - Evaluate `S` (Bandit) with `S101` ignored in `app/tests/**` to keep security checks on production code.
-  - Drop redundant ignore `S311` (`S` is not selected).
-- 🔄 **Google-style docstring convention (phased rollout)**
-  - Adopt Google-style sections (`Args:`, `Returns:`, `Raises:`, `Yields:`, `Examples:`) as the backend house style.
-  - Enable ruff `D` (pydocstyle) with `convention = "google"` only where it adds value:
-    - Phase 1: `app/api/**` (public HTTP endpoint interfaces).
-    - Phase 2: `app/services/**` (public business-service interfaces).
-    - Phase 3: `app/crud/**`, `app/models/**`, `app/schemas/**`, and remaining modules only after Phases 1–2 are green.
-  - Exclude by default: `app/tests/**`, `app/cli/**`, `alembic/**`, and any file not yet migrated via
-    `[tool.ruff.lint.per-file-ignores]`.
-  - Add `DOC` (pydoclint) rules in Phase 1 once the team agrees on section ordering and parameter coverage.
-  - Keep Sphinx optional: Napoleon can render Google-style docstrings to reST if docs are ever published.
-- 🔄 **Measure before/after**
-  - Baseline: `ruff check . --select ALL --statistics` counts at start of branch.
-  - Final: same command after cleanup; report absolute and percentage change.
-  - Guardrails: no test coverage regression, no CI time regression, no behavior change.
-  - **Completion metrics to report:**
-    - Net LoC change (`git diff --stat` summary, excluding lockfiles).
-    - Rules enabled: count of codes removed from `lint.ignore` + categories added to `lint.select`.
-    - Rules dropped: count of redundant/no-op ignores removed.
-    - Total `ruff check . --select ALL` violations before vs. after.
-    - Bugs/patterns fixed: count of `B008`, `RUF012`, `E712` and similar real-issue fixes.
-    - Security findings: Bandit (`S`) violations resolved in production code.
-    - Docstring migration: files touched per phase and remaining `D`/`DOC` violations.
-    - Test coverage: baseline % vs. final % (must not drop).
-    - CI lint job duration: baseline vs. final.
-
----
-
 ### v2.33.0 — Frontend Type Safety & Async Correctness (Target: TBD)
 
 **Focus**: Turn on the type-aware capability already bundled with Vite+/Oxlint where compatible, and prevent stale
@@ -159,8 +112,12 @@ feature delivery, record its measurable non-functional impact rather than invent
   not yet migrated are explicitly excluded through scoped per-file ignores.
 - ✅ **Release alignment** — backend/frontend versions and the changelog are aligned at v2.32.0.
 - ✅ **Measurement** — `cd backend && uv run ruff check . --select ALL --statistics` reduced findings from **11,081**
-  (baseline: `origin/master`, same installed Ruff 0.16.2) to **6,416**: **4,665 fewer findings (42.1%)**. The final
-  configured gate, `cd backend && uv run ruff check .`, passes.
+  (baseline: commit `f97e2597a58426f6fa3a4ce498ec000e7e4a62bf`) to **6,416**: **4,665 fewer findings (42.1%)**. Both
+  measurements used `uv 0.11.24`, the locked project environment on Python 3.13.13, and Ruff 0.16.2 with the command
+  above. The final configured gate, `cd backend && uv run ruff check .`, passes.
+- ✅ **Completed scope** — merged #419, #411, and #410; retained TypeScript 6.x / Pinia 3.x after deferring Pinia
+  4.0.2; enabled higher-signal Ruff rules and Google-style docstrings in scoped phases; and kept tests, CLI, Alembic,
+  and unmigrated modules under explicit per-file policy until their migration is complete.
 
 ### v2.31.0 — Bio-to-Map Registration Reliability (Released 2026-08-12)
 

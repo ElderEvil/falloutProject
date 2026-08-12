@@ -9,6 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403
 from app.db.session import get_async_session
 from app.schemas.common import RadioModeEnum
+from app.schemas.dweller import DwellerRead
 from app.schemas.radio import ManualRecruitRequest, RadioStatsRead, RecruitmentResponse
 from app.schemas.responses import RadioModeResponse, RadioSpeedupResponse
 from app.services.radio_service import radio_service
@@ -63,7 +64,7 @@ async def manual_recruit_dweller(
         # Note: notification is already sent by recruit_dweller() in radio_service
 
         return RecruitmentResponse(
-            dweller=dweller,  # type: ignore
+            dweller=DwellerRead.model_validate(dweller),
             message=f"{dweller.first_name} {dweller.last_name} has joined your vault!",
             caps_spent=game_config.radio.manual_recruitment_cost,
             recycled=recycled,

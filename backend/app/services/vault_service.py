@@ -602,7 +602,7 @@ class VaultService:
         await db_session.refresh(vault_db_obj)
 
         # Prepare room data
-        game_data_store = get_static_game_data()
+        game_data_store = await get_static_game_data()
         rooms = game_data_store.rooms
         infrastructure_rooms, capacity_rooms, production_rooms, misc_rooms, training_rooms = (
             self._prepare_initial_rooms(rooms, vault_db_obj.id, is_boosted)

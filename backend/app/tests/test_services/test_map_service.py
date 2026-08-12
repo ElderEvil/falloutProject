@@ -8,8 +8,9 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.dweller import Dweller
+from app.models.notification import Notification
 from app.models.vault import Vault
-from app.models.wasteland_location import LocationTypeEnum, WastelandLocation
+from app.models.wasteland_location import DwellerLocation, LocationTypeEnum, WastelandLocation
 from app.schemas.common import RarityEnum
 from app.services.map_service import map_service
 from app.utils.places import normalize_place_name, seeded_vault_specs
@@ -268,6 +269,58 @@ async def test_register_bio_places_forced_db_error_logged_not_raised(
         )
 
     assert any("register_bio_places failed" in record.message for record in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_register_bio_places_retries_a_transient_failure(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """One transient write error still creates all three fixture links."""
+    from app.crud.wasteland_location import wasteland_location
+
+    original_get_or_create = wasteland_location.get_or_create
+    attempts = 0
+
+    async def fail_once(*args, **kwargs):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise SQLAlchemyError("transient")
+        return await original_get_or_create(*args, **kwargs)
+
+    with patch.object(wasteland_location, "get_or_create", side_effect=fail_once):
+        await map_service.register_bio_places(
+            async_session,
+            dweller,
+            origin_place="Rusty Creek",
+            visited_places=["Necropolis", "Brotherhood Outpost"],
+        )
+
+    links = (await async_session.execute(select(DwellerLocation))).scalars().all()
+    assert len(links) == 3
+
+
+@pytest.mark.asyncio
+async def test_register_bio_places_persists_failure_notification(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """An exhausted retry leaves one durable, actionable notification."""
+    dweller_id = dweller.id
+    with patch(
+        "app.crud.wasteland_location.wasteland_location.get_or_create",
+        side_effect=SQLAlchemyError("persistent"),
+    ):
+        await map_service.register_bio_places(
+            async_session,
+            dweller,
+            origin_place="Rusty Creek",
+            visited_places=["Necropolis", "Brotherhood Outpost"],
+        )
+
+    notifications = (await async_session.execute(select(Notification))).scalars().all()
+    assert len(notifications) == 1
+    assert notifications[0].notification_type.value == "map_registration_failed"
+    assert notifications[0].from_dweller_id == dweller_id
 
 
 # ---------------------------------------------------------------------------

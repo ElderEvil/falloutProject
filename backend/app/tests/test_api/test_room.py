@@ -207,7 +207,7 @@ async def test_upgrade_room_insufficient_caps(
 
     # Attempt to upgrade room
     response = await async_client.post(f"/rooms/upgrade/{room.id}", headers=superuser_token_headers)
-    assert response.status_code == 422 or response.status_code == 400  # noqa: PLR1714
+    assert response.status_code == 422 or response.status_code == 400
 
 
 @pytest.mark.asyncio
@@ -235,7 +235,7 @@ async def test_upgrade_room_already_max_tier(
 
     # Attempt to upgrade room beyond max tier
     response = await async_client.post(f"/rooms/upgrade/{room.id}", headers=superuser_token_headers)
-    assert response.status_code == 422 or response.status_code == 400  # noqa: PLR1714
+    assert response.status_code == 422 or response.status_code == 400
     assert "maximum tier" in response.json().get("detail", "").lower()
 
 
@@ -264,7 +264,7 @@ async def test_upgrade_room_no_t2_cost(
 
     # Attempt to upgrade room with no upgrade cost
     response = await async_client.post(f"/rooms/upgrade/{room.id}", headers=superuser_token_headers)
-    assert response.status_code == 422 or response.status_code == 400  # noqa: PLR1714
+    assert response.status_code == 422 or response.status_code == 400
 
 
 @pytest.mark.asyncio

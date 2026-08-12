@@ -494,7 +494,7 @@ async def test_manual_recruit_does_not_break_subsequent_api_calls(
 @pytest.mark.asyncio
 async def test_manual_recruit_with_assigned_dweller(
     async_session: AsyncSession,
-    vault: "Vault",  # noqa: F821
+    vault: "Vault",
 ):
     """
     Test that manual recruitment correctly handles vault state without corruption.

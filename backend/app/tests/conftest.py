@@ -22,7 +22,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 # Global engine reference for database cleanup across fixtures
 _test_async_engine = None
 
-from app.core.config import settings  # noqa: E402
+from app.core.config import settings
 
 # Disable rate limiting for tests before importing main
 settings.ENABLE_RATE_LIMITING = False
@@ -40,21 +40,21 @@ sys.modules["app.services.storage"] = mock_storage_module
 sys.modules["app.services.storage.factory"] = mock_storage_module.factory
 
 # Override Redis client with fakeredis so tests run without external Redis
-import fakeredis.aioredis  # noqa: E402
+import fakeredis.aioredis
 
-from app import crud  # noqa: E402
-from app.api.deps import get_redis_client  # noqa: E402
-from app.db.session import get_async_session  # noqa: E402
-from app.schemas.user import UserCreate  # noqa: E402
-from app.tests.utils.user import authentication_token_from_email  # noqa: E402
-from app.tests.utils.utils import get_superuser_token_headers  # noqa: E402
-from main import app  # noqa: E402
+from app import crud
+from app.api.deps import get_redis_client
+from app.db.session import get_async_session
+from app.schemas.user import UserCreate
+from app.tests.utils.user import authentication_token_from_email
+from app.tests.utils.utils import get_superuser_token_headers
+from main import app
 
 
 @pytest_asyncio.fixture
 async def _shared_fake_redis() -> AsyncGenerator[Any]:
     """Function-scoped fakeredis client bound to the test's event loop."""
-    yield fakeredis.aioredis.FakeRedis(decode_responses=True)
+    return fakeredis.aioredis.FakeRedis(decode_responses=True)
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -82,7 +82,7 @@ def event_loop() -> Generator:
 
 @pytest_asyncio.fixture(scope="session")
 async def db_connection() -> AsyncConnection:
-    global _test_async_engine  # noqa: PLW0603
+    global _test_async_engine
     _test_async_engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:", echo=False, future=True, poolclass=StaticPool
     )
@@ -230,7 +230,7 @@ def dweller_data_fixture():
 
 
 @pytest_asyncio.fixture(name="vault")
-async def vault_fixture(async_session: AsyncSession) -> "Vault":  # noqa: F821
+async def vault_fixture(async_session: AsyncSession) -> "Vault":
     import random
 
     from faker import Faker
@@ -259,7 +259,7 @@ async def vault_fixture(async_session: AsyncSession) -> "Vault":  # noqa: F821
 
 
 @pytest_asyncio.fixture(name="dweller")
-async def dweller_fixture(async_session: AsyncSession, vault: "Vault", dweller_data: dict) -> "Dweller":  # noqa: F821
+async def dweller_fixture(async_session: AsyncSession, vault: "Vault", dweller_data: dict) -> "Dweller":
     from app.schemas.dweller import DwellerCreate
 
     dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
@@ -267,7 +267,7 @@ async def dweller_fixture(async_session: AsyncSession, vault: "Vault", dweller_d
 
 
 @pytest_asyncio.fixture(name="radio_room")
-async def radio_room_fixture(async_session: AsyncSession, vault: "Vault") -> "Room":  # noqa: F821
+async def radio_room_fixture(async_session: AsyncSession, vault: "Vault") -> "Room":
     """Create a radio room for testing."""
     from app.schemas.common import RoomTypeEnum, SPECIALEnum
     from app.schemas.room import RoomCreate
@@ -296,7 +296,7 @@ async def radio_room_fixture(async_session: AsyncSession, vault: "Vault") -> "Ro
 
 
 @pytest_asyncio.fixture(name="radio_dweller")
-async def radio_dweller_fixture(async_session: AsyncSession, vault: "Vault", radio_room: "Room") -> "Dweller":  # noqa: F821
+async def radio_dweller_fixture(async_session: AsyncSession, vault: "Vault", radio_room: "Room") -> "Dweller":
     """Create a dweller with high charisma for radio room."""
     from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
     from app.schemas.dweller import DwellerCreate
@@ -332,7 +332,7 @@ async def radio_dweller_fixture(async_session: AsyncSession, vault: "Vault", rad
 
 # Notification test fixtures
 @pytest_asyncio.fixture
-async def user_with_vault(async_session: AsyncSession) -> tuple["User", "Vault"]:  # noqa: F821
+async def user_with_vault(async_session: AsyncSession) -> tuple["User", "Vault"]:
     """Create a user with a vault for notification testing."""
     from app.schemas.user import UserCreate
     from app.schemas.vault import VaultCreate
@@ -353,7 +353,7 @@ async def user_with_vault(async_session: AsyncSession) -> tuple["User", "Vault"]
 
 
 @pytest_asyncio.fixture
-async def dweller_in_vault(async_session: AsyncSession, user_with_vault: tuple) -> "Dweller":  # noqa: F821
+async def dweller_in_vault(async_session: AsyncSession, user_with_vault: tuple) -> "Dweller":
     """Create a dweller in the test vault."""
     from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
     from app.schemas.dweller import DwellerCreate
@@ -385,7 +385,7 @@ async def dweller_in_vault(async_session: AsyncSession, user_with_vault: tuple) 
 
 
 @pytest_asyncio.fixture
-async def room_in_vault(async_session: AsyncSession, user_with_vault: tuple) -> "Room":  # noqa: F821
+async def room_in_vault(async_session: AsyncSession, user_with_vault: tuple) -> "Room":
     """Create a room in the test vault."""
     from app.schemas.common import RoomTypeEnum, SPECIALEnum
     from app.schemas.room import RoomCreate
@@ -416,8 +416,8 @@ async def room_in_vault(async_session: AsyncSession, user_with_vault: tuple) -> 
 @pytest_asyncio.fixture(name="vault_with_rooms")
 async def vault_with_rooms_fixture(
     async_session: AsyncSession,
-    vault: "Vault",  # noqa: F821
-) -> tuple["Vault", list["Room"]]:  # noqa: F821
+    vault: "Vault",
+) -> tuple["Vault", list["Room"]]:
     """
     Vault with 3 rooms of different types.
 
@@ -522,8 +522,8 @@ async def room_with_dwellers_fixture(
 @pytest_asyncio.fixture(name="equipped_dweller")
 async def equipped_dweller_fixture(
     async_session: AsyncSession,
-    dweller: "Dweller",  # noqa: F821
-) -> tuple["Dweller", "Outfit", "Weapon"]:  # noqa: F821
+    dweller: "Dweller",
+) -> tuple["Dweller", "Outfit", "Weapon"]:
     """
     Dweller with outfit and weapon equipped.
 
@@ -550,7 +550,7 @@ async def equipped_dweller_fixture(
 @pytest_asyncio.fixture(name="populated_vault")
 async def populated_vault_fixture(
     async_session: AsyncSession,
-) -> tuple["Vault", list["Room"], list["Dweller"]]:  # noqa: F821
+) -> tuple["Vault", list["Room"], list["Dweller"]]:
     """
     Fully populated vault: 3 rooms, each with 2 dwellers (6 total).
 
@@ -619,8 +619,8 @@ async def populated_vault_fixture(
 @pytest_asyncio.fixture(name="vault_with_resources")
 async def vault_with_resources_fixture(
     async_session: AsyncSession,
-    vault: "Vault",  # noqa: F821
-) -> "Vault":  # noqa: F821
+    vault: "Vault",
+) -> "Vault":
     """
     Vault with abundant resources for testing economy/building.
 

@@ -120,7 +120,7 @@ async def test_manual_tick(
     )
 
     # Store initial resources directly from the vault object
-    initial_power = vault.power  # noqa: F841
+    initial_power = vault.power
     initial_food = vault.food
     initial_water = vault.water
 

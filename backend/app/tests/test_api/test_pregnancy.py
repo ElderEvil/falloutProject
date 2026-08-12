@@ -79,7 +79,7 @@ async def test_get_vault_pregnancies_with_active(
     # Create pregnancy
     from app.services.breeding_service import breeding_service
 
-    pregnancy = await breeding_service.create_pregnancy(  # noqa: F841
+    pregnancy = await breeding_service.create_pregnancy(
         async_session,
         mother.id,
         father.id,

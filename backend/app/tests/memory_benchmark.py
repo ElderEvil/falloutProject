@@ -27,7 +27,7 @@ os.environ["ENVIRONMENT"] = "test"
 
 def get_rss() -> int:
     """Return RSS in bytes from /proc/self/status."""
-    with open("/proc/self/status") as f:
+    with Path("/proc/self/status").open() as f:
         for line in f:
             if line.startswith("VmRSS:"):
                 return int(line.split()[1]) * 1024  # kB → bytes

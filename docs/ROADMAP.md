@@ -239,6 +239,7 @@ provide a way to retroactively fill gaps for existing active vaults.
 
 | Version | Release      | Highlights                                   |
 | ------- | ------------ | -------------------------------------------- |
+| v2.31.0 | Aug 12, 2026 | Map registration retry + failure notification, bio backfill fixes |
 | v2.30.0 | Aug 11, 2026 | Frontend refactor (async actions, SSE fallback, typecheck) |
 | v2.29.0 | Aug 10, 2026 | Map unlock on chat, dweller-location `is_unlocked`, UI polish |
 | v2.28.0 | Aug 09, 2026 | Template-based bio filler + retroactive bio place backfill |
@@ -278,4 +279,4 @@ provide a way to retroactively fill gaps for existing active vaults.
 
 ---
 
-_Last updated: 2026-08-12_ (v2.31.0 backfill completed, pending version bump)
+_Last updated: 2026-08-12_ (v2.31.0)

@@ -151,9 +151,7 @@ class BioPlaceBackfillService:
         single registration failure (after the internal retry) cannot roll back
         earlier successful registrations in the same vault.
         """
-        candidates = await self._get_dwellers_missing_locations(
-            db_session, vault_id, max_dwellers
-        )
+        candidates = await self._get_dwellers_missing_locations(db_session, vault_id, max_dwellers)
         processed = 0
         for dweller in candidates:
             origin, visited = extract_places_from_bio(dweller.bio)
@@ -198,11 +196,7 @@ class BioPlaceBackfillService:
         Returns a mapping of ``vault_id`` → number of dwellers processed.
         Vaults are ordered by creation date for deterministic runs.
         """
-        stmt = (
-            select(Vault)
-            .where(Vault.is_deleted == False)
-            .order_by(Vault.created_at)
-        )
+        stmt = select(Vault).where(Vault.is_deleted == False).order_by(Vault.created_at)
         if max_vaults:
             stmt = stmt.limit(max_vaults)
         result = await db_session.execute(stmt)

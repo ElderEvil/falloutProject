@@ -34,9 +34,7 @@ def test_extract_empty_bio_returns_none_empty() -> None:
 
 def test_extract_bio_with_no_known_places() -> None:
     """Bio text without any known place mentions -> skipped, no crash."""
-    origin, visited = extract_places_from_bio(
-        "This dweller came from a small outpost and never went anywhere notable."
-    )
+    origin, visited = extract_places_from_bio("This dweller came from a small outpost and never went anywhere notable.")
     assert origin is None
     assert visited == []
 
@@ -119,9 +117,7 @@ def test_extract_multiple_visited_deduped() -> None:
 
 
 @pytest.mark.asyncio
-async def test_backfill_bio_places_for_vault_registers_missing(
-    async_session: AsyncSession, vault: Vault
-) -> None:
+async def test_backfill_bio_places_for_vault_registers_missing(async_session: AsyncSession, vault: Vault) -> None:
     """Dwellers with bio but no locations are registered; linked dwellers are skipped."""
     from app.schemas.common import GenderEnum, RarityEnum
     from app.schemas.dweller import DwellerCreate
@@ -134,9 +130,7 @@ async def test_backfill_bio_places_for_vault_registers_missing(
         "level": 1,
         "bio": "Originally from Megaton, they scavenged the Capital Wasteland.",
     }
-    await crud.dweller.create(
-        async_session, obj_in=DwellerCreate(**missing_data, vault_id=vault.id)
-    )
+    await crud.dweller.create(async_session, obj_in=DwellerCreate(**missing_data, vault_id=vault.id))
 
     linked_data = {
         "first_name": "Already",
@@ -146,12 +140,8 @@ async def test_backfill_bio_places_for_vault_registers_missing(
         "level": 1,
         "bio": "From Diamond City, they explored Far Harbor.",
     }
-    linked = await crud.dweller.create(
-        async_session, obj_in=DwellerCreate(**linked_data, vault_id=vault.id)
-    )
-    await map_service.register_bio_places(
-        async_session, linked, origin_place="Diamond City", visited_places=[]
-    )
+    linked = await crud.dweller.create(async_session, obj_in=DwellerCreate(**linked_data, vault_id=vault.id))
+    await map_service.register_bio_places(async_session, linked, origin_place="Diamond City", visited_places=[])
     await async_session.commit()
 
     processed = await bio_place_backfill_service.backfill_bio_places_for_vault(async_session, vault.id)
@@ -165,15 +155,15 @@ async def test_backfill_bio_places_for_vault_registers_missing(
     assert "Diamond City" in names
 
     links = (
-        await async_session.execute(select(DwellerLocation).where(DwellerLocation.dweller_id == linked.id))
-    ).scalars().all()
+        (await async_session.execute(select(DwellerLocation).where(DwellerLocation.dweller_id == linked.id)))
+        .scalars()
+        .all()
+    )
     assert len(links) == 1
 
 
 @pytest.mark.asyncio
-async def test_backfill_bio_places_for_vault_respects_max_dwellers(
-    async_session: AsyncSession, vault: Vault
-) -> None:
+async def test_backfill_bio_places_for_vault_respects_max_dwellers(async_session: AsyncSession, vault: Vault) -> None:
     """max_dwellers limits how many dwellers are processed."""
     from app.schemas.common import GenderEnum, RarityEnum
     from app.schemas.dweller import DwellerCreate
@@ -189,17 +179,13 @@ async def test_backfill_bio_places_for_vault_respects_max_dwellers(
         }
         await crud.dweller.create(async_session, obj_in=DwellerCreate(**data, vault_id=vault.id))
 
-    processed = await bio_place_backfill_service.backfill_bio_places_for_vault(
-        async_session, vault.id, max_dwellers=2
-    )
+    processed = await bio_place_backfill_service.backfill_bio_places_for_vault(async_session, vault.id, max_dwellers=2)
 
     assert processed == 2
 
 
 @pytest.mark.asyncio
-async def test_backfill_bio_places_for_active_vaults_skips_deleted(
-    async_session: AsyncSession
-) -> None:
+async def test_backfill_bio_places_for_active_vaults_skips_deleted(async_session: AsyncSession) -> None:
     """Only non-deleted vaults are backfilled."""
     from faker import Faker
 
@@ -244,9 +230,7 @@ async def test_backfill_bio_places_for_active_vaults_skips_deleted(
             "level": 1,
             "bio": "Originally from Megaton, they scavenged the Capital Wasteland.",
         }
-        await crud.dweller.create(
-            async_session, obj_in=DwellerCreate(**data, vault_id=target_vault.id)
-        )
+        await crud.dweller.create(async_session, obj_in=DwellerCreate(**data, vault_id=target_vault.id))
 
     counts = await bio_place_backfill_service.backfill_bio_places_for_active_vaults(async_session)
 

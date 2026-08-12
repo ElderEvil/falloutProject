@@ -265,7 +265,10 @@ class ExplorationCoordinator:
                 # Real implementation should probably create the item in DB and link it to dweller.
                 exploration.add_event(
                     event_type="equip",
-                    description=f"Found better weapon: {item_schema.name}. Using temporarily for better survival (not permanently equipped).",
+                    description=(
+                        f"Found better weapon: {item_schema.name}. Using temporarily for better survival "
+                        "(not permanently equipped)."
+                    ),
                 )
                 db_session.add(exploration)
                 # Note: To really affect combat, we'd need to update dweller_obj.weapon_id

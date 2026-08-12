@@ -1,8 +1,9 @@
-from app.crud.base import CreateSchemaType, CRUDBase, ModelType, UpdateSchemaType
+from app.crud.base import CRUDBase
 from app.models.llm_interaction import LLMInteraction
+from app.schemas.llm_interaction import LLMInteractionCreate
 
 
-class CRUDLLMInteraction(CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType]):
+class CRUDLLMInteraction(CRUDBase[LLMInteraction, LLMInteractionCreate, None]):
     pass
 
 

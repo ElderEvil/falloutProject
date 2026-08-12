@@ -384,8 +384,8 @@ class VaultService:
                     except (ResourceNotFoundException, ResourceConflictException, ValueError) as e:
                         # Log error but continue with other dwellers
                         self.logger.warning(f"Failed to start training for dweller {dweller.id} in room {room.id}: {e}")
-        except Exception as e:
-            self.logger.error(f"Failed to start training sessions: {e}", exc_info=True)
+        except Exception:
+            self.logger.exception("Failed to start training sessions")
             raise
 
     async def _create_initial_items(self, db_session: AsyncSession, vault_id: UUID4) -> None:

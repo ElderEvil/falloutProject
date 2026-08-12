@@ -86,7 +86,6 @@ exclude = [
     "app/cli",
     "app/core",
     "app/middleware",
-    "app/tests",
     "__init__.py",
     "main.py",
     "scripts",

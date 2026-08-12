@@ -93,7 +93,8 @@ class GameLoopService:
         # Cap catch-up time to prevent abuse
         if seconds_passed > game_config.game_loop.max_offline_catchup:
             self.logger.warning(
-                f"Vault {vault_id} offline time ({seconds_passed}s) exceeds max catch-up, capping to {game_config.game_loop.max_offline_catchup}s"
+                f"Vault {vault_id} offline time ({seconds_passed}s) exceeds max catch-up, "
+                f"capping to {game_config.game_loop.max_offline_catchup}s"
             )
             seconds_passed = game_config.game_loop.max_offline_catchup
 

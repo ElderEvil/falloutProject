@@ -124,12 +124,8 @@ async def test_process_explorations_multiple_active(
     dweller2_data["vault_id"] = vault.id
     dweller2 = await crud.dweller.create(async_session, DwellerCreate(**dweller2_data))
 
-    dweller3_data = create_fake_dweller()
-    dweller3_data["vault_id"] = vault.id
-    dweller3 = await crud.dweller.create(async_session, DwellerCreate(**dweller3_data))
-
     # Create explorations
-    exploration1 = await crud.exploration.create_with_dweller_stats(
+    await crud.exploration.create_with_dweller_stats(
         async_session,
         vault_id=vault.id,
         dweller_id=dweller.id,

@@ -1,13 +1,11 @@
-from typing import Any, TypeVar
+from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlmodel import SQLModel
 
-ModelType = TypeVar("ModelType", bound=SQLModel)
 
-
-class AccessDeniedException[ModelType](HTTPException):
+class AccessDeniedException[ModelType: SQLModel](HTTPException):
     """
     Exception raised when a user attempts to perform an action without the necessary permissions.
 
@@ -21,7 +19,7 @@ class AccessDeniedException[ModelType](HTTPException):
         super().__init__(status_code=status.HTTP_403_FORBIDDEN, detail=detail, headers=headers)
 
 
-class ResourceNotFoundException[ModelType](HTTPException):
+class ResourceNotFoundException[ModelType: SQLModel](HTTPException):
     """
     Exception raised when a specific resource identified by its unique identifier or name is not found.
 
@@ -42,7 +40,7 @@ class ResourceNotFoundException[ModelType](HTTPException):
         super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail=detail, headers=headers)
 
 
-class ResourceAlreadyExistsException[ModelType](HTTPException):
+class ResourceAlreadyExistsException[ModelType: SQLModel](HTTPException):
     """
     Exception raised when attempting to create or update a resource that would violate unique constraints.
 
@@ -121,7 +119,7 @@ class NotFoundException(HTTPException):
         super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail=detail, headers=headers)
 
 
-class InvalidItemAssignmentException[ModelType](HTTPException):
+class InvalidItemAssignmentException[ModelType: SQLModel](HTTPException):
     """
     Exception raised when attempting to assign an item to both a storage and a dweller.
 

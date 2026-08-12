@@ -2,7 +2,8 @@ import json
 import logging
 from pathlib import Path
 
-from app.crud.base import CreateSchemaType
+from sqlmodel import SQLModel
+
 from app.schemas.dweller import DwellerCreateWithoutVaultID
 from app.schemas.junk import JunkCreate
 from app.schemas.objective import ObjectiveCreate
@@ -125,7 +126,7 @@ class StaticGameData:
         return self._objectives
 
     @staticmethod
-    def load_data(file_path: Path, model: type[CreateSchemaType]) -> list[CreateSchemaType]:
+    def load_data[SchemaType: SQLModel](file_path: Path, model: type[SchemaType]) -> list[SchemaType]:
         try:
             with file_path.open("r") as file:
                 data_list = json.load(file)

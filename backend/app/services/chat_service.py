@@ -22,7 +22,7 @@ from app.crud.chat_message import chat_message as chat_message_crud
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.crud.vault import vault as vault_crud
-from app.models import User
+from app.models import User, Vault
 from app.models.chat_message import ChatMessageCreate
 from app.models.objective import ObjectiveBase
 from app.schemas.chat import ActionSuggestion, DwellerChatResponse, NoAction
@@ -33,7 +33,7 @@ from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.chat_happiness_service import apply_chat_happiness
 from app.services.conversation_service import conversation_service
 from app.services.open_ai import get_ai_service
-from app.services.quota_service import quota_service
+from app.services.quota_service import QuotaCheckResult, quota_service
 from app.services.websocket_manager import manager
 from app.utils.exceptions import AccessDeniedException, QuotaExceededException
 
@@ -506,7 +506,7 @@ class ChatService:
             raise AccessDeniedException(detail="Dweller does not belong to the current user")
 
     @staticmethod
-    def _validate_dweller_ownership(dweller: "DwellerReadFull", vault: "object | None", user: "User") -> None:
+    def _validate_dweller_ownership(dweller: "DwellerReadFull", vault: "Vault | None", user: "User") -> None:
         """Validate that a dweller belongs to the given user, raising AccessDeniedException if not."""
         if not dweller.vault:
             raise AccessDeniedException(detail="Dweller does not belong to the current user")
@@ -514,7 +514,7 @@ class ChatService:
             raise AccessDeniedException(detail="Dweller does not belong to the current user")
 
     @staticmethod
-    def _validate_quota_allowed(quota_result: "object", quota_headers: dict[str, str]) -> None:
+    def _validate_quota_allowed(quota_result: "QuotaCheckResult", quota_headers: dict[str, str]) -> None:
         """Validate that the user has remaining quota, raising QuotaExceededException if not."""
         if not quota_result.allowed:
             detail = f"Monthly token quota exceeded. You have used {quota_result.used} of {quota_result.limit} tokens."

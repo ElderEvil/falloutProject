@@ -97,7 +97,6 @@ class TestDeathService:
     async def test_mark_as_dead_success(
         self,
         async_session: AsyncSession,
-        vault: Vault,
         alive_dweller: Dweller,
     ):
         """Test marking a living dweller as dead."""
@@ -118,7 +117,6 @@ class TestDeathService:
     async def test_mark_as_dead_with_custom_epitaph(
         self,
         async_session: AsyncSession,
-        vault: Vault,
         alive_dweller: Dweller,
     ):
         """Test marking dweller as dead with custom epitaph."""

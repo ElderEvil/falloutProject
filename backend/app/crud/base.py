@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import Any, TypeVar
+from typing import Any
 
 from pydantic import UUID4
 from sqlalchemy import Row, RowMapping
@@ -9,12 +9,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.utils.exceptions import ResourceAlreadyExistsException, ResourceNotFoundException
 
-ModelType = TypeVar("ModelType", bound=SQLModel)
-CreateSchemaType = TypeVar("CreateSchemaType", bound=SQLModel)
-UpdateSchemaType = TypeVar("UpdateSchemaType", bound=SQLModel)
 
-
-class CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType]:
+class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateSchemaType: (SQLModel | None)]:
     """
     Base class for CRUD (Create, Read, Update, Delete) operations on a SQLModel in a database session.
 

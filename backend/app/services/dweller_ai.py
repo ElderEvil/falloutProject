@@ -118,7 +118,7 @@ class DwellerAIService:
             completion_tokens = usage.output_tokens
             total_tokens = usage.total_tokens
         except Exception:
-            logger.warning("Failed to extract usage info from backstory agent result")
+            logger.exception("Failed to extract usage info from backstory agent result")
             prompt_tokens = None
             completion_tokens = None
             total_tokens = None
@@ -183,7 +183,7 @@ class DwellerAIService:
             completion_tokens = usage.output_tokens
             total_tokens = usage.total_tokens
         except Exception:
-            logger.warning("Failed to extract usage info from bio extension agent result")
+            logger.exception("Failed to extract usage info from bio extension agent result")
             prompt_tokens = None
             completion_tokens = None
             total_tokens = None
@@ -263,7 +263,7 @@ class DwellerAIService:
             completion_tokens = usage.output_tokens
             total_tokens = usage.total_tokens
         except Exception:
-            logger.warning("Failed to extract usage info from visual attributes agent result")
+            logger.exception("Failed to extract usage info from visual attributes agent result")
             prompt_tokens = None
             completion_tokens = None
             total_tokens = None

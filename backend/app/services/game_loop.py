@@ -340,7 +340,7 @@ class GameLoopService:
             dweller_stat = getattr(dweller, room.ability.value.lower(), 1)
             # If SPECIAL >= 7, give efficiency bonus
             if dweller_stat >= 7:
-                xp_to_award = int(xp_to_award * game_config.leveling.work_efficiency_bonus_multiplier)
+                xp_to_award = int(xp_to_award * game_config.leveling.work_efficiency_bonus)
 
         # Award XP (ensure it never goes negative)
         dweller.experience = max(0, dweller.experience + xp_to_award)

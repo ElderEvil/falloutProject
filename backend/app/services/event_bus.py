@@ -4,6 +4,7 @@ Enables decoupled communication between game systems. Services emit events
 when actions occur, and evaluators subscribe to track objective progress.
 """
 
+import asyncio
 import logging
 from collections import defaultdict
 from collections.abc import Callable, Coroutine
@@ -44,6 +45,7 @@ class EventBus:
 
     def __init__(self) -> None:
         self._handlers: dict[GameEvent, list[EventHandler]] = defaultdict(list)
+        self._emit_locks: dict[tuple[GameEvent, UUID4], asyncio.Lock] = {}
 
     def subscribe(self, event_type: GameEvent, handler: EventHandler) -> None:
         if handler not in self._handlers[event_type]:
@@ -51,19 +53,28 @@ class EventBus:
             logger.debug(f"Handler '{handler.__name__}' subscribed to {event_type}")
 
     async def emit(self, event_type: GameEvent, vault_id: UUID4, data: dict[str, Any]) -> None:
-        handlers = self._handlers.get(event_type, [])
-        if not handlers:
-            logger.debug(f"[EVENT] No handlers for {event_type}, skipping (vault: {vault_id})")
-            return
+        """Deliver one vault's event without overlapping the same event delivery.
 
-        logger.info(f"[EVENT] Emitting {event_type} for vault {vault_id} to {len(handlers)} handler(s): {data}")
-        logger.debug(f"[EVENT] Handlers: {[h.__name__ for h in handlers]}")
+        Game-loop jobs for a vault can overlap. Serializing matching event
+        deliveries prevents evaluators from issuing concurrent operations on a
+        shared database connection, while preserving independent delivery for
+        other vaults and event types.
+        """
+        lock = self._emit_locks.setdefault((event_type, vault_id), asyncio.Lock())
+        async with lock:
+            handlers = self._handlers.get(event_type, [])
+            if not handlers:
+                logger.debug(f"[EVENT] No handlers for {event_type}, skipping (vault: {vault_id})")
+                return
 
-        for handler in handlers:
-            try:
-                await self._safe_call(handler, event_type, vault_id, data)
-            except Exception:
-                logger.exception(f"Handler '{handler.__name__}' failed for {event_type}")
+            logger.info(f"[EVENT] Emitting {event_type} for vault {vault_id} to {len(handlers)} handler(s): {data}")
+            logger.debug(f"[EVENT] Handlers: {[h.__name__ for h in handlers]}")
+
+            for handler in handlers:
+                try:
+                    await self._safe_call(handler, event_type, vault_id, data)
+                except Exception:
+                    logger.exception(f"Handler '{handler.__name__}' failed for {event_type}")
 
     def unsubscribe(self, event_type: GameEvent, handler: EventHandler) -> None:
         handlers = self._handlers.get(event_type, [])
@@ -75,6 +86,7 @@ class EventBus:
 
     def clear(self) -> None:
         self._handlers.clear()
+        self._emit_locks.clear()
         logger.debug("All event handlers cleared")
 
     @staticmethod

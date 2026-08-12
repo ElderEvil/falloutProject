@@ -442,6 +442,36 @@ class TestAwardWorkXp:
 
     @pytest.mark.usefixtures("async_session")
     @pytest.mark.asyncio
+    async def test_high_matching_special_uses_configured_work_efficiency_bonus(self):
+        """High matching SPECIAL awards the configured production-work XP bonus."""
+        import app.services.leveling_service as ls_mod
+        from app.core.game_config import game_config
+        from app.schemas.common import RoomTypeEnum, SPECIALEnum
+
+        mock_db = MagicMock()
+        mock_db.add = MagicMock()
+        mock_dweller = MagicMock()
+        mock_dweller.experience = 0
+        mock_dweller.strength = 7
+        mock_dweller.vault_id = None
+        mock_dweller.name = "Efficient Worker"
+        mock_dweller.level = 1
+        mock_room = MagicMock()
+        mock_room.category = RoomTypeEnum.PRODUCTION
+        mock_room.ability = SPECIALEnum.STRENGTH
+        saved = ls_mod.leveling_service.check_level_up
+        ls_mod.leveling_service.check_level_up = AsyncMock(return_value=(False, 0))
+        try:
+            stats = await game_loop_service._award_work_xp(mock_db, mock_dweller, mock_room)
+        finally:
+            ls_mod.leveling_service.check_level_up = saved
+
+        assert stats["xp_awarded"] == int(
+            game_config.leveling.work_xp_per_tick * game_config.leveling.work_efficiency_bonus
+        )
+
+    @pytest.mark.usefixtures("async_session")
+    @pytest.mark.asyncio
     async def test_triggers_level_up(self):
         import app.services.leveling_service as ls_mod
         from app.schemas.common import RoomTypeEnum, SPECIALEnum

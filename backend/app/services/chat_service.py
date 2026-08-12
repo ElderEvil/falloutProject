@@ -7,6 +7,7 @@ from collections.abc import AsyncIterator
 from openai import AsyncOpenAI
 from pydantic import UUID4
 from pydantic_ai.agent import AgentRunResult
+from pydantic_ai.exceptions import ModelHTTPError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.agents.dweller_chat_agent import (
@@ -35,7 +36,12 @@ from app.services.conversation_service import conversation_service
 from app.services.open_ai import get_ai_service
 from app.services.quota_service import QuotaCheckResult, quota_service
 from app.services.websocket_manager import manager
-from app.utils.exceptions import AccessDeniedException, QuotaExceededException, ResourceNotFoundException
+from app.utils.exceptions import (
+    AccessDeniedException,
+    AIProviderCreditsExhaustedException,
+    QuotaExceededException,
+    ResourceNotFoundException,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -447,36 +453,63 @@ class ChatService:
             # Parse action suggestion from agent output
             action_suggestion = await parse_action_suggestion(output, db_session, dweller)
 
+        except ModelHTTPError as error:
+            if self._provider_credits_are_exhausted(error):
+                raise AIProviderCreditsExhaustedException from error
+            logger.exception("Dweller chat agent failed, using fallback")
+            return await self._run_fallback_chat_agent(dweller, message_text)
         except Exception:
             logger.exception("Dweller chat agent failed, using fallback")
+            return await self._run_fallback_chat_agent(dweller, message_text)
+        else:
+            return response_message, happiness_impact, action_suggestion, prompt_tokens, completion_tokens, total_tokens
 
-            ai_service = get_ai_service()
-            dweller_prompt = conversation_service._build_dweller_prompt(dweller, for_audio=False)
+    async def _run_fallback_chat_agent(
+        self,
+        dweller: DwellerReadFull,
+        message_text: str,
+    ) -> tuple[str, HappinessImpact, ActionSuggestion, int | None, int | None, int | None]:
+        """Return a basic chat completion when structured agent processing fails."""
+        ai_service = get_ai_service()
+        dweller_prompt = conversation_service._build_dweller_prompt(dweller, for_audio=False)
+
+        try:
             result = await ai_service.chat_completion_with_usage(
                 [
                     {"role": "system", "content": dweller_prompt.strip()},
                     {"role": "user", "content": message_text},
                 ]
             )
+        except ModelHTTPError as error:
+            if self._provider_credits_are_exhausted(error):
+                raise AIProviderCreditsExhaustedException from error
+            raise
 
-            happiness_impact = HappinessImpact(
-                delta=0,
-                reason_code=HappinessReasonCode.CHAT_NEUTRAL,
-                reason_text="Chat processed without sentiment analysis",
-                happiness_after=dweller.happiness,
-            )
-            action_suggestion = NoAction(reason="Unable to analyze conversation for suggestions")
+        happiness_impact = HappinessImpact(
+            delta=0,
+            reason_code=HappinessReasonCode.CHAT_NEUTRAL,
+            reason_text="Chat processed without sentiment analysis",
+            happiness_after=dweller.happiness,
+        )
+        action_suggestion = NoAction(reason="Unable to analyze conversation for suggestions")
 
-            return (
-                result.text,
-                happiness_impact,
-                action_suggestion,
-                result.prompt_tokens,
-                result.completion_tokens,
-                result.total_tokens,
-            )
-        else:
-            return response_message, happiness_impact, action_suggestion, prompt_tokens, completion_tokens, total_tokens
+        return (
+            result.text,
+            happiness_impact,
+            action_suggestion,
+            result.prompt_tokens,
+            result.completion_tokens,
+            result.total_tokens,
+        )
+
+    @staticmethod
+    def _provider_credits_are_exhausted(error: ModelHTTPError) -> bool:
+        """Return whether a provider error specifically reports an exhausted credit balance."""
+        return (
+            error.status_code == 429
+            and isinstance(error.body, dict)
+            and error.body.get("code") == "credit_balance_exhausted"
+        )
 
     async def _maybe_unlock_places(self, db_session: AsyncSession, dweller: DwellerReadFull) -> None:
         """Unlock the dweller's associated places after 3+ user messages (best-effort)."""

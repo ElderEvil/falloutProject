@@ -1,3 +1,5 @@
+"""API v1 router configuration."""
+
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
@@ -8,7 +10,6 @@ from app.api.v1.endpoints import (
     exploration,
     game_control,
     junk,
-    map,  # noqa: A004
     notifications,
     objective,
     outfit,
@@ -26,6 +27,7 @@ from app.api.v1.endpoints import (
     weapon,
     websocket,
 )
+from app.api.v1.endpoints import map as map_endpoints
 from app.core.config import settings
 
 api_router = APIRouter()
@@ -40,7 +42,7 @@ api_router.include_router(dweller.router)
 api_router.include_router(exploration.router)
 api_router.include_router(game_control.router)
 api_router.include_router(junk.router)
-api_router.include_router(map.router)
+api_router.include_router(map_endpoints.router)
 api_router.include_router(notifications.router)
 api_router.include_router(objective.router)
 api_router.include_router(outfit.router)

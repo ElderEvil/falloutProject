@@ -1,6 +1,6 @@
 [project]
 name = "fallout-shelter-fast-api"
-version = "2.31.0"
+version = "2.32.0"
 authors = [{ name = "ElderEvil", email = "elder.evil.dev@proton.me" }, ]
 description = "Fallout Shelter FastAPI Game is a web-based simulation game where the player manages a vault full of dwellers, balancing their needs and resources to keep the vault thriving."
 requires-python = ">=3.12,<3.14"
@@ -74,22 +74,7 @@ app = ["py.typed"]
 [tool.ruff]
 line-length = 120
 target-version = "py313"
-exclude = [
-    ".git",
-    "__pycache__",
-    ".pytest_cache",
-    "app/alembic",
-    "app/cli/migrations/templates",
-    "app/admin",
-    "app/agents",
-    "app/api",
-    "app/cli",
-    "app/core",
-    "app/middleware",
-    "__init__.py",
-    "main.py",
-    "scripts",
-]
+exclude = [".git", "__pycache__", ".pytest_cache", "app/alembic", "app/cli/migrations/templates"]
 lint.select = [
     "FAST",
     "F",

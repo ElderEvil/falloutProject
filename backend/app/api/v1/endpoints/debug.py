@@ -1,8 +1,4 @@
-"""Debug endpoints for testing objectives and EventBus.
-
-WARNING: These endpoints are for development/testing only.
-Do not expose in production environments.
-"""
+"""Debug endpoints for testing objectives and EventBus."""
 
 from typing import Annotated, Any
 
@@ -27,7 +23,11 @@ async def emit_test_event(
     event_type: GameEvent,
     data: dict[str, Any] | None = None,
 ) -> dict:
-    """Emit a test event to the EventBus for debugging objectives."""
+    """Emit a test event to the EventBus for debugging objectives.
+
+    Returns:
+        dict: Status, event type, vault ID, and emitted data.
+    """
     if data is None:
         data = {}
 
@@ -58,7 +58,11 @@ async def emit_test_event(
 
 @router.get("/events")
 async def list_subscribed_events() -> dict:
-    """List all currently subscribed events and their handlers."""
+    """List all currently subscribed events and their handlers.
+
+    Returns:
+        dict: Event handlers mapping and total handler count.
+    """
     handlers = {}
     for event_type, handler_list in event_bus._handlers.items():
         handlers[event_type] = [h.__name__ for h in handler_list]
@@ -70,7 +74,11 @@ async def list_subscribed_events() -> dict:
 
 @router.get("/objectives/{vault_id}")
 async def debug_objectives(vault_id: UUID4, session: Annotated[AsyncSession, Depends(get_async_session)]) -> dict:
-    """Debug endpoint to inspect objectives and their progress for a vault."""
+    """Debug endpoint to inspect objectives and their progress for a vault.
+
+    Returns:
+        dict: All seeded objectives, vault objectives with progress, and incomplete objectives.
+    """
     objectives_result = await session.execute(select(Objective))
     all_objectives = objectives_result.scalars().all()
 
@@ -131,8 +139,11 @@ async def test_collect_objective(
     amount: int,
     session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> dict:
-    """Test RESOURCE_COLLECTED event and check if objective progress updates."""
+    """Test RESOURCE_COLLECTED event and check if objective progress updates.
 
+    Returns:
+        dict: Vault ID, emitted event data, and before/after objective progress.
+    """
     # Get objectives BEFORE
     before_result = await session.execute(
         select(Objective, VaultObjectiveProgressLink)
@@ -169,7 +180,11 @@ async def test_collect_objective(
 
 @router.get("/evaluators")
 async def debug_evaluators() -> dict:
-    """Check which evaluators are subscribed to which events."""
+    """Check which evaluators are subscribed to which events.
+
+    Returns:
+        dict: Manager initialization status and event subscriptions.
+    """
     from app.services.objective_evaluators import evaluator_manager
 
     return {
@@ -185,7 +200,14 @@ async def test_build_living_room(
     vault_id: UUID4,
     session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> dict:
-    """Debug endpoint to test building a living room and check population_max update."""
+    """Debug endpoint to test building a living room and check population_max update.
+
+    Returns:
+        dict: Vault population before/after, built room details, and all rooms.
+
+    Raises:
+        ResourceNotFoundException: If vault or living room data not found.
+    """
     from app import crud
     from app.models.room import Room
     from app.schemas.common import RoomTypeEnum, SPECIALEnum
@@ -199,7 +221,7 @@ async def test_build_living_room(
     # Find a living room from the rooms data
     from app.api.game_data_deps import get_static_game_data
 
-    game_data_store = get_static_game_data()
+    game_data_store = await get_static_game_data()
     living_room_data = None
     for room in game_data_store.rooms:
         # Match by ability (CHARISMA) which is the authoritative attribute for living rooms
@@ -280,9 +302,13 @@ async def test_build_living_room(
 @router.post("/objectives/{vault_id}/test-build")
 async def test_build_event(
     vault_id: UUID4,
-    room_type: str = "living_room",  # noqa: PT028
+    room_type: str = "living_room",
 ) -> dict:
-    """Emit a ROOM_BUILT event for testing build objectives."""
+    """Emit a ROOM_BUILT event for testing build objectives.
+
+    Returns:
+        dict: Status, event name, vault ID, and event data.
+    """
     from app.services.event_bus import event_bus
 
     data = {"room_type": room_type}
@@ -298,10 +324,14 @@ async def test_build_event(
 @router.post("/objectives/{vault_id}/test-train")
 async def test_train_event(
     vault_id: UUID4,
-    stat_trained: str = "strength",  # noqa: PT028
-    dweller_id: str = "test-dweller",  # noqa: PT028
+    stat_trained: str = "strength",
+    dweller_id: str = "test-dweller",
 ) -> dict:
-    """Emit a DWELLER_TRAINED event for testing train objectives."""
+    """Emit a DWELLER_TRAINED event for testing train objectives.
+
+    Returns:
+        dict: Status, event name, vault ID, and event data.
+    """
     from app.services.event_bus import event_bus
 
     data = {"stat_trained": stat_trained, "dweller_id": dweller_id}
@@ -317,10 +347,14 @@ async def test_train_event(
 @router.post("/objectives/{vault_id}/test-assign")
 async def test_assign_event(
     vault_id: UUID4,
-    room_type: str = "power_generator",  # noqa: PT028
-    dweller_id: str = "test-dweller",  # noqa: PT028
+    room_type: str = "power_generator",
+    dweller_id: str = "test-dweller",
 ) -> dict:
-    """Emit a DWELLER_ASSIGNED event for testing assign objectives."""
+    """Emit a DWELLER_ASSIGNED event for testing assign objectives.
+
+    Returns:
+        dict: Status, event name, vault ID, and event data.
+    """
     from app.services.event_bus import event_bus
 
     data = {"room_type": room_type, "dweller_id": dweller_id}
@@ -336,10 +370,14 @@ async def test_assign_event(
 @router.post("/objectives/{vault_id}/test-reach")
 async def test_reach_event(
     vault_id: UUID4,
-    level: int = 2,  # noqa: PT028
-    dweller_id: str = "test-dweller",  # noqa: PT028
+    level: int = 2,
+    dweller_id: str = "test-dweller",
 ) -> dict:
-    """Emit a DWELLER_LEVEL_UP event for testing reach objectives."""
+    """Emit a DWELLER_LEVEL_UP event for testing reach objectives.
+
+    Returns:
+        dict: Status, event name, vault ID, and event data.
+    """
     from app.services.event_bus import event_bus
 
     data = {"level": level, "dweller_id": dweller_id}
@@ -355,10 +393,14 @@ async def test_reach_event(
 @router.post("/objectives/{vault_id}/test-collect-resource")
 async def test_collect_resource_event(
     vault_id: UUID4,
-    resource_type: str = "caps",  # noqa: PT028
-    amount: int = 10,  # noqa: PT028
+    resource_type: str = "caps",
+    amount: int = 10,
 ) -> dict:
-    """Emit a RESOURCE_COLLECTED event for testing collect objectives."""
+    """Emit a RESOURCE_COLLECTED event for testing collect objectives.
+
+    Returns:
+        dict: Status, event name, vault ID, and event data.
+    """
     from app.services.event_bus import event_bus
 
     data = {"resource_type": resource_type, "amount": amount}
@@ -374,10 +416,14 @@ async def test_collect_resource_event(
 @router.post("/objectives/{vault_id}/test-collect-item")
 async def test_collect_item_event(
     vault_id: UUID4,
-    item_type: str = "weapon",  # noqa: PT028
-    amount: int = 1,  # noqa: PT028
+    item_type: str = "weapon",
+    amount: int = 1,
 ) -> dict:
-    """Emit an ITEM_COLLECTED event for testing collect objectives."""
+    """Emit an ITEM_COLLECTED event for testing collect objectives.
+
+    Returns:
+        dict: Status, event name, vault ID, and event data.
+    """
     from app.services.event_bus import event_bus
 
     data = {"item_type": item_type, "amount": amount}

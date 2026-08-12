@@ -222,7 +222,7 @@ async def _get_available_rooms(
 
     result = []
     for room in rooms:
-        dweller_query = select(Dweller).where(Dweller.room_id == room.id).where(Dweller.is_deleted == False)
+        dweller_query = select(Dweller).where(Dweller.room_id == room.id).where(~Dweller.is_deleted)
         dweller_response = await db_session.execute(dweller_query)
         current_dwellers = len(dweller_response.scalars().all())
 
@@ -320,7 +320,7 @@ def get_best_room_recommendation(ctx: RunContext[DwellerChatDeps]) -> str:
 # --- Helper Functions ---
 
 
-async def parse_action_suggestion(  # noqa: PLR0911
+async def parse_action_suggestion(
     output: DwellerChatOutput,
     db_session: AsyncSession,
     dweller: DwellerReadFull,

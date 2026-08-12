@@ -192,14 +192,11 @@ async def test_get_storage_items_success(
     storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
 
     # Create items for storage
-    # Weapons (2)
     for _ in range(2):
         w = Weapon(**create_fake_weapon(), storage_id=storage.id)
         async_session.add(w)
-    # Outfit (1)
     o = Outfit(**create_fake_outfit(), storage_id=storage.id)
     async_session.add(o)
-    # Junk (1)
     j = Junk(**create_fake_junk(), storage_id=storage.id)
     async_session.add(j)
     await async_session.flush()

@@ -1,5 +1,4 @@
-"""
-Vault Balance Simulator — multi-system simulation for Fallout Shelter.
+"""Vault Balance Simulator — multi-system simulation for Fallout Shelter.
 
 Simulates wasteland exploration, resource economy, incident system,
 population growth, and medical production to help balance the game.
@@ -639,7 +638,7 @@ class _Curves:
     happiness: list[float] = dataclasses.field(default_factory=list)
 
     @classmethod
-    def zeroed(cls, hours: int) -> "_Curves":
+    def zeroed(cls, hours: int) -> _Curves:
         return cls(**{k: [0.0] * hours for k in dataclasses.asdict(cls())})
 
     def add_result(self, result: SimulationResult, hours: int) -> None:

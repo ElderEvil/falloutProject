@@ -65,7 +65,7 @@ def download_image(url, filename):
         temp_path.unlink(missing_ok=True)
 
 
-def get_images_from_page(url):  # noqa: C901, PLR0912, PLR0915
+def get_images_from_page(url):
     print(f"Fetching page: {url}")
     try:
         result = subprocess.run(
@@ -124,7 +124,7 @@ def get_images_from_page(url):  # noqa: C901, PLR0912, PLR0915
             parts = img_url.split("/")
             filename = parts[parts.index("revision") - 1] if "revision" in parts else parts[-1].split("?")[0]
 
-        filename = os.path.basename(urllib.parse.unquote(filename))  # noqa: PTH119
+        filename = os.path.basename(urllib.parse.unquote(filename))
 
         if filename in ("", ".", ".."):
             continue
@@ -187,7 +187,7 @@ def download(
     base_url: Annotated[str, typer.Option("--base-url")] = BASE_URL,
 ) -> None:
     """Download Fallout Shelter room images from the Fandom wiki."""
-    global DOWNLOAD_DIR, BASE_URL  # noqa: PLW0603
+    global DOWNLOAD_DIR, BASE_URL
     DOWNLOAD_DIR = download_dir
     BASE_URL = base_url
     run_download()

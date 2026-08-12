@@ -46,6 +46,7 @@ def dweller_bios(
 
     Intended for dev/QA seeding — no LLM calls, no quota consumption, cheap.
     """
+
     async def _run() -> None:
         from app.cli.main import _make_async_session
 

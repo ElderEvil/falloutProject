@@ -1,3 +1,5 @@
+"""Junk item CRUD endpoints."""
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -17,6 +19,11 @@ router = APIRouter(prefix="/junk", tags=["Junk"])
 async def create_junk(
     junk_data: JunkCreate, db_session: Annotated[AsyncSession, Depends(get_async_session)]
 ) -> JunkRead:
+    """Create a new junk item.
+
+    Returns:
+        The created junk item.
+    """
     return await crud.junk.create(db_session, junk_data)
 
 
@@ -24,11 +31,21 @@ async def create_junk(
 async def read_junk_list(
     db_session: Annotated[AsyncSession, Depends(get_async_session)], skip: int = 0, limit: int = 100
 ) -> list[JunkRead]:
+    """Retrieve a paginated list of junk items.
+
+    Returns:
+        List of junk items.
+    """
     return await crud.junk.get_multi(db_session, skip=skip, limit=limit)
 
 
 @router.get("/{junk_id}", response_model=JunkRead)
 async def read_junk(junk_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> JunkRead:
+    """Retrieve a junk item by ID.
+
+    Returns:
+        The requested junk item.
+    """
     return await crud.junk.get(db_session, junk_id)
 
 
@@ -36,19 +53,31 @@ async def read_junk(junk_id: UUID4, db_session: Annotated[AsyncSession, Depends(
 async def update_junk(
     junk_id: UUID4, junk_data: JunkUpdate, db_session: Annotated[AsyncSession, Depends(get_async_session)]
 ) -> JunkRead:
+    """Update a junk item.
+
+    Returns:
+        The updated junk item.
+    """
     return await crud.junk.update(db_session, junk_id, junk_data)
 
 
 @router.delete("/{junk_id}", status_code=204)
 async def delete_junk(junk_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> None:
+    """Delete a junk item."""
     return await crud.junk.delete(db_session, junk_id)
 
 
-@router.get("/read_data/")
-async def read_junk_data(data_store: Annotated[StaticGameData, Depends(get_static_game_data)]) -> dict:
+@router.get("/read_data/", response_model=list[JunkCreate])
+async def read_junk_data(data_store: Annotated[StaticGameData, Depends(get_static_game_data)]) -> list[JunkCreate]:
+    """Retrieve static junk item data.
+
+    Returns:
+        List of static junk item definitions.
+    """
     return data_store.junk_items
 
 
 @router.post("/{junk_id}/sell/", status_code=200, response_model=None)
 async def sell_junk(junk_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> None:
+    """Sell a junk item for caps."""
     await crud.junk.sell(db_session=db_session, item_id=junk_id)

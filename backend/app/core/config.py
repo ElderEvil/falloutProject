@@ -152,6 +152,7 @@ class Settings(BaseSettings):
         return Path(__file__).parent.parent.parent.parent
 
     @field_validator("ASYNC_DATABASE_URI", mode="after")
+    @classmethod
     def assemble_db_connection(cls, v: str | None, info: FieldValidationInfo) -> Any:
         if isinstance(v, str) and not v:
             return PostgresDsn.build(

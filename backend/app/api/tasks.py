@@ -1,3 +1,5 @@
+"""Dramatiq task actors for scheduled game processing."""
+
 import asyncio
 import logging
 import sys
@@ -7,7 +9,7 @@ import dramatiq
 import periodiq
 from pydantic import UUID4
 
-import app.core.dramatiq  # noqa: F401 - ensures broker is configured (set_broker) when dramatiq CLI imports this module
+import app.core.dramatiq  # ruff: ignore[unused-import] — ensures broker is configured when dramatiq CLI imports this module
 from app.services.cleanup_service import cleanup_service
 from app.services.death_service import death_service
 from app.services.game_loop import game_loop_service
@@ -20,13 +22,25 @@ if sys.platform == "win32":
 
 @dramatiq.actor(actor_name="create_task")
 def create_task(task_time: int):
+    """Simulate a long-running task for testing.
+
+    Args:
+        task_time: Duration in seconds to sleep.
+
+    Returns:
+        True when the task completes.
+    """
     time.sleep(task_time)
     return True
 
 
 @dramatiq.actor(actor_name="game_tick", max_retries=3, min_backoff=60000)
 def game_tick():
-    """Main game tick - processes all active vaults. Scheduled every 60 seconds."""
+    """Main game tick - processes all active vaults. Scheduled every 60 seconds.
+
+    Returns:
+        dict: Game tick processing statistics.
+    """
     try:
         logger.info("Starting game tick")
 
@@ -65,7 +79,14 @@ def game_tick():
 
 @dramatiq.actor(actor_name="process_vault_tick", max_retries=3, min_backoff=30000)
 def process_vault_tick(vault_id: str):
-    """Process a single vault tick. Can be called manually or for catch-up processing."""
+    """Process a single vault tick. Can be called manually or for catch-up processing.
+
+    Args:
+        vault_id: UUID string of the vault to process.
+
+    Returns:
+        dict: Vault tick processing result.
+    """
     try:
         logger.info(f"Processing vault tick for {vault_id}")
 
@@ -104,7 +125,11 @@ def process_vault_tick(vault_id: str):
 
 @dramatiq.actor(actor_name="check_permanent_deaths", max_retries=3, min_backoff=3600000)
 def check_permanent_deaths():
-    """Check for dead dwellers past the revival window and mark them as permanently dead."""
+    """Check for dead dwellers past the revival window and mark them as permanently dead.
+
+    Returns:
+        dict: Count of dwellers marked as permanently dead.
+    """
     try:
         logger.info("Starting permanent death check")
 
@@ -140,7 +165,11 @@ def check_permanent_deaths():
 
 @dramatiq.actor(actor_name="check_quest_completion", max_retries=3, min_backoff=300000)
 def check_quest_completion():
-    """Check for quests that have exceeded their duration and auto-complete them."""
+    """Check for quests that have exceeded their duration and auto-complete them.
+
+    Returns:
+        dict: Count of quests auto-completed.
+    """
     try:
         logger.info("Starting quest completion check")
 
@@ -177,7 +206,11 @@ def check_quest_completion():
 
 @dramatiq.actor(actor_name="refresh_daily_objectives", max_retries=3, min_backoff=3600000)
 def refresh_daily_objectives():
-    """Refresh daily objectives for all vaults."""
+    """Refresh daily objectives for all vaults.
+
+    Returns:
+        dict: Number of vaults processed and objectives assigned.
+    """
     try:
         logger.info("Starting daily objectives refresh")
 
@@ -227,7 +260,11 @@ def refresh_daily_objectives():
 
 @dramatiq.actor(actor_name="refresh_weekly_objectives", max_retries=3, min_backoff=3600000)
 def refresh_weekly_objectives():
-    """Refresh weekly objectives for all vaults."""
+    """Refresh weekly objectives for all vaults.
+
+    Returns:
+        dict: Number of vaults processed and objectives assigned.
+    """
     try:
         logger.info("Starting weekly objectives refresh")
 
@@ -277,7 +314,11 @@ def refresh_weekly_objectives():
 
 @dramatiq.actor(actor_name="cleanup_old_records", max_retries=3, min_backoff=3600000)
 def cleanup_old_records():
-    """Clean up old incidents and notifications based on retention settings."""
+    """Clean up old incidents and notifications based on retention settings.
+
+    Returns:
+        dict: Counts of deleted incidents and notifications.
+    """
     try:
         logger.info("Starting cleanup of old incidents and notifications")
 

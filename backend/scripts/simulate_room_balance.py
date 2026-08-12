@@ -1,5 +1,4 @@
-"""
-Room Balance Simulator — focused vault room and resource production simulation.
+"""Room Balance Simulator — focused vault room and resource production simulation.
 
 Simulates room building, upgrades, dweller assignment, and resource economy
 to help balance room costs, production rates, and population growth pressure.
@@ -601,7 +600,7 @@ class _Curves:
     caps: list[float] = dataclasses.field(default_factory=list)
 
     @classmethod
-    def zeroed(cls, hours: int) -> "_Curves":
+    def zeroed(cls, hours: int) -> _Curves:
         return cls(**{k: [0.0] * hours for k in dataclasses.asdict(cls())})
 
     def add_result(self, result: SimulationResult, hours: int) -> None:

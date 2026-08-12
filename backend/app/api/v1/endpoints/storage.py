@@ -1,3 +1,5 @@
+"""Storage endpoints."""
+
 import logging
 from typing import Annotated
 
@@ -24,11 +26,17 @@ async def get_storage_space(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     current_user: CurrentActiveUser,
 ) -> StorageSpaceResponse:
-    """
-    Get storage space information for a vault.
+    """Get storage space information for a vault.
 
     Returns current used space, maximum space, available space, and utilization percentage.
-    Requires ownership of the vault.
+    Requires vault ownership or superuser privileges.
+
+    Returns:
+        Storage space details including stimpack and radaway counts.
+
+    Raises:
+        HTTPException: 403 if user lacks access to the vault.
+        HTTPException: 404 if storage not found for vault.
     """
     # Verify ownership
     vault = await get_user_vault_or_403(vault_id, current_user, db_session)
@@ -64,6 +72,15 @@ async def get_storage_items(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     current_user: CurrentActiveUser,
 ) -> StorageItemsResponse:
+    """Get all items in a vault's storage.
+
+    Returns:
+        Lists of weapons, outfits, and junk items in storage.
+
+    Raises:
+        HTTPException: 403 if user lacks access to the vault.
+        HTTPException: 404 if storage not found for vault.
+    """
     vault = await get_user_vault_or_403(vault_id, current_user, db_session)
 
     storage = await crud_storage.get_storage_by_vault(db_session, vault.id)
@@ -97,11 +114,16 @@ async def transfer_medical_supplies(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     current_user: CurrentActiveUser,
 ) -> MedicalTransferResponse:
-    """
-    Transfer medical supplies from vault storage to a dweller's inventory.
+    """Transfer medical supplies from vault storage to a dweller's inventory.
 
     Dwellers can carry max 15 stimpaks and 15 radaways each.
-    Requires ownership of the vault.
+    Requires vault ownership or superuser privileges.
+
+    Returns:
+        Transfer result with updated quantities.
+
+    Raises:
+        HTTPException: 403 if user lacks access to the vault.
     """
     from app.services.vault_service import vault_service
 

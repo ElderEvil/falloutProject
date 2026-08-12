@@ -17,7 +17,7 @@ def create_file_with_boilerplate(file_path: Path, content: str):
 
 def append_to_file(file_path: Path, content: str):
     """Helper function to append content to a file."""
-    with open(file_path, "a") as file:
+    with Path(file_path).open("a") as file:
         file.write(content)
     typer.echo(f"Appended to {file_path}")
 

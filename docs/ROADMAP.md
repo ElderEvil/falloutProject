@@ -11,9 +11,78 @@ AI-powered dweller interactions.
 
 **Current work:**
 
-- [ ] **v2.32.0 planning** — Next focused improvement area is TBD after v2.31.0 is closed out.
+- [x] **v2.32.0 planning** — Ruff lint cleanup + Google-style docstring convention enforcement.
+- [x] **v2.33.0 planning** — Frontend type-aware linting and stale-request safety.
+- [x] **v2.34.0 planning** — Pydantic AI observability and structured-output reliability.
 
 ---
+
+## Planned
+
+### v2.33.0 — Frontend Type Safety & Async Correctness (Target: TBD)
+
+**Focus**: Turn on the type-aware capability already bundled with Vite+/Oxlint where compatible, and prevent stale
+async responses from winning after a user changes a view's inputs. This combines two small frontend DX/correctness
+improvements into one release without changing product behaviour.
+
+**Planned:**
+- 🔄 **Type-aware Oxc linting feasibility spike and rollout**
+  - Establish the baseline with `pnpm run lint`, `pnpm run typecheck`, and their CI durations.
+  - Enable the Vite+-integrated type-aware linting path in a branch; do **not** add standalone `oxlint` or
+    `oxlint-tsgolint` dependencies.
+  - Confirm compatibility with the pinned TypeScript 6.x toolchain before enabling it in CI. If the bundled version
+    requires TypeScript 7, retain the existing `vue-tsc` check and defer the lint rollout rather than upgrading
+    TypeScript/Pinia as incidental release work.
+  - Start with high-signal promise-safety rules (for example, unhandled/floating promises); fix or explicitly justify
+    every new finding before raising severity.
+- 🔄 **Vue 3.5 async watcher cleanup**
+  - Use `onWatcherCleanup()`/watcher cleanup callbacks with `AbortController` for fetches driven by filters, route
+    parameters, and modal state, starting with dweller filtering and modal data loads.
+  - Add regression tests proving a slower obsolete request cannot overwrite the response for the latest input.
+  - Simplify selected base controls with `defineModel` where the model type is unambiguous; begin with boolean modal
+    state, not a broad component rewrite.
+- 🔄 **Measure before/after**
+  - Record lint/typecheck wall time, new type-aware findings by rule, and the number of stale-response regressions
+    covered by tests.
+  - Guardrails: retain `vue-tsc`, no direct Oxc tool installation, no TypeScript or Pinia major upgrade, and no
+    frontend test/typecheck regression.
+
+---
+
+### v2.34.0 — Pydantic AI Reliability & Observability (Target: TBD)
+
+**Focus**: Make existing dweller agents easier to debug and more reliable at the boundary between structured model
+output and gameplay actions. Keep this as one backend/AI release instead of splitting several small library adoptions.
+
+**Planned:**
+- 🔄 **Trace Pydantic AI runs in Logfire**
+  - When Logfire is configured, instrument Pydantic AI in addition to the existing application setup so agent runs,
+    tool calls, retry counts, latency, and token usage are visible in one trace.
+  - Verify the disabled/no-token path remains a no-op and no prompt content or secrets are logged beyond the approved
+    observability configuration.
+- 🔄 **Harden the dweller chat output contract**
+  - Migrate agents that do not pass message history from `system_prompt` to static/dynamic `instructions`; preserve
+    `system_prompt` only where history retention is intentional.
+  - Add output validation/retry rules for action-field combinations before gameplay code consumes them (for example,
+    required room data for room assignment and no action payload for `no_action`).
+  - Extend deterministic `TestModel` coverage for instructions, tool selection, invalid structured output retries,
+    fallback behaviour, and recorded token usage.
+- 🔄 **Measure before/after**
+  - Baseline and report deterministic agent-contract test count, output-validation retry coverage, and Logfire trace
+    completeness for one normal chat and one tool-using chat.
+  - Guardrails: no agent framework major-version migration, no gameplay-rule change, and no real-provider calls in the
+    unit test suite.
+
+---
+
+### Deferred Library Adoption (Reassess During a Related Feature)
+
+- **FastAPI** — native SSE is already used; do not introduce `app.frontend()` for the separately deployed Vue SPA.
+- **Pydantic / SQLModel** — the current PATCH flow already uses `exclude_unset=True`; consider `MISSING` only when an
+  API genuinely needs to distinguish omitted values from explicit `null`, and use `sqlmodel_update()` only when
+  touching the shared CRUD update path for another reason.
+- **Tailwind CSS** — use newer semantic utilities such as native text shadows, safe alignment, pointer variants, or
+  `@source inline()` only in the component that needs them. Avoid a formatting-only CRT-style rewrite.
 
 ## Latest Release
 
@@ -31,6 +100,24 @@ Release notes must state the baseline, the after value, the measurement method/e
 percentage change. Claims must be reproducible from committed commands or CI artifacts. Do not report LOC reduction
 as an improvement unless the release retains equivalent behaviour and test coverage. If the release is primarily a
 feature delivery, record its measurable non-functional impact rather than inventing an optimization claim.
+
+### v2.32.0 — Ruff Lint Cleanup & Google-Style Docstrings (Released 2026-08-12)
+
+**Focus**: Strengthen backend static analysis while adopting Google-style docstrings for the public API surface.
+
+**Completed:**
+- ✅ **Higher-signal Ruff coverage** — enabled `PERF`, `ERA`, `FURB`, `TC`, `S`, and `D`; removed no-longer-needed
+  suppressions and fixed the newly actionable findings while retaining explicit, documented project exceptions.
+- ✅ **Google-style docstrings** — configured Ruff's Google convention and documented public API interfaces; code areas
+  not yet migrated are explicitly excluded through scoped per-file ignores.
+- ✅ **Release alignment** — backend/frontend versions and the changelog are aligned at v2.32.0.
+- ✅ **Measurement** — `cd backend && uv run ruff check . --select ALL --statistics` reduced findings from **11,081**
+  (baseline: commit `f97e2597a58426f6fa3a4ce498ec000e7e4a62bf`) to **6,416**: **4,665 fewer findings (42.1%)**. Both
+  measurements used `uv 0.11.24`, the locked project environment on Python 3.13.13, and Ruff 0.16.2 with the command
+  above. The final configured gate, `cd backend && uv run ruff check .`, passes.
+- ✅ **Completed scope** — merged #419, #411, and #410; retained TypeScript 6.x / Pinia 3.x after deferring Pinia
+  4.0.2; enabled higher-signal Ruff rules and Google-style docstrings in scoped phases; and kept tests, CLI, Alembic,
+  and unmigrated modules under explicit per-file policy until their migration is complete.
 
 ### v2.31.0 — Bio-to-Map Registration Reliability (Released 2026-08-12)
 
@@ -239,6 +326,7 @@ provide a way to retroactively fill gaps for existing active vaults.
 
 | Version | Release      | Highlights                                   |
 | ------- | ------------ | -------------------------------------------- |
+| v2.32.0 | Aug 12, 2026 | Ruff rule cleanup + Google-style docstrings  |
 | v2.31.0 | Aug 12, 2026 | Map registration retry + failure notification, bio backfill fixes |
 | v2.30.0 | Aug 11, 2026 | Frontend refactor (async actions, SSE fallback, typecheck) |
 | v2.29.0 | Aug 10, 2026 | Map unlock on chat, dweller-location `is_unlocked`, UI polish |
@@ -279,4 +367,4 @@ provide a way to retroactively fill gaps for existing active vaults.
 
 ---
 
-_Last updated: 2026-08-12_ (v2.31.0)
+_Last updated: 2026-08-12_ (v2.32.0)

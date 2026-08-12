@@ -1,3 +1,5 @@
+"""User endpoints."""
+
 import logging
 from typing import Annotated
 
@@ -30,8 +32,13 @@ async def create_user(
     user_in: UserCreate,
     _: CurrentSuperuser,
 ) -> UserRead:
-    """
-    Admin route to create new user.
+    """Admin route to create new user.
+
+    Returns:
+        The created user.
+
+    Raises:
+        HTTPException: 409 if user with this email already exists.
     """
     user = await crud.user.get_by_email(db_session=db_session, email=user_in.email)
     if user:
@@ -51,8 +58,10 @@ async def read_users(
     limit: int = 100,
     _: CurrentSuperuser,
 ) -> list[UserRead]:
-    """
-    Retrieve users.
+    """Retrieve users.
+
+    Returns:
+        List of users.
     """
     return await crud.user.get_multi(db_session, skip=skip, limit=limit)
 
@@ -66,8 +75,10 @@ async def update_user_me(
     email: Annotated[EmailStr, Body()] = None,
     user: CurrentActiveUser,
 ) -> UserRead:
-    """
-    Update current user.
+    """Update current user.
+
+    Returns:
+        The updated user.
     """
     user_data = jsonable_encoder(user)
     user_in = UserUpdate(**user_data)
@@ -82,8 +93,10 @@ async def update_user_me(
 
 @router.get("/me", response_model=UserRead)
 async def read_user_me(user: CurrentActiveUser) -> UserRead:
-    """
-    Get current user.
+    """Get current user.
+
+    Returns:
+        The current authenticated user.
     """
     return user
 
@@ -97,8 +110,10 @@ async def create_user_open(
     password: Annotated[str, Body()],
     email: Annotated[EmailStr, Body()],
 ) -> UserWithTokens:
-    """
-    Create new user and log them in automatically.
+    """Create new user and log them in automatically.
+
+    Returns:
+        New user with authentication tokens.
     """
     return await user_service.register_user(
         db_session=db_session,
@@ -116,8 +131,13 @@ async def read_user_by_id(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ) -> UserRead:
-    """
-    Get a specific user by id.
+    """Get a specific user by id.
+
+    Returns:
+        The requested user.
+
+    Raises:
+        HTTPException: 400 if user lacks privileges to view other users.
     """
     user_in_db = await crud.user.get(db_session, id=user_id)
     if user_in_db == user:
@@ -138,8 +158,13 @@ async def update_user(
     user_in: UserUpdate,
     _: CurrentSuperuser,
 ) -> UserRead:
-    """
-    Update a user.
+    """Update a user.
+
+    Returns:
+        The updated user.
+
+    Raises:
+        HTTPException: 404 if user not found.
     """
     user_in_db = await crud.user.get(db_session, id=user_id)
     if not user_in_db:
@@ -161,20 +186,17 @@ async def get_my_profile(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ) -> ProfileRead:
-    """
-    Get current user's profile.
+    """Get current user's profile.
 
     If the profile doesn't exist, it will be auto-created with default values.
     This handles race conditions gracefully - if two concurrent requests try to
     create a profile, only one will succeed and both will return the profile.
 
-    :param db_session: Database session
-    :type db_session: AsyncSession
-    :param user: Current authenticated active user
-    :type user: CurrentActiveUser
-    :returns: User's profile with statistics and preferences
-    :rtype: ProfileRead
-    :raises HTTPException: 500 if profile retrieval/creation fails unexpectedly
+    Returns:
+        User's profile with statistics and preferences.
+
+    Raises:
+        HTTPException: 500 if profile retrieval/creation fails unexpectedly.
     """
     try:
         profile = await profile_crud.get_by_user_id(db_session, user.id)
@@ -196,23 +218,18 @@ async def update_my_profile(
     profile_data: ProfileUpdate,
     user: CurrentActiveUser,
 ) -> ProfileRead:
-    """
-    Update current user's profile.
+    """Update current user's profile.
 
     Only bio, avatar_url, and preferences can be updated via this endpoint.
     Statistics fields (total_dwellers_created, total_caps_earned, etc.) are
     managed internally by the game and cannot be modified directly.
 
-    :param db_session: Database session
-    :type db_session: AsyncSession
-    :param profile_data: Profile update data (bio, avatar_url, preferences)
-    :type profile_data: ProfileUpdate
-    :param user: Current authenticated active user
-    :type user: CurrentActiveUser
-    :returns: Updated profile
-    :rtype: ProfileRead
-    :raises HTTPException: 404 if profile not found
-    :raises HTTPException: 500 if profile update fails unexpectedly
+    Returns:
+        Updated profile.
+
+    Raises:
+        HTTPException: 404 if profile not found.
+        HTTPException: 500 if profile update fails unexpectedly.
     """
     try:
         profile = await profile_crud.get_by_user_id(db_session, user.id)
@@ -236,11 +253,13 @@ async def get_death_statistics(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ) -> DeathStatsResponse:
-    """
-    Get life/death statistics for the current user.
+    """Get life/death statistics for the current user.
 
     Returns statistics about dwellers born, died, and breakdown by cause of death,
     as well as counts of currently revivable and permanently dead dwellers.
+
+    Returns:
+        Death statistics for the current user.
     """
     data = await death_service.get_death_statistics(db_session, user.id)
     return DeathStatsResponse(**data)
@@ -253,5 +272,10 @@ async def get_ai_usage(
     user: CurrentActiveUser,
     redis_client: Annotated[Redis, Depends(get_redis_client)],
 ) -> AIUsageResponse:
+    """Get AI usage statistics for the current user.
+
+    Returns:
+        AI usage statistics including token counts and rate limits.
+    """
     data = await user_service.get_ai_usage(db_session, redis_client, str(user.id))
     return AIUsageResponse.model_validate(data)

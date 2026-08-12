@@ -1,3 +1,5 @@
+"""Objective endpoints."""
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -22,7 +24,14 @@ async def generate_objectives(
     objective_kind: ObjectiveKindEnum,
     objective_count: int = 3,
 ) -> list[ObjectiveBase]:
-    """Generate game objectives using AI."""
+    """Generate game objectives using AI.
+
+    Returns:
+        List of generated objective templates.
+
+    Raises:
+        HTTPException: 400 if objective generation fails.
+    """
     try:
         return await chat_service.generate_objectives(
             objective_kind=objective_kind,
@@ -36,6 +45,11 @@ async def generate_objectives(
 async def create_objective(
     objective_data: ObjectiveCreate, vault_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]
 ) -> Objective:
+    """Create an objective for a vault.
+
+    Returns:
+        The created objective.
+    """
     return await crud.objective_crud.create_for_vault(db_session, vault_id, objective_data)
 
 
@@ -46,6 +60,11 @@ async def read_objective_list(
     skip: int = 0,
     limit: int = 100,
 ) -> list[ObjectiveRead]:
+    """Retrieve objectives for a vault.
+
+    Returns:
+        List of objectives for the vault.
+    """
     return await crud.objective_crud.get_multi_for_vault(db_session, vault_id, skip=skip, limit=limit)
 
 
@@ -53,6 +72,11 @@ async def read_objective_list(
 async def read_objective(
     objective_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]
 ) -> ObjectiveRead:
+    """Retrieve an objective by ID.
+
+    Returns:
+        The requested objective.
+    """
     return await crud.objective_crud.get(db_session, objective_id)
 
 
@@ -60,7 +84,11 @@ async def read_objective(
 async def complete_objective(
     vault_id: UUID4, objective_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]
 ) -> Objective:
-    """Mark an objective as completed for a vault."""
+    """Mark an objective as completed for a vault.
+
+    Returns:
+        The completed objective.
+    """
     return await crud.objective_crud.complete(db_session=db_session, objective_id=objective_id, vault_id=vault_id)
 
 
@@ -71,7 +99,11 @@ async def update_objective_progress(
     progress: int,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ):
-    """Update the progress of an objective for a vault."""
+    """Update the progress of an objective for a vault.
+
+    Returns:
+        The updated objective.
+    """
     return await crud.objective_crud.update_progress(
         db_session=db_session, objective_id=objective_id, vault_id=vault_id, progress=progress
     )
@@ -83,7 +115,14 @@ async def assign_random_objectives(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     count: int = 5,
 ):
-    """Assign random available objectives to a vault (for testing/debugging)."""
+    """Assign random available objectives to a vault (for testing/debugging).
+
+    Returns:
+        Response with count of assigned objectives.
+
+    Raises:
+        HTTPException: 404 if vault not found.
+    """
     # Validate vault exists first to avoid orphan links
     vault = await db_session.get(Vault, vault_id)
     if not vault:

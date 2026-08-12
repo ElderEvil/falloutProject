@@ -10,20 +10,23 @@ from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from fastapi import HTTPException
 from httpx import AsyncClient
 from pydantic_ai.agent import AgentRunResult
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.agents.dweller_chat_agent import DwellerChatOutput, parse_action_suggestion
+from app.api.v1.endpoints.chat import chat_with_dweller, voice_chat_with_dweller
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration, ExplorationStatus
 from app.models.vault import Vault
-from app.schemas.chat import AssignToRoomAction, NoAction, RecallExplorationAction, StartExplorationAction
+from app.schemas.chat import AssignToRoomAction, ChatMessage, NoAction, RecallExplorationAction, StartExplorationAction
 from app.schemas.common import GenderEnum
 from app.schemas.dweller import DwellerCreate
 from app.services.open_ai import ChatCompletionResult
 from app.tests.factory.dwellers import create_fake_dweller
+from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
 pytestmark = pytest.mark.asyncio(scope="module")
 
@@ -130,6 +133,45 @@ class TestTextChat:
         )
 
         assert response.status_code == 401
+
+    async def test_missing_dweller_exception_maps_to_404(self) -> None:
+        """Only the designated not-found exception is mapped to HTTP 404."""
+        dweller_id = uuid4()
+        user = MagicMock(id=uuid4())
+
+        with (
+            patch(
+                "app.api.v1.endpoints.chat.chat_service.process_text_message",
+                new_callable=AsyncMock,
+                side_effect=ResourceNotFoundException(Dweller, dweller_id),
+            ),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            await chat_with_dweller(
+                dweller_id=dweller_id,
+                user=user,
+                message=ChatMessage(message="Hello"),
+                db_session=MagicMock(),
+            )
+
+        assert exc_info.value.status_code == 404
+
+    async def test_text_chat_value_error_is_not_mapped_to_404(self) -> None:
+        """Unexpected validation failures keep their original error semantics."""
+        with (
+            patch(
+                "app.api.v1.endpoints.chat.chat_service.process_text_message",
+                new_callable=AsyncMock,
+                side_effect=ValueError("Invalid chat message"),
+            ),
+            pytest.raises(ValueError, match="Invalid chat message"),
+        ):
+            await chat_with_dweller(
+                dweller_id=uuid4(),
+                user=MagicMock(id=uuid4()),
+                message=ChatMessage(message="Hello"),
+                db_session=MagicMock(),
+            )
 
     @patch("app.services.chat_service.dweller_chat_agent")
     async def test_chat_returns_structured_response(
@@ -315,6 +357,21 @@ class TestAudioChat:
         )
 
         assert response.status_code == 422  # Validation error
+
+    async def test_audio_chat_empty_file_returns_validation_error(self) -> None:
+        """Empty audio is a client validation error, not an internal server error."""
+        audio_file = MagicMock()
+        audio_file.read = AsyncMock(return_value=b"")
+
+        with pytest.raises(ValidationException) as exc_info:
+            await voice_chat_with_dweller(
+                dweller_id=uuid4(),
+                user=MagicMock(id=uuid4()),
+                db_session=MagicMock(),
+                audio_file=audio_file,
+            )
+
+        assert exc_info.value.status_code == 400
 
     async def test_audio_chat_nonexistent_dweller(
         self,

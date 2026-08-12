@@ -250,7 +250,6 @@ async def test_resend_verification_email(
         await async_session.refresh(user)
         assert user.email_verification_token is not None
         # Tokens might be the same if generated in the same second, so just verify it exists
-        # assert user.email_verification_token != old_token
 
         # Verify email was sent
         mock_email_send["send_verification_email"].assert_called_once()

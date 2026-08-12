@@ -1,3 +1,5 @@
+"""WebSocket endpoints for real-time communication."""
+
 import json
 import logging
 
@@ -57,8 +59,7 @@ async def _handle_chat_message(websocket: WebSocket, data: str, user_id: UUID4, 
 
 @router.websocket("/ws/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: UUID4):
-    """
-    WebSocket endpoint for real-time notifications.
+    """WebSocket endpoint for real-time notifications.
 
     Connect to this endpoint to receive real-time notifications:
     ws://localhost:8000/api/v1/ws/{user_id}
@@ -89,8 +90,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: UUID4):
 
 @router.websocket("/ws/chat/{user_id}/{dweller_id}")
 async def chat_websocket_endpoint(websocket: WebSocket, user_id: UUID4, dweller_id: UUID4):
-    """
-    WebSocket endpoint for real-time chat with a dweller.
+    """WebSocket endpoint for real-time chat with a dweller.
 
     Connect to this endpoint for real-time text chat:
     ws://localhost:8000/api/v1/ws/chat/{user_id}/{dweller_id}

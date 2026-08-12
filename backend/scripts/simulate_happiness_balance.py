@@ -1,5 +1,4 @@
-"""
-Happiness Balance Simulator — focused happiness and productivity simulation.
+"""Happiness Balance Simulator — focused happiness and productivity simulation.
 
 Models how happiness changes under various vault conditions and how
 happiness loss translates to reduced production efficiency.
@@ -412,7 +411,7 @@ class _Curves:
     incidents: list[float] = dataclasses.field(default_factory=list)
 
     @classmethod
-    def zeroed(cls, hours: int) -> "_Curves":
+    def zeroed(cls, hours: int) -> _Curves:
         return cls(**{k: [0.0] * hours for k in dataclasses.asdict(cls())})
 
     def add_result(self, result: SimulationResult, hours: int) -> None:

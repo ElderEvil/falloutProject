@@ -112,7 +112,7 @@ class RoomService:
         """
         from app.api.game_data_deps import get_static_game_data
 
-        data_store = get_static_game_data()
+        data_store = await get_static_game_data()
         existing_room_names = await crud.room.get_existing_room_names(db_session=db_session, vault_id=vault_id)
         return data_store.get_buildable_rooms(existing_room_names)
 

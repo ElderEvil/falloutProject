@@ -1,5 +1,4 @@
-"""
-Set public policies on RustFS buckets.
+"""Set public policies on RustFS buckets.
 
 Usage:
     cd backend

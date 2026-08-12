@@ -1,3 +1,5 @@
+"""Weapon item CRUD endpoints."""
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -20,6 +22,11 @@ router = APIRouter(prefix="/weapons", tags=["Weapon"])
 async def create_weapon(
     weapon_data: WeaponCreate, db_session: Annotated[AsyncSession, Depends(get_async_session)]
 ) -> WeaponRead:
+    """Create a new weapon.
+
+    Returns:
+        The created weapon.
+    """
     return await crud.weapon.create(db_session, weapon_data)
 
 
@@ -30,11 +37,21 @@ async def read_weapon_list(
     limit: int = 100,
     vault_id: UUID4 | None = None,
 ) -> list[WeaponRead]:
+    """Retrieve a paginated list of weapons, optionally filtered by vault.
+
+    Returns:
+        List of weapons.
+    """
     return await get_items_list(crud.weapon, db_session, Weapon, vault_id, skip, limit)
 
 
 @router.get("/{weapon_id}", response_model=WeaponRead)
 async def read_weapon(weapon_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> WeaponRead:
+    """Retrieve a weapon by ID.
+
+    Returns:
+        The requested weapon.
+    """
     return await crud.weapon.get(db_session, weapon_id)
 
 
@@ -44,11 +61,17 @@ async def update_weapon(
     weapon_data: WeaponUpdate,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> WeaponRead:
+    """Update a weapon.
+
+    Returns:
+        The updated weapon.
+    """
     return await crud.weapon.update(db_session, weapon_id, weapon_data)
 
 
 @router.delete("/{weapon_id}", status_code=204)
 async def delete_weapon(weapon_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> None:
+    """Delete a weapon."""
     return await crud.weapon.delete(db_session, weapon_id)
 
 
@@ -56,11 +79,17 @@ async def delete_weapon(weapon_id: UUID4, db_session: Annotated[AsyncSession, De
 async def equip_weapon(
     dweller_id: UUID4, weapon_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]
 ) -> WeaponRead:
+    """Equip a weapon on a dweller.
+
+    Returns:
+        The equipped weapon.
+    """
     return await crud.weapon.equip(db_session=db_session, item_id=weapon_id, dweller_id=dweller_id)
 
 
 @router.post("/{weapon_id}/unequip/", status_code=200, response_model=None)
 async def unequip_weapon(weapon_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> None:
+    """Unequip a weapon from a dweller."""
     await crud.weapon.unequip(db_session=db_session, item_id=weapon_id)
 
 
@@ -68,15 +97,26 @@ async def unequip_weapon(weapon_id: UUID4, db_session: Annotated[AsyncSession, D
 async def scrap_weapon(
     weapon_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]
 ) -> JunkListResponse:
+    """Scrap a weapon into junk items.
+
+    Returns:
+        List of junk items produced from scrapping.
+    """
     junk_list = await crud.weapon.scrap(db_session=db_session, item_id=weapon_id)
     return JunkListResponse(junk=junk_list)
 
 
 @router.post("/{weapon_id}/sell/", status_code=200, response_model=None)
 async def sell_weapon(weapon_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> None:
+    """Sell a weapon for caps."""
     await crud.weapon.sell(db_session=db_session, item_id=weapon_id)
 
 
 @router.get("/read_data/", response_model=list[WeaponCreate])
 async def read_weapons_data(data_store: Annotated[StaticGameData, Depends(get_static_game_data)]) -> list[WeaponCreate]:
+    """Retrieve static weapon data definitions.
+
+    Returns:
+        List of static weapon definitions.
+    """
     return data_store.weapons

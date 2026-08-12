@@ -1,4 +1,4 @@
-"""API endpoints for dweller training."""
+"""Training endpoints."""
 
 from typing import Annotated
 
@@ -23,22 +23,15 @@ async def start_training(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> TrainingRead:
-    """
-    Start training a dweller in a training room.
-
-    Args:
-        dweller_id: Dweller to train
-        room_id: Training room ID
-        user: Current authenticated user
-        db_session: Database session
+    """Start training a dweller in a training room.
 
     Returns:
-        Created training session
+        Created training session.
 
     Raises:
-        404: Dweller or room not found
-        400: Training cannot be started (invalid room, stat maxed, etc.)
-        409: Dweller already training
+        HTTPException: 404 if dweller or room not found.
+        HTTPException: 400 if training cannot be started.
+        HTTPException: 409 if dweller already training.
     """
     from app.crud.dweller import dweller as dweller_crud
 
@@ -61,16 +54,10 @@ async def get_dweller_training(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> TrainingRead | None:
-    """
-    Get current active training for a dweller.
-
-    Args:
-        dweller_id: Dweller ID
-        user: Current authenticated user
-        db_session: Database session
+    """Get current active training for a dweller.
 
     Returns:
-        Active training session or None
+        Active training session or None.
     """
     training = await crud_training.training.get_active_by_dweller(db_session, dweller_id)
 
@@ -86,16 +73,10 @@ async def list_vault_training(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> list[TrainingRead]:
-    """
-    List all active training sessions in a vault.
-
-    Args:
-        vault_id: Vault ID
-        user: Current authenticated user
-        db_session: Database session
+    """List all active training sessions in a vault.
 
     Returns:
-        List of active training sessions
+        List of active training sessions.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
 
@@ -108,16 +89,13 @@ async def get_training(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> TrainingProgress:
-    """
-    Get training details with current progress.
-
-    Args:
-        training_id: Training session ID
-        user: Current authenticated user
-        db_session: Database session
+    """Get training details with current progress.
 
     Returns:
-        Training session with progress information
+        Training session with progress information.
+
+    Raises:
+        HTTPException: 404 if training session not found.
     """
     training = await crud_training.training.get(db_session, training_id)
     if not training:
@@ -143,20 +121,14 @@ async def complete_training(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> TrainingRead:
-    """
-    Complete an active training session and increase the dweller's SPECIAL stat.
-
-    Args:
-        training_id: Training session ID
-        user: Current authenticated user
-        db_session: Database session
+    """Complete an active training session and increase the dweller's SPECIAL stat.
 
     Returns:
-        Completed training session
+        Completed training session.
 
     Raises:
-        404: Training not found
-        400: Training not active or already completed
+        HTTPException: 404 if training not found.
+        HTTPException: 400 if training not active or already completed.
     """
     training = await crud_training.training.get(db_session, training_id)
     if not training:
@@ -179,20 +151,14 @@ async def cancel_training(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> TrainingRead:
-    """
-    Cancel an active training session.
-
-    Args:
-        training_id: Training session ID
-        user: Current authenticated user
-        db_session: Database session
+    """Cancel an active training session.
 
     Returns:
-        Cancelled training session
+        Cancelled training session.
 
     Raises:
-        404: Training not found
-        400: Training not active
+        HTTPException: 404 if training not found.
+        HTTPException: 400 if training not active.
     """
     training = await crud_training.training.get(db_session, training_id)
     if not training:
@@ -215,16 +181,10 @@ async def list_room_training(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> list[TrainingRead]:
-    """
-    List all active training sessions in a room.
-
-    Args:
-        room_id: Room ID
-        user: Current authenticated user
-        db_session: Database session
+    """List all active training sessions in a room.
 
     Returns:
-        List of active training sessions in the room
+        List of active training sessions in the room.
     """
     trainings = await crud_training.training.get_active_by_room(db_session, room_id)
 

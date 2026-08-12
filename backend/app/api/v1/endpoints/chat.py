@@ -1,3 +1,5 @@
+"""Chat endpoints."""
+
 import logging
 from typing import Annotated
 
@@ -14,7 +16,7 @@ from app.models.chat_message import ChatMessageRead
 from app.schemas.chat import ChatMessage, DwellerChatResponse, DwellerVoiceChatResponse
 from app.services.chat_service import chat_service
 from app.services.conversation_service import conversation_service
-from app.utils.exceptions import QuotaExceededException, ValidationException
+from app.utils.exceptions import QuotaExceededException, ResourceNotFoundException, ValidationException
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 logger = logging.getLogger(__name__)
@@ -27,7 +29,14 @@ async def chat_with_dweller(
     message: ChatMessage,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> DwellerChatResponse:
-    """Send a text message to a dweller and get a response."""
+    """Send a text message to a dweller and get a response.
+
+    Returns:
+        DwellerChatResponse: Dweller's text response with metadata.
+
+    Raises:
+        HTTPException: 404 if dweller not found.
+    """
     try:
         response = await chat_service.process_text_message(
             db_session=db_session,
@@ -36,6 +45,10 @@ async def chat_with_dweller(
             message_text=message.message,
         )
 
+    except ResourceNotFoundException as e:
+        raise HTTPException(status_code=404, detail=e.detail) from e
+
+    else:
         # Emit WebSocket notifications after REST response is ready (non-fatal)
         await chat_service.send_chat_notification(
             user_id=user.id,
@@ -47,9 +60,6 @@ async def chat_with_dweller(
 
         return response
 
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-
 
 @router.get("/history/{dweller_id}", response_model=list[ChatMessageRead])
 async def get_chat_history(
@@ -59,7 +69,14 @@ async def get_chat_history(
     limit: int = 100,
     offset: int = 0,
 ) -> list[ChatMessageRead]:
-    """Get conversation history between user and dweller"""
+    """Get conversation history between user and dweller.
+
+    Returns:
+        list[ChatMessageRead]: List of chat messages.
+
+    Raises:
+        HTTPException: 404 if dweller not found.
+    """
     dweller = await dweller_crud.get(db_session, dweller_id)
     if not dweller:
         raise HTTPException(status_code=404, detail="Dweller not found")
@@ -73,7 +90,21 @@ async def get_chat_history(
     )
 
 
-@router.post("/{dweller_id}/voice", response_model=DwellerVoiceChatResponse)
+def _validate_audio_not_empty(audio_bytes: bytes) -> None:
+    """Validate that audio bytes are not empty.
+
+    Raises:
+        ValidationException: If audio bytes are empty.
+    """
+    if len(audio_bytes) == 0:
+        raise ValidationException(detail="Empty audio file")
+
+
+@router.post(
+    "/{dweller_id}/voice",
+    response_model=DwellerVoiceChatResponse,
+    responses={400: {"description": "Empty audio file"}},
+)
 async def voice_chat_with_dweller(
     dweller_id: UUID4,
     user: CurrentActiveUser,
@@ -82,8 +113,7 @@ async def voice_chat_with_dweller(
     *,
     return_audio: bool = True,
 ):
-    """
-    Send an audio message to a dweller and receive an audio response.
+    """Send an audio message to a dweller and receive an audio response.
 
     Upload an audio file (WebM, MP3, WAV), it will be:
     1. Transcribed to text (STT)
@@ -92,22 +122,24 @@ async def voice_chat_with_dweller(
     4. Saved to chat history
 
     Args:
-        dweller_id: UUID of the dweller to chat with
-        user: Current authenticated user
-        db_session: Database session
-        audio_file: Audio file upload (WebM, MP3, WAV, etc.)
-        return_audio: If True, returns audio bytes; if False, returns JSON with URLs
+        dweller_id: UUID of the dweller to chat with.
+        user: Current authenticated user.
+        db_session: Database session.
+        audio_file: Audio file upload (WebM, MP3, WAV, etc.).
+        return_audio: If True, returns audio bytes; if False, returns JSON with URLs.
 
     Returns:
-        Audio response (MP3) or JSON with transcription and audio URL
+        Audio response (MP3) or JSON with transcription and audio URL.
+
+    Raises:
+        HTTPException: 400 if the audio file is empty, 404 if dweller not found, or 500 if audio processing fails.
+        QuotaExceededException: If AI usage quota is exceeded.
     """
+    # Read and validate audio before the processing exception boundary.
+    audio_bytes = await audio_file.read()
+    _validate_audio_not_empty(audio_bytes)
+
     try:
-        # Read audio file
-        audio_bytes = await audio_file.read()
-
-        if len(audio_bytes) == 0:
-            raise ValidationException(detail="Empty audio file")
-
         # Get filename for format detection
         filename = audio_file.filename or "audio.webm"
 

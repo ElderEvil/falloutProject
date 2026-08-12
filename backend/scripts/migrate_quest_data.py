@@ -1,5 +1,4 @@
-"""
-Data migration script for v2.10.0 - Convert existing quest strings to structured format.
+"""Data migration script for v2.10.0 - Convert existing quest strings to structured format.
 
 This script parses existing quest requirements and rewards strings into
 structured QuestRequirement and QuestReward records.
@@ -45,7 +44,6 @@ def parse_requirements(requirements_str: str) -> list[dict]:
         if not part:
             continue
 
-        # Pattern: "Level X dwellers"
         level_match = re.match(r"level\\s+(\\d+)\\s+(\\w+)", part, re.IGNORECASE)
         if level_match:
             requirements.append(
@@ -53,19 +51,16 @@ def parse_requirements(requirements_str: str) -> list[dict]:
             )
             continue
 
-        # Pattern: "X caps"
         caps_match = re.match(r"(\\d+)\\s+caps", part, re.IGNORECASE)
         if caps_match:
             requirements.append({"type": "resource", "resource_type": "caps", "amount": int(caps_match.group(1))})
             continue
 
-        # Pattern: "X rooms"
         rooms_match = re.match(r"(\\d+)\\s+rooms?", part, re.IGNORECASE)
         if rooms_match:
             requirements.append({"type": "room", "amount": int(rooms_match.group(1))})
             continue
 
-        # Pattern: "X dwellers"
         dwellers_match = re.match(r"(\\d+)\\s+dwellers?", part, re.IGNORECASE)
         if dwellers_match:
             requirements.append({"type": "dweller_count", "amount": int(dwellers_match.group(1))})
@@ -95,13 +90,11 @@ def parse_rewards(rewards_str: str) -> list[dict]:
         if not part:
             continue
 
-        # Pattern: "X caps"
         caps_match = re.match(r"(\\d+)\\s+caps", part, re.IGNORECASE)
         if caps_match:
             rewards.append({"type": "caps", "amount": int(caps_match.group(1))})
             continue
 
-        # Pattern: "Item Name xN" or "N x Item Name"
         quantity_match = re.match(r"(.*?)(?:\s*x\s*(\d+))?$", part, re.IGNORECASE)
         if quantity_match:
             item_name = quantity_match.group(1).strip()

@@ -1,3 +1,5 @@
+"""Vault endpoints."""
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -30,6 +32,11 @@ async def create_vault(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     admin: CurrentSuperuser,
 ) -> Vault:
+    """Create a new vault.
+
+    Returns:
+        The created vault.
+    """
     return await crud.vault.create_with_user_id(db_session=db_session, obj_in=vault_data, user_id=admin.id)
 
 
@@ -41,6 +48,11 @@ async def read_vault_list(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: CurrentSuperuser,
 ) -> list[VaultReadWithUser]:
+    """Retrieve a paginated list of all vaults (admin only).
+
+    Returns:
+        List of vaults with user details.
+    """
     return await crud.vault.get_multi(db_session, skip=skip, limit=limit)
 
 
@@ -50,6 +62,11 @@ async def read_my_vaults(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ) -> list[VaultReadWithNumbers]:
+    """Retrieve vaults owned by the current user.
+
+    Returns:
+        List of the user's vaults with room and dweller counts.
+    """
     return await crud.vault.get_vaults_with_room_and_dweller_count(db_session=db_session, user_id=user.id)
 
 
@@ -60,6 +77,11 @@ async def read_vault(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: Annotated[Vault, Depends(get_user_vault_or_403)],
 ) -> VaultReadWithNumbers:
+    """Retrieve a vault by ID with room and dweller counts.
+
+    Returns:
+        Vault details with room and dweller counts.
+    """
     return await crud.vault.get_vault_with_room_and_dweller_count(db_session=db_session, vault_id=vault_id)
 
 
@@ -71,6 +93,11 @@ async def update_vault(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: Annotated[Vault, Depends(get_user_vault_or_403)],
 ) -> VaultReadWithUser:
+    """Update a vault.
+
+    Returns:
+        The updated vault.
+    """
     return await crud.vault.update(db_session, vault_id, vault_data)
 
 
@@ -82,8 +109,8 @@ async def delete_vault(
     _: Annotated[Vault, Depends(get_user_vault_or_403)],
     hard_delete: Annotated[bool, Query(description="If True, permanently delete. Otherwise soft delete.")] = False,
 ) -> None:
-    """
-    Delete a vault. By default performs soft delete to preserve data.
+    """Delete a vault. By default performs soft delete to preserve data.
+
     Use hard_delete=True to permanently remove the vault.
     """
     return await crud.vault.delete(db_session, vault_id, soft=not hard_delete)
@@ -95,6 +122,11 @@ async def toggle_game_state(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Vault:
+    """Toggle the game paused/running state for a vault.
+
+    Returns:
+        The updated vault with new game state.
+    """
     return await crud.vault.toggle_game_state(db_session=db_session, vault_id=vault.id)
 
 
@@ -105,6 +137,11 @@ async def start_vault(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ) -> Vault:
+    """Initiate a new vault for the current user.
+
+    Returns:
+        The newly initiated vault.
+    """
     is_boosted = vault_data.boosted or user.is_superuser
     return await vault_service.initiate_vault(
         db_session=db_session, obj_in=vault_data, user_id=user.id, is_boosted=is_boosted
@@ -118,6 +155,11 @@ async def update_vault_resources(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: CurrentSuperuser,
 ):
+    """Update vault resources (admin only).
+
+    Returns:
+        Updated vault resource data.
+    """
     return await vault_service.update_vault_resources(db_session=db_session, vault_id=vault_id)
 
 
@@ -126,7 +168,11 @@ async def unassign_all_dwellers(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> UnassignResponse:
-    """Unassign all dwellers from their rooms in the specified vault."""
+    """Unassign all dwellers from their rooms in the specified vault.
+
+    Returns:
+        Response with count of unassigned dwellers.
+    """
     result = await dweller_assignment_service.unassign_all_dwellers(db_session, vault.id)
     return UnassignResponse(**result)
 
@@ -136,11 +182,13 @@ async def auto_assign_production_rooms(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> AutoAssignResponse:
-    """
-    Intelligently assign unassigned dwellers to production rooms based on SPECIAL stats.
+    """Intelligently assign unassigned dwellers to production rooms based on SPECIAL stats.
 
     Priority order: Power Plant (Strength) → Diner (Agility) → Water Treatment (Perception)
     Dwellers are matched to rooms based on their relevant SPECIAL stat (highest stat dwellers assigned first).
+
+    Returns:
+        Response with count of assigned dwellers.
     """
     result = await dweller_assignment_service.auto_assign_production_rooms(db_session, vault.id)
     return AutoAssignResponse(**result)
@@ -151,8 +199,7 @@ async def auto_assign_all_rooms(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> AutoAssignResponse:
-    """
-    Intelligently assign unassigned dwellers to ALL room types based on SPECIAL stats.
+    """Intelligently assign unassigned dwellers to ALL room types based on SPECIAL stats.
 
     Priority order:
     1. Production rooms (Strength: Power, Perception: Water, Agility: Food) - most critical
@@ -162,6 +209,9 @@ async def auto_assign_all_rooms(
 
     Within each tier, dwellers are distributed proportionally to room capacities.
     Dwellers are matched to rooms based on their relevant SPECIAL stat (highest stat dwellers assigned first).
+
+    Returns:
+        Response with count of assigned dwellers.
     """
     result = await dweller_assignment_service.auto_assign_all_rooms(db_session, vault.id)
     return AutoAssignResponse(**result)

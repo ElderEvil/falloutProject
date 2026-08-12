@@ -1,3 +1,5 @@
+"""Radio endpoints."""
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -7,6 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403
 from app.db.session import get_async_session
 from app.schemas.common import RadioModeEnum
+from app.schemas.dweller import DwellerRead
 from app.schemas.radio import ManualRecruitRequest, RadioStatsRead, RecruitmentResponse
 from app.schemas.responses import RadioModeResponse, RadioSpeedupResponse
 from app.services.radio_service import radio_service
@@ -21,7 +24,11 @@ async def get_radio_stats(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RadioStatsRead:
-    """Get recruitment statistics for a vault."""
+    """Get recruitment statistics for a vault.
+
+    Returns:
+        Radio recruitment statistics.
+    """
     await get_user_vault_or_403(vault_id, user, db_session)
 
     stats = await radio_service.get_recruitment_stats(db_session, vault_id)
@@ -35,7 +42,14 @@ async def manual_recruit_dweller(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RecruitmentResponse:
-    """Manually recruit a dweller for caps."""
+    """Manually recruit a dweller for caps.
+
+    Returns:
+        Recruitment response with new dweller details.
+
+    Raises:
+        ValidationException: If recruitment fails.
+    """
     await get_user_vault_or_403(vault_id, user, db_session)
 
     try:
@@ -50,7 +64,7 @@ async def manual_recruit_dweller(
         # Note: notification is already sent by recruit_dweller() in radio_service
 
         return RecruitmentResponse(
-            dweller=dweller,  # type: ignore  # noqa: PGH003
+            dweller=DwellerRead.model_validate(dweller),
             message=f"{dweller.first_name} {dweller.last_name} has joined your vault!",
             caps_spent=game_config.radio.manual_recruitment_cost,
             recycled=recycled,
@@ -66,7 +80,11 @@ async def set_radio_mode(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RadioModeResponse:
-    """Set radio mode (recruitment or happiness)."""
+    """Set radio mode (recruitment or happiness).
+
+    Returns:
+        Response confirming the new radio mode.
+    """
     vault = await get_user_vault_or_403(vault_id, user, db_session)
     new_mode = await radio_service.set_radio_mode(db_session, vault, mode.value)
     return RadioModeResponse(message=f"Radio mode set to {new_mode}", radio_mode=new_mode)
@@ -80,6 +98,14 @@ async def set_radio_speedup(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RadioSpeedupResponse:
+    """Set the speedup multiplier for a radio room.
+
+    Returns:
+        Response confirming the speedup setting.
+
+    Raises:
+        ValidationException: If speedup value is out of range or room not found.
+    """
     await get_user_vault_or_403(vault_id, user, db_session)
 
     if not 1.0 <= speedup <= 10.0:

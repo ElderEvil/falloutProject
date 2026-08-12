@@ -15,6 +15,7 @@ from app.schemas.common import GenderEnum
 from app.schemas.dweller import DwellerCreate
 from app.services.chat_service import chat_service
 from app.tests.factory.dwellers import create_fake_dweller
+from app.utils.exceptions import ResourceNotFoundException
 
 pytestmark = pytest.mark.asyncio(scope="module")
 
@@ -48,6 +49,23 @@ async def test_user_fixture(async_session: AsyncSession, vault: Vault) -> User:
 @pytest.mark.asyncio
 class TestChatServiceErrorHandling:
     """Tests for chat service resilience when AI provider fails."""
+
+    async def test_process_text_message_raises_not_found_for_missing_dweller(self) -> None:
+        """A missing chat dweller is reported as the project's 404 exception."""
+        dweller_id = uuid4()
+
+        with (
+            patch("app.services.chat_service.dweller_crud.get_full_info", new_callable=AsyncMock, return_value=None),
+            pytest.raises(ResourceNotFoundException) as exc_info,
+        ):
+            await chat_service.process_text_message(
+                db_session=MagicMock(),
+                user=MagicMock(id=uuid4()),
+                dweller_id=dweller_id,
+                message_text="Hello",
+            )
+
+        assert exc_info.value.status_code == 404
 
     async def test_run_chat_agent_handles_usage_attribute_error(
         self,

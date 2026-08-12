@@ -1,3 +1,5 @@
+"""Notification endpoints."""
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -21,7 +23,11 @@ async def get_notifications(
     limit: int = 50,
     offset: int = 0,
 ) -> list[NotificationRead]:
-    """Get notifications for the current user"""
+    """Get notifications for the current user.
+
+    Returns:
+        List of notifications for the user.
+    """
     return await notification_crud.get_user_notifications(
         db_session,
         user_id=user.id,
@@ -36,7 +42,11 @@ async def get_unread_count(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> CountResponse:
-    """Get count of unread notifications"""
+    """Get count of unread notifications.
+
+    Returns:
+        Count of unread notifications.
+    """
     count = await notification_crud.get_unread_count(db_session, user_id=user.id)
     return CountResponse(count=count)
 
@@ -44,10 +54,14 @@ async def get_unread_count(
 @router.post("/", response_model=NotificationRead)
 async def create_notification(
     notification_data: NotificationCreate,
-    user: CurrentActiveUser,  # noqa: ARG001
+    user: CurrentActiveUser,  # ruff: ignore[unused-function-argument]
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> NotificationRead:
-    """Create a new notification (admin/system use)"""
+    """Create a new notification (admin/system use).
+
+    Returns:
+        The created notification.
+    """
     return await notification_crud.create(db_session, obj_in=notification_data)
 
 
@@ -57,7 +71,14 @@ async def mark_notification_as_read(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> NotificationRead:
-    """Mark a notification as read"""
+    """Mark a notification as read.
+
+    Returns:
+        The updated notification.
+
+    Raises:
+        HTTPException: 404 if notification not found.
+    """
     notification = await notification_crud.mark_as_read(db_session, notification_id=notification_id, user_id=user.id)
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found")
@@ -69,7 +90,11 @@ async def mark_all_notifications_as_read(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> MarkReadResponse:
-    """Mark all notifications as read for the current user"""
+    """Mark all notifications as read for the current user.
+
+    Returns:
+        Response with count of notifications marked as read.
+    """
     count = await notification_crud.mark_all_as_read(db_session, user_id=user.id)
     return MarkReadResponse(marked_read=count)
 
@@ -80,7 +105,14 @@ async def dismiss_notification(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> NotificationRead:
-    """Dismiss (soft delete) a notification"""
+    """Dismiss (soft delete) a notification.
+
+    Returns:
+        The dismissed notification.
+
+    Raises:
+        HTTPException: 404 if notification not found.
+    """
     notification = await notification_crud.dismiss(db_session, notification_id=notification_id, user_id=user.id)
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found")

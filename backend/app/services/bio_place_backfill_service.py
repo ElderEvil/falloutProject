@@ -199,7 +199,6 @@ class BioPlaceBackfillService:
         Returns a mapping of ``vault_id`` → number of dwellers processed.
         Vaults are ordered by creation date for deterministic runs.
         """
-<<<<<<< HEAD
         stmt = select(Vault).where(Vault.is_deleted == False).order_by(Vault.created_at)
         if max_vaults is not None:
             stmt = stmt.limit(max_vaults)

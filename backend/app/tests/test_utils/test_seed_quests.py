@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.models.quest import Quest
+from app.models.quest_requirement import QuestRequirement
 from app.utils.seed_quests import seed_quests_from_json
 
 
@@ -50,6 +51,84 @@ async def test_seed_quests_from_json_basic(async_session: AsyncSession, tmp_path
     assert quest.long_description == "This is a test quest for seeding"
     assert quest.requirements == "Level 5 dwellers"
     assert quest.rewards == "100 caps"
+
+
+@pytest.mark.asyncio
+async def test_seed_quests_records_completed_quest_predecessor(async_session: AsyncSession, tmp_path: Path) -> None:
+    """Seeded quest-completion requirements also populate the chain predecessor."""
+    quest_dir = tmp_path / "quests"
+    quest_dir.mkdir()
+    quest_data = {
+        "chain_name": "Test chain",
+        "quests": [
+            {
+                "quest_name": "Chain Starter",
+                "long_description": "The first quest in a test chain.",
+                "short_description": "Start the chain",
+                "requirements": "Level 1",
+                "rewards": "10 caps",
+            },
+            {
+                "quest_name": "Chain Follow-up",
+                "long_description": "The second quest in a test chain.",
+                "short_description": "Continue the chain",
+                "requirements": "Level 1",
+                "rewards": "20 caps",
+                "quest_requirements": [
+                    {
+                        "requirement_type": "QUEST_COMPLETED",
+                        "requirement_data": {"quest_name": "Chain Starter"},
+                    }
+                ],
+            },
+        ],
+    }
+    with (quest_dir / "chain.json").open("w", encoding="utf-8") as file:
+        json.dump(quest_data, file)
+
+    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 2
+
+    quests = (await async_session.execute(select(Quest))).scalars().all()
+    quests_by_title = {quest.title: quest for quest in quests}
+    assert quests_by_title["Chain Follow-up"].previous_quest_id == quests_by_title["Chain Starter"].id
+
+
+@pytest.mark.asyncio
+async def test_seed_quests_skips_requirement_with_invalid_predecessor_id(
+    async_session: AsyncSession, tmp_path: Path
+) -> None:
+    """Malformed predecessor IDs do not leave pending requirements to commit."""
+    quest_dir = tmp_path / "quests"
+    quest_dir.mkdir()
+    quest_data = {
+        "quests": [
+            {
+                "quest_name": "Malformed Predecessor",
+                "long_description": "A quest with a malformed predecessor.",
+                "short_description": "Invalid predecessor",
+                "requirements": "Level 1",
+                "rewards": "10 caps",
+                "quest_requirements": [
+                    {
+                        "requirement_type": "QUEST_COMPLETED",
+                        "requirement_data": {"quest_id": "not-a-uuid"},
+                    }
+                ],
+            }
+        ]
+    }
+    with (quest_dir / "malformed.json").open("w", encoding="utf-8") as file:
+        json.dump(quest_data, file)
+
+    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 1
+
+    quest = (await async_session.execute(select(Quest).where(Quest.title == "Malformed Predecessor"))).scalar_one()
+    requirements = (
+        (await async_session.execute(select(QuestRequirement).where(QuestRequirement.quest_id == quest.id)))
+        .scalars()
+        .all()
+    )
+    assert requirements == []
 
 
 @pytest.mark.asyncio

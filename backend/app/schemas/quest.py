@@ -29,6 +29,8 @@ class QuestRewardRead(SQLModel):
 
 class QuestRead(QuestBase):
     id: UUID4
+    previous_quest_id: UUID4 | None = None
+    next_quest_id: UUID4 | None = None
     is_visible: bool = True
     is_completed: bool = False
     started_at: datetime | None = None

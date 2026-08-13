@@ -12,7 +12,7 @@ from app.crud.mixins import CompletionMixin
 from app.crud.vault_mixin import VaultActionsMixin
 from app.models import Vault
 from app.models.quest import Quest
-from app.models.quest_requirement import QuestRequirement
+from app.models.quest_requirement import QuestRequirement, RequirementType
 from app.models.quest_reward import QuestReward
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.quest import QuestCreate, QuestRead, QuestRequirementRead, QuestRewardRead, QuestUpdate
@@ -21,6 +21,22 @@ from app.services.reward_service import reward_service
 from app.utils.exceptions import ResourceNotFoundException
 
 logger = logging.getLogger(__name__)
+
+
+def _previous_quest_id(quest: Quest, requirements: list[QuestRequirement]) -> UUID4 | str | None:
+    """Return a quest's explicit or requirement-derived chain predecessor."""
+    if quest.previous_quest_id:
+        return quest.previous_quest_id
+    return next(
+        (
+            requirement.requirement_data.get("quest_id")
+            for requirement in requirements
+            if requirement.is_mandatory
+            and requirement.requirement_type == RequirementType.QUEST_COMPLETED
+            and requirement.requirement_data.get("quest_id")
+        ),
+        None,
+    )
 
 
 async def _batch_load_quest_details(
@@ -151,11 +167,20 @@ class CRUDQuest(
             link_result = await db_session.execute(link_stmt)
             links_by_quest = {link.quest_id: link for link in link_result.scalars().all()}
 
+        completed_link_stmt = select(self.link_model.quest_id).where(
+            self.link_model.vault_id == vault_id,
+            self.link_model.is_completed.is_(True),
+        )
+        completed_link_result = await db_session.execute(completed_link_stmt)
+        completed_quest_ids = {str(quest_id) for quest_id in completed_link_result.scalars().all()}
+
         result_items = []
         for quest in quests:
             link = links_by_quest.get(quest.id)
             reqs = reqs_by_quest.get(quest.id, [])
             rewards = rewards_by_quest.get(quest.id, [])
+            previous_quest_id = _previous_quest_id(quest, reqs)
+            is_unlocked = previous_quest_id is None or str(previous_quest_id) in completed_quest_ids
 
             result_items.append(
                 QuestRead(
@@ -169,9 +194,11 @@ class CRUDQuest(
                     quest_category=quest.quest_category,
                     chain_id=quest.chain_id,
                     chain_order=quest.chain_order,
+                    previous_quest_id=previous_quest_id,
+                    next_quest_id=quest.next_quest_id,
                     created_at=quest.created_at,
                     updated_at=quest.updated_at,
-                    is_visible=link.is_visible if link else False,
+                    is_visible=(link.is_visible if link else False) and is_unlocked,
                     is_completed=link.is_completed if link else False,
                     started_at=link.started_at if link else None,
                     duration_minutes=link.duration_minutes if link else quest.duration_minutes,

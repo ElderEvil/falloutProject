@@ -5,6 +5,19 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.34.3] - 2026-08-13
+
+### Fixed
+
+- **Quest chain visibility** — vault quest responses now derive prerequisite links from their requirements, hiding
+  locked chain quests by default while Show All reveals them; existing quest chains are backfilled by migration
+
+### Changed
+
+- **Version alignment** — backend and frontend are both v2.34.3
+
+---
+
 ## [2.34.2] - 2026-08-13
 
 ### Fixed

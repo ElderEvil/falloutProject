@@ -6829,6 +6829,10 @@ export interface components {
              * Format: uuid4
              */
             id: string;
+            /** Previous Quest Id */
+            previous_quest_id?: string | null;
+            /** Next Quest Id */
+            next_quest_id?: string | null;
             /**
              * Is Visible
              * @default true

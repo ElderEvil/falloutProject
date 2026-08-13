@@ -243,6 +243,52 @@ describe('QuestsView', () => {
       expect(wrapper.text()).toContain('Available Quest')
     })
 
+    it('should reveal locked quests only when Show All is enabled', async () => {
+      questStore.vaultQuests = [
+        {
+          id: 'quest-1',
+          title: 'First Quest',
+          short_description: 'Start the chain',
+          long_description: 'Start the chain first',
+          requirements: 'None',
+          rewards: '50 caps',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_completed: false,
+          started_at: null,
+          duration_minutes: null,
+        },
+        {
+          id: 'quest-2',
+          title: 'Locked Quest',
+          short_description: 'Continue the chain',
+          long_description: 'Complete the first quest first',
+          requirements: 'Complete First Quest',
+          rewards: '100 caps',
+          previous_quest_id: 'quest-1',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_completed: false,
+          started_at: null,
+          duration_minutes: null,
+        },
+      ]
+
+      wrapper = mount(QuestsView, {
+        global: { stubs: { SidePanel: true, Icon: true } },
+      })
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.text()).toContain('First Quest')
+      expect(wrapper.text()).not.toContain('Locked Quest')
+
+      await wrapper.find('.toggle-input').setValue(true)
+
+      expect(wrapper.text()).toContain('Locked Quest')
+    })
+
     it('should display completed quests in completed tab', async () => {
       questStore.vaultQuests = [
         {

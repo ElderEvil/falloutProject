@@ -191,6 +191,9 @@ async def test_get_multi_for_vault(async_session: AsyncSession) -> None:
         rewards="100 caps",
     )
     quest2 = await crud.quest_crud.create(async_session, obj_in=quest2_data)
+    quest2.previous_quest_id = quest1.id
+    async_session.add(quest2)
+    await async_session.commit()
 
     quest3_data = QuestCreate(
         title="Quest 3",
@@ -221,6 +224,7 @@ async def test_get_multi_for_vault(async_session: AsyncSession) -> None:
     assert quest_dict["Quest 1"].is_visible is True
     assert "Quest 2" in quest_dict
     assert quest_dict["Quest 2"].is_visible is False  # Not visible but still returned
+    assert quest_dict["Quest 2"].previous_quest_id == quest1.id
     assert "Quest 3" in quest_dict
     assert quest_dict["Quest 3"].is_visible is True
 

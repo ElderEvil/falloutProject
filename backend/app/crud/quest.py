@@ -169,6 +169,8 @@ class CRUDQuest(
                     quest_category=quest.quest_category,
                     chain_id=quest.chain_id,
                     chain_order=quest.chain_order,
+                    previous_quest_id=quest.previous_quest_id,
+                    next_quest_id=quest.next_quest_id,
                     created_at=quest.created_at,
                     updated_at=quest.updated_at,
                     is_visible=link.is_visible if link else False,

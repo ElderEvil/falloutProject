@@ -83,10 +83,12 @@ def create_random_common_dweller(
 
     gender = gender or rng.choice(list(GenderEnum))
     stats = get_stats_by_rarity(rarity, rng)
-    age_group = rng.choice([AgeGroupEnum.ADULT, AgeGroupEnum.CHILD])
-    is_adult = age_group == AgeGroupEnum.ADULT
+    # Procedurally generated dwellers represent wasteland recruits. Children
+    # enter the vault only through the breeding lifecycle.
+    age_group = AgeGroupEnum.ADULT
+    is_adult = True
     now = datetime.now(UTC).replace(tzinfo=None) if seed is None else datetime(2000, 1, 1)
-    birth_date = now - timedelta(days=rng.randint(18 * 365, 80 * 365)) if is_adult else now
+    birth_date = now - timedelta(days=rng.randint(18 * 365, 80 * 365))
     origin, visited = _procedural_bio_places(rng, rarity)
     return {
         "first_name": get_gender_based_name(gender, faker),

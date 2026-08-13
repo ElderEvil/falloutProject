@@ -16,6 +16,7 @@ from app.tests.factory.dwellers import create_fake_dweller
 from app.tests.factory.rooms import create_fake_room
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
+from app.utils.exceptions import ResourceConflictException
 
 
 async def _finish_exploration(async_session: AsyncSession, exploration) -> None:
@@ -56,6 +57,33 @@ async def test_dweller_status_exploring_on_send(async_session: AsyncSession):
     await async_session.refresh(dweller)
     assert dweller.status == DwellerStatusEnum.EXPLORING
     assert exploration is not None
+
+
+@pytest.mark.asyncio
+async def test_exploring_dweller_cannot_be_assigned_to_room(async_session: AsyncSession):
+    """An active explorer must return before being assigned to a vault room."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    dweller = await crud.dweller.create(
+        async_session,
+        obj_in=DwellerCreate(**create_fake_dweller(), vault_id=str(vault.id)),
+    )
+    room_data = create_fake_room()
+    room_data["category"] = RoomTypeEnum.PRODUCTION
+    room = await crud.room.create(async_session, obj_in=RoomCreate(**room_data, vault_id=vault.id))
+
+    await crud.exploration.create_with_dweller_stats(
+        async_session,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        duration=4,
+    )
+
+    with pytest.raises(ResourceConflictException, match="exploring"):
+        await crud.dweller.move_to_room(async_session, dweller.id, room.id)
 
 
 @pytest.mark.asyncio

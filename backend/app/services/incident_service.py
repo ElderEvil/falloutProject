@@ -14,6 +14,7 @@ from app.models.dweller import Dweller
 from app.models.game_state import GameState
 from app.models.incident import Incident, IncidentStatus, IncidentType
 from app.models.room import Room
+from app.schemas.common import AgeGroupEnum
 from app.schemas.incident_sse import IncidentSseEvent
 from app.services.notification_service import notification_service
 from app.services.stream_manager import sse_manager
@@ -281,7 +282,12 @@ class IncidentService:
                 selectinload(Dweller.weapon),
                 selectinload(Dweller.outfit),
             )
-            .where((Dweller.room_id == incident.room_id) & (Dweller.health > 0))  # Only alive dwellers
+            .where(
+                (Dweller.room_id == incident.room_id)
+                & (Dweller.health > 0)
+                & Dweller.is_adult
+                & (Dweller.age_group == AgeGroupEnum.ADULT)
+            )
         )
         dwellers_result = await db_session.execute(dwellers_query)
         dwellers = list(dwellers_result.scalars().all())

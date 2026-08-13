@@ -9,6 +9,7 @@ from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.quest_party import QuestParty
 from app.models.vault import Vault
+from app.schemas.common import AgeGroupEnum, DwellerStatusEnum
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,22 @@ class CRUDQuestParty(CRUDBase[QuestParty, None, None]):
         )
         existing_result = await db_session.execute(existing_query)
         existing_party = existing_result.scalars().all()
+        existing_dweller_ids = {member.dweller_id for member in existing_party}
+
+        # Validate the full replacement party before clearing the current one,
+        # so an invalid request cannot silently unassign valid quest members.
+        for dweller_id in dweller_ids:
+            dweller = await db_session.get(Dweller, dweller_id)
+            if not dweller:
+                raise ValueError(f"Dweller {dweller_id} not found")
+            if dweller.vault_id != vault_id:
+                raise ValueError(f"Dweller {dweller_id} does not belong to vault {vault_id}")
+            if not dweller.is_adult or dweller.age_group != AgeGroupEnum.ADULT:
+                raise ValueError(f"Child dweller {dweller_id} cannot join a quest")
+            if dweller.status == DwellerStatusEnum.EXPLORING:
+                raise ValueError(f"Dweller {dweller_id} is exploring and cannot join a quest")
+            if dweller.status == DwellerStatusEnum.QUESTING and dweller_id not in existing_dweller_ids:
+                raise ValueError(f"Dweller {dweller_id} is already on a quest")
 
         for member in existing_party:
             dweller = await db_session.get(Dweller, member.dweller_id)
@@ -47,14 +64,7 @@ class CRUDQuestParty(CRUDBase[QuestParty, None, None]):
         party_members = []
         for i, dweller_id in enumerate(dweller_ids):
             dweller = await db_session.get(Dweller, dweller_id)
-            if not dweller:
-                raise ValueError(f"Dweller {dweller_id} not found")
-            if dweller.vault_id != vault_id:
-                raise ValueError(f"Dweller {dweller_id} does not belong to vault {vault_id}")
-            if dweller.status == "questing":
-                raise ValueError(f"Dweller {dweller_id} is already on a quest")
-
-            dweller.status = "questing"
+            dweller.status = DwellerStatusEnum.QUESTING
             db_session.add(dweller)
 
             party = QuestParty(
@@ -88,7 +98,10 @@ class CRUDQuestParty(CRUDBase[QuestParty, None, None]):
         query = (
             select(Dweller)
             .where(Dweller.vault_id == vault_id)
-            .where(Dweller.status != "questing")
+            .where(~Dweller.is_deleted)
+            .where(Dweller.is_adult)
+            .where(Dweller.age_group == AgeGroupEnum.ADULT)
+            .where(Dweller.status.notin_([DwellerStatusEnum.QUESTING, DwellerStatusEnum.EXPLORING]))
             .where(
                 Dweller.id.notin_(
                     select(QuestParty.dweller_id).where(

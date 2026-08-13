@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.schemas.common import AgeGroupEnum, DwellerStatusEnum
 from app.schemas.quest import QuestCreate, QuestUpdate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
@@ -309,10 +310,12 @@ async def test_assign_party_to_quest(async_session: AsyncSession) -> None:
     )
 
     dweller1_data = create_fake_dweller()
+    dweller1_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
     dweller1 = Dweller(**dweller1_data, vault_id=vault.id)
     async_session.add(dweller1)
 
     dweller2_data = create_fake_dweller()
+    dweller2_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
     dweller2 = Dweller(**dweller2_data, vault_id=vault.id)
     async_session.add(dweller2)
     await async_session.commit()
@@ -325,6 +328,48 @@ async def test_assign_party_to_quest(async_session: AsyncSession) -> None:
     assert party[0].status == "assigned"
     assert party[0].dweller_id == dweller1.id
     assert party[1].dweller_id == dweller2.id
+
+
+@pytest.mark.asyncio
+async def test_assign_party_rejects_children_and_explorers(async_session: AsyncSession) -> None:
+    """Quest parties cannot include children or dwellers currently exploring."""
+    from app.crud.quest_party import quest_party_crud
+    from app.models.dweller import Dweller
+    from app.tests.factory.dwellers import create_fake_dweller
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    quest = await crud.quest_crud.create(
+        async_session,
+        obj_in=QuestCreate(
+            title="Restricted Party Quest",
+            short_description="Test restrictions",
+            long_description="Test restrictions",
+            requirements="1 dweller",
+            rewards="100 caps",
+        ),
+    )
+    child_data = create_fake_dweller()
+    child_data.update(is_adult=False, age_group=AgeGroupEnum.CHILD)
+    child = Dweller(**child_data, vault_id=vault.id)
+    explorer_data = create_fake_dweller()
+    explorer_data.update(
+        is_adult=True,
+        age_group=AgeGroupEnum.ADULT,
+        status=DwellerStatusEnum.EXPLORING,
+    )
+    explorer = Dweller(**explorer_data, vault_id=vault.id)
+    async_session.add(child)
+    async_session.add(explorer)
+    await async_session.commit()
+
+    with pytest.raises(ValueError, match="Child dweller"):
+        await quest_party_crud.assign_party(async_session, quest.id, vault.id, [child.id])
+    with pytest.raises(ValueError, match="exploring"):
+        await quest_party_crud.assign_party(async_session, quest.id, vault.id, [explorer.id])
 
 
 @pytest.mark.asyncio
@@ -473,14 +518,17 @@ async def test_assign_party_replaces_existing(async_session: AsyncSession) -> No
     )
 
     dweller1_data = create_fake_dweller()
+    dweller1_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
     dweller1 = Dweller(**dweller1_data, vault_id=vault.id)
     async_session.add(dweller1)
 
     dweller2_data = create_fake_dweller()
+    dweller2_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
     dweller2 = Dweller(**dweller2_data, vault_id=vault.id)
     async_session.add(dweller2)
 
     dweller3_data = create_fake_dweller()
+    dweller3_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
     dweller3 = Dweller(**dweller3_data, vault_id=vault.id)
     async_session.add(dweller3)
     await async_session.commit()
@@ -522,6 +570,7 @@ async def test_get_party_for_quest_returns_dicts(async_session: AsyncSession) ->
     )
 
     dweller_data = create_fake_dweller()
+    dweller_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
     dweller = Dweller(**dweller_data, vault_id=vault.id)
     async_session.add(dweller)
     await async_session.commit()

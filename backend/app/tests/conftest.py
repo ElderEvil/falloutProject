@@ -200,7 +200,7 @@ def dweller_data_fixture():
 
     from faker import Faker
 
-    from app.schemas.common import GenderEnum, RarityEnum
+    from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
     from app.tests.utils.utils import get_gender_based_name, get_stats_by_rarity
 
     fake = Faker()
@@ -215,7 +215,8 @@ def dweller_data_fixture():
     return stats | {
         "first_name": get_gender_based_name(gender),
         "last_name": fake.last_name(),
-        "is_adult": random.choice([True, False]),
+        "is_adult": True,
+        "age_group": AgeGroupEnum.ADULT,
         "gender": gender,
         "rarity": rarity.value,
         "level": random.randint(1, 50),

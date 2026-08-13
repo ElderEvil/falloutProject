@@ -10,6 +10,7 @@ from app import crud
 from app.models.dweller import Dweller
 from app.models.exploration import ExplorationStatus
 from app.models.vault import Vault
+from app.schemas.common import AgeGroupEnum
 from app.schemas.exploration import ExplorationCreate
 
 
@@ -81,6 +82,30 @@ async def test_send_dweller_already_exploring(
     )
     assert response.status_code == 400
     assert "already on an exploration" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_send_child_dweller_to_wasteland_is_rejected(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """Children cannot start wasteland explorations."""
+    dweller.is_adult = False
+    dweller.age_group = AgeGroupEnum.CHILD
+    async_session.add(dweller)
+    await async_session.commit()
+
+    response = await async_client.post(
+        f"/explorations/send?vault_id={vault.id}",
+        json={"dweller_id": str(dweller.id), "duration": 4},
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 400
+    assert "Children cannot be sent on exploration" in response.json()["detail"]
 
 
 @pytest.mark.asyncio

@@ -251,6 +251,9 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         """Move dweller to a different room."""
         dweller_obj = await self.get(db_session, dweller_id)
 
+        if dweller_obj.status == DwellerStatusEnum.EXPLORING:
+            raise ResourceConflictException(detail="Dweller is exploring and cannot be assigned to a room")
+
         # Validate room transfer (can't move to same room)
         if dweller_obj.room_id == room_id:
             raise ResourceConflictException(detail="Dweller is already in the room")

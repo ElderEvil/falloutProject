@@ -87,9 +87,6 @@ def test_create_random_common_dweller_rarity_scales_bio() -> None:
 def test_create_random_common_dweller_age_fields_coherent() -> None:
     """Seeded dweller keeps deterministic age fields (regression for the Andrea Freeman bug)."""
     data = create_random_common_dweller(seed=7)
-    if data["is_adult"]:
-        assert data["age_group"] == AgeGroupEnum.ADULT
-        assert data["birth_date"] < datetime(2000, 1, 1)
-    else:
-        assert data["age_group"] == AgeGroupEnum.CHILD
-        assert data["birth_date"] == datetime(2000, 1, 1)
+    assert data["is_adult"] is True
+    assert data["age_group"] == AgeGroupEnum.ADULT
+    assert data["birth_date"] < datetime(2000, 1, 1)

@@ -452,20 +452,17 @@ class IncidentService:
             if vault and caps_earned > 0:
                 await vault_crud.deposit_caps(db_session=db_session, vault_obj=vault, amount=caps_earned)
 
-            # Award XP to dwellers in the room
+            # Award XP only to the adult dwellers who could have fought.
             if incident.room_id:
-                from sqlalchemy.orm import selectinload
-                from sqlmodel import select
-
-                from app.models.room import Room
-
-                # Load room with dwellers relationship
-                query = select(Room).where(Room.id == incident.room_id).options(selectinload(Room.dwellers))
+                query = select(Dweller).where(
+                    Dweller.room_id == incident.room_id,
+                    Dweller.health > 0,
+                    Dweller.is_adult,
+                    Dweller.age_group == AgeGroupEnum.ADULT,
+                )
                 result = await db_session.execute(query)
-                room = result.scalar_one_or_none()
-
-                if room and room.dwellers:
-                    await self._award_combat_xp(db_session, incident, room.dwellers)
+                dwellers = list(result.scalars().all())
+                await self._award_combat_xp(db_session, incident, dwellers)
 
         incident.loot = loot
         incident.resolve(success=success)

@@ -44,6 +44,8 @@ class CRUDQuestParty(CRUDBase[QuestParty, None, None]):
             dweller = await db_session.get(Dweller, dweller_id)
             if not dweller:
                 raise ValueError(f"Dweller {dweller_id} not found")
+            if dweller.is_deleted:
+                raise ValueError(f"Deleted dweller {dweller_id} cannot join a quest")
             if dweller.vault_id != vault_id:
                 raise ValueError(f"Dweller {dweller_id} does not belong to vault {vault_id}")
             if not dweller.is_adult or dweller.age_group != AgeGroupEnum.ADULT:

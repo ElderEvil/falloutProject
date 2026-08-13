@@ -1,5 +1,5 @@
 import random
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -127,14 +127,14 @@ async def test_create_random_common_dweller_seed_deterministic(async_session: As
 @pytest.mark.asyncio
 async def test_create_random_common_dweller_age_fields_coherent(async_session: AsyncSession):
     """Procedurally generated dwellers are adult recruits with coherent age fields."""
-    from app.utils.dwellers import create_random_common_dweller
+    from app.utils.dwellers import _calendar_years_ago, create_random_common_dweller
 
     for _ in range(40):
         data = create_random_common_dweller()
         assert data["is_adult"] is True
         assert data["age_group"] == AgeGroupEnum.ADULT
         assert data["birth_date"] is not None
-        assert data["birth_date"] <= datetime.utcnow()
+        assert data["birth_date"] <= _calendar_years_ago(datetime.now(UTC).replace(tzinfo=None), 18)
         assert data["max_health"] == 100
         assert data["health"] == 100
 
@@ -149,12 +149,15 @@ async def test_create_random_common_dweller_persisted_age_coherent(async_session
     vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
     vault = await crud.vault.create(async_session, obj_in=vault_in)
 
+    from app.utils.dwellers import _calendar_years_ago
+
+    adult_cutoff = _calendar_years_ago(datetime(2000, 1, 1), 18)
     for seed in range(10):
         dweller = await crud.dweller.create_random(db_session=async_session, vault_id=vault.id, seed=seed)
         assert dweller.is_adult is True
         assert dweller.age_group == AgeGroupEnum.ADULT
         assert dweller.birth_date is not None
-        assert dweller.birth_date <= datetime.utcnow()
+        assert dweller.birth_date <= adult_cutoff
         assert dweller.max_health == 100
         assert dweller.health == 100
 

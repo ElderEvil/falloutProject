@@ -202,6 +202,31 @@ async def test_resolve_incident_manually_success(async_session: AsyncSession, ro
 
 
 @pytest.mark.asyncio
+async def test_resolve_incident_manually_does_not_award_child_combat_xp(
+    async_session: AsyncSession, room_with_dwellers: dict
+):
+    """Children present in the incident room do not receive manual-resolution combat XP."""
+    from app.tests.factory.dwellers import create_random_common_dweller
+
+    room = room_with_dwellers["room"]
+    child_data = create_random_common_dweller()
+    child_data.update(is_adult=False, age_group=AgeGroupEnum.CHILD, experience=0)
+    child = await crud.dweller.create(
+        async_session,
+        obj_in=DwellerCreate(**child_data, vault_id=room.vault_id),
+    )
+    await crud.dweller.move_to_room(async_session, child.id, room.id)
+    await async_session.commit()
+
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
+    assert incident is not None
+    await incident_service.resolve_incident_manually(async_session, incident.id, success=True)
+
+    await async_session.refresh(child)
+    assert child.experience == 0
+
+
+@pytest.mark.asyncio
 async def test_resolve_incident_manually_failure(async_session: AsyncSession, room_with_dwellers: dict):
     """Test manual incident resolution with failure."""
     room = room_with_dwellers["room"]

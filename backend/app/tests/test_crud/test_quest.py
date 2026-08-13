@@ -331,8 +331,8 @@ async def test_assign_party_to_quest(async_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
-async def test_assign_party_rejects_children_and_explorers(async_session: AsyncSession) -> None:
-    """Quest parties cannot include children or dwellers currently exploring."""
+async def test_assign_party_rejects_ineligible_dwellers(async_session: AsyncSession) -> None:
+    """Quest parties reject children, explorers, and deleted dwellers without changing the current party."""
     from app.crud.quest_party import quest_party_crud
     from app.models.dweller import Dweller
     from app.tests.factory.dwellers import create_fake_dweller
@@ -362,14 +362,28 @@ async def test_assign_party_rejects_children_and_explorers(async_session: AsyncS
         status=DwellerStatusEnum.EXPLORING,
     )
     explorer = Dweller(**explorer_data, vault_id=vault.id)
+    assigned_data = create_fake_dweller()
+    assigned_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
+    assigned = Dweller(**assigned_data, vault_id=vault.id)
+    deleted_data = create_fake_dweller()
+    deleted_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT, is_deleted=True)
+    deleted = Dweller(**deleted_data, vault_id=vault.id)
     async_session.add(child)
     async_session.add(explorer)
+    async_session.add(assigned)
+    async_session.add(deleted)
     await async_session.commit()
 
+    await quest_party_crud.assign_party(async_session, quest.id, vault.id, [assigned.id])
     with pytest.raises(ValueError, match="Child dweller"):
         await quest_party_crud.assign_party(async_session, quest.id, vault.id, [child.id])
     with pytest.raises(ValueError, match="exploring"):
         await quest_party_crud.assign_party(async_session, quest.id, vault.id, [explorer.id])
+    with pytest.raises(ValueError, match="Deleted dweller"):
+        await quest_party_crud.assign_party(async_session, quest.id, vault.id, [deleted.id])
+
+    party = await quest_party_crud.get_party_for_quest(async_session, quest.id, vault.id)
+    assert [member.dweller_id for member in party] == [assigned.id]
 
 
 @pytest.mark.asyncio

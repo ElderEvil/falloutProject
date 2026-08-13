@@ -46,9 +46,9 @@ jobs:
             --arg gateway_route "$PYDANTIC_AI_GATEWAY_ROUTE" \
             --arg gateway_base_url "$PYDANTIC_AI_GATEWAY_BASE_URL" \
             --arg logfire_token "$LOGFIRE_TOKEN" \
-            '{stringData: {PYDANTIC_AI_GATEWAY_API_KEY: $gateway_key, PYDANTIC_AI_GATEWAY_ROUTE: $gateway_route, PYDANTIC_AI_GATEWAY_BASE_URL: $gateway_base_url, LOGFIRE_TOKEN: $logfire_token}}' \
+            '{apiVersion: "v1", kind: "Secret", metadata: {name: "backend-env", namespace: "fallout"}, type: "Opaque", stringData: {PYDANTIC_AI_GATEWAY_API_KEY: $gateway_key, PYDANTIC_AI_GATEWAY_ROUTE: $gateway_route, PYDANTIC_AI_GATEWAY_BASE_URL: $gateway_base_url, LOGFIRE_TOKEN: $logfire_token}}' \
             | ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
-              'kubectl -n fallout patch secret backend-env --type merge --patch-file /dev/stdin'
+              'kubectl apply -f - && kubectl -n fallout set env deployment/backend deployment/dramatiq-worker --from=secret/backend-env'
 
       - name: Update images
         run: |

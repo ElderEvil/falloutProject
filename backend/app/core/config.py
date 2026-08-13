@@ -63,6 +63,8 @@ class Settings(BaseSettings):
 
     # AI Configuration
     PYDANTIC_AI_GATEWAY_API_KEY: str | None = None
+    PYDANTIC_AI_GATEWAY_ROUTE: str | None = None
+    PYDANTIC_AI_GATEWAY_BASE_URL: str | None = None
 
     # Legacy direct provider API keys (deprecated, use Gateway instead)
     AI_PROVIDER: Literal["openai", "anthropic", "ollama"] = "openai"
@@ -163,13 +165,6 @@ class Settings(BaseSettings):
                 path=info.data["POSTGRES_DB"],
             )
         return v
-
-    @model_validator(mode="after")
-    def validate_rustfs_config(self) -> "Settings":
-        if not self.RUSTFS_HOSTNAME or not self.RUSTFS_PORT:
-            msg = "RUSTFS_HOSTNAME and/or RUSTFS_PORT are not set. Configure RustFS settings."
-            raise ValueError(msg)
-        return self
 
     @model_validator(mode="after")
     def ensure_frontend_origin(self) -> "Settings":

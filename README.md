@@ -235,14 +235,21 @@ docker compose start fastapi
   - `POSTGRES_PASSWORD` - Database password
   - `FIRST_SUPERUSER_PASSWORD` - Admin account password
 - **Optional:**
+  - `PYDANTIC_AI_GATEWAY_API_KEY` - Recommended for chat and Pydantic AI agent calls; it routes to `AI_PROVIDER` and `AI_MODEL`
+  - `PYDANTIC_AI_GATEWAY_ROUTE` - Optional custom Gateway provider or routing-group identifier
+  - `PYDANTIC_AI_GATEWAY_BASE_URL` - Regional Gateway proxy URL, such as `https://gateway-eu.pydantic.dev/proxy`
   - `AI_PROVIDER` - `openai` (default), `anthropic`, or `ollama` (local/free)
-  - `OPENAI_API_KEY` - Only if using OpenAI (leave empty for ollama)
+  - `OPENAI_API_KEY` - Required for OpenAI image generation, TTS, and transcription; also enables legacy direct chat when no Gateway key is set
   - Database: `POSTGRES_SERVER`, `POSTGRES_DB`, `POSTGRES_USER`
   - Redis: `REDIS_HOST`, `REDIS_PORT`
 
 **AI Setup Notes:**
 - **Ollama (Free):** For Docker: already runs in `ollama` container. For hybrid: [install locally](https://ollama.ai/download)
-- **OpenAI:** Set `AI_PROVIDER=openai` and add your `OPENAI_API_KEY`
+- **Gateway + OpenAI (recommended):** Set `PYDANTIC_AI_GATEWAY_API_KEY`, `AI_PROVIDER=openai`, and `AI_MODEL` for
+  chat/agent calls. Set `PYDANTIC_AI_GATEWAY_ROUTE` when using a custom Gateway provider or routing group. Retain
+  `OPENAI_API_KEY` for image and audio features. See [Pydantic AI Gateway Setup](docs/backend/PYDANTIC_AI_GATEWAY.md)
+  for the complete local and Hetzner procedure.
+- **Direct OpenAI (legacy):** Set `AI_PROVIDER=openai` and `OPENAI_API_KEY`; this remains supported for media features.
 - **No AI:** App works without AI (conversations/chat features disabled)
 
 ## 🔧 Troubleshooting
@@ -291,7 +298,9 @@ docker compose ps fastapi  # Should show 0.0.0.0:8000->8000/tcp
 
 **AI features not working:**
 - Check `AI_PROVIDER` in `.env` matches your setup
-- For OpenAI: Verify `OPENAI_API_KEY` is set correctly
+- For Gateway: verify `PYDANTIC_AI_GATEWAY_API_KEY` is set and that the selected `AI_PROVIDER`/`AI_MODEL` is enabled
+  in Gateway
+- For direct OpenAI media features: verify `OPENAI_API_KEY` is set correctly
 - For Ollama: Ensure service is running (`ollama serve` or check Docker container)
 - App works without AI - conversation features will be disabled
 

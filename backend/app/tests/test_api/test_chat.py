@@ -21,11 +21,13 @@ from app.agents.dweller_chat_agent import DwellerChatOutput, parse_action_sugges
 from app.api.v1.endpoints.chat import chat_with_dweller, voice_chat_with_dweller
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration, ExplorationStatus
+from app.models.room import RoomTypeEnum
 from app.models.vault import Vault
 from app.schemas.chat import AssignToRoomAction, ChatMessage, NoAction, RecallExplorationAction, StartExplorationAction
-from app.schemas.common import GenderEnum
+from app.schemas.common import GenderEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
-from app.services.open_ai import ChatCompletionResult
+from app.schemas.room import RoomCreate
+from app.services.ai_service import ChatCompletionResult
 from app.tests.factory.dwellers import create_fake_dweller
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
@@ -689,9 +691,31 @@ class TestExplorationActions:
         mock_agent: MagicMock,
         async_client: AsyncClient,
         normal_user_token_headers: dict[str, str],
+        async_session: AsyncSession,
         chat_dweller: Dweller,
     ):
         """Test that explicit training requests suggest start_training action."""
+        chat_dweller.strength = 5
+        async_session.add(chat_dweller)
+        await async_session.commit()
+        room = await crud.room.create(
+            async_session,
+            RoomCreate(
+                name="Weight Room",
+                category=RoomTypeEnum.TRAINING,
+                tier=1,
+                size=2,
+                capacity=6,
+                ability=SPECIALEnum.STRENGTH,
+                base_cost=1000,
+                t2_upgrade_cost=2500,
+                t3_upgrade_cost=5000,
+                size_min=1,
+                size_max=3,
+                vault_id=chat_dweller.vault_id,
+            ),
+        )
+        assert room.ability == SPECIALEnum.STRENGTH
         # Mock agent output with user explicitly asking about training
         mock_output = DwellerChatOutput(
             response_text="You should train your strength! It's currently low.",

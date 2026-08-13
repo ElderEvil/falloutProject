@@ -370,7 +370,7 @@ async def test_generate_photo_success(mock_crud: MagicMock, mock_llm: MagicMock)
 
     with (
         patch.object(dweller_ai, "storage_service", mock_storage),
-        patch.object(dweller_ai, "open_ai_service", mock_openai),
+        patch.object(dweller_ai, "ai_service", mock_openai),
     ):
         result = await dweller_ai.generate_photo(
             user=_make_user_mock(), db_session=MagicMock(), dweller_info=mock_dweller
@@ -403,7 +403,7 @@ async def test_generate_photo_force_overwrite(mock_crud: MagicMock, mock_llm: Ma
 
     with (
         patch.object(dweller_ai, "storage_service", mock_storage),
-        patch.object(dweller_ai, "open_ai_service", mock_openai),
+        patch.object(dweller_ai, "ai_service", mock_openai),
     ):
         result = await dweller_ai.generate_photo(
             user=_make_user_mock(), db_session=MagicMock(), dweller_info=mock_dweller, force=True
@@ -500,7 +500,7 @@ async def test_generate_audio_openai_error(mock_crud: MagicMock, mock_llm: Magic
 
     with (
         patch.object(dweller_ai, "storage_service", mock_storage),
-        patch.object(dweller_ai, "open_ai_service", mock_openai),
+        patch.object(dweller_ai, "ai_service", mock_openai),
         pytest.raises(HTTPException) as exc_info,
     ):
         await dweller_ai.generate_audio(
@@ -534,7 +534,7 @@ async def test_generate_audio_success(mock_crud: MagicMock, mock_llm: MagicMock,
 
     with (
         patch.object(dweller_ai, "storage_service", mock_storage),
-        patch.object(dweller_ai, "open_ai_service", mock_openai),
+        patch.object(dweller_ai, "ai_service", mock_openai),
     ):
         result = await dweller_ai.generate_audio(
             text="Welcome to the vault!",
@@ -583,7 +583,7 @@ async def test_generate_audio_empty_bytes_warning(
 
     with (
         patch.object(dweller_ai, "storage_service", mock_storage),
-        patch.object(dweller_ai, "open_ai_service", mock_openai),
+        patch.object(dweller_ai, "ai_service", mock_openai),
     ):
         result = await dweller_ai.generate_audio(
             text="",
@@ -629,7 +629,7 @@ async def test_generate_avatar_updates_and_generates_photo(
 
     with (
         patch.object(dweller_ai, "storage_service", mock_storage),
-        patch.object(dweller_ai, "open_ai_service", mock_openai),
+        patch.object(dweller_ai, "ai_service", mock_openai),
         patch("app.services.dweller_ai.llm_interaction_crud", mock_llm),
     ):
         result = await dweller_ai.generate_dweller_avatar(
@@ -691,7 +691,7 @@ async def test_generate_avatar_with_voice_line(mock_crud: MagicMock) -> None:
 
     with (
         patch.object(dweller_ai, "storage_service", mock_storage),
-        patch.object(dweller_ai, "open_ai_service", mock_openai),
+        patch.object(dweller_ai, "ai_service", mock_openai),
         patch("app.services.dweller_ai.llm_interaction_crud", mock_llm),
         patch("app.services.dweller_ai.quota_service", mock_quota),
     ):
@@ -823,7 +823,7 @@ async def test_pipeline_generates_all_from_scratch(mock_crud: MagicMock) -> None
         patch("app.services.dweller_ai.map_service", mock_map),
         patch("app.services.dweller_ai.llm_interaction_crud", mock_llm),
         patch.object(dweller_ai, "storage_service", mock_storage),
-        patch.object(dweller_ai, "open_ai_service", mock_openai),
+        patch.object(dweller_ai, "ai_service", mock_openai),
     ):
         result = await dweller_ai.dweller_generate_pipeline(
             db_session=MagicMock(),

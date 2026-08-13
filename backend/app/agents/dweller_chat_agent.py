@@ -6,6 +6,7 @@ from typing import Literal
 
 from pydantic import UUID4, BaseModel, Field
 from pydantic_ai import Agent, RunContext
+from pydantic_ai.exceptions import ModelRetry
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -22,7 +23,7 @@ from app.schemas.chat import (
 )
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerReadFull
-from app.services.open_ai import get_model
+from app.services.ai_service import get_model
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,32 @@ class ModelCache:
 # --- Structured Output Schema ---
 
 ACTION_TYPES = Literal["assign_to_room", "start_training", "start_exploration", "recall_exploration", "no_action"]
+
+ACTION_PAYLOAD_FIELDS = (
+    "action_room_id",
+    "action_room_name",
+    "action_stat",
+    "action_duration_hours",
+    "action_stimpaks",
+    "action_radaways",
+    "action_exploration_id",
+)
+
+REQUIRED_ACTION_FIELDS: dict[ACTION_TYPES, tuple[str, ...]] = {
+    "assign_to_room": ("action_room_id", "action_room_name"),
+    "start_training": ("action_stat",),
+    "start_exploration": (),
+    "recall_exploration": (),
+    "no_action": (),
+}
+
+ALLOWED_ACTION_FIELDS: dict[ACTION_TYPES, tuple[str, ...]] = {
+    "assign_to_room": ("action_room_id", "action_room_name"),
+    "start_training": ("action_stat",),
+    "start_exploration": ("action_duration_hours", "action_stimpaks", "action_radaways"),
+    "recall_exploration": (),
+    "no_action": (),
+}
 
 
 class DwellerChatOutput(BaseModel):
@@ -134,13 +161,42 @@ class RoomInfo(BaseModel):
     ability: str | None = None
 
 
+class TrainingOption(BaseModel):
+    """A currently startable training option for the dweller."""
+
+    room_name: str
+    stat: SPECIALEnum
+    current_stat: int
+    capacity_remaining: int
+    estimated_duration_hours: float
+
+
+class DwellerActivityBriefing(BaseModel):
+    """Grounded training and wasteland state used before suggesting an activity."""
+
+    active_training_stat: SPECIALEnum | None = None
+    active_training_progress_percent: float | None = None
+    training_options: list[TrainingOption] = []
+    training_blocker: str | None = None
+    exploration_active: bool
+    exploration_progress_percent: float | None = None
+    exploration_duration_hours: int | None = None
+    available_stimpaks: int
+    available_radaways: int
+    recommended_exploration_duration_hours: int | None = None
+    recommended_stimpaks: int | None = None
+    recommended_radaways: int | None = None
+    exploration_blocker: str | None = None
+
+
 # --- Agent Definition ---
 
 dweller_chat_agent = Agent(
     model=ModelCache.get_model(),
     output_type=DwellerChatOutput,
     deps_type=DwellerChatDeps,
-    system_prompt=(
+    retries=2,
+    instructions=(
         "You are a Vault-Tec Dweller in a post-apocalyptic world. "
         "Respond in character, staying true to the Fallout universe. "
         "Analyze the conversation sentiment and suggest helpful actions when appropriate. "
@@ -154,9 +210,9 @@ dweller_chat_agent = Agent(
 )
 
 
-@dweller_chat_agent.system_prompt
-def chat_system_prompt(ctx: RunContext[DwellerChatDeps]) -> str:
-    """Dynamic system prompt with dweller context."""
+@dweller_chat_agent.instructions
+def chat_instructions(ctx: RunContext[DwellerChatDeps]) -> str:
+    """Build dynamic instructions with dweller context for this stateless chat run."""
     dweller = ctx.deps.dweller
     # Build SPECIAL stats string with proper formatting
     special_stats = ", ".join(f"{stat}: {getattr(dweller, stat)}" for stat in SPECIALModel.__annotations__)
@@ -201,12 +257,41 @@ After responding, analyze:
       and use `list_all_rooms()` to find it.
     - If they want productive work (and no specific room is mentioned):
       use `list_production_rooms()` to find a room matching their highest SPECIAL stat.
-   - If they want to train or improve stats: use `list_training_rooms()` to find appropriate training rooms.
+   - Before suggesting training, exploration, or recall: call `get_dweller_activity_briefing()`.
+     Treat it as the source of truth: do not suggest training while active training is reported, do not suggest
+     exploration while an exploration is active, and only suggest recall when one is active.
+   - If they want to train or improve stats: use the briefing's training options, then `list_training_rooms()` if
+     you need a displayable room choice.
    - For any other room request or general "move me somewhere" queries: use `list_all_rooms()` for a complete overview.
    - If they want adventure or to explore the wasteland: suggest start_exploration
    - If they want to come home or you sense danger during exploration: suggest recall_exploration
    - Otherwise: no_action
 """
+
+
+@dweller_chat_agent.output_validator
+def validate_dweller_chat_output(output: DwellerChatOutput) -> DwellerChatOutput:
+    """Reject cross-field action payloads before gameplay code reads them.
+
+    Pydantic validates individual fields, but action payloads have contextual requirements. Raising
+    ``ModelRetry`` gives the model a bounded opportunity to correct an otherwise well-typed response.
+    ``action_reason`` is intentionally allowed for every action because it is explanatory rather than gameplay data.
+    """
+    required_fields = REQUIRED_ACTION_FIELDS[output.action_type]
+    missing_fields = [field for field in required_fields if getattr(output, field) is None]
+    if missing_fields:
+        fields = ", ".join(missing_fields)
+        raise ModelRetry(f"{output.action_type} requires: {fields}.")
+
+    allowed_fields = ALLOWED_ACTION_FIELDS[output.action_type]
+    unexpected_fields = [
+        field for field in ACTION_PAYLOAD_FIELDS if field not in allowed_fields and getattr(output, field) is not None
+    ]
+    if unexpected_fields:
+        fields = ", ".join(unexpected_fields)
+        raise ModelRetry(f"{output.action_type} must not include: {fields}.")
+
+    return output
 
 
 async def _get_available_rooms(
@@ -274,6 +359,83 @@ async def list_all_rooms(ctx: RunContext[DwellerChatDeps]) -> list[RoomInfo]:
     return await _get_available_rooms(ctx.deps.db_session, ctx.deps.vault_id)
 
 
+async def build_dweller_activity_briefing(deps: DwellerChatDeps) -> DwellerActivityBriefing:
+    """Read the activity state that determines safe chat-action suggestions."""
+    from app.crud import exploration as exploration_crud
+    from app.crud import training as training_crud
+    from app.models import Storage
+    from app.services.training_service import training_service
+
+    active_training = await training_crud.training.get_active_by_dweller(deps.db_session, deps.dweller.id)
+    active_exploration = await exploration_crud.get_by_dweller(deps.db_session, dweller_id=deps.dweller.id)
+    storage_result = await deps.db_session.execute(select(Storage).where(Storage.vault_id == deps.vault_id))
+    storage = storage_result.scalar_one_or_none()
+    available_stimpaks = (storage.stimpack if storage else 0) + deps.dweller.stimpack
+    available_radaways = (storage.radaway if storage else 0) + deps.dweller.radaway
+
+    briefing = DwellerActivityBriefing(
+        active_training_stat=active_training.stat_being_trained if active_training else None,
+        active_training_progress_percent=round(active_training.progress_percentage(), 1) if active_training else None,
+        exploration_active=active_exploration is not None,
+        exploration_progress_percent=round(active_exploration.progress_percentage(), 1) if active_exploration else None,
+        exploration_duration_hours=active_exploration.duration if active_exploration else None,
+        available_stimpaks=available_stimpaks,
+        available_radaways=available_radaways,
+    )
+
+    if active_training:
+        briefing.training_blocker = f"Already training {active_training.stat_being_trained.value}."
+    else:
+        rooms_result = await deps.db_session.execute(
+            select(Room).where(Room.vault_id == deps.vault_id).where(Room.category == RoomTypeEnum.TRAINING)
+        )
+        rooms = rooms_result.scalars().all()
+        active_trainings = await training_crud.training.get_active_by_vault(deps.db_session, deps.vault_id)
+        active_by_room: dict[UUID4, int] = {}
+        for training in active_trainings:
+            active_by_room[training.room_id] = active_by_room.get(training.room_id, 0) + 1
+
+        for room in rooms:
+            if room.ability is None:
+                continue
+            current_stat = getattr(deps.dweller, room.ability.value)
+            if current_stat >= game_config.training.special_stat_max:
+                continue
+            capacity = room.capacity or max((room.size or room.size_min or 3) // 3 * 2, 1)
+            capacity_remaining = capacity - active_by_room.get(room.id, 0)
+            if capacity_remaining <= 0:
+                continue
+            briefing.training_options.append(
+                TrainingOption(
+                    room_name=room.name,
+                    stat=room.ability,
+                    current_stat=current_stat,
+                    capacity_remaining=capacity_remaining,
+                    estimated_duration_hours=round(
+                        training_service.calculate_training_duration(current_stat, room.tier) / 3600,
+                        1,
+                    ),
+                )
+            )
+        if not briefing.training_options:
+            briefing.training_blocker = "No available training room can improve this dweller right now."
+
+    if active_exploration:
+        briefing.exploration_blocker = "Already exploring; suggest recall instead of another expedition."
+    else:
+        briefing.recommended_exploration_duration_hours = 4
+        briefing.recommended_stimpaks = min(2, available_stimpaks)
+        briefing.recommended_radaways = min(1, available_radaways)
+
+    return briefing
+
+
+@dweller_chat_agent.tool
+async def get_dweller_activity_briefing(ctx: RunContext[DwellerChatDeps]) -> DwellerActivityBriefing:
+    """Inspect current training and exploration readiness before suggesting either activity."""
+    return await build_dweller_activity_briefing(ctx.deps)
+
+
 @dweller_chat_agent.tool
 def get_best_room_recommendation(ctx: RunContext[DwellerChatDeps]) -> str:
     """Get a recommendation for the best room based on dweller's highest SPECIAL stat.
@@ -330,6 +492,7 @@ async def parse_action_suggestion(
     Policy enforcement:
     - Training actions are only suggested for non-neutral sentiment (sentiment_score != 0)
     - Neutral messages should not suggest training, even if agent suggests it
+    - Activity actions are re-checked against current server state before an action card is emitted
     """
     if output.action_type == "assign_to_room" and output.action_room_id and output.action_room_name:
         return AssignToRoomAction(
@@ -341,15 +504,37 @@ async def parse_action_suggestion(
         # Policy: Filter out training actions for neutral sentiment
         if output.sentiment_score == 0:
             return NoAction(reason="Training not suggested for neutral messages")
+        briefing = await build_dweller_activity_briefing(
+            DwellerChatDeps(db_session=db_session, dweller=dweller, vault_id=dweller.vault_id)
+        )
+        if briefing.active_training_stat:
+            return NoAction(reason=briefing.training_blocker)
+        if not any(option.stat == output.action_stat for option in briefing.training_options):
+            return NoAction(reason=briefing.training_blocker or "No room is available for that training right now.")
         return StartTrainingAction(
             stat=output.action_stat,
             reason=output.action_reason or "Based on conversation context",
         )
     if output.action_type == "start_exploration":
-        # Honor agent suggestions when provided, fall back to defaults, clamp against constraints & inventory
-        duration = min(max(1, output.action_duration_hours or 4), 24)
-        stimpaks = min(dweller.stimpack, max(0, output.action_stimpaks or 2))
-        radaways = min(dweller.radaway, max(0, output.action_radaways or 1))
+        briefing = await build_dweller_activity_briefing(
+            DwellerChatDeps(db_session=db_session, dweller=dweller, vault_id=dweller.vault_id)
+        )
+        if briefing.exploration_active:
+            return NoAction(reason=briefing.exploration_blocker)
+        # Use current vault + dweller supplies. The exploration service re-checks these values at mutation time.
+        duration = min(max(1, output.action_duration_hours or briefing.recommended_exploration_duration_hours or 4), 24)
+        stimpaks = min(
+            briefing.available_stimpaks,
+            max(
+                0, output.action_stimpaks if output.action_stimpaks is not None else briefing.recommended_stimpaks or 0
+            ),
+        )
+        radaways = min(
+            briefing.available_radaways,
+            max(
+                0, output.action_radaways if output.action_radaways is not None else briefing.recommended_radaways or 0
+            ),
+        )
         return StartExplorationAction(
             duration_hours=duration,
             stimpaks=stimpaks,
@@ -357,7 +542,12 @@ async def parse_action_suggestion(
             reason=output.action_reason or "Ready for wasteland exploration",
         )
     if output.action_type == "recall_exploration":
-        # Deterministic enrichment: query active exploration from DB
+        briefing = await build_dweller_activity_briefing(
+            DwellerChatDeps(db_session=db_session, dweller=dweller, vault_id=dweller.vault_id)
+        )
+        if not briefing.exploration_active:
+            return NoAction(reason="Dweller is not currently exploring the wasteland")
+        # Deterministic enrichment: re-query immediately before emitting the actionable exploration ID.
         from app.crud.exploration import exploration as exploration_crud
 
         active_exploration = await exploration_crud.get_by_dweller(db_session, dweller_id=dweller.id)

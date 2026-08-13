@@ -25,7 +25,7 @@
 
 | File | Current | Missing | Priority |
 |------|---------|---------|----------|
-| `services/open_ai.py` | 36.9% | 135 | HIGH |
+| `services/ai_service.py` | 36.9% | 135 | HIGH |
 | `services/health_check.py` | 31.5% | 113 | HIGH |
 | `services/dweller_assignment_service.py` | 40.8% | 87 | HIGH |
 | `services/pregen_service.py` | 0.0% | 82 | SKIP |
@@ -120,7 +120,7 @@ Focus on services with highest missing lines:
 
 | Service | Missing Lines | Test Strategy |
 |---------|---------------|---------------|
-| `open_ai.py` | 135 | Mock external API calls |
+| `ai_service.py` | 135 | Mock external API calls |
 | `health_check.py` | 113 | Mock database/service checks |
 | `dweller_assignment_service.py` | 87 | Unit tests with mocked DB |
 | `objective_assignment_service.py` | 80 | Unit tests with mocked DB |
@@ -224,7 +224,7 @@ def static_data():
 
 ### Week 2: Coverage Phase 1 (High-Impact Services)
 
-- [ ] Write tests for `open_ai.py` (mock external API)
+- [ ] Write tests for `ai_service.py` (mock external API)
 - [ ] Write tests for `health_check.py` (mock DB checks)
 - [ ] Write tests for `dweller_assignment_service.py`
 - [ ] Write tests for `objective_assignment_service.py`

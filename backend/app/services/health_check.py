@@ -1,12 +1,13 @@
 """Service health check utilities for startup and runtime monitoring."""
 
+import asyncio
 import logging
 from dataclasses import dataclass
 from enum import StrEnum
 
 import aiosmtplib
 import httpx
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 from sqlalchemy import text
@@ -136,7 +137,7 @@ class HealthCheckService:
 
     @staticmethod
     def check_rustfs() -> HealthCheckResult:
-        """Check RustFS connectivity and bucket access.
+        """Check optional RustFS connectivity and bucket access.
 
         Returns:
             HealthCheckResult with connection status
@@ -167,7 +168,12 @@ class HealthCheckService:
                 aws_access_key_id=settings.RUSTFS_ACCESS_KEY,
                 aws_secret_access_key=settings.RUSTFS_SECRET_KEY,
                 region_name="us-east-1",
-                config=Config(signature_version="s3v4"),
+                config=Config(
+                    connect_timeout=2,
+                    read_timeout=3,
+                    retries={"total_max_attempts": 1, "mode": "standard"},
+                    signature_version="s3v4",
+                ),
             )
 
             # Test connection by listing buckets
@@ -183,15 +189,7 @@ class HealthCheckService:
                     "buckets": bucket_names,
                 },
             )
-        except ClientError as e:
-            logger.warning("RustFS health check failed (non-critical): %s", e)
-            return HealthCheckResult(
-                service="rustfs",
-                status=ServiceStatus.DEGRADED,
-                message=f"RustFS connection failed (optional service): {e!s}",
-                details={"endpoint": endpoint_url, "error": str(e)},
-            )
-        except (OSError, ValueError, ImportError) as e:
+        except (BotoCoreError, ClientError, OSError, ValueError, ImportError) as e:
             logger.warning("RustFS health check failed (non-critical): %s", e)
             return HealthCheckResult(
                 service="rustfs",
@@ -360,6 +358,7 @@ class HealthCheckService:
         include_dramatiq: bool = True,
         include_smtp: bool = True,
         include_ollama: bool = False,
+        include_rustfs: bool = True,
     ) -> dict[str, HealthCheckResult]:
         """Check all services and return results."""
         results = {}
@@ -372,9 +371,11 @@ class HealthCheckService:
         redis_result = await self.check_redis()
         results["redis"] = redis_result
 
-        # Check RustFS
-        rustfs_result = self.check_rustfs()
-        results["rustfs"] = rustfs_result
+        # RustFS is optional and uses a synchronous boto3 client. Isolate it from the event loop and
+        # degrade rather than fail a detailed health check when the homelab endpoint is unavailable.
+        if include_rustfs:
+            rustfs_result = await asyncio.to_thread(self.check_rustfs)
+            results["rustfs"] = rustfs_result
 
         # Check Ollama (if using ollama provider)
         if include_ollama:

@@ -5,6 +5,31 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.34.0] - 2026-08-13
+
+### Added
+
+- **Grounded dweller activity suggestions** — chat agents can inspect active training and exploration, trainable room
+  capacity, available medical supplies, and a bounded exploration pack before recommending a training, exploration,
+  or recall action
+- **Pydantic AI Gateway configuration** — supports Gateway API keys, custom provider/routing-group routes, and
+  regional proxy URLs; includes a local authenticated API smoke-test script and setup guide for local and Hetzner use
+
+### Changed
+
+- **Pydantic AI observability and contracts** — Logfire now instruments Pydantic AI without prompt content; stateless
+  agents use instructions, and chat action payloads are validated with bounded retries before gameplay consumes them
+- **AI service naming** — renamed the provider-neutral AI service from `open_ai` to `ai_service`
+
+### Fixed
+
+- **Optional RustFS startup** — an unavailable S3-compatible RustFS endpoint now degrades detailed storage health
+  rather than blocking backend startup; startup skips its optional probe and diagnostics use bounded timeouts
+- **Hetzner deployment health-check heredoc** — quote the remote heredoc delimiter so retry variables expand on the
+  Hetzner host rather than in the GitHub Actions runner
+
+---
+
 ## [2.33.3] - 2026-08-13
 
 ### Fixed

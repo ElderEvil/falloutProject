@@ -83,7 +83,8 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     )
 
     health_check_service = HealthCheckService()
-    results = await health_check_service.check_all_services(async_engine)
+    # RustFS is valuable for media features but optional; never wait for an unavailable homelab S3 endpoint at startup.
+    results = await health_check_service.check_all_services(async_engine, include_rustfs=False)
     health_check_service.log_health_check_results(results)
 
     # Seed quests and objectives from JSON files

@@ -19,21 +19,22 @@ def is_logfire_enabled() -> bool:
 def configure_logfire() -> None:
     from app.core.config import settings
 
-    if not settings.logfire_enabled:
-        logger.debug("Logfire not configured (LOGFIRE_TOKEN not set)")
-        return
-
     try:
         import logfire
 
-        logfire.configure(
-            token=settings.LOGFIRE_TOKEN,
-            environment=settings.ENVIRONMENT,
-            service_name="fallout-shelter-api",
-        )
+        configure_options = {
+            "send_to_logfire": "if-token-present",
+            "environment": settings.ENVIRONMENT,
+            "service_name": "fallout-shelter-api",
+        }
+        if settings.LOGFIRE_TOKEN:
+            configure_options["token"] = settings.LOGFIRE_TOKEN
+
+        logfire.configure(**configure_options)
+        logfire.instrument_pydantic_ai(include_content=False)
 
         _logfire_state.initialized = True
-        logger.info("Logfire observability configured successfully")
+        logger.info("Logfire observability and Pydantic AI instrumentation configured successfully")
 
     except ImportError:
         logger.warning("Logfire package not installed. Install with: uv add logfire")

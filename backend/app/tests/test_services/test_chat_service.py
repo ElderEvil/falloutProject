@@ -233,7 +233,7 @@ class TestChatServiceErrorHandling:
         chat_dweller: Dweller,
     ) -> None:
         """Test that _run_chat_agent falls back when the agent raises an exception."""
-        from app.services.open_ai import ChatCompletionResult
+        from app.services.ai_service import ChatCompletionResult
 
         with patch("app.services.chat_service.dweller_chat_agent") as mock_agent:
             mock_agent.run = AsyncMock(side_effect=Exception("AI provider unavailable"))

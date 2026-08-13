@@ -367,9 +367,7 @@ async def build_dweller_activity_briefing(deps: DwellerChatDeps) -> DwellerActiv
     from app.services.training_service import training_service
 
     active_training = await training_crud.training.get_active_by_dweller(deps.db_session, deps.dweller.id)
-    active_exploration = await exploration_crud.exploration.get_by_dweller(
-        deps.db_session, dweller_id=deps.dweller.id
-    )
+    active_exploration = await exploration_crud.exploration.get_by_dweller(deps.db_session, dweller_id=deps.dweller.id)
     storage_result = await deps.db_session.execute(select(Storage).where(Storage.vault_id == deps.vault_id))
     storage = storage_result.scalar_one_or_none()
     available_stimpaks = (storage.stimpack if storage else 0) + deps.dweller.stimpack

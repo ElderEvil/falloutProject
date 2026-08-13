@@ -32,7 +32,9 @@ def parse_args() -> argparse.Namespace:
         "--expect",
         help="Optional exact response expected from the model; exits non-zero if it differs",
     )
-    parser.add_argument("--skip-chat", action="store_true", help="Check health, login, and dweller access without a model call")
+    parser.add_argument(
+        "--skip-chat", action="store_true", help="Check health, login, and dweller access without a model call"
+    )
     parser.add_argument("--timeout", type=float, default=60.0, help="Per-request timeout in seconds (default: 60)")
     return parser.parse_args()
 

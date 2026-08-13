@@ -367,9 +367,7 @@ async def build_dweller_activity_briefing(deps: DwellerChatDeps) -> DwellerActiv
     from app.services.training_service import training_service
 
     active_training = await training_crud.training.get_active_by_dweller(deps.db_session, deps.dweller.id)
-    active_exploration = await exploration_crud.get_by_dweller(
-        deps.db_session, dweller_id=deps.dweller.id
-    )
+    active_exploration = await exploration_crud.get_by_dweller(deps.db_session, dweller_id=deps.dweller.id)
     storage_result = await deps.db_session.execute(select(Storage).where(Storage.vault_id == deps.vault_id))
     storage = storage_result.scalar_one_or_none()
     available_stimpaks = (storage.stimpack if storage else 0) + deps.dweller.stimpack
@@ -527,11 +525,15 @@ async def parse_action_suggestion(
         duration = min(max(1, output.action_duration_hours or briefing.recommended_exploration_duration_hours or 4), 24)
         stimpaks = min(
             briefing.available_stimpaks,
-            max(0, output.action_stimpaks if output.action_stimpaks is not None else briefing.recommended_stimpaks or 0),
+            max(
+                0, output.action_stimpaks if output.action_stimpaks is not None else briefing.recommended_stimpaks or 0
+            ),
         )
         radaways = min(
             briefing.available_radaways,
-            max(0, output.action_radaways if output.action_radaways is not None else briefing.recommended_radaways or 0),
+            max(
+                0, output.action_radaways if output.action_radaways is not None else briefing.recommended_radaways or 0
+            ),
         )
         return StartExplorationAction(
             duration_hours=duration,

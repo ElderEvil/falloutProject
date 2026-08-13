@@ -75,6 +75,7 @@ app = ["py.typed"]
 line-length = 120
 target-version = "py313"
 exclude = [".git", "__pycache__", ".pytest_cache", "app/alembic", "app/cli/migrations/templates"]
+force-exclude = true
 lint.select = [
     "FAST",
     "F",

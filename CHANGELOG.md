@@ -9,8 +9,8 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ### Fixed
 
-- **Quest Show All filter** — vault quest responses now include prerequisite links, so the default list hides locked
-  chain quests and Show All reveals them
+- **Quest chain visibility** — vault quest responses now derive prerequisite links from their requirements, hiding
+  locked chain quests by default while Show All reveals them; existing quest chains are backfilled by migration
 
 ### Changed
 

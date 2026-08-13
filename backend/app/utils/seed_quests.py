@@ -2,6 +2,7 @@
 
 import logging
 from pathlib import Path
+from uuid import UUID
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -179,6 +180,13 @@ async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None
                             is_mandatory=req_json.is_mandatory,
                         )
                         db_session.add(requirement)
+                        if (
+                            req_json.requirement_type.upper() == "QUEST_COMPLETED"
+                            and req_json.is_mandatory
+                            and quest.previous_quest_id is None
+                            and (previous_quest_id := requirement_data.get("quest_id"))
+                        ):
+                            quest.previous_quest_id = UUID(str(previous_quest_id))
                     except ValueError as e:
                         logger.warning(f"Failed to create requirement for quest '{quest.title}': {e}")
 

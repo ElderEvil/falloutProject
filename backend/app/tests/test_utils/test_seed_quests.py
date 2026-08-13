@@ -53,6 +53,46 @@ async def test_seed_quests_from_json_basic(async_session: AsyncSession, tmp_path
 
 
 @pytest.mark.asyncio
+async def test_seed_quests_records_completed_quest_predecessor(async_session: AsyncSession, tmp_path: Path) -> None:
+    """Seeded quest-completion requirements also populate the chain predecessor."""
+    quest_dir = tmp_path / "quests"
+    quest_dir.mkdir()
+    quest_data = {
+        "chain_name": "Test chain",
+        "quests": [
+            {
+                "quest_name": "Chain Starter",
+                "long_description": "The first quest in a test chain.",
+                "short_description": "Start the chain",
+                "requirements": "Level 1",
+                "rewards": "10 caps",
+            },
+            {
+                "quest_name": "Chain Follow-up",
+                "long_description": "The second quest in a test chain.",
+                "short_description": "Continue the chain",
+                "requirements": "Level 1",
+                "rewards": "20 caps",
+                "quest_requirements": [
+                    {
+                        "requirement_type": "QUEST_COMPLETED",
+                        "requirement_data": {"quest_name": "Chain Starter"},
+                    }
+                ],
+            },
+        ],
+    }
+    with (quest_dir / "chain.json").open("w", encoding="utf-8") as file:
+        json.dump(quest_data, file)
+
+    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 2
+
+    quests = (await async_session.execute(select(Quest))).scalars().all()
+    quests_by_title = {quest.title: quest for quest in quests}
+    assert quests_by_title["Chain Follow-up"].previous_quest_id == quests_by_title["Chain Starter"].id
+
+
+@pytest.mark.asyncio
 async def test_seed_quests_with_list_requirements(async_session: AsyncSession, tmp_path: Path) -> None:
     """Test seeding quests with list-based requirements."""
     quest_dir = tmp_path / "quests"

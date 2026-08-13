@@ -165,6 +165,7 @@ async def test_assign_quest_twice_updates_visibility(async_session: AsyncSession
 async def test_get_multi_for_vault(async_session: AsyncSession) -> None:
     """Test vault quests reveal only chain starters until their requirement completes."""
     from app.models.quest_requirement import QuestRequirement, RequirementType
+
     # Create user and vault
     user_data = create_fake_user()
     user_in = UserCreate(**user_data)

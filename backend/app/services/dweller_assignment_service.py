@@ -231,6 +231,7 @@ class DwellerAssignmentService:
         unassigned_query = (
             select(Dweller)
             .where(Dweller.vault_id == vault_id)
+            .where(Dweller.status == DwellerStatusEnum.IDLE)
             .where(Dweller.room_id.is_(None))
             .where(~Dweller.is_deleted)
             .where(~Dweller.is_dead)
@@ -314,6 +315,7 @@ class DwellerAssignmentService:
         unassigned_query = (
             select(Dweller)
             .where(Dweller.vault_id == vault_id)
+            .where(Dweller.status == DwellerStatusEnum.IDLE)
             .where(Dweller.room_id.is_(None))
             .where(~Dweller.is_deleted)
             .where(~Dweller.is_dead)

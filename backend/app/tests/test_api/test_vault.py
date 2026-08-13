@@ -245,6 +245,91 @@ async def test_auto_assign_all_rooms_basic(
 
 
 @pytest.mark.asyncio
+async def test_auto_assign_only_selects_idle_unassigned_dwellers(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+):
+    """Busy dwellers without a room must not be pulled into automatic assignment."""
+    from app.models.room import RoomTypeEnum, SPECIALEnum
+    from app.schemas.common import DwellerStatusEnum
+    from app.schemas.dweller import DwellerCreate
+    from app.schemas.room import RoomCreate
+
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault = await crud.vault.create(async_session, VaultCreateWithUserID(**vault_data))
+    room = await crud.room.create(
+        async_session,
+        RoomCreate(
+            name="Power Generator",
+            vault_id=vault.id,
+            category=RoomTypeEnum.PRODUCTION,
+            ability=SPECIALEnum.STRENGTH,
+            population_required=12,
+            base_cost=100,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            tier=1,
+            size=3,
+            size_min=3,
+            size_max=9,
+        ),
+    )
+
+    idle_dweller = await crud.dweller.create(
+        async_session,
+        DwellerCreate(
+            first_name="Available",
+            last_name="Dweller",
+            vault_id=vault.id,
+            gender="male",
+            rarity="common",
+            strength=5,
+            perception=3,
+            endurance=3,
+            charisma=3,
+            intelligence=3,
+            agility=3,
+            luck=3,
+            status=DwellerStatusEnum.IDLE,
+        ),
+    )
+    exploring_dweller = await crud.dweller.create(
+        async_session,
+        DwellerCreate(
+            first_name="Busy",
+            last_name="Explorer",
+            vault_id=vault.id,
+            gender="female",
+            rarity="common",
+            strength=5,
+            perception=3,
+            endurance=3,
+            charisma=3,
+            intelligence=3,
+            agility=3,
+            luck=3,
+            status=DwellerStatusEnum.EXPLORING,
+        ),
+    )
+
+    response = await async_client.post(
+        f"/vaults/{vault.id}/dwellers/auto-assign-all",
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["assignments"] == [
+        {"dweller_id": str(idle_dweller.id), "room_id": str(room.id), "room_name": room.name}
+    ]
+    await async_session.refresh(exploring_dweller)
+    assert exploring_dweller.room_id is None
+    assert exploring_dweller.status == DwellerStatusEnum.EXPLORING
+
+
+@pytest.mark.asyncio
 async def test_auto_assign_respects_room_capacity(
     async_client: AsyncClient,
     async_session: AsyncSession,

@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
@@ -77,6 +77,57 @@ async def test_complete_training(
     await async_session.refresh(dweller)
     assert dweller.strength == initial_strength + 1
     assert dweller.status == DwellerStatusEnum.IDLE
+
+
+@pytest.mark.asyncio
+async def test_unassigning_a_training_dweller_cancels_active_session(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """Unassigning must cancel training so the dweller can start another session."""
+    room = await crud.room.create(
+        async_session,
+        RoomCreate(
+            name="Weight Room",
+            vault_id=vault.id,
+            category=RoomTypeEnum.TRAINING,
+            tier=1,
+            size=2,
+            capacity=6,
+            ability=SPECIALEnum.STRENGTH,
+            base_cost=1000,
+            t2_upgrade_cost=2500,
+            t3_upgrade_cost=5000,
+            size_min=1,
+            size_max=3,
+        ),
+    )
+    dweller.status = DwellerStatusEnum.IDLE
+    dweller.strength = 5
+    async_session.add(dweller)
+    await async_session.commit()
+
+    start_response = await async_client.post(
+        "/training/start",
+        params={"dweller_id": str(dweller.id), "room_id": str(room.id)},
+        headers=superuser_token_headers,
+    )
+    assert start_response.status_code == 201
+    training_id = start_response.json()["id"]
+
+    response = await async_client.put(
+        f"/dwellers/{dweller.id}",
+        json={"room_id": None},
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == DwellerStatusEnum.IDLE.value
+    training = await crud.training.training.get(async_session, UUID(training_id))
+    assert training.status == TrainingStatus.CANCELLED
 
 
 @pytest.mark.asyncio

@@ -14,6 +14,7 @@ const { management: dwellerStore } = useDwellerStore()
 const authStore = useAuthStore()
 
 const unassigningAll = ref(false)
+const autoAssigningProduction = ref(false)
 const autoAssigning = ref(false)
 const showConfirmDialog = ref(false)
 
@@ -26,6 +27,17 @@ const handleUnassignAll = async () => {
   } finally {
     unassigningAll.value = false
     showConfirmDialog.value = false
+  }
+}
+
+const handleAutoAssignProduction = async () => {
+  if (!authStore.token) return
+
+  autoAssigningProduction.value = true
+  try {
+    await dwellerStore.autoAssignProductionDwellers(props.vaultId, authStore.token)
+  } finally {
+    autoAssigningProduction.value = false
   }
 }
 
@@ -43,14 +55,24 @@ const handleAutoAssignAll = async () => {
 
 <template>
   <div class="bulk-actions-toolbar">
-    <UButton variant="danger" size="sm" @click="showConfirmDialog = true" :loading="unassigningAll">
-      <Icon icon="mdi:account-remove" class="h-4 w-4 mr-2" />
-      Unassign All Dwellers
+    <UButton
+      variant="secondary"
+      size="sm"
+      @click="handleAutoAssignProduction"
+      :loading="autoAssigningProduction"
+    >
+      <Icon icon="mdi:factory" class="h-4 w-4 mr-2" />
+      Auto-Assign Production
     </UButton>
 
     <UButton variant="primary" size="sm" @click="handleAutoAssignAll" :loading="autoAssigning">
       <Icon icon="mdi:auto-mode" class="h-4 w-4 mr-2" />
       Auto-Assign All Rooms
+    </UButton>
+
+    <UButton variant="danger" size="sm" @click="showConfirmDialog = true" :loading="unassigningAll">
+      <Icon icon="mdi:account-remove" class="h-4 w-4 mr-2" />
+      Unassign All Dwellers
     </UButton>
 
     <!-- Confirmation Dialog -->

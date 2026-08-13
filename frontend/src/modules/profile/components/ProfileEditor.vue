@@ -1,108 +1,128 @@
 <template>
   <div
-    class="bg-gray-800 rounded-lg p-6 border"
-    :style="{ borderColor: 'rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3)' }"
+    class="profile-editor rounded-lg border border-theme-primary/30 bg-stone-900 p-5 shadow-lg sm:p-6"
   >
-    <h2 class="text-2xl font-bold mb-6" :style="{ color: 'var(--color-theme-primary)' }">
-      Edit Profile
-    </h2>
+    <header class="mb-6 border-b border-stone-700/80 pb-5">
+      <p class="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-theme-primary">
+        Vault Personnel Record
+      </p>
+      <h2 class="text-2xl font-bold tracking-tight text-stone-100">Edit Profile</h2>
+      <p class="mt-2 max-w-xl text-sm leading-6 text-stone-400">
+        Update the details other vault dwellers see when they visit your profile.
+      </p>
+    </header>
 
-    <form @submit.prevent="handleSubmit" class="space-y-4">
-      <!-- Bio -->
-      <div>
-        <label for="bio" class="block text-sm font-medium text-gray-300 mb-2"> Bio </label>
+    <form class="space-y-5" @submit.prevent="handleSubmit">
+      <div class="space-y-2">
+        <div class="flex items-baseline justify-between gap-4">
+          <label for="bio" class="text-sm font-semibold text-stone-200">Bio</label>
+          <span class="text-xs tabular-nums text-stone-500">
+            {{ formData.bio?.length || 0 }} / 500 characters
+          </span>
+        </div>
         <textarea
           id="bio"
           v-model="formData.bio"
           rows="4"
           maxlength="500"
-          class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-          placeholder="Tell us about yourself..."
+          class="w-full rounded-md border border-theme-primary/30 bg-black/40 px-3 py-2.5 text-sm leading-6 text-stone-100 placeholder:text-stone-500 transition-colors focus:border-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-primary/25"
+          placeholder="Share a little about yourself..."
         />
-        <p class="text-xs text-gray-400 mt-1">{{ formData.bio?.length || 0 }} / 500 characters</p>
+        <p class="text-xs leading-5 text-stone-500">
+          A short introduction for your fellow dwellers.
+        </p>
       </div>
 
-      <!-- Avatar URL -->
-      <div>
-        <label for="avatar_url" class="block text-sm font-medium text-gray-300 mb-2">
-          Avatar URL
-        </label>
+      <div class="space-y-2">
+        <label for="avatar_url" class="block text-sm font-semibold text-stone-200"
+          >Avatar image</label
+        >
         <input
           id="avatar_url"
           v-model="formData.avatar_url"
           type="url"
           maxlength="255"
-          class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          class="w-full rounded-md border border-theme-primary/30 bg-black/40 px-3 py-2.5 text-sm text-stone-100 placeholder:text-stone-500 transition-colors focus:border-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-primary/25"
           placeholder="https://example.com/avatar.jpg"
         />
+        <p class="text-xs leading-5 text-stone-500">
+          Use a direct link to a square image for the best result.
+        </p>
       </div>
 
-      <!-- Avatar Preview -->
-      <div v-if="formData.avatar_url" class="flex justify-center">
+      <figure
+        v-if="formData.avatar_url"
+        class="flex items-center gap-4 rounded-md border border-stone-700 bg-black/20 p-3"
+      >
         <img
           :src="formData.avatar_url"
           alt="Avatar preview"
-          class="w-32 h-32 rounded-full border-2 object-cover"
-          :style="{ borderColor: 'var(--color-theme-primary)' }"
+          class="h-16 w-16 rounded-full border-2 border-theme-primary/70 object-cover shadow-[0_0_12px_var(--color-theme-glow)]"
           @error="handleImageError"
         />
-      </div>
+        <figcaption>
+          <p class="text-sm font-semibold text-stone-200">Avatar preview</p>
+          <p class="mt-1 text-xs leading-5 text-stone-500">
+            This is how your image will appear on your profile.
+          </p>
+        </figcaption>
+      </figure>
 
-      <!-- Theme Selector -->
-      <div>
-        <label for="theme" class="block text-sm font-medium text-gray-300 mb-2">
-          Preferred Theme
-        </label>
+      <div class="space-y-2">
+        <label for="theme" class="block text-sm font-semibold text-stone-200"
+          >Preferred theme</label
+        >
         <select
           id="theme"
           v-model="selectedTheme"
-          class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          class="w-full rounded-md border border-theme-primary/30 bg-black/40 px-3 py-2.5 text-sm text-stone-100 transition-colors focus:border-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-primary/25"
         >
           <option v-for="theme in availableThemes" :key="theme.name" :value="theme.name">
             {{ theme.displayName }}
           </option>
         </select>
-        <p class="text-xs text-gray-400 mt-1">
-          {{ currentThemeDescription }}
-        </p>
+        <p class="text-xs leading-5 text-stone-500">{{ currentThemeDescription }}</p>
       </div>
 
-      <!-- Preferences (JSON editor) -->
-      <div>
-        <label for="preferences" class="block text-sm font-medium text-gray-300 mb-2">
-          Preferences (JSON)
+      <div class="space-y-2">
+        <label for="preferences" class="block text-sm font-semibold text-stone-200">
+          Preferences <span class="font-normal text-stone-500">(JSON)</span>
         </label>
         <textarea
           id="preferences"
           v-model="preferencesJson"
           rows="6"
-          class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent font-mono text-sm"
+          class="w-full rounded-md border border-theme-primary/30 bg-black/40 px-3 py-2.5 font-mono text-sm leading-6 text-stone-100 placeholder:text-stone-500 transition-colors focus:border-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-primary/25"
           placeholder='{"theme": "dark", "notifications": true}'
         />
-        <p v-if="jsonError" class="text-xs text-red-500 mt-1">
+        <p class="text-xs leading-5 text-stone-500">
+          Advanced settings are saved alongside your selected theme.
+        </p>
+        <p v-if="jsonError" class="text-xs font-medium text-danger" role="alert">
           {{ jsonError }}
         </p>
       </div>
 
-      <!-- Error Message -->
-      <div v-if="error" class="text-red-500 text-sm">
+      <div
+        v-if="error"
+        class="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-red-300"
+        role="alert"
+      >
         {{ error }}
       </div>
 
-      <!-- Action Buttons -->
-      <div class="flex gap-3 pt-4">
+      <div class="flex flex-col gap-3 border-t border-stone-700/80 pt-5 sm:flex-row">
         <button
           type="submit"
           :disabled="loading"
-          class="flex-1 text-black font-semibold py-2 px-4 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
-          :style="{ backgroundColor: 'var(--color-theme-primary)' }"
+          class="flex-1 rounded-md bg-theme-primary px-4 py-2.5 text-sm font-bold text-black transition-colors hover:bg-theme-primary/90 focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-stone-900 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {{ loading ? 'Saving...' : 'Save Changes' }}
         </button>
         <button
           type="button"
+          class="flex-1 rounded-md border border-stone-600 bg-black/20 px-4 py-2.5 text-sm font-semibold text-stone-200 transition-colors hover:border-stone-500 hover:bg-stone-800 focus:outline-none focus:ring-2 focus:ring-theme-primary/50 focus:ring-offset-2 focus:ring-offset-stone-900"
           @click="$emit('cancel')"
-          class="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded transition-colors"
         >
           Cancel
         </button>

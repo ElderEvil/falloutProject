@@ -237,6 +237,42 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     }
   }
 
+  async function autoAssignProductionDwellers(
+    vaultId: string,
+    token: string
+  ): Promise<{ assigned_count: number; assignments: any[] } | null> {
+    try {
+      const response = await axios.post<{ assigned_count: number; assignments: any[] }>(
+        `/api/v1/vaults/${vaultId}/dwellers/auto-assign-production`,
+        null,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      // Refetch dwellers to update UI
+      await filterStore.fetchDwellersByVault(vaultId, token)
+
+      toast.success(`Assigned ${response.data.assigned_count} dwellers to production rooms!`)
+      return response.data
+    } catch (error: unknown) {
+      const errorMessage =
+        (
+          error as {
+            response?: { data?: { detail?: string } }
+          }
+        )?.response?.data?.detail || 'Failed to auto-assign dwellers to production rooms'
+      handleStoreError(
+        error,
+        `Failed to auto-assign dwellers to production rooms for vault ${vaultId}`
+      )
+      toast.error(errorMessage)
+      return null
+    }
+  }
+
   async function autoAssignAllDwellers(
     vaultId: string,
     token: string
@@ -277,6 +313,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     renameDweller,
     updateVisualAttributes,
     unassignAllDwellers,
+    autoAssignProductionDwellers,
     autoAssignAllDwellers,
   }
 })

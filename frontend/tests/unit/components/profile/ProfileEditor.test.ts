@@ -23,6 +23,18 @@ describe('ProfileEditor', () => {
       expect(wrapper.find('#preferences').exists()).toBe(true)
     })
 
+    it('uses a warm terminal editor surface with terminal-themed fields', () => {
+      const wrapper = mount(ProfileEditor, {
+        props: {
+          initialData: mockInitialData,
+        },
+      })
+
+      expect(wrapper.find('.profile-editor').classes()).toContain('bg-stone-900')
+      expect(wrapper.find('#bio').classes()).toContain('bg-black/40')
+      expect(wrapper.find('#bio').classes()).toContain('border-theme-primary/30')
+    })
+
     it('should populate fields with initial data', () => {
       const wrapper = mount(ProfileEditor, {
         props: {

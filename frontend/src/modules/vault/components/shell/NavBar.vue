@@ -135,7 +135,7 @@ onUnmounted(() => {
           <button
             @click="toggleDropdown"
             @keydown.escape="closeDropdown"
-            class="text-[var(--color-theme-primary)] hover:underline hover:bg-[var(--color-surface-raised)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--color-surface-warm)] rounded px-2 py-1 border-2 border-[var(--color-theme-primary)]/30"
+            class="text-[var(--color-theme-primary)] hover:underline hover:bg-theme-primary/10 focus:outline-none focus:ring-2 focus:ring-[var(--color-theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--color-surface-warm)] rounded px-2 py-1 border-2 border-[var(--color-theme-primary)]/30"
             :aria-expanded="isDropdownOpen"
             aria-haspopup="true"
             :aria-label="`User menu for ${user?.username || 'user'}`"
@@ -172,7 +172,7 @@ onUnmounted(() => {
                 transition: { delay: 50 },
               }"
               to="/profile"
-              class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-gray-900 focus:outline-none focus:bg-gray-900 transition-colors"
+              class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
               role="menuitem"
               aria-label="View profile"
               @click="isDropdownOpen = false"
@@ -189,7 +189,7 @@ onUnmounted(() => {
                 transition: { delay: 100 },
               }"
               to="/preferences"
-              class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-gray-900 focus:outline-none focus:bg-gray-900 transition-colors"
+              class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
               role="menuitem"
               aria-label="Display preferences"
               @click="isDropdownOpen = false"
@@ -206,7 +206,7 @@ onUnmounted(() => {
                 transition: { delay: 150 },
               }"
               to="/settings"
-              class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-gray-900 focus:outline-none focus:bg-gray-900 transition-colors"
+              class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
               role="menuitem"
               aria-label="Settings"
               @click="isDropdownOpen = false"
@@ -223,7 +223,7 @@ onUnmounted(() => {
                 transition: { delay: 200 },
               }"
               to="/about"
-              class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-gray-900 focus:outline-none focus:bg-gray-900 transition-colors"
+              class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
               role="menuitem"
               aria-label="About this application"
               @click="isDropdownOpen = false"
@@ -240,7 +240,7 @@ onUnmounted(() => {
                 transition: { delay: 200 },
               }"
               to="/changelog"
-              class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-gray-900 focus:outline-none focus:bg-gray-900 transition-colors"
+              class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
               role="menuitem"
               aria-label="View changelog"
               @click="isDropdownOpen = false"
@@ -258,7 +258,7 @@ onUnmounted(() => {
                 transition: { delay: 250 },
               }"
               @click="logout"
-              class="block w-full px-4 py-2 text-left text-[var(--color-theme-primary)] hover:bg-gray-900 focus:outline-none focus:bg-gray-900 rounded-b transition-colors"
+              class="block w-full px-4 py-2 text-left text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 rounded-b transition-colors"
               role="menuitem"
               aria-label="Logout"
             >

@@ -695,6 +695,9 @@ class TestExplorationActions:
         chat_dweller: Dweller,
     ):
         """Test that explicit training requests suggest start_training action."""
+        chat_dweller.strength = 5
+        async_session.add(chat_dweller)
+        await async_session.commit()
         room = await crud.room.create(
             async_session,
             RoomCreate(

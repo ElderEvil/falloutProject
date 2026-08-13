@@ -42,10 +42,23 @@ def parse_args() -> argparse.Namespace:
 def failure(response: httpx.Response, step: str) -> RuntimeError:
     """Create a concise error without printing credentials or access tokens."""
     try:
-        detail: Any = response.json().get("detail", response.text)
-    except ValueError:
+        detail: Any = response_json_object(response, step).get("detail", response.text)
+    except RuntimeError:
         detail = response.text
     return RuntimeError(f"{step} failed with HTTP {response.status_code}: {str(detail)[:500]}")
+
+
+def response_json_object(response: httpx.Response, step: str) -> dict[str, Any]:
+    """Parse an endpoint response as a JSON object with a controlled failure message."""
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        raise RuntimeError(f"{step} returned invalid JSON") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError(  # ruff: ignore[type-check-without-type-error] - main deliberately reports failures uniformly.
+            f"{step} returned JSON {type(payload).__name__}; expected an object"
+        )
+    return payload
 
 
 async def run_check(args: argparse.Namespace) -> dict[str, Any]:
@@ -72,8 +85,8 @@ async def run_check(args: argparse.Namespace) -> dict[str, Any]:
         )
         if login.is_error:
             raise failure(login, "Default-user login")
-        token = login.json().get("access_token")
-        if not token:
+        token = response_json_object(login, "Default-user login").get("access_token")
+        if not isinstance(token, str) or not token:
             raise RuntimeError("Default-user login succeeded but did not return an access token")
         summary["login_status"] = login.status_code
 
@@ -98,7 +111,7 @@ async def run_check(args: argparse.Namespace) -> dict[str, Any]:
         )
         if chat.is_error:
             raise failure(chat, "Gateway chat API check")
-        payload = chat.json()
+        payload = response_json_object(chat, "Gateway chat API check")
         response_text = payload.get("response", "")
         summary.update(
             chat_checked=True,

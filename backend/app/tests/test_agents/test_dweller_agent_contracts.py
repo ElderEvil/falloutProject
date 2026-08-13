@@ -13,8 +13,11 @@ from app.agents.dweller_chat_agent import (
     DwellerChatDeps,
     DwellerChatOutput,
     dweller_chat_agent,
+    parse_action_suggestion,
     validate_dweller_chat_output,
 )
+from app.schemas.chat import NoAction
+from app.schemas.common import SPECIALEnum
 
 
 def _make_dweller() -> MagicMock:
@@ -171,6 +174,56 @@ async def test_test_model_invokes_activity_briefing_before_activity_suggestion()
 
     mock_briefing.assert_awaited_once_with(deps)
     assert result.usage.tool_calls == 1
+
+
+@pytest.mark.asyncio
+async def test_activity_suggestion_is_rejected_when_fresh_state_conflicts() -> None:
+    """A stale model suggestion cannot emit a start-exploration card after exploration begins."""
+    dweller = _make_dweller()
+    dweller.id = uuid4()
+    dweller.vault_id = uuid4()
+    output = _output(action_type="start_exploration", action_duration_hours=4)
+    briefing = DwellerActivityBriefing(
+        exploration_active=True,
+        available_stimpaks=2,
+        available_radaways=1,
+        exploration_blocker="Already exploring; suggest recall instead of another expedition.",
+    )
+
+    with patch(
+        "app.agents.dweller_chat_agent.build_dweller_activity_briefing",
+        new_callable=AsyncMock,
+        return_value=briefing,
+    ):
+        result = await parse_action_suggestion(output, MagicMock(), dweller)
+
+    assert isinstance(result, NoAction)
+    assert result.reason == briefing.exploration_blocker
+
+
+@pytest.mark.asyncio
+async def test_training_suggestion_requires_a_fresh_matching_training_option() -> None:
+    """The server rejects a model-selected stat when no matching room remains available."""
+    dweller = _make_dweller()
+    dweller.id = uuid4()
+    dweller.vault_id = uuid4()
+    output = _output(action_type="start_training", action_stat=SPECIALEnum.STRENGTH)
+    briefing = DwellerActivityBriefing(
+        exploration_active=False,
+        available_stimpaks=2,
+        available_radaways=1,
+        training_blocker="No available training room can improve this dweller right now.",
+    )
+
+    with patch(
+        "app.agents.dweller_chat_agent.build_dweller_activity_briefing",
+        new_callable=AsyncMock,
+        return_value=briefing,
+    ):
+        result = await parse_action_suggestion(output, MagicMock(), dweller)
+
+    assert isinstance(result, NoAction)
+    assert result.reason == briefing.training_blocker
 
 
 @pytest.mark.asyncio

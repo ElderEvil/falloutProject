@@ -367,7 +367,9 @@ async def build_dweller_activity_briefing(deps: DwellerChatDeps) -> DwellerActiv
     from app.services.training_service import training_service
 
     active_training = await training_crud.training.get_active_by_dweller(deps.db_session, deps.dweller.id)
-    active_exploration = await exploration_crud.exploration.get_by_dweller(deps.db_session, dweller_id=deps.dweller.id)
+    active_exploration = await exploration_crud.get_by_dweller(
+        deps.db_session, dweller_id=deps.dweller.id
+    )
     storage_result = await deps.db_session.execute(select(Storage).where(Storage.vault_id == deps.vault_id))
     storage = storage_result.scalar_one_or_none()
     available_stimpaks = (storage.stimpack if storage else 0) + deps.dweller.stimpack
@@ -492,6 +494,7 @@ async def parse_action_suggestion(
     Policy enforcement:
     - Training actions are only suggested for non-neutral sentiment (sentiment_score != 0)
     - Neutral messages should not suggest training, even if agent suggests it
+    - Activity actions are re-checked against current server state before an action card is emitted
     """
     if output.action_type == "assign_to_room" and output.action_room_id and output.action_room_name:
         return AssignToRoomAction(
@@ -503,15 +506,33 @@ async def parse_action_suggestion(
         # Policy: Filter out training actions for neutral sentiment
         if output.sentiment_score == 0:
             return NoAction(reason="Training not suggested for neutral messages")
+        briefing = await build_dweller_activity_briefing(
+            DwellerChatDeps(db_session=db_session, dweller=dweller, vault_id=dweller.vault_id)
+        )
+        if briefing.active_training_stat:
+            return NoAction(reason=briefing.training_blocker)
+        if not any(option.stat == output.action_stat for option in briefing.training_options):
+            return NoAction(reason=briefing.training_blocker or "No room is available for that training right now.")
         return StartTrainingAction(
             stat=output.action_stat,
             reason=output.action_reason or "Based on conversation context",
         )
     if output.action_type == "start_exploration":
-        # Honor agent suggestions when provided, fall back to defaults, clamp against constraints & inventory
-        duration = min(max(1, output.action_duration_hours or 4), 24)
-        stimpaks = min(dweller.stimpack, max(0, output.action_stimpaks or 2))
-        radaways = min(dweller.radaway, max(0, output.action_radaways or 1))
+        briefing = await build_dweller_activity_briefing(
+            DwellerChatDeps(db_session=db_session, dweller=dweller, vault_id=dweller.vault_id)
+        )
+        if briefing.exploration_active:
+            return NoAction(reason=briefing.exploration_blocker)
+        # Use current vault + dweller supplies. The exploration service re-checks these values at mutation time.
+        duration = min(max(1, output.action_duration_hours or briefing.recommended_exploration_duration_hours or 4), 24)
+        stimpaks = min(
+            briefing.available_stimpaks,
+            max(0, output.action_stimpaks if output.action_stimpaks is not None else briefing.recommended_stimpaks or 0),
+        )
+        radaways = min(
+            briefing.available_radaways,
+            max(0, output.action_radaways if output.action_radaways is not None else briefing.recommended_radaways or 0),
+        )
         return StartExplorationAction(
             duration_hours=duration,
             stimpaks=stimpaks,
@@ -519,7 +540,12 @@ async def parse_action_suggestion(
             reason=output.action_reason or "Ready for wasteland exploration",
         )
     if output.action_type == "recall_exploration":
-        # Deterministic enrichment: query active exploration from DB
+        briefing = await build_dweller_activity_briefing(
+            DwellerChatDeps(db_session=db_session, dweller=dweller, vault_id=dweller.vault_id)
+        )
+        if not briefing.exploration_active:
+            return NoAction(reason="Dweller is not currently exploring the wasteland")
+        # Deterministic enrichment: re-query immediately before emitting the actionable exploration ID.
         from app.crud.exploration import exploration as exploration_crud
 
         active_exploration = await exploration_crud.get_by_dweller(db_session, dweller_id=dweller.id)

@@ -90,16 +90,19 @@ class AIService:
         if not settings.PYDANTIC_AI_GATEWAY_API_KEY:
             return
         try:
-            provider = gateway_provider(
-                settings.AI_PROVIDER,
-                api_key=settings.PYDANTIC_AI_GATEWAY_API_KEY,
-            )
+            gateway_options = {"api_key": settings.PYDANTIC_AI_GATEWAY_API_KEY}
+            if settings.PYDANTIC_AI_GATEWAY_ROUTE:
+                gateway_options["route"] = settings.PYDANTIC_AI_GATEWAY_ROUTE
+            if settings.PYDANTIC_AI_GATEWAY_BASE_URL:
+                gateway_options["base_url"] = settings.PYDANTIC_AI_GATEWAY_BASE_URL
+            provider = gateway_provider(settings.AI_PROVIDER, **gateway_options)
             self._model = OpenAIChatModel(
                 model_name=settings.AI_MODEL,
                 provider=provider,
             )
             self._using_gateway = True
-            logger.info(f"AI initialized via Gateway ({settings.AI_PROVIDER}/{settings.AI_MODEL})")
+            route_suffix = f" via {settings.PYDANTIC_AI_GATEWAY_ROUTE}" if settings.PYDANTIC_AI_GATEWAY_ROUTE else ""
+            logger.info(f"AI initialized via Gateway ({settings.AI_PROVIDER}/{settings.AI_MODEL}){route_suffix}")
             # For OpenAI-specific features, still need direct client
             if settings.OPENAI_API_KEY:
                 self._client = openai.Client(api_key=settings.OPENAI_API_KEY)
@@ -345,17 +348,17 @@ class AIService:
             raise RuntimeError("AI model not configured")
         from pydantic_ai import Agent
 
-        system_prompt = None
+        instructions = None
         user_messages = []
         for msg in messages:
             if msg["role"] == "system":
-                system_prompt = msg["content"]
+                instructions = msg["content"]
             elif msg["role"] == "user":
                 user_messages.append(msg["content"])
 
         user_input = "\n".join(user_messages) if user_messages else ""
 
-        agent = Agent(model=self._model, system_prompt=system_prompt) if system_prompt else Agent(model=self._model)
+        agent = Agent(model=self._model, instructions=instructions) if instructions else Agent(model=self._model)
         result = await agent.run(user_input)
 
         try:

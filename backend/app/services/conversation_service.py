@@ -28,8 +28,8 @@ from app.schemas.chat import ActionSuggestion, NoAction
 from app.schemas.common import GenderEnum
 from app.schemas.happiness import HappinessImpact, HappinessReasonCode
 from app.schemas.llm_interaction import LLMInteractionCreate
+from app.services.ai_service import get_ai_service
 from app.services.chat_happiness_service import apply_chat_happiness
-from app.services.open_ai import get_ai_service
 from app.services.quota_service import quota_service
 from app.services.storage import get_storage_client
 from app.utils.exceptions import DwellerNotFoundError, QuotaExceededException

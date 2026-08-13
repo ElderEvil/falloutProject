@@ -9,8 +9,8 @@ Complete guide for deploying Fallout Shelter in various environments.
 docker compose up -d
 # Access: http://localhost:5173
 
-# TrueNAS staging
-# See docs/deployment/TRUENAS_SETUP.md
+# Production (Hetzner K3s)
+# Push a verified release, then run the "Deploy to Hetzner" GitHub Actions workflow.
 ```
 
 ## Deployment Options
@@ -19,7 +19,8 @@ docker compose up -d
 |-------------|--------------|-------------|
 | Local Dev | `docker-compose.yml` | Hot reload, Mailpit, debug logging |
 | Local Full | `docker-compose.local.yml` | Full stack local testing |
-| TrueNAS | [examples/docker-compose.truenas.yml](examples/docker-compose.truenas.yml) | Staging/production on TrueNAS |
+| Hetzner Production | `deployment/k3s/` | K3s deployments updated by the GitHub Actions workflow |
+| TrueNAS (legacy) | [examples/docker-compose.truenas.yml](examples/docker-compose.truenas.yml) | Retained as a historical staging template |
 
 ## Local Development
 
@@ -56,7 +57,41 @@ docker compose down
 | Dramatiq Worker | (background tasks) |
 | Mailpit | http://localhost:8025 |
 
-## TrueNAS Staging
+## Hetzner Production
+
+The `backend` and `dramatiq-worker` deployments in the `fallout` namespace load environment variables from the
+`backend-env` Kubernetes Secret. Deployment images are updated by the **Deploy to Hetzner** GitHub Actions workflow.
+
+### Release Preflight
+
+1. Confirm the backend/frontend manifests, backend lockfile, and changelog have the same release version.
+2. Build and publish the backend and frontend images for that version.
+3. Confirm `backend-env` has all existing required application secrets plus these AI variables when Gateway is used:
+
+   ```text
+   PYDANTIC_AI_GATEWAY_API_KEY
+   PYDANTIC_AI_GATEWAY_ROUTE
+   PYDANTIC_AI_GATEWAY_BASE_URL
+   OPENAI_API_KEY
+   AI_PROVIDER
+   AI_MODEL
+   ```
+
+4. Leave RustFS variables unset if storage is intentionally unavailable; the backend now starts without it. Configure
+   them when media uploads are required.
+5. Run the **Deploy to Hetzner** workflow with the versioned backend image tag and migrations enabled when applicable.
+6. Confirm rollout and health after deployment:
+
+   ```bash
+   kubectl -n fallout rollout status deployment/backend deployment/dramatiq-worker
+   kubectl -n fallout get pods
+   kubectl -n fallout logs deployment/backend --tail=100
+   ```
+
+The Gateway-specific secret patch and API verification steps are documented in
+[Pydantic AI Gateway Setup](backend/PYDANTIC_AI_GATEWAY.md).
+
+## TrueNAS Staging (Legacy)
 
 **Complete Guide:** [deployment/TRUENAS_SETUP.md](deployment/TRUENAS_SETUP.md)
 
@@ -103,7 +138,7 @@ POSTGRES_USER=postgres
 POSTGRES_DB=fallout_db
 ```
 
-**URLs (for TrueNAS/production):**
+**URLs (for Hetzner/production):**
 ```bash
 FRONTEND_URL=https://fallout.evillab.dev
 API_URL=https://fallout-api.evillab.dev
@@ -111,17 +146,41 @@ API_URL=https://fallout-api.evillab.dev
 
 **AI Provider:**
 ```bash
-AI_PROVIDER=openai      # or: anthropic, ollama
+PYDANTIC_AI_GATEWAY_API_KEY=... # Recommended: routes chat and Pydantic AI agents through Gateway
+PYDANTIC_AI_GATEWAY_ROUTE=...   # Optional custom Gateway provider or routing-group identifier
+PYDANTIC_AI_GATEWAY_BASE_URL=... # Regional Gateway proxy, e.g. https://gateway-eu.pydantic.dev/proxy
+AI_PROVIDER=openai               # or: anthropic, ollama
 AI_MODEL=gpt-4o
-OPENAI_API_KEY=sk-...
+OPENAI_API_KEY=sk-...            # Still required for OpenAI image generation, TTS, and Whisper
 ```
+
+The Gateway key is used for chat/text model traffic only. Direct OpenAI access remains intentionally configured for
+the native image and audio APIs; do not remove `OPENAI_API_KEY` if those features are enabled.
+
+For the complete provider, local verification, Logfire, and Hetzner procedure, see
+[Pydantic AI Gateway Setup](backend/PYDANTIC_AI_GATEWAY.md).
+
+**Activation:**
+
+- **Local:** add `PYDANTIC_AI_GATEWAY_API_KEY` to `backend/.env`, then restart the backend.
+- **Hetzner:** the Kubernetes backend reads the `backend-env` Secret in the `fallout` namespace. Add the Gateway key
+  without replacing existing secret values, then restart the backend and worker deployments:
+
+  ```bash
+  kubectl -n fallout patch secret backend-env --type merge \
+    -p '{"stringData":{"PYDANTIC_AI_GATEWAY_API_KEY":"<gateway-key>","PYDANTIC_AI_GATEWAY_ROUTE":"<route>","PYDANTIC_AI_GATEWAY_BASE_URL":"<regional-proxy-url>"}}'
+  kubectl -n fallout rollout restart deployment/backend deployment/dramatiq-worker
+  ```
+
+  Configure the selected upstream provider/model in Pydantic AI Gateway before enabling the key. The backend will log
+  `AI initialized via Gateway (<provider>/<model>)` after a successful rollout.
 
 ### Environment Files
 
 | File | Purpose |
 |------|---------|
 | `.env.example` | Development template |
-| `docs/examples/.env.staging.example` | TrueNAS/staging template |
+| `docs/examples/.env.staging.example` | Legacy TrueNAS/staging template |
 | `.env` | Your local config (never commit!) |
 
 ### Docker vs Native Services

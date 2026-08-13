@@ -15,8 +15,8 @@ from app.models.base import SPECIALModel
 from app.schemas.common import GenderEnum
 from app.schemas.dweller import DwellerReadFull, DwellerUpdate, DwellerVisualAttributes
 from app.schemas.llm_interaction import LLMInteractionCreate
+from app.services.ai_service import get_ai_service
 from app.services.map_service import map_service
-from app.services.open_ai import get_ai_service
 from app.services.quota_service import quota_service
 from app.services.storage import get_storage_client
 from app.utils.exceptions import ContentNoChangeException, QuotaExceededException
@@ -36,7 +36,7 @@ BIO_DB_MAX_LENGTH = 1_024  # matches Dweller.bio Field(max_length=1024)
 class DwellerAIService:
     def __init__(self):
         self.storage_service = get_storage_client()
-        self.open_ai_service = get_ai_service()
+        self.ai_service = get_ai_service()
 
     async def _register_map_places_best_effort(
         self,
@@ -312,7 +312,7 @@ class DwellerAIService:
             f"Dweller info: {dweller_obj.rarity} {dweller_obj.gender}"
             f"Dweller visual attributes: {dweller_obj.visual_attributes}"
         )
-        image_bytes = await self.open_ai_service.generate_image(prompt=prompt, return_bytes=True)
+        image_bytes = await self.ai_service.generate_image(prompt=prompt, return_bytes=True)
         image_url = await asyncio.to_thread(
             self.storage_service.upload_file,
             file_data=image_bytes,
@@ -378,7 +378,7 @@ class DwellerAIService:
             )
 
         try:
-            audio_bytes = await self.open_ai_service.generate_audio(text=text, voice=voice_type, model="tts-1")
+            audio_bytes = await self.ai_service.generate_audio(text=text, voice=voice_type, model="tts-1")
             if not len(audio_bytes):
                 logger.warning("Empty input")
         except (ValueError, RuntimeError) as e:

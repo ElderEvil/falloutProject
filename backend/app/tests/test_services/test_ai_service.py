@@ -1,4 +1,4 @@
-"""Tests for AI service (open_ai.py) — provider initialization, all public methods, error paths.
+"""Tests for AI service (ai_service.py) — provider initialization, all public methods, error paths.
 
 Mocks all external dependencies (OpenAI, Pydantic AI Gateway, Agent, etc.)
 to avoid real network calls. Uses singleton reset between test groups.
@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.services.open_ai import (
+from app.services.ai_service import (
     AIService,
     ChatCompletionResult,
     get_ai_service,
@@ -145,8 +145,8 @@ class TestInitializationDisabled:
     def test_disabled_mode_logs_warning(self) -> None:
         svc = _make_fresh_service()
         with (
-            patch("app.services.open_ai.settings") as mock_settings,
-            patch("app.services.open_ai.logger") as mock_logger,
+            patch("app.services.ai_service.settings") as mock_settings,
+            patch("app.services.ai_service.logger") as mock_logger,
         ):
             mock_settings.ai_provider_mode = "disabled"
             svc._initialize_provider()
@@ -163,10 +163,12 @@ class TestInitializationGateway:
     """Tests for gateway provider initialization."""
 
     def test_gateway_initializes_model_and_client(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.open_ai.settings.PYDANTIC_AI_GATEWAY_API_KEY", "gw-test-key")
-        monkeypatch.setattr("app.services.open_ai.settings.AI_PROVIDER", "openai")
-        monkeypatch.setattr("app.services.open_ai.settings.AI_MODEL", "gpt-4o")
-        monkeypatch.setattr("app.services.open_ai.settings.OPENAI_API_KEY", "sk-test-key")
+        monkeypatch.setattr("app.services.ai_service.settings.PYDANTIC_AI_GATEWAY_API_KEY", "gw-test-key")
+        monkeypatch.setattr("app.services.ai_service.settings.AI_PROVIDER", "openai")
+        monkeypatch.setattr("app.services.ai_service.settings.AI_MODEL", "gpt-4o")
+        monkeypatch.setattr("app.services.ai_service.settings.OPENAI_API_KEY", "sk-test-key")
+        monkeypatch.setattr("app.services.ai_service.settings.PYDANTIC_AI_GATEWAY_ROUTE", None)
+        monkeypatch.setattr("app.services.ai_service.settings.PYDANTIC_AI_GATEWAY_BASE_URL", None)
 
         mock_provider = MagicMock()
         mock_model = MagicMock()
@@ -174,9 +176,9 @@ class TestInitializationGateway:
 
         svc = _make_fresh_service()
         with (
-            patch("app.services.open_ai.gateway_provider", return_value=mock_provider) as mock_gw_provider,
-            patch("app.services.open_ai.OpenAIChatModel", return_value=mock_model) as mock_chat_model,
-            patch("app.services.open_ai.openai.Client", return_value=mock_client) as mock_openai_client,
+            patch("app.services.ai_service.gateway_provider", return_value=mock_provider) as mock_gw_provider,
+            patch("app.services.ai_service.OpenAIChatModel", return_value=mock_model) as mock_chat_model,
+            patch("app.services.ai_service.openai.Client", return_value=mock_client) as mock_openai_client,
         ):
             svc._initialize_gateway()
             assert svc._model is mock_model
@@ -187,18 +189,38 @@ class TestInitializationGateway:
             mock_openai_client.assert_called_once_with(api_key="sk-test-key")
 
     def test_gateway_skips_when_no_api_key(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.open_ai.settings.PYDANTIC_AI_GATEWAY_API_KEY", None)
-        monkeypatch.setattr("app.services.open_ai.settings.AI_PROVIDER", "openai")
+        monkeypatch.setattr("app.services.ai_service.settings.PYDANTIC_AI_GATEWAY_API_KEY", None)
+        monkeypatch.setattr("app.services.ai_service.settings.AI_PROVIDER", "openai")
         svc = _make_fresh_service()
         svc._model = "should_stay"
         svc._initialize_gateway()
         assert svc._model == "should_stay"
 
-    def test_gateway_handles_exception(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.open_ai.settings.PYDANTIC_AI_GATEWAY_API_KEY", "gw-test-key")
-        monkeypatch.setattr("app.services.open_ai.settings.AI_PROVIDER", "openai")
+    def test_gateway_uses_configured_custom_route(self, monkeypatch) -> None:
+        monkeypatch.setattr("app.services.ai_service.settings.PYDANTIC_AI_GATEWAY_API_KEY", "gw-test-key")
+        monkeypatch.setattr("app.services.ai_service.settings.PYDANTIC_AI_GATEWAY_ROUTE", "fallout-openai")
+        monkeypatch.setattr(
+            "app.services.ai_service.settings.PYDANTIC_AI_GATEWAY_BASE_URL",
+            "https://gateway-eu.pydantic.dev/proxy",
+        )
+        monkeypatch.setattr("app.services.ai_service.settings.AI_PROVIDER", "openai")
         svc = _make_fresh_service()
-        with patch("app.services.open_ai.gateway_provider", side_effect=Exception("connection error")):
+
+        with patch("app.services.ai_service.gateway_provider") as mock_gw_provider:
+            svc._initialize_gateway()
+
+        mock_gw_provider.assert_called_once_with(
+            "openai",
+            api_key="gw-test-key",
+            route="fallout-openai",
+            base_url="https://gateway-eu.pydantic.dev/proxy",
+        )
+
+    def test_gateway_handles_exception(self, monkeypatch) -> None:
+        monkeypatch.setattr("app.services.ai_service.settings.PYDANTIC_AI_GATEWAY_API_KEY", "gw-test-key")
+        monkeypatch.setattr("app.services.ai_service.settings.AI_PROVIDER", "openai")
+        svc = _make_fresh_service()
+        with patch("app.services.ai_service.gateway_provider", side_effect=Exception("connection error")):
             svc._initialize_gateway()
             assert svc._model is None
             assert svc._using_gateway is False
@@ -214,9 +236,9 @@ class TestInitializationDirect:
     """Tests for direct provider initialization (deprecated path)."""
 
     def test_direct_openai_initializes_model_and_client(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.open_ai.settings.AI_PROVIDER", "openai")
-        monkeypatch.setattr("app.services.open_ai.settings.OPENAI_API_KEY", "sk-test-key")
-        monkeypatch.setattr("app.services.open_ai.settings.AI_MODEL", "gpt-4o")
+        monkeypatch.setattr("app.services.ai_service.settings.AI_PROVIDER", "openai")
+        monkeypatch.setattr("app.services.ai_service.settings.OPENAI_API_KEY", "sk-test-key")
+        monkeypatch.setattr("app.services.ai_service.settings.AI_MODEL", "gpt-4o")
 
         mock_provider = MagicMock()
         mock_model = MagicMock()
@@ -224,10 +246,10 @@ class TestInitializationDirect:
 
         svc = _make_fresh_service()
         with (
-            patch("app.services.open_ai.openai.Client", return_value=mock_client),
+            patch("app.services.ai_service.openai.Client", return_value=mock_client),
             patch("pydantic_ai.providers.openai.OpenAIProvider", return_value=mock_provider),
-            patch("app.services.open_ai.OpenAIChatModel", return_value=mock_model),
-            patch("app.services.open_ai.warnings.warn") as mock_warn,
+            patch("app.services.ai_service.OpenAIChatModel", return_value=mock_model),
+            patch("app.services.ai_service.warnings.warn") as mock_warn,
         ):
             svc._initialize_direct_provider()
             assert svc._model is mock_model
@@ -236,38 +258,38 @@ class TestInitializationDirect:
             assert "deprecated" in str(mock_warn.call_args[0][0]).lower()
 
     def test_direct_openai_without_key_skips(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.open_ai.settings.AI_PROVIDER", "openai")
-        monkeypatch.setattr("app.services.open_ai.settings.OPENAI_API_KEY", None)
+        monkeypatch.setattr("app.services.ai_service.settings.AI_PROVIDER", "openai")
+        monkeypatch.setattr("app.services.ai_service.settings.OPENAI_API_KEY", None)
         svc = _make_fresh_service()
         svc._initialize_direct_provider()
         assert svc._model is None
         assert svc._client is None
 
     def test_direct_anthropic_with_key_raises(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.open_ai.settings.AI_PROVIDER", "anthropic")
-        monkeypatch.setattr("app.services.open_ai.settings.ANTHROPIC_API_KEY", "sk-ant-test")
+        monkeypatch.setattr("app.services.ai_service.settings.AI_PROVIDER", "anthropic")
+        monkeypatch.setattr("app.services.ai_service.settings.ANTHROPIC_API_KEY", "sk-ant-test")
         svc = _make_fresh_service()
         with pytest.raises(RuntimeError, match="Direct Anthropic API access is not supported"):
             svc._initialize_direct_provider()
 
     def test_direct_anthropic_without_key_logs_warning(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.open_ai.settings.AI_PROVIDER", "anthropic")
-        monkeypatch.setattr("app.services.open_ai.settings.ANTHROPIC_API_KEY", None)
+        monkeypatch.setattr("app.services.ai_service.settings.AI_PROVIDER", "anthropic")
+        monkeypatch.setattr("app.services.ai_service.settings.ANTHROPIC_API_KEY", None)
         svc = _make_fresh_service()
-        with patch("app.services.open_ai.logger") as mock_logger:
+        with patch("app.services.ai_service.logger") as mock_logger:
             svc._initialize_direct_provider()
             mock_logger.warning.assert_called_once()
 
     def test_direct_unknown_provider_logs_warning(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.open_ai.settings.AI_PROVIDER", "ollama")
+        monkeypatch.setattr("app.services.ai_service.settings.AI_PROVIDER", "ollama")
         svc = _make_fresh_service()
-        with patch("app.services.open_ai.logger") as mock_logger:
+        with patch("app.services.ai_service.logger") as mock_logger:
             svc._initialize_direct_provider()
             mock_logger.warning.assert_called_once()
 
     def test_direct_provider_emits_deprecation_warning(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.open_ai.settings.AI_PROVIDER", "openai")
-        monkeypatch.setattr("app.services.open_ai.settings.OPENAI_API_KEY", None)
+        monkeypatch.setattr("app.services.ai_service.settings.AI_PROVIDER", "openai")
+        monkeypatch.setattr("app.services.ai_service.settings.OPENAI_API_KEY", None)
         svc = _make_fresh_service()
         with pytest.warns(DeprecationWarning, match="Direct provider API keys are deprecated"):
             svc._initialize_direct_provider()
@@ -283,8 +305,8 @@ class TestInitializationOllama:
     """Tests for Ollama provider initialization."""
 
     def test_ollama_initializes_model(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.open_ai.settings.OLLAMA_BASE_URL", "http://localhost:11434/v1")
-        monkeypatch.setattr("app.services.open_ai.settings.AI_MODEL", "llama2")
+        monkeypatch.setattr("app.services.ai_service.settings.OLLAMA_BASE_URL", "http://localhost:11434/v1")
+        monkeypatch.setattr("app.services.ai_service.settings.AI_MODEL", "llama2")
 
         mock_provider = MagicMock()
         mock_model = MagicMock()
@@ -292,13 +314,13 @@ class TestInitializationOllama:
         svc = _make_fresh_service()
         with (
             patch("pydantic_ai.providers.ollama.OllamaProvider", return_value=mock_provider),
-            patch("app.services.open_ai.OpenAIChatModel", return_value=mock_model),
+            patch("app.services.ai_service.OpenAIChatModel", return_value=mock_model),
         ):
             svc._initialize_ollama()
             assert svc._model is mock_model
 
     def test_ollama_without_url_skips(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.open_ai.settings.OLLAMA_BASE_URL", "")
+        monkeypatch.setattr("app.services.ai_service.settings.OLLAMA_BASE_URL", "")
         svc = _make_fresh_service()
         svc._initialize_ollama()
         assert svc._model is None
@@ -315,7 +337,7 @@ class TestInitializeProviderRouting:
 
     def test_routes_to_gateway(self) -> None:
         svc = _make_fresh_service()
-        with patch("app.services.open_ai.settings") as mock_settings:
+        with patch("app.services.ai_service.settings") as mock_settings:
             mock_settings.ai_provider_mode = "gateway"
             svc._initialize_gateway = MagicMock()
             svc._initialize_provider()
@@ -323,7 +345,7 @@ class TestInitializeProviderRouting:
 
     def test_routes_to_direct(self) -> None:
         svc = _make_fresh_service()
-        with patch("app.services.open_ai.settings") as mock_settings:
+        with patch("app.services.ai_service.settings") as mock_settings:
             mock_settings.ai_provider_mode = "direct"
             svc._initialize_direct_provider = MagicMock()
             svc._initialize_provider()
@@ -331,7 +353,7 @@ class TestInitializeProviderRouting:
 
     def test_routes_to_ollama(self) -> None:
         svc = _make_fresh_service()
-        with patch("app.services.open_ai.settings") as mock_settings:
+        with patch("app.services.ai_service.settings") as mock_settings:
             mock_settings.ai_provider_mode = "ollama"
             svc._initialize_ollama = MagicMock()
             svc._initialize_provider()
@@ -340,8 +362,8 @@ class TestInitializeProviderRouting:
     def test_routes_to_disabled(self) -> None:
         svc = _make_fresh_service()
         with (
-            patch("app.services.open_ai.settings") as mock_settings,
-            patch("app.services.open_ai.logger") as mock_logger,
+            patch("app.services.ai_service.settings") as mock_settings,
+            patch("app.services.ai_service.logger") as mock_logger,
         ):
             mock_settings.ai_provider_mode = "disabled"
             svc._initialize_provider()
@@ -365,7 +387,7 @@ class TestGenerateImage:
         return svc
 
     async def test_generate_image_with_b64_json_return_bytes(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.open_ai.settings.AI_IMAGE_MODEL", "gpt-image-1")
+        monkeypatch.setattr("app.services.ai_service.settings.AI_IMAGE_MODEL", "gpt-image-1")
         svc = self._make_svc_with_client()
 
         mock_data = MagicMock()
@@ -381,7 +403,7 @@ class TestGenerateImage:
         )
 
     async def test_generate_image_with_url_return_bytes(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.open_ai.settings.AI_IMAGE_MODEL", "gpt-image-1")
+        monkeypatch.setattr("app.services.ai_service.settings.AI_IMAGE_MODEL", "gpt-image-1")
         svc = self._make_svc_with_client()
 
         mock_data = MagicMock()
@@ -391,12 +413,12 @@ class TestGenerateImage:
         mock_response.data = [mock_data]
         svc._client.images.generate.return_value = mock_response
 
-        with patch("app.services.open_ai.image_url_to_bytes", return_value=b"fake_bytes"):
+        with patch("app.services.ai_service.image_url_to_bytes", return_value=b"fake_bytes"):
             result = await svc.generate_image(prompt="test", return_bytes=True)
             assert result == b"fake_bytes"
 
     async def test_generate_image_url_fetch_fails(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.open_ai.settings.AI_IMAGE_MODEL", "gpt-image-1")
+        monkeypatch.setattr("app.services.ai_service.settings.AI_IMAGE_MODEL", "gpt-image-1")
         svc = self._make_svc_with_client()
 
         mock_data = MagicMock()
@@ -407,13 +429,13 @@ class TestGenerateImage:
         svc._client.images.generate.return_value = mock_response
 
         with (
-            patch("app.services.open_ai.image_url_to_bytes", return_value=None),
+            patch("app.services.ai_service.image_url_to_bytes", return_value=None),
             pytest.raises(RuntimeError, match="Failed to fetch image from URL"),
         ):
             await svc.generate_image(prompt="test", return_bytes=True)
 
     async def test_generate_image_no_data_return_bytes(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.open_ai.settings.AI_IMAGE_MODEL", "gpt-image-1")
+        monkeypatch.setattr("app.services.ai_service.settings.AI_IMAGE_MODEL", "gpt-image-1")
         svc = self._make_svc_with_client()
 
         mock_data = MagicMock()
@@ -427,7 +449,7 @@ class TestGenerateImage:
             await svc.generate_image(prompt="test", return_bytes=True)
 
     async def test_generate_image_returns_url(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.open_ai.settings.AI_IMAGE_MODEL", "gpt-image-1")
+        monkeypatch.setattr("app.services.ai_service.settings.AI_IMAGE_MODEL", "gpt-image-1")
         svc = self._make_svc_with_client()
 
         mock_data = MagicMock()
@@ -440,7 +462,7 @@ class TestGenerateImage:
         assert result == "https://example.com/img.png"
 
     async def test_generate_image_no_url_raises(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.open_ai.settings.AI_IMAGE_MODEL", "gpt-image-1")
+        monkeypatch.setattr("app.services.ai_service.settings.AI_IMAGE_MODEL", "gpt-image-1")
         svc = self._make_svc_with_client()
 
         mock_data = MagicMock()
@@ -459,7 +481,7 @@ class TestGenerateImage:
             await svc.generate_image(prompt="test")
 
     async def test_generate_image_through_gateway_logs_debug(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.open_ai.settings.AI_IMAGE_MODEL", "gpt-image-1")
+        monkeypatch.setattr("app.services.ai_service.settings.AI_IMAGE_MODEL", "gpt-image-1")
         svc = self._make_svc_with_client(using_gateway=True)
 
         mock_data = MagicMock()
@@ -468,7 +490,7 @@ class TestGenerateImage:
         mock_response.data = [mock_data]
         svc._client.images.generate.return_value = mock_response
 
-        with patch("app.services.open_ai.logger") as mock_logger:
+        with patch("app.services.ai_service.logger") as mock_logger:
             result = await svc.generate_image(prompt="test")
             assert result == "https://example.com/img.png"
             mock_logger.debug.assert_called_once()
@@ -522,7 +544,7 @@ class TestGenerateAudio:
         svc = self._make_svc_with_client(using_gateway=True)
         with (
             patch.object(svc, "_sync_generate_audio", return_value=b"audio_data"),
-            patch("app.services.open_ai.logger") as mock_logger,
+            patch("app.services.ai_service.logger") as mock_logger,
         ):
             await svc.generate_audio(text="Hello")
             mock_logger.debug.assert_called_once()
@@ -726,7 +748,7 @@ class TestTranscribeAudio:
         svc = self._make_svc_with_client(using_gateway=True)
         svc._client.audio.transcriptions.create.return_value = "done"
 
-        with patch("app.services.open_ai.logger") as mock_logger:
+        with patch("app.services.ai_service.logger") as mock_logger:
             await svc.transcribe_audio(audio_bytes=b"fake")
             mock_logger.debug.assert_called_once()
             assert "Gateway" in mock_logger.debug.call_args[0][0]
@@ -765,7 +787,7 @@ class TestChatCompletion:
             result = await svc.chat_completion(messages=[{"role": "user", "content": "Hi"}])
             assert result == "Hello from agent"
 
-    async def test_chat_completion_with_usage_system_prompt(self) -> None:
+    async def test_chat_completion_with_usage_uses_instructions(self) -> None:
         svc = self._make_svc_with_model()
         mock_agent_result = MagicMock()
         mock_agent_result.output = "Response"
@@ -791,9 +813,9 @@ class TestChatCompletion:
             assert result.completion_tokens == 20
             assert result.total_tokens == 30
             mock_agent_cls.assert_called_once()
-            assert mock_agent_cls.call_args[1]["system_prompt"] == "You are helpful."
+            assert mock_agent_cls.call_args[1]["instructions"] == "You are helpful."
 
-    async def test_chat_completion_with_usage_no_system_prompt(self) -> None:
+    async def test_chat_completion_with_usage_no_instructions(self) -> None:
         svc = self._make_svc_with_model()
         mock_agent_result = MagicMock()
         mock_agent_result.output = "Response"
@@ -810,7 +832,7 @@ class TestChatCompletion:
 
             result = await svc.chat_completion_with_usage(messages=[{"role": "user", "content": "Hi"}])
             assert result.text == "Response"
-            assert "system_prompt" not in mock_agent_cls.call_args[1]
+            assert "instructions" not in mock_agent_cls.call_args[1]
 
     async def test_chat_completion_with_usage_usage_extraction_fails(self) -> None:
         svc = self._make_svc_with_model()
@@ -820,7 +842,7 @@ class TestChatCompletion:
 
         with (
             patch("pydantic_ai.Agent") as mock_agent_cls,
-            patch("app.services.open_ai.logger") as mock_logger,
+            patch("app.services.ai_service.logger") as mock_logger,
         ):
             mock_agent = MagicMock()
             mock_agent.run = AsyncMock(return_value=mock_agent_result)

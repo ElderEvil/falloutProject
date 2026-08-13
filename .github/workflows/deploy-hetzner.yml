@@ -90,7 +90,7 @@ jobs:
 
       - name: Health check
         run: |
-          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << SHELL
+          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
             set -e
 
             echo "Checking backend health..."

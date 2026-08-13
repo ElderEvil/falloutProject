@@ -6,7 +6,7 @@ from app.agents.deps import BackstoryDeps, ExtendBioDeps, VisualAttributesDeps
 from app.schemas.common import GenderEnum
 from app.schemas.dweller import DwellerVisualAttributes
 from app.schemas.dweller_ai import DwellerBackstory, ExtendedBio
-from app.services.open_ai import AIService
+from app.services.ai_service import AIService
 
 # Initialize the model (will be shared across agents)
 model = AIService.get_model()
@@ -24,7 +24,7 @@ backstory_agent = Agent(
     model=model,
     output_type=DwellerBackstory,
     deps_type=BackstoryDeps,
-    system_prompt=(
+    instructions=(
         "You are a creative writer specialized in creating Fallout game series style character biographies. "
         "Generate immersive, lore-accurate backstories for vault dwellers in the post-apocalyptic world. "
         "Use the dweller's SPECIAL attributes to inform their skills and personality traits. "
@@ -39,9 +39,9 @@ backstory_agent = Agent(
 )
 
 
-@backstory_agent.system_prompt
-def backstory_system_prompt(ctx: RunContext[BackstoryDeps]) -> str:
-    """Dynamic system prompt based on dweller information."""
+@backstory_agent.instructions
+def backstory_instructions(ctx: RunContext[BackstoryDeps]) -> str:
+    """Build dynamic instructions based on dweller information."""
     pronoun = GENDER_PRONOUNS_MAP.get(ctx.deps.gender, "their")
     return (
         f"Generate a biography for {ctx.deps.first_name}, a dweller from {ctx.deps.location}. "
@@ -64,7 +64,7 @@ bio_extension_agent = Agent(
     model=model,
     output_type=ExtendedBio,
     deps_type=ExtendBioDeps,
-    system_prompt=(
+    instructions=(
         "You are a creative writer helping to extend character biographies in the Fallout universe. "
         "Given an existing bio, add meaningful details that expand on the character's backstory, "
         "experiences, relationships, or personality. Maintain consistency with the original bio "
@@ -77,9 +77,9 @@ bio_extension_agent = Agent(
 )
 
 
-@bio_extension_agent.system_prompt
-def bio_extension_system_prompt(ctx: RunContext[ExtendBioDeps]) -> str:
-    """Dynamic system prompt with current bio context."""
+@bio_extension_agent.instructions
+def bio_extension_instructions(ctx: RunContext[ExtendBioDeps]) -> str:
+    """Build dynamic instructions with current bio context."""
     return (
         f"Here is the current biography:\n\n{ctx.deps.current_bio}\n\n"
         "Extend this biography with additional meaningful details. "
@@ -96,7 +96,7 @@ visual_attributes_agent = Agent(
     model=model,
     output_type=DwellerVisualAttributes,
     deps_type=VisualAttributesDeps,
-    system_prompt=(
+    instructions=(
         "You are a character design specialist for the Fallout universe. "
         "Generate visual attributes for vault dwellers based on their biography and characteristics. "
         "Create realistic, lore-appropriate visual descriptions that match the post-apocalyptic setting. "
@@ -104,9 +104,9 @@ visual_attributes_agent = Agent(
 )
 
 
-@visual_attributes_agent.system_prompt
-def visual_attributes_system_prompt(ctx: RunContext[VisualAttributesDeps]) -> str:
-    """Dynamic system prompt based on dweller information."""
+@visual_attributes_agent.instructions
+def visual_attributes_instructions(ctx: RunContext[VisualAttributesDeps]) -> str:
+    """Build dynamic instructions based on dweller information."""
     pronoun = GENDER_PRONOUNS_MAP.get(ctx.deps.gender, "their")
     bio_context = f"\n\nBackstory: {ctx.deps.bio}" if ctx.deps.bio else ""
 

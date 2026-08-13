@@ -31,9 +31,9 @@ from app.schemas.common import ObjectiveKindEnum
 from app.schemas.dweller import DwellerReadFull
 from app.schemas.happiness import HappinessImpact, HappinessReasonCode
 from app.schemas.llm_interaction import LLMInteractionCreate
+from app.services.ai_service import get_ai_service
 from app.services.chat_happiness_service import apply_chat_happiness
 from app.services.conversation_service import conversation_service
-from app.services.open_ai import get_ai_service
 from app.services.quota_service import QuotaCheckResult, quota_service
 from app.services.websocket_manager import manager
 from app.utils.exceptions import (

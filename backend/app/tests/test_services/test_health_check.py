@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+from botocore.exceptions import EndpointConnectionError
 from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
@@ -331,6 +332,23 @@ def test_check_rustfs_os_error() -> None:
 
     assert result.status == ServiceStatus.DEGRADED
     assert "failed" in result.message
+
+
+def test_check_rustfs_endpoint_connection_error_is_degraded() -> None:
+    """An unreachable optional homelab endpoint must never abort backend startup."""
+    error = EndpointConnectionError(endpoint_url="https://s3-api.evillab.dev:443/")
+    with (
+        patch.dict(sys.modules, _patch_boto3_in_sys_modules(side_effect=error)),
+        patch.object(settings, "RUSTFS_ACCESS_KEY", "fake-key"),
+        patch.object(settings, "RUSTFS_SECRET_KEY", "fake-secret"),
+        patch.object(settings, "RUSTFS_HOSTNAME", "s3-api.evillab.dev"),
+        patch.object(settings, "RUSTFS_PORT", "443"),
+        patch.object(settings, "RUSTFS_USE_HTTPS", new=True),
+    ):
+        result = HealthCheckService.check_rustfs()
+
+    assert result.status == ServiceStatus.DEGRADED
+    assert "optional service" in result.message
 
 
 # =============================================================================
@@ -691,6 +709,29 @@ async def test_check_all_services_smtp_disabled() -> None:
         )
 
     assert "smtp" not in results
+
+
+@pytest.mark.asyncio
+async def test_check_all_services_rustfs_disabled() -> None:
+    """Startup can skip optional RustFS so an unavailable homelab never delays readiness."""
+    service = HealthCheckService()
+    _pg = staticmethod(AsyncMock(return_value=_ok_result("postgresql")))
+    _rd = staticmethod(AsyncMock(return_value=_ok_result("redis")))
+    _sm = staticmethod(AsyncMock(return_value=_ok_result("smtp")))
+    _dq = staticmethod(lambda: _ok_result("dramatiq"))
+
+    with (
+        patch.object(HealthCheckService, "check_postgres", _pg),
+        patch.object(HealthCheckService, "check_redis", _rd),
+        patch.object(HealthCheckService, "check_rustfs") as rustfs,
+        patch.object(HealthCheckService, "check_smtp", _sm),
+        patch.object(HealthCheckService, "check_dramatiq", _dq),
+    ):
+        engine = cast("AsyncEngine", object())
+        results = await service.check_all_services(engine=engine, include_rustfs=False)
+
+    assert "rustfs" not in results
+    rustfs.assert_not_called()
 
 
 @pytest.mark.asyncio

@@ -14,7 +14,8 @@ AI-powered dweller interactions.
 - [x] **v2.32.0 planning** — Ruff lint cleanup + Google-style docstring convention enforcement.
 - [x] **v2.33.0 released** — Frontend type-aware linting and stale-request safety.
 - [x] **v2.33.2 patch released** — Automatic training-room assignments now create queue-visible training sessions.
-- [x] **v2.34.0 planning** — Pydantic AI observability and structured-output reliability.
+- [ ] **v2.34.0 in progress** — Pydantic AI observability and structured-output reliability.
+- [ ] **v2.35.0 planning** — Automated release-version synchronization and Conventional Commit enforcement.
 
 ---
 
@@ -25,25 +26,68 @@ AI-powered dweller interactions.
 **Focus**: Make existing dweller agents easier to debug and more reliable at the boundary between structured model
 output and gameplay actions. Keep this as one backend/AI release instead of splitting several small library adoptions.
 
-**Planned:**
+**In progress:**
 
-- 🔄 **Trace Pydantic AI runs in Logfire**
+- ✅ **Trace Pydantic AI runs in Logfire**
   - When Logfire is configured, instrument Pydantic AI in addition to the existing application setup so agent runs,
     tool calls, retry counts, latency, and token usage are visible in one trace.
-  - Verify the disabled/no-token path remains a no-op and no prompt content or secrets are logged beyond the approved
-    observability configuration.
-- 🔄 **Harden the dweller chat output contract**
+  - The disabled/no-token path remains a no-op; instrumentation explicitly uses `include_content=False` so prompt
+    content is excluded from traces. Unit coverage verifies both paths without using a provider token.
+- ✅ **Harden the dweller chat output contract**
   - Migrate agents that do not pass message history from `system_prompt` to static/dynamic `instructions`; preserve
     `system_prompt` only where history retention is intentional.
   - Add output validation/retry rules for action-field combinations before gameplay code consumes them (for example,
     required room data for room assignment and no action payload for `no_action`).
-  - Extend deterministic `TestModel` coverage for instructions, tool selection, invalid structured output retries,
-    fallback behaviour, and recorded token usage.
+  - Added deterministic `TestModel` coverage for instructions, room-recommendation tool execution, invalid structured
+    output retries, and recorded token usage; existing chat-service coverage protects fallback behaviour.
+- ✅ **Keep optional RustFS from delaying backend startup**
+  - Skip the optional S3 probe during startup; detailed health checks still report RustFS availability.
+  - Treat unreachable Botocore endpoints as degraded storage health, with short single-attempt diagnostic probes.
+  - Allow core gameplay to run without RustFS configuration and cover the endpoint-connection path with regression tests.
+- ✅ **Ground dweller activity suggestions in live gameplay state**
+  - Add a read-only activity briefing tool that reports active training/exploration, trainable rooms and capacity,
+    available medical supplies, and a bounded exploration pack before the agent suggests a training or wasteland action.
+- 🔄 **Activate Pydantic AI Gateway for chat and agents**
+  - Configure the deployment-only `PYDANTIC_AI_GATEWAY_API_KEY`; the existing gateway model path becomes active without
+    changing agent code.
+  - Retain `OPENAI_API_KEY` for native image, TTS, and transcription APIs, which remain direct OpenAI integrations.
 - 🔄 **Measure before/after**
   - Baseline and report deterministic agent-contract test count, output-validation retry coverage, and Logfire trace
     completeness for one normal chat and one tool-using chat.
   - Guardrails: no agent framework major-version migration, no gameplay-rule change, and no real-provider calls in the
     unit test suite.
+
+---
+
+### v2.35.0 — Release Version Integrity (Target: TBD)
+
+**Focus**: Make the SemVer Git tag the single release authority. Eliminate manual, separately committed backend and
+frontend version bumps, and make release eligibility deterministic from validated Conventional Commit metadata.
+
+**Planned:**
+
+- 🔄 **One automated release version**
+  - Have Semantic Release calculate the next version, synchronize `backend/pyproject.toml`, `backend/uv.lock`, and
+    `frontend/package.json` in its prepare phase, then commit those generated release artifacts before creating the
+    `vX.Y.Z` tag.
+  - Reconcile the existing manual-release history by validating and tagging the current `v2.33.3` state as the
+    migration baseline; do not retroactively invent missing release versions.
+  - Remove manual version-bump commits from the normal feature workflow; agents must not choose a release number.
+- 🔄 **Enforce release intent at merge time**
+  - Require Conventional Commit PR titles and squash merges; the resulting `master` commit is the sole input to
+    SemVer calculation.
+  - Map `feat` to minor, `fix`/`perf`/`refactor` to patch, and `!`/`BREAKING CHANGE` to major; keep
+    `docs`, `test`, `chore`, `ci`, and `style` non-releasing.
+  - Use human-readable, lower-kebab branch names such as `feat/ai-observability`; branch names provide context only
+    and must not encode or determine a version.
+- 🔄 **Build and verify the release pair**
+  - Build and publish both backend and frontend Docker images from the release tag, using the tag's version for both
+    image families rather than independently reading manifests on ordinary `master` pushes.
+  - Add a CI guard that fails when the release tag, backend package version, frontend package version, or newest
+    changelog heading disagree.
+
+**Success criteria:** a release creates exactly one versioned commit and tag, both deployable images carry that same
+version, and CI rejects divergent metadata before publication.
 
 ---
 
@@ -377,4 +421,4 @@ provide a way to retroactively fill gaps for existing active vaults.
 
 ---
 
-_Last updated: 2026-08-12_ (v2.32.0)
+_Last updated: 2026-08-13_ (v2.34.0 in progress)

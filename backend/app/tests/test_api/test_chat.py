@@ -25,7 +25,7 @@ from app.models.vault import Vault
 from app.schemas.chat import AssignToRoomAction, ChatMessage, NoAction, RecallExplorationAction, StartExplorationAction
 from app.schemas.common import GenderEnum
 from app.schemas.dweller import DwellerCreate
-from app.services.open_ai import ChatCompletionResult
+from app.services.ai_service import ChatCompletionResult
 from app.tests.factory.dwellers import create_fake_dweller
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 

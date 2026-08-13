@@ -1,5 +1,7 @@
 """Tests for exploration API endpoints."""
 
+from datetime import datetime, timedelta
+
 import pytest
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -331,6 +333,10 @@ async def test_complete_exploration_success(
 
     # The CRUD methods already commit and refresh, so data should be persisted
 
+    exploration.start_time = datetime.utcnow() - timedelta(hours=exploration.duration)
+    async_session.add(exploration)
+    await async_session.commit()
+
     initial_caps = vault.bottle_caps
 
     response = await async_client.post(
@@ -356,6 +362,32 @@ async def test_complete_exploration_success(
     # Verify caps transferred to vault
     await async_session.refresh(vault)
     assert vault.bottle_caps == initial_caps + 100
+
+
+@pytest.mark.asyncio
+async def test_complete_exploration_before_duration_is_rejected(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """Only recall may end an active expedition before its duration elapses."""
+    exploration = await crud.exploration.create_with_dweller_stats(
+        async_session,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        duration=4,
+    )
+
+    response = await async_client.post(
+        f"/explorations/{exploration.id}/complete",
+        json={},
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 400
+    assert "has not finished yet" in response.json()["detail"]
 
 
 @pytest.mark.asyncio

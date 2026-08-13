@@ -19,6 +19,13 @@ from app.services.exploration_service import exploration_service
 # These are tested implicitly through integration tests
 
 
+async def _finish_exploration(async_session: AsyncSession, exploration) -> None:
+    exploration.start_time = datetime.utcnow() - timedelta(hours=exploration.duration)
+    async_session.add(exploration)
+    await async_session.commit()
+    await async_session.refresh(exploration)
+
+
 @pytest.mark.asyncio
 async def test_send_dweller_deducts_vault_supplies_only_once(
     async_session: AsyncSession,
@@ -286,6 +293,7 @@ async def test_complete_exploration_transfers_caps(
     expected_xp += int(base_xp * (exploration.dweller_luck * 0.02))
 
     # Complete exploration — returns RewardsSchema (Pydantic model)
+    await _finish_exploration(async_session, exploration)
     rewards = await exploration_service.complete_exploration(async_session, exploration.id)
 
     # Verify rewards via attribute access (RewardsSchema is a Pydantic model)
@@ -321,6 +329,24 @@ async def test_complete_exploration_not_active_raises_error(
     await crud.exploration.complete_exploration(async_session, exploration_id=exploration.id)
 
     with pytest.raises(ValueError, match="not active"):
+        await exploration_service.complete_exploration(async_session, exploration.id)
+
+
+@pytest.mark.asyncio
+async def test_complete_exploration_before_duration_raises_error(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """Full completion is unavailable until the expedition duration has elapsed."""
+    exploration = await crud.exploration.create_with_dweller_stats(
+        async_session,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        duration=4,
+    )
+
+    with pytest.raises(ValueError, match="has not finished yet"):
         await exploration_service.complete_exploration(async_session, exploration.id)
 
 

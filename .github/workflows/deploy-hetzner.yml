@@ -26,6 +26,30 @@ jobs:
           chmod 600 ~/.ssh/hetzner_key
           ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
 
+      - name: Configure AI Gateway and Logfire
+        env:
+          PYDANTIC_AI_GATEWAY_API_KEY: ${{ secrets.PYDANTIC_AI_GATEWAY_API_KEY }}
+          PYDANTIC_AI_GATEWAY_ROUTE: ${{ secrets.PYDANTIC_AI_GATEWAY_ROUTE }}
+          PYDANTIC_AI_GATEWAY_BASE_URL: ${{ secrets.PYDANTIC_AI_GATEWAY_BASE_URL }}
+          LOGFIRE_TOKEN: ${{ secrets.LOGFIRE_TOKEN }}
+        run: |
+          set -euo pipefail
+          for name in PYDANTIC_AI_GATEWAY_API_KEY PYDANTIC_AI_GATEWAY_ROUTE PYDANTIC_AI_GATEWAY_BASE_URL LOGFIRE_TOKEN; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Required GitHub Actions secret $name is missing"
+              exit 1
+            fi
+          done
+
+          jq -n \
+            --arg gateway_key "$PYDANTIC_AI_GATEWAY_API_KEY" \
+            --arg gateway_route "$PYDANTIC_AI_GATEWAY_ROUTE" \
+            --arg gateway_base_url "$PYDANTIC_AI_GATEWAY_BASE_URL" \
+            --arg logfire_token "$LOGFIRE_TOKEN" \
+            '{stringData: {PYDANTIC_AI_GATEWAY_API_KEY: $gateway_key, PYDANTIC_AI_GATEWAY_ROUTE: $gateway_route, PYDANTIC_AI_GATEWAY_BASE_URL: $gateway_base_url, LOGFIRE_TOKEN: $logfire_token}}' \
+            | ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
+              'kubectl -n fallout patch secret backend-env --type merge --patch-file /dev/stdin'
+
       - name: Update images
         run: |
           TAG="${{ inputs.image_tag }}"
@@ -113,6 +137,14 @@ jobs:
             echo "Health check failed after $MAX_RETRIES attempts!"
             kubectl logs -n fallout deployment/backend --tail=30
             exit 1
+          SHELL
+
+      - name: Verify AI Gateway and Logfire
+        run: |
+          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
+            set -e
+
+            kubectl exec deployment/backend -n fallout -- python3 -c 'import asyncio; from app.core.config import settings; from app.core.logfire_config import configure_logfire, is_logfire_enabled; from app.services.ai_service import get_ai_service; assert settings.ai_provider_mode == "gateway", "AI Gateway is not configured"; assert settings.logfire_enabled, "LOGFIRE_TOKEN is not configured"; configure_logfire(); service = get_ai_service(); assert service.using_gateway and service.is_available(), "AI Gateway model is unavailable"; result = asyncio.run(service.chat_completion_with_usage([{"role": "user", "content": "Reply with exactly: gateway-production-check"}])); assert result.text, "Gateway returned an empty response"; assert is_logfire_enabled(), "Logfire instrumentation did not initialize"; print("Gateway and Logfire verification request completed")'
           SHELL
 
       - name: Clean up old images

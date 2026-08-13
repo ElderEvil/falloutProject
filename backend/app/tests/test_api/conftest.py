@@ -13,6 +13,7 @@ from app.models.room import Room
 from app.models.user import User
 from app.models.vault import Vault
 from app.schemas.common import (
+    AgeGroupEnum,
     GenderEnum,
     JunkTypeEnum,
     OutfitTypeEnum,
@@ -84,7 +85,8 @@ def dweller_data_fixture():
     return stats | {
         "first_name": get_gender_based_name(gender),
         "last_name": fake.last_name(),
-        "is_adult": random.choice([True, False]),
+        "is_adult": True,
+        "age_group": AgeGroupEnum.ADULT,
         "gender": gender,
         "rarity": rarity.value,
         "level": random.randint(1, 50),

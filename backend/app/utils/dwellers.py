@@ -68,6 +68,14 @@ def get_stats_by_rarity(rarity: RarityEnum, rng: random.Random | None = None) ->
     return {stat_name: source.randint(stats_range[0], stats_range[1]) for stat_name in LETTER_TO_STAT.values()}
 
 
+def _calendar_years_ago(value: datetime, years: int) -> datetime:
+    """Return a calendar-year offset, handling leap-day birthdays."""
+    try:
+        return value.replace(year=value.year - years)
+    except ValueError:
+        return value.replace(year=value.year - years, month=2, day=28)
+
+
 def create_random_common_dweller(
     gender: GenderEnum | None = None, seed: int | None = None, rarity: RarityEnum = RarityEnum.COMMON
 ) -> dict[str, Any]:
@@ -83,10 +91,14 @@ def create_random_common_dweller(
 
     gender = gender or rng.choice(list(GenderEnum))
     stats = get_stats_by_rarity(rarity, rng)
-    age_group = rng.choice([AgeGroupEnum.ADULT, AgeGroupEnum.CHILD])
-    is_adult = age_group == AgeGroupEnum.ADULT
+    # Procedurally generated dwellers represent wasteland recruits. Children
+    # enter the vault only through the breeding lifecycle.
+    age_group = AgeGroupEnum.ADULT
+    is_adult = True
     now = datetime.now(UTC).replace(tzinfo=None) if seed is None else datetime(2000, 1, 1)
-    birth_date = now - timedelta(days=rng.randint(18 * 365, 80 * 365)) if is_adult else now
+    oldest_birth_date = _calendar_years_ago(now, 80)
+    youngest_birth_date = _calendar_years_ago(now, 18)
+    birth_date = oldest_birth_date + timedelta(days=rng.randint(0, (youngest_birth_date - oldest_birth_date).days))
     origin, visited = _procedural_bio_places(rng, rarity)
     return {
         "first_name": get_gender_based_name(gender, faker),

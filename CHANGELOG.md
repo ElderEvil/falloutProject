@@ -5,6 +5,22 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.34.2] - 2026-08-13
+
+### Fixed
+
+- **Dweller activity safety** — generated recruits are adults; children cannot fight incidents, explore the wasteland,
+  or join quest parties
+- **Explorer activity safety** — active explorers cannot be reassigned to rooms or quest parties until they return
+- **Quest party validation** — validate replacement parties before unassigning the current party, preventing invalid
+  child or explorer requests from changing existing assignments
+
+### Changed
+
+- **Version alignment** — backend and frontend are both v2.34.2
+
+---
+
 ## [2.34.1] - 2026-08-13
 
 ### Fixed

@@ -11,6 +11,7 @@ from app import crud
 from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.vault_quest import VaultQuestCompletionLink
+from app.schemas.common import AgeGroupEnum, DwellerStatusEnum
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +144,15 @@ class QuestService:
 
         await db_session.refresh(quest, ["quest_requirements"])
 
-        result = await db_session.execute(select(Dweller).where(Dweller.vault_id == vault_id, ~Dweller.is_deleted))
+        result = await db_session.execute(
+            select(Dweller).where(
+                Dweller.vault_id == vault_id,
+                ~Dweller.is_deleted,
+                Dweller.is_adult,
+                Dweller.age_group == AgeGroupEnum.ADULT,
+                Dweller.status.notin_([DwellerStatusEnum.QUESTING, DwellerStatusEnum.EXPLORING]),
+            )
+        )
         dwellers = result.scalars().all()
 
         vault_level_req_types = {"item", "room", "dweller_count", "quest_completed"}

@@ -12,6 +12,7 @@ from app.crud import exploration as crud_exploration
 from app.crud.dweller import dweller as dweller_crud
 from app.models import Storage
 from app.models.exploration import Exploration
+from app.schemas.common import AgeGroupEnum
 from app.schemas.exploration import ExplorationProgress
 from app.schemas.exploration_event import RewardsSchema
 from app.services.exploration.coordinator import exploration_coordinator
@@ -121,6 +122,8 @@ class ExplorationService:
         dweller = await dweller_crud.get(db_session, dweller_id)
         if dweller.vault_id != vault_id:
             raise ValueError("Dweller does not belong to this vault")
+        if not dweller.is_adult or dweller.age_group != AgeGroupEnum.ADULT:
+            raise ValueError("Children cannot be sent on exploration")
         dweller_stimpaks = dweller.stimpack or 0
         dweller_radaways = dweller.radaway or 0
         total_stimpaks = vault_stimpaks + dweller_stimpaks

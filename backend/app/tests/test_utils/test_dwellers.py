@@ -7,6 +7,7 @@ from app.core.game_config import game_config
 from app.schemas.common import AgeGroupEnum, RarityEnum
 from app.utils.dwellers import (
     _PLACE_POOL,
+    _calendar_years_ago,
     _procedural_bio_places,
     _render_template_bio,
     create_random_common_dweller,
@@ -87,9 +88,6 @@ def test_create_random_common_dweller_rarity_scales_bio() -> None:
 def test_create_random_common_dweller_age_fields_coherent() -> None:
     """Seeded dweller keeps deterministic age fields (regression for the Andrea Freeman bug)."""
     data = create_random_common_dweller(seed=7)
-    if data["is_adult"]:
-        assert data["age_group"] == AgeGroupEnum.ADULT
-        assert data["birth_date"] < datetime(2000, 1, 1)
-    else:
-        assert data["age_group"] == AgeGroupEnum.CHILD
-        assert data["birth_date"] == datetime(2000, 1, 1)
+    assert data["is_adult"] is True
+    assert data["age_group"] == AgeGroupEnum.ADULT
+    assert data["birth_date"] <= _calendar_years_ago(datetime(2000, 1, 1), 18)

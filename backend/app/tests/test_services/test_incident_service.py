@@ -10,6 +10,8 @@ from app import crud
 from app.models.incident import IncidentStatus, IncidentType
 from app.models.room import Room
 from app.models.vault import Vault
+from app.schemas.common import AgeGroupEnum
+from app.schemas.dweller import DwellerCreate
 from app.services.incident_service import incident_service
 from app.tests.factory.rooms import create_fake_room
 
@@ -86,6 +88,33 @@ async def test_process_incident_combat(async_session: AsyncSession, room_with_dw
     # Verify incident was updated
     await async_session.refresh(incident)
     assert incident.damage_dealt >= 0
+
+
+@pytest.mark.asyncio
+async def test_process_incident_does_not_damage_child(
+    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
+):
+    """Children in an incident room do not join combat or receive combat damage."""
+    room = room_with_dwellers["room"]
+    child_data = {
+        **dweller_data,
+        "is_adult": False,
+        "age_group": AgeGroupEnum.CHILD,
+        "health": 100,
+        "max_health": 100,
+    }
+    child = await crud.dweller.create(
+        async_session,
+        obj_in=DwellerCreate(**child_data, vault_id=room.vault_id, room_id=room.id),
+    )
+    await async_session.commit()
+
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
+    assert incident is not None
+    await incident_service.process_incident(async_session, incident, 60)
+
+    await async_session.refresh(child)
+    assert child.health == 100
 
 
 @pytest.mark.asyncio
@@ -170,6 +199,31 @@ async def test_resolve_incident_manually_success(async_session: AsyncSession, ro
     # Verify vault caps increased
     await async_session.refresh(dwellers[0].vault)
     assert dwellers[0].vault.bottle_caps > initial_caps
+
+
+@pytest.mark.asyncio
+async def test_resolve_incident_manually_does_not_award_child_combat_xp(
+    async_session: AsyncSession, room_with_dwellers: dict
+):
+    """Children present in the incident room do not receive manual-resolution combat XP."""
+    from app.tests.factory.dwellers import create_random_common_dweller
+
+    room = room_with_dwellers["room"]
+    child_data = create_random_common_dweller()
+    child_data.update(is_adult=False, age_group=AgeGroupEnum.CHILD, experience=0)
+    child = await crud.dweller.create(
+        async_session,
+        obj_in=DwellerCreate(**child_data, vault_id=room.vault_id),
+    )
+    await crud.dweller.move_to_room(async_session, child.id, room.id)
+    await async_session.commit()
+
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
+    assert incident is not None
+    await incident_service.resolve_incident_manually(async_session, incident.id, success=True)
+
+    await async_session.refresh(child)
+    assert child.experience == 0
 
 
 @pytest.mark.asyncio

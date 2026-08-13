@@ -5,6 +5,29 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.33.3] - 2026-08-13
+
+### Fixed
+
+- **Auto-assign status guard** — automatic room assignment now only selects `IDLE` dwellers,
+  preventing exploring or otherwise busy dwellers from being pulled into production/training rooms
+- **Training cancellation on unassign** — removing a dweller from a training room now cancels the
+  active training session, keeping dweller status and the training queue consistent
+- **Navbar dropdown theming** — user menu hover and focus states now use the terminal-primary
+  surface instead of generic grey backgrounds
+
+### Added
+
+- **Auto-assign production bulk action** — dweller bulk toolbars now expose a dedicated
+  "Auto-Assign Production" action for assigning workers to production rooms only
+
+### Changed
+
+- **Profile editor terminal styling** — profile form rebuilt with terminal-black surfaces,
+  theme-primary borders, and improved spacing/accessibility labels
+
+---
+
 ## [2.33.2] - 2026-08-13
 
 ### Fixed

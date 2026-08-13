@@ -64,6 +64,11 @@ output and gameplay actions. Keep this as one backend/AI release instead of spli
 **Focus**: Make the SemVer Git tag the single release authority. Eliminate manual, separately committed backend and
 frontend version bumps, and make release eligibility deterministic from validated Conventional Commit metadata.
 
+**Engineering constraint (v2.35 onward):** Every update must reduce net source LOC. Features that require new code
+must first offset it by removing or compacting existing code, favoring DRY reusable extraction over duplication. The
+reduction excludes generated files, lockfiles, and formatting-only changes, and must retain behavior under relevant
+tests.
+
 **Planned:**
 
 - 🔄 **One automated release version**

@@ -119,6 +119,8 @@ class ExplorationService:
 
         # Get total available (vault + dweller)
         dweller = await dweller_crud.get(db_session, dweller_id)
+        if dweller.vault_id != vault_id:
+            raise ValueError("Dweller does not belong to this vault")
         dweller_stimpaks = dweller.stimpack or 0
         dweller_radaways = dweller.radaway or 0
         total_stimpaks = vault_stimpaks + dweller_stimpaks

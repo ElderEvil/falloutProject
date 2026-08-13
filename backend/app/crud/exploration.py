@@ -57,23 +57,17 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         )
         db_session.add(db_obj)
 
-        # Update dweller status to EXPLORING with safe non-negative values
+        # Supply deductions are handled by ExplorationService, which knows whether
+        # each item came from vault storage or the dweller's own inventory.
+        # This CRUD helper only records the departure status.
         from app.crud.dweller import dweller as dweller_crud
         from app.schemas.common import DwellerStatusEnum
         from app.schemas.dweller import DwellerUpdate
 
-        # Compute safe values to prevent negative inventory
-        safe_stimpack = max(0, dweller.stimpack - stimpaks)
-        safe_radaway = max(0, dweller.radaway - radaways)
-
         await dweller_crud.update(
             db_session,
             dweller_id,
-            DwellerUpdate(
-                status=DwellerStatusEnum.EXPLORING,
-                stimpack=safe_stimpack,
-                radaway=safe_radaway,
-            ),
+            DwellerUpdate(status=DwellerStatusEnum.EXPLORING),
         )
 
         await db_session.commit()

@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
+import { normalizeImageUrl } from '@/core/utils/image'
 
 interface Props {
   exploration: Exploration
@@ -21,43 +22,32 @@ const emit = defineEmits<{
   recall: [explorationId: string]
 }>()
 
-const vaultId = computed(() => route.params.id as string)
+const openDetailView = () =>
+  router.push(`/vault/${route.params.id}/exploration/${props.exploration.id}`)
 
-const openDetailView = () => {
-  router.push(`/vault/${vaultId.value}/exploration/${props.exploration.id}`)
-}
-
-const dwellerName = computed(() => {
-  if (!props.dweller) return 'Unknown Dweller'
-  return `${props.dweller.first_name} ${props.dweller.last_name}`
-})
+const dwellerName = computed(() =>
+  props.dweller ? `${props.dweller.first_name} ${props.dweller.last_name}` : 'Unknown Dweller'
+)
 
 const progressPercentage = computed(() => {
-  const now = Date.now()
-  let startTimeStr = props.exploration.start_time
-  if (!startTimeStr.endsWith('Z')) {
-    startTimeStr = startTimeStr.replace(' ', 'T') + 'Z'
-  }
-  const start = new Date(startTimeStr).getTime()
+  const startTime = props.exploration.start_time
+  const start = new Date(
+    startTime.endsWith('Z') ? startTime : startTime.replace(' ', 'T') + 'Z'
+  ).getTime()
   const duration = props.exploration.duration * 3600 * 1000
-  const elapsed = now - start
+  const elapsed = Date.now() - start
 
   return Math.min(100, (elapsed / duration) * 100)
 })
 
 const timeRemaining = computed(() => {
-  const progress = progressPercentage.value
-  if (progress >= 100) return 'Complete!'
-
-  const totalDuration = props.exploration.duration * 3600
-  const remaining = totalDuration * (1 - progress / 100)
+  const remaining = props.exploration.duration * 3600 * (1 - progressPercentage.value / 100)
+  if (remaining <= 0) return 'Complete!'
 
   const hours = Math.floor(remaining / 3600)
   const minutes = Math.floor((remaining % 3600) / 60)
 
-  if (hours > 0) {
-    return `${hours}h ${minutes}m remaining`
-  }
+  if (hours > 0) return `${hours}h ${minutes}m remaining`
   return `${minutes}m remaining`
 })
 
@@ -68,10 +58,7 @@ const statusColor = computed(() => {
   return 'var(--color-theme-primary)' // Primary for in progress
 })
 
-const recentEvents = computed(() => {
-  if (!props.exploration.events || props.exploration.events.length === 0) return []
-  return props.exploration.events.slice(-3).reverse()
-})
+const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse() ?? [])
 </script>
 
 <template>
@@ -79,7 +66,13 @@ const recentEvents = computed(() => {
     <!-- Header -->
     <div class="card-header">
       <div class="dweller-info">
-        <Icon icon="mdi:account" class="dweller-icon" />
+        <img
+          v-if="dweller?.image_url"
+          :src="normalizeImageUrl(dweller.image_url)"
+          :alt="`${dwellerName} portrait`"
+          class="dweller-icon dweller-portrait"
+        />
+        <Icon v-else icon="mdi:account" class="dweller-icon" />
         <div>
           <div class="dweller-name">{{ dwellerName }}</div>
           <div class="exploration-duration">{{ exploration.duration }}h expedition</div>
@@ -256,6 +249,12 @@ const recentEvents = computed(() => {
   height: 2.5rem;
   color: var(--color-theme-primary);
   filter: drop-shadow(0 0 6px var(--color-theme-glow));
+}
+
+.dweller-portrait {
+  object-fit: cover;
+  border: 1px solid var(--color-theme-primary);
+  border-radius: 50%;
 }
 
 .dweller-name {

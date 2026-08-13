@@ -22,7 +22,7 @@
           },
           {
             "type": "revert",
-            "release": "patch"
+            "release": false
           },
           {
             "type": "docs",
@@ -46,7 +46,11 @@
           },
           {
             "type": "build",
-            "release": "patch"
+            "release": false
+          },
+          {
+            "type": "ci",
+            "release": false
           },
           {
             "breaking": true,
@@ -118,6 +122,31 @@
       {
         "changelogFile": "CHANGELOG.md",
         "changelogTitle": "# Changelog\n\nAll notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines."
+      }
+    ],
+    [
+      "@semantic-release/npm",
+      {
+        "pkgRoot": "frontend",
+        "npmPublish": false
+      }
+    ],
+    [
+      "@semantic-release/exec",
+      {
+        "prepareCmd": "uv --directory backend version ${nextRelease.version} --no-sync"
+      }
+    ],
+    [
+      "@semantic-release/git",
+      {
+        "assets": [
+          "CHANGELOG.md",
+          "backend/pyproject.toml",
+          "backend/uv.lock",
+          "frontend/package.json"
+        ],
+        "message": "chore(release): ${nextRelease.version} [skip ci]\\n\\n${nextRelease.notes}"
       }
     ],
     [

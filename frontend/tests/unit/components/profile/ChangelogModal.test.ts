@@ -92,6 +92,7 @@ describe('ChangelogModal', () => {
 
       await flushPromises()
       expect(wrapper.text()).toContain('New feature')
+      expect(wrapper.find('.mock-card').classes()).toContain('!bg-surface-warm')
       const buttons = wrapper.findAll('.mock-button')
       const closeButton = buttons.find((btn) => btn.text().includes('Close'))
       expect(closeButton).toBeUndefined()

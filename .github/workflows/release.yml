@@ -5,9 +5,49 @@ on:
     branches: [ master ]
 
 jobs:
+  baseline:
+    name: Establish Release Baseline
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Tag the current synchronized version once
+        run: |
+          VERSION=$(python3 - <<'PY'
+          import json
+          import re
+          import tomllib
+
+          with open("backend/pyproject.toml", "rb") as file:
+              backend_version = tomllib.load(file)["project"]["version"]
+          with open("frontend/package.json") as file:
+              frontend_version = json.load(file)["version"]
+          with open("CHANGELOG.md") as file:
+              changelog_version = re.search(r"^## \[([^]]+)\]", file.read(), re.MULTILINE)
+
+          assert backend_version == frontend_version
+          assert changelog_version and changelog_version.group(1) == backend_version
+          print(backend_version)
+          PY
+          )
+          TAG="v$VERSION"
+          git rev-parse -q --verify "refs/tags/$TAG" >/dev/null && exit 0
+          git config user.name semantic-release-bot
+          git config user.email semantic-release-bot@github.com
+          git tag -a "$TAG" -m "chore(release): establish $TAG baseline"
+          git push origin "$TAG"
+
   release:
     name: Semantic Release
     runs-on: ubuntu-latest
+    needs: baseline
     if: "!contains(github.event.head_commit.message, 'chore(release)')"
 
     permissions:
@@ -27,12 +67,16 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
       - name: Install semantic-release
         run: |
           npm install -g \
             semantic-release \
             @semantic-release/changelog \
             @semantic-release/git \
+            @semantic-release/exec \
             @semantic-release/github \
             @semantic-release/npm \
             @semantic-release/commit-analyzer \
@@ -47,22 +91,3 @@ jobs:
           GIT_COMMITTER_NAME: semantic-release-bot
           GIT_COMMITTER_EMAIL: semantic-release-bot@github.com
         run: semantic-release
-
-      - name: Get released version
-        id: version
-        if: success()
-        run: |
-          if [ -f .version ]; then
-            echo "released=true" >> $GITHUB_OUTPUT
-            echo "version=$(cat .version)" >> $GITHUB_OUTPUT
-          else
-            echo "released=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Output release info
-        if: steps.version.outputs.released == 'true'
-        run: |
-          echo "✅ New version released: ${{ steps.version.outputs.version }}"
-          echo "📝 CHANGELOG.md updated"
-          echo "🏷️ Git tag created"
-          echo "📦 GitHub release published"

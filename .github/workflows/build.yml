@@ -1,36 +1,66 @@
 name: Build Docker Images
 
 on:
-  push:
-    branches: [ master ]
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - '.github/workflows/**'
-      - 'CHANGELOG.md'
   release:
     types: [published]
   workflow_dispatch:
     inputs:
-      build_backend:
-        description: 'Build backend image'
-        required: false
-        type: boolean
-        default: true
-      build_frontend:
-        description: 'Build frontend image'
-        required: false
-        type: boolean
-        default: true
+      release_tag:
+        description: 'Published SemVer tag to build (for example, v2.35.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
 
 jobs:
-  build-backend:
-    name: Build Backend Image
+  build:
+    name: Build ${{ matrix.name }} Image
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: Backend
+            image: fo-shelter-be
+            context: .
+            dockerfile: ./backend/Dockerfile
+          - name: Frontend
+            image: fo-shelter-fe
+            context: ./frontend
+            dockerfile: ./frontend/Dockerfile
 
     steps:
-      - name: Checkout code
+      - name: Checkout release tag
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.release_tag }}
+
+      - name: Validate release metadata
+        id: release
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+        run: |
+          VERSION="${RELEASE_TAG#v}"
+          test "$RELEASE_TAG" = "v$VERSION"
+          python3 - "$VERSION" <<'PY'
+          import json
+          import re
+          import sys
+          import tomllib
+
+          version = sys.argv[1]
+          with open("backend/pyproject.toml", "rb") as file:
+              backend_version = tomllib.load(file)["project"]["version"]
+          with open("frontend/package.json") as file:
+              frontend_version = json.load(file)["version"]
+          with open("CHANGELOG.md") as file:
+              changelog_version = re.search(r"^## \[([^]]+)\]", file.read(), re.MULTILINE)
+
+          assert backend_version == frontend_version == version
+          assert changelog_version and changelog_version.group(1) == version
+          PY
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "python_version=$(cat backend/.python-version)" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -41,94 +71,18 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Read Python version
-        id: python-version
-        run: echo "version=$(cat backend/.python-version)" >> $GITHUB_OUTPUT
-
-      - name: Extract version from pyproject.toml
-        id: version
-        run: echo "version=$(grep '^version = ' backend/pyproject.toml | sed 's/version = "\(.*\)"/\1/')" >> $GITHUB_OUTPUT
-
-      - name: Generate image tags
-        id: tags
-        run: |
-          echo "sha=sha-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-          echo "date=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
-
-      - name: Build and push Backend image
+      - name: Build and push image
         uses: docker/build-push-action@v7
         with:
-          context: .
-          file: ./backend/Dockerfile
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
           push: true
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:latest
-            ${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:v${{ steps.version.outputs.version }}
-            ${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ steps.tags.outputs.sha }}
-            ${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ steps.tags.outputs.date }}
+            ${{ secrets.DOCKER_USERNAME }}/${{ matrix.image }}:latest
+            ${{ secrets.DOCKER_USERNAME }}/${{ matrix.image }}:v${{ steps.release.outputs.version }}
           build-args: |
-            PYTHON_VERSION=${{ steps.python-version.outputs.version }}
-          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:latest
-          cache-to: type=inline
-
-      - name: Output image tags
-        run: |
-          echo "✅ Backend images pushed:"
-          echo "  - ${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:latest"
-          echo "  - ${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:v${{ steps.version.outputs.version }}"
-          echo "  - ${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ steps.tags.outputs.sha }}"
-          echo "  - ${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ steps.tags.outputs.date }}"
-
-  build-frontend:
-    name: Build Frontend Image
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Extract version from package.json
-        id: version
-        run: |
-          VERSION=$(grep '"version"' frontend/package.json | head -1 | awk -F: '{ print $2 }' | sed 's/[", ]//g')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Generate image tags
-        id: tags
-        run: |
-          echo "sha=sha-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-          echo "date=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
-
-      - name: Build and push Frontend image
-        uses: docker/build-push-action@v7
-        with:
-          context: ./frontend
-          file: ./frontend/Dockerfile
-          push: true
-          tags: |
-            ${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:latest
-            ${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:v${{ steps.version.outputs.version }}
-            ${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:${{ steps.tags.outputs.sha }}
-            ${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:${{ steps.tags.outputs.date }}
-          build-args: |
+            PYTHON_VERSION=${{ steps.release.outputs.python_version }}
             VITE_API_BASE_URL=${{ vars.PRODUCTION_API_URL }}
-            VERSION=${{ steps.version.outputs.version }}
-          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:latest
+            VERSION=${{ steps.release.outputs.version }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/${{ matrix.image }}:latest
           cache-to: type=inline
-
-      - name: Output image tags
-        run: |
-          echo "✅ Frontend images pushed:"
-          echo "  - ${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:latest"
-          echo "  - ${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:v${{ steps.version.outputs.version }}"
-          echo "  - ${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:${{ steps.tags.outputs.sha }}"
-          echo "  - ${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:${{ steps.tags.outputs.date }}"

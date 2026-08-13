@@ -81,15 +81,7 @@ const handleViewAllChangelog = () => {
   window.open('https://github.com/ElderEvil/falloutProject/blob/master/CHANGELOG.md', '_blank')
 }
 
-const handleBackdropClick = () => {
-  emit('close')
-}
-
-const handleEscape = (event: KeyboardEvent) => {
-  if (event.key === 'Escape' && show) {
-    emit('close')
-  }
-}
+const handleEscape = (event: KeyboardEvent) => event.key === 'Escape' && show && emit('close')
 
 // Group changes by category
 const groupChangesByCategory = (changes: ChangeEntry[]) => {
@@ -147,9 +139,14 @@ onUnmounted(() => {
       <div
         v-if="show"
         class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
-        @click="handleBackdropClick"
+        @click="$emit('close')"
       >
-        <UCard glow crt class="w-full max-w-4xl max-h-[85vh] overflow-hidden" @click.stop>
+        <UCard
+          glow
+          crt
+          class="w-full max-w-4xl max-h-[85vh] overflow-hidden !bg-surface-warm"
+          @click.stop
+        >
           <template #header>
             <div class="flex items-center justify-between w-full">
               <div class="flex items-center gap-3">

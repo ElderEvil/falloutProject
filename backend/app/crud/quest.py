@@ -167,7 +167,12 @@ class CRUDQuest(
             link_result = await db_session.execute(link_stmt)
             links_by_quest = {link.quest_id: link for link in link_result.scalars().all()}
 
-        completed_quest_ids = {str(link.quest_id) for link in links_by_quest.values() if link.is_completed}
+        completed_link_stmt = select(self.link_model.quest_id).where(
+            self.link_model.vault_id == vault_id,
+            self.link_model.is_completed.is_(True),
+        )
+        completed_link_result = await db_session.execute(completed_link_stmt)
+        completed_quest_ids = {str(quest_id) for quest_id in completed_link_result.scalars().all()}
 
         result_items = []
         for quest in quests:

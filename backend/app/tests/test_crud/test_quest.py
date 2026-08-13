@@ -235,6 +235,15 @@ async def test_get_multi_for_vault(async_session: AsyncSession) -> None:
     assert "Quest 3" in quest_dict
     assert quest_dict["Quest 3"].is_visible is True
 
+    quest_page_indexes = {}
+    for page_index in range(3):
+        page = await crud.quest_crud.get_multi_for_vault(
+            db_session=async_session, skip=page_index, limit=1, vault_id=vault.id
+        )
+        assert len(page) == 1
+        quest_page_indexes[page[0].title] = page_index
+    assert quest_page_indexes["Quest 1"] != quest_page_indexes["Quest 2"]
+
     quest1_link = await async_session.get(crud.quest_crud.link_model, (vault.id, quest1.id))
     assert quest1_link is not None
     quest1_link.is_completed = True
@@ -244,6 +253,12 @@ async def test_get_multi_for_vault(async_session: AsyncSession) -> None:
         db_session=async_session, skip=0, limit=100, vault_id=vault.id
     )
     assert {quest.title: quest.is_visible for quest in unlocked_quests}["Quest 2"] is True
+
+    quest2_page = await crud.quest_crud.get_multi_for_vault(
+        db_session=async_session, skip=quest_page_indexes["Quest 2"], limit=1, vault_id=vault.id
+    )
+    assert quest2_page[0].title == "Quest 2"
+    assert quest2_page[0].is_visible is True
 
 
 @pytest.mark.asyncio

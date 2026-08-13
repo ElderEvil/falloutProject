@@ -173,6 +173,15 @@ async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None
                                     )
 
                     try:
+                        predecessor_id = None
+                        if (
+                            req_json.requirement_type.upper() == "QUEST_COMPLETED"
+                            and req_json.is_mandatory
+                            and quest.previous_quest_id is None
+                            and (previous_quest_id := requirement_data.get("quest_id"))
+                        ):
+                            predecessor_id = UUID(str(previous_quest_id))
+
                         requirement = QuestRequirement(
                             quest_id=quest.id,
                             requirement_type=RequirementType(req_json.requirement_type.lower()),
@@ -180,13 +189,8 @@ async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None
                             is_mandatory=req_json.is_mandatory,
                         )
                         db_session.add(requirement)
-                        if (
-                            req_json.requirement_type.upper() == "QUEST_COMPLETED"
-                            and req_json.is_mandatory
-                            and quest.previous_quest_id is None
-                            and (previous_quest_id := requirement_data.get("quest_id"))
-                        ):
-                            quest.previous_quest_id = UUID(str(previous_quest_id))
+                        if predecessor_id:
+                            quest.previous_quest_id = predecessor_id
                     except ValueError as e:
                         logger.warning(f"Failed to create requirement for quest '{quest.title}': {e}")
 

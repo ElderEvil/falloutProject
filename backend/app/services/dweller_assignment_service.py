@@ -12,6 +12,7 @@ from app.models.dweller import Dweller
 from app.models.room import Room
 from app.schemas.common import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerUpdate
+from app.services.training_service import training_service
 
 logger = logging.getLogger(__name__)
 
@@ -62,11 +63,15 @@ class DwellerAssignmentService:
         assigned_dweller_ids: set,
     ) -> None:
         """Assign a single dweller to a room and record the assignment."""
-        await crud.dweller.update(
-            db_session,
-            dweller.id,
-            DwellerUpdate(room_id=room.id, status=determine_status_for_room(room.category)),
-        )
+        if room.category == RoomTypeEnum.TRAINING:
+            await training_service.start_training(db_session, dweller.id, room.id)
+        else:
+            await crud.dweller.update(
+                db_session,
+                dweller.id,
+                DwellerUpdate(room_id=room.id, status=determine_status_for_room(room.category)),
+            )
+
         assignments.append(
             {
                 "dweller_id": str(dweller.id),

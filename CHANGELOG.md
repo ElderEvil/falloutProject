@@ -5,6 +5,16 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.33.2] - 2026-08-13
+
+### Fixed
+
+- **Training queue after automatic assignment** — bulk room assignment now creates active training sessions for
+  dwellers placed in training rooms, keeping the `training` dweller status, progression timer, and Training Queue in
+  sync; regression coverage protects the invariant
+
+---
+
 ## [2.33.0] - 2026-08-13
 
 ### Changed

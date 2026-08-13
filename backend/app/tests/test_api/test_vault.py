@@ -375,7 +375,7 @@ async def test_auto_assign_training_room_sets_training_status(
     result = response.json()
     assert result["assigned_count"] > 0
 
-    # Verify dwellers assigned to training room have status "training"
+    # Verify dwellers assigned to training room have status "training" and active sessions.
     for dweller_id in dweller_ids:
         dweller = await crud.dweller.get(async_session, dweller_id)
         if dweller.room_id == training_room.id:
@@ -383,6 +383,9 @@ async def test_auto_assign_training_room_sets_training_status(
                 f"Dweller {dweller_id} assigned to training room but has status {dweller.status}, "
                 f"expected {DwellerStatusEnum.TRAINING}"
             )
+            training = await crud.training.training.get_active_by_dweller(async_session, dweller_id)
+            assert training is not None, "Training dwellers must have sessions for the training queue"
+            assert training.room_id == training_room.id
 
 
 @pytest.mark.asyncio

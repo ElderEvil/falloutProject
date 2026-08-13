@@ -13,6 +13,7 @@ AI-powered dweller interactions.
 
 - [x] **v2.32.0 planning** — Ruff lint cleanup + Google-style docstring convention enforcement.
 - [x] **v2.33.0 released** — Frontend type-aware linting and stale-request safety.
+- [x] **v2.33.2 patch released** — Automatic training-room assignments now create queue-visible training sessions.
 - [x] **v2.34.0 planning** — Pydantic AI observability and structured-output reliability.
 
 ---
@@ -71,6 +72,12 @@ Release notes must state the baseline, the after value, the measurement method/e
 percentage change. Claims must be reproducible from committed commands or CI artifacts. Do not report LOC reduction
 as an improvement unless the release retains equivalent behaviour and test coverage. If the release is primarily a
 feature delivery, record its measurable non-functional impact rather than inventing an optimization claim.
+
+### v2.33.2 — Training Queue Assignment Repair (Released 2026-08-13)
+
+**Fixed:** Auto-assigning dwellers to training rooms previously set their status to `training` without creating an
+active training session. Assignment now delegates to `TrainingService`, keeping progression, duration, and the Training
+Queue synchronized. `test_auto_assign_training_room_sets_training_status` protects this invariant.
 
 ### v2.33.0 — Frontend Type Safety & Async Correctness (Released 2026-08-13)
 

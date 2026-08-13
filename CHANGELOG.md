@@ -5,6 +5,19 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.34.3] - 2026-08-13
+
+### Fixed
+
+- **Quest Show All filter** — vault quest responses now include prerequisite links, so the default list hides locked
+  chain quests and Show All reveals them
+
+### Changed
+
+- **Version alignment** — backend and frontend are both v2.34.3
+
+---
+
 ## [2.34.2] - 2026-08-13
 
 ### Fixed

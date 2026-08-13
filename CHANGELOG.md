@@ -5,6 +5,20 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ---
 
+## [2.34.1] - 2026-08-13
+
+### Fixed
+
+- **Exploration supplies** — preserve supplies funded by vault storage instead of deducting them from the explorer a
+  second time
+- **Exploration completion** — expeditions can only complete after their timer expires; early returns use recall
+
+### Changed
+
+- **Version alignment** — backend and frontend are both v2.34.1
+
+---
+
 ## [2.34.0] - 2026-08-13
 
 ### Added

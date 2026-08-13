@@ -9,6 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.models.dweller import Dweller
 from app.models.exploration import ExplorationStatus
+from app.models.storage import Storage
 from app.models.vault import Vault
 from app.schemas.exploration_event import CombatEventSchema, ItemSchema, LootEventSchema, LootSchema
 from app.services.exploration.event_generator import event_generator
@@ -16,6 +17,58 @@ from app.services.exploration_service import exploration_service
 
 # Note: Detailed SPECIAL stat calculation tests removed for simplicity
 # These are tested implicitly through integration tests
+
+
+async def _finish_exploration(async_session: AsyncSession, exploration) -> None:
+    exploration.start_time = datetime.utcnow() - timedelta(hours=exploration.duration)
+    async_session.add(exploration)
+    await async_session.commit()
+    await async_session.refresh(exploration)
+
+
+@pytest.mark.asyncio
+async def test_send_dweller_deducts_vault_supplies_only_once(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """Supplies taken from storage must not also be removed from the dweller."""
+    dweller.stimpack = 2
+    dweller.radaway = 1
+    storage = Storage(vault_id=vault.id, stimpack=5, radaway=3)
+    async_session.add_all([dweller, storage])
+    await async_session.commit()
+
+    exploration = await exploration_service.send_dweller(
+        async_session,
+        vault.id,
+        dweller.id,
+        duration=4,
+        stimpaks=4,
+        radaways=2,
+    )
+
+    await async_session.refresh(dweller)
+    await async_session.refresh(storage)
+
+    assert exploration.stimpaks == 4
+    assert exploration.radaways == 2
+    assert storage.stimpack == 1
+    assert storage.radaway == 1
+    assert dweller.stimpack == 2
+    assert dweller.radaway == 1
+
+
+@pytest.mark.asyncio
+async def test_send_dweller_rejects_a_dweller_from_another_vault(
+    async_session: AsyncSession,
+    dweller: Dweller,
+) -> None:
+    """The requested vault cannot send a dweller it does not own."""
+    from uuid import uuid4
+
+    with pytest.raises(ValueError, match="does not belong to this vault"):
+        await exploration_service.send_dweller(async_session, uuid4(), dweller.id, duration=4)
 
 
 @pytest.mark.asyncio
@@ -240,6 +293,7 @@ async def test_complete_exploration_transfers_caps(
     expected_xp += int(base_xp * (exploration.dweller_luck * 0.02))
 
     # Complete exploration — returns RewardsSchema (Pydantic model)
+    await _finish_exploration(async_session, exploration)
     rewards = await exploration_service.complete_exploration(async_session, exploration.id)
 
     # Verify rewards via attribute access (RewardsSchema is a Pydantic model)
@@ -275,6 +329,24 @@ async def test_complete_exploration_not_active_raises_error(
     await crud.exploration.complete_exploration(async_session, exploration_id=exploration.id)
 
     with pytest.raises(ValueError, match="not active"):
+        await exploration_service.complete_exploration(async_session, exploration.id)
+
+
+@pytest.mark.asyncio
+async def test_complete_exploration_before_duration_raises_error(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """Full completion is unavailable until the expedition duration has elapsed."""
+    exploration = await crud.exploration.create_with_dweller_stats(
+        async_session,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        duration=4,
+    )
+
+    with pytest.raises(ValueError, match="has not finished yet"):
         await exploration_service.complete_exploration(async_session, exploration.id)
 
 

@@ -309,6 +309,9 @@ When cutting a release branch or version bump:
 2. After backend API changes: regenerate frontend API types: `cd frontend && pnpm run types:generate`.
 3. Prefer small, test-backed changes; follow existing patterns (don't introduce new architectures).
 4. Commit messages: `feat:`, `fix:`, `chore:`; branch prefixes: `feat/`, `fix/`, `chore/`.
+5. Starting with v2.35, every update must have a negative net source-LOC change. When a feature needs new code, first
+   compact or remove existing code by applying DRY and extracting reusable common behavior; validate retained behavior
+   with relevant tests. Do not count generated files, lockfiles, or formatting-only changes toward the reduction.
 
 ## Frontend Simplification Heuristic
 

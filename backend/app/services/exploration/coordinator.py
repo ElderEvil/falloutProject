@@ -297,6 +297,8 @@ class ExplorationCoordinator:
 
         if not exploration.is_active():
             raise ValueError(ERROR_NOT_ACTIVE)
+        if exploration.time_remaining_seconds() > 0:
+            raise ValueError("Exploration has not finished yet; recall the dweller to end it early")
 
         # Mark as completed
         await crud_exploration.complete_exploration(db_session, exploration_id=exploration_id)

@@ -1,5 +1,7 @@
 """Tests for dweller status changes during exploration lifecycle."""
 
+from datetime import datetime, timedelta
+
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -14,6 +16,13 @@ from app.tests.factory.dwellers import create_fake_dweller
 from app.tests.factory.rooms import create_fake_room
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
+
+
+async def _finish_exploration(async_session: AsyncSession, exploration) -> None:
+    exploration.start_time = datetime.utcnow() - timedelta(hours=exploration.duration)
+    async_session.add(exploration)
+    await async_session.commit()
+    await async_session.refresh(exploration)
 
 
 @pytest.mark.asyncio
@@ -77,6 +86,7 @@ async def test_dweller_status_idle_on_exploration_complete_no_room(async_session
     assert dweller.status == DwellerStatusEnum.EXPLORING
 
     # Complete exploration
+    await _finish_exploration(async_session, exploration)
     await exploration_service.complete_exploration(async_session, exploration.id)
 
     # Refresh dweller and check status is now IDLE (no room assigned)
@@ -123,6 +133,7 @@ async def test_dweller_status_working_on_exploration_complete_with_room(async_se
     assert dweller.status == DwellerStatusEnum.EXPLORING
 
     # Complete exploration
+    await _finish_exploration(async_session, exploration)
     await exploration_service.complete_exploration(async_session, exploration.id)
 
     # Refresh dweller and check status is back to WORKING
@@ -169,6 +180,7 @@ async def test_dweller_status_training_on_exploration_complete_with_training_roo
     assert dweller.status == DwellerStatusEnum.EXPLORING
 
     # Complete exploration
+    await _finish_exploration(async_session, exploration)
     await exploration_service.complete_exploration(async_session, exploration.id)
 
     # Refresh dweller and check status is back to TRAINING

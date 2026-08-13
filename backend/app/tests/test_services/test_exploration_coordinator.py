@@ -299,8 +299,8 @@ async def test_complete_exploration_includes_overflow_items(
         duration=4,
     )
 
-    # Make exploration active and add loot
-    exploration.start_time = datetime.utcnow() - timedelta(hours=1)
+    # Complete only after the configured duration has elapsed.
+    exploration.start_time = datetime.utcnow() - timedelta(hours=exploration.duration)
     exploration.add_loot(item_name="Kept Item", quantity=1, rarity="Legendary", item_type="junk")
     exploration.add_loot(item_name="Dropped Item", quantity=1, rarity="Common", item_type="junk")
     async_session.add(exploration)

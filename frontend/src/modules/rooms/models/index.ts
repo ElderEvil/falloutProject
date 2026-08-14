@@ -1,1 +1,1 @@
-export type { Room, RoomCreate, RoomUpdate } from './room'
+export type { Room } from './room'

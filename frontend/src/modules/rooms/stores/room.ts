@@ -2,7 +2,7 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import axios from '@/core/plugins/axios'
 import { AxiosError } from 'axios'
-import type { Room, RoomCreate, RoomTemplate } from '../models/room'
+import type { Room, RoomBuild, RoomTemplate } from '../models/room'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 
@@ -61,8 +61,14 @@ export const useRoomStore = defineStore('room', () => {
     }
   }
 
-  async function buildRoom(roomData: RoomCreate, token: string, vaultId: string): Promise<void> {
+  async function buildRoom(roomName: string, coordinateX: number, coordinateY: number, token: string, vaultId: string) {
     try {
+      const roomData: RoomBuild = {
+        vault_id: vaultId,
+        room_name: roomName,
+        coordinate_x: coordinateX,
+        coordinate_y: coordinateY,
+      }
       const response = await axios.post<Room>('/api/v1/rooms/build/', roomData, {
         headers: {
           Authorization: `Bearer ${token}`,

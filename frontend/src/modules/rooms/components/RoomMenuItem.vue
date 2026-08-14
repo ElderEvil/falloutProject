@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRoute } from 'vue-router'
@@ -15,6 +15,17 @@ const emit = defineEmits<{
 
 const route = useRoute()
 const vaultStore = useVaultStore()
+const showRoomImage = ref(true)
+
+const categoryIcons: Record<string, string> = {
+  production: 'mdi:lightning-bolt',
+  capacity: 'mdi:home',
+  training: 'mdi:school',
+  'misc.': 'mdi:hammer-wrench',
+  quests: 'mdi:book-open',
+  crafting: 'mdi:hammer',
+  theme: 'mdi:palette',
+}
 
 const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => {
@@ -40,19 +51,7 @@ const populationProgress = computed(() => {
   if (!popRequired) return 100
   return Math.min(100, Math.round((currentPopulation.value / popRequired) * 100))
 })
-
-const getCategoryIcon = (category: string) => {
-  const icons: Record<string, string> = {
-    Production: 'mdi:lightning-bolt',
-    Capacity: 'mdi:home',
-    Training: 'mdi:school',
-    'Misc.': 'mdi:hammer-wrench',
-    Quests: 'mdi:book-open',
-    Crafting: 'mdi:hammer',
-    Theme: 'mdi:palette',
-  }
-  return icons[category] || 'mdi:cube'
-}
+const categoryIcon = computed(() => categoryIcons[props.room.category.toLowerCase()] ?? 'mdi:cube')
 </script>
 
 <template>
@@ -76,12 +75,19 @@ const getCategoryIcon = (category: string) => {
       </div>
 
       <div class="room-icon">
-        <Icon :icon="getCategoryIcon(room.category)" class="category-icon" />
+        <img
+          v-if="room.image_url && showRoomImage"
+          :src="room.image_url"
+          :alt="`${room.name} preview`"
+          class="room-preview"
+          @error="showRoomImage = false"
+        />
+        <Icon v-else :icon="categoryIcon" class="category-icon" />
       </div>
 
       <div class="room-details">
         <div class="room-category">
-          <Icon :icon="getCategoryIcon(room.category)" class="w-4 h-4" />
+          <Icon :icon="categoryIcon" class="w-4 h-4" />
           <span>{{ room.category }}</span>
         </div>
 
@@ -213,7 +219,16 @@ const getCategoryIcon = (category: string) => {
   transition: transform 0.25s ease;
 }
 
-.room-menu-item:hover .category-icon {
+.room-preview {
+  width: 100%;
+  height: 64px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 6px var(--color-theme-glow));
+  transition: transform 0.25s ease;
+}
+
+.room-menu-item:hover .category-icon,
+.room-menu-item:hover .room-preview {
   transform: scale(1.1);
 }
 

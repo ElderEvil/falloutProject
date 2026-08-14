@@ -2981,14 +2981,7 @@ export interface paths {
          */
         get: operations["read_room_list_api_v1_rooms__get"];
         put?: never;
-        /**
-         * Create Room
-         * @description Create a new room.
-         *
-         *     Returns:
-         *         The created room.
-         */
-        post: operations["create_room_api_v1_rooms__post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3033,20 +3026,9 @@ export interface paths {
          *         The requested room.
          */
         get: operations["read_room_api_v1_rooms__room_id__get"];
-        /**
-         * Update Room
-         * @description Update a room.
-         *
-         *     Returns:
-         *         The updated room.
-         */
-        put: operations["update_room_api_v1_rooms__room_id__put"];
+        put?: never;
         post?: never;
-        /**
-         * Delete Room
-         * @description Delete a room.
-         */
-        delete: operations["delete_room_api_v1_rooms__room_id__delete"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -7152,57 +7134,22 @@ export interface components {
             /** Vault Caps */
             vault_caps: number;
         };
-        /** RoomCreate */
-        RoomCreate: {
-            /** Name */
-            name: string;
-            category: components["schemas"]["RoomTypeEnum"];
-            ability: components["schemas"]["SPECIALEnum"] | null;
-            /** Population Required */
-            population_required?: number | null;
-            /** Base Cost */
-            base_cost: number;
-            /** Incremental Cost */
-            incremental_cost?: number | null;
-            /** T2 Upgrade Cost */
-            t2_upgrade_cost: number | null;
-            /** T3 Upgrade Cost */
-            t3_upgrade_cost: number | null;
-            /** Capacity */
-            capacity?: number | null;
-            /** Output */
-            output?: number | null;
-            /** Size Min */
-            size_min: number;
-            /** Size Max */
-            size_max: number;
-            /** Size */
-            size?: number | null;
-            /**
-             * Tier
-             * @default 1
-             */
-            tier: number;
-            /** Coordinate X */
-            coordinate_x?: number | null;
-            /** Coordinate Y */
-            coordinate_y?: number | null;
-            /** Image Url */
-            image_url?: string | null;
-            /**
-             * Speedup Multiplier
-             * @default 1
-             */
-            speedup_multiplier: number;
-            /** Capacity Formula */
-            capacity_formula?: string | null;
-            /** Output Formula */
-            output_formula?: string | null;
+        /**
+         * RoomBuild
+         * @description The only player-controlled input for building a room.
+         */
+        RoomBuild: {
             /**
              * Vault Id
              * Format: uuid4
              */
             vault_id: string;
+            /** Room Name */
+            room_name: string;
+            /** Coordinate X */
+            coordinate_x: number;
+            /** Coordinate Y */
+            coordinate_y: number;
         };
         /** RoomCreateWithoutVaultID */
         RoomCreateWithoutVaultID: {
@@ -7314,43 +7261,6 @@ export interface components {
          * @enum {string}
          */
         RoomTypeEnum: "capacity" | "crafting" | "misc." | "production" | "quests" | "theme" | "training";
-        /** RoomUpdate */
-        RoomUpdate: {
-            /** Name */
-            name?: string | null;
-            category?: components["schemas"]["RoomTypeEnum"] | null;
-            ability?: components["schemas"]["SPECIALEnum"] | null;
-            /** Population Required */
-            population_required?: number | null;
-            /** Base Cost */
-            base_cost?: number | null;
-            /** Incremental Cost */
-            incremental_cost?: number | null;
-            /** T2 Upgrade Cost */
-            t2_upgrade_cost?: number | null;
-            /** T3 Upgrade Cost */
-            t3_upgrade_cost?: number | null;
-            /** Capacity */
-            capacity?: number | null;
-            /** Output */
-            output?: number | null;
-            /** Size Min */
-            size_min?: number | null;
-            /** Size Max */
-            size_max?: number | null;
-            /** Size */
-            size?: number | null;
-            /** Tier */
-            tier?: number | null;
-            /** Coordinate X */
-            coordinate_x?: number | null;
-            /** Coordinate Y */
-            coordinate_y?: number | null;
-            /** Image Url */
-            image_url?: string | null;
-            /** Speedup Multiplier */
-            speedup_multiplier?: number | null;
-        };
         /**
          * SPECIALEnum
          * @enum {string}
@@ -12664,39 +12574,6 @@ export interface operations {
             };
         };
     };
-    create_room_api_v1_rooms__post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RoomCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RoomRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     read_rooms_by_vault_api_v1_rooms_vault__vault_id___get: {
         parameters: {
             query?: {
@@ -12750,70 +12627,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["RoomRead"];
                 };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_room_api_v1_rooms__room_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                room_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RoomUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RoomRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_room_api_v1_rooms__room_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                room_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -12886,7 +12699,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RoomCreate"];
+                "application/json": components["schemas"]["RoomBuild"];
             };
         };
         responses: {

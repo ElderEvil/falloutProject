@@ -10,23 +10,11 @@ from app import crud
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403, verify_room_access
 from app.api.game_data_deps import get_static_game_data
 from app.db.session import get_async_session
-from app.schemas.room import RoomCreate, RoomCreateWithoutVaultID, RoomRead, RoomUpdate
+from app.schemas.room import RoomBuild, RoomCreateWithoutVaultID, RoomRead
 from app.services.room_service import room_service
 from app.utils.static_data import StaticGameData
 
 router = APIRouter(prefix="/rooms", tags=["Room"])
-
-
-@router.post("/", response_model=RoomRead)
-async def create_room(
-    room_data: RoomCreate, db_session: Annotated[AsyncSession, Depends(get_async_session)]
-) -> RoomRead:
-    """Create a new room.
-
-    Returns:
-        The created room.
-    """
-    return await crud.room.create(db_session=db_session, obj_in=room_data)
 
 
 @router.get("/", response_model=list[RoomRead])
@@ -71,31 +59,6 @@ async def read_room(
     return await crud.room.get(db_session, room_id)
 
 
-@router.put("/{room_id}", response_model=RoomRead)
-async def update_room(
-    room_id: UUID4,
-    user: CurrentActiveUser,
-    room_data: RoomUpdate,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> RoomRead:
-    """Update a room.
-
-    Returns:
-        The updated room.
-    """
-    await verify_room_access(room_id, user, db_session)
-    return await crud.room.update(db_session, room_id, room_data)
-
-
-@router.delete("/{room_id}", status_code=204)
-async def delete_room(
-    room_id: UUID4, user: CurrentActiveUser, db_session: Annotated[AsyncSession, Depends(get_async_session)]
-) -> None:
-    """Delete a room."""
-    await verify_room_access(room_id, user, db_session)
-    return await crud.room.delete(db_session, room_id)
-
-
 @router.get("/read_data/", response_model=list[RoomCreateWithoutVaultID])
 async def read_room_data(
     data_store: Annotated[StaticGameData, Depends(get_static_game_data)],
@@ -129,7 +92,7 @@ async def get_buildable_rooms(
 
 @router.post("/build/", response_model=RoomRead)
 async def build_room(
-    room_data: RoomCreate,
+    room_request: RoomBuild,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RoomRead:
@@ -138,8 +101,8 @@ async def build_room(
     Returns:
         The built room.
     """
-    await get_user_vault_or_403(room_data.vault_id, user, db_session)
-    return await room_service.build_room(db_session, room_data)
+    await get_user_vault_or_403(room_request.vault_id, user, db_session)
+    return await room_service.build_room(db_session, room_request)
 
 
 @router.delete("/destroy/{room_id}", status_code=204)

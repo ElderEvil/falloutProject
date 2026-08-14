@@ -79,29 +79,7 @@ const placeRoom = async (x: number, y: number) => {
   }
 
   try {
-    await roomStore.buildRoom(
-      {
-        name: selectedRoom.name,
-        category: selectedRoom.category,
-        ability: selectedRoom.ability,
-        population_required: selectedRoom.population_required,
-        base_cost: selectedRoom.base_cost,
-        incremental_cost: selectedRoom.incremental_cost,
-        t2_upgrade_cost: selectedRoom.t2_upgrade_cost,
-        t3_upgrade_cost: selectedRoom.t3_upgrade_cost,
-        size_min: selectedRoom.size_min,
-        size_max: selectedRoom.size_max,
-        size: selectedRoom.size_min, // Use size_min as initial size
-        tier: selectedRoom.tier || 1,
-        coordinate_x: placementX,
-        coordinate_y: y,
-        image_url: selectedRoom.image_url,
-        speedup_multiplier: selectedRoom.speedup_multiplier || 1,
-        vault_id: vaultId,
-      },
-      authStore.token as string,
-      vaultId
-    )
+    await roomStore.buildRoom(selectedRoom.name, placementX, y, authStore.token as string, vaultId)
     roomStore.deselectRoom()
     toast.success(`${selectedRoom.name} built successfully!`)
   } catch (error) {

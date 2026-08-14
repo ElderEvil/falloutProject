@@ -162,13 +162,6 @@ describe('Room Store', () => {
         vault_id: 'vault-1',
       }
 
-      const roomData = {
-        type: 'water',
-        position_x: 2,
-        position_y: 0,
-        vault_id: 'vault-1',
-      }
-
       vi.mocked(axios.post).mockResolvedValueOnce({ data: newRoom })
       vi.mocked(axios.get).mockResolvedValueOnce({ data: { id: 'vault-1', bottle_caps: 900 } })
 
@@ -176,11 +169,16 @@ describe('Room Store', () => {
       const vaultStore = useVaultStore()
       vaultStore.loadedVaults['vault-1'] = { id: 'vault-1', bottle_caps: 1000 } as any
 
-      await store.buildRoom(roomData, 'test-token', 'vault-1')
+      await store.buildRoom('Water Treatment', 2, 0, 'test-token', 'vault-1')
 
       expect(axios.post).toHaveBeenCalledWith(
         '/api/v1/rooms/build/',
-        roomData,
+        {
+          vault_id: 'vault-1',
+          room_name: 'Water Treatment',
+          coordinate_x: 2,
+          coordinate_y: 0,
+        },
         expect.objectContaining({
           headers: { Authorization: 'Bearer test-token' },
         })
@@ -200,7 +198,7 @@ describe('Room Store', () => {
 
       const store = useRoomStore()
       await expect(
-        store.buildRoom({ type: 'power' } as any, 'test-token', 'vault-1')
+        store.buildRoom('Power Generator', 0, 0, 'test-token', 'vault-1')
       ).rejects.toThrow('Insufficient caps')
     })
   })

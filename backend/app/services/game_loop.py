@@ -535,7 +535,9 @@ class GameLoopService:
                 return stats
 
             # Check if new incident should spawn
-            should_spawn = await incident_service.should_spawn_incident(db_session, vault_id, seconds_passed, game_state)
+            should_spawn = await incident_service.should_spawn_incident(
+                db_session, vault_id, seconds_passed, game_state
+            )
             if should_spawn:
                 new_incident = await incident_service.spawn_incident(db_session, vault_id)
                 if new_incident:

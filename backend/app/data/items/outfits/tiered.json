@@ -1,7 +1,7 @@
 [
   {
     "name": "Armored vault suit",
-    "outfit_type": "Tiered Outfit",
+    "outfit_type": "tiered_outfit",
     "rarity": "Common",
     "value": 10,
     "total": 3,
@@ -17,7 +17,7 @@
   },
   {
     "name": "Sturdy vault suit",
-    "outfit_type": "Tiered Outfit",
+    "outfit_type": "tiered_outfit",
     "rarity": "Rare",
     "value": 100,
     "total": 5,
@@ -33,7 +33,7 @@
   },
   {
     "name": "Heavy vault suit",
-    "outfit_type": "Tiered Outfit",
+    "outfit_type": "tiered_outfit",
     "rarity": "Legendary",
     "value": 100,
     "total": 7,

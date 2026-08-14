@@ -1,7 +1,7 @@
 [
   {
     "name": "NCR Ranger outfit",
-    "outfit_type": "Rare Outfit",
+    "outfit_type": "rare_outfit",
     "rarity": "Rare",
     "value": 100,
     "total": 6,
@@ -17,7 +17,7 @@
   },
   {
     "name": "RobCo R&D suit",
-    "outfit_type": "Rare Outfit",
+    "outfit_type": "rare_outfit",
     "rarity": "Rare",
     "value": 100,
     "total": 6,
@@ -33,7 +33,7 @@
   },
   {
     "name": "Robot armor",
-    "outfit_type": "Rare Outfit",
+    "outfit_type": "rare_outfit",
     "rarity": "Rare",
     "value": 100,
     "total": 6,

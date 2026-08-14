@@ -401,6 +401,8 @@ class VaultService:
             WeaponSubtypeEnum,
             WeaponTypeEnum,
         )
+        from app.utils.outfit_assets import get_outfit_image_url
+        from app.utils.weapon_assets import get_weapon_image_url
 
         result = await db_session.execute(select(Storage).where(Storage.vault_id == vault_id))
         storage = result.scalar_one_or_none()
@@ -482,15 +484,68 @@ class VaultService:
         ]
 
         for weapon_data in weapons_data:
+            weapon_data["image_url"] = get_weapon_image_url(weapon_data["name"])
             weapon = Weapon(**weapon_data, storage_id=storage.id)
             db_session.add(weapon)
 
         for outfit_data in outfits_data:
+            outfit_data["image_url"] = get_outfit_image_url(outfit_data["name"])
             outfit = Outfit(**outfit_data, storage_id=storage.id)
             db_session.add(outfit)
 
         await db_session.commit()
         self.logger.info(f"Created initial items for vault {vault_id}")
+
+    async def _create_boosted_legendary_dwellers(self, db_session: AsyncSession, vault_id: UUID4) -> None:
+        """Add a small, equipped legendary roster for boosted-vault testing."""
+        from app.models.dweller import Dweller
+        from app.models.outfit import Outfit
+        from app.models.weapon import Weapon
+        from app.schemas.common import OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
+        from app.utils.outfit_assets import get_outfit_image_url
+        from app.utils.static_data import game_data_store
+        from app.utils.weapon_assets import get_weapon_image_url
+
+        loadouts = {
+            "Abraham Washington": ("Lever-action rifle", "Abraham's relaxedwear"),
+            "Allistair Tenpenny": ("Hunting rifle", "Eulogy Jones' suit"),
+            "Bittercup": ("10mm pistol", "Bittercup's outfit"),
+        }
+        templates = {
+            f"{dweller.first_name} {dweller.last_name or ''}".strip(): dweller
+            for dweller in game_data_store.dwellers
+            if dweller.rarity.lower() == RarityEnum.LEGENDARY.value
+        }
+
+        for name, (weapon_name, outfit_name) in loadouts.items():
+            template = templates[name]
+            dweller = Dweller(**template.model_dump(exclude={"weapon", "outfit"}), vault_id=vault_id)
+            db_session.add(dweller)
+            await db_session.flush()
+            db_session.add(
+                Weapon(
+                    name=weapon_name,
+                    rarity=RarityEnum.LEGENDARY,
+                    weapon_type=WeaponTypeEnum.GUN,
+                    weapon_subtype=WeaponSubtypeEnum.RIFLE if "rifle" in weapon_name else WeaponSubtypeEnum.PISTOL,
+                    stat="perception",
+                    damage_min=12,
+                    damage_max=20,
+                    image_url=get_weapon_image_url(weapon_name),
+                    dweller_id=dweller.id,
+                )
+            )
+            db_session.add(
+                Outfit(
+                    name=outfit_name,
+                    rarity=RarityEnum.LEGENDARY,
+                    outfit_type=OutfitTypeEnum.LEGENDARY,
+                    image_url=get_outfit_image_url(outfit_name),
+                    dweller_id=dweller.id,
+                )
+            )
+
+        await db_session.commit()
 
     async def _assign_initial_objectives(
         self, db_session: AsyncSession, vault_id: UUID4, is_boosted: bool = False
@@ -658,6 +713,9 @@ class VaultService:
             created_capacity_rooms,
             is_boosted,
         )
+
+        if is_boosted:
+            await self._create_boosted_legendary_dwellers(db_session, vault_db_obj.id)
 
         # Commit to ensure all dwellers and rooms are persisted before starting training
         await db_session.commit()

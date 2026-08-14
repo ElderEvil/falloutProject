@@ -1,7 +1,7 @@
 [
   {
     "name": "T-45a power armor",
-    "outfit_type": "Power Armor",
+    "outfit_type": "power_armor",
     "rarity": "Legendary",
     "value": 500,
     "total": 5,
@@ -16,7 +16,7 @@
   },
   {
     "name": "T-45d power armor",
-    "outfit_type": "Power Armor",
+    "outfit_type": "power_armor",
     "rarity": "Legendary",
     "value": 500,
     "total": 6,
@@ -31,7 +31,7 @@
   },
   {
     "name": "T-45f power armor",
-    "outfit_type": "Power Armor",
+    "outfit_type": "power_armor",
     "rarity": "Legendary",
     "value": 500,
     "total": 7,
@@ -46,7 +46,7 @@
   },
   {
     "name": "T-51a power armor",
-    "outfit_type": "Power Armor",
+    "outfit_type": "power_armor",
     "rarity": "Legendary",
     "value": 500,
     "total": 4,
@@ -61,7 +61,7 @@
   },
   {
     "name": "T-51d power armor",
-    "outfit_type": "Power Armor",
+    "outfit_type": "power_armor",
     "rarity": "Legendary",
     "value": 500,
     "total": 5,
@@ -76,7 +76,7 @@
   },
   {
     "name": "T-51f power armor",
-    "outfit_type": "Power Armor",
+    "outfit_type": "power_armor",
     "rarity": "Legendary",
     "value": 500,
     "total": 7,
@@ -91,7 +91,7 @@
   },
   {
     "name": "T-60a power armor",
-    "outfit_type": "Power Armor",
+    "outfit_type": "power_armor",
     "rarity": "Legendary",
     "value": 500,
     "total": 5,
@@ -106,7 +106,7 @@
   },
   {
     "name": "T-60d power armor",
-    "outfit_type": "Power Armor",
+    "outfit_type": "power_armor",
     "rarity": "Legendary",
     "value": 500,
     "total": 6,
@@ -121,7 +121,7 @@
   },
   {
     "name": "T-60f power armor",
-    "outfit_type": "Power Armor",
+    "outfit_type": "power_armor",
     "rarity": "Legendary",
     "value": 500,
     "total": 7,
@@ -136,7 +136,7 @@
   },
   {
     "name": "X-01 Mk I power armor",
-    "outfit_type": "Power Armor",
+    "outfit_type": "power_armor",
     "rarity": "Legendary",
     "value": 500,
     "total": 5,
@@ -151,7 +151,7 @@
   },
   {
     "name": "X-01 Mk IV power armor",
-    "outfit_type": "Power Armor",
+    "outfit_type": "power_armor",
     "rarity": "Legendary",
     "value": 500,
     "total": 6,
@@ -166,7 +166,7 @@
   },
   {
     "name": "X-01 Mk VI power armor",
-    "outfit_type": "Power Armor",
+    "outfit_type": "power_armor",
     "rarity": "Legendary",
     "value": 500,
     "total": 7,

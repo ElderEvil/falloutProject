@@ -5,6 +5,24 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ## [2.38.0](https://github.com/ElderEvil/falloutProject/compare/v2.37.0...v2.38.0) (2026-08-14)
 
+### Features
+
+- **Safer room construction** — room builds now use server-owned templates, so costs, sizes, categories, formulas,
+  and upgrades cannot be supplied or manipulated by the client; the build menu now includes room artwork.
+- **Visual equipment inventory** — outfits and weapons now display their artwork in storage and combat equipment views.
+- **Legendary starter team** — boosted vaults include legendary dwellers with themed weapons and outfits for easier
+  high-level testing.
+
+### Fixed
+
+- **Legendary portraits** — legendary dwellers now receive thumbnails in dweller lists and grids, including existing
+  vault records after migration.
+
+### Changed
+
+- **Asset coverage** — new rewards, exploration finds, and starter items receive their matching artwork automatically;
+  existing outfit, weapon, and legendary-dweller records are backfilled on upgrade.
+
 ## [2.37.0](https://github.com/ElderEvil/falloutProject/compare/v2.36.0...v2.37.0) (2026-08-14)
 
 ## Unreleased

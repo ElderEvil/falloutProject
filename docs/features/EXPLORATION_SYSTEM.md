@@ -8,7 +8,7 @@ The exploration system allows dwellers to venture into the wasteland to collect 
 
 ### Service Layer Structure
 
-```
+```text
 app/services/
 ├── exploration_service.py          # Main service API (facade)
 └── exploration/                     # Modular subsystems
@@ -194,12 +194,14 @@ WeaponSchema:
     stat: str
     damage_min: int
     damage_max: int
+    image_url: str | None
 
 OutfitSchema:
     name: str
     rarity: str
     value: int
     outfit_type: str
+    image_url: str | None
 
 JunkSchema:
     name: str
@@ -291,9 +293,9 @@ Manually trigger event generation (testing/debugging).
 - Used for difficulty scaling and reward calculation
 
 ### Difficulty Scaling
-- Enemy strength scales with progress (0% → 100%)
+- Enemy strength scales with progress (0–100%)
 - Higher progress = tougher enemies
-- Formula: `available_enemies = [e for e in enemies if e.difficulty <= max(1, int(progress * 5))]`
+- Formula: `available_enemies = [e for e in enemies if e.difficulty <= max(1, 1 + int(progress / 25))]`
 
 ### Stat Influence
 

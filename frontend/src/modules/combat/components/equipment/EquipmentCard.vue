@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Weapon, Outfit } from '@/modules/combat/models/equipment'
 import { getRarityColor, getDamageRange, getOutfitBonuses } from '@/modules/combat/models/equipment'
+import { getStaticImageUrl } from '@/core/utils/image'
 
 interface Props {
   item: Weapon | Outfit
@@ -70,257 +71,110 @@ const bonuses = computed(() => (type === 'outfit' ? getOutfitBonuses(item as Out
 const itemTypeLabel = computed(() =>
   type === 'weapon' ? (item as Weapon).weapon_subtype : (item as Outfit).outfit_type
 )
+
+const imageError = ref(false)
+
+watch(
+  () => item.image_url,
+  () => {
+    imageError.value = false
+  },
+)
+
+const itemImageUrl = computed(() => {
+  if (imageError.value || !item.image_url) {
+    return ''
+  }
+  return getStaticImageUrl(item.image_url)
+})
+
+function onImageError() {
+  imageError.value = true
+}
 </script>
 
 <template>
-  <div class="equipment-card" :class="{ equipped }">
-    <div class="equipment-header">
-      <Icon :icon="itemIcon" class="equipment-icon" />
-      <div class="equipment-info">
-        <h4 class="equipment-name" :style="{ color: rarityColor }">{{ item.name }}</h4>
-        <p class="equipment-type">{{ itemTypeLabel }} • {{ item.rarity }}</p>
+  <div
+    class="equipment-card"
+    :class="[
+      'flex flex-col gap-3 rounded-lg border-2 p-4 transition-all duration-200',
+      equipped
+        ? 'border-[var(--color-theme-primary)] bg-black/50 shadow-[0_0_12px_var(--color-theme-glow)]'
+        : 'border-[var(--color-theme-glow)] bg-black/30 hover:border-[var(--color-theme-primary)] hover:bg-black/50 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_var(--color-theme-glow)]',
+    ]"
+  >
+    <div class="flex items-center gap-3">
+      <img
+        v-if="itemImageUrl"
+        :src="itemImageUrl"
+        :alt="item.name"
+        class="h-16 w-16 object-contain"
+        @error="onImageError"
+      />
+      <Icon v-else :icon="itemIcon" class="h-16 w-16 text-[var(--color-theme-primary)]" />
+      <div class="flex-1">
+        <h4 class="text-lg font-bold text-shadow-[0_0_4px_currentColor]" :style="{ color: rarityColor }">
+          {{ item.name }}
+        </h4>
+        <p class="text-xs capitalize text-[var(--color-theme-primary)] opacity-70">
+          {{ itemTypeLabel }} • {{ item.rarity }}
+        </p>
       </div>
     </div>
 
-    <p class="equipment-description">{{ item.description }}</p>
+    <p class="text-sm leading-snug text-[var(--color-theme-primary)] opacity-80">{{ item.description }}</p>
 
-    <!-- Weapon stats -->
-    <div v-if="type === 'weapon'" class="equipment-stats">
-      <div class="stat-item">
-        <Icon icon="mdi:sword-cross" class="stat-icon" />
-        <span class="stat-label">Damage:</span>
-        <span class="stat-value">{{ damageRange }}</span>
+    <div v-if="type === 'weapon'" class="flex flex-col gap-2 rounded bg-black/30 p-3">
+      <div class="flex items-center gap-2 text-sm">
+        <Icon icon="mdi:sword-cross" class="h-4 w-4 text-[var(--color-theme-primary)]" />
+        <span class="text-[var(--color-theme-primary)] opacity-70">Damage:</span>
+        <span class="ml-auto font-bold text-[var(--color-theme-primary)]">{{ damageRange }}</span>
       </div>
-      <div class="stat-item">
-        <Icon icon="mdi:alphabet-latin" class="stat-icon" />
-        <span class="stat-label">Uses:</span>
-        <span class="stat-value">{{ (item as Weapon).stat }}</span>
+      <div class="flex items-center gap-2 text-sm">
+        <Icon icon="mdi:alphabet-latin" class="h-4 w-4 text-[var(--color-theme-primary)]" />
+        <span class="text-[var(--color-theme-primary)] opacity-70">Uses:</span>
+        <span class="ml-auto font-bold text-[var(--color-theme-primary)]">{{ (item as Weapon).stat }}</span>
       </div>
       <div
         v-if="(item as Weapon).accuracy !== null && (item as Weapon).accuracy !== undefined"
-        class="stat-item"
+        class="flex items-center gap-2 text-sm"
       >
-        <Icon icon="mdi:target" class="stat-icon" />
-        <span class="stat-label">Accuracy:</span>
-        <span class="stat-value">{{ (item as Weapon).accuracy }}%</span>
+        <Icon icon="mdi:target" class="h-4 w-4 text-[var(--color-theme-primary)]" />
+        <span class="text-[var(--color-theme-primary)] opacity-70">Accuracy:</span>
+        <span class="ml-auto font-bold text-[var(--color-theme-primary)]">{{ (item as Weapon).accuracy }}%</span>
       </div>
     </div>
 
-    <!-- Outfit bonuses -->
-    <div v-else-if="bonuses.length > 0" class="equipment-bonuses">
-      <div class="bonuses-header">
-        <Icon icon="mdi:chevron-up" class="bonus-icon" />
-        <span class="bonuses-label">SPECIAL Bonuses:</span>
+    <div v-else-if="bonuses.length > 0" class="rounded bg-black/30 p-3">
+      <div class="mb-2 flex items-center gap-2">
+        <Icon icon="mdi:chevron-up" class="h-4 w-4 text-[var(--color-theme-primary)]" />
+        <span class="text-sm font-semibold text-[var(--color-theme-primary)] opacity-70">SPECIAL Bonuses:</span>
       </div>
-      <div class="bonuses-grid">
-        <div v-for="bonus in bonuses" :key="bonus.stat" class="bonus-item">
-          <span class="bonus-stat">{{ bonus.stat }}</span>
-          <span class="bonus-value">+{{ bonus.bonus }}</span>
+      <div class="flex flex-wrap gap-2">
+        <div v-for="bonus in bonuses" :key="bonus.stat" class="flex items-center gap-1 rounded border border-[var(--color-theme-glow)] bg-black/20 px-2 py-1 text-sm">
+          <span class="font-semibold text-[var(--color-theme-primary)] opacity-70">{{ bonus.stat }}</span>
+          <span class="font-bold text-[var(--color-theme-primary)]">+{{ bonus.bonus }}</span>
         </div>
       </div>
     </div>
 
-    <div v-if="showActions" class="equipment-actions">
-      <button v-if="!equipped" @click="emit('equip')" class="action-btn equip-btn">
+    <div v-if="showActions" class="flex gap-2">
+      <button
+        v-if="!equipped"
+        class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded border-2 border-[var(--color-theme-primary)] bg-black/30 px-4 py-2 text-sm font-semibold text-[var(--color-theme-primary)] transition-all duration-200 hover:bg-black/50 hover:shadow-[0_0_12px_var(--color-theme-glow)]"
+        @click="emit('equip')"
+      >
         <Icon icon="mdi:check" />
         Equip
       </button>
-      <button v-else @click="emit('unequip')" class="action-btn unequip-btn">
+      <button
+        v-else
+        class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded border-2 border-[var(--color-danger)] bg-red-900/30 px-4 py-2 text-sm font-semibold text-[var(--color-danger)] transition-all duration-200 hover:bg-red-900/50 hover:shadow-[0_0_12px_color-mix(in_srgb,var(--color-danger)_40%,transparent)]"
+        @click="emit('unequip')"
+      >
         <Icon icon="mdi:close" />
         Unequip
       </button>
     </div>
   </div>
 </template>
-
-<style scoped>
-.equipment-card {
-  background: rgba(0, 0, 0, 0.3);
-  border: 2px solid var(--color-theme-glow);
-  border-radius: 8px;
-  padding: 1rem;
-  transition: all 0.2s ease;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.equipment-card:hover {
-  border-color: var(--color-theme-primary);
-  background: rgba(0, 0, 0, 0.5);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px var(--color-theme-glow);
-}
-
-.equipment-card.equipped {
-  border-color: var(--color-theme-primary);
-  background: rgba(0, 0, 0, 0.5);
-  box-shadow: 0 0 12px var(--color-theme-glow);
-}
-
-.equipment-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.equipment-icon {
-  width: 2.5rem;
-  height: 2.5rem;
-  color: var(--color-theme-primary);
-  filter: drop-shadow(0 0 4px var(--color-theme-glow));
-}
-
-.equipment-info {
-  flex: 1;
-}
-
-.equipment-name {
-  font-size: 1.125rem;
-  font-weight: 700;
-  margin-bottom: 0.25rem;
-  text-shadow: 0 0 4px currentColor;
-}
-
-.equipment-type {
-  font-size: 0.75rem;
-  color: var(--color-theme-primary);
-  opacity: 0.7;
-  text-transform: capitalize;
-}
-
-.equipment-description {
-  font-size: 0.875rem;
-  color: var(--color-theme-primary);
-  opacity: 0.8;
-  line-height: 1.4;
-}
-
-.equipment-stats {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 4px;
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-}
-
-.stat-icon {
-  width: 1rem;
-  height: 1rem;
-  color: var(--color-theme-primary);
-}
-
-.stat-label {
-  color: var(--color-theme-primary);
-  opacity: 0.7;
-}
-
-.stat-value {
-  color: var(--color-theme-primary);
-  font-weight: 700;
-  margin-left: auto;
-}
-
-.equipment-bonuses {
-  padding: 0.75rem;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 4px;
-}
-
-.bonuses-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.bonus-icon {
-  width: 1rem;
-  height: 1rem;
-  color: var(--color-theme-primary);
-}
-
-.bonuses-label {
-  font-size: 0.875rem;
-  color: var(--color-theme-primary);
-  opacity: 0.7;
-  font-weight: 600;
-}
-
-.bonuses-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.bonus-item {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0.5rem;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 4px;
-  font-size: 0.875rem;
-}
-
-.bonus-stat {
-  color: var(--color-theme-primary);
-  opacity: 0.7;
-  font-weight: 600;
-}
-
-.bonus-value {
-  color: var(--color-theme-primary);
-  font-weight: 700;
-}
-
-.equipment-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.action-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 0.875rem;
-  transition: all 0.2s ease;
-  cursor: pointer;
-}
-
-.equip-btn {
-  background: rgba(0, 0, 0, 0.3);
-  border: 2px solid var(--color-theme-primary);
-  color: var(--color-theme-primary);
-}
-
-.equip-btn:hover {
-  background: rgba(0, 0, 0, 0.5);
-  box-shadow: 0 0 12px var(--color-theme-glow);
-}
-
-.unequip-btn {
-  background: rgba(128, 0, 0, 0.3);
-  border: 2px solid var(--color-danger);
-  color: var(--color-danger);
-}
-
-.unequip-btn:hover {
-  background: rgba(128, 0, 0, 0.5);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--color-danger) 40%, transparent);
-}
-</style>

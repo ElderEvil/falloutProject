@@ -33,6 +33,7 @@ export interface ItemBase {
   rarity: Rarity
   value?: number | null
   icon_url?: string
+  image_url?: string | null
 }
 
 // Weapon interface

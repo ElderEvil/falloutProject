@@ -7089,6 +7089,16 @@ export interface components {
          */
         RelationshipTypeEnum: "acquaintance" | "friend" | "romantic" | "partner" | "ex";
         /**
+         * ResourceLevelWarning
+         * @description A resource level that requires player attention.
+         */
+        ResourceLevelWarning: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+        };
+        /**
          * RevivalCostResponse
          * @description Response schema for revival cost check.
          */
@@ -7915,9 +7925,7 @@ export interface components {
              */
             updated_at: string;
             /** Resource Warnings */
-            resource_warnings?: {
-                [key: string]: string;
-            }[];
+            resource_warnings?: components["schemas"]["ResourceLevelWarning"][];
         };
         /** VaultReadWithNumbers */
         VaultReadWithNumbers: {
@@ -7989,9 +7997,7 @@ export interface components {
              */
             updated_at: string;
             /** Resource Warnings */
-            resource_warnings?: {
-                [key: string]: string;
-            }[];
+            resource_warnings?: components["schemas"]["ResourceLevelWarning"][];
             /** Room Count */
             room_count: number;
             /** Dweller Count */
@@ -8071,9 +8077,7 @@ export interface components {
              */
             updated_at: string;
             /** Resource Warnings */
-            resource_warnings?: {
-                [key: string]: string;
-            }[];
+            resource_warnings?: components["schemas"]["ResourceLevelWarning"][];
             /**
              * User Id
              * Format: uuid4

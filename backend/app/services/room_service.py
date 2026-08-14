@@ -42,9 +42,7 @@ class RoomService:
             VaultOperationException: On other build failures
         """
         try:
-            room_template = next(
-                (room for room in game_data_store.rooms if room.name.lower() == room_request.room_name.lower()), None
-            )
+            room_template = game_data_store.get_room(room_request.room_name)
             if room_template is None or room_template.name.lower() == "vault door":
                 raise VaultOperationException(detail=f"Room cannot be built: {room_request.room_name}")
             room_data = RoomCreate(

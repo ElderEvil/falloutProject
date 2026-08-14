@@ -297,7 +297,10 @@ class IncidentService:
                 await self._publish_event(incident, "incident_spreading")
                 return IncidentRoundResult(no_defenders=True)
 
-            if incident.spread_count >= game_config.incident.max_spread_count or incident.elapsed_time() >= incident.duration:
+            if (
+                incident.spread_count >= game_config.incident.max_spread_count
+                or incident.elapsed_time() >= incident.duration
+            ):
                 incident.resolve(success=False)
                 db_session.add(incident)
                 await db_session.commit()

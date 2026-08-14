@@ -15,8 +15,8 @@ from app.models.quest_reward import QuestReward, RewardType
 from app.models.storage import Storage
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.models.weapon import Weapon
-from app.schemas.vault import VaultUpdate
 from app.services.event_bus import GameEvent, event_bus
+from app.utils.reward_delivery import persist_reward_change, reward_delivery_is_deferred
 
 logger = logging.getLogger(__name__)
 
@@ -24,16 +24,26 @@ logger = logging.getLogger(__name__)
 class RewardService:
     """Service for processing and granting quest/objective rewards."""
 
-    async def grant_caps(self, db_session: AsyncSession, vault_id: UUID4, amount: int) -> dict[str, Any]:
+    async def grant_caps(
+        self, db_session: AsyncSession, vault_id: UUID4, amount: int, *, emit_event: bool = True
+    ) -> dict[str, Any]:
         from app.crud.vault import vault as vault_crud
 
         vault_obj = await vault_crud.get(db_session, id=vault_id)
-        await vault_crud.deposit_caps(db_session=db_session, vault_obj=vault_obj, amount=amount)
+        if reward_delivery_is_deferred(db_session):
+            vault_obj.bottle_caps += amount
+            await persist_reward_change(db_session, vault_obj)
+        else:
+            await vault_crud.deposit_caps(
+                db_session=db_session, vault_obj=vault_obj, amount=amount, emit_event=emit_event
+            )
 
         logger.info(f"Granted {amount} caps to vault {vault_id}")
         return {"reward_type": RewardType.CAPS, "amount": amount}
 
-    async def grant_item(self, db_session: AsyncSession, vault_id: UUID4, item_data: dict[str, Any]) -> dict[str, Any]:
+    async def grant_item(
+        self, db_session: AsyncSession, vault_id: UUID4, item_data: dict[str, Any], *, emit_event: bool = True
+    ) -> dict[str, Any]:
         from app.crud.storage import get_available_space
 
         result = await db_session.execute(select(Storage).where(Storage.vault_id == vault_id))
@@ -53,48 +63,37 @@ class RewardService:
         item_name = item_data.get("name", "Unknown Item")
         item_rarity = item_data.get("rarity", "common")
 
-        if item_type == "weapon":
-            weapon = Weapon(
-                name=item_name,
-                rarity=item_rarity,
-                weapon_type=item_data.get("weapon_type", "melee"),
-                weapon_subtype=item_data.get("weapon_subtype", "blunt"),
-                stat=item_data.get("stat", "strength"),
-                damage_min=item_data.get("damage_min", 1),
-                damage_max=item_data.get("damage_max", 3),
-                value=item_data.get("value"),
-                storage_id=storage_obj.id,
-            )
-            db_session.add(weapon)
-            await db_session.commit()
-            await db_session.refresh(weapon)
-            await event_bus.emit(GameEvent.ITEM_COLLECTED, vault_id, {"item_type": "weapon", "amount": 1})
-            logger.info(f"Granted weapon '{item_name}' ({item_rarity}) to vault {vault_id}")
-            return {"reward_type": RewardType.ITEM, "item_type": "weapon", "name": item_name, "item_id": str(weapon.id)}
+        match item_type:
+            case "weapon":
+                item = Weapon(
+                    name=item_name,
+                    rarity=item_rarity,
+                    weapon_type=item_data.get("weapon_type", "melee"),
+                    weapon_subtype=item_data.get("weapon_subtype", "blunt"),
+                    stat=item_data.get("stat", "strength"),
+                    damage_min=item_data.get("damage_min", 1),
+                    damage_max=item_data.get("damage_max", 3),
+                    value=item_data.get("value"),
+                    storage_id=storage_obj.id,
+                )
+            case "outfit":
+                item = Outfit(
+                    name=item_name,
+                    rarity=item_rarity,
+                    outfit_type=item_data.get("outfit_type", "suit"),
+                    gender=item_data.get("gender"),
+                    value=item_data.get("value"),
+                    storage_id=storage_obj.id,
+                )
+            case _:
+                msg = f"Unknown item_type: {item_type}"
+                raise ValueError(msg)
 
-        if item_type == "outfit":
-            outfit = Outfit(
-                name=item_name,
-                rarity=item_rarity,
-                outfit_type=item_data.get("outfit_type", "suit"),
-                gender=item_data.get("gender"),
-                value=item_data.get("value"),
-                storage_id=storage_obj.id,
-            )
-            db_session.add(outfit)
-            await db_session.commit()
-            await db_session.refresh(outfit)
-            await event_bus.emit(GameEvent.ITEM_COLLECTED, vault_id, {"item_type": "outfit", "amount": 1})
-            logger.info(f"Granted outfit '{item_name}' ({item_rarity}) to vault {vault_id}")
-            return {
-                "reward_type": RewardType.ITEM,
-                "item_type": "outfit",
-                "name": item_name,
-                "item_id": str(outfit.id),
-            }
-
-        msg = f"Unknown item_type: {item_type}"
-        raise ValueError(msg)
+        await persist_reward_change(db_session, item, refresh=True)
+        if emit_event and not reward_delivery_is_deferred(db_session):
+            await event_bus.emit(GameEvent.ITEM_COLLECTED, vault_id, {"item_type": item_type, "amount": 1})
+        logger.info(f"Granted {item_type} '{item_name}' ({item_rarity}) to vault {vault_id}")
+        return {"reward_type": RewardType.ITEM, "item_type": item_type, "name": item_name, "item_id": str(item.id)}
 
     async def grant_dweller(
         self, db_session: AsyncSession, vault_id: UUID4, dweller_template: dict[str, Any]
@@ -133,9 +132,7 @@ class RewardService:
             bio=dweller_template.get("bio"),
             vault_id=vault_id,
         )
-        db_session.add(new_dweller)
-        await db_session.commit()
-        await db_session.refresh(new_dweller)
+        await persist_reward_change(db_session, new_dweller, refresh=True)
 
         logger.info(f"Granted dweller '{first_name}' ({rarity}) to vault {vault_id}")
         return {
@@ -150,20 +147,27 @@ class RewardService:
         from app.crud.vault import vault as vault_crud
 
         vault_obj = await vault_crud.get(db_session, id=vault_id)
+        deferred = reward_delivery_is_deferred(db_session)
 
         match resource_type.lower():
             case "food":
                 new_value = min(vault_obj.food + amount, vault_obj.food_max)
-                await vault_crud.update(db_session, id=vault_id, obj_in=VaultUpdate(food=new_value))
+                field = "food"
             case "water":
                 new_value = min(vault_obj.water + amount, vault_obj.water_max)
-                await vault_crud.update(db_session, id=vault_id, obj_in=VaultUpdate(water=new_value))
+                field = "water"
             case "power":
                 new_value = min(vault_obj.power + amount, vault_obj.power_max)
-                await vault_crud.update(db_session, id=vault_id, obj_in=VaultUpdate(power=new_value))
+                field = "power"
             case _:
                 msg = f"Invalid resource_type: {resource_type}. Must be 'food', 'water', or 'power'"
                 raise ValueError(msg)
+
+        if deferred:
+            setattr(vault_obj, field, new_value)
+            await persist_reward_change(db_session, vault_obj)
+        else:
+            await vault_crud.update(db_session, id=vault_id, obj_in={field: new_value})
 
         logger.info(f"Granted {amount} {resource_type} to vault {vault_id}")
         return {"reward_type": RewardType.RESOURCE, "resource_type": resource_type, "amount": amount}
@@ -193,46 +197,43 @@ class RewardService:
             "leveled_up": leveled_up,
         }
 
-    async def grant_stimpak(self, db_session: AsyncSession, vault_id: UUID4, amount: int) -> dict[str, Any]:
+    async def grant_stimpak(
+        self, db_session: AsyncSession, vault_id: UUID4, amount: int, *, emit_event: bool = True
+    ) -> dict[str, Any]:
         """Grant stimpaks to random dweller in vault."""
-        from app.crud.dweller import dweller as dweller_crud
-
-        # Get dwellers in vault
-        dwellers = await dweller_crud.get_multi_by_vault(db_session, vault_id=vault_id, skip=0, limit=100)
-
-        if not dwellers:
-            logger.warning(f"No dwellers found in vault {vault_id} to grant stimpaks")
-            return {"reward_type": RewardType.STIMPAK, "amount": 0, "message": "No dwellers found"}
-
-        # Grant to random dweller
-        dweller = random.choice(dwellers)
-        dweller.stimpack = (dweller.stimpack or 0) + amount
-        db_session.add(dweller)
-        await db_session.commit()
-        await event_bus.emit(GameEvent.ITEM_COLLECTED, vault_id, {"item_type": "stimpak", "amount": amount})
-
-        logger.info(f"Granted {amount} stimpaks to dweller {dweller.first_name} in vault {vault_id}")
-        return {"reward_type": RewardType.STIMPAK, "amount": amount, "dweller_id": str(dweller.id)}
+        return await self._grant_medication(
+            db_session, vault_id, amount, RewardType.STIMPAK, "stimpack", emit_event=emit_event
+        )
 
     async def grant_radaway(self, db_session: AsyncSession, vault_id: UUID4, amount: int) -> dict[str, Any]:
         """Grant radaways to random dweller in vault."""
+        return await self._grant_medication(db_session, vault_id, amount, RewardType.RADAWAY, "radaway")
+
+    async def _grant_medication(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        amount: int,
+        reward_type: RewardType,
+        stock_field: str,
+        *,
+        emit_event: bool = False,
+    ) -> dict[str, Any]:
         from app.crud.dweller import dweller as dweller_crud
 
-        # Get dwellers in vault
         dwellers = await dweller_crud.get_multi_by_vault(db_session, vault_id=vault_id, skip=0, limit=100)
-
         if not dwellers:
-            logger.warning(f"No dwellers found in vault {vault_id} to grant radaways")
-            return {"reward_type": RewardType.RADAWAY, "amount": 0, "message": "No dwellers found"}
+            logger.warning(f"No dwellers found in vault {vault_id} to grant {reward_type}s")
+            return {"reward_type": reward_type, "amount": 0, "message": "No dwellers found"}
 
-        # Grant to random dweller
         dweller = random.choice(dwellers)
-        dweller.radaway = (dweller.radaway or 0) + amount
-        db_session.add(dweller)
-        await db_session.commit()
+        setattr(dweller, stock_field, (getattr(dweller, stock_field) or 0) + amount)
+        await persist_reward_change(db_session, dweller)
+        if emit_event and not reward_delivery_is_deferred(db_session):
+            await event_bus.emit(GameEvent.ITEM_COLLECTED, vault_id, {"item_type": reward_type, "amount": amount})
 
-        logger.info(f"Granted {amount} radaways to dweller {dweller.first_name} in vault {vault_id}")
-        return {"reward_type": RewardType.RADAWAY, "amount": amount, "dweller_id": str(dweller.id)}
+        logger.info(f"Granted {amount} {reward_type}s to dweller {dweller.first_name} in vault {vault_id}")
+        return {"reward_type": reward_type, "amount": amount, "dweller_id": str(dweller.id)}
 
     async def grant_lunchbox(self, db_session: AsyncSession, vault_id: UUID4) -> dict[str, Any]:
         """Grant a lunchbox (gives random rare dwellers/items).
@@ -241,10 +242,6 @@ class RewardService:
         - 3 random items (weapons or outfits)
         - 1 random dweller
         """
-        import random
-
-        from sqlmodel import select
-
         from app.models.outfit import Outfit
         from app.models.storage import Storage
         from app.models.weapon import Weapon
@@ -323,7 +320,7 @@ class RewardService:
         }
         granted_dweller = await self.grant_dweller(db_session, vault_id, dweller_data)
 
-        await db_session.commit()
+        await persist_reward_change(db_session)
 
         logger.info(f"Granted lunchbox to vault {vault_id}: {len(granted_items)} items, 1 dweller")
         return {
@@ -362,7 +359,7 @@ class RewardService:
         reward_str = objective_obj.reward
 
         reward_type, reward_data = self._parse_objective_reward(reward_str)
-        result = await self._process_single_reward(db_session, vault_id, reward_type, reward_data)
+        result = await self._process_single_reward(db_session, vault_id, reward_type, reward_data, emit_event=False)
         logger.info(f"Processed objective reward '{reward_str}' for vault {vault_id}")
         return result
 
@@ -372,14 +369,16 @@ class RewardService:
         vault_id: UUID4,
         reward_type: RewardType | str,
         reward_data: dict[str, Any],
+        *,
+        emit_event: bool = True,
     ) -> dict[str, Any]:
         reward_type_str = reward_type.value if isinstance(reward_type, RewardType) else reward_type
 
         match reward_type_str:
             case RewardType.CAPS:
-                return await self.grant_caps(db_session, vault_id, reward_data.get("amount", 0))
+                return await self.grant_caps(db_session, vault_id, reward_data.get("amount", 0), emit_event=emit_event)
             case RewardType.ITEM:
-                return await self.grant_item(db_session, vault_id, reward_data)
+                return await self.grant_item(db_session, vault_id, reward_data, emit_event=emit_event)
             case RewardType.DWELLER:
                 return await self.grant_dweller(db_session, vault_id, reward_data)
             case RewardType.RESOURCE:
@@ -391,7 +390,9 @@ class RewardService:
                     db_session, reward_data.get("dweller_ids", []), reward_data.get("amount", 0)
                 )
             case RewardType.STIMPAK:
-                return await self.grant_stimpak(db_session, vault_id, reward_data.get("amount", 1))
+                return await self.grant_stimpak(
+                    db_session, vault_id, reward_data.get("amount", 1), emit_event=emit_event
+                )
             case RewardType.RADAWAY:
                 return await self.grant_radaway(db_session, vault_id, reward_data.get("amount", 1))
             case RewardType.LUNCHBOX:

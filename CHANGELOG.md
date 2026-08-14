@@ -1,5 +1,11 @@
 # Changelog
 
+All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
+## [2.35.0](https://github.com/ElderEvil/falloutProject/compare/v2.34.3...v2.35.0) (2026-08-14)
+
+# Changelog
+
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 

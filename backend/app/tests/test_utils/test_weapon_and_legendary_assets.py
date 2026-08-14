@@ -12,4 +12,5 @@ def test_legendary_dwellers_have_portrait_urls() -> None:
     legendary = [dweller for dweller in game_data_store.dwellers if dweller.rarity.lower() == "legendary"]
     assert legendary
     assert all(dweller.image_url for dweller in legendary)
+    assert all(dweller.thumbnail_url for dweller in legendary)
     assert get_legendary_dweller_image_url("Abraham Washington")

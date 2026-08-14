@@ -39,7 +39,9 @@ class StaticGameData:
             legendary = self.load_data(DATA_DIR / "dwellers/legendary.json", DwellerCreateWithoutVaultID)
             self._dwellers = rare + legendary
             for dweller in legendary:
-                dweller.image_url = get_legendary_dweller_image_url(f"{dweller.first_name} {dweller.last_name or ''}")
+                portrait_url = get_legendary_dweller_image_url(f"{dweller.first_name} {dweller.last_name or ''}")
+                dweller.image_url = portrait_url
+                dweller.thumbnail_url = portrait_url
         return self._dwellers
 
     @property

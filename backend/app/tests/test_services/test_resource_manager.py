@@ -1,7 +1,9 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.crud.resource import VaultResourceData
+from app.models import Dweller, Storage
 from app.models.room import Room
 from app.models.vault import Vault
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
@@ -79,3 +81,47 @@ class TestResourceManager:
         assert emit.await_count == 2
         assert emit.await_args_list[0].args[2] == {"resource_type": "power", "amount": 1}
         assert emit.await_args_list[1].args[2] == {"resource_type": "stimpack", "amount": 2}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("starting_stimpacks", "capacity", "output", "expected_delta"), [(4, 5, 33, 1), (5, 5, 100, 0)]
+    )
+    async def test_medical_events_match_persisted_storage_change(
+        self, vault: Vault, starting_stimpacks: int, capacity: int, output: int, expected_delta: int
+    ) -> None:
+        """Medical collection events must match rounded, capacity-limited storage changes."""
+        vault.power = 10
+        storage = Storage(vault_id=vault.id, stimpack=starting_stimpacks)
+        medbay = Room(
+            name="Medbay",
+            category=RoomTypeEnum.PRODUCTION,
+            ability=SPECIALEnum.INTELLIGENCE,
+            output=output,
+            capacity=capacity,
+            tier=1,
+            size=1,
+        )
+        resource_data = VaultResourceData(
+            vault=vault,
+            storage=storage,
+            rooms=[medbay],
+            dweller_count=0,
+            rooms_with_dwellers=[(medbay, [Dweller(intelligence=1)])],
+        )
+
+        with (
+            patch(
+                "app.services.resource_manager.resource_crud.get_vault_resource_data",
+                new_callable=AsyncMock,
+                return_value=resource_data,
+            ),
+            patch("app.services.resource_manager.event_bus.emit", new_callable=AsyncMock) as emit,
+        ):
+            _, events = await ResourceManager().process_vault_resources(MagicMock(), vault.id, 60)
+            await ResourceManager.emit_production_events(vault.id, events)
+
+        medical_amounts = [
+            call.args[2]["amount"] for call in emit.await_args_list if call.args[2]["resource_type"] == "stimpack"
+        ]
+        assert storage.stimpack == starting_stimpacks + expected_delta
+        assert medical_amounts == ([expected_delta] if expected_delta else [])

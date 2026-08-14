@@ -47,15 +47,24 @@ class ResourceManager:
         )
 
         # Write medical production to Storage (separate from VaultUpdate)
+        # Medical events must reflect the integer, capacity-limited amount that
+        # actually reaches storage, rather than the fractional calculated output.
+        production = events.production
+        medical_production = {
+            "stimpack": round(production.stimpack),
+            "radaway": round(production.radaway),
+        }
+        events.production.stimpack = 0
+        events.production.radaway = 0
         if resource_data.storage is not None:
-            production = events.production
             capacity = compute_medical_capacity(resource_data.rooms)
-            stimpack_prod = round(production.stimpack)
-            radaway_prod = round(production.radaway)
-            if stimpack_prod > 0 or radaway_prod > 0:
+            if any(medical_production.values()):
                 storage = resource_data.storage
-                storage.stimpack = min(storage.stimpack + stimpack_prod, capacity.get("stimpack", 0))
-                storage.radaway = min(storage.radaway + radaway_prod, capacity.get("radaway", 0))
+                for resource_type, produced_amount in medical_production.items():
+                    previous_amount = getattr(storage, resource_type)
+                    stored_amount = min(previous_amount + produced_amount, capacity.get(resource_type, 0))
+                    setattr(storage, resource_type, stored_amount)
+                    setattr(events.production, resource_type, stored_amount - previous_amount)
                 resource_crud.save_storage(db_session, storage)
 
         return resource_update, events

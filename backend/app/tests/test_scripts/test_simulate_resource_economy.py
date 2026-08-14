@@ -57,3 +57,14 @@ def test_simulate_can_compare_a_candidate_production_rate() -> None:
     )
 
     assert result.initial_rates_per_minute == pytest.approx({"power": 2.22, "food": 3.48, "water": 3.48})
+
+
+@pytest.mark.parametrize("field", ["population", "workers_per_room"])
+def test_simulate_rejects_negative_population_and_worker_counts(field: str) -> None:
+    with pytest.raises(ValueError, match="non-negative"):
+        simulate(ResourceEconomyConfig(**{field: -1}))
+
+
+def test_simulate_rejects_duration_that_does_not_match_ticks() -> None:
+    with pytest.raises(ValueError, match="exact multiple"):
+        simulate(ResourceEconomyConfig(duration_minutes=1, tick_interval=45))

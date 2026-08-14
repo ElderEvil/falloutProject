@@ -7,7 +7,10 @@ Simulators: 4 focused balance scripts
 
 ## Executive Summary
 
-All four focused simulators run cleanly and produce stable Monte Carlo averages. However, **every subsystem shows signs of being too forgiving under default parameters** — there is insufficient tension between growth and constraints. The game as currently parameterized would present no meaningful challenge to players.
+The three Monte Carlo simulators run cleanly and produce stable averages. The deterministic resource simulator instead
+uses live `ResourceManager` formulas for fixed staffing scenarios. Together, they indicate that **every subsystem shows
+signs of being too forgiving under default parameters** — there is insufficient tension between growth and constraints.
+The game as currently parameterized would present no meaningful challenge to players.
 
 ---
 

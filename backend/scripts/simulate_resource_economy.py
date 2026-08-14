@@ -117,13 +117,16 @@ def simulate(config: ResourceEconomyConfig) -> ResourceEconomyResult:
     """Simulate static staffing using ResourceManager's live calculations."""
     if config.duration_minutes <= 0 or config.tick_interval <= 0:
         raise ValueError("duration_minutes and tick_interval must be positive")
+    if config.population < 0 or config.workers_per_room < 0:
+        raise ValueError("population and workers_per_room must be non-negative")
 
     manager = ResourceManager()
     vault, rooms, rooms_with_dwellers = _build_scenario(config)
     initial_resources = {resource: float(getattr(vault, resource)) for resource in RESOURCE_NAMES}
-    ticks = (config.duration_minutes * 60) // config.tick_interval
-    if ticks == 0:
-        raise ValueError("duration_minutes must include at least one tick")
+    duration_seconds = config.duration_minutes * 60
+    if duration_seconds % config.tick_interval:
+        raise ValueError("duration_minutes must be an exact multiple of tick_interval")
+    ticks = duration_seconds // config.tick_interval
 
     initial_rates: dict[str, float] = {}
     with _production_rate_override(config.base_production_rate):

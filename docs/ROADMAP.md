@@ -463,4 +463,4 @@ provide a way to retroactively fill gaps for existing active vaults.
 
 ---
 
-_Last updated: 2026-08-13_ (v2.34.0 in progress)
+_Last updated: 2026-08-14_ (v2.35.1 released)

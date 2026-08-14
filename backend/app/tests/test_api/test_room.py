@@ -16,11 +16,13 @@ from app.tests.factory.rooms import create_fake_room
 
 
 @pytest.mark.asyncio
-async def test_read_room_list(async_client: AsyncClient, async_session: AsyncSession, room: Room):
+async def test_read_room_list(
+    async_client: AsyncClient, async_session: AsyncSession, room: Room, superuser_token_headers: dict[str, str]
+):
     room_2_data = create_fake_room()
     room_2 = RoomCreate(**room_2_data, vault_id=room.vault_id)
     await crud.room.create(async_session, room_2)
-    response = await async_client.get("/rooms/")
+    response = await async_client.get("/rooms/", headers=superuser_token_headers)
     rooms = response.json()
     assert response.status_code == 200
     assert len(rooms) == 2
@@ -38,6 +40,14 @@ async def test_read_room_list(async_client: AsyncClient, async_session: AsyncSes
         assert "output" in r
         assert "size_min" in r
         assert "size_max" in r
+
+
+@pytest.mark.asyncio
+async def test_read_room_list_rejects_non_admin(
+    async_client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    response = await async_client.get("/rooms/", headers=normal_user_token_headers)
+    assert response.status_code == 400
 
 
 @pytest.mark.asyncio

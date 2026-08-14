@@ -7,19 +7,20 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.deps import CurrentActiveUser, get_user_vault_or_403, verify_room_access
-from app.api.game_data_deps import get_static_game_data
+from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403, verify_room_access
 from app.db.session import get_async_session
 from app.schemas.room import RoomBuild, RoomCreateWithoutVaultID, RoomRead
 from app.services.room_service import room_service
-from app.utils.static_data import StaticGameData
 
 router = APIRouter(prefix="/rooms", tags=["Room"])
 
 
 @router.get("/", response_model=list[RoomRead])
 async def read_room_list(
-    db_session: Annotated[AsyncSession, Depends(get_async_session)], skip: int = 0, limit: int = 100
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    _: CurrentSuperuser,
+    skip: int = 0,
+    limit: int = 100,
 ) -> list[RoomRead]:
     """Retrieve a paginated list of rooms.
 
@@ -57,18 +58,6 @@ async def read_room(
     """
     await verify_room_access(room_id, user, db_session)
     return await crud.room.get(db_session, room_id)
-
-
-@router.get("/read_data/", response_model=list[RoomCreateWithoutVaultID])
-async def read_room_data(
-    data_store: Annotated[StaticGameData, Depends(get_static_game_data)],
-) -> list[RoomCreateWithoutVaultID]:
-    """Retrieve static room data definitions.
-
-    Returns:
-        List of static room definitions.
-    """
-    return data_store.rooms
 
 
 @router.get("/buildable/{vault_id}/", response_model=list[RoomCreateWithoutVaultID])

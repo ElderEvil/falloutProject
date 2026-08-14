@@ -44,12 +44,9 @@ export const useRoomStore = defineStore('room', () => {
     }
   }
 
-  async function fetchRoomsData(token: string, vaultId?: string): Promise<void> {
+  async function fetchBuildableRooms(token: string, vaultId: string): Promise<void> {
     try {
-      // Use buildable endpoint if vault ID is provided to filter out vault door and unique rooms
-      const endpoint = vaultId ? `/api/v1/rooms/buildable/${vaultId}/` : '/api/v1/rooms/read_data/'
-
-      const response = await axios.get<RoomTemplate[]>(endpoint, {
+      const response = await axios.get<RoomTemplate[]>(`/api/v1/rooms/buildable/${vaultId}/`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -61,7 +58,13 @@ export const useRoomStore = defineStore('room', () => {
     }
   }
 
-  async function buildRoom(roomName: string, coordinateX: number, coordinateY: number, token: string, vaultId: string) {
+  async function buildRoom(
+    roomName: string,
+    coordinateX: number,
+    coordinateY: number,
+    token: string,
+    vaultId: string
+  ) {
     try {
       const roomData: RoomBuild = {
         vault_id: vaultId,
@@ -151,7 +154,7 @@ export const useRoomStore = defineStore('room', () => {
     isPlacingRoom,
     // Actions
     fetchRooms,
-    fetchRoomsData,
+    fetchBuildableRooms,
     buildRoom,
     destroyRoom,
     upgradeRoom,

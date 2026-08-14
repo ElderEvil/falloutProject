@@ -99,28 +99,8 @@ describe('Room Store', () => {
     })
   })
 
-  describe('fetchRoomsData', () => {
-    it('should fetch available room types without vault ID (legacy)', async () => {
-      const mockAvailableRooms = [
-        { id: 'power-gen', name: 'Power Generator', type: 'power', cost: 100 },
-        { id: 'diner', name: 'Diner', type: 'food', cost: 150 },
-      ]
-
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockAvailableRooms })
-
-      const store = useRoomStore()
-      await store.fetchRoomsData('test-token')
-
-      expect(axios.get).toHaveBeenCalledWith(
-        '/api/v1/rooms/read_data/',
-        expect.objectContaining({
-          headers: { Authorization: 'Bearer test-token' },
-        })
-      )
-      expect(store.availableRooms).toEqual(mockAvailableRooms)
-    })
-
-    it('should fetch buildable rooms when vault ID is provided', async () => {
+  describe('fetchBuildableRooms', () => {
+    it('should fetch buildable rooms for the vault', async () => {
       const mockBuildableRooms = [
         { id: 'power-gen', name: 'Power Generator', type: 'power', cost: 100 },
         { id: 'diner', name: 'Diner', type: 'food', cost: 150 },
@@ -130,7 +110,7 @@ describe('Room Store', () => {
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockBuildableRooms })
 
       const store = useRoomStore()
-      await store.fetchRoomsData('test-token', 'vault-1')
+      await store.fetchBuildableRooms('test-token', 'vault-1')
 
       expect(axios.get).toHaveBeenCalledWith(
         '/api/v1/rooms/buildable/vault-1/',
@@ -145,8 +125,7 @@ describe('Room Store', () => {
       vi.mocked(axios.get).mockRejectedValueOnce(new Error('Failed'))
 
       const store = useRoomStore()
-      await store.fetchRoomsData('test-token')
-
+      await store.fetchBuildableRooms('test-token', 'vault-1')
     })
   })
 

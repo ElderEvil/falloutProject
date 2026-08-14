@@ -3,7 +3,6 @@ export {
   IncidentStatus,
   type Incident,
   type IncidentListResponse,
-  type IncidentResolveResponse,
 } from './incident'
 
 export {

@@ -243,9 +243,7 @@ describe('IncidentAlert', () => {
       { type: IncidentType.RADROACH_INFESTATION, icon: 'mdi:bug' },
       { type: IncidentType.MOLE_RAT_ATTACK, icon: 'mdi:paw' },
       { type: IncidentType.DEATHCLAW_ATTACK, icon: 'mdi:claw-mark' },
-      { type: IncidentType.RADIATION_LEAK, icon: 'mdi:radioactive' },
-      { type: IncidentType.ELECTRICAL_FAILURE, icon: 'mdi:lightning-bolt' },
-      { type: IncidentType.WATER_CONTAMINATION, icon: 'mdi:water-alert' },
+      { type: IncidentType.FERAL_GHOUL_ATTACK, icon: 'mdi:ghost' },
     ]
 
     incidentTypes.forEach(({ type, icon }) => {

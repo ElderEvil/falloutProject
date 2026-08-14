@@ -1610,7 +1610,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/game/vaults/{vault_id}/incidents/{incident_id}/resolve": {
+    "/api/v1/game/vaults/{vault_id}/incidents/{incident_id}/responders": {
         parameters: {
             query?: never;
             header?: never;
@@ -1620,19 +1620,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Resolve Incident
-         * @description Manually resolve an active incident.
-         *
-         *     This endpoint allows players to mark an incident as resolved,
-         *     triggering loot generation and cleanup.
-         *
-         *     Returns:
-         *         dict[str, Any]: Resolution result with loot details.
-         *
-         *     Raises:
-         *         HTTPException: 404 if incident not found. 400 if resolution fails.
+         * Assign Incident Responders
+         * @description Assign healthy adult dwellers to defend an active incident room.
          */
-        post: operations["resolve_incident_api_v1_game_vaults__vault_id__incidents__incident_id__resolve_post"];
+        post: operations["assign_incident_responders_api_v1_game_vaults__vault_id__incidents__incident_id__responders_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6016,6 +6007,32 @@ export interface components {
             loot: {
                 [key: string]: unknown;
             } | null;
+        };
+        /**
+         * IncidentRespondersRequest
+         * @description Dwellers ordered to defend an active incident.
+         */
+        IncidentRespondersRequest: {
+            /** Dweller Ids */
+            dweller_ids: string[];
+        };
+        /**
+         * IncidentRespondersResponse
+         * @description Response after assigning defenders to an incident room.
+         */
+        IncidentRespondersResponse: {
+            /**
+             * Incident Id
+             * Format: uuid4
+             */
+            incident_id: string;
+            /**
+             * Room Id
+             * Format: uuid4
+             */
+            room_id: string;
+            /** Assigned Dweller Ids */
+            assigned_dweller_ids: string[];
         };
         /**
          * IncidentSpawnResponse
@@ -10564,11 +10581,9 @@ export interface operations {
             };
         };
     };
-    resolve_incident_api_v1_game_vaults__vault_id__incidents__incident_id__resolve_post: {
+    assign_incident_responders_api_v1_game_vaults__vault_id__incidents__incident_id__responders_post: {
         parameters: {
-            query?: {
-                success?: boolean;
-            };
+            query?: never;
             header?: never;
             path: {
                 incident_id: string;
@@ -10576,7 +10591,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IncidentRespondersRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -10584,9 +10603,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["IncidentRespondersResponse"];
                 };
             };
             /** @description Validation Error */

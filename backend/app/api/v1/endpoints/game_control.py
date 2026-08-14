@@ -17,12 +17,15 @@ from app.schemas.incident import (
     IncidentListItem,
     IncidentListResponse,
     IncidentRead,
+    IncidentRespondersRequest,
+    IncidentRespondersResponse,
     IncidentSpawnResponse,
     PauseResumeResponse,
 )
 from app.schemas.system import GameBalanceResponse
 from app.services.game_loop import game_loop_service
 from app.services.incident_service import incident_service
+from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
 
 router = APIRouter(prefix="/game", tags=["Game"])
 
@@ -225,34 +228,23 @@ async def manual_tick(
     }
 
 
-@router.post("/vaults/{vault_id}/incidents/{incident_id}/resolve", status_code=200)
-async def resolve_incident(
+@router.post("/vaults/{vault_id}/incidents/{incident_id}/responders", response_model=IncidentRespondersResponse)
+async def assign_incident_responders(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     incident_id: UUID4,
+    responders: IncidentRespondersRequest,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    success: bool = True,
-) -> dict[str, Any]:
-    """Manually resolve an active incident.
-
-    This endpoint allows players to mark an incident as resolved,
-    triggering loot generation and cleanup.
-
-    Returns:
-        dict[str, Any]: Resolution result with loot details.
-
-    Raises:
-        HTTPException: 404 if incident not found. 400 if resolution fails.
-    """
-    # Verify incident belongs to vault
-    incident = await crud.incident_crud.get(db_session, incident_id)
-    if not incident or incident.vault_id != vault.id:
-        raise HTTPException(status_code=404, detail="Incident not found")
-
+) -> IncidentRespondersResponse:
+    """Assign healthy adult dwellers to defend an active incident room."""
     try:
-        return await incident_service.resolve_incident_manually(db_session, incident_id, success)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        incident = await incident_service.get_incident_for_vault(db_session, incident_id, vault.id)
+        assigned = await incident_service.assign_responders(db_session, incident, responders.dweller_ids)
+        return IncidentRespondersResponse(
+            incident_id=incident.id, room_id=incident.room_id, assigned_dweller_ids=assigned
+        )
+    except (ResourceNotFoundException, AccessDeniedException, ValidationException) as error:
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
 
 
 @router.post("/vaults/{vault_id}/incidents/spawn", response_model=IncidentSpawnResponse, status_code=201)

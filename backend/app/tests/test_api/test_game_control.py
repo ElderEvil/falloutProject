@@ -393,12 +393,12 @@ async def test_get_incident_details(
 
 
 @pytest.mark.asyncio
-async def test_resolve_incident_success(
+async def test_assign_incident_responders(
     async_client: AsyncClient,
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ):
-    """Test resolving an incident successfully."""
+    """Test assigning an eligible dweller to defend an incident."""
     from app.models.incident import IncidentType
 
     # Create a vault with incident
@@ -408,15 +408,16 @@ async def test_resolve_incident_success(
         obj_in=VaultNumber(number=990),
         user_id=user.id,
     )
-    initial_caps = vault.bottle_caps
 
-    # Create room with dweller
+    # Create the incident room and a separate room containing the responder.
     from app.schemas.dweller import DwellerCreate
     from app.schemas.room import RoomCreate
 
     room_data = create_fake_room()
     room_in = RoomCreate(**room_data, vault_id=vault.id)
     room = await crud.room.create(db_session=async_session, obj_in=room_in)
+    responder_room_in = RoomCreate(**create_fake_room(), vault_id=vault.id)
+    responder_room = await crud.room.create(db_session=async_session, obj_in=responder_room_in)
 
     dweller_in = DwellerCreate(
         first_name="Hero",
@@ -424,7 +425,7 @@ async def test_resolve_incident_success(
         gender="female",
         rarity="legendary",
         vault_id=vault.id,
-        room_id=room.id,
+        room_id=responder_room.id,
         strength=10,
         perception=10,
         endurance=10,
@@ -434,8 +435,6 @@ async def test_resolve_incident_success(
         luck=10,
     )
     dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
-    dweller.room_id = room.id
-    async_session.add(dweller)
     await async_session.commit()
 
     # Create incident
@@ -448,30 +447,28 @@ async def test_resolve_incident_success(
     )
     await async_session.commit()
 
-    # Resolve incident
+    # Assign defender
     response = await async_client.post(
-        f"/game/vaults/{vault.id}/incidents/{incident.id}/resolve",
+        f"/game/vaults/{vault.id}/incidents/{incident.id}/responders",
         headers=normal_user_token_headers,
-        params={"success": True},
+        json={"dweller_ids": [str(dweller.id)]},
     )
     assert response.status_code == 200
     data = response.json()
-    assert "caps_earned" in data
-    assert data["caps_earned"] > 0
-    assert "items_earned" in data
-
-    # Verify vault caps increased
-    await async_session.refresh(vault)
-    assert vault.bottle_caps > initial_caps
+    assert data["incident_id"] == str(incident.id)
+    assert data["room_id"] == str(room.id)
+    assert data["assigned_dweller_ids"] == [str(dweller.id)]
+    await async_session.refresh(dweller)
+    assert dweller.room_id == room.id
 
 
 @pytest.mark.asyncio
-async def test_resolve_incident_failure(
+async def test_assign_incident_responders_requires_a_dweller(
     async_client: AsyncClient,
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ):
-    """Test abandoning an incident."""
+    """Reject an empty responder order before changing the incident room."""
     from app.models.incident import IncidentType
 
     # Create a vault with incident
@@ -520,13 +517,10 @@ async def test_resolve_incident_failure(
     )
     await async_session.commit()
 
-    # Abandon incident
+    # An empty command is invalid.
     response = await async_client.post(
-        f"/game/vaults/{vault.id}/incidents/{incident.id}/resolve",
+        f"/game/vaults/{vault.id}/incidents/{incident.id}/responders",
         headers=normal_user_token_headers,
-        params={"success": False},
+        json={"dweller_ids": []},
     )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["caps_earned"] == 0
-    assert data["message"] == "Incident failed"
+    assert response.status_code == 422

@@ -1,6 +1,6 @@
 """Incident schemas for API responses."""
 
-from pydantic import UUID4, BaseModel
+from pydantic import UUID4, BaseModel, Field
 
 from app.models.incident import IncidentStatus, IncidentType
 
@@ -87,11 +87,28 @@ class ManualTickResponse(BaseModel):
     breeding_processed: int = 0
 
 
-class IncidentResolveResponse(BaseModel):
-    """Response after resolving an incident."""
+class IncidentRespondersRequest(BaseModel):
+    """Dwellers ordered to defend an active incident."""
 
-    message: str
-    incident_id: str
-    loot: dict | None
-    caps_earned: int
-    items_earned: list[dict]
+    dweller_ids: list[UUID4] = Field(min_length=1, max_length=6)
+
+
+class IncidentRespondersResponse(BaseModel):
+    """Response after assigning defenders to an incident room."""
+
+    incident_id: UUID4
+    room_id: UUID4
+    assigned_dweller_ids: list[UUID4]
+
+
+class IncidentRoundResult(BaseModel):
+    """Validated outcome of one incident game-loop round."""
+
+    skipped: bool = False
+    no_defenders: bool = False
+    damage_to_dwellers: float = 0
+    damage_to_raiders: float = 0
+    dwellers_damaged: int = 0
+    dwellers_killed: int = 0
+    enemies_defeated: int = 0
+    caps_earned: int = 0

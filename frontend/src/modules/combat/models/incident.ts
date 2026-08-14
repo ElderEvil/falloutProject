@@ -5,9 +5,6 @@ export enum IncidentType {
   DEATHCLAW_ATTACK = 'deathclaw_attack',
   FERAL_GHOUL_ATTACK = 'feral_ghoul_attack',
   FIRE = 'fire',
-  RADIATION_LEAK = 'radiation_leak',
-  ELECTRICAL_FAILURE = 'electrical_failure',
-  WATER_CONTAMINATION = 'water_contamination',
 }
 
 export enum IncidentStatus {
@@ -61,36 +58,12 @@ export interface IncidentListResponse {
   }>
 }
 
-export interface IncidentResolveResponse {
-  message: string
-  incident_id: string
-  loot: {
-    caps?: number
-    items?: Array<{
-      type: string
-      rarity?: string
-      name: string
-      quantity?: number
-    }>
-  } | null
-  caps_earned: number
-  items_earned: Array<{
-    type: string
-    rarity?: string
-    name: string
-    quantity?: number
-  }>
-}
-
 export const INCIDENT_ICON_MAP: Record<IncidentType, string> = {
   [IncidentType.RAIDER_ATTACK]: 'mdi:skull',
   [IncidentType.RADROACH_INFESTATION]: 'mdi:bug',
   [IncidentType.FIRE]: 'mdi:fire',
   [IncidentType.MOLE_RAT_ATTACK]: 'mdi:paw',
   [IncidentType.DEATHCLAW_ATTACK]: 'mdi:claw-mark',
-  [IncidentType.RADIATION_LEAK]: 'mdi:radioactive',
-  [IncidentType.ELECTRICAL_FAILURE]: 'mdi:lightning-bolt',
-  [IncidentType.WATER_CONTAMINATION]: 'mdi:water-alert',
   [IncidentType.FERAL_GHOUL_ATTACK]: 'mdi:ghost',
 }
 

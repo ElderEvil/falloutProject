@@ -335,3 +335,6 @@ Or call the script from a task:
 ```
 task(category="quick", load_skills=[], prompt="Run ./scripts/dev-up.sh from the repo root")
 ```
+
+Use `./scripts/dev-up.sh --reload` when editing backend code; it starts Uvicorn with hot reload. The launcher
+always replaces the `fallout-be` and `fallout-fe` tmux sessions, so running it again is already a fresh restart.

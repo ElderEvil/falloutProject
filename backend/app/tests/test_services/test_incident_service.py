@@ -78,12 +78,10 @@ async def test_process_incident_combat(async_session: AsyncSession, room_with_dw
     # Process combat for 60 seconds
     result = await incident_service.process_incident(async_session, incident, 60)
 
-    # Check result keys (format may vary based on incident type)
-    assert "damage_to_dwellers" in result
-    assert "damage_to_raiders" in result
-    assert "dwellers_damaged" in result
-    assert result["damage_to_dwellers"] >= 0
-    assert result["damage_to_raiders"] >= 0
+    # Check validated round outcome.
+    assert result.dwellers_damaged >= 0
+    assert result.damage_to_dwellers >= 0
+    assert result.damage_to_raiders >= 0
 
     # Verify incident was updated
     await async_session.refresh(incident)
@@ -141,7 +139,31 @@ async def test_process_incident_auto_resolve(async_session: AsyncSession, room_w
 
     # Should auto-resolve
     await async_session.refresh(incident)
-    assert incident.status == IncidentStatus.RESOLVED or result["enemies_defeated"] >= 2
+    assert incident.status == IncidentStatus.RESOLVED or result.enemies_defeated >= 2
+
+
+@pytest.mark.asyncio
+async def test_undefended_incident_without_spread_target_fails(async_session: AsyncSession, room: Room):
+    """An elapsed incident fails when there is no adjacent room left to spread into."""
+    room.coordinate_x = 1
+    room.coordinate_y = 1
+    async_session.add(room)
+    await async_session.commit()
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=room.vault_id,
+        room_id=room.id,
+        incident_type=IncidentType.FIRE,
+        difficulty=1,
+    )
+    incident.start_time = datetime.utcnow() - timedelta(seconds=incident.duration)
+    async_session.add(incident)
+    await async_session.commit()
+
+    await incident_service.process_incident(async_session, incident, 60)
+
+    await async_session.refresh(incident)
+    assert incident.status == IncidentStatus.FAILED
 
 
 @pytest.mark.asyncio
@@ -178,68 +200,22 @@ async def test_generate_loot(async_session: AsyncSession, vault: Vault):
 
 
 @pytest.mark.asyncio
-async def test_resolve_incident_manually_success(async_session: AsyncSession, room_with_dwellers: dict):
-    """Test manual incident resolution with success."""
-    room = room_with_dwellers["room"]
-    dwellers = room_with_dwellers["dwellers"]
-    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
-    await async_session.refresh(dwellers[0].vault)
-    initial_caps = dwellers[0].vault.bottle_caps
-
-    result = await incident_service.resolve_incident_manually(async_session, incident.id, success=True)
-
-    assert result["message"] == "Incident resolved successfully"
-    assert result["caps_earned"] > 0
-    assert "items_earned" in result
-
-    # Verify incident status
-    await async_session.refresh(incident)
-    assert incident.status == IncidentStatus.RESOLVED
-
-    # Verify vault caps increased
-    await async_session.refresh(dwellers[0].vault)
-    assert dwellers[0].vault.bottle_caps > initial_caps
-
-
-@pytest.mark.asyncio
-async def test_resolve_incident_manually_does_not_award_child_combat_xp(
-    async_session: AsyncSession, room_with_dwellers: dict
+async def test_assign_responders_moves_healthy_adult(
+    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """Children present in the incident room do not receive manual-resolution combat XP."""
-    from app.tests.factory.dwellers import create_random_common_dweller
-
+    """A healthy adult can join an active incident room before the next round."""
     room = room_with_dwellers["room"]
-    child_data = create_random_common_dweller()
-    child_data.update(is_adult=False, age_group=AgeGroupEnum.CHILD, experience=0)
-    child = await crud.dweller.create(
+    responder = await crud.dweller.create(
         async_session,
-        obj_in=DwellerCreate(**child_data, vault_id=room.vault_id),
+        obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id),
     )
-    await crud.dweller.move_to_room(async_session, child.id, room.id)
-    await async_session.commit()
-
     incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
     assert incident is not None
-    await incident_service.resolve_incident_manually(async_session, incident.id, success=True)
+    assigned = await incident_service.assign_responders(async_session, incident, [responder.id])
 
-    await async_session.refresh(child)
-    assert child.experience == 0
-
-
-@pytest.mark.asyncio
-async def test_resolve_incident_manually_failure(async_session: AsyncSession, room_with_dwellers: dict):
-    """Test manual incident resolution with failure."""
-    room = room_with_dwellers["room"]
-    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
-
-    result = await incident_service.resolve_incident_manually(async_session, incident.id, success=False)
-
-    assert result["message"] == "Incident failed"
-    assert result["caps_earned"] == 0
-
-    # Verify incident status
-    await async_session.refresh(incident)
-    assert incident.status == IncidentStatus.FAILED
+    await async_session.refresh(responder)
+    assert assigned == [responder.id]
+    assert responder.room_id == room.id
 
 
 @pytest.mark.asyncio

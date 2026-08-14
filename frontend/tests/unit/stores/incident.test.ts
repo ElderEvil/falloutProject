@@ -175,38 +175,35 @@ describe('Incident Store', () => {
     })
   })
 
-  describe('resolveIncident', () => {
-    it('should resolve incident successfully', async () => {
+  describe('assignResponders', () => {
+    it('should refresh the incident after assigning a responder', async () => {
       const store = useIncidentStore()
+      vi.mocked(incidentApi.assignResponders).mockResolvedValueOnce()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
 
-      store.incidents.set('incident-1', mockIncident)
-      store.activeIncidentIds = ['incident-1']
+      await store.assignResponders('vault-1', 'incident-1', ['dweller-1'], 'token')
 
-      vi.mocked(incidentApi.resolveIncident).mockResolvedValueOnce({
-        message: 'Incident resolved',
-        incident_id: 'incident-1',
-        caps_earned: 150,
-        items_earned: [],
-      })
-
-      await store.resolveIncident('vault-1', 'incident-1', 'token', true)
-
-      expect(store.activeIncidentIds).not.toContain('incident-1')
-      expect(store.incidents.has('incident-1')).toBe(false)
-      // Toast notification is shown (tested by integration, not mocked here)
+      expect(incidentApi.assignResponders).toHaveBeenCalledWith(
+        'vault-1',
+        'incident-1',
+        ['dweller-1'],
+        'token'
+      )
+      expect(incidentApi.getActiveIncidents).toHaveBeenCalledWith('vault-1', 'token')
+      expect(incidentApi.getIncident).toHaveBeenCalledWith('vault-1', 'incident-1', 'token')
     })
 
-    it('should handle resolve failure', async () => {
+    it('should rethrow assignment failures without refreshing the incident', async () => {
       const store = useIncidentStore()
+      vi.mocked(incidentApi.assignResponders).mockRejectedValueOnce(new Error('Assignment failed'))
 
-      store.incidents.set('incident-1', mockIncident)
-      store.activeIncidentIds = ['incident-1']
+      await expect(store.assignResponders('vault-1', 'incident-1', ['dweller-1'], 'token')).rejects.toThrow(
+        'Assignment failed'
+      )
 
-      vi.mocked(incidentApi.resolveIncident).mockRejectedValueOnce(new Error('Resolve failed'))
-
-      await expect(store.resolveIncident('vault-1', 'incident-1', 'token')).rejects.toThrow()
-
-      // Toast error notification is shown (tested by integration, not mocked here)
+      expect(incidentApi.getActiveIncidents).not.toHaveBeenCalled()
+      expect(incidentApi.getIncident).not.toHaveBeenCalled()
     })
   })
 

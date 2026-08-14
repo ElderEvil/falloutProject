@@ -78,28 +78,19 @@ export const useIncidentStore = defineStore('incident', () => {
     }
   }
 
-  async function resolveIncident(
+  async function assignResponders(
     vaultId: string,
     incidentId: string,
-    token: string,
-    success: boolean = true
+    dwellerIds: string[],
+    token: string
   ): Promise<void> {
     try {
-      const response = await incidentApi.resolveIncident(vaultId, incidentId, token, success)
-
-      // Remove from active incidents
-      activeIncidentIds.value = activeIncidentIds.value.filter((id) => id !== incidentId)
-      incidents.value.delete(incidentId)
-
-      // Show loot notification
-      if (success && response.caps_earned > 0) {
-        showSuccess(`Incident Resolved! Earned ${response.caps_earned} caps`)
-      }
-
-      return Promise.resolve()
+      await incidentApi.assignResponders(vaultId, incidentId, dwellerIds, token)
+      await fetchIncidents(vaultId, token)
+      showSuccess('Responders assigned. They will fight on the next vault round.')
     } catch (err) {
-      handleStoreError(err, 'Failed to resolve incident')
-      showError('Resolution Failed: Failed to resolve incident')
+      handleStoreError(err, 'Failed to assign incident responders')
+      showError('Responder assignment failed')
       throw err
     }
   }
@@ -271,7 +262,7 @@ export const useIncidentStore = defineStore('incident', () => {
 
     // Actions
     fetchIncidents,
-    resolveIncident,
+    assignResponders,
     startPolling,
     stopPolling,
     clearIncidents,

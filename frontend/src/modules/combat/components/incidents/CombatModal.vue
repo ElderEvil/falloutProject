@@ -104,16 +104,33 @@
           </div>
         </div>
       </div>
+
+      <div class="section">
+        <h3 class="section-title">&gt;&gt; RESPONSE TEAM</h3>
+        <div class="section-content">
+          <p class="expected-loot">Responders join this room before the next vault round.</p>
+          <div v-if="availableResponders.length" class="responder-list">
+            <UButton
+              v-for="dweller in availableResponders"
+              :key="dweller.id"
+              variant="secondary"
+              size="sm"
+              :disabled="assigningDwellerId === dweller.id"
+              @click="assignResponder(dweller.id)"
+            >
+              {{ assigningDwellerId === dweller.id ? 'ASSIGNING...' : `SEND ${dweller.first_name}` }}
+              — Lv. {{ dweller.level }} · {{ dweller.health }}/{{ dweller.max_health }} HP
+            </UButton>
+          </div>
+          <p v-else class="expected-loot">All available adults are already defending or away.</p>
+        </div>
+      </div>
     </div>
 
     <template #footer>
       <div class="modal-footer">
-        <UButton @click="handleResolve(true)" variant="primary" :disabled="isResolving">
-          {{ isResolving ? 'RESOLVING...' : 'RESOLVE INCIDENT' }}
-        </UButton>
-        <UButton @click="handleResolve(false)" variant="danger" :disabled="isResolving">
-          ABANDON ROOM
-        </UButton>
+        <span class="footer-note">Combat resolves automatically on the next vault round.</span>
+        <UButton @click="$emit('close')" variant="secondary">CLOSE</UButton>
       </div>
     </template>
 
@@ -130,6 +147,7 @@ import UModal from '@/core/components/ui/UModal.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import { usePolling } from '@/core/composables/usePolling'
 import { useToast } from '@/core/composables/useToast'
+import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { useIncidentStore } from '../../stores/incident'
 import type { Incident } from '../../models/incident'
 import { IncidentType } from '../../models/incident'
@@ -137,13 +155,14 @@ import { IncidentType } from '../../models/incident'
 interface Props {
   incidentId: string
   vaultId: string
+  dwellers: DwellerShort[]
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
   close: []
-  resolved: []
+  responded: []
 }>()
 
 const authStore = useAuthStore()
@@ -152,7 +171,7 @@ const toast = useToast()
 
 const incident = ref<Incident | null>(null)
 const isLoading = ref(true)
-const isResolving = ref(false)
+const assigningDwellerId = ref<string | null>(null)
 // Lifecycle
 onMounted(async () => {
   await loadIncident()
@@ -163,7 +182,7 @@ async function loadIncident() {
   if (!authStore.token) return
 
   try {
-    const data = await incidentStore.fetchIncidents(props.vaultId, authStore.token)
+    await incidentStore.fetchIncidents(props.vaultId, authStore.token)
     incident.value = incidentStore.getIncidentById(props.incidentId) || null
     isLoading.value = false
   } catch {
@@ -174,19 +193,16 @@ async function loadIncident() {
 // Auto-refresh every 5 seconds while the modal is mounted.
 usePolling(loadIncident, { interval: 5_000, immediate: false })
 
-async function handleResolve(success: boolean) {
-  if (!authStore.token || isResolving.value) return
-
-  isResolving.value = true
-
+async function assignResponder(dwellerId: string) {
+  if (!authStore.token || assigningDwellerId.value) return
+  assigningDwellerId.value = dwellerId
   try {
-    await incidentStore.resolveIncident(props.vaultId, props.incidentId, authStore.token, success)
-    emit('resolved')
-    emit('close')
+    await incidentStore.assignResponders(props.vaultId, props.incidentId, [dwellerId], authStore.token)
+    emit('responded')
   } catch {
-    toast.error('Failed to resolve incident')
+    toast.error('Failed to assign responder')
   } finally {
-    isResolving.value = false
+    assigningDwellerId.value = null
   }
 }
 
@@ -224,12 +240,8 @@ const incidentIcon = computed(() => {
       return 'mdi:paw'
     case IncidentType.DEATHCLAW_ATTACK:
       return 'mdi:claw-mark'
-    case IncidentType.RADIATION_LEAK:
-      return 'mdi:radioactive'
-    case IncidentType.ELECTRICAL_FAILURE:
-      return 'mdi:lightning-bolt'
-    case IncidentType.WATER_CONTAMINATION:
-      return 'mdi:water-alert'
+    case IncidentType.FERAL_GHOUL_ATTACK:
+      return 'mdi:ghost'
     default:
       return 'mdi:alert-octagon'
   }
@@ -257,6 +269,16 @@ const estimatedCaps = computed(() => {
   const max = 50 + incident.value.difficulty * 100
   return `${min}-${max}`
 })
+
+const availableResponders = computed(() =>
+  props.dwellers.filter(
+    (dweller) =>
+      dweller.is_adult &&
+      dweller.health > 0 &&
+      dweller.room_id !== incident.value?.room_id &&
+      !['exploring', 'questing', 'dead'].includes(dweller.status)
+  )
+)
 </script>
 
 <style scoped>

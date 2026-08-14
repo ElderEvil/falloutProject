@@ -5,6 +5,11 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ## [2.36.0](https://github.com/ElderEvil/falloutProject/compare/v2.35.1...v2.36.0) (2026-08-14)
 
+### Features
+
+- **Resource economy feedback** — show per-minute resource rates and capacity forecasts, with a calibrated
+  60-second-tick production baseline for play-testing
+
 ## [2.35.1](https://github.com/ElderEvil/falloutProject/compare/v2.35.0...v2.35.1) (2026-08-14)
 
 ### Fixed

@@ -9,12 +9,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ### Changed
 
-- **Resource production rate** — bump `base_production_rate` from 0.0003 to 0.01 (33x) so vaults produce usable
-  resources instead of trickling at ~0.36 units per tick
-
-### Changed
-
-- **Resource production rate** — bump `base_production_rate` from 0.0003 to 0.01 (33x) so vaults produce usable
+- **Resource production rate** — bump `base_production_rate` from 0.0003 to 0.1 (~333x) so vaults produce usable
   resources instead of trickling at ~0.36 units per tick
 
 ## [2.38.0](https://github.com/ElderEvil/falloutProject/compare/v2.37.0...v2.38.0) (2026-08-14)

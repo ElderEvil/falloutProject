@@ -45,16 +45,24 @@ Repo-root `scripts/` holds general *shell* scripts (`dev-up.sh`,
 ## Standalone Tools
 
 | Script | Purpose |
-|---|---|
-| `download_room_images.py` | Scrape Fallout Shelter room images from the Fandom wiki |
+|---|---|---|
+| `download_wiki_images.py` | Download Fallout Shelter images from The Vault wiki |
 
-`download_room_images.py` is a self-contained [PEP 723](https://peps.python.org/pep-0723/)
-script with inline dependencies. Run it directly so `uv` provisions its own
-environment:
+`download_wiki_images.py` is a self-contained [PEP 723](https://peps.python.org/pep-0723/)
+script with inline dependencies. It uses the Fandom MediaWiki API and supports
+rooms, weapons, apparel icons, and legendary dweller cards. By default, images
+are saved under `app/static/` and legendary dweller metadata is saved to
+`app/data/vault/legendary_dwellers.json`:
 
 ```bash
 cd backend
-uv run scripts/download_room_images.py --download-dir assets/room_images
+uv run scripts/download_wiki_images.py rooms
+uv run scripts/download_wiki_images.py weapons
+uv run scripts/download_wiki_images.py apparel
+uv run scripts/download_wiki_images.py legendary-dwellers
+
+# Or download everything at once
+uv run scripts/download_wiki_images.py all
 ```
 
 All other scripts use the project environment and run with `uv run python scripts/<name>.py`.

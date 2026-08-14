@@ -1,0 +1,373 @@
+[
+  {
+    "name": "Allistair Tenpenny",
+    "image_title": "File:FOS_Dw_Allistair_Tenpenny.png",
+    "image_filename": "FOS_Dw_Allistair_Tenpenny.png",
+    "special": {
+      "strength": 2,
+      "perception": 9,
+      "endurance": 2,
+      "charisma": 9,
+      "intelligence": 7,
+      "agility": 2,
+      "luck": 9
+    },
+    "gear": [
+      "Tenpenny's suit",
+      "Victory rifle"
+    ]
+  },
+  {
+    "name": "Abraham Washington",
+    "image_title": "File:FOS_Dw_Abraham_Washington.png",
+    "image_filename": "FOS_Dw_Abraham_Washington.png",
+    "special": {
+      "strength": 2,
+      "perception": 8,
+      "endurance": 6,
+      "charisma": 6,
+      "intelligence": 8,
+      "agility": 4,
+      "luck": 6
+    },
+    "gear": [
+      "Lincoln's Repeater"
+    ]
+  },
+  {
+    "name": "Amata Almodovar",
+    "image_title": "File:FOS_Dw_Amata.png",
+    "image_filename": "FOS_Dw_Amata.png",
+    "special": {
+      "strength": 4,
+      "perception": 6,
+      "endurance": 5,
+      "charisma": 8,
+      "intelligence": 4,
+      "agility": 7,
+      "luck": 6
+    },
+    "gear": [
+      "Vault suit",
+      "Lone Wanderer"
+    ]
+  },
+  {
+    "name": "Augustus Autumn",
+    "image_title": "File:FOS_Dw_Augustus_Autumn.png",
+    "image_filename": "FOS_Dw_Augustus_Autumn.png",
+    "special": {
+      "strength": 4,
+      "perception": 6,
+      "endurance": 5,
+      "charisma": 9,
+      "intelligence": 5,
+      "agility": 5,
+      "luck": 6
+    },
+    "gear": [
+      "Autumn's uniform",
+      "Smuggler's End"
+    ]
+  },
+  {
+    "name": "Bittercup",
+    "image_title": "File:FOS_Dw_Bittercup.png",
+    "image_filename": "FOS_Dw_Bittercup.png",
+    "special": {
+      "strength": 5,
+      "perception": 4,
+      "endurance": 7,
+      "charisma": 9,
+      "intelligence": 5,
+      "agility": 5,
+      "luck": 5
+    },
+    "gear": [
+      "Bittercup's outfit"
+    ]
+  },
+  {
+    "name": "Butch DeLoria",
+    "image_title": "File:FOS_Dw_Butch.png",
+    "image_filename": "FOS_Dw_Butch.png",
+    "special": {
+      "strength": 5,
+      "perception": 7,
+      "endurance": 6,
+      "charisma": 9,
+      "intelligence": 5,
+      "agility": 6,
+      "luck": 2
+    },
+    "gear": [
+      "Tunnel Snakes' outfit",
+      "Lone Wanderer"
+    ]
+  },
+  {
+    "name": "Cromwell",
+    "image_title": "File:FOS_Dw_Confessor_Cromwell.png",
+    "image_filename": "FOS_Dw_Confessor_Cromwell.png",
+    "special": {
+      "strength": 7,
+      "perception": 4,
+      "endurance": 7,
+      "charisma": 8,
+      "intelligence": 6,
+      "agility": 3,
+      "luck": 5
+    },
+    "gear": [
+      "Confessor Cromwell's rags"
+    ]
+  },
+  {
+    "name": "Cross",
+    "image_title": "File:FOS_Dw_SLyons_Cross.png",
+    "image_filename": "FOS_Dw_SLyons_Cross.png",
+    "special": {
+      "strength": 7,
+      "perception": 8,
+      "endurance": 4,
+      "charisma": 8,
+      "intelligence": 4,
+      "agility": 6,
+      "luck": 3
+    },
+    "gear": [
+      "T-51f power armor",
+      "Smuggler's End"
+    ]
+  },
+  {
+    "name": "Eulogy Jones",
+    "image_title": "File:FOS_Dw_Eulogy_Jones.png",
+    "image_filename": "FOS_Dw_Eulogy_Jones.png",
+    "special": {
+      "strength": 5,
+      "perception": 6,
+      "endurance": 5,
+      "charisma": 8,
+      "intelligence": 5,
+      "agility": 4,
+      "luck": 7
+    },
+    "gear": [
+      "Eulogy Jones' suit"
+    ]
+  },
+  {
+    "name": "Harkness",
+    "image_title": "File:FOS_Dw_Harkness.png",
+    "image_filename": "FOS_Dw_Harkness.png",
+    "special": {
+      "strength": 8,
+      "perception": 5,
+      "endurance": 8,
+      "charisma": 5,
+      "intelligence": 5,
+      "agility": 6,
+      "luck": 3
+    },
+    "gear": [
+      "Heavy battle armor",
+      "Infiltrator"
+    ]
+  },
+  {
+    "name": "James",
+    "image_title": "File:FOS_Dw_James.png",
+    "image_filename": "FOS_Dw_James.png",
+    "special": {
+      "strength": 5,
+      "perception": 8,
+      "endurance": 4,
+      "charisma": 7,
+      "intelligence": 9,
+      "agility": 4,
+      "luck": 3
+    },
+    "gear": [
+      "Expert lab coat",
+      "Wild Bill's sidearm"
+    ]
+  },
+  {
+    "name": "Jericho",
+    "image_title": "File:FOS_Dw_Jericho.png",
+    "image_filename": "FOS_Dw_Jericho.png",
+    "special": {
+      "strength": 8,
+      "perception": 6,
+      "endurance": 8,
+      "charisma": 2,
+      "intelligence": 3,
+      "agility": 7,
+      "luck": 6
+    },
+    "gear": [
+      "Heavy leather armor",
+      "Infiltrator"
+    ]
+  },
+  {
+    "name": "Lucas Simms",
+    "image_title": "File:FOS_Dw_Lucas_Simms.png",
+    "image_filename": "FOS_Dw_Lucas_Simms.png",
+    "special": {
+      "strength": 5,
+      "perception": 9,
+      "endurance": 8,
+      "charisma": 5,
+      "intelligence": 5,
+      "agility": 6,
+      "luck": 2
+    },
+    "gear": [
+      "Sheriff's duster",
+      "Infiltrator"
+    ]
+  },
+  {
+    "name": "Madison Li",
+    "image_title": "File:FOS_Dw_Madison_Li.png",
+    "image_filename": "FOS_Dw_Madison_Li.png",
+    "special": {
+      "strength": 4,
+      "perception": 6,
+      "endurance": 6,
+      "charisma": 7,
+      "intelligence": 9,
+      "agility": 4,
+      "luck": 4
+    },
+    "gear": [
+      "Expert lab coat"
+    ]
+  },
+  {
+    "name": "Owyn Lyons",
+    "image_title": "File:FOS_Dw_Owyn_Lyons.png",
+    "image_filename": "FOS_Dw_Owyn_Lyons.png",
+    "special": {
+      "strength": 4,
+      "perception": 3,
+      "endurance": 3,
+      "charisma": 9,
+      "intelligence": 9,
+      "agility": 3,
+      "luck": 9
+    },
+    "gear": [
+      "Elder robe",
+      "Smuggler's End"
+    ]
+  },
+  {
+    "name": "Reginald Rothchild",
+    "image_title": "File:FOS_Dw_Scribe_Rothchild.png",
+    "image_filename": "FOS_Dw_Scribe_Rothchild.png",
+    "special": {
+      "strength": 6,
+      "perception": 5,
+      "endurance": 6,
+      "charisma": 9,
+      "intelligence": 4,
+      "agility": 5,
+      "luck": 5
+    },
+    "gear": [
+      "Scribe Rotchild's robes",
+      "Lone Wanderer"
+    ]
+  },
+  {
+    "name": "Sarah Lyons",
+    "image_title": "File:FOS_Dw_SLyons_Cross.png",
+    "image_filename": "FOS_Dw_SLyons_Cross.png",
+    "special": {
+      "strength": 8,
+      "perception": 6,
+      "endurance": 8,
+      "charisma": 6,
+      "intelligence": 5,
+      "agility": 5,
+      "luck": 2
+    },
+    "gear": [
+      "T-51f power armor",
+      "Wazer Wifle"
+    ]
+  },
+  {
+    "name": "Three Dog",
+    "image_title": "File:FOS_Dw_Three_Dog.png",
+    "image_filename": "FOS_Dw_Three_Dog.png",
+    "special": {
+      "strength": 4,
+      "perception": 4,
+      "endurance": 6,
+      "charisma": 9,
+      "intelligence": 5,
+      "agility": 5,
+      "luck": 7
+    },
+    "gear": [
+      "Three Dog's outfit"
+    ]
+  },
+  {
+    "name": "Mister Burke",
+    "image_title": "File:FOS_Dw_Legendary_Gentleman_copy.png",
+    "image_filename": "FOS_Dw_Legendary_Gentleman_copy.png",
+    "special": {
+      "strength": 4,
+      "perception": 7,
+      "endurance": 4,
+      "charisma": 6,
+      "intelligence": 9,
+      "agility": 2,
+      "luck": 8
+    },
+    "gear": [
+      "Lucky formal wear",
+      "Wild Bill's sidearm"
+    ]
+  },
+  {
+    "name": "Moira Brown",
+    "image_title": "File:FOS_Dw_Legendary_Red.png",
+    "image_filename": "FOS_Dw_Legendary_Red.png",
+    "special": {
+      "strength": 4,
+      "perception": 8,
+      "endurance": 3,
+      "charisma": 8,
+      "intelligence": 7,
+      "agility": 5,
+      "luck": 5
+    },
+    "gear": [
+      "Expert jumpsuit"
+    ]
+  },
+  {
+    "name": "Preston Garvey",
+    "image_title": "File:FOS_Dw_Preston_Garvey.png",
+    "image_filename": "FOS_Dw_Preston_Garvey.png",
+    "special": {
+      "strength": 3,
+      "perception": 9,
+      "endurance": 8,
+      "charisma": 6,
+      "intelligence": 5,
+      "agility": 6,
+      "luck": 3
+    },
+    "gear": [
+      "Laser musket",
+      "Preston Garvey's outfit"
+    ]
+  }
+]

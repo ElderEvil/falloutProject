@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
@@ -29,13 +29,26 @@ const dwellerName = computed(() =>
   props.dweller ? `${props.dweller.first_name} ${props.dweller.last_name}` : 'Unknown Dweller'
 )
 
+const now = ref(Date.now())
+let clock: ReturnType<typeof setInterval> | undefined
+
+onMounted(() => {
+  clock = setInterval(() => {
+    now.value = Date.now()
+  }, 60_000)
+})
+
+onUnmounted(() => {
+  if (clock !== undefined) clearInterval(clock)
+})
+
 const progressPercentage = computed(() => {
-  const startTime = props.exploration.start_time
+  const startTime = props.exploration.start_time.replace(' ', 'T')
   const start = new Date(
-    startTime.endsWith('Z') ? startTime : startTime.replace(' ', 'T') + 'Z'
+    /(?:Z|[+-]\d{2}:?\d{2})$/i.test(startTime) ? startTime : `${startTime}Z`
   ).getTime()
   const duration = props.exploration.duration * 3600 * 1000
-  const elapsed = Date.now() - start
+  const elapsed = now.value - start
 
   return Math.min(100, (elapsed / duration) * 100)
 })
@@ -70,7 +83,7 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
           v-if="dweller?.image_url"
           :src="normalizeImageUrl(dweller.image_url)"
           :alt="`${dwellerName} portrait`"
-          class="dweller-icon dweller-portrait"
+          class="dweller-icon dweller-portrait object-cover border border-theme-primary rounded-full"
         />
         <Icon v-else icon="mdi:account" class="dweller-icon" />
         <div>
@@ -249,12 +262,6 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   height: 2.5rem;
   color: var(--color-theme-primary);
   filter: drop-shadow(0 0 6px var(--color-theme-glow));
-}
-
-.dweller-portrait {
-  object-fit: cover;
-  border: 1px solid var(--color-theme-primary);
-  border-radius: 50%;
 }
 
 .dweller-name {

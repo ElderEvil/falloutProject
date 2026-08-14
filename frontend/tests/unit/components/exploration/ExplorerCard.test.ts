@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import ExplorerCard from '@/modules/exploration/components/ExplorerCard.vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
@@ -42,14 +43,55 @@ const exploration = {
 const dweller = {
   first_name: 'Lucy',
   last_name: 'MacLean',
-  image_url: 'https://example.com/lucy.png',
+  image_url: 'example.com/lucy.png',
 } as Dweller
 
 describe('ExplorerCard', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('shows the exploring dweller portrait', () => {
     const wrapper = mount(ExplorerCard, { props: { exploration, dweller } })
 
-    expect(wrapper.find('.dweller-portrait').attributes('src')).toBe('https://example.com/lucy.png')
+    expect(wrapper.find('.dweller-portrait').attributes('src')).toBe('http://example.com/lucy.png')
     expect(wrapper.find('.dweller-portrait').attributes('alt')).toBe('Lucy MacLean portrait')
+
+    wrapper.unmount()
+  })
+
+  it('updates progress and remaining time while mounted, then stops its clock when unmounted', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-01T01:00:00Z'))
+    const wrapper = mount(ExplorerCard, { props: { exploration, dweller } })
+
+    expect(wrapper.find('.progress-percentage').text()).toBe('13%')
+    expect(wrapper.find('.progress-time').text()).toBe('7h 0m remaining')
+    expect(vi.getTimerCount()).toBe(1)
+
+    await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+    await nextTick()
+
+    expect(wrapper.find('.progress-percentage').text()).toBe('25%')
+    expect(wrapper.find('.progress-time').text()).toBe('6h 0m remaining')
+
+    wrapper.unmount()
+
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('preserves timezone offsets in exploration start times', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-01T05:00:00Z'))
+    const wrapper = mount(ExplorerCard, {
+      props: {
+        exploration: { ...exploration, start_time: '2026-01-01T00:00:00-05:00' },
+        dweller,
+      },
+    })
+
+    expect(wrapper.find('.progress-percentage').text()).toBe('0%')
+
+    wrapper.unmount()
   })
 })

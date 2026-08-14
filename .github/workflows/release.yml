@@ -50,6 +50,10 @@ jobs:
     needs: baseline
     if: "!contains(github.event.head_commit.message, 'chore(release)')"
 
+    outputs:
+      release_tag: ${{ steps.published-release.outputs.tag }}
+      released: ${{ steps.published-release.outputs.released }}
+
     permissions:
       contents: write
       issues: write
@@ -83,6 +87,10 @@ jobs:
             @semantic-release/release-notes-generator \
             conventional-changelog-conventionalcommits
 
+      - name: Record latest release tag
+        id: previous-release
+        run: echo "tag=$(git tag --sort=-version:refname --list 'v[0-9]*' | head -n 1)" >> "$GITHUB_OUTPUT"
+
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -91,3 +99,27 @@ jobs:
           GIT_COMMITTER_NAME: semantic-release-bot
           GIT_COMMITTER_EMAIL: semantic-release-bot@github.com
         run: semantic-release
+
+      - name: Identify published release
+        id: published-release
+        env:
+          PREVIOUS_TAG: ${{ steps.previous-release.outputs.tag }}
+        run: |
+          RELEASE_TAG=$(git tag --sort=-version:refname --list 'v[0-9]*' | head -n 1)
+          if [ -n "$RELEASE_TAG" ] && [ "$RELEASE_TAG" != "$PREVIOUS_TAG" ]; then
+            echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+            echo "released=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-images:
+    name: Build release images
+    needs: release
+    if: needs.release.outputs.released == 'true'
+    uses: ./.github/workflows/build.yml
+    with:
+      release_tag: ${{ needs.release.outputs.release_tag }}
+    secrets: inherit
+    permissions:
+      contents: read

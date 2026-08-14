@@ -1,3 +1,4 @@
+from contextlib import suppress
 from typing import Any, TypeVar
 
 from pydantic import UUID4
@@ -71,7 +72,8 @@ class CompletionMixin[LinkModelType]:
         except Exception:
             await db_session.rollback()
             if db_obj is not None:
-                await db_session.refresh(db_obj)
+                with suppress(Exception):
+                    await db_session.refresh(db_obj)
             raise
 
         await self._after_completion_commit(

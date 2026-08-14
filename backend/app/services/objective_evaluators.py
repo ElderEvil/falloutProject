@@ -126,23 +126,26 @@ class ObjectiveEvaluator(abc.ABC):
     ) -> None:
         """Auto-complete objective and grant reward in single transaction."""
         from app.services.reward_service import reward_service
+        from app.utils.reward_delivery import defer_reward_delivery
 
         link.progress = objective.target_amount
 
         try:
-            await reward_service.process_objective_reward(db_session, vault_id, link)
+            async with defer_reward_delivery(db_session):
+                await reward_service.process_objective_reward(db_session, vault_id, link)
+                link.is_completed = True
+                await db_session.commit()
         except Exception:
+            await db_session.rollback()
             logger.exception(f"Failed to grant reward for objective '{objective.challenge}' in vault {vault_id}")
-        else:
-            link.is_completed = True
-            await self._event_bus.emit(
-                GameEvent.OBJECTIVE_COMPLETED,
-                vault_id,
-                {"objective_id": str(objective.id), "challenge": objective.challenge},
-            )
-            logger.info(f"Objective '{objective.challenge}' auto-completed and reward granted for vault {vault_id}")
+            return
 
-        await db_session.commit()
+        await self._event_bus.emit(
+            GameEvent.OBJECTIVE_COMPLETED,
+            vault_id,
+            {"objective_id": str(objective.id), "challenge": objective.challenge},
+        )
+        logger.info(f"Objective '{objective.challenge}' auto-completed and reward granted for vault {vault_id}")
 
 
 class CollectEvaluator(ObjectiveEvaluator):

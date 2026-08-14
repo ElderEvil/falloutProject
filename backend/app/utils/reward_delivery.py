@@ -25,7 +25,11 @@ def reward_delivery_is_deferred(db_session: AsyncSession) -> bool:
 
 
 async def persist_reward_change(db_session: AsyncSession, obj: Any | None = None, *, refresh: bool = False) -> None:
-    """Flush deferred reward changes or persist ordinary reward grants."""
+    """Flush deferred reward changes or persist ordinary reward grants.
+
+    Without ``obj``, this flushes or commits every pending change in ``db_session``,
+    including work unrelated to reward delivery.
+    """
     if obj is not None:
         db_session.add(obj)
     if reward_delivery_is_deferred(db_session):

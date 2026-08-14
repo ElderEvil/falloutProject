@@ -32,8 +32,7 @@ class RewardService:
         vault_obj = await vault_crud.get(db_session, id=vault_id)
         if reward_delivery_is_deferred(db_session):
             vault_obj.bottle_caps += amount
-            db_session.add(vault_obj)
-            await db_session.flush()
+            await persist_reward_change(db_session, vault_obj)
         else:
             await vault_crud.deposit_caps(
                 db_session=db_session, vault_obj=vault_obj, amount=amount, emit_event=emit_event
@@ -166,8 +165,7 @@ class RewardService:
 
         if deferred:
             setattr(vault_obj, field, new_value)
-            db_session.add(vault_obj)
-            await db_session.flush()
+            await persist_reward_change(db_session, vault_obj)
         else:
             await vault_crud.update(db_session, id=vault_id, obj_in={field: new_value})
 

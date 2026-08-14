@@ -567,7 +567,7 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
     await async_session.commit()
     await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller.id])
 
-    link.started_at = datetime.utcnow() - timedelta(minutes=61)
+    link.started_at = datetime.now() - timedelta(minutes=61)
     link.duration_minutes = 60
     await async_session.commit()
 

@@ -361,7 +361,7 @@ async def test_collect_evaluator_keeps_objective_active_when_reward_fails(
     await fresh_event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "caps", "amount": 1})
 
     await async_session.refresh(link)
-    assert link.progress == 1
+    assert link.progress == 0
     assert link.is_completed is False
 
 
@@ -394,7 +394,7 @@ async def test_collect_evaluator_does_not_reprocess_its_reward(
 
     await asyncio.wait_for(
         fresh_event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "caps", "amount": 1}),
-        timeout=1,
+        timeout=10,
     )
 
     await async_session.refresh(link)

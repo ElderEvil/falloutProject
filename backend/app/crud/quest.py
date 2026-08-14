@@ -2,6 +2,7 @@ import logging
 from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any
+from uuid import UUID
 
 from pydantic import UUID4
 from sqlmodel import and_, select
@@ -292,7 +293,8 @@ class CRUDQuest(
                     {"item_type": "stimpak", "amount": reward["amount"]},
                 )
             elif reward["reward_type"] == "experience":
-                for dweller_id in reward["leveled_up"]:
+                for raw_dweller_id in reward["leveled_up"]:
+                    dweller_id = UUID(str(raw_dweller_id))
                     dweller = await db_session.get(Dweller, dweller_id)
                     if dweller:
                         leveled_up_dwellers.append(dweller)

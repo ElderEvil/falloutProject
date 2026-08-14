@@ -1,8 +1,9 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 from pydantic import UUID4
+from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -20,6 +21,14 @@ class QuestService:
     async def check_and_complete_quests(self, db_session: AsyncSession) -> int:
         """Check for quests that have exceeded their duration and auto-complete them."""
         now = datetime.now()
+        duration_minutes = func.coalesce(VaultQuestCompletionLink.duration_minutes, 60)
+        if db_session.bind and db_session.bind.dialect.name == "sqlite":
+            expires_at = func.datetime(
+                VaultQuestCompletionLink.started_at,
+                func.printf("+%s minutes", duration_minutes),
+            )
+        else:
+            expires_at = VaultQuestCompletionLink.started_at + func.make_interval(0, 0, 0, 0, 0, duration_minutes)
 
         query = (
             select(VaultQuestCompletionLink)
@@ -27,14 +36,11 @@ class QuestService:
             .where(
                 ~VaultQuestCompletionLink.is_completed,
                 VaultQuestCompletionLink.started_at.isnot(None),
+                expires_at <= now,
             )
         )
         result = await db_session.execute(query)
-        links = [
-            (link.quest_id, link.vault_id)
-            for link in result.scalars().all()
-            if link.started_at and now >= link.started_at + timedelta(minutes=link.duration_minutes or 60)
-        ]
+        links = [(link.quest_id, link.vault_id) for link in result.scalars().all()]
 
         completed_count = 0
         for quest_id, vault_id in links:

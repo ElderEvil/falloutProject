@@ -44,3 +44,11 @@ export function getRoomImageUrl(imageUrl: string | null | undefined): string | n
   const imagePath = imageUrl.startsWith('/') ? imageUrl.slice(1) : imageUrl
   return `${normalizedBase}/${imagePath}`
 }
+
+/**
+ * Builds a full URL for any backend static image (outfits, weapons, portraits).
+ * Same logic as getRoomImageUrl but named generically.
+ */
+export function getStaticImageUrl(imageUrl: string | null | undefined): string | null {
+  return getRoomImageUrl(imageUrl)
+}

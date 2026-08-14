@@ -1,7 +1,7 @@
 [
   {
     "name": "Mechanic jumpsuit",
-    "outfit_type": "Common Outfit",
+    "outfit_type": "common_outfit",
     "rarity": "Common",
     "value": 10,
     "total": 2,

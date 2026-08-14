@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { UButton, UCard } from '@/core/components/ui'
+import { getStaticImageUrl } from '@/core/utils/image'
 
 interface Props {
   item: any
@@ -98,6 +99,13 @@ const itemIcon = computed(() => {
 
   // Junk items
   return 'mdi:wrench'
+})
+
+const itemImageUrl = computed(() => {
+  if (item.image_url) {
+    return getStaticImageUrl(item.image_url)
+  }
+  return ''
 })
 
 // Format weapon/outfit type for display
@@ -223,7 +231,14 @@ const rarityTextClass = computed(() => {
     <div class="flex flex-col gap-2">
       <!-- Header: icon + name + count badge -->
       <div class="flex items-center gap-2.5">
+        <img
+          v-if="itemImageUrl"
+          :src="itemImageUrl"
+          :alt="itemName"
+          class="w-11 h-11 shrink-0 object-contain drop-shadow-[0_0_4px_var(--color-theme-glow)]"
+        />
         <Icon
+          v-else
           :icon="itemIcon"
           class="w-11 h-11 shrink-0 text-(--color-theme-primary) drop-shadow-[0_0_4px_var(--color-theme-glow)]"
         />

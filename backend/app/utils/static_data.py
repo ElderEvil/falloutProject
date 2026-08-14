@@ -11,6 +11,7 @@ from app.schemas.outfit import OutfitCreate
 from app.schemas.quest import QuestChainJSON
 from app.schemas.room import RoomCreateWithoutVaultID
 from app.schemas.weapon import WeaponCreate
+from app.utils.outfit_assets import get_outfit_image_url
 from app.utils.room_assets import get_room_image_url
 
 logger = logging.getLogger(__name__)
@@ -52,6 +53,9 @@ class StaticGameData:
             rare = self.load_data(DATA_DIR / "items/outfits/rare.json", OutfitCreate)
             tiered = self.load_data(DATA_DIR / "items/outfits/tiered.json", OutfitCreate)
             self._outfits = common + legendary + power_armor + rare + tiered
+            for outfit in self._outfits:
+                if not outfit.image_url:
+                    outfit.image_url = get_outfit_image_url(outfit.name)
         return self._outfits
 
     @property

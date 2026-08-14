@@ -401,6 +401,7 @@ class VaultService:
             WeaponSubtypeEnum,
             WeaponTypeEnum,
         )
+        from app.utils.outfit_assets import get_outfit_image_url
 
         result = await db_session.execute(select(Storage).where(Storage.vault_id == vault_id))
         storage = result.scalar_one_or_none()
@@ -486,6 +487,7 @@ class VaultService:
             db_session.add(weapon)
 
         for outfit_data in outfits_data:
+            outfit_data["image_url"] = get_outfit_image_url(outfit_data["name"])
             outfit = Outfit(**outfit_data, storage_id=storage.id)
             db_session.add(outfit)
 

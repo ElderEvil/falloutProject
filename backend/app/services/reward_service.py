@@ -16,6 +16,7 @@ from app.models.storage import Storage
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.models.weapon import Weapon
 from app.services.event_bus import GameEvent, event_bus
+from app.utils.outfit_assets import get_outfit_image_url
 from app.utils.reward_delivery import persist_reward_change, reward_delivery_is_deferred
 
 logger = logging.getLogger(__name__)
@@ -83,6 +84,7 @@ class RewardService:
                     outfit_type=item_data.get("outfit_type", "suit"),
                     gender=item_data.get("gender"),
                     value=item_data.get("value"),
+                    image_url=get_outfit_image_url(item_name),
                     storage_id=storage_obj.id,
                 )
             case _:

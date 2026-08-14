@@ -1,7 +1,7 @@
 [
   {
     "name": "Abraham's relaxedwear",
-    "outfit_type": "Legendary Outfit",
+    "outfit_type": "legendary_outfit",
     "warn_by": "Abraham Washington",
     "rarity": "Legendary",
     "value": 500,
@@ -18,7 +18,7 @@
   },
   {
     "name": "Tattered longcoat",
-    "outfit_type": "Legendary Outfit",
+    "outfit_type": "legendary_outfit",
     "warn_by": "Old Longfellow",
     "rarity": "Legendary",
     "value": 500,
@@ -35,7 +35,7 @@
   },
   {
     "name": "Autumn's uniform",
-    "outfit_type": "Legendary Outfit",
+    "outfit_type": "legendary_outfit",
     "warn_by": "Augustus Autumn",
     "rarity": "Legendary",
     "value": 500,
@@ -52,7 +52,7 @@
   },
   {
     "name": "Bittercup's outfit",
-    "outfit_type": "Legendary Outfit",
+    "outfit_type": "legendary_outfit",
     "warn_by": "Bittercup",
     "rarity": "Legendary",
     "value": 500,
@@ -69,7 +69,7 @@
   },
   {
     "name": "Confessor Cromwell's rags",
-    "outfit_type": "Legendary Outfit",
+    "outfit_type": "legendary_outfit",
     "warn_by": "Confessor Cromwell",
     "rarity": "Legendary",
     "value": 500,
@@ -86,7 +86,7 @@
   },
   {
     "name": "Elder robe",
-    "outfit_type": "Legendary Outfit",
+    "outfit_type": "legendary_outfit",
     "warn_by": "Elder Lyons",
     "rarity": "Legendary",
     "value": 500,
@@ -103,7 +103,7 @@
   },
   {
     "name": "Eulogy Jones' suit",
-    "outfit_type": "Legendary Outfit",
+    "outfit_type": "legendary_outfit",
     "warn_by": "Eulogy Jones",
     "rarity": "Legendary",
     "value": 500,
@@ -120,7 +120,7 @@
   },
   {
     "name": "Heavy synth armor",
-    "outfit_type": "Legendary Outfit",
+    "outfit_type": "legendary_outfit",
     "warn_by": null,
     "rarity": "Legendary",
     "value": 500,

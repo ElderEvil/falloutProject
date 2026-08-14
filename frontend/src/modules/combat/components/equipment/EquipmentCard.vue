@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Weapon, Outfit } from '@/modules/combat/models/equipment'
 import { getRarityColor, getDamageRange, getOutfitBonuses } from '@/modules/combat/models/equipment'
+import { getStaticImageUrl } from '@/core/utils/image'
 
 interface Props {
   item: Weapon | Outfit
@@ -70,12 +71,15 @@ const bonuses = computed(() => (type === 'outfit' ? getOutfitBonuses(item as Out
 const itemTypeLabel = computed(() =>
   type === 'weapon' ? (item as Weapon).weapon_subtype : (item as Outfit).outfit_type
 )
+
+const itemImageUrl = computed(() => (item.image_url ? getStaticImageUrl(item.image_url) : ''))
 </script>
 
 <template>
   <div class="equipment-card" :class="{ equipped }">
     <div class="equipment-header">
-      <Icon :icon="itemIcon" class="equipment-icon" />
+      <img v-if="itemImageUrl" :src="itemImageUrl" :alt="item.name" class="equipment-image" />
+      <Icon v-else :icon="itemIcon" class="equipment-icon" />
       <div class="equipment-info">
         <h4 class="equipment-name" :style="{ color: rarityColor }">{{ item.name }}</h4>
         <p class="equipment-type">{{ itemTypeLabel }} • {{ item.rarity }}</p>
@@ -168,6 +172,13 @@ const itemTypeLabel = computed(() =>
   width: 2.5rem;
   height: 2.5rem;
   color: var(--color-theme-primary);
+  filter: drop-shadow(0 0 4px var(--color-theme-glow));
+}
+
+.equipment-image {
+  width: 2.5rem;
+  height: 2.5rem;
+  object-fit: contain;
   filter: drop-shadow(0 0 4px var(--color-theme-glow));
 }
 

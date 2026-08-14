@@ -35,7 +35,9 @@ class RewardService:
             db_session.add(vault_obj)
             await db_session.flush()
         else:
-            await vault_crud.deposit_caps(db_session=db_session, vault_obj=vault_obj, amount=amount, emit_event=emit_event)
+            await vault_crud.deposit_caps(
+                db_session=db_session, vault_obj=vault_obj, amount=amount, emit_event=emit_event
+            )
 
         logger.info(f"Granted {amount} caps to vault {vault_id}")
         return {"reward_type": RewardType.CAPS, "amount": amount}

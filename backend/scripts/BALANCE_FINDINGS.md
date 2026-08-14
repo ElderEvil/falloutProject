@@ -7,7 +7,10 @@ Simulators: 4 focused balance scripts
 
 ## Executive Summary
 
-All four focused simulators run cleanly and produce stable Monte Carlo averages. However, **every subsystem shows signs of being too forgiving under default parameters** — there is insufficient tension between growth and constraints. The game as currently parameterized would present no meaningful challenge to players.
+The three Monte Carlo simulators run cleanly and produce stable averages. The deterministic resource simulator instead
+uses live `ResourceManager` formulas for fixed staffing scenarios. Together, they indicate that **every subsystem shows
+signs of being too forgiving under default parameters** — there is insufficient tension between growth and constraints.
+The game as currently parameterized would present no meaningful challenge to players.
 
 ---
 
@@ -25,32 +28,7 @@ Exploration mechanics work as intended. With default parameters (10% discovery c
 
 ---
 
-## 2. Room Economy (`simulate_room_balance.py`)
-
-### Observation
-The room simulator models actual room templates from `backend/app/data/vault/rooms.json` with costs, prerequisites, and per-room production.
-
-With defaults (500 caps, 10 dwellers, build interval 2h):
-
-- **Room builds**: 0.0 over 24h — no new rooms constructed
-- **Room upgrades**: 1.0 over 24h — one existing room gets upgraded to tier 2
-- **Population cap**: 14 (from 1 Living room, tier 1) — never expands
-- **Final population**: ~1,290 in 24h — 92× over capacity
-- **Caps remaining**: 0 — economy is exhausted immediately
-
-### Finding
-**The room economy is broken.** Starting caps (500) are insufficient to build even a single additional room after the initial 4. With Power Generator at 100 caps + 25 incremental, Diner at 100, Water Treatment at 100, and Living room at 100, the vault door itself is already a sunk cost not accounted for. The AI builds logic tries to construct rooms when resources run low, but caps are depleted within the first few hours, leaving the vault with:
-- 3 production rooms serving 1,290 dwellers
-- 0 additional living quarters despite the "build Living room when near cap" rule
-- Population capped at 14 but breeding continues unabated
-
-**Implication**: Players would hit a "soft wall" where resources stay at 100% (production outpaces consumption due to simplified scaling) but no new rooms can be built, making the room-building mechanic irrelevant after hour 2.
-
-**Recommendation**: Simulator-only — raise `starting_caps` to 2,000–5,000 to explore a caps-rich early game. This is not a game change: objectives, quests, and exploration provide additional caps income not modeled in the standalone simulator (see Accepted design decisions below).
-
----
-
-## 3. Incident System (`simulate_incident_balance.py`)
+## 2. Incident System (`simulate_incident_balance.py`)
 
 ### Observation
 The incident simulator uses real incident types (fire, radroach, mole rat, raider, feral ghoul, deathclaw) with weighted spawn rates and difficulty ranges.
@@ -86,7 +64,7 @@ Even sweeping `base_raider_power` from 5 → 25 changed nothing because the gap 
 
 ---
 
-## 4. Happiness System (`simulate_happiness_balance.py`)
+## 3. Happiness System (`simulate_happiness_balance.py`)
 
 ### Observation
 The happiness simulator models all gain and loss sources from the real `HappinessConfig`:
@@ -126,7 +104,6 @@ Add 16 healthy (+8.0), 6 partnered (+6.0), 1 training (+0.5), rooms (+3.0), vaul
 | System | Current State | Tension Level |
 |---|---|---|
 | Exploration | Healthy | ✅ Balanced |
-| Room Building | Caps-limited early, but objectives/quests/exploration provide income | ⚠️ OK with other systems |
 | Incident Combat | Easy (100% survival) — intentional for early-game feel | ✅ OK for now |
 | Happiness | Pegged at 100% — minor decay adjustment may help | ⚠️ Too generous |
 | Population Growth | Exponential, uncapped — needs breeding constraint | 🔴 Uncontrolled |
@@ -135,10 +112,9 @@ Add 16 healthy (+8.0), 6 partnered (+6.0), 1 training (+0.5), rooms (+3.0), vaul
 
 **Accepted design decisions** (from review):
 
-1. **Room economy**: No change needed — objectives, quests, and exploration provide additional caps income not modeled in the standalone simulator.
-2. **Combat difficulty**: Keep easy for now — 100% survival is acceptable for the current target experience.
-3. **Happiness**: Minor decay adjustment may be explored later.
-4. **Breeding**: **Needs a cooldown or cap-scaled conception chance** — this is the highest-priority fix to prevent runaway population.
+1. **Combat difficulty**: Keep easy for now — 100% survival is acceptable for the current target experience.
+2. **Happiness**: Minor decay adjustment may be explored later.
+3. **Breeding**: **Needs a cooldown or cap-scaled conception chance** — this is the highest-priority fix to prevent runaway population.
 
 ### Proposed Breeding Mechanics (to be implemented)
 
@@ -176,7 +152,7 @@ Use soft scaling (Option B) as the primary pressure, with a short per-mother coo
 - Late game: crawl (cap_ratio ~0.9 → 10% effective chance)
 - Emergency: if population exceeds cap by >10%, hard stop to 0%
 
-**Simulator update status**: `VaultState.population_cap()` is already modeled in the room simulator (derived from Living-room capacity, base 10) and already gates Living-room construction (`_build_rooms`). No config field is needed — the cap derives from rooms, not a config value. The remaining gap is scaling `conception_chance` in `_process_breeding()` (both simulators currently roll `conception_chance_per_tick` per tick with no cap pressure) using Option B or D.
+**Simulation note**: the old room-economy simulator was retired because it used hard-coded formulas that diverged from production. Resource tuning now uses `simulate_resource_economy.py`, which calls the live `ResourceManager` formulas. The remaining gap is cap-scaled conception in the breeding simulation.
 
 **Expected outcome with Option B**:
 - Starting from 10 dwellers, cap ~14 (4 rooms), growth would slow naturally around hour 2–3
@@ -185,4 +161,4 @@ Use soft scaling (Option B) as the primary pressure, with a short per-mother coo
 
 ---
 
-*Simulators available in `backend/scripts/` — run with `--sweep <param>` to explore the parameter space.*
+*Simulators available in `backend/scripts/`; consult each command's `--help` for options.*

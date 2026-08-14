@@ -15,11 +15,29 @@ AI-powered dweller interactions.
 - [x] **v2.33.0 released** — Frontend type-aware linting and stale-request safety.
 - [x] **v2.33.2 patch released** — Automatic training-room assignments now create queue-visible training sessions.
 - [x] **v2.34.0 released** — Pydantic AI observability and structured-output reliability.
-- [ ] **v2.35.0 ready for automated release** — Automated release-version synchronization and Conventional Commit enforcement.
+- [x] **v2.35.0 released** — Automated release-version synchronization and Conventional Commit enforcement.
 
 ---
 
 ## Planned
+
+### Next Gameplay Balance Iteration — Resource Economy Baseline
+
+**Focus**: Make the existing 60-second resource tick create understandable staffing pressure before tuning broader
+economy systems.
+
+- ✅ **Define a starter-vault baseline** — two matching production workers are safe; reassigning one creates a
+  recoverable deficit on the next tick. See `docs/features/RESOURCE_ECONOMY_BALANCE.md` for the targets and tuning
+  sequence.
+- 🔄 **Calibrate production first** — reduce only the base production rate for the first pass; preserve room output
+  formulas, consumption, capacity, prices, thresholds, and rewards until live play-testing identifies the next lever.
+- 🔄 **Tune in isolated passes** — evaluate starter staffing, then population bands, then room tiers; change one
+  economic input per cycle and record the observed outcome.
+
+**Success criteria:** a player can see a resource trade-off within one 60-second tick, restore a healthy vault by
+staffing matching rooms, and identify the next expansion or training decision from the resource-rate feedback.
+
+---
 
 ### v2.34.0 — Pydantic AI Reliability & Observability (Target: TBD)
 
@@ -59,7 +77,7 @@ output and gameplay actions. Keep this as one backend/AI release instead of spli
 
 ---
 
-### v2.35.0 — Release Version Integrity (Target: automated)
+### v2.35.0 — Release Version Integrity (Released 2026-08-14)
 
 **Focus**: Make the SemVer Git tag the single release authority. Eliminate manual, separately committed backend and
 frontend version bumps, and make release eligibility deterministic from validated Conventional Commit metadata.
@@ -93,6 +111,25 @@ tests.
 
 **Success criteria:** a release creates exactly one versioned commit and tag, both deployable images carry that same
 version, and CI rejects divergent metadata before publication.
+
+---
+
+### Next Automated Release — Container Build Efficiency (Target: TBD)
+
+**Focus**: Make release image builds faster and measure runtime-image size without changing deployment behavior.
+
+**Planned:**
+
+- 🔄 **Maximize reusable build cache** — replace the inline cache with a per-image registry cache in `mode=max` so
+  dependency and intermediate multi-stage layers are reusable across ephemeral GitHub Actions builders.
+- 🔄 **Measure before changing runtimes** — record cold and warm frontend/backend build-and-push durations plus
+  published image sizes; `v2.35.0` is the initial timing baseline (26s frontend and 51s backend build-and-push).
+- 🔄 **Reduce only demonstrated runtime overhead** — assess direct ownership on `COPY` for the backend and a minimal
+  static frontend server only after smoke tests prove unchanged SPA routing and container behavior.
+
+**Success criteria:** record exact before/after frontend and backend build-and-push durations plus published image
+bytes, with the CI run or command used for each measurement; improve at least one metric without weakening tag
+validation, cache isolation, or runtime behavior.
 
 ---
 
@@ -426,4 +463,4 @@ provide a way to retroactively fill gaps for existing active vaults.
 
 ---
 
-_Last updated: 2026-08-13_ (v2.34.0 in progress)
+_Last updated: 2026-08-14_ (v2.35.1 released)

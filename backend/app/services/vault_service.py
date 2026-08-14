@@ -675,24 +675,12 @@ class VaultService:
 
     async def update_vault_resources(self, db_session: AsyncSession, vault_id: UUID4) -> Vault:
         """Update vault resources based on resource manager processing."""
-        from app.services.event_bus import GameEvent, event_bus
-
         updated_resources, events = await self.resource_manager.process_vault_resources(
             db_session=db_session, vault_id=vault_id, seconds_passed=60
         )
-
-        # Emit RESOURCE_COLLECTED events for production (for objective tracking)
-        production = events.get("production", {})
-        for resource_type, amount in production.items():
-            int_amount = int(amount)
-            if int_amount > 0:
-                await event_bus.emit(
-                    GameEvent.RESOURCE_COLLECTED,
-                    vault_id,
-                    {"resource_type": resource_type, "amount": int_amount},
-                )
-
-        return await vault_crud.update(db_session=db_session, id=vault_id, obj_in=updated_resources)
+        vault_obj = await vault_crud.update(db_session=db_session, id=vault_id, obj_in=updated_resources)
+        await self.resource_manager.emit_production_events(vault_id, events)
+        return vault_obj
 
     async def transfer_medical_supplies(
         self,

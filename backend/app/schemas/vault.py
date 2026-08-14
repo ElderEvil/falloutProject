@@ -21,11 +21,41 @@ class VaultNumber(SQLModel):
     boosted: bool = False
 
 
+class ResourceLevelWarning(SQLModel):
+    """A resource level that requires player attention."""
+
+    type: str
+    message: str
+
+
+class PrimaryResourceAmounts(SQLModel):
+    """Power, food, and water amounts for one resource tick."""
+
+    power: float = 0
+    food: float = 0
+    water: float = 0
+
+
+class ResourceProduction(PrimaryResourceAmounts):
+    """Production amounts, including medical supplies produced by INT rooms."""
+
+    stimpack: float = 0
+    radaway: float = 0
+
+
+class ResourceTickEvents(SQLModel):
+    """Typed production, consumption, and warning data emitted by a resource tick."""
+
+    warnings: list[ResourceLevelWarning] = Field(default_factory=list)
+    production: ResourceProduction = Field(default_factory=ResourceProduction)
+    consumption: PrimaryResourceAmounts = Field(default_factory=PrimaryResourceAmounts)
+
+
 class VaultRead(VaultBase):
     id: UUID4
     created_at: datetime
     updated_at: datetime
-    resource_warnings: list[dict[str, str]] = Field(default_factory=list)
+    resource_warnings: list[ResourceLevelWarning] = Field(default_factory=list)
 
 
 class UnassignResponse(BaseModel):

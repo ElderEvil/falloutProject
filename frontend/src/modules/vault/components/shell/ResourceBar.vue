@@ -81,6 +81,15 @@ const iconColor = computed(() => {
   }
 })
 
+function formatForecast(minutes: number): string {
+  const totalMinutes = Math.ceil(minutes)
+  if (totalMinutes < 60) return `${totalMinutes} min`
+
+  const hours = Math.floor(totalMinutes / 60)
+  const remainingMinutes = totalMinutes % 60
+  return remainingMinutes ? `${hours}h ${remainingMinutes}m` : `${hours}h`
+}
+
 // Tooltip text with detailed information
 const tooltipText = computed(() => {
   let text = `${props.label || 'Resource'}: ${props.current}/${props.max} (${percentage.value.toFixed(1)}%)`
@@ -89,6 +98,12 @@ const tooltipText = computed(() => {
     const rateText =
       props.productionRate >= 0 ? `+${props.productionRate}` : `${props.productionRate}`
     text += `\nRate: ${rateText}/min`
+
+    if (props.productionRate < 0 && props.current > 0) {
+      text += `\nEstimated empty: ${formatForecast(props.current / -props.productionRate)}`
+    } else if (props.productionRate > 0 && props.current < props.max) {
+      text += `\nEstimated full: ${formatForecast((props.max - props.current) / props.productionRate)}`
+    }
   }
 
   if (props.tooltipInfo) {

@@ -4,14 +4,20 @@ import logging
 from collections.abc import Sequence
 
 from pydantic import UUID4
-from sqlalchemy import func
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import MEDICAL_ROOM_PRODUCTION, compute_medical_capacity, game_config
-from app.models import Dweller, Room, Storage, Vault
+from app.crud.resource import resource as resource_crud
+from app.models import Dweller, Room, Vault
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
-from app.schemas.vault import VaultUpdate
+from app.schemas.vault import (
+    PrimaryResourceAmounts,
+    ResourceProduction,
+    ResourceTickEvents,
+    VaultUpdate,
+)
+from app.services.event_bus import GameEvent, event_bus
+from app.utils.resource_warnings import get_resource_warnings
 
 logger = logging.getLogger(__name__)
 
@@ -24,28 +30,42 @@ class ResourceManager:
 
     async def process_vault_resources(
         self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int
-    ) -> tuple[VaultUpdate, dict]:
+    ) -> tuple[VaultUpdate, ResourceTickEvents]:
         """Process resource changes for a vault over the given time period.
 
         Returns:
-            tuple: (VaultUpdate with new resource levels, dict with warnings/events)
+            tuple: Updated resource levels and typed tick events.
         """
-        vault, storage, rooms, dweller_count, rooms_with_dwellers = await self._get_vault_data(db_session, vault_id)
+        resource_data = await resource_crud.get_vault_resource_data(db_session, vault_id)
 
         resource_update, events = await self._calculate_net_resource_change(
-            vault, rooms, dweller_count, rooms_with_dwellers, seconds_passed
+            resource_data.vault,
+            resource_data.rooms,
+            resource_data.dweller_count,
+            resource_data.rooms_with_dwellers,
+            seconds_passed,
         )
 
         # Write medical production to Storage (separate from VaultUpdate)
-        if storage is not None:
-            production = events.get("production", {})
-            capacity = compute_medical_capacity(rooms)
-            stimpack_prod = round(production.get("stimpack", 0))
-            radaway_prod = round(production.get("radaway", 0))
-            if stimpack_prod > 0 or radaway_prod > 0:
-                storage.stimpack = min(storage.stimpack + stimpack_prod, capacity.get("stimpack", 0))
-                storage.radaway = min(storage.radaway + radaway_prod, capacity.get("radaway", 0))
-                db_session.add(storage)
+        # Medical events must reflect the integer, capacity-limited amount that
+        # actually reaches storage, rather than the fractional calculated output.
+        production = events.production
+        medical_production = {
+            "stimpack": round(production.stimpack),
+            "radaway": round(production.radaway),
+        }
+        events.production.stimpack = 0
+        events.production.radaway = 0
+        if resource_data.storage is not None:
+            capacity = compute_medical_capacity(resource_data.rooms)
+            if any(medical_production.values()):
+                storage = resource_data.storage
+                for resource_type, produced_amount in medical_production.items():
+                    previous_amount = getattr(storage, resource_type)
+                    stored_amount = min(previous_amount + produced_amount, capacity.get(resource_type, 0))
+                    setattr(storage, resource_type, stored_amount)
+                    setattr(events.production, resource_type, stored_amount - previous_amount)
+                resource_crud.save_storage(db_session, storage)
 
         return resource_update, events
 
@@ -56,24 +76,16 @@ class ResourceManager:
         dweller_count: int,
         rooms_with_dwellers: list[tuple[Room, list[Dweller]]],
         seconds_passed: int,
-    ) -> tuple[VaultUpdate, dict]:
+    ) -> tuple[VaultUpdate, ResourceTickEvents]:
         """Calculate net resource change considering production, consumption, and efficiency.
 
         Returns:
-            tuple: (VaultUpdate with new resource levels, dict with events/warnings)
+            tuple: Updated resource levels and typed tick events.
         """
-        events = {"warnings": [], "production": {}, "consumption": {}}
-
         consumption = self._calculate_consumption(rooms, dweller_count, seconds_passed)
-        events["consumption"] = consumption
-
         production = self._calculate_production(rooms_with_dwellers, seconds_passed, vault.power)
-        events["production"] = production
-
         new_resources = self._apply_resource_changes(vault, consumption, production)
-
-        warnings = self._check_resource_warnings(vault, new_resources)
-        events["warnings"] = warnings
+        warnings = get_resource_warnings(vault, new_resources)
 
         self._log_resource_changes(vault, new_resources)
 
@@ -83,7 +95,11 @@ class ResourceManager:
                 food=round(new_resources["food"]),
                 water=round(new_resources["water"]),
             ),
-            events,
+            ResourceTickEvents(
+                warnings=warnings,
+                production=ResourceProduction(**production),
+                consumption=PrimaryResourceAmounts(**consumption),
+            ),
         )
 
     def _calculate_consumption(
@@ -172,25 +188,6 @@ class ResourceManager:
             "water": max(0, min(vault.water - consumption["water"] + production["water"], vault.water_max)),
         }
 
-    @staticmethod
-    def _check_resource_warnings(vault: Vault, new_resources: dict[str, float]) -> list[dict[str, str]]:
-        """Check for low or critical resource warnings."""
-        warnings = []
-
-        resource_checks = [
-            ("power", vault.power_max, "Power"),
-            ("food", vault.food_max, "Food"),
-            ("water", vault.water_max, "Water"),
-        ]
-
-        for resource, max_value, label in resource_checks:
-            if new_resources[resource] < max_value * game_config.resource.critical_threshold:
-                warnings.append({"type": f"critical_{resource}", "message": f"{label} critically low!"})
-            elif new_resources[resource] < max_value * game_config.resource.low_threshold:
-                warnings.append({"type": f"low_{resource}", "message": f"{label} running low"})
-
-        return warnings
-
     def _log_resource_changes(self, vault: Vault, new_resources: dict[str, float]) -> None:
         """Log resource changes for debugging."""
         self.logger.debug(
@@ -200,35 +197,16 @@ class ResourceManager:
         )
 
     @staticmethod
-    async def _get_vault_data(db_session: AsyncSession, vault_id: UUID4):
-        vault_query = select(Vault).where(Vault.id == vault_id)
-        vault = (await db_session.execute(vault_query)).scalars().first()
-
-        if not vault:
-            raise ValueError(f"Vault {vault_id} not found")
-
-        storage_query = select(Storage).where(Storage.vault_id == vault_id)
-        storage = (await db_session.execute(storage_query)).scalars().first()
-
-        rooms_query = select(Room).where(Room.vault_id == vault_id)
-        rooms = (await db_session.execute(rooms_query)).scalars().all()
-
-        dweller_count = (
-            await db_session.execute(select(func.count(Dweller.id)).where(Dweller.vault_id == vault_id))
-        ).scalar()
-
-        rooms_with_dwellers_query = (
-            select(Room, Dweller).join(Dweller, Room.id == Dweller.room_id).where(Room.vault_id == vault_id)
-        )
-        rooms_with_dwellers_result = (await db_session.execute(rooms_with_dwellers_query)).all()
-
-        rooms_with_dwellers_dict = {}
-        for room, dweller in rooms_with_dwellers_result:
-            if room.id not in rooms_with_dwellers_dict:
-                rooms_with_dwellers_dict[room.id] = (room, [])
-            rooms_with_dwellers_dict[room.id][1].append(dweller)
-
-        return vault, storage, rooms, dweller_count or 0, list(rooms_with_dwellers_dict.values())
+    async def emit_production_events(vault_id: UUID4, events: ResourceTickEvents) -> None:
+        """Emit objective events after the resource transaction has committed."""
+        for resource_type, amount in events.production.model_dump().items():
+            int_amount = int(amount)
+            if int_amount > 0:
+                await event_bus.emit(
+                    GameEvent.RESOURCE_COLLECTED,
+                    vault_id,
+                    {"resource_type": resource_type, "amount": int_amount},
+                )
 
     async def check_resource_availability(self, vault: Vault) -> dict[str, bool]:
         """Check if vault has sufficient resources for basic operations.

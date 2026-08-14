@@ -121,22 +121,13 @@ class GameLoopService:
             await vault_crud.update(db_session, vault_id, resource_update)
             await db_session.commit()
 
-            # Emit RESOURCE_COLLECTED events for production (for objective tracking)
-            production = resource_events.get("production", {})
-            for resource_type, amount in production.items():
-                int_amount = int(amount)
-                if int_amount > 0:
-                    await event_bus.emit(
-                        GameEvent.RESOURCE_COLLECTED,
-                        vault_id,
-                        {"resource_type": resource_type, "amount": int_amount},
-                    )
+            await self.resource_manager.emit_production_events(vault_id, resource_events)
 
             results["updates"]["resources"] = {
                 "power": resource_update.power,
                 "food": resource_update.food,
                 "water": resource_update.water,
-                "events": resource_events,
+                "events": resource_events.model_dump(),
             }
 
         except (SQLAlchemyError, ResourceNotFoundException, VaultOperationException) as e:

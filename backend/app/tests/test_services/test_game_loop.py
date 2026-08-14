@@ -20,6 +20,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.dweller import Dweller
 from app.models.vault import Vault
+from app.schemas.vault import ResourceTickEvents
 from app.services.game_loop import game_loop_service
 
 # ═════════════════════════════════════════════════════════════════════
@@ -135,7 +136,7 @@ class TestProcessVaultTick:
             patch.object(game_loop_service, "_process_happiness", new_callable=AsyncMock, return_value={}),
             patch.object(game_loop_service, "_process_breeding", new_callable=AsyncMock, return_value={}),
         ):
-            mr.return_value = (mock_update, {"production": {}})
+            mr.return_value = (mock_update, ResourceTickEvents())
             return await game_loop_service.process_vault_tick(async_session, vault.id)
 
     @pytest.mark.asyncio
@@ -195,7 +196,7 @@ class TestProcessVaultTick:
         mock_update.food = 50
         mock_update.water = 75
         with patch.object(game_loop_service.resource_manager, "process_vault_resources", new_callable=AsyncMock) as mr:
-            mr.return_value = (mock_update, {"production": {}})
+            mr.return_value = (mock_update, ResourceTickEvents())
             with patch("app.services.game_loop.sse_manager.publish", new_callable=AsyncMock) as mock_publish:
                 mock_publish.side_effect = ConnectionError("SSE connection lost")
                 result = await game_loop_service.process_vault_tick(async_session, vault.id)

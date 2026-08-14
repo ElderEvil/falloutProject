@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ResourceBar from '@/modules/vault/components/shell/ResourceBar.vue'
+import UTooltip from '@/core/components/ui/UTooltip.vue'
 
 // Mock @iconify/vue
 vi.mock('@iconify/vue', () => ({
@@ -336,6 +337,32 @@ describe('ResourceBar', () => {
 
       const label = wrapper.find('.text-xs.text-gray-400')
       expect(label.exists()).toBe(false)
+    })
+  })
+
+  describe('Resource forecast', () => {
+    it('shows time to empty or full from the net rate', () => {
+      const draining = mount(ResourceBar, {
+        props: {
+          current: 30,
+          max: 100,
+          icon: 'mdi:water',
+          label: 'Water',
+          productionRate: -5,
+        },
+      })
+      const filling = mount(ResourceBar, {
+        props: {
+          current: 70,
+          max: 100,
+          icon: 'mdi:food-apple',
+          label: 'Food',
+          productionRate: 5,
+        },
+      })
+
+      expect(draining.findComponent(UTooltip).props('text')).toContain('Estimated empty: 6 min')
+      expect(filling.findComponent(UTooltip).props('text')).toContain('Estimated full: 6 min')
     })
   })
 })

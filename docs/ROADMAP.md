@@ -16,6 +16,7 @@ AI-powered dweller interactions.
 - [x] **v2.33.2 patch released** — Automatic training-room assignments now create queue-visible training sessions.
 - [x] **v2.34.0 released** — Pydantic AI observability and structured-output reliability.
 - [x] **v2.35.0 released** — Automated release-version synchronization and Conventional Commit enforcement.
+- [x] **v2.38.0 released** — Server-owned room templates, visual equipment assets, and legendary boosted-vault fixtures.
 
 ---
 
@@ -158,6 +159,24 @@ Release notes must state the baseline, the after value, the measurement method/e
 percentage change. Claims must be reproducible from committed commands or CI artifacts. Do not report LOC reduction
 as an improvement unless the release retains equivalent behaviour and test coverage. If the release is primarily a
 feature delivery, record its measurable non-functional impact rather than inventing an optimization claim.
+
+### v2.38.0 — Safe Room Construction & Visual Inventory (Released 2026-08-14)
+
+**Focus**: Move room-definition authority to the backend and make the equipment and legendary-dweller systems easier
+to understand at a glance.
+
+**Completed:**
+
+- ✅ **Server-owned room templates** — builds now accept a template identity and grid coordinates; the backend derives
+  room economics, limits, capacities, and upgrade data. Buildable-room results are scoped to the active vault and the
+  grid and menu display the matching room artwork.
+- ✅ **Visual item and dweller assets** — storage and combat equipment views show outfit and weapon artwork;
+  legendary dwellers have full portraits and list/grid thumbnails. Existing records are backfilled by migration.
+- ✅ **Boosted-vault test fixtures** — boosted vaults receive a small equipped legendary team to make high-level
+  gameplay and asset checks immediately testable.
+
+**Validation:** 36 focused backend tests cover the asset and boosted-vault flows; migration-head and changelog-parser
+checks pass. This was a feature release, so no performance claim is recorded.
 
 ### v2.33.2 — Training Queue Assignment Repair (Released 2026-08-13)
 
@@ -463,4 +482,4 @@ provide a way to retroactively fill gaps for existing active vaults.
 
 ---
 
-_Last updated: 2026-08-14_ (v2.35.1 released)
+_Last updated: 2026-08-14_ (v2.38.0 released)

@@ -27,6 +27,7 @@ from app.services.exploration.rewards_calculator import rewards_calculator
 from app.services.notification_service import notification_service
 from app.services.stream_manager import sse_manager
 from app.utils.outfit_assets import get_outfit_image_url
+from app.utils.weapon_assets import get_weapon_image_url
 
 logger = logging.getLogger(__name__)
 
@@ -518,6 +519,7 @@ class ExplorationCoordinator:
                 stat=weapon_data["stat"],
                 damage_min=weapon_data["damage_min"],
                 damage_max=weapon_data["damage_max"],
+                image_url=get_weapon_image_url(weapon_data["name"]),
                 storage_id=storage_id,
             )
         except (KeyError, ValueError):

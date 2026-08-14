@@ -18,6 +18,7 @@ from app.models.weapon import Weapon
 from app.services.event_bus import GameEvent, event_bus
 from app.utils.outfit_assets import get_outfit_image_url
 from app.utils.reward_delivery import persist_reward_change, reward_delivery_is_deferred
+from app.utils.weapon_assets import get_weapon_image_url
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +76,7 @@ class RewardService:
                     damage_min=item_data.get("damage_min", 1),
                     damage_max=item_data.get("damage_max", 3),
                     value=item_data.get("value"),
+                    image_url=get_weapon_image_url(item_name),
                     storage_id=storage_obj.id,
                 )
             case "outfit":
@@ -276,6 +278,7 @@ class RewardService:
                     damage_min=random.randint(2, 5),
                     damage_max=random.randint(5, 10),
                     value=random.randint(50, 200),
+                    image_url=get_weapon_image_url(name),
                 )
             else:
                 gender = random.choice([GenderEnum.MALE, GenderEnum.FEMALE])

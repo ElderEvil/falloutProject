@@ -11,8 +11,10 @@ from app.schemas.outfit import OutfitCreate
 from app.schemas.quest import QuestChainJSON
 from app.schemas.room import RoomCreateWithoutVaultID
 from app.schemas.weapon import WeaponCreate
+from app.utils.legendary_dweller_assets import get_legendary_dweller_image_url
 from app.utils.outfit_assets import get_outfit_image_url
 from app.utils.room_assets import get_room_image_url
+from app.utils.weapon_assets import get_weapon_image_url
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +38,8 @@ class StaticGameData:
             rare = self.load_data(DATA_DIR / "dwellers/rare.json", DwellerCreateWithoutVaultID)
             legendary = self.load_data(DATA_DIR / "dwellers/legendary.json", DwellerCreateWithoutVaultID)
             self._dwellers = rare + legendary
+            for dweller in legendary:
+                dweller.image_url = get_legendary_dweller_image_url(f"{dweller.first_name} {dweller.last_name or ''}")
         return self._dwellers
 
     @property
@@ -62,6 +66,9 @@ class StaticGameData:
     def weapons(self) -> list[WeaponCreate]:
         if self._weapons is None:
             self._weapons = self.load_data(DATA_DIR / "items/weapons.json", WeaponCreate)
+            for weapon in self._weapons:
+                if not weapon.image_url:
+                    weapon.image_url = get_weapon_image_url(weapon.name)
         return self._weapons
 
     @property

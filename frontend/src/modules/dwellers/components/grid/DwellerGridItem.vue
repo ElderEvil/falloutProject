@@ -4,7 +4,7 @@ import { Icon } from '@iconify/vue'
 import DwellerStatusBadge from '../stats/DwellerStatusBadge.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import type { DwellerShort } from '../../models/dweller'
-import { normalizeImageUrl } from '@/core/utils/image'
+import { getStaticImageUrl } from '@/core/utils/image'
 
 interface Props {
   dweller: DwellerShort
@@ -21,8 +21,8 @@ const emit = defineEmits<{
   (e: 'room-click'): void
 }>()
 
-const getImageUrl = (imagePath: string) => {
-  return normalizeImageUrl(imagePath)
+const getImageUrl = (imagePath: string | null | undefined) => {
+  return getStaticImageUrl(imagePath) ?? ''
 }
 
 const healthPercentage = computed(() => {

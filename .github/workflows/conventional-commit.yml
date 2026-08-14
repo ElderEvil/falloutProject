@@ -1,0 +1,19 @@
+name: Validate Pull Request Title
+
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, edited, reopened, synchronize]
+
+jobs:
+  conventional-commit:
+    name: Conventional Commit Title
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            const title = context.payload.pull_request.title
+            const pattern = /^(?:feat|fix|perf|refactor|docs|test|chore|ci|style|build|revert)(?:\([a-z0-9][a-z0-9-]*\))?!?: \S.*$/
+            if (!pattern.test(title)) core.setFailed(`PR title must be a Conventional Commit: ${title}`)

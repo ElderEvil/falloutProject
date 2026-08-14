@@ -14,8 +14,8 @@ AI-powered dweller interactions.
 - [x] **v2.32.0 planning** — Ruff lint cleanup + Google-style docstring convention enforcement.
 - [x] **v2.33.0 released** — Frontend type-aware linting and stale-request safety.
 - [x] **v2.33.2 patch released** — Automatic training-room assignments now create queue-visible training sessions.
-- [ ] **v2.34.0 in progress** — Pydantic AI observability and structured-output reliability.
-- [ ] **v2.35.0 planning** — Automated release-version synchronization and Conventional Commit enforcement.
+- [x] **v2.34.0 released** — Pydantic AI observability and structured-output reliability.
+- [ ] **v2.35.0 ready for automated release** — Automated release-version synchronization and Conventional Commit enforcement.
 
 ---
 
@@ -59,7 +59,7 @@ output and gameplay actions. Keep this as one backend/AI release instead of spli
 
 ---
 
-### v2.35.0 — Release Version Integrity (Target: TBD)
+### v2.35.0 — Release Version Integrity (Target: automated)
 
 **Focus**: Make the SemVer Git tag the single release authority. Eliminate manual, separately committed backend and
 frontend version bumps, and make release eligibility deterministic from validated Conventional Commit metadata.
@@ -69,23 +69,23 @@ must first offset it by removing or compacting existing code, favoring DRY reusa
 reduction excludes generated files, lockfiles, and formatting-only changes, and must retain behavior under relevant
 tests.
 
-**Planned:**
+**Completed:**
 
-- 🔄 **One automated release version**
+- ✅ **One automated release version**
   - Have Semantic Release calculate the next version, synchronize `backend/pyproject.toml`, `backend/uv.lock`, and
     `frontend/package.json` in its prepare phase, then commit those generated release artifacts before creating the
     `vX.Y.Z` tag.
-  - Reconcile the existing manual-release history by validating and tagging the current `v2.33.3` state as the
+  - Reconcile the existing manual-release history by validating and tagging the current `v2.34.3` state as the
     migration baseline; do not retroactively invent missing release versions.
   - Remove manual version-bump commits from the normal feature workflow; agents must not choose a release number.
-- 🔄 **Enforce release intent at merge time**
+- ✅ **Enforce release intent at merge time**
   - Require Conventional Commit PR titles and squash merges; the resulting `master` commit is the sole input to
     SemVer calculation.
   - Map `feat` to minor, `fix`/`perf`/`refactor` to patch, and `!`/`BREAKING CHANGE` to major; keep
     `docs`, `test`, `chore`, `ci`, and `style` non-releasing.
   - Use human-readable, lower-kebab branch names such as `feat/ai-observability`; branch names provide context only
     and must not encode or determine a version.
-- 🔄 **Build and verify the release pair**
+- ✅ **Build and verify the release pair**
   - Build and publish both backend and frontend Docker images from the release tag, using the tag's version for both
     image families rather than independently reading manifests on ordinary `master` pushes.
   - Add a CI guard that fails when the release tag, backend package version, frontend package version, or newest

@@ -287,21 +287,10 @@ When a bug is reported:
 2. **Delegate the fix to subagents** (provide the failing test file + repro steps).
 3. **Prove the fix** by running the test and ensuring it passes (and run the relevant suite).
 
-## Release Version Bump Workflow
+## Release Version Workflow
 
-When cutting a release branch or version bump:
-
-1. Define no more than two focused improvement areas and capture a reproducible baseline before implementation.
-2. Measure the final result using the same command, dataset, and environment. Record the baseline, after value,
-   absolute and percentage change, and command or CI artifact in the release notes.
-3. For code-quality or LOC claims, demonstrate retained behaviour with relevant tests and preserve readability; do not
-   count generated code, lockfiles, formatting-only changes, or feature removal as an improvement.
-4. Update backend version in `backend/pyproject.toml`.
-5. Regenerate the backend lockfile: `cd backend && uv lock`.
-6. Update frontend version in `frontend/package.json`.
-7. Sync frontend lockfile when needed: `cd frontend && pnpm install`.
-8. Commit backend and frontend version changes separately (backend `pyproject.toml` + `uv.lock`, frontend `package.json`).
-9. Push the release branch and keep unrelated files untracked.
+Semantic Release is the sole release-version authority. Do not choose or manually bump a release version; it updates
+the backend manifest and lockfile, frontend manifest, and changelog in one generated release commit and tag.
 
 ## Repo Guardrails
 

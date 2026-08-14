@@ -92,6 +92,7 @@ describe('ChangelogModal', () => {
 
       await flushPromises()
       expect(wrapper.text()).toContain('New feature')
+      expect(wrapper.find('.mock-card').classes()).toContain('!bg-surface-warm')
       const buttons = wrapper.findAll('.mock-button')
       const closeButton = buttons.find((btn) => btn.text().includes('Close'))
       expect(closeButton).toBeUndefined()
@@ -118,6 +119,26 @@ describe('ChangelogModal', () => {
   })
 
   describe('Close Behavior', () => {
+    it('closes on Escape only while shown', async () => {
+      const wrapper = mount(ChangelogModal, {
+        props: {
+          show: true,
+          currentVersion: '2.9.5',
+          lastSeenVersion: '2.9.4',
+        },
+        global: {
+          stubs: { Teleport: true },
+        },
+      })
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+      expect(wrapper.emitted('close')).toHaveLength(1)
+
+      await wrapper.setProps({ show: false })
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+      expect(wrapper.emitted('close')).toHaveLength(1)
+    })
+
     it('should emit close event when X button is clicked', async () => {
       const wrapper = mount(ChangelogModal, {
         props: {

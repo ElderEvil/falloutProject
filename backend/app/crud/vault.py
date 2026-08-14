@@ -271,16 +271,20 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             return False
         return current_assigned_population + space_required <= population_max
 
-    async def deposit_caps(self, *, db_session: AsyncSession, vault_obj: Vault, amount: int, commit: bool = True):
+    async def deposit_caps(
+        self, *, db_session: AsyncSession, vault_obj: Vault, amount: int, commit: bool = True, emit_event: bool = True
+    ):
         """Deposit the specified amount to the vault's bottle caps as part of a revenue operation."""
         await self.update(
             db_session, id=vault_obj.id, obj_in=VaultUpdate(bottle_caps=vault_obj.bottle_caps + amount), commit=commit
         )
 
-        # Emit resource collected event for objective tracking
-        from app.services.event_bus import GameEvent, event_bus
+        if emit_event:
+            from app.services.event_bus import GameEvent, event_bus
 
-        await event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault_obj.id, {"resource_type": "caps", "amount": amount})
+            await event_bus.emit(
+                GameEvent.RESOURCE_COLLECTED, vault_obj.id, {"resource_type": "caps", "amount": amount}
+            )
 
     async def withdraw_caps(self, *, db_session: AsyncSession, vault_obj: Vault, amount: int):
         """Withdraw the specified amount from the vault's bottle caps as part of a spending operation."""

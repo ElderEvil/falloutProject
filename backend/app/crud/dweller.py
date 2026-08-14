@@ -23,6 +23,7 @@ from app.schemas.dweller import (
 from app.services.event_bus import GameEvent, event_bus
 from app.utils.dwellers import create_random_common_dweller
 from app.utils.exceptions import ContentNoChangeException, InvalidVaultTransferException, ResourceConflictException
+from app.utils.reward_delivery import reward_delivery_is_deferred
 
 
 def determine_status_for_room(room_category: RoomTypeEnum | None) -> DwellerStatusEnum:
@@ -207,12 +208,19 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             dweller_obj.experience -= experience_required
             leveled_up = True
 
-        updated_dweller = await self.update(
-            db_session, dweller_obj.id, DwellerUpdate(level=dweller_obj.level, experience=dweller_obj.experience)
-        )
+        if reward_delivery_is_deferred(db_session):
+            db_session.add(dweller_obj)
+            await db_session.flush()
+            updated_dweller = dweller_obj
+        else:
+            updated_dweller = await self.update(
+                db_session,
+                dweller_obj.id,
+                DwellerUpdate(level=dweller_obj.level, experience=dweller_obj.experience),
+            )
 
         # Emit DWELLER_LEVEL_UP event for objective tracking
-        if leveled_up and updated_dweller.vault_id:
+        if leveled_up and updated_dweller.vault_id and not reward_delivery_is_deferred(db_session):
             await event_bus.emit(
                 GameEvent.DWELLER_LEVEL_UP,
                 updated_dweller.vault_id,

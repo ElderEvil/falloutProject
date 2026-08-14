@@ -2,6 +2,7 @@
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
 from app import crud
 from app.schemas.common import AgeGroupEnum, DwellerStatusEnum
@@ -458,6 +459,7 @@ async def test_check_and_complete_quests(async_session: AsyncSession) -> None:
     """Test automatic quest completion after duration."""
     from datetime import datetime, timedelta
 
+    from app.models.quest_reward import QuestReward, RewardType
     from app.models.vault_quest import VaultQuestCompletionLink
     from app.services.quest_service import quest_service
 
@@ -477,6 +479,14 @@ async def test_check_and_complete_quests(async_session: AsyncSession) -> None:
         rewards="50 caps",
     )
     quest = await crud.quest_crud.create(async_session, obj_in=quest_data)
+    async_session.add(
+        QuestReward(
+            quest_id=quest.id,
+            reward_type=RewardType.CAPS,
+            reward_data={"amount": 50},
+            reward_chance=1.0,
+        )
+    )
     link = VaultQuestCompletionLink(
         vault_id=vault.id,
         quest_id=quest.id,
@@ -496,7 +506,145 @@ async def test_check_and_complete_quests(async_session: AsyncSession) -> None:
     assert completed >= 1
 
     await async_session.refresh(link)
+    await async_session.refresh(vault)
     assert link.is_completed is True
+    assert vault.bottle_caps == vault_data["bottle_caps"] + 50
+
+
+@pytest.mark.asyncio
+async def test_timed_quest_completion_simulation(async_session: AsyncSession) -> None:
+    """Simulate a quest party returning with every configured reward."""
+    from datetime import datetime, timedelta
+
+    from app.crud.quest_party import quest_party_crud
+    from app.models.dweller import Dweller
+    from app.models.quest_reward import QuestReward, RewardType
+    from app.models.storage import Storage
+    from app.models.weapon import Weapon
+    from app.schemas.common import AgeGroupEnum
+    from app.services.quest_service import quest_service
+    from app.tests.factory.dwellers import create_fake_dweller
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault_data = create_fake_vault()
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id),
+    )
+    async_session.add(Storage(vault_id=vault.id, max_space=10))
+    dweller_data = create_fake_dweller()
+    dweller_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
+    dweller = Dweller(**dweller_data, vault_id=vault.id)
+    async_session.add(dweller)
+
+    quest = await crud.quest_crud.create(
+        async_session,
+        obj_in=QuestCreate(
+            title="Timed reward simulation",
+            short_description="Automatic settlement",
+            long_description="A party returns with caps and a weapon.",
+            requirements="One adult dweller",
+            rewards="50 caps and a laser pistol",
+        ),
+    )
+    async_session.add_all(
+        [
+            QuestReward(
+                quest_id=quest.id,
+                reward_type=RewardType.CAPS,
+                reward_data={"amount": 50},
+                reward_chance=1.0,
+            ),
+            QuestReward(
+                quest_id=quest.id,
+                reward_type=RewardType.ITEM,
+                reward_data={"item_type": "weapon", "name": "Laser Pistol"},
+                reward_chance=1.0,
+            ),
+        ]
+    )
+    link = await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+    await async_session.commit()
+    await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller.id])
+
+    link.started_at = datetime.utcnow() - timedelta(minutes=61)
+    link.duration_minutes = 60
+    await async_session.commit()
+
+    assert await quest_service.check_and_complete_quests(async_session) == 1
+
+    await async_session.refresh(link)
+    await async_session.refresh(vault)
+    await async_session.refresh(dweller)
+    weapon = (await async_session.execute(select(Weapon).where(Weapon.name == "Laser Pistol"))).scalar_one()
+    assert link.is_completed is True
+    assert vault.bottle_caps == vault_data["bottle_caps"] + 50
+    assert weapon.storage_id is not None
+    assert dweller.status == DwellerStatusEnum.IDLE
+
+
+@pytest.mark.asyncio
+async def test_quest_completion_rolls_back_when_any_reward_fails(async_session: AsyncSession) -> None:
+    """A quest must not settle partially when one of its rewards cannot be delivered."""
+    from datetime import datetime, timedelta
+
+    from app.models.quest_reward import QuestReward, RewardType
+    from app.services.quest_service import quest_service
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault_data = create_fake_vault()
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id),
+    )
+    quest = await crud.quest_crud.create(
+        async_session,
+        obj_in=QuestCreate(
+            title="Atomic reward quest",
+            short_description="Reward settlement",
+            long_description="Fails without available storage.",
+            requirements="None",
+            rewards="Caps and an item",
+        ),
+    )
+    async_session.add_all(
+        [
+            QuestReward(
+                quest_id=quest.id,
+                reward_type=RewardType.CAPS,
+                reward_data={"amount": 50},
+                reward_chance=1.0,
+            ),
+            QuestReward(
+                quest_id=quest.id,
+                reward_type=RewardType.ITEM,
+                reward_data={"item_type": "weapon", "name": "Laser Pistol"},
+                reward_chance=1.0,
+            ),
+        ]
+    )
+    await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+
+    with pytest.raises(ValueError, match="No storage found"):
+        await crud.quest_crud.complete(
+            db_session=async_session,
+            quest_entity_id=quest.id,
+            vault_id=vault.id,
+        )
+
+    await async_session.refresh(vault)
+    link = await async_session.get(crud.quest_crud.link_model, (vault.id, quest.id))
+    assert link is not None
+    link.started_at = datetime.now() - timedelta(minutes=61)
+    link.duration_minutes = 60
+    await async_session.commit()
+
+    assert await quest_service.check_and_complete_quests(async_session) == 0
+
+    await async_session.refresh(vault)
+    await async_session.refresh(link)
+    assert link.is_completed is False
+    assert vault.bottle_caps == vault_data["bottle_caps"]
 
 
 @pytest.mark.asyncio

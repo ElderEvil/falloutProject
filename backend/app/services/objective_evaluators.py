@@ -127,23 +127,20 @@ class ObjectiveEvaluator(abc.ABC):
         """Auto-complete objective and grant reward in single transaction."""
         from app.services.reward_service import reward_service
 
-        # Set completion flags
-        link.is_completed = True
         link.progress = objective.target_amount
 
-        # Emit event
-        await self._event_bus.emit(
-            GameEvent.OBJECTIVE_COMPLETED,
-            vault_id,
-            {"objective_id": str(objective.id), "challenge": objective.challenge},
-        )
-
-        # Grant reward - wrapped in try/except so completion isn't lost on reward failure
         try:
             await reward_service.process_objective_reward(db_session, vault_id, link)
-            logger.info(f"Objective '{objective.challenge}' auto-completed and reward granted for vault {vault_id}")
         except Exception:
             logger.exception(f"Failed to grant reward for objective '{objective.challenge}' in vault {vault_id}")
+        else:
+            link.is_completed = True
+            await self._event_bus.emit(
+                GameEvent.OBJECTIVE_COMPLETED,
+                vault_id,
+                {"objective_id": str(objective.id), "challenge": objective.challenge},
+            )
+            logger.info(f"Objective '{objective.challenge}' auto-completed and reward granted for vault {vault_id}")
 
         await db_session.commit()
 

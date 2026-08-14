@@ -11,6 +11,7 @@ from app.crud.base import CRUDBase
 from app.crud.mixins import CompletionMixin
 from app.crud.vault_mixin import VaultActionsMixin
 from app.models import Vault
+from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.quest_requirement import QuestRequirement, RequirementType
 from app.models.quest_reward import QuestReward
@@ -19,6 +20,7 @@ from app.schemas.quest import QuestCreate, QuestRead, QuestRequirementRead, Ques
 from app.services.notification_service import notification_service
 from app.services.reward_service import reward_service
 from app.utils.exceptions import ResourceNotFoundException
+from app.utils.reward_delivery import defer_reward_delivery
 
 logger = logging.getLogger(__name__)
 
@@ -244,35 +246,91 @@ class CRUDQuest(
     async def _handle_completion_cascade(
         self, db_session: AsyncSession, db_obj: Quest, vault_id: UUID4
     ) -> list[dict[str, Any]]:
-        """Grant rewards when a quest is completed."""
+        """Grant every quest reward within the completion transaction."""
+        async with defer_reward_delivery(db_session):
+            await db_session.refresh(db_obj, ["quest_rewards"])
+            granted_rewards = await reward_service.process_quest_rewards(db_session, vault_id, db_obj)
+
+        if granted_rewards:
+            reward_summary = ", ".join(
+                f"{reward.get('amount', reward.get('name', reward.get('dweller_id', '?')))}"
+                for reward in granted_rewards
+            )
+            logger.info(f"Granted rewards for quest '{db_obj.title}': {reward_summary}")
+
+        return granted_rewards
+
+    async def _after_completion_commit(
+        self,
+        *,
+        db_session: AsyncSession,
+        db_obj: Quest,
+        vault_id: UUID4,
+        granted_rewards: list[dict[str, Any]],
+    ) -> None:
+        """Publish reward and completion feedback after successful settlement."""
         from app.services.event_bus import GameEvent, event_bus
 
-        granted_rewards: list[dict[str, Any]] = []
-
-        # Grant rewards
-        try:
-            granted_rewards = await reward_service.process_quest_rewards(db_session, vault_id, db_obj)
-            if granted_rewards:
-                reward_summary = ", ".join(
-                    f"{r.get('amount', r.get('name', r.get('dweller_id', '?')))}" for r in granted_rewards
+        leveled_up_dwellers = []
+        for reward in granted_rewards:
+            if reward["reward_type"] == "caps":
+                await event_bus.emit(
+                    GameEvent.RESOURCE_COLLECTED,
+                    vault_id,
+                    {"resource_type": "caps", "amount": reward["amount"]},
                 )
-                logger.info(f"Granted rewards for quest '{db_obj.title}': {reward_summary}")
-        except Exception:
-            logger.exception(f"Failed to grant rewards for quest '{db_obj.title}'")
+            elif reward["reward_type"] == "item":
+                await event_bus.emit(
+                    GameEvent.ITEM_COLLECTED,
+                    vault_id,
+                    {"item_type": reward.get("item_type", "item"), "amount": 1},
+                )
+            elif reward["reward_type"] == "stimpak":
+                await event_bus.emit(
+                    GameEvent.ITEM_COLLECTED,
+                    vault_id,
+                    {"item_type": "stimpak", "amount": reward["amount"]},
+                )
+            elif reward["reward_type"] == "experience":
+                for dweller_id in reward["leveled_up"]:
+                    dweller = await db_session.get(Dweller, dweller_id)
+                    if dweller:
+                        leveled_up_dwellers.append(dweller)
+                        await event_bus.emit(
+                            GameEvent.DWELLER_LEVEL_UP,
+                            vault_id,
+                            {
+                                "dweller_id": str(dweller.id),
+                                "level": dweller.level,
+                                "old_level": dweller.level - 1,
+                                "amount": 1,
+                            },
+                        )
 
-        # Emit quest completed event (even if reward processing failed)
         await event_bus.emit(
             GameEvent.QUEST_COMPLETED,
             vault_id,
             {"quest_id": str(db_obj.id), "quest_title": db_obj.title},
         )
 
-        # Send notification
         try:
             vault = await db_session.get(Vault, vault_id)
             if vault and vault.user_id:
+                for dweller in leveled_up_dwellers:
+                    await notification_service.notify_level_up(
+                        db_session,
+                        user_id=vault.user_id,
+                        vault_id=vault_id,
+                        dweller_id=dweller.id,
+                        dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
+                        new_level=dweller.level,
+                        meta_data={"old_level": dweller.level - 1, "new_level": dweller.level},
+                    )
                 rewards_str = (
-                    ", ".join(f"{r.get('amount', r.get('name', r.get('type', '?')))}" for r in granted_rewards)
+                    ", ".join(
+                        f"{reward.get('amount', reward.get('name', reward.get('type', '?')))}"
+                        for reward in granted_rewards
+                    )
                     or "no rewards"
                 )
                 await notification_service.notify_quest_completed(
@@ -280,8 +338,6 @@ class CRUDQuest(
                 )
         except Exception:
             logger.exception(f"Failed to send quest completion notification for '{db_obj.title}'")
-
-        return granted_rewards
 
     async def assign_to_vault(
         self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4, *, is_visible: bool = True

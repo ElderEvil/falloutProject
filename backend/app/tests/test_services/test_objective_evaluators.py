@@ -1,5 +1,6 @@
 """Tests for ObjectiveEvaluators."""
 
+import asyncio
 from unittest.mock import patch
 
 import pytest
@@ -329,6 +330,77 @@ async def test_reach_evaluator_population_reached(
     # Refresh and check completion
     await async_session.refresh(link)
     assert link.is_completed is True
+
+
+@pytest.mark.asyncio
+async def test_collect_evaluator_keeps_objective_active_when_reward_fails(
+    async_session: AsyncSession,
+    fresh_event_bus,
+    patched_session_maker,
+) -> None:
+    """A failed reward must not permanently consume a completed objective."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    objective = Objective(
+        challenge="Collect one cap",
+        reward="not a valid reward",
+        objective_type="collect",
+        target_entity={"resource_type": "caps"},
+        target_amount=1,
+        category=ObjectiveCategoryEnum.ACHIEVEMENT,
+    )
+    link = VaultObjectiveProgressLink(vault_id=vault.id, objective_id=objective.id, progress=0, total=1)
+    async_session.add_all([objective, link])
+    await async_session.commit()
+
+    CollectEvaluator(fresh_event_bus)
+
+    await fresh_event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "caps", "amount": 1})
+
+    await async_session.refresh(link)
+    assert link.progress == 1
+    assert link.is_completed is False
+
+
+@pytest.mark.asyncio
+async def test_collect_evaluator_does_not_reprocess_its_reward(
+    async_session: AsyncSession,
+    fresh_event_bus,
+    patched_session_maker,
+) -> None:
+    """A collect reward must not recursively trigger its own evaluator."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    objective = Objective(
+        challenge="Collect one cap",
+        reward="10 caps",
+        objective_type="collect",
+        target_entity={"resource_type": "caps"},
+        target_amount=1,
+        category=ObjectiveCategoryEnum.ACHIEVEMENT,
+    )
+    link = VaultObjectiveProgressLink(vault_id=vault.id, objective_id=objective.id, progress=0, total=1)
+    async_session.add_all([objective, link])
+    await async_session.commit()
+    initial_caps = vault.bottle_caps
+
+    CollectEvaluator(fresh_event_bus)
+
+    await asyncio.wait_for(
+        fresh_event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "caps", "amount": 1}),
+        timeout=1,
+    )
+
+    await async_session.refresh(link)
+    await async_session.refresh(vault)
+    assert link.is_completed is True
+    assert vault.bottle_caps == initial_caps + 10
 
 
 @pytest.mark.asyncio

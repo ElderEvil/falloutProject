@@ -120,6 +120,8 @@ jobs:
     uses: ./.github/workflows/build.yml
     with:
       release_tag: ${{ needs.release.outputs.release_tag }}
-    secrets: inherit
+    secrets:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
     permissions:
       contents: read

@@ -7,6 +7,11 @@ on:
         description: 'Published SemVer tag to build (for example, v2.35.0)'
         required: true
         type: string
+    secrets:
+      DOCKER_USERNAME:
+        required: true
+      DOCKER_PASSWORD:
+        required: true
   workflow_dispatch:
     inputs:
       release_tag:
@@ -34,10 +39,19 @@ jobs:
             dockerfile: ./frontend/Dockerfile
 
     steps:
+      - name: Validate release tag
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || {
+            echo "::error::release_tag must be a complete SemVer tag, such as v2.35.0"
+            exit 1
+          }
+
       - name: Checkout release tag
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.release_tag }}
+          ref: refs/tags/${{ inputs.release_tag }}
 
       - name: Validate release metadata
         id: release
@@ -45,7 +59,6 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           VERSION="${RELEASE_TAG#v}"
-          test "$RELEASE_TAG" = "v$VERSION"
           python3 - "$VERSION" <<'PY'
           import json
           import re

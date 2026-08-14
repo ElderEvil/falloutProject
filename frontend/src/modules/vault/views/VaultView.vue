@@ -106,6 +106,9 @@ const water = computed(() => ({
   current: currentVault.value?.water ?? 0,
   max: currentVault.value?.water_max ?? 100,
 }))
+const resourceRates = computed(() =>
+  vaultId.value ? vaultStore.resourceRates[vaultId.value] : undefined
+)
 
 const activeIncidents = computed(() => incidentStore.activeIncidents)
 
@@ -363,18 +366,21 @@ const handleIncidentResolved = async () => {
                 :max="energy.max"
                 icon="mdi:lightning-bolt"
                 label="Power"
+                :production-rate="resourceRates?.power"
               />
               <ResourceBar
                 :current="food.current"
                 :max="food.max"
                 icon="mdi:food-apple"
                 label="Food"
+                :production-rate="resourceRates?.food"
               />
               <ResourceBar
                 :current="water.current"
                 :max="water.max"
                 icon="mdi:water"
                 label="Water"
+                :production-rate="resourceRates?.water"
               />
             </div>
 

@@ -12,6 +12,28 @@ type VaultReadWithNumbers = components['schemas']['VaultReadWithNumbers']
 
 export type VaultWithNumbers = VaultReadWithNumbers
 
+type ResourceName = 'power' | 'food' | 'water'
+type ResourceRates = Record<ResourceName, number>
+
+interface ResourceTickUpdate {
+  power?: number
+  food?: number
+  water?: number
+  events?: {
+    production?: Partial<ResourceRates>
+    consumption?: Partial<ResourceRates>
+  }
+}
+
+interface GameTickUpdate {
+  seconds_passed?: number
+  updates?: {
+    resources?: ResourceTickUpdate
+  }
+}
+
+const resourceNames: ResourceName[] = ['power', 'food', 'water']
+
 // GameState type (not yet in API schemas)
 interface GameState {
   is_paused: boolean
@@ -26,6 +48,7 @@ export const useVaultStore = defineStore('vault', () => {
   const vaults = ref<VaultWithNumbers[]>([])
   const selectedVaultId = useLocalStorage<string | null>('selectedVaultId', null)
   const loadedVaults = ref<Record<string, VaultWithNumbers>>({})
+  const resourceRates = ref<Record<string, ResourceRates>>({})
   const activeVaultId = ref<string | null>(null)
   const isLoading = ref(false)
   const gameState = ref<GameState | null>(null)
@@ -236,9 +259,28 @@ export const useVaultStore = defineStore('vault', () => {
       () => gameTickSse?.event.value,
       (evt) => {
         if (!evt || evt.event !== 'tick') return
-        const tickData = evt.data as Record<string, unknown> | undefined
-        if (tickData && loadedVaults.value[vaultId]) {
-          loadedVaults.value[vaultId] = tickData as unknown as VaultWithNumbers
+        const tickData = evt.data as GameTickUpdate | undefined
+        const resourceUpdate = tickData?.updates?.resources
+        const vault = loadedVaults.value[vaultId]
+        if (resourceUpdate && vault) {
+          const resourceValues = Object.fromEntries(
+            resourceNames
+              .filter((resource) => typeof resourceUpdate[resource] === 'number')
+              .map((resource) => [resource, resourceUpdate[resource]])
+          ) as Partial<Pick<VaultWithNumbers, ResourceName>>
+          loadedVaults.value[vaultId] = { ...vault, ...resourceValues }
+
+          const secondsPassed = tickData?.seconds_passed
+          if (typeof secondsPassed === 'number' && secondsPassed > 0) {
+            const production = resourceUpdate.events?.production ?? {}
+            const consumption = resourceUpdate.events?.consumption ?? {}
+            resourceRates.value[vaultId] = Object.fromEntries(
+              resourceNames.map((resource) => [
+                resource,
+                (((production[resource] ?? 0) - (consumption[resource] ?? 0)) / secondsPassed) * 60,
+              ])
+            ) as ResourceRates
+          }
         }
       }
     )
@@ -273,6 +315,7 @@ export const useVaultStore = defineStore('vault', () => {
     vaults,
     selectedVaultId,
     loadedVaults,
+    resourceRates,
     activeVaultId,
     isLoading,
     gameState,

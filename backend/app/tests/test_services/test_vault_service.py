@@ -18,7 +18,14 @@ from app.schemas.common import (
 )
 from app.schemas.dweller import DwellerCreateCommonOverride, DwellerUpdate
 from app.schemas.room import RoomCreate, RoomCreateWithoutVaultID
-from app.schemas.vault import MedicalTransferResponse, VaultNumber, VaultUpdate
+from app.schemas.vault import (
+    MedicalTransferResponse,
+    PrimaryResourceAmounts,
+    ResourceProduction,
+    ResourceTickEvents,
+    VaultNumber,
+    VaultUpdate,
+)
 from app.services.vault_service import VaultService
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 
@@ -1090,11 +1097,15 @@ class TestUpdateVaultResources:
         vault_id = VAULT_ID
 
         new_resources = VaultUpdate(power=80, food=60, water=50)
-        events = {"production": {"power": 10, "food": 5}, "consumption": {"food": 1, "water": 1}}
+        events = ResourceTickEvents(
+            production=ResourceProduction(power=10, food=5),
+            consumption=PrimaryResourceAmounts(food=1, water=1),
+        )
 
         service = VaultService()
         service.resource_manager = MagicMock()
         service.resource_manager.process_vault_resources = AsyncMock(return_value=(new_resources, events))
+        service.resource_manager.emit_production_events = AsyncMock()
 
         db_session = AsyncMock()
         db_session.commit = AsyncMock()
@@ -1104,8 +1115,7 @@ class TestUpdateVaultResources:
             returned_vault = Vault(id=vault_id, number=1, power=80, food=60, water=50)
             mock_vault_update.return_value = returned_vault
 
-            with patch("app.services.event_bus.event_bus.emit", new_callable=AsyncMock) as mock_emit:
-                result = await service.update_vault_resources(db_session, vault_id)
+            result = await service.update_vault_resources(db_session, vault_id)
 
         # Verify ResourceManager was called
         service.resource_manager.process_vault_resources.assert_awaited_once_with(
@@ -1114,8 +1124,7 @@ class TestUpdateVaultResources:
             seconds_passed=60,
         )
 
-        # Verify events emitted for production with positive amounts
-        assert mock_emit.await_count == 2  # power=10, food=5
+        service.resource_manager.emit_production_events.assert_awaited_once_with(vault_id, events)
 
         # Verify vault was updated
         mock_vault_update.assert_awaited_once()
@@ -1127,21 +1136,19 @@ class TestUpdateVaultResources:
         vault_id = VAULT_ID
 
         new_resources = VaultUpdate(power=80, food=60, water=50)
-        events: dict[str, dict[str, float]] = {"production": {}}
+        events = ResourceTickEvents()
 
         service = VaultService()
         service.resource_manager = MagicMock()
         service.resource_manager.process_vault_resources = AsyncMock(return_value=(new_resources, events))
+        service.resource_manager.emit_production_events = AsyncMock()
 
         db_session = AsyncMock()
 
-        with (
-            patch("app.services.vault_service.vault_crud.update", new_callable=AsyncMock),
-            patch("app.services.event_bus.event_bus.emit", new_callable=AsyncMock) as mock_emit,
-        ):
+        with patch("app.services.vault_service.vault_crud.update", new_callable=AsyncMock):
             await service.update_vault_resources(db_session, vault_id)
 
-        mock_emit.assert_not_awaited()
+        service.resource_manager.emit_production_events.assert_awaited_once_with(vault_id, events)
 
     async def test_no_events_when_amount_zero_or_negative(self) -> None:
         """Events not emitted for zero or negative production amounts."""
@@ -1149,22 +1156,19 @@ class TestUpdateVaultResources:
         vault_id = VAULT_ID
 
         new_resources = VaultUpdate(power=80, food=60, water=50)
-        events = {"production": {"power": 0.0, "food": -1.0, "water": 3.0}}
+        events = ResourceTickEvents(production=ResourceProduction(power=0, food=-1, water=3))
 
         service = VaultService()
         service.resource_manager = MagicMock()
         service.resource_manager.process_vault_resources = AsyncMock(return_value=(new_resources, events))
+        service.resource_manager.emit_production_events = AsyncMock()
 
         db_session = AsyncMock()
 
-        with (
-            patch("app.services.vault_service.vault_crud.update", new_callable=AsyncMock),
-            patch("app.services.event_bus.event_bus.emit", new_callable=AsyncMock) as mock_emit,
-        ):
+        with patch("app.services.vault_service.vault_crud.update", new_callable=AsyncMock):
             await service.update_vault_resources(db_session, vault_id)
 
-        # Only water=3 should emit
-        assert mock_emit.await_count == 1
+        service.resource_manager.emit_production_events.assert_awaited_once_with(vault_id, events)
 
 
 # ---------------------------------------------------------------------------

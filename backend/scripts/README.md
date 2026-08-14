@@ -24,7 +24,7 @@ Repo-root `scripts/` holds general *shell* scripts (`dev-up.sh`,
 |---|---|
 | `simulate_happiness_balance.py` | Monte-Carlo simulation of happiness balance |
 | `simulate_incident_balance.py` | Monte-Carlo simulation of incident balance |
-| `simulate_room_balance.py` | Monte-Carlo simulation of room balance |
+| `simulate_resource_economy.py` | Deterministic resource-rate scenario using the live `ResourceManager` formulas |
 | `simulate_exploration_balance.py` | Monte-Carlo simulation of exploration balance |
 | `BALANCE_FINDINGS.md` | Findings notes from balance tuning runs |
 

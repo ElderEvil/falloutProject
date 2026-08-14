@@ -279,7 +279,11 @@ class ResourceConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="RESOURCE_")
 
     # Production
-    base_production_rate: float = Field(default=0.1, description="Per SPECIAL point per second", ge=0.0)
+    base_production_rate: float = Field(
+        default=0.0003,
+        description="Per SPECIAL point per second, calibrated for the 60-second game tick",
+        ge=0.0,
+    )
     tier_1_multiplier: float = Field(default=1.0, ge=0.0)
     tier_2_multiplier: float = Field(default=1.5, ge=0.0)
     tier_3_multiplier: float = Field(default=2.0, ge=0.0)

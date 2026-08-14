@@ -1,12 +1,23 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
+import { nextTick, ref, type Ref } from 'vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import axios from '@/core/plugins/axios'
 import { useRouter } from 'vue-router'
 
+const sseMock = vi.hoisted(() => ({
+  event: null as unknown,
+  start: vi.fn().mockResolvedValue(undefined),
+  close: vi.fn(),
+  stopReconnect: vi.fn(),
+}))
+
 vi.mock('@/core/plugins/axios')
 vi.mock('vue-router', () => ({
   useRouter: vi.fn(),
+}))
+vi.mock('@/core/composables/useEventStream', () => ({
+  useSse: () => sseMock,
 }))
 
 describe('Vault Store', () => {
@@ -16,6 +27,7 @@ describe('Vault Store', () => {
     setActivePinia(createPinia())
     localStorage.clear()
     vi.clearAllMocks()
+    sseMock.event = ref(null) as Ref<unknown>
 
     mockRouter = {
       push: vi.fn().mockResolvedValue(undefined),
@@ -226,6 +238,41 @@ describe('Vault Store', () => {
 
       await expect(store.loadVault('vault-1', 'test-token')).rejects.toThrow('Load failed')
       expect(store.isLoading).toBe(false)
+    })
+  })
+
+  describe('game tick updates', () => {
+    it('merges tick resources and exposes the net rate per minute', async () => {
+      const store = useVaultStore()
+      store.loadedVaults = { 'vault-1': mockVault }
+
+      store.startGameTickSse('vault-1', 'test-token')
+      ;(sseMock.event as Ref<{ event: string; data: unknown } | null>).value = {
+        event: 'tick',
+        data: {
+          seconds_passed: 60,
+          updates: {
+            resources: {
+              power: 60,
+              food: 75,
+              water: 86,
+              events: {
+                production: { power: 15, food: 2, water: 9 },
+                consumption: { power: 5, food: 7, water: 4 },
+              },
+            },
+          },
+        },
+      }
+      await nextTick()
+
+      expect(store.loadedVaults['vault-1']).toMatchObject({
+        ...mockVault,
+        power: 60,
+        food: 75,
+        water: 86,
+      })
+      expect(store.resourceRates['vault-1']).toEqual({ power: 10, food: -5, water: 5 })
     })
   })
 

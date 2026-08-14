@@ -14,7 +14,8 @@ from app.models.dweller import Dweller
 from app.models.game_state import GameState
 from app.models.incident import Incident, IncidentStatus, IncidentType
 from app.models.room import Room
-from app.schemas.common import AgeGroupEnum
+from app.schemas.common import AgeGroupEnum, DwellerStatusEnum
+from app.schemas.incident import IncidentRoundResult
 from app.schemas.incident_sse import IncidentSseEvent
 from app.services.notification_service import notification_service
 from app.services.stream_manager import sse_manager
@@ -109,10 +110,8 @@ class IncidentService:
                 # If vault already has incidents, use the same type
                 incident_type = next(iter(active_types))
             else:
-                # No active incidents, pick random
-                incident_type = random.choice(
-                    [IncidentType.RAIDER_ATTACK, IncidentType.RADROACH_INFESTATION, IncidentType.FIRE]
-                )
+                incident_types, weights = zip(*game_config.incident.get_spawn_weights().items(), strict=True)
+                incident_type = random.choices(incident_types, weights=weights, k=1)[0]
         # If type specified but vault has different type, don't spawn
         elif active_types and incident_type not in active_types:
             self.logger.info(f"Cannot spawn {incident_type} in vault {vault_id} - vault already has {active_types}")
@@ -166,12 +165,7 @@ class IncidentService:
             # Pick random room
             target_room = random.choice(available_rooms)
 
-        # Determine difficulty (1-10, weighted toward medium)
-        difficulty = random.choices(
-            range(1, 11),
-            weights=[5, 10, 15, 20, 20, 15, 10, 3, 1, 1],
-            k=1,  # Weighted toward 4-5
-        )[0]
+        difficulty = random.randint(*game_config.incident.get_difficulty_range(incident_type))
 
         # Create incident
         incident = await incident_crud.create(
@@ -257,7 +251,7 @@ class IncidentService:
 
     async def process_incident(
         self, db_session: AsyncSession, incident: Incident, seconds_passed: int
-    ) -> dict[str, int | float]:
+    ) -> IncidentRoundResult:
         """Process an active incident (apply damage, check victory conditions).
 
         Args:
@@ -269,7 +263,7 @@ class IncidentService:
             dict with combat results
         """
         if incident.status not in [IncidentStatus.ACTIVE, IncidentStatus.SPREADING]:
-            return {"skipped": True}
+            return IncidentRoundResult(skipped=True)
 
         transitioned = False
 
@@ -323,7 +317,11 @@ class IncidentService:
                         incident.id,
                         incident.vault_id,
                     )
-            return {"no_defenders": True, "damage": 0}
+            if incident.spread_count >= game_config.incident.max_spread_count:
+                incident.resolve(success=False)
+                db_session.add(incident)
+                await db_session.commit()
+            return IncidentRoundResult(no_defenders=True)
 
         # Calculate combat power
         dweller_power = self._calculate_dweller_combat_power(dwellers)
@@ -408,102 +406,49 @@ class IncidentService:
                     incident.vault_id,
                 )
 
-        return {
-            "damage_to_dwellers": damage_to_dwellers,
-            "damage_to_raiders": damage_to_raiders,
-            "dwellers_damaged": damaged_count,
-            "dwellers_killed": deaths_count,
-            "enemies_defeated": enemies_this_tick,
-            "caps_earned": caps_earned,  # Return for batch update
-        }
-
-    async def resolve_incident_manually(
-        self,
-        db_session: AsyncSession,
-        incident_id: UUID4,
-        success: bool = True,
-    ) -> dict:
-        """Manually resolve an incident (player intervention).
-
-        Args:
-            db_session: Database session
-            incident_id: ID of incident to resolve
-            success: Whether resolution was successful
-
-        Returns:
-            dict with loot and resolution info
-        """
-        incident = await incident_crud.get(db_session, incident_id)
-        if not incident:
-            raise ValueError(f"Incident {incident_id} not found")
-
-        if incident.status not in [IncidentStatus.ACTIVE, IncidentStatus.SPREADING]:
-            raise ValueError(f"Incident {incident_id} is not active")
-
-        # Generate loot if successful
-        loot = {}
-        caps_earned = 0
-        if success:
-            loot = self._generate_loot(incident.difficulty, incident.type)
-            caps_earned = loot.get("caps", 0)
-
-            # Award caps to vault using deposit_caps (emits RESOURCE_COLLECTED event for objectives)
-            vault = await vault_crud.get(db_session, incident.vault_id)
-            if vault and caps_earned > 0:
-                await vault_crud.deposit_caps(db_session=db_session, vault_obj=vault, amount=caps_earned)
-
-            # Award XP only to the adult dwellers who could have fought.
-            if incident.room_id:
-                query = select(Dweller).where(
-                    Dweller.room_id == incident.room_id,
-                    Dweller.health > 0,
-                    Dweller.is_adult,
-                    Dweller.age_group == AgeGroupEnum.ADULT,
-                )
-                result = await db_session.execute(query)
-                dwellers = list(result.scalars().all())
-                await self._award_combat_xp(db_session, incident, dwellers)
-
-        incident.loot = loot
-        incident.resolve(success=success)
-        db_session.add(incident)
-        await db_session.commit()
-
-        try:
-            await sse_manager.publish(
-                incident.vault_id,
-                "incidents",
-                IncidentSseEvent(
-                    event_id=str(incident.id),
-                    type="incident_resolved",
-                    incident_id=str(incident.id),
-                    vault_id=str(incident.vault_id),
-                    incident_type=incident.type,
-                    status=incident.status,
-                    room_id=str(incident.room_id) if incident.room_id else None,
-                    room_name=None,
-                    difficulty=incident.difficulty,
-                    success=success,
-                ).model_dump(),
-            )
-        except Exception:
-            self.logger.exception(
-                "Failed to publish SSE incident_resolved: incident_id=%s, vault_id=%s",
-                incident.id,
-                incident.vault_id,
-            )
-
-        self.logger.info(
-            f"Incident {incident_id} manually resolved ({'success' if success else 'failure'}). Loot: {loot}"
+        return IncidentRoundResult(
+            damage_to_dwellers=damage_to_dwellers,
+            damage_to_raiders=damage_to_raiders,
+            dwellers_damaged=damaged_count,
+            dwellers_killed=deaths_count,
+            enemies_defeated=enemies_this_tick,
+            caps_earned=caps_earned,
         )
 
-        return {
-            "message": "Incident resolved successfully" if success else "Incident failed",
-            "incident_id": str(incident_id),
-            "loot": loot,
-            "caps_earned": caps_earned,
-            "items_earned": loot.get("items", []),
-        }
+    async def assign_responders(
+        self, db_session: AsyncSession, incident: Incident, dweller_ids: list[UUID4]
+    ) -> list[UUID4]:
+        """Move eligible dwellers into an active incident room before its next round."""
+        if incident.status not in [IncidentStatus.ACTIVE, IncidentStatus.SPREADING]:
+            raise ValueError("Incident is no longer active")
+
+        unique_ids = list(dict.fromkeys(dweller_ids))
+        if len(unique_ids) != len(dweller_ids):
+            raise ValueError("Choose each responder only once")
+
+        query = select(Dweller).where(Dweller.id.in_(unique_ids), Dweller.vault_id == incident.vault_id)
+        result = await db_session.execute(query)
+        dwellers = list(result.scalars().all())
+        if len(dwellers) != len(unique_ids):
+            raise ValueError("One or more responders do not belong to this vault")
+
+        unavailable = [
+            dweller
+            for dweller in dwellers
+            if not dweller.is_adult
+            or dweller.age_group != AgeGroupEnum.ADULT
+            or dweller.health <= 0
+            or dweller.is_dead
+            or dweller.status in {DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING, DwellerStatusEnum.DEAD}
+        ]
+        if unavailable:
+            raise ValueError("Only healthy adult dwellers in the vault can respond")
+
+        from app.services.dweller_service import dweller_service
+
+        for dweller in dwellers:
+            await dweller_service.update_dweller(db_session, dweller.id, {"room_id": incident.room_id})
+        return unique_ids
 
     async def _spread_incident(self, db_session: AsyncSession, incident: Incident) -> None:
         """Spread incident to an adjacent room with the same incident type."""

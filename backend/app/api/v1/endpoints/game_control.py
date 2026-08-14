@@ -17,6 +17,8 @@ from app.schemas.incident import (
     IncidentListItem,
     IncidentListResponse,
     IncidentRead,
+    IncidentRespondersRequest,
+    IncidentRespondersResponse,
     IncidentSpawnResponse,
     PauseResumeResponse,
 )
@@ -225,32 +227,24 @@ async def manual_tick(
     }
 
 
-@router.post("/vaults/{vault_id}/incidents/{incident_id}/resolve", status_code=200)
-async def resolve_incident(
+@router.post("/vaults/{vault_id}/incidents/{incident_id}/responders", response_model=IncidentRespondersResponse)
+async def assign_incident_responders(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     incident_id: UUID4,
+    responders: IncidentRespondersRequest,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    success: bool = True,
-) -> dict[str, Any]:
-    """Manually resolve an active incident.
-
-    This endpoint allows players to mark an incident as resolved,
-    triggering loot generation and cleanup.
-
-    Returns:
-        dict[str, Any]: Resolution result with loot details.
-
-    Raises:
-        HTTPException: 404 if incident not found. 400 if resolution fails.
-    """
-    # Verify incident belongs to vault
+) -> IncidentRespondersResponse:
+    """Assign healthy adult dwellers to defend an active incident room."""
     incident = await crud.incident_crud.get(db_session, incident_id)
     if not incident or incident.vault_id != vault.id:
         raise HTTPException(status_code=404, detail="Incident not found")
 
     try:
-        return await incident_service.resolve_incident_manually(db_session, incident_id, success)
+        assigned = await incident_service.assign_responders(db_session, incident, responders.dweller_ids)
+        return IncidentRespondersResponse(
+            incident_id=incident.id, room_id=incident.room_id, assigned_dweller_ids=assigned
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 

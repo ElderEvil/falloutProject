@@ -19,7 +19,9 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.dweller import Dweller
+from app.models.game_state import GameState
 from app.models.vault import Vault
+from app.schemas.incident import IncidentRoundResult
 from app.schemas.vault import ResourceTickEvents
 from app.services.game_loop import game_loop_service
 
@@ -266,11 +268,26 @@ class TestProcessIncidents:
         with patch("app.services.incident_service.incident_service") as mock_is:
             mock_is.should_spawn_incident = AsyncMock(return_value=True)
             mock_is.spawn_incident = AsyncMock(return_value=mock_incident)
+            mock_is.process_incident = AsyncMock()
             with patch("app.services.game_loop.incident_crud") as mock_crud:
                 mock_crud.get_active_by_vault = AsyncMock(return_value=[])
                 result = await game_loop_service._process_incidents(async_session, vault.id, 60)
         assert result["spawned"] == 1
         assert result["active_count"] == 0
+        mock_is.process_incident.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_offline_vault_does_not_process_existing_incidents(self, async_session: AsyncSession, vault: Vault):
+        game_state = GameState(vault_id=vault.id, last_activity_time=datetime.utcnow() - timedelta(minutes=11))
+        with patch("app.services.incident_service.incident_service") as mock_is:
+            mock_is.process_incident = AsyncMock()
+            with patch("app.services.game_loop.incident_crud") as mock_crud:
+                mock_crud.get_active_by_vault = AsyncMock(return_value=[MagicMock()])
+                result = await game_loop_service._process_incidents(async_session, vault.id, 60, game_state)
+
+        assert result["active_count"] == 1
+        mock_is.should_spawn_incident.assert_not_called()
+        mock_is.process_incident.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_spawn_returns_none(self, async_session: AsyncSession, vault: Vault):
@@ -300,7 +317,7 @@ class TestProcessIncidents:
             gl_mod.vault_crud.deposit_caps = AsyncMock()
             with patch("app.services.incident_service.incident_service") as mock_is:
                 mock_is.should_spawn_incident = AsyncMock(return_value=False)
-                mock_is.process_incident = AsyncMock(return_value={"caps_earned": 50, "skipped": False})
+                mock_is.process_incident = AsyncMock(return_value=IncidentRoundResult(caps_earned=50))
                 # _process_incidents calls db_session.refresh(incident) — mock it
                 with patch.object(async_session, "refresh", new_callable=AsyncMock):
                     result = await game_loop_service._process_incidents(async_session, vault.id, 60)
@@ -324,7 +341,7 @@ class TestProcessIncidents:
             gl_mod.incident_crud.get_active_by_vault = AsyncMock(return_value=[mock_incident])
             with patch("app.services.incident_service.incident_service") as mock_is:
                 mock_is.should_spawn_incident = AsyncMock(return_value=False)
-                mock_is.process_incident = AsyncMock(return_value={"skipped": True})
+                mock_is.process_incident = AsyncMock(return_value=IncidentRoundResult(skipped=True))
                 result = await game_loop_service._process_incidents(async_session, vault.id, 60)
         finally:
             gl_mod.incident_crud = saved_crud
@@ -346,7 +363,7 @@ class TestProcessIncidents:
             call_count[0] += 1
             if call_count[0] == 1:
                 raise RuntimeError("Simulated error")
-            return {"caps_earned": 0, "skipped": False}
+            return IncidentRoundResult()
 
         import app.services.game_loop as gl_mod
 

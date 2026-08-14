@@ -135,7 +135,7 @@ class GameLoopService:
             results["updates"]["resources"] = {"error": str(e)}
 
         # === PHASE 2: Incident Management ===
-        incident_update = await self._process_incidents(db_session, vault_id, seconds_passed)
+        incident_update = await self._process_incidents(db_session, vault_id, seconds_passed, game_state)
         results["updates"]["incidents"] = incident_update
 
         # === PHASE 3: Wasteland Exploration ===
@@ -208,6 +208,9 @@ class GameLoopService:
     async def get_vault_status(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
         """Get current game loop status for a vault."""
         game_state = await self._get_or_create_game_state(db_session, vault_id)
+        game_state.update_activity()
+        db_session.add(game_state)
+        await db_session.commit()
 
         return {
             "vault_id": str(vault_id),
@@ -500,7 +503,9 @@ class GameLoopService:
         # Happiness service handles its own errors internally, no wrapper needed
         return await happiness_service.update_vault_happiness(db_session, vault_id, seconds_passed)
 
-    async def _process_incidents(self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int) -> dict:
+    async def _process_incidents(
+        self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int, game_state: GameState | None = None
+    ) -> dict:
         """Process all active incidents for a vault.
 
         - Check if new incident should spawn
@@ -522,17 +527,20 @@ class GameLoopService:
         }
 
         try:
+            active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
+            stats["active_count"] = len(active_incidents)
+
+            # Incidents do not punish players for time away from the vault.
+            if game_state and not game_state.is_user_online():
+                return stats
+
             # Check if new incident should spawn
-            should_spawn = await incident_service.should_spawn_incident(db_session, vault_id, seconds_passed)
+            should_spawn = await incident_service.should_spawn_incident(db_session, vault_id, seconds_passed, game_state)
             if should_spawn:
                 new_incident = await incident_service.spawn_incident(db_session, vault_id)
                 if new_incident:
                     stats["spawned"] = 1
                     self.logger.info(f"Spawned new incident {new_incident.type} in vault {vault_id}")
-
-            # Get all active incidents
-            active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
-            stats["active_count"] = len(active_incidents)
 
             # Track total caps earned from all incidents
             total_caps_earned = 0
@@ -540,15 +548,17 @@ class GameLoopService:
             # Process each active incident
             for incident in active_incidents:
                 try:
-                    result = await incident_service.process_incident(db_session, incident, seconds_passed)
+                    result = await incident_service.process_incident(
+                        db_session, incident, min(seconds_passed, game_config.game_loop.tick_interval)
+                    )
 
-                    if result.get("skipped"):
+                    if result.skipped:
                         continue
 
                     stats["processed"] += 1
 
                     # Accumulate caps earned
-                    caps_earned = result.get("caps_earned", 0)
+                    caps_earned = result.caps_earned
                     if caps_earned > 0:
                         total_caps_earned += caps_earned
 

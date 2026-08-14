@@ -83,12 +83,8 @@ const incidentIcon = computed(() => {
       return 'mdi:paw'
     case IncidentType.DEATHCLAW_ATTACK:
       return 'mdi:claw-mark'
-    case IncidentType.RADIATION_LEAK:
-      return 'mdi:radioactive'
-    case IncidentType.ELECTRICAL_FAILURE:
-      return 'mdi:lightning-bolt'
-    case IncidentType.WATER_CONTAMINATION:
-      return 'mdi:water-alert'
+    case IncidentType.FERAL_GHOUL_ATTACK:
+      return 'mdi:ghost'
     default:
       return 'mdi:alert-octagon'
   }

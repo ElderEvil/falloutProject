@@ -108,7 +108,7 @@ async def test_process_incident_publishes_only_on_transition(async_session: Asyn
 
     with patch("app.services.incident_service.sse_manager.publish", new_callable=AsyncMock) as mock_publish:
         result = await incident_service.process_incident(async_session, incident_no_transition, 1)
-        assert result.get("skipped") is not True
+        assert result.skipped is False
         mock_publish.assert_not_awaited()
 
     # --- Part B: Transition via auto-resolve (high enemies_defeated) ---
@@ -126,7 +126,7 @@ async def test_process_incident_publishes_only_on_transition(async_session: Asyn
 
     with patch("app.services.incident_service.sse_manager.publish", new_callable=AsyncMock) as mock_publish:
         result = await incident_service.process_incident(async_session, incident_resolve, 60)
-        assert result.get("skipped") is not True
+        assert result.skipped is False
         mock_publish.assert_awaited_once()
         call_args = mock_publish.call_args
         assert call_args[0][1] == "incidents"
@@ -156,47 +156,10 @@ async def test_process_incident_publishes_only_on_transition(async_session: Asyn
 
     with patch("app.services.incident_service.sse_manager.publish", new_callable=AsyncMock) as mock_publish:
         result = await incident_service.process_incident(async_session, incident_spread, 60)
-        assert result.get("no_defenders") is True
+        assert result.no_defenders is True
         mock_publish.assert_awaited_once()
         call_args = mock_publish.call_args
         assert call_args[0][1] == "incidents"
         payload = call_args[0][2]
         assert payload["type"] == "incident_spreading"
         assert payload["incident_id"] == str(incident_spread.id)
-
-
-@pytest.mark.asyncio
-async def test_resolve_incident_manually_publishes_sse(async_session: AsyncSession, room_with_dwellers: dict):
-    """Verify resolve_incident_manually publishes SSE with correct success field."""
-    room = room_with_dwellers["room"]
-    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
-    await async_session.commit()
-    await async_session.refresh(incident)
-
-    # Success case
-    with patch("app.services.incident_service.sse_manager.publish", new_callable=AsyncMock) as mock_publish:
-        result = await incident_service.resolve_incident_manually(async_session, incident.id, success=True)
-        assert result["message"] == "Incident resolved successfully"
-        mock_publish.assert_awaited_once()
-        call_args = mock_publish.call_args
-        assert call_args[0][1] == "incidents"
-        payload = call_args[0][2]
-        assert payload["type"] == "incident_resolved"
-        assert payload["success"] is True
-        assert payload["incident_id"] == str(incident.id)
-
-    # Failure case - need a new incident
-    incident2 = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
-    await async_session.commit()
-    await async_session.refresh(incident2)
-
-    with patch("app.services.incident_service.sse_manager.publish", new_callable=AsyncMock) as mock_publish:
-        result = await incident_service.resolve_incident_manually(async_session, incident2.id, success=False)
-        assert result["message"] == "Incident failed"
-        mock_publish.assert_awaited_once()
-        call_args = mock_publish.call_args
-        assert call_args[0][1] == "incidents"
-        payload = call_args[0][2]
-        assert payload["type"] == "incident_resolved"
-        assert payload["success"] is False
-        assert payload["incident_id"] == str(incident2.id)

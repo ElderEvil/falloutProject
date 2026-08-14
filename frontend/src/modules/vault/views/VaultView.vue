@@ -20,6 +20,7 @@ import UTooltip from '@/core/components/ui/UTooltip.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
+import { usePolling } from '@/core/composables/usePolling'
 import type { RoomTemplate } from '@/modules/rooms/models/room'
 import { Icon } from '@iconify/vue'
 
@@ -111,6 +112,11 @@ const resourceRates = computed(() =>
 )
 
 const activeIncidents = computed(() => incidentStore.activeIncidents)
+
+usePolling(
+  () => (vaultId.value && authStore.token ? vaultStore.fetchGameState(vaultId.value, authStore.token) : undefined),
+  { interval: 60_000, immediate: false }
+)
 
 const loadVaultData = async (id: string) => {
   if (!id) {
@@ -276,7 +282,7 @@ const handleCombatModalClose = () => {
   selectedIncidentId.value = null
 }
 
-const handleIncidentResolved = async () => {
+const handleIncidentResponded = async () => {
   // Refresh vault data to update resources/stats
   if (vaultId.value && authStore.token) {
     await vaultStore.refreshVault(vaultId.value, authStore.token)
@@ -446,8 +452,9 @@ const handleIncidentResolved = async () => {
       v-if="showCombatModal && selectedIncidentId && vaultId"
       :incidentId="selectedIncidentId"
       :vaultId="vaultId"
+      :dwellers="dwellerStore.dwellers"
       @close="handleCombatModalClose"
-      @resolved="handleIncidentResolved"
+      @responded="handleIncidentResponded"
     />
   </div>
 </template>

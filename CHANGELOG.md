@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## Unreleased
+
+### Features
+
+- **Incident response** — dispatch healthy adult dwellers to an active incident room; combat now resolves in bounded,
+  online vault rounds instead of allowing a manual instant-win action
+
+### Changed
+
+- **Incident balance** — use configured threat weights and difficulty ranges; unsupported client-only incident types
+  are removed from the interface
+- **Development server** — `./scripts/dev-up.sh --reload` enables backend hot reload; every launcher run already
+  replaces the managed frontend and backend sessions
+
 ## [2.36.0](https://github.com/ElderEvil/falloutProject/compare/v2.35.1...v2.36.0) (2026-08-14)
 
 ### Features

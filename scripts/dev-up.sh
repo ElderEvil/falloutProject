@@ -2,7 +2,17 @@
 set -euo pipefail
 
 # dev-up.sh — Start full Fallout Shelter dev environment (infra + BE + FE)
-# Usage: ./scripts/dev-up.sh
+# Usage: ./scripts/dev-up.sh [--reload]
+
+RELOAD_ARGS=()
+case "${1:-}" in
+  '') ;;
+  --reload) RELOAD_ARGS=(--reload) ;;
+  *)
+    echo "Usage: $0 [--reload]"
+    exit 64
+    ;;
+esac
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -61,10 +71,10 @@ echo ""
 # ── Step 4: Backend (tmux) ──────────────────────────────────────────────
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
-echo "  3/4  Starting Backend (uvicorn) on :8000 (tmux: fallout-be)"
+echo "  3/4  Starting Backend (uvicorn) on :8000 (tmux: fallout-be)${RELOAD_ARGS:+ with reload}"
 echo "═══════════════════════════════════════════════════════════════"
 tmux new-session -d -s fallout-be -c "$ROOT/backend" \
-  'uv run uvicorn main:app --host 0.0.0.0 --port 8000'
+  "uv run uvicorn main:app --host 0.0.0.0 --port 8000 ${RELOAD_ARGS[*]}"
 echo ""
 
 # ── Step 5: Dramatiq workers (if not already running) ───────────────────

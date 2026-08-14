@@ -280,7 +280,7 @@ class ResourceConfig(BaseSettings):
 
     # Production
     base_production_rate: float = Field(
-        default=0.01,
+        default=0.1,
         description="Per SPECIAL point per second, calibrated for the 60-second game tick",
         ge=0.0,
     )

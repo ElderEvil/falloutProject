@@ -283,9 +283,9 @@ const handleCombatModalClose = () => {
 }
 
 const handleIncidentResponded = async () => {
-  // Refresh vault data to update resources/stats
   if (vaultId.value && authStore.token) {
     await vaultStore.refreshVault(vaultId.value, authStore.token)
+    await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
   }
 }
 </script>

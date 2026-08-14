@@ -190,6 +190,20 @@ describe('Incident Store', () => {
         ['dweller-1'],
         'token'
       )
+      expect(incidentApi.getActiveIncidents).toHaveBeenCalledWith('vault-1', 'token')
+      expect(incidentApi.getIncident).toHaveBeenCalledWith('vault-1', 'incident-1', 'token')
+    })
+
+    it('should rethrow assignment failures without refreshing the incident', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.assignResponders).mockRejectedValueOnce(new Error('Assignment failed'))
+
+      await expect(store.assignResponders('vault-1', 'incident-1', ['dweller-1'], 'token')).rejects.toThrow(
+        'Assignment failed'
+      )
+
+      expect(incidentApi.getActiveIncidents).not.toHaveBeenCalled()
+      expect(incidentApi.getIncident).not.toHaveBeenCalled()
     })
   })
 

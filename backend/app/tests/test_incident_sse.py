@@ -7,6 +7,7 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.game_config import game_config
 from app.models.incident import IncidentStatus, IncidentType
 from app.schemas.incident_sse import IncidentSseEvent
 from app.services.incident_service import incident_service
@@ -54,6 +55,8 @@ async def test_process_incident_publishes_only_on_transition(async_session: Asyn
         t3_upgrade_cost=1500,
         size_min=1,
         size_max=3,
+        coordinate_x=1,
+        coordinate_y=1,
         vault_id=vault.id,
     )
     room1 = await crud.room.create(db_session=async_session, obj_in=room1_in)
@@ -163,3 +166,47 @@ async def test_process_incident_publishes_only_on_transition(async_session: Asyn
         payload = call_args[0][2]
         assert payload["type"] == "incident_spreading"
         assert payload["incident_id"] == str(incident_spread.id)
+
+
+@pytest.mark.asyncio
+async def test_undefended_max_spread_publishes_failed_resolution(async_session: AsyncSession, vault: "Vault"):
+    """An incident that exhausts its spread limit broadcasts its failed resolution."""
+    from app.schemas.room import RoomCreate
+
+    room = await crud.room.create(
+        async_session,
+        obj_in=RoomCreate(
+            name="Power Generator",
+            category="Production",
+            ability=None,
+            base_cost=100,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            size_min=1,
+            size_max=3,
+            coordinate_x=1,
+            coordinate_y=1,
+            vault_id=vault.id,
+        ),
+    )
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=vault.id,
+        room_id=room.id,
+        incident_type=IncidentType.FIRE,
+        difficulty=1,
+    )
+    incident.spread_count = game_config.incident.max_spread_count
+    async_session.add(incident)
+    await async_session.commit()
+
+    with patch("app.services.incident_service.sse_manager.publish", new_callable=AsyncMock) as mock_publish:
+        result = await incident_service.process_incident(async_session, incident, 60)
+
+    await async_session.refresh(incident)
+    assert result.no_defenders is True
+    assert incident.status == IncidentStatus.FAILED
+    mock_publish.assert_awaited_once()
+    payload = mock_publish.call_args.args[2]
+    assert payload["type"] == "incident_resolved"
+    assert payload["success"] is False

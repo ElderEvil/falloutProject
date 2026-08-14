@@ -5,6 +5,8 @@ set -euo pipefail
 # Usage: ./scripts/dev-up.sh [--reload]
 
 RELOAD_ARGS=()
+(( $# <= 1 )) || { echo "Usage: $0 [--reload]"; exit 64; }
+
 case "${1:-}" in
   '') ;;
   --reload) RELOAD_ARGS=(--reload) ;;

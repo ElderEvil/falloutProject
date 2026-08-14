@@ -19,6 +19,7 @@ from app.schemas.incident import IncidentRoundResult
 from app.schemas.incident_sse import IncidentSseEvent
 from app.services.notification_service import notification_service
 from app.services.stream_manager import sse_manager
+from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
 
 logger = logging.getLogger(__name__)
 
@@ -287,40 +288,20 @@ class IncidentService:
         dwellers = list(dwellers_result.scalars().all())
 
         if not dwellers:
-            # No dwellers to fight - incident spreads
             if (
                 incident.elapsed_time() >= incident.duration
                 and incident.spread_count < game_config.incident.max_spread_count
+                and await self._spread_incident(db_session, incident)
             ):
-                transitioned = True
-                await self._spread_incident(db_session, incident)
                 await db_session.commit()
-                try:
-                    await sse_manager.publish(
-                        incident.vault_id,
-                        "incidents",
-                        IncidentSseEvent(
-                            event_id=str(incident.id),
-                            type="incident_spreading",
-                            incident_id=str(incident.id),
-                            vault_id=str(incident.vault_id),
-                            incident_type=incident.type,
-                            status=incident.status,
-                            room_id=str(incident.room_id) if incident.room_id else None,
-                            room_name=None,
-                            difficulty=incident.difficulty,
-                        ).model_dump(),
-                    )
-                except Exception:
-                    self.logger.exception(
-                        "Failed to publish SSE incident_spreading: incident_id=%s, vault_id=%s",
-                        incident.id,
-                        incident.vault_id,
-                    )
-            if incident.spread_count >= game_config.incident.max_spread_count:
+                await self._publish_event(incident, "incident_spreading")
+                return IncidentRoundResult(no_defenders=True)
+
+            if incident.spread_count >= game_config.incident.max_spread_count or incident.elapsed_time() >= incident.duration:
                 incident.resolve(success=False)
                 db_session.add(incident)
                 await db_session.commit()
+                await self._publish_event(incident, "incident_resolved", success=False)
             return IncidentRoundResult(no_defenders=True)
 
         # Calculate combat power
@@ -382,29 +363,7 @@ class IncidentService:
         await db_session.commit()
 
         if transitioned:
-            try:
-                await sse_manager.publish(
-                    incident.vault_id,
-                    "incidents",
-                    IncidentSseEvent(
-                        event_id=str(incident.id),
-                        type="incident_resolved",
-                        incident_id=str(incident.id),
-                        vault_id=str(incident.vault_id),
-                        incident_type=incident.type,
-                        status=incident.status,
-                        room_id=str(incident.room_id) if incident.room_id else None,
-                        room_name=None,
-                        difficulty=incident.difficulty,
-                        success=True,
-                    ).model_dump(),
-                )
-            except Exception:
-                self.logger.exception(
-                    "Failed to publish SSE incident_resolved: incident_id=%s, vault_id=%s",
-                    incident.id,
-                    incident.vault_id,
-                )
+            await self._publish_event(incident, "incident_resolved", success=True)
 
         return IncidentRoundResult(
             damage_to_dwellers=damage_to_dwellers,
@@ -415,22 +374,30 @@ class IncidentService:
             caps_earned=caps_earned,
         )
 
+    async def get_incident_for_vault(self, db_session: AsyncSession, incident_id: UUID4, vault_id: UUID4) -> Incident:
+        incident = await incident_crud.get(db_session, incident_id)
+        if not incident:
+            raise ResourceNotFoundException(Incident, incident_id)
+        if incident.vault_id != vault_id:
+            raise AccessDeniedException("Incident does not belong to this vault")
+        return incident
+
     async def assign_responders(
         self, db_session: AsyncSession, incident: Incident, dweller_ids: list[UUID4]
     ) -> list[UUID4]:
         """Move eligible dwellers into an active incident room before its next round."""
         if incident.status not in [IncidentStatus.ACTIVE, IncidentStatus.SPREADING]:
-            raise ValueError("Incident is no longer active")
+            raise ValidationException("Incident is no longer active")
 
         unique_ids = list(dict.fromkeys(dweller_ids))
         if len(unique_ids) != len(dweller_ids):
-            raise ValueError("Choose each responder only once")
+            raise ValidationException("Choose each responder only once")
 
         query = select(Dweller).where(Dweller.id.in_(unique_ids), Dweller.vault_id == incident.vault_id)
         result = await db_session.execute(query)
         dwellers = list(result.scalars().all())
         if len(dwellers) != len(unique_ids):
-            raise ValueError("One or more responders do not belong to this vault")
+            raise ValidationException("One or more responders do not belong to this vault")
 
         unavailable = [
             dweller
@@ -442,7 +409,7 @@ class IncidentService:
             or dweller.status in {DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING, DwellerStatusEnum.DEAD}
         ]
         if unavailable:
-            raise ValueError("Only healthy adult dwellers in the vault can respond")
+            raise ValidationException("Only healthy adult dwellers in the vault can respond")
 
         from app.services.dweller_service import dweller_service
 
@@ -450,15 +417,15 @@ class IncidentService:
             await dweller_service.update_dweller(db_session, dweller.id, {"room_id": incident.room_id})
         return unique_ids
 
-    async def _spread_incident(self, db_session: AsyncSession, incident: Incident) -> None:
-        """Spread incident to an adjacent room with the same incident type."""
+    async def _spread_incident(self, db_session: AsyncSession, incident: Incident) -> bool:
+        """Spread an incident to an adjacent room and report whether it succeeded."""
         # Get the current room to find its coordinates
         current_room_query = select(Room).where(Room.id == incident.room_id)
         current_room_result = await db_session.execute(current_room_query)
         current_room = current_room_result.scalar_one_or_none()
 
         if not current_room or current_room.coordinate_x is None or current_room.coordinate_y is None:
-            return
+            return False
 
         # Get rooms that already have active incidents
         rooms_with_incidents = await incident_crud.get_rooms_with_active_incidents(db_session, incident.vault_id)
@@ -511,6 +478,36 @@ class IncidentService:
             self.logger.warning(
                 f"Incident {incident.type} spread from {current_room.name} to {new_room.name} "
                 f"(difficulty {new_incident.difficulty})"
+            )
+            return True
+
+        return False
+
+    async def _publish_event(self, incident: Incident, event_type: str, success: bool | None = None) -> None:
+        """Publish a non-critical incident event."""
+        try:
+            await sse_manager.publish(
+                incident.vault_id,
+                "incidents",
+                IncidentSseEvent(
+                    event_id=str(incident.id),
+                    type=event_type,
+                    incident_id=str(incident.id),
+                    vault_id=str(incident.vault_id),
+                    incident_type=incident.type,
+                    status=incident.status,
+                    room_id=str(incident.room_id) if incident.room_id else None,
+                    room_name=None,
+                    difficulty=incident.difficulty,
+                    success=success,
+                ).model_dump(),
+            )
+        except Exception:
+            self.logger.exception(
+                "Failed to publish SSE %s: incident_id=%s, vault_id=%s",
+                event_type,
+                incident.id,
+                incident.vault_id,
             )
 
     def _calculate_dweller_combat_power(self, dwellers: list[Dweller]) -> float:

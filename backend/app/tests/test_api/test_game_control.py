@@ -409,13 +409,15 @@ async def test_assign_incident_responders(
         user_id=user.id,
     )
 
-    # Create room with dweller
+    # Create the incident room and a separate room containing the responder.
     from app.schemas.dweller import DwellerCreate
     from app.schemas.room import RoomCreate
 
     room_data = create_fake_room()
     room_in = RoomCreate(**room_data, vault_id=vault.id)
     room = await crud.room.create(db_session=async_session, obj_in=room_in)
+    responder_room_in = RoomCreate(**create_fake_room(), vault_id=vault.id)
+    responder_room = await crud.room.create(db_session=async_session, obj_in=responder_room_in)
 
     dweller_in = DwellerCreate(
         first_name="Hero",
@@ -423,7 +425,7 @@ async def test_assign_incident_responders(
         gender="female",
         rarity="legendary",
         vault_id=vault.id,
-        room_id=room.id,
+        room_id=responder_room.id,
         strength=10,
         perception=10,
         endurance=10,
@@ -433,8 +435,6 @@ async def test_assign_incident_responders(
         luck=10,
     )
     dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
-    dweller.room_id = room.id
-    async_session.add(dweller)
     await async_session.commit()
 
     # Create incident
@@ -456,7 +456,10 @@ async def test_assign_incident_responders(
     assert response.status_code == 200
     data = response.json()
     assert data["incident_id"] == str(incident.id)
+    assert data["room_id"] == str(room.id)
     assert data["assigned_dweller_ids"] == [str(dweller.id)]
+    await async_session.refresh(dweller)
+    assert dweller.room_id == room.id
 
 
 @pytest.mark.asyncio

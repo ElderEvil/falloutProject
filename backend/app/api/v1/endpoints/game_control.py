@@ -25,6 +25,7 @@ from app.schemas.incident import (
 from app.schemas.system import GameBalanceResponse
 from app.services.game_loop import game_loop_service
 from app.services.incident_service import incident_service
+from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
 
 router = APIRouter(prefix="/game", tags=["Game"])
 
@@ -236,17 +237,14 @@ async def assign_incident_responders(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> IncidentRespondersResponse:
     """Assign healthy adult dwellers to defend an active incident room."""
-    incident = await crud.incident_crud.get(db_session, incident_id)
-    if not incident or incident.vault_id != vault.id:
-        raise HTTPException(status_code=404, detail="Incident not found")
-
     try:
+        incident = await incident_service.get_incident_for_vault(db_session, incident_id, vault.id)
         assigned = await incident_service.assign_responders(db_session, incident, responders.dweller_ids)
         return IncidentRespondersResponse(
             incident_id=incident.id, room_id=incident.room_id, assigned_dweller_ids=assigned
         )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+    except (ResourceNotFoundException, AccessDeniedException, ValidationException) as error:
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
 
 
 @router.post("/vaults/{vault_id}/incidents/spawn", response_model=IncidentSpawnResponse, status_code=201)

@@ -143,6 +143,30 @@ async def test_process_incident_auto_resolve(async_session: AsyncSession, room_w
 
 
 @pytest.mark.asyncio
+async def test_undefended_incident_without_spread_target_fails(async_session: AsyncSession, room: Room):
+    """An elapsed incident fails when there is no adjacent room left to spread into."""
+    room.coordinate_x = 1
+    room.coordinate_y = 1
+    async_session.add(room)
+    await async_session.commit()
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=room.vault_id,
+        room_id=room.id,
+        incident_type=IncidentType.FIRE,
+        difficulty=1,
+    )
+    incident.start_time = datetime.utcnow() - timedelta(seconds=incident.duration)
+    async_session.add(incident)
+    await async_session.commit()
+
+    await incident_service.process_incident(async_session, incident, 60)
+
+    await async_session.refresh(incident)
+    assert incident.status == IncidentStatus.FAILED
+
+
+@pytest.mark.asyncio
 async def test_calculate_dweller_combat_power(
     async_session: AsyncSession,
     room_with_dwellers: dict,
